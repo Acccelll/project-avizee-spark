@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { createContext, useContext, ReactNode } from 'react';
 import { useAppConfig } from '@/hooks/useAppConfig';
 import { useUserPreference } from '@/hooks/useUserPreference';

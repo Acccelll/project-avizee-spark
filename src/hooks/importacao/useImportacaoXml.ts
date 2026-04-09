@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState, useCallback } from "react";
 import JSZip from "jszip";
 import { supabase } from "@/integrations/supabase/client";

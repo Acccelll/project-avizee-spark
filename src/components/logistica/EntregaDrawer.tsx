@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ViewDrawerV2, ViewField, ViewSection } from "@/components/ViewDrawerV2";

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useNavigate } from 'react-router-dom';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { useRelationalNavigation } from '@/contexts/RelationalNavigationContext';

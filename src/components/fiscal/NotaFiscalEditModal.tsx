@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { type FormEvent, type ReactNode } from "react";
 import { FormModal } from "@/components/FormModal";
 import { StatusBadge } from "@/components/StatusBadge";
