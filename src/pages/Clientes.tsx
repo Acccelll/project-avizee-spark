@@ -469,10 +469,11 @@ const Clientes = () => {
                       onClick={async () => {
                         const result = await buscarCnpj(form.cpf_cnpj);
                         if (result) {
-                          setForm(prev => ({
+                           setForm(prev => ({
                             ...prev,
                             nome_razao_social: result.razao_social || prev.nome_razao_social,
                             nome_fantasia: result.nome_fantasia || prev.nome_fantasia,
+                            inscricao_estadual: result.inscricao_estadual || prev.inscricao_estadual,
                             email: result.email || prev.email,
                             telefone: result.telefone || prev.telefone,
                             logradouro: result.logradouro || prev.logradouro,

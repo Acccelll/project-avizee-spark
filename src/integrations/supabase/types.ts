@@ -1929,6 +1929,33 @@ export type Database = {
           },
         ]
       }
+      permission_audit: {
+        Row: {
+          alteracao: Json | null
+          created_at: string
+          id: string
+          role_padrao: string | null
+          target_user_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          alteracao?: Json | null
+          created_at?: string
+          id?: string
+          role_padrao?: string | null
+          target_user_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          alteracao?: Json | null
+          created_at?: string
+          id?: string
+          role_padrao?: string | null
+          target_user_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       precos_especiais: {
         Row: {
           ativo: boolean

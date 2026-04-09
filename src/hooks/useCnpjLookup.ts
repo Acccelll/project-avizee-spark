@@ -14,6 +14,7 @@ interface CnpjResult {
   cep: string;
   email: string;
   telefone: string;
+  inscricao_estadual: string;
 }
 
 export function useCnpjLookup() {
@@ -40,6 +41,16 @@ export function useCnpjLookup() {
         ? `(${data.ddd_telefone_1.substring(0, 2)}) ${data.ddd_telefone_1.substring(2)}`
         : "";
 
+      // Try to get Inscrição Estadual from the QSA/registration data
+      // BrasilAPI doesn't always return IE directly, but we extract it when available
+      let inscricaoEstadual = "";
+      if (data.inscricoes_estaduais && Array.isArray(data.inscricoes_estaduais)) {
+        const ieAtiva = data.inscricoes_estaduais.find(
+          (ie: any) => ie.ativo === true || ie.situacao_cadastral === "ATIVA"
+        );
+        if (ieAtiva) inscricaoEstadual = ieAtiva.inscricao_estadual || "";
+      }
+
       toast.success("Dados do CNPJ preenchidos automaticamente!");
 
       return {
@@ -55,6 +66,7 @@ export function useCnpjLookup() {
         cep: data.cep ? data.cep.replace(/\D/g, "") : "",
         email: data.email || "",
         telefone,
+        inscricao_estadual: inscricaoEstadual,
       };
     } catch {
       toast.error("Erro de conexão ao consultar CNPJ");
