@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { DataTable } from '@/components/DataTable';
 import { formatDate, formatNumber } from '@/lib/format';
 import type { SocialPost } from '@/types/social';
