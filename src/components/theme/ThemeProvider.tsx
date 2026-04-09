@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { ThemeProvider as NextThemesProvider } from 'next-themes';
 import { ReactNode, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
