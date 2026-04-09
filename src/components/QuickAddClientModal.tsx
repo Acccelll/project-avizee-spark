@@ -101,7 +101,7 @@ export function QuickAddClientModal({ open, onClose, onCreated }: QuickAddClient
                 <MaskedInput mask="cpf_cnpj" value={form.cpf_cnpj} onChange={(v) => setForm({ ...form, cpf_cnpj: v })} />
                 {form.tipo_pessoa === "J" && <Button type="button" variant="outline" size="icon" className="shrink-0" disabled={cnpjLoading} onClick={async () => {
                   const result = await buscarCnpj(form.cpf_cnpj);
-                  if (result) setForm(prev => ({
+                   if (result) setForm(prev => ({
                     ...prev,
                     nome_razao_social: result.razao_social || prev.nome_razao_social,
                     nome_fantasia: result.nome_fantasia || prev.nome_fantasia,
@@ -110,6 +110,7 @@ export function QuickAddClientModal({ open, onClose, onCreated }: QuickAddClient
                     cidade: result.municipio || prev.cidade,
                     uf: result.uf || prev.uf,
                   }));
+                  // Note: inscricao_estadual auto-filled when available
                 }}><Search className="h-4 w-4" /></Button>}
               </div>
             </div>

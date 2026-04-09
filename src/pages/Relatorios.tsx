@@ -77,22 +77,39 @@ function buildPdf(resultado: RelatorioResultado, dataInicio: string, dataFim: st
     const rows = resultado.rows as Record<string, unknown>[];
     if (rows.length > 0) {
       const keys = Object.keys(rows[0]);
-      const colWidth = (pageWidth - margin * 2) / keys.length;
+      const contentWidth = pageWidth - margin * 2;
 
+      // Compute dynamic column widths based on header and content length
+      const maxCharsPerCol = keys.map((key) => {
+        const headerLabel = key.replace(/([A-Z])/g, ' $1').replace(/^./, (c) => c.toUpperCase());
+        let maxLen = headerLabel.length;
+        const sampleRows = rows.slice(0, 50);
+        for (const row of sampleRows) {
+          const val = String(formatCellValue(row[key], key) ?? '');
+          if (val.length > maxLen) maxLen = val.length;
+        }
+        return Math.min(maxLen, 35); // cap
+      });
+      const totalChars = maxCharsPerCol.reduce((s, c) => s + c, 0) || 1;
+      const colWidths = maxCharsPerCol.map((c) => Math.max((c / totalChars) * contentWidth, 12));
+
+      // Header row
       doc.setFillColor(105, 5, 0);
-      doc.rect(margin, y, pageWidth - margin * 2, 7, 'F');
+      doc.rect(margin, y, contentWidth, 7, 'F');
       doc.setTextColor(255, 255, 255);
-      doc.setFontSize(7);
+      doc.setFontSize(6.5);
       doc.setFont('helvetica', 'bold');
+      let xPos = margin;
       keys.forEach((key, i) => {
         const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, (c) => c.toUpperCase());
-        doc.text(label, margin + i * colWidth + 2, y + 5);
+        doc.text(label.substring(0, 25), xPos + 1.5, y + 5, { maxWidth: colWidths[i] - 2 });
+        xPos += colWidths[i];
       });
       y += 7;
 
       doc.setTextColor(0, 0, 0);
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(7);
+      doc.setFontSize(6.5);
 
       const maxRows = Math.min(rows.length, 200);
       if (rows.length > 200) {
@@ -102,6 +119,9 @@ function buildPdf(resultado: RelatorioResultado, dataInicio: string, dataFim: st
         doc.setFont('helvetica', 'bolditalic');
         doc.setTextColor(180, 0, 0);
         doc.text(`⚠ PDF limitado a 200 de ${rows.length} registros. Use "Exportar Excel" para o relatório completo.`, margin, y);
+        doc.setTextColor(0, 0, 0);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(6.5);
       }
       for (let r = 0; r < maxRows; r++) {
         if (y > doc.internal.pageSize.getHeight() - 20) {
@@ -110,11 +130,13 @@ function buildPdf(resultado: RelatorioResultado, dataInicio: string, dataFim: st
         }
         if (r % 2 === 0) {
           doc.setFillColor(245, 245, 240);
-          doc.rect(margin, y, pageWidth - margin * 2, 6, 'F');
+          doc.rect(margin, y, contentWidth, 6, 'F');
         }
+        xPos = margin;
         keys.forEach((key, i) => {
           const val = String(formatCellValue(rows[r][key], key) ?? '');
-          doc.text(val.substring(0, 30), margin + i * colWidth + 2, y + 4);
+          doc.text(val.substring(0, 35), xPos + 1.5, y + 4, { maxWidth: colWidths[i] - 2 });
+          xPos += colWidths[i];
         });
         y += 6;
       }

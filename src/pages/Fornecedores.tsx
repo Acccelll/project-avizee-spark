@@ -443,9 +443,10 @@ const Fornecedores = () => {
                   onClick={async () => {
                     const result = await buscarCnpj(form.cpf_cnpj);
                     if (result) {
-                      updateForm({
+                       updateForm({
                         nome_razao_social: result.razao_social || form.nome_razao_social,
                         nome_fantasia: result.nome_fantasia || form.nome_fantasia,
+                        inscricao_estadual: result.inscricao_estadual || form.inscricao_estadual,
                         email: result.email || form.email,
                         telefone: result.telefone || form.telefone,
                         logradouro: result.logradouro || form.logradouro,
