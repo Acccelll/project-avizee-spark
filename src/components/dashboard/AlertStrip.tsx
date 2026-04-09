@@ -55,7 +55,7 @@ export function AlertStrip({
 }: AlertStripProps) {
   const navigate = useNavigate();
 
-  const items: AlertItem[] = [
+  const items = [
     {
       id: 'vencidos',
       label: 'Títulos vencidos',

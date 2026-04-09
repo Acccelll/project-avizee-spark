@@ -19,6 +19,8 @@ export interface FilterChip {
   label: string;
   value: string | string[];
   displayValue: string;
+  mobileCard?: boolean;
+  mobilePrimary?: boolean;
 }
 
 interface AdvancedFilterBarProps {
