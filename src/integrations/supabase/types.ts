@@ -868,6 +868,8 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      estoque_movimentos: {
         Row: {
           created_at: string
           documento_id: string | null
