@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { ReactNode, useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserPreference } from '@/hooks/useUserPreference';

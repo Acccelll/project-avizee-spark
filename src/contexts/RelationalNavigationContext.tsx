@@ -1,5 +1,4 @@
-// @ts-nocheck
-import React, { createContext, useContext, useCallback, useEffect, useMemo, useReducer, useRef, ReactNode } from "react";
+import { createContext, useContext, useCallback, useEffect, useMemo, useReducer, useRef, ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
 
 export const MAX_DRAWER_DEPTH = 5;
