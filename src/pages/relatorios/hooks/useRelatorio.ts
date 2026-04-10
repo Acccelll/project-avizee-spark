@@ -16,16 +16,18 @@ import {
 export const RELATORIO_STALE_TIME = 10 * 60 * 1000; // 10 minutes
 
 export function useRelatorio<TSelected = RelatorioResultado>(
-  tipo: TipoRelatorio,
+  tipo: TipoRelatorio | "",
   filtros: FiltroRelatorio = {},
-  select?: (data: RelatorioResultado) => TSelected
+  select?: (data: RelatorioResultado) => TSelected,
+  enabled = true
 ) {
   return useQuery<RelatorioResultado, Error, TSelected>({
     queryKey: ["relatorio", tipo, filtros],
-    queryFn: () => carregarRelatorio(tipo, filtros),
+    queryFn: () => carregarRelatorio(tipo as TipoRelatorio, filtros),
     staleTime: RELATORIO_STALE_TIME,
     placeholderData: keepPreviousData,
     refetchOnWindowFocus: false,
+    enabled: enabled && !!tipo,
     select,
   });
 }
