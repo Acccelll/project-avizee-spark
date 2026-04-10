@@ -1,6 +1,9 @@
 import { useCallback, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
+import { useCompras as useComprasData } from "@/pages/comercial/compras/hooks/useCompras";
+import { useDebounce } from "@/hooks/useDebounce";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { statusCompra } from "@/lib/statusSchema";
@@ -8,6 +11,9 @@ import { type GridItem } from "@/components/ui/ItemsGrid";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { type MultiSelectOption } from "@/components/ui/MultiSelect";
 import type { Database } from "@/integrations/supabase/types";
+
+type CompraInsert = Database["public"]["Tables"]["compras"]["Insert"];
+type CompraUpdate = Database["public"]["Tables"]["compras"]["Update"];
 
 export interface Compra {
   id: string;
@@ -92,6 +98,8 @@ export interface UseComprasReturn {
   setDrawerOpen: React.Dispatch<React.SetStateAction<boolean>>;
   viewItems: CompraItem[];
   // Filter state
+  searchTerm: string;
+  setSearchTerm: React.Dispatch<React.SetStateAction<string>>;
   statusFilters: string[];
   setStatusFilters: React.Dispatch<React.SetStateAction<string[]>>;
   fornecedorFilters: string[];
@@ -122,17 +130,18 @@ export interface UseComprasReturn {
 
 export function useCompras(): UseComprasReturn {
   const [searchParams] = useSearchParams();
+  const queryClient = useQueryClient();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const debouncedSearch = useDebounce(searchTerm, 300);
 
-  const {
-    data: rawData,
-    loading,
-    remove: removeRecord,
-    fetchData,
-  } = useSupabaseCrud({
-    table: "compras",
-    select: "*, fornecedores(nome_razao_social, cpf_cnpj)",
-  });
+  const { data: rawData = [], isLoading: loading } = useComprasData();
+
+  const invalidateCompras = useCallback(
+    () => queryClient.invalidateQueries({ queryKey: ["compras"] }),
+    [queryClient],
+  );
+
   const data = rawData as unknown as Compra[];
 
   const { data: fornecedoresData } = useSupabaseCrud({ table: "fornecedores" });
@@ -160,6 +169,7 @@ export function useCompras(): UseComprasReturn {
   const valorTotal = valorProdutos + (form.frete_valor || 0) + (form.impostos_valor || 0);
 
   const filteredData = useMemo(() => {
+    const lowerSearch = debouncedSearch.toLowerCase();
     return data.filter((compra) => {
       const baseMatch = isCotacoesView
         ? compra.status === "rascunho"
@@ -171,9 +181,16 @@ export function useCompras(): UseComprasReturn {
         !fornecedorFilters.includes(compra.fornecedor_id || "")
       )
         return false;
+      if (lowerSearch) {
+        const matchesNumero = (compra.numero ?? "").toLowerCase().includes(lowerSearch);
+        const matchesFornecedor = (
+          compra.fornecedores?.nome_razao_social ?? ""
+        ).toLowerCase().includes(lowerSearch);
+        if (!matchesNumero && !matchesFornecedor) return false;
+      }
       return true;
     });
-  }, [data, isCotacoesView, statusFilters, fornecedorFilters]);
+  }, [data, isCotacoesView, statusFilters, fornecedorFilters, debouncedSearch]);
 
   const kpis = useMemo(() => {
     const delivered = data.filter((c) => c.status === "entregue");
@@ -258,25 +275,30 @@ export function useCompras(): UseComprasReturn {
         const currentValorProdutos = items.reduce((s, i) => s + (i.valor_total || 0), 0);
         const currentValorTotal =
           currentValorProdutos + (form.frete_valor || 0) + (form.impostos_valor || 0);
-        const payload = {
-          ...form,
-          status,
+        const payload: CompraInsert & CompraUpdate = {
+          numero: form.numero || null,
           fornecedor_id: form.fornecedor_id || null,
+          data_compra: form.data_compra || null,
+          data_entrega_prevista: form.data_entrega_prevista || null,
+          data_entrega_real: form.data_entrega_real || null,
+          frete_valor: form.frete_valor,
+          impostos_valor: form.impostos_valor,
+          observacoes: form.observacoes || null,
+          status,
           valor_produtos: currentValorProdutos,
           valor_total: currentValorTotal,
         };
         let compraId = selected?.id;
         if (mode === "create") {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const { data: newC, error } = await (supabase.from as any)("compras")
+          const { data: newC, error } = await supabase
+            .from("compras")
             .insert(payload)
             .select()
             .single();
           if (error) throw error;
           compraId = newC.id;
         } else if (selected) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          await (supabase.from as any)("compras").update(payload).eq("id", selected.id);
+          await supabase.from("compras").update(payload).eq("id", selected.id);
           await supabase.from("compras_itens").delete().eq("compra_id", selected.id);
         }
         if (items.length > 0 && compraId) {
@@ -295,7 +317,7 @@ export function useCompras(): UseComprasReturn {
         }
         toast.success(isCotacoesView ? "Cotação de compra salva!" : "Compra salva!");
         setModalOpen(false);
-        fetchData();
+        invalidateCompras();
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : "Erro inesperado";
         console.error("[compras]", msg);
@@ -303,15 +325,15 @@ export function useCompras(): UseComprasReturn {
       }
       setSaving(false);
     },
-    [form, items, mode, selected, isCotacoesView, fetchData],
+    [form, items, mode, selected, isCotacoesView, invalidateCompras],
   );
 
   const remove = useCallback(
     async (id: string) => {
-      await removeRecord(id);
-      fetchData();
+      await supabase.from("compras").update({ ativo: false }).eq("id", id);
+      invalidateCompras();
     },
-    [removeRecord, fetchData],
+    [invalidateCompras],
   );
 
   const fornecedorOptions = useMemo(
@@ -389,6 +411,8 @@ export function useCompras(): UseComprasReturn {
     drawerOpen,
     setDrawerOpen,
     viewItems,
+    searchTerm,
+    setSearchTerm,
     statusFilters,
     setStatusFilters,
     fornecedorFilters,

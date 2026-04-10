@@ -8,8 +8,8 @@ import { statusPedidoCompra } from "@/lib/statusSchema";
 import { usePedidosCompra } from "@/hooks/usePedidosCompra";
 import {
   usePedidoCompraFilters,
-  PedidoCompraFilters,
-} from "@/components/compras/PedidoCompraFilters";
+} from "@/components/compras/usePedidoCompraFilters";
+import { PedidoCompraFilters } from "@/components/compras/PedidoCompraFilters";
 import { PedidoCompraTable } from "@/components/compras/PedidoCompraTable";
 import { PedidoCompraFormModal } from "@/components/compras/PedidoCompraFormModal";
 import { PedidoCompraDrawer } from "@/components/compras/PedidoCompraDrawer";
