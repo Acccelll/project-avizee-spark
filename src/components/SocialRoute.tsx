@@ -1,9 +1,9 @@
-// @ts-nocheck
+import { ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { getSocialPermissionFlags } from '@/types/social';
 
-export function SocialRoute({ children }: { children: React.ReactNode }) {
+export function SocialRoute({ children }: { children: ReactNode }) {
   const { user, loading, permissionsLoaded, roles } = useAuth();
 
   if (loading || !permissionsLoaded) {
