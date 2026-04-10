@@ -1,9 +1,9 @@
-// @ts-nocheck
+import { ReactNode } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 
-export function AdminRoute({ children }: { children: React.ReactNode }) {
+export function AdminRoute({ children }: { children: ReactNode }) {
   const { user, loading: authLoading } = useAuth();
   const { isAdmin, loading: roleLoading } = useIsAdmin();
 

@@ -1,8 +1,8 @@
-// @ts-nocheck
+import { ReactNode } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
 
-export function ProtectedRoute({ children }: { children: React.ReactNode }) {
+export function ProtectedRoute({ children }: { children: ReactNode }) {
   const { user, loading, permissionsLoaded } = useAuth();
 
   // Aguarda sessão + permissões antes de renderizar para evitar

@@ -1,7 +1,6 @@
-// @ts-nocheck
 import { useEffect, useCallback, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Json } from "@/integrations/supabase/types";
+import type { Json } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import { useSyncedStorage } from "./useSyncedStorage";
 import { enqueueSync, processSyncQueue } from "@/services/syncQueue";
@@ -9,9 +8,9 @@ import { useOnlineStatus } from "./useOnlineStatus";
 
 const REMOTE_TIMEOUT_MS = 8000;
 
-async function withTimeout<T>(promise: Promise<T>) {
+async function withTimeout<T>(promise: PromiseLike<T>) {
   return Promise.race<T>([
-    promise,
+    Promise.resolve(promise),
     new Promise<T>((_, reject) => setTimeout(() => reject(new Error("sync_timeout")), REMOTE_TIMEOUT_MS)),
   ]);
 }
@@ -71,12 +70,12 @@ export function useAppConfig<T = Json>(chave: string, defaultValue?: T) {
 
       const submit = async () => {
         const res = await withTimeout(
-          new Promise<{ error: any }>((resolve) => {
-            supabase
-              .from("app_configuracoes")
-              .upsert({ chave, valor: newValue as unknown as Json, updated_at: new Date().toISOString() }, { onConflict: "chave" })
-              .then(r => resolve(r));
-          }),
+          supabase
+            .from("app_configuracoes")
+            .upsert(
+              { chave, valor: newValue as unknown as Json, updated_at: new Date().toISOString() },
+              { onConflict: "chave" },
+            ),
         );
         const error = res?.error;
 
@@ -99,7 +98,7 @@ export function useAppConfig<T = Json>(chave: string, defaultValue?: T) {
 
       return submit();
     },
-    [value, getMeta, setCache, supabase, isOnline, chave, reloadFromSupabase],
+    [value, getMeta, setCache, isOnline, chave, reloadFromSupabase],
   );
 
   return { value, loading, save, reloadFromSupabase };

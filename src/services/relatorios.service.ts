@@ -1,4 +1,4 @@
-// @ts-nocheck
+/* eslint-disable @typescript-eslint/no-explicit-any -- Report rows have dynamic shapes */
 import { supabase } from "@/integrations/supabase/client";
 import { downloadTextFile } from "@/lib/utils";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/format";
@@ -852,11 +852,11 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
 
       const { data: financeiro } = await supabase
         .from("financeiro_lancamentos")
-        .select("documento_fiscal_id, nota_fiscal_id")
+        .select("nota_fiscal_id")
         .eq("ativo", true);
 
       const nfIdsComFinanceiro = new Set(
-        (financeiro || []).map((f) => getEffectiveFiscalId(f)).filter(Boolean)
+        (financeiro || []).map((f: any) => f.nota_fiscal_id).filter(Boolean)
       );
 
       const nfsSemFinanceiro = (nfs || []).filter((nf) => !nfIdsComFinanceiro.has(nf.id));

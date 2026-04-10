@@ -1,4 +1,4 @@
-// @ts-nocheck
+// @ts-nocheck — Social tables (social_contas, social_metricas, etc.) are not yet in the generated schema
 import * as XLSX from '@/lib/xlsx-compat';
 import { supabase } from '@/integrations/supabase/client';
 import { downloadTextFile } from '@/lib/utils';
