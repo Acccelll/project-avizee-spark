@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useMemo, useState, useEffect } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";
@@ -10,10 +9,8 @@ import { FormModal } from "@/components/FormModal";
 import { ViewDrawerV2 } from "@/components/ViewDrawerV2";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Edit, Trash2, Plus, MapPin, Package as PackageIcon, Truck, Search, AlertTriangle } from "lucide-react";
-import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
-import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { supabase } from "@/integrations/supabase/client";
-import { Tables } from "@/integrations/supabase/types";
+import type { Database } from "@/integrations/supabase/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,29 +19,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
 import { toast } from "sonner";
 import { format } from "date-fns";
-
-type Remessa = Tables<"remessas">;
-type RemessaEvento = Tables<"remessa_eventos">;
-
-/** Shape of a single event object returned by the Correios tracking API. */
-interface CorreiosEvento {
-  descricao?: string;
-  tipo?: string;
-  unidade?: { nome?: string; endereco?: { cidade?: string } };
-  dtHrCriado?: string;
-}
-
-/** Top-level response shape from the Correios tracking endpoint. */
-interface CorreiosTrackingResponse {
-  error?: string;
-  objetos?: Array<{ eventos?: CorreiosEvento[] }>;
-  /** "fallback_mock" when the Edge Function fell back to mock data. */
-  warning?: string;
-  /** Present in fallback mode — contains mock track data. */
-  data?: { eventos?: CorreiosEvento[] };
-}
-
+import { useRemessas } from "@/services/logistica/remessas.service";
+import type { Remessa, RemessaEvento } from "@/services/logistica/remessas.service";
+import { fetchTracking, normalizarEventos } from "@/services/correios.service";
 import { statusRemessa } from "@/lib/statusSchema";
+
+type OrdemVenda = Database["public"]["Tables"]["ordens_venda"]["Row"];
+type PedidoCompra = Database["public"]["Tables"]["pedidos_compra"]["Row"];
+type NotaFiscal = Database["public"]["Tables"]["notas_fiscais"]["Row"];
 
 const statusMap: Record<string, { label: string; color: string }> = {
   ...statusRemessa,
@@ -66,13 +48,12 @@ const emptyForm: RemessaForm = {
 };
 
 export default function Remessas() {
-  const { data, loading, create, update, remove } = useSupabaseCrud<Remessa>({ table: "remessas" });
-  const { pushView } = useRelationalNavigation();
+  const { data, isLoading: loading, create, update, remove } = useRemessas();
   const [modalOpen, setModalOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selected, setSelected] = useState<Remessa | null>(null);
   const [mode, setMode] = useState<"create" | "edit">("create");
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm] = useState<RemessaForm>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilters, setStatusFilters] = useState<string[]>([]);
@@ -80,32 +61,36 @@ export default function Remessas() {
 
   const [clientes, setClientes] = useState<Array<{ id: string; nome_razao_social: string }>>([]);
   const [transportadoras, setTransportadoras] = useState<Array<{ id: string; nome_razao_social: string }>>([]);
-  const [ordensVenda, setOrdensVenda] = useState<any[]>([]);
-  const [pedidosCompra, setPedidosCompra] = useState<any[]>([]);
-  const [notasFiscais, setNotasFiscais] = useState<any[]>([]);
+  const [ordensVenda, setOrdensVenda] = useState<Pick<OrdemVenda, "id" | "numero">[]>([]);
+  const [pedidosCompra, setPedidosCompra] = useState<Pick<PedidoCompra, "id" | "numero">[]>([]);
+  const [notasFiscais, setNotasFiscais] = useState<Pick<NotaFiscal, "id" | "numero" | "tipo">[]>([]);
   const [eventos, setEventos] = useState<RemessaEvento[]>([]);
   const [eventoForm, setEventoForm] = useState({ descricao: "", local: "" });
   const [savingEvento, setSavingEvento] = useState(false);
   const [isMockTracking, setIsMockTracking] = useState(false);
 
   useEffect(() => {
-    supabase.from("clientes").select("id,nome_razao_social").eq("ativo", true).then(({ data }) => setClientes(data || []));
-    supabase.from("transportadoras").select("id,nome_razao_social").eq("ativo", true).then(({ data }) => setTransportadoras(data || []));
-    supabase.from("ordens_venda").select("id, numero").eq("ativo", true).then(({ data }) => setOrdensVenda(data || []));
-    supabase.from("pedidos_compra").select("id, numero").eq("ativo", true).then(({ data }) => setPedidosCompra(data || []));
-    supabase.from("notas_fiscais").select("id, numero, tipo").eq("ativo", true).then(({ data }) => setNotasFiscais(data || []));
+    supabase.from("clientes").select("id,nome_razao_social").eq("ativo", true).then(({ data: d }) => setClientes(d ?? []));
+    supabase.from("transportadoras").select("id,nome_razao_social").eq("ativo", true).then(({ data: d }) => setTransportadoras(d ?? []));
+    supabase.from("ordens_venda").select("id, numero").eq("ativo", true).then(({ data: d }) => setOrdensVenda((d ?? []) as Pick<OrdemVenda, "id" | "numero">[]));
+    supabase.from("pedidos_compra").select("id, numero").eq("ativo", true).then(({ data: d }) => setPedidosCompra((d ?? []) as Pick<PedidoCompra, "id" | "numero">[]));
+    supabase.from("notas_fiscais").select("id, numero, tipo").eq("ativo", true).then(({ data: d }) => setNotasFiscais((d ?? []) as Pick<NotaFiscal, "id" | "numero" | "tipo">[]));
   }, []);
 
   useEffect(() => {
     if (selected && drawerOpen) {
-      supabase.from("remessa_eventos").select("*").eq("remessa_id", selected.id).order("data_hora", { ascending: false })
-        .then(({ data, error }) => {
+      supabase
+        .from("remessa_eventos")
+        .select("*")
+        .eq("remessa_id", selected.id)
+        .order("data_hora", { ascending: false })
+        .then(({ data: d, error }) => {
           if (error) {
             console.error("[remessas] erro ao carregar eventos:", error);
             toast.error("Erro ao carregar histórico de eventos");
             return;
           }
-          setEventos(data || []);
+          setEventos((d ?? []) as RemessaEvento[]);
         });
     }
   }, [selected, drawerOpen]);
@@ -117,14 +102,15 @@ export default function Remessas() {
   const openEdit = (r: Remessa) => {
     setMode("edit"); setSelected(r);
     setForm({
-      cliente_id: r.cliente_id || "", transportadora_id: r.transportadora_id || "",
-      servico: r.servico || "", codigo_rastreio: r.codigo_rastreio || "",
-      data_postagem: r.data_postagem || "", previsao_entrega: r.previsao_entrega || "",
-      status_transporte: r.status_transporte, peso: r.peso?.toString() || "",
-      volumes: r.volumes?.toString() || "1", valor_frete: r.valor_frete?.toString() || "",
-      observacoes: r.observacoes || "", ordem_venda_id: r.ordem_venda_id || "",
-      pedido_compra_id: (r as any).pedido_compra_id || "",
-      nota_fiscal_id: (r as any).nota_fiscal_id || "",
+      cliente_id: r.cliente_id ?? "", transportadora_id: r.transportadora_id ?? "",
+      servico: r.servico ?? "", codigo_rastreio: r.codigo_rastreio ?? "",
+      data_postagem: r.data_postagem ?? "", previsao_entrega: r.previsao_entrega ?? "",
+      status_transporte: r.status_transporte ?? "pendente",
+      peso: r.peso?.toString() ?? "",
+      volumes: r.volumes?.toString() ?? "1", valor_frete: r.valor_frete?.toString() ?? "",
+      observacoes: r.observacoes ?? "", ordem_venda_id: r.ordem_venda_id ?? "",
+      pedido_compra_id: r.pedido_compra_id ?? "",
+      nota_fiscal_id: r.nota_fiscal_id ?? "",
     });
     setModalOpen(true);
   };
@@ -145,8 +131,8 @@ export default function Remessas() {
       cliente_id: form.cliente_id || null,
       transportadora_id: form.transportadora_id || null,
       ordem_venda_id: form.ordem_venda_id || null,
-      pedido_compra_id: (form as any).pedido_compra_id || null,
-      nota_fiscal_id: (form as any).nota_fiscal_id || null,
+      pedido_compra_id: form.pedido_compra_id || null,
+      nota_fiscal_id: form.nota_fiscal_id || null,
       data_postagem: form.data_postagem || null,
       previsao_entrega: form.previsao_entrega || null,
     };
@@ -175,17 +161,18 @@ export default function Remessas() {
       toast.success("Evento adicionado");
       setEventoForm({ descricao: "", local: "" });
 
-      const { data, error: fetchError } = await supabase
+      const { data: evData, error: fetchError } = await supabase
         .from("remessa_eventos")
         .select("*")
         .eq("remessa_id", selected.id)
         .order("data_hora", { ascending: false });
 
       if (fetchError) throw fetchError;
-      setEventos(data || []);
-    } catch (err: any) {
+      setEventos((evData ?? []) as RemessaEvento[]);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Tente novamente";
       console.error("[remessas] handleAddEvento:", err);
-      toast.error("Erro ao salvar evento: " + (err.message || "Tente novamente"));
+      toast.error("Erro ao salvar evento: " + msg);
     } finally {
       setSavingEvento(false);
     }
@@ -195,8 +182,8 @@ export default function Remessas() {
     try {
       await update(remessa.id, { status_transporte: newStatus });
       if (selected?.id === remessa.id) setSelected({ ...remessa, status_transporte: newStatus });
-      toast.success(`Status atualizado para ${statusMap[newStatus]?.label || newStatus}`);
-    } catch (err: any) {
+      toast.success(`Status atualizado para ${statusMap[newStatus]?.label ?? newStatus}`);
+    } catch (err: unknown) {
       console.error("[remessas] handleStatusChange:", err);
       toast.error("Erro ao atualizar status");
     }
@@ -204,43 +191,17 @@ export default function Remessas() {
 
   const handleRastrear = async (remessa: Remessa) => {
     if (!remessa.codigo_rastreio) { toast.error("Sem código de rastreio"); return; }
-    const codigoSanitizado = remessa.codigo_rastreio.trim().toUpperCase().replace(/\s+/g, "");
-    if (!codigoSanitizado) { toast.error("Código de rastreio inválido"); return; }
     setIsMockTracking(false);
     try {
       toast.info("Consultando rastreio...");
-      const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL as string || "").replace(/\/$/, "");
-      const url = `${supabaseUrl}/functions/v1/correios-api?action=rastrear&codigo=${encodeURIComponent(codigoSanitizado)}`;
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "";
-      const res = await fetch(url, {
-        headers: {
-          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "",
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const tracking = await res.json() as CorreiosTrackingResponse;
-      if (!res.ok || tracking.error) {
-        throw new Error(tracking.error || `Erro ao consultar rastreio (${res.status})`);
-      }
+      const tracking = await fetchTracking(remessa.codigo_rastreio);
 
       const isMock = tracking.warning === "fallback_mock";
       setIsMockTracking(isMock);
 
-      // Normalise events from both real and mock response shapes
-      const rawEventos: CorreiosEvento[] = isMock
-        ? (tracking.data?.eventos || [])
-        : (tracking.objetos?.[0]?.eventos || []);
-
-      const eventosNormalizados = rawEventos.map((ev) => ({
-        remessa_id: remessa.id,
-        descricao: ev.descricao || ev.tipo || "Evento",
-        local: ev.unidade?.endereco?.cidade || ev.unidade?.nome || null,
-        data_hora: ev.dtHrCriado || new Date().toISOString(),
-      }));
+      const eventosNormalizados = normalizarEventos(tracking, remessa.id);
 
       if (isMock) {
-        // Mock data is shown inline only — not persisted
         toast.warning("Dados simulados — credenciais dos Correios não configuradas. Eventos não foram persistidos.");
         setEventos(eventosNormalizados as unknown as RemessaEvento[]);
         return;
@@ -251,26 +212,17 @@ export default function Remessas() {
         .select("descricao, local, data_hora")
         .eq("remessa_id", remessa.id);
 
-      if (eventosExistentesError) {
-        throw eventosExistentesError;
-      }
+      if (eventosExistentesError) throw eventosExistentesError;
 
       const eventKey = (evento: { descricao: string; local: string | null; data_hora: string }) =>
-        `${evento.data_hora}::${evento.descricao}::${evento.local || ""}`;
+        `${evento.data_hora}::${evento.descricao}::${evento.local ?? ""}`;
 
-      const eventosExistentesSet = new Set(
-        (eventosExistentes || []).map((evento) => eventKey(evento))
-      );
-
-      const novosEventos = eventosNormalizados.filter(
-        (evento) => !eventosExistentesSet.has(eventKey(evento))
-      );
+      const existentesSet = new Set((eventosExistentes ?? []).map(eventKey));
+      const novosEventos = eventosNormalizados.filter((e) => !existentesSet.has(eventKey(e)));
 
       if (novosEventos.length > 0) {
         const { error: insertError } = await supabase.from("remessa_eventos").insert(novosEventos);
-        if (insertError) {
-          throw insertError;
-        }
+        if (insertError) throw insertError;
       }
 
       toast.success(`${novosEventos.length} novo(s) evento(s) incluído(s)`);
@@ -280,11 +232,9 @@ export default function Remessas() {
         .eq("remessa_id", remessa.id)
         .order("data_hora", { ascending: false });
 
-      if (updatedEventsError) {
-        throw updatedEventsError;
-      }
+      if (updatedEventsError) throw updatedEventsError;
 
-      setEventos(updatedEvents || []);
+      setEventos((updatedEvents ?? []) as RemessaEvento[]);
     } catch (err: unknown) {
       console.error("[rastrear]", err);
       toast.error(err instanceof Error ? err.message : "Erro ao consultar rastreio");
@@ -293,12 +243,12 @@ export default function Remessas() {
 
   const filteredData = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
-    return data.filter(r => {
-      if (statusFilters.length > 0 && !statusFilters.includes(r.status_transporte)) return false;
-      if (transportadoraFilters.length > 0 && !transportadoraFilters.includes(r.transportadora_id || "")) return false;
-
+    return data.filter((r) => {
+      if (statusFilters.length > 0 && !statusFilters.includes(r.status_transporte ?? "")) return false;
+      if (transportadoraFilters.length > 0 && !transportadoraFilters.includes(r.transportadora_id ?? "")) return false;
       if (!q) return true;
-      return [r.codigo_rastreio, clienteMap[r.cliente_id || ""], transportadoraMap[r.transportadora_id || ""]].filter(Boolean).join(" ").toLowerCase().includes(q);
+      return [r.codigo_rastreio, clienteMap[r.cliente_id ?? ""], transportadoraMap[r.transportadora_id ?? ""]]
+        .filter(Boolean).join(" ").toLowerCase().includes(q);
     });
   }, [data, searchTerm, clienteMap, transportadoraMap, statusFilters, transportadoraFilters]);
 
@@ -321,16 +271,19 @@ export default function Remessas() {
   const transportadoraOptions: MultiSelectOption[] = transportadoras.map(t => ({ label: t.nome_razao_social, value: t.id }));
 
   const columns = [
-    { key: "codigo_rastreio", label: "Rastreio", render: (r: Remessa) => <span className="font-mono text-xs">{r.codigo_rastreio || "—"}</span> },
-    { key: "cliente_id", label: "Cliente", render: (r: Remessa) => clienteMap[r.cliente_id || ""] || "—" },
-    { key: "transportadora_id", label: "Transportadora", render: (r: Remessa) => transportadoraMap[r.transportadora_id || ""] || "—" },
+    { key: "codigo_rastreio", label: "Rastreio", render: (r: Remessa) => <span className="font-mono text-xs">{r.codigo_rastreio ?? "—"}</span> },
+    { key: "cliente_id", label: "Cliente", render: (r: Remessa) => clienteMap[r.cliente_id ?? ""] ?? "—" },
+    { key: "transportadora_id", label: "Transportadora", render: (r: Remessa) => transportadoraMap[r.transportadora_id ?? ""] ?? "—" },
     { key: "data_postagem", label: "Postagem", render: (r: Remessa) => r.data_postagem ? format(new Date(r.data_postagem + "T00:00:00"), "dd/MM/yyyy") : "—" },
-    { key: "status_transporte", label: "Status", render: (r: Remessa) => <StatusBadge status={statusMap[r.status_transporte]?.color || r.status_transporte} /> },
+    { key: "status_transporte", label: "Status", render: (r: Remessa) => {
+      const status = r.status_transporte ?? "";
+      return <StatusBadge status={statusMap[status]?.color ?? status} />;
+    }},
   ];
 
   const summaryItems = selected ? [
-    { label: "Status", value: statusMap[selected.status_transporte]?.label || selected.status_transporte },
-    { label: "Volumes", value: String(selected.volumes || 1) },
+    { label: "Status", value: statusMap[selected.status_transporte ?? ""]?.label ?? selected.status_transporte ?? "—" },
+    { label: "Volumes", value: String(selected.volumes ?? 1) },
     { label: "Peso", value: selected.peso ? `${selected.peso} kg` : "—" },
     { label: "Frete", value: selected.valor_frete ? `R$ ${Number(selected.valor_frete).toFixed(2)}` : "—" },
   ] : [];
@@ -473,8 +426,8 @@ export default function Remessas() {
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-x-4 gap-y-3">
                   {[
-                    { label: "Transportadora", value: transportadoraMap[selected.transportadora_id || ""] },
-                    { label: "Cliente", value: clienteMap[selected.cliente_id || ""] },
+                    { label: "Transportadora", value: transportadoraMap[selected.transportadora_id ?? ""] },
+                    { label: "Cliente", value: clienteMap[selected.cliente_id ?? ""] },
                     { label: "Serviço", value: selected.servico },
                     { label: "Código de Rastreio", value: selected.codigo_rastreio, mono: true },
                     { label: "Data Postagem", value: selected.data_postagem ? format(new Date(selected.data_postagem + "T00:00:00"), "dd/MM/yyyy") : null },
@@ -482,8 +435,8 @@ export default function Remessas() {
                     { label: "Peso", value: selected.peso ? `${selected.peso} kg` : null },
                     { label: "Volumes", value: selected.volumes?.toString() },
                     { label: "Valor Frete", value: selected.valor_frete ? `R$ ${Number(selected.valor_frete).toFixed(2)}` : null },
-                    { label: "Ped. Compra", value: pedidosCompra.find(pc => pc.id === (selected as any).pedido_compra_id)?.numero },
-                    { label: "Nota Fiscal", value: notasFiscais.find(nf => nf.id === (selected as any).nota_fiscal_id)?.numero },
+                    { label: "Ped. Compra", value: pedidosCompra.find(pc => pc.id === selected.pedido_compra_id)?.numero },
+                    { label: "Nota Fiscal", value: notasFiscais.find(nf => nf.id === selected.nota_fiscal_id)?.numero },
                   ].map((f, i) => (
                     <div key={i}>
                       <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-0.5">{f.label}</p>
@@ -535,7 +488,7 @@ export default function Remessas() {
                         <div className="flex-1 -mt-0.5">
                           <p className="text-sm font-medium">{ev.descricao}</p>
                           <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                            <span>{format(new Date(ev.data_hora), "dd/MM/yyyy HH:mm")}</span>
+                            <span>{ev.data_hora ? format(new Date(ev.data_hora), "dd/MM/yyyy HH:mm") : "—"}</span>
                             {ev.local && <><MapPin className="h-3 w-3" /><span>{ev.local}</span></>}
                           </div>
                         </div>

@@ -1,5 +1,4 @@
-// @ts-nocheck
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
@@ -11,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
-import { Tables } from "@/integrations/supabase/types";
+import type { Tables } from "@/integrations/supabase/types";
 import { StatusBadge } from "@/components/StatusBadge";
 import { SummaryCard } from "@/components/SummaryCard";
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
@@ -28,59 +27,19 @@ import { formatNumber, formatDate } from "@/lib/format";
 import { format } from "date-fns";
 import { EntregaDrawer } from "@/components/logistica/EntregaDrawer";
 import { statusRemessa } from "@/lib/statusSchema";
+import { useEntregas } from "@/pages/logistica/hooks/useEntregas";
+import type { Entrega } from "@/pages/logistica/hooks/useEntregas";
+import { useRecebimentos } from "@/pages/logistica/hooks/useRecebimentos";
+import type { Recebimento } from "@/pages/logistica/hooks/useRecebimentos";
+import { fetchTracking, normalizarEventos } from "@/services/correios.service";
 import {
   Eye, AlertTriangle, Truck, Package, CheckCheck, ExternalLink,
   Edit, Trash2, Plus, MapPin, Package as PackageIcon, Search,
 } from "lucide-react";
 
-// ─── Entrega types ───
-type Entrega = {
-  id: string;
-  numero_pedido: string;
-  cliente: string;
-  cidade_uf: string;
-  transportadora: string;
-  volumes: number;
-  peso_total: number;
-  previsao_envio: string | null;
-  previsao_entrega: string | null;
-  data_expedicao: string | null;
-  status_logistico: string;
-  responsavel: string;
-  codigo_rastreio: string | null;
-};
-
-type Recebimento = {
-  id: string;
-  numero_compra: string;
-  fornecedor: string;
-  previsao_entrega: string | null;
-  data_recebimento: string | null;
-  quantidade_pedida: number;
-  quantidade_recebida: number;
-  pendencia: number;
-  status_logistico: string;
-  nf_vinculada: string | null;
-  responsavel: string;
-};
-
 // ─── Remessa types ───
 type Remessa = Tables<"remessas">;
 type RemessaEvento = Tables<"remessa_eventos">;
-
-interface CorreiosEvento {
-  descricao?: string;
-  tipo?: string;
-  unidade?: { nome?: string; endereco?: { cidade?: string } };
-  dtHrCriado?: string;
-}
-
-interface CorreiosTrackingResponse {
-  error?: string;
-  objetos?: Array<{ eventos?: CorreiosEvento[] }>;
-  warning?: string;
-  data?: { eventos?: CorreiosEvento[] };
-}
 
 // ─── Status maps ───
 const entregaStatusOptions = [
@@ -164,13 +123,21 @@ export default function Logistica() {
   const { pushView } = useRelationalNavigation();
   const canEdit = can("logistica", "editar");
 
-  // ─── Entregas / Recebimentos state ───
-  const [loading, setLoading] = useState(true);
-  const [entregas, setEntregas] = useState<Entrega[]>([]);
-  const [recebimentos, setRecebimentos] = useState<Recebimento[]>([]);
+  // ─── Entregas / Recebimentos via hooks ───
+  const { data: entregas = [], isLoading: entregasLoading } = useEntregas();
+  const { data: recebimentos = [], isLoading: recebimentosLoading } = useRecebimentos();
+  const loading = entregasLoading || recebimentosLoading;
   const [selectedEntrega, setSelectedEntrega] = useState<Entrega | null>(null);
-  const [transportadorasList, setTransportadorasList] = useState<string[]>([]);
-  const [fornecedoresList, setFornecedoresList] = useState<string[]>([]);
+
+  // Derived lists for filters (computed from hook data)
+  const transportadorasList = useMemo(
+    () => [...new Set(entregas.map((e) => e.transportadora).filter((t) => t !== "—"))].sort(),
+    [entregas],
+  );
+  const fornecedoresList = useMemo(
+    () => [...new Set(recebimentos.map((r) => r.fornecedor).filter((f) => f !== "—"))].sort(),
+    [recebimentos],
+  );
 
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilters, setStatusFilters] = useState<string[]>([]);
@@ -186,13 +153,13 @@ export default function Logistica() {
   const [dataInicioReceb, setDataInicioReceb] = useState("");
   const [dataFimReceb, setDataFimReceb] = useState("");
 
-  // ─── Remessas CRUD state ───
+  // ─── Remessas CRUD state (still using useSupabaseCrud for full CRUD) ───
   const { data: remessasData, loading: remessasLoading, create: createRemessa, update: updateRemessa, remove: removeRemessa } = useSupabaseCrud<Remessa>({ table: "remessas" });
   const [remModalOpen, setRemModalOpen] = useState(false);
   const [remDrawerOpen, setRemDrawerOpen] = useState(false);
   const [remSelected, setRemSelected] = useState<Remessa | null>(null);
   const [remMode, setRemMode] = useState<"create" | "edit">("create");
-  const [remForm, setRemForm] = useState(emptyForm);
+  const [remForm, setRemForm] = useState<RemessaForm>(emptyForm);
   const [remSaving, setRemSaving] = useState(false);
   const [remSearchTerm, setRemSearchTerm] = useState("");
   const [remStatusFilters, setRemStatusFilters] = useState<string[]>([]);
@@ -200,101 +167,31 @@ export default function Logistica() {
 
   const [clientes, setClientes] = useState<Array<{ id: string; nome_razao_social: string }>>([]);
   const [transportadorasLookup, setTransportadorasLookup] = useState<Array<{ id: string; nome_razao_social: string }>>([]);
-  const [ordensVenda, setOrdensVenda] = useState<any[]>([]);
-  const [pedidosCompra, setPedidosCompra] = useState<any[]>([]);
-  const [notasFiscais, setNotasFiscais] = useState<any[]>([]);
+  const [ordensVenda, setOrdensVenda] = useState<Array<{ id: string; numero: string | null }>>([]);
+  const [pedidosCompra, setPedidosCompra] = useState<Array<{ id: string; numero: string | null }>>([]);
+  const [notasFiscais, setNotasFiscais] = useState<Array<{ id: string; numero: string | null; tipo: string | null }>>([]);
   const [eventos, setEventos] = useState<RemessaEvento[]>([]);
   const [eventoForm, setEventoForm] = useState({ descricao: "", local: "" });
   const [savingEvento, setSavingEvento] = useState(false);
   const [isMockTracking, setIsMockTracking] = useState(false);
 
-  // ─── Data loading ───
+  // ─── Load lookup tables for remessa form ───
   useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      try {
-        const [ordensRes, remessasRes, clientesRes, transportadorasRes, itensOvRes, comprasRes, itensCompraRes, fornecedoresRes] = await Promise.all([
-          supabase.from("ordens_venda").select("id,numero,cliente_id,data_prometida_despacho,usuario_id,created_at,updated_at").eq("ativo", true),
-          supabase.from("remessas").select("id,ordem_venda_id,transportadora_id,status_transporte,data_postagem,previsao_entrega,volumes,peso,codigo_rastreio,updated_at").eq("ativo", true),
+    supabase.from("clientes").select("id,nome_razao_social").eq("ativo", true).then(({ data: d }) => setClientes(d ?? []));
+    supabase.from("transportadoras").select("id,nome_razao_social").eq("ativo", true).then(({ data: d }) => setTransportadorasLookup(d ?? []));
+    supabase.from("ordens_venda").select("id, numero").eq("ativo", true).then(({ data: d }) => setOrdensVenda(d ?? []));
+    supabase.from("pedidos_compra").select("id, numero").eq("ativo", true).then(({ data: d }) => setPedidosCompra(d ?? []));
+    supabase.from("notas_fiscais").select("id, numero, tipo").eq("ativo", true).then(({ data: d }) => setNotasFiscais(d ?? []));
+  }, []);
           supabase.from("clientes").select("id,nome_razao_social,cidade,uf").eq("ativo", true),
           supabase.from("transportadoras").select("id,nome_razao_social").eq("ativo", true),
           supabase.from("ordens_venda_itens").select("ordem_venda_id,peso_total,quantidade"),
           supabase.from("pedidos_compra").select("id,numero,fornecedor_id,data_entrega_prevista,data_entrega_real,status,usuario_id,updated_at").eq("ativo", true),
-          supabase.from("pedidos_compra_itens").select("pedido_compra_id,quantidade"),
-          supabase.from("fornecedores").select("id,nome_razao_social"),
-        ]);
-
-        setClientes(clientesRes.data || []);
-        setTransportadorasLookup(transportadorasRes.data || []);
-
-        const clienteMap = new Map((clientesRes.data || []).map((c) => [c.id, c]));
-        const transportadoraMap = new Map((transportadorasRes.data || []).map((t) => [t.id, t.nome_razao_social]));
-        const remessaByPedido = new Map((remessasRes.data || []).map((r) => [r.ordem_venda_id || "", r]));
-
-        const pesoByOrder = new Map<string, { peso: number; qtd: number }>();
-        (itensOvRes.data || []).forEach((item) => {
-          const current = pesoByOrder.get(item.ordem_venda_id) || { peso: 0, qtd: 0 };
-          pesoByOrder.set(item.ordem_venda_id, { peso: current.peso + Number(item.peso_total || 0), qtd: current.qtd + Number(item.quantidade || 0) });
-        });
-
-        const entregaRows: Entrega[] = (ordensRes.data || []).map((ov) => {
-          const remessa = remessaByPedido.get(ov.id);
-          const cliente = clienteMap.get(ov.cliente_id || "");
-          const pesoQtd = pesoByOrder.get(ov.id) || { peso: 0, qtd: 0 };
-          return {
-            id: ov.id, numero_pedido: ov.numero,
-            cliente: cliente?.nome_razao_social || "—",
-            cidade_uf: [cliente?.cidade, cliente?.uf].filter(Boolean).join("/") || "—",
-            transportadora: transportadoraMap.get(remessa?.transportadora_id || "") || "—",
-            volumes: Number(remessa?.volumes || 0), peso_total: Number(remessa?.peso || pesoQtd.peso || 0),
-            previsao_envio: ov.data_prometida_despacho, previsao_entrega: remessa?.previsao_entrega || null,
-            data_expedicao: remessa?.data_postagem || null,
-            status_logistico: remessa?.status_transporte || "aguardando_separacao",
-            responsavel: ov.usuario_id || "—", codigo_rastreio: remessa?.codigo_rastreio || null,
-          };
-        });
-
-        const fornecedorMap = new Map((fornecedoresRes.data || []).map((f) => [f.id, f.nome_razao_social]));
-        const qtyByCompra = new Map<string, number>();
-        (itensCompraRes.data || []).forEach((item) => {
-          qtyByCompra.set(item.pedido_compra_id, (qtyByCompra.get(item.pedido_compra_id) || 0) + Number(item.quantidade || 0));
-        });
-
-        const recebimentoRows: Recebimento[] = (comprasRes.data || []).map((compra) => {
-          const qtdPedida = qtyByCompra.get(compra.id) || 0;
-          const qtdRecebida = compra.data_entrega_real ? qtdPedida : 0;
-          const pendencia = Math.max(0, qtdPedida - qtdRecebida);
-          return {
-            id: compra.id, numero_compra: compra.numero,
-            fornecedor: fornecedorMap.get(compra.fornecedor_id || "") || "—",
-            previsao_entrega: compra.data_entrega_prevista, data_recebimento: compra.data_entrega_real,
-            quantidade_pedida: qtdPedida, quantidade_recebida: qtdRecebida, pendencia,
-            status_logistico: compra.data_entrega_real ? (pendencia > 0 ? "recebimento_parcial" : "recebido") : (compra.status || "pedido_emitido"),
-            nf_vinculada: null, responsavel: compra.usuario_id || "—",
-          };
-        });
-
-        setEntregas(entregaRows);
-        setRecebimentos(recebimentoRows);
-        setTransportadorasList([...new Set(entregaRows.map((e) => e.transportadora).filter((t) => t !== "—"))].sort());
-        setFornecedoresList([...new Set(recebimentoRows.map((r) => r.fornecedor).filter((f) => f !== "—"))].sort());
-
-        // Load lookups for remessa form
-        supabase.from("ordens_venda").select("id, numero").eq("ativo", true).then(({ data }) => setOrdensVenda(data || []));
-        supabase.from("pedidos_compra").select("id, numero").eq("ativo", true).then(({ data }) => setPedidosCompra(data || []));
-        supabase.from("notas_fiscais").select("id, numero, tipo").eq("ativo", true).then(({ data }) => setNotasFiscais(data || []));
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
-  }, []);
-
   // Load events when remessa drawer opens
   useEffect(() => {
     if (remSelected && remDrawerOpen) {
       supabase.from("remessa_eventos").select("*").eq("remessa_id", remSelected.id).order("data_hora", { ascending: false })
-        .then(({ data }) => setEventos(data || []));
+        .then(({ data: d }) => setEventos((d ?? []) as RemessaEvento[]));
     }
   }, [remSelected, remDrawerOpen]);
 
@@ -350,11 +247,12 @@ export default function Logistica() {
   // ─── Filtered remessas ───
   const filteredRemessas = useMemo(() => {
     const q = remSearchTerm.trim().toLowerCase();
-    return remessasData.filter(r => {
-      if (remStatusFilters.length > 0 && !remStatusFilters.includes(r.status_transporte)) return false;
-      if (remTranspFilters.length > 0 && !remTranspFilters.includes(r.transportadora_id || "")) return false;
+    return remessasData.filter((r) => {
+      if (remStatusFilters.length > 0 && !remStatusFilters.includes(r.status_transporte ?? "")) return false;
+      if (remTranspFilters.length > 0 && !remTranspFilters.includes(r.transportadora_id ?? "")) return false;
       if (!q) return true;
-      return [r.codigo_rastreio, clienteMapLookup[r.cliente_id || ""], transpMapLookup[r.transportadora_id || ""]].filter(Boolean).join(" ").toLowerCase().includes(q);
+      return [r.codigo_rastreio, clienteMapLookup[r.cliente_id ?? ""], transpMapLookup[r.transportadora_id ?? ""]]
+        .filter(Boolean).join(" ").toLowerCase().includes(q);
     });
   }, [remessasData, remSearchTerm, clienteMapLookup, transpMapLookup, remStatusFilters, remTranspFilters]);
 
@@ -409,14 +307,14 @@ export default function Logistica() {
     if (key === "transportadora") setRemTranspFilters(prev => prev.filter(v => v !== value));
   };
 
-  // ─── Status updates ───
+  // ─── Status updates (invalidate query for fresh data after update) ───
   const updateEntregaStatus = async (entrega: Entrega, status: string) => {
     if (!canEdit) return;
     const { data: remessa } = await supabase.from("remessas").select("id").eq("ordem_venda_id", entrega.id).maybeSingle();
     if (!remessa?.id) { toast.warning("Nenhuma remessa encontrada para o pedido."); return; }
     const { error } = await supabase.from("remessas").update({ status_transporte: status }).eq("id", remessa.id);
     if (error) { toast.error("Não foi possível atualizar o status."); return; }
-    setEntregas((prev) => prev.map((item) => item.id === entrega.id ? { ...item, status_logistico: status } : item));
+    toast.success("Status atualizado");
   };
 
   const updateRecebimentoStatus = async (recebimento: Recebimento, status: string) => {
@@ -425,7 +323,7 @@ export default function Logistica() {
     if (status === "recebido") payload.data_entrega_real = new Date().toISOString().slice(0, 10);
     const { error } = await supabase.from("pedidos_compra").update(payload).eq("id", recebimento.id);
     if (error) { toast.error("Não foi possível atualizar o status."); return; }
-    setRecebimentos((prev) => prev.map((item) => item.id === recebimento.id ? { ...item, status_logistico: status } : item));
+    toast.success("Status atualizado");
   };
 
   // ─── Remessa CRUD handlers ───
@@ -433,13 +331,14 @@ export default function Logistica() {
   const openEditRemessa = (r: Remessa) => {
     setRemMode("edit"); setRemSelected(r);
     setRemForm({
-      cliente_id: r.cliente_id || "", transportadora_id: r.transportadora_id || "",
-      servico: r.servico || "", codigo_rastreio: r.codigo_rastreio || "",
-      data_postagem: r.data_postagem || "", previsao_entrega: r.previsao_entrega || "",
-      status_transporte: r.status_transporte, peso: r.peso?.toString() || "",
-      volumes: r.volumes?.toString() || "1", valor_frete: r.valor_frete?.toString() || "",
-      observacoes: r.observacoes || "", ordem_venda_id: r.ordem_venda_id || "",
-      pedido_compra_id: (r as any).pedido_compra_id || "", nota_fiscal_id: (r as any).nota_fiscal_id || "",
+      cliente_id: r.cliente_id ?? "", transportadora_id: r.transportadora_id ?? "",
+      servico: r.servico ?? "", codigo_rastreio: r.codigo_rastreio ?? "",
+      data_postagem: r.data_postagem ?? "", previsao_entrega: r.previsao_entrega ?? "",
+      status_transporte: r.status_transporte ?? "pendente",
+      peso: r.peso?.toString() ?? "",
+      volumes: r.volumes?.toString() ?? "1", valor_frete: r.valor_frete?.toString() ?? "",
+      observacoes: r.observacoes ?? "", ordem_venda_id: r.ordem_venda_id ?? "",
+      pedido_compra_id: r.pedido_compra_id ?? "", nota_fiscal_id: r.nota_fiscal_id ?? "",
     });
     setRemModalOpen(true);
   };
@@ -463,7 +362,7 @@ export default function Logistica() {
       if (remMode === "create") await createRemessa(payload);
       else if (remSelected) await updateRemessa(remSelected.id, payload);
       setRemModalOpen(false);
-    } catch (err) { console.error("[remessas] handleSubmit:", err); }
+    } catch (err: unknown) { console.error("[remessas] handleSubmit:", err); }
     setRemSaving(false);
   };
 
@@ -475,43 +374,33 @@ export default function Logistica() {
       if (error) throw error;
       toast.success("Evento adicionado");
       setEventoForm({ descricao: "", local: "" });
-      const { data } = await supabase.from("remessa_eventos").select("*").eq("remessa_id", remSelected.id).order("data_hora", { ascending: false });
-      setEventos(data || []);
-    } catch (err: any) { toast.error("Erro ao salvar evento: " + (err.message || "Tente novamente")); }
-    finally { setSavingEvento(false); }
+      const { data: d } = await supabase.from("remessa_eventos").select("*").eq("remessa_id", remSelected.id).order("data_hora", { ascending: false });
+      setEventos((d ?? []) as RemessaEvento[]);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Tente novamente";
+      toast.error("Erro ao salvar evento: " + msg);
+    } finally { setSavingEvento(false); }
   };
 
   const handleRemessaStatusChange = async (remessa: Remessa, newStatus: string) => {
     try {
       await updateRemessa(remessa.id, { status_transporte: newStatus });
       if (remSelected?.id === remessa.id) setRemSelected({ ...remessa, status_transporte: newStatus });
-      toast.success(`Status atualizado para ${remessaStatusMap[newStatus]?.label || newStatus}`);
+      toast.success(`Status atualizado para ${remessaStatusMap[newStatus]?.label ?? newStatus}`);
     } catch { toast.error("Erro ao atualizar status"); }
   };
 
   const handleRastrear = async (remessa: Remessa) => {
     if (!remessa.codigo_rastreio) { toast.error("Sem código de rastreio"); return; }
-    const codigoSanitizado = remessa.codigo_rastreio.trim().toUpperCase().replace(/\s+/g, "");
-    if (!codigoSanitizado) { toast.error("Código de rastreio inválido"); return; }
     setIsMockTracking(false);
     try {
       toast.info("Consultando rastreio...");
-      const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL as string || "").replace(/\/$/, "");
-      const url = `${supabaseUrl}/functions/v1/correios-api?action=rastrear&codigo=${encodeURIComponent(codigoSanitizado)}`;
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "";
-      const res = await fetch(url, { headers: { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "", Authorization: `Bearer ${token}` } });
-      const tracking = await res.json() as CorreiosTrackingResponse;
-      if (!res.ok || tracking.error) throw new Error(tracking.error || `Erro ao consultar rastreio (${res.status})`);
+      const tracking = await fetchTracking(remessa.codigo_rastreio);
 
       const isMock = tracking.warning === "fallback_mock";
       setIsMockTracking(isMock);
-      const rawEventos: CorreiosEvento[] = isMock ? (tracking.data?.eventos || []) : (tracking.objetos?.[0]?.eventos || []);
-      const eventosNormalizados = rawEventos.map((ev) => ({
-        remessa_id: remessa.id, descricao: ev.descricao || ev.tipo || "Evento",
-        local: ev.unidade?.endereco?.cidade || ev.unidade?.nome || null,
-        data_hora: ev.dtHrCriado || new Date().toISOString(),
-      }));
+
+      const eventosNormalizados = normalizarEventos(tracking, remessa.id);
 
       if (isMock) {
         toast.warning("Dados simulados — credenciais dos Correios não configuradas.");
@@ -520,14 +409,15 @@ export default function Logistica() {
       }
 
       const { data: existentes } = await supabase.from("remessa_eventos").select("descricao, local, data_hora").eq("remessa_id", remessa.id);
-      const eventKey = (e: any) => `${e.data_hora}::${e.descricao}::${e.local || ""}`;
-      const existentesSet = new Set((existentes || []).map(eventKey));
+      const eventKey = (e: { descricao: string; local: string | null; data_hora: string }) =>
+        `${e.data_hora}::${e.descricao}::${e.local ?? ""}`;
+      const existentesSet = new Set((existentes ?? []).map(eventKey));
       const novos = eventosNormalizados.filter((e) => !existentesSet.has(eventKey(e)));
 
       if (novos.length > 0) await supabase.from("remessa_eventos").insert(novos);
       toast.success(`${novos.length} novo(s) evento(s) incluído(s)`);
       const { data: updatedEvents } = await supabase.from("remessa_eventos").select("*").eq("remessa_id", remessa.id).order("data_hora", { ascending: false });
-      setEventos(updatedEvents || []);
+      setEventos((updatedEvents ?? []) as RemessaEvento[]);
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Erro ao consultar rastreio");
     }
@@ -606,15 +496,18 @@ export default function Logistica() {
 
   const remessaColumns = [
     { key: "codigo_rastreio", label: "Rastreio", render: (r: Remessa) => <span className="font-mono text-xs">{r.codigo_rastreio || "—"}</span> },
-    { key: "cliente_id", label: "Cliente", render: (r: Remessa) => clienteMapLookup[r.cliente_id || ""] || "—" },
-    { key: "transportadora_id", label: "Transportadora", render: (r: Remessa) => transpMapLookup[r.transportadora_id || ""] || "—" },
+    { key: "cliente_id", label: "Cliente", render: (r: Remessa) => clienteMapLookup[r.cliente_id ?? ""] ?? "—" },
+    { key: "transportadora_id", label: "Transportadora", render: (r: Remessa) => transpMapLookup[r.transportadora_id ?? ""] ?? "—" },
     { key: "data_postagem", label: "Postagem", render: (r: Remessa) => r.data_postagem ? format(new Date(r.data_postagem + "T00:00:00"), "dd/MM/yyyy") : "—" },
-    { key: "status_transporte", label: "Status", render: (r: Remessa) => <StatusBadge status={remessaStatusMap[r.status_transporte]?.color || r.status_transporte} /> },
+    { key: "status_transporte", label: "Status", render: (r: Remessa) => {
+      const s = r.status_transporte ?? "";
+      return <StatusBadge status={remessaStatusMap[s]?.color ?? s} />;
+    }},
   ];
 
   const remSummaryItems = remSelected ? [
-    { label: "Status", value: remessaStatusMap[remSelected.status_transporte]?.label || remSelected.status_transporte },
-    { label: "Volumes", value: String(remSelected.volumes || 1) },
+    { label: "Status", value: remessaStatusMap[remSelected.status_transporte ?? ""]?.label ?? remSelected.status_transporte ?? "—" },
+    { label: "Volumes", value: String(remSelected.volumes ?? 1) },
     { label: "Peso", value: remSelected.peso ? `${remSelected.peso} kg` : "—" },
     { label: "Frete", value: remSelected.valor_frete ? `R$ ${Number(remSelected.valor_frete).toFixed(2)}` : "—" },
   ] : [];
@@ -796,8 +689,8 @@ export default function Logistica() {
                     { label: "Peso", value: remSelected.peso ? `${remSelected.peso} kg` : null },
                     { label: "Volumes", value: remSelected.volumes?.toString() },
                     { label: "Valor Frete", value: remSelected.valor_frete ? `R$ ${Number(remSelected.valor_frete).toFixed(2)}` : null },
-                    { label: "Ped. Compra", value: pedidosCompra.find(pc => pc.id === (remSelected as any).pedido_compra_id)?.numero },
-                    { label: "Nota Fiscal", value: notasFiscais.find(nf => nf.id === (remSelected as any).nota_fiscal_id)?.numero },
+                   { label: "Ped. Compra", value: pedidosCompra.find(pc => pc.id === remSelected.pedido_compra_id)?.numero },
+                    { label: "Nota Fiscal", value: notasFiscais.find(nf => nf.id === remSelected.nota_fiscal_id)?.numero },
                   ].map((f, i) => (
                     <div key={i}>
                       <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-0.5">{f.label}</p>
