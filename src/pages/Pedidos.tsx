@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useEffect, useMemo, useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";
@@ -22,14 +21,22 @@ import { FileText, DollarSign, Truck } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 interface Pedido {
-  id: string; numero: string; data_emissao: string; cliente_id: string;
-  cotacao_id: string; status: string; status_faturamento: string;
-  data_aprovacao: string; data_prometida_despacho: string;
-  prazo_despacho_dias: number; valor_total: number; observacoes: string;
-  po_number: string;
+  id: string;
+  numero: string;
+  data_emissao: string | null;
+  cliente_id: string | null;
+  cotacao_id: string | null;
+  status: string;
+  status_faturamento: string | null;
+  data_aprovacao: string | null;
+  data_prometida_despacho: string | null;
+  prazo_despacho_dias: number | null;
+  valor_total: number | null;
+  observacoes: string | null;
+  po_number: string | null;
   ativo: boolean;
-  clientes?: { nome_razao_social: string };
-  orcamentos?: { numero: string };
+  clientes?: { nome_razao_social: string } | null;
+  orcamentos?: { numero: string } | null;
 }
 
 const TERMINAL_STATUSES_PEDIDO = ["entregue", "faturado", "cancelada"];
@@ -104,9 +111,10 @@ const prazoFilterOptions: MultiSelectOption[] = [
 
 const Pedidos = () => {
   const { pushView } = useRelationalNavigation();
-  const { data, loading, fetchData } = useSupabaseCrud<Pedido>({
+  const { data: rawData, loading, fetchData } = useSupabaseCrud({
     table: "ordens_venda", select: "*, clientes(nome_razao_social), orcamentos(numero)",
   });
+  const data = rawData as unknown as Pedido[];
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilters, setStatusFilters] = useState<string[]>([]);
   const [faturamentoFilters, setFaturamentoFilters] = useState<string[]>([]);
@@ -114,7 +122,7 @@ const Pedidos = () => {
   const [prazoFilters, setPrazoFilters] = useState<string[]>([]);
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
-  const [clientesList, setClientesList] = useState<any[]>([]);
+  const [clientesList, setClientesList] = useState<{ id: string; nome_razao_social: string }[]>([]);
   const [generatingNfId, setGeneratingNfId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -139,7 +147,7 @@ const Pedidos = () => {
       const { count } = await supabase.from("notas_fiscais").select("*", { count: "exact", head: true });
       const nfNumero = String((count || 0) + 1).padStart(6, "0");
 
-      const totalProdutos = (pedidoItems || []).reduce((s: number, i: any) => s + Number(i.valor_total || 0), 0);
+      const totalProdutos = (pedidoItems || []).reduce((s, i) => s + Number(i.valor_total || 0), 0);
 
       const { data: newNF, error } = await supabase.from("notas_fiscais").insert({
         numero: nfNumero,
@@ -157,7 +165,7 @@ const Pedidos = () => {
       if (error) throw error;
 
       if (pedidoItems && pedidoItems.length > 0 && newNF) {
-        const nfItems = pedidoItems.map((i: any) => ({
+        const nfItems = pedidoItems.map((i) => ({
           nota_fiscal_id: newNF.id,
           produto_id: i.produto_id,
           quantidade: i.quantidade,
@@ -179,15 +187,15 @@ const Pedidos = () => {
         .from("ordens_venda_itens")
         .select("quantidade, quantidade_faturada")
         .eq("ordem_venda_id", pedido.id);
-      const totalQ = (updatedItems || []).reduce((s: number, i: any) => s + Number(i.quantidade), 0);
-      const totalF = (updatedItems || []).reduce((s: number, i: any) => s + Number(i.quantidade_faturada || 0), 0);
+      const totalQ = (updatedItems || []).reduce((s, i) => s + Number(i.quantidade), 0);
+      const totalF = (updatedItems || []).reduce((s, i) => s + Number(i.quantidade_faturada || 0), 0);
       const newFatStatus = calcularStatusFaturamentoOV(totalQ, totalF);
 
       await supabase.from("ordens_venda").update({ status_faturamento: newFatStatus }).eq("id", pedido.id);
 
       toast.success(`NF ${nfNumero} gerada a partir do Pedido ${pedido.numero}!`);
       fetchData();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('[pedidos] gerar NF:', err);
       toast.error("Erro ao gerar Nota Fiscal.");
     } finally {
@@ -199,7 +207,7 @@ const Pedidos = () => {
     const query = searchTerm.trim().toLowerCase();
     return data.filter((pedido) => {
       if (statusFilters.length > 0 && !statusFilters.includes(pedido.status)) return false;
-      if (faturamentoFilters.length > 0 && !faturamentoFilters.includes(pedido.status_faturamento)) return false;
+      if (faturamentoFilters.length > 0 && !faturamentoFilters.includes(pedido.status_faturamento ?? "")) return false;
       if (clienteFilters.length > 0 && !clienteFilters.includes(pedido.cliente_id || "")) return false;
 
       if (prazoFilters.length > 0) {
@@ -281,11 +289,14 @@ const Pedidos = () => {
     },
     {
       key: "faturamento", label: "Faturamento",
-      render: (p: Pedido) => (
-        <Badge variant="outline" className={`text-xs ${statusFaturamentoColors[p.status_faturamento] || ""}`}>
-          {statusFaturamentoLabels[p.status_faturamento] || p.status_faturamento}
-        </Badge>
-      ),
+      render: (p: Pedido) => {
+        const sf = p.status_faturamento ?? "";
+        return (
+          <Badge variant="outline" className={`text-xs ${statusFaturamentoColors[sf] || ""}`}>
+            {statusFaturamentoLabels[sf] || sf || "—"}
+          </Badge>
+        );
+      },
     },
     {
       key: "valor_total",

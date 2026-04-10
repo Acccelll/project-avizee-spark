@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
@@ -26,15 +25,36 @@ import { sendForApproval, approveOrcamento, convertToPedido } from "@/services/o
 import { statusOrcamento } from "@/lib/statusSchema";
 
 interface Orcamento {
-  id: string; numero: string; cliente_id: string; data_orcamento: string;
-  validade: string; valor_total: number; observacoes: string; status: string;
-  quantidade_total: number; peso_total: number;
-  pagamento: string; prazo_pagamento: string; prazo_entrega: string;
-  ativo: boolean; clientes?: { nome_razao_social: string };
+  id: string;
+  numero: string;
+  cliente_id: string | null;
+  data_orcamento: string | null;
+  validade: string | null;
+  valor_total: number | null;
+  observacoes: string | null;
+  status: string;
+  quantidade_total: number | null;
+  peso_total: number | null;
+  pagamento: string | null;
+  prazo_pagamento: string | null;
+  prazo_entrega: string | null;
+  ativo: boolean;
+  // Additional fields present in DB
+  frete_valor?: number | null;
+  frete_tipo?: string | null;
+  modalidade?: string | null;
+  cliente_snapshot?: unknown;
+  clientes?: { nome_razao_social: string } | null;
 }
 
 const TERMINAL_STATUSES = ["convertido", "cancelado", "rejeitado"];
 const PROXIMA_VENCER_DIAS = 7;
+
+const validadeOptions: { label: string; value: string }[] = [
+  { label: "Vencidas", value: "vencida" },
+  { label: `Próximas a vencer (≤${PROXIMA_VENCER_DIAS}d)`, value: "proxima" },
+  { label: "Vigentes", value: "vigente" },
+];
 
 function getValidadeStatus(validade: string | null, status: string): "vencida" | "proxima" | "vigente" | "sem_validade" {
   if (!validade) return "sem_validade";
@@ -79,7 +99,8 @@ const statusLabels: Record<string, string> = Object.fromEntries(
 const Orcamentos = () => {
   const navigate = useNavigate();
   const { pushView } = useRelationalNavigation();
-  const { data, loading, remove, fetchData } = useSupabaseCrud<Orcamento>({ table: "orcamentos", select: "*, clientes(nome_razao_social)" });
+  const { data: rawData, loading, fetchData } = useSupabaseCrud({ table: "orcamentos", select: "*, clientes(nome_razao_social)" });
+  const data = rawData as unknown as Orcamento[];
   const [convertingId, setConvertingId] = useState<string | null>(null);
   const [poNumberCliente, setPoNumberCliente] = useState("");
   const [dataPoCliente, setDataPoCliente] = useState("");
@@ -89,7 +110,7 @@ const Orcamentos = () => {
   const [validadeFilters, setValidadeFilters] = useState<string[]>([]);
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
-  const [clientesList, setClientesList] = useState<any[]>([]);
+  const [clientesList, setClientesList] = useState<{ id: string; nome_razao_social: string }[]>([]);
   const { isAdmin } = useIsAdmin();
 
   useEffect(() => {
@@ -123,18 +144,16 @@ const Orcamentos = () => {
       const { data: newOrc, error } = await supabase.from("orcamentos").insert({
         numero: newNumero, data_orcamento: new Date().toISOString().split("T")[0],
         status: "rascunho", cliente_id: orc.cliente_id, validade: null,
-        observacoes: orc.observacoes, desconto: (orc as any).desconto || 0,
-        imposto_st: (orc as any).imposto_st || 0, imposto_ipi: (orc as any).imposto_ipi || 0,
-        frete_valor: (orc as any).frete_valor || 0, outras_despesas: (orc as any).outras_despesas || 0,
+        observacoes: orc.observacoes, frete_valor: orc.frete_valor || 0,
         valor_total: orc.valor_total, quantidade_total: orc.quantidade_total,
-        peso_total: orc.peso_total, pagamento: (orc as any).pagamento,
-        prazo_pagamento: (orc as any).prazo_pagamento, prazo_entrega: (orc as any).prazo_entrega,
-        frete_tipo: (orc as any).frete_tipo, modalidade: (orc as any).modalidade,
-        cliente_snapshot: (orc as any).cliente_snapshot,
+        peso_total: orc.peso_total, pagamento: orc.pagamento,
+        prazo_pagamento: orc.prazo_pagamento, prazo_entrega: orc.prazo_entrega,
+        frete_tipo: orc.frete_tipo, modalidade: orc.modalidade,
+        cliente_snapshot: orc.cliente_snapshot,
       }).select().single();
       if (error) throw error;
       if (items && items.length > 0 && newOrc) {
-        const newItems = items.map((i: any) => ({
+        const newItems = items.map((i) => ({
           orcamento_id: newOrc.id, produto_id: i.produto_id,
           codigo_snapshot: i.codigo_snapshot, descricao_snapshot: i.descricao_snapshot,
           variacao: i.variacao, quantidade: i.quantidade, unidade: i.unidade,
@@ -146,7 +165,7 @@ const Orcamentos = () => {
       toast.success(`Cotação duplicada: ${newNumero}`);
       fetchData();
       navigate(`/cotacoes/${newOrc.id}`);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('[orcamentos] duplicar:', err);
       toast.error("Erro ao duplicar cotação.");
     }
@@ -160,7 +179,7 @@ const Orcamentos = () => {
     try {
       await approveOrcamento(orc);
       fetchData();
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast.error("Erro ao aprovar cotação.");
     }
   };
@@ -172,7 +191,7 @@ const Orcamentos = () => {
       setDataPoCliente("");
       fetchData();
       navigate(`/pedidos`);
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast.error("Erro ao converter cotação em pedido.");
     } finally {
       setConvertingId(null);
@@ -279,12 +298,6 @@ const Orcamentos = () => {
   ];
 
   const convertingOrc = data.find(o => o.id === convertingId);
-
-  const validadeOptions: MultiSelectOption[] = [
-    { label: "Vencidas", value: "vencida" },
-    { label: `Próximas a vencer (≤${PROXIMA_VENCER_DIAS}d)`, value: "proxima" },
-    { label: "Vigentes", value: "vigente" },
-  ];
 
   const orcActiveFilters = useMemo(() => {
     const chips: FilterChip[] = [];
