@@ -79,7 +79,7 @@ export function AlertStrip({
       count: remessasAtrasadas,
       icon: Truck,
       severity: 'warning',
-      href: '/remessas',
+      href: '/logistica',
     },
     {
       id: 'compras',

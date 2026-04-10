@@ -129,7 +129,7 @@ export const navSections: NavSection[] = [
         title: 'Controle',
         items: [
           { title: 'Posição Atual', path: '/estoque', keywords: ['saldo', 'inventario'] },
-          { title: 'Logística', path: '/logistica', keywords: ['rastreio', 'entrega', 'logistica', 'correios'] },
+          { title: 'Logística', path: '/logistica', keywords: ['rastreio', 'entrega', 'logistica', 'correios', 'remessas'] },
         ],
       },
     ],
@@ -260,7 +260,7 @@ const baseRouteLabels: Record<string, string> = {
   '/produtos': 'Produtos',
   '/estoque': 'Estoque',
   '/logistica': 'Logística',
-  '/remessas': 'Remessas (Legado)',
+  '/remessas': 'Logística',
   '/clientes': 'Clientes',
   '/fornecedores': 'Fornecedores',
   '/transportadoras': 'Transportadoras',

@@ -168,7 +168,7 @@ export function LogisticaRastreioSection({ pedidoCompraId, notaFiscalId, remessa
       <div className="py-8 text-center border rounded-lg bg-muted/20">
         <Truck className="w-8 h-8 mx-auto text-muted-foreground/50 mb-2" />
         <p className="text-sm text-muted-foreground">Nenhuma remessa vinculada.</p>
-        <Button variant="link" size="sm" className="mt-1" onClick={() => window.location.href = '/remessas'}>
+        <Button variant="link" size="sm" className="mt-1" onClick={() => window.location.href = '/logistica'}>
           Ir para Remessas
         </Button>
       </div>
@@ -196,7 +196,7 @@ export function LogisticaRastreioSection({ pedidoCompraId, notaFiscalId, remessa
                   {trackingLoading === r.id ? "Consultando..." : "Rastrear"}
                 </Button>
               )}
-              <Button size="sm" variant="ghost" className="h-8" onClick={() => window.location.href = `/remessas`}>
+              <Button size="sm" variant="ghost" className="h-8" onClick={() => window.location.href = `/logistica`}>
                 <ExternalLink className="w-3.5 h-3.5" />
               </Button>
             </div>
