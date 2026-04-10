@@ -1,5 +1,5 @@
 // @ts-nocheck
-import * as XLSX from 'xlsx';
+import * as XLSX from '@/lib/xlsx-compat';
 import { supabase } from '@/integrations/supabase/client';
 import { downloadTextFile } from '@/lib/utils';
 import { getSocialProvider } from './socialProviders';

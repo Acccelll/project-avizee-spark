@@ -22,7 +22,7 @@ import {
   Pencil,
   ChevronsUpDown as ExpandIcon,
 } from 'lucide-react';
-import * as XLSX from 'xlsx';
+import * as XLSX from '@/lib/xlsx-compat';
 import jsPDF from 'jspdf';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';

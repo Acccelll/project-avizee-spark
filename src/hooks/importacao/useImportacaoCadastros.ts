@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { useState, useCallback } from "react";
-import * as XLSX from "xlsx";
+import * as XLSX from "@/lib/xlsx-compat";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
