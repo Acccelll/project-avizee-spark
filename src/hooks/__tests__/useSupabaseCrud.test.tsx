@@ -62,9 +62,17 @@ function createQueryMock(initialData: Row[] = []) {
     __payload: null,
     __inserted: null,
     __operation: null,
+    __eqCalls: [] as { column: string; value: string }[],
+    __orFilter: null as string | null,
     select: vi.fn(() => query),
     order: vi.fn(() => query),
+    range: vi.fn(() => query),
+    or: vi.fn((filter: string) => {
+      query.__orFilter = filter;
+      return query;
+    }),
     eq: vi.fn((column: string, value: string) => {
+      (query.__eqCalls as { column: string; value: string }[]).push({ column, value });
       if (column === "id") {
         query.__selectedId = value;
         applyPendingMutation();
@@ -134,5 +142,73 @@ describe("useSupabaseCrud", () => {
 
     expect(getRows()[0].ativo).toBe(false);
     expect(successToast).toHaveBeenCalledWith("Registro removido com sucesso!");
+  });
+
+  it("aplica filtro hasAtivo = true por padrão", async () => {
+    const { query } = createQueryMock([{ id: "1", nome: "Produto A", ativo: true }]);
+    fromMock.mockReturnValue(query);
+
+    const { result } = renderHook(
+      () => useSupabaseCrud<"produtos">({ table: "produtos", hasAtivo: true }),
+      { wrapper: createWrapper() },
+    );
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    const eqCalls = (query.__eqCalls as { column: string; value: string }[]);
+    expect(eqCalls.some((c) => c.column === "ativo" && c.value === true)).toBe(true);
+  });
+
+  it("não aplica filtro ativo quando hasAtivo = false", async () => {
+    const { query } = createQueryMock([{ id: "1", nome: "Produto A", ativo: true }]);
+    fromMock.mockReturnValue(query);
+
+    const { result } = renderHook(
+      () => useSupabaseCrud<"produtos">({ table: "produtos", hasAtivo: false }),
+      { wrapper: createWrapper() },
+    );
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    const eqCalls = (query.__eqCalls as { column: string; value: string }[]);
+    expect(eqCalls.some((c) => c.column === "ativo")).toBe(false);
+  });
+
+  it("aplica searchTerm com ilike nas colunas corretas", async () => {
+    const { query } = createQueryMock([]);
+    fromMock.mockReturnValue(query);
+
+    const { result } = renderHook(
+      () =>
+        useSupabaseCrud<"produtos">({
+          table: "produtos",
+          searchTerm: "mesa",
+          searchColumns: ["nome", "codigo"],
+        }),
+      { wrapper: createWrapper() },
+    );
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(query.or).toHaveBeenCalledWith("nome.ilike.%mesa%,codigo.ilike.%mesa%");
+  });
+
+  it("mutation create chama .insert() e invalida queryKey", async () => {
+    const { query } = createQueryMock([]);
+    fromMock.mockReturnValue(query);
+
+    const { result } = renderHook(
+      () => useSupabaseCrud<"produtos">({ table: "produtos" }),
+      { wrapper: createWrapper() },
+    );
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await result.current.create({ nome: "Novo Produto", ativo: true });
+    });
+
+    expect(query.insert).toHaveBeenCalledWith({ nome: "Novo Produto", ativo: true });
+    expect(successToast).toHaveBeenCalledWith("Registro criado com sucesso!");
   });
 });
