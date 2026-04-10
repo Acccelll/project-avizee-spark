@@ -1,5 +1,4 @@
-// @ts-nocheck
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
@@ -8,6 +7,7 @@ import { SummaryCard } from "@/components/SummaryCard";
 import { EstoqueMovimentacaoDrawer } from "@/components/estoque/EstoqueMovimentacaoDrawer";
 import { EstoquePosicaoDrawer } from "@/components/estoque/EstoquePosicaoDrawer";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
+import { useEstoqueMutations } from "@/pages/estoque/hooks/useEstoqueMutations";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,35 +22,32 @@ import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { formatNumber, formatCurrency } from "@/lib/format";
+import type { Database } from "@/integrations/supabase/types";
 import {
   AlertTriangle, ArrowDownCircle, RotateCcw,
   TrendingDown, Package, CheckCircle, XCircle, ShieldAlert,
   DollarSign, SlidersHorizontal,
 } from "lucide-react";
 
+type ProdutoRow = Database["public"]["Tables"]["produtos"]["Row"];
+
 interface Movimento {
   id: string; produto_id: string; tipo: string; quantidade: number;
-  saldo_anterior: number; saldo_atual: number; motivo: string;
-  documento_tipo: string; documento_id: string; created_at: string;
+  saldo_anterior: number; saldo_atual: number; motivo: string | null;
+  documento_tipo: string | null; documento_id: string | null; created_at: string;
   usuario_id?: string | null;
-  produtos?: { nome: string; sku: string };
+  produtos?: { nome: string; sku: string | null } | null;
 }
 
-interface ProdutoPosicao {
-  id: string; nome: string; sku: string; codigo_interno: string;
-  unidade_medida: string; estoque_atual: number; estoque_minimo: number;
-  preco_venda: number;
-  estoque_reservado?: number;
-  estoque_ideal?: number;
-  ponto_reposicao?: number;
-  ativo?: boolean;
+interface ProdutoPosicao extends ProdutoRow {
+  estoque_reservado?: number | null;
 }
 
 type SituacaoEstoque = "normal" | "atencao" | "critico" | "zerado";
 
 function getSituacao(p: ProdutoPosicao): SituacaoEstoque {
-  const atual = Number(p.estoque_atual || 0);
-  const minimo = Number(p.estoque_minimo || 0);
+  const atual = Number(p.estoque_atual ?? 0);
+  const minimo = Number(p.estoque_minimo ?? 0);
   if (atual <= 0) return "zerado";
   if (minimo > 0 && atual <= minimo) return "critico";
   if (minimo > 0 && atual <= minimo * 1.2) return "atencao";
@@ -91,7 +88,8 @@ const Estoque = () => {
   const { data, loading, create } = useSupabaseCrud<Movimento>({
     table: "estoque_movimentos", select: "*, produtos(nome, sku)", hasAtivo: false,
   });
-  const produtosCrud = useSupabaseCrud<any>({ table: "produtos" });
+  const produtosCrud = useSupabaseCrud<ProdutoPosicao>({ table: "produtos" });
+  const { registrar, isSaving: mutationSaving } = useEstoqueMutations();
   const [activeTab, setActiveTab] = useState("saldos");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selected, setSelected] = useState<Movimento | null>(null);
@@ -110,16 +108,16 @@ const Estoque = () => {
 
   // Produtos abaixo do mínimo
   const abaixoMinimo = useMemo(() =>
-    produtosCrud.data.filter((p: any) => p.ativo && p.estoque_minimo > 0 && Number(p.estoque_atual || 0) <= Number(p.estoque_minimo)),
+    produtosCrud.data.filter((p) => p.ativo && (p.estoque_minimo ?? 0) > 0 && Number(p.estoque_atual ?? 0) <= Number(p.estoque_minimo ?? 0)),
     [produtosCrud.data]
   );
 
   // KPIs operacionais
   const kpis = useMemo(() => {
-    const ativos = produtosCrud.data.filter((p: any) => p.ativo);
+    const ativos = produtosCrud.data.filter((p) => p.ativo);
     const totalItens = ativos.length;
-    const valorEstoque = ativos.reduce((s: number, p: any) => s + (Number(p.estoque_atual || 0) * Number(p.preco_venda || 0)), 0);
-    const itensZerados = ativos.filter((p: any) => Number(p.estoque_atual || 0) <= 0).length;
+    const valorEstoque = ativos.reduce((s, p) => s + (Number(p.estoque_atual ?? 0) * Number(p.preco_venda ?? 0)), 0);
+    const itensZerados = ativos.filter((p) => Number(p.estoque_atual ?? 0) <= 0).length;
     const itensCriticos = abaixoMinimo.length + itensZerados;
     const ajustesManuais = data.filter((m) => m.tipo === "ajuste").length;
     return { totalItens, valorEstoque, itensCriticos, ajustesManuais };
@@ -128,9 +126,9 @@ const Estoque = () => {
   // Posição atual / Saldos
   const posicaoAtual = useMemo(() => {
     const q = searchPosicao.toLowerCase();
-    return (produtosCrud.data as ProdutoPosicao[])
+    return produtosCrud.data
       .filter((p) => p.ativo !== false)
-      .filter((p) => Number(p.estoque_atual || 0) !== 0 || Number(p.estoque_minimo || 0) > 0)
+      .filter((p) => Number(p.estoque_atual ?? 0) !== 0 || Number(p.estoque_minimo ?? 0) > 0)
       .filter((p) => {
         if (!q) return true;
         return p.nome?.toLowerCase().includes(q) || p.sku?.toLowerCase().includes(q) || p.codigo_interno?.toLowerCase().includes(q);
@@ -149,8 +147,8 @@ const Estoque = () => {
       if (dataInicio && m.created_at < dataInicio) return false;
       if (dataFim && m.created_at > dataFim + "T23:59:59") return false;
       if (q) {
-        const nome = (m as any).produtos?.nome?.toLowerCase() || "";
-        const sku = (m as any).produtos?.sku?.toLowerCase() || "";
+        const nome = m.produtos?.nome?.toLowerCase() ?? "";
+        const sku = m.produtos?.sku?.toLowerCase() ?? "";
         if (!nome.includes(q) && !sku.includes(q)) return false;
       }
       return true;
@@ -163,8 +161,8 @@ const Estoque = () => {
     if (!form.motivo.trim()) { toast.error("Motivo é obrigatório para ajuste manual"); return; }
     setSaving(true);
     try {
-      const produto = produtosCrud.data.find((p: any) => p.id === form.produto_id);
-      const saldo_anterior = Number(produto?.estoque_atual || 0);
+      const produto = produtosCrud.data.find((p) => p.id === form.produto_id);
+      const saldo_anterior = Number(produto?.estoque_atual ?? 0);
       const qty = form.tipo === "saida" ? -form.quantidade : form.tipo === "ajuste" ? form.quantidade - saldo_anterior : form.quantidade;
       const saldo_atual = form.tipo === "ajuste" ? form.quantidade : saldo_anterior + qty;
 
@@ -174,7 +172,7 @@ const Estoque = () => {
       setForm({ produto_id: "", tipo: "ajuste", quantidade: 0, motivo: "" });
       toast.success("Ajuste registrado com sucesso");
     } catch (err) {
-      console.error('[estoque] erro ao salvar:', err);
+      console.error("[estoque] erro ao salvar:", err);
       toast.error("Erro ao registrar movimentação de estoque");
     }
     setSaving(false);
@@ -235,7 +233,7 @@ const Estoque = () => {
 
   const movColumns = [
     { key: "produto", label: "Produto", render: (m: Movimento) => (
-      <div><span className="font-medium">{(m as any).produtos?.nome || "—"}</span><br/><span className="text-xs text-muted-foreground font-mono">{(m as any).produtos?.sku}</span></div>
+      <div><span className="font-medium">{m.produtos?.nome ?? "—"}</span><br/><span className="text-xs text-muted-foreground font-mono">{m.produtos?.sku}</span></div>
     )},
     { key: "tipo", label: "Tipo", render: (m: Movimento) => {
       const cfg = tipoMovConfig[m.tipo] ?? { label: m.tipo, status: "pendente" };
@@ -255,18 +253,18 @@ const Estoque = () => {
     { key: "nome", label: "Produto", render: (p: ProdutoPosicao) => (
       <div><span className="font-medium">{p.nome}</span>{p.sku && <><br/><span className="text-xs text-muted-foreground font-mono">{p.sku}</span></>}</div>
     )},
-    { key: "unidade", label: "Unid.", render: (p: ProdutoPosicao) => p.unidade_medida || "UN" },
-    { key: "estoque_atual", label: "Estoque Atual", render: (p: ProdutoPosicao) => <span className="font-semibold font-mono">{formatNumber(Number(p.estoque_atual || 0))}</span> },
-    { key: "estoque_reservado", label: "Reservado", render: (p: ProdutoPosicao) => <span className="font-mono text-muted-foreground">{formatNumber(Number(p.estoque_reservado || 0))}</span>, hidden: true },
-    { key: "estoque_disponivel", label: "Disponível", render: (p: ProdutoPosicao) => <span className="font-mono font-semibold">{formatNumber(Number(p.estoque_atual || 0) - Number(p.estoque_reservado || 0))}</span> },
-    { key: "estoque_minimo", label: "Mínimo", render: (p: ProdutoPosicao) => <span className="font-mono text-muted-foreground">{p.estoque_minimo > 0 ? formatNumber(p.estoque_minimo) : "—"}</span> },
+    { key: "unidade", label: "Unid.", render: (p: ProdutoPosicao) => p.unidade_medida ?? "UN" },
+    { key: "estoque_atual", label: "Estoque Atual", render: (p: ProdutoPosicao) => <span className="font-semibold font-mono">{formatNumber(Number(p.estoque_atual ?? 0))}</span> },
+    { key: "estoque_reservado", label: "Reservado", render: (p: ProdutoPosicao) => <span className="font-mono text-muted-foreground">{formatNumber(Number(p.estoque_reservado ?? 0))}</span>, hidden: true },
+    { key: "estoque_disponivel", label: "Disponível", render: (p: ProdutoPosicao) => <span className="font-mono font-semibold">{formatNumber(Number(p.estoque_atual ?? 0) - Number(p.estoque_reservado ?? 0))}</span> },
+    { key: "estoque_minimo", label: "Mínimo", render: (p: ProdutoPosicao) => <span className="font-mono text-muted-foreground">{(p.estoque_minimo ?? 0) > 0 ? formatNumber(p.estoque_minimo ?? 0) : "—"}</span> },
     { key: "situacao", label: "Situação", render: (p: ProdutoPosicao) => <SituacaoEstoqueBadge situacao={getSituacao(p)} /> },
-    { key: "valor_estoque", label: "Valor Est.", render: (p: ProdutoPosicao) => <span className="font-mono font-medium">{formatCurrency(Number(p.estoque_atual || 0) * Number(p.preco_venda || 0))}</span>, hidden: true },
+    { key: "valor_estoque", label: "Valor Est.", render: (p: ProdutoPosicao) => <span className="font-mono font-medium">{formatCurrency(Number(p.estoque_atual ?? 0) * Number(p.preco_venda ?? 0))}</span>, hidden: true },
   ];
 
   // Preview do ajuste para o produto selecionado
-  const produtoSelecionado = produtosCrud.data.find((p: any) => p.id === form.produto_id);
-  const saldoAtualPreview = Number(produtoSelecionado?.estoque_atual || 0);
+  const produtoSelecionado = produtosCrud.data.find((p) => p.id === form.produto_id);
+  const saldoAtualPreview = Number(produtoSelecionado?.estoque_atual ?? 0);
   const qty = isNaN(form.quantidade) ? 0 : form.quantidade;
   const novoSaldoPreview = form.tipo === "ajuste"
     ? qty
@@ -330,7 +328,7 @@ const Estoque = () => {
                 <AlertTriangle className="w-4 h-4" /> {abaixoMinimo.length} produto(s) abaixo do estoque mínimo
               </div>
               <div className="flex flex-wrap gap-2">
-                {abaixoMinimo.slice(0, 8).map((p: any) => (
+                {abaixoMinimo.slice(0, 8).map((p) => (
                   <button
                     key={p.id}
                     className="text-xs bg-destructive/10 text-destructive px-2 py-0.5 rounded-full font-medium hover:bg-destructive/20 transition-colors"
@@ -461,7 +459,7 @@ const Estoque = () => {
                   <Select value={form.produto_id} onValueChange={(v) => setForm({ ...form, produto_id: v })}>
                     <SelectTrigger><SelectValue placeholder="Selecione o produto..." /></SelectTrigger>
                     <SelectContent>
-                      {produtosCrud.data.map((p: any) => (
+                      {produtosCrud.data.map((p) => (
                         <SelectItem key={p.id} value={p.id}>
                           {p.nome}
                           {p.sku && <span className="ml-1 text-muted-foreground font-mono text-xs">({p.sku})</span>}
