@@ -60,7 +60,7 @@ export async function read(data: ArrayBuffer | string | Uint8Array): Promise<Wor
   } else if (data instanceof ArrayBuffer) {
     await wb.xlsx.load(data);
   } else {
-    await wb.xlsx.load(data.buffer);
+    await wb.xlsx.load(data.buffer as ArrayBuffer);
   }
 
   const sheetNames = wb.worksheets.map((ws) => ws.name);
