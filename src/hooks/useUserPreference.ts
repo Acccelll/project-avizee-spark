@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { Json } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
-import { toast } from 'sonner';
 import { useSyncedStorage, buildSyncedStorageKey } from './useSyncedStorage';
 import { enqueueSync, processSyncQueue } from '@/services/syncQueue';
 import { useOnlineStatus } from './useOnlineStatus';
