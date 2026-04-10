@@ -325,8 +325,8 @@ const Orcamentos = () => {
       <ModulePage
         title="Cotações"
         subtitle="Central de consulta e acompanhamento do funil comercial"
-        addLabel="Nova Cotação"
-        onAdd={() => navigate("/cotacoes/novo")}
+        addLabel="Novo Orçamento"
+        onAdd={() => navigate("/orcamentos/novo")}
       >
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <SummaryCard title="Total de Cotações" value={String(kpis.total)} icon={FileText} variationType="neutral" variation="registros" />
