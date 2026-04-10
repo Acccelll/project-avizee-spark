@@ -107,7 +107,7 @@ describe("useSupabaseCrud", () => {
     const { query, getRows } = createQueryMock([{ id: "1", nome: "Produto A", ativo: true }]);
     fromMock.mockReturnValue(query);
 
-    const { result } = renderHook(() => useSupabaseCrud<Row>({ table: "produtos" }), { wrapper: createWrapper() });
+    const { result } = renderHook(() => useSupabaseCrud<"produtos">({ table: "produtos" }), { wrapper: createWrapper() });
 
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.data).toHaveLength(1);
@@ -124,7 +124,7 @@ describe("useSupabaseCrud", () => {
     const { query, getRows } = createQueryMock([{ id: "1", nome: "Produto A", ativo: true }]);
     fromMock.mockReturnValue(query);
 
-    const { result } = renderHook(() => useSupabaseCrud<Row>({ table: "produtos" }), { wrapper: createWrapper() });
+    const { result } = renderHook(() => useSupabaseCrud<"produtos">({ table: "produtos" }), { wrapper: createWrapper() });
 
     await waitFor(() => expect(result.current.loading).toBe(false));
 

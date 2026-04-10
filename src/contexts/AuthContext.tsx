@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { createContext, useContext, useEffect, useState, useRef, ReactNode, useMemo } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
@@ -112,11 +111,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const { data } = await supabase.from("user_roles").select("role").eq("user_id", userId);
       if (data) {
-        setRoles(
-          (data as unknown as Array<{ role: string }>)
-            .map((r) => r.role)
-            .filter((r): r is AppRole => !LEGACY_ROLES.has(r))
-        );
+        const validAppRoles: string[] = ["admin", "vendedor", "financeiro", "estoquista"];
+        const validRoles = (data as unknown as Array<{ role: string }>)
+          .map((r) => r.role)
+          .filter((r): r is AppRole => !LEGACY_ROLES.has(r) && validAppRoles.includes(r));
+        setRoles(validRoles);
       }
     } catch {
       setRoles([]);
@@ -127,11 +126,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const { data, error } = await supabase
         .from("user_permissions")
-        .select("permission_key, ativo")
+        .select("resource, action, allowed")
         .eq("user_id", userId)
-        .eq("ativo", true);
+        .eq("allowed", true);
       if (error) throw error;
-      const keys = ((data || []) as Array<{ permission_key: string }>).map((item) => item.permission_key as PermissionKey);
+      const keys = ((data || []) as Array<{ resource: string; action: string }>).map(
+        (item) => `${item.resource}:${item.action}` as PermissionKey
+      );
       setExtraPermissions(keys);
     } catch {
       setExtraPermissions([]);

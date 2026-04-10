@@ -22,7 +22,7 @@ import {
   Pencil,
   ChevronsUpDown as ExpandIcon,
 } from 'lucide-react';
-import * as XLSX from 'xlsx';
+import * as XLSX from '@/lib/xlsx-compat';
 import jsPDF from 'jspdf';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -303,7 +303,7 @@ export function DataTable<T extends Record<string, any>>({
         const ws = XLSX.utils.json_to_sheet(rows);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'Dados');
-        XLSX.writeFile(wb, `${moduleKey || 'dados'}.xlsx`);
+        await XLSX.writeFile(wb, `${moduleKey || 'dados'}.xlsx`);
         toast.success('Exportação XLSX concluída', { id: toastId });
         return;
       }
