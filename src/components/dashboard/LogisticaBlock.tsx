@@ -44,7 +44,7 @@ export function LogisticaBlock({ comprasAguardando, totalRemessasAtrasadas }: Lo
           variant="ghost"
           size="sm"
           className="h-7 gap-1 text-xs text-primary hover:text-primary"
-          onClick={() => navigate('/remessas')}
+          onClick={() => navigate('/logistica')}
         >
           Ver módulo <ArrowRight className="h-3.5 w-3.5" />
         </Button>
