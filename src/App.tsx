@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { lazy, Suspense } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, Navigate, useParams } from "react-router-dom";
@@ -22,7 +21,7 @@ const GruposEconomicos = lazy(() => import("./pages/GruposEconomicos"));
 const Fornecedores = lazy(() => import("./pages/Fornecedores"));
 const Orcamentos = lazy(() => import("./pages/Orcamentos"));
 const OrcamentoForm = lazy(() => import("./pages/OrcamentoForm"));
-const OrdensVenda = lazy(() => import("./pages/OrdensVenda"));
+
 const Estoque = lazy(() => import("./pages/Estoque"));
 const Fiscal = lazy(() => import("./pages/Fiscal"));
 const Financeiro = lazy(() => import("./pages/Financeiro"));
@@ -117,7 +116,7 @@ const App = () => (
             <Route path="/orcamentos" element={<ProtectedRoute><LazyPage><Orcamentos /></LazyPage></ProtectedRoute>} />
             <Route path="/orcamentos/novo" element={<ProtectedRoute><LazyPage><OrcamentoForm /></LazyPage></ProtectedRoute>} />
             <Route path="/orcamentos/:id" element={<ProtectedRoute><LazyPage><OrcamentoForm /></LazyPage></ProtectedRoute>} />
-            <Route path="/ordens-venda" element={<ProtectedRoute><LazyPage><OrdensVenda /></LazyPage></ProtectedRoute>} />
+            <Route path="/ordens-venda" element={<Navigate to="/pedidos" replace />} />
             <Route path="/pedidos" element={<ProtectedRoute><LazyPage><Pedidos /></LazyPage></ProtectedRoute>} />
             <Route path="/estoque" element={<ProtectedRoute><LazyPage><Estoque /></LazyPage></ProtectedRoute>} />
             <Route path="/fiscal" element={<ProtectedRoute><LazyPage><Fiscal /></LazyPage></ProtectedRoute>} />

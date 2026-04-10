@@ -36,10 +36,9 @@ export type ErpAction = (typeof ERP_ACTIONS)[number];
 export type PermissionKey = `${ErpResource}:${ErpAction}`;
 
 const rolePermissionMatrix: Record<AppRole, PermissionKey[]> = {
-  admin: ERP_RESOURCES.flatMap((resource) => [
-    `${resource}:visualizar` as PermissionKey,
-    `${resource}:editar` as PermissionKey,
-  ]),
+  admin: ERP_RESOURCES.flatMap((resource) =>
+    ERP_ACTIONS.map((action) => `${resource}:${action}` as PermissionKey)
+  ),
   vendedor: [
     "dashboard:visualizar",
     "clientes:visualizar",
