@@ -1,6 +1,8 @@
-// @ts-nocheck
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { orcamentoSchema, type OrcamentoFormValues } from "@/lib/orcamentoSchema";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -67,34 +69,65 @@ export default function OrcamentoForm() {
   const [clientes, setClientes] = useState<Tables<"clientes">[]>([]);
   const [produtos, setProdutos] = useState<ProductWithForn[]>([]);
   const [precosEspeciais, setPrecosEspeciais] = useState<Tables<"precos_especiais">[]>([]);
-
-  const [numero, setNumero] = useState("");
-  const [dataOrcamento, setDataOrcamento] = useState(new Date().toISOString().split("T")[0]);
-  const [status, setStatus] = useState("rascunho");
-  const [clienteId, setClienteId] = useState("");
   const [clienteSnapshot, setClienteSnapshot] = useState<ClienteSnapshot>(emptyCliente);
   const [items, setItems] = useState<OrcamentoItem[]>([]);
-  const [observacoes, setObservacoes] = useState("");
-  const [observacoesInternas, setObservacoesInternas] = useState("");
-  const [validade, setValidade] = useState("");
-
-  const [desconto, setDesconto] = useState(0);
-  const [impostoSt, setImpostoSt] = useState(0);
-  const [impostoIpi, setImpostoIpi] = useState(0);
-  const [freteValor, setFreteValor] = useState(0);
-  const [outrasDespesas, setOutrasDespesas] = useState(0);
-
-  const [pagamento, setPagamento] = useState("");
-  const [prazoPagamento, setPrazoPagamento] = useState("");
-  const [prazoEntrega, setPrazoEntrega] = useState("");
-  const [freteTipo, setFreteTipo] = useState("");
-  const [modalidade, setModalidade] = useState("");
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [restoreDraftOpen, setRestoreDraftOpen] = useState(false);
   const [templateName, setTemplateName] = useState("");
   const [templates, setTemplates] = useState<OrcamentoTemplate[]>([]);
-  const [fieldErrors, setFieldErrors] = useState<{ numero?: string; clienteId?: string }>({});
   const [layoutTemplate, setLayoutTemplate] = useState<'simples' | 'completo' | 'logo'>('completo');
+
+  const {
+    register,
+    control,
+    watch,
+    setValue,
+    getValues,
+    reset,
+    formState: { errors: fieldErrors },
+  } = useForm<OrcamentoFormValues>({
+    resolver: zodResolver(orcamentoSchema),
+    mode: 'onChange',
+    defaultValues: {
+      numero: '',
+      dataOrcamento: new Date().toISOString().split('T')[0],
+      status: 'rascunho',
+      clienteId: '',
+      validade: '',
+      desconto: 0,
+      impostoSt: 0,
+      impostoIpi: 0,
+      freteValor: 0,
+      outrasDespesas: 0,
+      pagamento: '',
+      prazoPagamento: '',
+      prazoEntrega: '',
+      freteTipo: '',
+      modalidade: '',
+      observacoes: '',
+      observacoesInternas: '',
+    },
+  });
+
+  const {
+    numero,
+    dataOrcamento,
+    status,
+    clienteId,
+    validade,
+    desconto,
+    impostoSt,
+    impostoIpi,
+    freteValor,
+    outrasDespesas,
+    pagamento,
+    prazoPagamento,
+    prazoEntrega,
+    freteTipo,
+    modalidade,
+    observacoes,
+    observacoesInternas,
+  } = watch();
   const [simDescontoGeral, setSimDescontoGeral] = useState(0);
   const [simFreteSeguro, setSimFreteSeguro] = useState(0);
   const [simPagamento, setSimPagamento] = useState('');
@@ -213,15 +246,25 @@ export default function OrcamentoForm() {
             console.error("[OrcamentoForm] erro ao carregar cotação:", orcError);
             toast.error("Erro ao carregar cotação.", { description: orcError.message });
           } else if (orc) {
-            setNumero(orc.numero); setDataOrcamento(orc.data_orcamento); setStatus(orc.status);
-            setClienteId(orc.cliente_id || ""); setObservacoes(orc.observacoes || "");
-            setObservacoesInternas(orc.observacoes_internas || "");
-            setValidade(orc.validade || ""); setDesconto(orc.desconto || 0);
-            setImpostoSt(orc.imposto_st || 0); setImpostoIpi(orc.imposto_ipi || 0);
-            setFreteValor(orc.frete_valor || 0); setOutrasDespesas(orc.outras_despesas || 0);
-            setPagamento(orc.pagamento || ""); setPrazoPagamento(orc.prazo_pagamento || "");
-            setPrazoEntrega(orc.prazo_entrega || ""); setFreteTipo(orc.frete_tipo || "");
-            setModalidade(orc.modalidade || "");
+            reset({
+              numero: orc.numero,
+              dataOrcamento: orc.data_orcamento,
+              status: orc.status as OrcamentoFormValues['status'],
+              clienteId: orc.cliente_id || '',
+              observacoes: orc.observacoes || '',
+              observacoesInternas: orc.observacoes_internas || '',
+              validade: orc.validade || '',
+              desconto: orc.desconto || 0,
+              impostoSt: orc.imposto_st || 0,
+              impostoIpi: orc.imposto_ipi || 0,
+              freteValor: orc.frete_valor || 0,
+              outrasDespesas: orc.outras_despesas || 0,
+              pagamento: orc.pagamento || '',
+              prazoPagamento: orc.prazo_pagamento || '',
+              prazoEntrega: orc.prazo_entrega || '',
+              freteTipo: orc.frete_tipo || '',
+              modalidade: orc.modalidade || '',
+            });
             if (orc.cliente_snapshot) setClienteSnapshot(orc.cliente_snapshot as any);
             const { data: itensData } = await supabase.from("orcamentos_itens").select("*").eq("orcamento_id", id);
             if (itensData) setItems(itensData);
@@ -230,7 +273,7 @@ export default function OrcamentoForm() {
           }
         } else {
           const { count } = await supabase.from("orcamentos").select("*", { count: "exact", head: true });
-          setNumero(`COT${String((count || 0) + 1).padStart(6, "0")}`);
+          setValue('numero', `COT${String((count || 0) + 1).padStart(6, "0")}`);
         }
       } catch (err) {
         console.error("[OrcamentoForm] erro ao carregar dados:", err);
@@ -241,8 +284,8 @@ export default function OrcamentoForm() {
   }, [id, isEdit]);
 
   const handleClienteChange = useCallback((cId: string) => {
-    setClienteId(cId);
-    const c = clientes.find((cl: any) => cl.id === cId);
+    setValue('clienteId', cId);
+    const c = clientes.find((cl) => (cl as { id: string }).id === cId) as Record<string, string> | undefined;
     if (c) {
       setClienteSnapshot({
         nome_razao_social: c.nome_razao_social || "", nome_fantasia: c.nome_fantasia || "",
@@ -250,12 +293,12 @@ export default function OrcamentoForm() {
         email: c.email || "", telefone: c.telefone || "", celular: c.celular || "",
         contato: c.contato || "", logradouro: c.logradouro || "", numero: c.numero || "",
         bairro: c.bairro || "", cidade: c.cidade || "", uf: c.uf || "",
-        cep: c.cep || "", codigo: c.id?.substring(0, 6) || "",
+        cep: c.cep || "", codigo: (c.id as string)?.substring(0, 6) || "",
       });
       // Auto-fill payment preferences from client
-      if (c.forma_pagamento_padrao && !pagamento) setPagamento(c.forma_pagamento_padrao);
-      if (c.prazo_preferencial && !prazoPagamento) setPrazoPagamento(`${c.prazo_preferencial} dias`);
-      if (c.prazo_padrao && !prazoPagamento && !c.prazo_preferencial) setPrazoPagamento(`${c.prazo_padrao} dias`);
+      if (c.forma_pagamento_padrao && !pagamento) setValue('pagamento', c.forma_pagamento_padrao);
+      if (c.prazo_preferencial && !prazoPagamento) setValue('prazoPagamento', `${c.prazo_preferencial} dias`);
+      if (c.prazo_padrao && !prazoPagamento && !c.prazo_preferencial) setValue('prazoPagamento', `${c.prazo_padrao} dias`);
 
       // Load special prices for this client (only active and within validity period)
       const today = new Date().toISOString().slice(0, 10);
@@ -267,23 +310,21 @@ export default function OrcamentoForm() {
         .or(`vigencia_inicio.is.null,vigencia_inicio.lte.${today}`)
         .then(({ data }) => {
           const rules = data || [];
-          setPrecosEspeciais(rules);
+          setPrecosEspeciais(rules as Tables<"precos_especiais">[]);
 
           // Recalculate prices for existing items if they have special prices
           if (items.length > 0) {
             let applied = false;
             const nextItems = items.map(item => {
               if (!item.produto_id) return item;
-              const rule = rules.find(r => r.produto_id === item.produto_id);
+              const rule = rules.find((r: { produto_id: string }) => r.produto_id === item.produto_id);
               if (rule) {
-                let newPrice: number;
-                if (rule.preco_especial && Number(rule.preco_especial) > 0) {
-                  newPrice = Number(rule.preco_especial);
-                } else {
-                  return item;
+                const ruleAny = rule as { preco_especial?: number };
+                if (ruleAny.preco_especial && Number(ruleAny.preco_especial) > 0) {
+                  const newPrice = Number(ruleAny.preco_especial);
+                  applied = true;
+                  return { ...item, valor_unitario: newPrice, valor_total: item.quantidade * newPrice };
                 }
-                applied = true;
-                return { ...item, valor_unitario: newPrice, valor_total: item.quantidade * newPrice };
               }
               return item;
             });
@@ -296,46 +337,37 @@ export default function OrcamentoForm() {
     } else {
       setPrecosEspeciais([]);
     }
-  }, [clientes, pagamento, prazoPagamento]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      const next: { numero?: string; clienteId?: string } = {};
-      if (!numero.trim()) next.numero = "Informe o número da cotação.";
-      if (!clienteId) next.clienteId = "Selecione um cliente.";
-      setFieldErrors(next);
-    }, 350);
-    return () => clearTimeout(timer);
-  }, [numero, clienteId]);
-
+  }, [clientes, pagamento, prazoPagamento, items, setValue]);
 
   const buildDraftPayload = useCallback(() => ({
-    numero, dataOrcamento, status, clienteId, clienteSnapshot, items, observacoes, observacoesInternas, validade,
-    desconto, impostoSt, impostoIpi, freteValor, outrasDespesas,
-    pagamento, prazoPagamento, prazoEntrega, freteTipo, modalidade,
+    ...getValues(),
+    clienteSnapshot,
+    items,
     savedAt: new Date().toISOString(),
-  }), [numero, dataOrcamento, status, clienteId, clienteSnapshot, items, observacoes, observacoesInternas, validade, desconto, impostoSt, impostoIpi, freteValor, outrasDespesas, pagamento, prazoPagamento, prazoEntrega, freteTipo, modalidade]);
+  }), [getValues, clienteSnapshot, items]);
 
-  const applyDraft = (draft: any) => {
-    setNumero(draft.numero || "");
-    setDataOrcamento(draft.dataOrcamento || new Date().toISOString().split("T")[0]);
-    setStatus(draft.status || "rascunho");
-    setClienteId(draft.clienteId || "");
-    setClienteSnapshot(draft.clienteSnapshot || emptyCliente);
-    setItems(draft.items || []);
-    setObservacoes(draft.observacoes || "");
-    setObservacoesInternas(draft.observacoesInternas || "");
-    setValidade(draft.validade || "");
-    setDesconto(draft.desconto || 0);
-    setImpostoSt(draft.impostoSt || 0);
-    setImpostoIpi(draft.impostoIpi || 0);
-    setFreteValor(draft.freteValor || 0);
-    setOutrasDespesas(draft.outrasDespesas || 0);
-    setPagamento(draft.pagamento || "");
-    setPrazoPagamento(draft.prazoPagamento || "");
-    setPrazoEntrega(draft.prazoEntrega || "");
-    setFreteTipo(draft.freteTipo || "");
-    setModalidade(draft.modalidade || "");
+  const applyDraft = (draft: Record<string, unknown>) => {
+    reset({
+      numero: (draft.numero as string) || '',
+      dataOrcamento: (draft.dataOrcamento as string) || new Date().toISOString().split('T')[0],
+      status: ((draft.status as OrcamentoFormValues['status']) || 'rascunho'),
+      clienteId: (draft.clienteId as string) || '',
+      validade: (draft.validade as string) || '',
+      desconto: Number(draft.desconto) || 0,
+      impostoSt: Number(draft.impostoSt) || 0,
+      impostoIpi: Number(draft.impostoIpi) || 0,
+      freteValor: Number(draft.freteValor) || 0,
+      outrasDespesas: Number(draft.outrasDespesas) || 0,
+      pagamento: (draft.pagamento as string) || '',
+      prazoPagamento: (draft.prazoPagamento as string) || '',
+      prazoEntrega: (draft.prazoEntrega as string) || '',
+      freteTipo: (draft.freteTipo as string) || '',
+      modalidade: (draft.modalidade as string) || '',
+      observacoes: (draft.observacoes as string) || '',
+      observacoesInternas: (draft.observacoesInternas as string) || '',
+    });
+    setClienteSnapshot((draft.clienteSnapshot as ClienteSnapshot) || emptyCliente);
+    setItems((draft.items as OrcamentoItem[]) || []);
   };
 
   const saveTemplate = async (escopo: "usuario" | "equipe") => {
@@ -385,13 +417,13 @@ export default function OrcamentoForm() {
 
   const applyTemplate = (tpl: OrcamentoTemplate) => {
     setItems(tpl.payload.items || []);
-    setPagamento(tpl.payload.pagamento || "");
-    setPrazoPagamento(tpl.payload.prazoPagamento || "");
-    setPrazoEntrega(tpl.payload.prazoEntrega || "");
-    setModalidade(tpl.payload.modalidade || "");
-    setFreteTipo(tpl.payload.freteTipo || "");
-    setObservacoes(tpl.payload.observacoes || "");
-    setObservacoesInternas(tpl.payload.observacoes_internas || "");
+    setValue('pagamento', tpl.payload.pagamento || '');
+    setValue('prazoPagamento', tpl.payload.prazoPagamento || '');
+    setValue('prazoEntrega', tpl.payload.prazoEntrega || '');
+    setValue('modalidade', tpl.payload.modalidade || '');
+    setValue('freteTipo', tpl.payload.freteTipo || '');
+    setValue('observacoes', tpl.payload.observacoes || '');
+    setValue('observacoesInternas', tpl.payload.observacoes_internas || '');
     toast.success(`Template '${tpl.nome}' aplicado`);
   };
 
@@ -505,19 +537,27 @@ export default function OrcamentoForm() {
   };
 
   const handleTotalChange = (field: string, value: number) => {
-    const setters: Record<string, (v: number) => void> = {
-      desconto: setDesconto, imposto_st: setImpostoSt, imposto_ipi: setImpostoIpi,
-      frete_valor: setFreteValor, outras_despesas: setOutrasDespesas,
+    const fieldMap: Record<string, keyof OrcamentoFormValues> = {
+      desconto: 'desconto',
+      imposto_st: 'impostoSt',
+      imposto_ipi: 'impostoIpi',
+      frete_valor: 'freteValor',
+      outras_despesas: 'outrasDespesas',
     };
-    setters[field]?.(value);
+    const key = fieldMap[field];
+    if (key) setValue(key, value);
   };
 
-  const handleCondicaoChange = (field: string, value: any) => {
-    const setters: Record<string, (v: any) => void> = {
-      pagamento: setPagamento, prazo_pagamento: setPrazoPagamento,
-      prazo_entrega: setPrazoEntrega, frete_tipo: setFreteTipo, modalidade: setModalidade,
+  const handleCondicaoChange = (field: string, value: string) => {
+    const fieldMap: Record<string, keyof OrcamentoFormValues> = {
+      pagamento: 'pagamento',
+      prazo_pagamento: 'prazoPagamento',
+      prazo_entrega: 'prazoEntrega',
+      frete_tipo: 'freteTipo',
+      modalidade: 'modalidade',
     };
-    setters[field]?.(value);
+    const key = fieldMap[field];
+    if (key) setValue(key, value);
   };
 
 
@@ -658,36 +698,41 @@ export default function OrcamentoForm() {
                 <Label className="text-xs">Nº Orçamento</Label>
                 <div className="relative">
                   <Input
-                    value={numero}
-                    onChange={(e) => setNumero(e.target.value)}
+                    {...register('numero')}
                     className={`font-mono pr-8 ${fieldErrors.numero ? "border-destructive" : numero ? "border-success" : ""}`}
                   />
                   {numero && !fieldErrors.numero && <CheckCircle2 className="h-4 w-4 text-success absolute right-2 top-1/2 -translate-y-1/2" />}
                   {fieldErrors.numero && <AlertTriangle className="h-4 w-4 text-destructive absolute right-2 top-1/2 -translate-y-1/2" />}
                 </div>
-                {fieldErrors.numero && <p className="text-[11px] text-destructive">{fieldErrors.numero}</p>}
+                {fieldErrors.numero && <p className="text-[11px] text-destructive">{fieldErrors.numero.message}</p>}
               </div>
-              <div className="space-y-1.5"><Label className="text-xs">Data de Emissão</Label><Input type="date" value={dataOrcamento} onChange={(e) => setDataOrcamento(e.target.value)} /></div>
+              <div className="space-y-1.5"><Label className="text-xs">Data de Emissão</Label><Input type="date" {...register('dataOrcamento')} /></div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Status</Label>
-                <Select value={status} onValueChange={setStatus}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="rascunho">Rascunho</SelectItem>
-                    <SelectItem value="enviado">Enviado ao Cliente</SelectItem>
-                    <SelectItem value="confirmado">Aguardando Aprovação</SelectItem>
-                    <SelectItem value="aprovado">Aprovado</SelectItem>
-                    <SelectItem value="convertido">Convertido em Pedido</SelectItem>
-                    <SelectItem value="rejeitado">Rejeitado</SelectItem>
-                    <SelectItem value="expirado">Expirado</SelectItem>
-                    <SelectItem value="cancelado">Cancelado</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Controller
+                  name="status"
+                  control={control}
+                  render={({ field }) => (
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="rascunho">Rascunho</SelectItem>
+                        <SelectItem value="enviado">Enviado ao Cliente</SelectItem>
+                        <SelectItem value="confirmado">Aguardando Aprovação</SelectItem>
+                        <SelectItem value="aprovado">Aprovado</SelectItem>
+                        <SelectItem value="convertido">Convertido em Pedido</SelectItem>
+                        <SelectItem value="rejeitado">Rejeitado</SelectItem>
+                        <SelectItem value="expirado">Expirado</SelectItem>
+                        <SelectItem value="cancelado">Cancelado</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
                 <p className="text-[11px] text-muted-foreground">Fluxo: Rascunho → Enviado → Aprovado → Convertido</p>
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Validade</Label>
-                <Input type="date" value={validade} onChange={(e) => setValidade(e.target.value)} />
+                <Input type="date" {...register('validade')} />
                 <p className="text-[11px] text-muted-foreground">Data limite para o cliente aceitar.</p>
               </div>
             </div>
@@ -727,7 +772,7 @@ export default function OrcamentoForm() {
                 </div>
                 <div className="space-y-1.5"><Label className="text-xs">Código</Label><Input value={clienteSnapshot.codigo} readOnly className="bg-accent/30 font-mono text-xs" /></div>
               </div>
-              {fieldErrors.clienteId && <p className="text-[11px] text-destructive">{fieldErrors.clienteId}</p>}
+              {fieldErrors.clienteId && <p className="text-[11px] text-destructive">{fieldErrors.clienteId.message}</p>}
               {clienteId && (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm bg-accent/20 rounded-lg p-3">
                   <div className="md:col-span-2 space-y-0.5"><Label className="text-xs text-muted-foreground">Razão Social</Label><p className="font-medium text-sm leading-tight">{clienteSnapshot.nome_razao_social}</p></div>
@@ -768,9 +813,9 @@ export default function OrcamentoForm() {
             cepDestino={clienteSnapshot.cep}
             pesoTotal={pesoTotal}
             onSelect={(valor, tipo, prazo) => {
-              setFreteValor(valor);
-              setFreteTipo(tipo);
-              setPrazoEntrega(prazo);
+              setValue('freteValor', valor);
+              setValue('freteTipo', tipo);
+              setValue('prazoEntrega', prazo);
             }}
           />
 
@@ -782,7 +827,7 @@ export default function OrcamentoForm() {
           <div className="bg-card rounded-xl border shadow-soft p-5 space-y-4">
             <div>
               <h3 className="font-semibold text-foreground mb-3">Observações do Orçamento</h3>
-              <Textarea value={observacoes} onChange={(e) => setObservacoes(e.target.value)}
+              <Textarea {...register('observacoes')}
                 placeholder="Texto livre para observações comerciais, instruções, validade, condições extras, etc."
                 className="min-h-[100px]" />
               <p className="text-xs text-muted-foreground mt-1.5">✓ Este texto <strong>aparecerá</strong> no PDF e no link enviado ao cliente.</p>
@@ -790,7 +835,7 @@ export default function OrcamentoForm() {
             <div className="border-t pt-4">
               <h3 className="font-semibold text-foreground mb-1">Observações Internas</h3>
               <p className="text-xs text-muted-foreground mb-2">🔒 Uso exclusivo da equipe — <strong>não aparece</strong> para o cliente, no PDF nem no link público.</p>
-              <Textarea value={observacoesInternas} onChange={(e) => setObservacoesInternas(e.target.value)}
+              <Textarea {...register('observacoesInternas')}
                 placeholder="Notas internas: margem, estratégia de negociação, alertas para a equipe, etc."
                 className="min-h-[80px] border-dashed" />
             </div>
