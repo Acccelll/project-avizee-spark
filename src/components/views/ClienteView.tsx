@@ -229,18 +229,14 @@ export function ClienteView({ id }: Props) {
         <TabsContent value="financeiro" className="space-y-4 mt-3">
            <div className="rounded-lg border p-4 space-y-3 bg-muted/10">
              <h4 className="font-semibold text-sm flex items-center gap-2"><CreditCard className="h-4 w-4" /> Condições Padrão</h4>
-             <div className="grid grid-cols-3 gap-4 text-sm">
-               <div>
-                 <p className="text-[10px] text-muted-foreground uppercase font-semibold">Forma de Pagto</p>
-                 <p className="font-medium">{selected.forma_pagamento_padrao || "Não definida"}</p>
-               </div>
+             <div className="grid grid-cols-2 gap-4 text-sm">
                <div>
                  <p className="text-[10px] text-muted-foreground uppercase font-semibold">Prazo (dias)</p>
                  <p className="font-medium">{selected.prazo_padrao || "—"}</p>
                </div>
                <div>
-                 <p className="text-[10px] text-muted-foreground uppercase font-semibold">Prazo Pref.</p>
-                 <p className="font-medium">{selected.prazo_preferencial || "—"}</p>
+                 <p className="text-[10px] text-muted-foreground uppercase font-semibold">Limite de Crédito</p>
+                 <p className="font-medium">{formatCurrency(selected.limite_credito || 0)}</p>
                </div>
              </div>
            </div>

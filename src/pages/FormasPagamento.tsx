@@ -45,7 +45,6 @@ interface FormaPagamento {
 interface ClienteVinculado {
   id: string;
   nome_razao_social: string;
-  prazo_preferencial: number | null;
 }
 
 interface UsoResumo {
@@ -68,7 +67,7 @@ const emptyForm: Record<string, any> = {
 };
 
 export default function FormasPagamento() {
-  const { data, loading, create, update, remove } = useSupabaseCrud<FormaPagamento>({ table: "formas_pagamento" as any });
+  const { data, loading, create, update, remove } = useSupabaseCrud<FormaPagamento>({ table: "formas_pagamento" as any, ativoFilter: "todos" });
   const [modalOpen, setModalOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selected, setSelected] = useState<FormaPagamento | null>(null);
@@ -100,13 +99,8 @@ export default function FormasPagamento() {
     let cancelled = false;
     setLoadingRelated(true);
     (async () => {
-      const [clientesRes, lancamentosRes, caixaRes] = await Promise.all([
-        (supabase as any)
-          .from("clientes")
-          .select("id, nome_razao_social, prazo_preferencial")
-          .eq("forma_pagamento_padrao", selected.descricao)
-          .eq("ativo", true)
-          .limit(50),
+      const [, lancamentosRes, caixaRes] = await Promise.all([
+        Promise.resolve({ data: [] as ClienteVinculado[] }),
         (supabase as any)
           .from("financeiro_lancamentos")
           .select("id", { count: "exact", head: true })
@@ -117,7 +111,7 @@ export default function FormasPagamento() {
           .eq("forma_pagamento", selected.tipo),
       ]);
       if (!cancelled) {
-        setClientesVinculados(clientesRes.data || []);
+        setClientesVinculados([]);
         setUsoResumo({
           lancamentos: lancamentosRes.count ?? 0,
           caixa: caixaRes.count ?? 0,
@@ -671,7 +665,7 @@ export default function FormasPagamento() {
                 ) : clientesVinculados.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-8 gap-2 text-center">
                     <Users className="h-8 w-8 text-muted-foreground/40" />
-                    <p className="text-sm text-muted-foreground">Nenhum cliente usa esta forma como padrão.</p>
+                    <p className="text-sm text-muted-foreground">O vínculo "forma padrão por cliente" não existe no schema atual.</p>
                   </div>
                 ) : (
                   <div className="rounded-lg border overflow-hidden">
@@ -679,7 +673,7 @@ export default function FormasPagamento() {
                       <thead>
                         <tr className="bg-muted/50">
                           <th className="text-left px-3 py-2 text-xs font-semibold text-muted-foreground">Cliente</th>
-                          <th className="text-right px-3 py-2 text-xs font-semibold text-muted-foreground">Prazo pref.</th>
+                          <th className="text-right px-3 py-2 text-xs font-semibold text-muted-foreground">Condição</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -689,7 +683,7 @@ export default function FormasPagamento() {
                               <RelationalLink type="cliente" id={c.id}>{c.nome_razao_social}</RelationalLink>
                             </td>
                             <td className="px-3 py-2 text-xs font-mono text-right text-muted-foreground">
-                              {c.prazo_preferencial ? `${c.prazo_preferencial}d` : "—"}
+                              —
                             </td>
                           </tr>
                         ))}

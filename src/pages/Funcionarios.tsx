@@ -72,7 +72,7 @@ interface FinanceiroLancamentoComFuncionario {
 }
 
 export default function Funcionarios() {
-  const { data, loading, create, update, remove } = useSupabaseCrud<Funcionario>({ table: "funcionarios" as any });
+  const { data, loading, create, update, remove } = useSupabaseCrud<Funcionario>({ table: "funcionarios" as any, ativoFilter: "todos" });
   const [modalOpen, setModalOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selected, setSelected] = useState<Funcionario | null>(null);

@@ -39,10 +39,7 @@ const ufSchema = z.string().optional().refine(
   { message: "UF inválida" }
 );
 
-/**
- * Schema de validação para Clientes e Fornecedores.
- */
-export const clienteFornecedorSchema = z.object({
+const clienteFornecedorBaseSchema = z.object({
   tipo_pessoa: z.enum(["F", "J"]),
   nome_razao_social: z.string().min(2, "Nome/Razão Social deve ter pelo menos 2 caracteres").max(200, "Máximo 200 caracteres"),
   nome_fantasia: z.string().max(200, "Máximo 200 caracteres").optional().or(z.literal("")),
@@ -53,7 +50,6 @@ export const clienteFornecedorSchema = z.object({
   celular: telefoneSchema,
   contato: z.string().max(100).optional().or(z.literal("")),
   prazo_padrao: z.number().min(0, "Prazo não pode ser negativo").max(365, "Prazo máximo 365 dias"),
-  limite_credito: z.number().min(0, "Limite não pode ser negativo"),
   logradouro: z.string().max(200).optional().or(z.literal("")),
   numero: z.string().max(20).optional().or(z.literal("")),
   complemento: z.string().max(100).optional().or(z.literal("")),
@@ -64,6 +60,18 @@ export const clienteFornecedorSchema = z.object({
   pais: z.string().max(50).optional().or(z.literal("")),
   observacoes: z.string().max(2000).optional().or(z.literal("")),
 });
+
+/**
+ * Schema de validação para Clientes.
+ */
+export const clienteSchema = clienteFornecedorBaseSchema.extend({
+  limite_credito: z.number().min(0, "Limite não pode ser negativo"),
+});
+
+/**
+ * Schema de validação para Fornecedores.
+ */
+export const fornecedorSchema = clienteFornecedorBaseSchema;
 
 /**
  * Schema de validação para Produtos.

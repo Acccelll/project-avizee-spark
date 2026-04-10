@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useEffect, useMemo, useState } from "react";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -30,7 +29,7 @@ import {
   Users, UserCheck, UserX,
 } from "lucide-react";
 import { formatDate, formatCurrency } from "@/lib/format";
-import { clienteFornecedorSchema, validateForm } from "@/lib/validationSchemas";
+import { fornecedorSchema, validateForm } from "@/lib/validationSchemas";
 import { StatCard } from "@/components/StatCard";
 
 const MAX_OBSERVACOES_LENGTH = 2000;
@@ -72,6 +71,7 @@ const Fornecedores = () => {
 
   const { data, loading, create, update, remove } = useSupabaseCrud<Fornecedor>({
     table: "fornecedores",
+    ativoFilter: "todos",
     searchTerm: debouncedSearch,
     searchColumns: ["nome_razao_social", "nome_fantasia", "cpf_cnpj", "email", "cidade"],
   });
@@ -165,7 +165,7 @@ const Fornecedores = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const validation = validateForm(clienteFornecedorSchema, form);
+    const validation = validateForm(fornecedorSchema, form);
     if (!validation.success) {
       setFormErrors(validation.errors);
       const firstError = Object.values(validation.errors)[0];

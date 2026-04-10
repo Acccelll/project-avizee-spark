@@ -23,6 +23,7 @@ interface UseCrudOptions<T extends TableName> {
   ascending?: boolean;
   filter?: CrudFilter[];
   hasAtivo?: boolean;
+  ativoFilter?: "ativo" | "inativo" | "todos";
   pageSize?: number;
   showToasts?: boolean;
   searchTerm?: string;
@@ -56,6 +57,7 @@ export function useSupabaseCrud<T extends TableName>({
   ascending = false,
   filter = [],
   hasAtivo = true,
+  ativoFilter = "ativo",
   pageSize,
   showToasts = true,
   searchTerm = "",
@@ -69,8 +71,8 @@ export function useSupabaseCrud<T extends TableName>({
   const filterKey = JSON.stringify(filter);
 
   const queryKey = useMemo(
-    () => [table, select, orderBy, ascending, filterKey, searchTerm, page],
-    [table, select, orderBy, ascending, filterKey, searchTerm, page],
+    () => [table, select, orderBy, ascending, filterKey, searchTerm, page, hasAtivo, ativoFilter],
+    [table, select, orderBy, ascending, filterKey, searchTerm, page, hasAtivo, ativoFilter],
   );
 
   const queryResult = useQuery({
@@ -95,7 +97,11 @@ export function useSupabaseCrud<T extends TableName>({
 
       // Apply ativo filter AFTER the OR to ensure it's always AND'd
       if (hasAtivo) {
-        query = query.eq("ativo", true);
+        if (ativoFilter === "ativo") {
+          query = query.eq("ativo", true);
+        } else if (ativoFilter === "inativo") {
+          query = query.eq("ativo", false);
+        }
       }
 
       if (pageSize) {

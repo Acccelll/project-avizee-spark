@@ -82,7 +82,7 @@ const emptyProduto: Record<string, any> = {
 const Produtos = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { data, loading, create, update, remove, duplicate } = useSupabaseCrud<Produto>({ table: "produtos" });
+  const { data, loading, create, update, remove, duplicate } = useSupabaseCrud<Produto>({ table: "produtos", ativoFilter: "todos" });
   const { pushView } = useRelationalNavigation();
   const [modalOpen, setModalOpen] = useState(false);
   const [mode, setMode] = useState<"create" | "edit">("create");

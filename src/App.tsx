@@ -18,6 +18,7 @@ const Index = lazy(() => import("./pages/Index"));
 const Produtos = lazy(() => import("./pages/Produtos"));
 const Clientes = lazy(() => import("./pages/Clientes"));
 const GruposEconomicos = lazy(() => import("./pages/GruposEconomicos"));
+const GruposProduto = lazy(() => import("./pages/GruposProduto"));
 const Fornecedores = lazy(() => import("./pages/Fornecedores"));
 const Orcamentos = lazy(() => import("./pages/Orcamentos"));
 const OrcamentoForm = lazy(() => import("./pages/OrcamentoForm"));
@@ -104,6 +105,7 @@ const App = () => (
             <Route path="/transportadoras" element={<ProtectedRoute><LazyPage><Transportadoras /></LazyPage></ProtectedRoute>} />
             <Route path="/formas-pagamento" element={<ProtectedRoute><LazyPage><FormasPagamento /></LazyPage></ProtectedRoute>} />
             <Route path="/grupos-economicos" element={<ProtectedRoute><LazyPage><GruposEconomicos /></LazyPage></ProtectedRoute>} />
+            <Route path="/grupos-produto" element={<ProtectedRoute><LazyPage><GruposProduto /></LazyPage></ProtectedRoute>} />
             <Route path="/funcionarios" element={<ProtectedRoute><LazyPage><Funcionarios /></LazyPage></ProtectedRoute>} />
             <Route path="/compras" element={<Navigate to="/pedidos-compra" replace />} />
             <Route path="/cotacoes-compra" element={<ProtectedRoute><LazyPage><CotacoesCompra /></LazyPage></ProtectedRoute>} />

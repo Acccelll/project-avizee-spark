@@ -296,9 +296,7 @@ export default function OrcamentoForm() {
         cep: c.cep || "", codigo: (c.id as string)?.substring(0, 6) || "",
       });
       // Auto-fill payment preferences from client
-      if (c.forma_pagamento_padrao && !pagamento) setValue('pagamento', c.forma_pagamento_padrao);
-      if (c.prazo_preferencial && !prazoPagamento) setValue('prazoPagamento', `${c.prazo_preferencial} dias`);
-      if (c.prazo_padrao && !prazoPagamento && !c.prazo_preferencial) setValue('prazoPagamento', `${c.prazo_padrao} dias`);
+      if (c.prazo_padrao && !prazoPagamento) setValue('prazoPagamento', `${c.prazo_padrao} dias`);
 
       // Load special prices for this client (only active and within validity period)
       const today = new Date().toISOString().slice(0, 10);

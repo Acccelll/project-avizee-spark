@@ -82,6 +82,7 @@ export const navSections: NavSection[] = [
         title: 'Base cadastral',
         items: [
           { title: 'Produtos', path: '/produtos', keywords: ['sku', 'catalogo'] },
+          { title: 'Grupos de Produto', path: '/grupos-produto', keywords: ['categorias', 'grupos'] },
           { title: 'Clientes', path: '/clientes' },
           { title: 'Fornecedores', path: '/fornecedores' },
           { title: 'Transportadoras', path: '/transportadoras', keywords: ['frete', 'logistica'] },
@@ -223,6 +224,7 @@ export const headerIcons: Record<string, LucideIcon> = {
   '/cotacoes-compra': ShoppingCart,
   '/pedidos-compra': ShoppingCart,
   '/produtos': Package,
+  '/grupos-produto': Package,
   '/estoque': Warehouse,
   '/logistica': Truck,
   '/remessas': Truck,
@@ -258,6 +260,7 @@ const baseRouteLabels: Record<string, string> = {
   '/cotacoes-compra': 'Cotações de Compra',
   '/pedidos-compra': 'Pedidos de Compra',
   '/produtos': 'Produtos',
+  '/grupos-produto': 'Grupos de Produto',
   '/estoque': 'Estoque',
   '/logistica': 'Logística',
   '/remessas': 'Logística',

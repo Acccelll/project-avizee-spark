@@ -70,6 +70,7 @@ export default function Transportadoras() {
 
   const { data, loading, create, update, remove } = useSupabaseCrud<Transportadora>({
     table: "transportadoras",
+    ativoFilter: "todos",
     searchTerm: debouncedSearch,
     searchColumns: ["nome_razao_social", "nome_fantasia", "cpf_cnpj", "cidade"],
   });

@@ -30,7 +30,7 @@ import {
   Info, Loader2, Calendar, Mail, Star, Users, UserCheck,
 } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
-import { clienteFornecedorSchema, validateForm } from "@/lib/validationSchemas";
+import { clienteSchema, validateForm } from "@/lib/validationSchemas";
 
 interface Cliente {
   id: string;tipo_pessoa: string;nome_razao_social: string;nome_fantasia: string;
@@ -42,12 +42,11 @@ interface Cliente {
 }
 
 interface GrupoEconomico {id: string;nome: string;}
-interface FormaPagamentoBasic {id: string;descricao: string;}
 
 const emptyCliente: Record<string, any> = {
   tipo_pessoa: "J", nome_razao_social: "", nome_fantasia: "", cpf_cnpj: "",
   inscricao_estadual: "", email: "", telefone: "", celular: "", contato: "",
-  prazo_padrao: 30, limite_credito: 0, forma_pagamento_padrao: "", prazo_preferencial: 0,
+  prazo_padrao: 30, limite_credito: 0,
   logradouro: "", numero: "", complemento: "", bairro: "", cidade: "", uf: "", cep: "", pais: "Brasil",
   observacoes: "", grupo_economico_id: "", tipo_relacao_grupo: "independente", caixa_postal: ""
 };
@@ -71,6 +70,7 @@ const Clientes = () => {
 
   const { data, loading, create, update, remove, duplicate } = useSupabaseCrud<Cliente>({
     table: "clientes",
+    ativoFilter: "todos",
     searchTerm: debouncedSearch,
     searchColumns: ["nome_razao_social", "nome_fantasia", "cpf_cnpj", "email", "cidade"],
   });
@@ -84,7 +84,6 @@ const Clientes = () => {
   const [saving, setSaving] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
   const [grupos, setGrupos] = useState<GrupoEconomico[]>([]);
-  const [formasPagamento, setFormasPagamento] = useState<FormaPagamentoBasic[]>([]);
   const [tipoFilters, setTipoFilters] = useState<string[]>([]);
   const [grupoFilters, setGrupoFilters] = useState<string[]>([]);
   const [ativoFilters, setAtivoFilters] = useState<string[]>([]);
@@ -121,7 +120,6 @@ const Clientes = () => {
 
   useEffect(() => {
     supabase.from("grupos_economicos").select("id, nome").eq("ativo", true).order("nome").then(({ data: g }: any) => setGrupos(g || []));
-    supabase.from("formas_pagamento").select("id, descricao").eq("ativo", true).order("descricao").then(({ data: fp }) => setFormasPagamento((fp || []) as FormaPagamentoBasic[]));
   }, []);
 
   useEffect(() => {
@@ -143,8 +141,6 @@ const Clientes = () => {
       cpf_cnpj: c.cpf_cnpj || "", inscricao_estadual: c.inscricao_estadual || "",
       email: c.email || "", telefone: c.telefone || "", celular: c.celular || "", contato: c.contato || "",
       prazo_padrao: c.prazo_padrao || 30, limite_credito: c.limite_credito || 0,
-      forma_pagamento_padrao: (c as any).forma_pagamento_padrao || "",
-      prazo_preferencial: (c as any).prazo_preferencial || 0,
       logradouro: c.logradouro || "", numero: c.numero || "", complemento: c.complemento || "",
       bairro: c.bairro || "", cidade: c.cidade || "", uf: c.uf || "", cep: c.cep || "",
       pais: c.pais || "Brasil", observacoes: c.observacoes || "",
@@ -163,7 +159,7 @@ const Clientes = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const validation = validateForm(clienteFornecedorSchema, form);
+    const validation = validateForm(clienteSchema, form);
     if (!validation.success) {
       setFormErrors(validation.errors);
       const firstError = Object.values(validation.errors)[0];
@@ -392,12 +388,6 @@ const Clientes = () => {
                 <span className="flex items-center gap-1">
                   <Calendar className="h-3 w-3" />
                   Cadastrado em {formatDate(selected.created_at)}
-                </span>
-              )}
-              {form.forma_pagamento_padrao && (
-                <span className="flex items-center gap-1">
-                  <CreditCard className="h-3 w-3" />
-                  {form.forma_pagamento_padrao}
                 </span>
               )}
               {form.grupo_economico_id && (
@@ -671,29 +661,6 @@ const Clientes = () => {
             Condições aplicadas por padrão em orçamentos e pedidos. Podem ser sobrescritas individualmente por operação.
           </p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-3">
-            <div className="col-span-2 space-y-1.5">
-              <div className="flex items-center gap-1">
-                <Label>Forma de Pagamento Padrão</Label>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Info className="h-3 w-3 text-muted-foreground cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-[220px] text-xs">
-                    Forma de pagamento pré-selecionada ao criar pedidos para este cliente.
-                  </TooltipContent>
-                </Tooltip>
-              </div>
-              <Select
-                value={form.forma_pagamento_padrao || "nenhuma"}
-                onValueChange={(v) => updateForm({ forma_pagamento_padrao: v === "nenhuma" ? "" : v })}
-              >
-                <SelectTrigger><SelectValue placeholder="Não definida" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="nenhuma">Não definida</SelectItem>
-                  {formasPagamento.map((fp) => <SelectItem key={fp.id} value={fp.descricao}>{fp.descricao}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
             <div className="space-y-1.5">
               <div className="flex items-center gap-1">
                 <Label>Prazo Padrão (dias)</Label>
@@ -715,26 +682,6 @@ const Clientes = () => {
                 className={formErrors.prazo_padrao ? "border-destructive" : ""}
               />
               {formErrors.prazo_padrao && <p className="text-xs text-destructive">{formErrors.prazo_padrao}</p>}
-            </div>
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-1">
-                <Label>Prazo Preferencial (dias)</Label>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Info className="h-3 w-3 text-muted-foreground cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-[220px] text-xs">
-                    Prazo alternativo negociado com o cliente. Diferente do prazo padrão — usado quando há condição especial acordada.
-                  </TooltipContent>
-                </Tooltip>
-              </div>
-              <Input
-                type="number"
-                min={0}
-                max={MAX_PAYMENT_DAYS}
-                value={form.prazo_preferencial}
-                onChange={(e) => updateForm({ prazo_preferencial: Number(e.target.value) })}
-              />
             </div>
           </div>
           <div className="mb-4">
