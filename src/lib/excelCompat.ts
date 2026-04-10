@@ -56,7 +56,7 @@ export async function read(data: ArrayBuffer | string | Uint8Array): Promise<Wor
     // binary string → ArrayBuffer
     const buf = new Uint8Array(data.length);
     for (let i = 0; i < data.length; i++) buf[i] = data.charCodeAt(i) & 0xff;
-    await wb.xlsx.load(buf.buffer);
+    await wb.xlsx.load(buf.buffer as ArrayBuffer);
   } else if (data instanceof ArrayBuffer) {
     await wb.xlsx.load(data);
   } else {
