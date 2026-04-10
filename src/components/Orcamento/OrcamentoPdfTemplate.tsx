@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { forwardRef } from "react";
 import type { OrcamentoItem } from "./OrcamentoItemsGrid";
 

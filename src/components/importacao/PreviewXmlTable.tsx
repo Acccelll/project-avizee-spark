@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CheckCircle2, XCircle, AlertCircle, FileCode } from "lucide-react";
 import { cn } from "@/lib/utils";

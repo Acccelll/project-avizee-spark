@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useNavigate } from 'react-router-dom';
 import { ClipboardList, Clock } from 'lucide-react';
 import { formatCurrency, daysSince } from '@/lib/format';

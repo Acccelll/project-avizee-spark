@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useNavigate } from 'react-router-dom';
 import { FileText } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/format';

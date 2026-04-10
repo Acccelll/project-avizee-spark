@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { Button } from "@/components/ui/button";
 import { Save, Eye, FileText, Weight } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/format";
