@@ -8,9 +8,9 @@ import { useOnlineStatus } from "./useOnlineStatus";
 
 const REMOTE_TIMEOUT_MS = 8000;
 
-async function withTimeout<T>(promise: Promise<T>) {
+async function withTimeout<T>(promise: PromiseLike<T>) {
   return Promise.race<T>([
-    promise,
+    Promise.resolve(promise),
     new Promise<T>((_, reject) => setTimeout(() => reject(new Error("sync_timeout")), REMOTE_TIMEOUT_MS)),
   ]);
 }
