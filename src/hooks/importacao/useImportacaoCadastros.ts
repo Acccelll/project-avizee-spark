@@ -54,9 +54,10 @@ export function useImportacaoCadastros() {
 
     setFile(selectedFile);
     const reader = new FileReader();
-    reader.onload = (evt) => {
+    reader.onload = async (evt) => {
       const bstr = evt.target?.result;
       const wb = XLSX.read(bstr, { type: "binary" });
+      await XLSX.ensureLoaded(wb);
       setWorkbook(wb);
       setSheets(wb.SheetNames);
       if (wb.SheetNames.length > 0) {
