@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { LogIn, Eye, EyeOff, Mail, Lock, Zap } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, Zap, Loader2, LogIn } from "lucide-react";
 import logoAvizee from "@/assets/logoavizee.png";
 
 const DEV_EMAIL = import.meta.env.VITE_DEV_EMAIL as string | undefined;
@@ -70,97 +70,142 @@ export default function Login() {
   if (authLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-8 h-8 text-primary animate-spin" />
+          <p className="text-sm text-muted-foreground">Verificando sessão…</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <img src={logoAvizee} alt="AviZee ERP" className="h-14 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-foreground tracking-tight">Bem-vindo ao AviZee</h1>
-          <p className="text-muted-foreground text-sm mt-1">Acesse sua conta para continuar</p>
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/40 flex flex-col items-center justify-center p-4">
+      <div className="w-full max-w-sm animate-fade-in">
+
+        {/* Header */}
+        <div className="text-center mb-10">
+          <img src={logoAvizee} alt="AviZee ERP" className="h-16 mx-auto mb-5 drop-shadow-sm" />
+          <h1 className="text-3xl font-bold text-foreground tracking-tight">AviZee ERP</h1>
+          <p className="text-muted-foreground text-sm mt-2 leading-relaxed">
+            Acesso restrito ao sistema corporativo
+          </p>
         </div>
 
-        <form onSubmit={handleLogin} className="bg-card border rounded-xl p-6 space-y-4 shadow-sm">
-          <div className="space-y-2">
-            <Label htmlFor="email">E-mail</Label>
+        {/* Form card */}
+        <form
+          onSubmit={handleLogin}
+          className="bg-card border border-border/70 rounded-2xl p-8 space-y-5 shadow-[0_4px_24px_rgba(0,0,0,0.07)] border-t-2 border-t-primary/80"
+          noValidate
+        >
+          {/* E-mail */}
+          <div className="space-y-1.5">
+            <Label htmlFor="email" className="text-sm font-medium">E-mail</Label>
             <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
               <Input
                 id="email"
                 type="email"
-                placeholder="seu@email.com"
+                placeholder="seu@empresa.com"
                 value={email}
                 onChange={(e) => { setEmail(e.target.value); setErrors((prev) => ({ ...prev, email: undefined })); }}
-                className={`pl-9 ${errors.email ? "border-destructive" : ""}`}
+                className={`pl-9 h-11 ${errors.email ? "border-destructive focus-visible:ring-destructive/40" : ""}`}
                 autoComplete="email"
                 autoFocus
+                aria-invalid={!!errors.email}
+                aria-describedby={errors.email ? "email-error" : undefined}
               />
             </div>
-            {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
+            {errors.email && (
+              <p id="email-error" role="alert" className="text-xs text-destructive mt-1">
+                {errors.email}
+              </p>
+            )}
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="password">Senha</Label>
+          {/* Senha */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="password" className="text-sm font-medium">Senha</Label>
+              <Link
+                to="/forgot-password"
+                className="text-xs text-primary hover:underline underline-offset-4 font-medium transition-colors"
+                tabIndex={0}
+              >
+                Esqueceu a senha?
+              </Link>
+            </div>
             <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
               <Input
                 id="password"
                 type={showPassword ? "text" : "password"}
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => { setPassword(e.target.value); setErrors((prev) => ({ ...prev, password: undefined })); }}
-                className={`pl-9 pr-10 ${errors.password ? "border-destructive" : ""}`}
+                className={`pl-9 pr-11 h-11 ${errors.password ? "border-destructive focus-visible:ring-destructive/40" : ""}`}
                 autoComplete="current-password"
+                aria-invalid={!!errors.password}
+                aria-describedby={errors.password ? "password-error" : undefined}
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                tabIndex={-1}
+                className="absolute right-0 top-0 h-full w-11 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors rounded-r-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
+                tabIndex={0}
                 aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
-            {errors.password && <p className="text-xs text-destructive">{errors.password}</p>}
+            {errors.password && (
+              <p id="password-error" role="alert" className="text-xs text-destructive mt-1">
+                {errors.password}
+              </p>
+            )}
           </div>
 
-          <div className="flex justify-end">
-            <Link to="/forgot-password" className="text-sm text-primary hover:underline">
-              Esqueceu a senha?
-            </Link>
-          </div>
-
-          <Button type="submit" className="w-full gap-2" disabled={loading}>
-            <LogIn className="w-4 h-4" />
-            {loading ? "Entrando..." : "Entrar"}
+          {/* Submit */}
+          <Button
+            type="submit"
+            size="lg"
+            className="w-full gap-2 mt-1"
+            disabled={loading}
+            aria-busy={loading}
+          >
+            {loading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Entrando…
+              </>
+            ) : (
+              <>
+                <LogIn className="w-4 h-4" />
+                Entrar
+              </>
+            )}
           </Button>
 
           {showDevButton && (
             <Button
               type="button"
               variant="outline"
+              size="sm"
               className="w-full gap-2 border-dashed text-muted-foreground hover:text-foreground"
               onClick={() => { setEmail(DEV_EMAIL!); setPassword(DEV_PASSWORD!); setErrors({}); }}
             >
-              <Zap className="w-4 h-4" />
+              <Zap className="w-3.5 h-3.5" />
               Preencher como Dev
             </Button>
           )}
 
-          <p className="text-center text-sm text-muted-foreground">
-            Não tem conta?{" "}
-            <Link to="/signup" className="text-primary hover:underline font-medium">
-              Cadastre-se
-            </Link>
+          {/* ERP access note */}
+          <p className="text-center text-xs text-muted-foreground pt-1 leading-relaxed">
+            Acesso mediante autorização do administrador do sistema.
           </p>
         </form>
 
-        <p className="text-center text-xs text-muted-foreground mt-6">
+        {/* Footer */}
+        <p className="text-center text-xs text-muted-foreground/60 mt-8 select-none">
           © {new Date().getFullYear()} AviZee ERP — Todos os direitos reservados
         </p>
       </div>
