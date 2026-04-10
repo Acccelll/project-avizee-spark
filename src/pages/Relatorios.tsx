@@ -1,406 +1,154 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AppLayout } from '@/components/AppLayout';
 import { ModulePage } from '@/components/ModulePage';
 import { SummaryCard } from '@/components/SummaryCard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { MultiSelect } from "@/components/ui/MultiSelect";
 import { DataTable } from '@/components/DataTable';
 import { PreviewModal } from '@/components/ui/PreviewModal';
+import { PeriodoFilter } from '@/pages/relatorios/components/Filtros/PeriodoFilter';
+import { FiltrosRelatorio, type FiltrosRelatorioState } from '@/pages/relatorios/components/Filtros/FiltrosRelatorio';
+import { RelatorioChart } from '@/pages/relatorios/components/Graficos/RelatorioChart';
+import { DreTable } from '@/pages/relatorios/components/Tabelas/DreTable';
+import { useRelatorio } from '@/pages/relatorios/hooks/useRelatorio';
+import { useRelatoriosFiltrosData } from '@/pages/relatorios/hooks/useRelatoriosFiltrosData';
 import { cn } from '@/lib/utils';
-import { ChevronLeft, Columns, Download, RefreshCcw, Hash, FileText, Eye, FileSpreadsheet, Layers, PieChart as PieChartIcon, LineChart, BarChart3 } from 'lucide-react';
-import { ResponsiveContainer, BarChart, XAxis, YAxis, Tooltip, Bar, PieChart, Pie, Cell, Legend, LineChart as RechartsLineChart, Line } from 'recharts';
-import { carregarRelatorio, exportarCsv, exportarXlsx, formatCellValue, type RelatorioResultado, type TipoRelatorio } from '@/services/relatorios.service';
+import { ChevronLeft, Columns, Download, RefreshCcw, Hash, FileText, Eye, FileSpreadsheet, Layers } from 'lucide-react';
+import { exportarParaCsv, exportarParaExcel, exportarParaPdf } from '@/services/export.service';
+import { filtrarPorStatus, sortarRows } from '@/utils/relatorios';
 import { reportConfigs, reportCategoryMeta, type ReportCategory } from '@/config/relatoriosConfig';
 import { formatCurrency, formatNumber, formatDate } from '@/lib/format';
+import { formatCellValue, type TipoRelatorio } from '@/services/relatorios.service';
+import type { DreRow } from '@/types/relatorios';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
 
-// Badge value classification constants used in column rendering
-const BADGE_CRITICAL_VALUES = ['vencido', 'abaixo do mínimo', 'zerado', 'pendente', 'nf s/ financeiro', 'pedido s/ nf', 'c', 'alta'];
-const BADGE_OK_VALUES = ['ok', 'entregue', 'confirmado', 'pago', 'faturado', 'a'];
+// ─── Badge classification constants ──────────────────────────────────────────
+const BADGE_CRITICAL = ['vencido', 'abaixo do mínimo', 'zerado', 'pendente', 'nf s/ financeiro', 'pedido s/ nf', 'c', 'alta'];
+const BADGE_OK = ['ok', 'entregue', 'confirmado', 'pago', 'faturado', 'a'];
 
-const CHART_COLORS = [
-  'hsl(var(--primary))',
-  'hsl(var(--secondary))',
-  'hsl(142 76% 36%)',
-  'hsl(38 92% 50%)',
-  'hsl(0 84% 60%)',
-  'hsl(262 83% 58%)',
-];
+const DEFAULT_FILTROS: FiltrosRelatorioState = {
+  clienteIds: [],
+  fornecedorIds: [],
+  grupoIds: [],
+  statusFiltro: 'todos',
+  agrupamento: 'padrao',
+  tipos: [],
+  dreCompetencia: 'mes',
+  dreMes: new Date().toISOString().slice(0, 7),
+};
 
-function buildPdf(resultado: RelatorioResultado, dataInicio: string, dataFim: string, empresa?: { razao_social?: string; cnpj?: string; nome_fantasia?: string } | null) {
-  return import('jspdf').then(({ default: jsPDF }) => {
-    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const margin = 14;
-    let y = 20;
-
-    // Company header
-    if (empresa?.razao_social) {
-      doc.setFontSize(9);
-      doc.setFont('helvetica', 'bold');
-      doc.text(empresa.razao_social, margin, y);
-      y += 4;
-      if (empresa.cnpj) {
-        doc.setFont('helvetica', 'normal');
-        doc.text(`CNPJ: ${empresa.cnpj}`, margin, y);
-        y += 4;
-      }
-      doc.setDrawColor(200, 200, 200);
-      doc.line(margin, y, pageWidth - margin, y);
-      y += 6;
-    }
-
-    doc.setFontSize(16);
-    doc.setFont('helvetica', 'bold');
-    doc.text(resultado.title || 'Relatório', margin, y);
-    y += 7;
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'normal');
-    doc.text(resultado.subtitle || '', margin, y);
-    y += 4;
-    const periodoText = dataInicio || dataFim
-      ? `Período: ${dataInicio || '—'} a ${dataFim || '—'}`
-      : `Gerado em: ${new Date().toLocaleDateString('pt-BR')}`;
-    doc.text(periodoText, margin, y);
-    y += 8;
-
-    const rows = resultado.rows as Record<string, unknown>[];
-    if (rows.length > 0) {
-      const keys = Object.keys(rows[0]);
-      const contentWidth = pageWidth - margin * 2;
-
-      // Compute dynamic column widths based on header and content length
-      const maxCharsPerCol = keys.map((key) => {
-        const headerLabel = key.replace(/([A-Z])/g, ' $1').replace(/^./, (c) => c.toUpperCase());
-        let maxLen = headerLabel.length;
-        const sampleRows = rows.slice(0, 50);
-        for (const row of sampleRows) {
-          const val = String(formatCellValue(row[key], key) ?? '');
-          if (val.length > maxLen) maxLen = val.length;
-        }
-        return Math.min(maxLen, 35); // cap
-      });
-      const totalChars = maxCharsPerCol.reduce((s, c) => s + c, 0) || 1;
-      const colWidths = maxCharsPerCol.map((c) => Math.max((c / totalChars) * contentWidth, 12));
-
-      // Header row
-      doc.setFillColor(105, 5, 0);
-      doc.rect(margin, y, contentWidth, 7, 'F');
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(6.5);
-      doc.setFont('helvetica', 'bold');
-      let xPos = margin;
-      keys.forEach((key, i) => {
-        const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, (c) => c.toUpperCase());
-        doc.text(label.substring(0, 25), xPos + 1.5, y + 5, { maxWidth: colWidths[i] - 2 });
-        xPos += colWidths[i];
-      });
-      y += 7;
-
-      doc.setTextColor(0, 0, 0);
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(6.5);
-
-      const maxRows = Math.min(rows.length, 200);
-      if (rows.length > 200) {
-        y += 10;
-        if (y > doc.internal.pageSize.getHeight() - 20) { doc.addPage(); y = 20; }
-        doc.setFontSize(8);
-        doc.setFont('helvetica', 'bolditalic');
-        doc.setTextColor(180, 0, 0);
-        doc.text(`⚠ PDF limitado a 200 de ${rows.length} registros. Use "Exportar Excel" para o relatório completo.`, margin, y);
-        doc.setTextColor(0, 0, 0);
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(6.5);
-      }
-      for (let r = 0; r < maxRows; r++) {
-        if (y > doc.internal.pageSize.getHeight() - 20) {
-          doc.addPage();
-          y = 15;
-        }
-        if (r % 2 === 0) {
-          doc.setFillColor(245, 245, 240);
-          doc.rect(margin, y, contentWidth, 6, 'F');
-        }
-        xPos = margin;
-        keys.forEach((key, i) => {
-          const val = String(formatCellValue(rows[r][key], key) ?? '');
-          doc.text(val.substring(0, 35), xPos + 1.5, y + 4, { maxWidth: colWidths[i] - 2 });
-          xPos += colWidths[i];
-        });
-        y += 6;
-      }
-
-      y += 4;
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(8);
-      doc.text(`Total de registros: ${rows.length}`, margin, y);
-    }
-
-    return doc;
-  });
+function buildDreDateRange(state: FiltrosRelatorioState, dataInicio: string, dataFim: string) {
+  if (state.dreCompetencia === 'personalizado') return { dataInicio, dataFim };
+  const now = new Date();
+  if (state.dreCompetencia === 'mes') {
+    const [y, m] = state.dreMes.split('-').map(Number);
+    return { dataInicio: `${y}-${String(m).padStart(2, '0')}-01`, dataFim: new Date(y, m, 0).toISOString().slice(0, 10) };
+  }
+  if (state.dreCompetencia === 'trimestre') {
+    const q = Math.floor(now.getMonth() / 3);
+    return { dataInicio: new Date(now.getFullYear(), q * 3, 1).toISOString().slice(0, 10), dataFim: new Date(now.getFullYear(), q * 3 + 3, 0).toISOString().slice(0, 10) };
+  }
+  return { dataInicio: `${now.getFullYear()}-01-01`, dataFim: `${now.getFullYear()}-12-31` };
 }
 
 export default function Relatorios() {
   const [searchParams, setSearchParams] = useSearchParams();
   const tipoInicial = (searchParams.get('tipo') as TipoRelatorio) || 'estoque';
-  const [tipo, setTipo] = useState<TipoRelatorio>(tipoInicial);
+  const [tipo, setTipo] = useState<TipoRelatorio | ''>(tipoInicial);
   const [dataInicio, setDataInicio] = useState('');
   const [dataFim, setDataFim] = useState('');
-  const [filtroClienteIds, setFiltroClienteIds] = useState<string[]>([]);
-  const [filtroFornecedorIds, setFiltroFornecedorIds] = useState<string[]>([]);
-  const [filtroGrupoIds, setFiltroGrupoIds] = useState<string[]>([]);
-  const [filtroTipos, setFiltroTipos] = useState<string[]>([]);
-  const [statusFiltro, setStatusFiltro] = useState<string>('todos');
-  const [agrupamento, setAgrupamento] = useState<string>('padrao');
-  const [dreCompetencia, setDreCompetencia] = useState<'mes' | 'trimestre' | 'ano' | 'personalizado'>('mes');
-  const [dreMes, setDreMes] = useState(() => new Date().toISOString().slice(0, 7));
-  const [clientes, setClientes] = useState<{ id: string; nome_razao_social: string }[]>([]);
-  const [fornecedores, setFornecedores] = useState<{ id: string; nome_razao_social: string }[]>([]);
-  const [grupos, setGrupos] = useState<{ id: string; nome: string }[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [errorLoading, setErrorLoading] = useState<string | null>(null);
-  const [resultado, setResultado] = useState<RelatorioResultado>({ title: '', subtitle: '', rows: [] });
-  const [previewOpen, setPreviewOpen] = useState(false);
+  const [filtrosState, setFiltrosState] = useState<FiltrosRelatorioState>(DEFAULT_FILTROS);
   const [hiddenColumns, setHiddenColumns] = useState<string[]>([]);
-  const [empresaConfig, setEmpresaConfig] = useState<{ razao_social?: string; cnpj?: string; nome_fantasia?: string } | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
-  useEffect(() => {
-    Promise.all([
-      supabase.from('clientes').select('id, nome_razao_social').eq('ativo', true).order('nome_razao_social').limit(300),
-      supabase.from('fornecedores').select('id, nome_razao_social').eq('ativo', true).order('nome_razao_social').limit(300),
-      supabase.from('grupos_produto').select('id, nome').eq('ativo', true).order('nome'),
-    ]).then(([{ data: c }, { data: f }, { data: g }]) => {
-      setClientes(c || []);
-      setFornecedores(f || []);
-      setGrupos(g || []);
-    });
-  }, []);
+  // Reference data (cached 30 min)
+  const { clientes, fornecedores, grupos, empresaConfig } = useRelatoriosFiltrosData();
 
-  useEffect(() => {
-    supabase.from('empresa_config').select('razao_social, cnpj, nome_fantasia').limit(1).single().then(({ data, error }) => {
-      if (!error && data) setEmpresaConfig(data as { razao_social?: string; cnpj?: string; nome_fantasia?: string });
-    });
-  }, []);
+  // Assemble query filtros
+  const filtros = useMemo(() => {
+    if (tipo === 'dre') return buildDreDateRange(filtrosState, dataInicio, dataFim);
+    return {
+      dataInicio: dataInicio || undefined,
+      dataFim: dataFim || undefined,
+      clienteIds: filtrosState.clienteIds.length ? filtrosState.clienteIds : undefined,
+      fornecedorIds: filtrosState.fornecedorIds.length ? filtrosState.fornecedorIds : undefined,
+      grupoProdutoIds: filtrosState.grupoIds.length ? filtrosState.grupoIds : undefined,
+      tiposFinanceiros: filtrosState.tipos.length ? filtrosState.tipos : undefined,
+    };
+  }, [tipo, dataInicio, dataFim, filtrosState]);
 
-  useEffect(() => {
-    const tipoQuery = searchParams.get('tipo') as TipoRelatorio | null;
-    if (tipoQuery && tipoQuery !== tipo) setTipo(tipoQuery);
-  }, [searchParams, tipo]);
+  // Main React Query fetch — replaces loadData/useState/useEffect
+  const { data: resultado, isLoading, isError, refetch } = useRelatorio(tipo, filtros);
 
-  const getDreDateRange = () => {
-    if (dreCompetencia === 'personalizado') return { dataInicio, dataFim };
-    const now = new Date();
-    if (dreCompetencia === 'mes') {
-      const [y, m] = dreMes.split('-').map(Number);
-      const start = `${y}-${String(m).padStart(2, '0')}-01`;
-      const end = new Date(y, m, 0).toISOString().slice(0, 10);
-      return { dataInicio: start, dataFim: end };
-    }
-    if (dreCompetencia === 'trimestre') {
-      const q = Math.floor(now.getMonth() / 3);
-      const start = new Date(now.getFullYear(), q * 3, 1).toISOString().slice(0, 10);
-      const end = new Date(now.getFullYear(), q * 3 + 3, 0).toISOString().slice(0, 10);
-      return { dataInicio: start, dataFim: end };
-    }
-    return { dataInicio: `${now.getFullYear()}-01-01`, dataFim: `${now.getFullYear()}-12-31` };
-  };
+  const isQtyReport = resultado?._isQuantityReport === true;
+  const isDreReport = resultado?._isDreReport === true;
+  const rows = (resultado?.rows ?? []) as Record<string, unknown>[];
 
-  const loadData = async () => {
-    setLoading(true);
-    setErrorLoading(null);
-    try {
-      const filtros = tipo === 'dre'
-        ? { ...getDreDateRange(), clienteId: undefined, fornecedorId: undefined, grupoProdutoId: undefined }
-        : {
-          dataInicio,
-          dataFim,
-          clienteIds: filtroClienteIds.length > 0 ? filtroClienteIds : undefined,
-          fornecedorIds: filtroFornecedorIds.length > 0 ? filtroFornecedorIds : undefined,
-          grupoProdutoIds: filtroGrupoIds.length > 0 ? filtroGrupoIds : undefined,
-          tiposFinanceiros: filtroTipos.length > 0 ? filtroTipos : undefined,
-        };
-      const report = await carregarRelatorio(tipo, filtros);
-      setResultado(report);
-    } catch (error: unknown) {
-      console.error('[relatorios]', error);
-      setErrorLoading('Não foi possível carregar os dados desse relatório. Revise filtros e tente novamente.');
-      toast.error('Não foi possível carregar o relatório.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { loadData(); }, [tipo]);
-
-  const isQtyReport = resultado._isQuantityReport === true;
-  const isDreReport = resultado._isDreReport === true;
-
-  const filteredRows = useMemo(() => {
-    const rows = (resultado.rows || []) as Record<string, unknown>[];
-    if (statusFiltro === 'todos') return rows;
-    return rows.filter((r) => {
-      const status = String(r.status || r.situacao || r.faturamento || '').toLowerCase();
-      return status.includes(statusFiltro.toLowerCase());
-    });
-  }, [resultado.rows, statusFiltro]);
-
-  const sortedRows = useMemo(() => {
-    const rows = [...filteredRows];
-    if (agrupamento === 'valor_desc') {
-      return rows.sort((a, b) => Number(b.valor || b.valorTotal || 0) - Number(a.valor || a.valorTotal || 0));
-    }
-    if (agrupamento === 'vencimento') {
-      return rows.sort((a, b) => String(a.vencimento || a.data || '').localeCompare(String(b.vencimento || b.data || '')));
-    }
-    if (agrupamento === 'status') {
-      return rows.sort((a, b) => String(a.status || a.situacao || '').localeCompare(String(b.status || b.situacao || ''), 'pt-BR'));
-    }
-    return rows;
-  }, [filteredRows, agrupamento]);
+  const filteredRows = useMemo(() => filtrarPorStatus(rows, filtrosState.statusFiltro), [rows, filtrosState.statusFiltro]);
+  const sortedRows = useMemo(() => sortarRows(filteredRows, filtrosState.agrupamento), [filteredRows, filtrosState.agrupamento]);
 
   const kpiCards = useMemo(() => {
-    const kpis = resultado.kpis || {};
-    const cfg = reportConfigs[tipo];
+    if (!resultado || !tipo) return [];
+    const cfg = reportConfigs[tipo as TipoRelatorio];
     if (!cfg) return [];
-
-    const formatKpi = (val: number | undefined, format: 'currency' | 'number' | 'percent') => {
-      if (val == null) return '-';
-      if (format === 'currency') return formatCurrency(val);
-      if (format === 'percent') return `${val.toFixed(1)}%`;
-      return formatNumber(val);
-    };
-
-    return cfg.kpis.map((kpiDef) => {
-      const val = kpis[kpiDef.key] ?? resultado.totals?.[kpiDef.key];
-      return {
-        title: kpiDef.label,
-        value: formatKpi(val, kpiDef.format),
-        icon: Hash,
-        variation: kpiDef.variation || '',
-        variant: kpiDef.variant,
-      };
+    const kpis = resultado.kpis || {};
+    return cfg.kpis.map((def) => {
+      const val = kpis[def.key] ?? resultado.totals?.[def.key];
+      const formatted = val == null ? '-' : def.format === 'currency' ? formatCurrency(val) : def.format === 'percent' ? `${val.toFixed(1)}%` : formatNumber(val);
+      return { title: def.label, value: formatted, icon: Hash, variation: def.variation || '', variant: def.variant };
     });
-  }, [resultado.kpis, resultado.totals, tipo]);
+  }, [resultado, tipo]);
 
   const columns = useMemo(() => {
-    if (!sortedRows.length) return [];
-    const cfg = reportConfigs[tipo];
+    if (!sortedRows.length || !tipo) return [];
+    const cfg = reportConfigs[tipo as TipoRelatorio];
     const rowKeys = Object.keys(sortedRows[0]);
-    const colDefs = cfg?.columns ?? rowKeys.map((k) => ({ key: k, label: k }));
-    // Only show columns that actually exist in the data rows
-    const visible = colDefs.filter((c) => rowKeys.includes(c.key));
-
-    return visible.map((colDef) => ({
+    const colDefs = (cfg?.columns ?? rowKeys.map((k) => ({ key: k, label: k }))).filter((c) => rowKeys.includes(c.key));
+    return colDefs.map((colDef) => ({
       key: colDef.key,
       label: colDef.label,
       render: (item: Record<string, unknown>): React.ReactNode => {
         const raw = item[colDef.key];
         const fmt = colDef.format;
-
-        // Badge rendering: badge format or status/criticidade/faixa/classe keys
-        const isBadgeKey = fmt === 'badge'
-          || colDef.key === 'criticidade'
-          || colDef.key === 'faixa'
-          || colDef.key === 'classe'
-          || colDef.key.toLowerCase().includes('status')
-          || colDef.key.toLowerCase().includes('situacao');
-
+        const isBadgeKey = fmt === 'badge' || ['criticidade', 'faixa', 'classe'].includes(colDef.key)
+          || colDef.key.toLowerCase().includes('status') || colDef.key.toLowerCase().includes('situacao');
         if (isBadgeKey && typeof raw === 'string' && raw !== '-') {
-          const normalized = raw.toLowerCase();
-          const isCritical = BADGE_CRITICAL_VALUES.some((t) => normalized.includes(t));
-          const isOk = BADGE_OK_VALUES.some((t) => normalized === t);
-          const variant = isCritical ? 'destructive' : isOk ? 'default' : 'secondary';
+          const n = raw.toLowerCase();
+          const variant = BADGE_CRITICAL.some((t) => n.includes(t)) ? 'destructive' : BADGE_OK.some((t) => n === t) ? 'default' : 'secondary';
           return <Badge variant={variant}>{raw}</Badge>;
         }
-
-        if (fmt === 'percent' && typeof raw === 'number') {
-          return `${raw.toFixed(1)}%`;
-        }
-
-        if (fmt === 'currency' && typeof raw === 'number') {
-          return formatCurrency(raw);
-        }
-
-        if ((fmt === 'quantity' || fmt === 'number') && typeof raw === 'number') {
-          return formatNumber(raw);
-        }
-
+        if (fmt === 'percent' && typeof raw === 'number') return `${raw.toFixed(1)}%`;
+        if (fmt === 'currency' && typeof raw === 'number') return formatCurrency(raw);
+        if ((fmt === 'quantity' || fmt === 'number') && typeof raw === 'number') return formatNumber(raw);
         return formatCellValue(raw, colDef.key, isQtyReport) as React.ReactNode;
       },
     }));
   }, [sortedRows, isQtyReport, tipo]);
 
-  const visibleColumns = useMemo(() => columns.filter((col) => !hiddenColumns.includes(col.key)), [columns, hiddenColumns]);
+  const visibleColumns = useMemo(() => columns.filter((c) => !hiddenColumns.includes(c.key)), [columns, hiddenColumns]);
 
-  const handleSelectTipo = (nextTipo: TipoRelatorio) => {
-    setFiltroClienteIds([]);
-    setFiltroFornecedorIds([]);
-    setFiltroGrupoIds([]);
-    setFiltroTipos([]);
-    setStatusFiltro('todos');
-    setAgrupamento('padrao');
+  const handleSelectTipo = (next: TipoRelatorio) => {
+    setFiltrosState(DEFAULT_FILTROS);
     setHiddenColumns([]);
-    setTipo(nextTipo);
-    setSearchParams((current) => {
-      const next = new URLSearchParams(current);
-      next.set('tipo', nextTipo);
-      return next;
-    });
-  };
-
-  const applyQuickPeriod = (period: 'hoje' | '7d' | '30d' | 'mes') => {
-    const now = new Date();
-    const end = now.toISOString().slice(0, 10);
-    if (period === 'hoje') {
-      setDataInicio(end);
-      setDataFim(end);
-      return;
-    }
-    if (period === '7d') {
-      const start = new Date(now);
-      start.setDate(now.getDate() - 7);
-      setDataInicio(start.toISOString().slice(0, 10));
-      setDataFim(end);
-      return;
-    }
-    if (period === '30d') {
-      const start = new Date(now);
-      start.setDate(now.getDate() - 30);
-      setDataInicio(start.toISOString().slice(0, 10));
-      setDataFim(end);
-      return;
-    }
-    const start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
-    setDataInicio(start);
-    setDataFim(end);
+    setTipo(next);
+    setSearchParams((p) => { const n = new URLSearchParams(p); n.set('tipo', next); return n; });
   };
 
   const handleExportCsv = () => {
-    exportarCsv(resultado.title || tipo, resultado.rows as Record<string, unknown>[]);
+    exportarParaCsv({ titulo: resultado?.title || String(tipo), rows });
     toast.success('Exportação CSV iniciada.');
   };
-
   const handleExportPdf = async () => {
-    if (resultado && resultado.rows.length > 200) {
-      toast.warning(`Este relatório tem ${resultado.rows.length} registros. O PDF mostrará apenas os primeiros 200. Use "Exportar Excel" para exportar tudo.`, { duration: 8000 });
-    }
-    const doc = await buildPdf(resultado, dataInicio, dataFim, empresaConfig);
-    doc.save(`${resultado.title || 'relatorio'}.pdf`);
+    if (rows.length > 200) toast.warning(`PDF limitado a 200 de ${rows.length} registros. Use Excel para tudo.`, { duration: 8000 });
+    await exportarParaPdf({ titulo: resultado?.title || String(tipo), rows, empresa: empresaConfig, dataInicio, dataFim, resultado });
     toast.success('PDF gerado com sucesso!');
   };
-
   const handleExportXlsx = async () => {
-    await exportarXlsx(resultado.title || tipo, resultado.rows as Record<string, unknown>[]);
+    await exportarParaExcel({ titulo: resultado?.title || String(tipo), rows });
     toast.success('Excel gerado com sucesso!');
   };
 
@@ -408,395 +156,173 @@ export default function Relatorios() {
     ? `${dataInicio ? formatDate(dataInicio) : '—'} a ${dataFim ? formatDate(dataFim) : '—'}`
     : new Date().toLocaleDateString('pt-BR');
 
-  // Build grouped report listing from central config
   const groupedReports = useMemo(() => {
-    const allConfigs = Object.values(reportConfigs);
-    return Object.entries(reportCategoryMeta).map(([category, meta]) => ({
-      category: category as ReportCategory,
-      ...meta,
-      items: allConfigs.filter((r) => r.category === category),
+    const all = Object.values(reportConfigs);
+    return Object.entries(reportCategoryMeta).map(([cat, meta]) => ({
+      category: cat as ReportCategory, ...meta, items: all.filter((r) => r.category === cat),
     }));
   }, []);
 
-  const selectedMeta = reportConfigs[tipo];
+  const selectedMeta = tipo ? reportConfigs[tipo as TipoRelatorio] : undefined;
   const prioritized = Object.values(reportConfigs).filter((r) => r.priority);
-  const showEmptyData = !loading && !errorLoading && sortedRows.length === 0;
-
-  const chartType = selectedMeta?.chartType ?? 'bar';
-  const usePie = chartType === 'pie';
-  const useLine = chartType === 'line';
+  const showEmpty = !isLoading && !isError && sortedRows.length === 0;
 
   return (
     <AppLayout>
       <ModulePage title="Relatórios" subtitle="Análises gerenciais, exportações e visão consolidada por módulo.">
         <div className="space-y-6">
+
+          {/* ── Report selector ── */}
           {!tipo && (
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="flex items-center gap-2 text-base"><Layers className="h-4 w-4 text-primary" />Selecione um Relatório</CardTitle>
-              <CardDescription>Escolha o contexto de negócio e o relatório desejado para acessar filtros, análises e exportações.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-5">
-              <div>
-                <p className="text-sm font-medium mb-2">Relatórios prioritários</p>
-                <div className="grid gap-3 grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
-                  {prioritized.map((card) => (
-                    <button
-                      key={card.id}
-                      onClick={() => handleSelectTipo(card.id)}
-                      className={cn('rounded-xl border p-3 text-left transition-all hover:-translate-y-0.5 hover:border-primary/30 bg-card', tipo === card.id && 'border-primary bg-primary/5 ring-1 ring-primary/20')}
-                    >
-                      <div className="flex items-center gap-2">
-                        <card.icon className="h-4 w-4 text-primary" />
-                        <p className="text-xs font-semibold leading-tight">{card.title}</p>
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-2 text-base"><Layers className="h-4 w-4 text-primary" />Selecione um Relatório</CardTitle>
+                <CardDescription>Escolha o contexto de negócio e o relatório desejado para acessar filtros, análises e exportações.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                <div>
+                  <p className="text-sm font-medium mb-2">Relatórios prioritários</p>
+                  <div className="grid gap-3 grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
+                    {prioritized.map((card) => (
+                      <button key={card.id} onClick={() => handleSelectTipo(card.id)} className={cn('rounded-xl border p-3 text-left transition-all hover:-translate-y-0.5 hover:border-primary/30 bg-card')}>
+                        <div className="flex items-center gap-2"><card.icon className="h-4 w-4 text-primary" /><p className="text-xs font-semibold leading-tight">{card.title}</p></div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  {groupedReports.map((group) => (
+                    <div key={group.category} className="rounded-lg border p-4">
+                      <p className="text-sm font-semibold mb-3 flex items-center gap-2"><group.icon className="h-4 w-4 text-muted-foreground" />{group.title}</p>
+                      <div className="grid gap-3 grid-cols-1 md:grid-cols-2 xl:grid-cols-4">
+                        {group.items.map((card) => (
+                          <button key={card.id} onClick={() => handleSelectTipo(card.id)} className={cn('rounded-lg border p-3 text-left transition-all hover:border-primary/30 bg-card')}>
+                            <div className="flex items-center gap-2 mb-1.5"><card.icon className="h-4 w-4 text-muted-foreground" /><span className="text-sm font-semibold">{card.title}</span></div>
+                            <p className="text-xs text-muted-foreground">{card.description}</p>
+                          </button>
+                        ))}
                       </div>
-                    </button>
+                    </div>
                   ))}
                 </div>
-              </div>
-
-              <div className="space-y-4">
-                {groupedReports.map((group) => (
-                  <div key={group.category} className="rounded-lg border p-4">
-                    <p className="text-sm font-semibold mb-3 flex items-center gap-2"><group.icon className="h-4 w-4 text-muted-foreground" />{group.title}</p>
-                    <div className="grid gap-3 grid-cols-1 md:grid-cols-2 xl:grid-cols-4">
-                      {group.items.map((card) => (
-                        <button
-                          key={card.id}
-                          onClick={() => handleSelectTipo(card.id)}
-                          className={cn('rounded-lg border p-3 text-left transition-all hover:border-primary/30', tipo === card.id ? 'border-primary bg-primary/5' : 'bg-card')}
-                        >
-                          <div className="flex items-center gap-2 mb-1.5">
-                            <card.icon className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm font-semibold">{card.title}</span>
-                          </div>
-                          <p className="text-xs text-muted-foreground">{card.description}</p>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
           )}
 
+          {/* ── Active report ── */}
           {!!tipo && (
-          <>
-          <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => { setSearchParams({}); setTipo('' as TipoRelatorio); }}
-              className="gap-2"
-            >
-              <ChevronLeft className="h-4 w-4" />
-              Voltar para Relatórios
-            </Button>
-            {selectedMeta && (
-              <span className="text-sm text-muted-foreground">
-                <selectedMeta.icon className="inline h-3.5 w-3.5 mr-1 text-primary" />
-                {selectedMeta.title}
-              </span>
-            )}
-          </div>
-
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                {selectedMeta && <selectedMeta.icon className="h-4 w-4 text-primary" />}
-                {selectedMeta?.title || 'Relatório'}
-              </CardTitle>
-              <CardDescription>{selectedMeta?.objective || 'Ajuste filtros, analise KPIs, veja o gráfico e exporte os dados.'}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-                {kpiCards.map((kpi) => (
-                  <SummaryCard key={kpi.title} title={kpi.title} value={kpi.value} icon={kpi.icon} variationType="neutral" variation={kpi.variation} variant={kpi.variant} />
-                ))}
+            <>
+              <div className="flex items-center gap-3">
+                <Button variant="outline" size="sm" onClick={() => { setSearchParams({}); setTipo(''); }} className="gap-2">
+                  <ChevronLeft className="h-4 w-4" />Voltar para Relatórios
+                </Button>
+                {selectedMeta && <span className="text-sm text-muted-foreground"><selectedMeta.icon className="inline h-3.5 w-3.5 mr-1 text-primary" />{selectedMeta.title}</span>}
               </div>
 
               <Card>
-                <CardContent className="pt-5 pb-4 space-y-4">
-                  <div className="flex flex-wrap items-end gap-4">
-                    {selectedMeta?.filters.showDateRange && (
-                      <>
-                        <div className="space-y-1.5">
-                          <Label className="text-xs">Data inicial</Label>
-                          <Input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} className="h-9 w-[160px]" />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-xs">Data final</Label>
-                          <Input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} className="h-9 w-[160px]" />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-xs">Períodos rápidos</Label>
-                          <div className="flex gap-2">
-                            <Button size="sm" variant="outline" onClick={() => applyQuickPeriod('hoje')}>Hoje</Button>
-                            <Button size="sm" variant="outline" onClick={() => applyQuickPeriod('7d')}>7 dias</Button>
-                            <Button size="sm" variant="outline" onClick={() => applyQuickPeriod('30d')}>30 dias</Button>
-                            <Button size="sm" variant="outline" onClick={() => applyQuickPeriod('mes')}>Mês atual</Button>
-                          </div>
-                        </div>
-                      </>
-                    )}
-                    <div className="flex flex-wrap gap-2 ml-auto">
-                      <Button variant="outline" size="sm" onClick={loadData} className="gap-1.5"><RefreshCcw className="h-3.5 w-3.5" />Atualizar</Button>
-                      <Button variant="outline" size="sm" onClick={() => setPreviewOpen(true)} disabled={!resultado.rows.length} className="gap-1.5"><Eye className="h-3.5 w-3.5" />Visualizar</Button>
-                      {columns.length > 0 && (
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button variant="outline" size="sm" className="gap-1.5"><Columns className="h-3.5 w-3.5" />Colunas</Button>
-                          </PopoverTrigger>
-                          <PopoverContent align="end" className="w-64 p-3">
-                            <p className="text-xs font-semibold mb-2 text-muted-foreground uppercase tracking-wide">Personalizar colunas</p>
-                            <div className="space-y-1.5 max-h-60 overflow-y-auto">
-                              {columns.map((col) => (
-                                <label key={col.key} className="flex items-center gap-2 text-sm cursor-pointer">
-                                  <Checkbox
-                                    checked={!hiddenColumns.includes(col.key)}
-                                    onCheckedChange={(checked) => {
-                                      setHiddenColumns((prev) =>
-                                        checked ? prev.filter((k) => k !== col.key) : [...prev, col.key]
-                                      );
-                                    }}
-                                  />
-                                  {col.label}
-                                </label>
-                              ))}
-                            </div>
-                            {hiddenColumns.length > 0 && (
-                              <Button variant="ghost" size="sm" className="mt-2 w-full text-xs" onClick={() => setHiddenColumns([])}>
-                                Restaurar padrão
-                              </Button>
-                            )}
-                          </PopoverContent>
-                        </Popover>
-                      )}
-                      <Button variant="outline" size="sm" onClick={handleExportPdf} className="gap-1.5"><FileText className="h-3.5 w-3.5" />PDF</Button>
-                      <Button variant="outline" size="sm" onClick={handleExportXlsx} disabled={!resultado.rows.length} className="gap-1.5"><FileSpreadsheet className="h-3.5 w-3.5" />Excel</Button>
-                      <Button size="sm" onClick={handleExportCsv} className="gap-1.5"><Download className="h-3.5 w-3.5" />CSV</Button>
-                    </div>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    {selectedMeta && <selectedMeta.icon className="h-4 w-4 text-primary" />}{selectedMeta?.title || 'Relatório'}
+                  </CardTitle>
+                  <CardDescription>{selectedMeta?.objective || 'Ajuste filtros, analise KPIs, veja o gráfico e exporte os dados.'}</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+
+                  {/* KPIs */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                    {kpiCards.map((kpi) => (
+                      <SummaryCard key={kpi.title} title={kpi.title} value={kpi.value} icon={kpi.icon} variationType="neutral" variation={kpi.variation} variant={kpi.variant} />
+                    ))}
                   </div>
 
-                  <div className="flex flex-wrap gap-3 items-end">
-                    {selectedMeta?.filters.showClientes && (
-                      <div className="space-y-1">
-                        <Label className="text-xs">Clientes</Label>
-                        <MultiSelect options={clientes.map((c) => ({ label: c.nome_razao_social, value: c.id }))} selected={filtroClienteIds} onChange={setFiltroClienteIds} placeholder="Todos os clientes" className="w-[250px]" />
+                  {/* Filter + action bar */}
+                  <Card>
+                    <CardContent className="pt-5 pb-4 space-y-4">
+                      <div className="flex flex-wrap items-end gap-4">
+                        {selectedMeta?.filters.showDateRange && (
+                          <PeriodoFilter dataInicio={dataInicio} dataFim={dataFim} onChange={({ dataInicio: di, dataFim: df }) => { setDataInicio(di); setDataFim(df); }} />
+                        )}
+                        <div className="flex flex-wrap gap-2 ml-auto">
+                          <Button variant="outline" size="sm" onClick={() => refetch()} className="gap-1.5"><RefreshCcw className="h-3.5 w-3.5" />Atualizar</Button>
+                          <Button variant="outline" size="sm" onClick={() => setPreviewOpen(true)} disabled={!rows.length} className="gap-1.5"><Eye className="h-3.5 w-3.5" />Visualizar</Button>
+                          {columns.length > 0 && (
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button variant="outline" size="sm" className="gap-1.5"><Columns className="h-3.5 w-3.5" />Colunas</Button>
+                              </PopoverTrigger>
+                              <PopoverContent align="end" className="w-64 p-3">
+                                <p className="text-xs font-semibold mb-2 text-muted-foreground uppercase tracking-wide">Personalizar colunas</p>
+                                <div className="space-y-1.5 max-h-60 overflow-y-auto">
+                                  {columns.map((col) => (
+                                    <label key={col.key} className="flex items-center gap-2 text-sm cursor-pointer">
+                                      <Checkbox checked={!hiddenColumns.includes(col.key)} onCheckedChange={(checked) => setHiddenColumns((prev) => checked ? prev.filter((k) => k !== col.key) : [...prev, col.key])} />
+                                      {col.label}
+                                    </label>
+                                  ))}
+                                </div>
+                                {hiddenColumns.length > 0 && <Button variant="ghost" size="sm" className="mt-2 w-full text-xs" onClick={() => setHiddenColumns([])}>Restaurar padrão</Button>}
+                              </PopoverContent>
+                            </Popover>
+                          )}
+                          <Button variant="outline" size="sm" onClick={handleExportPdf} className="gap-1.5"><FileText className="h-3.5 w-3.5" />PDF</Button>
+                          <Button variant="outline" size="sm" onClick={handleExportXlsx} disabled={!rows.length} className="gap-1.5"><FileSpreadsheet className="h-3.5 w-3.5" />Excel</Button>
+                          <Button size="sm" onClick={handleExportCsv} className="gap-1.5"><Download className="h-3.5 w-3.5" />CSV</Button>
+                        </div>
                       </div>
-                    )}
-
-                    {selectedMeta?.filters.showFornecedores && (
-                      <div className="space-y-1">
-                        <Label className="text-xs">Fornecedores</Label>
-                        <MultiSelect options={fornecedores.map((f) => ({ label: f.nome_razao_social, value: f.id }))} selected={filtroFornecedorIds} onChange={setFiltroFornecedorIds} placeholder="Todos os fornecedores" className="w-[250px]" />
-                      </div>
-                    )}
-
-                    {selectedMeta?.filters.showGrupos && (
-                      <div className="space-y-1">
-                        <Label className="text-xs">Grupos de Produto</Label>
-                        <MultiSelect options={grupos.map((g) => ({ label: g.nome, value: g.id }))} selected={filtroGrupoIds} onChange={setFiltroGrupoIds} placeholder="Todos os grupos" className="w-[220px]" />
-                      </div>
-                    )}
-
-                    {selectedMeta?.filters.showStatus && (
-                      <div className="space-y-1">
-                        <Label className="text-xs">Status</Label>
-                        <Select value={statusFiltro} onValueChange={setStatusFiltro}>
-                          <SelectTrigger className="h-9 w-[160px]"><SelectValue placeholder="Todos" /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="todos">Todos</SelectItem>
-                            <SelectItem value="aberto">Em aberto</SelectItem>
-                            <SelectItem value="vencido">Vencido</SelectItem>
-                            <SelectItem value="pago">Pago/Confirmado</SelectItem>
-                            <SelectItem value="pendente">Pendente</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
-
-                    <div className="space-y-1">
-                      <Label className="text-xs">Agrupamento</Label>
-                      <Select value={agrupamento} onValueChange={setAgrupamento}>
-                        <SelectTrigger className="h-9 w-[180px]"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="padrao">Padrão do relatório</SelectItem>
-                          <SelectItem value="valor_desc">Maior valor primeiro</SelectItem>
-                          <SelectItem value="status">Por status</SelectItem>
-                          <SelectItem value="vencimento">Por vencimento/data</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {selectedMeta?.filters.showTipos && (
-                      <div className="space-y-1">
-                        <Label className="text-xs">Tipos</Label>
-                        <MultiSelect
-                          options={[{ label: 'A Receber', value: 'receber' }, { label: 'A Pagar', value: 'pagar' }]}
-                          selected={filtroTipos}
-                          onChange={setFiltroTipos}
-                          placeholder="Todos"
-                          className="w-[180px]"
+                      {selectedMeta && (
+                        <FiltrosRelatorio
+                          filters={selectedMeta.filters}
+                          state={filtrosState}
+                          clientes={clientes}
+                          fornecedores={fornecedores}
+                          grupos={grupos}
+                          onChange={(partial) => setFiltrosState((prev) => ({ ...prev, ...partial }))}
                         />
-                      </div>
-                    )}
-                  </div>
-
-                  {selectedMeta?.filters.showDreCompetencia && (
-                    <div className="flex flex-wrap gap-3 items-end mt-3 pt-3 border-t">
-                      <div className="space-y-1">
-                        <Label className="text-xs font-medium">Competência</Label>
-                        <Select value={dreCompetencia} onValueChange={(v: 'mes' | 'trimestre' | 'ano' | 'personalizado') => setDreCompetencia(v)}>
-                          <SelectTrigger className="h-9 w-[190px]"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="mes">Mês específico</SelectItem>
-                            <SelectItem value="trimestre">Trimestre atual</SelectItem>
-                            <SelectItem value="ano">Ano atual</SelectItem>
-                            <SelectItem value="personalizado">Personalizado</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      {dreCompetencia === 'mes' && (
-                        <div className="space-y-1">
-                          <Label className="text-xs font-medium">Mês/Ano</Label>
-                          <Input type="month" value={dreMes} onChange={(e) => setDreMes(e.target.value)} className="h-9 w-[160px]" />
-                        </div>
                       )}
-                    </div>
-                  )}
+                    </CardContent>
+                  </Card>
+
+                  {/* Data + chart */}
+                  <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-base">{resultado?.title || 'Relatório'}</CardTitle>
+                        <CardDescription>{resultado?.subtitle}</CardDescription>
+                      </CardHeader>
+                      <CardContent className="p-0">
+                        {isLoading && <div className="p-6 text-sm text-muted-foreground animate-pulse">Carregando {selectedMeta?.title || 'relatório'}…</div>}
+                        {isError && !isLoading && <div className="m-4 rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">Não foi possível carregar os dados desse relatório. Revise filtros e tente novamente.</div>}
+                        {!isLoading && !isError && isDreReport && <DreTable rows={sortedRows as DreRow[]} />}
+                        {!isLoading && !isError && !isDreReport && (
+                          <>
+                            <DataTable columns={visibleColumns} data={sortedRows} loading={isLoading} moduleKey={`relatorios-${tipo}`} emptyTitle={`Nenhum registro em ${selectedMeta?.title || 'relatório'}`} emptyDescription="Ajuste o período e os filtros para encontrar registros relevantes." />
+                            {sortedRows.length > 0 && (() => {
+                              const footerCols = (selectedMeta?.columns ?? []).filter((c) => c.footerTotal);
+                              if (!footerCols.length) return null;
+                              return (
+                                <div className="border-t bg-muted/30 px-4 py-2 flex flex-wrap gap-x-6 gap-y-1 text-xs font-semibold text-muted-foreground">
+                                  {footerCols.map((col) => {
+                                    const total = sortedRows.reduce((s, r) => s + Number(r[col.key] || 0), 0);
+                                    return <span key={col.key}>{col.label}: <span className="text-foreground">{col.format === 'currency' ? formatCurrency(total) : formatNumber(total)}</span></span>;
+                                  })}
+                                </div>
+                              );
+                            })()}
+                          </>
+                        )}
+                        {showEmpty && <div className="px-4 pb-4 text-xs text-muted-foreground">Nenhum dado encontrado para o filtro atual. Exportações permanecem disponíveis.</div>}
+                      </CardContent>
+                    </Card>
+
+                    <RelatorioChart
+                      chartData={resultado?.chartData ?? []}
+                      chartType={selectedMeta?.chartType ?? 'bar'}
+                      isQuantityReport={isQtyReport}
+                    />
+                  </div>
                 </CardContent>
               </Card>
-
-              <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base">{resultado.title || 'Relatório'}</CardTitle>
-                    <CardDescription>{resultado.subtitle}</CardDescription>
-                  </CardHeader>
-                  <CardContent className="p-0">
-                    {loading && <div className="p-6 text-sm text-muted-foreground animate-pulse">Carregando {selectedMeta?.title || 'relatório'}…</div>}
-                    {errorLoading && !loading && <div className="m-4 rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">{errorLoading}</div>}
-
-                    {!loading && !errorLoading && isDreReport ? (
-                      <div className="p-4">
-                        <table className="w-full text-sm">
-                          <tbody>
-                            {(sortedRows as Array<Record<string, unknown>>).map((row, i) => {
-                              const tipoLinha = row.tipo as string | undefined;
-                              const valor = row.valor as number | undefined;
-                              const linha = row.linha as string | undefined;
-                              return (
-                                <tr key={i} className={
-                                  tipoLinha === 'header' ? 'bg-primary/5 font-bold' :
-                                    tipoLinha === 'subtotal' ? 'bg-muted/50 font-semibold border-t' :
-                                      tipoLinha === 'resultado' ? 'bg-primary/10 font-bold text-lg border-t-2 border-primary/30' :
-                                        'text-muted-foreground'
-                                }>
-                                  <td className={`px-4 py-3 ${tipoLinha === 'deducao' ? 'pl-8' : ''}`}>{linha}</td>
-                                  <td className={`px-4 py-3 text-right font-mono ${(valor ?? 0) < 0 ? 'text-destructive' : ''}`}>{formatCurrency(valor ?? 0)}</td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    ) : null}
-
-                    {!loading && !errorLoading && !isDreReport && (
-                      <>
-                        <DataTable
-                          columns={visibleColumns}
-                          data={sortedRows}
-                          loading={loading}
-                          moduleKey={`relatorios-${tipo}`}
-                          emptyTitle={`Nenhum registro em ${selectedMeta?.title || 'relatório'}`}
-                          emptyDescription="Ajuste o período e os filtros para encontrar registros relevantes."
-                        />
-                        {/* Footer totals row */}
-                        {sortedRows.length > 0 && (() => {
-                          const footerCols = (selectedMeta?.columns ?? []).filter((c) => c.footerTotal);
-                          if (!footerCols.length) return null;
-                          return (
-                            <div className="border-t bg-muted/30 px-4 py-2 flex flex-wrap gap-x-6 gap-y-1 text-xs font-semibold text-muted-foreground">
-                              {footerCols.map((col) => {
-                                const total = (sortedRows as Record<string, unknown>[]).reduce((s, r) => s + Number(r[col.key] || 0), 0);
-                                const formatted = (col.format === 'currency') ? formatCurrency(total) : formatNumber(total);
-                                return (
-                                  <span key={col.key}>{col.label}: <span className="text-foreground">{formatted}</span></span>
-                                );
-                              })}
-                            </div>
-                          );
-                        })()}
-                      </>
-                    )}
-
-                    {showEmptyData && (
-                      <div className="px-4 pb-4 text-xs text-muted-foreground">Nenhum dado encontrado para o filtro atual. Exportações permanecem disponíveis.</div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base flex items-center gap-2">Resumo Visual {useLine ? <LineChart className="h-4 w-4 text-muted-foreground" /> : usePie ? <PieChartIcon className="h-4 w-4 text-muted-foreground" /> : <BarChart3 className="h-4 w-4 text-muted-foreground" />}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {(resultado.chartData || []).length > 0 ? (
-                      <>
-                        <div className="h-56">
-                          <ResponsiveContainer width="100%" height="100%">
-                            {useLine ? (
-                              <RechartsLineChart data={resultado.chartData}>
-                                <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                                <YAxis hide />
-                                <Tooltip formatter={(v: number) => isQtyReport ? formatNumber(v) : formatCurrency(v)} />
-                                <Line type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={2.5} dot={{ r: 3 }} />
-                              </RechartsLineChart>
-                            ) : usePie ? (
-                              <PieChart>
-                                <Pie data={resultado.chartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} innerRadius={40} paddingAngle={3}>
-                                  {(resultado.chartData || []).map((_, i) => (<Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />))}
-                                </Pie>
-                                <Legend verticalAlign="bottom" height={36} />
-                                <Tooltip formatter={(v: number) => isQtyReport ? formatNumber(v) : formatCurrency(v)} />
-                              </PieChart>
-                            ) : (
-                              <BarChart data={resultado.chartData}>
-                                <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                                <YAxis hide />
-                                <Tooltip formatter={(v: number) => isQtyReport ? formatNumber(v) : formatCurrency(v)} />
-                                <Bar dataKey="value" radius={[6, 6, 0, 0]} fill="hsl(var(--primary))" />
-                              </BarChart>
-                            )}
-                          </ResponsiveContainer>
-                        </div>
-
-                        <div className="space-y-2">
-                          {(resultado.chartData || []).slice(0, 6).map((item, i) => (
-                            <div key={`${item.name}-${i}`} className="flex items-center justify-between rounded-lg border px-3 py-2.5">
-                              <div className="flex items-center gap-2">
-                                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }} />
-                                <span className="text-sm font-medium">{item.name}</span>
-                              </div>
-                              <span className="text-sm font-mono font-semibold">{isQtyReport ? formatNumber(item.value) : formatCurrency(item.value)}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </>
-                    ) : (
-                      <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-                        O resumo gráfico aparecerá conforme o relatório possuir dados consolidados.
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-            </CardContent>
-          </Card>
-          </>
+            </>
           )}
         </div>
       </ModulePage>
@@ -804,7 +330,7 @@ export default function Relatorios() {
       <PreviewModal
         open={previewOpen}
         onClose={() => setPreviewOpen(false)}
-        title={`${resultado.title || 'Relatório'} — Pré-visualização`}
+        title={`${resultado?.title || 'Relatório'} — Pré-visualização`}
         actions={
           <>
             <Button variant="outline" size="sm" onClick={handleExportPdf} className="gap-1.5"><FileText className="h-3.5 w-3.5" />PDF</Button>
@@ -815,37 +341,27 @@ export default function Relatorios() {
       >
         <div className="space-y-6 print:space-y-4">
           <div className="border-b pb-4">
-            <h2 className="text-lg font-bold text-foreground">{resultado.title}</h2>
-            <p className="text-sm text-muted-foreground">{resultado.subtitle}</p>
+            <h2 className="text-lg font-bold text-foreground">{resultado?.title}</h2>
+            <p className="text-sm text-muted-foreground">{resultado?.subtitle}</p>
             <p className="text-xs text-muted-foreground mt-1">Período: {periodoLabel}</p>
           </div>
-
           <div className="overflow-x-auto">
             <table className="w-full text-sm border-collapse">
               <thead>
-                <tr className="bg-muted/50">
-                  {visibleColumns.map((col) => (
-                    <th key={col.key} className="text-left px-3 py-2 font-semibold text-xs text-muted-foreground border-b">{col.label}</th>
-                  ))}
-                </tr>
+                <tr className="bg-muted/50">{visibleColumns.map((col) => <th key={col.key} className="text-left px-3 py-2 font-semibold text-xs text-muted-foreground border-b">{col.label}</th>)}</tr>
               </thead>
               <tbody>
-                {(resultado.rows as Record<string, unknown>[]).map((row, ri) => (
+                {rows.map((row, ri) => (
                   <tr key={ri} className={ri % 2 === 0 ? 'bg-muted/20' : ''}>
-                    {visibleColumns.map((col) => (
-                      <td key={col.key} className="px-3 py-1.5 border-b border-border/40 text-xs">
-                        {formatCellValue(row[col.key], col.key, isQtyReport) as React.ReactNode}
-                      </td>
-                    ))}
+                    {visibleColumns.map((col) => <td key={col.key} className="px-3 py-1.5 border-b border-border/40 text-xs">{formatCellValue(row[col.key], col.key, isQtyReport) as React.ReactNode}</td>)}
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-
           <div className="flex flex-wrap items-center justify-between gap-4 border-t pt-3 text-sm">
-            <span className="font-semibold text-foreground">Total de registros: {resultado.rows.length}</span>
-            {resultado.totals && (
+            <span className="font-semibold text-foreground">Total de registros: {rows.length}</span>
+            {resultado?.totals && (
               <div className="flex flex-wrap gap-4">
                 {resultado.totals.totalQtd != null && <span className="font-semibold">Qtd Total: {formatNumber(resultado.totals.totalQtd)}</span>}
                 {resultado.totals.totalCusto != null && <span className="font-semibold">Total Custo: {formatCurrency(resultado.totals.totalCusto)}</span>}

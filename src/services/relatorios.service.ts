@@ -1,8 +1,8 @@
-/* eslint-disable @typescript-eslint/no-explicit-any -- Report rows have dynamic shapes */
 import { supabase } from "@/integrations/supabase/client";
 import { downloadTextFile } from "@/lib/utils";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/format";
 import { getEffectiveFiscalId } from "@/lib/fiscalUtils";
+import { addParticipacao, computeTop5Concentracao } from "@/utils/relatorios";
 
 export type TipoRelatorio = "estoque" | "movimentos_estoque" | "financeiro" | "fluxo_caixa" | "vendas" | "compras" | "aging" | "dre" | "curva_abc" | "margem_produtos" | "estoque_minimo" | "vendas_cliente" | "compras_fornecedor" | "divergencias" | "faturamento";
 
@@ -27,26 +27,7 @@ export interface RelatorioResultado<T = Record<string, unknown>> {
   _isDreReport?: boolean;
 }
 
-/**
- * Adds a `participacao` (% share of total) field to each row in a ranking.
- * Rounds to one decimal place.
- */
-function addParticipacao<T extends { valorTotal: number }>(rows: T[], grandTotal: number): (T & { participacao: number })[] {
-  return rows.map((r) => ({
-    ...r,
-    participacao: grandTotal > 0 ? Number(((r.valorTotal / grandTotal) * 100).toFixed(1)) : 0,
-  }));
-}
-
-/**
- * Computes top-N concentration (% of grand total held by the first N items).
- */
-function computeTop5Concentracao(rows: { valorTotal: number }[], grandTotal: number): number {
-  if (grandTotal <= 0) return 0;
-  const top5Total = rows.slice(0, 5).reduce((s, r) => s + r.valorTotal, 0);
-  return Number(((top5Total / grandTotal) * 100).toFixed(1));
-}
-
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Supabase query builder uses 'any' internally
 function withDateRange(query: any, column: string, filtros: FiltroRelatorio) {
   let next = query;
 
