@@ -130,7 +130,7 @@ export function exportSocialCsv(filename: string, rows: SocialConsolidadoReportR
   downloadTextFile(filename, csv, 'text/csv;charset=utf-8');
 }
 
-export function exportSocialXlsx(filename: string, data: Record<string, unknown[]>): void {
+export async function exportSocialXlsx(filename: string, data: Record<string, unknown[]>): Promise<void> {
   const workbook = XLSX.utils.book_new();
 
   Object.entries(data).forEach(([sheetName, rows]) => {
@@ -138,5 +138,5 @@ export function exportSocialXlsx(filename: string, data: Record<string, unknown[
     XLSX.utils.book_append_sheet(workbook, worksheet, sheetName.slice(0, 31));
   });
 
-  XLSX.writeFile(workbook, filename);
+  await XLSX.writeFile(workbook, filename);
 }
