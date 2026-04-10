@@ -1,10 +1,9 @@
 // @ts-nocheck
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Package, Truck, CheckCircle2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAppConfig } from '@/hooks/useAppConfig';
 import { toast } from 'sonner';
 
 interface FreteOption {
@@ -22,19 +21,28 @@ interface FreteCorreiosCardProps {
 }
 
 export function FreteCorreiosCard({ cepDestino, pesoTotal, onSelect }: FreteCorreiosCardProps) {
-  const { value: cepOrigem, loading: loadingConfig } = useAppConfig<string>('cep_empresa', '');
+  const [cepOrigem, setCepOrigem] = useState('');
+  const [loadingConfig, setLoadingConfig] = useState(true);
+
+  useEffect(() => {
+    if (!supabase) { setLoadingConfig(false); return; }
+    supabase.from('empresa_config').select('cep').maybeSingle().then(({ data }) => {
+      setCepOrigem((data?.cep || '').replace(/\D/g, ''));
+      setLoadingConfig(false);
+    });
+  }, []);
   const [loading, setLoading] = useState(false);
   const [opcoes, setOpcoes] = useState<FreteOption[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
 
   const cepDestinoClean = (cepDestino || '').replace(/\D/g, '');
-  const cepOrigemClean = (cepOrigem || '').replace(/\D/g, '');
+  const cepOrigemClean = cepOrigem;
   const canQuote = cepDestinoClean.length === 8 && cepOrigemClean.length === 8 && pesoTotal > 0;
 
   const handleConsultar = async () => {
     if (!canQuote) {
       if (!cepOrigemClean || cepOrigemClean.length !== 8) {
-        toast.error('Configure o CEP da empresa em Configurações → Empresa.');
+        toast.error('Configure o CEP da empresa em Administração → Empresa.');
         return;
       }
       if (!cepDestinoClean || cepDestinoClean.length !== 8) {
@@ -123,7 +131,7 @@ export function FreteCorreiosCard({ cepDestino, pesoTotal, onSelect }: FreteCorr
         </div>
         {(!cepOrigemClean || cepOrigemClean.length !== 8) && !loadingConfig && (
           <p className="text-xs text-destructive mt-1">
-            ⚠ CEP de origem não configurado. Vá em Configurações → Empresa.
+            ⚠ CEP de origem não configurado. Vá em Administração → Empresa.
           </p>
         )}
       </CardHeader>

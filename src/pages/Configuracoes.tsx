@@ -1,8 +1,7 @@
 // @ts-nocheck
 import { useState, useEffect } from 'react';
 import { useTheme } from 'next-themes';
-import { AlertCircle, Building2, CalendarDays, Check, CheckCircle2, Clock, Eye, EyeOff, Info, Loader2, Lock, Mail, MapPin, Moon, Palette, RotateCcw, Save, Settings, Shield, ShieldCheck, Sun, Truck, User } from 'lucide-react';
-import { useAppConfig } from '@/hooks/useAppConfig';
+import { AlertCircle, CalendarDays, Check, CheckCircle2, Clock, Eye, EyeOff, Info, Loader2, Lock, Mail, Moon, Palette, RotateCcw, Save, Settings, Shield, ShieldCheck, Sun, User } from 'lucide-react';
 import { useUserPreference } from '@/hooks/useUserPreference';
 import { AppLayout } from '@/components/AppLayout';
 import { ModulePage } from '@/components/ModulePage';
@@ -39,7 +38,6 @@ interface TabNavItem {
 
 const tabNavItems: TabNavItem[] = [
   { key: 'perfil', label: 'Meu Perfil', icon: User },
-  { key: 'empresa', label: 'Empresa', icon: Building2 },
   { key: 'aparencia', label: 'Aparência', icon: Palette },
   { key: 'seguranca', label: 'Segurança', icon: Lock },
 ];
@@ -143,16 +141,6 @@ export default function Configuracoes() {
   const { value: fontScale, save: saveFontScale } = useUserPreference<number>(user?.id, 'ui_font_scale', 16);
   const { value: reduceMotion, save: saveReduceMotion } = useUserPreference<boolean>(user?.id, 'ui_reduce_motion', false);
 
-  const { value: cepEmpresa, loading: loadingCep, save: saveCepEmpresa } = useAppConfig<string>('cep_empresa', '');
-  const [cepEmpresaLocal, setCepEmpresaLocal] = useState('');
-  const [savingCep, setSavingCep] = useState(false);
-  const [cepError, setCepError] = useState<string | null>(null);
-
-  // Sync local CEP state when the Supabase value loads.
-  useEffect(() => {
-    if (cepEmpresa) setCepEmpresaLocal(cepEmpresa);
-  }, [cepEmpresa]);
-
   useEffect(() => {
     if (densidadePref) setDensidade(densidadePref);
   }, [densidadePref]);
@@ -228,22 +216,6 @@ export default function Configuracoes() {
       toast.error('Erro ao alterar senha. Tente novamente.');
     }
     setChangingPassword(false);
-  };
-
-  const handleSaveCep = async () => {
-    const raw = cepEmpresaLocal.replace(/\D/g, '');
-    if (raw.length !== 8) {
-      setCepError('O CEP deve conter exatamente 8 dígitos numéricos.');
-      return;
-    }
-    setSavingCep(true);
-    const ok = await saveCepEmpresa(raw);
-    if (ok) {
-      toast.success('CEP de origem padrão salvo. Será aplicado nas próximas cotações de frete.');
-    } else {
-      toast.error('Erro ao salvar parâmetro. Tente novamente.');
-    }
-    setSavingCep(false);
   };
 
   const handleResetAppearance = async () => {
@@ -416,83 +388,6 @@ export default function Configuracoes() {
                     </p>
                   </div>
                 )}
-              </CardContent>
-            </Card>
-          </div>
-        );
-
-      case 'empresa':
-        return (
-          <div className="space-y-6">
-            {/* Distinction note: operational params vs institutional data */}
-            <div className="flex items-start gap-3 rounded-lg border border-dashed bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
-              <Info className="mt-0.5 h-4 w-4 shrink-0" />
-              <p>
-                Esta seção gerencia <strong className="text-foreground">parâmetros operacionais</strong> usados pelo sistema em cotações, frete e integrações — não dados institucionais da empresa. Para razão social, CNPJ e endereço fiscal, acesse{' '}
-                <strong className="text-foreground">Administração &gt; Empresa</strong>.
-              </p>
-            </div>
-
-            {/* Operational parameters card */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Truck className="h-4 w-4 text-muted-foreground" />
-                  Parâmetros Operacionais da Empresa
-                </CardTitle>
-                <CardDescription>
-                  Valores padrão usados pelo sistema em cotações automáticas, integrações logísticas e simulações de frete. Atuam como parâmetro inicial e podem ser sobrescritos no fluxo de cada documento, quando aplicável.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Origin ZIP group — prepared to receive future params (city/UF, logistics mode, carrier) */}
-                <div className="space-y-3">
-                  <h4 className="flex items-center gap-1.5 text-sm font-medium">
-                    <MapPin className="h-4 w-4 text-muted-foreground" />
-                    Origem padrão para frete
-                  </h4>
-                  <div className="space-y-2 max-w-sm">
-                    <Label htmlFor="cep-origem">CEP de origem padrão para cotações</Label>
-                    <Input
-                      id="cep-origem"
-                      value={cepEmpresaLocal}
-                      onChange={(e) => {
-                        const raw = e.target.value.replace(/\D/g, '').slice(0, 8);
-                        setCepEmpresaLocal(raw);
-                        if (cepError && raw.length === 8) setCepError(null);
-                      }}
-                      placeholder="Ex: 01001000"
-                      maxLength={8}
-                      inputMode="numeric"
-                      aria-describedby={cepError ? 'cep-error' : 'cep-help'}
-                      className={cepError ? 'border-destructive focus-visible:ring-destructive' : ''}
-                    />
-                    {cepError ? (
-                      <p id="cep-error" className="text-xs text-destructive">{cepError}</p>
-                    ) : (
-                      <p id="cep-help" className="text-xs text-muted-foreground">
-                        Aplicado como CEP padrão de origem nas cotações automáticas de frete e integrações logísticas.
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between gap-4">
-                  {cepEmpresa && (
-                    <p className="text-xs text-muted-foreground">
-                      Parâmetro ativo:{' '}
-                      <code className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono">{cepEmpresa}</code>
-                    </p>
-                  )}
-                  <Button
-                    onClick={handleSaveCep}
-                    disabled={savingCep || loadingCep}
-                    className="gap-2"
-                  >
-                    {savingCep ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                    Salvar parâmetro
-                  </Button>
-                </div>
               </CardContent>
             </Card>
           </div>
