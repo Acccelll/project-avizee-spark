@@ -1660,6 +1660,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "orcamentos_itens_orcamento_id_fkey"
+            columns: ["orcamento_id"]
+            isOneToOne: false
+            referencedRelation: "orcamentos_public_view"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "orcamentos_itens_produto_id_fkey"
             columns: ["produto_id"]
             isOneToOne: false
@@ -1742,6 +1749,13 @@ export type Database = {
             columns: ["cotacao_id"]
             isOneToOne: false
             referencedRelation: "orcamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ordens_venda_cotacao_id_fkey"
+            columns: ["cotacao_id"]
+            isOneToOne: false
+            referencedRelation: "orcamentos_public_view"
             referencedColumns: ["id"]
           },
         ]
@@ -2606,7 +2620,85 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      orcamentos_itens_public_view: {
+        Row: {
+          codigo_snapshot: string | null
+          descricao_snapshot: string | null
+          id: string | null
+          orcamento_id: string | null
+          peso_total: number | null
+          peso_unitario: number | null
+          quantidade: number | null
+          unidade: string | null
+          valor_total: number | null
+          valor_unitario: number | null
+          variacao: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orcamentos_itens_orcamento_id_fkey"
+            columns: ["orcamento_id"]
+            isOneToOne: false
+            referencedRelation: "orcamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orcamentos_itens_orcamento_id_fkey"
+            columns: ["orcamento_id"]
+            isOneToOne: false
+            referencedRelation: "orcamentos_public_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orcamentos_public_view: {
+        Row: {
+          ativo: boolean | null
+          cliente_snapshot: Json | null
+          data_orcamento: string | null
+          frete_tipo: string | null
+          id: string | null
+          numero: string | null
+          observacoes: string | null
+          prazo_entrega: string | null
+          prazo_pagamento: string | null
+          public_token: string | null
+          status: string | null
+          validade: string | null
+          valor_total: number | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          cliente_snapshot?: Json | null
+          data_orcamento?: string | null
+          frete_tipo?: string | null
+          id?: string | null
+          numero?: string | null
+          observacoes?: string | null
+          prazo_entrega?: string | null
+          prazo_pagamento?: string | null
+          public_token?: string | null
+          status?: string | null
+          validade?: string | null
+          valor_total?: number | null
+        }
+        Update: {
+          ativo?: boolean | null
+          cliente_snapshot?: Json | null
+          data_orcamento?: string | null
+          frete_tipo?: string | null
+          id?: string | null
+          numero?: string | null
+          observacoes?: string | null
+          prazo_entrega?: string | null
+          prazo_pagamento?: string | null
+          public_token?: string | null
+          status?: string | null
+          validade?: string | null
+          valor_total?: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       has_role: {
