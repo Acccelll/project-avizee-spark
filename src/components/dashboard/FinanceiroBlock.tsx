@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useNavigate } from 'react-router-dom';
 import { TrendingUp, TrendingDown, ArrowRight, DollarSign, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';

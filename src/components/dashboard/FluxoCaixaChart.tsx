@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useEffect, useState } from 'react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
@@ -45,7 +44,7 @@ export function FluxoCaixaChart() {
       const prevMap = new Map<string, { entradas_prev: number; saidas_prev: number }>();
 
       for (const l of realizados || []) {
-        const month = (l.data_pagamento as string).slice(0, 7);
+        const month = l.data_pagamento!.slice(0, 7);
         const current = realMap.get(month) || { entradas_real: 0, saidas_real: 0 };
         const valor = Number(l.valor || 0);
         if (l.tipo === 'receber') current.entradas_real += valor;
@@ -54,7 +53,7 @@ export function FluxoCaixaChart() {
       }
 
       for (const l of previstos || []) {
-        const month = (l.data_vencimento as string).slice(0, 7);
+        const month = l.data_vencimento.slice(0, 7);
         const current = prevMap.get(month) || { entradas_prev: 0, saidas_prev: 0 };
         const valor = Number(l.valor || 0);
         if (l.tipo === 'receber') current.entradas_prev += valor;

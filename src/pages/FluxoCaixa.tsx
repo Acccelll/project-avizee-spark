@@ -1,4 +1,3 @@
-// @ts-nocheck comment removed — all types resolved below
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";

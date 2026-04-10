@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useEffect } from "react";
 import { ViewDrawerV2, ViewField, ViewSection } from "@/components/ViewDrawerV2";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -111,7 +110,7 @@ export function ContaBancariaDrawer({
         .order("data_vencimento", { ascending: false })
         .limit(10),
       supabase
-        .from("financeiro_baixas" as any)
+        .from("financeiro_baixas")
         .select("id, valor_pago, data_baixa, forma_pagamento, lancamento_id")
         .eq("conta_bancaria_id", selected.id)
         .order("data_baixa", { ascending: false })
