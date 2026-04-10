@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";
@@ -100,13 +99,15 @@ export default function Conciliacao() {
 
   // ─── Load contas bancárias ───────────────────────────────────────────────
   useEffect(() => {
-    (supabase.from as any)("contas_bancarias")
+    supabase
+      .from("contas_bancarias")
       .select("id, descricao, bancos(nome)")
       .eq("ativo", true)
-      .then(({ data }: any) => {
+      .then(({ data }) => {
         if (data) {
           setContasBancarias(
-            data.map((d: any) => ({
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (data as any[]).map((d) => ({
               id: d.id,
               nome: d.descricao,
               banco: d.bancos?.nome,
@@ -169,8 +170,9 @@ export default function Conciliacao() {
         const dates = items.map((i) => i.data).sort();
         await loadLancamentosFromPeriod(dates[0], dates[dates.length - 1], selectedConta);
       }
-    } catch (err: any) {
-      toast.error("Erro ao processar arquivo OFX: " + err.message);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Erro desconhecido";
+      toast.error("Erro ao processar arquivo OFX: " + msg);
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
