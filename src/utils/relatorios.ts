@@ -1,0 +1,167 @@
+/**
+ * Pure aggregation and transformation helpers for the Reports module.
+ *
+ * All functions are side-effect-free so they can be unit-tested without mocks.
+ */
+
+import type { VendasRow, AgingRow } from "@/types/relatorios";
+
+// ─── Sales aggregation ───────────────────────────────────────────────────────
+
+/** Groups an array of VendasRow by a time period and returns chart-ready data. */
+export function agruparVendasPorPeriodo(
+  rows: VendasRow[],
+  agrupamento: "dia" | "semana" | "mes" | "padrao" = "mes"
+): Array<{ name: string; value: number }> {
+  if (!rows.length) return [];
+
+  const bucket = new Map<string, number>();
+
+  for (const row of rows) {
+    const date = row.emissao ? row.emissao.slice(0, 10) : "s/d";
+    let key: string;
+
+    if (agrupamento === "dia") {
+      key = date;
+    } else if (agrupamento === "semana") {
+      key = getWeekLabel(date);
+    } else {
+      // "mes" and "padrao" both aggregate by month
+      key = date.slice(0, 7); // "YYYY-MM"
+    }
+
+    bucket.set(key, (bucket.get(key) ?? 0) + row.valor);
+  }
+
+  return Array.from(bucket.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, value]) => ({ name: formatPeriodLabel(key, agrupamento), value }));
+}
+
+function getWeekLabel(dateStr: string): string {
+  const d = new Date(dateStr + "T12:00:00");
+  const startOfYear = new Date(d.getFullYear(), 0, 1);
+  const week = Math.ceil(
+    ((d.getTime() - startOfYear.getTime()) / 86400000 + startOfYear.getDay() + 1) / 7
+  );
+  return `${d.getFullYear()}-W${String(week).padStart(2, "0")}`;
+}
+
+function formatPeriodLabel(
+  key: string,
+  agrupamento: "dia" | "semana" | "mes" | "padrao"
+): string {
+  if (agrupamento === "dia") {
+    const [y, m, d] = key.split("-");
+    return `${d}/${m}/${y}`;
+  }
+  if (agrupamento === "semana") return key; // e.g. "2024-W03"
+  // mes / padrao: "YYYY-MM" → "MMM/YY"
+  if (/^\d{4}-\d{2}$/.test(key)) {
+    const [y, m] = key.split("-");
+    const date = new Date(Number(y), Number(m) - 1, 1);
+    return date.toLocaleDateString("pt-BR", { month: "short", year: "2-digit" });
+  }
+  return key;
+}
+
+// ─── Ranking helpers ─────────────────────────────────────────────────────────
+
+/** Adds a `participacao` (% share of total) field to each row in a ranking. */
+export function addParticipacao<T extends { valorTotal: number }>(
+  rows: T[],
+  grandTotal: number
+): (T & { participacao: number })[] {
+  return rows.map((r) => ({
+    ...r,
+    participacao:
+      grandTotal > 0 ? Number(((r.valorTotal / grandTotal) * 100).toFixed(1)) : 0,
+  }));
+}
+
+/** Computes top-N concentration (% of grand total held by the first N items). */
+export function computeTop5Concentracao(
+  rows: { valorTotal: number }[],
+  grandTotal: number
+): number {
+  if (grandTotal <= 0) return 0;
+  const top5Total = rows.slice(0, 5).reduce((s, r) => s + r.valorTotal, 0);
+  return Number(((top5Total / grandTotal) * 100).toFixed(1));
+}
+
+// ─── Aging helpers ───────────────────────────────────────────────────────────
+
+export type AgingFaixa = "A vencer" | "1-30 dias" | "31-60 dias" | "61-90 dias" | "90+ dias";
+
+/** Returns the aging band for a given overdue-days count. */
+export function calcularFaixaAging(diasVencido: number): AgingFaixa {
+  if (diasVencido <= 0) return "A vencer";
+  if (diasVencido <= 30) return "1-30 dias";
+  if (diasVencido <= 60) return "31-60 dias";
+  if (diasVencido <= 90) return "61-90 dias";
+  return "90+ dias";
+}
+
+/** Aggregates AgingRows into chart data grouped by faixa. */
+export function agruparAgingPorFaixa(
+  rows: AgingRow[]
+): Array<{ name: AgingFaixa; value: number }> {
+  const faixas: AgingFaixa[] = [
+    "A vencer",
+    "1-30 dias",
+    "31-60 dias",
+    "61-90 dias",
+    "90+ dias",
+  ];
+  return faixas.map((f) => ({
+    name: f,
+    value: rows.filter((r) => r.faixa === f).reduce((s, r) => s + r.valor, 0),
+  }));
+}
+
+// ─── Row filtering ────────────────────────────────────────────────────────────
+
+/** Filters a generic rows array by a status substring (case-insensitive). */
+export function filtrarPorStatus<T extends Record<string, unknown>>(
+  rows: T[],
+  statusFiltro: string
+): T[] {
+  if (statusFiltro === "todos") return rows;
+  return rows.filter((r) => {
+    const status = String(
+      r["status"] ?? r["situacao"] ?? r["faturamento"] ?? ""
+    ).toLowerCase();
+    return status.includes(statusFiltro.toLowerCase());
+  });
+}
+
+/** Sorts rows by a common sort key. */
+export function sortarRows<T extends Record<string, unknown>>(
+  rows: T[],
+  agrupamento: "padrao" | "valor_desc" | "status" | "vencimento"
+): T[] {
+  const copy = [...rows];
+  if (agrupamento === "valor_desc") {
+    return copy.sort(
+      (a, b) =>
+        Number(b["valor"] ?? b["valorTotal"] ?? 0) -
+        Number(a["valor"] ?? a["valorTotal"] ?? 0)
+    );
+  }
+  if (agrupamento === "vencimento") {
+    return copy.sort((a, b) =>
+      String(a["vencimento"] ?? a["data"] ?? "").localeCompare(
+        String(b["vencimento"] ?? b["data"] ?? "")
+      )
+    );
+  }
+  if (agrupamento === "status") {
+    return copy.sort((a, b) =>
+      String(a["status"] ?? a["situacao"] ?? "").localeCompare(
+        String(b["status"] ?? b["situacao"] ?? ""),
+        "pt-BR"
+      )
+    );
+  }
+  return copy;
+}

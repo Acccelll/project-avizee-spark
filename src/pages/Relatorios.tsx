@@ -6,18 +6,21 @@ import { SummaryCard } from '@/components/SummaryCard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { MultiSelect } from "@/components/ui/MultiSelect";
 import { DataTable } from '@/components/DataTable';
 import { PreviewModal } from '@/components/ui/PreviewModal';
+import { PeriodoFilter } from '@/pages/relatorios/components/Filtros/PeriodoFilter';
 import { cn } from '@/lib/utils';
 import { ChevronLeft, Columns, Download, RefreshCcw, Hash, FileText, Eye, FileSpreadsheet, Layers, PieChart as PieChartIcon, LineChart, BarChart3 } from 'lucide-react';
 import { ResponsiveContainer, BarChart, XAxis, YAxis, Tooltip, Bar, PieChart, Pie, Cell, Legend, LineChart as RechartsLineChart, Line } from 'recharts';
-import { carregarRelatorio, exportarCsv, exportarXlsx, formatCellValue, type RelatorioResultado, type TipoRelatorio } from '@/services/relatorios.service';
+import { carregarRelatorio, formatCellValue, type RelatorioResultado, type TipoRelatorio } from '@/services/relatorios.service';
+import { exportarParaCsv, exportarParaExcel, exportarParaPdf } from '@/services/export.service';
+import { filtrarPorStatus, sortarRows } from '@/utils/relatorios';
 import { reportConfigs, reportCategoryMeta, type ReportCategory } from '@/config/relatoriosConfig';
 import { formatCurrency, formatNumber, formatDate } from '@/lib/format';
 import { toast } from 'sonner';
@@ -36,119 +39,6 @@ const CHART_COLORS = [
   'hsl(262 83% 58%)',
 ];
 
-function buildPdf(resultado: RelatorioResultado, dataInicio: string, dataFim: string, empresa?: { razao_social?: string; cnpj?: string; nome_fantasia?: string } | null) {
-  return import('jspdf').then(({ default: jsPDF }) => {
-    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const margin = 14;
-    let y = 20;
-
-    // Company header
-    if (empresa?.razao_social) {
-      doc.setFontSize(9);
-      doc.setFont('helvetica', 'bold');
-      doc.text(empresa.razao_social, margin, y);
-      y += 4;
-      if (empresa.cnpj) {
-        doc.setFont('helvetica', 'normal');
-        doc.text(`CNPJ: ${empresa.cnpj}`, margin, y);
-        y += 4;
-      }
-      doc.setDrawColor(200, 200, 200);
-      doc.line(margin, y, pageWidth - margin, y);
-      y += 6;
-    }
-
-    doc.setFontSize(16);
-    doc.setFont('helvetica', 'bold');
-    doc.text(resultado.title || 'Relatório', margin, y);
-    y += 7;
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'normal');
-    doc.text(resultado.subtitle || '', margin, y);
-    y += 4;
-    const periodoText = dataInicio || dataFim
-      ? `Período: ${dataInicio || '—'} a ${dataFim || '—'}`
-      : `Gerado em: ${new Date().toLocaleDateString('pt-BR')}`;
-    doc.text(periodoText, margin, y);
-    y += 8;
-
-    const rows = resultado.rows as Record<string, unknown>[];
-    if (rows.length > 0) {
-      const keys = Object.keys(rows[0]);
-      const contentWidth = pageWidth - margin * 2;
-
-      // Compute dynamic column widths based on header and content length
-      const maxCharsPerCol = keys.map((key) => {
-        const headerLabel = key.replace(/([A-Z])/g, ' $1').replace(/^./, (c) => c.toUpperCase());
-        let maxLen = headerLabel.length;
-        const sampleRows = rows.slice(0, 50);
-        for (const row of sampleRows) {
-          const val = String(formatCellValue(row[key], key) ?? '');
-          if (val.length > maxLen) maxLen = val.length;
-        }
-        return Math.min(maxLen, 35); // cap
-      });
-      const totalChars = maxCharsPerCol.reduce((s, c) => s + c, 0) || 1;
-      const colWidths = maxCharsPerCol.map((c) => Math.max((c / totalChars) * contentWidth, 12));
-
-      // Header row
-      doc.setFillColor(105, 5, 0);
-      doc.rect(margin, y, contentWidth, 7, 'F');
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(6.5);
-      doc.setFont('helvetica', 'bold');
-      let xPos = margin;
-      keys.forEach((key, i) => {
-        const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, (c) => c.toUpperCase());
-        doc.text(label.substring(0, 25), xPos + 1.5, y + 5, { maxWidth: colWidths[i] - 2 });
-        xPos += colWidths[i];
-      });
-      y += 7;
-
-      doc.setTextColor(0, 0, 0);
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(6.5);
-
-      const maxRows = Math.min(rows.length, 200);
-      if (rows.length > 200) {
-        y += 10;
-        if (y > doc.internal.pageSize.getHeight() - 20) { doc.addPage(); y = 20; }
-        doc.setFontSize(8);
-        doc.setFont('helvetica', 'bolditalic');
-        doc.setTextColor(180, 0, 0);
-        doc.text(`⚠ PDF limitado a 200 de ${rows.length} registros. Use "Exportar Excel" para o relatório completo.`, margin, y);
-        doc.setTextColor(0, 0, 0);
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(6.5);
-      }
-      for (let r = 0; r < maxRows; r++) {
-        if (y > doc.internal.pageSize.getHeight() - 20) {
-          doc.addPage();
-          y = 15;
-        }
-        if (r % 2 === 0) {
-          doc.setFillColor(245, 245, 240);
-          doc.rect(margin, y, contentWidth, 6, 'F');
-        }
-        xPos = margin;
-        keys.forEach((key, i) => {
-          const val = String(formatCellValue(rows[r][key], key) ?? '');
-          doc.text(val.substring(0, 35), xPos + 1.5, y + 4, { maxWidth: colWidths[i] - 2 });
-          xPos += colWidths[i];
-        });
-        y += 6;
-      }
-
-      y += 4;
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(8);
-      doc.text(`Total de registros: ${rows.length}`, margin, y);
-    }
-
-    return doc;
-  });
-}
 
 export default function Relatorios() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -247,26 +137,14 @@ export default function Relatorios() {
 
   const filteredRows = useMemo(() => {
     const rows = (resultado.rows || []) as Record<string, unknown>[];
-    if (statusFiltro === 'todos') return rows;
-    return rows.filter((r) => {
-      const status = String(r.status || r.situacao || r.faturamento || '').toLowerCase();
-      return status.includes(statusFiltro.toLowerCase());
-    });
+    return filtrarPorStatus(rows, statusFiltro);
   }, [resultado.rows, statusFiltro]);
 
-  const sortedRows = useMemo(() => {
-    const rows = [...filteredRows];
-    if (agrupamento === 'valor_desc') {
-      return rows.sort((a, b) => Number(b.valor || b.valorTotal || 0) - Number(a.valor || a.valorTotal || 0));
-    }
-    if (agrupamento === 'vencimento') {
-      return rows.sort((a, b) => String(a.vencimento || a.data || '').localeCompare(String(b.vencimento || b.data || '')));
-    }
-    if (agrupamento === 'status') {
-      return rows.sort((a, b) => String(a.status || a.situacao || '').localeCompare(String(b.status || b.situacao || ''), 'pt-BR'));
-    }
-    return rows;
-  }, [filteredRows, agrupamento]);
+  const sortedRows = useMemo(
+    () => sortarRows(filteredRows, agrupamento as 'padrao' | 'valor_desc' | 'status' | 'vencimento'),
+    [filteredRows, agrupamento]
+  );
+
 
   const kpiCards = useMemo(() => {
     const kpis = resultado.kpis || {};
@@ -358,35 +236,9 @@ export default function Relatorios() {
     });
   };
 
-  const applyQuickPeriod = (period: 'hoje' | '7d' | '30d' | 'mes') => {
-    const now = new Date();
-    const end = now.toISOString().slice(0, 10);
-    if (period === 'hoje') {
-      setDataInicio(end);
-      setDataFim(end);
-      return;
-    }
-    if (period === '7d') {
-      const start = new Date(now);
-      start.setDate(now.getDate() - 7);
-      setDataInicio(start.toISOString().slice(0, 10));
-      setDataFim(end);
-      return;
-    }
-    if (period === '30d') {
-      const start = new Date(now);
-      start.setDate(now.getDate() - 30);
-      setDataInicio(start.toISOString().slice(0, 10));
-      setDataFim(end);
-      return;
-    }
-    const start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
-    setDataInicio(start);
-    setDataFim(end);
-  };
 
   const handleExportCsv = () => {
-    exportarCsv(resultado.title || tipo, resultado.rows as Record<string, unknown>[]);
+    exportarParaCsv({ titulo: resultado.title || tipo, rows: resultado.rows as Record<string, unknown>[] });
     toast.success('Exportação CSV iniciada.');
   };
 
@@ -394,13 +246,19 @@ export default function Relatorios() {
     if (resultado && resultado.rows.length > 200) {
       toast.warning(`Este relatório tem ${resultado.rows.length} registros. O PDF mostrará apenas os primeiros 200. Use "Exportar Excel" para exportar tudo.`, { duration: 8000 });
     }
-    const doc = await buildPdf(resultado, dataInicio, dataFim, empresaConfig);
-    doc.save(`${resultado.title || 'relatorio'}.pdf`);
+    await exportarParaPdf({
+      titulo: resultado.title || tipo,
+      rows: resultado.rows as Record<string, unknown>[],
+      empresa: empresaConfig,
+      dataInicio,
+      dataFim,
+      resultado,
+    });
     toast.success('PDF gerado com sucesso!');
   };
 
   const handleExportXlsx = async () => {
-    await exportarXlsx(resultado.title || tipo, resultado.rows as Record<string, unknown>[]);
+    await exportarParaExcel({ titulo: resultado.title || tipo, rows: resultado.rows as Record<string, unknown>[] });
     toast.success('Excel gerado com sucesso!');
   };
 
@@ -520,25 +378,11 @@ export default function Relatorios() {
                 <CardContent className="pt-5 pb-4 space-y-4">
                   <div className="flex flex-wrap items-end gap-4">
                     {selectedMeta?.filters.showDateRange && (
-                      <>
-                        <div className="space-y-1.5">
-                          <Label className="text-xs">Data inicial</Label>
-                          <Input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} className="h-9 w-[160px]" />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-xs">Data final</Label>
-                          <Input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} className="h-9 w-[160px]" />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-xs">Períodos rápidos</Label>
-                          <div className="flex gap-2">
-                            <Button size="sm" variant="outline" onClick={() => applyQuickPeriod('hoje')}>Hoje</Button>
-                            <Button size="sm" variant="outline" onClick={() => applyQuickPeriod('7d')}>7 dias</Button>
-                            <Button size="sm" variant="outline" onClick={() => applyQuickPeriod('30d')}>30 dias</Button>
-                            <Button size="sm" variant="outline" onClick={() => applyQuickPeriod('mes')}>Mês atual</Button>
-                          </div>
-                        </div>
-                      </>
+                      <PeriodoFilter
+                        dataInicio={dataInicio}
+                        dataFim={dataFim}
+                        onChange={({ dataInicio: di, dataFim: df }) => { setDataInicio(di); setDataFim(df); }}
+                      />
                     )}
                     <div className="flex flex-wrap gap-2 ml-auto">
                       <Button variant="outline" size="sm" onClick={loadData} className="gap-1.5"><RefreshCcw className="h-3.5 w-3.5" />Atualizar</Button>
