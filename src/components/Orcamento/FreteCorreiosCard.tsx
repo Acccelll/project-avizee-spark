@@ -26,8 +26,8 @@ export function FreteCorreiosCard({ cepDestino, pesoTotal, onSelect }: FreteCorr
 
   useEffect(() => {
     if (!supabase) { setLoadingConfig(false); return; }
-    supabase.from('empresa_config').select('cep').maybeSingle().then(({ data }) => {
-      setCepOrigem((data?.cep || '').replace(/\D/g, ''));
+    supabase.from('empresa_config').select('cep').maybeSingle().then(({ data, error }) => {
+      if (!error) setCepOrigem((data?.cep || '').replace(/\D/g, ''));
       setLoadingConfig(false);
     });
   }, []);
@@ -36,12 +36,11 @@ export function FreteCorreiosCard({ cepDestino, pesoTotal, onSelect }: FreteCorr
   const [selected, setSelected] = useState<string | null>(null);
 
   const cepDestinoClean = (cepDestino || '').replace(/\D/g, '');
-  const cepOrigemClean = cepOrigem;
-  const canQuote = cepDestinoClean.length === 8 && cepOrigemClean.length === 8 && pesoTotal > 0;
+  const canQuote = cepDestinoClean.length === 8 && cepOrigem.length === 8 && pesoTotal > 0;
 
   const handleConsultar = async () => {
     if (!canQuote) {
-      if (!cepOrigemClean || cepOrigemClean.length !== 8) {
+      if (!cepOrigem || cepOrigem.length !== 8) {
         toast.error('Configure o CEP da empresa em Administração → Empresa.');
         return;
       }
@@ -75,7 +74,7 @@ export function FreteCorreiosCard({ cepDestino, pesoTotal, onSelect }: FreteCorr
           'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
-          cepOrigem: cepOrigemClean,
+          cepOrigem: cepOrigem,
           cepDestino: cepDestinoClean,
           peso: pesoTotal,
           comprimento: 30,
@@ -129,7 +128,7 @@ export function FreteCorreiosCard({ cepDestino, pesoTotal, onSelect }: FreteCorr
             {loading ? 'Consultando...' : 'Consultar Frete'}
           </Button>
         </div>
-        {(!cepOrigemClean || cepOrigemClean.length !== 8) && !loadingConfig && (
+        {(!cepOrigem || cepOrigem.length !== 8) && !loadingConfig && (
           <p className="text-xs text-destructive mt-1">
             ⚠ CEP de origem não configurado. Vá em Administração → Empresa.
           </p>

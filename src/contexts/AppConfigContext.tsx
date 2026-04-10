@@ -37,8 +37,8 @@ export function AppConfigProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!supabase) { setLoadingCepEmpresa(false); return; }
-    supabase.from('empresa_config').select('cep').maybeSingle().then(({ data }) => {
-      setCepEmpresa(data?.cep ? data.cep.replace(/\D/g, '') : null);
+    supabase.from('empresa_config').select('cep').maybeSingle().then(({ data, error }) => {
+      if (!error) setCepEmpresa(data?.cep ? data.cep.replace(/\D/g, '') : null);
       setLoadingCepEmpresa(false);
     });
   }, []);
