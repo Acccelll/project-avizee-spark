@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -51,10 +50,12 @@ export function useSidebarAlerts() {
             .from('orcamentos')
             .select('*', { count: 'exact', head: true })
             .eq('ativo', true)
-            .in('status', ['pendente', 'aguardando_aprovacao', 'em_analise'] as any),
+            .in('status', ['pendente', 'aguardando_aprovacao', 'em_analise']),
         ]);
 
-        const baixoCount = (baixoData || []).filter((p: any) => (p.estoque_atual || 0) <= p.estoque_minimo).length;
+        const baixoCount = (baixoData || []).filter(
+          (p) => (Number(p.estoque_atual) || 0) <= Number(p.estoque_minimo),
+        ).length;
 
         setAlerts({
           financeiroVencidos: vencidos || 0,

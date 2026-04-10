@@ -1,7 +1,7 @@
-// @ts-nocheck
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Json } from '@/integrations/supabase/types';
+import type { Json } from '@/integrations/supabase/types';
+import { toast } from 'sonner';
 import { toast } from 'sonner';
 import { useSyncedStorage, buildSyncedStorageKey } from './useSyncedStorage';
 import { enqueueSync, processSyncQueue } from '@/services/syncQueue';
@@ -109,16 +109,14 @@ export function useUserPreference<T = Json>(userId: string | null | undefined, p
 
       const submit = async (): Promise<boolean> => {
         const res = await withTimeout(
-          new Promise<{ error: any }>((resolve) => {
-            supabase.from('app_configuracoes').upsert(
-              {
-                chave: buildDbKey(userId, preferenceKey),
-                valor: nextValue as unknown as Json,
-                updated_at: new Date().toISOString(),
-              },
-              { onConflict: 'chave' },
-            ).then(r => resolve(r));
-          }),
+          supabase.from('app_configuracoes').upsert(
+            {
+              chave: buildDbKey(userId, preferenceKey),
+              valor: nextValue as unknown as Json,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: 'chave' },
+          ),
         );
         const error = res?.error;
 
@@ -141,7 +139,7 @@ export function useUserPreference<T = Json>(userId: string | null | undefined, p
 
       return submit();
     },
-    [value, getMeta, setCache, userId, supabase, isOnline, preferenceKey, reloadFromSupabase],
+    [value, getMeta, setCache, userId, isOnline, preferenceKey, reloadFromSupabase],
   );
 
   return { value, loading, save, reloadFromSupabase };
