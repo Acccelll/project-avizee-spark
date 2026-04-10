@@ -1,4 +1,4 @@
-// @ts-nocheck
+/* eslint-disable @typescript-eslint/no-explicit-any -- Report rows have dynamic shapes */
 import { supabase } from "@/integrations/supabase/client";
 import { downloadTextFile } from "@/lib/utils";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/format";

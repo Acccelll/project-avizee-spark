@@ -1,4 +1,4 @@
-// @ts-nocheck
+/* eslint-disable @typescript-eslint/no-explicit-any -- Supabase join inference limitations */
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 

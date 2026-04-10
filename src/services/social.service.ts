@@ -1,4 +1,4 @@
-// @ts-nocheck
+/* eslint-disable @typescript-eslint/no-explicit-any -- Supabase RPC type workaround */
 import * as XLSX from '@/lib/xlsx-compat';
 import { supabase } from '@/integrations/supabase/client';
 import { downloadTextFile } from '@/lib/utils';
