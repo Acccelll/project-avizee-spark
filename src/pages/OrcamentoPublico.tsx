@@ -59,10 +59,9 @@ export default function OrcamentoPublico() {
       setLoading(true);
 
       const { data: orc, error: orcError } = await (supabase
-        .from('orcamentos') as any)
+        .from('orcamentos_public_view' as any) as any)
         .select('id, numero, data_orcamento, validade, valor_total, observacoes, status, prazo_entrega, prazo_pagamento, frete_tipo, cliente_snapshot, public_token')
         .eq('public_token', token)
-        .eq('ativo', true)
         .single();
 
       if (orcError || !orc) {
@@ -71,8 +70,8 @@ export default function OrcamentoPublico() {
         return;
       }
 
-      const { data: itens } = await supabase
-        .from('orcamentos_itens')
+      const { data: itens } = await (supabase
+        .from('orcamentos_itens_public_view' as any) as any)
         .select('descricao_snapshot, codigo_snapshot, quantidade, unidade, valor_unitario, valor_total, variacao')
         .eq('orcamento_id', orc.id);
 
