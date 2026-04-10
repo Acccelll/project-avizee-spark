@@ -10,7 +10,7 @@ import {
   type ProdutoOptionRow,
   emptyPedidoForm,
   pedidoNumero,
-} from "./pedidoCompraTypes";
+} from "@/components/compras/pedidoCompraTypes";
 import { statusPedidoCompra } from "@/lib/statusSchema";
 
 const statusLabels: Record<string, string> = Object.fromEntries(
