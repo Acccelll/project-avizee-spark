@@ -126,11 +126,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const { data, error } = await supabase
         .from("user_permissions")
-        .select("permission_key, ativo")
+        .select("resource, action, allowed")
         .eq("user_id", userId)
-        .eq("ativo", true);
+        .eq("allowed", true);
       if (error) throw error;
-      const keys = ((data || []) as Array<{ permission_key: string }>).map((item) => item.permission_key as PermissionKey);
+      const keys = ((data || []) as Array<{ resource: string; action: string }>).map(
+        (item) => `${item.resource}:${item.action}` as PermissionKey
+      );
       setExtraPermissions(keys);
     } catch {
       setExtraPermissions([]);
