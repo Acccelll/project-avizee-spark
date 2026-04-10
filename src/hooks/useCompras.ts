@@ -9,6 +9,9 @@ import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { type MultiSelectOption } from "@/components/ui/MultiSelect";
 import type { Database } from "@/integrations/supabase/types";
 
+type CompraInsert = Database["public"]["Tables"]["compras"]["Insert"];
+type CompraUpdate = Database["public"]["Tables"]["compras"]["Update"];
+
 export interface Compra {
   id: string;
   numero: string | null;
@@ -258,25 +261,30 @@ export function useCompras(): UseComprasReturn {
         const currentValorProdutos = items.reduce((s, i) => s + (i.valor_total || 0), 0);
         const currentValorTotal =
           currentValorProdutos + (form.frete_valor || 0) + (form.impostos_valor || 0);
-        const payload = {
-          ...form,
-          status,
+        const payload: CompraInsert & CompraUpdate = {
+          numero: form.numero || null,
           fornecedor_id: form.fornecedor_id || null,
+          data_compra: form.data_compra || null,
+          data_entrega_prevista: form.data_entrega_prevista || null,
+          data_entrega_real: form.data_entrega_real || null,
+          frete_valor: form.frete_valor,
+          impostos_valor: form.impostos_valor,
+          observacoes: form.observacoes || null,
+          status,
           valor_produtos: currentValorProdutos,
           valor_total: currentValorTotal,
         };
         let compraId = selected?.id;
         if (mode === "create") {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const { data: newC, error } = await (supabase.from as any)("compras")
+          const { data: newC, error } = await supabase
+            .from("compras")
             .insert(payload)
             .select()
             .single();
           if (error) throw error;
           compraId = newC.id;
         } else if (selected) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          await (supabase.from as any)("compras").update(payload).eq("id", selected.id);
+          await supabase.from("compras").update(payload).eq("id", selected.id);
           await supabase.from("compras_itens").delete().eq("compra_id", selected.id);
         }
         if (items.length > 0 && compraId) {
