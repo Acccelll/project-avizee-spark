@@ -16,6 +16,7 @@ import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { useCnpjLookup } from "@/hooks/useCnpjLookup";
 import { useViaCep } from "@/hooks/useViaCep";
+import { useDebounce } from "@/hooks/useDebounce";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -63,23 +64,18 @@ const emptyForm: Record<string, string> = {
 
 export default function Transportadoras() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [ativoFilters, setAtivoFilters] = useState<string[]>([]);
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const [modalidadeFilters, setModalidadeFilters] = useState<string[]>([]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(searchTerm), 350);
-    return () => clearTimeout(timer);
-  }, [searchTerm]);
 
   const { data, loading, create, update, remove } = useSupabaseCrud<Transportadora>({
     table: "transportadoras",
-    searchTerm: debouncedSearch,
+    searchTerm: debouncedSearchTerm,
     searchColumns: ["nome_razao_social", "nome_fantasia", "cpf_cnpj", "cidade"],
   });
   const { pushView } = useRelationalNavigation();
   const { buscarCnpj, loading: cnpjLoading } = useCnpjLookup();
-  const { buscarCep, loading: cepLoading } = useViaCep();
+  const { fetchAddress, isLoading: cepLoading } = useViaCep();
   const [modalOpen, setModalOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selected, setSelected] = useState<Transportadora | null>(null);
@@ -490,7 +486,7 @@ export default function Transportadoras() {
                 <Button type="button" variant="outline" size="icon" className="shrink-0" disabled={cepLoading}
                   title="Buscar endereço pelo CEP"
                   onClick={async () => {
-                    const result = await buscarCep(form.cep);
+                    const result = await fetchAddress(form.cep);
                     if (result) setForm(prev => ({
                       ...prev,
                       logradouro: result.logradouro || prev.logradouro,

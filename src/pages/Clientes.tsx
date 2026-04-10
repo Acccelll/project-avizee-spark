@@ -11,6 +11,7 @@ import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { useViaCep } from "@/hooks/useViaCep";
+import { useDebounce } from "@/hooks/useDebounce";
 import { useCnpjLookup } from "@/hooks/useCnpjLookup";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -65,22 +66,16 @@ const Clientes = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-
-  // Debounce search for server-side filtering
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(searchTerm), 350);
-    return () => clearTimeout(timer);
-  }, [searchTerm]);
+    const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
   const { data, loading, create, update, remove, duplicate } = useSupabaseCrud<Cliente>({
     table: "clientes",
-    searchTerm: debouncedSearch,
+    searchTerm: debouncedSearchTerm,
     searchColumns: ["nome_razao_social", "nome_fantasia", "cpf_cnpj", "email", "cidade"],
   });
   const { pushView } = useRelationalNavigation();
-  const { buscarCep, loading: cepLoading } = useViaCep();
+  const { fetchAddress, isLoading: cepLoading } = useViaCep();
   const { buscarCnpj, loading: cnpjLoading } = useCnpjLookup();
   const [modalOpen, setModalOpen] = useState(false);
   const [selected, setSelected] = useState<Cliente | null>(null);
@@ -600,7 +595,7 @@ const Clientes = () => {
                   value={form.cep}
                   onChange={(v) => updateForm({ cep: v })}
                   onBlur={async () => {
-                    const result = await buscarCep(form.cep);
+                    const result = await fetchAddress(form.cep);
                     if (result) {
                       setForm(prev => ({ ...prev, logradouro: result.logradouro, bairro: result.bairro, cidade: result.localidade, uf: result.uf }));
                       setIsDirty(true);

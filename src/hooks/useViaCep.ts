@@ -1,41 +1,75 @@
+import axios from "axios";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 
-interface ViaCepResult {
+export interface ViaCepAddress {
+  cep: string;
   logradouro: string;
+  complemento: string;
   bairro: string;
   localidade: string;
   uf: string;
+  ibge: string;
+  gia: string;
+  ddd: string;
+  siafi: string;
+}
+
+interface ViaCepErrorResponse {
+  erro: true;
+}
+
+type ViaCepResponse = ViaCepAddress | ViaCepErrorResponse;
+
+async function getViaCep(cep: string): Promise<ViaCepAddress> {
+  const { data } = await axios.get<ViaCepResponse>(`https://viacep.com.br/ws/${cep}/json/`);
+
+  if ("erro" in data) {
+    throw new Error("CEP não encontrado");
+  }
+
+  return data;
 }
 
 export function useViaCep() {
-  const [loading, setLoading] = useState(false);
+  const queryClient = useQueryClient();
+  const [currentCep, setCurrentCep] = useState("");
 
-  const buscarCep = async (cep: string): Promise<ViaCepResult | null> => {
+  const query = useQuery({
+    queryKey: ["via-cep", currentCep],
+    queryFn: () => getViaCep(currentCep),
+    enabled: false,
+    staleTime: 1000 * 60 * 60,
+    retry: false,
+  });
+
+  async function fetchAddress(cep: string): Promise<ViaCepAddress | null> {
     const cleanCep = cep.replace(/\D/g, "");
-    if (cleanCep.length !== 8) return null;
+    if (cleanCep.length !== 8) {
+      return null;
+    }
 
-    setLoading(true);
     try {
-      const res = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
-      const data = await res.json();
-      if (data.erro) {
-        toast.error("CEP não encontrado");
-        return null;
-      }
-      return {
-        logradouro: data.logradouro || "",
-        bairro: data.bairro || "",
-        localidade: data.localidade || "",
-        uf: data.uf || "",
-      };
+      setCurrentCep(cleanCep);
+
+      const result = await queryClient.fetchQuery({
+        queryKey: ["via-cep", cleanCep],
+        queryFn: () => getViaCep(cleanCep),
+        staleTime: 1000 * 60 * 60,
+      });
+
+      return result;
     } catch {
       toast.error("Erro ao consultar CEP");
       return null;
-    } finally {
-      setLoading(false);
     }
-  };
+  }
 
-  return { buscarCep, loading };
+  return {
+    data: query.data,
+    isLoading: query.isLoading || query.isFetching,
+    error: query.error,
+    fetchAddress,
+  };
 }
