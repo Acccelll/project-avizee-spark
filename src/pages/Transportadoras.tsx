@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { useEffect, useMemo, useState } from "react";
+import { useDebounce } from "@/hooks/useDebounce";
 import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
@@ -63,14 +64,9 @@ const emptyForm: Record<string, string> = {
 
 export default function Transportadoras() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const debouncedSearch = useDebounce(searchTerm, 350);
   const [ativoFilters, setAtivoFilters] = useState<string[]>([]);
   const [modalidadeFilters, setModalidadeFilters] = useState<string[]>([]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(searchTerm), 350);
-    return () => clearTimeout(timer);
-  }, [searchTerm]);
 
   const { data, loading, create, update, remove } = useSupabaseCrud<Transportadora>({
     table: "transportadoras",
