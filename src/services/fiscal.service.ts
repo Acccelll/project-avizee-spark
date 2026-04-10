@@ -46,28 +46,28 @@ export async function confirmarNotaFiscal({ nf, parcelas }: ConfirmarNFParams) {
     const valorFin = Number(nf.valor_total || 0);
     if (isAVista) {
       await supabase.from("financeiro_lancamentos").insert({
-        tipo: tipo_fin, descricao: `NF ${nf.numero}`,
+        tipo: tipo_fin as any, descricao: `NF ${nf.numero}`,
         valor: valorFin, data_vencimento: nf.data_emissao,
         data_pagamento: nf.data_emissao, status: "pago",
         fornecedor_id: nf.fornecedor_id || null, cliente_id: nf.cliente_id || null,
-        nota_fiscal_id: nf.id, documento_fiscal_id: nf.id,
+        nota_fiscal_id: nf.id,
         forma_pagamento: nf.forma_pagamento,
         conta_contabil_id: nf.conta_contabil_id || null,
-      });
+      } as any);
     } else {
       const numParcelas = parcelas || 1;
       for (let i = 0; i < numParcelas; i++) {
         const vencimento = calcularVencimentoParcela(nf.data_emissao, i + 1);
         await supabase.from("financeiro_lancamentos").insert({
-          tipo: tipo_fin, descricao: `NF ${nf.numero} - Parcela ${i + 1}/${numParcelas}`,
+          tipo: tipo_fin as any, descricao: `NF ${nf.numero} - Parcela ${i + 1}/${numParcelas}`,
           valor: calcularValorParcela(valorFin, numParcelas), data_vencimento: vencimento,
           status: "aberto",
           fornecedor_id: nf.fornecedor_id || null, cliente_id: nf.cliente_id || null,
-          nota_fiscal_id: nf.id, documento_fiscal_id: nf.id,
+          nota_fiscal_id: nf.id,
           forma_pagamento: nf.forma_pagamento,
           parcela_numero: i + 1, parcela_total: numParcelas,
           conta_contabil_id: nf.conta_contabil_id || null,
-        });
+        } as any);
       }
     }
   }
