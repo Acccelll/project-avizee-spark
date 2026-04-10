@@ -1,12 +1,12 @@
-// @ts-nocheck
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CheckCircle2, XCircle, AlertCircle, ArrowUpRight, ArrowDownLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/format";
 import { format, parseISO } from "date-fns";
+import type { PreviewFinanceiroRow } from "@/hooks/importacao/types";
 
 interface PreviewFinanceiroTableProps {
-  data: any[];
+  data: PreviewFinanceiroRow[];
 }
 
 export function PreviewFinanceiroTable({ data }: PreviewFinanceiroTableProps) {
@@ -55,7 +55,7 @@ export function PreviewFinanceiroTable({ data }: PreviewFinanceiroTableProps) {
               <TableCell>
                 {!item._valid && (
                   <div className="flex flex-col gap-1 text-[10px] text-rose-600">
-                    {item._errors.map((err: string, idx: number) => (
+                    {item._errors.map((err, idx) => (
                       <div key={idx} className="flex items-center gap-1">
                         <AlertCircle className="h-3 w-3" />
                         {err}

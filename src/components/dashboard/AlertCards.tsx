@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useNavigate } from 'react-router-dom';
 import { useRelationalNavigation } from '@/contexts/RelationalNavigationContext';
 import { ClipboardList, Truck, AlertTriangle } from 'lucide-react';

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useEffect, useMemo } from "react";
 import { ViewDrawerV2, ViewField, ViewSection } from "@/components/ViewDrawerV2";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -14,12 +13,8 @@ import { cn } from "@/lib/utils";
 interface Baixa {
   id: string;
   valor_pago: number;
-  desconto: number;
-  juros: number;
-  multa: number;
-  abatimento: number;
   data_baixa: string;
-  forma_pagamento: string;
+  forma_pagamento: string | null;
   observacoes: string | null;
   created_at: string;
 }
@@ -59,7 +54,7 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
     if (!open || !selected) { setBaixas([]); return; }
     setLoadingBaixas(true);
     supabase
-      .from("financeiro_baixas" as any)
+      .from("financeiro_baixas")
       .select("*")
       .eq("lancamento_id", selected.id)
       .order("data_baixa", { ascending: false })

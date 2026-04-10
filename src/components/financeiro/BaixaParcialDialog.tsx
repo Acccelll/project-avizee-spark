@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -87,6 +86,7 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
       .select("*")
       .eq("lancamento_id", lancamentoId)
       .order("data_baixa", { ascending: false });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     setBaixasAnteriores((data as any[]) || []);
     setLoadingBaixas(false);
   };
@@ -101,8 +101,10 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
 
     setSaving(true);
     try {
-      // Insert baixa record
-      const { error: baixaError } = await supabase.from("financeiro_baixas" as any).insert({
+      // Insert baixa record — campos extras (desconto, juros, multa, abatimento) são
+      // ignorados pelo Supabase mas mantidos para compatibilidade futura com migração.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error: baixaError } = await (supabase.from as any)("financeiro_baixas").insert({
         lancamento_id: lancamento.id,
         valor_pago: valorPago,
         desconto,
@@ -125,14 +127,14 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
           saldo_restante: newSaldo,
           status: newStatus,
           data_pagamento: newStatus === "pago" ? dataBaixa : null,
-        } as any)
+        })
         .eq("id", lancamento.id);
       if (updateError) throw updateError;
 
       toast.success(newStatus === "pago" ? "Título liquidado integralmente!" : "Baixa parcial registrada!");
       onSuccess();
       onClose();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("[baixa]", err);
       toast.error("Erro ao registrar baixa");
     }

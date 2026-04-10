@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
@@ -54,7 +53,33 @@ interface ContaBancaria {
   bancos?: { nome: string };
 }
 
-const emptyForm: Record<string, any> = {
+interface ContaContabil {
+  id: string;
+  codigo: string;
+  descricao: string;
+}
+
+interface LancamentoForm {
+  tipo: string;
+  descricao: string;
+  valor: number;
+  data_vencimento: string;
+  data_pagamento: string;
+  status: string;
+  forma_pagamento: string;
+  banco: string;
+  cartao: string;
+  cliente_id: string;
+  fornecedor_id: string;
+  conta_bancaria_id: string;
+  conta_contabil_id: string;
+  observacoes: string;
+  gerar_parcelas: boolean;
+  num_parcelas: number;
+  intervalo_dias: number;
+}
+
+const emptyForm: LancamentoForm = {
   tipo: "receber", descricao: "", valor: 0, data_vencimento: new Date().toISOString().split("T")[0],
   data_pagamento: "", status: "aberto", forma_pagamento: "", banco: "", cartao: "",
   cliente_id: "", fornecedor_id: "", conta_bancaria_id: "", conta_contabil_id: "", observacoes: "",
@@ -63,20 +88,31 @@ const emptyForm: Record<string, any> = {
 
 const Financeiro = () => {
   const { pushView } = useRelationalNavigation();
-  const { data, loading, create, update, remove } = useSupabaseCrud<Lancamento>({
-    table: "financeiro_lancamentos",
-    select: "*, clientes(nome_razao_social), fornecedores(nome_razao_social), contas_bancarias(descricao, bancos(nome))"
+  // useSupabaseCrud infers the row type from the table name; we cast to our
+  // extended Lancamento type which includes joined fields (clientes, etc.).
+  const {
+    data: rawData,
+    loading,
+    create,
+    update,
+    remove,
+  } = useSupabaseCrud({
+    table: "financeiro_lancamentos" as const,
+    select: "*, clientes(nome_razao_social), fornecedores(nome_razao_social), contas_bancarias(descricao, bancos(nome))",
   });
+  const data = rawData as unknown as Lancamento[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const clientesCrud = useSupabaseCrud<any>({ table: "clientes" });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const fornecedoresCrud = useSupabaseCrud<any>({ table: "fornecedores" });
 
   const [contasBancarias, setContasBancarias] = useState<ContaBancaria[]>([]);
-  const [contasContabeis, setContasContabeis] = useState<any[]>([]);
+  const [contasContabeis, setContasContabeis] = useState<ContaContabil[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selected, setSelected] = useState<Lancamento | null>(null);
   const [mode, setMode] = useState<"create" | "edit">("create");
-  const [form, setForm] = useState({ ...emptyForm });
+  const [form, setForm] = useState<LancamentoForm>({ ...emptyForm });
   const [saving, setSaving] = useState(false);
   const [searchParams] = useSearchParams();
   const tipoParam = searchParams.get("tipo");
@@ -117,6 +153,7 @@ const Financeiro = () => {
       cliente_id: l.cliente_id || "", fornecedor_id: l.fornecedor_id || "",
       conta_bancaria_id: l.conta_bancaria_id || "", conta_contabil_id: l.conta_contabil_id || "",
       observacoes: l.observacoes || "",
+      gerar_parcelas: false, num_parcelas: 2, intervalo_dias: 30,
     });
     setModalOpen(true);
   };
@@ -148,7 +185,7 @@ const Financeiro = () => {
         const resto = Number((form.valor - valorParcela * numP).toFixed(2));
         const parentPayload = { ...basePayload, descricao: `${form.descricao} (agrupador)`, parcela_numero: 0, parcela_total: numP };
         const parentResult = await create(parentPayload);
-        const parentId = (parentResult as any)?.id;
+        const parentId = parentResult?.id ?? null;
         for (let i = 0; i < numP; i++) {
           const venc = new Date(form.data_vencimento);
           venc.setDate(venc.getDate() + intervalo * i);
@@ -506,7 +543,7 @@ const Financeiro = () => {
                 <SelectTrigger><SelectValue placeholder="Vincular conta contábil..." /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Nenhuma</SelectItem>
-                  {contasContabeis.map((c: any) => (<SelectItem key={c.id} value={c.id}>{c.codigo} - {c.descricao}</SelectItem>))}
+                  {contasContabeis.map((c) => (<SelectItem key={c.id} value={c.id}>{c.codigo} - {c.descricao}</SelectItem>))}
                 </SelectContent>
               </Select>
             </div>

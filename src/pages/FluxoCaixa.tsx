@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";
@@ -41,7 +40,18 @@ interface ContaBancaria {
 
 type Periodicidade = "diaria" | "semanal" | "mensal";
 
-const emptyForm: Record<string, any> = {
+interface LancamentoForm {
+  tipo: string;
+  descricao: string;
+  valor: number;
+  data_vencimento: string;
+  status: string;
+  forma_pagamento: string;
+  conta_bancaria_id: string;
+  observacoes: string;
+}
+
+const emptyForm: LancamentoForm = {
   tipo: "receber", descricao: "", valor: 0,
   data_vencimento: new Date().toISOString().split("T")[0],
   status: "aberto", forma_pagamento: "", conta_bancaria_id: "", observacoes: "",
@@ -89,7 +99,7 @@ const FluxoCaixa = () => {
 
   // Lançamento manual
   const [modalOpen, setModalOpen] = useState(false);
-  const [form, setForm] = useState({ ...emptyForm });
+  const [form, setForm] = useState<LancamentoForm>({ ...emptyForm });
   const [saving, setSaving] = useState(false);
 
   // CSV Import
@@ -295,7 +305,7 @@ const FluxoCaixa = () => {
         conta_bancaria_id: form.conta_bancaria_id || null,
         observacoes: form.observacoes || null,
         ativo: true,
-      } as any);
+      });
       toast.success("Lançamento registrado com sucesso");
       setModalOpen(false);
       setForm({ ...emptyForm });
@@ -346,7 +356,7 @@ const FluxoCaixa = () => {
       const { error } = await supabase.from("financeiro_lancamentos").insert({
         tipo, descricao, valor,
         data_vencimento: data, status: "aberto", ativo: true,
-      } as any);
+      });
       if (error) fail++; else ok++;
     }
     setCsvImporting(false);

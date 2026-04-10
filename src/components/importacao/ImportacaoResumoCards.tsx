@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileText, XCircle, AlertCircle, PackageCheck, ClipboardList } from "lucide-react";
 import { formatNumber } from "@/lib/format";
