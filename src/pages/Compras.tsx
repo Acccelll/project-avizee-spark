@@ -7,7 +7,7 @@ import { SummaryCard } from "@/components/SummaryCard";
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
 import { MultiSelect } from "@/components/ui/MultiSelect";
 import { Card, CardContent } from "@/components/ui/card";
-import { Info, ArrowRight, ShoppingCart, Clock, CheckCircle2 } from "lucide-react";
+import { Info, ShoppingCart, Clock, CheckCircle2 } from "lucide-react";
 import { formatCurrency, formatNumber } from "@/lib/format";
 import { useCompras, statusLabels, type Compra } from "@/hooks/useCompras";
 import { CompraFormModal } from "@/components/compras/CompraFormModal";
@@ -70,6 +70,8 @@ export default function Compras() {
     drawerOpen,
     setDrawerOpen,
     viewItems,
+    searchTerm,
+    setSearchTerm,
     statusFilters,
     setStatusFilters,
     fornecedorFilters,
@@ -98,9 +100,13 @@ export default function Compras() {
     <AppLayout>
       <ModulePage title={title} subtitle={subtitle} addLabel={addLabel} onAdd={openCreate}>
         <AdvancedFilterBar
+          searchValue={searchTerm}
+          onSearchChange={setSearchTerm}
+          searchPlaceholder="Buscar por nº ou fornecedor..."
           activeFilters={compActiveFilters}
           onRemoveFilter={handleRemoveCompFilter}
           onClearAll={() => {
+            setSearchTerm("");
             setStatusFilters([]);
             setFornecedorFilters([]);
           }}

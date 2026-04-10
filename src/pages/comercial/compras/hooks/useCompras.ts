@@ -21,6 +21,7 @@ async function fetchCompras(filters?: CompraFilters): Promise<CompraWithForneced
   let query = supabase
     .from("compras")
     .select("*, fornecedores(nome_razao_social, cpf_cnpj)")
+    .eq("ativo", true)
     .order("created_at", { ascending: false });
 
   if (filters?.status) {
