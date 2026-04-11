@@ -11,6 +11,15 @@ interface OrcamentoBase {
   quantidade_total: number | null;
   peso_total: number | null;
   observacoes: string | null;
+  frete_valor?: number | null;
+  frete_tipo?: string | null;
+  modalidade?: string | null;
+  transportadora_id?: string | null;
+  frete_simulacao_id?: string | null;
+  origem_frete?: string | null;
+  servico_frete?: string | null;
+  prazo_entrega_dias?: number | null;
+  volumes?: number | null;
 }
 
 export async function sendForApproval(orc: OrcamentoBase): Promise<void> {
@@ -44,6 +53,14 @@ export async function convertToPedido(
   orc: OrcamentoBase,
   options: ConvertToOVOptions = {}
 ): Promise<{ ovId: string; ovNumero: string }> {
+  const { data: orcamentoCompleto } = await supabase
+    .from("orcamentos")
+    .select("*")
+    .eq("id", orc.id)
+    .maybeSingle();
+
+  const origem = orcamentoCompleto || orc;
+
   const { data: items } = await supabase
     .from("orcamentos_itens")
     .select("*")
@@ -66,6 +83,16 @@ export async function convertToPedido(
       status_faturamento: "aguardando",
       valor_total: orc.valor_total,
       observacoes: orc.observacoes,
+      transportadora_id: origem.transportadora_id || null,
+      frete_simulacao_id: origem.frete_simulacao_id || null,
+      origem_frete: origem.origem_frete || null,
+      servico_frete: origem.servico_frete || null,
+      frete_valor: origem.frete_valor || 0,
+      frete_tipo: origem.frete_tipo || null,
+      modalidade: origem.modalidade || null,
+      peso_total: orc.peso_total || null,
+      prazo_entrega_dias: origem.prazo_entrega_dias || null,
+      volumes: origem.volumes || null,
       po_number: options.poNumber || null,
       data_po_cliente: options.dataPo || null,
     })
