@@ -70,7 +70,7 @@ export function FiscalBlock({ stats }: FiscalBlockProps) {
   }
 
   return (
-    <div className="bg-card rounded-xl border flex flex-col h-full">
+    <div className="bg-card rounded-xl border flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between px-4 pt-4 pb-2 border-b border-border/60">
         <h3 className="font-semibold text-foreground flex items-center gap-2">
@@ -94,7 +94,7 @@ export function FiscalBlock({ stats }: FiscalBlockProps) {
       </div>
 
       {/* Status das notas */}
-      <div className="flex-1 overflow-hidden px-4 pt-3 pb-2 space-y-2">
+      <div className="flex-1 px-4 pt-3 pb-4 space-y-2">
         {items.map((item) => {
           const Icon = item.icon;
           return (

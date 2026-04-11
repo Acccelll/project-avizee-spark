@@ -17,7 +17,7 @@ export function EstoqueBlock({ itensBaixoMinimo, valorTotalEstoque, totalProduto
   const temCriticos = itensBaixoMinimo.length > 0;
 
   return (
-    <div className="bg-card rounded-xl border flex flex-col h-full">
+    <div className="bg-card rounded-xl border flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between px-4 pt-4 pb-2 border-b border-border/60">
         <h3 className="font-semibold text-foreground flex items-center gap-2">

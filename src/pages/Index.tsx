@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState, useCallback } from "react";
 import {
   Bar,
   BarChart,
@@ -29,19 +29,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { DashboardPeriodProvider, useDashboardPeriod } from "@/contexts/DashboardPeriodContext";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatNumber } from "@/lib/format";
-import { TrendingUp, DollarSign, Package, BarChart2, LayoutDashboard, RotateCcw } from "lucide-react";
+import { TrendingUp, DollarSign, Package, BarChart2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useDashboardLayout } from "@/hooks/useDashboardLayout";
 import { useMetas } from "@/hooks/useMetas";
 import { useInView } from "@/hooks/useInView";
 import { toast } from "sonner";
-import GridLayout from "react-grid-layout";
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const RGL = GridLayout as any;
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import "react-grid-layout/css/styles.css";
-import "react-resizable/css/styles.css";
 
 // Lazy-loaded heavy chart components
 const VendasChart = lazy(() =>
@@ -58,8 +51,8 @@ function LazyInViewWidget({
 }) {
   const [ref, inView] = useInView<HTMLDivElement>({ threshold: 0.05 });
   return (
-    <div ref={ref} className="h-full">
-      {inView ? children : (fallback ?? <Skeleton className="h-full w-full" />)}
+    <div ref={ref}>
+      {inView ? children : (fallback ?? <Skeleton className="h-[220px] w-full rounded-xl" />)}
     </div>
   );
 }
@@ -69,26 +62,9 @@ const DashboardContent = () => {
   const { profile, user } = useAuth();
   const { range: globalRange } = useDashboardPeriod();
 
-  const { layout, setLayout, resetLayout } = useDashboardLayout(user?.id);
   const { metas } = useMetas();
-  const [editMode, setEditMode] = useState(false);
-  const gridContainerRef = useRef<HTMLDivElement>(null);
-  const [gridWidth, setGridWidth] = useState(1200);
-
   const [metricDrawer, setMetricDrawer] = useState<null | "receber" | "estoque" | "vendas">(null);
   const [loadedAt, setLoadedAt] = useState<Date>(new Date());
-
-  // Measure container width for react-grid-layout responsiveness
-  useEffect(() => {
-    const el = gridContainerRef.current;
-    if (!el) return;
-    const observer = new ResizeObserver(([entry]) => {
-      setGridWidth(entry.contentRect.width || el.clientWidth);
-    });
-    observer.observe(el);
-    setGridWidth(el.clientWidth);
-    return () => observer.disconnect();
-  }, []);
 
   const [stats, setStats] = useState({
     produtos: 0,
@@ -557,39 +533,10 @@ const DashboardContent = () => {
 
   const openMetric = metricDrawer ? detailData[metricDrawer] : null;
 
-  // Widget container used inside the grid
-  const W = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
-    <div className={`h-full overflow-auto ${className}`}>{children}</div>
-  );
-
   return (
     <AppLayout>
       {/* ── Header ── */}
       <DashboardHeader lastUpdated={loadedAt} onRefresh={loadData} />
-
-      {/* ── Edit mode toolbar ── */}
-      <div className="mb-3 flex items-center justify-end gap-2">
-        <Button
-          size="sm"
-          variant={editMode ? "default" : "outline"}
-          className="h-7 gap-1.5 text-xs"
-          onClick={() => setEditMode((v) => !v)}
-        >
-          <LayoutDashboard className="h-3.5 w-3.5" />
-          {editMode ? "Salvar layout" : "Editar layout"}
-        </Button>
-        {editMode && (
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-7 gap-1.5 text-xs text-muted-foreground"
-            onClick={() => { resetLayout(); setEditMode(false); }}
-          >
-            <RotateCcw className="h-3.5 w-3.5" />
-            Restaurar padrão
-          </Button>
-        )}
-      </div>
 
       {/* ── Saudação contextual ── */}
       <div className="mb-4 rounded-lg border border-border/60 bg-muted/10 px-4 py-3">
@@ -606,50 +553,30 @@ const DashboardContent = () => {
         </p>
       </div>
 
-      {/* ── Drag-and-drop grid ── */}
-      <div ref={gridContainerRef}>
-      <RGL
-        layout={layout}
-        cols={12}
-        rowHeight={32}
-        width={gridWidth}
-        isDraggable={editMode}
-        isResizable={editMode}
-        onLayoutChange={(newLayout: any) => { if (editMode) setLayout(newLayout); }}
-        className={editMode ? "react-grid-layout--edit" : ""}
-        draggableHandle=".drag-handle"
-      >
+      <div className="space-y-4">
         {/* KPIs */}
-        <div key="kpis">
-          <W>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 items-start content-start">
-              {kpiCards.map((c) => (
-                <SummaryCard key={c.id} {...c} density="compact" />
-              ))}
-            </div>
-          </W>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {kpiCards.map((c) => (
+            <SummaryCard key={c.id} {...c} density="compact" />
+          ))}
         </div>
 
         {/* Alertas */}
-        <div key="alertas">
-          <W>
-            <AlertStrip
-              titulosVencidos={stats.contasVencidas}
-              estoqueBaixo={estoqueBaixo.length}
-              remessasAtrasadas={remessasAtrasadas}
-              comprasAguardando={comprasAguardando.filter((c) => {
-                if (!c.data_entrega_prevista) return false;
-                return new Date(c.data_entrega_prevista) < new Date();
-              }).length}
-              notasPendentes={fiscalStats.pendentes}
-              ovsPendentes={backlogOVs.length}
-            />
-          </W>
-        </div>
+        <AlertStrip
+          titulosVencidos={stats.contasVencidas}
+          estoqueBaixo={estoqueBaixo.length}
+          remessasAtrasadas={remessasAtrasadas}
+          comprasAguardando={comprasAguardando.filter((c) => {
+            if (!c.data_entrega_prevista) return false;
+            return new Date(c.data_entrega_prevista) < new Date();
+          }).length}
+          notasPendentes={fiscalStats.pendentes}
+          ovsPendentes={backlogOVs.length}
+        />
 
-        {/* Financeiro */}
-        <div key="financeiro">
-          <W>
+        {/* Financeiro + Ações Rápidas */}
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <div className="lg:col-span-2">
             <BlockErrorBoundary label="Financeiro">
               <FinanceiroBlock
                 totalReceber={stats.totalReceber}
@@ -660,77 +587,61 @@ const DashboardContent = () => {
                 pagamentosHoje={vencimentosHoje.pagar}
               />
             </BlockErrorBoundary>
-          </W>
-        </div>
-
-        {/* Ações rápidas */}
-        <div key="acoes_rapidas">
-          <W>
+          </div>
+          <div>
             <BlockErrorBoundary label="Ações Rápidas">
               <QuickActions />
             </BlockErrorBoundary>
-          </W>
+          </div>
         </div>
 
-        {/* Vendas chart — lazy + inView */}
-        <div key="vendas_chart">
-          <LazyInViewWidget fallback={<Skeleton className="h-full w-full" />}>
-            <DashboardCard height="full">
+        {/* Vendas chart + Pendências */}
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <LazyInViewWidget fallback={<Skeleton className="h-[240px] w-full rounded-xl" />}>
+            <DashboardCard>
               <BlockErrorBoundary label="Gráfico de Vendas">
-                <Suspense fallback={<Skeleton className="h-full w-full" />}>
-                  <VendasChart
-                    onBarClick={(start, end) =>
-                      navigate(`/relatorios?tipo=vendas&di=${start}&df=${end}`)
-                    }
-                  />
+                <Suspense fallback={<Skeleton className="h-[200px] w-full" />}>
+                  <div className="h-[200px]">
+                    <VendasChart
+                      onBarClick={(start, end) =>
+                        navigate(`/relatorios?tipo=vendas&di=${start}&df=${end}`)
+                      }
+                    />
+                  </div>
                 </Suspense>
               </BlockErrorBoundary>
             </DashboardCard>
           </LazyInViewWidget>
-        </div>
-
-        {/* Pendências */}
-        <div key="pendencias">
-          <W>
-            <DashboardCard height="full">
-              <BlockErrorBoundary label="Pendências">
-                <PendenciasList />
-              </BlockErrorBoundary>
-            </DashboardCard>
-          </W>
-        </div>
-
-        {/* Comercial */}
-        <div key="comercial">
-          <W>
-            <BlockErrorBoundary label="Comercial">
-              <ComercialBlock
-                cotacoesAbertas={stats.orcamentos}
-                pedidosPendentes={backlogOVs.length}
-                ticketMedio={ticketMedio}
-                recentOrcamentos={recentOrcamentos}
-                loading={loading}
-              />
+          <DashboardCard>
+            <BlockErrorBoundary label="Pendências">
+              <PendenciasList />
             </BlockErrorBoundary>
-          </W>
+          </DashboardCard>
         </div>
 
-        {/* Estoque */}
-        <div key="estoque">
-          <W>
-            <BlockErrorBoundary label="Estoque">
-              <EstoqueBlock
-                itensBaixoMinimo={estoqueBaixo}
-                valorTotalEstoque={valorEstoque}
-                totalProdutosAtivos={stats.produtos}
-              />
-            </BlockErrorBoundary>
-          </W>
+        {/* Comercial + Estoque */}
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <BlockErrorBoundary label="Comercial">
+            <ComercialBlock
+              cotacoesAbertas={stats.orcamentos}
+              pedidosPendentes={backlogOVs.length}
+              ticketMedio={ticketMedio}
+              recentOrcamentos={recentOrcamentos}
+              loading={loading}
+            />
+          </BlockErrorBoundary>
+          <BlockErrorBoundary label="Estoque">
+            <EstoqueBlock
+              itensBaixoMinimo={estoqueBaixo}
+              valorTotalEstoque={valorEstoque}
+              totalProdutosAtivos={stats.produtos}
+            />
+          </BlockErrorBoundary>
         </div>
 
-        {/* Logística */}
-        <div key="logistica">
-          <LazyInViewWidget fallback={<Skeleton className="h-full w-full" />}>
+        {/* Logística + Fiscal */}
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <LazyInViewWidget fallback={<Skeleton className="h-[220px] w-full rounded-xl" />}>
             <BlockErrorBoundary label="Logística">
               <LogisticaBlock
                 comprasAguardando={comprasAguardando}
@@ -738,17 +649,12 @@ const DashboardContent = () => {
               />
             </BlockErrorBoundary>
           </LazyInViewWidget>
-        </div>
-
-        {/* Fiscal */}
-        <div key="fiscal">
-          <LazyInViewWidget fallback={<Skeleton className="h-full w-full" />}>
+          <LazyInViewWidget fallback={<Skeleton className="h-[220px] w-full rounded-xl" />}>
             <BlockErrorBoundary label="Fiscal">
               <FiscalBlock stats={fiscalStats} />
             </BlockErrorBoundary>
           </LazyInViewWidget>
         </div>
-      </RGL>
       </div>
 
       {/* ── Drawer de detalhes por métrica ── */}

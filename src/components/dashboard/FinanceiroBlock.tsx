@@ -110,7 +110,7 @@ export function FinanceiroBlock({
       </div>
 
       {/* Gráfico de fluxo de caixa — embedded (sem card wrapper) */}
-      <div className="h-[110px] shrink-0 px-4 py-3">
+      <div className="min-h-[120px] px-4 py-3">
         <FluxoCaixaChart embedded />
       </div>
 
