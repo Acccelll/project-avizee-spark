@@ -57,6 +57,12 @@ export function RelatorioChart({
   const formatValue = (v: number) =>
     isQuantityReport ? formatNumber(v) : formatCurrency(v);
 
+  const handleActiveDotClick = onDataPointClick
+    ? (_: unknown, payload: { payload?: ChartDataPoint }) => {
+        if (payload?.payload) onDataPointClick(payload.payload);
+      }
+    : undefined;
+
   const chartIcon = useLine ? (
     <LineChartIcon className="h-4 w-4 text-muted-foreground" />
   ) : usePie ? (
@@ -88,7 +94,7 @@ export function RelatorioChart({
                       stroke="hsl(var(--primary))"
                       strokeWidth={2.5}
                       dot={{ r: 3 }}
-                      activeDot={onDataPointClick ? { r: 5, style: { cursor: 'pointer' }, onClick: (_: unknown, payload: { payload?: ChartDataPoint }) => { if (payload?.payload) onDataPointClick(payload.payload); } } : { r: 5 }}
+                      activeDot={handleActiveDotClick ? { r: 5, style: { cursor: 'pointer' }, onClick: handleActiveDotClick } : { r: 5 }}
                     />
                   </LineChart>
                 ) : usePie ? (
@@ -102,7 +108,7 @@ export function RelatorioChart({
                       outerRadius={80}
                       innerRadius={40}
                       paddingAngle={3}
-                      onClick={onDataPointClick ? (payload: ChartDataPoint) => onDataPointClick(payload) : undefined}
+                      onClick={onDataPointClick}
                       style={onDataPointClick ? { cursor: 'pointer' } : undefined}
                     >
                       {chartData.map((_, i) => (
@@ -124,7 +130,7 @@ export function RelatorioChart({
                       dataKey="value"
                       radius={[6, 6, 0, 0]}
                       fill="hsl(var(--primary))"
-                      onClick={onDataPointClick ? (payload: ChartDataPoint) => onDataPointClick(payload) : undefined}
+                      onClick={onDataPointClick}
                       style={onDataPointClick ? { cursor: 'pointer' } : undefined}
                     />
                   </BarChart>

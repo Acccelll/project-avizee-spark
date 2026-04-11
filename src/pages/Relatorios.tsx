@@ -226,7 +226,8 @@ export default function Relatorios() {
         state: { drillFrom: tipo, drillLabel: point.name, drillValue: point.value },
       });
     } else {
-      toast.info(`Detalhes: ${point.name} — ${point.value}`, { duration: 3000 });
+      const formattedValue = isQtyReport ? formatNumber(point.value) : formatCurrency(point.value);
+      toast.info(`Detalhes: ${point.name} — ${formattedValue}`, { duration: 3000 });
     }
   };
 
