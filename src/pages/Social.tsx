@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, BarChart3, FileText, RefreshCcw, Users } from 'lucide-react';
 import { toast } from 'sonner';

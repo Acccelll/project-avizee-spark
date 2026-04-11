@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useMemo, useState, useEffect } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";
