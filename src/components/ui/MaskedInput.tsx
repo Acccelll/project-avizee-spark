@@ -2,6 +2,7 @@ import { Input } from "@/components/ui/input";
 import { useCallback, useState } from "react";
 import { validateCPF, validateCNPJ } from "@/lib/validators";
 import { cn } from "@/lib/utils";
+import { cpfMask, cnpjMask, cpfCnpjMask, phoneMask, cepMask } from "@/utils/masks";
 
 interface MaskedInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "onChange"> {
   mask: "cpf" | "cnpj" | "cpf_cnpj" | "telefone" | "celular" | "cep";
@@ -12,16 +13,12 @@ interface MaskedInputProps extends Omit<React.InputHTMLAttributes<HTMLInputEleme
 }
 
 const masks: Record<string, (v: string) => string> = {
-  cpf: (v) => v.replace(/\D/g, "").replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d{1,2})$/, "$1-$2").slice(0, 14),
-  cnpj: (v) => v.replace(/\D/g, "").replace(/(\d{2})(\d)/, "$1.$2").replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d)/, "$1/$2").replace(/(\d{4})(\d{1,2})$/, "$1-$2").slice(0, 18),
-  cpf_cnpj: (v) => {
-    const digits = v.replace(/\D/g, "");
-    if (digits.length <= 11) return masks.cpf(v);
-    return masks.cnpj(v);
-  },
-  telefone: (v) => v.replace(/\D/g, "").replace(/(\d{2})(\d)/, "($1) $2").replace(/(\d{4})(\d{1,4})$/, "$1-$2").slice(0, 14),
-  celular: (v) => v.replace(/\D/g, "").replace(/(\d{2})(\d)/, "($1) $2").replace(/(\d{5})(\d{1,4})$/, "$1-$2").slice(0, 15),
-  cep: (v) => v.replace(/\D/g, "").replace(/(\d{5})(\d{1,3})$/, "$1-$2").slice(0, 9),
+  cpf: cpfMask,
+  cnpj: cnpjMask,
+  cpf_cnpj: cpfCnpjMask,
+  telefone: (v) => phoneMask(v),
+  celular: (v) => phoneMask(v),
+  cep: cepMask,
 };
 
 export function MaskedInput({ mask, value, onChange, className, showValidation = false, ...props }: MaskedInputProps) {
