@@ -353,6 +353,8 @@ const Fiscal = () => {
     { label: "Confirmada", value: "confirmada" },
     { label: "Cancelada", value: "cancelada" },
   ];
+  const origemOptions: MultiSelectOption[] = Object.entries(origemLabels).map(([v, l]) => ({ label: l, value: v }));
+  const statusSefazOptions: MultiSelectOption[] = Object.entries(statusSefazLabels).map(([v, l]) => ({ label: l, value: v }));
 
   const tipoConfig = tipoParam === "entrada"
     ? { title: "Notas de Entrada", subtitle: "Central de conferência e recebimento fiscal", addLabel: "Nova NF de Entrada", moduleKey: "notas-entrada", parceiroLabel: "Fornecedor" }
