@@ -324,18 +324,25 @@ const Fiscal = () => {
     });
   }, [consultaSearch, data, tipoParam, modeloFilters, statusFilters, tipoFilters, origemFilters, statusSefazFilters]);
 
+  const origemLabels: Record<string, string> = { manual: "Manual", pedido: "Pedido", importacao_xml: "Importação XML" };
+  const statusSefazLabels: Record<string, string> = { nao_enviada: "Não Enviada", pendente_envio: "Pendente Envio", em_processamento: "Em Processamento", autorizada: "Autorizada", rejeitada: "Rejeitada", cancelada_sefaz: "Cancelada SEFAZ", inutilizada: "Inutilizada", importada_externa: "Importada Externa" };
+
   const fiscalActiveFilters = useMemo(() => {
     const chips: FilterChip[] = [];
     tipoFilters.forEach(f => chips.push({ key: "tipo", label: "Tipo", value: [f], displayValue: f === "entrada" ? "Entrada" : "Saída" }));
     modeloFilters.forEach(f => chips.push({ key: "modelo", label: "Modelo", value: [f], displayValue: modeloLabels[f] || f }));
     statusFilters.forEach(f => chips.push({ key: "status", label: "Status", value: [f], displayValue: f.charAt(0).toUpperCase() + f.slice(1) }));
+    origemFilters.forEach(f => chips.push({ key: "origem", label: "Origem", value: [f], displayValue: origemLabels[f] || f }));
+    statusSefazFilters.forEach(f => chips.push({ key: "status_sefaz", label: "SEFAZ", value: [f], displayValue: statusSefazLabels[f] || f }));
     return chips;
-  }, [tipoFilters, modeloFilters, statusFilters]);
+  }, [tipoFilters, modeloFilters, statusFilters, origemFilters, statusSefazFilters]);
 
   const handleRemoveFiscalFilter = (key: string, value?: string) => {
     if (key === "tipo") setTipoFilters(prev => prev.filter(v => v !== value));
     if (key === "modelo") setModeloFilters(prev => prev.filter(v => v !== value));
     if (key === "status") setStatusFilters(prev => prev.filter(v => v !== value));
+    if (key === "origem") setOrigemFilters(prev => prev.filter(v => v !== value));
+    if (key === "status_sefaz") setStatusSefazFilters(prev => prev.filter(v => v !== value));
   };
 
   const tipoOptions: MultiSelectOption[] = [{ label: "Entrada", value: "entrada" }, { label: "Saída", value: "saida" }];
