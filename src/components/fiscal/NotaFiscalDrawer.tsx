@@ -5,12 +5,13 @@ import { RelationalLink } from "@/components/ui/RelationalLink";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { TimelineList } from "@/components/ui/TimelineList";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
   Edit, Trash2, CheckCircle, XCircle, ArrowLeftRight, FileText,
-  Package, DollarSign, AlertCircle, Copy,
+  Package, DollarSign, AlertCircle, Copy, Clock,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -77,6 +78,8 @@ export function NotaFiscalDrawer({
   const [items, setItems] = useState<any[]>([]);
   const [lancamentos, setLancamentos] = useState<any[]>([]);
   const [movimentos, setMovimentos] = useState<any[]>([]);
+  const [eventos, setEventos] = useState<any[]>([]);
+  const [anexos, setAnexos] = useState<any[]>([]);
   const [loadingExtra, setLoadingExtra] = useState(false);
 
   useEffect(() => {
@@ -84,6 +87,8 @@ export function NotaFiscalDrawer({
       setItems([]);
       setLancamentos([]);
       setMovimentos([]);
+      setEventos([]);
+      setAnexos([]);
       return;
     }
     setLoadingExtra(true);
@@ -103,10 +108,22 @@ export function NotaFiscalDrawer({
         .eq("documento_id", selected.id)
         .eq("documento_tipo", "fiscal")
         .order("created_at" as any, { ascending: true }),
-    ]).then(([{ data: it }, { data: lanc }, { data: mov }]) => {
+      supabase
+        .from("nota_fiscal_eventos")
+        .select("*")
+        .eq("nota_fiscal_id", selected.id)
+        .order("data_evento", { ascending: false }),
+      supabase
+        .from("nota_fiscal_anexos")
+        .select("*")
+        .eq("nota_fiscal_id", selected.id)
+        .order("created_at", { ascending: false }),
+    ]).then(([{ data: it }, { data: lanc }, { data: mov }, { data: ev }, { data: anx }]) => {
       setItems(it || []);
       setLancamentos((lanc as any[]) || []);
       setMovimentos((mov as any[]) || []);
+      setEventos((ev as any[]) || []);
+      setAnexos((anx as any[]) || []);
       setLoadingExtra(false);
     });
   }, [open, selected]);
