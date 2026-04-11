@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";
 import { SummaryCard } from "@/components/SummaryCard";
@@ -24,6 +25,7 @@ import {
   Plus, Upload, BarChart2, List, Building2, FileDown,
 } from "lucide-react";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
+import { exportarParaExcel } from "@/services/export.service";
 
 interface Lancamento {
   id: string; tipo: string; valor: number; status: string;
@@ -78,25 +80,28 @@ const getEffectiveStatus = (l: Lancamento, hoje: Date): string => {
 };
 
 const FluxoCaixa = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const defaultDataInicio = () => { const d = new Date(); d.setDate(1); return d.toISOString().split("T")[0]; };
+  const defaultDataFim = () => { const d = new Date(); d.setMonth(d.getMonth() + 1, 0); return d.toISOString().split("T")[0]; };
+
   const [lancamentos, setLancamentos] = useState<Lancamento[]>([]);
   const [contasBancarias, setContasBancarias] = useState<ContaBancaria[]>([]);
   const [loading, setLoading] = useState(true);
-  const [periodicidade, setPeriodicidade] = useState<Periodicidade>("diaria");
-  const [filterBanco, setFilterBanco] = useState("todos");
-  const [viewMode, setViewMode] = useState<"painel" | "movimentos">("painel");
-  const [dataInicio, setDataInicio] = useState(() => {
-    const d = new Date(); d.setDate(1);
-    return d.toISOString().split("T")[0];
-  });
-  const [dataFim, setDataFim] = useState(() => {
-    const d = new Date(); d.setMonth(d.getMonth() + 1, 0);
-    return d.toISOString().split("T")[0];
-  });
+  const [periodicidade, setPeriodicidade] = useState<Periodicidade>((searchParams.get("periodicidade") as Periodicidade) ?? "diaria");
+  const [filterBanco, setFilterBanco] = useState(searchParams.get("banco") ?? "todos");
+  const [viewMode, setViewMode] = useState<"painel" | "movimentos">((searchParams.get("view") as "painel" | "movimentos") ?? "painel");
+  const [dataInicio, setDataInicio] = useState(searchParams.get("data_inicio") ?? defaultDataInicio());
+  const [dataFim, setDataFim] = useState(searchParams.get("data_fim") ?? defaultDataFim());
 
   // Movements filters
-  const [movSearch, setMovSearch] = useState("");
-  const [movTipoFilters, setMovTipoFilters] = useState<string[]>([]);
-  const [movStatusFilters, setMovStatusFilters] = useState<string[]>([]);
+  const [movSearch, setMovSearch] = useState(searchParams.get("search") ?? "");
+  const [movTipoFilters, setMovTipoFilters] = useState<string[]>(
+    searchParams.get("tipo") ? searchParams.get("tipo")!.split(",") : [],
+  );
+  const [movStatusFilters, setMovStatusFilters] = useState<string[]>(
+    searchParams.get("status") ? searchParams.get("status")!.split(",") : [],
+  );
 
   // Lançamento manual
   const [modalOpen, setModalOpen] = useState(false);
@@ -109,6 +114,22 @@ const FluxoCaixa = () => {
   const [csvFile, setCsvFile] = useState<string>("");
   const [csvImporting, setCsvImporting] = useState(false);
   const csvInputRef = useRef<HTMLInputElement>(null);
+
+  // Sync filters → URL
+  useEffect(() => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set("data_inicio", dataInicio);
+      next.set("data_fim", dataFim);
+      if (periodicidade !== "diaria") next.set("periodicidade", periodicidade); else next.delete("periodicidade");
+      if (filterBanco !== "todos") next.set("banco", filterBanco); else next.delete("banco");
+      if (viewMode !== "painel") next.set("view", viewMode); else next.delete("view");
+      if (movSearch) next.set("search", movSearch); else next.delete("search");
+      if (movTipoFilters.length) next.set("tipo", movTipoFilters.join(",")); else next.delete("tipo");
+      if (movStatusFilters.length) next.set("status", movStatusFilters.join(",")); else next.delete("status");
+      return next;
+    }, { replace: true });
+  }, [dataInicio, dataFim, periodicidade, filterBanco, viewMode, movSearch, movTipoFilters, movStatusFilters]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -376,6 +397,20 @@ const FluxoCaixa = () => {
           <>
             <Button variant="outline" size="sm" className="gap-2" onClick={() => setCsvOpen(true)}>
               <Upload className="w-3.5 h-3.5" /> Importar CSV
+            </Button>
+            <Button variant="outline" size="sm" className="gap-2" onClick={async () => {
+              const rows = movFiltered.map((l) => ({
+                Tipo: l.tipo === "receber" ? "A Receber" : "A Pagar",
+                Descrição: l.descricao,
+                Vencimento: l.data_vencimento,
+                "Valor (R$)": Number(l.valor),
+                Status: getEffectiveStatus(l, hoje),
+                "Forma Pgto": l.forma_pagamento ?? "",
+                Banco: l.contas_bancarias ? `${l.contas_bancarias.bancos?.nome ?? ""} - ${l.contas_bancarias.descricao}` : "",
+              }));
+              await exportarParaExcel({ titulo: "Fluxo de Caixa", rows });
+            }}>
+              <FileDown className="w-3.5 h-3.5" /> Exportar
             </Button>
             <Button size="sm" className="gap-2" onClick={() => setModalOpen(true)}>
               <Plus className="w-3.5 h-3.5" /> Lançar

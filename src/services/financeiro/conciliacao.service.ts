@@ -41,6 +41,39 @@ function calcularSimilaridade(a: string, b: string): number {
 }
 
 /**
+ * Calcula o score de matching entre uma transação do extrato e um título.
+ *
+ * Critérios (pesos):
+ * - Valor deve ser idêntico (diferença < R$ 0,01) — obrigatório.
+ * - Data próxima (até 3 dias): contribui até 0,6 ao score.
+ * - Similaridade de descrição: contribui até 0,4 ao score.
+ *
+ * @returns Score de 0 a 1. Retorna 0 se o valor não corresponder.
+ */
+export function calcularScoreConciliacao(
+  transacao: TransacaoExtrato,
+  titulo: TituloParaConciliacao,
+): number {
+  const valorMatch = Math.abs(Math.abs(titulo.valor) - transacao.valor) < 0.01;
+  if (!valorMatch) return 0;
+
+  const dataExtrato = new Date(transacao.data);
+  const dataLanc = new Date(titulo.data_vencimento);
+  const diffDias = Math.abs(
+    (dataExtrato.getTime() - dataLanc.getTime()) / (1000 * 60 * 60 * 24),
+  );
+  if (diffDias > 3) return 0;
+
+  const scoreData = 1 - (diffDias / 3) * 0.2; // 1.0 (mesmo dia) → 0.8 (3 dias)
+  const simDesc = calcularSimilaridade(
+    transacao.descricao,
+    titulo.descricao ?? "",
+  );
+
+  return scoreData * 0.6 + simDesc * 0.4;
+}
+
+/**
  * Sugere o melhor lançamento para conciliar com uma transação do extrato.
  *
  * Heurística de matching (em ordem de prioridade):

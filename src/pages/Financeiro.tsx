@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
@@ -25,13 +25,14 @@ import { toast } from "sonner";
 import { formatCurrency } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
-import { DollarSign, Clock, AlertTriangle, CheckCircle, CalendarClock, Download, List, CalendarDays, CreditCard } from "lucide-react";
+import { DollarSign, Clock, AlertTriangle, CheckCircle, CalendarClock, Download, List, CalendarDays, CreditCard, FileDown } from "lucide-react";
 import { FinanceiroCalendar } from "@/components/financeiro/FinanceiroCalendar";
 import { BaixaParcialDialog } from "@/components/financeiro/BaixaParcialDialog";
 import { BaixaLoteModal } from "@/components/financeiro/BaixaLoteModal";
 import { FinanceiroDrawer } from "@/components/financeiro/FinanceiroDrawer";
 import { getEffectiveStatus, processarEstorno } from "@/services/financeiro.service";
 import { statusFinanceiro as statusFinanceiroSchema, statusToOptions } from "@/lib/statusSchema";
+import { exportarParaExcel, exportarParaPdf } from "@/services/export.service";
 
 interface Lancamento {
   id: string; tipo: string; descricao: string; valor: number;
@@ -115,14 +116,18 @@ const Financeiro = () => {
   const [mode, setMode] = useState<"create" | "edit">("create");
   const [form, setForm] = useState<LancamentoForm>({ ...emptyForm });
   const [saving, setSaving] = useState(false);
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const tipoParam = searchParams.get("tipo");
-  const [statusFilters, setStatusFilters] = useState<string[]>([]);
+  const [statusFilters, setStatusFilters] = useState<string[]>(
+    searchParams.get("status") ? searchParams.get("status")!.split(",") : [],
+  );
   const [tipoFilters, setTipoFilters] = useState<string[]>(tipoParam ? [tipoParam] : []);
-  const [bancoFilters, setBancoFilters] = useState<string[]>([]);
+  const [bancoFilters, setBancoFilters] = useState<string[]>(
+    searchParams.get("banco") ? searchParams.get("banco")!.split(",") : [],
+  );
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [period, setPeriod] = useState<Period>("30d");
+  const [searchTerm, setSearchTerm] = useState(searchParams.get("search") ?? "");
+  const [period, setPeriod] = useState<Period>((searchParams.get("period") as Period) ?? "30d");
   const [viewMode, setViewMode] = useState<"lista" | "calendario">("lista");
   const [baixaLoteOpen, setBaixaLoteOpen] = useState(false);
   const [baixaParcialOpen, setBaixaParcialOpen] = useState(false);
@@ -131,6 +136,19 @@ const Financeiro = () => {
   const [estornoProcessing, setEstornoProcessing] = useState(false);
 
   useEffect(() => { if (tipoParam) setTipoFilters([tipoParam]); }, [tipoParam]);
+
+  // Sync filters → URL
+  useEffect(() => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (searchTerm) next.set("search", searchTerm); else next.delete("search");
+      if (statusFilters.length) next.set("status", statusFilters.join(",")); else next.delete("status");
+      if (tipoFilters.length) next.set("tipo", tipoFilters.join(",")); else next.delete("tipo");
+      if (bancoFilters.length) next.set("banco", bancoFilters.join(",")); else next.delete("banco");
+      if (period !== "30d") next.set("period", period); else next.delete("period");
+      return next;
+    }, { replace: true });
+  }, [searchTerm, statusFilters, tipoFilters, bancoFilters, period]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const load = async () => {
@@ -415,6 +433,22 @@ const Financeiro = () => {
   const statusOpts: MultiSelectOption[] = statusToOptions(statusFinanceiroSchema);
   const bancoOpts: MultiSelectOption[] = contasBancarias.map(c => ({ label: `${c.bancos?.nome} - ${c.descricao}`, value: c.id }));
 
+  const handleExportar = useCallback(async (formato: "excel" | "pdf") => {
+    const rows = filteredData.map((l) => ({
+      Tipo: l.tipo === "receber" ? "A Receber" : "A Pagar",
+      Descrição: l.descricao,
+      Pessoa: l.tipo === "receber" ? (l.clientes?.nome_razao_social ?? "") : (l.fornecedores?.nome_razao_social ?? ""),
+      Vencimento: l.data_vencimento,
+      "Valor (R$)": Number(l.valor),
+      Status: getLancamentoStatus(l),
+      "Forma Pgto": l.forma_pagamento ?? "",
+      Banco: l.contas_bancarias ? `${l.contas_bancarias.bancos?.nome ?? ""} - ${l.contas_bancarias.descricao}` : "",
+    }));
+    const opts = { titulo: "Contas a Pagar-Receber", rows };
+    if (formato === "excel") await exportarParaExcel(opts);
+    else await exportarParaPdf(opts);
+  }, [filteredData]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <AppLayout>
       <ModulePage title="Contas a Pagar/Receber" subtitle="Gestão unificada de contas a pagar e receber" addLabel="Novo Lançamento" onAdd={openCreate}>
@@ -429,6 +463,9 @@ const Financeiro = () => {
               <CalendarDays className="h-3.5 w-3.5" /> Calendário
             </Button>
           </div>
+          <Button size="sm" variant="outline" className="h-7 gap-1.5 text-xs" onClick={() => handleExportar("excel")}>
+            <FileDown className="h-3.5 w-3.5" /> Exportar
+          </Button>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 mb-6">

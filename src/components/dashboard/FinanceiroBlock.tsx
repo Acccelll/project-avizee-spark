@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { TrendingUp, TrendingDown, ArrowRight, DollarSign, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { FluxoCaixaChart } from './FluxoCaixaChart';
+import { VencimentosProximosCard } from './VencimentosProximosCard';
 import { formatCurrency, formatNumber } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
@@ -140,6 +141,9 @@ export function FinanceiroBlock({
           </Button>
         </div>
       )}
+
+      {/* Vencimentos Próximos */}
+      <VencimentosProximosCard className="border-t rounded-none rounded-b-xl" />
     </div>
   );
 }
