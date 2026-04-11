@@ -32,7 +32,8 @@ import { useNavigate } from "react-router-dom";
 import { useDashboardLayout } from "@/hooks/useDashboardLayout";
 import { useMetas } from "@/hooks/useMetas";
 import { useInView } from "@/hooks/useInView";
-import GridLayout, { Layout } from "react-grid-layout";
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const RGL = GridLayout as any;
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import "react-grid-layout/css/styles.css";
