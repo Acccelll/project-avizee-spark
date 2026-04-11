@@ -146,6 +146,11 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
       if (error) throw error;
       return (data || []) as PedidoCompra[];
     },
+    select: (data) => data.map((pedido) => ({
+      ...pedido,
+      fornecedor_nome: pedido.fornecedores?.nome_razao_social ?? null,
+      fornecedor_cnpj: pedido.fornecedores?.cpf_cnpj ?? null,
+    })),
   });
 
   const { data: fornecedoresRaw = [], isLoading: fornecedoresLoading } = useQuery({
