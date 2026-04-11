@@ -10,6 +10,20 @@ export interface EstoqueMovimento extends EstoqueMovimentoRow {
   produtos?: { nome: string; sku: string | null } | null;
 }
 
+/** Simplified shape returned by the vw_estoque_posicao view. */
+export interface EstoquePosicaoRow {
+  produto_id: string;
+  produto_nome: string;
+  sku: string | null;
+  codigo_interno: string | null;
+  unidade_medida: string | null;
+  estoque_minimo: number | null;
+  preco_venda: number | null;
+  ativo: boolean;
+  estoque_atual: number;
+  estoque_reservado: number;
+}
+
 export async function fetchProdutosEstoque(): Promise<ProdutoRow[]> {
   const { data, error } = await supabase
     .from("produtos")
@@ -19,6 +33,24 @@ export async function fetchProdutosEstoque(): Promise<ProdutoRow[]> {
 
   if (error) throw new Error(error.message);
   return data ?? [];
+}
+
+/**
+ * Fetches the aggregated stock position from the `vw_estoque_posicao` Supabase
+ * view (see migration 20260411052000_create_vw_estoque_posicao.sql).
+ *
+ * The view consolidates saldo_atual and estoque_reservado per product so that
+ * the frontend does not need to perform client-side aggregation.
+ */
+export async function fetchEstoquePosicao(): Promise<EstoquePosicaoRow[]> {
+  const { data, error } = await supabase
+    // @ts-ignore – the view may not be reflected in the generated types yet
+    .from("vw_estoque_posicao")
+    .select("*")
+    .order("produto_nome");
+
+  if (error) throw new Error(error.message);
+  return (data ?? []) as EstoquePosicaoRow[];
 }
 
 export async function fetchMovimentacoes(): Promise<EstoqueMovimento[]> {

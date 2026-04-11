@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { useMemo } from "react";
 import { FormModal } from "@/components/FormModal";
 import { StatusBadge } from "@/components/StatusBadge";
 import { AutocompleteSearch } from "@/components/ui/AutocompleteSearch";
@@ -68,6 +69,14 @@ export function PedidoCompraFormModal({
 }: PedidoCompraFormModalProps) {
   const valorProdutos = items.reduce((s, i) => s + Number(i.valor_total || 0), 0);
   const valorTotal = valorProdutos + Number(form.frete_valor || 0);
+
+  const dataEntregaError = useMemo(() => {
+    if (!form.data_pedido || !form.data_entrega_prevista) return null;
+    if (form.data_entrega_prevista < form.data_pedido) {
+      return "A data de entrega prevista não pode ser anterior à data do pedido.";
+    }
+    return null;
+  }, [form.data_pedido, form.data_entrega_prevista]);
 
   const editBanner = mode === "edit" && selected
     ? (() => {
@@ -203,7 +212,11 @@ export function PedidoCompraFormModal({
                 type="date"
                 value={form.data_entrega_prevista}
                 onChange={(e) => setForm({ ...form, data_entrega_prevista: e.target.value })}
+                className={dataEntregaError ? "border-destructive" : ""}
               />
+              {dataEntregaError && (
+                <p className="text-xs text-destructive">{dataEntregaError}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Status do Pedido</Label>
@@ -316,7 +329,7 @@ export function PedidoCompraFormModal({
 
         <div className="flex justify-end gap-2">
           <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button type="submit" disabled={saving || fornecedoresLoading || produtosLoading}>
+          <Button type="submit" disabled={saving || fornecedoresLoading || produtosLoading || !!dataEntregaError}>
             {saving ? "Salvando..." : mode === "edit" ? "Salvar Alterações" : "Criar Pedido"}
           </Button>
         </div>

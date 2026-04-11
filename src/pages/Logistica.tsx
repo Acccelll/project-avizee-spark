@@ -35,7 +35,7 @@ import type { Recebimento } from "@/pages/logistica/hooks/useRecebimentos";
 import { fetchTracking, normalizarEventos } from "@/services/correios.service";
 import {
   Eye, AlertTriangle, Truck, Package, CheckCheck, ExternalLink,
-  Edit, Trash2, Plus, MapPin, Package as PackageIcon, Search,
+  Edit, Trash2, Plus, MapPin, Package as PackageIcon, Search, Clock, Timer,
 } from "lucide-react";
 
 // ─── Remessa types ───
@@ -206,7 +206,35 @@ export default function Logistica() {
     const emTransporte = entregas.filter((e) => e.status_logistico === "em_transporte").length;
     const atrasadas = entregas.filter(isAtrasadoEntrega).length;
     const entregues = entregas.filter((e) => e.status_logistico === "entregue").length;
-    return { total, emTransporte, atrasadas, entregues };
+
+    // Percentual de entregas no prazo (entregues que não estavam atrasadas no momento da entrega)
+    const entreguesNoPrazo = entregas.filter(
+      (e) => e.status_logistico === "entregue" && !isAtrasadoEntrega(e),
+    ).length;
+    const percentualNoPrazo = entregues > 0 ? Math.round((entreguesNoPrazo / entregues) * 100) : null;
+
+    // Tempo médio de entrega em dias (data_expedicao → previsao_entrega como proxy quando
+    // a data real de entrega não está disponível na interface atual)
+    const entregasComDias = entregas.filter(
+      (e) =>
+        e.status_logistico === "entregue" &&
+        e.data_expedicao &&
+        e.previsao_entrega,
+    );
+    const tempoMedioDias =
+      entregasComDias.length > 0
+        ? Math.round(
+            entregasComDias.reduce((sum, e) => {
+              const dias =
+                (new Date(e.previsao_entrega!).getTime() -
+                  new Date(e.data_expedicao!).getTime()) /
+                (1000 * 60 * 60 * 24);
+              return sum + Math.max(0, dias);
+            }, 0) / entregasComDias.length,
+          )
+        : null;
+
+    return { total, emTransporte, atrasadas, entregues, percentualNoPrazo, tempoMedioDias };
   }, [entregas]);
 
   const recebimentosKpis = useMemo(() => {
@@ -536,11 +564,48 @@ export default function Logistica() {
 
           {/* ── Tab: Entregas ── */}
           <TabsContent value="entregas">
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
               <SummaryCard title="Total de Entregas" value={formatNumber(entregasKpis.total)} icon={Package} variationType="neutral" variation="operações ativas" />
               <SummaryCard title="Em Transporte" value={formatNumber(entregasKpis.emTransporte)} icon={Truck} variationType="positive" variation="a caminho do cliente" />
               <SummaryCard title="Atrasadas" value={formatNumber(entregasKpis.atrasadas)} icon={AlertTriangle} variationType={entregasKpis.atrasadas > 0 ? "negative" : "neutral"} variation="fora do prazo" />
               <SummaryCard title="Entregues" value={formatNumber(entregasKpis.entregues)} icon={CheckCheck} variationType="positive" variation="concluídas" />
+            </div>
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+              <SummaryCard
+                title="% Entregas no Prazo"
+                value={entregasKpis.percentualNoPrazo !== null ? `${entregasKpis.percentualNoPrazo}%` : "—"}
+                icon={CheckCheck}
+                variationType={
+                  entregasKpis.percentualNoPrazo === null
+                    ? "neutral"
+                    : entregasKpis.percentualNoPrazo >= 90
+                    ? "positive"
+                    : entregasKpis.percentualNoPrazo >= 70
+                    ? "neutral"
+                    : "negative"
+                }
+                variation="das entregas concluídas"
+              />
+              <SummaryCard
+                title="Tempo Médio de Entrega"
+                value={entregasKpis.tempoMedioDias !== null ? `${entregasKpis.tempoMedioDias} dias` : "—"}
+                icon={Timer}
+                variationType="neutral"
+                variation="expedição → entrega prevista"
+              />
+              <SummaryCard
+                title="Pendentes de Expedição"
+                value={formatNumber(
+                  entregas.filter((e) =>
+                    ["aguardando_separacao", "em_separacao", "separado", "aguardando_expedicao"].includes(
+                      e.status_logistico,
+                    ),
+                  ).length,
+                )}
+                icon={Clock}
+                variationType="neutral"
+                variation="aguardando saída"
+              />
             </div>
             <AdvancedFilterBar searchValue={searchTerm} onSearchChange={setSearchTerm} searchPlaceholder="Buscar por pedido, cliente, transportadora ou rastreio..." activeFilters={activeEntregaFilters} onRemoveFilter={handleRemoveEntregaFilter} onClearAll={() => { setStatusFilters([]); setTransportadoraFilters([]); setPrazoFilters([]); setDataInicio(""); setDataFim(""); }} count={filteredEntregas.length}>
               <MultiSelect options={entregaStatusMultiOptions} selected={statusFilters} onChange={setStatusFilters} placeholder="Status" className="w-[180px]" />

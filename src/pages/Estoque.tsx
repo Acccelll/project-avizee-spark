@@ -24,11 +24,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { formatNumber, formatCurrency } from "@/lib/format";
 import type { Database } from "@/integrations/supabase/types";
-import {
-  AlertTriangle, ArrowDownCircle, RotateCcw,
+import { AlertTriangle, ArrowDownCircle, RotateCcw,
   TrendingDown, Package, CheckCircle, XCircle, ShieldAlert,
   DollarSign, SlidersHorizontal,
 } from "lucide-react";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 type ProdutoRow = Database["public"]["Tables"]["produtos"]["Row"];
 
@@ -98,6 +98,8 @@ const Estoque = () => {
   const [selectedPosicao, setSelectedPosicao] = useState<ProdutoPosicao | null>(null);
   const [form, setForm] = useState({ produto_id: "", tipo: "ajuste", quantidade: 0, motivo: "" });
   const [saving, setSaving] = useState(false);
+  const [confirmMovOpen, setConfirmMovOpen] = useState(false);
+  const [pendingMovForm, setPendingMovForm] = useState<typeof form | null>(null);
   // Saldos filters
   const [searchPosicao, setSearchPosicao] = useState("");
   const [situacaoFilters, setSituacaoFilters] = useState<string[]>([]);
@@ -160,17 +162,25 @@ const Estoque = () => {
     e.preventDefault();
     if (!form.produto_id || !form.quantidade) { toast.error("Produto e quantidade são obrigatórios"); return; }
     if (!form.motivo.trim()) { toast.error("Motivo é obrigatório para ajuste manual"); return; }
+    // Show confirmation dialog before executing mutation
+    setPendingMovForm({ ...form });
+    setConfirmMovOpen(true);
+  };
+
+  const executeMovimentacao = async () => {
+    if (!pendingMovForm) return;
     setSaving(true);
     try {
-      const produto = produtosCrud.data.find((p) => p.id === form.produto_id);
+      const produto = produtosCrud.data.find((p) => p.id === pendingMovForm.produto_id);
       const saldo_anterior = Number(produto?.estoque_atual ?? 0);
-      const qty = form.tipo === "saida" ? -form.quantidade : form.tipo === "ajuste" ? form.quantidade - saldo_anterior : form.quantidade;
-      const saldo_atual = form.tipo === "ajuste" ? form.quantidade : saldo_anterior + qty;
+      const qty = pendingMovForm.tipo === "saida" ? -pendingMovForm.quantidade : pendingMovForm.tipo === "ajuste" ? pendingMovForm.quantidade - saldo_anterior : pendingMovForm.quantidade;
+      const saldo_atual = pendingMovForm.tipo === "ajuste" ? pendingMovForm.quantidade : saldo_anterior + qty;
 
-      await create({ ...form, quantidade: Math.abs(qty), saldo_anterior, saldo_atual, documento_tipo: "manual" });
-      await supabase.from("produtos").update({ estoque_atual: saldo_atual }).eq("id", form.produto_id);
+      await create({ ...pendingMovForm, quantidade: Math.abs(qty), saldo_anterior, saldo_atual, documento_tipo: "manual" });
+      await supabase.from("produtos").update({ estoque_atual: saldo_atual }).eq("id", pendingMovForm.produto_id);
       produtosCrud.fetchData();
       setForm({ produto_id: "", tipo: "ajuste", quantidade: 0, motivo: "" });
+      setPendingMovForm(null);
       toast.success("Ajuste registrado com sucesso");
     } catch (err) {
       console.error("[estoque] erro ao salvar:", err);
@@ -566,6 +576,24 @@ const Estoque = () => {
         onClose={() => setPosicaoDrawerOpen(false)}
         produto={selectedPosicao}
         movimentos={data}
+      />
+
+      <ConfirmDialog
+        open={confirmMovOpen}
+        onClose={() => { setConfirmMovOpen(false); setPendingMovForm(null); }}
+        onConfirm={() => { setConfirmMovOpen(false); executeMovimentacao(); }}
+        title="Confirmar movimentação de estoque"
+        description={(() => {
+          if (!pendingMovForm) return "";
+          const produto = produtosCrud.data.find((p) => p.id === pendingMovForm.produto_id);
+          const nome = produto?.nome ?? "produto";
+          const tipoLabels: Record<string, string> = { entrada: "entrada de", saida: "saída de", ajuste: "ajuste para" };
+          const tipoLabel = tipoLabels[pendingMovForm.tipo] ?? pendingMovForm.tipo;
+          return `Confirmar ${tipoLabel} ${pendingMovForm.quantidade} unidade(s) do produto "${nome}"?`;
+        })()}
+        confirmLabel="Confirmar"
+        confirmVariant="default"
+        loading={saving}
       />
     </AppLayout>
   );
