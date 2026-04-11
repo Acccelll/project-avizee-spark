@@ -6,31 +6,13 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { Search, MapPin, Truck, ExternalLink, Package, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { fetchTracking, normalizarEventos } from "@/services/correios.service";
 
 type Remessa = Tables<"remessas"> & {
   transportadoras?: { nome_razao_social: string };
 };
 
 type RemessaEvento = Tables<"remessa_eventos">;
-
-/** Shape of a single event returned by the Correios tracking Edge Function. */
-interface CorreiosEvento {
-  descricao?: string;
-  tipo?: string;
-  unidade?: { nome?: string; endereco?: { cidade?: string } };
-  dtHrCriado?: string;
-}
-
-/** Top-level response from the Correios tracking endpoint (including fallback mock). */
-interface CorreiosTrackingResponse {
-  error?: string;
-  /** Present when the response is a real Correios API payload. */
-  objetos?: Array<{ eventos?: CorreiosEvento[] }>;
-  /** "fallback_mock" when the Edge Function fell back to mock data. */
-  warning?: string;
-  /** Present in fallback mode — contains mock track data. */
-  data?: { eventos?: CorreiosEvento[] };
-}
 
 interface Props {
   pedidoCompraId?: string;
@@ -59,15 +41,22 @@ export function LogisticaRastreioSection({ pedidoCompraId, notaFiscalId, remessa
 
     if (!error && data) {
       setRemessas(data);
-      // Fetch events for each remessa
-      for (const r of data) {
+      // Batch-fetch events for all remessas in a single query
+      if (data.length > 0) {
+        const ids = data.map((r: Remessa) => r.id);
         const { data: evs } = await supabase
           .from("remessa_eventos")
           .select("*")
-          .eq("remessa_id", r.id)
+          .in("remessa_id", ids)
           .order("data_hora", { ascending: false });
         if (evs) {
-          setEventos(prev => ({ ...prev, [r.id]: evs }));
+          const grouped: Record<string, RemessaEvento[]> = {};
+          for (const ev of evs) {
+            const key = ev.remessa_id as string;
+            if (!grouped[key]) grouped[key] = [];
+            grouped[key].push(ev);
+          }
+          setEventos(grouped);
         }
       }
     }
@@ -80,43 +69,15 @@ export function LogisticaRastreioSection({ pedidoCompraId, notaFiscalId, remessa
 
   const handleRastrear = async (remessa: Remessa) => {
     if (!remessa.codigo_rastreio) return;
-    const codigoSanitizado = remessa.codigo_rastreio.trim().toUpperCase().replace(/\s+/g, "");
-    if (!codigoSanitizado) { toast.error("Código de rastreio inválido"); return; }
     setTrackingLoading(remessa.id);
     setMockWarning(null);
     try {
-      const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL as string || "").replace(/\/$/, "");
-      const url = `${supabaseUrl}/functions/v1/correios-api?action=rastrear&codigo=${encodeURIComponent(codigoSanitizado)}`;
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "";
-
-      const res = await fetch(url, {
-        headers: {
-          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "",
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      const tracking = await res.json() as CorreiosTrackingResponse;
-
-      if (!res.ok || tracking.error) {
-        throw new Error(tracking.error || `Erro ao consultar rastreio (${res.status})`);
-      }
+      const tracking = await fetchTracking(remessa.codigo_rastreio);
 
       const isMock = tracking.warning === "fallback_mock";
       if (isMock) setMockWarning(remessa.id);
 
-      // Normalise events from both real and mock response shapes
-      const rawEventos: CorreiosEvento[] = isMock
-        ? (tracking.data?.eventos || [])
-        : (tracking.objetos?.[0]?.eventos || []);
-
-      const eventosNormalizados = rawEventos.map((ev) => ({
-        remessa_id: remessa.id,
-        descricao: ev.descricao || ev.tipo || "Evento",
-        local: ev.unidade?.endereco?.cidade || ev.unidade?.nome || null,
-        data_hora: ev.dtHrCriado || new Date().toISOString(),
-      }));
+      const eventosNormalizados = normalizarEventos(tracking, remessa.id);
 
       if (!isMock && eventosNormalizados.length > 0) {
         // Persist only genuinely new events (deduplicate)

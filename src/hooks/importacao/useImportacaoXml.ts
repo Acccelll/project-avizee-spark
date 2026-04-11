@@ -118,42 +118,52 @@ export function useImportacaoXml() {
       const { data: vendors } = await supabase.from("fornecedores").select("id, cpf_cnpj");
       const vendorMap = new Map(vendors?.map(v => [v.cpf_cnpj?.replace(/\D/g, ""), v.id]));
 
-      let importedCount = 0;
-      for (const item of validos) {
-        const nfe = item.data;
-        if (!nfe) continue;
+      const itemsComDados = validos.filter(i => i.data);
 
-        const cnpjEmit = nfe.emitente.cnpj.replace(/\D/g, "");
-        const fornecedorId = vendorMap.get(cnpjEmit);
+      // Split by whether the supplier is registered
+      const semFornecedor = itemsComDados.filter(item => !vendorMap.get(item.data.emitente.cnpj.replace(/\D/g, "")));
+      const comFornecedor = itemsComDados.filter(item => vendorMap.get(item.data.emitente.cnpj.replace(/\D/g, "")));
 
-        if (!fornecedorId) {
-          await supabase.from("importacao_logs").insert({
+      // Batch-insert all "no vendor" error logs in one round-trip
+      if (semFornecedor.length > 0) {
+        await supabase.from("importacao_logs").insert(
+          semFornecedor.map(item => ({
             lote_id: currentLoteId,
             nivel: "error",
-            mensagem: `Fornecedor não cadastrado (CNPJ: ${cnpjEmit}) para a nota ${nfe.numero}`,
-          });
-          continue;
-        }
-
-        const { error: cError } = await supabase.from("compras").insert({
-          fornecedor_id: fornecedorId,
-          numero: nfe.numero,
-          data_compra: nfe.dataEmissao,
-          valor_total: nfe.valorTotal,
-          status: "confirmado",
-          observacoes: `Importação XML - Chave: ${nfe.chaveAcesso}`
-        } as any);
-
-        if (cError) {
-          await supabase.from("importacao_logs").insert({
-            lote_id: currentLoteId,
-            nivel: "error",
-            mensagem: `Erro ao criar compra ${nfe.numero}: ${cError.message}`
-          });
-          continue;
-        }
-        importedCount++;
+            mensagem: `Fornecedor não cadastrado (CNPJ: ${item.data.emitente.cnpj.replace(/\D/g, "")}) para a nota ${item.data.numero}`,
+          }))
+        );
       }
+
+      // Insert all valid compras in parallel
+      const insertResults = await Promise.all(
+        comFornecedor.map(item => {
+          const nfe = item.data;
+          const fornecedorId = vendorMap.get(nfe.emitente.cnpj.replace(/\D/g, ""));
+          return supabase.from("compras").insert({
+            fornecedor_id: fornecedorId,
+            numero: nfe.numero,
+            data_compra: nfe.dataEmissao,
+            valor_total: nfe.valorTotal,
+            status: "confirmado",
+            observacoes: `Importação XML - Chave: ${nfe.chaveAcesso}`,
+          }).then(({ error }) => ({ nfe, error }));
+        })
+      );
+
+      // Batch-insert error logs for any failed inserts
+      const failures = insertResults.filter(r => r.error);
+      if (failures.length > 0) {
+        await supabase.from("importacao_logs").insert(
+          failures.map(({ nfe, error: cError }) => ({
+            lote_id: currentLoteId,
+            nivel: "error",
+            mensagem: `Erro ao criar compra ${nfe.numero}: ${cError.message}`,
+          }))
+        );
+      }
+
+      const importedCount = insertResults.filter(r => !r.error).length;
 
       await supabase
         .from("importacao_lotes")
