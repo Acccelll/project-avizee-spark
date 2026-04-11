@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";
 import { Button } from "@/components/ui/button";
@@ -19,8 +20,14 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import {
   Upload, CheckCircle, XCircle, Shuffle, AlertTriangle,
-  CheckCheck, GitMerge, Landmark, ChevronDown, ChevronUp,
+  CheckCheck, GitMerge, Landmark, ChevronDown, ChevronUp, FileDown,
 } from "lucide-react";
+import {
+  calcularScoreConciliacao,
+  type TituloParaConciliacao,
+} from "@/services/financeiro/conciliacao.service";
+import type { TransacaoExtrato } from "@/services/financeiro/ofxParser.service";
+import { exportarParaExcel } from "@/services/export.service";
 
 interface ContaBancaria {
   id: string;
@@ -71,6 +78,11 @@ const origemOptions: MultiSelectOption[] = [
 ];
 
 export default function Conciliacao() {
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const defaultDataInicio = () => { const d = new Date(); d.setDate(1); return d.toISOString().split("T")[0]; };
+  const defaultDataFim = () => { const d = new Date(); d.setMonth(d.getMonth() + 1, 0); return d.toISOString().split("T")[0]; };
+
   const [contasBancarias, setContasBancarias] = useState<ContaBancaria[]>([]);
   const [selectedConta, setSelectedConta] = useState<string>("");
   const [extratoItems, setExtratoItems] = useState<OFXTransaction[]>([]);
@@ -83,20 +95,31 @@ export default function Conciliacao() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Period filter state (independent of OFX)
-  const [dataInicio, setDataInicio] = useState(() => {
-    const d = new Date(); d.setDate(1);
-    return d.toISOString().split("T")[0];
-  });
-  const [dataFim, setDataFim] = useState(() => {
-    const d = new Date(); d.setMonth(d.getMonth() + 1, 0);
-    return d.toISOString().split("T")[0];
-  });
+  const [dataInicio, setDataInicio] = useState(searchParams.get("data_inicio") ?? defaultDataInicio());
+  const [dataFim, setDataFim] = useState(searchParams.get("data_fim") ?? defaultDataFim());
 
   // Filter state
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusConcFilters, setStatusConcFilters] = useState<string[]>([]);
-  const [tipoFilters, setTipoFilters] = useState<string[]>([]);
+  const [searchTerm, setSearchTerm] = useState(searchParams.get("search") ?? "");
+  const [statusConcFilters, setStatusConcFilters] = useState<string[]>(
+    searchParams.get("status") ? searchParams.get("status")!.split(",") : [],
+  );
+  const [tipoFilters, setTipoFilters] = useState<string[]>(
+    searchParams.get("tipo") ? searchParams.get("tipo")!.split(",") : [],
+  );
   const [origemFilters, setOrigemFilters] = useState<string[]>([]);
+
+  // Sync filters → URL
+  useEffect(() => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set("data_inicio", dataInicio);
+      next.set("data_fim", dataFim);
+      if (searchTerm) next.set("search", searchTerm); else next.delete("search");
+      if (statusConcFilters.length) next.set("status", statusConcFilters.join(",")); else next.delete("status");
+      if (tipoFilters.length) next.set("tipo", tipoFilters.join(",")); else next.delete("tipo");
+      return next;
+    }, { replace: true });
+  }, [dataInicio, dataFim, searchTerm, statusConcFilters, tipoFilters]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── Load contas bancárias ───────────────────────────────────────────────
   useEffect(() => {
@@ -218,6 +241,61 @@ export default function Conciliacao() {
       return [...filtered, { extratoId, lancamentoId }];
     });
   };
+
+  /** Threshold de score para conciliação automática em lote (configurável). */
+  const AUTO_SCORE_THRESHOLD = 0.9;
+
+  // ─── Batch auto-reconciliation ────────────────────────────────────────────
+  const handleConciliacaoAutomatica = useCallback(() => {
+    const newMatches: Match[] = [];
+    const usedLancamentos = new Set<string>();
+
+    for (const extrato of extratoItems) {
+      // Map OFXTransaction to TransacaoExtrato shape expected by the service
+      const transacao: TransacaoExtrato = {
+        id: extrato.id,
+        data: extrato.data,
+        descricao: extrato.descricao ?? "",
+        valor: Math.abs(extrato.valor),
+        tipo: extrato.valor >= 0 ? "C" : "D",
+      };
+
+      let melhorScore = -1;
+      let melhorTitulo: Lancamento | null = null;
+
+      for (const l of lancamentos) {
+        if (usedLancamentos.has(l.id)) continue;
+        const titulo: TituloParaConciliacao = {
+          id: l.id,
+          descricao: l.descricao,
+          valor: l.valor,
+          data_vencimento: l.data_vencimento,
+          tipo: l.tipo,
+          status: l.status,
+        };
+        const score = calcularScoreConciliacao(transacao, titulo);
+        if (score > melhorScore) {
+          melhorScore = score;
+          melhorTitulo = l;
+        }
+      }
+
+      if (melhorScore >= AUTO_SCORE_THRESHOLD && melhorTitulo) {
+        newMatches.push({ extratoId: extrato.id, lancamentoId: melhorTitulo.id });
+        usedLancamentos.add(melhorTitulo.id);
+      }
+    }
+
+    setMatches((prev) => {
+      // Merge new high-confidence matches while keeping any existing manual matches
+      const manual = prev.filter((m) => !newMatches.some((nm) => nm.extratoId === m.extratoId));
+      return [...manual, ...newMatches];
+    });
+
+    toast.success(
+      `${newMatches.length} transação(ões) conciliada(s) automaticamente (score ≥ ${AUTO_SCORE_THRESHOLD}).`,
+    );
+  }, [extratoItems, lancamentos]);
 
   // ─── Confirm reconciliation ──────────────────────────────────────────────
   const handleConfirmarConciliacao = async () => {
@@ -509,11 +587,35 @@ export default function Conciliacao() {
             </Button>
 
             {extratoItems.length > 0 && lancamentos.length > 0 && (
-              <Button onClick={handleAutoMatch} variant="secondary" size="sm">
-                <Shuffle className="w-4 h-4 mr-2" />
-                Match Automático
-              </Button>
+              <>
+                <Button onClick={handleAutoMatch} variant="secondary" size="sm">
+                  <Shuffle className="w-4 h-4 mr-2" />
+                  Match Automático
+                </Button>
+                <Button onClick={handleConciliacaoAutomatica} variant="default" size="sm">
+                  <CheckCheck className="w-4 h-4 mr-2" />
+                  Conciliação Automática
+                </Button>
+              </>
             )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                const rows = filteredData.map((l) => ({
+                  Descrição: l.descricao,
+                  Tipo: l.tipo,
+                  "Vencimento": l.data_vencimento,
+                  "Valor (R$)": Number(l.valor),
+                  Status: l.status ?? "",
+                  Conciliação: l.statusConciliacao,
+                }));
+                await exportarParaExcel({ titulo: "Conciliacao Bancaria", rows });
+              }}
+            >
+              <FileDown className="w-4 h-4 mr-2" />
+              Exportar
+            </Button>
           </div>
         </div>
 

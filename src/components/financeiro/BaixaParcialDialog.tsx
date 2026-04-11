@@ -278,6 +278,15 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
                 </Badge>
               </div>
             </div>
+
+            {/* Cash flow impact indicator */}
+            {dataBaixa && valorLiquido > 0 && (
+              <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs text-primary">
+                💡 Esta operação afetará o saldo projetado do dia{" "}
+                <strong>{new Date(dataBaixa + "T00:00:00").toLocaleDateString("pt-BR")}</strong> em{" "}
+                <strong>{formatCurrency(valorLiquido)}</strong>.
+              </div>
+            )}
           </div>
         )}
 
