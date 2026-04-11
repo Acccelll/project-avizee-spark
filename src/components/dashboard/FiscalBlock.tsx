@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, FileText, CheckCircle, AlertCircle, Clock } from 'lucide-react';
+import { ArrowRight, FileText, CheckCircle, AlertCircle, Clock, Ban } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatNumber, formatCurrency } from '@/lib/format';
 
@@ -8,6 +8,8 @@ interface FiscalStats {
   pendentes: number;
   canceladas: number;
   valorEmitidas: number;
+  rejeitadas?: number;
+  pedidosSemFaturamento?: number;
 }
 
 interface FiscalBlockProps {
@@ -43,6 +45,29 @@ export function FiscalBlock({ stats }: FiscalBlockProps) {
       bg: stats.canceladas > 0 ? 'bg-destructive/10' : 'bg-muted/40',
     },
   ];
+
+  // Additional KPIs when available
+  if ((stats.rejeitadas ?? 0) > 0) {
+    items.push({
+      label: 'Rejeitadas SEFAZ',
+      value: formatNumber(stats.rejeitadas || 0),
+      sub: 'requer atenção',
+      icon: Ban,
+      color: 'text-destructive',
+      bg: 'bg-destructive/10',
+    });
+  }
+
+  if ((stats.pedidosSemFaturamento ?? 0) > 0) {
+    items.push({
+      label: 'Pedidos s/ faturamento',
+      value: formatNumber(stats.pedidosSemFaturamento || 0),
+      sub: 'aprovados pendentes',
+      icon: FileText,
+      color: 'text-warning',
+      bg: 'bg-warning/10',
+    });
+  }
 
   return (
     <div className="bg-card rounded-xl border flex flex-col h-full">

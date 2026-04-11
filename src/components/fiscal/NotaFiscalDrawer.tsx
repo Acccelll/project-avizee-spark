@@ -5,12 +5,13 @@ import { RelationalLink } from "@/components/ui/RelationalLink";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { TimelineList } from "@/components/ui/TimelineList";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
   Edit, Trash2, CheckCircle, XCircle, ArrowLeftRight, FileText,
-  Package, DollarSign, AlertCircle, Copy,
+  Package, DollarSign, AlertCircle, Copy, Clock,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -77,6 +78,8 @@ export function NotaFiscalDrawer({
   const [items, setItems] = useState<any[]>([]);
   const [lancamentos, setLancamentos] = useState<any[]>([]);
   const [movimentos, setMovimentos] = useState<any[]>([]);
+  const [eventos, setEventos] = useState<any[]>([]);
+  const [anexos, setAnexos] = useState<any[]>([]);
   const [loadingExtra, setLoadingExtra] = useState(false);
 
   useEffect(() => {
@@ -84,6 +87,8 @@ export function NotaFiscalDrawer({
       setItems([]);
       setLancamentos([]);
       setMovimentos([]);
+      setEventos([]);
+      setAnexos([]);
       return;
     }
     setLoadingExtra(true);
@@ -103,10 +108,22 @@ export function NotaFiscalDrawer({
         .eq("documento_id", selected.id)
         .eq("documento_tipo", "fiscal")
         .order("created_at" as any, { ascending: true }),
-    ]).then(([{ data: it }, { data: lanc }, { data: mov }]) => {
+      supabase
+        .from("nota_fiscal_eventos")
+        .select("*")
+        .eq("nota_fiscal_id", selected.id)
+        .order("data_evento", { ascending: false }),
+      supabase
+        .from("nota_fiscal_anexos")
+        .select("*")
+        .eq("nota_fiscal_id", selected.id)
+        .order("created_at", { ascending: false }),
+    ]).then(([{ data: it }, { data: lanc }, { data: mov }, { data: ev }, { data: anx }]) => {
       setItems(it || []);
       setLancamentos((lanc as any[]) || []);
       setMovimentos((mov as any[]) || []);
+      setEventos((ev as any[]) || []);
+      setAnexos((anx as any[]) || []);
       setLoadingExtra(false);
     });
   }, [open, selected]);
@@ -479,6 +496,40 @@ export function NotaFiscalDrawer({
     </div>
   );
 
+  const tipoEventoLabels: Record<string, string> = {
+    criacao: "Criação", edicao: "Edição", confirmacao: "Confirmação",
+    importacao_xml: "Importação XML", tentativa_envio: "Tentativa de Envio",
+    autorizacao: "Autorização", rejeicao: "Rejeição",
+    cancelamento_rascunho: "Cancelamento de Rascunho",
+    cancelamento_autorizada: "Cancelamento de Autorizada",
+    estorno: "Estorno", download_xml: "Download XML",
+    download_pdf: "Download PDF", envio_email: "Envio por E-mail",
+  };
+
+  const tabEventos = (
+    <div className="space-y-4">
+      {loadingExtra ? (
+        <p className="text-xs text-muted-foreground py-2">Carregando...</p>
+      ) : eventos.length === 0 ? (
+        <div className="rounded-lg border bg-muted/20 p-4 flex items-center gap-3 text-muted-foreground">
+          <Clock className="h-4 w-4 shrink-0" />
+          <p className="text-xs">Nenhum evento registrado para esta nota fiscal.</p>
+        </div>
+      ) : (
+        <TimelineList
+          items={eventos.map((ev: any) => ({
+            id: ev.id,
+            title: tipoEventoLabels[ev.tipo_evento] || ev.tipo_evento,
+            description: ev.descricao || undefined,
+            date: ev.data_evento,
+            type: ev.status_novo ? `${ev.status_anterior || "—"} → ${ev.status_novo}` : undefined,
+          }))}
+          emptyMessage="Nenhum evento registrado"
+        />
+      )}
+    </div>
+  );
+
   const tabVinculos = (
     <div className="space-y-5">
       <ViewSection title="Origem / Documento">
@@ -712,6 +763,7 @@ export function NotaFiscalDrawer({
         { value: "itens", label: `Itens (${items.length})`, content: tabItens },
         { value: "fiscal", label: "Fiscal", content: tabFiscal },
         { value: "arquivos", label: "Arquivos", content: tabArquivos },
+        { value: "eventos", label: `Eventos (${eventos.length})`, content: tabEventos },
         { value: "vinculos", label: "Vínculos", content: tabVinculos },
       ]}
       footer={

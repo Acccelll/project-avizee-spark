@@ -671,58 +671,82 @@ export type Database = {
       }
       empresa_config: {
         Row: {
+          ambiente_padrao: string | null
           bairro: string | null
           cep: string | null
           cidade: string | null
+          cnae: string | null
           cnpj: string | null
+          codigo_ibge_municipio: string | null
           complemento: string | null
           created_at: string
+          crt: string | null
           email: string | null
+          email_fiscal: string | null
           id: string
           inscricao_estadual: string | null
           logo_url: string | null
           logradouro: string | null
           nome_fantasia: string | null
           numero: string | null
+          proximo_numero_nfe: number | null
           razao_social: string | null
+          regime_tributario: string | null
+          serie_padrao_nfe: string | null
           telefone: string | null
           uf: string | null
           updated_at: string
         }
         Insert: {
+          ambiente_padrao?: string | null
           bairro?: string | null
           cep?: string | null
           cidade?: string | null
+          cnae?: string | null
           cnpj?: string | null
+          codigo_ibge_municipio?: string | null
           complemento?: string | null
           created_at?: string
+          crt?: string | null
           email?: string | null
+          email_fiscal?: string | null
           id?: string
           inscricao_estadual?: string | null
           logo_url?: string | null
           logradouro?: string | null
           nome_fantasia?: string | null
           numero?: string | null
+          proximo_numero_nfe?: number | null
           razao_social?: string | null
+          regime_tributario?: string | null
+          serie_padrao_nfe?: string | null
           telefone?: string | null
           uf?: string | null
           updated_at?: string
         }
         Update: {
+          ambiente_padrao?: string | null
           bairro?: string | null
           cep?: string | null
           cidade?: string | null
+          cnae?: string | null
           cnpj?: string | null
+          codigo_ibge_municipio?: string | null
           complemento?: string | null
           created_at?: string
+          crt?: string | null
           email?: string | null
+          email_fiscal?: string | null
           id?: string
           inscricao_estadual?: string | null
           logo_url?: string | null
           logradouro?: string | null
           nome_fantasia?: string | null
           numero?: string | null
+          proximo_numero_nfe?: number | null
           razao_social?: string | null
+          regime_tributario?: string | null
+          serie_padrao_nfe?: string | null
           telefone?: string | null
           uf?: string | null
           updated_at?: string
@@ -1297,9 +1321,94 @@ export type Database = {
         }
         Relationships: []
       }
+      nota_fiscal_anexos: {
+        Row: {
+          caminho_storage: string | null
+          created_at: string
+          id: string
+          nome_arquivo: string | null
+          nota_fiscal_id: string
+          tamanho: number | null
+          tipo_arquivo: string
+        }
+        Insert: {
+          caminho_storage?: string | null
+          created_at?: string
+          id?: string
+          nome_arquivo?: string | null
+          nota_fiscal_id: string
+          tamanho?: number | null
+          tipo_arquivo: string
+        }
+        Update: {
+          caminho_storage?: string | null
+          created_at?: string
+          id?: string
+          nome_arquivo?: string | null
+          nota_fiscal_id?: string
+          tamanho?: number | null
+          tipo_arquivo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nota_fiscal_anexos_nota_fiscal_id_fkey"
+            columns: ["nota_fiscal_id"]
+            isOneToOne: false
+            referencedRelation: "notas_fiscais"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nota_fiscal_eventos: {
+        Row: {
+          data_evento: string
+          descricao: string | null
+          id: string
+          nota_fiscal_id: string
+          payload_resumido: Json | null
+          status_anterior: string | null
+          status_novo: string | null
+          tipo_evento: string
+          usuario_id: string | null
+        }
+        Insert: {
+          data_evento?: string
+          descricao?: string | null
+          id?: string
+          nota_fiscal_id: string
+          payload_resumido?: Json | null
+          status_anterior?: string | null
+          status_novo?: string | null
+          tipo_evento: string
+          usuario_id?: string | null
+        }
+        Update: {
+          data_evento?: string
+          descricao?: string | null
+          id?: string
+          nota_fiscal_id?: string
+          payload_resumido?: Json | null
+          status_anterior?: string | null
+          status_novo?: string | null
+          tipo_evento?: string
+          usuario_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nota_fiscal_eventos_nota_fiscal_id_fkey"
+            columns: ["nota_fiscal_id"]
+            isOneToOne: false
+            referencedRelation: "notas_fiscais"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notas_fiscais: {
         Row: {
+          ambiente_emissao: string | null
           ativo: boolean
+          caminho_pdf: string | null
+          caminho_xml: string | null
           chave_acesso: string | null
           cliente_id: string | null
           cofins_valor: number | null
@@ -1307,32 +1416,58 @@ export type Database = {
           conta_contabil_id: string | null
           created_at: string
           data_emissao: string | null
+          data_saida_entrada: string | null
           desconto_valor: number | null
+          enviado_email: boolean | null
+          especie_volumes: string | null
+          finalidade_nfe: string | null
           forma_pagamento: string | null
           fornecedor_id: string | null
+          frete_modalidade: string | null
           frete_valor: number | null
           gera_financeiro: boolean | null
           icms_st_valor: number | null
           icms_valor: number | null
           id: string
           ipi_valor: number | null
+          marca_volumes: string | null
           modelo_documento: string | null
+          motivo_rejeicao: string | null
           movimenta_estoque: boolean | null
+          natureza_operacao: string | null
           nf_referenciada_id: string | null
+          numeracao_volumes: string | null
           numero: string | null
           observacoes: string | null
           ordem_venda_id: string | null
+          origem: string | null
           outras_despesas: number | null
+          pdf_gerado: boolean | null
+          peso_bruto: number | null
+          peso_liquido: number | null
           pis_valor: number | null
+          protocolo_autorizacao: string | null
+          quantidade_volumes: number | null
+          recibo: string | null
           serie: string | null
           status: string | null
+          status_sefaz: string | null
           tipo: string | null
           tipo_operacao: string | null
+          transportadora_id: string | null
           updated_at: string
+          usuario_criacao_id: string | null
+          usuario_ultima_modificacao_id: string | null
+          valor_produtos: number | null
+          valor_seguro: number | null
           valor_total: number | null
+          xml_gerado: boolean | null
         }
         Insert: {
+          ambiente_emissao?: string | null
           ativo?: boolean
+          caminho_pdf?: string | null
+          caminho_xml?: string | null
           chave_acesso?: string | null
           cliente_id?: string | null
           cofins_valor?: number | null
@@ -1340,32 +1475,58 @@ export type Database = {
           conta_contabil_id?: string | null
           created_at?: string
           data_emissao?: string | null
+          data_saida_entrada?: string | null
           desconto_valor?: number | null
+          enviado_email?: boolean | null
+          especie_volumes?: string | null
+          finalidade_nfe?: string | null
           forma_pagamento?: string | null
           fornecedor_id?: string | null
+          frete_modalidade?: string | null
           frete_valor?: number | null
           gera_financeiro?: boolean | null
           icms_st_valor?: number | null
           icms_valor?: number | null
           id?: string
           ipi_valor?: number | null
+          marca_volumes?: string | null
           modelo_documento?: string | null
+          motivo_rejeicao?: string | null
           movimenta_estoque?: boolean | null
+          natureza_operacao?: string | null
           nf_referenciada_id?: string | null
+          numeracao_volumes?: string | null
           numero?: string | null
           observacoes?: string | null
           ordem_venda_id?: string | null
+          origem?: string | null
           outras_despesas?: number | null
+          pdf_gerado?: boolean | null
+          peso_bruto?: number | null
+          peso_liquido?: number | null
           pis_valor?: number | null
+          protocolo_autorizacao?: string | null
+          quantidade_volumes?: number | null
+          recibo?: string | null
           serie?: string | null
           status?: string | null
+          status_sefaz?: string | null
           tipo?: string | null
           tipo_operacao?: string | null
+          transportadora_id?: string | null
           updated_at?: string
+          usuario_criacao_id?: string | null
+          usuario_ultima_modificacao_id?: string | null
+          valor_produtos?: number | null
+          valor_seguro?: number | null
           valor_total?: number | null
+          xml_gerado?: boolean | null
         }
         Update: {
+          ambiente_emissao?: string | null
           ativo?: boolean
+          caminho_pdf?: string | null
+          caminho_xml?: string | null
           chave_acesso?: string | null
           cliente_id?: string | null
           cofins_valor?: number | null
@@ -1373,29 +1534,52 @@ export type Database = {
           conta_contabil_id?: string | null
           created_at?: string
           data_emissao?: string | null
+          data_saida_entrada?: string | null
           desconto_valor?: number | null
+          enviado_email?: boolean | null
+          especie_volumes?: string | null
+          finalidade_nfe?: string | null
           forma_pagamento?: string | null
           fornecedor_id?: string | null
+          frete_modalidade?: string | null
           frete_valor?: number | null
           gera_financeiro?: boolean | null
           icms_st_valor?: number | null
           icms_valor?: number | null
           id?: string
           ipi_valor?: number | null
+          marca_volumes?: string | null
           modelo_documento?: string | null
+          motivo_rejeicao?: string | null
           movimenta_estoque?: boolean | null
+          natureza_operacao?: string | null
           nf_referenciada_id?: string | null
+          numeracao_volumes?: string | null
           numero?: string | null
           observacoes?: string | null
           ordem_venda_id?: string | null
+          origem?: string | null
           outras_despesas?: number | null
+          pdf_gerado?: boolean | null
+          peso_bruto?: number | null
+          peso_liquido?: number | null
           pis_valor?: number | null
+          protocolo_autorizacao?: string | null
+          quantidade_volumes?: number | null
+          recibo?: string | null
           serie?: string | null
           status?: string | null
+          status_sefaz?: string | null
           tipo?: string | null
           tipo_operacao?: string | null
+          transportadora_id?: string | null
           updated_at?: string
+          usuario_criacao_id?: string | null
+          usuario_ultima_modificacao_id?: string | null
+          valor_produtos?: number | null
+          valor_seguro?: number | null
           valor_total?: number | null
+          xml_gerado?: boolean | null
         }
         Relationships: [
           {
@@ -1437,12 +1621,24 @@ export type Database = {
       }
       notas_fiscais_itens: {
         Row: {
+          base_cofins: number | null
+          base_ipi: number | null
+          base_pis: number | null
+          base_st: number | null
+          cest: string | null
           cfop: string | null
+          codigo_produto: string | null
           cofins_aliquota: number | null
           cofins_valor: number | null
           created_at: string
+          csosn: string | null
           cst: string | null
+          cst_cofins: string | null
+          cst_ipi: string | null
+          cst_pis: string | null
+          desconto: number | null
           descricao: string | null
+          frete_rateado: number | null
           icms_aliquota: number | null
           icms_base: number | null
           icms_valor: number | null
@@ -1451,21 +1647,39 @@ export type Database = {
           ipi_valor: number | null
           ncm: string | null
           nota_fiscal_id: string
+          observacoes: string | null
+          origem_mercadoria: string | null
+          outras_despesas_rateadas: number | null
           pis_aliquota: number | null
           pis_valor: number | null
           produto_id: string | null
           quantidade: number | null
+          seguro_rateado: number | null
           unidade: string | null
+          unidade_tributavel: string | null
+          valor_st: number | null
           valor_total: number | null
           valor_unitario: number | null
         }
         Insert: {
+          base_cofins?: number | null
+          base_ipi?: number | null
+          base_pis?: number | null
+          base_st?: number | null
+          cest?: string | null
           cfop?: string | null
+          codigo_produto?: string | null
           cofins_aliquota?: number | null
           cofins_valor?: number | null
           created_at?: string
+          csosn?: string | null
           cst?: string | null
+          cst_cofins?: string | null
+          cst_ipi?: string | null
+          cst_pis?: string | null
+          desconto?: number | null
           descricao?: string | null
+          frete_rateado?: number | null
           icms_aliquota?: number | null
           icms_base?: number | null
           icms_valor?: number | null
@@ -1474,21 +1688,39 @@ export type Database = {
           ipi_valor?: number | null
           ncm?: string | null
           nota_fiscal_id: string
+          observacoes?: string | null
+          origem_mercadoria?: string | null
+          outras_despesas_rateadas?: number | null
           pis_aliquota?: number | null
           pis_valor?: number | null
           produto_id?: string | null
           quantidade?: number | null
+          seguro_rateado?: number | null
           unidade?: string | null
+          unidade_tributavel?: string | null
+          valor_st?: number | null
           valor_total?: number | null
           valor_unitario?: number | null
         }
         Update: {
+          base_cofins?: number | null
+          base_ipi?: number | null
+          base_pis?: number | null
+          base_st?: number | null
+          cest?: string | null
           cfop?: string | null
+          codigo_produto?: string | null
           cofins_aliquota?: number | null
           cofins_valor?: number | null
           created_at?: string
+          csosn?: string | null
           cst?: string | null
+          cst_cofins?: string | null
+          cst_ipi?: string | null
+          cst_pis?: string | null
+          desconto?: number | null
           descricao?: string | null
+          frete_rateado?: number | null
           icms_aliquota?: number | null
           icms_base?: number | null
           icms_valor?: number | null
@@ -1497,11 +1729,17 @@ export type Database = {
           ipi_valor?: number | null
           ncm?: string | null
           nota_fiscal_id?: string
+          observacoes?: string | null
+          origem_mercadoria?: string | null
+          outras_despesas_rateadas?: number | null
           pis_aliquota?: number | null
           pis_valor?: number | null
           produto_id?: string | null
           quantidade?: number | null
+          seguro_rateado?: number | null
           unidade?: string | null
+          unidade_tributavel?: string | null
+          valor_st?: number | null
           valor_total?: number | null
           valor_unitario?: number | null
         }
@@ -2072,6 +2310,7 @@ export type Database = {
       produtos: {
         Row: {
           ativo: boolean
+          cest: string | null
           cfop_padrao: string | null
           codigo_interno: string | null
           created_at: string
@@ -2083,19 +2322,25 @@ export type Database = {
           estoque_minimo: number | null
           estoque_reservado: number | null
           grupo_id: string | null
+          gtin: string | null
           id: string
           ncm: string | null
           nome: string
+          origem_mercadoria: string | null
           peso: number | null
+          peso_bruto: number | null
+          peso_liquido: number | null
           ponto_reposicao: number | null
           preco_custo: number | null
           preco_venda: number | null
           sku: string | null
           unidade_medida: string | null
+          unidade_tributavel: string | null
           updated_at: string
         }
         Insert: {
           ativo?: boolean
+          cest?: string | null
           cfop_padrao?: string | null
           codigo_interno?: string | null
           created_at?: string
@@ -2107,19 +2352,25 @@ export type Database = {
           estoque_minimo?: number | null
           estoque_reservado?: number | null
           grupo_id?: string | null
+          gtin?: string | null
           id?: string
           ncm?: string | null
           nome: string
+          origem_mercadoria?: string | null
           peso?: number | null
+          peso_bruto?: number | null
+          peso_liquido?: number | null
           ponto_reposicao?: number | null
           preco_custo?: number | null
           preco_venda?: number | null
           sku?: string | null
           unidade_medida?: string | null
+          unidade_tributavel?: string | null
           updated_at?: string
         }
         Update: {
           ativo?: boolean
+          cest?: string | null
           cfop_padrao?: string | null
           codigo_interno?: string | null
           created_at?: string
@@ -2131,15 +2382,20 @@ export type Database = {
           estoque_minimo?: number | null
           estoque_reservado?: number | null
           grupo_id?: string | null
+          gtin?: string | null
           id?: string
           ncm?: string | null
           nome?: string
+          origem_mercadoria?: string | null
           peso?: number | null
+          peso_bruto?: number | null
+          peso_liquido?: number | null
           ponto_reposicao?: number | null
           preco_custo?: number | null
           preco_venda?: number | null
           sku?: string | null
           unidade_medida?: string | null
+          unidade_tributavel?: string | null
           updated_at?: string
         }
         Relationships: [
