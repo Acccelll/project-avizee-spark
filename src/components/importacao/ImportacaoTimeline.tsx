@@ -8,7 +8,7 @@ export interface ImportLog {
   nivel: "info" | "warning" | "error";
   etapa: string;
   mensagem: string;
-  criado_em: string;
+  created_at: string;
 }
 
 interface ImportacaoTimelineProps {
@@ -44,7 +44,7 @@ export function ImportacaoTimeline({ logs }: ImportacaoTimelineProps) {
               </span>
               <span className="text-[10px] text-muted-foreground">•</span>
               <span className="text-[10px] text-muted-foreground">
-                {format(new Date(log.criado_em), "HH:mm:ss", { locale: ptBR })}
+                {format(new Date(log.created_at), "HH:mm:ss", { locale: ptBR })}
               </span>
             </div>
             <p className="text-xs text-foreground font-medium leading-relaxed">

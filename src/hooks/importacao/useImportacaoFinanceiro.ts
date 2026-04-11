@@ -70,12 +70,28 @@ export function useImportacaoFinanceiro() {
     setIsProcessing(true);
 
     try {
-      const { data: clientes } = await supabase.from("clientes").select("id, nome_razao_social, cpf_cnpj");
-      const { data: fornecedores } = await supabase.from("fornecedores").select("id, nome_razao_social, cpf_cnpj");
+      // Build lookup maps: by codigo_legado, by cpf_cnpj (stripped), by name
+      const { data: clientes } = await supabase
+        .from("clientes")
+        .select("id, nome_razao_social, cpf_cnpj, codigo_legado");
+      const { data: fornecedores } = await supabase
+        .from("fornecedores")
+        .select("id, nome_razao_social, cpf_cnpj, codigo_legado");
 
-      const entityMap = new Map<string, { id: string; type: "cliente" | "fornecedor" }>();
-      clientes?.forEach(c => entityMap.set(c.cpf_cnpj?.replace(/\D/g, "") ?? "", { id: c.id, type: "cliente" }));
-      fornecedores?.forEach(f => entityMap.set(f.cpf_cnpj?.replace(/\D/g, "") ?? "", { id: f.id, type: "fornecedor" }));
+      const entityByLegado = new Map<string, { id: string; type: "cliente" | "fornecedor" }>();
+      const entityByCpf = new Map<string, { id: string; type: "cliente" | "fornecedor" }>();
+      const entityByName = new Map<string, { id: string; type: "cliente" | "fornecedor" }>();
+
+      clientes?.forEach(c => {
+        if (c.codigo_legado) entityByLegado.set(c.codigo_legado, { id: c.id, type: "cliente" });
+        if (c.cpf_cnpj) entityByCpf.set(c.cpf_cnpj.replace(/\D/g, ""), { id: c.id, type: "cliente" });
+        entityByName.set(c.nome_razao_social.toUpperCase(), { id: c.id, type: "cliente" });
+      });
+      fornecedores?.forEach(f => {
+        if (f.codigo_legado) entityByLegado.set(f.codigo_legado, { id: f.id, type: "fornecedor" });
+        if (f.cpf_cnpj) entityByCpf.set(f.cpf_cnpj.replace(/\D/g, ""), { id: f.id, type: "fornecedor" });
+        entityByName.set(f.nome_razao_social.toUpperCase(), { id: f.id, type: "fornecedor" });
+      });
 
       const preview: PreviewFinanceiroRow[] = rawRows.map((row, index) => {
         const mappedRow: Record<string, unknown> = {};
@@ -84,21 +100,27 @@ export function useImportacaoFinanceiro() {
         });
 
         const validation = validateFinanceiroImport(mappedRow);
-        const cpfCnpj = String(mappedRow.cpf_cnpj || mappedRow["CPF/CNPJ"] || "").replace(/\D/g, "");
-        const entity = entityMap.get(cpfCnpj);
+        const nd = validation.normalizedData;
+
+        const cpfClean = nd.cpf_cnpj?.replace(/\D/g, "") || "";
+        const legado = nd.codigo_legado_pessoa || "";
+
+        // Priority: codigo_legado → cpf_cnpj → (not found)
+        let entity = (legado && entityByLegado.get(legado)) || (cpfClean && entityByCpf.get(cpfClean)) || null;
 
         if (entity) {
-          validation.normalizedData.entity_id = entity.id;
-          validation.normalizedData.entity_type = entity.type;
-        } else if (cpfCnpj) {
+          nd.entity_id = entity.id;
+          nd.entity_type = entity.type;
+        } else if (cpfClean || legado) {
           validation.warnings = validation.warnings || [];
-          validation.warnings.push(`Pessoa não encontrada (CPF/CNPJ: ${cpfCnpj})`);
+          validation.warnings.push(`Pessoa não encontrada (legado: ${legado || 'n/a'}, CPF/CNPJ: ${cpfClean || 'n/a'})`);
         }
 
         return {
-          ...validation.normalizedData,
+          ...nd,
           _valid: validation.valid,
           _errors: validation.errors,
+          _warnings: validation.warnings || [],
           _originalLine: index + 2,
           _originalRow: row,
         } as PreviewFinanceiroRow;
@@ -146,20 +168,38 @@ export function useImportacaoFinanceiro() {
       const currentLoteId = lote.id;
       setLoteId(currentLoteId);
 
-      // Insert valid records directly into financeiro_lancamentos
       if (validos.length > 0) {
-        const dataToInsert = validos.map(item => ({
-          tipo: item.tipo || "receber",
-          descricao: item.descricao,
-          valor: item.valor,
-          data_vencimento: item.data_vencimento,
-          status: "aberto",
-          cliente_id: item.entity_type === "cliente" ? item.entity_id : null,
-          fornecedor_id: item.entity_type === "fornecedor" ? item.entity_id : null,
-          observacoes: item.observacoes || "Carga inicial de saldo em aberto.",
-        }));
+        const dataToInsert = validos.map(item => {
+          // Map tipo CP/CR → pagar/receber (DB default is 'pagar')
+          const tipoDb = item.tipo === 'receber' ? 'receber' : 'pagar';
+          const isBaixado = item.status === 'baixado' && !!item.data_pagamento;
 
-        const { error: insError } = await supabase.from("financeiro_lancamentos").insert(dataToInsert);
+          return {
+            tipo: tipoDb,
+            descricao: item.descricao || item.titulo || 'Carga de saldo via migração',
+            valor: item.valor,
+            data_emissao: item.data_emissao || null,
+            data_vencimento: item.data_vencimento,
+            data_pagamento: isBaixado ? item.data_pagamento : null,
+            valor_pago: isBaixado ? (item.valor_pago ?? item.valor) : null,
+            status: isBaixado ? 'baixado' : 'aberto',
+            forma_pagamento: item.forma_pagamento || null,
+            banco: item.banco || null,
+            parcela_numero: item.parcela_numero || null,
+            parcela_total: item.parcela_total || null,
+            cliente_id: item.entity_type === "cliente" ? item.entity_id : null,
+            fornecedor_id: item.entity_type === "fornecedor" ? item.entity_id : null,
+            observacoes: [
+              item.observacoes,
+              item.titulo ? `Doc: ${item.titulo}` : null,
+              `Migração lote ${currentLoteId}`,
+            ].filter(Boolean).join(' | '),
+          };
+        });
+
+        const { error: insError } = await supabase
+          .from("financeiro_lancamentos")
+          .insert(dataToInsert);
         if (insError) throw insError;
       }
 
@@ -171,7 +211,11 @@ export function useImportacaoFinanceiro() {
         })
         .eq("id", currentLoteId);
 
-      toast.success(`${validos.length} títulos financeiros importados.`);
+      const baixados = validos.filter(i => i.status === 'baixado').length;
+      const abertos = validos.length - baixados;
+      toast.success(
+        `${validos.length} títulos importados (${abertos} em aberto, ${baixados} baixados).`
+      );
       return currentLoteId;
 
     } catch (error: unknown) {
@@ -205,3 +249,4 @@ export function useImportacaoFinanceiro() {
     loteId
   };
 }
+

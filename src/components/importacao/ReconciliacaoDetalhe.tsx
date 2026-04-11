@@ -45,7 +45,7 @@ export function ReconciliacaoDetalhe({ lote, isOpen, onClose }: ReconciliacaoDet
       ...errorLogs.map(l => [
         `"${l.etapa}"`,
         `"${l.mensagem.replace(/"/g, '""')}"`,
-        `"${l.criado_em}"`
+        `"${l.created_at}"`
       ].join(","))
     ].join("\n");
 
@@ -58,10 +58,10 @@ export function ReconciliacaoDetalhe({ lote, isOpen, onClose }: ReconciliacaoDet
   };
 
   const metrics = [
-    { label: "Lidos", value: lote.total_lidos, color: "text-blue-600" },
-    { label: "Válidos", value: lote.total_validos, color: "text-emerald-600" },
-    { label: "Com Erro", value: lote.total_erros, color: "text-rose-600" },
-    { label: "Importados", value: lote.total_importados, color: "text-blue-700" },
+    { label: "Lidos", value: lote.total_registros, color: "text-blue-600" },
+    { label: "Válidos", value: lote.registros_sucesso, color: "text-emerald-600" },
+    { label: "Com Erro", value: lote.registros_erro, color: "text-rose-600" },
+    { label: "Importados", value: lote.registros_sucesso, color: "text-blue-700" },
   ];
 
   return (

@@ -23,14 +23,18 @@ import { cn } from "@/lib/utils";
 
 export interface ImportacaoLote {
   id: string;
-  tipo_importacao: string;
+  /** Tipo do lote de importação (campo real: tipo) */
+  tipo: string;
   status: string;
   arquivo_nome: string;
-  total_lidos: number;
-  total_validos: number;
-  total_erros: number;
-  total_importados: number;
-  criado_em: string;
+  /** Total de registros lidos do arquivo (campo real: total_registros) */
+  total_registros: number;
+  /** Registros importados com sucesso (campo real: registros_sucesso) */
+  registros_sucesso: number;
+  /** Registros com erro (campo real: registros_erro) */
+  registros_erro: number;
+  erros: unknown;
+  created_at: string;
 }
 
 interface ImportacaoLotesTableProps {
@@ -81,19 +85,19 @@ export function ImportacaoLotesTable({ lotes, isLoading, onView, onImport, onDel
           {lotes.map((lote) => (
             <TableRow key={lote.id} className="hover:bg-muted/30 transition-colors">
               <TableCell className="font-medium whitespace-nowrap">
-                {format(new Date(lote.criado_em), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                {format(new Date(lote.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
               </TableCell>
-              <TableCell className="capitalize">{lote.tipo_importacao.replace('_', ' ')}</TableCell>
+              <TableCell className="capitalize">{lote.tipo.replace(/_/g, ' ')}</TableCell>
               <TableCell className="max-w-[200px] truncate" title={lote.arquivo_nome}>
                 {lote.arquivo_nome}
               </TableCell>
               <TableCell className={cn((lote.status === 'concluido' || lote.status === 'cancelado') && "opacity-50")}>
                 <ImportacaoStatusBadge status={lote.status} />
               </TableCell>
-              <TableCell className="text-center font-semibold">{lote.total_lidos}</TableCell>
-              <TableCell className="text-center font-semibold text-emerald-600">{lote.total_validos}</TableCell>
-              <TableCell className="text-center font-semibold text-rose-600">{lote.total_erros}</TableCell>
-              <TableCell className="text-center font-semibold text-blue-600">{lote.total_importados}</TableCell>
+              <TableCell className="text-center font-semibold">{lote.total_registros}</TableCell>
+              <TableCell className="text-center font-semibold text-emerald-600">{lote.registros_sucesso}</TableCell>
+              <TableCell className="text-center font-semibold text-rose-600">{lote.registros_erro}</TableCell>
+              <TableCell className="text-center font-semibold text-blue-600">{lote.registros_sucesso}</TableCell>
               <TableCell className="text-right">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
