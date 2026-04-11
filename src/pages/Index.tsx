@@ -114,6 +114,8 @@ const DashboardContent = () => {
   const [dailyReceber, setDailyReceber] = useState<{ dia: string; valor: number }[]>([]);
   const [dailyPagar, setDailyPagar] = useState<{ dia: string; valor: number }[]>([]);
   const [dailyVendas, setDailyVendas] = useState<{ dia: string; valor: number }[]>([]);
+  const [valorEstoque, setValorEstoque] = useState(0);
+  const [remessasAtrasadas, setRemessasAtrasadas] = useState(0);
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
@@ -421,6 +423,29 @@ const DashboardContent = () => {
           }
           setDailyVendas(lastDays.map((d) => ({ dia: fmt(d), valor: map.get(d) ?? 0 })));
         });
+
+      // Valor total em estoque: SUM(estoque_atual * preco_custo) for active products
+      supabase
+        .from("produtos")
+        .select("estoque_atual, preco_custo")
+        .eq("ativo", true)
+        .then(({ data: estoqueData }) => {
+          if (!estoqueData) return;
+          const total = (estoqueData as any[]).reduce((s, p) => {
+            return s + (Number(p.estoque_atual ?? 0) * Number(p.preco_custo ?? 0));
+          }, 0);
+          setValorEstoque(total);
+        });
+
+      // Remessas atrasadas: past previsao_entrega and not terminal status
+      supabase
+        .from("remessas")
+        .select("id", { count: "exact", head: true })
+        .lt("previsao_entrega", today)
+        .not("status_transporte", "in", '("entregue","cancelado")')
+        .then(({ count }) => {
+          setRemessasAtrasadas(count ?? 0);
+        });
     } catch (err) {
       console.error("[dashboard] erro ao carregar dados:", err);
       toast.error("Erro ao carregar dados do dashboard. Tente novamente.");
@@ -610,7 +635,7 @@ const DashboardContent = () => {
             <AlertStrip
               titulosVencidos={stats.contasVencidas}
               estoqueBaixo={estoqueBaixo.length}
-              remessasAtrasadas={0}
+              remessasAtrasadas={remessasAtrasadas}
               comprasAguardando={comprasAguardando.filter((c) => {
                 if (!c.data_entrega_prevista) return false;
                 return new Date(c.data_entrega_prevista) < new Date();
@@ -695,7 +720,7 @@ const DashboardContent = () => {
             <BlockErrorBoundary label="Estoque">
               <EstoqueBlock
                 itensBaixoMinimo={estoqueBaixo}
-                valorTotalEstoque={0}
+                valorTotalEstoque={valorEstoque}
                 totalProdutosAtivos={stats.produtos}
               />
             </BlockErrorBoundary>
@@ -708,7 +733,7 @@ const DashboardContent = () => {
             <BlockErrorBoundary label="Logística">
               <LogisticaBlock
                 comprasAguardando={comprasAguardando}
-                totalRemessasAtrasadas={0}
+                totalRemessasAtrasadas={remessasAtrasadas}
               />
             </BlockErrorBoundary>
           </LazyInViewWidget>
