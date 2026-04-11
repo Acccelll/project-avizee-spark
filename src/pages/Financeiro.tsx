@@ -33,27 +33,7 @@ import { FinanceiroDrawer } from "@/components/financeiro/FinanceiroDrawer";
 import { getEffectiveStatus, processarEstorno } from "@/services/financeiro.service";
 import { statusFinanceiro as statusFinanceiroSchema, statusToOptions } from "@/lib/statusSchema";
 import { exportarParaExcel, exportarParaPdf } from "@/services/export.service";
-
-interface Lancamento {
-  id: string; tipo: string; descricao: string; valor: number;
-  data_vencimento: string; data_pagamento: string; status: string;
-  forma_pagamento: string; banco: string; cartao: string;
-  cliente_id: string; fornecedor_id: string; nota_fiscal_id: string;
-  conta_bancaria_id: string; conta_contabil_id: string;
-  parcela_numero: number; parcela_total: number;
-  documento_pai_id: string; saldo_restante: number | null;
-  observacoes: string; ativo: boolean;
-  created_at?: string;
-  clientes?: { nome_razao_social: string }; fornecedores?: { nome_razao_social: string };
-  contas_bancarias?: { descricao: string; bancos?: { nome: string } };
-  contas_contabeis?: { codigo: string; descricao: string };
-}
-
-interface ContaBancaria {
-  id: string; descricao: string; banco_id: string;
-  agencia: string; conta: string; titular: string; saldo_atual: number; ativo: boolean;
-  bancos?: { nome: string };
-}
+import type { Lancamento, ContaBancaria } from "@/types/domain";
 
 interface ContaContabil {
   id: string;

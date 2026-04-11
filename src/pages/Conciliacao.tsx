@@ -28,26 +28,7 @@ import {
 } from "@/services/financeiro/conciliacao.service";
 import type { TransacaoExtrato } from "@/services/financeiro/ofxParser.service";
 import { exportarParaExcel } from "@/services/export.service";
-
-interface ContaBancaria {
-  id: string;
-  nome: string;
-  banco?: string;
-}
-
-interface Lancamento {
-  id: string;
-  descricao: string;
-  valor: number;
-  data_vencimento: string;
-  tipo: string;
-  status: string;
-  nota_fiscal_id?: string | null;
-  documento_pai_id?: string | null;
-  conta_bancaria_id?: string | null;
-  forma_pagamento?: string | null;
-  contas_bancarias?: { descricao: string; bancos?: { nome: string } } | null;
-}
+import type { Lancamento, ContaBancaria } from "@/types/domain";
 
 interface LancamentoComStatus extends Lancamento {
   statusConciliacao: string;

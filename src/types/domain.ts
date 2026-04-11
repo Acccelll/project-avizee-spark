@@ -92,6 +92,12 @@ export type LancamentoFinanceiro = TableRow<"financeiro_lancamentos"> & {
   contas_contabeis?: { codigo: string; descricao: string } | null;
 };
 
+/**
+ * Alias re-exported for backward compatibility with local `Lancamento` types
+ * used in Financeiro.tsx, FluxoCaixa.tsx, and Conciliacao.tsx.
+ */
+export type Lancamento = LancamentoFinanceiro;
+
 export type BaixaFinanceira = TableRow<"financeiro_baixas"> & {
   contas_bancarias?: { descricao: string } | null;
 };

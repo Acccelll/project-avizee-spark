@@ -22,6 +22,7 @@ import { LogisticaBlock } from "@/components/dashboard/LogisticaBlock";
 import { FiscalBlock } from "@/components/dashboard/FiscalBlock";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { PendenciasList } from "@/components/dashboard/PendenciasList";
+import { BlockErrorBoundary } from "@/components/dashboard/BlockErrorBoundary";
 import { ViewDrawerV2 } from "@/components/ViewDrawerV2";
 import { useAuth } from "@/contexts/AuthContext";
 import { DashboardPeriodProvider, useDashboardPeriod } from "@/contexts/DashboardPeriodContext";
@@ -108,6 +109,8 @@ const DashboardContent = () => {
   const [estoqueBaixo, setEstoqueBaixo] = useState<any[]>([]);
   const [fiscalStats, setFiscalStats] = useState({ emitidas: 0, pendentes: 0, canceladas: 0, valorEmitidas: 0 });
   const [vencimentosHoje, setVencimentosHoje] = useState({ receber: 0, pagar: 0 });
+  const [topClientes, setTopClientes] = useState<{ nome: string; valor: number }[]>([]);
+  const [topProdutos, setTopProdutos] = useState<{ nome: string; valor: number }[]>([]);
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
@@ -293,6 +296,56 @@ const DashboardContent = () => {
       );
       setVencimentosHoje({ receber: receberHoje || 0, pagar: pagarHoje || 0 });
       setLoadedAt(new Date());
+
+      // Load top-5 clients by open receivables (fire & forget — non-critical)
+      supabase
+        .from("financeiro_lancamentos")
+        .select("valor, saldo_restante, status, clientes(nome_razao_social)")
+        .eq("tipo", "receber")
+        .eq("ativo", true)
+        .in("status", ["aberto", "vencido", "parcial"])
+        .then(({ data: recData }) => {
+          if (!recData) return;
+          const map = new Map<string, number>();
+          for (const r of recData as any[]) {
+            const nome: string = r.clientes?.nome_razao_social ?? "Sem cliente";
+            const val = r.status === "parcial"
+              ? Number(r.saldo_restante ?? r.valor ?? 0)
+              : Number(r.valor ?? 0);
+            map.set(nome, (map.get(nome) ?? 0) + val);
+          }
+          const sorted = [...map.entries()]
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5)
+            .map(([nome, valor]) => ({ nome, valor }));
+          setTopClientes(sorted);
+        });
+
+      // Load top-5 products by NF-e sales this month (fire & forget — non-critical)
+      const inicioMes = (() => {
+        const now = new Date();
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+      })();
+      supabase
+        .from("notas_fiscais_itens")
+        .select("quantidade, valor_unitario, produtos(nome), notas_fiscais!inner(status, tipo, data_emissao)")
+        .eq("notas_fiscais.status", "confirmada" as any)
+        .eq("notas_fiscais.tipo", "saida" as any)
+        .gte("notas_fiscais.data_emissao", inicioMes as any)
+        .then(({ data: itemData }) => {
+          if (!itemData) return;
+          const map = new Map<string, number>();
+          for (const it of itemData as any[]) {
+            const nome: string = it.produtos?.nome ?? "Sem produto";
+            const val = Number(it.quantidade ?? 0) * Number(it.valor_unitario ?? 0);
+            map.set(nome, (map.get(nome) ?? 0) + val);
+          }
+          const sorted = [...map.entries()]
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5)
+            .map(([nome, valor]) => ({ nome, valor }));
+          setTopProdutos(sorted);
+        });
     } catch (err) {
       console.error("[dashboard] erro ao carregar dados:", err);
       toast.error("Erro ao carregar dados do dashboard. Tente novamente.");
@@ -370,13 +423,11 @@ const DashboardContent = () => {
   const detailData = {
     receber: {
       title: "Total a Receber",
-      // Breakdown by client requires additional queries not yet loaded — shown as aggregate only
       daily: [] as { dia: string; valor: number }[],
-      top: [] as { nome: string; valor: number }[],
+      top: topClientes,
     },
     estoque: {
       title: "Estoque Crítico",
-      // Real products below minimum stock
       daily: [] as { dia: string; valor: number }[],
       top: estoqueBaixo.slice(0, 5).map((p: any) => ({
         nome: p.codigo_interno ? `${p.codigo_interno} – ${p.nome}` : p.nome,
@@ -385,11 +436,10 @@ const DashboardContent = () => {
     },
     vendas: {
       title: "Vendas do Mês",
-      // Per-product breakdown requires additional queries not yet loaded — shown as aggregate only
       daily: [] as { dia: string; valor: number }[],
-      top: [] as { nome: string; valor: number }[],
+      top: topProdutos,
     },
-  } as const;
+  };
 
   if (loading) {
     return (
@@ -494,21 +544,25 @@ const DashboardContent = () => {
         {/* Financeiro */}
         <div key="financeiro">
           <W>
-            <FinanceiroBlock
-              totalReceber={stats.totalReceber}
-              totalPagar={stats.totalPagar}
-              contasVencidas={stats.contasVencidas}
-              saldoProjetado={saldoProjetado}
-              recebimentosHoje={vencimentosHoje.receber}
-              pagamentosHoje={vencimentosHoje.pagar}
-            />
+            <BlockErrorBoundary label="Financeiro">
+              <FinanceiroBlock
+                totalReceber={stats.totalReceber}
+                totalPagar={stats.totalPagar}
+                contasVencidas={stats.contasVencidas}
+                saldoProjetado={saldoProjetado}
+                recebimentosHoje={vencimentosHoje.receber}
+                pagamentosHoje={vencimentosHoje.pagar}
+              />
+            </BlockErrorBoundary>
           </W>
         </div>
 
         {/* Ações rápidas */}
         <div key="acoes_rapidas">
           <W>
-            <QuickActions />
+            <BlockErrorBoundary label="Ações Rápidas">
+              <QuickActions />
+            </BlockErrorBoundary>
           </W>
         </div>
 
@@ -516,13 +570,15 @@ const DashboardContent = () => {
         <div key="vendas_chart">
           <LazyInViewWidget fallback={<Skeleton className="h-full w-full" />}>
             <div className="bg-card rounded-xl border p-4 h-full">
-              <Suspense fallback={<Skeleton className="h-full w-full" />}>
-                <VendasChart
-                  onBarClick={(start, end) =>
-                    navigate(`/relatorios?tipo=vendas&di=${start}&df=${end}`)
-                  }
-                />
-              </Suspense>
+              <BlockErrorBoundary label="Gráfico de Vendas">
+                <Suspense fallback={<Skeleton className="h-full w-full" />}>
+                  <VendasChart
+                    onBarClick={(start, end) =>
+                      navigate(`/relatorios?tipo=vendas&di=${start}&df=${end}`)
+                    }
+                  />
+                </Suspense>
+              </BlockErrorBoundary>
             </div>
           </LazyInViewWidget>
         </div>
@@ -531,7 +587,9 @@ const DashboardContent = () => {
         <div key="pendencias">
           <W>
             <div className="bg-card rounded-xl border p-4 h-full">
-              <PendenciasList />
+              <BlockErrorBoundary label="Pendências">
+                <PendenciasList />
+              </BlockErrorBoundary>
             </div>
           </W>
         </div>
@@ -539,41 +597,49 @@ const DashboardContent = () => {
         {/* Comercial */}
         <div key="comercial">
           <W>
-            <ComercialBlock
-              cotacoesAbertas={stats.orcamentos}
-              pedidosPendentes={backlogOVs.length}
-              ticketMedio={ticketMedio}
-              recentOrcamentos={recentOrcamentos}
-              loading={loading}
-            />
+            <BlockErrorBoundary label="Comercial">
+              <ComercialBlock
+                cotacoesAbertas={stats.orcamentos}
+                pedidosPendentes={backlogOVs.length}
+                ticketMedio={ticketMedio}
+                recentOrcamentos={recentOrcamentos}
+                loading={loading}
+              />
+            </BlockErrorBoundary>
           </W>
         </div>
 
         {/* Estoque */}
         <div key="estoque">
           <W>
-            <EstoqueBlock
-              itensBaixoMinimo={estoqueBaixo}
-              valorTotalEstoque={0}
-              totalProdutosAtivos={stats.produtos}
-            />
+            <BlockErrorBoundary label="Estoque">
+              <EstoqueBlock
+                itensBaixoMinimo={estoqueBaixo}
+                valorTotalEstoque={0}
+                totalProdutosAtivos={stats.produtos}
+              />
+            </BlockErrorBoundary>
           </W>
         </div>
 
         {/* Logística */}
         <div key="logistica">
           <LazyInViewWidget fallback={<Skeleton className="h-full w-full" />}>
-            <LogisticaBlock
-              comprasAguardando={comprasAguardando}
-              totalRemessasAtrasadas={0}
-            />
+            <BlockErrorBoundary label="Logística">
+              <LogisticaBlock
+                comprasAguardando={comprasAguardando}
+                totalRemessasAtrasadas={0}
+              />
+            </BlockErrorBoundary>
           </LazyInViewWidget>
         </div>
 
         {/* Fiscal */}
         <div key="fiscal">
           <LazyInViewWidget fallback={<Skeleton className="h-full w-full" />}>
-            <FiscalBlock stats={fiscalStats} />
+            <BlockErrorBoundary label="Fiscal">
+              <FiscalBlock stats={fiscalStats} />
+            </BlockErrorBoundary>
           </LazyInViewWidget>
         </div>
       </RGL>
