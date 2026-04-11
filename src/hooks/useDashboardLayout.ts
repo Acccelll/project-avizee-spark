@@ -23,16 +23,16 @@ export type WidgetId =
   | 'pendencias';
 
 export const DEFAULT_LAYOUT: DashboardLayoutItem[] = [
-  { i: 'kpis', x: 0, y: 0, w: 12, h: 3, minW: 6, minH: 2 },
+  { i: 'kpis', x: 0, y: 0, w: 12, h: 3, minW: 6, minH: 1 },
   { i: 'alertas', x: 0, y: 3, w: 12, h: 2, minW: 6, minH: 1 },
-  { i: 'financeiro', x: 0, y: 5, w: 8, h: 5, minW: 4, minH: 2 },
-  { i: 'acoes_rapidas', x: 8, y: 5, w: 4, h: 5, minW: 3, minH: 2 },
-  { i: 'vendas_chart', x: 0, y: 10, w: 6, h: 5, minW: 4, minH: 2 },
-  { i: 'pendencias', x: 6, y: 10, w: 6, h: 5, minW: 4, minH: 2 },
-  { i: 'comercial', x: 0, y: 15, w: 6, h: 6, minW: 4, minH: 2 },
-  { i: 'estoque', x: 6, y: 15, w: 6, h: 6, minW: 4, minH: 2 },
-  { i: 'logistica', x: 0, y: 21, w: 6, h: 5, minW: 4, minH: 2 },
-  { i: 'fiscal', x: 6, y: 21, w: 6, h: 5, minW: 4, minH: 2 },
+  { i: 'financeiro', x: 0, y: 5, w: 8, h: 5, minW: 4, minH: 1 },
+  { i: 'acoes_rapidas', x: 8, y: 5, w: 4, h: 5, minW: 3, minH: 1 },
+  { i: 'vendas_chart', x: 0, y: 10, w: 6, h: 5, minW: 4, minH: 1 },
+  { i: 'pendencias', x: 6, y: 10, w: 6, h: 5, minW: 4, minH: 1 },
+  { i: 'comercial', x: 0, y: 15, w: 6, h: 6, minW: 4, minH: 1 },
+  { i: 'estoque', x: 6, y: 15, w: 6, h: 6, minW: 4, minH: 1 },
+  { i: 'logistica', x: 0, y: 21, w: 6, h: 5, minW: 4, minH: 1 },
+  { i: 'fiscal', x: 6, y: 21, w: 6, h: 5, minW: 4, minH: 1 },
 ];
 
 const STORAGE_KEY_PREFIX = 'avizee:dashboard-layout:';
