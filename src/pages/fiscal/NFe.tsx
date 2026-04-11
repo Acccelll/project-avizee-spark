@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Plus, Search } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
+import { Plus, Search, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -22,19 +23,79 @@ import { NFeForm } from "./components/NFeForm";
 import { SefazRetornoModal } from "./components/SefazRetornoModal";
 import { useNFe, useNFeMutation } from "./hooks/useNFe";
 import { useSefazAutorizacao } from "./hooks/useSefazAutorizacao";
+import { exportarParaExcel, exportarParaPdf } from "@/services/export.service";
 import type { NFeFormData } from "./components/NFeForm/schema";
 import type { AutorizacaoResult } from "@/services/fiscal/sefaz";
 
 export default function NFe() {
-  const [search, setSearch] = useState("");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const search = searchParams.get("search") ?? "";
+  const statusFiltro = searchParams.get("status") ?? "";
+  const dataInicio = searchParams.get("data_inicio") ?? "";
+  const dataFim = searchParams.get("data_fim") ?? "";
+
   const [formAberto, setFormAberto] = useState(false);
   const [retorno, setRetorno] = useState<AutorizacaoResult | null>(null);
 
-  const { data: nfes, isLoading } = useNFe({ search });
+  const { data: nfes, isLoading } = useNFe({ search, status: statusFiltro || undefined, dataInicio: dataInicio || undefined, dataFim: dataFim || undefined });
   const { criar } = useNFeMutation();
   const autorizacao = useSefazAutorizacao({
     onSucesso: (result) => setRetorno(result),
   });
+
+  function setSearch(value: string) {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (value) next.set("search", value); else next.delete("search");
+      return next;
+    }, { replace: true });
+  }
+
+  function setStatus(value: string) {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (value) next.set("status", value); else next.delete("status");
+      return next;
+    }, { replace: true });
+  }
+
+  function setDataInicio(value: string) {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (value) next.set("data_inicio", value); else next.delete("data_inicio");
+      return next;
+    }, { replace: true });
+  }
+
+  function setDataFim(value: string) {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (value) next.set("data_fim", value); else next.delete("data_fim");
+      return next;
+    }, { replace: true });
+  }
+
+  async function handleExportarExcel() {
+    const rows = (nfes ?? []).map((nf) => ({
+      Número: nf.numero ?? "",
+      Série: nf.serie ?? "",
+      "Data Emissão": nf.data_emissao ?? "",
+      "Valor Total": nf.valor_total ?? 0,
+      Status: nf.status ?? "",
+    }));
+    await exportarParaExcel({ titulo: "NF-e", rows });
+  }
+
+  async function handleExportarPdf() {
+    const rows = (nfes ?? []).map((nf) => ({
+      Número: nf.numero ?? "",
+      Série: nf.serie ?? "",
+      "Data Emissão": nf.data_emissao ?? "",
+      "Valor Total": nf.valor_total ?? 0,
+      Status: nf.status ?? "",
+    }));
+    await exportarParaPdf({ titulo: "NF-e", rows });
+  }
 
   function handleSubmit(data: NFeFormData) {
     criar.mutate(
@@ -72,13 +133,23 @@ export default function NFe() {
 
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Nota Fiscal Eletrônica (NF-e)</h1>
-        <Button onClick={() => setFormAberto(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Nova NF-e
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleExportarExcel}>
+            <Download className="mr-2 h-4 w-4" />
+            Exportar Excel
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleExportarPdf}>
+            <Download className="mr-2 h-4 w-4" />
+            Exportar PDF
+          </Button>
+          <Button onClick={() => setFormAberto(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Nova NF-e
+          </Button>
+        </div>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <Search className="h-4 w-4 text-muted-foreground" />
         <Input
           placeholder="Buscar por número..."
@@ -86,6 +157,31 @@ export default function NFe() {
           onChange={(e) => setSearch(e.target.value)}
           className="max-w-sm"
         />
+        <Input
+          type="date"
+          value={dataInicio}
+          onChange={(e) => setDataInicio(e.target.value)}
+          className="w-40"
+          placeholder="Data início"
+        />
+        <Input
+          type="date"
+          value={dataFim}
+          onChange={(e) => setDataFim(e.target.value)}
+          className="w-40"
+          placeholder="Data fim"
+        />
+        <select
+          value={statusFiltro}
+          onChange={(e) => setStatus(e.target.value)}
+          className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+        >
+          <option value="">Todos os status</option>
+          <option value="rascunho">Rascunho</option>
+          <option value="autorizada">Autorizada</option>
+          <option value="cancelada">Cancelada</option>
+          <option value="rejeitada">Rejeitada</option>
+        </select>
       </div>
 
       <div className="rounded-md border">
