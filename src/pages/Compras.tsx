@@ -198,6 +198,8 @@ export default function Compras() {
           loading={loading}
           onView={openView}
           onEdit={openEdit}
+          emptyTitle={isCotacoesView ? "Nenhuma cotação encontrada" : "Nenhuma compra encontrada"}
+          emptyDescription="Tente ajustar os filtros ou registre uma nova compra."
         />
       </ModulePage>
 
