@@ -9,11 +9,11 @@ interface ReconciliacaoIndicadoresProps {
 
 export function ReconciliacaoIndicadores({ lotes }: ReconciliacaoIndicadoresProps) {
   const stats = lotes.reduce((acc, lote) => {
-    const type = lote.tipo_importacao;
+    const type = lote.tipo;
     if (!acc[type]) acc[type] = { count: 0, imported: 0, errors: 0, pending: 0 };
     acc[type].count++;
-    acc[type].imported += lote.total_importados || 0;
-    acc[type].errors += lote.total_erros || 0;
+    acc[type].imported += lote.registros_sucesso || 0;
+    acc[type].errors += lote.registros_erro || 0;
     if (lote.status === 'validado' || lote.status === 'parcial') acc[type].pending++;
     return acc;
   }, {} as Record<string, { count: number; imported: number; errors: number; pending: number }>);

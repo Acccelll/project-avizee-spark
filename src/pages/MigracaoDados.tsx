@@ -65,7 +65,7 @@ export default function MigracaoDados() {
   const { data: lotes, loading: loadingLotes, fetchData: refreshLotes } = useSupabaseCrud<ImportacaoLote>({
     table: "importacao_lotes",
     hasAtivo: false,
-    orderBy: "criado_em"
+    orderBy: "created_at"
   });
 
   const [activeImportSource, setActiveImportSource] = useState<ImportSource>("cadastros");
@@ -101,7 +101,7 @@ export default function MigracaoDados() {
 
   const filteredLotes = lotes.filter(lote => {
     const matchesSearch = lote.arquivo_nome?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesType = typeFilter === "todos" || lote.tipo_importacao === typeFilter;
+    const matchesType = typeFilter === "todos" || lote.tipo === typeFilter;
     const matchesStatus = statusFilter === "todos" || lote.status === statusFilter;
     return matchesSearch && matchesType && matchesStatus;
   });
@@ -117,14 +117,14 @@ export default function MigracaoDados() {
         nextAction?: string;
       };
     } => {
-      const typeLotes = lotes.filter(l => l.tipo_importacao === tipoImportacao);
+      const typeLotes = lotes.filter(l => l.tipo === tipoImportacao);
       if (typeLotes.length === 0) {
         return { cardStatus: "nunca_importado", summary: { totalBatches: 0, nextAction: "Iniciar importação" } };
       }
-      const sorted = [...typeLotes].sort((a, b) => new Date(b.criado_em).getTime() - new Date(a.criado_em).getTime());
+      const sorted = [...typeLotes].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
       const latest = sorted[0];
       const pendingCount = typeLotes.filter(l => l.status === 'validado' || l.status === 'parcial').length;
-      const lastDate = format(new Date(latest.criado_em), "dd/MM/yyyy", { locale: ptBR });
+      const lastDate = format(new Date(latest.created_at), "dd/MM/yyyy", { locale: ptBR });
 
       let cardStatus: CardImportStatus;
       let nextAction: string;
@@ -135,13 +135,13 @@ export default function MigracaoDados() {
       } else if (pendingCount > 0) {
         cardStatus = "pendente_conferencia";
         nextAction = "Conferir e confirmar lote pendente";
-      } else if (latest.status === 'concluido' && (latest.total_erros || 0) > 0) {
+      } else if (latest.status === 'concluido' && (latest.registros_erro || 0) > 0) {
         cardStatus = "concluido_com_alertas";
         nextAction = "Revisar alertas do lote concluído";
       } else if (latest.status === 'concluido') {
         cardStatus = "concluido";
         nextAction = "Verificar reconciliação";
-      } else if ((latest.total_erros || 0) > 0) {
+      } else if ((latest.registros_erro || 0) > 0) {
         cardStatus = "erro_recente";
         nextAction = "Revisar erros e reimportar";
       } else {
@@ -168,10 +168,10 @@ export default function MigracaoDados() {
 
   // Aggregate KPI metrics
   const kpiMetrics = useMemo(() => {
-    const totalRegistrosImportados = lotes.reduce((acc, l) => acc + (l.total_importados || 0), 0);
-    const totalRegistrosRejeitados = lotes.reduce((acc, l) => acc + (l.total_erros || 0), 0);
+    const totalRegistrosImportados = lotes.reduce((acc, l) => acc + (l.registros_sucesso || 0), 0);
+    const totalRegistrosRejeitados = lotes.reduce((acc, l) => acc + (l.registros_erro || 0), 0);
     const totalPendenciasConferencia = lotes.filter(l => l.status === 'validado' || l.status === 'parcial').length;
-    const totalConcluidosComAlertas = lotes.filter(l => l.status === 'concluido' && (l.total_erros || 0) > 0).length;
+    const totalConcluidosComAlertas = lotes.filter(l => l.status === 'concluido' && (l.registros_erro || 0) > 0).length;
     return { totalRegistrosImportados, totalRegistrosRejeitados, totalPendenciasConferencia, totalConcluidosComAlertas };
   }, [lotes]);
 
@@ -179,9 +179,9 @@ export default function MigracaoDados() {
   const nextMigrationStep = useMemo(() => {
     const baseTypes = ["produtos", "clientes", "fornecedores"];
     const allBaseDone = baseTypes.every(t =>
-      lotes.some(l => l.tipo_importacao === t && l.status === 'concluido')
+      lotes.some(l => l.tipo === t && l.status === 'concluido')
     );
-    if (!lotes.some(l => l.tipo_importacao === 'produtos' && l.status === 'concluido')) {
+    if (!lotes.some(l => l.tipo === 'produtos' && l.status === 'concluido')) {
       return "Inicie pelos Cadastros-base: importe Produtos, Clientes e Fornecedores primeiro.";
     }
     if (!allBaseDone) {
@@ -191,7 +191,7 @@ export default function MigracaoDados() {
     if (hasPendingConferencia) {
       return "Existem lotes pendentes de conferência. Revise antes de prosseguir com novas cargas.";
     }
-    if (!lotes.some(l => l.tipo_importacao === 'estoque_inicial' && l.status === 'concluido')) {
+    if (!lotes.some(l => l.tipo === 'estoque_inicial' && l.status === 'concluido')) {
       return "Cadastros concluídos. Próximo passo recomendado: Estoque Inicial e Financeiro em Aberto.";
     }
     return "Migração em andamento. Verifique a aba de Conferência & Reconciliação para acompanhar o progresso.";
@@ -333,7 +333,7 @@ export default function MigracaoDados() {
         <ImportacaoResumoCards
           totalBatches={lotes.length}
           totalProcessed={lotes.filter(l => l.status === 'concluido').length}
-          totalErrors={lotes.reduce((acc, curr) => acc + (curr.total_erros || 0), 0)}
+          totalErrors={lotes.reduce((acc, curr) => acc + (curr.registros_erro || 0), 0)}
           totalPending={lotes.filter(l => ['validado', 'parcial', 'processando'].includes(l.status)).length}
           totalRegistrosImportados={kpiMetrics.totalRegistrosImportados}
           totalRegistrosRejeitados={kpiMetrics.totalRegistrosRejeitados}
@@ -526,13 +526,13 @@ export default function MigracaoDados() {
               onImport={(id) => {
                  const lote = lotes.find(l => l.id === id);
                  if (lote) {
-                    if (lote.tipo_importacao === 'estoque_inicial') setActiveImportSource("estoque");
-                    else if (lote.tipo_importacao === 'compras_xml') setActiveImportSource("xml");
-                    else if (lote.tipo_importacao === 'faturamento') setActiveImportSource("faturamento");
-                    else if (lote.tipo_importacao === 'financeiro_aberto') setActiveImportSource("financeiro");
+                    if (lote.tipo === 'estoque_inicial') setActiveImportSource("estoque");
+                    else if (lote.tipo === 'compras_xml') setActiveImportSource("xml");
+                    else if (lote.tipo === 'faturamento') setActiveImportSource("faturamento");
+                    else if (lote.tipo === 'financeiro_aberto') setActiveImportSource("financeiro");
                     else {
                       setActiveImportSource("cadastros");
-                      setImportType(lote.tipo_importacao as ImportType);
+                      setImportType(lote.tipo as ImportType);
                     }
                  }
                  setCurrentLoteId(id);
@@ -585,13 +585,13 @@ export default function MigracaoDados() {
                   onImport={(id) => {
                     const lote = lotes.find(l => l.id === id);
                     if (lote) {
-                      if (lote.tipo_importacao === 'estoque_inicial') setActiveImportSource("estoque");
-                      else if (lote.tipo_importacao === 'compras_xml') setActiveImportSource("xml");
-                      else if (lote.tipo_importacao === 'faturamento') setActiveImportSource("faturamento");
-                      else if (lote.tipo_importacao === 'financeiro_aberto') setActiveImportSource("financeiro");
+                      if (lote.tipo === 'estoque_inicial') setActiveImportSource("estoque");
+                      else if (lote.tipo === 'compras_xml') setActiveImportSource("xml");
+                      else if (lote.tipo === 'faturamento') setActiveImportSource("faturamento");
+                      else if (lote.tipo === 'financeiro_aberto') setActiveImportSource("financeiro");
                       else {
                         setActiveImportSource("cadastros");
-                        setImportType(lote.tipo_importacao as ImportType);
+                        setImportType(lote.tipo as ImportType);
                       }
                     }
                     setCurrentLoteId(id);

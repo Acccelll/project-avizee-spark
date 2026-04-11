@@ -239,6 +239,7 @@ export type Database = {
           celular: string | null
           cep: string | null
           cidade: string | null
+          codigo_legado: string | null
           complemento: string | null
           contato: string | null
           cpf_cnpj: string | null
@@ -270,6 +271,7 @@ export type Database = {
           celular?: string | null
           cep?: string | null
           cidade?: string | null
+          codigo_legado?: string | null
           complemento?: string | null
           contato?: string | null
           cpf_cnpj?: string | null
@@ -301,6 +303,7 @@ export type Database = {
           celular?: string | null
           cep?: string | null
           cidade?: string | null
+          codigo_legado?: string | null
           complemento?: string | null
           contato?: string | null
           cpf_cnpj?: string | null
@@ -1221,6 +1224,7 @@ export type Database = {
           celular: string | null
           cep: string | null
           cidade: string | null
+          codigo_legado: string | null
           complemento: string | null
           contato: string | null
           cpf_cnpj: string | null
@@ -1246,6 +1250,7 @@ export type Database = {
           celular?: string | null
           cep?: string | null
           cidade?: string | null
+          codigo_legado?: string | null
           complemento?: string | null
           contato?: string | null
           cpf_cnpj?: string | null
@@ -1271,6 +1276,7 @@ export type Database = {
           celular?: string | null
           cep?: string | null
           cidade?: string | null
+          codigo_legado?: string | null
           complemento?: string | null
           contato?: string | null
           cpf_cnpj?: string | null
@@ -2542,6 +2548,7 @@ export type Database = {
           cest: string | null
           cfop_padrao: string | null
           codigo_interno: string | null
+          codigo_legado: string | null
           created_at: string
           cst: string | null
           descricao: string | null
@@ -2567,12 +2574,14 @@ export type Database = {
           unidade_medida: string | null
           unidade_tributavel: string | null
           updated_at: string
+          variacoes: Json | null
         }
         Insert: {
           ativo?: boolean
           cest?: string | null
           cfop_padrao?: string | null
           codigo_interno?: string | null
+          codigo_legado?: string | null
           created_at?: string
           cst?: string | null
           descricao?: string | null
@@ -2594,16 +2603,18 @@ export type Database = {
           preco_custo?: number | null
           preco_venda?: number | null
           sku?: string | null
-          unidade_medida?: string | null
           tipo_item?: string
+          unidade_medida?: string | null
           unidade_tributavel?: string | null
           updated_at?: string
+          variacoes?: Json | null
         }
         Update: {
           ativo?: boolean
           cest?: string | null
           cfop_padrao?: string | null
           codigo_interno?: string | null
+          codigo_legado?: string | null
           created_at?: string
           cst?: string | null
           descricao?: string | null
@@ -2625,10 +2636,11 @@ export type Database = {
           preco_custo?: number | null
           preco_venda?: number | null
           sku?: string | null
-          unidade_medida?: string | null
           tipo_item?: string
+          unidade_medida?: string | null
           unidade_tributavel?: string | null
           updated_at?: string
+          variacoes?: Json | null
         }
         Relationships: [
           {

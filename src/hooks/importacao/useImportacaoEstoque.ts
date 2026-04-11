@@ -70,11 +70,13 @@ export function useImportacaoEstoque() {
     setIsProcessing(true);
 
     try {
+      // Load all products — prefetch by codigo_legado and codigo_interno
       const { data: produtosBanco } = await supabase
         .from("produtos")
-        .select("id, codigo_interno, nome, preco_custo, preco_venda");
+        .select("id, codigo_interno, codigo_legado, nome, preco_custo, preco_venda, estoque_atual");
 
-      const prodMap = new Map(produtosBanco?.map(p => [p.codigo_interno, p]));
+      const prodByLegado = new Map(produtosBanco?.filter(p => p.codigo_legado).map(p => [p.codigo_legado, p]));
+      const prodByInterno = new Map(produtosBanco?.filter(p => p.codigo_interno).map(p => [p.codigo_interno, p]));
 
       const preview = rawRows.map((row, index) => {
         const mappedRow: any = {};
@@ -83,21 +85,27 @@ export function useImportacaoEstoque() {
         });
 
         const validation = validateEstoqueInicialImport(mappedRow);
-        const produtoInfo = prodMap.get(validation.normalizedData.codigo_produto);
+        const nd = validation.normalizedData;
+
+        // Resolve product — prioriza codigo_legado
+        const produtoInfo = (nd.codigo_legado && prodByLegado.get(nd.codigo_legado))
+          || (nd.codigo_produto && prodByInterno.get(nd.codigo_produto));
 
         if (!produtoInfo) {
           validation.valid = false;
-          validation.errors.push(`Produto não encontrado: ${validation.normalizedData.codigo_produto}`);
+          const chave = nd.codigo_legado || nd.codigo_produto || '(sem código)';
+          validation.errors.push(`Produto não encontrado: ${chave}`);
         } else {
-          validation.normalizedData.produto_id = produtoInfo.id;
-          validation.normalizedData.nome_produto = produtoInfo.nome;
-          validation.normalizedData.custo_unitario = mappedRow.custo_unitario || produtoInfo.preco_custo || 0;
+          nd.produto_id = produtoInfo.id;
+          nd.nome_produto = produtoInfo.nome;
+          nd.custo_unitario = nd.custo_unitario ?? produtoInfo.preco_custo ?? 0;
         }
 
         return {
-          ...validation.normalizedData,
+          ...nd,
           _valid: validation.valid,
           _errors: validation.errors,
+          _warnings: validation.warnings || [],
           _originalLine: index + 2,
           _originalRow: row
         };
@@ -119,6 +127,7 @@ export function useImportacaoEstoque() {
       const { data: user } = await supabase.auth.getUser();
       const validos = previewData.filter(i => i._valid);
       const errosCount = previewData.length - validos.length;
+      const today = new Date().toISOString().split('T')[0];
 
       const { data: lote, error: loteError } = await supabase
         .from("importacao_lotes")
@@ -144,44 +153,52 @@ export function useImportacaoEstoque() {
       const currentLoteId = lote.id;
       setLoteId(currentLoteId);
 
-      // Insert stock movements directly
       if (validos.length > 0) {
-        const { data: allProds } = await supabase.from("produtos").select("id, codigo_interno, estoque_atual");
-        const prodMap = new Map(allProds?.map(p => [p.codigo_interno, p]));
+        const { data: allProds } = await supabase
+          .from("produtos")
+          .select("id, codigo_interno, codigo_legado, estoque_atual")
+          .in("id", validos.map(i => i.produto_id).filter(Boolean));
+
+        const prodById = new Map(allProds?.map(p => [p.id, p]));
 
         const movements: any[] = [];
         const productUpdates: { id: string; estoque_atual: number }[] = [];
 
         validos.forEach(item => {
-          const prod = prodMap.get(item.codigo_produto);
-          if (prod) {
-            const saldo_anterior = Number(prod.estoque_atual || 0);
-            const saldo_atual = item.quantidade;
-            const diff = saldo_atual - saldo_anterior;
+          const prod = prodById.get(item.produto_id);
+          if (!prod) return;
 
-            movements.push({
-              produto_id: prod.id,
-              tipo: diff >= 0 ? "entrada" : "saida",
-              quantidade: Math.abs(diff),
-              saldo_anterior,
-              saldo_atual,
-              motivo: `Abertura de estoque inicial via migração (Lote: ${currentLoteId})`,
-              documento_tipo: "abertura",
-              documento_id: currentLoteId
-            });
+          const saldo_anterior = Number(prod.estoque_atual || 0);
+          const saldo_atual = item.quantidade;
+          const diff = saldo_atual - saldo_anterior;
 
-            productUpdates.push({ id: prod.id, estoque_atual: saldo_atual });
-          }
+          // Use the date from the file; fallback to today
+          const dataMovimento = item.data_estoque_inicial || today;
+
+          movements.push({
+            produto_id: prod.id,
+            tipo: diff >= 0 ? "entrada" : "saida",
+            quantidade: Math.abs(diff),
+            saldo_anterior,
+            saldo_atual,
+            motivo: `Estoque inicial via migração (Lote: ${currentLoteId})`,
+            documento_tipo: "abertura",
+            documento_id: currentLoteId,
+            created_at: dataMovimento,
+          });
+
+          productUpdates.push({ id: prod.id, estoque_atual: saldo_atual });
         });
 
         if (movements.length > 0) {
           const { error: movError } = await supabase.from("estoque_movimentos").insert(movements);
           if (movError) throw movError;
 
-          const { error: updError } = await supabase
-            .from("produtos")
-            .upsert(productUpdates as any, { onConflict: "id" });
-          if (updError) throw updError;
+          await Promise.all(
+            productUpdates.map(({ id, estoque_atual }) =>
+              supabase.from("produtos").update({ estoque_atual }).eq("id", id)
+            )
+          );
         }
       }
 
@@ -197,8 +214,8 @@ export function useImportacaoEstoque() {
       return currentLoteId;
 
     } catch (error: any) {
-      console.error("Erro na importação:", error);
-      toast.error(`Falha no staging: ${error.message}`);
+      console.error("Erro na importação de estoque:", error);
+      toast.error(`Falha no processamento: ${error.message}`);
     } finally {
       setIsProcessing(false);
     }
@@ -226,3 +243,4 @@ export function useImportacaoEstoque() {
     loteId
   };
 }
+
