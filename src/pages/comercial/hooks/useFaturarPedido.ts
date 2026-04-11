@@ -28,15 +28,15 @@ export function useFaturarPedido() {
       // Fetch order items with product fiscal data
       const { data: pedidoItems, error: itemsError } = await supabase
         .from("ordens_venda_itens")
-        .select("*, produtos(id, nome, sku, ncm, cfop, cst_icms, origem_mercadoria, unidade, peso_bruto, peso_liquido)")
+        .select("*, produtos(id, nome, sku, ncm, cst, cfop_padrao, origem_mercadoria, unidade_medida, peso_bruto, peso_liquido)")
         .eq("ordem_venda_id", pedido.id);
 
       if (itemsError) throw new Error(itemsError.message);
 
-      // Fetch order details for transportadora and frete
+      // Fetch order details
       const { data: ordemVenda } = await supabase
         .from("ordens_venda")
-        .select("transportadora_id, frete_valor, frete_tipo, observacoes")
+        .select("observacoes")
         .eq("id", pedido.id)
         .single();
 
@@ -54,10 +54,10 @@ export function useFaturarPedido() {
 
       // Calculate total weight from products
       const pesoBrutoTotal = (pedidoItems || []).reduce(
-        (s, i) => s + (Number(i.produtos?.peso_bruto || 0) * Number(i.quantidade || 0)), 0
+        (s, i) => s + (Number((i.produtos as any)?.peso_bruto || 0) * Number(i.quantidade || 0)), 0
       );
       const pesoLiquidoTotal = (pedidoItems || []).reduce(
-        (s, i) => s + (Number(i.produtos?.peso_liquido || 0) * Number(i.quantidade || 0)), 0
+        (s, i) => s + (Number((i.produtos as any)?.peso_liquido || 0) * Number(i.quantidade || 0)), 0
       );
 
       const { data: newNF, error: nfError } = await supabase
@@ -75,9 +75,6 @@ export function useFaturarPedido() {
           gera_financeiro: true,
           origem: "pedido",
           natureza_operacao: "Venda de mercadoria",
-          transportadora_id: ordemVenda?.transportadora_id || null,
-          frete_valor: ordemVenda?.frete_valor || 0,
-          frete_modalidade: ordemVenda?.frete_tipo === "CIF" ? "0" : ordemVenda?.frete_tipo === "FOB" ? "1" : "9",
           peso_bruto: pesoBrutoTotal,
           peso_liquido: pesoLiquidoTotal,
           observacoes: `Gerada a partir do Pedido ${pedido.numero}`,
@@ -89,18 +86,21 @@ export function useFaturarPedido() {
 
       // Insert NF items with fiscal data from products
       if (pedidoItems && pedidoItems.length > 0 && newNF) {
-        const nfItems = pedidoItems.map((i) => ({
-          nota_fiscal_id: newNF.id,
-          produto_id: i.produto_id,
-          quantidade: i.quantidade,
-          valor_unitario: i.valor_unitario,
-          ncm: i.produtos?.ncm || null,
-          cfop: i.produtos?.cfop || null,
-          cst: i.produtos?.cst_icms || null,
-          origem_mercadoria: i.produtos?.origem_mercadoria || "0",
-          unidade: i.produtos?.unidade || "UN",
-          codigo_produto: i.produtos?.sku || null,
-        }));
+        const nfItems = pedidoItems.map((i) => {
+          const prod = i.produtos as any;
+          return {
+            nota_fiscal_id: newNF.id,
+            produto_id: i.produto_id,
+            quantidade: i.quantidade,
+            valor_unitario: i.valor_unitario,
+            ncm: prod?.ncm || null,
+            cfop: prod?.cfop_padrao || null,
+            cst: prod?.cst || null,
+            origem_mercadoria: prod?.origem_mercadoria || "0",
+            unidade: prod?.unidade_medida || "UN",
+            codigo_produto: prod?.sku || null,
+          };
+        });
         const { error: nfItemsError } = await supabase
           .from("notas_fiscais_itens")
           .insert(nfItems);
