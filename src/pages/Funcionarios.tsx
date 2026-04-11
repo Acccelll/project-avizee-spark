@@ -191,27 +191,32 @@ export default function Funcionarios() {
       funcionario_id: folha.funcionario_id,
       ativo: true,
     };
-    // `FinanceiroLancamentoComFuncionario` is a local type (funcionario_id absent from
-    // generated Supabase types). Cast required until types are regenerated.
-    await supabase.from('financeiro_lancamentos').insert(salarioPayload as any);
 
     // Calcular e lançar FGTS (8% do salário base)
     const fgts = Number(folha.salario_base) * 0.08;
+
+    const inserts: Promise<unknown>[] = [
+      // `FinanceiroLancamentoComFuncionario` is a local type (funcionario_id absent from
+      // generated Supabase types). Cast required until types are regenerated.
+      supabase.from('financeiro_lancamentos').insert(salarioPayload as any),
+      // Marcar folha como financeiro_gerado
+      supabase.from('folha_pagamento' as any).update({ status: 'pago', financeiro_gerado: true }).eq('id', folha.id),
+    ];
+
     if (fgts > 0) {
-      await supabase.from('financeiro_lancamentos').insert({
-        tipo: 'pagar',
-        descricao: `FGTS ${mesRef} — ${selected?.nome}`,
-        valor: fgts,
-        data_vencimento: dataFgts,
-        status: 'aberto',
-        ativo: true,
-      } as any);
+      inserts.push(
+        supabase.from('financeiro_lancamentos').insert({
+          tipo: 'pagar',
+          descricao: `FGTS ${mesRef} — ${selected?.nome}`,
+          valor: fgts,
+          data_vencimento: dataFgts,
+          status: 'aberto',
+          ativo: true,
+        } as any)
+      );
     }
 
-    // Marcar folha como financeiro_gerado
-    await supabase.from('folha_pagamento' as any)
-      .update({ status: 'pago', financeiro_gerado: true })
-      .eq('id', folha.id);
+    await Promise.all(inserts);
 
     toast.success(`Lançamentos financeiros gerados: salário (${dataPagamento}) e FGTS (${dataFgts}).`);
     openView(selected!);
