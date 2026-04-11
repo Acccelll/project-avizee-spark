@@ -1124,6 +1124,150 @@ export type Database = {
         }
         Relationships: []
       }
+      frete_simulacoes: {
+        Row: {
+          altura_cm: number | null
+          cep_destino: string | null
+          cep_origem: string | null
+          cliente_id: string | null
+          comprimento_cm: number | null
+          created_at: string
+          id: string
+          largura_cm: number | null
+          observacoes: string | null
+          opcao_escolhida_id: string | null
+          origem_id: string
+          origem_tipo: string
+          peso_total: number | null
+          status: string
+          updated_at: string
+          valor_mercadoria: number | null
+          volumes: number | null
+        }
+        Insert: {
+          altura_cm?: number | null
+          cep_destino?: string | null
+          cep_origem?: string | null
+          cliente_id?: string | null
+          comprimento_cm?: number | null
+          created_at?: string
+          id?: string
+          largura_cm?: number | null
+          observacoes?: string | null
+          opcao_escolhida_id?: string | null
+          origem_id: string
+          origem_tipo: string
+          peso_total?: number | null
+          status?: string
+          updated_at?: string
+          valor_mercadoria?: number | null
+          volumes?: number | null
+        }
+        Update: {
+          altura_cm?: number | null
+          cep_destino?: string | null
+          cep_origem?: string | null
+          cliente_id?: string | null
+          comprimento_cm?: number | null
+          created_at?: string
+          id?: string
+          largura_cm?: number | null
+          observacoes?: string | null
+          opcao_escolhida_id?: string | null
+          origem_id?: string
+          origem_tipo?: string
+          peso_total?: number | null
+          status?: string
+          updated_at?: string
+          valor_mercadoria?: number | null
+          volumes?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "frete_simulacoes_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "frete_simulacoes_opcao_escolhida_fkey"
+            columns: ["opcao_escolhida_id"]
+            isOneToOne: false
+            referencedRelation: "frete_simulacoes_opcoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      frete_simulacoes_opcoes: {
+        Row: {
+          codigo: string | null
+          created_at: string
+          fonte: string
+          id: string
+          modalidade: string | null
+          observacoes: string | null
+          payload_raw: Json | null
+          prazo_dias: number | null
+          selecionada: boolean
+          servico: string | null
+          simulacao_id: string
+          transportadora_id: string | null
+          valor_adicional: number | null
+          valor_frete: number
+          valor_total: number
+        }
+        Insert: {
+          codigo?: string | null
+          created_at?: string
+          fonte: string
+          id?: string
+          modalidade?: string | null
+          observacoes?: string | null
+          payload_raw?: Json | null
+          prazo_dias?: number | null
+          selecionada?: boolean
+          servico?: string | null
+          simulacao_id: string
+          transportadora_id?: string | null
+          valor_adicional?: number | null
+          valor_frete?: number
+          valor_total?: number
+        }
+        Update: {
+          codigo?: string | null
+          created_at?: string
+          fonte?: string
+          id?: string
+          modalidade?: string | null
+          observacoes?: string | null
+          payload_raw?: Json | null
+          prazo_dias?: number | null
+          selecionada?: boolean
+          servico?: string | null
+          simulacao_id?: string
+          transportadora_id?: string | null
+          valor_adicional?: number | null
+          valor_frete?: number
+          valor_total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "frete_simulacoes_opcoes_simulacao_id_fkey"
+            columns: ["simulacao_id"]
+            isOneToOne: false
+            referencedRelation: "frete_simulacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "frete_simulacoes_opcoes_transportadora_id_fkey"
+            columns: ["transportadora_id"]
+            isOneToOne: false
+            referencedRelation: "transportadoras"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       funcionarios: {
         Row: {
           ativo: boolean
@@ -1525,78 +1669,105 @@ export type Database = {
       orcamentos: {
         Row: {
           ativo: boolean
+          altura_cm: number | null
           cliente_id: string | null
           cliente_snapshot: Json | null
+          comprimento_cm: number | null
           created_at: string
           data_orcamento: string | null
+          frete_simulacao_id: string | null
           frete_tipo: string | null
           frete_valor: number | null
           id: string
+          largura_cm: number | null
           modalidade: string | null
           numero: string
           observacoes: string | null
           observacoes_internas: string | null
+          origem_frete: string | null
           pagamento: string | null
           peso_total: number | null
           prazo_entrega: string | null
+          prazo_entrega_dias: number | null
           prazo_pagamento: string | null
           public_token: string | null
           quantidade_total: number | null
+          servico_frete: string | null
           status: string | null
+          transportadora_id: string | null
           updated_at: string
           validade: string | null
           valor_total: number | null
           vendedor_id: string | null
+          volumes: number | null
         }
         Insert: {
           ativo?: boolean
+          altura_cm?: number | null
           cliente_id?: string | null
           cliente_snapshot?: Json | null
+          comprimento_cm?: number | null
           created_at?: string
           data_orcamento?: string | null
+          frete_simulacao_id?: string | null
           frete_tipo?: string | null
           frete_valor?: number | null
           id?: string
+          largura_cm?: number | null
           modalidade?: string | null
           numero: string
           observacoes?: string | null
           observacoes_internas?: string | null
+          origem_frete?: string | null
           pagamento?: string | null
           peso_total?: number | null
           prazo_entrega?: string | null
+          prazo_entrega_dias?: number | null
           prazo_pagamento?: string | null
           public_token?: string | null
           quantidade_total?: number | null
+          servico_frete?: string | null
           status?: string | null
+          transportadora_id?: string | null
           updated_at?: string
           validade?: string | null
           valor_total?: number | null
           vendedor_id?: string | null
+          volumes?: number | null
         }
         Update: {
           ativo?: boolean
+          altura_cm?: number | null
           cliente_id?: string | null
           cliente_snapshot?: Json | null
+          comprimento_cm?: number | null
           created_at?: string
           data_orcamento?: string | null
+          frete_simulacao_id?: string | null
           frete_tipo?: string | null
           frete_valor?: number | null
           id?: string
+          largura_cm?: number | null
           modalidade?: string | null
           numero?: string
           observacoes?: string | null
           observacoes_internas?: string | null
+          origem_frete?: string | null
           pagamento?: string | null
           peso_total?: number | null
           prazo_entrega?: string | null
+          prazo_entrega_dias?: number | null
           prazo_pagamento?: string | null
           public_token?: string | null
           quantidade_total?: number | null
+          servico_frete?: string | null
           status?: string | null
+          transportadora_id?: string | null
           updated_at?: string
           validade?: string | null
           valor_total?: number | null
           vendedor_id?: string | null
+          volumes?: number | null
         }
         Relationships: [
           {
@@ -1604,6 +1775,20 @@ export type Database = {
             columns: ["cliente_id"]
             isOneToOne: false
             referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orcamentos_frete_simulacao_id_fkey"
+            columns: ["frete_simulacao_id"]
+            isOneToOne: false
+            referencedRelation: "frete_simulacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orcamentos_transportadora_id_fkey"
+            columns: ["transportadora_id"]
+            isOneToOne: false
+            referencedRelation: "transportadoras"
             referencedColumns: ["id"]
           },
         ]
@@ -1691,16 +1876,26 @@ export type Database = {
           data_emissao: string | null
           data_po_cliente: string | null
           data_prometida_despacho: string | null
+          frete_simulacao_id: string | null
+          frete_tipo: string | null
+          frete_valor: number | null
           id: string
+          modalidade: string | null
           numero: string
           observacoes: string | null
+          origem_frete: string | null
+          peso_total: number | null
           po_number: string | null
           prazo_despacho_dias: number | null
+          prazo_entrega_dias: number | null
+          servico_frete: string | null
           status: string | null
           status_faturamento: string | null
+          transportadora_id: string | null
           updated_at: string
           valor_total: number | null
           vendedor_id: string | null
+          volumes: number | null
         }
         Insert: {
           ativo?: boolean
@@ -1711,16 +1906,26 @@ export type Database = {
           data_emissao?: string | null
           data_po_cliente?: string | null
           data_prometida_despacho?: string | null
+          frete_simulacao_id?: string | null
+          frete_tipo?: string | null
+          frete_valor?: number | null
           id?: string
+          modalidade?: string | null
           numero: string
           observacoes?: string | null
+          origem_frete?: string | null
+          peso_total?: number | null
           po_number?: string | null
           prazo_despacho_dias?: number | null
+          prazo_entrega_dias?: number | null
+          servico_frete?: string | null
           status?: string | null
           status_faturamento?: string | null
+          transportadora_id?: string | null
           updated_at?: string
           valor_total?: number | null
           vendedor_id?: string | null
+          volumes?: number | null
         }
         Update: {
           ativo?: boolean
@@ -1731,16 +1936,26 @@ export type Database = {
           data_emissao?: string | null
           data_po_cliente?: string | null
           data_prometida_despacho?: string | null
+          frete_simulacao_id?: string | null
+          frete_tipo?: string | null
+          frete_valor?: number | null
           id?: string
+          modalidade?: string | null
           numero?: string
           observacoes?: string | null
+          origem_frete?: string | null
+          peso_total?: number | null
           po_number?: string | null
           prazo_despacho_dias?: number | null
+          prazo_entrega_dias?: number | null
+          servico_frete?: string | null
           status?: string | null
           status_faturamento?: string | null
+          transportadora_id?: string | null
           updated_at?: string
           valor_total?: number | null
           vendedor_id?: string | null
+          volumes?: number | null
         }
         Relationships: [
           {
@@ -1762,6 +1977,20 @@ export type Database = {
             columns: ["cotacao_id"]
             isOneToOne: false
             referencedRelation: "orcamentos_public_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ordens_venda_frete_simulacao_id_fkey"
+            columns: ["frete_simulacao_id"]
+            isOneToOne: false
+            referencedRelation: "frete_simulacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ordens_venda_transportadora_id_fkey"
+            columns: ["transportadora_id"]
+            isOneToOne: false
+            referencedRelation: "transportadoras"
             referencedColumns: ["id"]
           },
         ]
@@ -2278,6 +2507,7 @@ export type Database = {
           codigo_rastreio: string | null
           created_at: string
           data_postagem: string | null
+          frete_simulacao_id: string | null
           id: string
           nota_fiscal_id: string | null
           observacoes: string | null
@@ -2298,6 +2528,7 @@ export type Database = {
           codigo_rastreio?: string | null
           created_at?: string
           data_postagem?: string | null
+          frete_simulacao_id?: string | null
           id?: string
           nota_fiscal_id?: string | null
           observacoes?: string | null
@@ -2318,6 +2549,7 @@ export type Database = {
           codigo_rastreio?: string | null
           created_at?: string
           data_postagem?: string | null
+          frete_simulacao_id?: string | null
           id?: string
           nota_fiscal_id?: string | null
           observacoes?: string | null
@@ -2338,6 +2570,13 @@ export type Database = {
             columns: ["cliente_id"]
             isOneToOne: false
             referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "remessas_frete_simulacao_id_fkey"
+            columns: ["frete_simulacao_id"]
+            isOneToOne: false
+            referencedRelation: "frete_simulacoes"
             referencedColumns: ["id"]
           },
           {

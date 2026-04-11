@@ -57,6 +57,26 @@ export async function trackCorreios(
   return normalizarEventos(tracking, remessaId);
 }
 
+export async function getSugestaoRemessaPorPedido(ordemVendaId: string): Promise<Partial<RemessaInsert> | null> {
+  const { data, error } = await supabase
+    .from("ordens_venda")
+    .select("transportadora_id, servico_frete, frete_valor, peso_total, volumes, frete_simulacao_id")
+    .eq("id", ordemVendaId)
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  if (!data) return null;
+
+  return {
+    transportadora_id: data.transportadora_id,
+    servico: data.servico_frete,
+    valor_frete: data.frete_valor,
+    peso: data.peso_total,
+    volumes: data.volumes,
+    frete_simulacao_id: data.frete_simulacao_id,
+  };
+}
+
 // ── Hooks ──────────────────────────────────────────────────────────────────────
 
 export function useRemessas() {

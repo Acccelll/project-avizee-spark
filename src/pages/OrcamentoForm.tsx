@@ -15,7 +15,7 @@ import { OrcamentoItemsGrid, type OrcamentoItem } from "@/components/Orcamento/O
 import { OrcamentoInternalAnalysisPanel, type RentabilidadeScenarioConfig } from "@/components/Orcamento/OrcamentoInternalAnalysisPanel";
 import { OrcamentoTotaisCard } from "@/components/Orcamento/OrcamentoTotaisCard";
 import { OrcamentoCondicoesCard } from "@/components/Orcamento/OrcamentoCondicoesCard";
-import { FreteCorreiosCard } from "@/components/Orcamento/FreteCorreiosCard";
+import { FreteSimuladorCard } from "@/components/Orcamento/FreteSimuladorCard";
 import { OrcamentoSidebarSummary } from "@/components/Orcamento/OrcamentoSidebarSummary";
 import { OrcamentoPdfTemplate } from "@/components/Orcamento/OrcamentoPdfTemplate";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -77,6 +77,16 @@ export default function OrcamentoForm() {
   const [templateName, setTemplateName] = useState("");
   const [templates, setTemplates] = useState<OrcamentoTemplate[]>([]);
   const [layoutTemplate, setLayoutTemplate] = useState<'simples' | 'completo' | 'logo'>('completo');
+  const [orcamentoOrigemId] = useState(() => id || crypto.randomUUID());
+  const [freteSimulacaoId, setFreteSimulacaoId] = useState<string | null>(null);
+  const [transportadoraId, setTransportadoraId] = useState<string | null>(null);
+  const [origemFrete, setOrigemFrete] = useState<"correios" | "cliente_vinculada" | "manual" | null>(null);
+  const [servicoFrete, setServicoFrete] = useState<string | null>(null);
+  const [prazoEntregaDias, setPrazoEntregaDias] = useState<number | null>(null);
+  const [volumesFrete, setVolumesFrete] = useState<number>(1);
+  const [alturaCm, setAlturaCm] = useState<number | null>(null);
+  const [larguraCm, setLarguraCm] = useState<number | null>(null);
+  const [comprimentoCm, setComprimentoCm] = useState<number | null>(null);
 
   const {
     register,
@@ -266,6 +276,15 @@ export default function OrcamentoForm() {
               freteTipo: orc.frete_tipo || '',
               modalidade: orc.modalidade || '',
             });
+            setFreteSimulacaoId(orc.frete_simulacao_id || null);
+            setTransportadoraId(orc.transportadora_id || null);
+            setOrigemFrete((orc.origem_frete as "correios" | "cliente_vinculada" | "manual" | null) || null);
+            setServicoFrete(orc.servico_frete || null);
+            setPrazoEntregaDias(orc.prazo_entrega_dias || null);
+            setVolumesFrete(orc.volumes || 1);
+            setAlturaCm(orc.altura_cm || null);
+            setLarguraCm(orc.largura_cm || null);
+            setComprimentoCm(orc.comprimento_cm || null);
             if (orc.cliente_snapshot) setClienteSnapshot(orc.cliente_snapshot as any);
             const { data: itensData } = await supabase.from("orcamentos_itens").select("*").eq("orcamento_id", id);
             if (itensData) setItems(itensData);
@@ -443,6 +462,15 @@ export default function OrcamentoForm() {
         valor_total: valorTotal, quantidade_total: quantidadeTotal, peso_total: pesoTotal,
         pagamento, prazo_pagamento: prazoPagamento, prazo_entrega: prazoEntrega,
         frete_tipo: freteTipo, modalidade, cliente_snapshot: clienteSnapshot,
+        transportadora_id: transportadoraId,
+        frete_simulacao_id: freteSimulacaoId,
+        origem_frete: origemFrete,
+        servico_frete: servicoFrete,
+        prazo_entrega_dias: prazoEntregaDias,
+        volumes: volumesFrete,
+        altura_cm: alturaCm,
+        largura_cm: larguraCm,
+        comprimento_cm: comprimentoCm,
       };
 
       let orcId = id;
@@ -450,7 +478,7 @@ export default function OrcamentoForm() {
         await supabase.from("orcamentos").update(payload as any).eq("id", id);
         await supabase.from("orcamentos_itens").delete().eq("orcamento_id", id);
       } else {
-        const { data: newOrc, error } = await supabase.from("orcamentos").insert(payload as any).select().single();
+        const { data: newOrc, error } = await supabase.from("orcamentos").insert({ ...payload, id: orcamentoOrigemId } as any).select().single();
         if (error) throw error;
         orcId = newOrc.id;
       }
@@ -484,6 +512,7 @@ export default function OrcamentoForm() {
       const { count } = await supabase.from("orcamentos").select("*", { count: "exact", head: true });
       const newNumero = `COT${String((count || 0) + 1).padStart(6, "0")}`;
       const payload = {
+        id: crypto.randomUUID(),
         numero: newNumero, data_orcamento: new Date().toISOString().split("T")[0], status: "rascunho",
         cliente_id: clienteId || null, validade: null, observacoes, observacoes_internas: observacoesInternas || null,
         desconto, imposto_st: impostoSt,
@@ -491,6 +520,15 @@ export default function OrcamentoForm() {
         valor_total: valorTotal, quantidade_total: quantidadeTotal, peso_total: pesoTotal,
         pagamento, prazo_pagamento: prazoPagamento, prazo_entrega: prazoEntrega,
         frete_tipo: freteTipo, modalidade, cliente_snapshot: clienteSnapshot,
+        transportadora_id: transportadoraId,
+        frete_simulacao_id: freteSimulacaoId,
+        origem_frete: origemFrete,
+        servico_frete: servicoFrete,
+        prazo_entrega_dias: prazoEntregaDias,
+        volumes: volumesFrete,
+        altura_cm: alturaCm,
+        largura_cm: larguraCm,
+        comprimento_cm: comprimentoCm,
       };
       const { data: newOrc, error } = await supabase.from("orcamentos").insert(payload as any).select().single();
       if (error) throw error;
@@ -810,13 +848,32 @@ export default function OrcamentoForm() {
             onChange={handleTotalChange}
           />
 
-          <FreteCorreiosCard
+          <FreteSimuladorCard
+            origemId={orcamentoOrigemId}
+            orcamentoId={isEdit ? id : undefined}
+            clienteId={clienteId}
             cepDestino={clienteSnapshot.cep}
             pesoTotal={pesoTotal}
-            onSelect={(valor, tipo, prazo) => {
+            valorMercadoria={totalProdutos}
+            freteSimulacaoId={freteSimulacaoId}
+            initialVolumes={volumesFrete}
+            initialAlturaCm={alturaCm}
+            initialLarguraCm={larguraCm}
+            initialComprimentoCm={comprimentoCm}
+            onFreteSelecionado={({ valor, tipo, prazo, modalidade, origemFrete, servicoFrete, prazoDias, transportadoraId, freteSimulacaoId, volumes, alturaCm, larguraCm, comprimentoCm }) => {
               setValue('freteValor', valor);
               setValue('freteTipo', tipo);
               setValue('prazoEntrega', prazo);
+              if (modalidade) setValue('modalidade', modalidade);
+              setOrigemFrete(origemFrete);
+              setServicoFrete(servicoFrete || null);
+              setPrazoEntregaDias(prazoDias || null);
+              setTransportadoraId(transportadoraId || null);
+              setFreteSimulacaoId(freteSimulacaoId);
+              setVolumesFrete(volumes);
+              setAlturaCm(alturaCm);
+              setLarguraCm(larguraCm);
+              setComprimentoCm(comprimentoCm);
             }}
           />
 
