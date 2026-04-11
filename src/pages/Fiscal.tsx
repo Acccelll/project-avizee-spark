@@ -504,12 +504,14 @@ const Fiscal = () => {
           searchPlaceholder="Buscar por número, chave ou parceiro..."
           activeFilters={fiscalActiveFilters}
           onRemoveFilter={handleRemoveFiscalFilter}
-          onClearAll={() => { setTipoFilters([]); setModeloFilters([]); setStatusFilters([]); }}
+          onClearAll={() => { setTipoFilters([]); setModeloFilters([]); setStatusFilters([]); setOrigemFilters([]); setStatusSefazFilters([]); }}
           count={filteredData.length}
         >
           {!tipoParam && <MultiSelect options={tipoOptions} selected={tipoFilters} onChange={setTipoFilters} placeholder="Tipo" className="w-[150px]" />}
           <MultiSelect options={modeloOptions} selected={modeloFilters} onChange={setModeloFilters} placeholder="Modelos" className="w-[180px]" />
           <MultiSelect options={statusOptions} selected={statusFilters} onChange={setStatusFilters} placeholder="Status" className="w-[180px]" />
+          <MultiSelect options={origemOptions} selected={origemFilters} onChange={setOrigemFilters} placeholder="Origem" className="w-[180px]" />
+          <MultiSelect options={statusSefazOptions} selected={statusSefazFilters} onChange={setStatusSefazFilters} placeholder="SEFAZ" className="w-[180px]" />
         </AdvancedFilterBar>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
