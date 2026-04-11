@@ -25,6 +25,7 @@ import {
   FileText,
   Lock,
   Package,
+  Truck,
 } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
