@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
+import { getUserFriendlyError } from "@/utils/errorMessages";
 
 type TableName = keyof Database["public"]["Tables"];
 type TableRow<T extends TableName> = Database["public"]["Tables"][T]["Row"];
@@ -131,8 +132,8 @@ export function useSupabaseCrud<T extends TableName>({
       if (showToasts) toast.success("Registro criado com sucesso!");
       invalidateTable();
     },
-    onError: () => {
-      if (showToasts) toast.error("Erro ao criar registro. Tente novamente.");
+    onError: (err) => {
+      if (showToasts) toast.error(getUserFriendlyError(err));
     },
   });
 
@@ -147,8 +148,8 @@ export function useSupabaseCrud<T extends TableName>({
       if (showToasts) toast.success("Registro atualizado com sucesso!");
       invalidateTable();
     },
-    onError: () => {
-      if (showToasts) toast.error("Erro ao atualizar registro. Tente novamente.");
+    onError: (err) => {
+      if (showToasts) toast.error(getUserFriendlyError(err));
     },
   });
 
@@ -167,8 +168,8 @@ export function useSupabaseCrud<T extends TableName>({
       if (showToasts) toast.success("Registro removido com sucesso!");
       invalidateTable();
     },
-    onError: () => {
-      if (showToasts) toast.error("Erro ao remover registro. Tente novamente.");
+    onError: (err) => {
+      if (showToasts) toast.error(getUserFriendlyError(err));
     },
   });
 
