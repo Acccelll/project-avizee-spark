@@ -230,8 +230,10 @@ const Fiscal = () => {
         conta_contabil_id: form.conta_contabil_id || null,
         valor_total: savedTotal,
       };
-      await supabase.from("notas_fiscais").update(payload as any).eq("id", selected.id);
-      await supabase.from("notas_fiscais_itens").delete().eq("nota_fiscal_id", selected.id);
+      await Promise.all([
+        supabase.from("notas_fiscais").update(payload as any).eq("id", selected.id),
+        supabase.from("notas_fiscais_itens").delete().eq("nota_fiscal_id", selected.id),
+      ]);
       if (items.length > 0) {
         const itemsPayload = items.filter(i => i.produto_id).map((i, idx) => ({
           nota_fiscal_id: selected.id,
@@ -317,8 +319,10 @@ const Fiscal = () => {
           payload_resumido: { valor_total: savedTotal, itens: items.length },
         });
       } else if (selected) {
-        await supabase.from("notas_fiscais").update(payload).eq("id", selected.id);
-        await supabase.from("notas_fiscais_itens").delete().eq("nota_fiscal_id", selected.id);
+        await Promise.all([
+          supabase.from("notas_fiscais").update(payload).eq("id", selected.id),
+          supabase.from("notas_fiscais_itens").delete().eq("nota_fiscal_id", selected.id),
+        ]);
         // Register edit event
         await registrarEventoFiscal({
           nota_fiscal_id: selected.id,

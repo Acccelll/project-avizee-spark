@@ -447,8 +447,10 @@ export default function OrcamentoForm() {
 
       let orcId = id;
       if (isEdit) {
-        await supabase.from("orcamentos").update(payload as any).eq("id", id);
-        await supabase.from("orcamentos_itens").delete().eq("orcamento_id", id);
+        await Promise.all([
+          supabase.from("orcamentos").update(payload as any).eq("id", id),
+          supabase.from("orcamentos_itens").delete().eq("orcamento_id", id),
+        ]);
       } else {
         const { data: newOrc, error } = await supabase.from("orcamentos").insert(payload as any).select().single();
         if (error) throw error;
