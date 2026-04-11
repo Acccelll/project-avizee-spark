@@ -53,23 +53,29 @@ export function useImportacaoXml() {
         }
       }
 
-      // Validar duplicidades no banco (chaves de acesso)
-      const chaves = results.map(r => r.data?.chaveAcesso).filter(Boolean) as string[];
+      // Check for duplicate chaveAcesso
+      const chaves = results
+        .filter(r => r.data?.chaveAcesso)
+        .map(r => r.data!.chaveAcesso);
+
       if (chaves.length > 0) {
-        const { data: existentes } = await (supabase
-          .from("compras" as any)
+        const { data: existentes } = await supabase
+          .from("notas_fiscais")
           .select("chave_acesso")
-          .in("chave_acesso", chaves) as any);
+          .in("chave_acesso", chaves);
 
-        const chavesExistentes = new Set((existentes || []).map((e: any) => e.chave_acesso));
-
+        const existSet = new Set(existentes?.map(e => e.chave_acesso));
         results.forEach(r => {
-          if (r.data && chavesExistentes.has(r.data.chaveAcesso)) {
+          if (r.data?.chaveAcesso && existSet.has(r.data.chaveAcesso)) {
             r.status = "duplicado";
-            r.error = "NF-e já importada anteriormente.";
-          } else if (r.status !== "erro") {
+            r.error = "Chave de acesso já cadastrada.";
+          } else if (r.status === "pendente") {
             r.status = "valido";
           }
+        });
+      } else {
+        results.forEach(r => {
+          if (r.status === "pendente") r.status = "valido";
         });
       }
 
@@ -87,14 +93,19 @@ export function useImportacaoXml() {
 
     try {
       const { data: user } = await supabase.auth.getUser();
+      const validos = xmlData.filter(i => i.status === "valido");
+      const errosCount = xmlData.length - validos.length;
+
       const { data: lote, error: loteError } = await supabase
         .from("importacao_lotes")
         .insert({
-          tipo_importacao: "compras_xml",
+          tipo: "compras_xml",
           arquivo_nome: files.length === 1 ? files[0].name : `${files.length} arquivos`,
           status: "processando",
-          total_lidos: xmlData.length,
-          criado_por: user?.user?.id
+          total_registros: xmlData.length,
+          registros_sucesso: validos.length,
+          registros_erro: errosCount,
+          usuario_id: user?.user?.id,
         })
         .select()
         .single();
@@ -103,127 +114,69 @@ export function useImportacaoXml() {
       const currentLoteId = lote.id;
       setLoteId(currentLoteId);
 
-      const stagingData = xmlData.map(item => ({
-        lote_importacao_id: currentLoteId,
-        arquivo_origem: item.fileName,
-        payload: item.data,
-        status_validacao: item.status === "valido" ? "valido" : "erro",
-        motivo_erro: item.error,
-        criado_por: user?.user?.id
-      }));
-
-      const { error: stagingError } = await supabase.from("stg_compras_xml").insert(stagingData as any);
-      if (stagingError) throw stagingError;
-
-      const validos = xmlData.filter(i => i.status === "valido").length;
-      const erros = xmlData.length - validos;
-
-      await supabase
-        .from("importacao_lotes")
-        .update({
-          status: erros > 0 ? "parcial" : "validado",
-          total_validos: validos,
-          total_erros: erros
-        })
-        .eq("id", currentLoteId);
-
-      toast.success(`${validos} XMLs validados e prontos para carga.`);
-      setIsProcessing(false);
-      return currentLoteId;
-
-    } catch (error: any) {
-      console.error("Erro na importação XML:", error);
-      toast.error(`Falha no staging XML: ${error.message}`);
-      setIsProcessing(false);
-    }
-  };
-
-  const finalizeImport = async (idLote = loteId) => {
-    if (!idLote) return;
-    setIsProcessing(true);
-
-    try {
-      const { data: validItems, error: fetchError } = await supabase
-        .from("stg_compras_xml")
-        .select("payload, id")
-        .eq("lote_importacao_id", idLote)
-        .eq("status_validacao", "valido");
-
-      if (fetchError) throw fetchError;
-
-      // Lógica de carga final:
-      // 1. Localizar ou cadastrar Fornecedor por CNPJ
-      // 2. Localizar Produtos por código ou Alias
-      // 3. Criar registro em 'compras' e 'compras_itens'
-      // 4. Gerar estoque (entrada)
-
-      // Por enquanto, implementamos a casca da carga em massa simulada conforme o padrão ERP
-      let importedCount = 0;
-
-      // 1. Obter todos fornecedores para cache local
+      // Import valid XMLs directly into compras
       const { data: vendors } = await supabase.from("fornecedores").select("id, cpf_cnpj");
-      const vendorMap = new Map(vendors?.map(v => [v.cpf_cnpj.replace(/\D/g, ""), v.id]));
+      const vendorMap = new Map(vendors?.map(v => [v.cpf_cnpj?.replace(/\D/g, ""), v.id]));
 
-      for (const item of validItems) {
-        const nfe = item.payload as unknown as NFeData;
+      let importedCount = 0;
+      for (const item of validos) {
+        const nfe = item.data;
+        if (!nfe) continue;
+
         const cnpjEmit = nfe.emitente.cnpj.replace(/\D/g, "");
         const fornecedorId = vendorMap.get(cnpjEmit);
 
-        // Se fornecedor não existe, cria um básico (opcional, aqui daremos erro para segurança)
         if (!fornecedorId) {
           await supabase.from("importacao_logs").insert({
-            lote_importacao_id: idLote,
+            lote_id: currentLoteId,
             nivel: "error",
-            etapa: "carga_final",
             mensagem: `Fornecedor não cadastrado (CNPJ: ${cnpjEmit}) para a nota ${nfe.numero}`,
-            payload: { chave: nfe.chaveAcesso } as any
           });
           continue;
         }
 
-        // Criar a Compra
-        const { data: compra, error: cError } = await (supabase.from("compras" as any).insert({
+        const { error: cError } = await supabase.from("compras").insert({
           fornecedor_id: fornecedorId,
           numero: nfe.numero,
           data_compra: nfe.dataEmissao,
           valor_total: nfe.valorTotal,
           status: "confirmado",
           observacoes: `Importação XML - Chave: ${nfe.chaveAcesso}`
-        } as any).select().single() as any);
+        } as any);
 
         if (cError) {
-           await supabase.from("importacao_logs").insert({
-            lote_importacao_id: idLote,
+          await supabase.from("importacao_logs").insert({
+            lote_id: currentLoteId,
             nivel: "error",
-            etapa: "carga_final",
             mensagem: `Erro ao criar compra ${nfe.numero}: ${cError.message}`
           });
           continue;
         }
-
-        // Criar Itens (Lógica simplificada para a migration)
-        // ... (Em um ERP real, vincularíamos aos produtos por Alias)
         importedCount++;
       }
 
       await supabase
         .from("importacao_lotes")
         .update({
-          status: "concluido",
-          total_importados: importedCount
+          status: errosCount > 0 ? "parcial" : "concluido",
+          registros_sucesso: importedCount,
         })
-        .eq("id", idLote);
+        .eq("id", currentLoteId);
 
-      toast.success(`Carga finalizada para ${importedCount} notas fiscais.`);
+      toast.success(`${importedCount} notas XML importadas.`);
       setIsProcessing(false);
-      return true;
+      return currentLoteId;
 
-    } catch (err: any) {
-      toast.error(`Erro na finalização: ${err.message}`);
-      setIsProcessing(false);
-    } finally {
+    } catch (error: any) {
+      console.error("Erro na importação XML:", error);
+      toast.error(`Falha na importação: ${error.message}`);
       setIsProcessing(false);
     }
+  };
+
+  const finalizeImport = async () => {
+    toast.info("Importação já foi concluída no passo anterior.");
+    return true;
   };
 
   return {

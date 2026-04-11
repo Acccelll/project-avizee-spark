@@ -25,8 +25,8 @@ interface ReconciliacaoDetalheProps {
 export function ReconciliacaoDetalhe({ lote, isOpen, onClose }: ReconciliacaoDetalheProps) {
   const logsCrud = useSupabaseCrud<ImportLog>({
     table: "importacao_logs",
-    filter: lote ? [{ column: "lote_importacao_id", value: lote.id }] : [],
-    orderBy: "criado_em",
+    filter: lote ? [{ column: "lote_id", value: lote.id }] : [],
+    orderBy: "created_at",
     ascending: true,
     hasAtivo: false
   });

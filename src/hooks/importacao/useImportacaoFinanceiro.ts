@@ -27,12 +27,16 @@ export function useImportacaoFinanceiro() {
     const reader = new FileReader();
     reader.onload = async (evt) => {
       const bstr = evt.target?.result;
-      const wb = XLSX.read(bstr, { type: "binary" });
-      await XLSX.ensureLoaded(wb);
-      setWorkbook(wb);
-      setSheets(wb.SheetNames);
-      if (wb.SheetNames.length > 0) {
-        onSheetChange(wb.SheetNames[0], wb);
+      try {
+        const wb = XLSX.read(bstr, { type: "binary" });
+        await XLSX.ensureLoaded(wb);
+        setWorkbook(wb);
+        setSheets(wb.SheetNames);
+        if (wb.SheetNames.length > 0) {
+          onSheetChange(wb.SheetNames[0], wb);
+        }
+      } catch (err: any) {
+        toast.error(`Erro ao ler arquivo: ${err.message}`);
       }
     };
     reader.readAsBinaryString(selectedFile);
@@ -66,7 +70,6 @@ export function useImportacaoFinanceiro() {
     setIsProcessing(true);
 
     try {
-      // Carregar clientes e fornecedores para validar existência e obter IDs
       const { data: clientes } = await supabase.from("clientes").select("id, nome_razao_social, cpf_cnpj");
       const { data: fornecedores } = await supabase.from("fornecedores").select("id, nome_razao_social, cpf_cnpj");
 
@@ -81,15 +84,15 @@ export function useImportacaoFinanceiro() {
         });
 
         const validation = validateFinanceiroImport(mappedRow);
-        const cpfCnpj = String(mappedRow.cpf_cnpj || "").replace(/\D/g, "");
+        const cpfCnpj = String(mappedRow.cpf_cnpj || mappedRow["CPF/CNPJ"] || "").replace(/\D/g, "");
         const entity = entityMap.get(cpfCnpj);
 
         if (entity) {
           validation.normalizedData.entity_id = entity.id;
           validation.normalizedData.entity_type = entity.type;
         } else if (cpfCnpj) {
-          validation.errors.push(`Pessoa não encontrada (CPF/CNPJ: ${cpfCnpj})`);
-          validation.valid = false;
+          validation.warnings = validation.warnings || [];
+          validation.warnings.push(`Pessoa não encontrada (CPF/CNPJ: ${cpfCnpj})`);
         }
 
         return {
@@ -116,15 +119,25 @@ export function useImportacaoFinanceiro() {
 
     try {
       const { data: user } = await supabase.auth.getUser();
+      const validos = previewData.filter(i => i._valid);
+      const errosCount = previewData.length - validos.length;
+
       const { data: lote, error: loteError } = await supabase
         .from("importacao_lotes")
         .insert({
-          tipo_importacao: "financeiro_aberto",
+          tipo: "financeiro_aberto",
           arquivo_nome: file?.name,
           status: "processando",
-          total_lidos: previewData.length,
-          mapeamento: mapping,
-          criado_por: user?.user?.id
+          total_registros: previewData.length,
+          registros_sucesso: validos.length,
+          registros_erro: errosCount,
+          usuario_id: user?.user?.id,
+          erros: errosCount > 0
+            ? previewData
+                .filter(i => !i._valid)
+                .slice(0, 50)
+                .map(i => ({ linha: i._originalLine, erros: i._errors }))
+            : null,
         })
         .select()
         .single();
@@ -133,114 +146,19 @@ export function useImportacaoFinanceiro() {
       const currentLoteId = lote.id;
       setLoteId(currentLoteId);
 
-      const stagingData = previewData.map(item => ({
-        lote_importacao_id: currentLoteId,
-        arquivo_origem: file?.name,
-        aba_origem: currentSheet,
-        linha_origem: item._originalLine,
-        payload: item._originalRow,
-        status_validacao: item._valid ? "valido" : "erro",
-        motivo_erro: item._errors.join(", "),
-        criado_por: user?.user?.id
-      }));
-
-      // Note: stagingData fields (lote_importacao_id, arquivo_origem, etc.) differ from the
-      // stg_financeiro_aberto DB schema (lote_id, dados, status, erro). The DB schema does not
-      // yet reflect the full staging payload. Using eslint-disable until schema is migrated.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error: stagingError } = await (supabase.from as any)("stg_financeiro_aberto").insert(stagingData);
-      if (stagingError) throw stagingError;
-
-      const validos = previewData.filter(i => i._valid).length;
-      const erros = previewData.length - validos;
-
-      await supabase
-        .from("importacao_lotes")
-        .update({
-          status: erros > 0 ? "parcial" : "validado",
-          total_validos: validos,
-          total_erros: erros
-        })
-        .eq("id", currentLoteId);
-
-      toast.success(`${validos} títulos financeiros validados.`);
-      return currentLoteId;
-
-    } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : "Erro desconhecido";
-      console.error("Erro na importação financeira:", error);
-      toast.error(`Falha no staging financeiro: ${msg}`);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const finalizeImport = async (idLote = loteId) => {
-    if (!idLote) return;
-    setIsProcessing(true);
-
-    try {
-      // stg_financeiro_aberto uses different column names than what's in the DB schema
-      // (lote_importacao_id vs lote_id, status_validacao vs status, etc.). Fetch uses
-      // a workaround via type cast until schema migration aligns both.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: validItems, error: fetchError } = await (supabase.from as any)("stg_financeiro_aberto")
-        .select("payload")
-        .eq("lote_importacao_id", idLote)
-        .eq("status_validacao", "valido");
-
-      if (fetchError) throw fetchError;
-
-      // Carregar mapeamento para re-validar
-      const { data: loteData } = await supabase.from("importacao_lotes").select("mapeamento").eq("id", idLote).single();
-      const batchMapping = loteData?.mapeamento as Mapping;
-
-      // Cache de entidades
-      const { data: clientes } = await supabase.from("clientes").select("id, cpf_cnpj");
-      const { data: fornecedores } = await supabase.from("fornecedores").select("id, cpf_cnpj");
-      const entityMap = new Map<string, { id: string; type: "cliente" | "fornecedor" }>();
-      clientes?.forEach(c => entityMap.set(c.cpf_cnpj?.replace(/\D/g, "") ?? "", { id: c.id, type: "cliente" }));
-      fornecedores?.forEach(f => entityMap.set(f.cpf_cnpj?.replace(/\D/g, "") ?? "", { id: f.id, type: "fornecedor" }));
-
-      type LancamentoInsert = {
-        tipo?: string;
-        descricao?: string;
-        valor?: number;
-        data_vencimento?: string;
-        status: string;
-        origem: string;
-        lote_id: string;
-        cliente_id: string | null;
-        fornecedor_id: string | null;
-        observacoes: string;
-      };
-      const dataToInsert: LancamentoInsert[] = [];
-      (validItems as Array<{ payload: Record<string, unknown> }>).forEach(item => {
-        const raw = item.payload;
-        const mappedRow: Record<string, unknown> = {};
-        Object.entries(batchMapping).forEach(([field, colName]) => {
-          mappedRow[field] = raw[colName];
-        });
-
-        const validation = validateFinanceiroImport(mappedRow);
-        const cpfCnpj = String(mappedRow.cpf_cnpj || "").replace(/\D/g, "");
-        const entity = entityMap.get(cpfCnpj);
-
-        dataToInsert.push({
-          tipo: validation.normalizedData.tipo,
-          descricao: validation.normalizedData.descricao,
-          valor: validation.normalizedData.valor,
-          data_vencimento: validation.normalizedData.data_vencimento,
+      // Insert valid records directly into financeiro_lancamentos
+      if (validos.length > 0) {
+        const dataToInsert = validos.map(item => ({
+          tipo: item.tipo || "receber",
+          descricao: item.descricao,
+          valor: item.valor,
+          data_vencimento: item.data_vencimento,
           status: "aberto",
-          origem: "abertura_financeiro",
-          lote_id: idLote,
-          cliente_id: entity?.type === "cliente" ? entity.id : null,
-          fornecedor_id: entity?.type === "fornecedor" ? entity.id : null,
-          observacoes: String(mappedRow.observacoes || "Carga inicial de saldo em aberto."),
-        });
-      });
+          cliente_id: item.entity_type === "cliente" ? item.entity_id : null,
+          fornecedor_id: item.entity_type === "fornecedor" ? item.entity_id : null,
+          observacoes: item.observacoes || "Carga inicial de saldo em aberto.",
+        }));
 
-      if (dataToInsert.length > 0) {
         const { error: insError } = await supabase.from("financeiro_lancamentos").insert(dataToInsert);
         if (insError) throw insError;
       }
@@ -248,20 +166,26 @@ export function useImportacaoFinanceiro() {
       await supabase
         .from("importacao_lotes")
         .update({
-          status: "concluido",
-          total_importados: dataToInsert.length
+          status: errosCount > 0 ? "parcial" : "concluido",
+          registros_sucesso: validos.length,
         })
-        .eq("id", idLote);
+        .eq("id", currentLoteId);
 
-      toast.success(`Importação finalizada! ${dataToInsert.length} títulos abertos.`);
-      return true;
+      toast.success(`${validos.length} títulos financeiros importados.`);
+      return currentLoteId;
 
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Erro desconhecido";
-      toast.error(`Erro na finalização: ${msg}`);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : "Erro desconhecido";
+      console.error("Erro na importação financeira:", error);
+      toast.error(`Falha no processamento: ${msg}`);
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  const finalizeImport = async () => {
+    toast.info("Importação já foi concluída no passo anterior.");
+    return true;
   };
 
   return {

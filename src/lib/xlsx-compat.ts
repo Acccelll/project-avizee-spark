@@ -58,8 +58,9 @@ export function read(data: unknown, _opts?: { type?: string }): WorkBook {
       buffer = data as ArrayBuffer;
     }
     await wb.xlsx.load(buffer);
-    result.SheetNames = wb.worksheets.map((ws) => ws.name);
-    wb.worksheets.forEach((ws) => {
+    const worksheets = wb.worksheets || [];
+    result.SheetNames = worksheets.map((ws) => ws.name);
+    worksheets.forEach((ws) => {
       result.Sheets[ws.name] = { _ws: ws };
     });
   })();

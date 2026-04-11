@@ -36,7 +36,6 @@ export function useImportacaoCadastros() {
       setHeaders(headerRow);
       setRawRows(XLSX.utils.sheet_to_json(ws));
 
-      // Auto-mapping based on aliases
       const initialMapping: Mapping = {};
       headerRow.forEach(h => {
         const cleanH = String(h).trim().toUpperCase();
@@ -56,12 +55,16 @@ export function useImportacaoCadastros() {
     const reader = new FileReader();
     reader.onload = async (evt) => {
       const bstr = evt.target?.result;
-      const wb = XLSX.read(bstr, { type: "binary" });
-      await XLSX.ensureLoaded(wb);
-      setWorkbook(wb);
-      setSheets(wb.SheetNames);
-      if (wb.SheetNames.length > 0) {
-        onSheetChange(wb.SheetNames[0], wb);
+      try {
+        const wb = XLSX.read(bstr, { type: "binary" });
+        await XLSX.ensureLoaded(wb);
+        setWorkbook(wb);
+        setSheets(wb.SheetNames);
+        if (wb.SheetNames.length > 0) {
+          onSheetChange(wb.SheetNames[0], wb);
+        }
+      } catch (err: any) {
+        toast.error(`Erro ao ler arquivo: ${err.message}`);
       }
     };
     reader.readAsBinaryString(selectedFile);
@@ -99,17 +102,28 @@ export function useImportacaoCadastros() {
     setIsProcessing(true);
 
     try {
-      // 1. Criar Lote
       const { data: user } = await supabase.auth.getUser();
+
+      const validos = previewData.filter(i => i._valid);
+      const errosCount = previewData.length - validos.length;
+
+      // Create batch record using actual importacao_lotes schema
       const { data: lote, error: loteError } = await supabase
         .from("importacao_lotes")
         .insert({
-          tipo_importacao: importType,
+          tipo: importType,
           arquivo_nome: file?.name,
           status: "processando",
-          total_lidos: previewData.length,
-          mapeamento: mapping,
-          criado_por: user?.user?.id
+          total_registros: previewData.length,
+          registros_sucesso: validos.length,
+          registros_erro: errosCount,
+          usuario_id: user?.user?.id,
+          erros: errosCount > 0
+            ? previewData
+                .filter(i => !i._valid)
+                .slice(0, 50)
+                .map(i => ({ linha: i._originalLine, erros: i._errors }))
+            : null,
         })
         .select()
         .single();
@@ -118,36 +132,45 @@ export function useImportacaoCadastros() {
       const currentLoteId = lote.id;
       setLoteId(currentLoteId);
 
-      // 2. Salvar em Staging
-      const stagingTable = `stg_${importType === "produtos" ? "produtos" : importType === "clientes" ? "clientes" : "fornecedores"}`;
-      const stagingData = previewData.map(item => ({
-        lote_importacao_id: currentLoteId,
-        arquivo_origem: file?.name,
-        aba_origem: currentSheet,
-        linha_origem: item._originalLine,
-        payload: item._originalRow,
-        status_validacao: item._valid ? "valido" : "erro",
-        motivo_erro: item._errors.join(", "),
-        criado_por: user?.user?.id
-      }));
+      // Insert valid records directly into target table
+      if (validos.length > 0) {
+        const dataToInsert = validos.map(item => {
+          const { _valid, _errors, _originalLine, _originalRow, ...rest } = item;
+          return rest;
+        });
 
-      const { error: stagingError } = await supabase.from(stagingTable as any).insert(stagingData as any);
-      if (stagingError) throw stagingError;
+        let query;
+        if (importType === "produtos") {
+          query = supabase.from("produtos").upsert(dataToInsert, { onConflict: "codigo_interno" });
+        } else {
+          const targetTable = importType === "clientes" ? "clientes" : "fornecedores";
+          // Map fields to match DB schema
+          const mapped = dataToInsert.map(d => ({
+            nome_razao_social: d.nome,
+            cpf_cnpj: d.cpf_cnpj,
+            email: d.email,
+            telefone: d.telefone,
+            cidade: d.cidade,
+            uf: d.uf,
+          }));
+          query = supabase.from(targetTable).insert(mapped);
+        }
 
-      // 3. Atualizar Lote com contagens
-      const validos = previewData.filter(i => i._valid).length;
-      const erros = previewData.length - validos;
+        const { error: insertError } = await query;
+        if (insertError) throw insertError;
+      }
 
+      // Update batch with final status
       await supabase
         .from("importacao_lotes")
         .update({
-          status: erros > 0 ? "parcial" : "validado",
-          total_validos: validos,
-          total_erros: erros
+          status: errosCount > 0 ? "parcial" : "concluido",
+          registros_sucesso: validos.length,
+          registros_erro: errosCount
         })
         .eq("id", currentLoteId);
 
-      toast.success(`${validos} registros validados e prontos para carga.`);
+      toast.success(`${validos.length} registros importados com sucesso.`);
       setIsProcessing(false);
       return currentLoteId;
 
@@ -158,89 +181,10 @@ export function useImportacaoCadastros() {
     }
   };
 
-  const finalizeImport = async (idLote = loteId) => {
-    if (!idLote) return;
-    setIsProcessing(true);
-
-    try {
-      // 1. Recuperar mapeamento do lote
-      const { data: loteData } = await supabase
-        .from("importacao_lotes")
-        .select("mapeamento, tipo_importacao")
-        .eq("id", idLote)
-        .single();
-
-      const batchMapping = loteData?.mapeamento as Mapping;
-      const batchType = loteData?.tipo_importacao as ImportType;
-
-      // 2. Carregar registros válidos de staging
-      const stagingTable = `stg_${batchType === "produtos" ? "produtos" : batchType === "clientes" ? "clientes" : "fornecedores"}`;
-
-      const { data: validItems, error: fetchError } = await (supabase
-        .from(stagingTable as any)
-        .select("payload, linha_origem")
-        .eq("lote_importacao_id", idLote)
-        .eq("status_validacao", "valido") as any);
-
-      if (fetchError) throw fetchError;
-      if (!validItems || validItems.length === 0) {
-        toast.warning("Nenhum registro válido para importar.");
-        setIsProcessing(false);
-        return;
-      }
-
-      // 3. Processar em lotes para melhor performance e respeitar o mapeamento
-      const dataToInsert: any[] = [];
-      validItems.forEach(item => {
-        const raw = item.payload;
-        const mappedRow: any = {};
-        Object.entries(batchMapping).forEach(([field, colName]) => {
-          mappedRow[field] = raw[colName];
-        });
-
-        let validated;
-        if (batchType === "produtos") validated = validateProdutoImport(mappedRow);
-        else if (batchType === "clientes") validated = validateClienteImport(mappedRow);
-        else validated = validateFornecedorImport(mappedRow);
-
-        dataToInsert.push(validated.normalizedData);
-      });
-
-      // 4. Upsert em bloco
-      let query;
-      if (batchType === "produtos") {
-        query = supabase.from("produtos").upsert(dataToInsert, { onConflict: "codigo_interno" });
-      } else {
-        query = supabase.from(batchType as any).upsert(dataToInsert, { onConflict: "cpf_cnpj" });
-      }
-
-      const { error: insertError } = await query;
-
-      if (insertError) {
-        throw insertError;
-      }
-
-      const importedCount = dataToInsert.length;
-
-      // Atualizar Lote Final
-      await supabase
-        .from("importacao_lotes")
-        .update({
-          status: "concluido",
-          total_importados: importedCount,
-          observacoes: `Carga finalizada com ${importedCount} registros inseridos/atualizados.`
-        })
-        .eq("id", idLote);
-
-      toast.success(`Importação finalizada! ${importedCount} registros carregados.`);
-      setIsProcessing(false);
-      return true;
-
-    } catch (error: any) {
-      console.error("Erro na finalização:", error);
-      toast.error(`Falha na carga final: ${error.message}`);
-      setIsProcessing(false);
-    }
+  // finalizeImport kept for API compatibility but processImport now does everything
+  const finalizeImport = async () => {
+    toast.info("Importação já foi concluída no passo anterior.");
+    return true;
   };
 
   return {
