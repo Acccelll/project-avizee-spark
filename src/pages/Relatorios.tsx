@@ -58,7 +58,7 @@ function buildDreDateRange(state: FiltrosRelatorioState, dataInicio: string, dat
 
 export default function Relatorios() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const tipoInicial = (searchParams.get('tipo') as TipoRelatorio) || 'estoque';
+  const tipoInicial = (searchParams.get('tipo') as TipoRelatorio) || 'vendas';
   const [tipo, setTipo] = useState<TipoRelatorio | ''>(tipoInicial);
   const [dataInicio, setDataInicio] = useState('');
   const [dataFim, setDataFim] = useState('');

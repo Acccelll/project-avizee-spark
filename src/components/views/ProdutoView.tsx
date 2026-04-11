@@ -142,6 +142,7 @@ export function ProdutoView({ id }: Props) {
           <div className="flex flex-wrap items-center gap-2 mt-2">
             <StatusBadge status={selected.ativo ? "ativo" : "inativo"} />
             <StatusBadge status={selected.eh_composto ? "composto" : "simples"} />
+            <StatusBadge status={selected.tipo_item || "produto"} />
             {grupoNome && (
               <span className="inline-flex items-center gap-1 rounded-full border bg-muted/50 px-2 py-0.5 text-[10px] text-muted-foreground font-medium">
                 <Layers className="h-2.5 w-2.5" />
@@ -216,6 +217,10 @@ export function ProdutoView({ id }: Props) {
             <div>
               <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Tipo</span>
               <p className="text-sm">{selected.eh_composto ? "Composto" : "Simples"}</p>
+            </div>
+            <div>
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Tipo do Item</span>
+              <p className="text-sm">{selected.tipo_item === "insumo" ? "Insumo" : "Produto"}</p>
             </div>
           </div>
           {selected.descricao && (
