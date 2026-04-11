@@ -468,6 +468,24 @@ const Fiscal = () => {
           ? <span className="font-mono text-xs">{n.ordens_venda.numero}</span>
           : <span className="text-muted-foreground">—</span>,
     },
+    {
+      key: "origem",
+      label: "Origem",
+      render: (n: NotaFiscal) => (
+        <Badge variant="outline" className="text-xs capitalize">
+          {origemLabels[n.origem || "manual"] || n.origem || "Manual"}
+        </Badge>
+      ),
+    },
+    {
+      key: "status_sefaz",
+      label: "SEFAZ",
+      render: (n: NotaFiscal) => {
+        const sf = n.status_sefaz || "nao_enviada";
+        const sfClass = sf === "autorizada" ? "text-success border-success/30" : sf === "rejeitada" ? "text-destructive border-destructive/30" : "text-muted-foreground border-muted";
+        return <Badge variant="outline" className={`text-xs ${sfClass}`}>{statusSefazLabels[sf] || sf}</Badge>;
+      },
+    },
   ];
 
   return (
