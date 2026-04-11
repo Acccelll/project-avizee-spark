@@ -32,7 +32,7 @@ import { useNavigate } from "react-router-dom";
 import { useDashboardLayout } from "@/hooks/useDashboardLayout";
 import { useMetas } from "@/hooks/useMetas";
 import { useInView } from "@/hooks/useInView";
-import GridLayout from "react-grid-layout";
+import GridLayout, { Layout } from "react-grid-layout";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import "react-grid-layout/css/styles.css";
