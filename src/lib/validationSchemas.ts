@@ -82,6 +82,7 @@ export const produtoSchema = z.object({
   cfop_padrao: z.string().max(10).optional().or(z.literal("")),
   peso: z.number().min(0, "Peso não pode ser negativo"),
   eh_composto: z.boolean(),
+  tipo_item: z.enum(["produto", "insumo"]).default("produto"),
   grupo_id: z.string().optional().or(z.literal("")),
 });
 

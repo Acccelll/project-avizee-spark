@@ -46,6 +46,8 @@ const statusConfig: Record<string, { classes: string; icon: typeof Clock; label:
   inativo:         { classes: 'bg-muted text-muted-foreground border-muted', icon: Ban, label: 'Inativo' },
   simples:         { classes: 'bg-muted text-muted-foreground border-muted', icon: FileEdit, label: 'Simples' },
   composto:        { classes: 'bg-primary/10 text-primary border-primary/20', icon: Cog, label: 'Composto' },
+  produto:         { classes: 'bg-info/10 text-info border-info/20', icon: CheckCircle, label: 'Produto' },
+  insumo:          { classes: 'bg-warning/10 text-warning border-warning/20', icon: Cog, label: 'Insumo' },
 };
 
 const defaultConfig = { classes: 'bg-muted text-muted-foreground border-muted', icon: Clock, label: '' };
