@@ -127,6 +127,7 @@ export default function Administracao() {
         ]);
         const empresa = empresaRows?.[0];
         const appConfig = Object.fromEntries((appRows || []).map((row: { chave: string; valor: unknown }) => [row.chave, row.valor || {}]));
+        const geralRaw = (appConfig.geral as any) || {};
         const emailRaw = (appConfig.email as any) || {};
         const { _updatedAt: emailUpdatedAt, _updatedBy: emailUpdatedBy, ...emailData } = emailRaw;
         const fiscalRaw = (appConfig.fiscal as any) || {};
@@ -141,22 +142,22 @@ export default function Administracao() {
             nomeFantasia: empresa?.nome_fantasia || defaultConfig.geral.nomeFantasia,
             cnpj: empresa?.cnpj || defaultConfig.geral.cnpj,
             inscricaoEstadual: empresa?.inscricao_estadual || defaultConfig.geral.inscricaoEstadual,
-            inscricaoMunicipal: (empresa as any)?.inscricao_municipal || defaultConfig.geral.inscricaoMunicipal,
-            site: (empresa as any)?.site || defaultConfig.geral.site,
+            inscricaoMunicipal: geralRaw.inscricaoMunicipal || defaultConfig.geral.inscricaoMunicipal,
+            site: geralRaw.site || defaultConfig.geral.site,
             email: empresa?.email || defaultConfig.geral.email,
             telefone: empresa?.telefone || defaultConfig.geral.telefone,
-            whatsapp: (empresa as any)?.whatsapp || defaultConfig.geral.whatsapp,
-            responsavel: (empresa as any)?.responsavel || defaultConfig.geral.responsavel,
+            whatsapp: geralRaw.whatsapp || defaultConfig.geral.whatsapp,
+            responsavel: geralRaw.responsavel || defaultConfig.geral.responsavel,
             cep: empresa?.cep || defaultConfig.geral.cep,
             logradouro: empresa?.logradouro || defaultConfig.geral.logradouro,
-            numero: (empresa as any)?.numero || defaultConfig.geral.numero,
-            complemento: (empresa as any)?.complemento || defaultConfig.geral.complemento,
+            numero: empresa?.numero || defaultConfig.geral.numero,
+            complemento: empresa?.complemento || defaultConfig.geral.complemento,
             bairro: empresa?.bairro || defaultConfig.geral.bairro,
             cidade: empresa?.cidade || defaultConfig.geral.cidade,
             uf: empresa?.uf || defaultConfig.geral.uf,
-            logoUrl: empresa?.logo_url || (appConfig.geral as any)?.logoUrl || defaultConfig.geral.logoUrl,
-            corPrimaria: (appConfig.geral as any)?.corPrimaria || defaultConfig.geral.corPrimaria,
-            corSecundaria: (appConfig.geral as any)?.corSecundaria || defaultConfig.geral.corSecundaria,
+            logoUrl: empresa?.logo_url || geralRaw.logoUrl || defaultConfig.geral.logoUrl,
+            corPrimaria: geralRaw.corPrimaria || defaultConfig.geral.corPrimaria,
+            corSecundaria: geralRaw.corSecundaria || defaultConfig.geral.corSecundaria,
           },
           usuarios: { ...defaultConfig.usuarios, ...((appConfig.usuarios as any) || {}) },
           email: { ...defaultConfig.email, ...emailData },
