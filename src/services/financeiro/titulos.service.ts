@@ -90,7 +90,7 @@ export async function baixarTitulo(
 
   // Inserir registro de baixa
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error: baixaError } = await (supabase.from as any)("financeiro_baixas").insert({
+  const { data: baixaInserida, error: baixaError } = await (supabase.from as any)("financeiro_baixas").insert({
     lancamento_id: id,
     valor_pago: valorPago,
     desconto,
@@ -101,11 +101,11 @@ export async function baixarTitulo(
     forma_pagamento: formaPagamento,
     conta_bancaria_id: contaBancariaId,
     observacoes: observacoes ?? null,
-  });
+  }).select("id").single();
 
   if (baixaError) throw new Error(baixaError.message);
 
-  // Atualizar lançamento
+  // Atualizar lançamento — se falhar, reverter a baixa já inserida
   const { error: updateError } = await supabase
     .from("financeiro_lancamentos")
     .update({
@@ -117,7 +117,12 @@ export async function baixarTitulo(
     })
     .eq("id", id);
 
-  if (updateError) throw new Error(updateError.message);
+  if (updateError) {
+    // Compensating action: remove the baixa record that was just inserted
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase.from as any)("financeiro_baixas").delete().eq("id", baixaInserida.id);
+    throw new Error(updateError.message);
+  }
 }
 
 /**
@@ -165,35 +170,38 @@ export async function negociarTitulo(
     intervaloDias,
   );
 
-  // Cancelar título original
+  // Criar novas parcelas antes de cancelar o original para minimizar inconsistência
+  await Promise.all(
+    parcelas.map((parcela) =>
+      supabase
+        .from("financeiro_lancamentos")
+        .insert({
+          tipo,
+          descricao: `${descricaoBase} - ${parcela.numero}/${numParcelas}`,
+          valor: parcela.valor,
+          data_vencimento: parcela.dataVencimento,
+          status: "aberto",
+          forma_pagamento: formaPagamento ?? null,
+          conta_bancaria_id: contaBancariaId ?? null,
+          documento_pai_id: id,
+          parcela_numero: parcela.numero,
+          parcela_total: numParcelas,
+          observacoes: observacoes ?? null,
+          ativo: true,
+        })
+        .then(({ error }) => {
+          if (error) throw new Error(error.message);
+        })
+    )
+  );
+
+  // Cancelar título original somente após todas as parcelas serem criadas com sucesso
   const { error: cancelError } = await supabase
     .from("financeiro_lancamentos")
     .update({ status: "cancelado" })
     .eq("id", id);
 
   if (cancelError) throw new Error(cancelError.message);
-
-  // Criar novas parcelas
-  for (const parcela of parcelas) {
-    const { error: insertError } = await supabase
-      .from("financeiro_lancamentos")
-      .insert({
-        tipo,
-        descricao: `${descricaoBase} - ${parcela.numero}/${numParcelas}`,
-        valor: parcela.valor,
-        data_vencimento: parcela.dataVencimento,
-        status: "aberto",
-        forma_pagamento: formaPagamento ?? null,
-        conta_bancaria_id: contaBancariaId ?? null,
-        documento_pai_id: id,
-        parcela_numero: parcela.numero,
-        parcela_total: numParcelas,
-        observacoes: observacoes ?? null,
-        ativo: true,
-      });
-
-    if (insertError) throw new Error(insertError.message);
-  }
 }
 
 /**
@@ -236,7 +244,7 @@ export async function anteciparTitulo(
 
   // Inserir registro de baixa (antecipação)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error: baixaError } = await (supabase.from as any)("financeiro_baixas").insert({
+  const { data: baixaInserida, error: baixaError } = await (supabase.from as any)("financeiro_baixas").insert({
     lancamento_id: id,
     valor_pago: valorAntecipado,
     desconto,
@@ -244,7 +252,7 @@ export async function anteciparTitulo(
     forma_pagamento: formaPagamento,
     conta_bancaria_id: contaBancariaId,
     observacoes: observacoes ?? null,
-  });
+  }).select("id").single();
 
   if (baixaError) throw new Error(baixaError.message);
 
@@ -260,5 +268,10 @@ export async function anteciparTitulo(
     })
     .eq("id", id);
 
-  if (updateError) throw new Error(updateError.message);
+  if (updateError) {
+    // Compensating action: remove the baixa record that was just inserted
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase.from as any)("financeiro_baixas").delete().eq("id", baixaInserida.id);
+    throw new Error(updateError.message);
+  }
 }

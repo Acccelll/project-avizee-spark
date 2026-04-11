@@ -219,9 +219,11 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
   }, [pedidos]);
 
   const refreshAll = async () => {
-    await queryClient.invalidateQueries({ queryKey: ["pedidos_compra"] });
-    await queryClient.invalidateQueries({ queryKey: ["pedidos_compra_fornecedores"] });
-    await queryClient.invalidateQueries({ queryKey: ["pedidos_compra_produtos"] });
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["pedidos_compra"] }),
+      queryClient.invalidateQueries({ queryKey: ["pedidos_compra_fornecedores"] }),
+      queryClient.invalidateQueries({ queryKey: ["pedidos_compra_produtos"] }),
+    ]);
     await refetchPedidos();
   };
 
@@ -372,15 +374,10 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
         }
         pedidoId = newP.id;
       } else if (selected) {
-        const { error } = await supabase.from("pedidos_compra")
-          .update(payload)
-          .eq("id", selected.id);
-        if (error) {
-          toast.error(`Erro ao atualizar pedido: ${error.message}`);
-          setSaving(false);
-          return;
-        }
-        await supabase.from("pedidos_compra_itens").delete().eq("pedido_compra_id", selected.id);
+        await Promise.all([
+          supabase.from("pedidos_compra").update(payload).eq("id", selected.id),
+          supabase.from("pedidos_compra_itens").delete().eq("pedido_compra_id", selected.id),
+        ]);
       }
 
       if (items.length > 0 && pedidoId) {
@@ -432,24 +429,28 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
     }
 
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      for (const item of itens as any[]) {
-        const saldoAnterior = Number(item.produtos?.estoque_atual || 0);
-        const qtd = Number(item.quantidade || 0);
+      // Batch insert all stock movements
+      const movements = (itens as any[]).map((item) => ({
+        produto_id: item.produto_id,
+        tipo: "entrada" as const,
+        quantidade: Number(item.quantidade || 0),
+        saldo_anterior: Number(item.produtos?.estoque_atual || 0),
+        saldo_atual: Number(item.produtos?.estoque_atual || 0) + Number(item.quantidade || 0),
+        documento_tipo: "pedido_compra",
+        documento_id: p.id,
+        motivo: `Entrada via ${pedidoNumero(p)}`,
+      }));
+      const { error: movError } = await supabase.from("estoque_movimentos").insert(movements);
+      if (movError) throw movError;
 
-        await supabase.from("estoque_movimentos").insert({
-          produto_id: item.produto_id,
-          tipo: "entrada" as const,
-          quantidade: qtd,
-          saldo_anterior: saldoAnterior,
-          saldo_atual: saldoAnterior + qtd,
-          documento_tipo: "pedido_compra",
-          documento_id: p.id,
-          motivo: `Entrada via ${pedidoNumero(p)}`,
-        });
-
-        await supabase.from("produtos").update({ estoque_atual: saldoAnterior + qtd }).eq("id", item.produto_id);
-      }
+      // Parallel update of product stocks
+      await Promise.all(
+        (itens as any[]).map((item) => {
+          const novoEstoque = Number(item.produtos?.estoque_atual || 0) + Number(item.quantidade || 0);
+          return supabase.from("produtos").update({ estoque_atual: novoEstoque }).eq("id", item.produto_id)
+            .then(({ error }) => { if (error) throw error; });
+        })
+      );
 
       const vTotal = Number(p.valor_total || 0);
       if (vTotal > 0) {

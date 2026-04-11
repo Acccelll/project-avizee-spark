@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
+import { baixarTitulo } from "@/services/financeiro/titulos.service";
 import { formatCurrency } from "@/lib/format";
 import { toast } from "sonner";
 
@@ -101,36 +102,19 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
 
     setSaving(true);
     try {
-      // Insert baixa record — campos extras (desconto, juros, multa, abatimento) são
-      // ignorados pelo Supabase mas mantidos para compatibilidade futura com migração.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error: baixaError } = await (supabase.from as any)("financeiro_baixas").insert({
-        lancamento_id: lancamento.id,
-        valor_pago: valorPago,
+      await baixarTitulo(lancamento.id, {
+        valorPago,
         desconto,
         juros,
         multa,
         abatimento,
-        data_baixa: dataBaixa,
-        forma_pagamento: formaPagamento,
-        conta_bancaria_id: contaBancariaId,
-        observacoes: observacoes || null,
+        dataBaixa,
+        formaPagamento,
+        contaBancariaId,
+        observacoes: observacoes || undefined,
       });
-      if (baixaError) throw baixaError;
-
-      // Update lancamento saldo and status
       const newSaldo = Math.max(0, novoSaldo);
       const newStatus = newSaldo <= 0.01 ? "pago" : "parcial";
-      const { error: updateError } = await supabase
-        .from("financeiro_lancamentos")
-        .update({
-          saldo_restante: newSaldo,
-          status: newStatus,
-          data_pagamento: newStatus === "pago" ? dataBaixa : null,
-        })
-        .eq("id", lancamento.id);
-      if (updateError) throw updateError;
-
       toast.success(newStatus === "pago" ? "Título liquidado integralmente!" : "Baixa parcial registrada!");
       onSuccess();
       onClose();

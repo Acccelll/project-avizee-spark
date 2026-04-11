@@ -90,15 +90,17 @@ const Caixa = () => {
       const saldoAnterior = conta ? Number(conta.saldo_atual || 0) : 0;
       const isPositive = ["abertura", "suprimento", "venda"].includes(form.tipo);
       const saldo_atual = isPositive ? saldoAnterior + form.valor : saldoAnterior - form.valor;
-      await create({
-        ...form,
-        saldo_anterior: saldoAnterior,
-        saldo_atual,
-        conta_bancaria_id: form.conta_bancaria_id,
-        forma_pagamento: form.forma_pagamento || null,
-      } as any);
-      // Update conta bancaria saldo
-      await supabase.from("contas_bancarias").update({ saldo_atual } as any).eq("id", form.conta_bancaria_id);
+      await Promise.all([
+        create({
+          ...form,
+          saldo_anterior: saldoAnterior,
+          saldo_atual,
+          conta_bancaria_id: form.conta_bancaria_id,
+          forma_pagamento: form.forma_pagamento || null,
+        } as any),
+        // Update conta bancaria saldo
+        supabase.from("contas_bancarias").update({ saldo_atual } as any).eq("id", form.conta_bancaria_id),
+      ]);
       setModalOpen(false);
       setForm({ tipo: "suprimento", descricao: "", valor: 0, conta_bancaria_id: "", forma_pagamento: "" });
       // Refresh contas

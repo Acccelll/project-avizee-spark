@@ -176,8 +176,10 @@ const Estoque = () => {
       const qty = pendingMovForm.tipo === "saida" ? -pendingMovForm.quantidade : pendingMovForm.tipo === "ajuste" ? pendingMovForm.quantidade - saldo_anterior : pendingMovForm.quantidade;
       const saldo_atual = pendingMovForm.tipo === "ajuste" ? pendingMovForm.quantidade : saldo_anterior + qty;
 
-      await create({ ...pendingMovForm, quantidade: Math.abs(qty), saldo_anterior, saldo_atual, documento_tipo: "manual" });
-      await supabase.from("produtos").update({ estoque_atual: saldo_atual }).eq("id", pendingMovForm.produto_id);
+      await Promise.all([
+        create({ ...pendingMovForm, quantidade: Math.abs(qty), saldo_anterior, saldo_atual, documento_tipo: "manual" }),
+        supabase.from("produtos").update({ estoque_atual: saldo_atual }).eq("id", pendingMovForm.produto_id),
+      ]);
       produtosCrud.fetchData();
       setForm({ produto_id: "", tipo: "ajuste", quantidade: 0, motivo: "" });
       setPendingMovForm(null);

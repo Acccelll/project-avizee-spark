@@ -22,6 +22,7 @@ import { LogisticaBlock } from "@/components/dashboard/LogisticaBlock";
 import { FiscalBlock } from "@/components/dashboard/FiscalBlock";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { PendenciasList } from "@/components/dashboard/PendenciasList";
+import { BlockErrorBoundary } from "@/components/dashboard/BlockErrorBoundary";
 import { ViewDrawerV2 } from "@/components/ViewDrawerV2";
 import { useAuth } from "@/contexts/AuthContext";
 import { DashboardPeriodProvider, useDashboardPeriod } from "@/contexts/DashboardPeriodContext";
@@ -32,6 +33,7 @@ import { useNavigate } from "react-router-dom";
 import { useDashboardLayout } from "@/hooks/useDashboardLayout";
 import { useMetas } from "@/hooks/useMetas";
 import { useInView } from "@/hooks/useInView";
+import { toast } from "sonner";
 import GridLayout from "react-grid-layout";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const RGL = GridLayout as any;
@@ -107,6 +109,13 @@ const DashboardContent = () => {
   const [estoqueBaixo, setEstoqueBaixo] = useState<any[]>([]);
   const [fiscalStats, setFiscalStats] = useState({ emitidas: 0, pendentes: 0, canceladas: 0, valorEmitidas: 0 });
   const [vencimentosHoje, setVencimentosHoje] = useState({ receber: 0, pagar: 0 });
+  const [topClientes, setTopClientes] = useState<{ nome: string; valor: number }[]>([]);
+  const [topProdutos, setTopProdutos] = useState<{ nome: string; valor: number }[]>([]);
+  const [dailyReceber, setDailyReceber] = useState<{ dia: string; valor: number }[]>([]);
+  const [dailyPagar, setDailyPagar] = useState<{ dia: string; valor: number }[]>([]);
+  const [dailyVendas, setDailyVendas] = useState<{ dia: string; valor: number }[]>([]);
+  const [valorEstoque, setValorEstoque] = useState(0);
+  const [remessasAtrasadas, setRemessasAtrasadas] = useState(0);
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
@@ -123,33 +132,34 @@ const DashboardContent = () => {
     const buildFinTotalQuery = (tipo: string) => {
       let q = supabase
         .from("financeiro_lancamentos")
-        .select("valor")
+        .select("valor, saldo_restante, status")
         .eq("tipo", tipo as any)
         .eq("ativo", true)
-        .in("status", ["aberto", "vencido"]);
+        .in("status", ["aberto", "vencido", "parcial"]);
       if (dateTo) q = q.lte("data_vencimento", dateTo);
       return q;
     };
 
-    const [
-      { count: produtos },
-      { count: clientes },
-      { count: fornecedores },
-      { count: orcamentos },
-      { count: compras },
-      { data: receber },
-      { data: pagar },
-      { data: vencidas },
-      { data: orcRecent },
-      { data: backlog },
-      { data: compAguardando },
-      { data: estMin },
-      { data: nfAtual },
-      { data: nfAnterior },
-      { data: nfStats },
-      { count: receberHoje },
-      { count: pagarHoje },
-    ] = await Promise.all([
+    try {
+      const [
+        { count: produtos },
+        { count: clientes },
+        { count: fornecedores },
+        { count: orcamentos },
+        { count: compras },
+        { data: receber },
+        { data: pagar },
+        { data: vencidas },
+        { data: orcRecent },
+        { data: backlog },
+        { data: compAguardando },
+        { data: estMin },
+        { data: nfAtual },
+        { data: nfAnterior },
+        { data: nfStats },
+        { count: receberHoje },
+        { count: pagarHoje },
+      ] = await Promise.all([
       supabase.from("produtos").select("*", { count: "exact", head: true }).eq("ativo", true),
       supabase.from("clientes").select("*", { count: "exact", head: true }).eq("ativo", true),
       supabase.from("fornecedores").select("*", { count: "exact", head: true }).eq("ativo", true),
@@ -242,45 +252,206 @@ const DashboardContent = () => {
         .eq("data_vencimento", today),
     ]);
 
-    const totalReceber = (receber || []).reduce((s: number, r: any) => s + Number(r.valor || 0), 0);
-    const totalPagar = (pagar || []).reduce((s: number, r: any) => s + Number(r.valor || 0), 0);
+      const totalReceber = (receber || []).reduce((s: number, r: any) => {
+        // For partially paid items, use saldo_restante instead of valor
+        const val = r.status === "parcial"
+          ? Number(r.saldo_restante ?? r.valor ?? 0)
+          : Number(r.valor || 0);
+        return s + val;
+      }, 0);
+      const totalPagar = (pagar || []).reduce((s: number, r: any) => {
+        const val = r.status === "parcial"
+          ? Number(r.saldo_restante ?? r.valor ?? 0)
+          : Number(r.valor || 0);
+        return s + val;
+      }, 0);
 
-    setStats({
-      produtos: produtos || 0,
-      clientes: clientes || 0,
-      fornecedores: fornecedores || 0,
-      orcamentos: orcamentos || 0,
-      compras: compras || 0,
-      totalReceber,
-      totalPagar,
-      contasVencidas: (vencidas || []).length,
-      contasReceber: (receber || []).length,
-      contasPagar: (pagar || []).length,
-    });
+      setStats({
+        produtos: produtos || 0,
+        clientes: clientes || 0,
+        fornecedores: fornecedores || 0,
+        orcamentos: orcamentos || 0,
+        compras: compras || 0,
+        totalReceber,
+        totalPagar,
+        contasVencidas: (vencidas || []).length,
+        contasReceber: (receber || []).length,
+        contasPagar: (pagar || []).length,
+      });
 
-    const fatAtual = (nfAtual || []).reduce((s: number, n: any) => s + Number(n.valor_total || 0), 0);
-    const fatAnterior = (nfAnterior || []).reduce((s: number, n: any) => s + Number(n.valor_total || 0), 0);
-    setFaturamento({ mesAtual: fatAtual, mesAnterior: fatAnterior });
+      const fatAtual = (nfAtual || []).reduce((s: number, n: any) => s + Number(n.valor_total || 0), 0);
+      const fatAnterior = (nfAnterior || []).reduce((s: number, n: any) => s + Number(n.valor_total || 0), 0);
+      setFaturamento({ mesAtual: fatAtual, mesAnterior: fatAnterior });
 
-    // Fiscal stats
-    const nfArr = nfStats || [];
-    const emitidas = nfArr.filter((n: any) => n.status === "confirmada").length;
-    const pendentes = nfArr.filter((n: any) => n.status === "pendente" || n.status === "rascunho").length;
-    const canceladas = nfArr.filter((n: any) => n.status === "cancelada").length;
-    const valorEmitidas = nfArr
-      .filter((n: any) => n.status === "confirmada")
-      .reduce((s: number, n: any) => s + Number(n.valor_total || 0), 0);
-    setFiscalStats({ emitidas, pendentes, canceladas, valorEmitidas });
+      // Fiscal stats
+      const nfArr = nfStats || [];
+      const emitidas = nfArr.filter((n: any) => n.status === "confirmada").length;
+      const pendentes = nfArr.filter((n: any) => n.status === "pendente" || n.status === "rascunho").length;
+      const canceladas = nfArr.filter((n: any) => n.status === "cancelada").length;
+      const valorEmitidas = nfArr
+        .filter((n: any) => n.status === "confirmada")
+        .reduce((s: number, n: any) => s + Number(n.valor_total || 0), 0);
+      setFiscalStats({ emitidas, pendentes, canceladas, valorEmitidas });
 
-    setRecentOrcamentos(orcRecent || []);
-    setBacklogOVs(backlog || []);
-    setComprasAguardando(compAguardando || []);
-    setEstoqueBaixo(
-      (estMin || []).filter((p: any) => p.estoque_minimo > 0 && (p.estoque_atual ?? 0) <= p.estoque_minimo)
-    );
-    setVencimentosHoje({ receber: receberHoje || 0, pagar: pagarHoje || 0 });
-    setLoadedAt(new Date());
-    setLoading(false);
+      setRecentOrcamentos(orcRecent || []);
+      setBacklogOVs(backlog || []);
+      setComprasAguardando(compAguardando || []);
+      setEstoqueBaixo(
+        (estMin || []).filter((p: any) => p.estoque_minimo > 0 && (p.estoque_atual ?? 0) <= p.estoque_minimo)
+      );
+      setVencimentosHoje({ receber: receberHoje || 0, pagar: pagarHoje || 0 });
+      setLoadedAt(new Date());
+
+      // Load top-5 clients by open receivables (fire & forget — non-critical)
+      supabase
+        .from("financeiro_lancamentos")
+        .select("valor, saldo_restante, status, clientes(nome_razao_social)")
+        .eq("tipo", "receber")
+        .eq("ativo", true)
+        .in("status", ["aberto", "vencido", "parcial"])
+        .then(({ data: recData }) => {
+          if (!recData) return;
+          const map = new Map<string, number>();
+          for (const r of recData as any[]) {
+            const nome: string = r.clientes?.nome_razao_social ?? "Sem cliente";
+            const val = r.status === "parcial"
+              ? Number(r.saldo_restante ?? r.valor ?? 0)
+              : Number(r.valor ?? 0);
+            map.set(nome, (map.get(nome) ?? 0) + val);
+          }
+          const sorted = [...map.entries()]
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5)
+            .map(([nome, valor]) => ({ nome, valor }));
+          setTopClientes(sorted);
+        });
+
+      // Load top-5 products by NF-e sales this month (fire & forget — non-critical)
+      const inicioMes = (() => {
+        const now = new Date();
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+      })();
+      supabase
+        .from("notas_fiscais_itens")
+        .select("quantidade, valor_unitario, produtos(nome), notas_fiscais!inner(status, tipo, data_emissao)")
+        .eq("notas_fiscais.status", "confirmada" as any)
+        .eq("notas_fiscais.tipo", "saida" as any)
+        .gte("notas_fiscais.data_emissao", inicioMes as any)
+        .then(({ data: itemData }) => {
+          if (!itemData) return;
+          const map = new Map<string, number>();
+          for (const it of itemData as any[]) {
+            const nome: string = it.produtos?.nome ?? "Sem produto";
+            const val = Number(it.quantidade ?? 0) * Number(it.valor_unitario ?? 0);
+            map.set(nome, (map.get(nome) ?? 0) + val);
+          }
+          const sorted = [...map.entries()]
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5)
+            .map(([nome, valor]) => ({ nome, valor }));
+          setTopProdutos(sorted);
+        });
+
+      // --- 7-day daily data for sparklines + detail drawers ---
+      const buildDays = (fromOffset: number, count: number): string[] =>
+        Array.from({ length: count }, (_, i) => {
+          const d = new Date();
+          d.setDate(d.getDate() + fromOffset + i);
+          return d.toISOString().slice(0, 10);
+        });
+
+      const fmt = (iso: string) => {
+        const [, mm, dd] = iso.split("-");
+        return `${dd}/${mm}`;
+      };
+
+      // Receivables: next 7 days (today … today+6)
+      const nextDays = buildDays(0, 7);
+      supabase
+        .from("financeiro_lancamentos")
+        .select("data_vencimento, valor, saldo_restante, status")
+        .eq("tipo", "receber")
+        .eq("ativo", true)
+        .in("status", ["aberto", "vencido", "parcial"])
+        .in("data_vencimento", nextDays)
+        .then(({ data: dr }) => {
+          if (!dr) return;
+          const map = new Map<string, number>(nextDays.map((d) => [d, 0]));
+          for (const r of dr as any[]) {
+            const val = r.status === "parcial"
+              ? Number(r.saldo_restante ?? r.valor ?? 0)
+              : Number(r.valor ?? 0);
+            map.set(r.data_vencimento, (map.get(r.data_vencimento) ?? 0) + val);
+          }
+          setDailyReceber(nextDays.map((d) => ({ dia: fmt(d), valor: map.get(d) ?? 0 })));
+        });
+
+      // Payables: next 7 days
+      supabase
+        .from("financeiro_lancamentos")
+        .select("data_vencimento, valor, saldo_restante, status")
+        .eq("tipo", "pagar")
+        .eq("ativo", true)
+        .in("status", ["aberto", "vencido", "parcial"])
+        .in("data_vencimento", nextDays)
+        .then(({ data: dp }) => {
+          if (!dp) return;
+          const map = new Map<string, number>(nextDays.map((d) => [d, 0]));
+          for (const r of dp as any[]) {
+            const val = r.status === "parcial"
+              ? Number(r.saldo_restante ?? r.valor ?? 0)
+              : Number(r.valor ?? 0);
+            map.set(r.data_vencimento, (map.get(r.data_vencimento) ?? 0) + val);
+          }
+          setDailyPagar(nextDays.map((d) => ({ dia: fmt(d), valor: map.get(d) ?? 0 })));
+        });
+
+      // Vendas: last 7 days NF-e saída confirmed
+      const lastDays = buildDays(-6, 7);
+      supabase
+        .from("notas_fiscais")
+        .select("data_emissao, valor_total")
+        .eq("ativo", true)
+        .eq("tipo", "saida")
+        .eq("status", "confirmada")
+        .in("data_emissao", lastDays)
+        .then(({ data: dv }) => {
+          if (!dv) return;
+          const map = new Map<string, number>(lastDays.map((d) => [d, 0]));
+          for (const n of dv as any[]) {
+            map.set(n.data_emissao, (map.get(n.data_emissao) ?? 0) + Number(n.valor_total ?? 0));
+          }
+          setDailyVendas(lastDays.map((d) => ({ dia: fmt(d), valor: map.get(d) ?? 0 })));
+        });
+
+      // Valor total em estoque: SUM(estoque_atual * preco_custo) for active products
+      supabase
+        .from("produtos")
+        .select("estoque_atual, preco_custo")
+        .eq("ativo", true)
+        .then(({ data: estoqueData }) => {
+          if (!estoqueData) return;
+          const total = (estoqueData as any[]).reduce((s, p) => {
+            return s + (Number(p.estoque_atual ?? 0) * Number(p.preco_custo ?? 0));
+          }, 0);
+          setValorEstoque(total);
+        });
+
+      // Remessas atrasadas: past previsao_entrega and not terminal status
+      supabase
+        .from("remessas")
+        .select("id", { count: "exact", head: true })
+        .lt("previsao_entrega", today)
+        .not("status_transporte", "in", '("entregue","cancelado")')
+        .then(({ count }) => {
+          setRemessasAtrasadas(count ?? 0);
+        });
+    } catch (err) {
+      console.error("[dashboard] erro ao carregar dados:", err);
+      toast.error("Erro ao carregar dados do dashboard. Tente novamente.");
+    } finally {
+      setLoading(false);
+    }
   }, [globalRange]);
 
   useEffect(() => {
@@ -299,8 +470,9 @@ const DashboardContent = () => {
       variation: stats.contasVencidas > 0 ? `${stats.contasVencidas} vencido${stats.contasVencidas > 1 ? "s" : ""}` : "Sem vencidos",
       variationType: stats.contasVencidas > 0 ? ("negative" as const) : ("positive" as const),
       variant: stats.contasVencidas > 0 ? ("warning" as const) : ("success" as const),
-      sparklineData: [44, 50, 53, 52, 61, 66, 69],
+      sparklineData: dailyReceber.length > 0 ? dailyReceber.map((d) => d.valor) : undefined,
       onClick: () => navigate("/financeiro?tipo=receber"),
+      onDetail: () => setMetricDrawer("receber"),
       meta: metas.receber,
       realizado: stats.totalReceber,
     },
@@ -313,7 +485,7 @@ const DashboardContent = () => {
       variation: stats.totalPagar > stats.totalReceber ? "Saldo negativo" : "Saldo positivo",
       variationType: stats.totalPagar > stats.totalReceber ? ("negative" as const) : ("positive" as const),
       variant: stats.totalPagar > stats.totalReceber ? ("danger" as const) : ("warning" as const),
-      sparklineData: [35, 38, 37, 39, 41, 43, 42],
+      sparklineData: dailyPagar.length > 0 ? dailyPagar.map((d) => d.valor) : undefined,
       onClick: () => navigate("/financeiro?tipo=pagar"),
       meta: metas.pagar,
       realizado: stats.totalPagar,
@@ -327,7 +499,10 @@ const DashboardContent = () => {
       variation: saldoProjetado >= 0 ? "Caixa positivo" : "Caixa negativo",
       variationType: saldoProjetado >= 0 ? ("positive" as const) : ("negative" as const),
       variant: saldoProjetado >= 0 ? ("success" as const) : ("danger" as const),
-      sparklineData: [20, 22, 25, 23, 28, 30, saldoProjetado > 0 ? 35 : 12],
+      sparklineData:
+        dailyReceber.length > 0 && dailyPagar.length > 0
+          ? dailyReceber.map((r, i) => r.valor - (dailyPagar[i]?.valor ?? 0))
+          : undefined,
       onClick: () => navigate("/fluxo-caixa"),
       meta: metas.saldo,
       realizado: saldoProjetado,
@@ -341,8 +516,9 @@ const DashboardContent = () => {
       variation: estoqueBaixo.length > 0 ? "Reposição necessária" : "Sem itens críticos",
       variationType: estoqueBaixo.length > 0 ? ("negative" as const) : ("positive" as const),
       variant: estoqueBaixo.length > 0 ? ("danger" as const) : ("success" as const),
-      sparklineData: [18, 17, 15, 14, 12, 9, estoqueBaixo.length],
+      sparklineData: undefined,
       onClick: () => navigate("/estoque"),
+      onDetail: () => setMetricDrawer("estoque"),
     },
   ];
 
@@ -351,51 +527,24 @@ const DashboardContent = () => {
 
   const detailData = {
     receber: {
-      title: "Total a Receber",
-      daily: [
-        { dia: "Seg", valor: 12000 },
-        { dia: "Ter", valor: 18500 },
-        { dia: "Qua", valor: 16200 },
-        { dia: "Qui", valor: 21100 },
-        { dia: "Sex", valor: 19800 },
-      ],
-      top: [
-        { nome: "Cliente A", valor: 32000 },
-        { nome: "Cliente B", valor: 22000 },
-        { nome: "Cliente C", valor: 14000 },
-      ],
+      title: "Vencimentos dos Próximos 7 Dias",
+      daily: dailyReceber,
+      top: topClientes,
     },
     estoque: {
       title: "Estoque Crítico",
-      daily: [
-        { dia: "Seg", valor: 17 },
-        { dia: "Ter", valor: 16 },
-        { dia: "Qua", valor: 15 },
-        { dia: "Qui", valor: 13 },
-        { dia: "Sex", valor: 12 },
-      ],
-      top: [
-        { nome: "SKU-019", valor: 2 },
-        { nome: "SKU-130", valor: 3 },
-        { nome: "SKU-512", valor: 4 },
-      ],
+      daily: [] as { dia: string; valor: number }[],
+      top: estoqueBaixo.slice(0, 5).map((p: any) => ({
+        nome: p.codigo_interno ? `${p.codigo_interno} – ${p.nome}` : p.nome,
+        valor: p.estoque_atual ?? 0,
+      })),
     },
     vendas: {
-      title: "Vendas do Mês",
-      daily: [
-        { dia: "01", valor: 5000 },
-        { dia: "05", valor: 9000 },
-        { dia: "10", valor: 11500 },
-        { dia: "15", valor: 14000 },
-        { dia: "20", valor: 18600 },
-      ],
-      top: [
-        { nome: "Produto X", valor: 43000 },
-        { nome: "Produto Y", valor: 26000 },
-        { nome: "Produto Z", valor: 18000 },
-      ],
+      title: "Vendas dos Últimos 7 Dias",
+      daily: dailyVendas,
+      top: topProdutos,
     },
-  } as const;
+  };
 
   if (loading) {
     return (
@@ -486,7 +635,7 @@ const DashboardContent = () => {
             <AlertStrip
               titulosVencidos={stats.contasVencidas}
               estoqueBaixo={estoqueBaixo.length}
-              remessasAtrasadas={0}
+              remessasAtrasadas={remessasAtrasadas}
               comprasAguardando={comprasAguardando.filter((c) => {
                 if (!c.data_entrega_prevista) return false;
                 return new Date(c.data_entrega_prevista) < new Date();
@@ -500,21 +649,25 @@ const DashboardContent = () => {
         {/* Financeiro */}
         <div key="financeiro">
           <W>
-            <FinanceiroBlock
-              totalReceber={stats.totalReceber}
-              totalPagar={stats.totalPagar}
-              contasVencidas={stats.contasVencidas}
-              saldoProjetado={saldoProjetado}
-              recebimentosHoje={vencimentosHoje.receber}
-              pagamentosHoje={vencimentosHoje.pagar}
-            />
+            <BlockErrorBoundary label="Financeiro">
+              <FinanceiroBlock
+                totalReceber={stats.totalReceber}
+                totalPagar={stats.totalPagar}
+                contasVencidas={stats.contasVencidas}
+                saldoProjetado={saldoProjetado}
+                recebimentosHoje={vencimentosHoje.receber}
+                pagamentosHoje={vencimentosHoje.pagar}
+              />
+            </BlockErrorBoundary>
           </W>
         </div>
 
         {/* Ações rápidas */}
         <div key="acoes_rapidas">
           <W>
-            <QuickActions />
+            <BlockErrorBoundary label="Ações Rápidas">
+              <QuickActions />
+            </BlockErrorBoundary>
           </W>
         </div>
 
@@ -522,13 +675,15 @@ const DashboardContent = () => {
         <div key="vendas_chart">
           <LazyInViewWidget fallback={<Skeleton className="h-full w-full" />}>
             <div className="bg-card rounded-xl border p-4 h-full">
-              <Suspense fallback={<Skeleton className="h-full w-full" />}>
-                <VendasChart
-                  onBarClick={(start, end) =>
-                    navigate(`/relatorios?tipo=vendas&di=${start}&df=${end}`)
-                  }
-                />
-              </Suspense>
+              <BlockErrorBoundary label="Gráfico de Vendas">
+                <Suspense fallback={<Skeleton className="h-full w-full" />}>
+                  <VendasChart
+                    onBarClick={(start, end) =>
+                      navigate(`/relatorios?tipo=vendas&di=${start}&df=${end}`)
+                    }
+                  />
+                </Suspense>
+              </BlockErrorBoundary>
             </div>
           </LazyInViewWidget>
         </div>
@@ -537,7 +692,9 @@ const DashboardContent = () => {
         <div key="pendencias">
           <W>
             <div className="bg-card rounded-xl border p-4 h-full">
-              <PendenciasList />
+              <BlockErrorBoundary label="Pendências">
+                <PendenciasList />
+              </BlockErrorBoundary>
             </div>
           </W>
         </div>
@@ -545,41 +702,49 @@ const DashboardContent = () => {
         {/* Comercial */}
         <div key="comercial">
           <W>
-            <ComercialBlock
-              cotacoesAbertas={stats.orcamentos}
-              pedidosPendentes={backlogOVs.length}
-              ticketMedio={ticketMedio}
-              recentOrcamentos={recentOrcamentos}
-              loading={loading}
-            />
+            <BlockErrorBoundary label="Comercial">
+              <ComercialBlock
+                cotacoesAbertas={stats.orcamentos}
+                pedidosPendentes={backlogOVs.length}
+                ticketMedio={ticketMedio}
+                recentOrcamentos={recentOrcamentos}
+                loading={loading}
+              />
+            </BlockErrorBoundary>
           </W>
         </div>
 
         {/* Estoque */}
         <div key="estoque">
           <W>
-            <EstoqueBlock
-              itensBaixoMinimo={estoqueBaixo}
-              valorTotalEstoque={0}
-              totalProdutosAtivos={stats.produtos}
-            />
+            <BlockErrorBoundary label="Estoque">
+              <EstoqueBlock
+                itensBaixoMinimo={estoqueBaixo}
+                valorTotalEstoque={valorEstoque}
+                totalProdutosAtivos={stats.produtos}
+              />
+            </BlockErrorBoundary>
           </W>
         </div>
 
         {/* Logística */}
         <div key="logistica">
           <LazyInViewWidget fallback={<Skeleton className="h-full w-full" />}>
-            <LogisticaBlock
-              comprasAguardando={comprasAguardando}
-              totalRemessasAtrasadas={0}
-            />
+            <BlockErrorBoundary label="Logística">
+              <LogisticaBlock
+                comprasAguardando={comprasAguardando}
+                totalRemessasAtrasadas={remessasAtrasadas}
+              />
+            </BlockErrorBoundary>
           </LazyInViewWidget>
         </div>
 
         {/* Fiscal */}
         <div key="fiscal">
           <LazyInViewWidget fallback={<Skeleton className="h-full w-full" />}>
-            <FiscalBlock stats={fiscalStats} />
+            <BlockErrorBoundary label="Fiscal">
+              <FiscalBlock stats={fiscalStats} />
+            </BlockErrorBoundary>
           </LazyInViewWidget>
         </div>
       </RGL>
@@ -597,16 +762,35 @@ const DashboardContent = () => {
                   value: "evolucao",
                   label: "Evolução diária",
                   content: (
-                    <div className="h-64">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={[...openMetric.daily]}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="dia" />
-                          <YAxis />
-                          <Tooltip />
-                          <Line dataKey="valor" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
-                        </LineChart>
-                      </ResponsiveContainer>
+                    <div className="space-y-3">
+                      {openMetric.daily.length > 0 ? (
+                        <div className="h-64">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={[...openMetric.daily]}>
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis dataKey="dia" />
+                              <YAxis />
+                              <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                              <Line dataKey="valor" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
+                            </LineChart>
+                          </ResponsiveContainer>
+                        </div>
+                      ) : (
+                        <p className="py-8 text-center text-sm text-muted-foreground">
+                          Sem dados para o período selecionado.
+                        </p>
+                      )}
+                      {metricDrawer === "receber" && (
+                        <div className="text-right">
+                          <button
+                            type="button"
+                            onClick={() => { setMetricDrawer(null); navigate("/financeiro?tipo=receber"); }}
+                            className="text-xs text-primary underline-offset-2 hover:underline"
+                          >
+                            Ver todos os títulos →
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ),
                 },
@@ -614,16 +798,35 @@ const DashboardContent = () => {
                   value: "top",
                   label: "Top itens",
                   content: (
-                    <div className="h-64">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={[...openMetric.top]}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="nome" />
-                          <YAxis />
-                          <Tooltip />
-                          <Bar dataKey="valor" fill="hsl(var(--primary))" />
-                        </BarChart>
-                      </ResponsiveContainer>
+                    <div className="space-y-3">
+                      {openMetric.top.length > 0 ? (
+                        <div className="h-64">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={[...openMetric.top]}>
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis dataKey="nome" tick={{ fontSize: 11 }} />
+                              <YAxis />
+                              <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                              <Bar dataKey="valor" fill="hsl(var(--primary))" />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+                      ) : (
+                        <p className="py-8 text-center text-sm text-muted-foreground">
+                          Sem dados disponíveis.
+                        </p>
+                      )}
+                      {metricDrawer === "estoque" && (
+                        <div className="text-right">
+                          <button
+                            type="button"
+                            onClick={() => { setMetricDrawer(null); navigate("/estoque"); }}
+                            className="text-xs text-primary underline-offset-2 hover:underline"
+                          >
+                            Ver estoque completo →
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ),
                 },

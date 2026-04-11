@@ -350,8 +350,10 @@ export function useCompras(): UseComprasReturn {
           if (error) throw error;
           compraId = newC.id;
         } else if (selected) {
-          await supabase.from("compras").update(payload).eq("id", selected.id);
-          await supabase.from("compras_itens").delete().eq("compra_id", selected.id);
+          await Promise.all([
+            supabase.from("compras").update(payload).eq("id", selected.id),
+            supabase.from("compras_itens").delete().eq("compra_id", selected.id),
+          ]);
         }
         if (items.length > 0 && compraId) {
           const itemsPayload = items

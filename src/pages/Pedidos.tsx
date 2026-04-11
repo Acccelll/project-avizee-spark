@@ -232,24 +232,29 @@ const Pedidos = () => {
 
       if (error) throw error;
 
-      if (pedidoItems && pedidoItems.length > 0 && newNF) {
-        const nfItems = pedidoItems.map((i) => ({
-          nota_fiscal_id: newNF.id,
-          produto_id: i.produto_id,
-          quantidade: i.quantidade,
-          valor_unitario: i.valor_unitario,
-        }));
-        await supabase.from("notas_fiscais_itens").insert(nfItems);
-      }
-
-      if (pedidoItems) {
-        for (const item of pedidoItems) {
-          const novaQtdFaturada = (item.quantidade_faturada || 0) + item.quantidade;
-          await supabase.from("ordens_venda_itens").update({
-            quantidade_faturada: novaQtdFaturada,
-          }).eq("id", item.id);
-        }
-      }
+      // Parallel: insert NF items + update OV item billing quantities
+      await Promise.all([
+        pedidoItems && pedidoItems.length > 0 && newNF
+          ? supabase.from("notas_fiscais_itens").insert(
+              pedidoItems.map((i) => ({
+                nota_fiscal_id: newNF.id,
+                produto_id: i.produto_id,
+                quantidade: i.quantidade,
+                valor_unitario: i.valor_unitario,
+              }))
+            )
+          : Promise.resolve(),
+        pedidoItems
+          ? Promise.all(
+              pedidoItems.map((item) => {
+                const novaQtdFaturada = (item.quantidade_faturada || 0) + item.quantidade;
+                return supabase.from("ordens_venda_itens").update({
+                  quantidade_faturada: novaQtdFaturada,
+                }).eq("id", item.id).then(({ error }) => { if (error) throw error; });
+              })
+            )
+          : Promise.resolve(),
+      ]);
 
       const { data: updatedItems } = await supabase
         .from("ordens_venda_itens")

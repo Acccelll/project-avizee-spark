@@ -23,45 +23,61 @@ export async function processarBaixaLote(params: BaixaLoteParams): Promise<boole
 
   try {
     if (tipoBaixa === "total") {
-      for (const id of selectedIds) {
+      const items = selectedIds.map((id) => {
         const l = selectedLancamentos.find(x => x.id === id);
         const valor = l ? Number(l.saldo_restante != null ? l.saldo_restante : l.valor) : 0;
-        await supabase.from("financeiro_lancamentos").update({
+        return { id, valor };
+      });
+
+      // Parallel updates
+      await Promise.all(items.map(({ id, valor }) =>
+        supabase.from("financeiro_lancamentos").update({
           status: "pago", data_pagamento: baixaDate,
           valor_pago: valor, tipo_baixa: "total",
           forma_pagamento: formaPagamento,
           conta_bancaria_id: contaBancariaId,
           saldo_restante: 0,
-        } as any).eq("id", id);
-        await supabase.from("financeiro_baixas" as any).insert({
+        } as any).eq("id", id).then(({ error }) => { if (error) throw error; })
+      ));
+      // Parallel inserts
+      await Promise.all(items.map(({ id, valor }) =>
+        supabase.from("financeiro_baixas" as any).insert({
           lancamento_id: id, valor_pago: valor,
           data_baixa: baixaDate, forma_pagamento: formaPagamento,
           conta_bancaria_id: contaBancariaId,
-        });
-      }
+        }).then(({ error }: any) => { if (error) throw error; })
+      ));
       toast.success(`${selectedIds.length} lançamento(s) baixado(s) integralmente!`);
     } else {
       const ratio = valorPagoBaixa / totalBaixa;
-      for (const id of selectedIds) {
+      const items = selectedIds.map((id) => {
         const l = selectedLancamentos.find(x => x.id === id);
         const saldo = l ? Number(l.saldo_restante != null ? l.saldo_restante : l.valor) : 0;
         const pagoParcial = calcularPagamentoParcialLote(saldo, ratio);
         const novoSaldo = calcularNovoSaldo(saldo, pagoParcial, 0);
         const novoStatus = statusPosBaixa(novoSaldo);
-        await supabase.from("financeiro_lancamentos").update({
+        return { id, pagoParcial, novoSaldo, novoStatus };
+      });
+
+      // Parallel updates
+      await Promise.all(items.map(({ id, pagoParcial, novoSaldo, novoStatus }) =>
+        supabase.from("financeiro_lancamentos").update({
           status: novoStatus,
           data_pagamento: novoStatus === "pago" ? baixaDate : null,
           valor_pago: pagoParcial, tipo_baixa: "parcial",
           forma_pagamento: formaPagamento,
           conta_bancaria_id: contaBancariaId,
           saldo_restante: novoSaldo,
-        } as any).eq("id", id);
-        await supabase.from("financeiro_baixas" as any).insert({
+        } as any).eq("id", id).then(({ error }) => { if (error) throw error; })
+      ));
+      // Parallel inserts
+      await Promise.all(items.map(({ id, pagoParcial }) =>
+        supabase.from("financeiro_baixas" as any).insert({
           lancamento_id: id, valor_pago: pagoParcial,
           data_baixa: baixaDate, forma_pagamento: formaPagamento,
           conta_bancaria_id: contaBancariaId,
-        });
-      }
+        }).then(({ error }: any) => { if (error) throw error; })
+      ));
       toast.success(`Baixa parcial registrada para ${selectedIds.length} lançamento(s)!`);
     }
     return true;

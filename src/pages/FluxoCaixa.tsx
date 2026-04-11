@@ -26,20 +26,7 @@ import {
 } from "lucide-react";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { exportarParaExcel } from "@/services/export.service";
-
-interface Lancamento {
-  id: string; tipo: string; valor: number; status: string;
-  data_vencimento: string; data_pagamento: string | null;
-  conta_bancaria_id: string | null; descricao: string;
-  forma_pagamento: string | null; nota_fiscal_id: string | null;
-  documento_pai_id: string | null; observacoes: string | null;
-  contas_bancarias?: { descricao: string; bancos?: { nome: string } } | null;
-}
-
-interface ContaBancaria {
-  id: string; descricao: string; saldo_atual: number;
-  bancos?: { nome: string };
-}
+import type { Lancamento, ContaBancaria } from "@/types/domain";
 
 type Periodicidade = "diaria" | "semanal" | "mensal";
 
