@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState, useCallback } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, useCallback } from "react";
 import {
   Bar,
   BarChart,
@@ -67,9 +67,23 @@ const DashboardContent = () => {
   const { layout, setLayout, resetLayout } = useDashboardLayout(user?.id);
   const { metas } = useMetas();
   const [editMode, setEditMode] = useState(false);
+  const gridContainerRef = useRef<HTMLDivElement>(null);
+  const [gridWidth, setGridWidth] = useState(1200);
 
   const [metricDrawer, setMetricDrawer] = useState<null | "receber" | "estoque" | "vendas">(null);
   const [loadedAt, setLoadedAt] = useState<Date>(new Date());
+
+  // Measure container width for react-grid-layout responsiveness
+  useEffect(() => {
+    const el = gridContainerRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(([entry]) => {
+      setGridWidth(entry.contentRect.width || el.clientWidth);
+    });
+    observer.observe(el);
+    setGridWidth(el.clientWidth);
+    return () => observer.disconnect();
+  }, []);
 
   const [stats, setStats] = useState({
     produtos: 0,
@@ -441,11 +455,12 @@ const DashboardContent = () => {
       </div>
 
       {/* ── Drag-and-drop grid ── */}
+      <div ref={gridContainerRef}>
       <GridLayout
         layout={layout}
         cols={12}
         rowHeight={40}
-        width={1200}
+        width={gridWidth}
         isDraggable={editMode}
         isResizable={editMode}
         onLayoutChange={(newLayout) => { if (editMode) setLayout(newLayout); }}
@@ -566,6 +581,7 @@ const DashboardContent = () => {
           </LazyInViewWidget>
         </div>
       </GridLayout>
+      </div>
 
       {/* ── Drawer de detalhes por métrica ── */}
       <ViewDrawerV2

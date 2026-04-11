@@ -25,6 +25,21 @@ interface VendasChartProps {
   onBarClick?: (monthStart: string, monthEnd: string) => void;
 }
 
+/** Converts a "YYYY-MM" string into {label, start, end}. */
+function parseMonth(rawDate: string) {
+  const [year, mon] = rawDate.split('-');
+  const y = Number(year);
+  const m = Number(mon);
+  const label = new Date(y, m - 1).toLocaleDateString('pt-BR', {
+    month: 'short',
+    year: '2-digit',
+  });
+  const start = `${year}-${mon}-01`;
+  const lastDay = new Date(y, m, 0).getDate();
+  const end = `${year}-${mon}-${String(lastDay).padStart(2, '0')}`;
+  return { label, start, end };
+}
+
 export function VendasChart({ onBarClick }: VendasChartProps) {
   const navigate = useNavigate();
   const { range } = useDashboardPeriod();
@@ -57,14 +72,11 @@ export function VendasChart({ onBarClick }: VendasChartProps) {
       }
 
       const sorted = Array.from(monthMap.entries()).sort(([a], [b]) => a.localeCompare(b));
-      const points: VendasPoint[] = sorted.map(([month, valor]) => {
-        const [year, mon] = month.split('-');
-        const label = new Date(Number(year), Number(mon) - 1).toLocaleDateString('pt-BR', {
-          month: 'short',
-          year: '2-digit',
-        });
-        return { mes: label, valor, rawDate: month };
-      });
+      const points: VendasPoint[] = sorted.map(([month, valor]) => ({
+        mes: parseMonth(month).label,
+        valor,
+        rawDate: month,
+      }));
 
       setData(points);
       setLoading(false);
@@ -75,16 +87,12 @@ export function VendasChart({ onBarClick }: VendasChartProps) {
   const handleBarClick = (payload: any) => {
     if (!payload?.activePayload?.[0]) return;
     const point = payload.activePayload[0].payload as VendasPoint;
-    const [year, mon] = point.rawDate.split('-');
-    const monthStart = `${year}-${mon}-01`;
-    // last day of month
-    const lastDay = new Date(Number(year), Number(mon), 0).getDate();
-    const monthEnd = `${year}-${mon}-${String(lastDay).padStart(2, '0')}`;
+    const { start, end } = parseMonth(point.rawDate);
 
     if (onBarClick) {
-      onBarClick(monthStart, monthEnd);
+      onBarClick(start, end);
     } else {
-      navigate(`/relatorios?tipo=vendas&di=${monthStart}&df=${monthEnd}`);
+      navigate(`/relatorios?tipo=vendas&di=${start}&df=${end}`);
     }
   };
 

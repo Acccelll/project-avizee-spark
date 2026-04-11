@@ -11,6 +11,7 @@ export function useInView<T extends Element = HTMLDivElement>(
   options: IntersectionObserverInit = { threshold: 0 },
 ): [React.RefObject<T>, boolean] {
   const ref = useRef<T>(null);
+  const optionsRef = useRef(options);
   const [inView, setInView] = useState(false);
 
   useEffect(() => {
@@ -23,11 +24,10 @@ export function useInView<T extends Element = HTMLDivElement>(
         // Once visible, stop observing to avoid re-renders
         observer.disconnect();
       }
-    }, options);
+    }, optionsRef.current);
 
     observer.observe(el);
     return () => observer.disconnect();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return [ref, inView];
