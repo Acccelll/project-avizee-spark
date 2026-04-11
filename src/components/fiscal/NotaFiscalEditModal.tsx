@@ -25,6 +25,7 @@ import {
   FileText,
   Lock,
   Package,
+  Truck,
 } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -498,6 +499,84 @@ export function NotaFiscalEditModal({
               )}
             </div>
           </div>
+
+          {/* ── 2b. Dados Fiscais Complementares ────────────────── */}
+          {!rules.isFullyLocked && (
+            <div>
+              <SectionHeader
+                icon={Truck}
+                title="Dados Fiscais e Transporte"
+                description={rules.isStructurallyLocked ? "Campos bloqueados" : "Natureza da operação, ambiente, transporte e volumes"}
+              />
+              {rules.isStructurallyLocked ? (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 rounded-lg bg-muted/20 border p-4">
+                  <ReadField label="Natureza da Operação" value={form.natureza_operacao || "—"} />
+                  <ReadField label="Ambiente" value={form.ambiente_emissao === "producao" ? "Produção" : "Homologação"} />
+                  <ReadField label="Modalidade Frete" value={form.frete_modalidade || "—"} />
+                  <ReadField label="Peso Bruto" value={`${form.peso_bruto || 0} kg`} mono />
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <div className="space-y-2 col-span-2 md:col-span-1">
+                      <Label>Natureza da Operação</Label>
+                      <Input
+                        value={form.natureza_operacao || ""}
+                        onChange={(e) => setForm({ ...form, natureza_operacao: e.target.value })}
+                        placeholder="Ex: Venda de mercadoria"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Ambiente de Emissão</Label>
+                      <Select
+                        value={form.ambiente_emissao || "homologacao"}
+                        onValueChange={(v) => setForm({ ...form, ambiente_emissao: v })}
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="homologacao">Homologação</SelectItem>
+                          <SelectItem value="producao">Produção</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Modalidade Frete</Label>
+                      <Select
+                        value={form.frete_modalidade || "0"}
+                        onValueChange={(v) => setForm({ ...form, frete_modalidade: v })}
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="0">0 – CIF (Emitente)</SelectItem>
+                          <SelectItem value="1">1 – FOB (Destinatário)</SelectItem>
+                          <SelectItem value="2">2 – Terceiros</SelectItem>
+                          <SelectItem value="9">9 – Sem frete</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Peso Bruto (kg)</Label>
+                      <Input type="number" step="0.001" value={form.peso_bruto || 0} onChange={(e) => setForm({ ...form, peso_bruto: Number(e.target.value) })} className="h-8 text-xs" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Peso Líquido (kg)</Label>
+                      <Input type="number" step="0.001" value={form.peso_liquido || 0} onChange={(e) => setForm({ ...form, peso_liquido: Number(e.target.value) })} className="h-8 text-xs" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Qtd Volumes</Label>
+                      <Input type="number" value={form.quantidade_volumes || 0} onChange={(e) => setForm({ ...form, quantidade_volumes: Number(e.target.value) })} className="h-8 text-xs" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Espécie</Label>
+                      <Input value={form.especie_volumes || ""} onChange={(e) => setForm({ ...form, especie_volumes: e.target.value })} className="h-8 text-xs" placeholder="Ex: Caixa" />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* ── 3. Itens da Nota ─────────────────────────────────── */}
           <div>

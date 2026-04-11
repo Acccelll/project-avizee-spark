@@ -84,6 +84,8 @@ const Fiscal = () => {
   const [modeloFilters, setModeloFilters] = useState<string[]>([]);
   const [statusFilters, setStatusFilters] = useState<string[]>([]);
   const [tipoFilters, setTipoFilters] = useState<string[]>([]);
+  const [origemFilters, setOrigemFilters] = useState<string[]>([]);
+  const [statusSefazFilters, setStatusSefazFilters] = useState<string[]>([]);
   // Devolução
   const [devolucaoModalOpen, setDevolucaoModalOpen] = useState(false);
   const [devolucaoNF, setDevolucaoNF] = useState<NotaFiscal | null>(null);
@@ -313,25 +315,34 @@ const Fiscal = () => {
       if (tipoFilters.length > 0 && !tipoFilters.includes(n.tipo)) return false;
       if (modeloFilters.length > 0 && !modeloFilters.includes(n.modelo_documento || "55")) return false;
       if (statusFilters.length > 0 && !statusFilters.includes(n.status)) return false;
+      if (origemFilters.length > 0 && !origemFilters.includes(n.origem || "manual")) return false;
+      if (statusSefazFilters.length > 0 && !statusSefazFilters.includes(n.status_sefaz || "nao_enviada")) return false;
       if (!query) return true;
       const parceiro = n.tipo === "entrada" ? n.fornecedores?.nome_razao_social : n.clientes?.nome_razao_social;
       const haystack = [n.numero, n.serie, n.chave_acesso, parceiro, n.ordens_venda?.numero].filter(Boolean).join(" ").toLowerCase();
       return haystack.includes(query);
     });
-  }, [consultaSearch, data, tipoParam, modeloFilters, statusFilters, tipoFilters]);
+  }, [consultaSearch, data, tipoParam, modeloFilters, statusFilters, tipoFilters, origemFilters, statusSefazFilters]);
+
+  const origemLabels: Record<string, string> = { manual: "Manual", pedido: "Pedido", importacao_xml: "Importação XML" };
+  const statusSefazLabels: Record<string, string> = { nao_enviada: "Não Enviada", pendente_envio: "Pendente Envio", em_processamento: "Em Processamento", autorizada: "Autorizada", rejeitada: "Rejeitada", cancelada_sefaz: "Cancelada SEFAZ", inutilizada: "Inutilizada", importada_externa: "Importada Externa" };
 
   const fiscalActiveFilters = useMemo(() => {
     const chips: FilterChip[] = [];
     tipoFilters.forEach(f => chips.push({ key: "tipo", label: "Tipo", value: [f], displayValue: f === "entrada" ? "Entrada" : "Saída" }));
     modeloFilters.forEach(f => chips.push({ key: "modelo", label: "Modelo", value: [f], displayValue: modeloLabels[f] || f }));
     statusFilters.forEach(f => chips.push({ key: "status", label: "Status", value: [f], displayValue: f.charAt(0).toUpperCase() + f.slice(1) }));
+    origemFilters.forEach(f => chips.push({ key: "origem", label: "Origem", value: [f], displayValue: origemLabels[f] || f }));
+    statusSefazFilters.forEach(f => chips.push({ key: "status_sefaz", label: "SEFAZ", value: [f], displayValue: statusSefazLabels[f] || f }));
     return chips;
-  }, [tipoFilters, modeloFilters, statusFilters]);
+  }, [tipoFilters, modeloFilters, statusFilters, origemFilters, statusSefazFilters]);
 
   const handleRemoveFiscalFilter = (key: string, value?: string) => {
     if (key === "tipo") setTipoFilters(prev => prev.filter(v => v !== value));
     if (key === "modelo") setModeloFilters(prev => prev.filter(v => v !== value));
     if (key === "status") setStatusFilters(prev => prev.filter(v => v !== value));
+    if (key === "origem") setOrigemFilters(prev => prev.filter(v => v !== value));
+    if (key === "status_sefaz") setStatusSefazFilters(prev => prev.filter(v => v !== value));
   };
 
   const tipoOptions: MultiSelectOption[] = [{ label: "Entrada", value: "entrada" }, { label: "Saída", value: "saida" }];
@@ -342,6 +353,8 @@ const Fiscal = () => {
     { label: "Confirmada", value: "confirmada" },
     { label: "Cancelada", value: "cancelada" },
   ];
+  const origemOptions: MultiSelectOption[] = Object.entries(origemLabels).map(([v, l]) => ({ label: l, value: v }));
+  const statusSefazOptions: MultiSelectOption[] = Object.entries(statusSefazLabels).map(([v, l]) => ({ label: l, value: v }));
 
   const tipoConfig = tipoParam === "entrada"
     ? { title: "Notas de Entrada", subtitle: "Central de conferência e recebimento fiscal", addLabel: "Nova NF de Entrada", moduleKey: "notas-entrada", parceiroLabel: "Fornecedor" }
@@ -455,6 +468,24 @@ const Fiscal = () => {
           ? <span className="font-mono text-xs">{n.ordens_venda.numero}</span>
           : <span className="text-muted-foreground">—</span>,
     },
+    {
+      key: "origem",
+      label: "Origem",
+      render: (n: NotaFiscal) => (
+        <Badge variant="outline" className="text-xs capitalize">
+          {origemLabels[n.origem || "manual"] || n.origem || "Manual"}
+        </Badge>
+      ),
+    },
+    {
+      key: "status_sefaz",
+      label: "SEFAZ",
+      render: (n: NotaFiscal) => {
+        const sf = n.status_sefaz || "nao_enviada";
+        const sfClass = sf === "autorizada" ? "text-success border-success/30" : sf === "rejeitada" ? "text-destructive border-destructive/30" : "text-muted-foreground border-muted";
+        return <Badge variant="outline" className={`text-xs ${sfClass}`}>{statusSefazLabels[sf] || sf}</Badge>;
+      },
+    },
   ];
 
   return (
@@ -473,12 +504,14 @@ const Fiscal = () => {
           searchPlaceholder="Buscar por número, chave ou parceiro..."
           activeFilters={fiscalActiveFilters}
           onRemoveFilter={handleRemoveFiscalFilter}
-          onClearAll={() => { setTipoFilters([]); setModeloFilters([]); setStatusFilters([]); }}
+          onClearAll={() => { setTipoFilters([]); setModeloFilters([]); setStatusFilters([]); setOrigemFilters([]); setStatusSefazFilters([]); }}
           count={filteredData.length}
         >
           {!tipoParam && <MultiSelect options={tipoOptions} selected={tipoFilters} onChange={setTipoFilters} placeholder="Tipo" className="w-[150px]" />}
           <MultiSelect options={modeloOptions} selected={modeloFilters} onChange={setModeloFilters} placeholder="Modelos" className="w-[180px]" />
           <MultiSelect options={statusOptions} selected={statusFilters} onChange={setStatusFilters} placeholder="Status" className="w-[180px]" />
+          <MultiSelect options={origemOptions} selected={origemFilters} onChange={setOrigemFilters} placeholder="Origem" className="w-[180px]" />
+          <MultiSelect options={statusSefazOptions} selected={statusSefazFilters} onChange={setStatusSefazFilters} placeholder="SEFAZ" className="w-[180px]" />
         </AdvancedFilterBar>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
