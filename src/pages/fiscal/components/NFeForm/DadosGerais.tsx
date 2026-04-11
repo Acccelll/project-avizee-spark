@@ -1,4 +1,6 @@
-import { useFormContext } from "react-hook-form";
+import { useFormContext, useWatch } from "react-hook-form";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import {
   FormField,
   FormItem,
@@ -21,8 +23,37 @@ interface DadosGeraisProps {
   disabled?: boolean;
 }
 
+async function verificarNumeroDuplicado(numero: string, serie: string): Promise<boolean> {
+  if (!numero || !serie) return false;
+  const { data } = await supabase
+    .from("notas_fiscais")
+    .select("id")
+    .eq("numero", numero)
+    .eq("serie", serie)
+    .eq("ativo", true)
+    .limit(1);
+  return (data?.length ?? 0) > 0;
+}
+
 export function DadosGerais({ disabled }: DadosGeraisProps) {
-  const { control } = useFormContext<NFeFormData>();
+  const { control, setError, clearErrors } = useFormContext<NFeFormData>();
+  const numero = useWatch({ control, name: "numero" });
+  const serie = useWatch({ control, name: "serie" });
+
+  useQuery({
+    queryKey: ["nfe-duplicado", numero, serie],
+    queryFn: async () => {
+      const duplicado = await verificarNumeroDuplicado(numero ?? "", serie ?? "");
+      if (duplicado) {
+        setError("numero", { type: "manual", message: "Número já utilizado nesta série" });
+      } else {
+        clearErrors("numero");
+      }
+      return duplicado;
+    },
+    enabled: !!(numero && numero.length > 0 && serie),
+    staleTime: 0,
+  });
 
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -48,6 +79,20 @@ export function DadosGerais({ disabled }: DadosGeraisProps) {
             <FormLabel>Série</FormLabel>
             <FormControl>
               <Input {...field} disabled={disabled} maxLength={3} />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        control={control}
+        name="numero"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Número</FormLabel>
+            <FormControl>
+              <Input {...field} disabled={disabled} placeholder="Gerado automaticamente" />
             </FormControl>
             <FormMessage />
           </FormItem>

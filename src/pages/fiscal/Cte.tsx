@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Plus, Search } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -31,7 +31,7 @@ export interface CteFormData {
   observacoes?: string;
 }
 
-async function fetchCtes(search?: string): Promise<NotaFiscalRow[]> {
+async function fetchCtes(search?: string, status?: string, dataInicio?: string, dataFim?: string): Promise<NotaFiscalRow[]> {
   let query = supabase
     .from("notas_fiscais")
     .select("*")
@@ -40,6 +40,9 @@ async function fetchCtes(search?: string): Promise<NotaFiscalRow[]> {
     .order("created_at", { ascending: false });
 
   if (search) query = query.ilike("numero", `%${search}%`);
+  if (status) query = query.eq("status", status);
+  if (dataInicio) query = query.gte("data_emissao", dataInicio);
+  if (dataFim) query = query.lte("data_emissao", dataFim);
 
   const { data, error } = await query;
   if (error) throw new Error(error.message);
@@ -47,13 +50,49 @@ async function fetchCtes(search?: string): Promise<NotaFiscalRow[]> {
 }
 
 export default function Cte() {
-  const [search, setSearch] = useState("");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const search = searchParams.get("search") ?? "";
+  const statusFiltro = searchParams.get("status") ?? "";
+  const dataInicio = searchParams.get("data_inicio") ?? "";
+  const dataFim = searchParams.get("data_fim") ?? "";
 
   const { data: ctes, isLoading } = useQuery({
-    queryKey: ["cte", search],
-    queryFn: () => fetchCtes(search),
+    queryKey: ["cte", search, statusFiltro, dataInicio, dataFim],
+    queryFn: () => fetchCtes(search, statusFiltro || undefined, dataInicio || undefined, dataFim || undefined),
     staleTime: 5 * 60 * 1000,
   });
+
+  function setSearch(value: string) {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (value) next.set("search", value); else next.delete("search");
+      return next;
+    }, { replace: true });
+  }
+
+  function setStatus(value: string) {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (value) next.set("status", value); else next.delete("status");
+      return next;
+    }, { replace: true });
+  }
+
+  function setDataInicio(value: string) {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (value) next.set("data_inicio", value); else next.delete("data_inicio");
+      return next;
+    }, { replace: true });
+  }
+
+  function setDataFim(value: string) {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (value) next.set("data_fim", value); else next.delete("data_fim");
+      return next;
+    }, { replace: true });
+  }
 
   return (
     <div className="space-y-4 p-6">
@@ -67,7 +106,7 @@ export default function Cte() {
         </Button>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <Search className="h-4 w-4 text-muted-foreground" />
         <Input
           placeholder="Buscar por número..."
@@ -75,6 +114,29 @@ export default function Cte() {
           onChange={(e) => setSearch(e.target.value)}
           className="max-w-sm"
         />
+        <Input
+          type="date"
+          value={dataInicio}
+          onChange={(e) => setDataInicio(e.target.value)}
+          className="w-40"
+        />
+        <Input
+          type="date"
+          value={dataFim}
+          onChange={(e) => setDataFim(e.target.value)}
+          className="w-40"
+        />
+        <select
+          value={statusFiltro}
+          onChange={(e) => setStatus(e.target.value)}
+          className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+        >
+          <option value="">Todos os status</option>
+          <option value="rascunho">Rascunho</option>
+          <option value="autorizada">Autorizada</option>
+          <option value="cancelada">Cancelada</option>
+          <option value="rejeitada">Rejeitada</option>
+        </select>
       </div>
 
       <div className="rounded-md border">

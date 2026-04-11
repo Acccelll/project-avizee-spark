@@ -1,8 +1,9 @@
 import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { FileDown } from "lucide-react";
+import { FileDown, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -39,17 +40,26 @@ const spedSchema = z.object({
 type SpedFormData = z.infer<typeof spedSchema>;
 
 export default function SpedFiscal() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [gerando, setGerando] = useState(false);
 
   const form = useForm<SpedFormData>({
     resolver: zodResolver(spedSchema),
     defaultValues: {
-      tipo: "efd",
-      perfil: "A",
+      periodoInicio: searchParams.get("data_inicio") ?? "",
+      periodoFim: searchParams.get("data_fim") ?? "",
+      tipo: (searchParams.get("tipo") as SpedFormData["tipo"]) ?? "efd",
+      perfil: (searchParams.get("perfil") as SpedFormData["perfil"]) ?? "A",
     },
   });
 
   function handleGerar(data: SpedFormData) {
+    setSearchParams({
+      data_inicio: data.periodoInicio,
+      data_fim: data.periodoFim,
+      tipo: data.tipo,
+      perfil: data.perfil,
+    }, { replace: true });
     setGerando(true);
     // Simulação: em produção, chamar o serviço de geração do SPED
     setTimeout(() => {
