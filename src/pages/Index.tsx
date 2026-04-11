@@ -32,6 +32,7 @@ import { useNavigate } from "react-router-dom";
 import { useDashboardLayout } from "@/hooks/useDashboardLayout";
 import { useMetas } from "@/hooks/useMetas";
 import { useInView } from "@/hooks/useInView";
+import { toast } from "sonner";
 import GridLayout from "react-grid-layout";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const RGL = GridLayout as any;
@@ -123,33 +124,34 @@ const DashboardContent = () => {
     const buildFinTotalQuery = (tipo: string) => {
       let q = supabase
         .from("financeiro_lancamentos")
-        .select("valor")
+        .select("valor, saldo_restante, status")
         .eq("tipo", tipo as any)
         .eq("ativo", true)
-        .in("status", ["aberto", "vencido"]);
+        .in("status", ["aberto", "vencido", "parcial"]);
       if (dateTo) q = q.lte("data_vencimento", dateTo);
       return q;
     };
 
-    const [
-      { count: produtos },
-      { count: clientes },
-      { count: fornecedores },
-      { count: orcamentos },
-      { count: compras },
-      { data: receber },
-      { data: pagar },
-      { data: vencidas },
-      { data: orcRecent },
-      { data: backlog },
-      { data: compAguardando },
-      { data: estMin },
-      { data: nfAtual },
-      { data: nfAnterior },
-      { data: nfStats },
-      { count: receberHoje },
-      { count: pagarHoje },
-    ] = await Promise.all([
+    try {
+      const [
+        { count: produtos },
+        { count: clientes },
+        { count: fornecedores },
+        { count: orcamentos },
+        { count: compras },
+        { data: receber },
+        { data: pagar },
+        { data: vencidas },
+        { data: orcRecent },
+        { data: backlog },
+        { data: compAguardando },
+        { data: estMin },
+        { data: nfAtual },
+        { data: nfAnterior },
+        { data: nfStats },
+        { count: receberHoje },
+        { count: pagarHoje },
+      ] = await Promise.all([
       supabase.from("produtos").select("*", { count: "exact", head: true }).eq("ativo", true),
       supabase.from("clientes").select("*", { count: "exact", head: true }).eq("ativo", true),
       supabase.from("fornecedores").select("*", { count: "exact", head: true }).eq("ativo", true),
@@ -242,45 +244,61 @@ const DashboardContent = () => {
         .eq("data_vencimento", today),
     ]);
 
-    const totalReceber = (receber || []).reduce((s: number, r: any) => s + Number(r.valor || 0), 0);
-    const totalPagar = (pagar || []).reduce((s: number, r: any) => s + Number(r.valor || 0), 0);
+      const totalReceber = (receber || []).reduce((s: number, r: any) => {
+        // For partially paid items, use saldo_restante instead of valor
+        const val = r.status === "parcial"
+          ? Number(r.saldo_restante ?? r.valor ?? 0)
+          : Number(r.valor || 0);
+        return s + val;
+      }, 0);
+      const totalPagar = (pagar || []).reduce((s: number, r: any) => {
+        const val = r.status === "parcial"
+          ? Number(r.saldo_restante ?? r.valor ?? 0)
+          : Number(r.valor || 0);
+        return s + val;
+      }, 0);
 
-    setStats({
-      produtos: produtos || 0,
-      clientes: clientes || 0,
-      fornecedores: fornecedores || 0,
-      orcamentos: orcamentos || 0,
-      compras: compras || 0,
-      totalReceber,
-      totalPagar,
-      contasVencidas: (vencidas || []).length,
-      contasReceber: (receber || []).length,
-      contasPagar: (pagar || []).length,
-    });
+      setStats({
+        produtos: produtos || 0,
+        clientes: clientes || 0,
+        fornecedores: fornecedores || 0,
+        orcamentos: orcamentos || 0,
+        compras: compras || 0,
+        totalReceber,
+        totalPagar,
+        contasVencidas: (vencidas || []).length,
+        contasReceber: (receber || []).length,
+        contasPagar: (pagar || []).length,
+      });
 
-    const fatAtual = (nfAtual || []).reduce((s: number, n: any) => s + Number(n.valor_total || 0), 0);
-    const fatAnterior = (nfAnterior || []).reduce((s: number, n: any) => s + Number(n.valor_total || 0), 0);
-    setFaturamento({ mesAtual: fatAtual, mesAnterior: fatAnterior });
+      const fatAtual = (nfAtual || []).reduce((s: number, n: any) => s + Number(n.valor_total || 0), 0);
+      const fatAnterior = (nfAnterior || []).reduce((s: number, n: any) => s + Number(n.valor_total || 0), 0);
+      setFaturamento({ mesAtual: fatAtual, mesAnterior: fatAnterior });
 
-    // Fiscal stats
-    const nfArr = nfStats || [];
-    const emitidas = nfArr.filter((n: any) => n.status === "confirmada").length;
-    const pendentes = nfArr.filter((n: any) => n.status === "pendente" || n.status === "rascunho").length;
-    const canceladas = nfArr.filter((n: any) => n.status === "cancelada").length;
-    const valorEmitidas = nfArr
-      .filter((n: any) => n.status === "confirmada")
-      .reduce((s: number, n: any) => s + Number(n.valor_total || 0), 0);
-    setFiscalStats({ emitidas, pendentes, canceladas, valorEmitidas });
+      // Fiscal stats
+      const nfArr = nfStats || [];
+      const emitidas = nfArr.filter((n: any) => n.status === "confirmada").length;
+      const pendentes = nfArr.filter((n: any) => n.status === "pendente" || n.status === "rascunho").length;
+      const canceladas = nfArr.filter((n: any) => n.status === "cancelada").length;
+      const valorEmitidas = nfArr
+        .filter((n: any) => n.status === "confirmada")
+        .reduce((s: number, n: any) => s + Number(n.valor_total || 0), 0);
+      setFiscalStats({ emitidas, pendentes, canceladas, valorEmitidas });
 
-    setRecentOrcamentos(orcRecent || []);
-    setBacklogOVs(backlog || []);
-    setComprasAguardando(compAguardando || []);
-    setEstoqueBaixo(
-      (estMin || []).filter((p: any) => p.estoque_minimo > 0 && (p.estoque_atual ?? 0) <= p.estoque_minimo)
-    );
-    setVencimentosHoje({ receber: receberHoje || 0, pagar: pagarHoje || 0 });
-    setLoadedAt(new Date());
-    setLoading(false);
+      setRecentOrcamentos(orcRecent || []);
+      setBacklogOVs(backlog || []);
+      setComprasAguardando(compAguardando || []);
+      setEstoqueBaixo(
+        (estMin || []).filter((p: any) => p.estoque_minimo > 0 && (p.estoque_atual ?? 0) <= p.estoque_minimo)
+      );
+      setVencimentosHoje({ receber: receberHoje || 0, pagar: pagarHoje || 0 });
+      setLoadedAt(new Date());
+    } catch (err) {
+      console.error("[dashboard] erro ao carregar dados:", err);
+      toast.error("Erro ao carregar dados do dashboard. Tente novamente.");
+    } finally {
+      setLoading(false);
+    }
   }, [globalRange]);
 
   useEffect(() => {
@@ -352,48 +370,24 @@ const DashboardContent = () => {
   const detailData = {
     receber: {
       title: "Total a Receber",
-      daily: [
-        { dia: "Seg", valor: 12000 },
-        { dia: "Ter", valor: 18500 },
-        { dia: "Qua", valor: 16200 },
-        { dia: "Qui", valor: 21100 },
-        { dia: "Sex", valor: 19800 },
-      ],
-      top: [
-        { nome: "Cliente A", valor: 32000 },
-        { nome: "Cliente B", valor: 22000 },
-        { nome: "Cliente C", valor: 14000 },
-      ],
+      // Breakdown by client requires additional queries not yet loaded — shown as aggregate only
+      daily: [] as { dia: string; valor: number }[],
+      top: [] as { nome: string; valor: number }[],
     },
     estoque: {
       title: "Estoque Crítico",
-      daily: [
-        { dia: "Seg", valor: 17 },
-        { dia: "Ter", valor: 16 },
-        { dia: "Qua", valor: 15 },
-        { dia: "Qui", valor: 13 },
-        { dia: "Sex", valor: 12 },
-      ],
-      top: [
-        { nome: "SKU-019", valor: 2 },
-        { nome: "SKU-130", valor: 3 },
-        { nome: "SKU-512", valor: 4 },
-      ],
+      // Real products below minimum stock
+      daily: [] as { dia: string; valor: number }[],
+      top: estoqueBaixo.slice(0, 5).map((p: any) => ({
+        nome: p.codigo_interno ? `${p.codigo_interno} – ${p.nome}` : p.nome,
+        valor: p.estoque_atual ?? 0,
+      })),
     },
     vendas: {
       title: "Vendas do Mês",
-      daily: [
-        { dia: "01", valor: 5000 },
-        { dia: "05", valor: 9000 },
-        { dia: "10", valor: 11500 },
-        { dia: "15", valor: 14000 },
-        { dia: "20", valor: 18600 },
-      ],
-      top: [
-        { nome: "Produto X", valor: 43000 },
-        { nome: "Produto Y", valor: 26000 },
-        { nome: "Produto Z", valor: 18000 },
-      ],
+      // Per-product breakdown requires additional queries not yet loaded — shown as aggregate only
+      daily: [] as { dia: string; valor: number }[],
+      top: [] as { nome: string; valor: number }[],
     },
   } as const;
 

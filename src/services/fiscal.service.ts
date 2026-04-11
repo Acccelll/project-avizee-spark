@@ -79,31 +79,33 @@ export async function confirmarNotaFiscal({ nf, parcelas }: ConfirmarNFParams) {
     .select("*")
     .eq("nota_fiscal_id", nf.id);
 
-  // Stock movements
+  // Stock movements — parallelise to avoid N+1 serial queries
   if (nf.movimenta_estoque !== false && itens) {
-    for (const item of itens) {
-      const { data: prod } = await supabase
-        .from("produtos")
-        .select("estoque_atual")
-        .eq("id", item.produto_id)
-        .single();
-      const saldo_anterior = Number(prod?.estoque_atual || 0);
-      const qty = nf.tipo === "entrada" ? item.quantidade : -item.quantidade;
-      const saldo_atual = saldo_anterior + qty;
-      await supabase.from("estoque_movimentos").insert({
-        produto_id: item.produto_id,
-        tipo: nf.tipo === "entrada" ? "entrada" : "saida",
-        quantidade: item.quantidade,
-        saldo_anterior,
-        saldo_atual,
-        documento_tipo: "fiscal",
-        documento_id: nf.id,
-      });
-      await supabase
-        .from("produtos")
-        .update({ estoque_atual: saldo_atual })
-        .eq("id", item.produto_id);
-    }
+    await Promise.all(
+      itens.map(async (item) => {
+        const { data: prod } = await supabase
+          .from("produtos")
+          .select("estoque_atual")
+          .eq("id", item.produto_id)
+          .single();
+        const saldo_anterior = Number(prod?.estoque_atual || 0);
+        const qty = nf.tipo === "entrada" ? item.quantidade : -item.quantidade;
+        const saldo_atual = saldo_anterior + qty;
+        await supabase.from("estoque_movimentos").insert({
+          produto_id: item.produto_id,
+          tipo: nf.tipo === "entrada" ? "entrada" : "saida",
+          quantidade: item.quantidade,
+          saldo_anterior,
+          saldo_atual,
+          documento_tipo: "fiscal",
+          documento_id: nf.id,
+        });
+        await supabase
+          .from("produtos")
+          .update({ estoque_atual: saldo_atual })
+          .eq("id", item.produto_id);
+      })
+    );
   }
 
   // Financial entries
@@ -127,23 +129,25 @@ export async function confirmarNotaFiscal({ nf, parcelas }: ConfirmarNFParams) {
       } as any);
     } else {
       const numParcelas = parcelas || 1;
-      for (let i = 0; i < numParcelas; i++) {
-        const vencimento = calcularVencimentoParcela(nf.data_emissao, i + 1);
-        await supabase.from("financeiro_lancamentos").insert({
-          tipo: tipo_fin as any,
-          descricao: `NF ${nf.numero} - Parcela ${i + 1}/${numParcelas}`,
-          valor: calcularValorParcela(valorFin, numParcelas),
-          data_vencimento: vencimento,
-          status: "aberto",
-          fornecedor_id: nf.fornecedor_id || null,
-          cliente_id: nf.cliente_id || null,
-          nota_fiscal_id: nf.id,
-          forma_pagamento: nf.forma_pagamento,
-          parcela_numero: i + 1,
-          parcela_total: numParcelas,
-          conta_contabil_id: nf.conta_contabil_id || null,
-        } as any);
-      }
+      await Promise.all(
+        Array.from({ length: numParcelas }, (_, i) => {
+          const vencimento = calcularVencimentoParcela(nf.data_emissao, i + 1);
+          return supabase.from("financeiro_lancamentos").insert({
+            tipo: tipo_fin as any,
+            descricao: `NF ${nf.numero} - Parcela ${i + 1}/${numParcelas}`,
+            valor: calcularValorParcela(valorFin, numParcelas),
+            data_vencimento: vencimento,
+            status: "aberto",
+            fornecedor_id: nf.fornecedor_id || null,
+            cliente_id: nf.cliente_id || null,
+            nota_fiscal_id: nf.id,
+            forma_pagamento: nf.forma_pagamento,
+            parcela_numero: i + 1,
+            parcela_total: numParcelas,
+            conta_contabil_id: nf.conta_contabil_id || null,
+          } as any);
+        })
+      );
     }
   }
 
@@ -193,33 +197,35 @@ export async function estornarNotaFiscal(nf: {
       .eq("documento_id", nf.id)
       .eq("documento_tipo", "fiscal");
     if (movimentos) {
-      for (const mov of movimentos) {
-        const { data: prod } = await supabase
-          .from("produtos")
-          .select("estoque_atual")
-          .eq("id", mov.produto_id)
-          .single();
-        const saldoAtual = Number(prod?.estoque_atual || 0);
-        const reversao =
-          mov.tipo === "entrada"
-            ? -Number(mov.quantidade)
-            : Number(mov.quantidade);
-        const novoSaldo = saldoAtual + reversao;
-        await supabase.from("estoque_movimentos").insert({
-          produto_id: mov.produto_id,
-          tipo: mov.tipo === "entrada" ? "saida" : "entrada",
-          quantidade: Number(mov.quantidade),
-          saldo_anterior: saldoAtual,
-          saldo_atual: novoSaldo,
-          documento_tipo: "estorno_fiscal",
-          documento_id: nf.id,
-          motivo: `Estorno da NF ${nf.numero}`,
-        });
-        await supabase
-          .from("produtos")
-          .update({ estoque_atual: novoSaldo })
-          .eq("id", mov.produto_id);
-      }
+      await Promise.all(
+        movimentos.map(async (mov) => {
+          const { data: prod } = await supabase
+            .from("produtos")
+            .select("estoque_atual")
+            .eq("id", mov.produto_id)
+            .single();
+          const saldoAtual = Number(prod?.estoque_atual || 0);
+          const reversao =
+            mov.tipo === "entrada"
+              ? -Number(mov.quantidade)
+              : Number(mov.quantidade);
+          const novoSaldo = saldoAtual + reversao;
+          await supabase.from("estoque_movimentos").insert({
+            produto_id: mov.produto_id,
+            tipo: mov.tipo === "entrada" ? "saida" : "entrada",
+            quantidade: Number(mov.quantidade),
+            saldo_anterior: saldoAtual,
+            saldo_atual: novoSaldo,
+            documento_tipo: "estorno_fiscal",
+            documento_id: nf.id,
+            motivo: `Estorno da NF ${nf.numero}`,
+          });
+          await supabase
+            .from("produtos")
+            .update({ estoque_atual: novoSaldo })
+            .eq("id", mov.produto_id);
+        })
+      );
     }
   }
 
@@ -243,21 +249,22 @@ export async function estornarNotaFiscal(nf: {
         .select("id, produto_id, quantidade_faturada")
         .eq("ordem_venda_id", nf.ordem_venda_id);
       if (ovItens) {
-        for (const nfItem of nfItens) {
-          const ovItem = ovItens.find(
-            (oi: any) => oi.produto_id === nfItem.produto_id
+          await Promise.all(
+            nfItens.map((nfItem) => {
+              const ovItem = ovItens.find(
+                (oi: any) => oi.produto_id === nfItem.produto_id
+              );
+              if (!ovItem) return Promise.resolve();
+              const newQtd = Math.max(
+                0,
+                (ovItem.quantidade_faturada || 0) - nfItem.quantidade
+              );
+              return supabase
+                .from("ordens_venda_itens")
+                .update({ quantidade_faturada: newQtd })
+                .eq("id", ovItem.id);
+            })
           );
-          if (ovItem) {
-            const newQtd = Math.max(
-              0,
-              (ovItem.quantidade_faturada || 0) - nfItem.quantidade
-            );
-            await supabase
-              .from("ordens_venda_itens")
-              .update({ quantidade_faturada: newQtd })
-              .eq("id", ovItem.id);
-          }
-        }
         const { data: updatedItems } = await supabase
           .from("ordens_venda_itens")
           .select("quantidade, quantidade_faturada")
@@ -304,20 +311,21 @@ async function updateOVFaturamento(ordemVendaId: string, nfItens: any[]) {
       .select("id, produto_id, quantidade, quantidade_faturada")
       .eq("ordem_venda_id", ordemVendaId);
     if (!ovItens) return;
-    for (const nfItem of nfItens) {
-      const ovItem = ovItens.find(
-        (oi: any) => oi.produto_id === nfItem.produto_id
-      );
-      if (ovItem) {
-        await supabase
+    await Promise.all(
+      nfItens.map((nfItem) => {
+        const ovItem = ovItens.find(
+          (oi: any) => oi.produto_id === nfItem.produto_id
+        );
+        if (!ovItem) return Promise.resolve();
+        return supabase
           .from("ordens_venda_itens")
           .update({
             quantidade_faturada:
               (ovItem.quantidade_faturada || 0) + nfItem.quantidade,
           })
           .eq("id", ovItem.id);
-      }
-    }
+      })
+    );
     const { data: updatedItems } = await supabase
       .from("ordens_venda_itens")
       .select("quantidade, quantidade_faturada")

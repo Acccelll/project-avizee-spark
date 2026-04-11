@@ -105,6 +105,19 @@ function fmt10(n: number): string {
   return n.toFixed(10);
 }
 
+/**
+ * Escapes special XML characters to prevent invalid XML output.
+ * Must be applied to all user-supplied string values embedded in XML.
+ */
+function escapeXml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
 function buildItem(item: NFeItemData): string {
   const ipiXml = item.ipi
     ? `<IPI>
@@ -118,17 +131,17 @@ function buildItem(item: NFeItemData): string {
 
   return `<det nItem="${item.numero}">
     <prod>
-      <cProd>${item.codigo}</cProd>
+      <cProd>${escapeXml(item.codigo)}</cProd>
       <cEAN>SEM GTIN</cEAN>
-      <xProd>${item.descricao}</xProd>
+      <xProd>${escapeXml(item.descricao)}</xProd>
       <NCM>${item.ncm}</NCM>
       <CFOP>${item.cfop}</CFOP>
-      <uCom>${item.unidade}</uCom>
+      <uCom>${escapeXml(item.unidade)}</uCom>
       <qCom>${fmt4(item.quantidade)}</qCom>
       <vUnCom>${fmt10(item.valorUnitario)}</vUnCom>
       <vProd>${fmt2(item.valorTotal)}</vProd>
       <cEANTrib>SEM GTIN</cEANTrib>
-      <uTrib>${item.unidade}</uTrib>
+      <uTrib>${escapeXml(item.unidade)}</uTrib>
       <qTrib>${fmt4(item.quantidade)}</qTrib>
       <vUnTrib>${fmt10(item.valorUnitario)}</vUnTrib>
       <indTot>1</indTot>
@@ -188,7 +201,7 @@ export function construirXMLNFe(dados: NFeData): string {
       <ide>
         <cUF>${dados.emitente.uf}</cUF>
         <cNF>${dados.chave.slice(35, 43)}</cNF>
-        <natOp>${dados.naturezaOperacao}</natOp>
+        <natOp>${escapeXml(dados.naturezaOperacao)}</natOp>
         <mod>55</mod>
         <serie>${dados.serie}</serie>
         <nNF>${dados.numero}</nNF>
@@ -208,11 +221,11 @@ export function construirXMLNFe(dados: NFeData): string {
       </ide>
       <emit>
         ${emiDoc}
-        <xNome>${dados.emitente.razaoSocial}</xNome>
+        <xNome>${escapeXml(dados.emitente.razaoSocial)}</xNome>
         <enderEmit>
-          <xLgr>${dados.emitente.logradouro}</xLgr>
-          <nro>${dados.emitente.numero}</nro>
-          <xMun>${dados.emitente.municipio}</xMun>
+          <xLgr>${escapeXml(dados.emitente.logradouro)}</xLgr>
+          <nro>${escapeXml(dados.emitente.numero)}</nro>
+          <xMun>${escapeXml(dados.emitente.municipio)}</xMun>
           <cMun>${dados.emitente.codigoMunicipio}</cMun>
           <UF>${dados.emitente.uf}</UF>
           <CEP>${dados.emitente.cep.replace(/\D/g, "")}</CEP>
@@ -224,11 +237,11 @@ export function construirXMLNFe(dados: NFeData): string {
       </emit>
       <dest>
         ${destDoc}
-        <xNome>${dados.destinatario.razaoSocial}</xNome>
+        <xNome>${escapeXml(dados.destinatario.razaoSocial)}</xNome>
         <enderDest>
-          <xLgr>${dados.destinatario.logradouro}</xLgr>
-          <nro>${dados.destinatario.numero}</nro>
-          <xMun>${dados.destinatario.municipio}</xMun>
+          <xLgr>${escapeXml(dados.destinatario.logradouro)}</xLgr>
+          <nro>${escapeXml(dados.destinatario.numero)}</nro>
+          <xMun>${escapeXml(dados.destinatario.municipio)}</xMun>
           <cMun>${dados.destinatario.codigoMunicipio}</cMun>
           <UF>${dados.destinatario.uf}</UF>
           <CEP>${dados.destinatario.cep.replace(/\D/g, "")}</CEP>
@@ -302,7 +315,7 @@ export function construirXMLCancelamento(
       <detEvento versao="1.00">
         <descEvento>Cancelamento</descEvento>
         <nProt>${protocolo}</nProt>
-        <xJust>${justificativa}</xJust>
+        <xJust>${escapeXml(justificativa)}</xJust>
       </detEvento>
     </infEvento>
   </evento>
@@ -336,7 +349,7 @@ export function construirXMLInutilizacao(
     <serie>${serie}</serie>
     <nNFIni>${numInicial}</nNFIni>
     <nNFFin>${numFinal}</nNFFin>
-    <xJust>${justificativa}</xJust>
+    <xJust>${escapeXml(justificativa)}</xJust>
   </infInut>
 </inutNFe>`;
 }
