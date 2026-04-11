@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { useCallback, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, type SetURLSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { useCompras as useComprasData } from "@/pages/comercial/compras/hooks/useCompras";
@@ -130,10 +130,63 @@ export interface UseComprasReturn {
 }
 
 export function useCompras(): UseComprasReturn {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
+
+  // Filters persisted in URL
+  const searchTerm = searchParams.get("search") ?? "";
+  const statusFilters = useMemo(
+    () => searchParams.getAll("status").filter(Boolean),
+    [searchParams],
+  );
+  const fornecedorFilters = useMemo(
+    () => searchParams.getAll("fornecedor_id").filter(Boolean),
+    [searchParams],
+  );
+
+  const setSearchTerm = useCallback(
+    (value: string) => {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        if (value) next.set("search", value);
+        else next.delete("search");
+        next.set("page", "1");
+        return next;
+      });
+    },
+    [setSearchParams],
+  );
+
+  const setStatusFilters = useCallback(
+    (values: string[] | ((prev: string[]) => string[])) => {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("status");
+        const resolved = typeof values === "function" ? values(prev.getAll("status")) : values;
+        resolved.forEach((v) => next.append("status", v));
+        next.set("page", "1");
+        return next;
+      });
+    },
+    [setSearchParams],
+  );
+
+  const setFornecedorFilters = useCallback(
+    (values: string[] | ((prev: string[]) => string[])) => {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("fornecedor_id");
+        const resolved =
+          typeof values === "function" ? values(prev.getAll("fornecedor_id")) : values;
+        resolved.forEach((v) => next.append("fornecedor_id", v));
+        next.set("page", "1");
+        return next;
+      });
+    },
+    [setSearchParams],
+  );
+
   const debouncedSearch = useDebounce(searchTerm, 300);
 
   const { data: rawData = [], isLoading: loading } = useComprasData();
@@ -155,8 +208,6 @@ export function useCompras(): UseComprasReturn {
   const [items, setItems] = useState<GridItem[]>([]);
   const [saving, setSaving] = useState(false);
   const [viewItems, setViewItems] = useState<CompraItem[]>([]);
-  const [statusFilters, setStatusFilters] = useState<string[]>([]);
-  const [fornecedorFilters, setFornecedorFilters] = useState<string[]>([]);
 
   const viewParam = searchParams.get("view");
   const isCotacoesView = viewParam === "cotacoes";

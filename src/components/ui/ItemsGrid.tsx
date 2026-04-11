@@ -19,13 +19,15 @@ interface Props {
   produtos: any[];
   title?: string;
   readOnly?: boolean;
+  /** Per-item validation errors keyed by item index */
+  itemErrors?: Record<number, string>;
 }
 
 const emptyItem = (): GridItem => ({
   produto_id: "", codigo: "", descricao: "", quantidade: 0, valor_unitario: 0, valor_total: 0,
 });
 
-export function ItemsGrid({ items, onChange, produtos, title = "Itens", readOnly = false }: Props) {
+export function ItemsGrid({ items, onChange, produtos, title = "Itens", readOnly = false, itemErrors = {} }: Props) {
   const addItem = () => onChange([...items, emptyItem()]);
   const removeItem = (idx: number) => onChange(items.filter((_, i) => i !== idx));
 
@@ -105,7 +107,16 @@ export function ItemsGrid({ items, onChange, produtos, title = "Itens", readOnly
                   )}
                 </td>
                 <td className="px-3 py-2">
-                  <Input className="h-8 text-xs text-right font-mono" type="number" value={item.quantidade || ""} onChange={(e) => updateItem(idx, "quantidade", Number(e.target.value))} readOnly={readOnly} />
+                  <Input
+                    className={`h-8 text-xs text-right font-mono${itemErrors[idx] ? " border-destructive" : ""}`}
+                    type="number"
+                    value={item.quantidade || ""}
+                    onChange={(e) => updateItem(idx, "quantidade", Number(e.target.value))}
+                    readOnly={readOnly}
+                  />
+                  {itemErrors[idx] && (
+                    <p className="mt-0.5 text-[10px] text-destructive">{itemErrors[idx]}</p>
+                  )}
                 </td>
                 <td className="px-3 py-2">
                   <Input className="h-8 text-xs text-right font-mono" type="number" step="0.01" value={item.valor_unitario || ""} onChange={(e) => updateItem(idx, "valor_unitario", Number(e.target.value))} readOnly={readOnly} />
