@@ -101,7 +101,9 @@ export default function Backup() {
             <div>
               <p className="text-sm font-medium">Frequência</p>
               <p className="text-xs text-muted-foreground">
-                {frequenciaLabel[config.frequencia] ?? '—'} às {config.horario || '—'}
+                {config.frequencia
+                  ? `${frequenciaLabel[config.frequencia]} às ${config.horario || '—'}`
+                  : '—'}
               </p>
             </div>
           </div>

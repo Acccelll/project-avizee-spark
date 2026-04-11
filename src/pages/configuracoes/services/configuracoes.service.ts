@@ -109,20 +109,26 @@ export async function testarUrl(
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 8000);
-    let response: Response;
     try {
-      response = await fetch(url, { method: 'HEAD', signal: controller.signal, mode: 'no-cors' });
-    } finally {
+      const response = await fetch(url, { method: 'HEAD', signal: controller.signal });
       clearTimeout(timeout);
+      if (response.ok || (response.status >= 200 && response.status < 400)) {
+        return { sucesso: true, mensagem: `URL acessível (status ${response.status}).` };
+      }
+      return { sucesso: false, mensagem: `URL retornou status ${response.status}.` };
+    } catch (fetchErr: unknown) {
+      clearTimeout(timeout);
+      throw fetchErr;
     }
-    // no-cors returns opaque response (status 0) which still indicates the server responded
-    if (response.ok || response.status === 0 || (response.status >= 200 && response.status < 400)) {
-      return { sucesso: true, mensagem: `URL acessível (status ${response.status || 'ok'}).` };
-    }
-    return { sucesso: false, mensagem: `URL retornou status ${response.status}.` };
   } catch (err: unknown) {
-    if (err instanceof Error && err.name === 'AbortError') {
-      return { sucesso: false, mensagem: 'Tempo limite esgotado ao tentar conectar.' };
+    if (err instanceof Error) {
+      if (err.name === 'AbortError') {
+        return { sucesso: false, mensagem: 'Tempo limite esgotado ao tentar conectar.' };
+      }
+      // CORS or network error — server may be reachable but browser policy blocks access
+      if (err.message.toLowerCase().includes('failed to fetch') || err.message.toLowerCase().includes('cors')) {
+        return { sucesso: false, mensagem: 'Não foi possível verificar a URL (CORS ou rede). Verifique manualmente.' };
+      }
     }
     return { sucesso: false, mensagem: 'Não foi possível conectar à URL informada.' };
   }

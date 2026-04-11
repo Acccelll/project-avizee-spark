@@ -34,8 +34,8 @@ const integracoesSchema = z.object({
   sefaz_ambiente: z.enum(['producao', 'homologacao']),
   sefaz_certificado: z.string(),
   sefaz_senha_certificado: z.string(),
-  webhook_url: z.string().url('URL inválida').or(z.literal('')).optional(),
-  api_endpoint: z.string().url('URL inválida').or(z.literal('')).optional(),
+  webhook_url: z.union([z.string().url('URL inválida'), z.literal('')]).optional(),
+  api_endpoint: z.union([z.string().url('URL inválida'), z.literal('')]).optional(),
 });
 
 type IntegracoesFormData = z.infer<typeof integracoesSchema>;
