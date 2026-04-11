@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import {
   Eye,
   ChevronUp,
@@ -38,6 +38,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { TableSkeleton } from '@/components/ui/content-skeletons';
+import { EmptyState } from '@/components/ui/empty-state';
 
 export interface Column<T> {
   key: string;
@@ -123,6 +124,20 @@ export function DataTable<T extends Record<string, any>>({
   const [rules, setRules] = useState<FilterRule[]>([]);
   const [hiddenKeys, setHiddenKeys] = useState<Set<string>>(() => new Set(columns.filter((c) => c.hidden).map((c) => c.key)));
   const hasActions = !!(onView || onEdit || onDelete || onDuplicate || renderInlineDetails);
+
+  // Scroll-shadow: detect horizontal overflow in the table container
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+  const [hasScrollX, setHasScrollX] = useState(false);
+
+  useEffect(() => {
+    const el = tableContainerRef.current;
+    if (!el) return;
+    const check = () => setHasScrollX(el.scrollWidth > el.clientWidth);
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   useEffect(() => {
     if (!moduleKey) return;
@@ -628,11 +643,7 @@ export function DataTable<T extends Record<string, any>>({
             ))}
           </div>
         ) : sortedData.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
-            <div className="rounded-full bg-muted p-4 mb-4"><PackageOpen className="h-8 w-8 text-muted-foreground" /></div>
-            <h3 className="text-base font-semibold text-foreground mb-1">{emptyTitle}</h3>
-            <p className="text-sm text-muted-foreground max-w-sm">{emptyDescription}</p>
-          </div>
+          <EmptyState title={emptyTitle} description={emptyDescription} />
         ) : (
           <>
             {renderMobileCards()}
@@ -661,10 +672,16 @@ export function DataTable<T extends Record<string, any>>({
           {loading ? (
             <TableSkeleton rows={6} cols={Math.max(visibleColumns.length, 4)} />
           ) : sortedData.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 px-4 text-center"><div className="rounded-full bg-muted p-4 mb-4"><PackageOpen className="h-8 w-8 text-muted-foreground" /></div><h3 className="text-base font-semibold text-foreground mb-1">{emptyTitle}</h3><p className="text-sm text-muted-foreground max-w-sm">{emptyDescription}</p></div>
+            <EmptyState title={emptyTitle} description={emptyDescription} />
           ) : (
             <>
-              <div className="overflow-x-auto">
+              <div
+                ref={tableContainerRef}
+                className={cn(
+                  'overflow-x-auto',
+                  hasScrollX && 'shadow-[inset_-8px_0_8px_-8px_rgba(0,0,0,0.08)]',
+                )}
+              >
                 <table className="w-full">
                   <thead>
                     <tr className="border-b bg-muted/50">
