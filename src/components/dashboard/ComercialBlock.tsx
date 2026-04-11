@@ -40,9 +40,9 @@ export function ComercialBlock({
   const { pushView } = useRelationalNavigation();
 
   return (
-    <div className="bg-card rounded-xl border flex flex-col h-full">
+    <div className="bg-card rounded-xl border flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-border/60">
+      <div className="flex items-center justify-between px-4 pt-4 pb-2 border-b border-border/60">
         <h3 className="font-semibold text-foreground flex items-center gap-2">
           <ShoppingBag className="h-4 w-4 text-secondary" />
           Comercial
@@ -59,22 +59,22 @@ export function ComercialBlock({
 
       {/* KPIs */}
       <div className="grid grid-cols-3 border-b border-border/60">
-        <div className="px-4 py-3">
+        <div className="px-4 py-2">
           <p className="text-xs text-muted-foreground">Cotações abertas</p>
           <p className="text-lg font-bold mono mt-0.5">{formatNumber(cotacoesAbertas)}</p>
         </div>
-        <div className="px-4 py-3 border-l border-border/60">
+        <div className="px-4 py-2 border-l border-border/60">
           <p className="text-xs text-muted-foreground">Pedidos pendentes</p>
           <p className="text-lg font-bold mono mt-0.5">{formatNumber(pedidosPendentes)}</p>
         </div>
-        <div className="px-4 py-3 border-l border-border/60">
+        <div className="px-4 py-2 border-l border-border/60">
           <p className="text-xs text-muted-foreground">Ticket médio</p>
           <p className="text-lg font-bold mono mt-0.5">{formatCurrency(ticketMedio)}</p>
         </div>
       </div>
 
       {/* Últimos orçamentos */}
-      <div className="flex-1 px-5 pt-3 pb-4">
+      <div className="flex-1 px-4 pt-2.5 pb-3 min-h-0 overflow-hidden flex flex-col">
         <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           Últimos Orçamentos
         </p>
@@ -121,7 +121,7 @@ export function ComercialBlock({
         )}
       </div>
 
-      <div className="border-t border-border/60 px-5 py-2">
+      <div className="border-t border-border/60 px-4 py-2">
         <Button
           variant="link"
           size="sm"

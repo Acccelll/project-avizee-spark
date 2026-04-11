@@ -23,6 +23,11 @@ export interface SummaryCardProps {
   meta?: number;
   /** Numeric realised value used to compute progress against `meta`. Defaults to `value` if numeric. */
   realizado?: number;
+  /**
+   * Visual density. `compact` removes sparkline and meta bar, reduces padding and
+   * font sizes — ideal for dashboard KPI rows where vertical space is limited.
+   */
+  density?: 'default' | 'compact';
 }
 
 const variantStyles: Record<string, { border: string; iconBg: string; iconColor: string }> = {
@@ -50,19 +55,22 @@ export const SummaryCard = forwardRef<HTMLDivElement, SummaryCardProps>(
       loading,
       meta,
       realizado,
+      density = 'default',
     },
     ref,
   ) {
+    const isCompact = density === 'compact';
+
     if (loading) {
       return (
-        <div ref={ref} className={cn('stat-card', className)}>
+        <div ref={ref} className={cn('stat-card', isCompact && '!p-3', className)}>
           <div className="flex items-start justify-between">
             <div className="min-w-0 flex-1 space-y-2">
               <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-7 w-32" />
+              <Skeleton className={cn(isCompact ? 'h-6' : 'h-7', 'w-32')} />
               <Skeleton className="h-3 w-20" />
             </div>
-            <Skeleton className="h-11 w-11 rounded-lg" />
+            <Skeleton className={cn(isCompact ? 'h-9 w-9' : 'h-11 w-11', 'rounded-lg')} />
           </div>
         </div>
       );
@@ -80,6 +88,7 @@ export const SummaryCard = forwardRef<HTMLDivElement, SummaryCardProps>(
         ref={ref}
         className={cn(
           'stat-card',
+          isCompact && '!p-3',
           styles.border,
           onClick && 'cursor-pointer hover:border-primary/30 active:scale-[0.98]',
           className
@@ -91,8 +100,8 @@ export const SummaryCard = forwardRef<HTMLDivElement, SummaryCardProps>(
       >
         <div className="flex items-start justify-between">
           <div className="min-w-0 flex-1">
-            <p className="text-sm text-muted-foreground font-medium tracking-wide truncate">{title}</p>
-            <p className="text-2xl font-bold mt-1 tracking-tight">{value}</p>
+            <p className={cn(isCompact ? 'text-xs' : 'text-sm', 'text-muted-foreground font-medium tracking-wide truncate')}>{title}</p>
+            <p className={cn(isCompact ? 'text-xl' : 'text-2xl', 'font-bold mt-1 tracking-tight')}>{value}</p>
             {subtitle && (
               <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>
             )}
@@ -106,8 +115,8 @@ export const SummaryCard = forwardRef<HTMLDivElement, SummaryCardProps>(
           </div>
           {Icon && (
             <div className="flex flex-col items-end gap-1">
-              <div className={cn('p-3 rounded-lg', styles.iconBg)}>
-                <Icon className={cn('w-5 h-5', styles.iconColor)} />
+              <div className={cn(isCompact ? 'p-2' : 'p-3', 'rounded-lg', styles.iconBg)}>
+                <Icon className={cn(isCompact ? 'w-4 h-4' : 'w-5 h-5', styles.iconColor)} />
               </div>
               {onDetail && (
                 <button
@@ -122,7 +131,8 @@ export const SummaryCard = forwardRef<HTMLDivElement, SummaryCardProps>(
             </div>
           )}
         </div>
-        {sparklineData && sparklineData.length > 1 && (
+        {/* Sparkline and meta bar are hidden in compact mode to keep KPI row lightweight */}
+        {!isCompact && sparklineData && sparklineData.length > 1 && (
           <div className="mt-2 h-8">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={sparklineData.map((v) => ({ v }))}>
@@ -137,7 +147,7 @@ export const SummaryCard = forwardRef<HTMLDivElement, SummaryCardProps>(
             </ResponsiveContainer>
           </div>
         )}
-        {meta != null && meta > 0 && (() => {
+        {!isCompact && meta != null && meta > 0 && (() => {
           const realized = realizado != null ? realizado : typeof value === 'number' ? value : null;
           if (realized == null) return null;
           const pct = Math.min(Math.round((realized / meta) * 100), 100);

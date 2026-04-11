@@ -12,7 +12,16 @@ interface ChartPoint {
   saidas_prev: number;
 }
 
-export function FluxoCaixaChart() {
+interface FluxoCaixaChartProps {
+  /**
+   * When `true`, renders without the outer card wrapper (bg-card, border, padding),
+   * and uses a responsive height to fill its container. Use this when embedding
+   * inside another card (e.g. FinanceiroBlock) to avoid nested card styles.
+   */
+  embedded?: boolean;
+}
+
+export function FluxoCaixaChart({ embedded = false }: FluxoCaixaChartProps) {
   const [data, setData] = useState<ChartPoint[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -85,7 +94,50 @@ export function FluxoCaixaChart() {
     load();
   }, []);
 
+  const chartContent = (
+    <>
+      <defs>
+        <linearGradient id="colorEntradas" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="5%" stopColor="hsl(142 76% 36%)" stopOpacity={0.3} />
+          <stop offset="95%" stopColor="hsl(142 76% 36%)" stopOpacity={0} />
+        </linearGradient>
+        <linearGradient id="colorSaidas" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="5%" stopColor="hsl(0 84% 60%)" stopOpacity={0.3} />
+          <stop offset="95%" stopColor="hsl(0 84% 60%)" stopOpacity={0} />
+        </linearGradient>
+      </defs>
+      <CartesianGrid strokeDasharray="3 3" className="stroke-border/30" />
+      <XAxis dataKey="mes" tick={{ fontSize: 11 }} className="fill-muted-foreground" />
+      <YAxis hide />
+      <Tooltip
+        formatter={(value: number, name: string) => [
+          formatCurrency(value),
+          name === 'entradas_real'
+            ? 'Recebimentos realizados'
+            : name === 'saidas_real'
+              ? 'Pagamentos realizados'
+              : name === 'entradas_prev'
+                ? 'A receber (previsto)'
+                : 'A pagar (previsto)',
+        ]}
+        contentStyle={{ fontSize: 12, borderRadius: 8 }}
+      />
+      <Area type="monotone" dataKey="entradas_real" stroke="hsl(142 76% 36%)" fill="url(#colorEntradas)" strokeWidth={2} />
+      <Area type="monotone" dataKey="saidas_real" stroke="hsl(0 84% 60%)" fill="url(#colorSaidas)" strokeWidth={2} />
+      <Area type="monotone" dataKey="entradas_prev" stroke="hsl(142 76% 36%)" fill="none" strokeDasharray="5 3" strokeWidth={1.5} opacity={0.6} />
+      <Area type="monotone" dataKey="saidas_prev" stroke="hsl(0 84% 60%)" fill="none" strokeDasharray="5 3" strokeWidth={1.5} opacity={0.6} />
+    </>
+  );
+
   if (loading) {
+    if (embedded) {
+      return (
+        <div className="flex flex-col h-full gap-3">
+          <Skeleton className="h-4 w-40 shrink-0" />
+          <Skeleton className="flex-1 w-full" />
+        </div>
+      );
+    }
     return (
       <div className="bg-card rounded-xl border p-5">
         <Skeleton className="h-5 w-40 mb-4" />
@@ -95,10 +147,49 @@ export function FluxoCaixaChart() {
   }
 
   if (data.length === 0) {
+    if (embedded) {
+      return (
+        <div className="flex flex-col h-full">
+          <p className="text-xs font-semibold text-foreground mb-2">Fluxo de Caixa</p>
+          <p className="text-sm text-muted-foreground text-center py-4">Sem dados financeiros para exibir.</p>
+        </div>
+      );
+    }
     return (
       <div className="bg-card rounded-xl border p-5">
         <h3 className="font-semibold text-foreground mb-4">Fluxo de Caixa</h3>
         <p className="text-sm text-muted-foreground text-center py-8">Sem dados financeiros para exibir.</p>
+      </div>
+    );
+  }
+
+  if (embedded) {
+    return (
+      <div
+        className="flex flex-col h-full"
+        role="img"
+        aria-label="Gráfico de fluxo de caixa — realizados vs previstos (6 meses)"
+      >
+        <p className="text-xs font-semibold text-foreground mb-1.5 shrink-0">Fluxo de Caixa — Realizados vs Previstos</p>
+        <div className="flex-1 min-h-0">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={data}>{chartContent}</AreaChart>
+          </ResponsiveContainer>
+        </div>
+        <div className="flex gap-4 mt-1.5 text-[10px] text-muted-foreground flex-wrap shrink-0">
+          <span className="flex items-center gap-1"><span className="w-2.5 h-0.5 bg-[hsl(142_76%_36%)] inline-block" />Recebido</span>
+          <span className="flex items-center gap-1"><span className="w-2.5 h-0.5 bg-[hsl(0_84%_60%)] inline-block" />Pago</span>
+          <span className="flex items-center gap-1 opacity-60"><span className="w-2.5 border-t border-dashed border-[hsl(142_76%_36%)] inline-block" />Prev. receber</span>
+          <span className="flex items-center gap-1 opacity-60"><span className="w-2.5 border-t border-dashed border-[hsl(0_84%_60%)] inline-block" />Prev. pagar</span>
+        </div>
+        {/* Accessible data table for screen readers */}
+        <div className="sr-only">
+          <table>
+            <caption>Fluxo de Caixa — Realizado vs Previsto (6 meses)</caption>
+            <thead><tr><th>Mês</th><th>Recebimentos Realizados</th><th>Pagamentos Realizados</th><th>A Receber (Previsto)</th><th>A Pagar (Previsto)</th></tr></thead>
+            <tbody>{data.map((p) => (<tr key={p.mes}><td>{p.mes}</td><td>{formatCurrency(p.entradas_real)}</td><td>{formatCurrency(p.saidas_real)}</td><td>{formatCurrency(p.entradas_prev)}</td><td>{formatCurrency(p.saidas_prev)}</td></tr>))}</tbody>
+          </table>
+        </div>
       </div>
     );
   }
@@ -111,38 +202,7 @@ export function FluxoCaixaChart() {
         aria-label={`Gráfico de área: fluxo de caixa dos últimos 6 meses. ${data.map((p) => `${p.mes}: recebimentos realizados ${formatCurrency(p.entradas_real)}, pagamentos realizados ${formatCurrency(p.saidas_real)}`).join('; ')}`}
       >
         <ResponsiveContainer width="100%" height={220}>
-          <AreaChart data={data}>
-            <defs>
-              <linearGradient id="colorEntradas" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="hsl(142 76% 36%)" stopOpacity={0.3} />
-                <stop offset="95%" stopColor="hsl(142 76% 36%)" stopOpacity={0} />
-              </linearGradient>
-              <linearGradient id="colorSaidas" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="hsl(0 84% 60%)" stopOpacity={0.3} />
-                <stop offset="95%" stopColor="hsl(0 84% 60%)" stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" className="stroke-border/30" />
-            <XAxis dataKey="mes" tick={{ fontSize: 11 }} className="fill-muted-foreground" />
-            <YAxis hide />
-            <Tooltip
-              formatter={(value: number, name: string) => [
-                formatCurrency(value),
-                name === 'entradas_real'
-                  ? 'Recebimentos realizados'
-                  : name === 'saidas_real'
-                    ? 'Pagamentos realizados'
-                    : name === 'entradas_prev'
-                      ? 'A receber (previsto)'
-                      : 'A pagar (previsto)',
-              ]}
-              contentStyle={{ fontSize: 12, borderRadius: 8 }}
-            />
-            <Area type="monotone" dataKey="entradas_real" stroke="hsl(142 76% 36%)" fill="url(#colorEntradas)" strokeWidth={2} />
-            <Area type="monotone" dataKey="saidas_real" stroke="hsl(0 84% 60%)" fill="url(#colorSaidas)" strokeWidth={2} />
-            <Area type="monotone" dataKey="entradas_prev" stroke="hsl(142 76% 36%)" fill="none" strokeDasharray="5 3" strokeWidth={1.5} opacity={0.6} />
-            <Area type="monotone" dataKey="saidas_prev" stroke="hsl(0 84% 60%)" fill="none" strokeDasharray="5 3" strokeWidth={1.5} opacity={0.6} />
-          </AreaChart>
+          <AreaChart data={data}>{chartContent}</AreaChart>
         </ResponsiveContainer>
       </div>
       {/* Accessible data table for screen readers */}

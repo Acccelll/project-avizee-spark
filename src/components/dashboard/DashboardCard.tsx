@@ -35,14 +35,14 @@ export function DashboardCard({
       )}
     >
       {(title || action) && (
-        <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-border/60 shrink-0">
+        <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-border/60 shrink-0">
           {title && (
             <h3 className="font-semibold text-foreground text-sm">{title}</h3>
           )}
           {action && <div className={cn(!title && 'ml-auto')}>{action}</div>}
         </div>
       )}
-      <div className={cn('flex flex-col p-4', fillHeight ? 'flex-1 min-h-0' : '')}>
+      <div className={cn('flex flex-col p-3', fillHeight ? 'flex-1 min-h-0' : '')}>
         {loading ? <Skeleton className="h-full w-full min-h-[40px]" /> : children}
       </div>
     </div>
