@@ -7,6 +7,34 @@ import { Tables } from '@/integrations/supabase/types';
 
 export type FonteFrete = 'correios' | 'cliente_vinculada' | 'manual';
 
+/** Preset de caixa/embalagem persistido em app_configuracoes */
+export interface CaixaEmbalagem {
+  id: string;
+  nome: string;
+  altura_cm: number;
+  largura_cm: number;
+  comprimento_cm: number;
+}
+
+const CAIXAS_CONFIG_KEY = 'frete:caixas_embalagem';
+
+export async function listarCaixasEmbalagem(): Promise<CaixaEmbalagem[]> {
+  const { data } = await supabase
+    .from('app_configuracoes')
+    .select('valor')
+    .eq('chave', CAIXAS_CONFIG_KEY)
+    .maybeSingle();
+  if (!data?.valor) return [];
+  return (data.valor as unknown as CaixaEmbalagem[]) || [];
+}
+
+export async function salvarCaixasEmbalagem(caixas: CaixaEmbalagem[]): Promise<void> {
+  await (supabase.from('app_configuracoes') as any).upsert(
+    { chave: CAIXAS_CONFIG_KEY, valor: caixas, updated_at: new Date().toISOString() },
+    { onConflict: 'chave' }
+  );
+}
+
 export interface ClienteTransportadoraComTransportadora {
   id: string;
   cliente_id: string;

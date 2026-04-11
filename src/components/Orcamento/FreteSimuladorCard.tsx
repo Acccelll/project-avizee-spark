@@ -7,8 +7,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import {
-  Loader2, Package, Truck, CheckCircle2, AlertTriangle, Plus, Trash2, RefreshCw,
+  Loader2, Package, Truck, CheckCircle2, AlertTriangle, Plus, Trash2, RefreshCw, Box, Settings2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/format';
@@ -23,6 +25,9 @@ import {
   salvarOpcaoManual,
   removerOpcao,
   selecionarOpcaoFrete,
+  listarCaixasEmbalagem,
+  salvarCaixasEmbalagem,
+  type CaixaEmbalagem,
   type FreteOpcaoLocal,
   type ClienteTransportadoraComTransportadora,
   type SimulacaoDimensoes,
@@ -101,14 +106,21 @@ export function FreteSimuladorCard({
     servico: '', modalidade: '', prazo: '', valor: '', obs: '',
   });
 
+  // caixas de embalagem (presets)
+  const [caixas, setCaixas] = useState<CaixaEmbalagem[]>([]);
+  const [gerenciarCaixasOpen, setGerenciarCaixasOpen] = useState(false);
+  const [novaCaixa, setNovaCaixa] = useState({ nome: '', altura: '', largura: '', comprimento: '' });
+  const [salvandoCaixa, setSalvandoCaixa] = useState(false);
+
   // ---------------------------------------------------------------
-  // Carregar CEP de origem
+  // Carregar CEP de origem e caixas cadastradas
   // ---------------------------------------------------------------
   useEffect(() => {
     getEmpresaCepOrigem()
       .then(setCepOrigem)
       .catch(() => {})
       .finally(() => setLoadingConfig(false));
+    listarCaixasEmbalagem().then(setCaixas).catch(() => {});
   }, []);
 
   // ---------------------------------------------------------------
@@ -469,6 +481,53 @@ export function FreteSimuladorCard({
     transpForm[vtId] || { valor: '', prazo: '', servico: '', obs: '' };
 
   // ---------------------------------------------------------------
+  // Caixas helpers
+  // ---------------------------------------------------------------
+  const handleSelecionarCaixa = (caixaId: string) => {
+    const caixa = caixas.find((c) => c.id === caixaId);
+    if (!caixa) return;
+    setAlturaCm(caixa.altura_cm);
+    setLarguraCm(caixa.largura_cm);
+    setComprimentoCm(caixa.comprimento_cm);
+  };
+
+  const handleAdicionarCaixa = async () => {
+    if (!novaCaixa.nome.trim()) { toast.error('Informe o nome da caixa.'); return; }
+    if (!novaCaixa.altura || !novaCaixa.largura || !novaCaixa.comprimento) {
+      toast.error('Preencha todas as dimensões.'); return;
+    }
+    setSalvandoCaixa(true);
+    try {
+      const nova: CaixaEmbalagem = {
+        id: crypto.randomUUID(),
+        nome: novaCaixa.nome.trim(),
+        altura_cm: Number(novaCaixa.altura),
+        largura_cm: Number(novaCaixa.largura),
+        comprimento_cm: Number(novaCaixa.comprimento),
+      };
+      const atualizadas = [...caixas, nova];
+      await salvarCaixasEmbalagem(atualizadas);
+      setCaixas(atualizadas);
+      setNovaCaixa({ nome: '', altura: '', largura: '', comprimento: '' });
+      toast.success(`Caixa "${nova.nome}" cadastrada.`);
+    } catch {
+      toast.error('Erro ao salvar caixa.');
+    } finally {
+      setSalvandoCaixa(false);
+    }
+  };
+
+  const handleRemoverCaixa = async (id: string) => {
+    try {
+      const atualizadas = caixas.filter((c) => c.id !== id);
+      await salvarCaixasEmbalagem(atualizadas);
+      setCaixas(atualizadas);
+    } catch {
+      toast.error('Erro ao remover caixa.');
+    }
+  };
+
+  // ---------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------
   return (
@@ -522,7 +581,122 @@ export function FreteSimuladorCard({
       <CardContent className="space-y-4">
         {/* Dimensões */}
         <div>
-          <p className="text-xs font-medium text-muted-foreground mb-2">Dimensões da embalagem</p>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-medium text-muted-foreground">Dimensões da embalagem</p>
+            <div className="flex items-center gap-1.5">
+              {caixas.length > 0 && (
+                <Select onValueChange={handleSelecionarCaixa}>
+                  <SelectTrigger className="h-7 text-xs w-[160px]">
+                    <Box className="h-3 w-3 mr-1 shrink-0" />
+                    <SelectValue placeholder="Selecionar caixa..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {caixas.map((c) => (
+                      <SelectItem key={c.id} value={c.id} className="text-xs">
+                        {c.nome} ({c.altura_cm}×{c.largura_cm}×{c.comprimento_cm} cm)
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              <Dialog open={gerenciarCaixasOpen} onOpenChange={setGerenciarCaixasOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-7 px-2 gap-1 text-xs">
+                    <Settings2 className="h-3 w-3" />
+                    {caixas.length === 0 ? 'Cadastrar caixas' : 'Gerenciar'}
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                      <Box className="h-4 w-4" />
+                      Caixas de Embalagem
+                    </DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    {/* Lista de caixas existentes */}
+                    {caixas.length > 0 ? (
+                      <div className="space-y-1.5">
+                        {caixas.map((c) => (
+                          <div key={c.id} className="flex items-center justify-between rounded-md border px-3 py-2 text-sm">
+                            <div>
+                              <span className="font-medium">{c.nome}</span>
+                              <span className="ml-2 text-xs text-muted-foreground">
+                                {c.altura_cm} × {c.largura_cm} × {c.comprimento_cm} cm
+                              </span>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                              onClick={() => handleRemoverCaixa(c.id)}
+                              title="Remover caixa"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">Nenhuma caixa cadastrada.</p>
+                    )}
+                    <Separator />
+                    {/* Formulário nova caixa */}
+                    <div>
+                      <p className="text-xs font-medium mb-2">Nova caixa</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="col-span-2 space-y-1">
+                          <Label className="text-xs">Nome / Identificação*</Label>
+                          <Input
+                            placeholder="Ex.: Caixa Pequena"
+                            value={novaCaixa.nome}
+                            onChange={(e) => setNovaCaixa((p) => ({ ...p, nome: e.target.value }))}
+                            className="h-8 text-sm"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Altura (cm)*</Label>
+                          <Input
+                            type="number" min={0} placeholder="0"
+                            value={novaCaixa.altura}
+                            onChange={(e) => setNovaCaixa((p) => ({ ...p, altura: e.target.value }))}
+                            className="h-8 text-sm"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Largura (cm)*</Label>
+                          <Input
+                            type="number" min={0} placeholder="0"
+                            value={novaCaixa.largura}
+                            onChange={(e) => setNovaCaixa((p) => ({ ...p, largura: e.target.value }))}
+                            className="h-8 text-sm"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Comprimento (cm)*</Label>
+                          <Input
+                            type="number" min={0} placeholder="0"
+                            value={novaCaixa.comprimento}
+                            onChange={(e) => setNovaCaixa((p) => ({ ...p, comprimento: e.target.value }))}
+                            className="h-8 text-sm"
+                          />
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={handleAdicionarCaixa}
+                        disabled={salvandoCaixa}
+                        className="mt-3 gap-1.5"
+                      >
+                        {salvandoCaixa ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+                        Adicionar caixa
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <div className="space-y-1">
               <Label className="text-xs">Volumes</Label>
