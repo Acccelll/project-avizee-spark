@@ -22,6 +22,7 @@ import { LogisticaBlock } from "@/components/dashboard/LogisticaBlock";
 import { FiscalBlock } from "@/components/dashboard/FiscalBlock";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { PendenciasList } from "@/components/dashboard/PendenciasList";
+import { DashboardCard } from "@/components/dashboard/DashboardCard";
 import { BlockErrorBoundary } from "@/components/dashboard/BlockErrorBoundary";
 import { ViewDrawerV2 } from "@/components/ViewDrawerV2";
 import { useAuth } from "@/contexts/AuthContext";
@@ -674,7 +675,7 @@ const DashboardContent = () => {
         {/* Vendas chart — lazy + inView */}
         <div key="vendas_chart">
           <LazyInViewWidget fallback={<Skeleton className="h-full w-full" />}>
-            <div className="bg-card rounded-xl border p-4 h-full">
+            <DashboardCard height="full">
               <BlockErrorBoundary label="Gráfico de Vendas">
                 <Suspense fallback={<Skeleton className="h-full w-full" />}>
                   <VendasChart
@@ -684,18 +685,18 @@ const DashboardContent = () => {
                   />
                 </Suspense>
               </BlockErrorBoundary>
-            </div>
+            </DashboardCard>
           </LazyInViewWidget>
         </div>
 
         {/* Pendências */}
         <div key="pendencias">
           <W>
-            <div className="bg-card rounded-xl border p-4 h-full">
+            <DashboardCard height="full">
               <BlockErrorBoundary label="Pendências">
                 <PendenciasList />
               </BlockErrorBoundary>
-            </div>
+            </DashboardCard>
           </W>
         </div>
 
