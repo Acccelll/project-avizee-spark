@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useEffect, useMemo, useState } from "react";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -13,6 +12,7 @@ import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { useViaCep } from "@/hooks/useViaCep";
 import { useCnpjLookup } from "@/hooks/useCnpjLookup";
+import { useDocumentoUnico } from "@/hooks/useDocumentoUnico";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,12 +45,12 @@ interface Fornecedor {
   observacoes: string;ativo: boolean;created_at: string;updated_at: string;
 }
 
-const emptyForm: Record<string, any> = {
+const emptyForm = {
   tipo_pessoa: "J", nome_razao_social: "", nome_fantasia: "", cpf_cnpj: "",
   inscricao_estadual: "", email: "", telefone: "", celular: "", contato: "",
   prazo_padrao: 30, logradouro: "", numero: "", complemento: "",
   bairro: "", cidade: "", uf: "", cep: "", pais: "Brasil", observacoes: ""
-};
+} as const satisfies Omit<Fornecedor, "id" | "ativo" | "created_at" | "updated_at">;
 
 const Fornecedores = () => {
   const location = useLocation();
@@ -60,7 +60,7 @@ const Fornecedores = () => {
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    const editId = (location.state as any)?.editId;
+    const editId = (location.state as { editId?: string } | null)?.editId;
     if (!editId) return;
     navigate(location.pathname, { replace: true, state: {} });
     supabase.from("fornecedores").select("*").eq("id", editId).maybeSingle().then(({ data: f }) => {
@@ -81,7 +81,13 @@ const Fornecedores = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [selected, setSelected] = useState<Fornecedor | null>(null);
   const [mode, setMode] = useState<"create" | "edit">("create");
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm] = useState({ ...emptyForm });
+  const docTipo = form.tipo_pessoa === "F" ? "cpf" : "cnpj";
+  const { isUnique: docUnico, isLoading: docChecking } = useDocumentoUnico(
+    docTipo,
+    form.cpf_cnpj,
+    selected?.id,
+  );
   const [isDirty, setIsDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [tipoFilters, setTipoFilters] = useState<string[]>([]);
@@ -113,18 +119,18 @@ const Fornecedores = () => {
       ]);
       if (pfErr) throw pfErr;
       if (comprasErr) throw comprasErr;
-      setModalProdutosForn(((pf || []) as any[]).map((p) => ({
+      setModalProdutosForn(((pf || []) as Array<{id: string; lead_time_dias: number | null; preco_compra: number | null; eh_principal: boolean | null; produtos: {nome: string} | null}>).map((p) => ({
         id: p.id,
-        produto_nome: (p.produtos as any)?.nome || "—",
+        produto_nome: p.produtos?.nome || "—",
         preco_compra: p.preco_compra,
         lead_time_dias: p.lead_time_dias,
         eh_principal: p.eh_principal,
       })));
-      const comprasList = (compras || []) as any[];
+      const comprasList = (compras || []) as Array<{id: string; data_compra: string | null; valor_total: number | null}>;
       setModalComprasForn({
         count: comprasList.length,
         ultima: comprasList[0]?.data_compra || null,
-        total: comprasList.reduce((s: number, c: any) => s + Number(c.valor_total || 0), 0),
+        total: comprasList.reduce((s, c) => s + Number(c.valor_total || 0), 0),
       });
     } catch (err) {
       console.error("[fornecedores] erro ao carregar contexto:", err);
@@ -462,6 +468,14 @@ const Fornecedores = () => {
                 </Button>
               </div>
               {formErrors.cpf_cnpj && <p className="text-xs text-destructive">{formErrors.cpf_cnpj}</p>}
+              {!formErrors.cpf_cnpj && docChecking && (
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Loader2 className="h-3 w-3 animate-spin" />Verificando unicidade...
+                </p>
+              )}
+              {!formErrors.cpf_cnpj && !docChecking && docUnico === false && (
+                <p className="text-xs text-destructive">CPF/CNPJ já cadastrado em cliente ou fornecedor.</p>
+              )}
               {form.tipo_pessoa === "J" && !formErrors.cpf_cnpj && (
                 <p className="text-xs text-muted-foreground">Consultar CNPJ preenche razão social, endereço e contato automaticamente.</p>
               )}
