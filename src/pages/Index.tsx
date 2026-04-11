@@ -611,7 +611,7 @@ const DashboardContent = () => {
       <RGL
         layout={layout}
         cols={12}
-        rowHeight={40}
+        rowHeight={32}
         width={gridWidth}
         isDraggable={editMode}
         isResizable={editMode}
@@ -622,7 +622,7 @@ const DashboardContent = () => {
         {/* KPIs */}
         <div key="kpis">
           <W>
-            <div className="grid grid-cols-1 gap-4 h-full sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 items-start content-start">
               {kpiCards.map((c) => (
                 <SummaryCard key={c.id} {...c} density="compact" />
               ))}
