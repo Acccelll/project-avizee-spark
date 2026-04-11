@@ -244,6 +244,7 @@ export type Database = {
           cpf_cnpj: string | null
           created_at: string
           email: string | null
+          forma_pagamento_padrao: string | null
           grupo_economico_id: string | null
           id: string
           inscricao_estadual: string | null
@@ -255,6 +256,7 @@ export type Database = {
           observacoes: string | null
           pais: string | null
           prazo_padrao: number | null
+          prazo_preferencial: number | null
           telefone: string | null
           tipo_pessoa: string
           tipo_relacao_grupo: string | null
@@ -273,6 +275,7 @@ export type Database = {
           cpf_cnpj?: string | null
           created_at?: string
           email?: string | null
+          forma_pagamento_padrao?: string | null
           grupo_economico_id?: string | null
           id?: string
           inscricao_estadual?: string | null
@@ -284,6 +287,7 @@ export type Database = {
           observacoes?: string | null
           pais?: string | null
           prazo_padrao?: number | null
+          prazo_preferencial?: number | null
           telefone?: string | null
           tipo_pessoa?: string
           tipo_relacao_grupo?: string | null
@@ -302,6 +306,7 @@ export type Database = {
           cpf_cnpj?: string | null
           created_at?: string
           email?: string | null
+          forma_pagamento_padrao?: string | null
           grupo_economico_id?: string | null
           id?: string
           inscricao_estadual?: string | null
@@ -313,6 +318,7 @@ export type Database = {
           observacoes?: string | null
           pais?: string | null
           prazo_padrao?: number | null
+          prazo_preferencial?: number | null
           telefone?: string | null
           tipo_pessoa?: string
           tipo_relacao_grupo?: string | null
