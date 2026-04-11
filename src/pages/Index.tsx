@@ -624,7 +624,7 @@ const DashboardContent = () => {
           <W>
             <div className="grid grid-cols-1 gap-4 h-full sm:grid-cols-2 lg:grid-cols-4">
               {kpiCards.map((c) => (
-                <SummaryCard key={c.id} {...c} />
+                <SummaryCard key={c.id} {...c} density="compact" />
               ))}
             </div>
           </W>

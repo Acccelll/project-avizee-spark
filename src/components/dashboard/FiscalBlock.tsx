@@ -72,7 +72,7 @@ export function FiscalBlock({ stats }: FiscalBlockProps) {
   return (
     <div className="bg-card rounded-xl border flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-border/60">
+      <div className="flex items-center justify-between px-4 pt-4 pb-2 border-b border-border/60">
         <h3 className="font-semibold text-foreground flex items-center gap-2">
           <FileText className="h-4 w-4 text-secondary" />
           Fiscal
@@ -94,17 +94,17 @@ export function FiscalBlock({ stats }: FiscalBlockProps) {
       </div>
 
       {/* Status das notas */}
-      <div className="flex-1 px-5 pt-4 pb-5 space-y-3">
+      <div className="flex-1 px-4 pt-3 pb-4 space-y-2">
         {items.map((item) => {
           const Icon = item.icon;
           return (
             <div
               key={item.label}
-              className="flex items-center gap-3 rounded-lg border border-border/40 px-3 py-2.5 hover:bg-muted/20 cursor-pointer"
+              className="flex items-center gap-3 rounded-lg border border-border/40 px-3 py-2 hover:bg-muted/20 cursor-pointer"
               onClick={() => navigate('/fiscal')}
             >
-              <div className={`rounded-lg p-2 ${item.bg}`}>
-                <Icon className={`h-4 w-4 ${item.color}`} />
+              <div className={`rounded-lg p-1.5 ${item.bg}`}>
+                <Icon className={`h-3.5 w-3.5 ${item.color}`} />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-medium text-foreground">{item.label}</p>

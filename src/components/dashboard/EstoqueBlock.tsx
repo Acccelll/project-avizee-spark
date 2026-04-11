@@ -19,7 +19,7 @@ export function EstoqueBlock({ itensBaixoMinimo, valorTotalEstoque, totalProduto
   return (
     <div className="bg-card rounded-xl border flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-border/60">
+      <div className="flex items-center justify-between px-4 pt-4 pb-2 border-b border-border/60">
         <h3 className="font-semibold text-foreground flex items-center gap-2">
           <Package className="h-4 w-4 text-info" />
           Estoque
@@ -42,18 +42,18 @@ export function EstoqueBlock({ itensBaixoMinimo, valorTotalEstoque, totalProduto
 
       {/* KPIs */}
       <div className="grid grid-cols-2 border-b border-border/60">
-        <div className="px-4 py-3">
+        <div className="px-4 py-2">
           <p className="text-xs text-muted-foreground">Produtos ativos</p>
           <p className="text-lg font-bold mono mt-0.5">{formatNumber(totalProdutosAtivos)}</p>
         </div>
-        <div className="px-4 py-3 border-l border-border/60">
+        <div className="px-4 py-2 border-l border-border/60">
           <p className="text-xs text-muted-foreground">Valor em estoque</p>
           <p className="text-lg font-bold mono mt-0.5">{formatCurrency(valorTotalEstoque)}</p>
         </div>
       </div>
 
       {/* Itens críticos */}
-      <div className="flex-1 px-5 pt-3 pb-4">
+      <div className="flex-1 px-4 pt-2.5 pb-3 min-h-0 overflow-hidden flex flex-col">
         <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           Abaixo do Estoque Mínimo
         </p>
@@ -63,8 +63,8 @@ export function EstoqueBlock({ itensBaixoMinimo, valorTotalEstoque, totalProduto
             <p className="text-xs text-success font-medium">Estoque dentro dos níveis mínimos.</p>
           </div>
         ) : (
-          <div className="space-y-1 max-h-[180px] overflow-y-auto">
-            {itensBaixoMinimo.slice(0, 8).map((p: any) => {
+          <div className="space-y-1 max-h-[160px] overflow-y-auto">
+            {itensBaixoMinimo.slice(0, 6).map((p: any) => {
               const pct = p.estoque_minimo > 0 ? (p.estoque_atual ?? 0) / p.estoque_minimo : 0;
               const isZero = (p.estoque_atual ?? 0) <= 0;
               return (
