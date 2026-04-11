@@ -49,11 +49,35 @@ export async function convertToPedido(
     .select("*")
     .eq("orcamento_id", orc.id);
 
+  // Carregar dados de frete do orçamento
+  const { data: orcFrete } = await supabase
+    .from("orcamentos")
+    .select(
+      "frete_valor, frete_tipo, modalidade, transportadora_id, frete_simulacao_id, origem_frete, servico_frete, peso_total, prazo_entrega_dias, volumes"
+    )
+    .eq("id", orc.id)
+    .maybeSingle();
+
   const { count } = await supabase
     .from("ordens_venda")
     .select("*", { count: "exact", head: true });
 
   const ovNumero = `PED${String((count || 0) + 1).padStart(6, "0")}`;
+
+  const fretePayload: Record<string, unknown> = {};
+  if (orcFrete) {
+    const f = orcFrete as Record<string, unknown>;
+    if (f.frete_valor != null) fretePayload.frete_valor = f.frete_valor;
+    if (f.frete_tipo) fretePayload.frete_tipo = f.frete_tipo;
+    if (f.modalidade) fretePayload.modalidade = f.modalidade;
+    if (f.transportadora_id) fretePayload.transportadora_id = f.transportadora_id;
+    if (f.frete_simulacao_id) fretePayload.frete_simulacao_id = f.frete_simulacao_id;
+    if (f.origem_frete) fretePayload.origem_frete = f.origem_frete;
+    if (f.servico_frete) fretePayload.servico_frete = f.servico_frete;
+    if (f.peso_total != null) fretePayload.peso_total = f.peso_total;
+    if (f.prazo_entrega_dias != null) fretePayload.prazo_entrega_dias = f.prazo_entrega_dias;
+    if (f.volumes != null) fretePayload.volumes = f.volumes;
+  }
 
   const { data: newOV, error } = await supabase
     .from("ordens_venda")
@@ -68,7 +92,8 @@ export async function convertToPedido(
       observacoes: orc.observacoes,
       po_number: options.poNumber || null,
       data_po_cliente: options.dataPo || null,
-    })
+      ...fretePayload,
+    } as any)
     .select()
     .single();
 
