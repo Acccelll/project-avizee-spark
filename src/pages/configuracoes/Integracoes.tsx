@@ -3,7 +3,7 @@ import React, { useEffect } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Link, Loader2 } from 'lucide-react';
+import { Link, Loader2, Webhook } from 'lucide-react';
 import {
   Form,
   FormControl,
@@ -25,7 +25,7 @@ import { ConfigSection } from './components/ConfigSection';
 import { TestConnectionButton } from './components/TestConnectionButton';
 import { ApiKeyInput } from './components/ApiKeyInput';
 import { useConfiguracoesIntegracoes } from './hooks/useConfiguracoesIntegracoes';
-import { testarGatewayPagamento, testarApiSefaz } from './services/configuracoes.service';
+import { testarGatewayPagamento, testarApiSefaz, testarUrl } from './services/configuracoes.service';
 
 const integracoesSchema = z.object({
   gateway_pagamento: z.string().min(1, 'Gateway de pagamento é obrigatório'),
@@ -34,6 +34,8 @@ const integracoesSchema = z.object({
   sefaz_ambiente: z.enum(['producao', 'homologacao']),
   sefaz_certificado: z.string(),
   sefaz_senha_certificado: z.string(),
+  webhook_url: z.string().url('URL inválida').or(z.literal('')).optional(),
+  api_endpoint: z.string().url('URL inválida').or(z.literal('')).optional(),
 });
 
 type IntegracoesFormData = z.infer<typeof integracoesSchema>;
@@ -202,6 +204,62 @@ export default function Integracoes() {
                   label="Testar SEFAZ"
                 />
               </div>
+            </div>
+          </ConfigSection>
+
+          <ConfigSection
+            title="Webhooks e Endpoints"
+            description="Configure URLs de webhook e endpoints de API externos."
+            icon={Webhook}
+          >
+            <div className="space-y-4">
+              <FormField
+                control={form.control}
+                name="webhook_url"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>URL do Webhook</FormLabel>
+                    <div className="flex gap-2">
+                      <FormControl>
+                        <Input
+                          {...field}
+                          placeholder="https://exemplo.com/webhook"
+                          type="url"
+                        />
+                      </FormControl>
+                      <TestConnectionButton
+                        onTest={() => testarUrl(form.getValues('webhook_url') ?? '')}
+                        label="Testar"
+                      />
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="api_endpoint"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Endpoint de API</FormLabel>
+                    <div className="flex gap-2">
+                      <FormControl>
+                        <Input
+                          {...field}
+                          placeholder="https://api.exemplo.com/v1"
+                          type="url"
+                        />
+                      </FormControl>
+                      <TestConnectionButton
+                        onTest={() => testarUrl(form.getValues('api_endpoint') ?? '')}
+                        label="Testar"
+                      />
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
           </ConfigSection>
 

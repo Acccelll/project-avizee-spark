@@ -13,6 +13,8 @@ const defaultEmail: ConfigEmail = {
   smtp_ssl: true,
   remetente_nome: '',
   remetente_email: '',
+  template_assunto: '',
+  template_corpo: '',
 };
 
 const QUERY_KEY = ['configuracoes', 'email'] as const;

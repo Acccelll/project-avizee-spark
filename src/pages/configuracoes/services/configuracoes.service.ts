@@ -98,3 +98,32 @@ export async function testarApiSefaz(
   const ambiente = config.sefaz_ambiente === 'homologacao' ? 'homologação' : 'produção';
   return { sucesso: true, mensagem: `Conexão com SEFAZ (${ambiente}) realizada com sucesso.` };
 }
+
+export async function testarUrl(
+  url: string
+): Promise<{ sucesso: boolean; mensagem: string }> {
+  if (!url || url.trim() === '') {
+    return { sucesso: false, mensagem: 'URL não informada.' };
+  }
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    let response: Response;
+    try {
+      response = await fetch(url, { method: 'HEAD', signal: controller.signal, mode: 'no-cors' });
+    } finally {
+      clearTimeout(timeout);
+    }
+    // no-cors returns opaque response (status 0) which still indicates the server responded
+    if (response.ok || response.status === 0 || (response.status >= 200 && response.status < 400)) {
+      return { sucesso: true, mensagem: `URL acessível (status ${response.status || 'ok'}).` };
+    }
+    return { sucesso: false, mensagem: `URL retornou status ${response.status}.` };
+  } catch (err: unknown) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      return { sucesso: false, mensagem: 'Tempo limite esgotado ao tentar conectar.' };
+    }
+    return { sucesso: false, mensagem: 'Não foi possível conectar à URL informada.' };
+  }
+}

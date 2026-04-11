@@ -15,6 +15,8 @@ export interface ConfigEmail {
   smtp_ssl: boolean;
   remetente_nome: string;
   remetente_email: string;
+  template_assunto?: string;
+  template_corpo?: string;
 }
 
 export interface ConfigIntegracao {
@@ -24,6 +26,8 @@ export interface ConfigIntegracao {
   sefaz_ambiente: 'producao' | 'homologacao';
   sefaz_certificado: string;
   sefaz_senha_certificado: string;
+  webhook_url?: string;
+  api_endpoint?: string;
 }
 
 export interface ConfigNotificacoes {

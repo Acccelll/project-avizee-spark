@@ -12,6 +12,8 @@ const defaultIntegracao: ConfigIntegracao = {
   sefaz_ambiente: 'homologacao',
   sefaz_certificado: '',
   sefaz_senha_certificado: '',
+  webhook_url: '',
+  api_endpoint: '',
 };
 
 const QUERY_KEY = ['configuracoes', 'integracoes'] as const;
