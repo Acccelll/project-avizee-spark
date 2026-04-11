@@ -43,7 +43,7 @@ export function DashboardCard({
         </div>
       )}
       <div className={cn('flex flex-col p-4', fillHeight ? 'flex-1 min-h-0' : '')}>
-        {loading ? <Skeleton className="h-full w-full min-h-[120px]" /> : children}
+        {loading ? <Skeleton className="h-full w-full min-h-[40px]" /> : children}
       </div>
     </div>
   );
