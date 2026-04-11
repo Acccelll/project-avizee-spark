@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import {
   Eye,
   ChevronUp,
@@ -19,6 +19,7 @@ import {
   ChevronsDownUp,
   MoreVertical,
   Pencil,
+  Copy,
   ChevronsUpDown as ExpandIcon,
 } from 'lucide-react';
 import * as XLSX from '@/lib/xlsx-compat';
@@ -37,6 +38,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { TableSkeleton } from '@/components/ui/content-skeletons';
+import { EmptyState } from '@/components/ui/empty-state';
 
 export interface Column<T> {
   key: string;
@@ -94,6 +96,7 @@ export function DataTable<T extends Record<string, any>>({
   onView,
   onEdit,
   onDelete,
+  onDuplicate,
   loading,
   pageSize = 25,
   selectable = false,
@@ -120,7 +123,21 @@ export function DataTable<T extends Record<string, any>>({
   const [filterName, setFilterName] = useState('');
   const [rules, setRules] = useState<FilterRule[]>([]);
   const [hiddenKeys, setHiddenKeys] = useState<Set<string>>(() => new Set(columns.filter((c) => c.hidden).map((c) => c.key)));
-  const hasActions = !!onView;
+  const hasActions = !!(onView || onEdit || onDelete || onDuplicate || renderInlineDetails);
+
+  // Scroll-shadow: detect horizontal overflow in the table container
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+  const [hasScrollX, setHasScrollX] = useState(false);
+
+  useEffect(() => {
+    const el = tableContainerRef.current;
+    if (!el) return;
+    const check = () => setHasScrollX(el.scrollWidth > el.clientWidth);
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   useEffect(() => {
     if (!moduleKey) return;
@@ -352,7 +369,7 @@ export function DataTable<T extends Record<string, any>>({
     <div className="flex items-center gap-1 flex-nowrap">
       {renderInlineDetails && (
         <Tooltip><TooltipTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); toggleExpanded(item.id); }}>
+          <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Expandir detalhes" onClick={(e) => { e.stopPropagation(); toggleExpanded(item.id); }}>
             <ExpandIcon className="h-4 w-4" />
           </Button>
         </TooltipTrigger><TooltipContent>Detalhes inline</TooltipContent></Tooltip>
@@ -364,12 +381,33 @@ export function DataTable<T extends Record<string, any>>({
           </Button>
         </TooltipTrigger><TooltipContent>Visualizar</TooltipContent></Tooltip>
       )}
+      {onEdit && (
+        <Tooltip><TooltipTrigger asChild>
+          <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Editar registro" onClick={(e) => { e.stopPropagation(); onEdit(item); }}>
+            <Pencil className="h-4 w-4" />
+          </Button>
+        </TooltipTrigger><TooltipContent>Editar</TooltipContent></Tooltip>
+      )}
+      {onDuplicate && (
+        <Tooltip><TooltipTrigger asChild>
+          <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Duplicar registro" onClick={(e) => { e.stopPropagation(); onDuplicate(item); }}>
+            <Copy className="h-4 w-4" />
+          </Button>
+        </TooltipTrigger><TooltipContent>Duplicar</TooltipContent></Tooltip>
+      )}
+      {onDelete && (
+        <Tooltip><TooltipTrigger asChild>
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" aria-label="Excluir registro" onClick={(e) => { e.stopPropagation(); setDeleteItem(item); }}>
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </TooltipTrigger><TooltipContent>Excluir</TooltipContent></Tooltip>
+      )}
     </div>
   );
 
   // Mobile card action menu
   const renderMobileActions = (item: T) => {
-    const hasMenu = onView || onEdit || onDelete;
+    const hasMenu = onView || onEdit || onDelete || onDuplicate;
     if (!hasMenu) return null;
     return (
       <DropdownMenu>
@@ -387,6 +425,11 @@ export function DataTable<T extends Record<string, any>>({
           {onEdit && (
             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(item); }}>
               <Pencil className="mr-2 h-4 w-4" /> Editar
+            </DropdownMenuItem>
+          )}
+          {onDuplicate && (
+            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onDuplicate(item); }}>
+              <Copy className="mr-2 h-4 w-4" /> Duplicar
             </DropdownMenuItem>
           )}
           {onDelete && (
@@ -600,11 +643,7 @@ export function DataTable<T extends Record<string, any>>({
             ))}
           </div>
         ) : sortedData.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
-            <div className="rounded-full bg-muted p-4 mb-4"><PackageOpen className="h-8 w-8 text-muted-foreground" /></div>
-            <h3 className="text-base font-semibold text-foreground mb-1">{emptyTitle}</h3>
-            <p className="text-sm text-muted-foreground max-w-sm">{emptyDescription}</p>
-          </div>
+          <EmptyState title={emptyTitle} description={emptyDescription} />
         ) : (
           <>
             {renderMobileCards()}
@@ -633,14 +672,20 @@ export function DataTable<T extends Record<string, any>>({
           {loading ? (
             <TableSkeleton rows={6} cols={Math.max(visibleColumns.length, 4)} />
           ) : sortedData.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 px-4 text-center"><div className="rounded-full bg-muted p-4 mb-4"><PackageOpen className="h-8 w-8 text-muted-foreground" /></div><h3 className="text-base font-semibold text-foreground mb-1">{emptyTitle}</h3><p className="text-sm text-muted-foreground max-w-sm">{emptyDescription}</p></div>
+            <EmptyState title={emptyTitle} description={emptyDescription} />
           ) : (
             <>
-              <div className="overflow-x-auto">
+              <div
+                ref={tableContainerRef}
+                className={cn(
+                  'overflow-x-auto',
+                  hasScrollX && 'shadow-[inset_-8px_0_8px_-8px_rgba(0,0,0,0.08)]',
+                )}
+              >
                 <table className="w-full">
                   <thead>
                     <tr className="border-b bg-muted/50">
-                      {hasActions && <th className="w-12 px-2 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Ações</th>}
+                      {hasActions && <th className="px-2 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Ações</th>}
                       {selectable && <th className="w-10 px-3 py-3"><Checkbox checked={pagedData.length > 0 && pagedData.every((item) => selectedIds.includes(item.id))} onCheckedChange={toggleSelectAll} /></th>}
                       {visibleColumns.map((col) => (
                         <th key={col.key} className={cn('px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground', col.sortable !== false && 'cursor-pointer')} onClick={() => col.sortable !== false && handleSort(col.key)}>
@@ -653,7 +698,7 @@ export function DataTable<T extends Record<string, any>>({
                     {pagedData.map((item, idx) => (
                       <>
                         <tr key={item.id || idx} onClick={() => onRowClick?.(item)} onDoubleClick={onView ? () => onView(item) : undefined} className={cn('border-b transition-colors last:border-b-0 hover:bg-muted/30', selectable && selectedIds.includes(item.id) && 'bg-primary/5')}>
-                          {hasActions && <td className="w-12 px-2 py-3">{renderActions(item)}</td>}
+                          {hasActions && <td className="px-2 py-3">{renderActions(item)}</td>}
                           {selectable && <td className="w-10 px-3 py-3"><Checkbox checked={selectedIds.includes(item.id)} onCheckedChange={() => toggleSelect(item.id)} onClick={(e) => e.stopPropagation()} /></td>}
                           {visibleColumns.map((col) => <td key={col.key} className="px-4 py-3 text-sm whitespace-nowrap">{col.render ? col.render(item) : item[col.key]}</td>)}
                         </tr>

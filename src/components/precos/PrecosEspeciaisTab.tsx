@@ -8,6 +8,8 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { Plus, Trash2, Edit, Save, Tag } from "lucide-react";
 import { toast } from "sonner";
 import { AutocompleteSearch } from "@/components/ui/AutocompleteSearch";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface Props {
   clienteId?: string;
@@ -83,10 +85,12 @@ export function PrecosEspeciaisTab({ clienteId, produtoId }: Props) {
     }
   };
 
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+
   const handleRemove = async (id: string) => {
-    if (!confirm("Deseja remover esta regra de preço?")) return;
     await supabase.from("precos_especiais").update({ ativo: false }).eq("id", id);
     toast.success("Regra removida");
+    setDeleteId(null);
     fetchData();
   };
 
@@ -201,27 +205,46 @@ export function PrecosEspeciaisTab({ clienteId, produtoId }: Props) {
                 </div>
               </div>
               <div className="flex items-center gap-1 ml-4">
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {
-                  setEditingId(item.id);
-                  setForm({
-                    cliente_id: item.cliente_id,
-                    produto_id: item.produto_id,
-                    preco_especial: item.preco_especial,
-                    vigencia_inicio: item.vigencia_inicio || "",
-                    vigencia_fim: item.vigencia_fim || "",
-                    observacao: item.observacao || "",
-                  });
-                }}>
-                  <Edit className="w-3.5 h-3.5" />
-                </Button>
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleRemove(item.id)}>
-                  <Trash2 className="w-3.5 h-3.5" />
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Editar regra de preço" onClick={() => {
+                      setEditingId(item.id);
+                      setForm({
+                        cliente_id: item.cliente_id,
+                        produto_id: item.produto_id,
+                        preco_especial: item.preco_especial,
+                        vigencia_inicio: item.vigencia_inicio || "",
+                        vigencia_fim: item.vigencia_fim || "",
+                        observacao: item.observacao || "",
+                      });
+                    }}>
+                      <Edit className="w-3.5 h-3.5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Editar</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" aria-label="Excluir regra de preço" onClick={() => setDeleteId(item.id)}>
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Excluir</TooltipContent>
+                </Tooltip>
               </div>
             </div>
           ))
         )}
       </div>
+
+      <ConfirmDialog
+        open={!!deleteId}
+        onClose={() => setDeleteId(null)}
+        onConfirm={() => deleteId && handleRemove(deleteId)}
+        title="Remover regra de preço"
+        description="Deseja remover esta regra de preço especial? Esta ação não pode ser desfeita."
+        confirmLabel="Remover"
+      />
     </div>
   );
 }
