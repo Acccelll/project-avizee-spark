@@ -455,7 +455,7 @@ const DashboardContent = () => {
       </div>
 
       {/* ── Drag-and-drop grid ── */}
-      <div ref={gridContainerRef}>
+      {/* @ts-ignore react-grid-layout types mismatch */}
       <GridLayout
         layout={layout as any}
         cols={12}
