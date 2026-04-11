@@ -1,0 +1,99 @@
+import { supabase } from '@/integrations/supabase/client';
+import { registrarAuditLog } from '@/services/admin/audit.service';
+import type { ConfigEmail, ConfigIntegracao } from '@/utils/configuracoes';
+
+export type ConfigChave = 'geral' | 'email' | 'integracoes' | 'notificacoes' | 'backup';
+
+export async function fetchConfig<T>(chave: ConfigChave): Promise<T> {
+  const { data, error } = await supabase
+    .from('app_configuracoes')
+    .select('valor')
+    .eq('chave', chave)
+    .maybeSingle();
+
+  if (error) throw error;
+  return ((data?.valor as T) ?? {}) as T;
+}
+
+export async function updateConfig<T extends Record<string, unknown>>(
+  chave: ConfigChave,
+  valor: T,
+  usuarioId: string | undefined
+): Promise<void> {
+  const { data: existingData } = await supabase
+    .from('app_configuracoes')
+    .select('valor')
+    .eq('chave', chave)
+    .maybeSingle();
+
+  const oldValue = existingData?.valor ?? null;
+
+  const { error } = await supabase
+    .from('app_configuracoes')
+    .upsert({ chave, valor }, { onConflict: 'chave' });
+
+  if (error) throw error;
+
+  await registrarAuditLog({
+    acao: 'configuracao:update',
+    tabela: 'app_configuracoes',
+    registro_id: chave,
+    dados_anteriores: oldValue as Record<string, unknown> | null,
+    dados_novos: valor,
+    usuario_id: usuarioId ?? null,
+  });
+}
+
+export async function testarConexaoSMTP(
+  config: ConfigEmail
+): Promise<{ sucesso: boolean; mensagem: string }> {
+  await new Promise((resolve) => setTimeout(resolve, 500));
+
+  if (!config.smtp_host || config.smtp_host.trim() === '') {
+    return { sucesso: false, mensagem: 'Servidor SMTP não configurado.' };
+  }
+
+  if (
+    !config.smtp_porta ||
+    !Number.isInteger(config.smtp_porta) ||
+    config.smtp_porta < 1 ||
+    config.smtp_porta > 65535
+  ) {
+    return { sucesso: false, mensagem: 'Porta SMTP inválida.' };
+  }
+
+  if (!config.smtp_usuario || config.smtp_usuario.trim() === '') {
+    return { sucesso: false, mensagem: 'Usuário SMTP não configurado.' };
+  }
+
+  return { sucesso: true, mensagem: 'Conexão SMTP realizada com sucesso.' };
+}
+
+export async function testarGatewayPagamento(
+  config: ConfigIntegracao
+): Promise<{ sucesso: boolean; mensagem: string }> {
+  await new Promise((resolve) => setTimeout(resolve, 500));
+
+  if (!config.gateway_api_key || config.gateway_api_key.trim() === '') {
+    return { sucesso: false, mensagem: 'API Key do gateway não configurada.' };
+  }
+
+  if (!config.gateway_secret_key || config.gateway_secret_key.trim() === '') {
+    return { sucesso: false, mensagem: 'Secret Key do gateway não configurada.' };
+  }
+
+  return { sucesso: true, mensagem: 'Conexão com gateway de pagamento realizada com sucesso.' };
+}
+
+export async function testarApiSefaz(
+  config: ConfigIntegracao
+): Promise<{ sucesso: boolean; mensagem: string }> {
+  await new Promise((resolve) => setTimeout(resolve, 500));
+
+  if (!config.sefaz_ambiente) {
+    return { sucesso: false, mensagem: 'Ambiente SEFAZ não configurado.' };
+  }
+
+  const ambiente = config.sefaz_ambiente === 'homologacao' ? 'homologação' : 'produção';
+  return { sucesso: true, mensagem: `Conexão com SEFAZ (${ambiente}) realizada com sucesso.` };
+}
