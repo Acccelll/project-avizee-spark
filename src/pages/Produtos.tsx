@@ -31,7 +31,7 @@ interface Produto {
   id: string;sku: string;codigo_interno: string;nome: string;descricao: string;
   grupo_id: string;unidade_medida: string;preco_custo: number;preco_venda: number;
   estoque_atual: number;estoque_minimo: number;ncm: string;cst: string;cfop_padrao: string;
-  peso: number;eh_composto: boolean;ativo: boolean;created_at: string;
+  peso: number;eh_composto: boolean;tipo_item: "produto" | "insumo";ativo: boolean;created_at: string;
 }
 
 interface ComposicaoItem {
@@ -76,7 +76,7 @@ const situacaoEstoqueConfig: Record<SituacaoEstoque, { label: string; statusBadg
 const emptyProduto: Record<string, any> = {
   nome: "", sku: "", codigo_interno: "", descricao: "", unidade_medida: "UN",
   preco_custo: 0, preco_venda: 0, estoque_minimo: 0, ncm: "", cst: "", cfop_padrao: "", peso: 0, eh_composto: false,
-  grupo_id: ""
+  grupo_id: "", tipo_item: "produto"
 };
 
 const Produtos = () => {
@@ -95,6 +95,7 @@ const Produtos = () => {
   const [margemLucro, setMargemLucro] = useState(0);
   const [searchTerm, setSearchTerm] = useState("");
   const [tipoFilters, setTipoFilters] = useState<string[]>([]);
+  const [tipoItemFilter, setTipoItemFilter] = useState<"todos" | "produto" | "insumo">("todos");
   const [estoqueFilters, setEstoqueFilters] = useState<string[]>([]);
   const [grupoFilters, setGrupoFilters] = useState<string[]>([]);
   const [ativoFilters, setAtivoFilters] = useState<string[]>([]);
@@ -149,7 +150,7 @@ const Produtos = () => {
       nome: p.nome, sku: p.sku || "", codigo_interno: p.codigo_interno || "", descricao: p.descricao || "",
       unidade_medida: p.unidade_medida, preco_custo: p.preco_custo || 0, preco_venda: p.preco_venda,
       estoque_minimo: p.estoque_minimo || 0, ncm: (p.ncm || "").replace(/\D/g, ''), cst: p.cst || "", cfop_padrao: p.cfop_padrao || "",
-      peso: p.peso || 0, eh_composto: p.eh_composto || false,
+      peso: p.peso || 0, eh_composto: p.eh_composto || false, tipo_item: p.tipo_item || "produto",
       grupo_id: p.grupo_id || ""
     });
     const [compRes, fornRes] = await Promise.all([
@@ -266,6 +267,10 @@ const Produtos = () => {
         const type = isComposto ? "composto" : "simples";
         if (!tipoFilters.includes(type)) return false;
       }
+      if (tipoItemFilter !== "todos") {
+        const tipoItem = p.tipo_item || "produto";
+        if (tipoItem !== tipoItemFilter) return false;
+      }
 
       if (estoqueFilters.length > 0) {
         if (!estoqueFilters.includes(situacao)) return false;
@@ -278,7 +283,7 @@ const Produtos = () => {
       if (!query) return true;
       return [p.nome, p.sku, p.codigo_interno, p.descricao, p.ncm].filter(Boolean).join(" ").toLowerCase().includes(query);
     });
-  }, [data, ativoFilters, estoqueFilters, searchTerm, tipoFilters, grupoFilters]);
+  }, [data, ativoFilters, estoqueFilters, searchTerm, tipoFilters, grupoFilters, tipoItemFilter]);
 
   const columns = [
     {
@@ -379,6 +384,12 @@ const Produtos = () => {
       },
     },
     {
+      key: "tipo_item",
+      mobileCard: true,
+      label: "Item",
+      render: (p: Produto) => <StatusBadge status={p.tipo_item || "produto"} />,
+    },
+    {
       key: "ativo",
       mobileCard: true,
       label: "Status",
@@ -421,6 +432,14 @@ const Produtos = () => {
         displayValue: f === "simples" ? "Simples" : "Composto",
       });
     });
+    if (tipoItemFilter !== "todos") {
+      chips.push({
+        key: "tipo_item",
+        label: "Tipo do item",
+        value: [tipoItemFilter],
+        displayValue: tipoItemFilter === "produto" ? "Produto" : "Insumo",
+      });
+    }
 
     estoqueFilters.forEach(f => {
       chips.push({
@@ -442,11 +461,12 @@ const Produtos = () => {
     });
 
     return chips;
-  }, [ativoFilters, tipoFilters, estoqueFilters, grupoFilters, grupos]);
+  }, [ativoFilters, tipoFilters, estoqueFilters, grupoFilters, grupos, tipoItemFilter]);
 
   const handleRemoveProdFilter = (key: string, value?: string) => {
     if (key === "ativo") setAtivoFilters(prev => prev.filter(v => v !== value));
     if (key === "tipo") setTipoFilters(prev => prev.filter(v => v !== value));
+    if (key === "tipo_item") setTipoItemFilter("todos");
     if (key === "estoque") setEstoqueFilters(prev => prev.filter(v => v !== value));
     if (key === "grupo") setGrupoFilters(prev => prev.filter(v => v !== value));
   };
@@ -512,7 +532,7 @@ const Produtos = () => {
           searchPlaceholder="Buscar por nome, SKU ou código..."
           activeFilters={prodActiveFilters}
           onRemoveFilter={handleRemoveProdFilter}
-          onClearAll={() => { setAtivoFilters([]); setTipoFilters([]); setEstoqueFilters([]); setGrupoFilters([]); }}
+          onClearAll={() => { setAtivoFilters([]); setTipoFilters([]); setTipoItemFilter("todos"); setEstoqueFilters([]); setGrupoFilters([]); }}
           count={filteredData.length}
         >
           <MultiSelect
@@ -526,9 +546,17 @@ const Produtos = () => {
             options={tipoOptions}
             selected={tipoFilters}
             onChange={setTipoFilters}
-            placeholder="Tipo"
+            placeholder="Estrutura"
             className="w-[150px]"
           />
+          <Select value={tipoItemFilter} onValueChange={(v: "todos" | "produto" | "insumo") => setTipoItemFilter(v)}>
+            <SelectTrigger className="w-[170px]"><SelectValue placeholder="Tipo do item" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos os itens</SelectItem>
+              <SelectItem value="produto">Somente produtos</SelectItem>
+              <SelectItem value="insumo">Somente insumos</SelectItem>
+            </SelectContent>
+          </Select>
           <MultiSelect
             options={estoqueOptions}
             selected={estoqueFilters}
@@ -614,6 +642,16 @@ const Produtos = () => {
                   <SelectContent>
                     <SelectItem value="nenhum">Nenhum</SelectItem>
                     {grupos.map((g) => <SelectItem key={g.id} value={g.id}>{g.nome}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Tipo do Item</Label>
+                <Select value={form.tipo_item || "produto"} onValueChange={(v: "produto" | "insumo") => setForm({ ...form, tipo_item: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="produto">Produto</SelectItem>
+                    <SelectItem value="insumo">Insumo</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

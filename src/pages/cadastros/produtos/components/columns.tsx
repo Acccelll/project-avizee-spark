@@ -19,6 +19,7 @@ export interface Produto {
   cfop_padrao: string;
   peso: number;
   eh_composto: boolean;
+  tipo_item: "produto" | "insumo";
   ativo: boolean;
   created_at: string;
 }
@@ -138,6 +139,13 @@ export const produtoColumns: Column<Produto>[] = [
         </div>
       );
     },
+  },
+  {
+    key: "tipo_item",
+    label: "Item",
+    render: (p: Produto) => (
+      <StatusBadge status={p.tipo_item || "produto"} />
+    ),
   },
   {
     key: "ativo",

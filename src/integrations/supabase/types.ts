@@ -2334,6 +2334,7 @@ export type Database = {
           preco_custo: number | null
           preco_venda: number | null
           sku: string | null
+          tipo_item: string
           unidade_medida: string | null
           unidade_tributavel: string | null
           updated_at: string
@@ -2364,6 +2365,7 @@ export type Database = {
           preco_custo?: number | null
           preco_venda?: number | null
           sku?: string | null
+          tipo_item?: string
           unidade_medida?: string | null
           unidade_tributavel?: string | null
           updated_at?: string
@@ -2394,6 +2396,7 @@ export type Database = {
           preco_custo?: number | null
           preco_venda?: number | null
           sku?: string | null
+          tipo_item?: string
           unidade_medida?: string | null
           unidade_tributavel?: string | null
           updated_at?: string
