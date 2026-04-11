@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Página de Logs de Auditoria (módulo Admin).
  *

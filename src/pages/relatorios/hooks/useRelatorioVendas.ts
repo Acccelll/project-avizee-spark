@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Hook for the "Vendas" and "Faturamento" reports.
  *

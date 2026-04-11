@@ -36,6 +36,7 @@ interface Cliente {
   id: string;tipo_pessoa: string;nome_razao_social: string;nome_fantasia: string;
   cpf_cnpj: string;inscricao_estadual: string;email: string;telefone: string;celular: string;
   contato: string;prazo_padrao: number;limite_credito: number;
+  forma_pagamento_padrao: string | null;prazo_preferencial: number | null;
   logradouro: string;numero: string;complemento: string;bairro: string;cidade: string;
   uf: string;cep: string;pais: string;observacoes: string;ativo: boolean;created_at: string;
   grupo_economico_id: string | null;tipo_relacao_grupo: string | null;caixa_postal: string | null;
@@ -172,7 +173,13 @@ const Clientes = () => {
     }
     setFormErrors({});
     setSaving(true);
-    const payload = { ...form, grupo_economico_id: form.grupo_economico_id || null, caixa_postal: form.caixa_postal || null };
+    const payload = {
+      ...form,
+      grupo_economico_id: form.grupo_economico_id || null,
+      caixa_postal: form.caixa_postal || null,
+      forma_pagamento_padrao: form.forma_pagamento_padrao || null,
+      prazo_preferencial: form.prazo_preferencial || null,
+    };
     try {
       if (mode === "create") await create(payload);else
       if (selected) await update(selected.id, payload);
