@@ -98,9 +98,9 @@ export function VendasChart({ onBarClick }: VendasChartProps) {
 
   if (loading) {
     return (
-      <div className="space-y-3">
-        <Skeleton className="h-5 w-48" />
-        <Skeleton className="h-[200px] w-full" />
+      <div className="flex flex-col h-full space-y-3">
+        <Skeleton className="h-5 w-48 shrink-0" />
+        <Skeleton className="flex-1 w-full min-h-[160px]" />
       </div>
     );
   }
@@ -117,9 +117,11 @@ export function VendasChart({ onBarClick }: VendasChartProps) {
     <figure
       role="img"
       aria-label="Gráfico de barras de faturamento mensal dos últimos 6 meses. Clique em uma barra para detalhar o relatório de vendas."
+      className="flex flex-col h-full"
     >
-      <h3 className="mb-3 font-semibold text-foreground text-sm">Faturamento Mensal</h3>
-      <ResponsiveContainer width="100%" height={200}>
+      <h3 className="mb-3 font-semibold text-foreground text-sm shrink-0">Faturamento Mensal</h3>
+      <div className="flex-1 min-h-0">
+      <ResponsiveContainer width="100%" height="100%">
         <BarChart
           data={data}
           onClick={handleBarClick}
@@ -140,6 +142,7 @@ export function VendasChart({ onBarClick }: VendasChartProps) {
           />
         </BarChart>
       </ResponsiveContainer>
+      </div>
       <figcaption className="sr-only">
         Clique em uma barra para navegar ao relatório de vendas filtrado pelo mês correspondente.
       </figcaption>
