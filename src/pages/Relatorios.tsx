@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/AppLayout';
 import { ModulePage } from '@/components/ModulePage';
 import { SummaryCard } from '@/components/SummaryCard';
@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Input } from '@/components/ui/input';
 import { DataTable } from '@/components/DataTable';
 import { PreviewModal } from '@/components/ui/PreviewModal';
 import { PeriodoFilter } from '@/pages/relatorios/components/Filtros/PeriodoFilter';
@@ -17,8 +18,9 @@ import { RelatorioChart } from '@/pages/relatorios/components/Graficos/Relatorio
 import { DreTable } from '@/pages/relatorios/components/Tabelas/DreTable';
 import { useRelatorio } from '@/pages/relatorios/hooks/useRelatorio';
 import { useRelatoriosFiltrosData } from '@/pages/relatorios/hooks/useRelatoriosFiltrosData';
+import { useRelatoriosFavoritos } from '@/hooks/useRelatoriosFavoritos';
 import { cn } from '@/lib/utils';
-import { ChevronLeft, Columns, Download, RefreshCcw, Hash, FileText, Eye, FileSpreadsheet, Layers } from 'lucide-react';
+import { BookmarkPlus, BookOpen, ChevronLeft, Columns, Download, RefreshCcw, Hash, FileText, Eye, FileSpreadsheet, Layers, Trash2 } from 'lucide-react';
 import { exportarParaCsv, exportarParaExcel, exportarParaPdf } from '@/services/export.service';
 import { filtrarPorStatus, sortarRows } from '@/utils/relatorios';
 import { reportConfigs, reportCategoryMeta, type ReportCategory } from '@/config/relatoriosConfig';
@@ -30,17 +32,6 @@ import { toast } from 'sonner';
 // ─── Badge classification constants ──────────────────────────────────────────
 const BADGE_CRITICAL = ['vencido', 'abaixo do mínimo', 'zerado', 'pendente', 'nf s/ financeiro', 'pedido s/ nf', 'c', 'alta'];
 const BADGE_OK = ['ok', 'entregue', 'confirmado', 'pago', 'faturado', 'a'];
-
-const DEFAULT_FILTROS: FiltrosRelatorioState = {
-  clienteIds: [],
-  fornecedorIds: [],
-  grupoIds: [],
-  statusFiltro: 'todos',
-  agrupamento: 'padrao',
-  tipos: [],
-  dreCompetencia: 'mes',
-  dreMes: new Date().toISOString().slice(0, 7),
-};
 
 function buildDreDateRange(state: FiltrosRelatorioState, dataInicio: string, dataFim: string) {
   if (state.dreCompetencia === 'personalizado') return { dataInicio, dataFim };
@@ -58,13 +49,62 @@ function buildDreDateRange(state: FiltrosRelatorioState, dataInicio: string, dat
 
 export default function Relatorios() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const tipoInicial = (searchParams.get('tipo') as TipoRelatorio) || 'estoque';
-  const [tipo, setTipo] = useState<TipoRelatorio | ''>(tipoInicial);
-  const [dataInicio, setDataInicio] = useState('');
-  const [dataFim, setDataFim] = useState('');
-  const [filtrosState, setFiltrosState] = useState<FiltrosRelatorioState>(DEFAULT_FILTROS);
+  const navigate = useNavigate();
+
+  // ── All filter state is derived from / synced to URL params ──────────────
+  const tipo = (searchParams.get('tipo') as TipoRelatorio) || '';
+  const dataInicio = searchParams.get('di') || '';
+  const dataFim = searchParams.get('df') || '';
+
+  const filtrosState = useMemo<FiltrosRelatorioState>(() => ({
+    clienteIds: searchParams.get('cli') ? searchParams.get('cli')!.split(',') : [],
+    fornecedorIds: searchParams.get('for') ? searchParams.get('for')!.split(',') : [],
+    grupoIds: searchParams.get('grp') ? searchParams.get('grp')!.split(',') : [],
+    statusFiltro: searchParams.get('st') || 'todos',
+    agrupamento: (searchParams.get('ag') as FiltrosRelatorioState['agrupamento']) || 'padrao',
+    tipos: searchParams.get('tp') ? searchParams.get('tp')!.split(',') : [],
+    dreCompetencia: (searchParams.get('drc') as FiltrosRelatorioState['dreCompetencia']) || 'mes',
+    dreMes: searchParams.get('drm') || new Date().toISOString().slice(0, 7),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [searchParams.toString()]);
+
   const [hiddenColumns, setHiddenColumns] = useState<string[]>([]);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [saveNameOpen, setSaveNameOpen] = useState(false);
+  const [saveName, setSaveName] = useState('');
+
+  // Favoritos (saved filter configurations)
+  const { favoritos, salvar: salvarFavorito, remover: removerFavorito } = useRelatoriosFavoritos();
+
+  /** Merges changes into the current URL search params. */
+  const updateParams = (patch: Record<string, string | string[] | undefined>) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      for (const [k, v] of Object.entries(patch)) {
+        if (v == null || v === '' || (Array.isArray(v) && !v.length)) {
+          next.delete(k);
+        } else {
+          next.set(k, Array.isArray(v) ? v.join(',') : v);
+        }
+      }
+      return next;
+    });
+  };
+
+  const setDataInicio = (v: string) => updateParams({ di: v });
+  const setDataFim = (v: string) => updateParams({ df: v });
+  const setFiltrosState = (partial: Partial<FiltrosRelatorioState>) => {
+    const patch: Record<string, string | string[] | undefined> = {};
+    if ('clienteIds' in partial) patch.cli = partial.clienteIds;
+    if ('fornecedorIds' in partial) patch.for = partial.fornecedorIds;
+    if ('grupoIds' in partial) patch.grp = partial.grupoIds;
+    if ('statusFiltro' in partial) patch.st = partial.statusFiltro === 'todos' ? undefined : partial.statusFiltro;
+    if ('agrupamento' in partial) patch.ag = partial.agrupamento === 'padrao' ? undefined : partial.agrupamento;
+    if ('tipos' in partial) patch.tp = partial.tipos;
+    if ('dreCompetencia' in partial) patch.drc = partial.dreCompetencia === 'mes' ? undefined : partial.dreCompetencia;
+    if ('dreMes' in partial) patch.drm = partial.dreMes;
+    updateParams(patch);
+  };
 
   // Reference data (cached 30 min)
   const { clientes, fornecedores, grupos, empresaConfig } = useRelatoriosFiltrosData();
@@ -133,10 +173,9 @@ export default function Relatorios() {
   const visibleColumns = useMemo(() => columns.filter((c) => !hiddenColumns.includes(c.key)), [columns, hiddenColumns]);
 
   const handleSelectTipo = (next: TipoRelatorio) => {
-    setFiltrosState(DEFAULT_FILTROS);
     setHiddenColumns([]);
-    setTipo(next);
-    setSearchParams((p) => { const n = new URLSearchParams(p); n.set('tipo', next); return n; });
+    // Reset all filter params, keep only the new tipo
+    setSearchParams({ tipo: next });
   };
 
   const handleExportCsv = () => {
@@ -151,6 +190,45 @@ export default function Relatorios() {
   const handleExportXlsx = async () => {
     await exportarParaExcel({ titulo: resultado?.title || String(tipo), rows });
     toast.success('Excel gerado com sucesso!');
+  };
+
+  const handleSalvarFavorito = () => {
+    const name = saveName.trim();
+    if (!name) return;
+    salvarFavorito(name, searchParams);
+    setSaveName('');
+    setSaveNameOpen(false);
+    toast.success(`Configuração "${name}" salva com sucesso!`);
+  };
+
+  const handleCarregarFavorito = (params: string) => {
+    setSearchParams(new URLSearchParams(params));
+    setHiddenColumns([]);
+  };
+
+  /**
+   * Drill-down: clicking a chart segment navigates to a more specific report.
+   * For "vendas" reports, navigates to the same page with the period filtered to
+   * that bar's label (month/week/day). For other reports it shows a toast hint.
+   */
+  const handleChartDrillDown = (point: { name: string; value: number }) => {
+    if (!tipo) return;
+    // Determine drill-down destination based on current report type
+    const drillMap: Partial<Record<TipoRelatorio, TipoRelatorio>> = {
+      vendas: 'vendas_cliente',
+      faturamento: 'vendas_cliente',
+      compras: 'compras_fornecedor',
+      curva_abc: 'margem_produtos',
+    };
+    const target = drillMap[tipo as TipoRelatorio];
+    if (target) {
+      navigate(`/relatorios?tipo=${target}`, {
+        state: { drillFrom: tipo, drillLabel: point.name, drillValue: point.value },
+      });
+    } else {
+      const formattedValue = isQtyReport ? formatNumber(point.value) : formatCurrency(point.value);
+      toast.info(`Detalhes: ${point.name} — ${formattedValue}`, { duration: 3000 });
+    }
   };
 
   const periodoLabel = dataInicio || dataFim
@@ -214,7 +292,7 @@ export default function Relatorios() {
           {!!tipo && (
             <>
               <div className="flex items-center gap-3">
-                <Button variant="outline" size="sm" onClick={() => { setSearchParams({}); setTipo(''); }} className="gap-2">
+                <Button variant="outline" size="sm" onClick={() => { setSearchParams({}); }} className="gap-2">
                   <ChevronLeft className="h-4 w-4" />Voltar para Relatórios
                 </Button>
                 {selectedMeta && <span className="text-sm text-muted-foreground"><selectedMeta.icon className="inline h-3.5 w-3.5 mr-1 text-primary" />{selectedMeta.title}</span>}
@@ -244,6 +322,42 @@ export default function Relatorios() {
                           <PeriodoFilter dataInicio={dataInicio} dataFim={dataFim} onChange={({ dataInicio: di, dataFim: df }) => { setDataInicio(di); setDataFim(df); }} />
                         )}
                         <div className="flex flex-wrap gap-2 ml-auto">
+                          {/* ── Favoritos ── */}
+                          <Popover open={saveNameOpen} onOpenChange={setSaveNameOpen}>
+                            <PopoverTrigger asChild>
+                              <Button variant="outline" size="sm" className="gap-1.5"><BookmarkPlus className="h-3.5 w-3.5" />Salvar</Button>
+                            </PopoverTrigger>
+                            <PopoverContent align="end" className="w-64 p-3 space-y-2">
+                              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Salvar configuração atual</p>
+                              <Input
+                                placeholder="Nome da configuração"
+                                value={saveName}
+                                onChange={(e) => setSaveName(e.target.value)}
+                                onKeyDown={(e) => { if (e.key === 'Enter') handleSalvarFavorito(); }}
+                                className="h-8 text-sm"
+                                autoFocus
+                              />
+                              <Button size="sm" className="w-full" onClick={handleSalvarFavorito} disabled={!saveName.trim()}>Salvar</Button>
+                            </PopoverContent>
+                          </Popover>
+                          {favoritos.length > 0 && (
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button variant="outline" size="sm" className="gap-1.5"><BookOpen className="h-3.5 w-3.5" />Carregar</Button>
+                              </PopoverTrigger>
+                              <PopoverContent align="end" className="w-72 p-3">
+                                <p className="text-xs font-semibold mb-2 text-muted-foreground uppercase tracking-wide">Configurações salvas</p>
+                                <div className="space-y-1 max-h-60 overflow-y-auto">
+                                  {favoritos.map((fav) => (
+                                    <div key={fav.id} className="flex items-center justify-between rounded-md hover:bg-muted/50 px-2 py-1.5 gap-2">
+                                      <button className="flex-1 text-left text-sm truncate" onClick={() => handleCarregarFavorito(fav.params)}>{fav.nome}</button>
+                                      <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => { removerFavorito(fav.id); toast.success(`"${fav.nome}" removido.`); }}><Trash2 className="h-3.5 w-3.5" /></Button>
+                                    </div>
+                                  ))}
+                                </div>
+                              </PopoverContent>
+                            </Popover>
+                          )}
                           <Button variant="outline" size="sm" onClick={() => refetch()} className="gap-1.5"><RefreshCcw className="h-3.5 w-3.5" />Atualizar</Button>
                           <Button variant="outline" size="sm" onClick={() => setPreviewOpen(true)} disabled={!rows.length} className="gap-1.5"><Eye className="h-3.5 w-3.5" />Visualizar</Button>
                           {columns.length > 0 && (
@@ -277,7 +391,7 @@ export default function Relatorios() {
                           clientes={clientes}
                           fornecedores={fornecedores}
                           grupos={grupos}
-                          onChange={(partial) => setFiltrosState((prev) => ({ ...prev, ...partial }))}
+                          onChange={(partial) => setFiltrosState(partial)}
                         />
                       )}
                     </CardContent>
@@ -319,6 +433,7 @@ export default function Relatorios() {
                       chartData={resultado?.chartData ?? []}
                       chartType={selectedMeta?.chartType ?? 'bar'}
                       isQuantityReport={isQtyReport}
+                      onDataPointClick={handleChartDrillDown}
                     />
                   </div>
                 </CardContent>

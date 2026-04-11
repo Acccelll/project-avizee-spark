@@ -43,17 +43,25 @@ export interface RelatorioChartProps {
   chartData: ChartDataPoint[];
   chartType: ChartType;
   isQuantityReport?: boolean;
+  onDataPointClick?: (point: ChartDataPoint) => void;
 }
 
 export function RelatorioChart({
   chartData,
   chartType,
   isQuantityReport = false,
+  onDataPointClick,
 }: RelatorioChartProps) {
   const usePie = chartType === "pie";
   const useLine = chartType === "line";
   const formatValue = (v: number) =>
     isQuantityReport ? formatNumber(v) : formatCurrency(v);
+
+  const handleActiveDotClick = onDataPointClick
+    ? (_: unknown, payload: { payload?: ChartDataPoint }) => {
+        if (payload?.payload) onDataPointClick(payload.payload);
+      }
+    : undefined;
 
   const chartIcon = useLine ? (
     <LineChartIcon className="h-4 w-4 text-muted-foreground" />
@@ -86,6 +94,7 @@ export function RelatorioChart({
                       stroke="hsl(var(--primary))"
                       strokeWidth={2.5}
                       dot={{ r: 3 }}
+                      activeDot={handleActiveDotClick ? { r: 5, style: { cursor: 'pointer' }, onClick: handleActiveDotClick } : { r: 5 }}
                     />
                   </LineChart>
                 ) : usePie ? (
@@ -99,6 +108,8 @@ export function RelatorioChart({
                       outerRadius={80}
                       innerRadius={40}
                       paddingAngle={3}
+                      onClick={onDataPointClick}
+                      style={onDataPointClick ? { cursor: 'pointer' } : undefined}
                     >
                       {chartData.map((_, i) => (
                         <Cell
@@ -119,6 +130,8 @@ export function RelatorioChart({
                       dataKey="value"
                       radius={[6, 6, 0, 0]}
                       fill="hsl(var(--primary))"
+                      onClick={onDataPointClick}
+                      style={onDataPointClick ? { cursor: 'pointer' } : undefined}
                     />
                   </BarChart>
                 )}

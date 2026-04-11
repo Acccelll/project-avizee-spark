@@ -4,7 +4,7 @@
  * All functions are side-effect-free so they can be unit-tested without mocks.
  */
 
-import type { VendasRow, AgingRow } from "@/types/relatorios";
+import type { VendasRow, AgingRow, CurvaAbcRow, EstoqueRow } from "@/types/relatorios";
 
 // ─── Sales aggregation ───────────────────────────────────────────────────────
 
@@ -164,4 +164,115 @@ export function sortarRows<T extends Record<string, unknown>>(
     );
   }
   return copy;
+}
+
+// ─── Curva ABC ───────────────────────────────────────────────────────────────
+
+export interface CurvaAbcInput {
+  codigo: string;
+  produto: string;
+  faturamento: number;
+}
+
+/**
+ * Classifies products into ABC curve classes.
+ *
+ * Class A: top items that together represent up to 80% of total revenue.
+ * Class B: items from 80% to 95% of accumulated revenue.
+ * Class C: remaining items (95-100%).
+ *
+ * Returns rows sorted by faturamento descending, with posicao, percentual,
+ * acumulado and classe filled in.
+ */
+export function calcularCurvaABC(items: CurvaAbcInput[]): CurvaAbcRow[] {
+  if (!items.length) return [];
+
+  const sorted = [...items].sort((a, b) => b.faturamento - a.faturamento);
+  const grandTotal = sorted.reduce((s, i) => s + i.faturamento, 0);
+
+  if (grandTotal <= 0) {
+    return sorted.map((item, idx) => ({
+      posicao: idx + 1,
+      codigo: item.codigo,
+      produto: item.produto,
+      faturamento: item.faturamento,
+      percentual: 0,
+      acumulado: 0,
+      classe: "C" as const,
+    }));
+  }
+
+  let acumulado = 0;
+  return sorted.map((item, idx) => {
+    const percentual = Number(((item.faturamento / grandTotal) * 100).toFixed(2));
+    acumulado = Number((acumulado + percentual).toFixed(2));
+    const classe: "A" | "B" | "C" =
+      acumulado <= 80 ? "A" : acumulado <= 95 ? "B" : "C";
+    return {
+      posicao: idx + 1,
+      codigo: item.codigo,
+      produto: item.produto,
+      faturamento: item.faturamento,
+      percentual,
+      acumulado,
+      classe,
+    };
+  });
+}
+
+// ─── Giro de Estoque ─────────────────────────────────────────────────────────
+
+export interface GiroEstoqueInput {
+  codigo: string;
+  produto: string;
+  custoVendas: number;
+  estoqueAtual: number;
+  custoUnit: number;
+}
+
+export interface GiroEstoqueRow {
+  codigo: string;
+  produto: string;
+  custoVendas: number;
+  estoqueAtual: number;
+  estoqueValor: number;
+  giro: number;
+}
+
+/**
+ * Calculates stock turnover (giro de estoque) for each product.
+ *
+ * giro = custoVendas / estoqueValor  (where estoqueValor = estoqueAtual * custoUnit)
+ *
+ * A giro of 0 means no movement or zero stock value.
+ */
+export function calcularGiroEstoque(items: GiroEstoqueInput[]): GiroEstoqueRow[] {
+  return items.map((item) => {
+    const estoqueValor = item.estoqueAtual * item.custoUnit;
+    const giro =
+      estoqueValor > 0
+        ? Number((item.custoVendas / estoqueValor).toFixed(2))
+        : 0;
+    return {
+      codigo: item.codigo,
+      produto: item.produto,
+      custoVendas: item.custoVendas,
+      estoqueAtual: item.estoqueAtual,
+      estoqueValor: Number(estoqueValor.toFixed(2)),
+      giro,
+    };
+  });
+}
+
+// ─── Ticket Médio ─────────────────────────────────────────────────────────────
+
+/**
+ * Calculates the average ticket (ticket médio) from a list of VendasRow.
+ *
+ * Returns 0 when the input is empty.
+ */
+export function calcularTicketMedio(rows: VendasRow[]): number {
+  if (!rows.length) return 0;
+  const total = rows.reduce((s, r) => s + r.valor, 0);
+  return Number((total / rows.length).toFixed(2));
 }
