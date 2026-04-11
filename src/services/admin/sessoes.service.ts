@@ -31,7 +31,7 @@ export async function listarSessoes(
 ): Promise<UserSession[]> {
   const { apenasAtivas = true, userId } = options;
 
-  let query = supabase
+  let query = (supabase as any)
     .from("user_sessions")
     .select("*")
     .order("last_active_at", { ascending: false });
@@ -53,7 +53,7 @@ export async function listarSessoes(
  * Define `is_active = false` no registro correspondente.
  */
 export async function revogarSessao(sessionId: string): Promise<void> {
-  const { error } = await supabase
+  const { error } = await (supabase as any)
     .from("user_sessions")
     .update({ is_active: false })
     .eq("id", sessionId);

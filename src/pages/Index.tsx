@@ -33,6 +33,8 @@ import { useDashboardLayout } from "@/hooks/useDashboardLayout";
 import { useMetas } from "@/hooks/useMetas";
 import { useInView } from "@/hooks/useInView";
 import GridLayout from "react-grid-layout";
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const RGL = GridLayout as any;
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import "react-grid-layout/css/styles.css";
@@ -456,14 +458,14 @@ const DashboardContent = () => {
 
       {/* ── Drag-and-drop grid ── */}
       <div ref={gridContainerRef}>
-      <GridLayout
+      <RGL
         layout={layout}
         cols={12}
         rowHeight={40}
         width={gridWidth}
         isDraggable={editMode}
         isResizable={editMode}
-        onLayoutChange={(newLayout) => { if (editMode) setLayout(newLayout); }}
+        onLayoutChange={(newLayout: any) => { if (editMode) setLayout(newLayout); }}
         className={editMode ? "react-grid-layout--edit" : ""}
         draggableHandle=".drag-handle"
       >
@@ -580,7 +582,7 @@ const DashboardContent = () => {
             <FiscalBlock stats={fiscalStats} />
           </LazyInViewWidget>
         </div>
-      </GridLayout>
+      </RGL>
       </div>
 
       {/* ── Drawer de detalhes por métrica ── */}

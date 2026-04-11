@@ -134,8 +134,10 @@ export function validateFinanceiroImport(data: any): ImportValidationResult {
     descricao: normalizeText(data.descricao || data.HISTORICO || data.HISTÓRICO),
     data_vencimento: dataVenc.value,
     valor: valorRef.value || 0,
-    tipo: (normalizeText(data.tipo || data.PAGAR_RECEBER) || 'receber').toLowerCase(),
-    status: (normalizeText(data.status || data.SITUACAO) || 'aberto').toLowerCase(),
+    tipo: (normalizeText(data.tipo || data.TIPO || data.PAGAR_RECEBER) || 'receber').toLowerCase(),
+    status: (normalizeText(data.status || data.STATUS || data.SITUACAO) || 'aberto').toLowerCase(),
+    cpf_cnpj: normalizeCpfCnpj(data.cpf_cnpj || data['CPF/CNPJ'] || ''),
+    observacoes: normalizeText(data.observacoes || data.OBSERVAÇÕES || data.OBSERVACOES || ''),
   };
 
   if (!normalizedData.descricao) errors.push('Descrição é obrigatória.');
