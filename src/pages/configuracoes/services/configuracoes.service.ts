@@ -98,3 +98,38 @@ export async function testarApiSefaz(
   const ambiente = config.sefaz_ambiente === 'homologacao' ? 'homologação' : 'produção';
   return { sucesso: true, mensagem: `Conexão com SEFAZ (${ambiente}) realizada com sucesso.` };
 }
+
+export async function testarUrl(
+  url: string
+): Promise<{ sucesso: boolean; mensagem: string }> {
+  if (!url || url.trim() === '') {
+    return { sucesso: false, mensagem: 'URL não informada.' };
+  }
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    try {
+      const response = await fetch(url, { method: 'HEAD', signal: controller.signal });
+      clearTimeout(timeout);
+      if (response.ok || (response.status >= 200 && response.status < 400)) {
+        return { sucesso: true, mensagem: `URL acessível (status ${response.status}).` };
+      }
+      return { sucesso: false, mensagem: `URL retornou status ${response.status}.` };
+    } catch (fetchErr: unknown) {
+      clearTimeout(timeout);
+      throw fetchErr;
+    }
+  } catch (err: unknown) {
+    if (err instanceof Error) {
+      if (err.name === 'AbortError') {
+        return { sucesso: false, mensagem: 'Tempo limite esgotado ao tentar conectar.' };
+      }
+      // CORS or network error — server may be reachable but browser policy blocks access
+      if (err.message.toLowerCase().includes('failed to fetch') || err.message.toLowerCase().includes('cors')) {
+        return { sucesso: false, mensagem: 'Não foi possível verificar a URL (CORS ou rede). Verifique manualmente.' };
+      }
+    }
+    return { sucesso: false, mensagem: 'Não foi possível conectar à URL informada.' };
+  }
+}
