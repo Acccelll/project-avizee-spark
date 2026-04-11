@@ -68,8 +68,8 @@ export function useGerarPedidoCompra() {
             pedido_compra_id: newPedido.id,
             produto_id: i.produto_id,
             quantidade: i.quantidade,
-            valor_unitario: valorUnitario,
-            valor_total: valorUnitario * Number(i.quantidade),
+            preco_unitario: valorUnitario,
+            subtotal: valorUnitario * Number(i.quantidade),
           };
         });
 
