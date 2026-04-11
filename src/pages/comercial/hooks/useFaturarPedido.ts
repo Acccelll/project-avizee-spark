@@ -132,19 +132,20 @@ export function useFaturarPedido() {
       );
       const newFatStatus = calcularStatusFaturamentoOV(totalQ, totalF);
 
-      await supabase
-        .from("ordens_venda")
-        .update({ status_faturamento: newFatStatus })
-        .eq("id", pedido.id);
-
-      // Register fiscal event
-      await registrarEventoFiscal({
-        nota_fiscal_id: newNF!.id,
-        tipo_evento: "criacao",
-        status_novo: "pendente",
-        descricao: `NF ${nfNumero} gerada automaticamente a partir do Pedido ${pedido.numero}.`,
-        payload_resumido: { valor_total: totalProdutos, pedido_numero: pedido.numero, itens: (pedidoItems || []).length },
-      });
+      // Parallel: update OV faturamento status + register fiscal event
+      await Promise.all([
+        supabase
+          .from("ordens_venda")
+          .update({ status_faturamento: newFatStatus })
+          .eq("id", pedido.id),
+        registrarEventoFiscal({
+          nota_fiscal_id: newNF!.id,
+          tipo_evento: "criacao",
+          status_novo: "pendente",
+          descricao: `NF ${nfNumero} gerada automaticamente a partir do Pedido ${pedido.numero}.`,
+          payload_resumido: { valor_total: totalProdutos, pedido_numero: pedido.numero, itens: (pedidoItems || []).length },
+        }),
+      ]);
 
       return { nfId: newNF!.id, nfNumero };
     },
