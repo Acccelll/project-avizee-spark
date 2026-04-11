@@ -173,7 +173,13 @@ const Clientes = () => {
     }
     setFormErrors({});
     setSaving(true);
-    const payload = { ...form, grupo_economico_id: form.grupo_economico_id || null, caixa_postal: form.caixa_postal || null };
+    const payload = {
+      ...form,
+      grupo_economico_id: form.grupo_economico_id || null,
+      caixa_postal: form.caixa_postal || null,
+      forma_pagamento_padrao: form.forma_pagamento_padrao || null,
+      prazo_preferencial: form.prazo_preferencial || null,
+    };
     try {
       if (mode === "create") await create(payload);else
       if (selected) await update(selected.id, payload);
