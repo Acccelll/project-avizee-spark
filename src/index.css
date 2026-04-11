@@ -299,3 +299,30 @@
     min-height: 44px;
   }
 }
+
+/* ── Dashboard grid layout ── */
+.react-grid-layout {
+  position: relative;
+}
+.react-grid-item {
+  transition: all 200ms ease;
+  transition-property: left, top, width, height;
+}
+.react-grid-item.react-grid-placeholder {
+  background: hsl(var(--primary) / 0.15);
+  border: 2px dashed hsl(var(--primary) / 0.4);
+  border-radius: 0.75rem;
+  z-index: 2;
+  opacity: 0.6;
+}
+/* Edit-mode: show drag handles and borders */
+.react-grid-layout--edit .react-grid-item > div {
+  outline: 2px dashed hsl(var(--border));
+  border-radius: 0.75rem;
+}
+.drag-handle {
+  cursor: grab;
+}
+.drag-handle:active {
+  cursor: grabbing;
+}
