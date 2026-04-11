@@ -140,11 +140,13 @@ export function useConciliacaoBancaria(
         throw new Error("Nenhum par para conciliar.");
       }
 
-      for (const par of pares) {
-        const transacao = extratoItems.find((e) => e.id === par.extratoId);
-        if (!transacao) continue;
-        await conciliarTransacao(contaId, transacao, par.lancamentoId);
-      }
+      await Promise.all(
+        pares.map((par) => {
+          const transacao = extratoItems.find((e) => e.id === par.extratoId);
+          if (!transacao) return Promise.resolve();
+          return conciliarTransacao(contaId, transacao, par.lancamentoId);
+        })
+      );
     },
     onSuccess: () => {
       toast.success(`${pares.length} transação(ões) conciliada(s) com sucesso!`);

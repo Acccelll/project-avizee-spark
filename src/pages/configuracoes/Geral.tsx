@@ -133,12 +133,12 @@ export default function Geral() {
     if (!importData) return;
     setIsImporting(true);
     try {
-      const chaves = Object.keys(importData) as (typeof CONFIG_CHAVES[number])[];
-      for (const chave of chaves) {
-        if (CONFIG_CHAVES.includes(chave as typeof CONFIG_CHAVES[number])) {
-          await updateConfig(chave as typeof CONFIG_CHAVES[number], importData[chave] as Record<string, unknown>, user?.id);
-        }
-      }
+      const chaves = Object.keys(importData).filter(
+        (k) => CONFIG_CHAVES.includes(k as typeof CONFIG_CHAVES[number])
+      ) as (typeof CONFIG_CHAVES[number])[];
+      await Promise.all(
+        chaves.map((chave) => updateConfig(chave, importData[chave] as Record<string, unknown>, user?.id))
+      );
       toast.success('Configurações importadas com sucesso. Recarregue a página para ver as mudanças.');
       setImportDialogOpen(false);
     } catch {

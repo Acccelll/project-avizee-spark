@@ -169,27 +169,27 @@ export function useImportacaoFaturamento() {
       const { data: clients } = await supabase.from("clientes").select("id, nome_razao_social");
       const clientMap = new Map(clients?.map(c => [c.nome_razao_social.toUpperCase(), c.id]));
 
-      let importedCount = 0;
-      for (const nf of validos) {
-        const clientId = clientMap.get(nf.cliente_nome?.toUpperCase());
+      // Parallel inserts for all valid invoices
+      const results = await Promise.all(
+        validos.map((nf) => {
+          const clientId = clientMap.get(nf.cliente_nome?.toUpperCase());
+          return supabase.from("notas_fiscais").insert({
+            tipo: "saida",
+            numero: nf.numero,
+            data_emissao: nf.data_emissao,
+            valor_total: nf.valor_total,
+            cliente_id: clientId || null,
+            status: "confirmada",
+            origem: "importacao_historica",
+            observacoes: `Importação histórica - Lote ${currentLoteId}`
+          }).then(({ error }) => {
+            if (error) console.error(`Erro ao criar NF ${nf.numero}:`, error.message);
+            return !error;
+          });
+        })
+      );
 
-        const { error: nfError } = await supabase.from("notas_fiscais").insert({
-          tipo: "saida",
-          numero: nf.numero,
-          data_emissao: nf.data_emissao,
-          valor_total: nf.valor_total,
-          cliente_id: clientId || null,
-          status: "confirmada",
-          origem: "importacao_historica",
-          observacoes: `Importação histórica - Lote ${currentLoteId}`
-        } as any);
-
-        if (nfError) {
-          console.error(`Erro ao criar NF ${nf.numero}:`, nfError.message);
-          continue;
-        }
-        importedCount++;
-      }
+      const importedCount = results.filter(Boolean).length;
 
       await supabase
         .from("importacao_lotes")

@@ -192,9 +192,10 @@ export function useCotacoesCompra() {
         if (error) throw error;
         cotacaoId = (newC as CotacaoCompra).id;
       } else if (selected) {
-        const { error } = await supabase.from("cotacoes_compra").update(payload).eq("id", selected.id);
-        if (error) throw error;
-        await supabase.from("cotacoes_compra_itens").delete().eq("cotacao_compra_id", selected.id);
+        await Promise.all([
+          supabase.from("cotacoes_compra").update(payload).eq("id", selected.id).then(({ error }) => { if (error) throw error; }),
+          supabase.from("cotacoes_compra_itens").delete().eq("cotacao_compra_id", selected.id),
+        ]);
       }
       if (cotacaoId && localItems.length > 0) {
         const itemsPayload = localItems.filter((i) => i.produto_id).map((i) => ({
