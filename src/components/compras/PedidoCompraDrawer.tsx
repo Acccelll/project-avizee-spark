@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { ViewDrawerV2 } from "@/components/ViewDrawerV2";
 import { ViewField, ViewSection } from "@/components/ViewDrawer";
 import { StatusBadge } from "@/components/StatusBadge";

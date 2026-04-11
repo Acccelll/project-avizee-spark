@@ -328,12 +328,8 @@ export default function Administracao() {
         nome_fantasia: config.geral.nomeFantasia,
         cnpj: config.geral.cnpj || null,
         inscricao_estadual: config.geral.inscricaoEstadual || null,
-        inscricao_municipal: config.geral.inscricaoMunicipal || null,
-        site: config.geral.site || null,
         email: config.geral.email || null,
         telefone: config.geral.telefone || null,
-        whatsapp: config.geral.whatsapp || null,
-        responsavel: config.geral.responsavel || null,
         cep: config.geral.cep || null,
         logradouro: config.geral.logradouro || null,
         numero: config.geral.numero || null,
@@ -343,23 +339,25 @@ export default function Administracao() {
         uf: config.geral.uf || null,
         logo_url: config.geral.logoUrl || null,
         updated_at: now,
-        updated_by: user?.id ?? null,
       };
       if (empresaConfigId) {
-        await supabase.from('empresa_config').update(empresaPayload as any).eq('id', empresaConfigId);
+        const { error: empError } = await supabase.from('empresa_config').update(empresaPayload).eq('id', empresaConfigId);
+        if (empError) throw empError;
       } else {
-        const { data: insertedEmpresa } = await supabase.from('empresa_config').insert(empresaPayload as any).select('id').single();
+        const { data: insertedEmpresa, error: empError } = await supabase.from('empresa_config').insert(empresaPayload).select('id').single();
+        if (empError) throw empError;
         if (insertedEmpresa?.id) setEmpresaConfigId(insertedEmpresa.id);
       }
       setEmpresaUpdatedAt(now);
       const appRows = [
-        { chave: 'geral', valor: { logoUrl: config.geral.logoUrl, corPrimaria: config.geral.corPrimaria, corSecundaria: config.geral.corSecundaria } as any, descricao: 'Configurações gerais' },
-        { chave: 'usuarios', valor: config.usuarios as any, descricao: 'Parâmetros de usuários' },
-        { chave: 'email', valor: { ...config.email, _updatedAt: now, _updatedBy: user?.id ?? null } as any, descricao: 'Parâmetros de envio e remetente' },
-        { chave: 'fiscal', valor: { ...config.fiscal, _updatedAt: now, _updatedBy: user?.id ?? null, _updatedByName: profile?.nome ?? user?.email ?? null } as any, descricao: 'Parâmetros fiscais' },
-        { chave: 'financeiro', valor: { ...config.financeiro, _updatedAt: now, _updatedBy: user?.id ?? null, _updatedByName: profile?.nome ?? user?.email ?? null } as any, descricao: 'Parâmetros financeiros' },
+        { chave: 'geral', valor: { logoUrl: config.geral.logoUrl, corPrimaria: config.geral.corPrimaria, corSecundaria: config.geral.corSecundaria, site: config.geral.site, whatsapp: config.geral.whatsapp, responsavel: config.geral.responsavel, inscricaoMunicipal: config.geral.inscricaoMunicipal } as unknown as Record<string, unknown> },
+        { chave: 'usuarios', valor: config.usuarios as unknown as Record<string, unknown> },
+        { chave: 'email', valor: { ...config.email, _updatedAt: now, _updatedBy: user?.id ?? null } as unknown as Record<string, unknown> },
+        { chave: 'fiscal', valor: { ...config.fiscal, _updatedAt: now, _updatedBy: user?.id ?? null, _updatedByName: profile?.nome ?? user?.email ?? null } as unknown as Record<string, unknown> },
+        { chave: 'financeiro', valor: { ...config.financeiro, _updatedAt: now, _updatedBy: user?.id ?? null, _updatedByName: profile?.nome ?? user?.email ?? null } as unknown as Record<string, unknown> },
       ];
-      await supabase.from('app_configuracoes').upsert(appRows, { onConflict: 'chave' });
+      const { error: appError } = await supabase.from('app_configuracoes').upsert(appRows, { onConflict: 'chave' });
+      if (appError) throw appError;
       setEmailLastSaved({ at: now, by: user?.id ?? null });
       setFiscalLastSaved({ at: now, by: profile?.nome ?? user?.email ?? null });
       setFinanceiroLastSaved({ at: now, by: profile?.nome ?? user?.email ?? null });
