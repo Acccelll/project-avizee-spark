@@ -18,6 +18,8 @@ import { cn } from '@/lib/utils';
 import { MaskedInput } from '@/components/ui/MaskedInput';
 import { useAuth } from '@/contexts/AuthContext';
 import { UsuariosTab } from '@/components/usuarios/UsuariosTab';
+import { DashboardAdmin } from '@/pages/admin/components/DashboardAdmin';
+import { PermissaoMatrix } from '@/pages/admin/components/PermissaoMatrix';
 
 const defaultConfig = {
   geral: {
@@ -75,8 +77,10 @@ interface SideNavItem {
 }
 
 const sideNavItems: SideNavItem[] = [
+  { key: 'dashboard', label: 'Dashboard de Segurança', icon: Shield },
   { key: 'empresa', label: 'Empresa', icon: Building2 },
   { key: 'usuarios', label: 'Usuários e Permissões', icon: Users },
+  { key: 'permissoes', label: 'Matriz de Permissões', icon: User },
   { key: 'email', label: 'E-mails', icon: Mail },
   { key: 'fiscal', label: 'Parâmetros Fiscais', icon: Receipt },
   { key: 'financeiro', label: 'Parâmetros Financeiros', icon: Wallet },
@@ -1243,11 +1247,27 @@ export default function Administracao() {
 
   const renderContent = () => {
     switch (activeSection) {
+      case 'dashboard':
+        return <DashboardAdmin />;
+
       case 'empresa':
         return renderEmpresa();
 
       case 'usuarios':
         return <UsuariosTab />;
+
+      case 'permissoes':
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>Matriz de Permissões</CardTitle>
+              <CardDescription>Gerencie visualmente as permissões por perfil de acesso.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <PermissaoMatrix />
+            </CardContent>
+          </Card>
+        );
 
       case 'email':
         return renderEmail();
@@ -1281,7 +1301,7 @@ export default function Administracao() {
     }
   };
 
-  const showSaveButton = activeSection !== 'auditoria' && activeSection !== 'usuarios' && activeSection !== 'migracao';
+  const showSaveButton = activeSection !== 'auditoria' && activeSection !== 'usuarios' && activeSection !== 'migracao' && activeSection !== 'dashboard' && activeSection !== 'permissoes';
 
   return (
     <AppLayout>

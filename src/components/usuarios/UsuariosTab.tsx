@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   AlertTriangle,
   Check,
@@ -857,14 +858,36 @@ function UserRow({
 
 export function UsuariosTab() {
   const { user: currentUser } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [users, setUsers] = useState<UserWithRoles[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Filters
-  const [search, setSearch] = useState('');
-  const [filterStatus, setFilterStatus] = useState<'todos' | 'ativo' | 'inativo'>('todos');
-  const [filterRole, setFilterRole] = useState<AppRole | 'todos'>('todos');
-  const [filterExtra, setFilterExtra] = useState(false);
+  // Filters — persisted in URL
+  const search = searchParams.get('q') ?? '';
+  const filterStatus = (searchParams.get('status') ?? 'todos') as 'todos' | 'ativo' | 'inativo';
+  const filterRole = (searchParams.get('perfil') ?? 'todos') as AppRole | 'todos';
+  const filterExtra = searchParams.get('extra') === '1';
+
+  const setSearch = (v: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (v) next.set('q', v); else next.delete('q');
+    setSearchParams(next);
+  };
+  const setFilterStatus = (v: 'todos' | 'ativo' | 'inativo') => {
+    const next = new URLSearchParams(searchParams);
+    if (v !== 'todos') next.set('status', v); else next.delete('status');
+    setSearchParams(next);
+  };
+  const setFilterRole = (v: AppRole | 'todos') => {
+    const next = new URLSearchParams(searchParams);
+    if (v !== 'todos') next.set('perfil', v); else next.delete('perfil');
+    setSearchParams(next);
+  };
+  const setFilterExtra = (v: boolean) => {
+    const next = new URLSearchParams(searchParams);
+    if (v) next.set('extra', '1'); else next.delete('extra');
+    setSearchParams(next);
+  };
 
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
@@ -994,10 +1017,12 @@ export function UsuariosTab() {
     filterExtra;
 
   const clearFilters = () => {
-    setSearch('');
-    setFilterStatus('todos');
-    setFilterRole('todos');
-    setFilterExtra(false);
+    const next = new URLSearchParams(searchParams);
+    next.delete('q');
+    next.delete('status');
+    next.delete('perfil');
+    next.delete('extra');
+    setSearchParams(next);
   };
 
   // ─ Render ─

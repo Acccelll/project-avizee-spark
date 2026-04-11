@@ -10,6 +10,7 @@
  */
 
 import { useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
@@ -24,10 +25,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ChevronLeft, ChevronRight, AlertTriangle, Edit, Plus, Shield, Trash2, User } from "lucide-react";
+import { ChevronLeft, ChevronRight, AlertTriangle, Download, Edit, Plus, Shield, Trash2, User } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useAuditLogs } from "@/pages/admin/hooks/useAuditLogs";
 import type { AuditLog } from "@/services/admin/audit.service";
+import { exportarParaExcel, exportarParaPdf } from "@/services/export.service";
 
 // ─── Metadados de tabelas ─────────────────────────────────────────────────────
 
@@ -217,10 +219,26 @@ const columns: ColumnDef<AuditLog>[] = [
 // ─── Página principal ─────────────────────────────────────────────────────────
 
 export default function Logs() {
-  const [tabelaFilter, setTabelaFilter] = useState("");
-  const [acaoFilter, setAcaoFilter] = useState("");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabelaFilter = searchParams.get("tabela") ?? "";
+  const acaoFilter = searchParams.get("acao") ?? "";
   const [selected, setSelected] = useState<AuditLog | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
+  const setTabelaFilter = (v: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (v) next.set("tabela", v); else next.delete("tabela");
+    next.delete("pagina");
+    setSearchParams(next);
+  };
+
+  const setAcaoFilter = (v: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (v) next.set("acao", v); else next.delete("acao");
+    next.delete("pagina");
+    setSearchParams(next);
+  };
 
   const { logs, totalCount, isLoading, isFetching, page, totalPages, setPage } = useAuditLogs({
     tabela: tabelaFilter || undefined,
@@ -233,6 +251,48 @@ export default function Logs() {
     deletes: logs.filter((l) => l.acao === "DELETE").length,
     sensiveis: logs.filter((l) => getCriticality(l) === "alta").length,
   }), [logs, totalCount]);
+
+  const handleExportarExcel = async () => {
+    setExporting(true);
+    try {
+      const rows = logs.map((l) => {
+        const meta = getTableMeta(l.tabela);
+        const acaoMeta = getAcaoMeta(l.acao);
+        return {
+          "Data/Hora": new Date(l.created_at).toLocaleString("pt-BR"),
+          Ação: acaoMeta.label,
+          Módulo: meta.modulo,
+          Entidade: meta.entidade,
+          "Registro ID": l.registro_id ?? "",
+          IP: l.ip_address ?? "",
+          Criticidade: CRITICALITY_STYLE[getCriticality(l)].label,
+        };
+      });
+      await exportarParaExcel({ titulo: "logs-auditoria", rows });
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleExportarPdf = async () => {
+    setExporting(true);
+    try {
+      const rows = logs.map((l) => {
+        const meta = getTableMeta(l.tabela);
+        const acaoMeta = getAcaoMeta(l.acao);
+        return {
+          "Data/Hora": new Date(l.created_at).toLocaleString("pt-BR"),
+          Ação: acaoMeta.label,
+          Entidade: meta.entidade,
+          IP: l.ip_address ?? "",
+          Criticidade: CRITICALITY_STYLE[getCriticality(l)].label,
+        };
+      });
+      await exportarParaPdf({ titulo: "Logs de Auditoria", rows });
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const selectedAcao = selected ? getAcaoMeta(selected.acao) : null;
   const selectedMeta = selected ? getTableMeta(selected.tabela) : null;
@@ -279,9 +339,19 @@ export default function Logs() {
           </div>
         }
         toolbarExtra={
-          isFetching && !isLoading ? (
-            <span className="text-xs text-muted-foreground">Atualizando…</span>
-          ) : undefined
+          <div className="flex items-center gap-2">
+            {isFetching && !isLoading ? (
+              <span className="text-xs text-muted-foreground">Atualizando…</span>
+            ) : null}
+            <Button variant="outline" size="sm" onClick={handleExportarExcel} disabled={exporting || logs.length === 0}>
+              <Download className="h-4 w-4 mr-1" />
+              Excel
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleExportarPdf} disabled={exporting || logs.length === 0}>
+              <Download className="h-4 w-4 mr-1" />
+              PDF
+            </Button>
+          </div>
         }
       >
         <DataTable
