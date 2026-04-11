@@ -1,126 +1,35 @@
 
+# Plano de Execução: Módulo Fiscal Completo
 
-# Plano de Correção Técnica — ERP AviZee
+## 1. Fix build error (`useGerarPedidoCompra.ts`)
+Renomear `valor_unitario → preco_unitario` e `valor_total → subtotal` na inserção de `pedidos_compra_itens`.
 
-## Diagnóstico atual
+## 2. Migration SQL — Expandir schema fiscal
 
-- **137 arquivos** com `// @ts-nocheck`
-- **182 ocorrências** de `as any`
-- **0 erros** de TypeScript (porque `@ts-nocheck` mascara tudo)
-- **README** vazio
-- Tipos de domínio mínimos (43 linhas em `erp.ts`, 12 em `orcamento.ts`)
-- Interfaces duplicadas em cada página (ex: `Produto` em Produtos.tsx, `Lancamento` em Financeiro.tsx)
-- Services com `as any` para contornar tipagem do Supabase
-- Sem checagem de permissões na maioria das páginas/botões
-- Páginas monolíticas (1000-1800 linhas misturando UI + dados + regras)
+**Expandir `notas_fiscais`** com ~25 colunas: `natureza_operacao`, `finalidade_nfe`, `ambiente_emissao`, `status_sefaz`, `protocolo_autorizacao`, `recibo`, `motivo_rejeicao`, `xml_gerado`, `pdf_gerado`, `caminho_xml`, `caminho_pdf`, `enviado_email`, `valor_produtos`, `valor_seguro`, `peso_bruto`, `peso_liquido`, `quantidade_volumes`, `especie_volumes`, `marca_volumes`, `numeracao_volumes`, `frete_modalidade`, `transportadora_id`, `origem`, `data_saida_entrada`, `usuario_criacao_id`, `usuario_ultima_modificacao_id`.
 
-## Escopo realista por fase
+**Expandir `notas_fiscais_itens`** com: `codigo_produto`, `cest`, `origem_mercadoria`, `csosn`, `cst_pis`, `cst_cofins`, `cst_ipi`, `unidade_tributavel`, `desconto`, `frete_rateado`, `seguro_rateado`, `outras_despesas_rateadas`, `base_st`, `valor_st`, `base_ipi`, `base_pis`, `base_cofins`, `observacoes`.
 
-Dado o volume (137 arquivos, ~25k linhas de páginas), o trabalho será dividido em **3 fases incrementais**. Este plano cobre a **Fase 1** — a mais impactante.
+**Criar `nota_fiscal_eventos`**: id, nota_fiscal_id, tipo_evento, status_anterior, status_novo, descricao, payload_resumido (jsonb), data_evento, usuario_id. RLS: select/insert authenticated.
 
----
+**Criar `nota_fiscal_anexos`**: id, nota_fiscal_id, tipo_arquivo, nome_arquivo, caminho_storage, tamanho, created_at. RLS: select/insert/delete authenticated.
 
-## Fase 1 — Fundação (este ciclo)
+**Expandir `empresa_config`**: crt, cnae, regime_tributario, codigo_ibge_municipio, email_fiscal, serie_padrao_nfe, proximo_numero_nfe, ambiente_padrao.
 
-### 1. Tipos de domínio centralizados
-**Arquivo:** `src/types/domain.ts`
+**Expandir `produtos`**: gtin, cest, origem_mercadoria, unidade_tributavel, peso_bruto, peso_liquido.
 
-Criar interfaces alinhadas com o schema Supabase gerado, cobrindo as entidades principais:
-- `Produto`, `Cliente`, `Fornecedor`, `Transportadora`, `FormaPagamento`
-- `Orcamento`, `OrcamentoItem`, `OrdemVenda`, `OrdemVendaItem`
-- `PedidoCompra`, `PedidoCompraItem`, `Compra`, `CompraItem`
-- `LancamentoFinanceiro`, `BaixaFinanceira`
-- `NotaFiscal`, `NotaFiscalItem`
-- `MovimentacaoEstoque`, `ContaBancaria`, `ContaContabil`
-- `Funcionario`, `FolhaPagamento`, `Remessa`
-- `GrupoProduto`, `GrupoEconomico`
+## 3. Refatorar `fiscal.service.ts`
+- Adicionar função `registrarEventoFiscal()` usada por todas as ações
+- Idempotência: verificar `status !== 'confirmada'` antes de confirmar; verificar duplicidade por chave_acesso na importação
+- Separar status operacional e status_sefaz
+- Upload/download de XML/PDF via Storage bucket `dbavizee`
 
-Usar `Database["public"]["Tables"][T]["Row"]` como base, re-exportando com nomes de domínio legíveis. Isso elimina as 20+ interfaces duplicadas espalhadas pelas páginas.
+## 4. Expandir UI Fiscal
+- **Fiscal.tsx**: adicionar colunas origem, status_sefaz; filtros por origem e status_sefaz
+- **NotaFiscalDrawer**: nova aba "Eventos" com timeline da `nota_fiscal_eventos`; aba "Arquivos" com lista de anexos e download
+- **NotaFiscalEditModal**: campos de natureza_operacao, ambiente, transportadora, volumes, peso
+- **ConfiguracaoFiscal.tsx**: campos CRT, CNAE, série padrão, próximo número, ambiente
 
-### 2. Remover `@ts-nocheck` dos arquivos core (~30 arquivos)
-
-Prioridade:
-- **Services** (5 arquivos): `financeiro.service.ts`, `fiscal.service.ts`, `orcamentos.service.ts`, `relatorios.service.ts`, `social.service.ts`
-- **Contexts** (2): `AppConfigContext.tsx`, `RelationalNavigationContext.tsx`
-- **Hooks** (3): `useAppConfig.ts`, `useSidebarAlerts.ts`, `useUserPreference.ts`
-- **Componentes compartilhados** (6): `ProtectedRoute`, `AdminRoute`, `AppLayout`, `AppSidebar`, `DataTable`, `GlobalSearch`
-- **Páginas core** (~14): `Index`, `Login`, `Signup`, `Financeiro`, `Fiscal`, `Estoque`, `Produtos`, `Clientes`, `Fornecedores`, `Orcamentos`, `Pedidos`, `Logistica`, `FluxoCaixa`, `Administracao`
-
-Para cada arquivo: remover `@ts-nocheck`, substituir `as any` por tipos corretos usando `domain.ts`, corrigir imports.
-
-### 3. Reduzir `as any` nos services
-
-Substituir os 12 `as any` nos services por tipagem do Supabase client. Exemplo: `supabase.from("financeiro_lancamentos").update({...} as any)` → usar o tipo `TablesUpdate<"financeiro_lancamentos">`.
-
-### 4. Permissões nos botões de ação
-
-Adicionar verificação `can()` do `AuthContext` nos botões críticos:
-- Financeiro: baixa, estorno, exclusão → `can("financeiro", "editar")`
-- Fiscal: confirmar NF, cancelar → `can("faturamento_fiscal", "aprovar")`
-- Administração: toda a página → já protegida por `AdminRoute`
-- Estoque: ajustes manuais → `can("estoque", "editar")`
-- Produtos/Clientes/Fornecedores: criar, editar, excluir → `can(resource, action)`
-
-Usar pattern: `{can("recurso", "acao") && <Button>...}` ou `disabled={!can(...)}`.
-
-### 5. README técnico real
-
-Substituir o README vazio por documentação cobrindo:
-- Stack e arquitetura
-- Como rodar localmente
-- Variáveis de ambiente
-- Estrutura de pastas
-- Módulos existentes e status
-- Convenções de código
-- Padrão de services/hooks
-
-### 6. Padronização de estados de UI
-
-Criar componentes reutilizáveis (ou padronizar os existentes) para:
-- Loading states consistentes
-- Empty states com mensagem e ação
-- Error states com retry
-
----
-
-## Fases futuras (não neste ciclo)
-
-**Fase 2 — Páginas secundárias:**
-- Remover `@ts-nocheck` das ~40 páginas restantes
-- Extrair lógica de negócio de páginas monolíticas para hooks/services
-- Padronizar drawers e modais
-
-**Fase 3 — Componentes e importação:**
-- Remover `@ts-nocheck` dos ~60 componentes restantes
-- Tipar hooks de importação
-- Consolidar componentes de dashboard
-
----
-
-## Detalhes técnicos
-
-### Arquivos criados
-| Arquivo | Propósito |
-|---|---|
-| `src/types/domain.ts` | Tipos centrais de domínio |
-| `README.md` | Documentação técnica |
-
-### Arquivos modificados (~35 arquivos)
-- 5 services: remover `@ts-nocheck`, tipar corretamente
-- 2 contexts: remover `@ts-nocheck`
-- 3 hooks: remover `@ts-nocheck`
-- ~6 componentes compartilhados: remover `@ts-nocheck`, adicionar permissões
-- ~14 páginas core: remover `@ts-nocheck`, usar tipos de `domain.ts`, adicionar `can()` nos botões
-- `.gitignore`: confirmar proteção de `.env`
-
-### Sem alteração
-- Estrutura de pastas (mantida)
-- Identidade visual (mantida)
-- Fluxos de negócio (mantidos)
-- Schema do banco (mantido)
-- Componentes UI base shadcn (mantidos)
-
-### Riscos
-- Volume alto de mudanças em um ciclo — mitigado por verificação contínua com `tsc --noEmit`
-- Alguns `as any` podem ser necessários temporariamente onde o Supabase client não infere corretamente joins complexos — documentados com `// TODO: tipar quando Supabase client suportar joins tipados`
-
+## 5. Dashboard e Relatórios
+- Expandir `FiscalBlock` com "pedidos sem faturamento" e "notas rejeitadas"
+- Adicionar template de relatório fiscal em `relatoriosConfig.ts`
