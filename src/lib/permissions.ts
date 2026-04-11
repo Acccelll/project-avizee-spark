@@ -28,6 +28,10 @@ export const ERP_ACTIONS = [
   "cancelar",
   "baixar",
   "exportar",
+  "confirmar",
+  "importar_xml",
+  "reenviar_email",
+  "admin_fiscal",
 ] as const;
 
 export type ErpResource = (typeof ERP_RESOURCES)[number];
