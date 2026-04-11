@@ -261,15 +261,17 @@ export function useCotacoesCompra() {
   const handleSelectProposal = async (propostaId: string, itemId: string) => {
     if (!selected) return;
     try {
-      await supabase
-        .from("cotacoes_compra_propostas")
-        .update({ selecionado: false })
-        .eq("cotacao_compra_id", selected.id)
-        .eq("item_id", itemId);
-      await supabase
-        .from("cotacoes_compra_propostas")
-        .update({ selecionado: true })
-        .eq("id", propostaId);
+      await Promise.all([
+        supabase
+          .from("cotacoes_compra_propostas")
+          .update({ selecionado: false })
+          .eq("cotacao_compra_id", selected.id)
+          .eq("item_id", itemId),
+        supabase
+          .from("cotacoes_compra_propostas")
+          .update({ selecionado: true })
+          .eq("id", propostaId),
+      ]);
       toast.success("Fornecedor selecionado!");
       await reloadPropostas();
     } catch {
