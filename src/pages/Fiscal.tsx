@@ -84,6 +84,8 @@ const Fiscal = () => {
   const [modeloFilters, setModeloFilters] = useState<string[]>([]);
   const [statusFilters, setStatusFilters] = useState<string[]>([]);
   const [tipoFilters, setTipoFilters] = useState<string[]>([]);
+  const [origemFilters, setOrigemFilters] = useState<string[]>([]);
+  const [statusSefazFilters, setStatusSefazFilters] = useState<string[]>([]);
   // Devolução
   const [devolucaoModalOpen, setDevolucaoModalOpen] = useState(false);
   const [devolucaoNF, setDevolucaoNF] = useState<NotaFiscal | null>(null);
