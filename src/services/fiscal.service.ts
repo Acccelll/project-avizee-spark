@@ -394,40 +394,66 @@ export async function processarDevolucao(params: {
     .single();
   if (error) throw error;
 
-  for (const item of itensDevolver) {
-    await supabase.from("notas_fiscais_itens").insert({
+  // Batch insert NF items
+  const cfopFlip = (cfop: string | null | undefined) =>
+    cfop
+      ? cfop.replace(/^[0-9]/, (d: string) =>
+          String(Number(d) > 4 ? Number(d) - 2 : Number(d) + 2)
+        )
+      : cfop;
+
+  const { error: itemsError } = await supabase.from("notas_fiscais_itens").insert(
+    itensDevolver.map((item) => ({
       nota_fiscal_id: nfDev.id,
       produto_id: item.produto_id,
       quantidade: item.qtd_devolver,
       valor_unitario: item.valor_unitario,
-      cfop: item.cfop
-        ? item.cfop.replace(/^[0-9]/, (d: string) =>
-            String(Number(d) > 4 ? Number(d) - 2 : Number(d) + 2)
-          )
-        : item.cfop,
-    });
-    const { data: prod } = await supabase
-      .from("produtos")
-      .select("estoque_atual")
-      .eq("id", item.produto_id)
-      .single();
-    const saldoAnterior = Number(prod?.estoque_atual || 0);
-    const novoEstoque = saldoAnterior + item.qtd_devolver;
-    await supabase.from("estoque_movimentos").insert({
-      produto_id: item.produto_id,
-      tipo: "entrada",
-      quantidade: item.qtd_devolver,
-      saldo_anterior: saldoAnterior,
-      saldo_atual: novoEstoque,
-      documento_tipo: "devolucao",
-      documento_id: nfDev.id,
-      motivo: `Devolução da NF ${devolucaoNF.numero}`,
-    });
-    await supabase
-      .from("produtos")
-      .update({ estoque_atual: novoEstoque })
-      .eq("id", item.produto_id);
-  }
+      cfop: cfopFlip(item.cfop),
+    }))
+  );
+  if (itemsError) throw itemsError;
+
+  // Fetch current stock for all products in a single query
+  const produtosIds = itensDevolver.map((i: any) => i.produto_id);
+  const { data: produtosEstoque } = await supabase
+    .from("produtos")
+    .select("id, estoque_atual")
+    .in("id", produtosIds);
+
+  const estoqueMap = new Map<string, number>(
+    (produtosEstoque || []).map((p: any) => [p.id, Number(p.estoque_atual || 0)])
+  );
+
+  // Batch insert stock movements
+  const { error: movError } = await supabase.from("estoque_movimentos").insert(
+    itensDevolver.map((item: any) => {
+      const saldoAnterior = estoqueMap.get(item.produto_id) ?? 0;
+      const novoEstoque = saldoAnterior + item.qtd_devolver;
+      return {
+        produto_id: item.produto_id,
+        tipo: "entrada",
+        quantidade: item.qtd_devolver,
+        saldo_anterior: saldoAnterior,
+        saldo_atual: novoEstoque,
+        documento_tipo: "devolucao",
+        documento_id: nfDev.id,
+        motivo: `Devolução da NF ${devolucaoNF.numero}`,
+      };
+    })
+  );
+  if (movError) throw movError;
+
+  // Update product stocks in parallel (each row has a different value)
+  await Promise.all(
+    itensDevolver.map((item: any) => {
+      const novoEstoque = (estoqueMap.get(item.produto_id) ?? 0) + item.qtd_devolver;
+      return supabase
+        .from("produtos")
+        .update({ estoque_atual: novoEstoque })
+        .eq("id", item.produto_id)
+        .then(({ error }) => { if (error) throw error; });
+    })
+  );
 
   // Register event
   await registrarEventoFiscal({
