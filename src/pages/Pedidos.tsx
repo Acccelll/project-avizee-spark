@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
@@ -19,6 +19,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { formatCurrency, formatDate, daysSince, formatNumber, calculateDaysBetween } from "@/lib/format";
 import { calcularStatusFaturamentoOV } from "@/lib/fiscal";
+import { getUserFriendlyError } from "@/utils/errorMessages";
 import { FileText, DollarSign, Truck } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 
@@ -270,7 +271,7 @@ const Pedidos = () => {
       fetchData();
     } catch (err: unknown) {
       console.error('[pedidos] gerar NF:', err);
-      toast.error("Erro ao gerar Nota Fiscal.");
+      toast.error(getUserFriendlyError(err));
     } finally {
       setGeneratingNfId(null);
     }

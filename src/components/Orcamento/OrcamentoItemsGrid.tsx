@@ -95,7 +95,7 @@ export function OrcamentoItemsGrid({ items, onChange, produtos, precosEspeciais 
     return { ...item, valor_total: subtotal, peso_total: qty * (item.peso_unitario || 0) };
   };
 
-  const updateItem = (idx: number, field: string, value: any) => {
+  const updateItem = (idx: number, field: keyof OrcamentoItem, value: OrcamentoItem[keyof OrcamentoItem]) => {
     const next = [...items];
     let item = { ...next[idx], [field]: value };
 
@@ -105,7 +105,7 @@ export function OrcamentoItemsGrid({ items, onChange, produtos, precosEspeciais 
         toast.warning("Item já incluso no orçamento. Edite a quantidade na linha existente.");
         return;
       }
-      const prod = produtos.find((p: any) => p.id === value);
+      const prod = produtos.find((p) => p.id === value);
         if (prod) {
         item.codigo_snapshot = prod.sku || prod.codigo_interno || "";
         item.descricao_snapshot = prod.nome;

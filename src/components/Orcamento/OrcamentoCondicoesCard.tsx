@@ -15,7 +15,7 @@ interface CondicoesForm {
 
 interface Props {
   form: CondicoesForm;
-  onChange: (field: string, value: any) => void;
+  onChange: (field: keyof CondicoesForm, value: string | number) => void;
 }
 
 export function OrcamentoCondicoesCard({ form, onChange }: Props) {

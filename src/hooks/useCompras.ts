@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 import { useCallback, useMemo, useState } from "react";
 import { useSearchParams, type SetURLSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
@@ -429,7 +429,7 @@ export function useCompras(): UseComprasReturn {
   const handleRemoveCompFilter = useCallback((key: string, value?: string) => {
     if (key === "status") setStatusFilters((prev) => prev.filter((v) => v !== value));
     if (key === "fornecedor") setFornecedorFilters((prev) => prev.filter((v) => v !== value));
-  }, []);
+  }, [setStatusFilters, setFornecedorFilters]);
 
   const statusOptions = useMemo<MultiSelectOption[]>(
     () =>
