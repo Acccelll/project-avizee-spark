@@ -31,6 +31,18 @@ export function useGerarPedidoCompra() {
 
       if (itemsError) throw new Error(itemsError.message);
 
+      // Fetch selected proposals to get pricing for each item
+      const { data: propostas } = await supabase
+        .from("cotacoes_compra_propostas")
+        .select("item_id, preco_unitario")
+        .eq("cotacao_compra_id", cotacao.id)
+        .eq("selecionado", true);
+
+      const precoByItem: Record<string, number> = {};
+      for (const p of propostas ?? []) {
+        precoByItem[p.item_id] = Number(p.preco_unitario || 0);
+      }
+
       const numero = `PC-${String(Date.now()).slice(-6)}`;
 
       const { data: newPedido, error: pedidoError } = await supabase
@@ -50,13 +62,16 @@ export function useGerarPedidoCompra() {
       if (pedidoError) throw new Error(pedidoError.message);
 
       if (items && items.length > 0 && newPedido) {
-        const pedidoItems = items.map((i) => ({
-          pedido_compra_id: newPedido.id,
-          produto_id: i.produto_id,
-          quantidade: i.quantidade,
-          valor_unitario: 0,
-          valor_total: 0,
-        }));
+        const pedidoItems = items.map((i) => {
+          const valorUnitario = precoByItem[i.id] ?? 0;
+          return {
+            pedido_compra_id: newPedido.id,
+            produto_id: i.produto_id,
+            quantidade: i.quantidade,
+            valor_unitario: valorUnitario,
+            valor_total: valorUnitario * Number(i.quantidade),
+          };
+        });
 
         const { error: itemsInsertError } = await supabase
           .from("pedidos_compra_itens")

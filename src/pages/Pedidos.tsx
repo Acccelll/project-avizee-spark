@@ -163,8 +163,8 @@ const Pedidos = () => {
 
   const [clientesList, setClientesList] = useState<{ id: string; nome_razao_social: string }[]>([]);
   const [generatingNfId, setGeneratingNfId] = useState<string | null>(null);
-  const [estoqueInsuficiente, setEstoqueInsuficiente] = useState<{ produto: string; falta: number }[]>([]);
-  const [showEstoqueAlert, setShowEstoqueAlert] = useState(false);
+  const [insufficientStock, setInsufficientStock] = useState<{ produto: string; falta: number }[]>([]);
+  const [showStockAlert, setShowStockAlert] = useState(false);
 
   useEffect(() => {
     supabase.from("clientes").select("id, nome_razao_social").eq("ativo", true).then(({ data }) => setClientesList(data || []));
@@ -188,7 +188,7 @@ const Pedidos = () => {
       .select("*, produtos(nome, estoque_atual)")
       .eq("ordem_venda_id", pedido.id);
 
-    const insuficientes = (items || [])
+    const itemsWithShortfall = (items || [])
       .filter((i) => {
         const estoqueAtual = Number(i.produtos?.estoque_atual ?? 0);
         return estoqueAtual < Number(i.quantidade);
@@ -198,12 +198,12 @@ const Pedidos = () => {
         falta: Number(i.quantidade) - Number(i.produtos?.estoque_atual ?? 0),
       }));
 
-    if (insuficientes.length > 0) {
-      setEstoqueInsuficiente(insuficientes);
-      setShowEstoqueAlert(true);
+    if (itemsWithShortfall.length > 0) {
+      setInsufficientStock(itemsWithShortfall);
+      setShowStockAlert(true);
       setGeneratingNfId(pedido.id);
     } else {
-      setEstoqueInsuficiente([]);
+      setInsufficientStock([]);
       setGeneratingNfId(pedido.id);
     }
   };
@@ -481,10 +481,10 @@ const Pedidos = () => {
 
       {/* Stock alert: shown when some items have insufficient stock */}
       <ConfirmDialog
-        open={showEstoqueAlert}
-        onClose={() => { setShowEstoqueAlert(false); setGeneratingNfId(null); }}
+        open={showStockAlert}
+        onClose={() => { setShowStockAlert(false); setGeneratingNfId(null); }}
         onConfirm={() => {
-          setShowEstoqueAlert(false);
+          setShowStockAlert(false);
           // proceed anyway: the existing confirmation dialog will open
         }}
         title="Estoque Insuficiente"
@@ -493,7 +493,7 @@ const Pedidos = () => {
         confirmVariant="destructive"
       >
         <ul className="mt-2 space-y-1 text-sm">
-          {estoqueInsuficiente.map((item, idx) => (
+          {insufficientStock.map((item, idx) => (
             <li key={idx} className="flex items-center gap-2 text-destructive">
               <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
               <span><span className="font-medium">{item.produto}</span> — faltam <span className="font-mono font-semibold">{item.falta}</span> unidades</span>
@@ -503,7 +503,7 @@ const Pedidos = () => {
       </ConfirmDialog>
 
       <ConfirmDialog
-        open={!!generatingNfId && !showEstoqueAlert}
+        open={!!generatingNfId && !showStockAlert}
         onClose={() => setGeneratingNfId(null)}
         onConfirm={() => {
           const pedido = data.find(o => o.id === generatingNfId);

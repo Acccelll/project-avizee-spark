@@ -76,13 +76,15 @@ export function useFaturarPedido() {
       }
 
       if (pedidoItems) {
-        for (const item of pedidoItems) {
-          const novaQtdFaturada = (item.quantidade_faturada || 0) + item.quantidade;
-          await supabase
-            .from("ordens_venda_itens")
-            .update({ quantidade_faturada: novaQtdFaturada })
-            .eq("id", item.id);
-        }
+        await Promise.all(
+          pedidoItems.map((item) => {
+            const novaQtdFaturada = (item.quantidade_faturada || 0) + item.quantidade;
+            return supabase
+              .from("ordens_venda_itens")
+              .update({ quantidade_faturada: novaQtdFaturada })
+              .eq("id", item.id);
+          }),
+        );
       }
 
       const { data: updatedItems } = await supabase

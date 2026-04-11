@@ -33,11 +33,11 @@ export function useCotacaoCompraFilters(
   };
 
   const filteredData = useMemo(() => {
-    const debouncedSearch = searchTerm.toLowerCase();
+    const normalizedSearch = searchTerm.toLowerCase();
     return data.filter((c) => {
       if (statusFilters.length > 0 && !statusFilters.includes(c.status)) return false;
-      if (debouncedSearch) {
-        const q = debouncedSearch;
+      if (normalizedSearch) {
+        const q = normalizedSearch;
         if (
           !c.numero.toLowerCase().includes(q) &&
           !(c.observacoes || "").toLowerCase().includes(q)
