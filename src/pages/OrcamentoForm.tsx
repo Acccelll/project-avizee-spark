@@ -15,7 +15,8 @@ import { OrcamentoItemsGrid, type OrcamentoItem } from "@/components/Orcamento/O
 import { OrcamentoInternalAnalysisPanel, type RentabilidadeScenarioConfig } from "@/components/Orcamento/OrcamentoInternalAnalysisPanel";
 import { OrcamentoTotaisCard } from "@/components/Orcamento/OrcamentoTotaisCard";
 import { OrcamentoCondicoesCard } from "@/components/Orcamento/OrcamentoCondicoesCard";
-import { FreteCorreiosCard } from "@/components/Orcamento/FreteCorreiosCard";
+import { FreteSimuladorCard } from "@/components/Orcamento/FreteSimuladorCard";
+import type { FreteSelecaoPayload } from "@/services/freteSimulacao.service";
 import { OrcamentoSidebarSummary } from "@/components/Orcamento/OrcamentoSidebarSummary";
 import { OrcamentoPdfTemplate } from "@/components/Orcamento/OrcamentoPdfTemplate";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -135,6 +136,18 @@ export default function OrcamentoForm() {
   const [mailModalOpen, setMailModalOpen] = useState(false);
   const [emailTemplate, setEmailTemplate] = useState('Olá, segue orçamento atualizado para sua análise.');
   const [empresaConfig, setEmpresaConfig] = useState<Record<string, string> | null>(null);
+
+  // Dados de frete do simulador
+  const [freteSimulacaoId, setFreteSimulacaoId] = useState<string | null>(null);
+  const [freteTransportadoraId, setFreteTransportadoraId] = useState<string | null>(null);
+  const [freteOrigemFrete, setFreteOrigemFrete] = useState<string | null>(null);
+  const [freteServico, setFreteServico] = useState<string | null>(null);
+  const [fretePrazoEntregaDias, setFretePrazoEntregaDias] = useState<number | null>(null);
+  const [freteVolumes, setFreteVolumes] = useState<number>(1);
+  const [freteAlturaCm, setFreteAlturaCm] = useState<number>(15);
+  const [freteLarguraCm, setFreteLarguraCm] = useState<number>(10);
+  const [freteComprimentoCm, setFreteComprimentoCm] = useState<number>(30);
+
   const [scenarioConfig, setScenarioConfig] = useState<RentabilidadeScenarioConfig>({
     freteSimulado: 0,
     impostosSimulados: 0,
@@ -267,6 +280,17 @@ export default function OrcamentoForm() {
               modalidade: orc.modalidade || '',
             });
             if (orc.cliente_snapshot) setClienteSnapshot(orc.cliente_snapshot as any);
+            // Load frete simulator state
+            const orcAny = orc as Record<string, unknown>;
+            if (orcAny.frete_simulacao_id) setFreteSimulacaoId(orcAny.frete_simulacao_id as string);
+            if (orcAny.transportadora_id) setFreteTransportadoraId(orcAny.transportadora_id as string);
+            if (orcAny.origem_frete) setFreteOrigemFrete(orcAny.origem_frete as string);
+            if (orcAny.servico_frete) setFreteServico(orcAny.servico_frete as string);
+            if (orcAny.prazo_entrega_dias != null) setFretePrazoEntregaDias(orcAny.prazo_entrega_dias as number);
+            if (orcAny.volumes != null) setFreteVolumes(orcAny.volumes as number);
+            if (orcAny.altura_cm != null) setFreteAlturaCm(orcAny.altura_cm as number);
+            if (orcAny.largura_cm != null) setFreteLarguraCm(orcAny.largura_cm as number);
+            if (orcAny.comprimento_cm != null) setFreteComprimentoCm(orcAny.comprimento_cm as number);
             const { data: itensData } = await supabase.from("orcamentos_itens").select("*").eq("orcamento_id", id);
             if (itensData) setItems(itensData);
           } else {
@@ -443,6 +467,15 @@ export default function OrcamentoForm() {
         valor_total: valorTotal, quantidade_total: quantidadeTotal, peso_total: pesoTotal,
         pagamento, prazo_pagamento: prazoPagamento, prazo_entrega: prazoEntrega,
         frete_tipo: freteTipo, modalidade, cliente_snapshot: clienteSnapshot,
+        transportadora_id: freteTransportadoraId || null,
+        frete_simulacao_id: freteSimulacaoId || null,
+        origem_frete: freteOrigemFrete || null,
+        servico_frete: freteServico || null,
+        prazo_entrega_dias: fretePrazoEntregaDias || null,
+        volumes: freteVolumes || null,
+        altura_cm: freteAlturaCm || null,
+        largura_cm: freteLarguraCm || null,
+        comprimento_cm: freteComprimentoCm || null,
       };
 
       let orcId = id;
@@ -493,6 +526,10 @@ export default function OrcamentoForm() {
         valor_total: valorTotal, quantidade_total: quantidadeTotal, peso_total: pesoTotal,
         pagamento, prazo_pagamento: prazoPagamento, prazo_entrega: prazoEntrega,
         frete_tipo: freteTipo, modalidade, cliente_snapshot: clienteSnapshot,
+        volumes: freteVolumes || null,
+        altura_cm: freteAlturaCm || null,
+        largura_cm: freteLarguraCm || null,
+        comprimento_cm: freteComprimentoCm || null,
       };
       const { data: newOrc, error } = await supabase.from("orcamentos").insert(payload as any).select().single();
       if (error) throw error;
@@ -812,13 +849,27 @@ export default function OrcamentoForm() {
             onChange={handleTotalChange}
           />
 
-          <FreteCorreiosCard
+          <FreteSimuladorCard
+            orcamentoId={id || null}
+            clienteId={clienteId}
             cepDestino={clienteSnapshot.cep}
             pesoTotal={pesoTotal}
-            onSelect={(valor, tipo, prazo) => {
-              setValue('freteValor', valor);
-              setValue('freteTipo', tipo);
-              setValue('prazoEntrega', prazo);
+            valorMercadoria={totalProdutos}
+            simulacaoId={freteSimulacaoId}
+            onSelect={(payload: FreteSelecaoPayload) => {
+              setValue('freteValor', payload.freteValor);
+              setValue('freteTipo', payload.freteTipo);
+              setValue('prazoEntrega', payload.prazoEntrega);
+              setValue('modalidade', payload.modalidade || modalidade);
+              setFreteSimulacaoId(payload.freteSimulacaoId);
+              setFreteTransportadoraId(payload.transportadoraId);
+              setFreteOrigemFrete(payload.origemFrete);
+              setFreteServico(payload.servicoFrete);
+              setFretePrazoEntregaDias(payload.prazoEntregaDias);
+              setFreteVolumes(payload.volumes);
+              setFreteAlturaCm(payload.alturaCm);
+              setFreteLarguraCm(payload.larguraCm);
+              setFreteComprimentoCm(payload.comprimentoCm);
             }}
           />
 
