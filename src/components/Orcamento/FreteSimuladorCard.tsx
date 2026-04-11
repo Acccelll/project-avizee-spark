@@ -156,7 +156,10 @@ export function FreteSimuladorCard({
         const selecionada = opcoesCarregadas.find((o) => o.selecionada);
         if (selecionada?.id) setOpcaoSelecionadaId(selecionada.id);
       })
-      .catch(() => {});
+      .catch((err) => {
+        console.error('[FreteSimulador] falha ao carregar simulação salva:', err);
+        toast.warning('Não foi possível carregar a simulação de frete salva.');
+      });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orcamentoId]);
 

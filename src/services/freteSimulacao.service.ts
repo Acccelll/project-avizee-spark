@@ -237,13 +237,17 @@ export async function salvarOpcoesCorreios(
   simulacaoId: string,
   opcoes: FreteCorreiosOpcao[]
 ): Promise<Tables<'frete_simulacoes_opcoes'>[]> {
-  // Remove opções Correios antigas da simulação
-  await supabase
+  // Remove opções Correios antigas não selecionadas da simulação
+  const { error: deleteError } = await supabase
     .from('frete_simulacoes_opcoes')
     .delete()
     .eq('simulacao_id', simulacaoId)
     .eq('fonte', 'correios')
     .eq('selecionada', false);
+
+  if (deleteError) {
+    console.warn('[freteSimulacao] falha ao remover opções Correios antigas:', deleteError);
+  }
 
   const rows = opcoes.map((o) => ({
     simulacao_id: simulacaoId,
