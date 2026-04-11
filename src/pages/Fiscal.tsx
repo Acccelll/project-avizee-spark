@@ -27,7 +27,7 @@ import { parseNFeXml, type NFeData } from "@/lib/nfeXmlParser";
 import { DanfeViewer } from "@/components/DanfeViewer";
 import { DevolucaoDialog } from "@/components/fiscal/DevolucaoDialog";
 import { NotaFiscalDrawer } from "@/components/fiscal/NotaFiscalDrawer";
-import { confirmarNotaFiscal, estornarNotaFiscal, registrarEventoFiscal } from "@/services/fiscal.service";
+import { confirmarNotaFiscal, estornarNotaFiscal, registrarEventoFiscal, verificarDuplicidadeChave } from "@/services/fiscal.service";
 import { NotaFiscalEditModal } from "@/components/fiscal/NotaFiscalEditModal";
 
 interface NotaFiscal {
@@ -200,6 +200,13 @@ const Fiscal = () => {
     if (!window.confirm(`Cancelar o rascunho da NF ${selected.numero}? Esta ação não pode ser desfeita.`)) return;
     try {
       await supabase.from("notas_fiscais").update({ status: "cancelada" }).eq("id", selected.id);
+      await registrarEventoFiscal({
+        nota_fiscal_id: selected.id,
+        tipo_evento: "cancelamento_rascunho",
+        status_anterior: selected.status,
+        status_novo: "cancelada",
+        descricao: `Rascunho da NF ${selected.numero} cancelado pelo usuário.`,
+      });
       toast.success("Rascunho cancelado.");
       setModalOpen(false);
       fetchData();
@@ -253,6 +260,17 @@ const Fiscal = () => {
     try {
       const xmlText = await file.text();
       const nfe: NFeData = parseNFeXml(xmlText);
+
+      // Check for duplicate access key
+      if (nfe.chaveAcesso) {
+        const isDuplicate = await verificarDuplicidadeChave(nfe.chaveAcesso);
+        if (isDuplicate) {
+          toast.error(`XML já importado anteriormente (chave: ${nfe.chaveAcesso.slice(0, 12)}…). Importação abortada.`);
+          if (xmlInputRef.current) xmlInputRef.current.value = "";
+          return;
+        }
+      }
+
       let fornecedorId = "";
       if (nfe.emitente.cnpj) {
         const cnpjClean = nfe.emitente.cnpj.replace(/\D/g, "");
@@ -264,7 +282,7 @@ const Fiscal = () => {
         const matchedProd = produtosCrud.data.find((p: any) => p.codigo_interno === nfeItem.codigo || p.sku === nfeItem.codigo);
         return { produto_id: matchedProd?.id || "", codigo: nfeItem.codigo, descricao: matchedProd?.nome || nfeItem.descricao, quantidade: nfeItem.quantidade, valor_unitario: nfeItem.valorUnitario, valor_total: nfeItem.valorTotal };
       });
-      setForm({ ...emptyForm, tipo: "entrada", numero: nfe.numero, serie: nfe.serie, chave_acesso: nfe.chaveAcesso, data_emissao: nfe.dataEmissao || new Date().toISOString().split("T")[0], fornecedor_id: fornecedorId, frete_valor: nfe.valorFrete, icms_valor: nfe.icmsTotal, ipi_valor: nfe.ipiTotal, pis_valor: nfe.pisTotal, cofins_valor: nfe.cofinsTotal, icms_st_valor: nfe.icmsStTotal, desconto_valor: nfe.valorDesconto, outras_despesas: nfe.valorOutrasDespesas, valor_total: nfe.valorTotal });
+      setForm({ ...emptyForm, tipo: "entrada", numero: nfe.numero, serie: nfe.serie, chave_acesso: nfe.chaveAcesso, data_emissao: nfe.dataEmissao || new Date().toISOString().split("T")[0], fornecedor_id: fornecedorId, frete_valor: nfe.valorFrete, icms_valor: nfe.icmsTotal, ipi_valor: nfe.ipiTotal, pis_valor: nfe.pisTotal, cofins_valor: nfe.cofinsTotal, icms_st_valor: nfe.icmsStTotal, desconto_valor: nfe.valorDesconto, outras_despesas: nfe.valorOutrasDespesas, valor_total: nfe.valorTotal, origem: "importacao_xml" });
       setItems(mappedItems); setMode("create"); setSelected(null); setItemContaContabil({}); setModalOpen(true);
       const unmatchedCount = mappedItems.filter((i) => !i.produto_id).length;
       if (unmatchedCount > 0) toast.warning(`${unmatchedCount} item(ns) não foram vinculados automaticamente. Vincule manualmente.`);
@@ -281,15 +299,33 @@ const Fiscal = () => {
     if (!form.numero) { toast.error("Número é obrigatório"); return; }
     setSaving(true);
     try {
-      const payload = { ...form, fornecedor_id: form.fornecedor_id || null, cliente_id: form.cliente_id || null, ordem_venda_id: form.ordem_venda_id || null, conta_contabil_id: form.conta_contabil_id || null, valor_total: totalNF || form.valor_total };
+      const savedTotal = totalNF || form.valor_total;
+      const payload = { ...form, fornecedor_id: form.fornecedor_id || null, cliente_id: form.cliente_id || null, ordem_venda_id: form.ordem_venda_id || null, conta_contabil_id: form.conta_contabil_id || null, valor_total: savedTotal, valor_produtos: valorProdutos };
       let nfId = selected?.id;
       if (mode === "create") {
         const { data: newNf, error } = await supabase.from("notas_fiscais").insert(payload as any).select().single();
         if (error) throw error;
         nfId = newNf.id;
+        // Register creation event
+        await registrarEventoFiscal({
+          nota_fiscal_id: nfId,
+          tipo_evento: form.origem === "importacao_xml" ? "importacao_xml" : "criacao",
+          status_novo: "pendente",
+          descricao: form.origem === "importacao_xml"
+            ? `NF ${form.numero} criada via importação de XML.`
+            : `NF ${form.numero} criada manualmente.`,
+          payload_resumido: { valor_total: savedTotal, itens: items.length },
+        });
       } else if (selected) {
         await supabase.from("notas_fiscais").update(payload).eq("id", selected.id);
         await supabase.from("notas_fiscais_itens").delete().eq("nota_fiscal_id", selected.id);
+        // Register edit event
+        await registrarEventoFiscal({
+          nota_fiscal_id: selected.id,
+          tipo_evento: "edicao",
+          descricao: `NF ${form.numero} editada. Novo total: R$ ${savedTotal.toFixed(2)}.`,
+          payload_resumido: { valor_total: savedTotal, itens: items.length },
+        });
       }
       if (items.length > 0 && nfId) {
         const itemsPayload = items.filter(i => i.produto_id).map((i, idx) => ({ nota_fiscal_id: nfId, produto_id: i.produto_id, quantidade: i.quantidade, valor_unitario: i.valor_unitario, conta_contabil_id: itemContaContabil[idx] || null }));

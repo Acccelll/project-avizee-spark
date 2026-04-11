@@ -11,7 +11,7 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
   Edit, Trash2, CheckCircle, XCircle, ArrowLeftRight, FileText,
-  Package, DollarSign, AlertCircle, Copy, Clock,
+  Package, DollarSign, AlertCircle, Copy, Clock, Download, File,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -432,6 +432,24 @@ export function NotaFiscalDrawer({
     </div>
   );
 
+  const handleDownloadAnexo = async (anexo: any) => {
+    if (!anexo.caminho_storage) { toast.error("Caminho do arquivo não disponível."); return; }
+    try {
+      const { data, error } = await supabase.storage.from("dbavizee").createSignedUrl(anexo.caminho_storage, 300);
+      if (error) throw error;
+      window.open(data.signedUrl, "_blank");
+    } catch (err: any) {
+      toast.error(`Erro ao baixar arquivo: ${err.message}`);
+    }
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (!bytes) return "—";
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
   const tabArquivos = (
     <div className="space-y-5">
       <ViewSection title="DANFE / Visualização">
@@ -454,6 +472,41 @@ export function NotaFiscalDrawer({
             <FileText className="h-3.5 w-3.5" /> Visualizar
           </Button>
         </div>
+      </ViewSection>
+
+      {/* Real attachments from nota_fiscal_anexos */}
+      <ViewSection title="Anexos">
+        {loadingExtra ? (
+          <p className="text-xs text-muted-foreground py-2">Carregando...</p>
+        ) : anexos.length === 0 ? (
+          <div className="rounded-lg border bg-muted/20 p-4 flex items-center gap-3 text-muted-foreground">
+            <File className="h-4 w-4 shrink-0" />
+            <p className="text-xs">Nenhum anexo vinculado a esta nota fiscal.</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {anexos.map((anexo: any) => (
+              <div key={anexo.id} className="rounded-lg border p-3 flex items-center justify-between bg-muted/10 hover:bg-muted/20 transition-colors">
+                <div className="flex items-center gap-3 min-w-0">
+                  <File className="h-5 w-5 text-muted-foreground shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{anexo.nome_arquivo || "Arquivo"}</p>
+                    <p className="text-xs text-muted-foreground">
+                      <Badge variant="outline" className="text-[10px] mr-1.5">{anexo.tipo_arquivo?.toUpperCase()}</Badge>
+                      {formatFileSize(anexo.tamanho)}
+                      {anexo.created_at && ` · ${formatDate(anexo.created_at)}`}
+                    </p>
+                  </div>
+                </div>
+                {anexo.caminho_storage && (
+                  <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => handleDownloadAnexo(anexo)} title="Baixar">
+                    <Download className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </ViewSection>
 
       <ViewSection title="XML / Chave de Acesso">
