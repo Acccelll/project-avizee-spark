@@ -455,8 +455,19 @@ const DashboardContent = () => {
       </div>
 
       {/* ── Drag-and-drop grid ── */}
-      {/* @ts-ignore react-grid-layout types mismatch */}
-      <GridLayout
+      <div ref={gridContainerRef}>
+      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+      {React.createElement(GridLayout as any, {
+        layout: layout,
+        cols: 12,
+        rowHeight: 40,
+        width: gridWidth,
+        isDraggable: editMode,
+        isResizable: editMode,
+        onLayoutChange: (newLayout: any) => { if (editMode) setLayout(newLayout); },
+        className: editMode ? "react-grid-layout--edit" : "",
+        draggableHandle: ".drag-handle",
+      },
         layout={layout as any}
         cols={12}
         rowHeight={40}
