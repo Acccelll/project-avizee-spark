@@ -147,6 +147,7 @@ export const navSections: NavSection[] = [
           { title: 'Contas Bancárias', path: '/contas-bancarias', keywords: ['bancos'] },
           { title: 'Plano de Contas', path: '/contas-contabeis-plano', keywords: ['contabil'] },
           { title: 'Conciliação', path: '/conciliacao', keywords: ['ofx', 'extrato', 'banco', 'conciliar'] },
+          { title: 'Workbook Gerencial', path: '/relatorios/workbook-gerencial', keywords: ['excel', 'relatorio', 'gerencial', 'workbook'] },
         ],
       },
     ],
