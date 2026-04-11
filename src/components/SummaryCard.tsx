@@ -1,5 +1,5 @@
 import React, { forwardRef } from 'react';
-import { ArrowUpIcon, ArrowDownIcon, LucideIcon } from 'lucide-react';
+import { ArrowUpIcon, ArrowDownIcon, LucideIcon, BarChart2 } from 'lucide-react';
 import { LineChart, Line, ResponsiveContainer } from 'recharts';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
@@ -14,6 +14,8 @@ export interface SummaryCardProps {
   variant?: 'default' | 'success' | 'danger' | 'warning' | 'info';
   icon?: LucideIcon;
   onClick?: () => void;
+  /** Optional callback to open a detail view (e.g. a metric drawer). Renders a small chart icon button. */
+  onDetail?: () => void;
   className?: string;
   sparklineData?: number[];
   loading?: boolean;
@@ -42,6 +44,7 @@ export const SummaryCard = forwardRef<HTMLDivElement, SummaryCardProps>(
       variant = 'default',
       icon: Icon,
       onClick,
+      onDetail,
       className,
       sparklineData,
       loading,
@@ -102,8 +105,20 @@ export const SummaryCard = forwardRef<HTMLDivElement, SummaryCardProps>(
             )}
           </div>
           {Icon && (
-            <div className={cn('p-3 rounded-lg', styles.iconBg)}>
-              <Icon className={cn('w-5 h-5', styles.iconColor)} />
+            <div className="flex flex-col items-end gap-1">
+              <div className={cn('p-3 rounded-lg', styles.iconBg)}>
+                <Icon className={cn('w-5 h-5', styles.iconColor)} />
+              </div>
+              {onDetail && (
+                <button
+                  type="button"
+                  aria-label="Ver detalhes"
+                  onClick={(e) => { e.stopPropagation(); onDetail(); }}
+                  className="rounded p-0.5 text-muted-foreground hover:text-primary hover:bg-accent transition-colors"
+                >
+                  <BarChart2 className="h-3.5 w-3.5" />
+                </button>
+              )}
             </div>
           )}
         </div>

@@ -111,6 +111,9 @@ const DashboardContent = () => {
   const [vencimentosHoje, setVencimentosHoje] = useState({ receber: 0, pagar: 0 });
   const [topClientes, setTopClientes] = useState<{ nome: string; valor: number }[]>([]);
   const [topProdutos, setTopProdutos] = useState<{ nome: string; valor: number }[]>([]);
+  const [dailyReceber, setDailyReceber] = useState<{ dia: string; valor: number }[]>([]);
+  const [dailyPagar, setDailyPagar] = useState<{ dia: string; valor: number }[]>([]);
+  const [dailyVendas, setDailyVendas] = useState<{ dia: string; valor: number }[]>([]);
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
@@ -346,6 +349,78 @@ const DashboardContent = () => {
             .map(([nome, valor]) => ({ nome, valor }));
           setTopProdutos(sorted);
         });
+
+      // --- 7-day daily data for sparklines + detail drawers ---
+      const buildDays = (fromOffset: number, count: number): string[] =>
+        Array.from({ length: count }, (_, i) => {
+          const d = new Date();
+          d.setDate(d.getDate() + fromOffset + i);
+          return d.toISOString().slice(0, 10);
+        });
+
+      const fmt = (iso: string) => {
+        const [, mm, dd] = iso.split("-");
+        return `${dd}/${mm}`;
+      };
+
+      // Receivables: next 7 days (today … today+6)
+      const nextDays = buildDays(0, 7);
+      supabase
+        .from("financeiro_lancamentos")
+        .select("data_vencimento, valor, saldo_restante, status")
+        .eq("tipo", "receber")
+        .eq("ativo", true)
+        .in("status", ["aberto", "vencido", "parcial"])
+        .in("data_vencimento", nextDays)
+        .then(({ data: dr }) => {
+          if (!dr) return;
+          const map = new Map<string, number>(nextDays.map((d) => [d, 0]));
+          for (const r of dr as any[]) {
+            const val = r.status === "parcial"
+              ? Number(r.saldo_restante ?? r.valor ?? 0)
+              : Number(r.valor ?? 0);
+            map.set(r.data_vencimento, (map.get(r.data_vencimento) ?? 0) + val);
+          }
+          setDailyReceber(nextDays.map((d) => ({ dia: fmt(d), valor: map.get(d) ?? 0 })));
+        });
+
+      // Payables: next 7 days
+      supabase
+        .from("financeiro_lancamentos")
+        .select("data_vencimento, valor, saldo_restante, status")
+        .eq("tipo", "pagar")
+        .eq("ativo", true)
+        .in("status", ["aberto", "vencido", "parcial"])
+        .in("data_vencimento", nextDays)
+        .then(({ data: dp }) => {
+          if (!dp) return;
+          const map = new Map<string, number>(nextDays.map((d) => [d, 0]));
+          for (const r of dp as any[]) {
+            const val = r.status === "parcial"
+              ? Number(r.saldo_restante ?? r.valor ?? 0)
+              : Number(r.valor ?? 0);
+            map.set(r.data_vencimento, (map.get(r.data_vencimento) ?? 0) + val);
+          }
+          setDailyPagar(nextDays.map((d) => ({ dia: fmt(d), valor: map.get(d) ?? 0 })));
+        });
+
+      // Vendas: last 7 days NF-e saída confirmed
+      const lastDays = buildDays(-6, 7);
+      supabase
+        .from("notas_fiscais")
+        .select("data_emissao, valor_total")
+        .eq("ativo", true)
+        .eq("tipo", "saida")
+        .eq("status", "confirmada")
+        .in("data_emissao", lastDays)
+        .then(({ data: dv }) => {
+          if (!dv) return;
+          const map = new Map<string, number>(lastDays.map((d) => [d, 0]));
+          for (const n of dv as any[]) {
+            map.set(n.data_emissao, (map.get(n.data_emissao) ?? 0) + Number(n.valor_total ?? 0));
+          }
+          setDailyVendas(lastDays.map((d) => ({ dia: fmt(d), valor: map.get(d) ?? 0 })));
+        });
     } catch (err) {
       console.error("[dashboard] erro ao carregar dados:", err);
       toast.error("Erro ao carregar dados do dashboard. Tente novamente.");
@@ -370,8 +445,9 @@ const DashboardContent = () => {
       variation: stats.contasVencidas > 0 ? `${stats.contasVencidas} vencido${stats.contasVencidas > 1 ? "s" : ""}` : "Sem vencidos",
       variationType: stats.contasVencidas > 0 ? ("negative" as const) : ("positive" as const),
       variant: stats.contasVencidas > 0 ? ("warning" as const) : ("success" as const),
-      sparklineData: [44, 50, 53, 52, 61, 66, 69],
+      sparklineData: dailyReceber.length > 0 ? dailyReceber.map((d) => d.valor) : undefined,
       onClick: () => navigate("/financeiro?tipo=receber"),
+      onDetail: () => setMetricDrawer("receber"),
       meta: metas.receber,
       realizado: stats.totalReceber,
     },
@@ -384,7 +460,7 @@ const DashboardContent = () => {
       variation: stats.totalPagar > stats.totalReceber ? "Saldo negativo" : "Saldo positivo",
       variationType: stats.totalPagar > stats.totalReceber ? ("negative" as const) : ("positive" as const),
       variant: stats.totalPagar > stats.totalReceber ? ("danger" as const) : ("warning" as const),
-      sparklineData: [35, 38, 37, 39, 41, 43, 42],
+      sparklineData: dailyPagar.length > 0 ? dailyPagar.map((d) => d.valor) : undefined,
       onClick: () => navigate("/financeiro?tipo=pagar"),
       meta: metas.pagar,
       realizado: stats.totalPagar,
@@ -398,7 +474,10 @@ const DashboardContent = () => {
       variation: saldoProjetado >= 0 ? "Caixa positivo" : "Caixa negativo",
       variationType: saldoProjetado >= 0 ? ("positive" as const) : ("negative" as const),
       variant: saldoProjetado >= 0 ? ("success" as const) : ("danger" as const),
-      sparklineData: [20, 22, 25, 23, 28, 30, saldoProjetado > 0 ? 35 : 12],
+      sparklineData:
+        dailyReceber.length > 0 && dailyPagar.length > 0
+          ? dailyReceber.map((r, i) => r.valor - (dailyPagar[i]?.valor ?? 0))
+          : undefined,
       onClick: () => navigate("/fluxo-caixa"),
       meta: metas.saldo,
       realizado: saldoProjetado,
@@ -412,8 +491,9 @@ const DashboardContent = () => {
       variation: estoqueBaixo.length > 0 ? "Reposição necessária" : "Sem itens críticos",
       variationType: estoqueBaixo.length > 0 ? ("negative" as const) : ("positive" as const),
       variant: estoqueBaixo.length > 0 ? ("danger" as const) : ("success" as const),
-      sparklineData: [18, 17, 15, 14, 12, 9, estoqueBaixo.length],
+      sparklineData: undefined,
       onClick: () => navigate("/estoque"),
+      onDetail: () => setMetricDrawer("estoque"),
     },
   ];
 
@@ -422,8 +502,8 @@ const DashboardContent = () => {
 
   const detailData = {
     receber: {
-      title: "Total a Receber",
-      daily: [] as { dia: string; valor: number }[],
+      title: "Vencimentos dos Próximos 7 Dias",
+      daily: dailyReceber,
       top: topClientes,
     },
     estoque: {
@@ -435,8 +515,8 @@ const DashboardContent = () => {
       })),
     },
     vendas: {
-      title: "Vendas do Mês",
-      daily: [] as { dia: string; valor: number }[],
+      title: "Vendas dos Últimos 7 Dias",
+      daily: dailyVendas,
       top: topProdutos,
     },
   };
@@ -657,16 +737,35 @@ const DashboardContent = () => {
                   value: "evolucao",
                   label: "Evolução diária",
                   content: (
-                    <div className="h-64">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={[...openMetric.daily]}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="dia" />
-                          <YAxis />
-                          <Tooltip />
-                          <Line dataKey="valor" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
-                        </LineChart>
-                      </ResponsiveContainer>
+                    <div className="space-y-3">
+                      {openMetric.daily.length > 0 ? (
+                        <div className="h-64">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={[...openMetric.daily]}>
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis dataKey="dia" />
+                              <YAxis />
+                              <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                              <Line dataKey="valor" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
+                            </LineChart>
+                          </ResponsiveContainer>
+                        </div>
+                      ) : (
+                        <p className="py-8 text-center text-sm text-muted-foreground">
+                          Sem dados para o período selecionado.
+                        </p>
+                      )}
+                      {metricDrawer === "receber" && (
+                        <div className="text-right">
+                          <button
+                            type="button"
+                            onClick={() => { setMetricDrawer(null); navigate("/financeiro?tipo=receber"); }}
+                            className="text-xs text-primary underline-offset-2 hover:underline"
+                          >
+                            Ver todos os títulos →
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ),
                 },
@@ -674,16 +773,35 @@ const DashboardContent = () => {
                   value: "top",
                   label: "Top itens",
                   content: (
-                    <div className="h-64">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={[...openMetric.top]}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="nome" />
-                          <YAxis />
-                          <Tooltip />
-                          <Bar dataKey="valor" fill="hsl(var(--primary))" />
-                        </BarChart>
-                      </ResponsiveContainer>
+                    <div className="space-y-3">
+                      {openMetric.top.length > 0 ? (
+                        <div className="h-64">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={[...openMetric.top]}>
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis dataKey="nome" tick={{ fontSize: 11 }} />
+                              <YAxis />
+                              <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                              <Bar dataKey="valor" fill="hsl(var(--primary))" />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+                      ) : (
+                        <p className="py-8 text-center text-sm text-muted-foreground">
+                          Sem dados disponíveis.
+                        </p>
+                      )}
+                      {metricDrawer === "estoque" && (
+                        <div className="text-right">
+                          <button
+                            type="button"
+                            onClick={() => { setMetricDrawer(null); navigate("/estoque"); }}
+                            className="text-xs text-primary underline-offset-2 hover:underline"
+                          >
+                            Ver estoque completo →
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ),
                 },
