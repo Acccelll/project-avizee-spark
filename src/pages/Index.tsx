@@ -457,13 +457,13 @@ const DashboardContent = () => {
       {/* ── Drag-and-drop grid ── */}
       <div ref={gridContainerRef}>
       <GridLayout
-        layout={layout}
+        layout={layout as any}
         cols={12}
         rowHeight={40}
         width={gridWidth}
         isDraggable={editMode}
         isResizable={editMode}
-        onLayoutChange={(newLayout) => { if (editMode) setLayout(newLayout); }}
+        onLayoutChange={(newLayout: any) => { if (editMode) setLayout(newLayout); }}
         className={editMode ? "react-grid-layout--edit" : ""}
         draggableHandle=".drag-handle"
       >

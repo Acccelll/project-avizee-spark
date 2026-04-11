@@ -50,7 +50,7 @@ export async function fetchEstoquePosicao(): Promise<EstoquePosicaoRow[]> {
     .order("produto_nome");
 
   if (error) throw new Error(error.message);
-  return (data ?? []) as EstoquePosicaoRow[];
+  return (data ?? []) as unknown as EstoquePosicaoRow[];
 }
 
 export async function fetchMovimentacoes(): Promise<EstoqueMovimento[]> {

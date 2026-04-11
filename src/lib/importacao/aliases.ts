@@ -44,6 +44,7 @@ export const STATUS_IMPORTACAO_ALIASES: Record<string, string> = {
 
 // Mapeamento de nomes de campos de planilhas para campos do sistema
 export const FIELD_ALIASES: Record<string, string> = {
+  // --- Cadastros genéricos ---
   'NOME': 'nome',
   'RAZAO SOCIAL': 'nome',
   'RAZÃO SOCIAL': 'nome',
@@ -66,11 +67,13 @@ export const FIELD_ALIASES: Record<string, string> = {
   'NUMERO': 'numero',
   'NÚMERO': 'numero',
   'COMPLEMENTO': 'complemento',
+
+  // --- Produtos ---
   'CODIGO': 'codigo_interno',
   'CÓDIGO': 'codigo_interno',
   'SKU': 'codigo_interno',
-  'DESCRIÇÃO': 'descricao',
-  'DESCRICAO': 'descricao',
+  'DESCRIÇÃO': 'nome',
+  'DESCRICAO': 'nome',
   'PRECO': 'preco_venda',
   'PREÇO': 'preco_venda',
   'VALOR': 'preco_venda',
@@ -83,4 +86,26 @@ export const FIELD_ALIASES: Record<string, string> = {
   'NCM': 'ncm',
   'GTIN': 'gtin',
   'EAN': 'gtin',
+
+  // --- Financeiro ---
+  'TIPO': 'tipo',
+  'PAGAR_RECEBER': 'tipo',
+  'HISTÓRICO': 'descricao',
+  'HISTORICO': 'descricao',
+  'VENCIMENTO': 'data_vencimento',
+  'DATA VENCIMENTO': 'data_vencimento',
+  'STATUS': 'status',
+  'SITUACAO': 'status',
+  'SITUAÇÃO': 'status',
+  'OBSERVAÇÕES': 'observacoes',
+  'OBSERVACOES': 'observacoes',
+
+  // --- Faturamento ---
+  'NOTA': 'numero_nota',
+  'DOC': 'numero_nota',
+  'DATA': 'data',
+  'EMISSÃO': 'data',
+  'EMISSAO': 'data',
+  'TOTAL': 'valor',
+  'CLIENTE': 'cliente',
 };
