@@ -143,6 +143,19 @@ const emptyForm = (): UserFormData => ({
   extra_permissions: [],
 });
 
+const ADMIN_USERS_FUNCTION = 'admin-users';
+
+async function invokeAdminUsers(payload: Record<string, unknown>) {
+  const { data, error } = await supabase.functions.invoke(ADMIN_USERS_FUNCTION, {
+    body: payload,
+  });
+
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+
+  return data;
+}
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function RoleBadge({ role }: { role: AppRole }) {
@@ -498,75 +511,32 @@ function UserFormModal({
 
     setSaving(true);
     try {
-      const now = new Date().toISOString();
+      const payload = {
+        nome: form.nome.trim(),
+        email: form.email.trim(),
+        cargo: form.cargo.trim(),
+        ativo: form.ativo,
+        role_padrao: form.role_padrao,
+        extra_permissions: form.extra_permissions,
+      };
+
       if (isEdit && user) {
-        // Update profile
-        await supabase
-          .from('profiles')
-          .update({
-            nome: form.nome.trim(),
-            email: form.email.trim(),
-            cargo: form.cargo.trim() || null,
-            ativo: form.ativo,
-            role_padrao: form.role_padrao,
-            updated_at: now,
-          } as any)
-          .eq('id', user.id);
-
-        // Update role in user_roles table
-        await supabase
-          .from('user_roles')
-          .upsert({ user_id: user.id, role: form.role_padrao }, { onConflict: 'user_id' });
-
-        // Sync extra permissions: remove old ones, insert new ones
-        const toRemove = user.extra_permissions.filter(
-          (p) => !form.extra_permissions.includes(p),
-        );
-        const toAdd = form.extra_permissions.filter(
-          (p) => !user.extra_permissions.includes(p),
-        );
-        if (toRemove.length > 0) {
-          await supabase
-            .from('user_permissions')
-            .upsert(
-              toRemove.map((p) => ({
-                user_id: user.id,
-                permission_key: p,
-                ativo: false,
-                updated_by: currentUser?.id,
-              })),
-              { onConflict: 'user_id,permission_key' },
-            );
-        }
-        if (toAdd.length > 0) {
-          await supabase
-            .from('user_permissions')
-            .upsert(
-              toAdd.map((p) => ({
-                user_id: user.id,
-                permission_key: p,
-                ativo: true,
-                created_by: currentUser?.id,
-                updated_by: currentUser?.id,
-              })),
-              { onConflict: 'user_id,permission_key' },
-            );
-        }
-
-        // Audit
-        await supabase.from('permission_audit' as any).insert({
-          user_id: currentUser?.id,
-          target_user_id: user.id,
-          role_padrao: form.role_padrao,
-          alteracao: {
-            tipo: 'user_edit',
-            role_padrao: form.role_padrao,
-            extra_added: toAdd,
-            extra_removed: toRemove,
+        await invokeAdminUsers({
+          action: 'update',
+          payload: {
+            id: user.id,
+            ...payload,
           },
         });
 
         toast.success('Usuário atualizado com sucesso.');
+      } else {
+        await invokeAdminUsers({
+          action: 'create',
+          payload,
+        });
+
+        toast.success('Usuário criado e convite enviado com sucesso.');
       }
       onSaved();
       onClose();
@@ -910,58 +880,10 @@ export function UsuariosTab() {
   const loadUsers = useCallback(async () => {
     setLoading(true);
     try {
-      const [{ data: profiles }, { data: roles }, { data: userPermissions }] =
-        await Promise.all([
-          supabase
-            .from('profiles')
-            .select('id, nome, email, cargo, ativo, created_at, updated_at, role_padrao'),
-          supabase.from('user_roles').select('user_id, role'),
-          supabase
-            .from('user_permissions')
-            .select('user_id, permission_key, ativo')
-            .eq('ativo', true),
-        ]);
-
-      const roleMap = new Map<string, AppRole[]>();
-      (roles || []).forEach((r: { user_id: string; role: string }) => {
-        const existing = roleMap.get(r.user_id) || [];
-        existing.push(r.role as AppRole);
-        roleMap.set(r.user_id, existing);
-      });
-
-      const permissionMap = new Map<string, string[]>();
-      (
-        (userPermissions || []) as Array<{
-          user_id: string;
-          permission_key: string;
-        }>
-      ).forEach((row) => {
-        const existing = permissionMap.get(row.user_id) || [];
-        existing.push(row.permission_key);
-        permissionMap.set(row.user_id, existing);
-      });
-
-      const merged: UserWithRoles[] = (
-        profiles || []
-      ).map(
-        (p: {
-          id: string;
-          nome: string;
-          email: string | null;
-          cargo: string | null;
-          ativo: boolean;
-          created_at: string;
-          updated_at: string;
-          role_padrao: AppRole | null;
-        }) => ({
-          ...p,
-          role_padrao:
-            p.role_padrao || (roleMap.get(p.id)?.[0] ?? 'vendedor'),
-          extra_permissions: permissionMap.get(p.id) || [],
-        }),
+      const response = await invokeAdminUsers({ action: 'list' });
+      const merged = ((response?.users as UserWithRoles[] | undefined) ?? []).sort(
+        (a, b) => a.nome.localeCompare(b.nome),
       );
-
-      merged.sort((a, b) => a.nome.localeCompare(b.nome));
       setUsers(merged);
     } catch (err) {
       console.error('[usuarios] Erro ao carregar usuários:', err);
@@ -1038,16 +960,10 @@ export function UsuariosTab() {
     setToggleLoading(true);
     try {
       const newStatus = !toggleTarget.ativo;
-      await supabase
-        .from('profiles')
-        .update({ ativo: newStatus, updated_at: new Date().toISOString() } as any)
-        .eq('id', toggleTarget.id);
-
-      await supabase.from('permission_audit' as any).insert({
-        user_id: currentUser?.id,
-        target_user_id: toggleTarget.id,
-        alteracao: {
-          tipo: 'status_change',
+      await invokeAdminUsers({
+        action: 'toggle-status',
+        payload: {
+          id: toggleTarget.id,
           ativo: newStatus,
         },
       });

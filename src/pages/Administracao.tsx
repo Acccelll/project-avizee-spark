@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
 import { cn } from '@/lib/utils';
 import { MaskedInput } from '@/components/ui/MaskedInput';
 import { useAuth } from '@/contexts/AuthContext';
@@ -109,6 +110,8 @@ export default function Administracao() {
   const [fiscalLastSaved, setFiscalLastSaved] = useState<{ at: string | null; by: string | null }>({ at: null, by: null });
 
   const [financeiroLastSaved, setFinanceiroLastSaved] = useState<{ at: string | null; by: string | null }>({ at: null, by: null });
+
+  type AppConfigInsert = Database['public']['Tables']['app_configuracoes']['Insert'];
 
   useEffect(() => {
     const tab = searchParams.get('tab');
@@ -350,12 +353,12 @@ export default function Administracao() {
         if (insertedEmpresa?.id) setEmpresaConfigId(insertedEmpresa.id);
       }
       setEmpresaUpdatedAt(now);
-      const appRows = [
-        { chave: 'geral', valor: { logoUrl: config.geral.logoUrl, corPrimaria: config.geral.corPrimaria, corSecundaria: config.geral.corSecundaria, site: config.geral.site, whatsapp: config.geral.whatsapp, responsavel: config.geral.responsavel, inscricaoMunicipal: config.geral.inscricaoMunicipal } as unknown as Record<string, unknown> },
-        { chave: 'usuarios', valor: config.usuarios as unknown as Record<string, unknown> },
-        { chave: 'email', valor: { ...config.email, _updatedAt: now, _updatedBy: user?.id ?? null } as unknown as Record<string, unknown> },
-        { chave: 'fiscal', valor: { ...config.fiscal, _updatedAt: now, _updatedBy: user?.id ?? null, _updatedByName: profile?.nome ?? user?.email ?? null } as unknown as Record<string, unknown> },
-        { chave: 'financeiro', valor: { ...config.financeiro, _updatedAt: now, _updatedBy: user?.id ?? null, _updatedByName: profile?.nome ?? user?.email ?? null } as unknown as Record<string, unknown> },
+      const appRows: AppConfigInsert[] = [
+        { chave: 'geral', valor: { logoUrl: config.geral.logoUrl, corPrimaria: config.geral.corPrimaria, corSecundaria: config.geral.corSecundaria, site: config.geral.site, whatsapp: config.geral.whatsapp, responsavel: config.geral.responsavel, inscricaoMunicipal: config.geral.inscricaoMunicipal } },
+        { chave: 'usuarios', valor: { ...config.usuarios } },
+        { chave: 'email', valor: { ...config.email, _updatedAt: now, _updatedBy: user?.id ?? null } },
+        { chave: 'fiscal', valor: { ...config.fiscal, _updatedAt: now, _updatedBy: user?.id ?? null, _updatedByName: profile?.nome ?? user?.email ?? null } },
+        { chave: 'financeiro', valor: { ...config.financeiro, _updatedAt: now, _updatedBy: user?.id ?? null, _updatedByName: profile?.nome ?? user?.email ?? null } },
       ];
       const { error: appError } = await supabase.from('app_configuracoes').upsert(appRows, { onConflict: 'chave' });
       if (appError) throw appError;
