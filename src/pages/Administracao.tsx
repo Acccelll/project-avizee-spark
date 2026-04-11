@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import type { Database } from '@/integrations/supabase/types';
+import type { Database as SupabaseDatabase } from '@/integrations/supabase/types';
 import { cn } from '@/lib/utils';
 import { MaskedInput } from '@/components/ui/MaskedInput';
 import { useAuth } from '@/contexts/AuthContext';
@@ -111,7 +111,7 @@ export default function Administracao() {
 
   const [financeiroLastSaved, setFinanceiroLastSaved] = useState<{ at: string | null; by: string | null }>({ at: null, by: null });
 
-  type AppConfigInsert = Database['public']['Tables']['app_configuracoes']['Insert'];
+  type AppConfigInsert = SupabaseDatabase['public']['Tables']['app_configuracoes']['Insert'];
 
   useEffect(() => {
     const tab = searchParams.get('tab');
