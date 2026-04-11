@@ -27,7 +27,7 @@ import { parseNFeXml, type NFeData } from "@/lib/nfeXmlParser";
 import { DanfeViewer } from "@/components/DanfeViewer";
 import { DevolucaoDialog } from "@/components/fiscal/DevolucaoDialog";
 import { NotaFiscalDrawer } from "@/components/fiscal/NotaFiscalDrawer";
-import { confirmarNotaFiscal, estornarNotaFiscal } from "@/services/fiscal.service";
+import { confirmarNotaFiscal, estornarNotaFiscal, registrarEventoFiscal } from "@/services/fiscal.service";
 import { NotaFiscalEditModal } from "@/components/fiscal/NotaFiscalEditModal";
 
 interface NotaFiscal {
@@ -39,6 +39,7 @@ interface NotaFiscal {
   modelo_documento: string; nf_referenciada_id: string | null; tipo_operacao: string;
   frete_valor: number; icms_valor: number; ipi_valor: number; pis_valor: number;
   cofins_valor: number; icms_st_valor: number; desconto_valor: number; outras_despesas: number;
+  origem?: string; status_sefaz?: string; natureza_operacao?: string;
   fornecedores?: { nome_razao_social: string; cpf_cnpj: string };
   clientes?: { nome_razao_social: string };
   ordens_venda?: { numero: string };
@@ -50,7 +51,7 @@ const emptyForm: Record<string, any> = {
   movimenta_estoque: true, gera_financeiro: true, forma_pagamento: "", condicao_pagamento: "a_vista",
   ordem_venda_id: "", conta_contabil_id: "", modelo_documento: "55",
   frete_valor: 0, icms_valor: 0, ipi_valor: 0, pis_valor: 0, cofins_valor: 0,
-  icms_st_valor: 0, desconto_valor: 0, outras_despesas: 0,
+  icms_st_valor: 0, desconto_valor: 0, outras_despesas: 0, origem: "manual",
 };
 
 const modeloLabels: Record<string, string> = {
