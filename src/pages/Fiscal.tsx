@@ -315,12 +315,14 @@ const Fiscal = () => {
       if (tipoFilters.length > 0 && !tipoFilters.includes(n.tipo)) return false;
       if (modeloFilters.length > 0 && !modeloFilters.includes(n.modelo_documento || "55")) return false;
       if (statusFilters.length > 0 && !statusFilters.includes(n.status)) return false;
+      if (origemFilters.length > 0 && !origemFilters.includes(n.origem || "manual")) return false;
+      if (statusSefazFilters.length > 0 && !statusSefazFilters.includes(n.status_sefaz || "nao_enviada")) return false;
       if (!query) return true;
       const parceiro = n.tipo === "entrada" ? n.fornecedores?.nome_razao_social : n.clientes?.nome_razao_social;
       const haystack = [n.numero, n.serie, n.chave_acesso, parceiro, n.ordens_venda?.numero].filter(Boolean).join(" ").toLowerCase();
       return haystack.includes(query);
     });
-  }, [consultaSearch, data, tipoParam, modeloFilters, statusFilters, tipoFilters]);
+  }, [consultaSearch, data, tipoParam, modeloFilters, statusFilters, tipoFilters, origemFilters, statusSefazFilters]);
 
   const fiscalActiveFilters = useMemo(() => {
     const chips: FilterChip[] = [];
