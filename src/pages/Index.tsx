@@ -457,17 +457,17 @@ const DashboardContent = () => {
 
       {/* ── Drag-and-drop grid ── */}
       <div ref={gridContainerRef}>
-      {React.createElement(GridLayout as any, {
-        layout: layout,
-        cols: 12,
-        rowHeight: 40,
-        width: gridWidth,
-        isDraggable: editMode,
-        isResizable: editMode,
-        onLayoutChange: (newLayout: any) => { if (editMode) setLayout(newLayout); },
-        className: editMode ? "react-grid-layout--edit" : "",
-        draggableHandle: ".drag-handle",
-      } as any,
+      <RGL
+        layout={layout}
+        cols={12}
+        rowHeight={40}
+        width={gridWidth}
+        isDraggable={editMode}
+        isResizable={editMode}
+        onLayoutChange={(newLayout: any) => { if (editMode) setLayout(newLayout); }}
+        className={editMode ? "react-grid-layout--edit" : ""}
+        draggableHandle=".drag-handle"
+      >
         {/* KPIs */}
         <div key="kpis">
           <W>
@@ -581,7 +581,7 @@ const DashboardContent = () => {
             <FiscalBlock stats={fiscalStats} />
           </LazyInViewWidget>
         </div>
-      </GridLayout>
+      </RGL>
       </div>
 
       {/* ── Drawer de detalhes por métrica ── */}
