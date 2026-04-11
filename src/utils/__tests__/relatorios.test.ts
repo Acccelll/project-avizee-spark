@@ -7,6 +7,11 @@ import {
   agruparAgingPorFaixa,
   filtrarPorStatus,
   sortarRows,
+  calcularCurvaABC,
+  calcularGiroEstoque,
+  calcularTicketMedio,
+  type CurvaAbcInput,
+  type GiroEstoqueInput,
 } from "../relatorios";
 import type { VendasRow, AgingRow } from "@/types/relatorios";
 
@@ -220,5 +225,137 @@ describe("sortarRows", () => {
     const original = [...rows];
     sortarRows(rows, "valor_desc");
     expect(rows[0].valor).toBe(original[0].valor);
+  });
+});
+
+// ─── calcularCurvaABC ────────────────────────────────────────────────────────
+
+describe("calcularCurvaABC", () => {
+  const items: CurvaAbcInput[] = [
+    { codigo: "P001", produto: "Produto A", faturamento: 5000 },
+    { codigo: "P002", produto: "Produto B", faturamento: 3000 },
+    { codigo: "P003", produto: "Produto C", faturamento: 1500 },
+    { codigo: "P004", produto: "Produto D", faturamento: 300 },
+    { codigo: "P005", produto: "Produto E", faturamento: 200 },
+  ];
+
+  it("returns rows sorted by faturamento descending", () => {
+    const result = calcularCurvaABC(items);
+    expect(result[0].faturamento).toBe(5000);
+    expect(result[4].faturamento).toBe(200);
+  });
+
+  it("assigns posicao starting at 1", () => {
+    const result = calcularCurvaABC(items);
+    expect(result[0].posicao).toBe(1);
+    expect(result[4].posicao).toBe(5);
+  });
+
+  it("classifies top items as A (up to 80% accumulated)", () => {
+    const result = calcularCurvaABC(items);
+    // grandTotal = 10000; P001 = 50%, P002 = 30% → acumulado 50 then 80 → both A
+    expect(result[0].classe).toBe("A");
+    expect(result[1].classe).toBe("A");
+  });
+
+  it("classifies items between 80-95% as B", () => {
+    const result = calcularCurvaABC(items);
+    // P003 = 15% → acumulado = 95 → border is B (<=95)
+    expect(result[2].classe).toBe("B");
+  });
+
+  it("classifies items above 95% as C", () => {
+    const result = calcularCurvaABC(items);
+    // P004 (3%) and P005 (2%) are beyond 95%
+    expect(result[3].classe).toBe("C");
+    expect(result[4].classe).toBe("C");
+  });
+
+  it("returns empty array for empty input", () => {
+    expect(calcularCurvaABC([])).toEqual([]);
+  });
+
+  it("classifies all as C when grandTotal is zero", () => {
+    const result = calcularCurvaABC([
+      { codigo: "X", produto: "Zero", faturamento: 0 },
+    ]);
+    expect(result[0].classe).toBe("C");
+    expect(result[0].percentual).toBe(0);
+  });
+
+  it("does not mutate the original array order", () => {
+    const original = [...items];
+    calcularCurvaABC(items);
+    expect(items[0].codigo).toBe(original[0].codigo);
+  });
+});
+
+// ─── calcularGiroEstoque ─────────────────────────────────────────────────────
+
+describe("calcularGiroEstoque", () => {
+  const items: GiroEstoqueInput[] = [
+    { codigo: "P001", produto: "Produto A", custoVendas: 12000, estoqueAtual: 100, custoUnit: 60 },
+    { codigo: "P002", produto: "Produto B", custoVendas: 0, estoqueAtual: 50, custoUnit: 20 },
+    { codigo: "P003", produto: "Produto C", custoVendas: 5000, estoqueAtual: 0, custoUnit: 100 },
+  ];
+
+  it("calculates giro correctly for normal product", () => {
+    const result = calcularGiroEstoque(items);
+    // P001: estoqueValor = 6000; giro = 12000/6000 = 2.00
+    expect(result[0].giro).toBe(2);
+    expect(result[0].estoqueValor).toBe(6000);
+  });
+
+  it("returns giro = 0 when custoVendas is 0", () => {
+    const result = calcularGiroEstoque(items);
+    expect(result[1].giro).toBe(0);
+  });
+
+  it("returns giro = 0 when estoque is 0 (avoid division by zero)", () => {
+    const result = calcularGiroEstoque(items);
+    expect(result[2].giro).toBe(0);
+  });
+
+  it("returns empty array for empty input", () => {
+    expect(calcularGiroEstoque([])).toEqual([]);
+  });
+
+  it("preserves codigo and produto fields", () => {
+    const result = calcularGiroEstoque([items[0]]);
+    expect(result[0].codigo).toBe("P001");
+    expect(result[0].produto).toBe("Produto A");
+  });
+});
+
+// ─── calcularTicketMedio ─────────────────────────────────────────────────────
+
+describe("calcularTicketMedio", () => {
+  const rows: VendasRow[] = [
+    { numero: "1", cliente: "A", emissao: "2024-01-01", valor: 100, status: "confirmado", faturamento: "total" },
+    { numero: "2", cliente: "B", emissao: "2024-01-02", valor: 200, status: "confirmado", faturamento: "total" },
+    { numero: "3", cliente: "C", emissao: "2024-01-03", valor: 300, status: "confirmado", faturamento: "total" },
+  ];
+
+  it("calculates average ticket correctly", () => {
+    expect(calcularTicketMedio(rows)).toBe(200);
+  });
+
+  it("returns 0 for empty array", () => {
+    expect(calcularTicketMedio([])).toBe(0);
+  });
+
+  it("returns the single value when only one row", () => {
+    const single = [rows[0]];
+    expect(calcularTicketMedio(single)).toBe(100);
+  });
+
+  it("rounds to two decimal places", () => {
+    const unevenRows: VendasRow[] = [
+      { numero: "1", cliente: "A", emissao: "2024-01-01", valor: 100, status: "confirmado", faturamento: "total" },
+      { numero: "2", cliente: "B", emissao: "2024-01-02", valor: 200, status: "confirmado", faturamento: "total" },
+      { numero: "3", cliente: "C", emissao: "2024-01-03", valor: 10, status: "confirmado", faturamento: "total" },
+    ];
+    // (100 + 200 + 10) / 3 = 103.33...
+    expect(calcularTicketMedio(unevenRows)).toBe(103.33);
   });
 });
