@@ -56,6 +56,17 @@ export async function confirmarNotaFiscal({ nf, parcelas }: ConfirmarNFParams) {
     return;
   }
 
+  // Pre-confirmation validation
+  if (!nf.numero) throw new Error("Número da NF é obrigatório para confirmação.");
+  const { data: nfItensCheck } = await supabase
+    .from("notas_fiscais_itens")
+    .select("id")
+    .eq("nota_fiscal_id", nf.id)
+    .limit(1);
+  if (!nfItensCheck || nfItensCheck.length === 0) throw new Error("A NF não possui itens. Adicione ao menos um item antes de confirmar.");
+  const hasParceiro = nf.tipo === "entrada" ? !!nf.fornecedor_id : !!nf.cliente_id;
+  if (!hasParceiro) throw new Error(`${nf.tipo === "entrada" ? "Fornecedor" : "Cliente"} é obrigatório para confirmação.`);
+
   const statusAnterior = current?.status || nf.status || "pendente";
 
   await supabase.from("notas_fiscais").update({
