@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import type { Database as SupabaseDatabase } from '@/integrations/supabase/types';
 import { cn } from '@/lib/utils';
 import { MaskedInput } from '@/components/ui/MaskedInput';
 import { useAuth } from '@/contexts/AuthContext';
@@ -110,6 +111,8 @@ export default function Administracao() {
 
   const [financeiroLastSaved, setFinanceiroLastSaved] = useState<{ at: string | null; by: string | null }>({ at: null, by: null });
 
+  type AppConfigInsert = SupabaseDatabase['public']['Tables']['app_configuracoes']['Insert'];
+
   useEffect(() => {
     const tab = searchParams.get('tab');
     if (tab && tab !== activeSection) setActiveSection(tab);
@@ -127,6 +130,7 @@ export default function Administracao() {
         ]);
         const empresa = empresaRows?.[0];
         const appConfig = Object.fromEntries((appRows || []).map((row: { chave: string; valor: unknown }) => [row.chave, row.valor || {}]));
+        const geralRaw = (appConfig.geral as any) || {};
         const emailRaw = (appConfig.email as any) || {};
         const { _updatedAt: emailUpdatedAt, _updatedBy: emailUpdatedBy, ...emailData } = emailRaw;
         const fiscalRaw = (appConfig.fiscal as any) || {};
@@ -141,22 +145,22 @@ export default function Administracao() {
             nomeFantasia: empresa?.nome_fantasia || defaultConfig.geral.nomeFantasia,
             cnpj: empresa?.cnpj || defaultConfig.geral.cnpj,
             inscricaoEstadual: empresa?.inscricao_estadual || defaultConfig.geral.inscricaoEstadual,
-            inscricaoMunicipal: (empresa as any)?.inscricao_municipal || defaultConfig.geral.inscricaoMunicipal,
-            site: (empresa as any)?.site || defaultConfig.geral.site,
+            inscricaoMunicipal: geralRaw.inscricaoMunicipal || defaultConfig.geral.inscricaoMunicipal,
+            site: geralRaw.site || defaultConfig.geral.site,
             email: empresa?.email || defaultConfig.geral.email,
             telefone: empresa?.telefone || defaultConfig.geral.telefone,
-            whatsapp: (empresa as any)?.whatsapp || defaultConfig.geral.whatsapp,
-            responsavel: (empresa as any)?.responsavel || defaultConfig.geral.responsavel,
+            whatsapp: geralRaw.whatsapp || defaultConfig.geral.whatsapp,
+            responsavel: geralRaw.responsavel || defaultConfig.geral.responsavel,
             cep: empresa?.cep || defaultConfig.geral.cep,
             logradouro: empresa?.logradouro || defaultConfig.geral.logradouro,
-            numero: (empresa as any)?.numero || defaultConfig.geral.numero,
-            complemento: (empresa as any)?.complemento || defaultConfig.geral.complemento,
+            numero: empresa?.numero || defaultConfig.geral.numero,
+            complemento: empresa?.complemento || defaultConfig.geral.complemento,
             bairro: empresa?.bairro || defaultConfig.geral.bairro,
             cidade: empresa?.cidade || defaultConfig.geral.cidade,
             uf: empresa?.uf || defaultConfig.geral.uf,
-            logoUrl: empresa?.logo_url || (appConfig.geral as any)?.logoUrl || defaultConfig.geral.logoUrl,
-            corPrimaria: (appConfig.geral as any)?.corPrimaria || defaultConfig.geral.corPrimaria,
-            corSecundaria: (appConfig.geral as any)?.corSecundaria || defaultConfig.geral.corSecundaria,
+            logoUrl: empresa?.logo_url || geralRaw.logoUrl || defaultConfig.geral.logoUrl,
+            corPrimaria: geralRaw.corPrimaria || defaultConfig.geral.corPrimaria,
+            corSecundaria: geralRaw.corSecundaria || defaultConfig.geral.corSecundaria,
           },
           usuarios: { ...defaultConfig.usuarios, ...((appConfig.usuarios as any) || {}) },
           email: { ...defaultConfig.email, ...emailData },
@@ -349,12 +353,12 @@ export default function Administracao() {
         if (insertedEmpresa?.id) setEmpresaConfigId(insertedEmpresa.id);
       }
       setEmpresaUpdatedAt(now);
-      const appRows = [
-        { chave: 'geral', valor: { logoUrl: config.geral.logoUrl, corPrimaria: config.geral.corPrimaria, corSecundaria: config.geral.corSecundaria, site: config.geral.site, whatsapp: config.geral.whatsapp, responsavel: config.geral.responsavel, inscricaoMunicipal: config.geral.inscricaoMunicipal } as unknown as Record<string, unknown> },
-        { chave: 'usuarios', valor: config.usuarios as unknown as Record<string, unknown> },
-        { chave: 'email', valor: { ...config.email, _updatedAt: now, _updatedBy: user?.id ?? null } as unknown as Record<string, unknown> },
-        { chave: 'fiscal', valor: { ...config.fiscal, _updatedAt: now, _updatedBy: user?.id ?? null, _updatedByName: profile?.nome ?? user?.email ?? null } as unknown as Record<string, unknown> },
-        { chave: 'financeiro', valor: { ...config.financeiro, _updatedAt: now, _updatedBy: user?.id ?? null, _updatedByName: profile?.nome ?? user?.email ?? null } as unknown as Record<string, unknown> },
+      const appRows: AppConfigInsert[] = [
+        { chave: 'geral', valor: { logoUrl: config.geral.logoUrl, corPrimaria: config.geral.corPrimaria, corSecundaria: config.geral.corSecundaria, site: config.geral.site, whatsapp: config.geral.whatsapp, responsavel: config.geral.responsavel, inscricaoMunicipal: config.geral.inscricaoMunicipal } },
+        { chave: 'usuarios', valor: { ...config.usuarios } },
+        { chave: 'email', valor: { ...config.email, _updatedAt: now, _updatedBy: user?.id ?? null } },
+        { chave: 'fiscal', valor: { ...config.fiscal, _updatedAt: now, _updatedBy: user?.id ?? null, _updatedByName: profile?.nome ?? user?.email ?? null } },
+        { chave: 'financeiro', valor: { ...config.financeiro, _updatedAt: now, _updatedBy: user?.id ?? null, _updatedByName: profile?.nome ?? user?.email ?? null } },
       ];
       const { error: appError } = await supabase.from('app_configuracoes').upsert(appRows, { onConflict: 'chave' });
       if (appError) throw appError;
