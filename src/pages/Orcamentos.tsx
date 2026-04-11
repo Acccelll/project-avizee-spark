@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
@@ -105,12 +105,44 @@ const Orcamentos = () => {
   const [convertingId, setConvertingId] = useState<string | null>(null);
   const [poNumberCliente, setPoNumberCliente] = useState("");
   const [dataPoCliente, setDataPoCliente] = useState("");
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilters, setStatusFilters] = useState<string[]>([]);
-  const [clienteFilters, setClienteFilters] = useState<string[]>([]);
-  const [validadeFilters, setValidadeFilters] = useState<string[]>([]);
-  const [dataInicio, setDataInicio] = useState("");
-  const [dataFim, setDataFim] = useState("");
+
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const searchTerm = searchParams.get("q") ?? "";
+  const statusFilters = searchParams.getAll("status");
+  const clienteFilters = searchParams.getAll("cliente");
+  const validadeFilters = searchParams.getAll("validade");
+  const dataInicio = searchParams.get("de") ?? "";
+  const dataFim = searchParams.get("ate") ?? "";
+
+  const updateParam = (key: string, value: string | string[] | null) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete(key);
+      if (Array.isArray(value)) {
+        value.forEach((v) => next.append(key, v));
+      } else if (value) {
+        next.set(key, value);
+      }
+      return next;
+    }, { replace: true });
+  };
+
+  const setSearchTerm = (v: string) => updateParam("q", v || null);
+  const setStatusFilters = (fn: string[] | ((prev: string[]) => string[])) => {
+    const next = typeof fn === "function" ? fn(statusFilters) : fn;
+    updateParam("status", next);
+  };
+  const setClienteFilters = (fn: string[] | ((prev: string[]) => string[])) => {
+    const next = typeof fn === "function" ? fn(clienteFilters) : fn;
+    updateParam("cliente", next);
+  };
+  const setValidadeFilters = (fn: string[] | ((prev: string[]) => string[])) => {
+    const next = typeof fn === "function" ? fn(validadeFilters) : fn;
+    updateParam("validade", next);
+  };
+  const setDataInicio = (v: string) => updateParam("de", v || null);
+  const setDataFim = (v: string) => updateParam("ate", v || null);
   const [clientesList, setClientesList] = useState<{ id: string; nome_razao_social: string }[]>([]);
   const { isAdmin } = useIsAdmin();
 

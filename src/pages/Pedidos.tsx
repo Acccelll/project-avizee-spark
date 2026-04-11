@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
@@ -116,15 +117,54 @@ const Pedidos = () => {
     table: "ordens_venda", select: "*, clientes(nome_razao_social), orcamentos(numero)",
   });
   const data = rawData as unknown as Pedido[];
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilters, setStatusFilters] = useState<string[]>([]);
-  const [faturamentoFilters, setFaturamentoFilters] = useState<string[]>([]);
-  const [clienteFilters, setClienteFilters] = useState<string[]>([]);
-  const [prazoFilters, setPrazoFilters] = useState<string[]>([]);
-  const [dataInicio, setDataInicio] = useState("");
-  const [dataFim, setDataFim] = useState("");
+
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const searchTerm = searchParams.get("q") ?? "";
+  const statusFilters = searchParams.getAll("status");
+  const faturamentoFilters = searchParams.getAll("faturamento");
+  const clienteFilters = searchParams.getAll("cliente");
+  const prazoFilters = searchParams.getAll("prazo");
+  const dataInicio = searchParams.get("de") ?? "";
+  const dataFim = searchParams.get("ate") ?? "";
+
+  const updateParam = (key: string, value: string | string[] | null) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete(key);
+      if (Array.isArray(value)) {
+        value.forEach((v) => next.append(key, v));
+      } else if (value) {
+        next.set(key, value);
+      }
+      return next;
+    }, { replace: true });
+  };
+
+  const setSearchTerm = (v: string) => updateParam("q", v || null);
+  const setStatusFilters = (fn: string[] | ((prev: string[]) => string[])) => {
+    const next = typeof fn === "function" ? fn(statusFilters) : fn;
+    updateParam("status", next);
+  };
+  const setFaturamentoFilters = (fn: string[] | ((prev: string[]) => string[])) => {
+    const next = typeof fn === "function" ? fn(faturamentoFilters) : fn;
+    updateParam("faturamento", next);
+  };
+  const setClienteFilters = (fn: string[] | ((prev: string[]) => string[])) => {
+    const next = typeof fn === "function" ? fn(clienteFilters) : fn;
+    updateParam("cliente", next);
+  };
+  const setPrazoFilters = (fn: string[] | ((prev: string[]) => string[])) => {
+    const next = typeof fn === "function" ? fn(prazoFilters) : fn;
+    updateParam("prazo", next);
+  };
+  const setDataInicio = (v: string) => updateParam("de", v || null);
+  const setDataFim = (v: string) => updateParam("ate", v || null);
+
   const [clientesList, setClientesList] = useState<{ id: string; nome_razao_social: string }[]>([]);
   const [generatingNfId, setGeneratingNfId] = useState<string | null>(null);
+  const [insufficientStock, setInsufficientStock] = useState<{ produto: string; falta: number }[]>([]);
+  const [showStockAlert, setShowStockAlert] = useState(false);
 
   useEffect(() => {
     supabase.from("clientes").select("id, nome_razao_social").eq("ativo", true).then(({ data }) => setClientesList(data || []));
@@ -141,6 +181,33 @@ const Pedidos = () => {
   const handleView = (pedido: Pedido) => {
     pushView("ordem_venda", pedido.id);
   };
+
+  const handleRequestGenerateNF = async (pedido: Pedido) => {
+    const { data: items } = await supabase
+      .from("ordens_venda_itens")
+      .select("*, produtos(nome, estoque_atual)")
+      .eq("ordem_venda_id", pedido.id);
+
+    const itemsWithShortfall = (items || [])
+      .filter((i) => {
+        const estoqueAtual = Number(i.produtos?.estoque_atual ?? 0);
+        return estoqueAtual < Number(i.quantidade);
+      })
+      .map((i) => ({
+        produto: i.produtos?.nome || `Produto ${i.produto_id}`,
+        falta: Number(i.quantidade) - Number(i.produtos?.estoque_atual ?? 0),
+      }));
+
+    if (itemsWithShortfall.length > 0) {
+      setInsufficientStock(itemsWithShortfall);
+      setShowStockAlert(true);
+      setGeneratingNfId(pedido.id);
+    } else {
+      setInsufficientStock([]);
+      setGeneratingNfId(pedido.id);
+    }
+  };
+
 
   const handleGenerateNF = async (pedido: Pedido) => {
     try {
@@ -324,7 +391,7 @@ const Pedidos = () => {
       render: (p: Pedido) => (
         <div className="flex gap-1">
           {(p.status === "aprovada" || p.status === "em_separacao") && p.status_faturamento !== "total" && (
-            <Button size="sm" variant="default" className="h-7 text-xs gap-1" onClick={(e) => { e.stopPropagation(); setGeneratingNfId(p.id); }}>
+            <Button size="sm" variant="default" className="h-7 text-xs gap-1" onClick={(e) => { e.stopPropagation(); handleRequestGenerateNF(p); }}>
               <FileOutput className="w-3 h-3" /> Gerar NF
             </Button>
           )}
@@ -412,8 +479,31 @@ const Pedidos = () => {
         />
       </ModulePage>
 
+      {/* Stock alert: shown when some items have insufficient stock */}
       <ConfirmDialog
-        open={!!generatingNfId}
+        open={showStockAlert}
+        onClose={() => { setShowStockAlert(false); setGeneratingNfId(null); }}
+        onConfirm={() => {
+          setShowStockAlert(false);
+          // proceed anyway: the existing confirmation dialog will open
+        }}
+        title="Estoque Insuficiente"
+        description="Alguns itens do pedido possuem estoque abaixo da quantidade solicitada. Deseja continuar mesmo assim?"
+        confirmLabel="Continuar"
+        confirmVariant="destructive"
+      >
+        <ul className="mt-2 space-y-1 text-sm">
+          {insufficientStock.map((item, idx) => (
+            <li key={idx} className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+              <span><span className="font-medium">{item.produto}</span> — faltam <span className="font-mono font-semibold">{item.falta}</span> unidades</span>
+            </li>
+          ))}
+        </ul>
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={!!generatingNfId && !showStockAlert}
         onClose={() => setGeneratingNfId(null)}
         onConfirm={() => {
           const pedido = data.find(o => o.id === generatingNfId);
