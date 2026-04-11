@@ -38,12 +38,16 @@ export function useImportacaoFaturamento() {
     const reader = new FileReader();
     reader.onload = async (evt) => {
       const bstr = evt.target?.result;
-      const wb = XLSX.read(bstr, { type: "binary" });
-      await XLSX.ensureLoaded(wb);
-      setWorkbook(wb);
-      setSheets(wb.SheetNames);
-      if (wb.SheetNames.length > 0) {
-        onSheetChange(wb.SheetNames[0], wb);
+      try {
+        const wb = XLSX.read(bstr, { type: "binary" });
+        await XLSX.ensureLoaded(wb);
+        setWorkbook(wb);
+        setSheets(wb.SheetNames);
+        if (wb.SheetNames.length > 0) {
+          onSheetChange(wb.SheetNames[0], wb);
+        }
+      } catch (err: any) {
+        toast.error(`Erro ao ler arquivo: ${err.message}`);
       }
     };
     reader.readAsBinaryString(selectedFile);
@@ -77,7 +81,6 @@ export function useImportacaoFaturamento() {
     setIsProcessing(true);
 
     try {
-      // Agrupar itens por nota fiscal (numero)
       const grouped = new Map<string, GroupedNF>();
 
       rawRows.forEach((row, index) => {
@@ -112,7 +115,7 @@ export function useImportacaoFaturamento() {
         }
       });
 
-      // Validar duplicidades no banco por numero_nota
+      // Check duplicates in DB
       const numeros = Array.from(grouped.keys());
       const { data: existentes } = await supabase
         .from("notas_fiscais")
@@ -141,15 +144,19 @@ export function useImportacaoFaturamento() {
 
     try {
       const { data: user } = await supabase.auth.getUser();
+      const validos = previewData.filter(i => i.status === "valido");
+      const errosCount = previewData.length - validos.length;
+
       const { data: lote, error: loteError } = await supabase
         .from("importacao_lotes")
         .insert({
-          tipo_importacao: "faturamento",
+          tipo: "faturamento",
           arquivo_nome: file?.name,
           status: "processando",
-          total_lidos: rawRows.length,
-          mapeamento: mapping,
-          criado_por: user?.user?.id
+          total_registros: rawRows.length,
+          registros_sucesso: validos.length,
+          registros_erro: errosCount,
+          usuario_id: user?.user?.id,
         })
         .select()
         .single();
@@ -158,108 +165,54 @@ export function useImportacaoFaturamento() {
       const currentLoteId = lote.id;
       setLoteId(currentLoteId);
 
-      // Staging de faturamento (agrupado em payload jsonb)
-      const stagingData = previewData.map(nf => ({
-        lote_importacao_id: currentLoteId,
-        arquivo_origem: file?.name,
-        aba_origem: currentSheet,
-        payload: nf,
-        status_validacao: nf.status === "valido" ? "valido" : "erro",
-        motivo_erro: Array.from(new Set(nf.errors)).join(", "),
-        criado_por: user?.user?.id
-      }));
-
-      const { error: stagingError } = await supabase.from("stg_faturamento").insert(stagingData as any);
-      if (stagingError) throw stagingError;
-
-      const validos = previewData.filter(i => i.status === "valido").length;
-      const erros = previewData.length - validos;
-
-      await supabase
-        .from("importacao_lotes")
-        .update({
-          status: erros > 0 ? "parcial" : "validado",
-          total_validos: validos,
-          total_erros: erros
-        })
-        .eq("id", currentLoteId);
-
-      toast.success(`${validos} notas fiscais prontas para importação histórica.`);
-      return currentLoteId;
-
-    } catch (error: any) {
-      console.error("Erro na importação de faturamento:", error);
-      toast.error(`Falha no staging: ${error.message}`);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const finalizeImport = async (idLote = loteId, somenteConsulta = true) => {
-    if (!idLote) return;
-    setIsProcessing(true);
-
-    try {
-      const { data: validItems, error: fetchError } = await supabase
-        .from("stg_faturamento")
-        .select("payload")
-        .eq("lote_importacao_id", idLote)
-        .eq("status_validacao", "valido");
-
-      if (fetchError) throw fetchError;
-
-      // Carregar clientes para cache
+      // Insert valid invoices directly
       const { data: clients } = await supabase.from("clientes").select("id, nome_razao_social");
       const clientMap = new Map(clients?.map(c => [c.nome_razao_social.toUpperCase(), c.id]));
 
       let importedCount = 0;
-      for (const item of validItems) {
-        const nf = item.payload as unknown as GroupedNF;
-        const clientId = clientMap.get(nf.cliente_nome.toUpperCase());
+      for (const nf of validos) {
+        const clientId = clientMap.get(nf.cliente_nome?.toUpperCase());
 
-        // Criar Cabeçalho da Nota
-        const { data: newNf, error: nfError } = await (supabase.from("notas_fiscais").insert({
+        const { error: nfError } = await supabase.from("notas_fiscais").insert({
           tipo: "saida",
           numero: nf.numero,
           data_emissao: nf.data_emissao,
           valor_total: nf.valor_total,
-          cliente_id: clientId,
+          cliente_id: clientId || null,
           status: "confirmada",
-          observacoes: `Importação histórica - Lote ${idLote}`
-        } as any).select().single() as any);
+          origem: "importacao_historica",
+          observacoes: `Importação histórica - Lote ${currentLoteId}`
+        } as any);
 
         if (nfError) {
-          await supabase.from("importacao_logs").insert({
-            lote_importacao_id: idLote,
-            nivel: "error",
-            etapa: "carga_final",
-            mensagem: `Erro ao criar NF ${nf.numero}: ${nfError.message}`
-          } as any);
+          console.error(`Erro ao criar NF ${nf.numero}:`, nfError.message);
           continue;
         }
-
-        // Criar Itens da Nota (Lógica simplificada)
-        // ... (Para itens reais, precisaríamos mapear produtos)
-
         importedCount++;
       }
 
       await supabase
         .from("importacao_lotes")
         .update({
-          status: "concluido",
-          total_importados: importedCount
+          status: errosCount > 0 ? "parcial" : "concluido",
+          registros_sucesso: importedCount,
         })
-        .eq("id", idLote);
+        .eq("id", currentLoteId);
 
-      toast.success(`Importação concluída! ${importedCount} notas históricas criadas.`);
-      return true;
+      toast.success(`${importedCount} notas fiscais históricas importadas.`);
+      return currentLoteId;
 
-    } catch (err: any) {
-      toast.error(`Erro na finalização: ${err.message}`);
+    } catch (error: any) {
+      console.error("Erro na importação de faturamento:", error);
+      toast.error(`Falha no processamento: ${error.message}`);
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  const finalizeImport = async () => {
+    toast.info("Importação já foi concluída no passo anterior.");
+    return true;
   };
 
   return {
