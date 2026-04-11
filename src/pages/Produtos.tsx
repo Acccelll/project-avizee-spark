@@ -27,11 +27,13 @@ import { cfopCodes, cstIcmsCodes } from "@/lib/fiscalData";
 import { useNcmLookup } from '@/hooks/useNcmLookup';
 import { Switch } from "@/components/ui/switch";
 
+type TipoItem = "produto" | "insumo";
+
 interface Produto {
   id: string;sku: string;codigo_interno: string;nome: string;descricao: string;
   grupo_id: string;unidade_medida: string;preco_custo: number;preco_venda: number;
   estoque_atual: number;estoque_minimo: number;ncm: string;cst: string;cfop_padrao: string;
-  peso: number;eh_composto: boolean;ativo: boolean;created_at: string;
+  peso: number;eh_composto: boolean;ativo: boolean;created_at: string;tipo_item: TipoItem;
 }
 
 interface ComposicaoItem {
@@ -76,7 +78,7 @@ const situacaoEstoqueConfig: Record<SituacaoEstoque, { label: string; statusBadg
 const emptyProduto: Record<string, any> = {
   nome: "", sku: "", codigo_interno: "", descricao: "", unidade_medida: "UN",
   preco_custo: 0, preco_venda: 0, estoque_minimo: 0, ncm: "", cst: "", cfop_padrao: "", peso: 0, eh_composto: false,
-  grupo_id: ""
+  grupo_id: "", tipo_item: "produto"
 };
 
 const Produtos = () => {
@@ -95,6 +97,7 @@ const Produtos = () => {
   const [margemLucro, setMargemLucro] = useState(0);
   const [searchTerm, setSearchTerm] = useState("");
   const [tipoFilters, setTipoFilters] = useState<string[]>([]);
+  const [tipoItemFilters, setTipoItemFilters] = useState<string[]>([]);
   const [estoqueFilters, setEstoqueFilters] = useState<string[]>([]);
   const [grupoFilters, setGrupoFilters] = useState<string[]>([]);
   const [ativoFilters, setAtivoFilters] = useState<string[]>([]);
@@ -150,7 +153,8 @@ const Produtos = () => {
       unidade_medida: p.unidade_medida, preco_custo: p.preco_custo || 0, preco_venda: p.preco_venda,
       estoque_minimo: p.estoque_minimo || 0, ncm: (p.ncm || "").replace(/\D/g, ''), cst: p.cst || "", cfop_padrao: p.cfop_padrao || "",
       peso: p.peso || 0, eh_composto: p.eh_composto || false,
-      grupo_id: p.grupo_id || ""
+      grupo_id: p.grupo_id || "",
+      tipo_item: (p as any).tipo_item || "produto"
     });
     const [compRes, fornRes] = await Promise.all([
       p.eh_composto
@@ -262,6 +266,11 @@ const Produtos = () => {
         if (!ativoFilters.includes(val)) return false;
       }
 
+      if (tipoItemFilters.length > 0) {
+        const ti = (p as any).tipo_item || "produto";
+        if (!tipoItemFilters.includes(ti)) return false;
+      }
+
       if (tipoFilters.length > 0) {
         const type = isComposto ? "composto" : "simples";
         if (!tipoFilters.includes(type)) return false;
@@ -278,7 +287,7 @@ const Produtos = () => {
       if (!query) return true;
       return [p.nome, p.sku, p.codigo_interno, p.descricao, p.ncm].filter(Boolean).join(" ").toLowerCase().includes(query);
     });
-  }, [data, ativoFilters, estoqueFilters, searchTerm, tipoFilters, grupoFilters]);
+  }, [data, ativoFilters, estoqueFilters, searchTerm, tipoFilters, tipoItemFilters, grupoFilters]);
 
   const columns = [
     {
@@ -379,6 +388,11 @@ const Produtos = () => {
       },
     },
     {
+      key: "tipo_item",
+      label: "Classificação",
+      render: (p: Produto) => <StatusBadge status={(p as any).tipo_item || "produto"} />,
+    },
+    {
       key: "ativo",
       mobileCard: true,
       label: "Status",
@@ -398,7 +412,9 @@ const Produtos = () => {
       const s = getSituacaoEstoque(p);
       return s === "critico" || s === "zerado";
     });
-    return { total: data.length, ativos: ativos.length, criticos: criticos.length };
+    const insumos = data.filter(p => (p as any).tipo_item === "insumo");
+    const produtos = data.filter(p => ((p as any).tipo_item || "produto") === "produto");
+    return { total: data.length, ativos: ativos.length, criticos: criticos.length, insumos: insumos.length, produtos: produtos.length };
   }, [data]);
 
   const prodActiveFilters = useMemo(() => {
@@ -422,6 +438,15 @@ const Produtos = () => {
       });
     });
 
+    tipoItemFilters.forEach(f => {
+      chips.push({
+        key: "tipoItem",
+        label: "Classificação",
+        value: [f],
+        displayValue: f === "produto" ? "Produto" : "Insumo",
+      });
+    });
+
     estoqueFilters.forEach(f => {
       chips.push({
         key: "estoque",
@@ -442,11 +467,12 @@ const Produtos = () => {
     });
 
     return chips;
-  }, [ativoFilters, tipoFilters, estoqueFilters, grupoFilters, grupos]);
+  }, [ativoFilters, tipoFilters, tipoItemFilters, estoqueFilters, grupoFilters, grupos]);
 
   const handleRemoveProdFilter = (key: string, value?: string) => {
     if (key === "ativo") setAtivoFilters(prev => prev.filter(v => v !== value));
     if (key === "tipo") setTipoFilters(prev => prev.filter(v => v !== value));
+    if (key === "tipoItem") setTipoItemFilters(prev => prev.filter(v => v !== value));
     if (key === "estoque") setEstoqueFilters(prev => prev.filter(v => v !== value));
     if (key === "grupo") setGrupoFilters(prev => prev.filter(v => v !== value));
   };
@@ -454,6 +480,11 @@ const Produtos = () => {
   const tipoOptions: MultiSelectOption[] = [
     { label: "Simples", value: "simples" },
     { label: "Composto", value: "composto" },
+  ];
+
+  const tipoItemOptions: MultiSelectOption[] = [
+    { label: "Produto", value: "produto" },
+    { label: "Insumo", value: "insumo" },
   ];
 
   const ativoOptions: MultiSelectOption[] = [
@@ -483,16 +514,26 @@ const Produtos = () => {
         summaryCards={
           <>
             <SummaryCard
-              title="Total de Produtos"
+              title="Total de Itens"
               value={kpis.total}
               icon={Package}
               variant="info"
             />
             <SummaryCard
-              title="Produtos Ativos"
-              value={kpis.ativos}
-              icon={CheckCircle2}
-              variant="success"
+              title="Produtos"
+              value={kpis.produtos}
+              icon={Package}
+              variant="default"
+              onClick={kpis.produtos > 0 ? () => setTipoItemFilters(["produto"]) : undefined}
+              subtitle={kpis.produtos > 0 ? "Clique para filtrar" : undefined}
+            />
+            <SummaryCard
+              title="Insumos"
+              value={kpis.insumos}
+              icon={Archive}
+              variant="default"
+              onClick={kpis.insumos > 0 ? () => setTipoItemFilters(["insumo"]) : undefined}
+              subtitle={kpis.insumos > 0 ? "Clique para filtrar" : undefined}
             />
             <SummaryCard
               title="Abaixo do Mínimo"
@@ -512,7 +553,7 @@ const Produtos = () => {
           searchPlaceholder="Buscar por nome, SKU ou código..."
           activeFilters={prodActiveFilters}
           onRemoveFilter={handleRemoveProdFilter}
-          onClearAll={() => { setAtivoFilters([]); setTipoFilters([]); setEstoqueFilters([]); setGrupoFilters([]); }}
+          onClearAll={() => { setAtivoFilters([]); setTipoFilters([]); setTipoItemFilters([]); setEstoqueFilters([]); setGrupoFilters([]); }}
           count={filteredData.length}
         >
           <MultiSelect
@@ -521,6 +562,13 @@ const Produtos = () => {
             onChange={setAtivoFilters}
             placeholder="Status"
             className="w-[150px]"
+          />
+          <MultiSelect
+            options={tipoItemOptions}
+            selected={tipoItemFilters}
+            onChange={setTipoItemFilters}
+            placeholder="Classificação"
+            className="w-[160px]"
           />
           <MultiSelect
             options={tipoOptions}
@@ -630,18 +678,35 @@ const Produtos = () => {
               </div>
             </div>
             {/* Tipo toggle */}
-            <div className="flex items-center gap-4 p-3 rounded-lg bg-muted/40 border">
-              <span className={`text-sm ${!form.eh_composto ? "font-semibold" : "text-muted-foreground"}`}>Simples</span>
-              <Switch
-                checked={form.eh_composto}
-                onCheckedChange={(v) => { setForm({ ...form, eh_composto: v }); if (!v) setEditComposicao([]); }}
-              />
-              <span className={`text-sm ${form.eh_composto ? "font-semibold" : "text-muted-foreground"}`}>Composto</span>
-              <span className="text-xs text-muted-foreground ml-1">
-                {form.eh_composto
-                  ? "Custo calculado automaticamente pela composição de componentes."
-                  : "Produto com custo definido manualmente."}
-              </span>
+            <div className="flex flex-wrap items-center gap-4 p-3 rounded-lg bg-muted/40 border">
+              <div className="flex items-center gap-3">
+                <span className={`text-sm ${!form.eh_composto ? "font-semibold" : "text-muted-foreground"}`}>Simples</span>
+                <Switch
+                  checked={form.eh_composto}
+                  onCheckedChange={(v) => { setForm({ ...form, eh_composto: v }); if (!v) setEditComposicao([]); }}
+                />
+                <span className={`text-sm ${form.eh_composto ? "font-semibold" : "text-muted-foreground"}`}>Composto</span>
+                <span className="text-xs text-muted-foreground ml-1">
+                  {form.eh_composto
+                    ? "Custo calculado automaticamente pela composição de componentes."
+                    : "Produto com custo definido manualmente."}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 ml-auto">
+                <Label className="text-xs text-muted-foreground whitespace-nowrap">Classificação</Label>
+                <Select
+                  value={form.tipo_item || "produto"}
+                  onValueChange={(v) => setForm({ ...form, tipo_item: v })}
+                >
+                  <SelectTrigger className="h-8 w-[130px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="produto">Produto</SelectItem>
+                    <SelectItem value="insumo">Insumo</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
 
