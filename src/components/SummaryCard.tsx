@@ -2,6 +2,7 @@ import React, { forwardRef } from 'react';
 import { ArrowUpIcon, ArrowDownIcon, LucideIcon } from 'lucide-react';
 import { LineChart, Line, ResponsiveContainer } from 'recharts';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 
 export interface SummaryCardProps {
@@ -16,6 +17,10 @@ export interface SummaryCardProps {
   className?: string;
   sparklineData?: number[];
   loading?: boolean;
+  /** Numeric goal (meta). When provided alongside a numeric `value`, renders a progress bar. */
+  meta?: number;
+  /** Numeric realised value used to compute progress against `meta`. Defaults to `value` if numeric. */
+  realizado?: number;
 }
 
 const variantStyles: Record<string, { border: string; iconBg: string; iconColor: string }> = {
@@ -40,6 +45,8 @@ export const SummaryCard = forwardRef<HTMLDivElement, SummaryCardProps>(
       className,
       sparklineData,
       loading,
+      meta,
+      realizado,
     },
     ref,
   ) {
@@ -115,6 +122,26 @@ export const SummaryCard = forwardRef<HTMLDivElement, SummaryCardProps>(
             </ResponsiveContainer>
           </div>
         )}
+        {meta != null && meta > 0 && (() => {
+          const realized = realizado != null ? realizado : typeof value === 'number' ? value : null;
+          if (realized == null) return null;
+          const pct = Math.min(Math.round((realized / meta) * 100), 100);
+          const overGoal = realized >= meta;
+          return (
+            <div className="mt-2 space-y-0.5">
+              <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                <span>Meta</span>
+                <span className={cn('font-medium', overGoal ? 'text-success' : 'text-foreground')}>
+                  {pct}%
+                </span>
+              </div>
+              <Progress
+                value={pct}
+                className={cn('h-1.5', overGoal && '[&>div]:bg-success')}
+              />
+            </div>
+          );
+        })()}
       </div>
     );
   }

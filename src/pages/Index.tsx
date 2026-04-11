@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, useCallback } from "react";
 import {
   Bar,
   BarChart,
@@ -21,21 +21,69 @@ import { EstoqueBlock } from "@/components/dashboard/EstoqueBlock";
 import { LogisticaBlock } from "@/components/dashboard/LogisticaBlock";
 import { FiscalBlock } from "@/components/dashboard/FiscalBlock";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
+import { PendenciasList } from "@/components/dashboard/PendenciasList";
 import { ViewDrawerV2 } from "@/components/ViewDrawerV2";
 import { useAuth } from "@/contexts/AuthContext";
 import { DashboardPeriodProvider, useDashboardPeriod } from "@/contexts/DashboardPeriodContext";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatNumber } from "@/lib/format";
-import { TrendingUp, DollarSign, Package, BarChart2 } from "lucide-react";
+import { TrendingUp, DollarSign, Package, BarChart2, LayoutDashboard, RotateCcw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useDashboardLayout } from "@/hooks/useDashboardLayout";
+import { useMetas } from "@/hooks/useMetas";
+import { useInView } from "@/hooks/useInView";
+import GridLayout from "react-grid-layout";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import "react-grid-layout/css/styles.css";
+import "react-resizable/css/styles.css";
+
+// Lazy-loaded heavy chart components
+const VendasChart = lazy(() =>
+  import("@/components/dashboard/VendasChart").then((m) => ({ default: m.VendasChart }))
+);
+
+/** Renders children only once the element enters the viewport. */
+function LazyInViewWidget({
+  children,
+  fallback,
+}: {
+  children: React.ReactNode;
+  fallback?: React.ReactNode;
+}) {
+  const [ref, inView] = useInView<HTMLDivElement>({ threshold: 0.05 });
+  return (
+    <div ref={ref} className="h-full">
+      {inView ? children : (fallback ?? <Skeleton className="h-full w-full" />)}
+    </div>
+  );
+}
 
 const DashboardContent = () => {
   const navigate = useNavigate();
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   const { range: globalRange } = useDashboardPeriod();
+
+  const { layout, setLayout, resetLayout } = useDashboardLayout(user?.id);
+  const { metas } = useMetas();
+  const [editMode, setEditMode] = useState(false);
+  const gridContainerRef = useRef<HTMLDivElement>(null);
+  const [gridWidth, setGridWidth] = useState(1200);
 
   const [metricDrawer, setMetricDrawer] = useState<null | "receber" | "estoque" | "vendas">(null);
   const [loadedAt, setLoadedAt] = useState<Date>(new Date());
+
+  // Measure container width for react-grid-layout responsiveness
+  useEffect(() => {
+    const el = gridContainerRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(([entry]) => {
+      setGridWidth(entry.contentRect.width || el.clientWidth);
+    });
+    observer.observe(el);
+    setGridWidth(el.clientWidth);
+    return () => observer.disconnect();
+  }, []);
 
   const [stats, setStats] = useState({
     produtos: 0,
@@ -251,6 +299,8 @@ const DashboardContent = () => {
       variant: stats.contasVencidas > 0 ? ("warning" as const) : ("success" as const),
       sparklineData: [44, 50, 53, 52, 61, 66, 69],
       onClick: () => navigate("/financeiro?tipo=receber"),
+      meta: metas.receber,
+      realizado: stats.totalReceber,
     },
     {
       id: "pagar",
@@ -263,6 +313,8 @@ const DashboardContent = () => {
       variant: stats.totalPagar > stats.totalReceber ? ("danger" as const) : ("warning" as const),
       sparklineData: [35, 38, 37, 39, 41, 43, 42],
       onClick: () => navigate("/financeiro?tipo=pagar"),
+      meta: metas.pagar,
+      realizado: stats.totalPagar,
     },
     {
       id: "saldo",
@@ -275,6 +327,8 @@ const DashboardContent = () => {
       variant: saldoProjetado >= 0 ? ("success" as const) : ("danger" as const),
       sparklineData: [20, 22, 25, 23, 28, 30, saldoProjetado > 0 ? 35 : 12],
       onClick: () => navigate("/fluxo-caixa"),
+      meta: metas.saldo,
+      realizado: saldoProjetado,
     },
     {
       id: "estoque",
@@ -351,13 +405,39 @@ const DashboardContent = () => {
 
   const openMetric = metricDrawer ? detailData[metricDrawer] : null;
 
+  // Widget container used inside the grid
+  const W = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
+    <div className={`h-full overflow-auto ${className}`}>{children}</div>
+  );
+
   return (
     <AppLayout>
       {/* ── Header ── */}
-      <DashboardHeader
-        lastUpdated={loadedAt}
-        onRefresh={loadData}
-      />
+      <DashboardHeader lastUpdated={loadedAt} onRefresh={loadData} />
+
+      {/* ── Edit mode toolbar ── */}
+      <div className="mb-3 flex items-center justify-end gap-2">
+        <Button
+          size="sm"
+          variant={editMode ? "default" : "outline"}
+          className="h-7 gap-1.5 text-xs"
+          onClick={() => setEditMode((v) => !v)}
+        >
+          <LayoutDashboard className="h-3.5 w-3.5" />
+          {editMode ? "Salvar layout" : "Editar layout"}
+        </Button>
+        {editMode && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 gap-1.5 text-xs text-muted-foreground"
+            onClick={() => { resetLayout(); setEditMode(false); }}
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+            Restaurar padrão
+          </Button>
+        )}
+      </div>
 
       {/* ── Saudação contextual ── */}
       <div className="mb-4 rounded-lg border border-border/60 bg-muted/10 px-4 py-3">
@@ -374,70 +454,133 @@ const DashboardContent = () => {
         </p>
       </div>
 
-      {/* ── KPIs principais ── */}
-      <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {kpiCards.map((c) => (
-          <SummaryCard key={c.id} {...c} />
-        ))}
-      </div>
-
-      {/* ── Faixa de alertas operacionais ── */}
-      <div className="mb-6">
-        <AlertStrip
-          titulosVencidos={stats.contasVencidas}
-          estoqueBaixo={estoqueBaixo.length}
-          remessasAtrasadas={0}
-          comprasAguardando={comprasAguardando.filter((c) => {
-            if (!c.data_entrega_prevista) return false;
-            return new Date(c.data_entrega_prevista) < new Date();
-          }).length}
-          notasPendentes={fiscalStats.pendentes}
-          ovsPendentes={backlogOVs.length}
-        />
-      </div>
-
-      {/* ── Financeiro + Ações rápidas ── */}
-      <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
-        {/* On mobile QuickActions appears first (order-1), FinanceiroBlock second (order-2).
-            On lg+ the visual order matches the DOM order via explicit lg:order-* */}
-        <div className="order-2 lg:order-1 lg:col-span-2">
-          <FinanceiroBlock
-            totalReceber={stats.totalReceber}
-            totalPagar={stats.totalPagar}
-            contasVencidas={stats.contasVencidas}
-            saldoProjetado={saldoProjetado}
-            recebimentosHoje={vencimentosHoje.receber}
-            pagamentosHoje={vencimentosHoje.pagar}
-          />
+      {/* ── Drag-and-drop grid ── */}
+      <div ref={gridContainerRef}>
+      <GridLayout
+        layout={layout}
+        cols={12}
+        rowHeight={40}
+        width={gridWidth}
+        isDraggable={editMode}
+        isResizable={editMode}
+        onLayoutChange={(newLayout) => { if (editMode) setLayout(newLayout); }}
+        className={editMode ? "react-grid-layout--edit" : ""}
+        draggableHandle=".drag-handle"
+      >
+        {/* KPIs */}
+        <div key="kpis">
+          <W>
+            <div className="grid grid-cols-1 gap-4 h-full sm:grid-cols-2 lg:grid-cols-4">
+              {kpiCards.map((c) => (
+                <SummaryCard key={c.id} {...c} />
+              ))}
+            </div>
+          </W>
         </div>
-        <div className="order-1 lg:order-2">
-          <QuickActions />
+
+        {/* Alertas */}
+        <div key="alertas">
+          <W>
+            <AlertStrip
+              titulosVencidos={stats.contasVencidas}
+              estoqueBaixo={estoqueBaixo.length}
+              remessasAtrasadas={0}
+              comprasAguardando={comprasAguardando.filter((c) => {
+                if (!c.data_entrega_prevista) return false;
+                return new Date(c.data_entrega_prevista) < new Date();
+              }).length}
+              notasPendentes={fiscalStats.pendentes}
+              ovsPendentes={backlogOVs.length}
+            />
+          </W>
         </div>
-      </div>
 
-      {/* ── Comercial + Estoque ── */}
-      <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <ComercialBlock
-          cotacoesAbertas={stats.orcamentos}
-          pedidosPendentes={backlogOVs.length}
-          ticketMedio={ticketMedio}
-          recentOrcamentos={recentOrcamentos}
-          loading={loading}
-        />
-        <EstoqueBlock
-          itensBaixoMinimo={estoqueBaixo}
-          valorTotalEstoque={0}
-          totalProdutosAtivos={stats.produtos}
-        />
-      </div>
+        {/* Financeiro */}
+        <div key="financeiro">
+          <W>
+            <FinanceiroBlock
+              totalReceber={stats.totalReceber}
+              totalPagar={stats.totalPagar}
+              contasVencidas={stats.contasVencidas}
+              saldoProjetado={saldoProjetado}
+              recebimentosHoje={vencimentosHoje.receber}
+              pagamentosHoje={vencimentosHoje.pagar}
+            />
+          </W>
+        </div>
 
-      {/* ── Logística + Fiscal ── */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <LogisticaBlock
-          comprasAguardando={comprasAguardando}
-          totalRemessasAtrasadas={0}
-        />
-        <FiscalBlock stats={fiscalStats} />
+        {/* Ações rápidas */}
+        <div key="acoes_rapidas">
+          <W>
+            <QuickActions />
+          </W>
+        </div>
+
+        {/* Vendas chart — lazy + inView */}
+        <div key="vendas_chart">
+          <LazyInViewWidget fallback={<Skeleton className="h-full w-full" />}>
+            <div className="bg-card rounded-xl border p-4 h-full">
+              <Suspense fallback={<Skeleton className="h-full w-full" />}>
+                <VendasChart
+                  onBarClick={(start, end) =>
+                    navigate(`/relatorios?tipo=vendas&di=${start}&df=${end}`)
+                  }
+                />
+              </Suspense>
+            </div>
+          </LazyInViewWidget>
+        </div>
+
+        {/* Pendências */}
+        <div key="pendencias">
+          <W>
+            <div className="bg-card rounded-xl border p-4 h-full">
+              <PendenciasList />
+            </div>
+          </W>
+        </div>
+
+        {/* Comercial */}
+        <div key="comercial">
+          <W>
+            <ComercialBlock
+              cotacoesAbertas={stats.orcamentos}
+              pedidosPendentes={backlogOVs.length}
+              ticketMedio={ticketMedio}
+              recentOrcamentos={recentOrcamentos}
+              loading={loading}
+            />
+          </W>
+        </div>
+
+        {/* Estoque */}
+        <div key="estoque">
+          <W>
+            <EstoqueBlock
+              itensBaixoMinimo={estoqueBaixo}
+              valorTotalEstoque={0}
+              totalProdutosAtivos={stats.produtos}
+            />
+          </W>
+        </div>
+
+        {/* Logística */}
+        <div key="logistica">
+          <LazyInViewWidget fallback={<Skeleton className="h-full w-full" />}>
+            <LogisticaBlock
+              comprasAguardando={comprasAguardando}
+              totalRemessasAtrasadas={0}
+            />
+          </LazyInViewWidget>
+        </div>
+
+        {/* Fiscal */}
+        <div key="fiscal">
+          <LazyInViewWidget fallback={<Skeleton className="h-full w-full" />}>
+            <FiscalBlock stats={fiscalStats} />
+          </LazyInViewWidget>
+        </div>
+      </GridLayout>
       </div>
 
       {/* ── Drawer de detalhes por métrica ── */}
