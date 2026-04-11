@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { type MultiSelectOption } from "@/components/ui/MultiSelect";
 import { formatDate } from "@/lib/format";
@@ -31,12 +32,46 @@ export function usePedidoCompraFilters(
   fornecedoresAtivos: FornecedorOptionRow[],
   statusLabels: Record<string, string>,
 ) {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilters, setStatusFilters] = useState<string[]>([]);
-  const [fornecedorFilters, setFornecedorFilters] = useState<string[]>([]);
-  const [recebimentoFilters, setRecebimentoFilters] = useState<string[]>([]);
-  const [dataInicio, setDataInicio] = useState("");
-  const [dataFim, setDataFim] = useState("");
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const searchTerm = searchParams.get("q") ?? "";
+  const statusFilters = searchParams.getAll("status");
+  const fornecedorFilters = searchParams.getAll("fornecedor");
+  const recebimentoFilters = searchParams.getAll("recebimento");
+  const dataInicio = searchParams.get("data_inicio") ?? "";
+  const dataFim = searchParams.get("data_fim") ?? "";
+
+  const updateParam = (key: string, value: string | string[] | null) => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete(key);
+        if (Array.isArray(value)) {
+          value.forEach((v) => next.append(key, v));
+        } else if (value) {
+          next.set(key, value);
+        }
+        return next;
+      },
+      { replace: true },
+    );
+  };
+
+  const setSearchTerm = (v: string) => updateParam("q", v || null);
+  const setStatusFilters = (fn: string[] | ((prev: string[]) => string[])) => {
+    const next = typeof fn === "function" ? fn(statusFilters) : fn;
+    updateParam("status", next);
+  };
+  const setFornecedorFilters = (fn: string[] | ((prev: string[]) => string[])) => {
+    const next = typeof fn === "function" ? fn(fornecedorFilters) : fn;
+    updateParam("fornecedor", next);
+  };
+  const setRecebimentoFilters = (fn: string[] | ((prev: string[]) => string[])) => {
+    const next = typeof fn === "function" ? fn(recebimentoFilters) : fn;
+    updateParam("recebimento", next);
+  };
+  const setDataInicio = (v: string) => updateParam("data_inicio", v || null);
+  const setDataFim = (v: string) => updateParam("data_fim", v || null);
 
   const pedidoNumero = (p: Pick<PedidoCompra, "id" | "numero">) => p.numero || `PC-${p.id}`;
 
