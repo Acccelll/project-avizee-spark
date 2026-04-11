@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { ViewDrawerV2, ViewField } from "@/components/ViewDrawerV2";
@@ -101,9 +102,10 @@ export function CompraDetailDrawer({
 }: CompraDetailDrawerProps) {
   const navigate = useNavigate();
 
-  const produtoIds = viewItems
-    .map((i) => i.produto_id)
-    .filter((id): id is string => !!id);
+  const produtoIds = useMemo(
+    () => viewItems.map((i) => i.produto_id).filter((id): id is string => !!id),
+    [viewItems],
+  );
 
   const { data: estoqueData = [] } = useEstoqueByProdutos(open ? produtoIds : []);
 

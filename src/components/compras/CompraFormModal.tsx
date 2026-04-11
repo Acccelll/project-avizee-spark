@@ -115,6 +115,8 @@ export function CompraFormModal({
     if (Object.keys(err2).length > 0) { setStep2Errors(err2); setStep(1); return; }
     await onSubmit(e);
     setStep(0);
+    setStep1Error(null);
+    setStep2Errors({});
   }
 
   return (
