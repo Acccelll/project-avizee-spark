@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import { getUserFriendlyError } from "@/utils/errorMessages";
 import { type GridItem } from "@/components/ui/ItemsGrid";
 import {
   type PedidoCompra,
@@ -288,7 +289,7 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
       .eq("pedido_compra_id", p.id);
 
     if (error) {
-      toast.error("Erro ao carregar itens do pedido.");
+      toast.error(getUserFriendlyError(error));
       return;
     }
 
@@ -436,9 +437,8 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
       setForm({ ...emptyPedidoForm });
       await refreshAll();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Erro inesperado";
-      console.error("[pedidos_compra] unexpected error", msg);
-      toast.error("Erro inesperado ao salvar. Tente novamente.");
+      console.error("[pedidos_compra] unexpected error", err);
+      toast.error(getUserFriendlyError(err));
     }
 
     setSaving(false);
@@ -500,9 +500,8 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
       setDrawerOpen(false);
       await refreshAll();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Erro desconhecido";
-      console.error("[darEntrada]", msg);
-      toast.error("Erro ao processar recebimento.");
+      console.error("[darEntrada]", err);
+      toast.error(getUserFriendlyError(err));
     }
 
     navigate(`/fiscal?tipo=entrada&fornecedor_id=${p.fornecedor_id || ""}&pedido_compra=${pedidoNumero(p)}`);
@@ -516,9 +515,8 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
       toast.success("Pedido marcado como enviado ao fornecedor.");
       await refreshAll();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Erro desconhecido";
-      console.error("[marcarEnviado]", msg);
-      toast.error("Erro ao atualizar status.");
+      console.error("[marcarEnviado]", err);
+      toast.error(getUserFriendlyError(err));
     }
   };
 
@@ -531,9 +529,8 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
       setDrawerOpen(false);
       await refreshAll();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Erro desconhecido";
-      console.error("[cancelarPedido]", msg);
-      toast.error(`Erro ao cancelar pedido: ${msg}`);
+      console.error("[cancelarPedido]", err);
+      toast.error(getUserFriendlyError(err));
     }
   };
 

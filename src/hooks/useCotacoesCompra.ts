@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { getUserFriendlyError } from "@/utils/errorMessages";
 import {
   type CotacaoCompra,
   type CotacaoItem,
@@ -211,7 +212,7 @@ export function useCotacoesCompra() {
       fetchData();
     } catch (err: unknown) {
       console.error("[cotacoes_compra]", err);
-      toast.error("Erro ao salvar. Tente novamente.");
+      toast.error(getUserFriendlyError(err));
     }
     setSaving(false);
   };
@@ -253,8 +254,8 @@ export function useCotacoesCompra() {
       setAddingProposal(null);
       setProposalForm({ fornecedor_id: "", preco_unitario: 0, prazo_entrega_dias: "", observacoes: "" });
       await reloadPropostas();
-    } catch {
-      toast.error("Erro ao adicionar proposta");
+    } catch (err: unknown) {
+      toast.error(getUserFriendlyError(err));
     }
   };
 
@@ -274,8 +275,8 @@ export function useCotacoesCompra() {
       ]);
       toast.success("Fornecedor selecionado!");
       await reloadPropostas();
-    } catch {
-      toast.error("Erro ao selecionar proposta");
+    } catch (err: unknown) {
+      toast.error(getUserFriendlyError(err));
     }
   };
 
@@ -302,8 +303,8 @@ export function useCotacoesCompra() {
       setSelected({ ...selected, status: "aguardando_aprovacao" });
       toast.success("Cotação enviada para aprovação!");
       fetchData();
-    } catch {
-      toast.error("Erro ao enviar para aprovação.");
+    } catch (err: unknown) {
+      toast.error(getUserFriendlyError(err));
     }
   };
 
@@ -315,8 +316,8 @@ export function useCotacoesCompra() {
       setSelected({ ...selected, status: "aprovada" });
       toast.success("Cotação aprovada!");
       fetchData();
-    } catch {
-      toast.error("Erro ao aprovar cotação.");
+    } catch (err: unknown) {
+      toast.error(getUserFriendlyError(err));
     }
   };
 
@@ -328,8 +329,8 @@ export function useCotacoesCompra() {
       setSelected({ ...selected, status: "rejeitada" });
       toast.error("Cotação rejeitada.");
       fetchData();
-    } catch {
-      toast.error("Erro ao rejeitar cotação.");
+    } catch (err: unknown) {
+      toast.error(getUserFriendlyError(err));
     }
   };
 
@@ -419,13 +420,8 @@ export function useCotacoesCompra() {
       fetchData();
       navigate("/pedidos-compra");
     } catch (err: unknown) {
-      const e = err as { message?: string; details?: string; hint?: string; code?: string } | null;
-      console.error("[gerarPedido] message:", e?.message);
-      console.error("[gerarPedido] details:", e?.details);
-      console.error("[gerarPedido] hint:", e?.hint);
-      console.error("[gerarPedido] code:", e?.code);
-      const detalhe = e?.message ? ` (${e.message})` : "";
-      toast.error(`Erro ao gerar pedido de compra.${detalhe}`, { duration: 8000 });
+      console.error("[gerarPedido]", err);
+      toast.error(getUserFriendlyError(err), { duration: 8000 });
     }
   };
 

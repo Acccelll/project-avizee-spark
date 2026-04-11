@@ -380,6 +380,8 @@ export default function Transportadoras() {
           onView={openView}
           onEdit={openEdit}
           onDelete={(t) => { setSelected(t); setDeleteConfirmOpen(true); }}
+          emptyTitle="Nenhuma transportadora encontrada"
+          emptyDescription="Tente ajustar os filtros ou cadastre uma nova transportadora."
         />
       </ModulePage>
 

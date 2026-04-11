@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useMemo } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";
@@ -102,8 +101,8 @@ export default function PedidosCompra() {
           data={filters.filteredData}
           loading={ctx.loading}
           statusLabels={statusLabels}
-          onView={(p) => ctx.openView(p as PedidoCompra)}
-          onEdit={(p) => ctx.openEdit(p as PedidoCompra)}
+          onView={ctx.openView}
+          onEdit={ctx.openEdit}
           onSend={ctx.marcarEnviado}
           onReceive={ctx.darEntrada}
         />
@@ -125,7 +124,7 @@ export default function PedidosCompra() {
         fornecedoresLoading={ctx.fornecedoresLoading}
         produtosLoading={ctx.produtosLoading}
         viewEstoque={ctx.viewEstoque}
-        viewCotacao={ctx.viewCotacao as { numero: string; status: string } | null}
+        viewCotacao={ctx.viewCotacao}
         statusLabels={statusLabels}
         onSubmit={ctx.handleSubmit}
       />
@@ -138,7 +137,7 @@ export default function PedidosCompra() {
           viewItems={ctx.viewItems}
           viewEstoque={ctx.viewEstoque}
           viewFinanceiro={ctx.viewFinanceiro}
-          viewCotacao={ctx.viewCotacao as { numero: string; status: string; data_cotacao: string } | null}
+          viewCotacao={ctx.viewCotacao}
           onEdit={() => { ctx.setDrawerOpen(false); ctx.openEdit(ctx.selected!); }}
           onDelete={async () => { ctx.setDrawerOpen(false); await ctx.deleteSelected(); }}
           onSend={ctx.marcarEnviado}
