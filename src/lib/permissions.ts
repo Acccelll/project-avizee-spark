@@ -15,6 +15,7 @@ export const ERP_RESOURCES = [
   "financeiro",
   "faturamento_fiscal",
   "relatorios",
+  "workbook",
   "usuarios",
   "administracao",
 ] as const;
@@ -61,6 +62,8 @@ const rolePermissionMatrix: Record<AppRole, PermissionKey[]> = {
     "compras:visualizar",
     "faturamento_fiscal:visualizar",
     "relatorios:visualizar",
+    "workbook:visualizar",
+    "workbook:exportar",
   ],
   estoquista: [
     "dashboard:visualizar",
