@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from 'react';
+import { Fragment, useCallback, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   ChevronDown,
@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   Search,
   Settings,
+  Star,
 } from 'lucide-react';
 import logoAvizee from '@/assets/logoavizee.png';
 import { Button } from '@/components/ui/button';
@@ -14,6 +15,8 @@ import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useSidebarAlerts } from '@/hooks/useSidebarAlerts';
 import { useAuth } from '@/contexts/AuthContext';
 import { getSocialPermissionFlags } from '@/types/social';
+import { useFavoritos } from '@/hooks/useFavoritos';
+import { NAVIGATION_ITEMS } from '@/config/navigation.config';
 
 interface AppSidebarProps {
   collapsed: boolean;
@@ -31,6 +34,7 @@ export function AppSidebar({ collapsed, onToggleCollapsed, mobileOpen, onCloseMo
   const { roles, can, permissionsLoaded } = useAuth();
   const socialPermissions = useMemo(() => getSocialPermissionFlags(roles), [roles]);
   const alerts = useSidebarAlerts();
+  const { favoritos, toggleFavorito, isFavorito } = useFavoritos();
   const secondsSinceSync = alerts.lastUpdatedAt
     ? Math.max(0, Math.floor((Date.now() - new Date(alerts.lastUpdatedAt).getTime()) / 1000))
     : null;
@@ -131,6 +135,20 @@ export function AppSidebar({ collapsed, onToggleCollapsed, mobileOpen, onCloseMo
     [currentRoute, visibleSections],
   );
 
+  const favoritedItems = useMemo(
+    () => NAVIGATION_ITEMS.filter((item) => favoritos.includes(item.path)),
+    [favoritos],
+  );
+
+  const handleStarClick = useCallback(
+    (e: React.MouseEvent<HTMLButtonElement>) => {
+      e.stopPropagation();
+      const path = e.currentTarget.dataset.path;
+      if (path) toggleFavorito(path);
+    },
+    [toggleFavorito],
+  );
+
   // Administração has its own local sidebar navigation; suppress global expansion
   // to avoid dual-navigation while the user is inside the module.
   const isInsideAdminModule = location.pathname === '/administracao' ||
@@ -206,6 +224,35 @@ export function AppSidebar({ collapsed, onToggleCollapsed, mobileOpen, onCloseMo
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto px-2 py-3" role="navigation" aria-label="Módulos do sistema">
+          {/* Favorites section */}
+          {!collapsed && favoritedItems.length > 0 && (
+            <div className="mb-3">
+              <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                Favoritos
+              </p>
+              <div className="space-y-0.5">
+                {favoritedItems.map((item) => {
+                  const active = isItemActive(item.path);
+                  return (
+                    <button
+                      key={item.path}
+                      type="button"
+                      onClick={() => handleNavClick(item.path)}
+                      className={`flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-[13px] transition ${
+                        active
+                          ? 'bg-primary/10 font-medium text-primary'
+                          : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+                      }`}
+                    >
+                      <Star className="h-3 w-3 shrink-0 fill-warning text-warning" />
+                     <span className="truncate">{item.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Dashboard */}
           <Link
             to={dashboardItem.path}
@@ -311,24 +358,36 @@ export function AppSidebar({ collapsed, onToggleCollapsed, mobileOpen, onCloseMo
                           {group.items.map((item) => {
                             const active = isItemActive(item.path);
                             const badge = itemBadges[item.path];
+                            const starred = isFavorito(item.path);
                             return (
-                              <button
-                                key={item.path}
-                                type="button"
-                                onClick={() => handleNavClick(item.path)}
-                                className={`flex w-full items-center justify-between text-left rounded-md px-3 py-1.5 text-[13px] transition ${
-                                  active
-                                    ? 'bg-primary/10 font-medium text-primary'
-                                    : 'text-muted-foreground hover:bg-accent hover:text-foreground'
-                                }`}
-                              >
-                                <span>{item.title}</span>
-                                {(badge?.count ?? 0) > 0 && (
-                                  <span className={`ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-semibold ${toneClass[badge.tone]}`}>
-                                    {badge.count}
-                                  </span>
-                                )}
-                              </button>
+                              <div key={item.path} className="group flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => handleNavClick(item.path)}
+                                  className={`flex flex-1 items-center justify-between text-left rounded-md px-3 py-1.5 text-[13px] transition ${
+                                    active
+                                      ? 'bg-primary/10 font-medium text-primary'
+                                      : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+                                  }`}
+                                >
+                                  <span>{item.title}</span>
+                                  {(badge?.count ?? 0) > 0 && (
+                                    <span className={`ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-semibold ${toneClass[badge.tone]}`}>
+                                      {badge.count}
+                                    </span>
+                                  )}
+                                </button>
+                                <button
+                                  type="button"
+                                  data-path={item.path}
+                                  onClick={handleStarClick}
+                                  className={`shrink-0 rounded p-1 transition-opacity hover:bg-accent ${starred ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+                                  aria-label={starred ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
+                                  title={starred ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
+                                >
+                                  <Star className={`h-3 w-3 ${starred ? 'fill-warning text-warning' : 'text-muted-foreground'}`} />
+                                </button>
+                              </div>
                             );
                           })}
                         </Fragment>
