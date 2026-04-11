@@ -94,7 +94,7 @@ export function FiscalBlock({ stats }: FiscalBlockProps) {
       </div>
 
       {/* Status das notas */}
-      <div className="flex-1 px-4 pt-3 pb-4 space-y-2">
+      <div className="flex-1 overflow-hidden px-4 pt-3 pb-2 space-y-2">
         {items.map((item) => {
           const Icon = item.icon;
           return (

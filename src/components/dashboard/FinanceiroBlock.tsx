@@ -50,7 +50,7 @@ export function FinanceiroBlock({
   const saldoPositivo = saldoProjetado >= 0;
 
   return (
-    <div className="bg-card rounded-xl border flex flex-col h-full">
+    <div className="bg-card rounded-xl border flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between px-4 pt-4 pb-2 border-b border-border/60 shrink-0">
         <h3 className="font-semibold text-foreground flex items-center gap-2">
@@ -110,7 +110,7 @@ export function FinanceiroBlock({
       </div>
 
       {/* Gráfico de fluxo de caixa — embedded (sem card wrapper) */}
-      <div className="flex-1 min-h-0 px-4 py-3">
+      <div className="h-[110px] shrink-0 px-4 py-3">
         <FluxoCaixaChart embedded />
       </div>
 

@@ -32,12 +32,12 @@ export const DEFAULT_LAYOUT: DashboardLayoutItem[] = [
   { i: 'comercial',     x: 0, y: 17, w: 6,  h: 6, minW: 4,  minH: 3 },
   { i: 'estoque',       x: 6, y: 17, w: 6,  h: 6, minW: 4,  minH: 3 },
   { i: 'logistica',     x: 0, y: 23, w: 6,  h: 6, minW: 4,  minH: 2 },
-  { i: 'fiscal',        x: 6, y: 23, w: 6,  h: 5, minW: 4,  minH: 2 },
+  { i: 'fiscal',        x: 6, y: 23, w: 6,  h: 6, minW: 4,  minH: 2 },
 ];
 
 // ── Increment this string whenever DEFAULT_LAYOUT changes ─────────────────────
 // A new key means users with an old cached layout will get the new defaults.
-const STORAGE_KEY_PREFIX = 'avizee:dashboard-layout:v2:';
+const STORAGE_KEY_PREFIX = 'avizee:dashboard-layout:v3:';
 
 function buildKey(userId: string | null | undefined) {
   return `${STORAGE_KEY_PREFIX}${userId ?? 'anon'}`;
