@@ -109,11 +109,11 @@ export function PermissaoMatrix() {
 
   const saveMutation = useMutation({
     mutationFn: async (changes: Change[]) => {
-      // Para simplificar: atualiza o perfil via upsert individual
-      // Em produção, idealmente um endpoint batch
       await Promise.all(
         changes.map(async (change) => {
-          const [resource, action] = change.key.split(":") as [ErpResource, ErpAction];
+          const parts = change.key.split(":");
+          if (parts.length !== 2) return;
+          const [resource, action] = parts as [ErpResource, ErpAction];
           if (change.granted) {
             const { error } = await supabase
               .from("user_permissions")
