@@ -8,7 +8,7 @@ import type {
 import { fetchPresentationData } from '@/lib/apresentacao/fetchPresentationData';
 import { gerarComentariosAutomaticos } from '@/lib/apresentacao/commentRules';
 import { generatePresentation } from '@/lib/apresentacao/generatePresentation';
-import { hashParametros } from '@/lib/apresentacao/utils';
+import { hashParametros, serializeToJsonb } from '@/lib/apresentacao/utils';
 
 // -------------------------------------------------------
 // Template queries
@@ -74,7 +74,7 @@ export async function gerarApresentacao(
   userId: string | undefined,
   empresaNome?: string
 ): Promise<{ blob: Blob; geracaoId: string }> {
-  const hash = hashParametros(parametros as unknown as Record<string, unknown>);
+  const hash = hashParametros(serializeToJsonb(parametros));
 
   // Create generation record
   const { data: geracao, error: geracaoError } = await (supabase as any)
@@ -86,7 +86,7 @@ export async function gerarApresentacao(
       modo_geracao: parametros.modoGeracao,
       status: 'gerando',
       hash_geracao: hash,
-      parametros_json: parametros as unknown as Record<string, unknown>,
+      parametros_json: serializeToJsonb(parametros),
       gerado_por: userId ?? null,
     })
     .select()

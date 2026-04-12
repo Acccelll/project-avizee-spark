@@ -1,6 +1,7 @@
 /**
  * Utility functions shared across the Apresentação Gerencial module.
  */
+import type { ApresentacaoParametros } from '@/types/apresentacao';
 
 export function formatCurrencyBR(value: number | null | undefined): string {
   const v = Number(value ?? 0);
@@ -37,6 +38,15 @@ export function calcularVariacaoPercent(
 
 export function hashParametros(params: Record<string, unknown>): string {
   return btoa(JSON.stringify(params)).slice(0, 32);
+}
+
+export function serializeToJsonb(params: ApresentacaoParametros): Record<string, unknown> {
+  return {
+    templateId: params.templateId,
+    competenciaInicial: params.competenciaInicial,
+    competenciaFinal: params.competenciaFinal,
+    modoGeracao: params.modoGeracao,
+  };
 }
 
 export function sumValues(arr: number[]): number {

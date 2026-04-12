@@ -25,6 +25,10 @@ CREATE POLICY "ap_templates_all_authenticated"
   ON public.apresentacao_templates FOR ALL TO authenticated
   USING (true) WITH CHECK (true);
 
+CREATE TRIGGER trg_apresentacao_templates_updated_at
+  BEFORE UPDATE ON public.apresentacao_templates
+  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
 -- Seed default template
 INSERT INTO public.apresentacao_templates (nome, codigo, versao, descricao, ativo)
 VALUES ('Fechamento Mensal Padrão', 'fechamento_mensal_v1', '1.0',
@@ -59,6 +63,10 @@ CREATE POLICY "ap_geracoes_all_authenticated"
   ON public.apresentacao_geracoes FOR ALL TO authenticated
   USING (true) WITH CHECK (true);
 
+CREATE TRIGGER trg_apresentacao_geracoes_updated_at
+  BEFORE UPDATE ON public.apresentacao_geracoes
+  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
 CREATE INDEX IF NOT EXISTS idx_ap_geracoes_template_id    ON public.apresentacao_geracoes(template_id);
 CREATE INDEX IF NOT EXISTS idx_ap_geracoes_competencia     ON public.apresentacao_geracoes(competencia_inicial, competencia_final);
 CREATE INDEX IF NOT EXISTS idx_ap_geracoes_status          ON public.apresentacao_geracoes(status);
@@ -84,6 +92,10 @@ ALTER TABLE public.apresentacao_comentarios ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "ap_comentarios_all_authenticated"
   ON public.apresentacao_comentarios FOR ALL TO authenticated
   USING (true) WITH CHECK (true);
+
+CREATE TRIGGER trg_apresentacao_comentarios_updated_at
+  BEFORE UPDATE ON public.apresentacao_comentarios
+  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 CREATE INDEX IF NOT EXISTS idx_ap_comentarios_geracao_id   ON public.apresentacao_comentarios(geracao_id);
 CREATE INDEX IF NOT EXISTS idx_ap_comentarios_slide_codigo ON public.apresentacao_comentarios(slide_codigo);
