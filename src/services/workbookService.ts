@@ -4,32 +4,32 @@ import { generateWorkbook } from '@/lib/workbook/generateWorkbook';
 import { hashParametros } from '@/lib/workbook/utils';
 
 export async function listarTemplates(): Promise<WorkbookTemplate[]> {
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('workbook_templates')
     .select('*')
     .eq('ativo', true)
     .order('nome');
   if (error) throw error;
-  return data as WorkbookTemplate[];
+  return (data ?? []) as WorkbookTemplate[];
 }
 
 export async function listarGeracoes(): Promise<WorkbookGeracao[]> {
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('workbook_geracoes')
     .select('*, workbook_templates(nome, versao)')
     .order('created_at', { ascending: false })
     .limit(50);
   if (error) throw error;
-  return data as WorkbookGeracao[];
+  return (data ?? []) as WorkbookGeracao[];
 }
 
 export async function listarFechamentos(): Promise<FechamentoMensal[]> {
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('fechamentos_mensais')
     .select('*')
     .order('competencia', { ascending: false });
   if (error) throw error;
-  return data as FechamentoMensal[];
+  return (data ?? []) as FechamentoMensal[];
 }
 
 export async function gerarWorkbook(
@@ -38,7 +38,7 @@ export async function gerarWorkbook(
 ): Promise<{ blob: Blob; geracaoId: string }> {
   const hash = hashParametros(parametros as unknown as Record<string, unknown>);
 
-  const { data: geracao, error: geracaoError } = await supabase
+  const { data: geracao, error: geracaoError } = await (supabase as any)
     .from('workbook_geracoes')
     .insert({
       template_id: parametros.templateId,
@@ -57,7 +57,7 @@ export async function gerarWorkbook(
 
   try {
     if (parametros.modoGeracao === 'fechado') {
-      const { data: fechamentos } = await supabase
+      const { data: fechamentos } = await (supabase as any)
         .from('fechamentos_mensais')
         .select('id, competencia, status')
         .gte('competencia', parametros.competenciaInicial)
@@ -71,14 +71,14 @@ export async function gerarWorkbook(
 
     const blob = await generateWorkbook({ parametros, geracaoId: geracao.id });
 
-    await supabase
+    await (supabase as any)
       .from('workbook_geracoes')
       .update({ status: 'concluido', updated_at: new Date().toISOString() })
       .eq('id', geracao.id);
 
     return { blob, geracaoId: geracao.id };
   } catch (err) {
-    await supabase
+    await (supabase as any)
       .from('workbook_geracoes')
       .update({
         status: 'erro',
