@@ -148,6 +148,7 @@ export const navSections: NavSection[] = [
           { title: 'Plano de Contas', path: '/contas-contabeis-plano', keywords: ['contabil'] },
           { title: 'Conciliação', path: '/conciliacao', keywords: ['ofx', 'extrato', 'banco', 'conciliar'] },
           { title: 'Workbook Gerencial', path: '/relatorios/workbook-gerencial', keywords: ['excel', 'relatorio', 'gerencial', 'workbook'] },
+          { title: 'Apresentação Gerencial', path: '/relatorios/apresentacao-gerencial', keywords: ['pptx', 'powerpoint', 'fechamento', 'gerencial'] },
         ],
       },
     ],
