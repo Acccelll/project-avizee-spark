@@ -50,7 +50,8 @@ function applyFilters<Q>(query: Q, filters: CrudFilter[]): Q {
   return q as Q;
 }
 
-export function useSupabaseCrud<T extends TableName>({
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function useSupabaseCrud<R = any>({
   table,
   select = "*",
   orderBy = "created_at",
@@ -62,7 +63,7 @@ export function useSupabaseCrud<T extends TableName>({
   searchTerm = "",
   searchColumns = [],
   duplicateTransform,
-}: UseCrudOptions<T>) {
+}: UseCrudOptions) {
   const queryClient = useQueryClient();
   const [page, setPage] = useState(0);
 
