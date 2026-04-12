@@ -16,13 +16,13 @@ import {
 
 export function useCotacoesCompra() {
   const navigate = useNavigate();
-  const { data: rawData, loading, fetchData, remove } = useSupabaseCrud("cotacoes_compra" as any, {
+  const { data, loading, fetchData, remove } = useSupabaseCrud({
+    table: "cotacoes_compra",
     orderBy: "created_at",
     ascending: false,
-  } as any);
-  const data = rawData as unknown as CotacaoCompra[];
-  const fornecedoresCrud = useSupabaseCrud("fornecedores" as any);
-  const produtosCrud = useSupabaseCrud("produtos" as any);
+  });
+  const fornecedoresCrud = useSupabaseCrud({ table: "fornecedores" });
+  const produtosCrud = useSupabaseCrud({ table: "produtos" });
 
   const [modalOpen, setModalOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -425,13 +425,13 @@ export function useCotacoesCompra() {
     }
   };
 
-  const produtoOptions = produtosCrud.data.map((p) => ({
+  const produtoOptions = (produtosCrud.data as any[]).map((p: any) => ({
     id: p.id,
     label: p.nome,
     sublabel: p.codigo_interno || p.sku || "",
   }));
 
-  const fornecedorOptions = fornecedoresCrud.data.map((f) => ({
+  const fornecedorOptions = (fornecedoresCrud.data as any[]).map((f: any) => ({
     id: f.id,
     label: f.nome_razao_social,
     sublabel: f.cpf_cnpj || "",
