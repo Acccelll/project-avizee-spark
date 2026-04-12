@@ -85,9 +85,9 @@ interface LancamentoFiscal {
 
 interface MovimentoEstoque {
   id: string;
-  tipo_movimento: string;
+  tipo: string;
   quantidade: number;
-  saldo_apos: number | null;
+  saldo_atual: number | null;
   produtos?: { id: string; nome: string; sku: string } | null;
 }
 
@@ -110,6 +110,7 @@ interface AnexoFiscal {
 }
 
 interface NotaFiscalDrawerProps {
+  open: boolean;
   onClose: () => void;
   selected: NotaFiscal | null;
   onEdit: (nf: NotaFiscal) => void;
@@ -146,7 +147,7 @@ export function NotaFiscalDrawer({
     Promise.all([
       supabase
         .from("notas_fiscais_itens")
-        .select("*, produtos(id, nome, sku), contas_contabeis(codigo, descricao)")
+        .select("*, produtos(id, nome, sku)")
         .eq("nota_fiscal_id", selected.id),
       supabase
         .from("financeiro_lancamentos")
@@ -170,9 +171,9 @@ export function NotaFiscalDrawer({
         .eq("nota_fiscal_id", selected.id)
         .order("created_at", { ascending: false }),
     ]).then(([{ data: it }, { data: lanc }, { data: mov }, { data: ev }, { data: anx }]) => {
-      setItems(it || []);
+      setItems((it || []) as unknown as NFItem[]);
       setLancamentos(lanc || []);
-      setMovimentos(mov || []);
+      setMovimentos((mov || []) as unknown as MovimentoEstoque[]);
       setEventos(ev || []);
       setAnexos(anx || []);
       setLoadingExtra(false);

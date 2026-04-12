@@ -80,7 +80,7 @@ export function PedidoCompraFormModal({
 
   const editBanner = mode === "edit" && selected
     ? (() => {
-        const estoquePorProdutoEdit: Record<string, number> = (viewEstoque as Record<string, unknown>[]).reduce(
+        const estoquePorProdutoEdit: Record<string, number> = (viewEstoque as Record<string, unknown>[]).reduce<Record<string, number>>(
           (acc: Record<string, number>, m) => {
             const key = String(m.produto_id);
             acc[key] = (acc[key] || 0) + Number(m.quantidade || 0);

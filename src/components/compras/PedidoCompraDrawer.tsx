@@ -78,7 +78,7 @@ export function PedidoCompraDrawer({
     secondary: "text-muted-foreground",
   };
 
-  const estoquePorProduto: Record<string, number> = (viewEstoque as Array<Record<string, unknown>>).reduce(
+  const estoquePorProduto: Record<string, number> = (viewEstoque as Array<Record<string, unknown>>).reduce<Record<string, number>>(
     (acc: Record<string, number>, m) => {
       const key = String(m.produto_id);
       acc[key] = (acc[key] || 0) + Number(m.quantidade || 0);
@@ -127,7 +127,7 @@ export function PedidoCompraDrawer({
       <ViewSection title="Fornecedor">
         <ViewField label="Fornecedor">
           {selected.fornecedor_id ? (
-            <RelationalLink type="fornecedor" id={selected.fornecedor_id}>
+            <RelationalLink type="fornecedor" id={String(selected.fornecedor_id)}>
               {selected.fornecedores?.nome_razao_social || "—"}
             </RelationalLink>
           ) : (
@@ -451,7 +451,7 @@ export function PedidoCompraDrawer({
       <ViewSection title="Fornecedor">
         <ViewField label="Fornecedor">
           {selected.fornecedor_id ? (
-            <RelationalLink type="fornecedor" id={selected.fornecedor_id}>
+            <RelationalLink type="fornecedor" id={String(selected.fornecedor_id)}>
               <Building2 className="h-3.5 w-3.5" />
               {selected.fornecedores?.nome_razao_social || "—"}
             </RelationalLink>

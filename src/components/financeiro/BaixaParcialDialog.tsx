@@ -21,10 +21,10 @@ interface ContaBancaria {
 interface Baixa {
   id: string;
   valor_pago: number;
-  desconto: number;
-  juros: number;
-  multa: number;
-  abatimento: number;
+  desconto?: number;
+  juros?: number;
+  multa?: number;
+  abatimento?: number;
   data_baixa: string;
   forma_pagamento: string;
   observacoes: string;

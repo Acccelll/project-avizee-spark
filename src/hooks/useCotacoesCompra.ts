@@ -16,13 +16,13 @@ import {
 
 export function useCotacoesCompra() {
   const navigate = useNavigate();
-  const { data, loading, fetchData, remove } = useSupabaseCrud<CotacaoCompra>({
+  const { data, loading, fetchData, remove } = useSupabaseCrud({
     table: "cotacoes_compra",
     orderBy: "created_at",
     ascending: false,
   });
-  const fornecedoresCrud = useSupabaseCrud<{ id: string; nome_razao_social: string; cpf_cnpj?: string }>({ table: "fornecedores" });
-  const produtosCrud = useSupabaseCrud<{ id: string; nome: string; codigo_interno?: string; sku?: string }>({ table: "produtos" });
+  const fornecedoresCrud = useSupabaseCrud({ table: "fornecedores" });
+  const produtosCrud = useSupabaseCrud({ table: "produtos" });
 
   const [modalOpen, setModalOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -363,8 +363,8 @@ export function useCotacoesCompra() {
         return {
           produto_id: item.produto_id,
           quantidade: item.quantidade,
-          valor_unitario: Number(proposta.preco_unitario || 0),
-          valor_total: item.quantidade * Number(proposta.preco_unitario || 0),
+          preco_unitario: Number(proposta.preco_unitario || 0),
+          subtotal: item.quantidade * Number(proposta.preco_unitario || 0),
         };
       })
       .filter(Boolean);
@@ -374,7 +374,7 @@ export function useCotacoesCompra() {
       return;
     }
 
-    const valorTotal = itensParaPedido.reduce((s, i) => s + (i?.valor_total || 0), 0);
+    const valorTotal = itensParaPedido.reduce((s, i) => s + (i?.subtotal || 0), 0);
     const numeroPedido = `PC-${String(Date.now()).slice(-6)}`;
 
     let pedidoId: string | null = null;
@@ -397,10 +397,10 @@ export function useCotacoesCompra() {
 
       pedidoId = (novoPedido as { id: string }).id;
 
-      const itemsPayload = itensParaPedido.map((i) => ({ pedido_compra_id: pedidoId, ...i }));
+      const itemsPayload = itensParaPedido.map((i) => ({ pedido_compra_id: pedidoId!, ...i }));
       const { error: erroItens } = await supabase
         .from("pedidos_compra_itens")
-        .insert(itemsPayload);
+        .insert(itemsPayload as any);
 
       if (erroItens) {
         const { error: erroRollback } = await supabase
@@ -425,13 +425,13 @@ export function useCotacoesCompra() {
     }
   };
 
-  const produtoOptions = produtosCrud.data.map((p) => ({
+  const produtoOptions = (produtosCrud.data as any[]).map((p: any) => ({
     id: p.id,
     label: p.nome,
     sublabel: p.codigo_interno || p.sku || "",
   }));
 
-  const fornecedorOptions = fornecedoresCrud.data.map((f) => ({
+  const fornecedorOptions = (fornecedoresCrud.data as any[]).map((f: any) => ({
     id: f.id,
     label: f.nome_razao_social,
     sublabel: f.cpf_cnpj || "",

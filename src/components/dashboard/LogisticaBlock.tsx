@@ -103,7 +103,7 @@ export function LogisticaBlock({ comprasAguardando, totalRemessasAtrasadas }: Lo
                           : `${dias}d`}
                       </p>
                     ) : (
-                      <p className="text-[11px] text-muted-foreground">{formatDate(c.data_pedido || c.data_compra)}</p>
+                      <p className="text-[11px] text-muted-foreground">{formatDate(c.data_pedido)}</p>
                     )}
                   </div>
                 </div>

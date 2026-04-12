@@ -1,5 +1,5 @@
 export interface PedidoCompra {
-  id: string | number;
+  id: string;
   numero?: string | null;
   fornecedor_id: string | number | null;
   data_pedido: string;

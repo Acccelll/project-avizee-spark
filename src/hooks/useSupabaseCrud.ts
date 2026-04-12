@@ -1,13 +1,9 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import type { Database } from "@/integrations/supabase/types";
 import { getUserFriendlyError } from "@/utils/errorMessages";
-
-type TableName = keyof Database["public"]["Tables"];
-type TableRow<T extends TableName> = Database["public"]["Tables"][T]["Row"];
-type TableInsert<T extends TableName> = Database["public"]["Tables"][T]["Insert"];
 
 type Primitive = string | number | boolean;
 
@@ -17,8 +13,8 @@ interface CrudFilter {
   operator?: "eq" | "neq" | "gt" | "gte" | "lt" | "lte" | "like" | "ilike" | "in";
 }
 
-interface UseCrudOptions<T extends TableName> {
-  table: T;
+interface UseCrudOptions {
+  table: string;
   select?: string;
   orderBy?: string;
   ascending?: boolean;
@@ -50,7 +46,7 @@ function applyFilters<Q>(query: Q, filters: CrudFilter[]): Q {
   return q as Q;
 }
 
-export function useSupabaseCrud<T extends TableName>({
+export function useSupabaseCrud<R = any>({
   table,
   select = "*",
   orderBy = "created_at",
@@ -62,11 +58,10 @@ export function useSupabaseCrud<T extends TableName>({
   searchTerm = "",
   searchColumns = [],
   duplicateTransform,
-}: UseCrudOptions<T>) {
+}: UseCrudOptions) {
   const queryClient = useQueryClient();
   const [page, setPage] = useState(0);
 
-  // Serialize filter to stabilise queryKey across parent re-renders
   const filterKey = JSON.stringify(filter);
 
   const queryKey = useMemo(
@@ -78,7 +73,7 @@ export function useSupabaseCrud<T extends TableName>({
     queryKey,
     queryFn: async () => {
       if (!supabase) {
-        return { rows: [] as TableRow<T>[], totalCount: null as number | null, hasMore: false, truncated: false };
+        return { rows: [] as R[], totalCount: null as number | null, hasMore: false, truncated: false };
       }
 
       let query: any = (supabase.from as any)(table)
@@ -87,14 +82,12 @@ export function useSupabaseCrud<T extends TableName>({
 
       query = applyFilters(query, filter);
 
-      // Apply search OR filter
       const trimmedSearch = searchTerm.trim();
       if (trimmedSearch && searchColumns.length > 0) {
         const orFilter = searchColumns.map((col) => `${col}.ilike.%${trimmedSearch}%`).join(",");
         query = query.or(orFilter);
       }
 
-      // Apply ativo filter AFTER the OR to ensure it's always AND'd
       if (hasAtivo) {
         query = query.eq("ativo", true);
       }
@@ -111,7 +104,7 @@ export function useSupabaseCrud<T extends TableName>({
         throw error;
       }
 
-      const rows = (result ?? []) as TableRow<T>[];
+      const rows = (result ?? []) as R[];
       const truncated = count !== null && rows.length < count && !pageSize;
       const hasMore = pageSize ? rows.length === pageSize : false;
 
@@ -122,11 +115,11 @@ export function useSupabaseCrud<T extends TableName>({
   const invalidateTable = () => queryClient.invalidateQueries({ queryKey: [table] });
 
   const createMutation = useMutation({
-    mutationFn: async (record: Partial<TableInsert<T>>) => {
+    mutationFn: async (record: Partial<R>) => {
       if (!supabase) throw new Error("Supabase não configurado");
       const { data: result, error } = await (supabase.from as any)(table).insert(record).select().single();
       if (error) throw error;
-      return result as unknown as TableRow<T>;
+      return result as R;
     },
     onSuccess: () => {
       if (showToasts) toast.success("Registro criado com sucesso!");
@@ -138,11 +131,11 @@ export function useSupabaseCrud<T extends TableName>({
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, record }: { id: string; record: Partial<TableRow<T>> }) => {
+    mutationFn: async ({ id, record }: { id: string; record: Partial<R> }) => {
       if (!supabase) throw new Error("Supabase não configurado");
       const { data: result, error } = await (supabase.from as any)(table).update(record).eq("id", id).select().single();
       if (error) throw error;
-      return result as unknown as TableRow<T>;
+      return result as R;
     },
     onSuccess: () => {
       if (showToasts) toast.success("Registro atualizado com sucesso!");
@@ -173,24 +166,24 @@ export function useSupabaseCrud<T extends TableName>({
     },
   });
 
-  const create = (record: Partial<TableInsert<T>>) => createMutation.mutateAsync(record);
-  const update = (id: string, record: Partial<TableRow<T>>) => updateMutation.mutateAsync({ id, record });
+  const create = (record: Partial<R>) => createMutation.mutateAsync(record);
+  const update = (id: string, record: Partial<R>) => updateMutation.mutateAsync({ id, record });
   const remove = (id: string, soft = true) => removeMutation.mutateAsync({ id, soft });
 
-  const duplicate = async (item: TableRow<T>) => {
-    const copy = { ...item } as Record<string, unknown>;
+  const duplicate = async (item: R) => {
+    const copy = { ...(item as any) } as Record<string, unknown>;
     delete copy.id;
     delete copy.created_at;
     delete copy.updated_at;
 
     const transformed = duplicateTransform ? duplicateTransform(copy) : copy;
-    return create(transformed as Partial<TableInsert<T>>);
+    return create(transformed as Partial<R>);
   };
 
   return {
-    data: queryResult.data?.rows ?? [],
+    data: queryResult.data?.rows ?? ([] as R[]),
     loading: queryResult.isLoading,
-    fetchData: () => queryResult.refetch(),
+    fetchData: () => { queryResult.refetch(); },
     create,
     update,
     remove,

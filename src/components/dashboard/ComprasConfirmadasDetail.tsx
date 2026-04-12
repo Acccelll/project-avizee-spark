@@ -63,7 +63,7 @@ export function ComprasConfirmadasDetail({ items }: { items: PedidoCompra[] }) {
                       : `${diasEntrega}d p/ entrega`}
                   </p>
                 ) : (
-                  <p className="text-xs text-muted-foreground">{formatDate(c.data_pedido || c.data_compra)}</p>
+                  <p className="text-xs text-muted-foreground">{formatDate(c.data_pedido)}</p>
                 )}
               </div>
             </div>

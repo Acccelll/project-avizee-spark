@@ -20,8 +20,10 @@ interface PedidoItemRow {
   id: string | number;
   produto_id: string | number | null;
   quantidade: number | null;
-  valor_unitario: number | null;
-  valor_total: number | null;
+  preco_unitario?: number | null;
+  subtotal?: number | null;
+  valor_unitario?: number | null;
+  valor_total?: number | null;
   produtos: { nome: string | null; codigo_interno: string | null; estoque_atual?: number | null } | null;
 }
 
@@ -293,14 +295,14 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
       return;
     }
 
-    setItems((itens || []).map((i: PedidoItemRow) => ({
+    setItems((itens || []).map((i: any) => ({
       id: String(i.id),
       produto_id: i.produto_id ? String(i.produto_id) : "",
       codigo: i.produtos?.codigo_interno || "",
       descricao: i.produtos?.nome || "",
       quantidade: Number(i.quantidade || 0),
-      valor_unitario: Number(i.valor_unitario || 0),
-      valor_total: Number(i.valor_total || 0),
+      valor_unitario: Number(i.preco_unitario ?? i.valor_unitario ?? 0),
+      valor_total: Number(i.subtotal ?? i.valor_total ?? 0),
     })));
 
     const estResult = await supabase
@@ -313,7 +315,7 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
     if (p.cotacao_compra_id) {
       const { data: cot } = await supabase.from("cotacoes_compra")
         .select("id, numero, status, data_cotacao")
-        .eq("id", p.cotacao_compra_id)
+        .eq("id", String(p.cotacao_compra_id))
         .single();
       setViewCotacao(cot || null);
     }
@@ -339,13 +341,13 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
         .eq("documento_tipo", "pedido_compra"),
     ]);
 
-    setViewItems(itensResult.data || []);
+    setViewItems((itensResult.data || []) as unknown as PedidoItemRow[]);
     setViewEstoque((estResult.data as EstoqueMovimentoRow[]) || []);
 
     if (p.cotacao_compra_id) {
       const { data: cot } = await supabase.from("cotacoes_compra")
         .select("id, numero, status, data_cotacao")
-        .eq("id", p.cotacao_compra_id)
+        .eq("id", String(p.cotacao_compra_id))
         .single();
       setViewCotacao(cot || null);
     }
@@ -414,8 +416,8 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
             pedido_compra_id: String(pedidoId),
             produto_id: String(i.produto_id),
             quantidade: Number(i.quantidade || 0),
-            valor_unitario: Number(i.valor_unitario || 0),
-            valor_total: Number(i.valor_total || 0),
+            preco_unitario: Number(i.valor_unitario || 0),
+            subtotal: Number(i.valor_total || 0),
           }));
 
         if (itemsPayload.length > 0) {
@@ -456,8 +458,8 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
 
     try {
       // Batch insert all stock movements
-      const movements = (itens as PedidoItemRow[]).map((item) => ({
-        produto_id: item.produto_id,
+      const movements = (itens as unknown as PedidoItemRow[]).map((item) => ({
+        produto_id: String(item.produto_id),
         tipo: "entrada" as const,
         quantidade: Number(item.quantidade || 0),
         saldo_anterior: Number(item.produtos?.estoque_atual || 0),
@@ -471,9 +473,9 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
 
       // Parallel update of product stocks
       await Promise.all(
-        (itens as PedidoItemRow[]).map((item) => {
+        (itens as unknown as PedidoItemRow[]).map((item) => {
           const novoEstoque = Number(item.produtos?.estoque_atual || 0) + Number(item.quantidade || 0);
-          return supabase.from("produtos").update({ estoque_atual: novoEstoque }).eq("id", item.produto_id)
+          return supabase.from("produtos").update({ estoque_atual: novoEstoque }).eq("id", String(item.produto_id))
             .then(({ error }) => { if (error) throw error; });
         })
       );
@@ -481,14 +483,14 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
       const vTotal = Number(p.valor_total || 0);
       if (vTotal > 0) {
         await supabase.from("financeiro_lancamentos").insert({
-          tipo: "pagar" as const,
+          tipo: "pagar",
           descricao: `${pedidoNumero(p)} — ${p.fornecedores?.nome_razao_social || "Fornecedor"}`,
           valor: vTotal,
           saldo_restante: vTotal,
           data_vencimento: p.data_entrega_prevista || new Date().toISOString().split("T")[0],
-          status: "aberto" as const,
-          fornecedor_id: p.fornecedor_id || null,
-        });
+          status: "aberto",
+          fornecedor_id: p.fornecedor_id ? String(p.fornecedor_id) : null,
+        } as any);
       }
 
       const hoje = new Date().toISOString().split("T")[0];
