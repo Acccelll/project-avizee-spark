@@ -94,7 +94,7 @@ export function RelatorioChart({
                       stroke="hsl(var(--primary))"
                       strokeWidth={2.5}
                       dot={{ r: 3 }}
-                      activeDot={handleActiveDotClick ? { r: 5, style: { cursor: 'pointer' }, onClick: handleActiveDotClick } as any : { r: 5 }}
+                      activeDot={handleActiveDotClick ? { r: 5, style: { cursor: 'pointer' }, onClick: handleActiveDotClick } : { r: 5 }}
                     />
                   </LineChart>
                 ) : usePie ? (
