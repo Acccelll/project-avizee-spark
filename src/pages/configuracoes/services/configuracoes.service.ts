@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { supabase } from '@/integrations/supabase/client';
 import { registrarAuditLog } from '@/services/admin/audit.service';
 import type { ConfigEmail, ConfigIntegracao } from '@/utils/configuracoes';

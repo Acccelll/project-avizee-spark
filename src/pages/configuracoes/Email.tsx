@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { useEffect, useState } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -210,7 +209,7 @@ export default function Email() {
                   Histórico
                 </Button>
               </div>
-              <Button type="submit" disabled={isSaving}>
+              <Button type="submit" disabled={isSaving} aria-label="Salvar configurações de e-mail">
                 {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Salvar Alterações
               </Button>
@@ -278,6 +277,7 @@ export default function Email() {
               <Button
                 type="button"
                 disabled={isSaving}
+                aria-label="Salvar template de e-mail"
                 onClick={form.handleSubmit(onSubmit)}
               >
                 {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

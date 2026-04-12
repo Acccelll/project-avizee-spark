@@ -1,9 +1,9 @@
-// @ts-nocheck
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchConfig, updateConfig } from '../services/configuracoes.service';
 import { mergeConfiguracoes, type ConfigNotificacoes } from '@/utils/configuracoes';
+import { getUserFriendlyError } from '@/utils/errorMessages';
 
 const defaultNotificacoes: ConfigNotificacoes = {
   email_novo_pedido: true,
@@ -37,7 +37,7 @@ export function useConfiguracoesNotificacoes() {
     },
     onError: (err: Error) => {
       console.error('[configuracoes] Erro ao salvar config notificacoes:', err);
-      toast.error('Erro ao salvar configurações. Tente novamente.');
+      toast.error(getUserFriendlyError(err));
     },
   });
 

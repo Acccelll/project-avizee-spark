@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useEffect } from 'react';
 import { useTheme } from 'next-themes';
 import { AlertCircle, CalendarDays, Check, CheckCircle2, Clock, Eye, EyeOff, Info, Loader2, Lock, Mail, Moon, Palette, RotateCcw, Save, Settings, Shield, ShieldCheck, Sun, User } from 'lucide-react';
@@ -27,8 +26,11 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import type { Database as SupabaseDatabase } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+
+type AppConfigInsert = SupabaseDatabase['public']['Tables']['app_configuracoes']['Insert'];
 
 interface TabNavItem {
   key: string;
@@ -238,7 +240,7 @@ export default function Configuracoes() {
       [
         { chave: 'theme_primary_color', valor: APPEARANCE_DEFAULTS.corPrimaria, updated_at: new Date().toISOString() },
         { chave: 'theme_secondary_color', valor: APPEARANCE_DEFAULTS.corSecundaria, updated_at: new Date().toISOString() },
-      ] as any,
+      ] satisfies AppConfigInsert[],
       { onConflict: 'chave' }
     );
     toast.success('Aparência restaurada ao padrão.');
@@ -607,7 +609,7 @@ export default function Configuracoes() {
                       [
                         { chave: 'theme_primary_color', valor: corPrimaria, updated_at: new Date().toISOString() },
                         { chave: 'theme_secondary_color', valor: corSecundaria, updated_at: new Date().toISOString() },
-                      ] as any,
+                      ] satisfies AppConfigInsert[],
                       { onConflict: 'chave' }
                     );
                     const primary = hexToHslString(corPrimaria);

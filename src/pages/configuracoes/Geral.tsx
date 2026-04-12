@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { useEffect, useRef, useState } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -288,7 +287,7 @@ export default function Geral() {
             />
 
             <div className="flex justify-end">
-              <Button type="submit" disabled={isSaving}>
+              <Button type="submit" disabled={isSaving} aria-label="Salvar configurações gerais">
                 {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Salvar Alterações
               </Button>
@@ -305,6 +304,7 @@ export default function Geral() {
           <Button
             type="button"
             variant="outline"
+            aria-label="Exportar configurações como JSON"
             onClick={handleExport}
             disabled={isExporting}
           >
@@ -319,6 +319,7 @@ export default function Geral() {
           <Button
             type="button"
             variant="outline"
+            aria-label="Importar configurações de arquivo JSON"
             onClick={() => fileInputRef.current?.click()}
           >
             <Upload className="mr-2 h-4 w-4" />
@@ -353,7 +354,7 @@ export default function Geral() {
             >
               Cancelar
             </Button>
-            <Button onClick={handleImportConfirm} disabled={isImporting}>
+            <Button onClick={handleImportConfirm} disabled={isImporting} aria-label="Confirmar importação de configurações">
               {isImporting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Importar
             </Button>
