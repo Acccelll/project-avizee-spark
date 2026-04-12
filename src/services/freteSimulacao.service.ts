@@ -191,7 +191,7 @@ export async function criarOuAtualizarSimulacao(
 export async function carregarSimulacaoPorOrigem(
   origemTipo: 'orcamento' | 'pedido',
   origemId: string
-): Promise<(Tables<'frete_simulacoes'> & { opcoes: Tables<'frete_simulacoes_opcoes'>[] }) | null> {
+): Promise<(any & { opcoes: FreteOpcaoLocal[] }) | null> {
   const { data: sim, error } = await sb
     .from('frete_simulacoes')
     .select('*')
@@ -267,7 +267,7 @@ export async function consultarCorreios(
 export async function salvarOpcoesCorreios(
   simulacaoId: string,
   opcoes: FreteCorreiosOpcao[]
-): Promise<Tables<'frete_simulacoes_opcoes'>[]> {
+): Promise<FreteOpcaoLocal[]> {
   // Remove opções Correios antigas não selecionadas da simulação
   const { error: deleteError } = await sb
     .from('frete_simulacoes_opcoes')
@@ -317,7 +317,7 @@ export interface OpcaoTransportadoraPayload {
 
 export async function salvarOpcaoTransportadora(
   payload: OpcaoTransportadoraPayload
-): Promise<Tables<'frete_simulacoes_opcoes'>> {
+): Promise<FreteOpcaoLocal> {
   const { data, error } = await sb
     .from('frete_simulacoes_opcoes')
     .insert({
@@ -354,7 +354,7 @@ export interface OpcaoManualPayload {
 
 export async function salvarOpcaoManual(
   payload: OpcaoManualPayload
-): Promise<Tables<'frete_simulacoes_opcoes'>> {
+): Promise<FreteOpcaoLocal> {
   const { data, error } = await sb
     .from('frete_simulacoes_opcoes')
     .insert({
