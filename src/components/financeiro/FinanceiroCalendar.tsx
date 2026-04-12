@@ -12,8 +12,8 @@ interface Lancamento {
   valor: number;
   data_vencimento: string;
   status: string;
-  clientes?: { nome_razao_social: string };
-  fornecedores?: { nome_razao_social: string };
+  clientes?: { nome_razao_social: string } | null;
+  fornecedores?: { nome_razao_social: string } | null;
 }
 
 interface Props {
