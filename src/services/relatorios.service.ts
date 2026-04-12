@@ -989,7 +989,7 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
       return {
         title: "Divergências",
         subtitle: "Pedidos sem nota fiscal e notas sem lançamento financeiro.",
-        rows,
+        rows: rows as unknown as Record<string, unknown>[],
         chartData: [
           { name: "Pedidos s/ NF", value: (pedidos || []).length },
           { name: "NF s/ Financeiro", value: nfsSemFinanceiro.length },
