@@ -11,6 +11,7 @@ import {
   downloadApresentacao,
   downloadBlob,
   gerarApresentacao,
+  incluirTemplateApresentacao,
   listarApresentacaoGeracoes,
   listarApresentacaoTemplates,
   listarComentarios,
@@ -19,6 +20,7 @@ import { ApresentacaoGeracaoDialog } from '@/components/apresentacao/Apresentaca
 import { ApresentacaoSlidesPreview } from '@/components/apresentacao/ApresentacaoSlidesPreview';
 import { ApresentacaoHistoricoTable } from '@/components/apresentacao/ApresentacaoHistoricoTable';
 import { ApresentacaoComentariosEditor } from '@/components/apresentacao/ApresentacaoComentariosEditor';
+import { ApresentacaoTemplateManager } from '@/components/apresentacao/ApresentacaoTemplateManager';
 
 export default function ApresentacaoGerencial() {
   const { can } = useCan();
@@ -30,6 +32,7 @@ export default function ApresentacaoGerencial() {
   const canGerar = can('apresentacao:gerar');
   const canEditarComentarios = can('apresentacao:editar_comentarios');
   const canDownload = can('apresentacao:download');
+  const canIncluirTemplate = can('apresentacao:criar');
 
   const { data: templates = [] } = useQuery({ queryKey: ['apresentacao-templates'], queryFn: listarApresentacaoTemplates, enabled: canVisualizar });
   const { data: geracoes = [], refetch, isLoading } = useQuery({ queryKey: ['apresentacao-geracoes'], queryFn: listarApresentacaoGeracoes, enabled: canVisualizar });
@@ -44,6 +47,15 @@ export default function ApresentacaoGerencial() {
       setDialogOpen(false);
     },
     onError: (err) => toast.error(`Falha ao gerar apresentação: ${err instanceof Error ? err.message : String(err)}`),
+  });
+
+  const templateMutation = useMutation({
+    mutationFn: incluirTemplateApresentacao,
+    onSuccess: () => {
+      toast.success('Template incluído com sucesso.');
+      queryClient.invalidateQueries({ queryKey: ['apresentacao-templates'] });
+    },
+    onError: (err) => toast.error(`Falha ao incluir template: ${err instanceof Error ? err.message : String(err)}`),
   });
 
   if (!canVisualizar) {
@@ -62,6 +74,21 @@ export default function ApresentacaoGerencial() {
         }
       >
         <div className="space-y-4">
+          {canIncluirTemplate && (
+            <ApresentacaoTemplateManager
+              templates={templates}
+              isSaving={templateMutation.isPending}
+              onCreate={async (draft, file) => {
+                await templateMutation.mutateAsync({
+                  nome: draft.nome,
+                  codigo: draft.codigo,
+                  versao: draft.versao,
+                  descricao: draft.descricao,
+                  arquivo: file,
+                });
+              }}
+            />
+          )}
           <ApresentacaoSlidesPreview />
           {canEditarComentarios && !!selectedGeracaoId && (
             <ApresentacaoComentariosEditor comentarios={comentarios} onChange={(id, value) => atualizarComentario(id, value).catch(() => toast.error('Falha ao salvar comentário.'))} />

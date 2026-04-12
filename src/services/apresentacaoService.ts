@@ -19,6 +19,44 @@ export async function listarApresentacaoTemplates(): Promise<ApresentacaoTemplat
   return (data ?? []) as ApresentacaoTemplate[];
 }
 
+export async function incluirTemplateApresentacao(input: {
+  nome: string;
+  codigo: string;
+  versao: string;
+  descricao?: string;
+  arquivo?: File;
+}): Promise<ApresentacaoTemplate> {
+  let arquivoPath: string | null = null;
+
+  if (input.arquivo) {
+    const filename = `${input.codigo.toLowerCase()}_${input.versao.replace(/\s+/g, '_')}.pptx`;
+    arquivoPath = `templates/apresentacao/${filename}`;
+    const { error: uploadError } = await supabase.storage
+      .from('dbavizee')
+      .upload(arquivoPath, input.arquivo, {
+        upsert: true,
+        contentType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      });
+    if (uploadError) throw uploadError;
+  }
+
+  const { data, error } = await (supabase as any)
+    .from('apresentacao_templates')
+    .insert({
+      nome: input.nome,
+      codigo: input.codigo,
+      versao: input.versao,
+      descricao: input.descricao ?? null,
+      arquivo_path: arquivoPath,
+      config_json: { origem: 'manual', layout: 'apresentacao_v1' },
+      ativo: true,
+    })
+    .select('*')
+    .single();
+  if (error) throw error;
+  return data as ApresentacaoTemplate;
+}
+
 export async function listarApresentacaoGeracoes(): Promise<ApresentacaoGeracao[]> {
   const { data, error } = await (supabase as any)
     .from('apresentacao_geracoes')
