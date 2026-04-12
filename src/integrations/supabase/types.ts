@@ -803,6 +803,42 @@ export type Database = {
           },
         ]
       }
+      fechamentos_mensais: {
+        Row: {
+          competencia: string
+          created_at: string
+          empresa_id: string | null
+          fechado_em: string | null
+          fechado_por: string | null
+          id: string
+          observacoes: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          competencia: string
+          created_at?: string
+          empresa_id?: string | null
+          fechado_em?: string | null
+          fechado_por?: string | null
+          id?: string
+          observacoes?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          competencia?: string
+          created_at?: string
+          empresa_id?: string | null
+          fechado_em?: string | null
+          fechado_por?: string | null
+          id?: string
+          observacoes?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       financeiro_baixas: {
         Row: {
           conta_bancaria_id: string | null
@@ -2877,6 +2913,110 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      workbook_geracoes: {
+        Row: {
+          arquivo_path: string | null
+          competencia_final: string | null
+          competencia_inicial: string | null
+          created_at: string
+          empresa_id: string | null
+          fechamento_id_final: string | null
+          fechamento_id_inicial: string | null
+          gerado_em: string
+          gerado_por: string | null
+          hash_geracao: string | null
+          id: string
+          modo_geracao: string | null
+          observacoes: string | null
+          parametros_json: Json | null
+          status: string
+          template_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          arquivo_path?: string | null
+          competencia_final?: string | null
+          competencia_inicial?: string | null
+          created_at?: string
+          empresa_id?: string | null
+          fechamento_id_final?: string | null
+          fechamento_id_inicial?: string | null
+          gerado_em?: string
+          gerado_por?: string | null
+          hash_geracao?: string | null
+          id?: string
+          modo_geracao?: string | null
+          observacoes?: string | null
+          parametros_json?: Json | null
+          status?: string
+          template_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          arquivo_path?: string | null
+          competencia_final?: string | null
+          competencia_inicial?: string | null
+          created_at?: string
+          empresa_id?: string | null
+          fechamento_id_final?: string | null
+          fechamento_id_inicial?: string | null
+          gerado_em?: string
+          gerado_por?: string | null
+          hash_geracao?: string | null
+          id?: string
+          modo_geracao?: string | null
+          observacoes?: string | null
+          parametros_json?: Json | null
+          status?: string
+          template_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workbook_geracoes_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "workbook_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workbook_templates: {
+        Row: {
+          arquivo_path: string
+          ativo: boolean
+          codigo: string
+          created_at: string
+          estrutura_json: Json | null
+          id: string
+          nome: string
+          updated_at: string
+          versao: string
+        }
+        Insert: {
+          arquivo_path?: string
+          ativo?: boolean
+          codigo: string
+          created_at?: string
+          estrutura_json?: Json | null
+          id?: string
+          nome: string
+          updated_at?: string
+          versao?: string
+        }
+        Update: {
+          arquivo_path?: string
+          ativo?: boolean
+          codigo?: string
+          created_at?: string
+          estrutura_json?: Json | null
+          id?: string
+          nome?: string
+          updated_at?: string
+          versao?: string
         }
         Relationships: []
       }
