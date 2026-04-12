@@ -16,6 +16,7 @@ export const ERP_RESOURCES = [
   "faturamento_fiscal",
   "relatorios",
   "workbook",
+  "apresentacao",
   "usuarios",
   "administracao",
 ] as const;
@@ -33,6 +34,9 @@ export const ERP_ACTIONS = [
   "importar_xml",
   "reenviar_email",
   "admin_fiscal",
+  "gerar",
+  "download",
+  "editar_comentarios",
 ] as const;
 
 export type ErpResource = (typeof ERP_RESOURCES)[number];
@@ -64,6 +68,10 @@ const rolePermissionMatrix: Record<AppRole, PermissionKey[]> = {
     "relatorios:visualizar",
     "workbook:visualizar",
     "workbook:exportar",
+    "apresentacao:visualizar",
+    "apresentacao:gerar",
+    "apresentacao:editar_comentarios",
+    "apresentacao:download",
   ],
   estoquista: [
     "dashboard:visualizar",
