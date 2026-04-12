@@ -143,11 +143,11 @@ SELECT
   date_trunc('month', nf.data_emissao::timestamp)::date AS competencia,
   COUNT(*)                                              AS quantidade_nfs,
   SUM(nf.valor_total)                                   AS total_faturado,
-  SUM(nf.valor_produtos)                                AS total_produtos,
-  SUM(COALESCE(nf.valor_desconto, 0))                   AS total_desconto
+  SUM(COALESCE(nf.valor_total, 0))                      AS total_produtos,
+  SUM(COALESCE(nf.desconto_valor, 0))                   AS total_desconto
 FROM notas_fiscais nf
 WHERE nf.status NOT IN ('cancelada','denegada')
-  AND nf.tipo_operacao = 'saida'
+  AND nf.tipo = 'saida'
 GROUP BY 1;
 
 -- -------------------------------------------------------
@@ -172,16 +172,12 @@ CREATE OR REPLACE VIEW public.vw_apresentacao_rol_caixa AS
 SELECT
   cb.id             AS conta_bancaria_id,
   cb.descricao      AS conta_descricao,
-  COALESCE(cb.banco_nome, '')  AS banco_nome,
+  COALESCE(b.nome, '')         AS banco_nome,
   COALESCE(cb.agencia, '')     AS agencia,
   COALESCE(cb.conta, '')       AS conta,
-  COALESCE(
-    (SELECT SUM(CASE WHEN m.tipo = 'entrada' THEN m.valor ELSE -m.valor END)
-     FROM movimentacoes_bancarias m
-     WHERE m.conta_bancaria_id = cb.id),
-    0
-  ) AS saldo_atual
+  COALESCE(cb.saldo_atual, 0)  AS saldo_atual
 FROM contas_bancarias cb
+LEFT JOIN bancos b ON b.id = cb.banco_id
 WHERE cb.ativo = true;
 
 -- -------------------------------------------------------
@@ -216,15 +212,15 @@ LEFT JOIN funcionarios f ON f.id = fp.funcionario_id;
 
 -- -------------------------------------------------------
 -- vw_apresentacao_fluxo_caixa
--- Reuses workbook fluxo_caixa logic
+-- Reuses workbook fluxo_caixa logic via caixa_movimentos
 -- -------------------------------------------------------
 CREATE OR REPLACE VIEW public.vw_apresentacao_fluxo_caixa AS
 SELECT
-  date_trunc('month', mb.data_lancamento::timestamp)::date AS competencia,
-  SUM(CASE WHEN mb.tipo = 'entrada' THEN mb.valor ELSE 0 END) AS total_entradas,
-  SUM(CASE WHEN mb.tipo = 'saida'   THEN mb.valor ELSE 0 END) AS total_saidas,
-  SUM(CASE WHEN mb.tipo = 'entrada' THEN mb.valor ELSE -mb.valor END) AS saldo_periodo
-FROM movimentacoes_bancarias mb
+  date_trunc('month', cm.created_at::timestamp)::date AS competencia,
+  SUM(CASE WHEN cm.tipo = 'entrada' THEN cm.valor ELSE 0 END) AS total_entradas,
+  SUM(CASE WHEN cm.tipo = 'saida'   THEN cm.valor ELSE 0 END) AS total_saidas,
+  SUM(CASE WHEN cm.tipo = 'entrada' THEN cm.valor ELSE -cm.valor END) AS saldo_periodo
+FROM caixa_movimentos cm
 GROUP BY 1
 ORDER BY 1;
 
@@ -233,22 +229,22 @@ ORDER BY 1;
 -- -------------------------------------------------------
 CREATE OR REPLACE VIEW public.vw_apresentacao_lucro_produto_cliente AS
 SELECT
-  date_trunc('month', pi.created_at::timestamp)::date AS competencia,
+  date_trunc('month', oi.created_at::timestamp)::date AS competencia,
   p.id     AS produto_id,
   p.nome   AS produto_nome,
   p.sku    AS produto_sku,
   c.id     AS cliente_id,
   COALESCE(c.razao_social, c.nome_fantasia, 'Cliente') AS cliente_nome,
-  SUM(pi.quantidade)                                  AS quantidade_vendida,
-  SUM(pi.quantidade * pi.preco_unitario)              AS receita_bruta,
-  SUM(pi.quantidade * COALESCE(p.custo_medio, 0))     AS custo_total,
-  SUM(pi.quantidade * pi.preco_unitario)
-    - SUM(pi.quantidade * COALESCE(p.custo_medio, 0)) AS margem_bruta
-FROM pedido_itens pi
-JOIN pedidos ped ON ped.id = pi.pedido_id
-JOIN produtos p  ON p.id  = pi.produto_id
-LEFT JOIN clientes c ON c.id = ped.cliente_id
-WHERE ped.status NOT IN ('cancelado','rascunho')
+  SUM(oi.quantidade)                                  AS quantidade_vendida,
+  SUM(oi.valor_total)                                 AS receita_bruta,
+  SUM(oi.quantidade * COALESCE(p.preco_custo, 0))     AS custo_total,
+  SUM(oi.valor_total)
+    - SUM(oi.quantidade * COALESCE(p.preco_custo, 0)) AS margem_bruta
+FROM ordens_venda_itens oi
+JOIN ordens_venda ov ON ov.id = oi.ordem_venda_id
+JOIN produtos p      ON p.id  = oi.produto_id
+LEFT JOIN clientes c ON c.id = ov.cliente_id
+WHERE ov.status NOT IN ('cancelado','rascunho')
 GROUP BY 1, 2, 3, 4, 5, 6;
 
 -- -------------------------------------------------------
@@ -260,16 +256,11 @@ SELECT
   p.nome                                   AS produto_nome,
   p.sku                                    AS produto_sku,
   COALESCE(g.nome, 'Sem Grupo')            AS grupo_nome,
-  COALESCE(ep.quantidade, 0)               AS quantidade_atual,
-  COALESCE(p.custo_medio, 0)               AS custo_unitario,
-  COALESCE(ep.quantidade, 0) * COALESCE(p.custo_medio, 0) AS valor_total
+  COALESCE(p.estoque_atual, 0)             AS quantidade_atual,
+  COALESCE(p.preco_custo, 0)               AS custo_unitario,
+  COALESCE(p.estoque_atual, 0) * COALESCE(p.preco_custo, 0) AS valor_total
 FROM produtos p
 LEFT JOIN grupos_produto g ON g.id = p.grupo_id
-LEFT JOIN (
-  SELECT produto_id, SUM(quantidade) AS quantidade
-  FROM estoque_posicao
-  GROUP BY produto_id
-) ep ON ep.produto_id = p.id
 WHERE p.ativo = true;
 
 -- -------------------------------------------------------
@@ -277,25 +268,25 @@ WHERE p.ativo = true;
 -- -------------------------------------------------------
 CREATE OR REPLACE VIEW public.vw_apresentacao_venda_estado AS
 SELECT
-  date_trunc('month', ped.created_at::timestamp)::date AS competencia,
+  date_trunc('month', ov.created_at::timestamp)::date AS competencia,
   COALESCE(c.estado, 'N/D')                            AS estado,
-  COUNT(DISTINCT ped.id)                               AS quantidade_pedidos,
-  SUM(ped.valor_total)                                 AS total_vendas,
-  COUNT(DISTINCT ped.cliente_id)                       AS clientes_ativos
-FROM pedidos ped
-LEFT JOIN clientes c ON c.id = ped.cliente_id
-WHERE ped.status NOT IN ('cancelado','rascunho')
+  COUNT(DISTINCT ov.id)                                AS quantidade_pedidos,
+  SUM(ov.valor_total)                                  AS total_vendas,
+  COUNT(DISTINCT ov.cliente_id)                        AS clientes_ativos
+FROM ordens_venda ov
+LEFT JOIN clientes c ON c.id = ov.cliente_id
+WHERE ov.status NOT IN ('cancelado','rascunho')
 GROUP BY 1, 2;
 
 -- -------------------------------------------------------
 -- vw_apresentacao_redes_sociais
--- Retorna dados do módulo social, se disponível
+-- social_analytics table does not exist in the current schema.
+-- Stub returning no rows so the slide is treated as unavailable.
 -- -------------------------------------------------------
 CREATE OR REPLACE VIEW public.vw_apresentacao_redes_sociais AS
 SELECT
-  date_trunc('month', sa.data_referencia::timestamp)::date AS competencia,
-  sa.plataforma,
-  sa.metrica,
-  sa.valor
-FROM social_analytics sa
-WHERE sa.ativo = true;
+  NULL::date    AS competencia,
+  NULL::text    AS plataforma,
+  NULL::text    AS metrica,
+  NULL::numeric AS valor
+WHERE false;

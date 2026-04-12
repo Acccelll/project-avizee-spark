@@ -23,7 +23,7 @@ import {
   listarTodosApresentacaoTemplates,
   listarApresentacaoGeracoes,
   listarComentariosByGeracao,
-  atualizarComentarioEditado,
+  atualizarComentarioEditadoV2,
   gerarApresentacao,
   downloadApresentacaoGeracao,
   downloadBlob,
@@ -125,7 +125,7 @@ export default function ApresentacaoGerencial() {
 
   const saveComentarioMutation = useMutation({
     mutationFn: async ({ id, texto }: { id: string; texto: string }) => {
-      await atualizarComentarioEditado(id, texto);
+      await atualizarComentarioEditadoV2(id, texto);
     },
     onSuccess: () => {
       toast.success('Comentário salvo.');

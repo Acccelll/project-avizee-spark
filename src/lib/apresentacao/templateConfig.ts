@@ -86,7 +86,7 @@ export function resolveSlides(config: TemplateConfig | null | undefined): Resolv
     const override = overrideMap.get(def.codigo);
     return {
       codigo: def.codigo,
-      ativo: override?.ativo ?? true,
+      ativo: override?.ativo ?? !def.optional,
       ordem: override?.ordem ?? index,
       titulo: override?.tituloCustom?.trim() || def.titulo,
       subtitulo: override?.subtituloCustom?.trim() || def.subtitulo,
@@ -116,7 +116,7 @@ export function buildDefaultConfig(): TemplateConfig {
     },
     slides: SLIDE_DEFINITIONS.map((def, index) => ({
       codigo: def.codigo,
-      ativo: true,
+      ativo: !def.optional,
       ordem: index,
     })),
   };

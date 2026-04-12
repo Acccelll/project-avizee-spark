@@ -70,16 +70,16 @@ ORDER BY fl.tipo, fl.data_vencimento;
 -- 3.2 Top clientes por faturamento
 CREATE OR REPLACE VIEW public.vw_apresentacao_top_clientes AS
 SELECT
-  date_trunc('month', ped.created_at::timestamp)::date AS competencia,
+  date_trunc('month', ov.created_at::timestamp)::date AS competencia,
   c.id                                                  AS cliente_id,
   COALESCE(c.razao_social, c.nome_fantasia, 'Cliente')  AS cliente_nome,
   COALESCE(c.estado, 'N/D')                             AS estado,
-  COUNT(DISTINCT ped.id)                                AS total_pedidos,
-  SUM(ped.valor_total)                                  AS total_vendas,
-  SUM(ped.valor_total) / NULLIF(COUNT(DISTINCT ped.id), 0) AS ticket_medio
-FROM public.pedidos ped
-LEFT JOIN public.clientes c ON c.id = ped.cliente_id
-WHERE ped.status NOT IN ('cancelado', 'rascunho')
+  COUNT(DISTINCT ov.id)                                 AS total_pedidos,
+  SUM(ov.valor_total)                                   AS total_vendas,
+  SUM(ov.valor_total) / NULLIF(COUNT(DISTINCT ov.id), 0) AS ticket_medio
+FROM public.ordens_venda ov
+LEFT JOIN public.clientes c ON c.id = ov.cliente_id
+WHERE ov.status NOT IN ('cancelado', 'rascunho')
 GROUP BY 1, 2, 3, 4
 ORDER BY 1 DESC, total_vendas DESC;
 
@@ -93,10 +93,10 @@ SELECT
   SUM(COALESCE(fl.valor_pago, 0))                           AS total_pago,
   COUNT(*)                                                  AS quantidade_titulos
 FROM public.financeiro_lancamentos fl
-LEFT JOIN public.fornecedores f ON f.id = fl.parceiro_id
+LEFT JOIN public.fornecedores f ON f.id = fl.fornecedor_id
 WHERE fl.tipo = 'pagar'
   AND fl.ativo = true
-  AND fl.parceiro_tipo = 'fornecedor'
+  AND fl.fornecedor_id IS NOT NULL
 GROUP BY 1, 2, 3
 ORDER BY 1 DESC, total_compras DESC;
 
@@ -123,17 +123,17 @@ GROUP BY 1, 2;
 -- 3.5 Backorder / pedidos pendentes de faturamento
 CREATE OR REPLACE VIEW public.vw_apresentacao_backorder AS
 SELECT
-  date_trunc('month', ped.created_at::timestamp)::date AS competencia,
-  ped.id                                               AS pedido_id,
+  date_trunc('month', ov.created_at::timestamp)::date AS competencia,
+  ov.id                                               AS pedido_id,
   COALESCE(c.razao_social, c.nome_fantasia, 'Cliente') AS cliente_nome,
-  ped.status,
-  ped.valor_total,
-  ped.created_at                                       AS data_pedido,
-  (CURRENT_DATE - ped.created_at::date)               AS dias_em_aberto
-FROM public.pedidos ped
-LEFT JOIN public.clientes c ON c.id = ped.cliente_id
-WHERE ped.status IN ('aprovado','confirmado','em_separacao','parcialmente_faturado')
-ORDER BY ped.created_at ASC;
+  ov.status,
+  ov.valor_total,
+  ov.created_at                                       AS data_pedido,
+  (CURRENT_DATE - ov.created_at::date)               AS dias_em_aberto
+FROM public.ordens_venda ov
+LEFT JOIN public.clientes c ON c.id = ov.cliente_id
+WHERE ov.status_faturamento IN ('aguardando','parcial')
+ORDER BY ov.created_at ASC;
 
 -- 3.6 DRE Gerencial
 -- Requires mapeamento_gerencial_contas to be populated.

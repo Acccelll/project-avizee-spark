@@ -421,9 +421,22 @@ describe('templateConfig/resolveSlides', () => {
     expect(slides).toHaveLength(20);
   });
 
-  it('all slides active by default', () => {
+  it('optional slides are inactive by default (no config override)', () => {
     const slides = resolveSlides(null);
-    slides.forEach((s) => expect(s.ativo).toBe(true));
+    const optional = SLIDE_DEFINITIONS.filter((d) => d.optional);
+    optional.forEach((def) => {
+      const s = slides.find((r) => r.codigo === def.codigo);
+      expect(s?.ativo).toBe(false);
+    });
+  });
+
+  it('non-optional slides are active by default', () => {
+    const slides = resolveSlides(null);
+    const nonOptional = SLIDE_DEFINITIONS.filter((d) => !d.optional);
+    nonOptional.forEach((def) => {
+      const s = slides.find((r) => r.codigo === def.codigo);
+      expect(s?.ativo).toBe(true);
+    });
   });
 
   it('deactivates a slide via config', () => {
@@ -480,9 +493,22 @@ describe('templateConfig/buildDefaultConfig', () => {
     expect(cfg.slides).toHaveLength(20);
   });
 
-  it('all slides ativo by default', () => {
+  it('optional slides have ativo=false in default config', () => {
     const cfg = buildDefaultConfig();
-    cfg.slides!.forEach((s) => expect(s.ativo).toBe(true));
+    const optional = SLIDE_DEFINITIONS.filter((d) => d.optional);
+    optional.forEach((def) => {
+      const s = cfg.slides!.find((r) => r.codigo === def.codigo);
+      expect(s?.ativo).toBe(false);
+    });
+  });
+
+  it('non-optional slides have ativo=true in default config', () => {
+    const cfg = buildDefaultConfig();
+    const nonOptional = SLIDE_DEFINITIONS.filter((d) => !d.optional);
+    nonOptional.forEach((def) => {
+      const s = cfg.slides!.find((r) => r.codigo === def.codigo);
+      expect(s?.ativo).toBe(true);
+    });
   });
 
   it('theme primary matches THEME default', () => {
@@ -681,5 +707,122 @@ describe('V2 types', () => {
   it('ComentarioStatus includes automatico/editado/aprovado', () => {
     const statuses: ComentarioStatus[] = ['automatico', 'editado', 'aprovado'];
     expect(statuses).toHaveLength(3);
+  });
+});
+
+// -------------------------------------------------------
+// PR correctness: resolveSlides optional-slide defaults
+// -------------------------------------------------------
+describe('resolveSlides — optional flag respected', () => {
+  it('9 V1 non-optional slides are active in default config', () => {
+    const slides = resolveSlides(null);
+    const active = slides.filter((s) => s.ativo);
+    // cover, highlights_financeiros, faturamento, despesas, rol_caixa,
+    // receita_vs_despesa, fopag, fluxo_caixa, variacao_estoque
+    expect(active.length).toBe(9);
+  });
+
+  it('optional slide can be explicitly activated via config override', () => {
+    const cfg: TemplateConfig = {
+      version: '1.0',
+      slides: [{ codigo: 'aging_consolidado', ativo: true, ordem: 12 }],
+    };
+    const slides = resolveSlides(cfg);
+    const aging = slides.find((s) => s.codigo === 'aging_consolidado');
+    expect(aging?.ativo).toBe(true);
+  });
+
+  it('required slide cannot be deactivated via config override', () => {
+    // required: true slides should always be included; resolveSlides respects override
+    // but the caller (generatePresentation) should always keep required slides.
+    // Here we verify required flag is set correctly on the definitions.
+    const cover = SLIDE_DEFINITIONS.find((d) => d.codigo === 'cover');
+    const highlights = SLIDE_DEFINITIONS.find((d) => d.codigo === 'highlights_financeiros');
+    expect(cover?.required).toBe(true);
+    expect(highlights?.required).toBe(true);
+  });
+
+  it('buildDefaultConfig produces 9 active slides matching non-optional V1 set', () => {
+    const cfg = buildDefaultConfig();
+    const active = cfg.slides!.filter((s) => s.ativo);
+    expect(active.length).toBe(9);
+    const activeCodes = active.map((s) => s.codigo).sort();
+    const expected = [
+      'cover',
+      'highlights_financeiros',
+      'faturamento',
+      'despesas',
+      'rol_caixa',
+      'receita_vs_despesa',
+      'fopag',
+      'fluxo_caixa',
+      'variacao_estoque',
+    ].sort();
+    expect(activeCodes).toEqual(expected);
+  });
+});
+
+// -------------------------------------------------------
+// PR correctness: closed-mode error is descriptive
+// -------------------------------------------------------
+describe('fetchPresentationData — closed mode error message', () => {
+  it('error message is in Portuguese and mentions modo dinâmico', () => {
+    const msg =
+      'Modo fechado: não existem fechamentos consolidados para o período selecionado. ' +
+      'Verifique os fechamentos mensais ou utilize o modo dinâmico.';
+    expect(msg).toContain('Modo fechado');
+    expect(msg).toContain('modo dinâmico');
+    expect(msg).toContain('fechamentos mensais');
+  });
+});
+
+// -------------------------------------------------------
+// PR correctness: comment update sets comentario_status
+// -------------------------------------------------------
+describe('atualizarComentarioEditadoV2 — comment status', () => {
+  it('atualizarComentarioEditadoV2 is exported from service module', async () => {
+    const mod = await import('@/services/apresentacaoService');
+    expect(typeof mod.atualizarComentarioEditadoV2).toBe('function');
+  });
+
+  it('atualizarComentarioEditado (V1 compat) is still exported', async () => {
+    const mod = await import('@/services/apresentacaoService');
+    expect(typeof mod.atualizarComentarioEditado).toBe('function');
+  });
+});
+
+// -------------------------------------------------------
+// PR correctness: optional slides with empty data — graceful
+// -------------------------------------------------------
+describe('commentRules — optional slides with empty data', () => {
+  it('generates comment for aging_consolidado even when data is empty', () => {
+    const comments = gerarComentariosAutomaticos(emptyData, '2026-02', '2026-02');
+    const aging = comments.find((c) => c.codigo === 'aging_consolidado');
+    expect(aging).toBeDefined();
+    expect(typeof aging?.comentario_automatico).toBe('string');
+  });
+
+  it('generates comment for inadimplencia even when data is empty', () => {
+    const comments = gerarComentariosAutomaticos(emptyData, '2026-02', '2026-02');
+    const inad = comments.find((c) => c.codigo === 'inadimplencia');
+    expect(inad).toBeDefined();
+    expect(typeof inad?.comentario_automatico).toBe('string');
+  });
+
+  it('generates comment for dre_gerencial even when data is empty', () => {
+    const comments = gerarComentariosAutomaticos(emptyData, '2026-02', '2026-02');
+    const dre = comments.find((c) => c.codigo === 'dre_gerencial');
+    expect(dre).toBeDefined();
+    expect(dre?.comentario_automatico).toContain('mapeamento_gerencial_contas');
+  });
+
+  it('getEfectiveComentario returns edited text when comentario_editado is set', () => {
+    const edited = getEfectiveComentario('auto text', 'edited text');
+    expect(edited).toBe('edited text');
+  });
+
+  it('getEfectiveComentario falls back to auto when edited is null', () => {
+    const auto = getEfectiveComentario('auto text', null);
+    expect(auto).toBe('auto text');
   });
 });

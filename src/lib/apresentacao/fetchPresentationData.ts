@@ -214,11 +214,11 @@ async function fetchClosedModeData(
       .in('fechamento_id', fechamentoIds),
     (supabase as any)
       .from('fechamento_caixa_saldos')
-      .select('*, contas_bancarias(descricao, banco_nome, agencia, conta)')
+      .select('*, contas_bancarias(descricao, agencia, conta)')
       .in('fechamento_id', fechamentoIds),
     (supabase as any)
       .from('fechamento_estoque_saldos')
-      .select('*, produtos(nome, sku, custo_medio, grupos_produto(nome))')
+      .select('*, produtos(nome, sku, preco_custo, grupos_produto(nome))')
       .in('fechamento_id', fechamentoIds),
     (supabase as any)
       .from('fechamento_fopag_resumo')
@@ -251,18 +251,18 @@ async function fetchClosedModeData(
     }
   );
 
-  const caixaData: Array<{ conta_bancaria_id: string; saldo?: number; contas_bancarias?: { descricao: string; banco_nome: string; agencia: string; conta: string } }> =
+  const caixaData: Array<{ conta_bancaria_id: string; saldo_final?: number; contas_bancarias?: { descricao: string; agencia: string; conta: string } }> =
     caixaRes.data ?? [];
   const rolCaixa: RolCaixa[] = caixaData.map((c) => ({
     conta_bancaria_id: c.conta_bancaria_id,
     conta_descricao: c.contas_bancarias?.descricao ?? '',
-    banco_nome: c.contas_bancarias?.banco_nome ?? '',
+    banco_nome: '',
     agencia: c.contas_bancarias?.agencia ?? '',
     conta: c.contas_bancarias?.conta ?? '',
-    saldo_atual: Number(c.saldo ?? 0),
+    saldo_atual: Number(c.saldo_final ?? 0),
   }));
 
-  const estoqueData: Array<{ produto_id?: string; quantidade?: number; valor_custo?: number; produtos?: { nome: string; sku: string; custo_medio?: number; grupos_produto?: { nome: string } } }> =
+  const estoqueData: Array<{ produto_id?: string; quantidade?: number; custo_unitario?: number; produtos?: { nome: string; sku: string; preco_custo?: number; grupos_produto?: { nome: string } } }> =
     estoqueRes.data ?? [];
   const estoque: EstoqueItem[] = estoqueData.map((e) => ({
     produto_id: e.produto_id ?? '',
@@ -270,8 +270,8 @@ async function fetchClosedModeData(
     produto_sku: e.produtos?.sku ?? '',
     grupo_nome: e.produtos?.grupos_produto?.nome ?? 'Sem Grupo',
     quantidade_atual: Number(e.quantidade ?? 0),
-    custo_unitario: Number(e.produtos?.custo_medio ?? 0),
-    valor_total: Number(e.quantidade ?? 0) * Number(e.produtos?.custo_medio ?? 0),
+    custo_unitario: Number(e.produtos?.preco_custo ?? 0),
+    valor_total: Number(e.quantidade ?? 0) * Number(e.produtos?.preco_custo ?? 0),
   }));
 
   const fopagData: Array<{ fechamento_id: string; competencia: string; salario_base?: number; proventos?: number; descontos?: number; valor_liquido?: number; funcionarios?: { nome: string } }> =
