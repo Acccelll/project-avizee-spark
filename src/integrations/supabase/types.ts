@@ -140,6 +140,13 @@ export type Database = {
             referencedRelation: "contas_bancarias"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "caixa_movimentos_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_bancos_saldo"
+            referencedColumns: ["id"]
+          },
         ]
       }
       cliente_registros_comunicacao: {
@@ -443,6 +450,13 @@ export type Database = {
             referencedRelation: "produtos"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "compras_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_estoque_posicao"
+            referencedColumns: ["produto_id"]
+          },
         ]
       }
       contas_bancarias: {
@@ -608,6 +622,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "produtos"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cotacoes_compra_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_estoque_posicao"
+            referencedColumns: ["produto_id"]
           },
         ]
       }
@@ -801,6 +822,203 @@ export type Database = {
             referencedRelation: "produtos"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "estoque_movimentos_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_estoque_posicao"
+            referencedColumns: ["produto_id"]
+          },
+        ]
+      }
+      fechamento_caixa_saldos: {
+        Row: {
+          competencia: string
+          conta_bancaria_id: string | null
+          created_at: string
+          fechamento_id: string | null
+          id: string
+          saldo: number
+        }
+        Insert: {
+          competencia: string
+          conta_bancaria_id?: string | null
+          created_at?: string
+          fechamento_id?: string | null
+          id?: string
+          saldo?: number
+        }
+        Update: {
+          competencia?: string
+          conta_bancaria_id?: string | null
+          created_at?: string
+          fechamento_id?: string | null
+          id?: string
+          saldo?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fechamento_caixa_saldos_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "contas_bancarias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fechamento_caixa_saldos_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_bancos_saldo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fechamento_caixa_saldos_fechamento_id_fkey"
+            columns: ["fechamento_id"]
+            isOneToOne: false
+            referencedRelation: "fechamentos_mensais"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fechamento_estoque_saldos: {
+        Row: {
+          competencia: string
+          created_at: string
+          fechamento_id: string | null
+          id: string
+          produto_id: string | null
+          quantidade: number
+          valor_custo: number
+        }
+        Insert: {
+          competencia: string
+          created_at?: string
+          fechamento_id?: string | null
+          id?: string
+          produto_id?: string | null
+          quantidade?: number
+          valor_custo?: number
+        }
+        Update: {
+          competencia?: string
+          created_at?: string
+          fechamento_id?: string | null
+          id?: string
+          produto_id?: string | null
+          quantidade?: number
+          valor_custo?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fechamento_estoque_saldos_fechamento_id_fkey"
+            columns: ["fechamento_id"]
+            isOneToOne: false
+            referencedRelation: "fechamentos_mensais"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fechamento_estoque_saldos_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produtos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fechamento_estoque_saldos_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_estoque_posicao"
+            referencedColumns: ["produto_id"]
+          },
+        ]
+      }
+      fechamento_financeiro_saldos: {
+        Row: {
+          competencia: string
+          created_at: string
+          fechamento_id: string | null
+          id: string
+          quantidade: number
+          saldo_total: number
+          tipo: string
+        }
+        Insert: {
+          competencia: string
+          created_at?: string
+          fechamento_id?: string | null
+          id?: string
+          quantidade?: number
+          saldo_total?: number
+          tipo: string
+        }
+        Update: {
+          competencia?: string
+          created_at?: string
+          fechamento_id?: string | null
+          id?: string
+          quantidade?: number
+          saldo_total?: number
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fechamento_financeiro_saldos_fechamento_id_fkey"
+            columns: ["fechamento_id"]
+            isOneToOne: false
+            referencedRelation: "fechamentos_mensais"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fechamento_fopag_resumo: {
+        Row: {
+          competencia: string
+          created_at: string
+          descontos: number
+          fechamento_id: string | null
+          funcionario_id: string | null
+          id: string
+          proventos: number
+          salario_base: number
+          valor_liquido: number
+        }
+        Insert: {
+          competencia: string
+          created_at?: string
+          descontos?: number
+          fechamento_id?: string | null
+          funcionario_id?: string | null
+          id?: string
+          proventos?: number
+          salario_base?: number
+          valor_liquido?: number
+        }
+        Update: {
+          competencia?: string
+          created_at?: string
+          descontos?: number
+          fechamento_id?: string | null
+          funcionario_id?: string | null
+          id?: string
+          proventos?: number
+          salario_base?: number
+          valor_liquido?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fechamento_fopag_resumo_fechamento_id_fkey"
+            columns: ["fechamento_id"]
+            isOneToOne: false
+            referencedRelation: "fechamentos_mensais"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fechamento_fopag_resumo_funcionario_id_fkey"
+            columns: ["funcionario_id"]
+            isOneToOne: false
+            referencedRelation: "funcionarios"
+            referencedColumns: ["id"]
+          },
         ]
       }
       fechamentos_mensais: {
@@ -879,10 +1097,31 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "financeiro_baixas_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_bancos_saldo"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "financeiro_baixas_lancamento_id_fkey"
             columns: ["lancamento_id"]
             isOneToOne: false
             referencedRelation: "financeiro_lancamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_baixas_lancamento_id_fkey"
+            columns: ["lancamento_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_aging_cp"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_baixas_lancamento_id_fkey"
+            columns: ["lancamento_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_aging_cr"
             referencedColumns: ["id"]
           },
         ]
@@ -988,6 +1227,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "financeiro_lancamentos_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_bancos_saldo"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "financeiro_lancamentos_conta_contabil_id_fkey"
             columns: ["conta_contabil_id"]
             isOneToOne: false
@@ -999,6 +1245,20 @@ export type Database = {
             columns: ["documento_pai_id"]
             isOneToOne: false
             referencedRelation: "financeiro_lancamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_lancamentos_documento_pai_id_fkey"
+            columns: ["documento_pai_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_aging_cp"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_lancamentos_documento_pai_id_fkey"
+            columns: ["documento_pai_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_aging_cr"
             referencedColumns: ["id"]
           },
           {
@@ -1794,6 +2054,13 @@ export type Database = {
             referencedRelation: "produtos"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "notas_fiscais_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_estoque_posicao"
+            referencedColumns: ["produto_id"]
+          },
         ]
       }
       orcamentos: {
@@ -1953,6 +2220,13 @@ export type Database = {
             referencedRelation: "produtos"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "orcamentos_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_estoque_posicao"
+            referencedColumns: ["produto_id"]
+          },
         ]
       }
       ordens_venda: {
@@ -2104,6 +2378,13 @@ export type Database = {
             referencedRelation: "produtos"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "ordens_venda_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_estoque_posicao"
+            referencedColumns: ["produto_id"]
+          },
         ]
       }
       pedidos_compra: {
@@ -2221,6 +2502,13 @@ export type Database = {
             referencedRelation: "produtos"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "pedidos_compra_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_estoque_posicao"
+            referencedColumns: ["produto_id"]
+          },
         ]
       }
       permission_audit: {
@@ -2299,6 +2587,13 @@ export type Database = {
             referencedRelation: "produtos"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "precos_especiais_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_estoque_posicao"
+            referencedColumns: ["produto_id"]
+          },
         ]
       }
       produto_composicoes: {
@@ -2335,11 +2630,25 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "produto_composicoes_produto_filho_id_fkey"
+            columns: ["produto_filho_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_estoque_posicao"
+            referencedColumns: ["produto_id"]
+          },
+          {
             foreignKeyName: "produto_composicoes_produto_pai_id_fkey"
             columns: ["produto_pai_id"]
             isOneToOne: false
             referencedRelation: "produtos"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "produto_composicoes_produto_pai_id_fkey"
+            columns: ["produto_pai_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_estoque_posicao"
+            referencedColumns: ["produto_id"]
           },
         ]
       }
@@ -2495,6 +2804,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "produtos"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "produtos_fornecedores_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_estoque_posicao"
+            referencedColumns: ["produto_id"]
           },
         ]
       }
@@ -3098,6 +3414,146 @@ export type Database = {
           status?: string | null
           validade?: string | null
           valor_total?: number | null
+        }
+        Relationships: []
+      }
+      vw_workbook_aging_cp: {
+        Row: {
+          data_vencimento: string | null
+          descricao: string | null
+          fornecedor_id: string | null
+          id: string | null
+          saldo_aberto: number | null
+          status: string | null
+          valor: number | null
+          valor_pago: number | null
+        }
+        Insert: {
+          data_vencimento?: string | null
+          descricao?: string | null
+          fornecedor_id?: string | null
+          id?: string | null
+          saldo_aberto?: never
+          status?: string | null
+          valor?: number | null
+          valor_pago?: never
+        }
+        Update: {
+          data_vencimento?: string | null
+          descricao?: string | null
+          fornecedor_id?: string | null
+          id?: string | null
+          saldo_aberto?: never
+          status?: string | null
+          valor?: number | null
+          valor_pago?: never
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financeiro_lancamentos_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "fornecedores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vw_workbook_aging_cr: {
+        Row: {
+          cliente_id: string | null
+          data_vencimento: string | null
+          descricao: string | null
+          id: string | null
+          saldo_aberto: number | null
+          status: string | null
+          valor: number | null
+          valor_pago: number | null
+        }
+        Insert: {
+          cliente_id?: string | null
+          data_vencimento?: string | null
+          descricao?: string | null
+          id?: string | null
+          saldo_aberto?: never
+          status?: string | null
+          valor?: number | null
+          valor_pago?: never
+        }
+        Update: {
+          cliente_id?: string | null
+          data_vencimento?: string | null
+          descricao?: string | null
+          id?: string | null
+          saldo_aberto?: never
+          status?: string | null
+          valor?: number | null
+          valor_pago?: never
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financeiro_lancamentos_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vw_workbook_bancos_saldo: {
+        Row: {
+          agencia: string | null
+          banco_nome: string | null
+          conta: string | null
+          descricao: string | null
+          id: string | null
+          saldo_atual: number | null
+        }
+        Relationships: []
+      }
+      vw_workbook_despesa_mensal: {
+        Row: {
+          competencia: string | null
+          quantidade: number | null
+          total_despesa: number | null
+          total_pago: number | null
+        }
+        Relationships: []
+      }
+      vw_workbook_estoque_posicao: {
+        Row: {
+          custo_unitario: number | null
+          grupo_id: string | null
+          grupo_nome: string | null
+          nome: string | null
+          produto_id: string | null
+          quantidade: number | null
+          sku: string | null
+          valor_total: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "produtos_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "grupos_produto"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vw_workbook_faturamento_mensal: {
+        Row: {
+          competencia: string | null
+          quantidade_nfs: number | null
+          total_faturado: number | null
+        }
+        Relationships: []
+      }
+      vw_workbook_receita_mensal: {
+        Row: {
+          competencia: string | null
+          quantidade: number | null
+          total_recebido: number | null
+          total_receita: number | null
         }
         Relationships: []
       }
