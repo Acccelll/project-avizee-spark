@@ -23,11 +23,14 @@ import { SLIDE_DEFINITIONS } from './slideDefinitions';
 /**
  * Merges THEME defaults with optional overrides coming from config_json.theme.
  * Unknown/invalid hex codes are silently ignored and the default is kept.
+ *
+ * @returns A complete ResolvedTheme with all fields populated from THEME defaults
+ *          merged with any valid overrides from the provided config.
  */
 export function resolveTheme(config: TemplateConfig | null | undefined): ResolvedTheme {
   const themeOverrides: TemplateThemeConfig = config?.theme ?? {};
 
-  // Only 6-char hex values (without #) are accepted as colour overrides.
+  // Only 6-char hex values (without #) are accepted as color overrides.
   function safeColor(override: string | undefined, fallback: string): string {
     if (!override) return fallback;
     return /^[0-9A-Fa-f]{6}$/.test(override) ? override : fallback;

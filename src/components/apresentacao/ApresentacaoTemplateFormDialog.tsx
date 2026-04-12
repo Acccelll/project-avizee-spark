@@ -98,7 +98,8 @@ function ColorField({
         <span
           className="w-7 h-7 rounded border border-input flex-shrink-0"
           style={{ backgroundColor: isValid ? `#${value}` : 'transparent' }}
-          aria-hidden="true"
+          aria-label={isValid ? `Prévia da cor #${value}` : 'Prévia indisponível — informe um código hexadecimal válido'}
+          role="img"
         />
         <Input
           id={id}
@@ -107,11 +108,14 @@ function ColorField({
           maxLength={6}
           placeholder="1F3864"
           className={!isValid && value.length > 0 ? 'border-destructive' : ''}
-          aria-label={label}
+          aria-label={`${label} — informe 6 dígitos hexadecimais sem o símbolo #, por exemplo 1F3864`}
+          aria-invalid={!isValid && value.length > 0}
         />
       </div>
       {!isValid && value.length > 0 && (
-        <p className="text-xs text-destructive">Informe 6 dígitos hexadecimais (sem #).</p>
+        <p className="text-xs text-destructive" role="alert">
+          Informe 6 dígitos hexadecimais (sem #), ex: 1F3864.
+        </p>
       )}
     </div>
   );
