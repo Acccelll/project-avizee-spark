@@ -49,6 +49,7 @@ const Funcionarios = lazy(() => import("./pages/Funcionarios"));
 const OrcamentoPublico = lazy(() => import("./pages/OrcamentoPublico"));
 const Conciliacao = lazy(() => import("./pages/Conciliacao"));
 const WorkbookGerencial = lazy(() => import("./pages/WorkbookGerencial"));
+const ApresentacaoGerencial = lazy(() => import("./pages/ApresentacaoGerencial"));
 const Social = lazy(() => import("./pages/Social"));
 
 // Redirect component that properly maps :id param
@@ -134,6 +135,7 @@ const App = () => (
             <Route path="/contas-contabeis-plano" element={<ProtectedRoute><LazyPage><ContasContabeis /></LazyPage></ProtectedRoute>} />
             <Route path="/conciliacao" element={<ProtectedRoute><LazyPage><Conciliacao /></LazyPage></ProtectedRoute>} />
             <Route path="/relatorios/workbook-gerencial" element={<ProtectedRoute><LazyPage><WorkbookGerencial /></LazyPage></ProtectedRoute>} />
+            <Route path="/relatorios/apresentacao-gerencial" element={<ProtectedRoute><LazyPage><ApresentacaoGerencial /></LazyPage></ProtectedRoute>} />
             <Route path="/social" element={<SocialRoute><LazyPage><Social /></LazyPage></SocialRoute>} />
             <Route path="*" element={<LazyPage><NotFound /></LazyPage>} />
           </Routes>

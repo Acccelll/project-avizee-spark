@@ -1,0 +1,347 @@
+/**
+ * Slide definitions catalogue for Apresentação Gerencial.
+ * V1 + V2 slides.
+ *
+ * Each slide declares its metadata, chart type, data dependencies,
+ * comment template, and lifecycle metadata (required/optional/hiddenWhenEmpty/
+ * modeSupport/dependsOn/order/fase/notaAutomacao).
+ *
+ * Rules:
+ *   - required: true  → template cannot deactivate this slide
+ *   - optional: true  → slide is OFF by default; must be explicitly enabled
+ *   - hiddenWhenEmpty → hide entirely instead of rendering a "no data" stub
+ *   - modeSupport     → which generation modes can supply real data
+ *   - notaAutomacao   → set when the slide needs manual/future data sources
+ */
+import type { SlideDefinition, ApresentacaoRawData } from '@/types/apresentacao';
+
+export const SLIDE_DEFINITIONS: SlideDefinition[] = [
+  // -------------------------------------------------------
+  // V1 slides
+  // -------------------------------------------------------
+  {
+    codigo: 'cover',
+    titulo: 'Fechamento Mensal',
+    subtitulo: 'Apresentação Gerencial — AviZee',
+    chartType: 'none',
+    datasets: [],
+    placeholders: ['periodo', 'empresa', 'data_geracao'],
+    comentarioTemplate: 'Apresentação gerencial referente ao período {periodo}.',
+    dependencias: [],
+    required: true,
+    modeSupport: 'both',
+    order: 0,
+    fase: 'v1',
+  },
+  {
+    codigo: 'highlights_financeiros',
+    titulo: 'Highlights Financeiros',
+    subtitulo: 'Visão geral do período',
+    chartType: 'kpi_card',
+    datasets: ['receita', 'despesa', 'resultado', 'recebido', 'pago'],
+    placeholders: ['total_receita', 'total_despesa', 'resultado_bruto', 'variacao_receita', 'variacao_despesa'],
+    comentarioTemplate: 'Receita {total_receita}; Despesa {total_despesa}; Resultado {resultado_bruto}.',
+    dependencias: ['highlights'],
+    required: true,
+    modeSupport: 'both',
+    order: 1,
+    fase: 'v1',
+  },
+  {
+    codigo: 'faturamento',
+    titulo: 'Faturamento',
+    subtitulo: 'Evolução mensal do faturamento',
+    chartType: 'coluna',
+    datasets: ['total_faturado', 'quantidade_nfs'],
+    placeholders: ['total_faturado', 'quantidade_nfs', 'variacao_faturamento'],
+    comentarioTemplate: 'Faturamento de {total_faturado} com {quantidade_nfs} notas emitidas.',
+    dependencias: ['faturamento'],
+    modeSupport: 'dinamico',
+    order: 2,
+    fase: 'v1',
+  },
+  {
+    codigo: 'despesas',
+    titulo: 'Despesas',
+    subtitulo: 'Distribuição e evolução das despesas',
+    chartType: 'barra_horizontal',
+    datasets: ['categoria', 'total_despesa'],
+    placeholders: ['total_despesa', 'maior_categoria', 'variacao_despesa'],
+    comentarioTemplate: 'Total de despesas: {total_despesa}. Maior categoria: {maior_categoria}.',
+    dependencias: ['despesas'],
+    modeSupport: 'dinamico',
+    order: 3,
+    fase: 'v1',
+  },
+  {
+    codigo: 'rol_caixa',
+    titulo: 'Caixa / ROL',
+    subtitulo: 'Posição de caixa e contas bancárias',
+    chartType: 'tabela',
+    datasets: ['conta_descricao', 'banco_nome', 'saldo_atual'],
+    placeholders: ['saldo_total', 'quantidade_contas'],
+    comentarioTemplate: 'Saldo total em caixa: {saldo_total} distribuído em {quantidade_contas} contas.',
+    dependencias: ['rolCaixa'],
+    modeSupport: 'both',
+    order: 4,
+    fase: 'v1',
+  },
+  {
+    codigo: 'receita_vs_despesa',
+    titulo: 'Receita vs Despesa',
+    subtitulo: 'Comparativo mensal',
+    chartType: 'linha',
+    datasets: ['total_receita', 'total_despesa', 'resultado_bruto'],
+    placeholders: ['total_receita', 'total_despesa', 'resultado_bruto'],
+    comentarioTemplate: 'Receita {total_receita} vs Despesa {total_despesa}. Resultado: {resultado_bruto}.',
+    dependencias: ['receitaVsDespesa'],
+    modeSupport: 'both',
+    order: 5,
+    fase: 'v1',
+  },
+  {
+    codigo: 'fopag',
+    titulo: 'FOPAG',
+    subtitulo: 'Folha de pagamento',
+    chartType: 'tabela',
+    datasets: ['funcionario_nome', 'salario_base', 'proventos', 'descontos', 'valor_liquido'],
+    placeholders: ['total_liquido', 'quantidade_funcionarios'],
+    comentarioTemplate: 'Folha de pagamento: {quantidade_funcionarios} funcionários, total líquido {total_liquido}.',
+    dependencias: ['fopag'],
+    modeSupport: 'both',
+    order: 6,
+    fase: 'v1',
+  },
+  {
+    codigo: 'fluxo_caixa',
+    titulo: 'Fluxo de Caixa',
+    subtitulo: 'Entradas e saídas do período',
+    chartType: 'coluna',
+    datasets: ['total_entradas', 'total_saidas', 'saldo_periodo'],
+    placeholders: ['total_entradas', 'total_saidas', 'saldo_periodo'],
+    comentarioTemplate: 'Entradas {total_entradas}, saídas {total_saidas}. Saldo: {saldo_periodo}.',
+    dependencias: ['fluxoCaixa'],
+    modeSupport: 'both',
+    order: 7,
+    fase: 'v1',
+  },
+  {
+    codigo: 'lucro_produto_cliente',
+    titulo: 'Lucro por Produto e Cliente',
+    subtitulo: 'Top produtos e clientes por margem',
+    chartType: 'barra_horizontal',
+    datasets: ['produto_nome', 'cliente_nome', 'margem_bruta'],
+    placeholders: ['top_produto', 'top_cliente', 'margem_total'],
+    comentarioTemplate: 'Maior margem: produto {top_produto}, cliente {top_cliente}.',
+    dependencias: ['lucro'],
+    optional: true,
+    hiddenWhenEmpty: true,
+    modeSupport: 'dinamico',
+    condicaoExibicao: (data: ApresentacaoRawData) => data.lucro.length > 0,
+    order: 8,
+    fase: 'v1',
+  },
+  {
+    codigo: 'variacao_estoque',
+    titulo: 'Variação de Estoque',
+    subtitulo: 'Posição e valor do estoque',
+    chartType: 'tabela',
+    datasets: ['produto_nome', 'grupo_nome', 'quantidade_atual', 'valor_total'],
+    placeholders: ['valor_total_estoque', 'quantidade_itens'],
+    comentarioTemplate: 'Estoque valorizado em {valor_total_estoque} com {quantidade_itens} itens ativos.',
+    dependencias: ['estoque'],
+    modeSupport: 'both',
+    order: 9,
+    fase: 'v1',
+  },
+  {
+    codigo: 'venda_estado',
+    titulo: 'Venda por Estado',
+    subtitulo: 'Distribuição geográfica das vendas',
+    chartType: 'barra_horizontal',
+    datasets: ['estado', 'total_vendas', 'quantidade_pedidos'],
+    placeholders: ['top_estado', 'total_estados', 'total_vendas'],
+    comentarioTemplate: 'Principal mercado: {top_estado}. Total de {total_estados} estados atendidos.',
+    dependencias: ['vendaEstado'],
+    optional: true,
+    hiddenWhenEmpty: true,
+    modeSupport: 'dinamico',
+    condicaoExibicao: (data: ApresentacaoRawData) => data.vendaEstado.length > 0,
+    order: 10,
+    fase: 'v1',
+  },
+  {
+    codigo: 'redes_sociais',
+    titulo: 'Redes Sociais',
+    subtitulo: 'Performance nas plataformas digitais',
+    chartType: 'tabela',
+    datasets: ['plataforma', 'metrica', 'valor'],
+    placeholders: ['plataformas_ativas'],
+    comentarioTemplate: 'Dados de redes sociais: {plataformas_ativas} plataformas monitoradas.',
+    dependencias: ['redesSociais'],
+    optional: true,
+    hiddenWhenEmpty: true,
+    modeSupport: 'dinamico',
+    condicaoExibicao: (data: ApresentacaoRawData) => data.redesSociais.length > 0,
+    order: 11,
+    fase: 'v1',
+  },
+
+  // -------------------------------------------------------
+  // V2 slides
+  // -------------------------------------------------------
+
+  {
+    codigo: 'aging_consolidado',
+    titulo: 'Aging Consolidado',
+    subtitulo: 'Contas a receber e a pagar por faixa de vencimento',
+    chartType: 'barra_horizontal',
+    datasets: ['faixa_aging', 'saldo_aberto', 'tipo'],
+    placeholders: ['total_vencer', 'total_vencido', 'faixa_maior'],
+    comentarioTemplate: 'Posição de aging: {total_vencido} vencidos vs {total_vencer} a vencer.',
+    dependencias: ['aging'],
+    optional: true,
+    hiddenWhenEmpty: true,
+    modeSupport: 'both',
+    condicaoExibicao: (data: ApresentacaoRawData) => data.aging.length > 0,
+    order: 12,
+    fase: 'v2',
+  },
+  {
+    codigo: 'inadimplencia',
+    titulo: 'Inadimplência',
+    subtitulo: 'Títulos vencidos por faixa de atraso',
+    chartType: 'barra_horizontal',
+    datasets: ['faixa_atraso', 'saldo_inadimplente', 'quantidade_titulos'],
+    placeholders: ['total_inadimplente', 'clientes_inadimplentes', 'maior_faixa'],
+    comentarioTemplate: 'Inadimplência total: R$ {total_inadimplente} em {clientes_inadimplentes} clientes.',
+    dependencias: ['inadimplencia'],
+    optional: true,
+    hiddenWhenEmpty: true,
+    modeSupport: 'both',
+    condicaoExibicao: (data: ApresentacaoRawData) => data.inadimplencia.length > 0,
+    order: 13,
+    fase: 'v2',
+  },
+  {
+    codigo: 'backorder',
+    titulo: 'Backorder / Pedidos Pendentes',
+    subtitulo: 'Carteira de pedidos aguardando faturamento',
+    chartType: 'tabela',
+    datasets: ['cliente_nome', 'status', 'valor_total', 'dias_em_aberto'],
+    placeholders: ['total_backorder', 'total_pedidos', 'maior_dias'],
+    comentarioTemplate: 'Backorder: {total_pedidos} pedidos totalizando R$ {total_backorder}.',
+    dependencias: ['backorder'],
+    optional: true,
+    hiddenWhenEmpty: true,
+    modeSupport: 'dinamico',
+    condicaoExibicao: (data: ApresentacaoRawData) => data.backorder.length > 0,
+    order: 14,
+    fase: 'v2',
+  },
+  {
+    codigo: 'top_clientes',
+    titulo: 'Clientes em Destaque',
+    subtitulo: 'Top clientes por volume de vendas no período',
+    chartType: 'barra_horizontal',
+    datasets: ['cliente_nome', 'total_vendas', 'ticket_medio'],
+    placeholders: ['top_cliente', 'concentracao_top5'],
+    comentarioTemplate: 'Principal cliente: {top_cliente}. Top 5 representam {concentracao_top5} do faturamento.',
+    dependencias: ['topClientes'],
+    optional: true,
+    hiddenWhenEmpty: true,
+    modeSupport: 'dinamico',
+    condicaoExibicao: (data: ApresentacaoRawData) => data.topClientes.length > 0,
+    order: 15,
+    fase: 'v2',
+  },
+  {
+    codigo: 'top_fornecedores',
+    titulo: 'Fornecedores em Destaque',
+    subtitulo: 'Top fornecedores por volume de compras no período',
+    chartType: 'barra_horizontal',
+    datasets: ['fornecedor_nome', 'total_compras', 'total_pago'],
+    placeholders: ['top_fornecedor', 'concentracao_top5'],
+    comentarioTemplate: 'Principal fornecedor: {top_fornecedor}. Top 5 representam {concentracao_top5} das compras.',
+    dependencias: ['topFornecedores'],
+    optional: true,
+    hiddenWhenEmpty: true,
+    modeSupport: 'both',
+    condicaoExibicao: (data: ApresentacaoRawData) => data.topFornecedores.length > 0,
+    order: 16,
+    fase: 'v2',
+  },
+  {
+    codigo: 'dre_gerencial',
+    titulo: 'DRE Gerencial',
+    subtitulo: 'Demonstração de Resultado do Exercício',
+    chartType: 'tabela',
+    datasets: ['linha_dre', 'valor_total'],
+    placeholders: ['receita_liquida', 'ebitda', 'resultado_liquido'],
+    comentarioTemplate: 'DRE Gerencial: receita líquida R$ {receita_liquida}, EBITDA R$ {ebitda}.',
+    dependencias: ['dreGerencial'],
+    optional: true,
+    hiddenWhenEmpty: true,
+    modeSupport: 'both',
+    condicaoExibicao: (data: ApresentacaoRawData) => data.dreGerencial.length > 0,
+    order: 17,
+    fase: 'v2',
+    notaAutomacao:
+      'Requer preenchimento do mapeamento_gerencial_contas para associar lançamentos financeiros às linhas da DRE.',
+  },
+  {
+    codigo: 'resultado_financeiro',
+    titulo: 'Resultado Financeiro',
+    subtitulo: 'Receitas e despesas financeiras do período',
+    chartType: 'coluna',
+    datasets: ['grupo', 'valor_total', 'tipo'],
+    placeholders: ['resultado_total'],
+    comentarioTemplate: 'Resultado financeiro líquido: R$ {resultado_total}.',
+    dependencias: ['resultadoFinanceiro'],
+    optional: true,
+    hiddenWhenEmpty: true,
+    modeSupport: 'both',
+    condicaoExibicao: (data: ApresentacaoRawData) => data.resultadoFinanceiro.length > 0,
+    order: 18,
+    fase: 'v2',
+    notaAutomacao:
+      'Requer preenchimento do campo grupo_resultado_financeiro em mapeamento_gerencial_contas.',
+  },
+  {
+    codigo: 'tributos',
+    titulo: 'Tributos',
+    subtitulo: 'Impostos e contribuições do período',
+    chartType: 'tabela',
+    datasets: ['grupo_tributo', 'valor_total', 'valor_pago'],
+    placeholders: ['total_tributos'],
+    comentarioTemplate: 'Total de tributos: R$ {total_tributos}.',
+    dependencias: ['tributos'],
+    optional: true,
+    hiddenWhenEmpty: true,
+    modeSupport: 'both',
+    condicaoExibicao: (data: ApresentacaoRawData) => data.tributos.length > 0,
+    order: 19,
+    fase: 'v2',
+    notaAutomacao:
+      'Requer preenchimento do campo grupo_tributo em mapeamento_gerencial_contas.',
+  },
+];
+
+export function getSlideByCode(codigo: string): SlideDefinition | undefined {
+  return SLIDE_DEFINITIONS.find((s) => s.codigo === codigo);
+}
+
+/** Returns only V1 slides (default set, no optional). */
+export function getV1Slides(): SlideDefinition[] {
+  return SLIDE_DEFINITIONS.filter((s) => s.fase === 'v1' && !s.optional);
+}
+
+/** Returns slides that are active by default (required + non-optional V1). */
+export function getDefaultSlides(): SlideDefinition[] {
+  return SLIDE_DEFINITIONS.filter((s) => !s.optional);
+}
+
+/** Returns V2 slides that are fully automated (no notaAutomacao). */
+export function getV2AutomatedSlides(): SlideDefinition[] {
+  return SLIDE_DEFINITIONS.filter((s) => s.fase === 'v2' && !s.notaAutomacao);
+}
