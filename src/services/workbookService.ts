@@ -32,12 +32,16 @@ export async function listarFechamentos(): Promise<FechamentoMensal[]> {
   return (data ?? []) as FechamentoMensal[];
 }
 
+/**
+ * Generates a workbook, saves the artifact to storage, and updates the generation record.
+ */
 export async function gerarWorkbook(
   parametros: WorkbookParametros,
   userId: string | undefined
 ): Promise<{ blob: Blob; geracaoId: string }> {
   const hash = hashParametros(parametros as unknown as Record<string, unknown>);
 
+  // Create generation record with status 'gerando'
   const { data: geracao, error: geracaoError } = await (supabase as any)
     .from('workbook_geracoes')
     .insert({
@@ -56,28 +60,44 @@ export async function gerarWorkbook(
   if (geracaoError) throw geracaoError;
 
   try {
-    if (parametros.modoGeracao === 'fechado') {
-      const { data: fechamentos } = await (supabase as any)
-        .from('fechamentos_mensais')
-        .select('id, competencia, status')
-        .gte('competencia', parametros.competenciaInicial)
-        .lte('competencia', parametros.competenciaFinal)
-        .eq('status', 'fechado');
-
-      if (!fechamentos || fechamentos.length === 0) {
-        throw new Error('Modo fechado requer fechamentos mensais concluídos para o período selecionado.');
-      }
-    }
-
+    // Generate the workbook blob
     const blob = await generateWorkbook({ parametros, geracaoId: geracao.id });
 
+    // Try to save artifact to storage
+    let arquivoPath: string | null = null;
+    try {
+      const filename = `workbook_${geracao.id}.xlsx`;
+      const storagePath = `workbooks/${filename}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('dbavizee')
+        .upload(storagePath, blob, {
+          contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          upsert: true,
+        });
+      
+      if (!uploadError) {
+        arquivoPath = storagePath;
+      } else {
+        console.warn('Falha ao salvar artefato no storage:', uploadError.message);
+      }
+    } catch (storageErr) {
+      console.warn('Storage não disponível para salvar artefato:', storageErr);
+    }
+
+    // Update generation record with success
     await (supabase as any)
       .from('workbook_geracoes')
-      .update({ status: 'concluido', updated_at: new Date().toISOString() })
+      .update({
+        status: 'concluido',
+        arquivo_path: arquivoPath,
+        updated_at: new Date().toISOString(),
+      })
       .eq('id', geracao.id);
 
     return { blob, geracaoId: geracao.id };
   } catch (err) {
+    // Update generation record with error
     await (supabase as any)
       .from('workbook_geracoes')
       .update({
@@ -88,6 +108,52 @@ export async function gerarWorkbook(
       .eq('id', geracao.id);
     throw err;
   }
+}
+
+/**
+ * Downloads a previously generated workbook from storage.
+ * Falls back to regeneration if the artifact is not available.
+ */
+export async function downloadGeracao(geracao: WorkbookGeracao): Promise<Blob> {
+  // Try to download from storage first
+  if (geracao.arquivo_path) {
+    try {
+      const { data, error } = await supabase.storage
+        .from('dbavizee')
+        .download(geracao.arquivo_path);
+      
+      if (!error && data) {
+        return data;
+      }
+    } catch {
+      console.warn('Falha ao baixar artefato do storage, regenerando...');
+    }
+  }
+
+  // Fallback: regenerate (for legacy records without saved artifacts)
+  if (!geracao.parametros_json) {
+    throw new Error('Parâmetros da geração não encontrados. Não é possível regenerar.');
+  }
+
+  const params = geracao.parametros_json as {
+    templateId?: string;
+    competenciaInicial?: string;
+    competenciaFinal?: string;
+    modoGeracao?: 'dinamico' | 'fechado';
+  };
+
+  const blob = await generateWorkbook({
+    parametros: {
+      templateId: params.templateId ?? '',
+      competenciaInicial: params.competenciaInicial ?? '',
+      competenciaFinal: params.competenciaFinal ?? '',
+      modoGeracao: params.modoGeracao ?? 'dinamico',
+      abasSelecionadas: [],
+    },
+    geracaoId: geracao.id,
+  });
+
+  return blob;
 }
 
 export function downloadBlob(blob: Blob, filename: string): void {
