@@ -6,14 +6,33 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { formatCurrency, formatDate } from "@/lib/format";
+import { getUserFriendlyError } from "@/utils/errorMessages";
 import { processarDevolucao } from "@/services/fiscal.service";
+
+/** Minimal shape of the originating NF used by the devolução flow. */
+export interface NfSimples {
+  id: string;
+  numero: string;
+  data_emissao: string;
+  valor_total: number;
+  clientes?: { nome_razao_social: string } | null;
+}
+
+/** One line-item with the extra field for how many units to return. */
+export interface NfItemDevolver {
+  id: string;
+  nome: string;
+  quantidade: number;
+  valor_unitario: number;
+  qtd_devolver: number;
+}
 
 interface DevolucaoDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  devolucaoNF: any | null;
-  devolucaoItens: any[];
-  setDevolucaoItens: (itens: any[]) => void;
+  devolucaoNF: NfSimples | null;
+  devolucaoItens: NfItemDevolver[];
+  setDevolucaoItens: (itens: NfItemDevolver[]) => void;
   onSuccess: () => void;
 }
 
@@ -22,11 +41,11 @@ export function DevolucaoDialog({ open, onOpenChange, devolucaoNF, devolucaoIten
   const [motivoDevolucao, setMotivoDevolucao] = useState("");
   const [processing, setProcessing] = useState(false);
 
-  const valorTotalDevolucao = devolucaoItens.reduce((s: number, i: any) => s + (i.qtd_devolver || 0) * Number(i.valor_unitario), 0);
+  const valorTotalDevolucao = devolucaoItens.reduce((s, i) => s + (i.qtd_devolver || 0) * Number(i.valor_unitario), 0);
 
   const handleDevolucao = async () => {
     if (!devolucaoNF) return;
-    const itensDevolver = devolucaoItens.filter((i: any) => i.qtd_devolver > 0);
+    const itensDevolver = devolucaoItens.filter((i) => i.qtd_devolver > 0);
     if (itensDevolver.length === 0) { toast.error("Selecione ao menos um item para devolver"); return; }
     if (!motivoDevolucao.trim()) { toast.error("Informe o motivo da devolução"); return; }
     setProcessing(true);
@@ -35,9 +54,9 @@ export function DevolucaoDialog({ open, onOpenChange, devolucaoNF, devolucaoIten
       toast.success("Nota de devolução criada e estoque revertido!");
       onOpenChange(false);
       onSuccess();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("[fiscal] devolução:", err);
-      toast.error("Erro ao gerar devolução");
+      toast.error(getUserFriendlyError(err));
     }
     setProcessing(false);
   };
@@ -85,7 +104,7 @@ export function DevolucaoDialog({ open, onOpenChange, devolucaoNF, devolucaoIten
                 </tr>
               </thead>
               <tbody>
-                {devolucaoItens.map((item: any, idx: number) => (
+                {devolucaoItens.map((item, idx) => (
                   <tr key={idx} className={idx % 2 === 0 ? "bg-muted/20" : ""}>
                     <td className="px-3 py-2 text-xs">{item.nome}</td>
                     <td className="px-3 py-2 text-xs text-right font-mono">{item.quantidade}</td>
@@ -95,7 +114,7 @@ export function DevolucaoDialog({ open, onOpenChange, devolucaoNF, devolucaoIten
                         value={item.qtd_devolver}
                         onChange={(e) => {
                           const val = Math.min(Number(e.target.value), item.quantidade);
-                          setDevolucaoItens(devolucaoItens.map((it: any, i: number) => i === idx ? { ...it, qtd_devolver: Math.max(0, val) } : it));
+                          setDevolucaoItens(devolucaoItens.map((it, i) => i === idx ? { ...it, qtd_devolver: Math.max(0, val) } : it));
                         }}
                       />
                     </td>
@@ -127,8 +146,8 @@ export function DevolucaoDialog({ open, onOpenChange, devolucaoNF, devolucaoIten
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={processing}>Cancelar</Button>
-          <Button onClick={handleDevolucao} disabled={processing || valorTotalDevolucao <= 0}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={processing} aria-label="Cancelar devolução">Cancelar</Button>
+          <Button onClick={handleDevolucao} disabled={processing || valorTotalDevolucao <= 0} aria-label="Confirmar geração de nota de devolução">
             {processing ? "Processando..." : "Confirmar Devolução"}
           </Button>
         </DialogFooter>

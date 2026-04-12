@@ -55,12 +55,18 @@ export interface NotaFiscalForEdit {
   ordens_venda?: { numero: string };
 }
 
+/** Minimal shape for dropdown options – the full row may have more fields. */
+interface FornecedorOpt { id: string; nome_razao_social: string; cpf_cnpj?: string | null }
+interface ClienteOpt    { id: string; nome_razao_social: string; cpf_cnpj?: string | null }
+interface OrdemVendaOpt { id: string; numero: string; clientes?: { nome_razao_social: string } | null }
+interface ContaContabilOpt { id: string; codigo: string; descricao: string }
+
 interface NotaFiscalEditModalProps {
   open: boolean;
   onClose: () => void;
   selected: NotaFiscalForEdit;
-  form: Record<string, any>;
-  setForm: (f: Record<string, any>) => void;
+  form: Record<string, unknown>;
+  setForm: (f: Record<string, unknown>) => void;
   items: GridItem[];
   setItems: (items: GridItem[]) => void;
   itemContaContabil: Record<number, string>;
@@ -73,11 +79,11 @@ interface NotaFiscalEditModalProps {
   onSubmit: (e: FormEvent) => void;
   onSaveAndConfirm?: () => void;
   onCancelarRascunho?: () => void;
-  fornecedores: any[];
-  clientes: any[];
-  ordensVenda: any[];
-  contasContabeis: any[];
-  produtosCrud: any[];
+  fornecedores: FornecedorOpt[];
+  clientes: ClienteOpt[];
+  ordensVenda: OrdemVendaOpt[];
+  contasContabeis: ContaContabilOpt[];
+  produtosCrud: GridItem[];
   valorProdutos: number;
   totalImpostos: number;
   totalNF: number;
@@ -439,7 +445,7 @@ export function NotaFiscalEditModal({
                         Fornecedor
                       </Label>
                       <AutocompleteSearch
-                        options={fornecedores.map((f: any) => ({
+                        options={fornecedores.map((f) => ({
                           id: f.id,
                           label: f.nome_razao_social,
                           sublabel: f.cpf_cnpj,
@@ -455,7 +461,7 @@ export function NotaFiscalEditModal({
                     <div className="space-y-2">
                       <Label className="text-sm font-semibold">Cliente</Label>
                       <AutocompleteSearch
-                        options={clientes.map((c: any) => ({
+                        options={clientes.map((c) => ({
                           id: c.id,
                           label: c.nome_razao_social,
                           sublabel: c.cpf_cnpj,
@@ -485,8 +491,8 @@ export function NotaFiscalEditModal({
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="none">Nenhum</SelectItem>
-                          {ordensVenda.map((ov: any) => (
-                            <SelectItem key={ov.id} value={ov.id}>
+                          {ordensVenda.map((ov) => (
+                              <SelectItem key={ov.id} value={ov.id}>
                               {ov.numero} —{" "}
                               {ov.clientes?.nome_razao_social || ""}
                             </SelectItem>
@@ -626,7 +632,7 @@ export function NotaFiscalEditModal({
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="none">Nenhuma</SelectItem>
-                            {contasContabeis.map((c: any) => (
+                            {contasContabeis.map((c) => (
                               <SelectItem key={c.id} value={c.id}>
                                 {c.codigo} - {c.descricao}
                               </SelectItem>
@@ -950,7 +956,7 @@ export function NotaFiscalEditModal({
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="none">Nenhuma</SelectItem>
-                          {contasContabeis.map((c: any) => (
+                          {contasContabeis.map((c) => (
                             <SelectItem key={c.id} value={c.id}>
                               {c.codigo} - {c.descricao}
                             </SelectItem>

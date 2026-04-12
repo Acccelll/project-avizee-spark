@@ -14,6 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { CertificadoValidadeAlert } from "@/components/fiscal/CertificadoValidadeAlert";
+import { EmptyState } from "@/components/ui/empty-state";
 import type { Database } from "@/integrations/supabase/types";
 
 type NotaFiscalRow = Database["public"]["Tables"]["notas_fiscais"]["Row"];
@@ -159,8 +160,8 @@ export default function Cte() {
               </TableRow>
             ) : (ctes ?? []).length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground">
-                  Nenhum CT-e encontrado.
+                <TableCell colSpan={5} className="py-0">
+                  <EmptyState title="Nenhum CT-e encontrado" description="Tente ajustar os filtros ou emita um novo CT-e." />
                 </TableCell>
               </TableRow>
             ) : (

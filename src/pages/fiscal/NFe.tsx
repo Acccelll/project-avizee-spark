@@ -19,6 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { CertificadoValidadeAlert } from "@/components/fiscal/CertificadoValidadeAlert";
+import { EmptyState } from "@/components/ui/empty-state";
 import { NFeForm } from "./components/NFeForm";
 import { SefazRetornoModal } from "./components/SefazRetornoModal";
 import { useNFe, useNFeMutation } from "./hooks/useNFe";
@@ -134,15 +135,15 @@ export default function NFe() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Nota Fiscal Eletrônica (NF-e)</h1>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleExportarExcel}>
+          <Button variant="outline" size="sm" onClick={handleExportarExcel} aria-label="Exportar NF-e para Excel">
             <Download className="mr-2 h-4 w-4" />
             Exportar Excel
           </Button>
-          <Button variant="outline" size="sm" onClick={handleExportarPdf}>
+          <Button variant="outline" size="sm" onClick={handleExportarPdf} aria-label="Exportar NF-e para PDF">
             <Download className="mr-2 h-4 w-4" />
             Exportar PDF
           </Button>
-          <Button onClick={() => setFormAberto(true)}>
+          <Button onClick={() => setFormAberto(true)} aria-label="Nova NF-e">
             <Plus className="mr-2 h-4 w-4" />
             Nova NF-e
           </Button>
@@ -204,8 +205,8 @@ export default function NFe() {
               </TableRow>
             ) : (nfes ?? []).length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground">
-                  Nenhuma NF-e encontrada.
+                <TableCell colSpan={5} className="py-0">
+                  <EmptyState title="Nenhuma NF-e encontrada" description="Tente ajustar os filtros ou emita uma nova NF-e." />
                 </TableCell>
               </TableRow>
             ) : (
