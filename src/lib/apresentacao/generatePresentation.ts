@@ -1,5 +1,5 @@
 /**
- * PPTX generation engine for Apresentação Gerencial.
+ * PPTX generation engine for Apresentação Gerencial — V1 + V2.
  * Uses pptxgenjs to produce a real .pptx file programmatically.
  * Template-driven: theme and slide definitions centralized.
  */
@@ -17,6 +17,7 @@ import {
   formatCurrencyBR,
   formatCompetencia,
   topN,
+  sumValues,
 } from './utils';
 import { getEfectiveComentario } from './commentRules';
 
@@ -445,7 +446,8 @@ function buildUnavailableSlide(
   subtitulo: string,
   periodo: string,
   empresaNome: string,
-  theme: ResolvedTheme
+  theme: ResolvedTheme,
+  notaAutomacao?: string
 ): void {
   const slide = pptx.addSlide();
   const W = theme.slide.widthInches;
@@ -453,17 +455,21 @@ function buildUnavailableSlide(
   addSlideHeader(slide, titulo, subtitulo, theme);
   addSlideFooter(slide, periodo, empresaNome, theme);
   slide.addShape(PptxGenJS.ShapeType.rect, {
-    x: 1.5, y: 2.0, w: W - 3, h: 2.0,
+    x: 1.5, y: 2.0, w: W - 3, h: 2.2,
     fill: { color: theme.colors.lightGray },
     line: { color: 'D0D0D0', pt: 1 },
   });
-  slide.addText('⚠️ Dados não automatizados nesta V1 / Dados indisponíveis', {
-    x: 1.5, y: 2.0, w: W - 3, h: 2.0,
-    fontSize: 14,
+  const msg = notaAutomacao
+    ? `⚙️ ${notaAutomacao}`
+    : '⚠️ Dados indisponíveis para o período selecionado.';
+  slide.addText(msg, {
+    x: 1.5, y: 2.0, w: W - 3, h: 2.2,
+    fontSize: 12,
     color: theme.colors.mediumGray,
     align: 'center',
     valign: 'middle',
     fontFace: theme.fonts.body,
+    wrap: true,
   });
 }
 
@@ -657,6 +663,153 @@ export async function generatePresentation(
           buildUnavailableSlide(pptx, titulo, subtitulo, periodo, empresaNome, theme);
         }
         break;
+
+      // -------------------------------------------------------
+      // V2 slide builders
+      // -------------------------------------------------------
+
+      case 'aging_consolidado': {
+        if (data.aging.length > 0) {
+          const byFaixa = data.aging.reduce<Record<string, { rec: number; pag: number }>>((acc, a) => {
+            acc[a.faixa_aging] = acc[a.faixa_aging] ?? { rec: 0, pag: 0 };
+            if (a.tipo === 'receber') acc[a.faixa_aging].rec += a.saldo_aberto;
+            else acc[a.faixa_aging].pag += a.saldo_aberto;
+            return acc;
+          }, {});
+          const faixas = Object.keys(byFaixa);
+          buildColumnChartSlide(
+            pptx, titulo, subtitulo,
+            faixas,
+            [
+              { name: 'CR — A receber (R$)', values: faixas.map((f) => byFaixa[f].rec) },
+              { name: 'CP — A pagar (R$)', values: faixas.map((f) => byFaixa[f].pag) },
+            ],
+            periodo, empresaNome, getComment(comentarios, 'aging_consolidado'), theme
+          );
+        } else {
+          buildUnavailableSlide(pptx, titulo, subtitulo, periodo, empresaNome, theme);
+        }
+        break;
+      }
+
+      case 'inadimplencia': {
+        if (data.inadimplencia.length > 0) {
+          const sorted = [...data.inadimplencia].sort((a, b) => b.saldo_inadimplente - a.saldo_inadimplente);
+          buildHBarChartSlide(
+            pptx, titulo, subtitulo,
+            sorted.map((i) => i.faixa_atraso),
+            sorted.map((i) => i.saldo_inadimplente),
+            periodo, empresaNome, getComment(comentarios, 'inadimplencia'), theme
+          );
+        } else {
+          buildUnavailableSlide(pptx, titulo, subtitulo, periodo, empresaNome, theme);
+        }
+        break;
+      }
+
+      case 'backorder': {
+        if (data.backorder.length > 0) {
+          const headers = ['Cliente', 'Status', 'Valor (R$)', 'Dias em Aberto'];
+          const rows = data.backorder.slice(0, 20).map((b) => [
+            b.cliente_nome,
+            b.status,
+            formatCurrencyBR(b.valor_total),
+            String(b.dias_em_aberto),
+          ]);
+          buildTableSlide(pptx, titulo, subtitulo, headers, rows, periodo, empresaNome, getComment(comentarios, 'backorder'), theme);
+        } else {
+          buildUnavailableSlide(pptx, titulo, subtitulo, periodo, empresaNome, theme);
+        }
+        break;
+      }
+
+      case 'top_clientes': {
+        if (data.topClientes.length > 0) {
+          const top = topN(data.topClientes, 'total_vendas', 10);
+          buildHBarChartSlide(
+            pptx, titulo, subtitulo,
+            top.map((c) => c.cliente_nome),
+            top.map((c) => c.total_vendas),
+            periodo, empresaNome, getComment(comentarios, 'top_clientes'), theme
+          );
+        } else {
+          buildUnavailableSlide(pptx, titulo, subtitulo, periodo, empresaNome, theme);
+        }
+        break;
+      }
+
+      case 'top_fornecedores': {
+        if (data.topFornecedores.length > 0) {
+          const top = topN(data.topFornecedores, 'total_compras', 10);
+          buildHBarChartSlide(
+            pptx, titulo, subtitulo,
+            top.map((f) => f.fornecedor_nome),
+            top.map((f) => f.total_compras),
+            periodo, empresaNome, getComment(comentarios, 'top_fornecedores'), theme
+          );
+        } else {
+          buildUnavailableSlide(pptx, titulo, subtitulo, periodo, empresaNome, theme);
+        }
+        break;
+      }
+
+      case 'dre_gerencial': {
+        const def = SLIDE_DEFINITIONS.find((d) => d.codigo === 'dre_gerencial');
+        if (data.dreGerencial.length > 0) {
+          const byLinha = data.dreGerencial.reduce<Record<string, number>>((acc, d) => {
+            acc[d.linha_dre] = (acc[d.linha_dre] ?? 0) + d.valor_total;
+            return acc;
+          }, {});
+          const headers = ['Linha DRE', 'Valor (R$)'];
+          const rows = Object.entries(byLinha)
+            .sort((a, b) => b[1] - a[1])
+            .map(([linha, valor]) => [linha, formatCurrencyBR(valor)]);
+          buildTableSlide(pptx, titulo, subtitulo, headers, rows, periodo, empresaNome, getComment(comentarios, 'dre_gerencial'), theme);
+        } else {
+          buildUnavailableSlide(pptx, titulo, subtitulo, periodo, empresaNome, theme, def?.notaAutomacao);
+        }
+        break;
+      }
+
+      case 'resultado_financeiro': {
+        const defRF = SLIDE_DEFINITIONS.find((d) => d.codigo === 'resultado_financeiro');
+        if (data.resultadoFinanceiro.length > 0) {
+          const recGrupos = data.resultadoFinanceiro.reduce<Record<string, number>>((acc, r) => {
+            const sign = r.tipo === 'receber' ? 1 : -1;
+            acc[r.grupo] = (acc[r.grupo] ?? 0) + r.valor_total * sign;
+            return acc;
+          }, {});
+          buildHBarChartSlide(
+            pptx, titulo, subtitulo,
+            Object.keys(recGrupos),
+            Object.values(recGrupos),
+            periodo, empresaNome, getComment(comentarios, 'resultado_financeiro'), theme
+          );
+        } else {
+          buildUnavailableSlide(pptx, titulo, subtitulo, periodo, empresaNome, theme, defRF?.notaAutomacao);
+        }
+        break;
+      }
+
+      case 'tributos': {
+        const defTrib = SLIDE_DEFINITIONS.find((d) => d.codigo === 'tributos');
+        if (data.tributos.length > 0) {
+          const total = sumValues(data.tributos.map((t) => t.valor_total));
+          const pago = sumValues(data.tributos.map((t) => t.valor_pago));
+          const headers = ['Grupo Tributo', 'Total (R$)', 'Pago (R$)', 'Pendente (R$)'];
+          const rows = data.tributos.map((t) => [
+            t.grupo_tributo,
+            formatCurrencyBR(t.valor_total),
+            formatCurrencyBR(t.valor_pago),
+            formatCurrencyBR(t.valor_total - t.valor_pago),
+          ]);
+          rows.push(['TOTAL', formatCurrencyBR(total), formatCurrencyBR(pago), formatCurrencyBR(total - pago)]);
+          buildTableSlide(pptx, titulo, subtitulo, headers, rows, periodo, empresaNome, getComment(comentarios, 'tributos'), theme);
+        } else {
+          buildUnavailableSlide(pptx, titulo, subtitulo, periodo, empresaNome, theme, defTrib?.notaAutomacao);
+        }
+        break;
+      }
 
       default:
         // Unknown slide codigo: skip silently

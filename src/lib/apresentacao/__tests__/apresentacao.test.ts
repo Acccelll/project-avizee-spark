@@ -97,11 +97,21 @@ describe('apresentacao/utils', () => {
 // slideDefinitions
 // -------------------------------------------------------
 describe('slideDefinitions', () => {
-  it('has 12 slides', () => {
-    expect(SLIDE_DEFINITIONS).toHaveLength(12);
+  it('has at least 12 V1 slides', () => {
+    const v1 = SLIDE_DEFINITIONS.filter((s) => s.fase === 'v1');
+    expect(v1.length).toBeGreaterThanOrEqual(12);
   });
 
-  it('has expected codes', () => {
+  it('has 8 V2 slides', () => {
+    const v2 = SLIDE_DEFINITIONS.filter((s) => s.fase === 'v2');
+    expect(v2.length).toBe(8);
+  });
+
+  it('total slides count is 20 (12 V1 + 8 V2)', () => {
+    expect(SLIDE_DEFINITIONS).toHaveLength(20);
+  });
+
+  it('has expected V1 codes', () => {
     const codes = SLIDE_DEFINITIONS.map((s) => s.codigo);
     expect(codes).toContain('cover');
     expect(codes).toContain('highlights_financeiros');
@@ -115,6 +125,18 @@ describe('slideDefinitions', () => {
     expect(codes).toContain('variacao_estoque');
     expect(codes).toContain('venda_estado');
     expect(codes).toContain('redes_sociais');
+  });
+
+  it('has expected V2 codes', () => {
+    const codes = SLIDE_DEFINITIONS.map((s) => s.codigo);
+    expect(codes).toContain('aging_consolidado');
+    expect(codes).toContain('inadimplencia');
+    expect(codes).toContain('backorder');
+    expect(codes).toContain('top_clientes');
+    expect(codes).toContain('top_fornecedores');
+    expect(codes).toContain('dre_gerencial');
+    expect(codes).toContain('resultado_financeiro');
+    expect(codes).toContain('tributos');
   });
 
   it('getSlideByCode returns correct slide', () => {
@@ -150,6 +172,15 @@ const emptyData: ApresentacaoRawData = {
   estoque: [],
   vendaEstado: [],
   redesSociais: [],
+  // V2
+  aging: [],
+  topClientes: [],
+  topFornecedores: [],
+  inadimplencia: [],
+  backorder: [],
+  dreGerencial: [],
+  resultadoFinanceiro: [],
+  tributos: [],
 };
 
 const filledData: ApresentacaoRawData = {
@@ -204,13 +235,46 @@ const filledData: ApresentacaoRawData = {
   redesSociais: [
     { competencia: '2026-02-01', plataforma: 'Instagram', metrica: 'seguidores', valor: 1500 },
   ],
+  // V2
+  aging: [
+    { tipo: 'receber', data_vencimento: '2026-01-15', faixa_aging: '>90 dias', status: 'aberto', saldo_aberto: 5000, quantidade: 3 },
+    { tipo: 'receber', data_vencimento: '2026-03-10', faixa_aging: 'A vencer', status: 'aberto', saldo_aberto: 20000, quantidade: 5 },
+    { tipo: 'pagar', data_vencimento: '2026-03-05', faixa_aging: 'A vencer', status: 'aberto', saldo_aberto: 10000, quantidade: 2 },
+  ],
+  topClientes: [
+    { competencia: '2026-02-01', cliente_id: 'c1', cliente_nome: 'Cliente Alpha', estado: 'SP', total_pedidos: 10, total_vendas: 40000, ticket_medio: 4000 },
+    { competencia: '2026-02-01', cliente_id: 'c2', cliente_nome: 'Cliente Beta', estado: 'RJ', total_pedidos: 5, total_vendas: 15000, ticket_medio: 3000 },
+  ],
+  topFornecedores: [
+    { competencia: '2026-02-01', fornecedor_id: 'f1', fornecedor_nome: 'Fornecedor X', total_compras: 20000, total_pago: 18000, quantidade_titulos: 4 },
+  ],
+  inadimplencia: [
+    { competencia_vencimento: '2026-01-01', faixa_atraso: '1-30 dias', quantidade_titulos: 2, saldo_inadimplente: 3000, clientes_inadimplentes: 2 },
+    { competencia_vencimento: '2025-12-01', faixa_atraso: '>90 dias', quantidade_titulos: 1, saldo_inadimplente: 8000, clientes_inadimplentes: 1 },
+  ],
+  backorder: [
+    { competencia: '2026-02-01', pedido_id: 'p1', cliente_nome: 'Cliente X', status: 'aprovado', valor_total: 12000, data_pedido: '2026-01-15', dias_em_aberto: 28 },
+    { competencia: '2026-02-01', pedido_id: 'p2', cliente_nome: 'Cliente Y', status: 'confirmado', valor_total: 8000, data_pedido: '2025-12-20', dias_em_aberto: 54 },
+  ],
+  dreGerencial: [
+    { competencia: '2026-02-01', linha_dre: 'Receita Bruta', linha_gerencial: 'Vendas', sinal_padrao: 1, valor_total: 60000 },
+    { competencia: '2026-02-01', linha_dre: 'Custos', linha_gerencial: 'CMV', sinal_padrao: -1, valor_total: -32000 },
+  ],
+  resultadoFinanceiro: [
+    { competencia: '2026-02-01', grupo: 'Rendimentos', tipo: 'receber', valor_total: 2000, valor_realizado: 1800 },
+    { competencia: '2026-02-01', grupo: 'Juros Pagos', tipo: 'pagar', valor_total: 1200, valor_realizado: 1200 },
+  ],
+  tributos: [
+    { competencia: '2026-02-01', grupo_tributo: 'ICMS', valor_total: 3600, valor_pago: 3600 },
+    { competencia: '2026-02-01', grupo_tributo: 'PIS/COFINS', valor_total: 1200, valor_pago: 0 },
+  ],
 };
 
 describe('commentRules', () => {
   describe('gerarComentariosAutomaticos', () => {
-    it('returns 12 comments (one per slide)', () => {
+    it('returns 20 comments (one per slide — V1 + V2)', () => {
       const comments = gerarComentariosAutomaticos(emptyData, '2026-02', '2026-02');
-      expect(comments).toHaveLength(12);
+      expect(comments).toHaveLength(20);
     });
 
     it('returns ordered by slide index', () => {
@@ -352,9 +416,9 @@ describe('templateConfig/resolveTheme', () => {
 });
 
 describe('templateConfig/resolveSlides', () => {
-  it('returns all 12 slides when config is null', () => {
+  it('returns all 20 slides (V1+V2) when config is null', () => {
     const slides = resolveSlides(null);
-    expect(slides).toHaveLength(12);
+    expect(slides).toHaveLength(20);
   });
 
   it('all slides active by default', () => {
@@ -411,9 +475,9 @@ describe('templateConfig/buildDefaultConfig', () => {
     expect(buildDefaultConfig().version).toBe('1.0');
   });
 
-  it('includes all 12 slides', () => {
+  it('includes all 20 slides (V1+V2)', () => {
     const cfg = buildDefaultConfig();
-    expect(cfg.slides).toHaveLength(12);
+    expect(cfg.slides).toHaveLength(20);
   });
 
   it('all slides ativo by default', () => {
@@ -481,3 +545,141 @@ describe('templateConfig/validateTemplateConfig', () => {
   });
 });
 
+// -------------------------------------------------------
+// V2 — Slide definitions metadata
+// -------------------------------------------------------
+import { getV1Slides, getV2AutomatedSlides } from '../slideDefinitions';
+
+describe('slideDefinitions V2 metadata', () => {
+  it('cover is marked as required', () => {
+    const cover = getSlideByCode('cover');
+    expect(cover?.required).toBe(true);
+  });
+
+  it('V2 optional slides are marked optional', () => {
+    const v2 = SLIDE_DEFINITIONS.filter((s) => s.fase === 'v2');
+    v2.forEach((s) => expect(s.optional).toBe(true));
+  });
+
+  it('V2 slides with notaAutomacao are dre_gerencial, resultado_financeiro, tributos', () => {
+    const needsConfig = SLIDE_DEFINITIONS.filter((s) => s.notaAutomacao);
+    const codes = needsConfig.map((s) => s.codigo);
+    expect(codes).toContain('dre_gerencial');
+    expect(codes).toContain('resultado_financeiro');
+    expect(codes).toContain('tributos');
+  });
+
+  it('V2 automated slides have no notaAutomacao', () => {
+    const automated = getV2AutomatedSlides();
+    automated.forEach((s) => expect(s.notaAutomacao).toBeUndefined());
+  });
+
+  it('getV1Slides returns only V1 non-optional slides', () => {
+    const v1 = getV1Slides();
+    v1.forEach((s) => {
+      expect(s.fase).toBe('v1');
+      expect(s.optional).toBeFalsy();
+    });
+  });
+
+  it('all slides have an order number', () => {
+    SLIDE_DEFINITIONS.forEach((s) => {
+      expect(typeof s.order).toBe('number');
+    });
+  });
+
+  it('each slide has valid modeSupport or undefined', () => {
+    const validModes = ['both', 'dinamico', 'fechado', undefined];
+    SLIDE_DEFINITIONS.forEach((s) => {
+      expect(validModes).toContain(s.modeSupport);
+    });
+  });
+});
+
+// -------------------------------------------------------
+// V2 — Comment rules for new slides
+// -------------------------------------------------------
+describe('commentRules V2', () => {
+  it('aging_consolidado comment includes CR and CP amounts', () => {
+    const comments = gerarComentariosAutomaticos(filledData, '2026-02', '2026-02');
+    const aging = comments.find((c) => c.codigo === 'aging_consolidado');
+    expect(aging?.comentario_automatico).toContain('CR');
+    expect(aging?.comentario_automatico).toContain('CP');
+  });
+
+  it('inadimplencia comment mentions total amount', () => {
+    const comments = gerarComentariosAutomaticos(filledData, '2026-02', '2026-02');
+    const inad = comments.find((c) => c.codigo === 'inadimplencia');
+    expect(inad?.comentario_automatico).toContain('11.000');
+  });
+
+  it('backorder comment mentions pedido count', () => {
+    const comments = gerarComentariosAutomaticos(filledData, '2026-02', '2026-02');
+    const back = comments.find((c) => c.codigo === 'backorder');
+    expect(back?.comentario_automatico).toContain('2 pedido');
+  });
+
+  it('top_clientes comment mentions top client name', () => {
+    const comments = gerarComentariosAutomaticos(filledData, '2026-02', '2026-02');
+    const cli = comments.find((c) => c.codigo === 'top_clientes');
+    expect(cli?.comentario_automatico).toContain('Cliente Alpha');
+  });
+
+  it('top_fornecedores comment mentions top supplier name', () => {
+    const comments = gerarComentariosAutomaticos(filledData, '2026-02', '2026-02');
+    const for_ = comments.find((c) => c.codigo === 'top_fornecedores');
+    expect(for_?.comentario_automatico).toContain('Fornecedor X');
+  });
+
+  it('dre_gerencial comment mentions receita bruta', () => {
+    const comments = gerarComentariosAutomaticos(filledData, '2026-02', '2026-02');
+    const dre = comments.find((c) => c.codigo === 'dre_gerencial');
+    expect(dre?.comentario_automatico).toContain('60.000');
+  });
+
+  it('tributos comment mentions PIS/COFINS pending payment', () => {
+    const comments = gerarComentariosAutomaticos(filledData, '2026-02', '2026-02');
+    const trib = comments.find((c) => c.codigo === 'tributos');
+    expect(trib?.comentario_automatico).toContain('1.200');
+  });
+
+  it('high-priority comment when negative cash position', () => {
+    const negCaixa: ApresentacaoRawData = {
+      ...emptyData,
+      rolCaixa: [{ conta_bancaria_id: '1', conta_descricao: 'Conta', banco_nome: 'Banco', agencia: '001', conta: '123', saldo_atual: -5000 }],
+    };
+    const comments = gerarComentariosAutomaticos(negCaixa, '2026-02', '2026-02');
+    const caixa = comments.find((c) => c.codigo === 'rol_caixa');
+    expect(caixa?.prioridade).toBeGreaterThanOrEqual(3);
+    expect(caixa?.comentario_automatico).toContain('Saldo negativo');
+  });
+
+  it('prioridade defaults to 1 for normal slides', () => {
+    const comments = gerarComentariosAutomaticos(emptyData, '2026-02', '2026-02');
+    const cover = comments.find((c) => c.codigo === 'cover');
+    expect(cover?.prioridade).toBe(1);
+  });
+
+  it('V2 dre fallback message when empty data', () => {
+    const comments = gerarComentariosAutomaticos(emptyData, '2026-02', '2026-02');
+    const dre = comments.find((c) => c.codigo === 'dre_gerencial');
+    expect(dre?.comentario_automatico).toContain('mapeamento_gerencial_contas');
+  });
+});
+
+// -------------------------------------------------------
+// V2 — ApresentacaoStatusEditorial types
+// -------------------------------------------------------
+import type { ApresentacaoStatusEditorial, ComentarioStatus } from '@/types/apresentacao';
+
+describe('V2 types', () => {
+  it('ApresentacaoStatusEditorial includes rascunho/revisao/aprovado/gerado', () => {
+    const statuses: ApresentacaoStatusEditorial[] = ['rascunho', 'revisao', 'aprovado', 'gerado'];
+    expect(statuses).toHaveLength(4);
+  });
+
+  it('ComentarioStatus includes automatico/editado/aprovado', () => {
+    const statuses: ComentarioStatus[] = ['automatico', 'editado', 'aprovado'];
+    expect(statuses).toHaveLength(3);
+  });
+});

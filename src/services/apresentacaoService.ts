@@ -181,6 +181,7 @@ export async function gerarApresentacao(
       competencia_final: parametros.competenciaFinal + '-01',
       modo_geracao: parametros.modoGeracao,
       status: 'gerando',
+      status_editorial: 'rascunho',
       hash_geracao: hash,
       parametros_json: serializeToJsonb(parametros),
       gerado_por: userId ?? null,
@@ -204,7 +205,7 @@ export async function gerarApresentacao(
       parametros.competenciaFinal
     );
 
-    // Persist comments
+    // Persist comments (V2: include prioridade and comentario_status)
     const comentariosToInsert = comentariosInput.map((c) => ({
       geracao_id: geracao.id,
       slide_codigo: c.codigo,
@@ -213,6 +214,8 @@ export async function gerarApresentacao(
       comentario_editado: null,
       origem: 'automatico',
       ordem: c.ordem,
+      prioridade: c.prioridade ?? 1,
+      comentario_status: 'automatico',
     }));
     await (supabase as any).from('apresentacao_comentarios').insert(comentariosToInsert);
 
@@ -228,6 +231,11 @@ export async function gerarApresentacao(
       empresaNome,
       templateConfig: template.config_json ?? null,
     });
+
+    // Compute total slides for history enrichment
+    const { resolveSlides } = await import('@/lib/apresentacao/templateConfig');
+    const activeSlides = resolveSlides(template.config_json ?? null);
+    const totalSlides = activeSlides.filter((s) => s.ativo).length;
 
     // Save artifact to Supabase Storage
     let arquivoPath: string | null = null;
@@ -249,12 +257,15 @@ export async function gerarApresentacao(
       console.warn('Storage não disponível para apresentação:', storageErr);
     }
 
-    // Mark as completed
+    // Mark as completed with V2 fields
     await (supabase as any)
       .from('apresentacao_geracoes')
       .update({
         status: 'concluido',
+        status_editorial: 'revisao',
         arquivo_path: arquivoPath,
+        total_slides: totalSlides,
+        slides_config_json: activeSlides as unknown as Record<string, unknown>[],
         updated_at: new Date().toISOString(),
       })
       .eq('id', geracao.id);
@@ -299,4 +310,76 @@ export function downloadBlob(blob: Blob, filename: string): void {
   a.download = filename;
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
+// -------------------------------------------------------
+// V2 — Editorial workflow: approve / reject
+// -------------------------------------------------------
+
+/**
+ * Approves a generation, transitioning status_editorial → aprovado.
+ * Records the approver user and timestamp.
+ */
+export async function aprovarGeracao(
+  geracaoId: string,
+  userId: string
+): Promise<void> {
+  const { error } = await (supabase as any)
+    .from('apresentacao_geracoes')
+    .update({
+      status_editorial: 'aprovado',
+      aprovado_por: userId,
+      aprovado_em: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', geracaoId);
+  if (error) throw error;
+}
+
+/**
+ * Rejects / returns a generation to rascunho status so comments can be edited.
+ */
+export async function rejeitarGeracao(geracaoId: string): Promise<void> {
+  const { error } = await (supabase as any)
+    .from('apresentacao_geracoes')
+    .update({
+      status_editorial: 'rascunho',
+      aprovado_por: null,
+      aprovado_em: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', geracaoId);
+  if (error) throw error;
+}
+
+/**
+ * Updates the status of a single comment (automatico / editado / aprovado).
+ */
+export async function atualizarStatusComentario(
+  comentarioId: string,
+  status: import('@/types/apresentacao').ComentarioStatus
+): Promise<void> {
+  const { error } = await (supabase as any)
+    .from('apresentacao_comentarios')
+    .update({ comentario_status: status, updated_at: new Date().toISOString() })
+    .eq('id', comentarioId);
+  if (error) throw error;
+}
+
+/**
+ * Updates a comment's edited text AND marks it as editado.
+ */
+export async function atualizarComentarioEditadoV2(
+  comentarioId: string,
+  comentarioEditado: string
+): Promise<void> {
+  const { error } = await (supabase as any)
+    .from('apresentacao_comentarios')
+    .update({
+      comentario_editado: comentarioEditado,
+      comentario_status: 'editado',
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', comentarioId);
+  if (error) throw error;
 }

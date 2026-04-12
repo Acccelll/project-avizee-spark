@@ -11,7 +11,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/ui/empty-state';
 import { LayoutDashboard } from 'lucide-react';
-import type { ApresentacaoGeracao } from '@/types/apresentacao';
+import type { ApresentacaoGeracao, ApresentacaoStatusEditorial } from '@/types/apresentacao';
 
 const STATUS_LABELS: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
   pendente: { label: 'Pendente', variant: 'secondary' },
@@ -20,11 +20,20 @@ const STATUS_LABELS: Record<string, { label: string; variant: 'default' | 'secon
   erro: { label: 'Erro', variant: 'destructive' },
 };
 
+const EDITORIAL_LABELS: Record<ApresentacaoStatusEditorial, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
+  rascunho: { label: 'Rascunho', variant: 'secondary' },
+  revisao: { label: 'Em Revisão', variant: 'outline' },
+  aprovado: { label: 'Aprovado', variant: 'default' },
+  gerado: { label: 'Gerado', variant: 'default' },
+};
+
 interface ApresentacaoHistoricoTableProps {
   geracoes: ApresentacaoGeracao[];
   isLoading: boolean;
   onDownload: (geracao: ApresentacaoGeracao) => Promise<void>;
   downloadingId: string | null;
+  onSelectGeracao?: (geracao: ApresentacaoGeracao) => void;
+  selectedGeracaoId?: string | null;
 }
 
 export function ApresentacaoHistoricoTable({
@@ -32,6 +41,8 @@ export function ApresentacaoHistoricoTable({
   isLoading,
   onDownload,
   downloadingId,
+  onSelectGeracao,
+  selectedGeracaoId,
 }: ApresentacaoHistoricoTableProps) {
   if (isLoading) {
     return (
@@ -59,6 +70,8 @@ export function ApresentacaoHistoricoTable({
           <TableHead>Período</TableHead>
           <TableHead>Modo</TableHead>
           <TableHead>Status</TableHead>
+          <TableHead>Editorial</TableHead>
+          <TableHead>Slides</TableHead>
           <TableHead>Gerado em</TableHead>
           <TableHead className="text-right">Ações</TableHead>
         </TableRow>
@@ -66,6 +79,8 @@ export function ApresentacaoHistoricoTable({
       <TableBody>
         {geracoes.map((g) => {
           const statusInfo = STATUS_LABELS[g.status] ?? STATUS_LABELS.pendente;
+          const editorialStatus = g.status_editorial ?? 'rascunho';
+          const editorialInfo = EDITORIAL_LABELS[editorialStatus] ?? EDITORIAL_LABELS.rascunho;
           const isDownloading = downloadingId === g.id;
           const canDownload = g.status === 'concluido' && Boolean(g.arquivo_path);
           const templateNome = g.apresentacao_templates?.nome ?? 'Template desconhecido';
@@ -76,9 +91,15 @@ export function ApresentacaoHistoricoTable({
           const geradoEm = g.gerado_em
             ? new Date(g.gerado_em).toLocaleString('pt-BR')
             : '—';
+          const isSelected = selectedGeracaoId === g.id;
 
           return (
-            <TableRow key={g.id}>
+            <TableRow
+              key={g.id}
+              className={isSelected ? 'bg-muted/50' : undefined}
+              onClick={() => onSelectGeracao?.(g)}
+              style={onSelectGeracao ? { cursor: 'pointer' } : undefined}
+            >
               <TableCell className="font-medium">{templateNome}</TableCell>
               <TableCell>{periodoLabel}</TableCell>
               <TableCell>
@@ -89,13 +110,22 @@ export function ApresentacaoHistoricoTable({
               <TableCell>
                 <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
               </TableCell>
+              <TableCell>
+                <Badge variant={editorialInfo.variant}>{editorialInfo.label}</Badge>
+              </TableCell>
+              <TableCell className="text-muted-foreground text-sm">
+                {g.total_slides != null ? `${g.total_slides}` : '—'}
+              </TableCell>
               <TableCell className="text-muted-foreground text-sm">{geradoEm}</TableCell>
               <TableCell className="text-right">
                 <Button
                   variant="ghost"
                   size="icon"
                   disabled={!canDownload || isDownloading}
-                  onClick={() => onDownload(g)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void onDownload(g);
+                  }}
                   aria-label="Baixar apresentação"
                   title={canDownload ? 'Baixar .pptx' : 'Arquivo não disponível'}
                 >

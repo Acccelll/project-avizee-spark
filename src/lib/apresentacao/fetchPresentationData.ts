@@ -2,6 +2,7 @@
  * Fetches all data needed for presentation generation.
  * Uses vw_apresentacao_* views (which reuse workbook analytics layer).
  * Supports both dynamic and closed modes.
+ * V2 adds 8 additional datasets.
  */
 import { supabase } from '@/integrations/supabase/client';
 import type {
@@ -18,6 +19,14 @@ import type {
   EstoqueItem,
   VendaEstado,
   RedesSociais,
+  AgingItem,
+  TopClienteItem,
+  TopFornecedorItem,
+  InadimplenciaItem,
+  BackorderItem,
+  DreLinhaItem,
+  ResultadoFinanceiroItem,
+  TributoItem,
 } from '@/types/apresentacao';
 
 export async function fetchPresentationData(
@@ -53,6 +62,14 @@ async function fetchDynamicModeData(
     estoqueRes,
     estadoRes,
     socialRes,
+    agingRes,
+    topCliRes,
+    topForRes,
+    inadimRes,
+    backorderRes,
+    dreRes,
+    resultFinRes,
+    tributosRes,
   ] = await Promise.all([
     (supabase as any)
       .from('vw_apresentacao_highlights_financeiros')
@@ -101,6 +118,43 @@ async function fetchDynamicModeData(
       .select('*')
       .gte('competencia', iniYM)
       .lte('competencia', fimYM),
+    // V2 datasets
+    (supabase as any).from('vw_apresentacao_aging_consolidado').select('*'),
+    (supabase as any)
+      .from('vw_apresentacao_top_clientes')
+      .select('*')
+      .gte('competencia', iniYM)
+      .lte('competencia', fimYM),
+    (supabase as any)
+      .from('vw_apresentacao_top_fornecedores')
+      .select('*')
+      .gte('competencia', iniYM)
+      .lte('competencia', fimYM),
+    (supabase as any)
+      .from('vw_apresentacao_inadimplencia')
+      .select('*')
+      .gte('competencia_vencimento', iniYM)
+      .lte('competencia_vencimento', fimYM),
+    (supabase as any)
+      .from('vw_apresentacao_backorder')
+      .select('*')
+      .gte('competencia', iniYM)
+      .lte('competencia', fimYM),
+    (supabase as any)
+      .from('vw_apresentacao_dre_gerencial')
+      .select('*')
+      .gte('competencia', iniYM)
+      .lte('competencia', fimYM),
+    (supabase as any)
+      .from('vw_apresentacao_resultado_financeiro')
+      .select('*')
+      .gte('competencia', iniYM)
+      .lte('competencia', fimYM),
+    (supabase as any)
+      .from('vw_apresentacao_tributos')
+      .select('*')
+      .gte('competencia', iniYM)
+      .lte('competencia', fimYM),
   ]);
 
   return {
@@ -115,6 +169,15 @@ async function fetchDynamicModeData(
     estoque: normalizeEstoque(estoqueRes.data),
     vendaEstado: normalizeVendaEstado(estadoRes.data),
     redesSociais: normalizeRedesSociais(socialRes.data),
+    // V2
+    aging: normalizeAging(agingRes.data),
+    topClientes: normalizeTopClientes(topCliRes.data),
+    topFornecedores: normalizeTopFornecedores(topForRes.data),
+    inadimplencia: normalizeInadimplencia(inadimRes.data),
+    backorder: normalizeBackorder(backorderRes.data),
+    dreGerencial: normalizeDreGerencial(dreRes.data),
+    resultadoFinanceiro: normalizeResultadoFinanceiro(resultFinRes.data),
+    tributos: normalizeTributos(tributosRes.data),
   };
 }
 
@@ -238,6 +301,15 @@ async function fetchClosedModeData(
     estoque,
     vendaEstado: [],
     redesSociais: [],
+    // V2 — closed-mode snapshots do not include these yet; return empty
+    aging: [],
+    topClientes: [],
+    topFornecedores: [],
+    inadimplencia: [],
+    backorder: [],
+    dreGerencial: [],
+    resultadoFinanceiro: [],
+    tributos: [],
   };
 }
 
@@ -363,5 +435,94 @@ function normalizeRedesSociais(raw: unknown[]): RedesSociais[] {
     plataforma: String(r.plataforma ?? ''),
     metrica: String(r.metrica ?? ''),
     valor: Number(r.valor ?? 0),
+  }));
+}
+
+// -------------------------------------------------------
+// V2 normalizers
+// -------------------------------------------------------
+
+function normalizeAging(raw: unknown[]): AgingItem[] {
+  return (raw ?? []).map((r: any) => ({
+    tipo: String(r.tipo ?? ''),
+    data_vencimento: String(r.data_vencimento ?? ''),
+    faixa_aging: String(r.faixa_aging ?? ''),
+    status: String(r.status ?? ''),
+    saldo_aberto: Number(r.saldo_aberto ?? 0),
+    quantidade: Number(r.quantidade ?? 0),
+  }));
+}
+
+function normalizeTopClientes(raw: unknown[]): TopClienteItem[] {
+  return (raw ?? []).map((r: any) => ({
+    competencia: String(r.competencia ?? ''),
+    cliente_id: String(r.cliente_id ?? ''),
+    cliente_nome: String(r.cliente_nome ?? ''),
+    estado: String(r.estado ?? 'N/D'),
+    total_pedidos: Number(r.total_pedidos ?? 0),
+    total_vendas: Number(r.total_vendas ?? 0),
+    ticket_medio: Number(r.ticket_medio ?? 0),
+  }));
+}
+
+function normalizeTopFornecedores(raw: unknown[]): TopFornecedorItem[] {
+  return (raw ?? []).map((r: any) => ({
+    competencia: String(r.competencia ?? ''),
+    fornecedor_id: String(r.fornecedor_id ?? ''),
+    fornecedor_nome: String(r.fornecedor_nome ?? ''),
+    total_compras: Number(r.total_compras ?? 0),
+    total_pago: Number(r.total_pago ?? 0),
+    quantidade_titulos: Number(r.quantidade_titulos ?? 0),
+  }));
+}
+
+function normalizeInadimplencia(raw: unknown[]): InadimplenciaItem[] {
+  return (raw ?? []).map((r: any) => ({
+    competencia_vencimento: String(r.competencia_vencimento ?? ''),
+    faixa_atraso: String(r.faixa_atraso ?? ''),
+    quantidade_titulos: Number(r.quantidade_titulos ?? 0),
+    saldo_inadimplente: Number(r.saldo_inadimplente ?? 0),
+    clientes_inadimplentes: Number(r.clientes_inadimplentes ?? 0),
+  }));
+}
+
+function normalizeBackorder(raw: unknown[]): BackorderItem[] {
+  return (raw ?? []).map((r: any) => ({
+    competencia: String(r.competencia ?? ''),
+    pedido_id: String(r.pedido_id ?? ''),
+    cliente_nome: String(r.cliente_nome ?? ''),
+    status: String(r.status ?? ''),
+    valor_total: Number(r.valor_total ?? 0),
+    data_pedido: String(r.data_pedido ?? ''),
+    dias_em_aberto: Number(r.dias_em_aberto ?? 0),
+  }));
+}
+
+function normalizeDreGerencial(raw: unknown[]): DreLinhaItem[] {
+  return (raw ?? []).map((r: any) => ({
+    competencia: String(r.competencia ?? ''),
+    linha_dre: String(r.linha_dre ?? 'Sem Classificação'),
+    linha_gerencial: String(r.linha_gerencial ?? 'Sem Classificação'),
+    sinal_padrao: Number(r.sinal_padrao ?? 1),
+    valor_total: Number(r.valor_total ?? 0),
+  }));
+}
+
+function normalizeResultadoFinanceiro(raw: unknown[]): ResultadoFinanceiroItem[] {
+  return (raw ?? []).map((r: any) => ({
+    competencia: String(r.competencia ?? ''),
+    grupo: String(r.grupo ?? 'Sem Classificação'),
+    tipo: String(r.tipo ?? ''),
+    valor_total: Number(r.valor_total ?? 0),
+    valor_realizado: Number(r.valor_realizado ?? 0),
+  }));
+}
+
+function normalizeTributos(raw: unknown[]): TributoItem[] {
+  return (raw ?? []).map((r: any) => ({
+    competencia: String(r.competencia ?? ''),
+    grupo_tributo: String(r.grupo_tributo ?? 'Outros'),
+    valor_total: Number(r.valor_total ?? 0),
+    valor_pago: Number(r.valor_pago ?? 0),
   }));
 }

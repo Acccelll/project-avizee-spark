@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Check, Pencil, X } from 'lucide-react';
+import { Check, Pencil, X, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -10,6 +10,14 @@ interface ApresentacaoComentariosEditorProps {
   onSave: (comentarioId: string, comentarioEditado: string) => Promise<void>;
   isSaving: boolean;
 }
+
+const PRIORIDADE_CONFIG: Record<number, { label: string; color: string }> = {
+  1: { label: 'Normal', color: '' },
+  2: { label: 'Elevada', color: 'text-blue-600' },
+  3: { label: 'Alta', color: 'text-amber-600' },
+  4: { label: 'Urgente', color: 'text-orange-600' },
+  5: { label: 'Crítico', color: 'text-red-600' },
+};
 
 export function ApresentacaoComentariosEditor({
   comentarios,
@@ -50,16 +58,26 @@ export function ApresentacaoComentariosEditor({
   return (
     <div className="space-y-3">
       {comentarios
-        .sort((a, b) => a.ordem - b.ordem)
+        .sort((a, b) => {
+          // Sort by priority desc, then by ordem asc
+          const prioDiff = (b.prioridade ?? 1) - (a.prioridade ?? 1);
+          return prioDiff !== 0 ? prioDiff : a.ordem - b.ordem;
+        })
         .map((c) => {
           const isEditing = editingId === c.id;
           const hasEditedVersion = Boolean(c.comentario_editado?.trim());
           const displayText = c.comentario_editado ?? c.comentario_automatico ?? '';
+          const prio = c.prioridade ?? 1;
+          const prioCfg = PRIORIDADE_CONFIG[prio] ?? PRIORIDADE_CONFIG[1];
+          const isHighPriority = prio >= 3;
 
           return (
-            <div key={c.id} className="rounded-lg border border-border bg-card p-3">
+            <div
+              key={c.id}
+              className={`rounded-lg border bg-card p-3 ${isHighPriority ? 'border-amber-300' : 'border-border'}`}
+            >
               <div className="mb-1.5 flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                     {c.titulo ?? c.slide_codigo}
                   </span>
@@ -67,6 +85,17 @@ export function ApresentacaoComentariosEditor({
                     <Badge variant="outline" className="text-[10px]">
                       Editado
                     </Badge>
+                  )}
+                  {c.comentario_status === 'aprovado' && (
+                    <Badge variant="default" className="text-[10px]">
+                      Aprovado
+                    </Badge>
+                  )}
+                  {isHighPriority && (
+                    <span className={`flex items-center gap-0.5 text-[10px] font-medium ${prioCfg.color}`}>
+                      <AlertCircle className="h-3 w-3" />
+                      {prioCfg.label}
+                    </span>
                   )}
                 </div>
                 {!isEditing && (

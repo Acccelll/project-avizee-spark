@@ -1,5 +1,18 @@
 export type ApresentacaoModoGeracao = 'dinamico' | 'fechado';
 export type ApresentacaoStatus = 'pendente' | 'gerando' | 'concluido' | 'erro';
+export type ApresentacaoStatusEditorial = 'rascunho' | 'revisao' | 'aprovado' | 'gerado';
+export type ComentarioStatus = 'automatico' | 'editado' | 'aprovado';
+
+/** Fase de implementação do slide. */
+export type SlideFase = 'v1' | 'v2';
+
+/**
+ * Determines in which generation modes a slide can produce real data.
+ * 'both'     = dynamic and closed modes
+ * 'dinamico' = live views only
+ * 'fechado'  = snapshot tables only
+ */
+export type SlideModeSupport = 'both' | 'dinamico' | 'fechado';
 
 export interface ApresentacaoTemplate {
   id: string;
@@ -24,6 +37,12 @@ export interface ApresentacaoGeracao {
   fechamento_id_inicial: string | null;
   fechamento_id_final: string | null;
   status: ApresentacaoStatus;
+  /** Editorial workflow status (V2). */
+  status_editorial: ApresentacaoStatusEditorial;
+  aprovado_por: string | null;
+  aprovado_em: string | null;
+  total_slides: number | null;
+  slides_config_json: Record<string, unknown>[] | null;
   arquivo_path: string | null;
   hash_geracao: string | null;
   parametros_json: Record<string, unknown> | null;
@@ -44,6 +63,11 @@ export interface ApresentacaoComentario {
   comentario_editado: string | null;
   origem: string | null;
   ordem: number;
+  /** 1 = normal, 5 = critical (V2). */
+  prioridade: number;
+  /** automatico | editado | aprovado (V2). */
+  comentario_status: ComentarioStatus;
+  tags_json: string[] | null;
   created_at: string;
   updated_at: string;
 }
@@ -158,6 +182,79 @@ export interface RedesSociais {
   valor: number;
 }
 
+// -------------------------------------------------------
+// V2 analytical data types
+// -------------------------------------------------------
+
+export interface AgingItem {
+  tipo: string;
+  data_vencimento: string;
+  faixa_aging: string;
+  status: string;
+  saldo_aberto: number;
+  quantidade: number;
+}
+
+export interface TopClienteItem {
+  competencia: string;
+  cliente_id: string;
+  cliente_nome: string;
+  estado: string;
+  total_pedidos: number;
+  total_vendas: number;
+  ticket_medio: number;
+}
+
+export interface TopFornecedorItem {
+  competencia: string;
+  fornecedor_id: string;
+  fornecedor_nome: string;
+  total_compras: number;
+  total_pago: number;
+  quantidade_titulos: number;
+}
+
+export interface InadimplenciaItem {
+  competencia_vencimento: string;
+  faixa_atraso: string;
+  quantidade_titulos: number;
+  saldo_inadimplente: number;
+  clientes_inadimplentes: number;
+}
+
+export interface BackorderItem {
+  competencia: string;
+  pedido_id: string;
+  cliente_nome: string;
+  status: string;
+  valor_total: number;
+  data_pedido: string;
+  dias_em_aberto: number;
+}
+
+export interface DreLinhaItem {
+  competencia: string;
+  linha_dre: string;
+  linha_gerencial: string;
+  sinal_padrao: number;
+  valor_total: number;
+}
+
+export interface ResultadoFinanceiroItem {
+  competencia: string;
+  grupo: string;
+  tipo: string;
+  valor_total: number;
+  valor_realizado: number;
+}
+
+export interface TributoItem {
+  competencia: string;
+  grupo_tributo: string;
+  valor_total: number;
+  valor_pago: number;
+}
+
 export interface ApresentacaoRawData {
   highlights: HighlightFinanceiro[];
   faturamento: FaturamentoMensal[];
@@ -170,6 +267,15 @@ export interface ApresentacaoRawData {
   estoque: EstoqueItem[];
   vendaEstado: VendaEstado[];
   redesSociais: RedesSociais[];
+  // V2
+  aging: AgingItem[];
+  topClientes: TopClienteItem[];
+  topFornecedores: TopFornecedorItem[];
+  inadimplencia: InadimplenciaItem[];
+  backorder: BackorderItem[];
+  dreGerencial: DreLinhaItem[];
+  resultadoFinanceiro: ResultadoFinanceiroItem[];
+  tributos: TributoItem[];
 }
 
 // -------------------------------------------------------
@@ -184,6 +290,7 @@ export type SlideChartType =
   | 'donut'
   | 'tabela'
   | 'kpi_card'
+  | 'waterfall'
   | 'none';
 
 export interface SlideDefinition {
@@ -196,6 +303,26 @@ export interface SlideDefinition {
   comentarioTemplate: string;
   dependencias: (keyof ApresentacaoRawData)[];
   condicaoExibicao?: (data: ApresentacaoRawData) => boolean;
+  /** If true the slide cannot be deactivated by a template. */
+  required?: boolean;
+  /** If true the slide is off by default and must be explicitly enabled. */
+  optional?: boolean;
+  /** Other slide codigos that must be active for this slide to be active. */
+  dependsOn?: string[];
+  /** Hide the slide instead of showing a "no data" placeholder when data is empty. */
+  hiddenWhenEmpty?: boolean;
+  /** Which generation modes produce real data for this slide. */
+  modeSupport?: SlideModeSupport;
+  /** Default display order within the slide catalogue. */
+  order?: number;
+  /** Implementation phase. */
+  fase?: SlideFase;
+  /**
+   * When the underlying data is not yet fully automated,
+   * set this to a human-readable note explaining the limitation.
+   * The engine will render a placeholder slide instead of crashing.
+   */
+  notaAutomacao?: string;
 }
 
 export interface SlideComentarioInput {
@@ -203,6 +330,8 @@ export interface SlideComentarioInput {
   comentario_automatico: string;
   titulo: string;
   ordem: number;
+  /** 1–5 severity/priority (V2). Defaults to 1. */
+  prioridade?: number;
 }
 
 // -------------------------------------------------------
