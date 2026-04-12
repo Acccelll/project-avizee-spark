@@ -13,6 +13,9 @@ import { processarDevolucao } from "@/services/fiscal.service";
 export interface NfSimples {
   id: string;
   numero: string;
+  serie?: string;
+  cliente_id?: string;
+  modelo_documento?: string;
   data_emissao: string;
   valor_total: number;
   clientes?: { nome_razao_social: string } | null;

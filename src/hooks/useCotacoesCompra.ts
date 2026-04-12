@@ -16,13 +16,13 @@ import {
 
 export function useCotacoesCompra() {
   const navigate = useNavigate();
-  const { data, loading, fetchData, remove } = useSupabaseCrud<CotacaoCompra>({
-    table: "cotacoes_compra",
+  const { data: rawData, loading, fetchData, remove } = useSupabaseCrud("cotacoes_compra" as any, {
     orderBy: "created_at",
     ascending: false,
-  });
-  const fornecedoresCrud = useSupabaseCrud<{ id: string; nome_razao_social: string; cpf_cnpj?: string }>({ table: "fornecedores" });
-  const produtosCrud = useSupabaseCrud<{ id: string; nome: string; codigo_interno?: string; sku?: string }>({ table: "produtos" });
+  } as any);
+  const data = rawData as unknown as CotacaoCompra[];
+  const fornecedoresCrud = useSupabaseCrud("fornecedores" as any);
+  const produtosCrud = useSupabaseCrud("produtos" as any);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);

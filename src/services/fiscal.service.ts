@@ -357,9 +357,9 @@ export async function processarDevolucao(params: {
   devolucaoNF: {
     id: string;
     numero: string;
-    serie: string;
-    cliente_id: string;
-    modelo_documento: string;
+    serie?: string;
+    cliente_id?: string;
+    modelo_documento?: string;
   };
   itensDevolver: any[];
   dataDevolucao: string;
