@@ -9,9 +9,6 @@ type TableName = keyof Database["public"]["Tables"];
 type TableRow<T extends TableName> = Database["public"]["Tables"][T]["Row"];
 type TableInsert<T extends TableName> = Database["public"]["Tables"][T]["Insert"];
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-type AnyRow = Record<string, unknown>;
-
 type Primitive = string | number | boolean;
 
 interface CrudFilter {
@@ -20,8 +17,8 @@ interface CrudFilter {
   operator?: "eq" | "neq" | "gt" | "gte" | "lt" | "lte" | "like" | "ilike" | "in";
 }
 
-interface UseCrudOptions<T extends TableName> {
-  table: T;
+interface UseCrudOptions {
+  table: string;
   select?: string;
   orderBy?: string;
   ascending?: boolean;
