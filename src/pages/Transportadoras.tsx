@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useEffect, useMemo, useState } from "react";
 import { useDebounce } from "@/hooks/useDebounce";
 import { AppLayout } from "@/components/AppLayout";
@@ -17,6 +16,7 @@ import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { useCnpjLookup } from "@/hooks/useCnpjLookup";
 import { useViaCep } from "@/hooks/useViaCep";
+import { useDocumentoUnico } from "@/hooks/useDocumentoUnico";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -55,11 +55,39 @@ interface Transportadora {
   updated_at: string;
 }
 
-const emptyForm: Record<string, string> = {
+type TransportadoraFormData = Omit<Transportadora, "id" | "ativo" | "created_at" | "updated_at">;
+
+interface ClienteVinculado {
+  id: string;
+  prioridade: number | null;
+  modalidade: string | null;
+  prazo_medio: string | null;
+  clientes: { nome_razao_social: string; cpf_cnpj: string } | null;
+}
+
+interface RemessaVinculada {
+  id: string;
+  codigo_rastreio: string | null;
+  status_transporte: string;
+  data_postagem: string | null;
+  previsao_entrega: string | null;
+  servico: string | null;
+  clientes: { nome_razao_social: string } | null;
+}
+
+const emptyForm: TransportadoraFormData = {
   nome_razao_social: "", nome_fantasia: "", cpf_cnpj: "", contato: "",
   telefone: "", email: "", logradouro: "", numero: "", complemento: "",
   bairro: "", cidade: "", uf: "", cep: "", modalidade: "rodoviario",
   prazo_medio: "", observacoes: "",
+};
+
+const MODALIDADE_LABEL: Record<string, string> = {
+  rodoviario: "Rodoviário",
+  aereo: "Aéreo",
+  maritimo: "Marítimo",
+  ferroviario: "Ferroviário",
+  multimodal: "Multimodal",
 };
 
 export default function Transportadoras() {
@@ -80,11 +108,16 @@ export default function Transportadoras() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selected, setSelected] = useState<Transportadora | null>(null);
   const [mode, setMode] = useState<"create" | "edit">("create");
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm] = useState<TransportadoraFormData>(emptyForm);
+  const { isUnique: docUnico, isLoading: docChecking } = useDocumentoUnico(
+    "cnpj",
+    form.cpf_cnpj,
+    selected?.id,
+  );
   const [formAtivo, setFormAtivo] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [clientesVinculados, setClientesVinculados] = useState<any[]>([]);
-  const [remessasVinculadas, setRemessasVinculadas] = useState<any[]>([]);
+  const [clientesVinculados, setClientesVinculados] = useState<ClienteVinculado[]>([]);
+  const [remessasVinculadas, setRemessasVinculadas] = useState<RemessaVinculada[]>([]);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [modalCliCount, setModalCliCount] = useState(0);
   const [modalRemCount, setModalRemCount] = useState(0);
@@ -113,13 +146,13 @@ export default function Transportadoras() {
       supabase.from("cliente_transportadoras")
         .select("*, clientes(nome_razao_social, cpf_cnpj)")
         .eq("transportadora_id", selected.id)
-        .then(({ data }) => setClientesVinculados(data || []));
+        .then(({ data }) => setClientesVinculados((data || []) as ClienteVinculado[]));
       supabase.from("remessas")
         .select("id, codigo_rastreio, status_transporte, data_postagem, previsao_entrega, servico, clientes(nome_razao_social)")
         .eq("transportadora_id", selected.id)
         .order("created_at", { ascending: false })
         .limit(30)
-        .then(({ data }) => setRemessasVinculadas(data || []));
+        .then(({ data }) => setRemessasVinculadas((data || []) as RemessaVinculada[]));
     } else {
       setClientesVinculados([]);
       setRemessasVinculadas([]);
@@ -164,7 +197,6 @@ export default function Transportadoras() {
     setSaving(false);
   };
 
-  const modalidadeLabel: Record<string, string> = { rodoviario: "Rodoviário", aereo: "Aéreo", maritimo: "Marítimo", ferroviario: "Ferroviário", multimodal: "Multimodal" };
 
   const hasChanges = useMemo(() => {
     if (mode === "create") return false;
@@ -251,7 +283,7 @@ export default function Transportadoras() {
       key: "modalidade",
       mobileCard: true, label: "Modalidade",
       render: (t: Transportadora) => {
-        const label = modalidadeLabel[t.modalidade] || t.modalidade;
+        const label = MODALIDADE_LABEL[t.modalidade] || t.modalidade;
         if (!label) return <span className="text-muted-foreground text-xs">—</span>;
         return <span className="text-xs font-medium">{label}</span>;
       },
@@ -287,7 +319,7 @@ export default function Transportadoras() {
     }));
     modalidadeFilters.forEach(f => chips.push({
       key: "modalidade", label: "Modalidade", value: [f],
-      displayValue: modalidadeLabel[f] || f,
+      displayValue: MODALIDADE_LABEL[f] || f,
     }));
     return chips;
   }, [ativoFilters, modalidadeFilters]);
@@ -348,6 +380,8 @@ export default function Transportadoras() {
           onView={openView}
           onEdit={openEdit}
           onDelete={(t) => { setSelected(t); setDeleteConfirmOpen(true); }}
+          emptyTitle="Nenhuma transportadora encontrada"
+          emptyDescription="Tente ajustar os filtros ou cadastre uma nova transportadora."
         />
       </ModulePage>
 
@@ -360,7 +394,7 @@ export default function Transportadoras() {
               <StatusBadge status={selected.ativo ? "Ativo" : "Inativo"} />
               {selected.created_at && <span>Cadastro: {formatDate(selected.created_at)}</span>}
               {selected.updated_at && <span>Atualizado: {formatDate(selected.updated_at)}</span>}
-              <span className="flex items-center gap-1"><Truck className="h-3 w-3" />{modalidadeLabel[selected.modalidade] || "—"}</span>
+              <span className="flex items-center gap-1"><Truck className="h-3 w-3" />{MODALIDADE_LABEL[selected.modalidade] || "—"}</span>
               {selected.cidade && <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{selected.cidade}{selected.uf ? `/${selected.uf}` : ""}</span>}
             </div>
           )}
@@ -399,6 +433,14 @@ export default function Transportadoras() {
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground leading-tight">Informe o CNPJ e clique em buscar para preencher automaticamente.</p>
+              {docChecking && (
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Loader2 className="h-3 w-3 animate-spin" />Verificando unicidade...
+                </p>
+              )}
+              {!docChecking && docUnico === false && (
+                <p className="text-xs text-destructive">CNPJ já cadastrado em cliente ou fornecedor.</p>
+              )}
             </div>
             <div className="col-span-2 md:col-span-4 space-y-2">
               <Label>Razão Social / Nome *</Label>
@@ -619,7 +661,7 @@ export default function Transportadoras() {
             <div className="grid grid-cols-4 gap-2">
               <div className="rounded-lg border bg-card p-3 text-center space-y-1">
                 <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Modalidade</p>
-                <p className="font-semibold text-sm text-foreground leading-tight">{modalidadeLabel[selected.modalidade] || "—"}</p>
+                <p className="font-semibold text-sm text-foreground leading-tight">{MODALIDADE_LABEL[selected.modalidade] || "—"}</p>
               </div>
               <div className="rounded-lg border bg-card p-3 text-center space-y-1">
                 <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Prazo Médio</p>
@@ -664,7 +706,7 @@ export default function Transportadoras() {
                 </ViewSection>
                 <ViewSection title="Operação">
                   <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-                    <ViewField label="Modalidade">{modalidadeLabel[selected.modalidade] || "—"}</ViewField>
+                    <ViewField label="Modalidade">{MODALIDADE_LABEL[selected.modalidade] || "—"}</ViewField>
                     <ViewField label="Prazo Médio"><span className="font-mono">{selected.prazo_medio || "—"}</span></ViewField>
                   </div>
                   {selected.observacoes && (
@@ -771,7 +813,7 @@ export default function Transportadoras() {
                 <ViewSection title="Perfil Operacional">
                   <div className="grid grid-cols-2 gap-x-4 gap-y-3">
                     <ViewField label="Modalidade">
-                      <span className="font-semibold">{modalidadeLabel[selected.modalidade] || "—"}</span>
+                      <span className="font-semibold">{MODALIDADE_LABEL[selected.modalidade] || "—"}</span>
                     </ViewField>
                     <ViewField label="Prazo Médio">
                       {selected.prazo_medio

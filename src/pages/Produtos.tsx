@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
@@ -33,8 +32,10 @@ interface Produto {
   id: string;sku: string;codigo_interno: string;nome: string;descricao: string;
   grupo_id: string;unidade_medida: string;preco_custo: number;preco_venda: number;
   estoque_atual: number;estoque_minimo: number;ncm: string;cst: string;cfop_padrao: string;
-  peso: number;eh_composto: boolean;ativo: boolean;created_at: string;tipo_item: TipoItem;
+  peso: number;eh_composto: boolean;ativo: boolean;created_at: string;updated_at?: string;tipo_item: TipoItem;
 }
+
+type ProdutoFormData = Omit<Produto, "id" | "estoque_atual" | "ativo" | "created_at" | "updated_at"> & { id?: string };
 
 interface ComposicaoItem {
   id?: string;
@@ -75,10 +76,10 @@ const situacaoEstoqueConfig: Record<SituacaoEstoque, { label: string; statusBadg
   zerado:  { label: "Sem estoque",      statusBadge: "cancelado",   textClass: "text-destructive"  },
 };
 
-const emptyProduto: Record<string, any> = {
-  nome: "", sku: "", codigo_interno: "", descricao: "", unidade_medida: "UN",
+const emptyProduto = {
+  nome: "", sku: "", codigo_interno: "", descricao: "", unidade_medida: "UN" as string,
   preco_custo: 0, preco_venda: 0, estoque_minimo: 0, ncm: "", cst: "", cfop_padrao: "", peso: 0, eh_composto: false,
-  grupo_id: "", tipo_item: "produto"
+  grupo_id: "", tipo_item: "produto" as TipoItem,
 };
 
 const Produtos = () => {
@@ -88,7 +89,7 @@ const Produtos = () => {
   const { pushView } = useRelationalNavigation();
   const [modalOpen, setModalOpen] = useState(false);
   const [mode, setMode] = useState<"create" | "edit">("create");
-  const [form, setForm] = useState(emptyProduto);
+  const [form, setForm] = useState<ProdutoFormData>(emptyProduto);
   const [saving, setSaving] = useState(false);
   const [editComposicao, setEditComposicao] = useState<ComposicaoItem[]>([]);
   const [editFornecedores, setEditFornecedores] = useState<FornecedorLink[]>([]);
@@ -115,7 +116,7 @@ const Produtos = () => {
   }, []);
 
   useEffect(() => {
-    const editId = (location.state as any)?.editId;
+    const editId = (location.state as { editId?: string } | null)?.editId;
     if (!editId) return;
     navigate(location.pathname, { replace: true, state: {} });
     supabase.from("produtos").select("*").eq("id", editId).maybeSingle().then(({ data: p }) => {
@@ -154,7 +155,7 @@ const Produtos = () => {
       estoque_minimo: p.estoque_minimo || 0, ncm: (p.ncm || "").replace(/\D/g, ''), cst: p.cst || "", cfop_padrao: p.cfop_padrao || "",
       peso: p.peso || 0, eh_composto: p.eh_composto || false,
       grupo_id: p.grupo_id || "",
-      tipo_item: (p as any).tipo_item || "produto"
+      tipo_item: p.tipo_item || "produto"
     });
     const [compRes, fornRes] = await Promise.all([
       p.eh_composto
@@ -162,11 +163,11 @@ const Produtos = () => {
         : Promise.resolve({ data: [] }),
       supabase.from("produtos_fornecedores").select("*").eq("produto_id", p.id),
     ]);
-    setEditComposicao(((compRes.data || []) as any[]).map((c: any) => ({
+    setEditComposicao(((compRes.data || []) as Array<{id: string; produto_filho_id: string; quantidade: number; ordem: number; produtos: {nome: string; sku: string; preco_custo: number} | null}>).map((c) => ({
       id: c.id, produto_filho_id: c.produto_filho_id, quantidade: c.quantidade, ordem: c.ordem,
       nome: c.produtos?.nome, sku: c.produtos?.sku, preco_custo: c.produtos?.preco_custo
     })));
-    setEditFornecedores(((fornRes.data || []) as any[]).map((f: any) => ({
+    setEditFornecedores(((fornRes.data || []) as Array<{id: string; fornecedor_id: string; eh_principal: boolean | null; descricao_fornecedor: string | null; referencia_fornecedor: string | null; unidade_fornecedor: string | null; lead_time_dias: number | null; preco_compra: number | null}>).map((f) => ({
       id: f.id, fornecedor_id: f.fornecedor_id, eh_principal: f.eh_principal || false,
       descricao_fornecedor: f.descricao_fornecedor || "", referencia_fornecedor: f.referencia_fornecedor || "",
       unidade_fornecedor: f.unidade_fornecedor || "", lead_time_dias: f.lead_time_dias || 0, preco_compra: f.preco_compra || 0,
@@ -184,20 +185,16 @@ const Produtos = () => {
     setEditComposicao([...editComposicao, { produto_filho_id: "", quantidade: 1, ordem: editComposicao.length + 1 }]);
   };
   const removeComponent = (idx: number) => setEditComposicao(editComposicao.filter((_, i) => i !== idx));
-  const updateComponent = (idx: number, field: string, value: any) => {
-    const updated = [...editComposicao];
-    (updated[idx] as any)[field] = value;
-    setEditComposicao(updated);
+  const updateComponent = (idx: number, field: keyof ComposicaoItem, value: ComposicaoItem[keyof ComposicaoItem]) => {
+    setEditComposicao(editComposicao.map((c, i) => i === idx ? { ...c, [field]: value } : c));
   };
 
   const addFornecedor = () => {
     setEditFornecedores([...editFornecedores, { fornecedor_id: "", eh_principal: editFornecedores.length === 0, descricao_fornecedor: "", referencia_fornecedor: "", unidade_fornecedor: "", lead_time_dias: 0, preco_compra: 0 }]);
   };
   const removeFornecedor = (idx: number) => setEditFornecedores(editFornecedores.filter((_, i) => i !== idx));
-  const updateFornecedor = (idx: number, field: string, value: any) => {
-    const updated = [...editFornecedores];
-    (updated[idx] as any)[field] = value;
-    setEditFornecedores(updated);
+  const updateFornecedor = (idx: number, field: keyof FornecedorLink, value: FornecedorLink[keyof FornecedorLink]) => {
+    setEditFornecedores(editFornecedores.map((f, i) => i === idx ? { ...f, [field]: value } : f));
   };
   const setPrincipalFornecedor = (idx: number) => {
     setEditFornecedores(editFornecedores.map((f, i) => ({ ...f, eh_principal: i === idx })));
@@ -220,7 +217,7 @@ const Produtos = () => {
       let produtoId: string;
       if (mode === "create") {
         const result = await create(payload);
-        produtoId = (result as any).id;
+        produtoId = result.id;
       } else if (form.id) {
         await update(form.id, payload);
         produtoId = form.id;
@@ -272,7 +269,7 @@ const Produtos = () => {
       }
 
       if (tipoItemFilters.length > 0) {
-        const ti = (p as any).tipo_item || "produto";
+        const ti = p.tipo_item || "produto";
         if (!tipoItemFilters.includes(ti)) return false;
       }
 
@@ -395,7 +392,7 @@ const Produtos = () => {
     {
       key: "tipo_item",
       label: "Classificação",
-      render: (p: Produto) => <StatusBadge status={(p as any).tipo_item || "produto"} />,
+      render: (p: Produto) => <StatusBadge status={p.tipo_item || "produto"} />,
     },
     {
       key: "ativo",
@@ -417,8 +414,8 @@ const Produtos = () => {
       const s = getSituacaoEstoque(p);
       return s === "critico" || s === "zerado";
     });
-    const insumos = data.filter(p => (p as any).tipo_item === "insumo");
-    const produtos = data.filter(p => ((p as any).tipo_item || "produto") === "produto");
+    const insumos = data.filter(p => p.tipo_item === "insumo");
+    const produtos = data.filter(p => (p.tipo_item || "produto") === "produto");
     return { total: data.length, ativos: ativos.length, criticos: criticos.length, insumos: insumos.length, produtos: produtos.length };
   }, [data]);
 
@@ -617,12 +614,12 @@ const Produtos = () => {
           {/* Context banner — edit mode only */}
           {mode === "edit" && editingProduct && (
             <div className="flex flex-wrap items-center gap-3 p-3 bg-muted/40 rounded-lg border mb-4 text-xs text-muted-foreground">
-              <span className={`font-medium ${(editingProduct as any).ativo !== false ? "text-emerald-600" : "text-muted-foreground"}`}>
-                {(editingProduct as any).ativo !== false ? "● Ativo" : "○ Inativo"}
+              <span className={`font-medium ${editingProduct.ativo !== false ? "text-emerald-600" : "text-muted-foreground"}`}>
+                {editingProduct.ativo !== false ? "● Ativo" : "○ Inativo"}
               </span>
-              {(editingProduct as any).updated_at && <>
+              {editingProduct.updated_at && <>
                 <span>·</span>
-                <span>Última atualização: {formatDate((editingProduct as any).updated_at)}</span>
+                <span>Última atualização: {formatDate(editingProduct.updated_at)}</span>
               </>}
               <span>·</span>
               <button type="button" className="text-primary underline hover:opacity-80" onClick={() => { setModalOpen(false); openView(editingProduct); }}>
@@ -869,7 +866,7 @@ const Produtos = () => {
                     />
                     <Label className="text-xs cursor-pointer whitespace-nowrap">Principal</Label>
                   </div>
-                  <Button type="button" size="icon" variant="ghost" className="h-9 w-9 text-destructive shrink-0" onClick={() => removeFornecedor(idx)}>
+                  <Button type="button" size="icon" variant="ghost" aria-label="Remover fornecedor" className="h-9 w-9 text-destructive shrink-0" onClick={() => removeFornecedor(idx)}>
                     <Trash2 className="w-4 h-4" />
                   </Button>
                 </div>
@@ -922,7 +919,7 @@ const Produtos = () => {
                   </div>
                   <div className="space-y-1"><Label className="text-xs">Qtd</Label><Input type="number" min={0.01} step="0.01" value={comp.quantidade} onChange={(e) => updateComponent(idx, "quantidade", Number(e.target.value))} className="h-9" /></div>
                   <div className="space-y-1"><Label className="text-xs">Custo</Label><p className="h-9 flex items-center text-xs font-mono text-muted-foreground">{prod ? formatCurrency(comp.quantidade * (prod.preco_custo || 0)) : "—"}</p></div>
-                  <Button type="button" size="icon" variant="ghost" className="h-9 w-9 text-destructive" onClick={() => removeComponent(idx)}><Trash2 className="w-4 h-4" /></Button>
+                  <Button type="button" size="icon" variant="ghost" aria-label="Remover componente" className="h-9 w-9 text-destructive" onClick={() => removeComponent(idx)}><Trash2 className="w-4 h-4" /></Button>
                 </div>
               );
             })}

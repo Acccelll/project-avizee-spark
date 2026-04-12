@@ -14,6 +14,8 @@ export interface SummaryCardProps {
   variant?: 'default' | 'success' | 'danger' | 'warning' | 'info';
   icon?: LucideIcon;
   onClick?: () => void;
+  /** Accessible label for the clickable card element. Recommended when `onClick` is provided. */
+  'aria-label'?: string;
   /** Optional callback to open a detail view (e.g. a metric drawer). Renders a small chart icon button. */
   onDetail?: () => void;
   className?: string;
@@ -56,6 +58,7 @@ export const SummaryCard = forwardRef<HTMLDivElement, SummaryCardProps>(
       meta,
       realizado,
       density = 'default',
+      'aria-label': ariaLabel,
     },
     ref,
   ) {
@@ -96,6 +99,7 @@ export const SummaryCard = forwardRef<HTMLDivElement, SummaryCardProps>(
         onClick={onClick}
         role={onClick ? 'button' : undefined}
         tabIndex={onClick ? 0 : undefined}
+        aria-label={ariaLabel}
         onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } } : undefined}
       >
         <div className="flex items-start justify-between">

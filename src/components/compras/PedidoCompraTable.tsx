@@ -220,6 +220,8 @@ export function PedidoCompraTable({
       showColumnToggle={true}
       onView={onView}
       onEdit={onEdit}
+      emptyTitle="Nenhum pedido de compra encontrado"
+      emptyDescription="Tente ajustar os filtros ou crie um novo pedido de compra."
     />
   );
 }

@@ -617,7 +617,7 @@ export default function Logistica() {
                 <Input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} className="h-9 w-[140px] text-xs" title="Prev. entrega até" />
               </div>
             </AdvancedFilterBar>
-            <DataTable columns={entregaColumns} data={filteredEntregas} loading={loading} moduleKey="logistica-entregas" showColumnToggle />
+            <DataTable columns={entregaColumns} data={filteredEntregas} loading={loading} moduleKey="logistica-entregas" showColumnToggle emptyTitle="Nenhuma entrega encontrada" emptyDescription="Tente ajustar os filtros de status ou período." />
           </TabsContent>
 
           {/* ── Tab: Recebimentos ── */}
@@ -638,7 +638,7 @@ export default function Logistica() {
                 <Input type="date" value={dataFimReceb} onChange={(e) => setDataFimReceb(e.target.value)} className="h-9 w-[140px] text-xs" title="Prev. entrega até" />
               </div>
             </AdvancedFilterBar>
-            <DataTable columns={recebimentosColumns} data={filteredRecebimentos} loading={loading} moduleKey="logistica-recebimentos" showColumnToggle />
+            <DataTable columns={recebimentosColumns} data={filteredRecebimentos} loading={loading} moduleKey="logistica-recebimentos" showColumnToggle emptyTitle="Nenhum recebimento encontrado" emptyDescription="Tente ajustar os filtros de status ou período." />
           </TabsContent>
 
           {/* ── Tab: Remessas ── */}
@@ -647,7 +647,7 @@ export default function Logistica() {
               <MultiSelect options={remStatusOptions} selected={remStatusFilters} onChange={setRemStatusFilters} placeholder="Status" className="w-[180px]" />
               <MultiSelect options={remTranspOptions} selected={remTranspFilters} onChange={setRemTranspFilters} placeholder="Transportadoras" className="w-[220px]" />
             </AdvancedFilterBar>
-            <DataTable columns={remessaColumns} data={filteredRemessas} loading={remessasLoading} onView={openViewRemessa} onEdit={openEditRemessa} />
+            <DataTable columns={remessaColumns} data={filteredRemessas} loading={remessasLoading} onView={openViewRemessa} onEdit={openEditRemessa} emptyTitle="Nenhuma remessa encontrada" emptyDescription="Tente ajustar os filtros ou crie uma nova remessa." />
           </TabsContent>
         </Tabs>
       </ModulePage>

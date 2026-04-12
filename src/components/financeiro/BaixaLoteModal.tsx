@@ -166,10 +166,20 @@ export function BaixaLoteModal({ open, onClose, selectedLancamentos, contasBanca
               <p className="text-xs text-muted-foreground">Total: {formatCurrency(totalBaixa)} — Restante: {formatCurrency(Math.max(0, totalBaixa - valorPagoBaixa))}</p>
             </div>
           )}
+
+          {/* Cash flow impact indicator */}
+          {baixaDate && totalBaixa > 0 && (
+            <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs text-primary">
+              💡 Esta operação afetará o saldo projetado do dia{" "}
+              <strong>{new Date(baixaDate + "T00:00:00").toLocaleDateString("pt-BR")}</strong> em{" "}
+              <strong>{formatCurrency(tipoBaixa === "parcial" ? valorPagoBaixa : totalBaixa)}</strong>{" "}
+              ({selectedLancamentos.length} título{selectedLancamentos.length !== 1 ? "s" : ""}).
+            </div>
+          )}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={processing}>Cancelar</Button>
-          <Button onClick={handleConfirm} disabled={processing || !baixaDate}>
+          <Button variant="outline" onClick={onClose} disabled={processing} aria-label="Cancelar baixa em lote">Cancelar</Button>
+          <Button onClick={handleConfirm} disabled={processing || !baixaDate} aria-label="Confirmar baixa em lote">
             {processing ? "Processando..." : "Confirmar Baixa"}
           </Button>
         </DialogFooter>

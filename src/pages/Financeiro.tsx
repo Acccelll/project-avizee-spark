@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
@@ -33,7 +32,8 @@ import { FinanceiroDrawer } from "@/components/financeiro/FinanceiroDrawer";
 import { getEffectiveStatus, processarEstorno } from "@/services/financeiro.service";
 import { statusFinanceiro as statusFinanceiroSchema, statusToOptions } from "@/lib/statusSchema";
 import { exportarParaExcel, exportarParaPdf } from "@/services/export.service";
-import type { Lancamento, ContaBancaria } from "@/types/domain";
+import type { Lancamento, ContaBancaria, Cliente, Fornecedor } from "@/types/domain";
+import { getUserFriendlyError } from "@/utils/errorMessages";
 
 interface ContaContabil {
   id: string;
@@ -83,10 +83,8 @@ const Financeiro = () => {
     select: "*, clientes(nome_razao_social), fornecedores(nome_razao_social), contas_bancarias(descricao, bancos(nome))",
   });
   const data = rawData as unknown as Lancamento[];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const clientesCrud = useSupabaseCrud<any>({ table: "clientes" });
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const fornecedoresCrud = useSupabaseCrud<any>({ table: "fornecedores" });
+  const clientesCrud = useSupabaseCrud<Cliente>({ table: "clientes" });
+  const fornecedoresCrud = useSupabaseCrud<Fornecedor>({ table: "fornecedores" });
 
   const [contasBancarias, setContasBancarias] = useState<ContaBancaria[]>([]);
   const [contasContabeis, setContasContabeis] = useState<ContaContabil[]>([]);
@@ -204,7 +202,7 @@ const Financeiro = () => {
       setModalOpen(false);
     } catch (err) {
       console.error('[financeiro] erro ao salvar:', err);
-      toast.error("Erro ao salvar lançamento");
+      toast.error(getUserFriendlyError(err));
     }
     setSaving(false);
   };
@@ -383,6 +381,7 @@ const Financeiro = () => {
           <Button
             size="sm" variant="outline"
             className="h-7 text-xs gap-1 border-primary/30 text-primary hover:bg-primary/5 whitespace-nowrap"
+            aria-label={`Baixar lançamento: ${l.descricao}`}
             onClick={(e) => { e.stopPropagation(); setBaixaParcialTarget(l); setBaixaParcialOpen(true); }}
           >
             <CreditCard className="h-3 w-3" /> Baixar
@@ -477,11 +476,13 @@ const Financeiro = () => {
         </AdvancedFilterBar>
 
         {viewMode === "calendario" ? (
-          <FinanceiroCalendar data={filteredData as any} />
+          <FinanceiroCalendar data={filteredData} />
         ) : (
           <DataTable columns={columns} data={filteredData} loading={loading}
             moduleKey="financeiro-lancamentos" showColumnToggle={true}
             selectable selectedIds={selectedIds} onSelectionChange={setSelectedIds}
+            emptyTitle="Nenhum lançamento encontrado"
+            emptyDescription="Tente ajustar os filtros ou crie um novo lançamento."
             onView={(l) => { setSelected(l); setDrawerOpen(true); }} />
         )}
       </ModulePage>
@@ -536,7 +537,7 @@ const Financeiro = () => {
                   <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="nenhum">Selecione...</SelectItem>
-                    {clientesCrud.data.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.nome_razao_social}</SelectItem>)}
+                    {clientesCrud.data.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome_razao_social}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -547,7 +548,7 @@ const Financeiro = () => {
                   <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="nenhum">Selecione...</SelectItem>
-                    {fornecedoresCrud.data.map((f: any) => <SelectItem key={f.id} value={f.id}>{f.nome_razao_social}</SelectItem>)}
+                    {fornecedoresCrud.data.map((f) => <SelectItem key={f.id} value={f.id}>{f.nome_razao_social}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>

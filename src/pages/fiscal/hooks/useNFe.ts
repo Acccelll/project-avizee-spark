@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { getUserFriendlyError } from "@/utils/errorMessages";
 import type { Database } from "@/integrations/supabase/types";
 
 type NotaFiscalRow = Database["public"]["Tables"]["notas_fiscais"]["Row"];
@@ -62,7 +63,7 @@ export function useNFeMutation() {
       queryClient.invalidateQueries({ queryKey: ["nfe"] });
       toast.success("NF-e criada com sucesso");
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => toast.error(getUserFriendlyError(err)),
   });
 
   const atualizar = useMutation({
@@ -77,7 +78,7 @@ export function useNFeMutation() {
       queryClient.invalidateQueries({ queryKey: ["nfe"] });
       toast.success("NF-e atualizada");
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => toast.error(getUserFriendlyError(err)),
   });
 
   return { criar, atualizar };
@@ -98,6 +99,6 @@ export function useCancelarNFe() {
       queryClient.invalidateQueries({ queryKey: ["nfe"] });
       toast.success("NF-e cancelada");
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => toast.error(getUserFriendlyError(err)),
   });
 }

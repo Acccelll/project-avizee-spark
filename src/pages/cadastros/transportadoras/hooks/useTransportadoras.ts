@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { getUserFriendlyError } from "@/utils/errorMessages";
 import type { Database } from "@/integrations/supabase/types";
 
 export type TransportadoraRow = Database["public"]["Tables"]["transportadoras"]["Row"];
@@ -46,7 +47,7 @@ export function useTransportadoras() {
       toast.success("Transportadora criada!");
       invalidate();
     },
-    onError: (err) => toast.error("Erro ao criar transportadora: " + err.message),
+    onError: (err) => toast.error(getUserFriendlyError(err)),
   });
 
   const updateMutation = useMutation<void, Error, { id: string; payload: TransportadoraUpdate }>({
@@ -58,7 +59,7 @@ export function useTransportadoras() {
       toast.success("Transportadora atualizada!");
       invalidate();
     },
-    onError: (err) => toast.error("Erro ao atualizar transportadora: " + err.message),
+    onError: (err) => toast.error(getUserFriendlyError(err)),
   });
 
   const deleteMutation = useMutation<void, Error, string>({
@@ -73,7 +74,7 @@ export function useTransportadoras() {
       toast.success("Transportadora removida!");
       invalidate();
     },
-    onError: (err) => toast.error("Erro ao remover transportadora: " + err.message),
+    onError: (err) => toast.error(getUserFriendlyError(err)),
   });
 
   return {

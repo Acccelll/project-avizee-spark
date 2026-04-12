@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { getUserFriendlyError } from "@/utils/errorMessages";
 import { supabase } from "@/integrations/supabase/client";
 import { calcularStatusFaturamentoOV } from "@/lib/fiscal";
 import { registrarEventoFiscal } from "@/services/fiscal.service";
@@ -14,6 +15,19 @@ interface PedidoBase {
 interface FaturarPedidoResult {
   nfId: string;
   nfNumero: string;
+}
+
+interface ProdutoFiscal {
+  id: string;
+  nome: string | null;
+  sku: string | null;
+  ncm: string | null;
+  cst: string | null;
+  cfop_padrao: string | null;
+  origem_mercadoria: string | null;
+  unidade_medida: string | null;
+  peso_bruto: number | null;
+  peso_liquido: number | null;
 }
 
 /**
@@ -54,17 +68,17 @@ export function useFaturarPedido() {
 
       // Calculate total weight from products
       const pesoBrutoTotal = (pedidoItems || []).reduce(
-        (s, i) => s + (Number((i.produtos as any)?.peso_bruto || 0) * Number(i.quantidade || 0)), 0
+        (s, i) => s + (Number((i.produtos as ProdutoFiscal | null)?.peso_bruto || 0) * Number(i.quantidade || 0)), 0
       );
       const pesoLiquidoTotal = (pedidoItems || []).reduce(
-        (s, i) => s + (Number((i.produtos as any)?.peso_liquido || 0) * Number(i.quantidade || 0)), 0
+        (s, i) => s + (Number((i.produtos as ProdutoFiscal | null)?.peso_liquido || 0) * Number(i.quantidade || 0)), 0
       );
 
       const { data: newNF, error: nfError } = await supabase
         .from("notas_fiscais")
         .insert({
           numero: nfNumero,
-          tipo: "saida",
+          tipo: "saida" as const,
           data_emissao: new Date().toISOString().split("T")[0],
           cliente_id: pedido.cliente_id,
           ordem_venda_id: pedido.id,
@@ -78,7 +92,7 @@ export function useFaturarPedido() {
           peso_bruto: pesoBrutoTotal,
           peso_liquido: pesoLiquidoTotal,
           observacoes: `Gerada a partir do Pedido ${pedido.numero}`,
-        } as any)
+        })
         .select()
         .single();
 
@@ -87,7 +101,7 @@ export function useFaturarPedido() {
       // Insert NF items with fiscal data from products
       if (pedidoItems && pedidoItems.length > 0 && newNF) {
         const nfItems = pedidoItems.map((i) => {
-          const prod = i.produtos as any;
+          const prod = i.produtos as ProdutoFiscal | null;
           return {
             nota_fiscal_id: newNF.id,
             produto_id: i.produto_id,
@@ -155,7 +169,7 @@ export function useFaturarPedido() {
       toast.success(`NF ${result.nfNumero} gerada com sucesso!`);
     },
     onError: (err: Error) => {
-      toast.error(`Erro ao gerar Nota Fiscal: ${err.message}`);
+      toast.error(getUserFriendlyError(err));
     },
   });
 }

@@ -2,8 +2,9 @@ import { useNavigate } from 'react-router-dom';
 import { FileText } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { useRelationalNavigation } from '@/contexts/RelationalNavigationContext';
+import type { Orcamento } from '@/types/domain';
 
-export function RecentOrcamentos({ items, loading }: { items: any[]; loading: boolean }) {
+export function RecentOrcamentos({ items, loading }: { items: Orcamento[]; loading: boolean }) {
   const navigate = useNavigate();
   const { pushView } = useRelationalNavigation();
 
@@ -21,7 +22,7 @@ export function RecentOrcamentos({ items, loading }: { items: any[]; loading: bo
         <p className="text-sm text-muted-foreground py-4 text-center">Nenhum orçamento encontrado</p>
       ) : (
         <div className="space-y-2">
-          {items.map((o: any) => (
+          {items.map((o: Orcamento) => (
             <div key={o.id} className="flex items-center justify-between py-2 border-b last:border-b-0 hover:bg-muted/20 px-2 rounded cursor-pointer" onClick={() => pushView("orcamento", o.id)}>
               <div className="flex items-center gap-3">
                 <FileText className="w-4 h-4 text-primary" />

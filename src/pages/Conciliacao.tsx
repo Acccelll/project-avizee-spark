@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
@@ -28,7 +27,8 @@ import {
 } from "@/services/financeiro/conciliacao.service";
 import type { TransacaoExtrato } from "@/services/financeiro/ofxParser.service";
 import { exportarParaExcel } from "@/services/export.service";
-import type { Lancamento, ContaBancaria } from "@/types/domain";
+import type { Lancamento } from "@/types/domain";
+import { getUserFriendlyError } from "@/utils/errorMessages";
 
 interface LancamentoComStatus extends Lancamento {
   statusConciliacao: string;
@@ -39,6 +39,13 @@ interface LancamentoComStatus extends Lancamento {
 interface Match {
   extratoId: string;
   lancamentoId: string;
+}
+
+/** Lightweight shape for the contas bancárias dropdown. */
+interface ContaBancariaDropdown {
+  id: string;
+  nome: string;
+  banco?: string | null;
 }
 
 const statusConciliacaoOptions: MultiSelectOption[] = [
@@ -64,7 +71,7 @@ export default function Conciliacao() {
   const defaultDataInicio = () => { const d = new Date(); d.setDate(1); return d.toISOString().split("T")[0]; };
   const defaultDataFim = () => { const d = new Date(); d.setMonth(d.getMonth() + 1, 0); return d.toISOString().split("T")[0]; };
 
-  const [contasBancarias, setContasBancarias] = useState<ContaBancaria[]>([]);
+  const [contasBancarias, setContasBancarias] = useState<ContaBancariaDropdown[]>([]);
   const [selectedConta, setSelectedConta] = useState<string>("");
   const [extratoItems, setExtratoItems] = useState<OFXTransaction[]>([]);
   const [lancamentos, setLancamentos] = useState<Lancamento[]>([]);
@@ -111,12 +118,11 @@ export default function Conciliacao() {
       .then(({ data }) => {
         if (data) {
           setContasBancarias(
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (data as any[]).map((d) => ({
+            data.map((d) => ({
               id: d.id,
-              nome: d.descricao,
-              banco: d.bancos?.nome,
-            })) as ContaBancaria[],
+              nome: (d as { id: string; descricao: string; bancos?: { nome: string } | null }).descricao,
+              banco: (d as { id: string; descricao: string; bancos?: { nome: string } | null }).bancos?.nome,
+            })),
           );
         }
       });
@@ -176,8 +182,8 @@ export default function Conciliacao() {
         await loadLancamentosFromPeriod(dates[0], dates[dates.length - 1], selectedConta);
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Erro desconhecido";
-      toast.error("Erro ao processar arquivo OFX: " + msg);
+      console.error("[conciliacao] erro ao processar OFX:", err);
+      toast.error(getUserFriendlyError(err));
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";

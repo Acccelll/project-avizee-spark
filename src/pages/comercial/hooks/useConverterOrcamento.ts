@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { getUserFriendlyError } from "@/utils/errorMessages";
 import { convertToPedido, type ConvertToOVOptions } from "@/services/orcamentos.service";
 
 interface OrcamentoBase {
@@ -33,7 +34,7 @@ export function useConverterOrcamento() {
       toast.success(`Pedido ${result.ovNumero} criado com sucesso!`);
     },
     onError: (err: Error) => {
-      toast.error(`Erro ao converter cotação: ${err.message}`);
+      toast.error(getUserFriendlyError(err));
     },
   });
 }

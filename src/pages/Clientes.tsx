@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useEffect, useMemo, useState } from "react";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -13,6 +12,7 @@ import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { useViaCep } from "@/hooks/useViaCep";
 import { useCnpjLookup } from "@/hooks/useCnpjLookup";
+import { useDocumentoUnico } from "@/hooks/useDocumentoUnico";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -45,7 +45,44 @@ interface Cliente {
 interface GrupoEconomico {id: string;nome: string;}
 interface FormaPagamentoBasic {id: string;descricao: string;}
 
-const emptyCliente: Record<string, any> = {
+interface ClienteTransportadoraRow {
+  id: string;
+  transportadora_id: string;
+  transportadoras?: { nome_razao_social: string } | null;
+  prioridade: number | null;
+  modalidade: string | null;
+  prazo_medio: string | null;
+}
+
+interface ClienteFormData {
+  tipo_pessoa: string;
+  nome_razao_social: string;
+  nome_fantasia: string;
+  cpf_cnpj: string;
+  inscricao_estadual: string;
+  email: string;
+  telefone: string;
+  celular: string;
+  contato: string;
+  prazo_padrao: number;
+  limite_credito: number;
+  forma_pagamento_padrao: string;
+  prazo_preferencial: number;
+  logradouro: string;
+  numero: string;
+  complemento: string;
+  bairro: string;
+  cidade: string;
+  uf: string;
+  cep: string;
+  pais: string;
+  observacoes: string;
+  grupo_economico_id: string;
+  tipo_relacao_grupo: string;
+  caixa_postal: string;
+}
+
+const emptyCliente: ClienteFormData = {
   tipo_pessoa: "J", nome_razao_social: "", nome_fantasia: "", cpf_cnpj: "",
   inscricao_estadual: "", email: "", telefone: "", celular: "", contato: "",
   prazo_padrao: 30, limite_credito: 0, forma_pagamento_padrao: "", prazo_preferencial: 0,
@@ -81,7 +118,13 @@ const Clientes = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [selected, setSelected] = useState<Cliente | null>(null);
   const [mode, setMode] = useState<"create" | "edit">("create");
-  const [form, setForm] = useState(emptyCliente);
+  const [form, setForm] = useState<ClienteFormData>(emptyCliente);
+  const docTipo = form.tipo_pessoa === "F" ? "cpf" : "cnpj";
+  const { isUnique: docUnico, isLoading: docChecking } = useDocumentoUnico(
+    docTipo,
+    form.cpf_cnpj,
+    selected?.id,
+  );
   const [saving, setSaving] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
   const [grupos, setGrupos] = useState<GrupoEconomico[]>([]);
@@ -105,7 +148,7 @@ const Clientes = () => {
         .eq("ativo", true)
         .order("prioridade");
       if (error) throw error;
-      setModalTransportadoras(((data || []) as any[]).map((ct) => ({
+      setModalTransportadoras(((data || []) as ClienteTransportadoraRow[]).map((ct) => ({
         id: ct.id,
         transportadora_id: ct.transportadora_id,
         transportadora_nome: ct.transportadoras?.nome_razao_social || "—",
@@ -121,12 +164,12 @@ const Clientes = () => {
   };
 
   useEffect(() => {
-    supabase.from("grupos_economicos").select("id, nome").eq("ativo", true).order("nome").then(({ data: g }: any) => setGrupos(g || []));
+    supabase.from("grupos_economicos").select("id, nome").eq("ativo", true).order("nome").then(({ data: g }) => setGrupos((g as GrupoEconomico[]) || []));
     supabase.from("formas_pagamento").select("id, descricao").eq("ativo", true).order("descricao").then(({ data: fp }) => setFormasPagamento((fp || []) as FormaPagamentoBasic[]));
   }, []);
 
   useEffect(() => {
-    const editId = (location.state as any)?.editId;
+    const editId = (location.state as { editId?: string } | null)?.editId;
     if (!editId) return;
     navigate(location.pathname, { replace: true, state: {} });
     supabase.from("clientes").select("*").eq("id", editId).maybeSingle().then(({ data: c }) => {
@@ -144,8 +187,8 @@ const Clientes = () => {
       cpf_cnpj: c.cpf_cnpj || "", inscricao_estadual: c.inscricao_estadual || "",
       email: c.email || "", telefone: c.telefone || "", celular: c.celular || "", contato: c.contato || "",
       prazo_padrao: c.prazo_padrao || 30, limite_credito: c.limite_credito || 0,
-      forma_pagamento_padrao: (c as any).forma_pagamento_padrao || "",
-      prazo_preferencial: (c as any).prazo_preferencial || 0,
+      forma_pagamento_padrao: c.forma_pagamento_padrao || "",
+      prazo_preferencial: c.prazo_preferencial || 0,
       logradouro: c.logradouro || "", numero: c.numero || "", complemento: c.complemento || "",
       bairro: c.bairro || "", cidade: c.cidade || "", uf: c.uf || "", cep: c.cep || "",
       pais: c.pais || "Brasil", observacoes: c.observacoes || "",
@@ -193,7 +236,7 @@ const Clientes = () => {
 
   const grupoNome = (id: string | null) => !id ? "—" : grupos.find((g) => g.id === id)?.nome || "—";
   const relacaoLabel: Record<string, string> = { matriz: "Matriz", filial: "Filial", coligada: "Coligada", independente: "Independente" };
-  const updateForm = (updates: Record<string, any>) => { setForm(prev => ({ ...prev, ...updates })); setIsDirty(true); };
+  const updateForm = (updates: Partial<ClienteFormData>) => { setForm(prev => ({ ...prev, ...updates })); setIsDirty(true); };
 
   const filteredData = useMemo(() => {
     // Text search is now server-side; only apply local dropdown filters
@@ -499,6 +542,14 @@ const Clientes = () => {
                 </Tooltip>
               </div>
               {formErrors.cpf_cnpj && <p className="text-xs text-destructive">{formErrors.cpf_cnpj}</p>}
+              {!formErrors.cpf_cnpj && docChecking && (
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Loader2 className="h-3 w-3 animate-spin" />Verificando unicidade...
+                </p>
+              )}
+              {!formErrors.cpf_cnpj && !docChecking && docUnico === false && (
+                <p className="text-xs text-destructive">CPF/CNPJ já cadastrado em cliente ou fornecedor.</p>
+              )}
             </div>
             <div className="space-y-1.5">
               <div className="flex items-center gap-1">

@@ -76,6 +76,43 @@ interface SideNavItem {
   icon: typeof Building2;
 }
 
+// Typed shapes for JSONB config values stored in app_configuracoes
+interface GeralConfigRaw {
+  inscricaoMunicipal?: string;
+  site?: string;
+  whatsapp?: string;
+  responsavel?: string;
+  logoUrl?: string;
+  corPrimaria?: string;
+  corSecundaria?: string;
+  [key: string]: unknown;
+}
+
+interface EmailConfigRaw {
+  _updatedAt?: string;
+  _updatedBy?: string;
+  [key: string]: unknown;
+}
+
+interface FiscalConfigRaw {
+  _updatedAt?: string;
+  _updatedByName?: string;
+  [key: string]: unknown;
+}
+
+interface FinanceiroConfigRaw {
+  _updatedAt?: string;
+  _updatedByName?: string;
+  [key: string]: unknown;
+}
+
+interface UsuariosConfigRaw {
+  permitirCadastro?: boolean;
+  exigir2fa?: boolean;
+  perfilPadrao?: string;
+  [key: string]: unknown;
+}
+
 const sideNavItems: SideNavItem[] = [
   { key: 'dashboard', label: 'Dashboard de Segurança', icon: Shield },
   { key: 'empresa', label: 'Empresa', icon: Building2 },
@@ -134,12 +171,12 @@ export default function Administracao() {
         ]);
         const empresa = empresaRows?.[0];
         const appConfig = Object.fromEntries((appRows || []).map((row: { chave: string; valor: unknown }) => [row.chave, row.valor || {}]));
-        const geralRaw = (appConfig.geral as any) || {};
-        const emailRaw = (appConfig.email as any) || {};
+        const geralRaw: GeralConfigRaw = (appConfig.geral as GeralConfigRaw) || {};
+        const emailRaw: EmailConfigRaw = (appConfig.email as EmailConfigRaw) || {};
         const { _updatedAt: emailUpdatedAt, _updatedBy: emailUpdatedBy, ...emailData } = emailRaw;
-        const fiscalRaw = (appConfig.fiscal as any) || {};
+        const fiscalRaw: FiscalConfigRaw = (appConfig.fiscal as FiscalConfigRaw) || {};
         const { _updatedAt: fiscalUpdatedAt, _updatedByName: fiscalUpdatedByName, ...fiscalData } = fiscalRaw;
-        const financeiroRaw = (appConfig.financeiro as any) || {};
+        const financeiroRaw: FinanceiroConfigRaw = (appConfig.financeiro as FinanceiroConfigRaw) || {};
         const { _updatedAt: financeiroUpdatedAt, _updatedByName: financeiroUpdatedByName, ...financeiroData } = financeiroRaw;
         const merged = {
           ...defaultConfig,
@@ -166,7 +203,7 @@ export default function Administracao() {
             corPrimaria: geralRaw.corPrimaria || defaultConfig.geral.corPrimaria,
             corSecundaria: geralRaw.corSecundaria || defaultConfig.geral.corSecundaria,
           },
-          usuarios: { ...defaultConfig.usuarios, ...((appConfig.usuarios as any) || {}) },
+          usuarios: { ...defaultConfig.usuarios, ...((appConfig.usuarios as UsuariosConfigRaw) || {}) },
           email: { ...defaultConfig.email, ...emailData },
           fiscal: { ...defaultConfig.fiscal, ...fiscalData },
           financeiro: { ...defaultConfig.financeiro, ...financeiroData },

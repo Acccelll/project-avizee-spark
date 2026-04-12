@@ -316,7 +316,7 @@ export default function Remessas() {
             className="w-[220px]"
           />
         </AdvancedFilterBar>
-        <DataTable columns={columns} data={filteredData} loading={loading} onView={openView} onEdit={openEdit} />
+        <DataTable columns={columns} data={filteredData} loading={loading} onView={openView} onEdit={openEdit} emptyTitle="Nenhuma remessa encontrada" emptyDescription="Tente ajustar os filtros ou crie uma nova remessa." />
       </ModulePage>
 
       {/* Form Modal */}

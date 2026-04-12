@@ -14,6 +14,7 @@ import {
   Package, DollarSign, AlertCircle, Copy, Clock, Download, File,
 } from "lucide-react";
 import { toast } from "sonner";
+import { getUserFriendlyError } from "@/utils/errorMessages";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -57,8 +58,58 @@ export interface NotaFiscal {
   ordens_venda?: { numero: string };
 }
 
+// ── Drawer-local types ─────────────────────────────────────────────────────────
+
+interface NFItem {
+  id: string;
+  quantidade: number;
+  valor_unitario: number;
+  cst?: string | null;
+  cfop?: string | null;
+  conta_contabil_id?: string | null;
+  produtos?: { id: string; nome: string; sku: string } | null;
+  contas_contabeis?: { codigo: string; descricao: string } | null;
+}
+
+interface LancamentoFiscal {
+  id: string;
+  tipo: string;
+  descricao: string;
+  valor: number;
+  data_vencimento: string | null;
+  status: string;
+  forma_pagamento: string | null;
+  parcela_numero: number | null;
+  parcela_total: number | null;
+}
+
+interface MovimentoEstoque {
+  id: string;
+  tipo_movimento: string;
+  quantidade: number;
+  saldo_apos: number | null;
+  produtos?: { id: string; nome: string; sku: string } | null;
+}
+
+interface EventoFiscal {
+  id: string;
+  tipo_evento: string;
+  descricao?: string | null;
+  data_evento: string;
+  status_anterior?: string | null;
+  status_novo?: string | null;
+}
+
+interface AnexoFiscal {
+  id: string;
+  nome_arquivo?: string | null;
+  tipo_arquivo?: string | null;
+  tamanho?: number | null;
+  caminho_storage?: string | null;
+  created_at?: string | null;
+}
+
 interface NotaFiscalDrawerProps {
-  open: boolean;
   onClose: () => void;
   selected: NotaFiscal | null;
   onEdit: (nf: NotaFiscal) => void;
@@ -75,11 +126,11 @@ export function NotaFiscalDrawer({
   open, onClose, selected,
   onEdit, onDelete, onConfirmar, onEstornar, onDevolucao, onDanfe,
 }: NotaFiscalDrawerProps) {
-  const [items, setItems] = useState<any[]>([]);
-  const [lancamentos, setLancamentos] = useState<any[]>([]);
-  const [movimentos, setMovimentos] = useState<any[]>([]);
-  const [eventos, setEventos] = useState<any[]>([]);
-  const [anexos, setAnexos] = useState<any[]>([]);
+  const [items, setItems] = useState<NFItem[]>([]);
+  const [lancamentos, setLancamentos] = useState<LancamentoFiscal[]>([]);
+  const [movimentos, setMovimentos] = useState<MovimentoEstoque[]>([]);
+  const [eventos, setEventos] = useState<EventoFiscal[]>([]);
+  const [anexos, setAnexos] = useState<AnexoFiscal[]>([]);
   const [loadingExtra, setLoadingExtra] = useState(false);
 
   useEffect(() => {
@@ -107,7 +158,7 @@ export function NotaFiscalDrawer({
         .select("*, produtos(id, nome, sku)")
         .eq("documento_id", selected.id)
         .eq("documento_tipo", "fiscal")
-        .order("created_at" as any, { ascending: true }),
+        .order("created_at", { ascending: true }),
       supabase
         .from("nota_fiscal_eventos")
         .select("*")
@@ -120,10 +171,10 @@ export function NotaFiscalDrawer({
         .order("created_at", { ascending: false }),
     ]).then(([{ data: it }, { data: lanc }, { data: mov }, { data: ev }, { data: anx }]) => {
       setItems(it || []);
-      setLancamentos((lanc as any[]) || []);
-      setMovimentos((mov as any[]) || []);
-      setEventos((ev as any[]) || []);
-      setAnexos((anx as any[]) || []);
+      setLancamentos(lanc || []);
+      setMovimentos(mov || []);
+      setEventos(ev || []);
+      setAnexos(anx || []);
       setLoadingExtra(false);
     });
   }, [open, selected]);
@@ -314,7 +365,7 @@ export function NotaFiscalDrawer({
                 </tr>
               </thead>
               <tbody>
-                {items.map((i: any, idx: number) => (
+                {items.map((i, idx) => (
                   <tr key={idx} className="border-b last:border-b-0 hover:bg-muted/20">
                     <td className="px-3 py-2">
                       {i.produtos?.id ? (
@@ -432,14 +483,14 @@ export function NotaFiscalDrawer({
     </div>
   );
 
-  const handleDownloadAnexo = async (anexo: any) => {
+  const handleDownloadAnexo = async (anexo: AnexoFiscal) => {
     if (!anexo.caminho_storage) { toast.error("Caminho do arquivo não disponível."); return; }
     try {
       const { data, error } = await supabase.storage.from("dbavizee").createSignedUrl(anexo.caminho_storage, 300);
       if (error) throw error;
       window.open(data.signedUrl, "_blank");
-    } catch (err: any) {
-      toast.error(`Erro ao baixar arquivo: ${err.message}`);
+    } catch (err: unknown) {
+      toast.error(getUserFriendlyError(err));
     }
   };
 
@@ -485,7 +536,7 @@ export function NotaFiscalDrawer({
           </div>
         ) : (
           <div className="space-y-2">
-            {anexos.map((anexo: any) => (
+            {anexos.map((anexo) => (
               <div key={anexo.id} className="rounded-lg border p-3 flex items-center justify-between bg-muted/10 hover:bg-muted/20 transition-colors">
                 <div className="flex items-center gap-3 min-w-0">
                   <File className="h-5 w-5 text-muted-foreground shrink-0" />
@@ -499,7 +550,7 @@ export function NotaFiscalDrawer({
                   </div>
                 </div>
                 {anexo.caminho_storage && (
-                  <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => handleDownloadAnexo(anexo)} title="Baixar">
+                  <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" aria-label={`Baixar ${anexo.nome_arquivo || "arquivo"}`} onClick={() => handleDownloadAnexo(anexo)} title="Baixar">
                     <Download className="h-4 w-4" />
                   </Button>
                 )}
@@ -570,7 +621,7 @@ export function NotaFiscalDrawer({
         </div>
       ) : (
         <TimelineList
-          items={eventos.map((ev: any) => ({
+          items={eventos.map((ev) => ({
             id: ev.id,
             title: tipoEventoLabels[ev.tipo_evento] || ev.tipo_evento,
             description: ev.descricao || undefined,
@@ -638,7 +689,7 @@ export function NotaFiscalDrawer({
                   </tr>
                 </thead>
                 <tbody>
-                  {lancamentos.map((l: any, idx: number) => (
+                  {lancamentos.map((l, idx) => (
                     <tr key={l.id || idx} className="border-b last:border-b-0 hover:bg-muted/20">
                       <td className="px-3 py-2 truncate max-w-[140px]">{l.descricao || "—"}</td>
                       <td className="px-3 py-2 text-right font-mono font-medium">
@@ -688,7 +739,7 @@ export function NotaFiscalDrawer({
                   </tr>
                 </thead>
                 <tbody>
-                  {movimentos.map((m: any, idx: number) => (
+                  {movimentos.map((m, idx) => (
                     <tr key={m.id || idx} className="border-b last:border-b-0 hover:bg-muted/20">
                       <td className="px-3 py-2 truncate max-w-[120px]">
                         {m.produtos?.id ? (
@@ -725,12 +776,12 @@ export function NotaFiscalDrawer({
         </ViewSection>
       )}
 
-      {items.some((i: any) => i.contas_contabeis) && (
+      {items.some((i) => i.contas_contabeis) && (
         <ViewSection title="Contas Contábeis">
           <div className="space-y-1">
             {items
-              .filter((i: any) => i.contas_contabeis)
-              .map((i: any, idx: number) => (
+              .filter((i) => i.contas_contabeis)
+              .map((i, idx) => (
                 <div key={idx} className="flex justify-between text-sm">
                   <span className="text-muted-foreground truncate">
                     {i.produtos?.nome || `Item ${idx + 1}`}
@@ -775,6 +826,7 @@ export function NotaFiscalDrawer({
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8 text-warning hover:text-warning"
+                  aria-label="Gerar devolução"
                   onClick={() => { onClose(); onDevolucao(selected); }}
                 >
                   <ArrowLeftRight className="h-4 w-4" />
@@ -789,6 +841,7 @@ export function NotaFiscalDrawer({
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8"
+                aria-label="Editar nota fiscal"
                 onClick={() => { onClose(); onEdit(selected); }}
               >
                 <Edit className="h-4 w-4" />
@@ -802,6 +855,7 @@ export function NotaFiscalDrawer({
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8 text-destructive hover:text-destructive"
+                aria-label="Excluir nota fiscal"
                 onClick={() => { onClose(); onDelete(selected.id); }}
               >
                 <Trash2 className="h-4 w-4" />

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
@@ -27,6 +26,7 @@ import {
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { exportarParaExcel } from "@/services/export.service";
 import type { Lancamento, ContaBancaria } from "@/types/domain";
+import { getUserFriendlyError } from "@/utils/errorMessages";
 
 type Periodicidade = "diaria" | "semanal" | "mensal";
 
@@ -321,7 +321,8 @@ const FluxoCaixa = () => {
       await reload();
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Erro desconhecido";
-      toast.error(`Erro ao registrar lançamento: ${msg}`);
+      console.error("[fluxo_caixa]", msg);
+      toast.error(getUserFriendlyError(err));
     }
     setSaving(false);
   };

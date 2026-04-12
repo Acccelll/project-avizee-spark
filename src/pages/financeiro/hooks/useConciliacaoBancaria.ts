@@ -9,6 +9,7 @@ import { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { getUserFriendlyError } from "@/utils/errorMessages";
 import { parseOFX, type TransacaoExtrato } from "@/services/financeiro/ofxParser.service";
 import {
   sugerirConciliacao,
@@ -156,8 +157,7 @@ export function useConciliacaoBancaria(
       });
     },
     onError: (err) => {
-      const msg = err instanceof Error ? err.message : "Erro desconhecido";
-      toast.error(`Erro ao conciliar: ${msg}`);
+      toast.error(getUserFriendlyError(err));
     },
   });
 

@@ -7,7 +7,8 @@ import { RelationalLink } from "@/components/ui/RelationalLink";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Edit, Trash2, ArrowRight, CheckCircle2, AlertTriangle, AlertOctagon } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Edit, Trash2, ArrowRight, CheckCircle2, AlertTriangle, AlertOctagon, PackageOpen } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
 import type { Compra } from "@/hooks/useCompras";
@@ -121,7 +122,7 @@ export function CompraDetailDrawer({
           <>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onEdit}>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onEdit} aria-label="Editar compra">
                   <Edit className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
@@ -134,6 +135,7 @@ export function CompraDetailDrawer({
                   size="icon"
                   className="h-8 w-8 text-destructive hover:text-destructive"
                   onClick={onDelete}
+                  aria-label="Excluir compra"
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
@@ -222,9 +224,12 @@ export function CompraDetailDrawer({
                 content: (
                   <div className="space-y-1">
                     {viewItems.length === 0 ? (
-                      <p className="text-sm text-muted-foreground text-center py-4">
-                        Nenhum item
-                      </p>
+                      <EmptyState
+                        icon={PackageOpen}
+                        title="Nenhum item cadastrado"
+                        description="Esta compra não possui itens registrados."
+                        className="py-8"
+                      />
                     ) : (
                       viewItems.map((i, idx) => {
                         const estoque = i.produto_id ? estoqueMap.get(i.produto_id) : undefined;

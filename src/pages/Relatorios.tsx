@@ -263,7 +263,7 @@ export default function Relatorios() {
                   <p className="text-sm font-medium mb-2">Relatórios prioritários</p>
                   <div className="grid gap-3 grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
                     {prioritized.map((card) => (
-                      <button key={card.id} onClick={() => handleSelectTipo(card.id)} className={cn('rounded-xl border p-3 text-left transition-all hover:-translate-y-0.5 hover:border-primary/30 bg-card')}>
+                      <button key={card.id} onClick={() => handleSelectTipo(card.id)} aria-label={`Abrir relatório: ${card.title}`} className={cn('rounded-xl border p-3 text-left transition-all hover:-translate-y-0.5 hover:border-primary/30 bg-card')}>
                         <div className="flex items-center gap-2"><card.icon className="h-4 w-4 text-primary" /><p className="text-xs font-semibold leading-tight">{card.title}</p></div>
                       </button>
                     ))}
@@ -275,7 +275,7 @@ export default function Relatorios() {
                       <p className="text-sm font-semibold mb-3 flex items-center gap-2"><group.icon className="h-4 w-4 text-muted-foreground" />{group.title}</p>
                       <div className="grid gap-3 grid-cols-1 md:grid-cols-2 xl:grid-cols-4">
                         {group.items.map((card) => (
-                          <button key={card.id} onClick={() => handleSelectTipo(card.id)} className={cn('rounded-lg border p-3 text-left transition-all hover:border-primary/30 bg-card')}>
+                          <button key={card.id} onClick={() => handleSelectTipo(card.id)} aria-label={`Abrir relatório: ${card.title}`} className={cn('rounded-lg border p-3 text-left transition-all hover:border-primary/30 bg-card')}>
                             <div className="flex items-center gap-2 mb-1.5"><card.icon className="h-4 w-4 text-muted-foreground" /><span className="text-sm font-semibold">{card.title}</span></div>
                             <p className="text-xs text-muted-foreground">{card.description}</p>
                           </button>
@@ -292,7 +292,7 @@ export default function Relatorios() {
           {!!tipo && (
             <>
               <div className="flex items-center gap-3">
-                <Button variant="outline" size="sm" onClick={() => { setSearchParams({}); }} className="gap-2">
+                <Button variant="outline" size="sm" onClick={() => { setSearchParams({}); }} className="gap-2" aria-label="Voltar para lista de relatórios">
                   <ChevronLeft className="h-4 w-4" />Voltar para Relatórios
                 </Button>
                 {selectedMeta && <span className="text-sm text-muted-foreground"><selectedMeta.icon className="inline h-3.5 w-3.5 mr-1 text-primary" />{selectedMeta.title}</span>}
@@ -325,7 +325,7 @@ export default function Relatorios() {
                           {/* ── Favoritos ── */}
                           <Popover open={saveNameOpen} onOpenChange={setSaveNameOpen}>
                             <PopoverTrigger asChild>
-                              <Button variant="outline" size="sm" className="gap-1.5"><BookmarkPlus className="h-3.5 w-3.5" />Salvar</Button>
+                              <Button variant="outline" size="sm" className="gap-1.5" aria-label="Salvar configuração de filtros como favorito"><BookmarkPlus className="h-3.5 w-3.5" />Salvar</Button>
                             </PopoverTrigger>
                             <PopoverContent align="end" className="w-64 p-3 space-y-2">
                               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Salvar configuração atual</p>
@@ -337,13 +337,13 @@ export default function Relatorios() {
                                 className="h-8 text-sm"
                                 autoFocus
                               />
-                              <Button size="sm" className="w-full" onClick={handleSalvarFavorito} disabled={!saveName.trim()}>Salvar</Button>
+                              <Button size="sm" className="w-full" onClick={handleSalvarFavorito} disabled={!saveName.trim()} aria-label="Confirmar salvamento do favorito">Salvar</Button>
                             </PopoverContent>
                           </Popover>
                           {favoritos.length > 0 && (
                             <Popover>
                               <PopoverTrigger asChild>
-                                <Button variant="outline" size="sm" className="gap-1.5"><BookOpen className="h-3.5 w-3.5" />Carregar</Button>
+                                <Button variant="outline" size="sm" className="gap-1.5" aria-label="Carregar configuração de filtros favorita"><BookOpen className="h-3.5 w-3.5" />Carregar</Button>
                               </PopoverTrigger>
                               <PopoverContent align="end" className="w-72 p-3">
                                 <p className="text-xs font-semibold mb-2 text-muted-foreground uppercase tracking-wide">Configurações salvas</p>
@@ -351,19 +351,19 @@ export default function Relatorios() {
                                   {favoritos.map((fav) => (
                                     <div key={fav.id} className="flex items-center justify-between rounded-md hover:bg-muted/50 px-2 py-1.5 gap-2">
                                       <button className="flex-1 text-left text-sm truncate" onClick={() => handleCarregarFavorito(fav.params)}>{fav.nome}</button>
-                                      <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => { removerFavorito(fav.id); toast.success(`"${fav.nome}" removido.`); }}><Trash2 className="h-3.5 w-3.5" /></Button>
+                                      <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" aria-label={`Remover favorito "${fav.nome}"`} onClick={() => { removerFavorito(fav.id); toast.success(`"${fav.nome}" removido.`); }}><Trash2 className="h-3.5 w-3.5" /></Button>
                                     </div>
                                   ))}
                                 </div>
                               </PopoverContent>
                             </Popover>
                           )}
-                          <Button variant="outline" size="sm" onClick={() => refetch()} className="gap-1.5"><RefreshCcw className="h-3.5 w-3.5" />Atualizar</Button>
-                          <Button variant="outline" size="sm" onClick={() => setPreviewOpen(true)} disabled={!rows.length} className="gap-1.5"><Eye className="h-3.5 w-3.5" />Visualizar</Button>
+                          <Button variant="outline" size="sm" onClick={() => refetch()} className="gap-1.5" aria-label="Atualizar dados do relatório"><RefreshCcw className="h-3.5 w-3.5" />Atualizar</Button>
+                          <Button variant="outline" size="sm" onClick={() => setPreviewOpen(true)} disabled={!rows.length} className="gap-1.5" aria-label="Visualizar pré-impressão do relatório"><Eye className="h-3.5 w-3.5" />Visualizar</Button>
                           {columns.length > 0 && (
                             <Popover>
                               <PopoverTrigger asChild>
-                                <Button variant="outline" size="sm" className="gap-1.5"><Columns className="h-3.5 w-3.5" />Colunas</Button>
+                                <Button variant="outline" size="sm" className="gap-1.5" aria-label="Personalizar colunas visíveis"><Columns className="h-3.5 w-3.5" />Colunas</Button>
                               </PopoverTrigger>
                               <PopoverContent align="end" className="w-64 p-3">
                                 <p className="text-xs font-semibold mb-2 text-muted-foreground uppercase tracking-wide">Personalizar colunas</p>
@@ -379,9 +379,9 @@ export default function Relatorios() {
                               </PopoverContent>
                             </Popover>
                           )}
-                          <Button variant="outline" size="sm" onClick={handleExportPdf} className="gap-1.5"><FileText className="h-3.5 w-3.5" />PDF</Button>
-                          <Button variant="outline" size="sm" onClick={handleExportXlsx} disabled={!rows.length} className="gap-1.5"><FileSpreadsheet className="h-3.5 w-3.5" />Excel</Button>
-                          <Button size="sm" onClick={handleExportCsv} className="gap-1.5"><Download className="h-3.5 w-3.5" />CSV</Button>
+                          <Button variant="outline" size="sm" onClick={handleExportPdf} className="gap-1.5" aria-label="Exportar relatório em PDF"><FileText className="h-3.5 w-3.5" />PDF</Button>
+                          <Button variant="outline" size="sm" onClick={handleExportXlsx} disabled={!rows.length} className="gap-1.5" aria-label="Exportar relatório em Excel"><FileSpreadsheet className="h-3.5 w-3.5" />Excel</Button>
+                          <Button size="sm" onClick={handleExportCsv} className="gap-1.5" aria-label="Exportar relatório em CSV"><Download className="h-3.5 w-3.5" />CSV</Button>
                         </div>
                       </div>
                       {selectedMeta && (
@@ -449,9 +449,9 @@ export default function Relatorios() {
         title={`${resultado?.title || 'Relatório'} — Pré-visualização`}
         actions={
           <>
-            <Button variant="outline" size="sm" onClick={handleExportPdf} className="gap-1.5"><FileText className="h-3.5 w-3.5" />PDF</Button>
-            <Button variant="outline" size="sm" onClick={handleExportXlsx} className="gap-1.5"><FileSpreadsheet className="h-3.5 w-3.5" />Excel</Button>
-            <Button size="sm" onClick={handleExportCsv} className="gap-1.5"><Download className="h-3.5 w-3.5" />CSV</Button>
+            <Button variant="outline" size="sm" onClick={handleExportPdf} className="gap-1.5" aria-label="Exportar relatório em PDF"><FileText className="h-3.5 w-3.5" />PDF</Button>
+            <Button variant="outline" size="sm" onClick={handleExportXlsx} className="gap-1.5" aria-label="Exportar relatório em Excel"><FileSpreadsheet className="h-3.5 w-3.5" />Excel</Button>
+            <Button size="sm" onClick={handleExportCsv} className="gap-1.5" aria-label="Exportar relatório em CSV"><Download className="h-3.5 w-3.5" />CSV</Button>
           </>
         }
       >

@@ -57,6 +57,52 @@ function LazyInViewWidget({
   );
 }
 
+/** Minimal row shapes returned by Supabase select() calls – used to avoid `any` in callbacks */
+interface FinRow {
+  valor: number;
+  saldo_restante: number | null;
+  status: string | null;
+}
+
+interface NfRow {
+  status: string | null;
+  valor_total: number | null;
+}
+
+interface RecDataRow {
+  clientes?: { nome_razao_social: string } | null;
+  valor: number;
+  saldo_restante: number | null;
+  status: string | null;
+}
+
+interface NfItemRow {
+  quantidade: number | null;
+  valor_unitario: number | null;
+  produtos?: { nome: string } | null;
+}
+
+interface ProdRow {
+  estoque_minimo: number;
+  estoque_atual: number | null;
+  id: string;
+  nome: string;
+  codigo_interno: string | null;
+  preco_custo: number | null;
+}
+
+interface DailyFinRow {
+  data_vencimento: string;
+  valor: number;
+  saldo_restante: number | null;
+  status: string | null;
+}
+
+interface DailyNfRow {
+  data_emissao: string;
+  valor_total: number | null;
+}
+
 const DashboardContent = () => {
   const navigate = useNavigate();
   const { profile, user } = useAuth();
@@ -110,7 +156,7 @@ const DashboardContent = () => {
       let q = supabase
         .from("financeiro_lancamentos")
         .select("valor, saldo_restante, status")
-        .eq("tipo", tipo as any)
+        .eq("tipo", tipo)
         .eq("ativo", true)
         .in("status", ["aberto", "vencido", "parcial"]);
       if (dateTo) q = q.lte("data_vencimento", dateTo);
@@ -229,14 +275,14 @@ const DashboardContent = () => {
         .eq("data_vencimento", today),
     ]);
 
-      const totalReceber = (receber || []).reduce((s: number, r: any) => {
+      const totalReceber = (receber || []).reduce((s: number, r: FinRow) => {
         // For partially paid items, use saldo_restante instead of valor
         const val = r.status === "parcial"
           ? Number(r.saldo_restante ?? r.valor ?? 0)
           : Number(r.valor || 0);
         return s + val;
       }, 0);
-      const totalPagar = (pagar || []).reduce((s: number, r: any) => {
+      const totalPagar = (pagar || []).reduce((s: number, r: FinRow) => {
         const val = r.status === "parcial"
           ? Number(r.saldo_restante ?? r.valor ?? 0)
           : Number(r.valor || 0);
@@ -256,25 +302,25 @@ const DashboardContent = () => {
         contasPagar: (pagar || []).length,
       });
 
-      const fatAtual = (nfAtual || []).reduce((s: number, n: any) => s + Number(n.valor_total || 0), 0);
-      const fatAnterior = (nfAnterior || []).reduce((s: number, n: any) => s + Number(n.valor_total || 0), 0);
+      const fatAtual = (nfAtual || []).reduce((s: number, n: NfRow) => s + Number(n.valor_total || 0), 0);
+      const fatAnterior = (nfAnterior || []).reduce((s: number, n: NfRow) => s + Number(n.valor_total || 0), 0);
       setFaturamento({ mesAtual: fatAtual, mesAnterior: fatAnterior });
 
       // Fiscal stats
       const nfArr = nfStats || [];
-      const emitidas = nfArr.filter((n: any) => n.status === "confirmada").length;
-      const pendentes = nfArr.filter((n: any) => n.status === "pendente" || n.status === "rascunho").length;
-      const canceladas = nfArr.filter((n: any) => n.status === "cancelada").length;
+      const emitidas = nfArr.filter((n: NfRow) => n.status === "confirmada").length;
+      const pendentes = nfArr.filter((n: NfRow) => n.status === "pendente" || n.status === "rascunho").length;
+      const canceladas = nfArr.filter((n: NfRow) => n.status === "cancelada").length;
       const valorEmitidas = nfArr
-        .filter((n: any) => n.status === "confirmada")
-        .reduce((s: number, n: any) => s + Number(n.valor_total || 0), 0);
+        .filter((n: NfRow) => n.status === "confirmada")
+        .reduce((s: number, n: NfRow) => s + Number(n.valor_total || 0), 0);
       setFiscalStats({ emitidas, pendentes, canceladas, valorEmitidas });
 
       setRecentOrcamentos(orcRecent || []);
       setBacklogOVs(backlog || []);
       setComprasAguardando(compAguardando || []);
       setEstoqueBaixo(
-        (estMin || []).filter((p: any) => p.estoque_minimo > 0 && (p.estoque_atual ?? 0) <= p.estoque_minimo)
+        (estMin || []).filter((p: ProdRow) => p.estoque_minimo > 0 && (p.estoque_atual ?? 0) <= p.estoque_minimo)
       );
       setVencimentosHoje({ receber: receberHoje || 0, pagar: pagarHoje || 0 });
       setLoadedAt(new Date());
@@ -289,7 +335,7 @@ const DashboardContent = () => {
         .then(({ data: recData }) => {
           if (!recData) return;
           const map = new Map<string, number>();
-          for (const r of recData as any[]) {
+          for (const r of recData as RecDataRow[]) {
             const nome: string = r.clientes?.nome_razao_social ?? "Sem cliente";
             const val = r.status === "parcial"
               ? Number(r.saldo_restante ?? r.valor ?? 0)
@@ -311,13 +357,13 @@ const DashboardContent = () => {
       supabase
         .from("notas_fiscais_itens")
         .select("quantidade, valor_unitario, produtos(nome), notas_fiscais!inner(status, tipo, data_emissao)")
-        .eq("notas_fiscais.status", "confirmada" as any)
-        .eq("notas_fiscais.tipo", "saida" as any)
-        .gte("notas_fiscais.data_emissao", inicioMes as any)
+        .eq("notas_fiscais.status", "confirmada")
+        .eq("notas_fiscais.tipo", "saida")
+        .gte("notas_fiscais.data_emissao", inicioMes)
         .then(({ data: itemData }) => {
           if (!itemData) return;
           const map = new Map<string, number>();
-          for (const it of itemData as any[]) {
+          for (const it of itemData as NfItemRow[]) {
             const nome: string = it.produtos?.nome ?? "Sem produto";
             const val = Number(it.quantidade ?? 0) * Number(it.valor_unitario ?? 0);
             map.set(nome, (map.get(nome) ?? 0) + val);
@@ -354,7 +400,7 @@ const DashboardContent = () => {
         .then(({ data: dr }) => {
           if (!dr) return;
           const map = new Map<string, number>(nextDays.map((d) => [d, 0]));
-          for (const r of dr as any[]) {
+          for (const r of dr as DailyFinRow[]) {
             const val = r.status === "parcial"
               ? Number(r.saldo_restante ?? r.valor ?? 0)
               : Number(r.valor ?? 0);
@@ -374,7 +420,7 @@ const DashboardContent = () => {
         .then(({ data: dp }) => {
           if (!dp) return;
           const map = new Map<string, number>(nextDays.map((d) => [d, 0]));
-          for (const r of dp as any[]) {
+          for (const r of dp as DailyFinRow[]) {
             const val = r.status === "parcial"
               ? Number(r.saldo_restante ?? r.valor ?? 0)
               : Number(r.valor ?? 0);
@@ -395,7 +441,7 @@ const DashboardContent = () => {
         .then(({ data: dv }) => {
           if (!dv) return;
           const map = new Map<string, number>(lastDays.map((d) => [d, 0]));
-          for (const n of dv as any[]) {
+          for (const n of dv as DailyNfRow[]) {
             map.set(n.data_emissao, (map.get(n.data_emissao) ?? 0) + Number(n.valor_total ?? 0));
           }
           setDailyVendas(lastDays.map((d) => ({ dia: fmt(d), valor: map.get(d) ?? 0 })));
@@ -408,7 +454,7 @@ const DashboardContent = () => {
         .eq("ativo", true)
         .then(({ data: estoqueData }) => {
           if (!estoqueData) return;
-          const total = (estoqueData as any[]).reduce((s, p) => {
+          const total = (estoqueData as ProdRow[]).reduce((s, p) => {
             return s + (Number(p.estoque_atual ?? 0) * Number(p.preco_custo ?? 0));
           }, 0);
           setValorEstoque(total);
@@ -450,6 +496,7 @@ const DashboardContent = () => {
       sparklineData: dailyReceber.length > 0 ? dailyReceber.map((d) => d.valor) : undefined,
       onClick: () => navigate("/financeiro?tipo=receber"),
       onDetail: () => setMetricDrawer("receber"),
+      'aria-label': "Ver contas a receber no módulo financeiro",
       meta: metas.receber,
       realizado: stats.totalReceber,
     },
@@ -464,6 +511,7 @@ const DashboardContent = () => {
       variant: stats.totalPagar > stats.totalReceber ? ("danger" as const) : ("warning" as const),
       sparklineData: dailyPagar.length > 0 ? dailyPagar.map((d) => d.valor) : undefined,
       onClick: () => navigate("/financeiro?tipo=pagar"),
+      'aria-label': "Ver contas a pagar no módulo financeiro",
       meta: metas.pagar,
       realizado: stats.totalPagar,
     },
@@ -481,6 +529,7 @@ const DashboardContent = () => {
           ? dailyReceber.map((r, i) => r.valor - (dailyPagar[i]?.valor ?? 0))
           : undefined,
       onClick: () => navigate("/fluxo-caixa"),
+      'aria-label': "Ver saldo projetado no fluxo de caixa",
       meta: metas.saldo,
       realizado: saldoProjetado,
     },
@@ -496,6 +545,7 @@ const DashboardContent = () => {
       sparklineData: undefined,
       onClick: () => navigate("/estoque"),
       onDetail: () => setMetricDrawer("estoque"),
+      'aria-label': "Ver produtos com estoque crítico",
     },
   ];
 
@@ -511,7 +561,7 @@ const DashboardContent = () => {
     estoque: {
       title: "Estoque Crítico",
       daily: [] as { dia: string; valor: number }[],
-      top: estoqueBaixo.slice(0, 5).map((p: any) => ({
+      top: estoqueBaixo.slice(0, 5).map((p: ProdRow) => ({
         nome: p.codigo_interno ? `${p.codigo_interno} – ${p.nome}` : p.nome,
         valor: p.estoque_atual ?? 0,
       })),

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { History, RotateCcw, Loader2 } from 'lucide-react';
@@ -13,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { EmptyState } from '@/components/ui/empty-state';
 import { fetchAuditLogs } from '@/services/admin/audit.service';
 import { formatDate } from '@/lib/format';
 
@@ -74,9 +74,11 @@ export function ConfigHistoryDrawer({
           )}
 
           {!isLoading && !isError && (!data || data.length === 0) && (
-            <p className="text-sm text-muted-foreground py-8 text-center">
-              Nenhuma alteração registrada.
-            </p>
+            <EmptyState
+              icon={History}
+              title="Sem histórico"
+              description="Nenhuma alteração registrada para esta configuração."
+            />
           )}
 
           {!isLoading && data && data.length > 0 && (
@@ -129,6 +131,7 @@ export function ConfigHistoryDrawer({
                         variant="outline"
                         size="sm"
                         className="w-full gap-2"
+                        aria-label={`Restaurar configuração do momento ${formatDate(log.created_at)}`}
                         onClick={() =>
                           onRestore(log.dados_anteriores as Record<string, unknown>)
                         }

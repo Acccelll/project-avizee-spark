@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";
@@ -198,6 +198,8 @@ export default function Compras() {
           loading={loading}
           onView={openView}
           onEdit={openEdit}
+          emptyTitle={isCotacoesView ? "Nenhuma cotação encontrada" : "Nenhuma compra encontrada"}
+          emptyDescription="Tente ajustar os filtros ou registre uma nova compra."
         />
       </ModulePage>
 

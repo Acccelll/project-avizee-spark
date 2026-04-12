@@ -5,6 +5,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { getUserFriendlyError } from "@/utils/errorMessages";
 import {
   fetchEmpresaConfig,
   fetchAppConfig,
@@ -37,7 +38,7 @@ export function useEmpresaConfig() {
     },
     onError: (err: Error) => {
       console.error("[admin] Erro ao salvar empresa_config:", err);
-      toast.error("Erro ao salvar configurações. Tente novamente.");
+      toast.error(getUserFriendlyError(err));
     },
   });
 
@@ -68,7 +69,7 @@ export function useAppConfig(chave: AppConfigChave) {
     },
     onError: (err: Error) => {
       console.error(`[admin] Erro ao salvar config '${chave}':`, err);
-      toast.error("Erro ao salvar configurações. Tente novamente.");
+      toast.error(getUserFriendlyError(err));
     },
   });
 

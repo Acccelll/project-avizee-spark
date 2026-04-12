@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
@@ -24,6 +24,7 @@ import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { Send } from "lucide-react";
 import { sendForApproval, approveOrcamento, convertToPedido } from "@/services/orcamentos.service";
 import { statusOrcamento } from "@/lib/statusSchema";
+import { getUserFriendlyError } from "@/utils/errorMessages";
 
 interface Orcamento {
   id: string;
@@ -155,8 +156,8 @@ const Orcamentos = () => {
     try {
       await sendForApproval(orc);
       fetchData();
-    } catch {
-      toast.error("Erro ao enviar cotação para aprovação.");
+    } catch (err: unknown) {
+      toast.error(getUserFriendlyError(err));
     }
   }, [fetchData]);
 
@@ -200,7 +201,7 @@ const Orcamentos = () => {
       navigate(`/cotacoes/${newOrc.id}`);
     } catch (err: unknown) {
       console.error('[orcamentos] duplicar:', err);
-      toast.error("Erro ao duplicar cotação.");
+      toast.error(getUserFriendlyError(err));
     }
   };
 
@@ -213,7 +214,7 @@ const Orcamentos = () => {
       await approveOrcamento(orc);
       fetchData();
     } catch (err: unknown) {
-      toast.error("Erro ao aprovar cotação.");
+      toast.error(getUserFriendlyError(err));
     }
   };
 
@@ -225,7 +226,7 @@ const Orcamentos = () => {
       fetchData();
       navigate(`/pedidos`);
     } catch (err: unknown) {
-      toast.error("Erro ao converter cotação em pedido.");
+      toast.error(getUserFriendlyError(err));
     } finally {
       setConvertingId(null);
     }

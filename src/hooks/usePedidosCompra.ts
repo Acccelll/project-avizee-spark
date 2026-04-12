@@ -1,9 +1,10 @@
-// @ts-nocheck
+
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import { getUserFriendlyError } from "@/utils/errorMessages";
 import { type GridItem } from "@/components/ui/ItemsGrid";
 import {
   type PedidoCompra,
@@ -13,6 +14,41 @@ import {
   pedidoNumero,
 } from "@/components/compras/pedidoCompraTypes";
 import { statusPedidoCompra } from "@/lib/statusSchema";
+
+/** Shape of a row from pedidos_compra_itens joined with produtos */
+interface PedidoItemRow {
+  id: string | number;
+  produto_id: string | number | null;
+  quantidade: number | null;
+  valor_unitario: number | null;
+  valor_total: number | null;
+  produtos: { nome: string | null; codigo_interno: string | null; estoque_atual?: number | null } | null;
+}
+
+/** Minimal cotacao_compra row returned from the draw query */
+interface CotacaoRow {
+  id: string;
+  numero: string;
+  status: string;
+  data_cotacao: string;
+}
+
+/** Minimal estoque_movimentos row */
+interface EstoqueMovimentoRow {
+  produto_id: string | null;
+  quantidade: number | null;
+  [key: string]: unknown;
+}
+
+/** Minimal financeiro_lancamentos row */
+interface FinanceiroLancRow {
+  id: string;
+  descricao: string | null;
+  valor: number | null;
+  status: string | null;
+  data_vencimento: string | null;
+  tipo: string | null;
+}
 
 const statusLabels: Record<string, string> = Object.fromEntries(
   Object.entries(statusPedidoCompra).map(([k, v]) => [k, v.label]),
@@ -92,10 +128,10 @@ export interface UsePedidosCompraReturn {
 
   // Selected / view data
   selected: PedidoCompra | null;
-  viewItems: unknown[];
-  viewEstoque: unknown[];
-  viewFinanceiro: unknown[];
-  viewCotacao: unknown | null;
+  viewItems: PedidoItemRow[];
+  viewEstoque: EstoqueMovimentoRow[];
+  viewFinanceiro: FinanceiroLancRow[];
+  viewCotacao: CotacaoRow | null;
 
   // Actions
   refreshAll: () => Promise<void>;
@@ -127,10 +163,10 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
   const [items, setItems] = useState<GridItem[]>([]);
   const [saving, setSaving] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [viewItems, setViewItems] = useState<unknown[]>([]);
-  const [viewEstoque, setViewEstoque] = useState<unknown[]>([]);
-  const [viewFinanceiro, setViewFinanceiro] = useState<unknown[]>([]);
-  const [viewCotacao, setViewCotacao] = useState<unknown | null>(null);
+  const [viewItems, setViewItems] = useState<PedidoItemRow[]>([]);
+  const [viewEstoque, setViewEstoque] = useState<EstoqueMovimentoRow[]>([]);
+  const [viewFinanceiro, setViewFinanceiro] = useState<FinanceiroLancRow[]>([]);
+  const [viewCotacao, setViewCotacao] = useState<CotacaoRow | null>(null);
 
   const {
     data: pedidosRaw = [],
@@ -156,8 +192,7 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
   const { data: fornecedoresRaw = [], isLoading: fornecedoresLoading } = useQuery({
     queryKey: ["pedidos_compra_fornecedores"],
     queryFn: async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data, error } = await (supabase.from as any)("fornecedores")
+      const { data, error } = await supabase.from("fornecedores")
         .select("id, nome_razao_social, cpf_cnpj, ativo")
         .order("id", { ascending: false });
       if (error) throw error;
@@ -168,8 +203,7 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
   const { data: produtosRaw = [], isLoading: produtosLoading } = useQuery({
     queryKey: ["pedidos_compra_produtos"],
     queryFn: async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data, error } = await (supabase.from as any)("produtos")
+      const { data, error } = await supabase.from("produtos")
         .select("id, nome, codigo_interno, preco_venda, unidade_medida, ativo")
         .eq("ativo", true)
         .order("id", { ascending: false });
@@ -181,8 +215,7 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
   const { data: formasPagamentoRaw = [] } = useQuery({
     queryKey: ["pedidos_compra_formas_pagamento"],
     queryFn: async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data, error } = await (supabase.from as any)("formas_pagamento")
+      const { data, error } = await supabase.from("formas_pagamento")
         .select("id, descricao")
         .eq("ativo", true)
         .order("descricao", { ascending: true });
@@ -256,12 +289,11 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
       .eq("pedido_compra_id", p.id);
 
     if (error) {
-      toast.error("Erro ao carregar itens do pedido.");
+      toast.error(getUserFriendlyError(error));
       return;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    setItems((itens || []).map((i: any) => ({
+    setItems((itens || []).map((i: PedidoItemRow) => ({
       id: String(i.id),
       produto_id: i.produto_id ? String(i.produto_id) : "",
       codigo: i.produtos?.codigo_interno || "",
@@ -276,12 +308,10 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
       .select("produto_id, quantidade")
       .eq("documento_id", String(p.id))
       .eq("documento_tipo", "pedido_compra");
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    setViewEstoque((estResult.data as any[]) || []);
+    setViewEstoque((estResult.data as EstoqueMovimentoRow[]) || []);
 
     if (p.cotacao_compra_id) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: cot } = await (supabase.from as any)("cotacoes_compra")
+      const { data: cot } = await supabase.from("cotacoes_compra")
         .select("id, numero, status, data_cotacao")
         .eq("id", p.cotacao_compra_id)
         .single();
@@ -310,12 +340,10 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
     ]);
 
     setViewItems(itensResult.data || []);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    setViewEstoque((estResult.data as any[]) || []);
+    setViewEstoque((estResult.data as EstoqueMovimentoRow[]) || []);
 
     if (p.cotacao_compra_id) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: cot } = await (supabase.from as any)("cotacoes_compra")
+      const { data: cot } = await supabase.from("cotacoes_compra")
         .select("id, numero, status, data_cotacao")
         .eq("id", p.cotacao_compra_id)
         .single();
@@ -327,8 +355,7 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
       .select("id, descricao, valor, status, data_vencimento, tipo")
       .ilike("descricao", `${pedidoNumero(p)}%`)
       .eq("ativo", true);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    setViewFinanceiro((finLanc as any[]) || []);
+    setViewFinanceiro((finLanc as FinanceiroLancRow[]) || []);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -410,9 +437,8 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
       setForm({ ...emptyPedidoForm });
       await refreshAll();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Erro inesperado";
-      console.error("[pedidos_compra] unexpected error", msg);
-      toast.error("Erro inesperado ao salvar. Tente novamente.");
+      console.error("[pedidos_compra] unexpected error", err);
+      toast.error(getUserFriendlyError(err));
     }
 
     setSaving(false);
@@ -430,7 +456,7 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
 
     try {
       // Batch insert all stock movements
-      const movements = (itens as any[]).map((item) => ({
+      const movements = (itens as PedidoItemRow[]).map((item) => ({
         produto_id: item.produto_id,
         tipo: "entrada" as const,
         quantidade: Number(item.quantidade || 0),
@@ -445,7 +471,7 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
 
       // Parallel update of product stocks
       await Promise.all(
-        (itens as any[]).map((item) => {
+        (itens as PedidoItemRow[]).map((item) => {
           const novoEstoque = Number(item.produtos?.estoque_atual || 0) + Number(item.quantidade || 0);
           return supabase.from("produtos").update({ estoque_atual: novoEstoque }).eq("id", item.produto_id)
             .then(({ error }) => { if (error) throw error; });
@@ -474,9 +500,8 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
       setDrawerOpen(false);
       await refreshAll();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Erro desconhecido";
-      console.error("[darEntrada]", msg);
-      toast.error("Erro ao processar recebimento.");
+      console.error("[darEntrada]", err);
+      toast.error(getUserFriendlyError(err));
     }
 
     navigate(`/fiscal?tipo=entrada&fornecedor_id=${p.fornecedor_id || ""}&pedido_compra=${pedidoNumero(p)}`);
@@ -490,9 +515,8 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
       toast.success("Pedido marcado como enviado ao fornecedor.");
       await refreshAll();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Erro desconhecido";
-      console.error("[marcarEnviado]", msg);
-      toast.error("Erro ao atualizar status.");
+      console.error("[marcarEnviado]", err);
+      toast.error(getUserFriendlyError(err));
     }
   };
 
@@ -505,9 +529,8 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
       setDrawerOpen(false);
       await refreshAll();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Erro desconhecido";
-      console.error("[cancelarPedido]", msg);
-      toast.error(`Erro ao cancelar pedido: ${msg}`);
+      console.error("[cancelarPedido]", err);
+      toast.error(getUserFriendlyError(err));
     }
   };
 

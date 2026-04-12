@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { ClipboardList, Clock } from 'lucide-react';
 import { formatCurrency, daysSince } from '@/lib/format';
 import { useRelationalNavigation } from '@/contexts/RelationalNavigationContext';
+import type { OrdemVenda } from '@/types/domain';
 
 const faturamentoLabel: Record<string, string> = {
   aguardando: 'Aguardando',
@@ -9,7 +10,7 @@ const faturamentoLabel: Record<string, string> = {
   total: 'Total',
 };
 
-function calcDiasDespacho(ov: any) {
+function calcDiasDespacho(ov: OrdemVenda) {
   if (ov.data_prometida_despacho) {
     const hoje = new Date();
     const prometida = new Date(ov.data_prometida_despacho);
@@ -18,7 +19,7 @@ function calcDiasDespacho(ov: any) {
   return null;
 }
 
-export function BacklogDetail({ items }: { items: any[] }) {
+export function BacklogDetail({ items }: { items: OrdemVenda[] }) {
   const navigate = useNavigate();
   const { pushView } = useRelationalNavigation();
   if (items.length === 0) return null;
@@ -33,7 +34,7 @@ export function BacklogDetail({ items }: { items: any[] }) {
         <button onClick={() => navigate('/pedidos')} className="text-xs text-primary hover:underline">Ver todas →</button>
       </div>
       <div className="space-y-2 max-h-[260px] overflow-y-auto">
-        {items.map((ov: any) => {
+        {items.map((ov: OrdemVenda) => {
           const diasDespacho = calcDiasDespacho(ov);
           return (
             <div

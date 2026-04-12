@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * DashboardAdmin — widgets de monitoramento de segurança para o módulo Admin.
  *

@@ -153,7 +153,7 @@ export default function SpedFiscal() {
               )}
             />
 
-            <Button type="submit" disabled={gerando} className="w-full">
+            <Button type="submit" disabled={gerando} className="w-full" aria-label="Gerar arquivo SPED">
               <FileDown className="mr-2 h-4 w-4" />
               {gerando ? "Gerando..." : "Gerar SPED"}
             </Button>

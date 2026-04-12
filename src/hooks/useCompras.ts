@@ -1,6 +1,6 @@
-// @ts-nocheck
+
 import { useCallback, useMemo, useState } from "react";
-import { useSearchParams, type SetURLSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { useCompras as useComprasData } from "@/pages/comercial/compras/hooks/useCompras";
@@ -12,6 +12,7 @@ import { type GridItem } from "@/components/ui/ItemsGrid";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { type MultiSelectOption } from "@/components/ui/MultiSelect";
 import type { Database } from "@/integrations/supabase/types";
+import { getUserFriendlyError } from "@/utils/errorMessages";
 
 type CompraInsert = Database["public"]["Tables"]["compras"]["Insert"];
 type CompraUpdate = Database["public"]["Tables"]["compras"]["Update"];
@@ -287,18 +288,15 @@ export function useCompras(): UseComprasReturn {
       .select("*, produtos(nome, sku)")
       .eq("compra_id", c.id);
     setItems(
-      (itens || []).map((i) => {
-        const item = i as unknown as CompraItem;
-        return {
-          id: item.id,
-          produto_id: item.produto_id ?? "",
-          codigo: item.produtos?.sku || "",
-          descricao: item.produtos?.nome || "",
-          quantidade: item.quantidade ?? 0,
-          valor_unitario: item.valor_unitario ?? 0,
-          valor_total: item.valor_total ?? 0,
-        };
-      }),
+      (itens || []).map((i) => ({
+        id: i.id,
+        produto_id: (i as CompraItem).produto_id ?? "",
+        codigo: (i as CompraItem).produtos?.sku || "",
+        descricao: (i as CompraItem).produtos?.nome || "",
+        quantidade: i.quantidade ?? 0,
+        valor_unitario: i.valor_unitario ?? 0,
+        valor_total: i.valor_total ?? 0,
+      })),
     );
     setModalOpen(true);
   }, []);
@@ -309,7 +307,7 @@ export function useCompras(): UseComprasReturn {
       .from("compras_itens")
       .select("*, produtos(nome, sku)")
       .eq("compra_id", c.id);
-    setViewItems((itens || []) as unknown as CompraItem[]);
+    setViewItems((itens || []).map((i) => i as CompraItem));
     setDrawerOpen(true);
   }, []);
 
@@ -373,9 +371,8 @@ export function useCompras(): UseComprasReturn {
         setModalOpen(false);
         invalidateCompras();
       } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : "Erro inesperado";
-        console.error("[compras]", msg);
-        toast.error("Erro ao salvar. Tente novamente.");
+        console.error("[compras]", err);
+        toast.error(getUserFriendlyError(err));
       }
       setSaving(false);
     },
@@ -429,7 +426,7 @@ export function useCompras(): UseComprasReturn {
   const handleRemoveCompFilter = useCallback((key: string, value?: string) => {
     if (key === "status") setStatusFilters((prev) => prev.filter((v) => v !== value));
     if (key === "fornecedor") setFornecedorFilters((prev) => prev.filter((v) => v !== value));
-  }, []);
+  }, [setStatusFilters, setFornecedorFilters]);
 
   const statusOptions = useMemo<MultiSelectOption[]>(
     () =>
