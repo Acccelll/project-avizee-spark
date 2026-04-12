@@ -68,7 +68,7 @@ export default function Email() {
   }, [config, form]);
 
   function onSubmit(data: EmailFormData) {
-    handleSave(data);
+    handleSave(data as any);
   }
 
   if (isLoading) {

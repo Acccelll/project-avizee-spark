@@ -25,7 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ChevronLeft, ChevronRight, AlertTriangle, Download, Edit, Plus, Shield, Trash2, User } from "lucide-react";
-import type { ColumnDef } from "@tanstack/react-table";
+// ColumnDef removed — not used with DataTable
 import { useAuditLogs } from "@/pages/admin/hooks/useAuditLogs";
 import type { AuditLog } from "@/services/admin/audit.service";
 import { exportarParaExcel, exportarParaPdf } from "@/services/export.service";
@@ -301,7 +301,6 @@ export default function Logs() {
       <ModulePage
         title="Logs de Auditoria"
         subtitle="Histórico de operações realizadas no sistema"
-        icon={Shield}
         summaryCards={
           <>
             <SummaryCard title="Total de Eventos" value={String(kpis.total)} icon={Shield} variationType="neutral" />
