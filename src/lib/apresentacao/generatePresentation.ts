@@ -1,28 +1,31 @@
 import pptxgen from 'pptxgenjs';
 import type { ApresentacaoData, ApresentacaoParametros, ApresentacaoComentario } from '@/types/apresentacao';
-import { APRESENTACAO_THEME } from './theme';
+import { getTheme } from './theme';
 import { SLIDE_DEFINITIONS } from './slideDefinitions';
 
 export async function generatePresentation(
   data: ApresentacaoData,
   params: ApresentacaoParametros,
-  comentarios: ApresentacaoComentario[]
+  comentarios: ApresentacaoComentario[],
+  templateConfig?: Record<string, any>
 ): Promise<Blob> {
   const pres = new pptxgen();
   pres.layout = 'LAYOUT_16x9';
+
+  const theme = getTheme(templateConfig);
 
   // Configuração Global de Design (Master Slide simulado por slide)
   const addSlideHeader = (slide: any, title: string) => {
     slide.addText(title, {
       x: 0.5, y: 0.3, w: '90%', h: 0.5,
       fontSize: 24,
-      color: APRESENTACAO_THEME.colors.primary,
+      color: theme.colors.primary,
       bold: true,
-      fontFace: APRESENTACAO_THEME.fonts.heading
+      fontFace: theme.fonts.heading
     });
     slide.addShape(pres.ShapeType.rect, {
       x: 0.5, y: 0.8, w: '90%', h: 0.02,
-      fill: { color: APRESENTACAO_THEME.colors.primary }
+      fill: { color: theme.colors.primary }
     });
   };
 
@@ -40,20 +43,20 @@ export async function generatePresentation(
       x: 0.6, y: 4.6, w: 3, h: 0.3,
       fontSize: 10,
       bold: true,
-      color: APRESENTACAO_THEME.colors.primary
+      color: theme.colors.primary
     });
 
     slide.addText(texto, {
       x: 0.6, y: 4.9, w: '85%', h: 0.5,
       fontSize: 11,
-      color: APRESENTACAO_THEME.colors.text,
+      color: theme.colors.text,
       italic: !comentario?.comentario_editado
     });
   };
 
   // 1. Capa
   const coverSlide = pres.addSlide();
-  coverSlide.background = { color: APRESENTACAO_THEME.colors.primary };
+  coverSlide.background = { color: theme.colors.primary };
   coverSlide.addText('APRESENTAÇÃO GERENCIAL', {
     x: 1, y: 2, w: '80%', h: 1,
     fontSize: 44,
@@ -88,7 +91,7 @@ export async function generatePresentation(
       slide.addText('Dados não automatizados nesta V1 ou dados indisponíveis.', {
         x: 1, y: 2, w: '80%', h: 1,
         fontSize: 18,
-        color: APRESENTACAO_THEME.colors.neutral,
+        color: theme.colors.neutral,
         align: 'center'
       });
     } else {
@@ -113,7 +116,7 @@ export async function generatePresentation(
         slide.addText(`Visualização gráfica de ${def.titulo} em processamento.`, {
           x: 1, y: 2.5, w: '80%', h: 0.5,
           fontSize: 14,
-          color: APRESENTACAO_THEME.colors.secondary,
+          color: theme.colors.secondary,
           align: 'center'
         });
       }

@@ -102,7 +102,14 @@ export async function processarGeracao(geracaoId: string): Promise<void> {
     // Buscar comentários (agora com os automáticos inseridos ou os editados previamente)
     const comentarios = await buscarComentarios(geracaoId);
 
-    const blob = await generatePresentation(data, params, comentarios);
+    // Buscar configuração do template
+    const { data: template } = await supabase
+      .from('apresentacao_templates')
+      .select('config_json')
+      .eq('id', params.templateId)
+      .single();
+
+    const blob = await generatePresentation(data, params, comentarios, template?.config_json);
 
     const filename = `apresentacao_${geracaoId}.pptx`;
     const storagePath = `apresentacoes/${filename}`;
