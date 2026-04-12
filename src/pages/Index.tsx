@@ -88,7 +88,7 @@ interface ProdRow {
   id: string;
   nome: string;
   codigo_interno: string | null;
-  preco_custo: number | null;
+  unidade_medida: string;
 }
 
 interface DailyFinRow {
@@ -454,7 +454,7 @@ const DashboardContent = () => {
         .eq("ativo", true)
         .then(({ data: estoqueData }) => {
           if (!estoqueData) return;
-          const total = (estoqueData as ProdRow[]).reduce((s, p) => {
+          const total = (estoqueData as Array<{estoque_atual: number | null; preco_custo: number | null}>).reduce((s, p) => {
             return s + (Number(p.estoque_atual ?? 0) * Number(p.preco_custo ?? 0));
           }, 0);
           setValorEstoque(total);

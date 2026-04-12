@@ -12,12 +12,12 @@ export async function fetchConfig<T>(chave: ConfigChave): Promise<T> {
     .maybeSingle();
 
   if (error) throw error;
-  return ((data?.valor as T) ?? {}) as T;
+  return ((data?.valor ?? {}) as unknown) as T;
 }
 
-export async function updateConfig<T extends Record<string, unknown>>(
+export async function updateConfig(
   chave: ConfigChave,
-  valor: T,
+  valor: Record<string, unknown>,
   usuarioId: string | undefined
 ): Promise<void> {
   const { data: existingData } = await supabase
@@ -30,7 +30,7 @@ export async function updateConfig<T extends Record<string, unknown>>(
 
   const { error } = await supabase
     .from('app_configuracoes')
-    .upsert({ chave, valor }, { onConflict: 'chave' });
+    .upsert({ chave, valor: valor as any } as any, { onConflict: 'chave' });
 
   if (error) throw error;
 
@@ -38,8 +38,8 @@ export async function updateConfig<T extends Record<string, unknown>>(
     acao: 'configuracao:update',
     tabela: 'app_configuracoes',
     registro_id: chave,
-    dados_anteriores: oldValue as Record<string, unknown> | null,
-    dados_novos: valor,
+    dados_anteriores: oldValue as any,
+    dados_novos: valor as any,
     usuario_id: usuarioId ?? null,
   });
 }

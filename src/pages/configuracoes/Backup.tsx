@@ -56,7 +56,7 @@ export default function Backup() {
   }, [config, form]);
 
   function onSubmit(data: BackupFormData) {
-    handleSave(data);
+    handleSave(data as any);
   }
 
   if (isLoading) {

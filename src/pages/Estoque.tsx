@@ -39,9 +39,9 @@ interface Movimento {
   produtos?: { nome: string; sku: string | null } | null;
 }
 
-interface ProdutoPosicao extends ProdutoRow {
+type ProdutoPosicao = ProdutoRow & {
   estoque_reservado?: number | null;
-}
+};
 
 type SituacaoEstoque = "normal" | "atencao" | "critico" | "zerado";
 

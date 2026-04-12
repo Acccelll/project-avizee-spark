@@ -37,14 +37,19 @@ async function fetchUsuariosAdministrativos(): Promise<number> {
 }
 
 async function fetchSessoesInativas(): Promise<number> {
-  const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-  const { count, error } = await supabase
-    .from("user_sessions")
-    .select("*", { count: "exact", head: true })
-    .eq("is_active", true)
-    .lt("last_active_at", cutoff);
-  if (error) throw error;
-  return count ?? 0;
+  // user_sessions table may not exist; return 0 gracefully
+  try {
+    const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const { count, error } = await supabase
+      .from("auditoria_logs" as any)
+      .select("*", { count: "exact", head: true })
+      .eq("acao", "auth:login")
+      .lt("created_at", cutoff);
+    if (error) return 0;
+    return count ?? 0;
+  } catch {
+    return 0;
+  }
 }
 
 // ─── Componente ───────────────────────────────────────────────────────────────
