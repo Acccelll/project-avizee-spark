@@ -1,92 +1,60 @@
 
 
-# Plano: Corrigir build errors + Preparar migração para os arquivos reais
+# Plano: Corrigir build errors + Alinhar módulo de importação ao schema real
 
-## Escopo
+## Contexto
 
-Dois blocos de trabalho: (1) corrigir todos os build errors existentes, (2) ajustar aliases e validators para aceitar os formatos exatos dos 8 arquivos XLSX fornecidos, e limpar os dados mock.
+O módulo de migração de dados já está majoritariamente alinhado ao schema real (lotes, logs, hooks). Os problemas remanescentes são:
 
-## 1. Corrigir Build Errors (6 arquivos)
+1. **Build errors** em 4 arquivos não relacionados à importação
+2. **Aliases duplicados** em `aliases.ts` causando TS1117
+3. **Faturamento** tenta filtrar por `origem = 'importacao_historica'` que não existe na tabela `notas_fiscais` (campo `origem` existe no schema)
+4. **Cadastros** inserem diretamente nas tabelas finais (sem staging) — funcional mas sem staging tables `stg_produtos/clientes/fornecedores`
 
-### 1.1 `src/hooks/useDashboardLayout.ts` + `src/pages/Index.tsx`
-- O tipo `Layout` do `react-grid-layout` mudou entre versões. `DEFAULT_LAYOUT` precisa ser tipado como `Layout[]` explicitamente e os itens do array contêm `i`, `x`, `y`, `w`, `h` que o TS não reconhece.
-- Solução: adicionar `as const satisfies Layout[]` ou simplesmente usar type assertion. Em `Index.tsx`, corrigir o tipo passado para `GridLayout` e o `onLayoutChange`.
+O código dos hooks de importação (cadastros, estoque, financeiro, faturamento, XML) já usa os campos corretos do schema (`tipo`, `total_registros`, `registros_sucesso`, `registros_erro`, `usuario_id`, `lote_id` em logs). A `ReconciliacaoDetalhe` e `ReconciliacaoIndicadores` também já usam os campos reais. O fluxo ponta-a-ponta está funcional — os problemas são pontuais.
 
-### 1.2 `src/services/admin/sessoes.service.ts`
-- A tabela `user_sessions` não existe no schema do Supabase (não aparece nos types gerados). O serviço tenta usar `.from("user_sessions")` que não é reconhecido.
-- Solução: adicionar `// @ts-ignore` nos `.from()` e `as any` nos retornos, ou criar uma migration para a tabela `user_sessions`.  Como o serviço já existe e funciona via `@ts-nocheck` pattern usado em outros hooks, a abordagem pragmática é adicionar type assertions.
+## Correções
 
-### 1.3 `src/pages/estoque/services/estoque.service.ts`
-- A view `vw_estoque_posicao` não está nos types gerados. Já tem `// @ts-ignore` no `.from()` mas o `as EstoquePosicaoRow[]` falha.
-- Solução: usar `as unknown as EstoquePosicaoRow[]`.
+### 1. `src/lib/importacao/aliases.ts` — Remover chaves duplicadas (TS1117)
 
-### 1.4 `src/pages/relatorios/components/Graficos/RelatorioChart.tsx`
-- O `activeDot` com `onClick` customizado não é compatível com o tipo de recharts.
-- Solução: fazer type assertion no objeto `activeDot`.
+Linhas 149-150 redefinem `DESCRICAO` e `DESCRIÇÃO` (já definidas em 92-93). Solução: remover as duplicatas do bloco financeiro, pois o mapeamento `DESCRICAO → nome` (produtos) já é feito pelo bloco de produtos, e o financeiro já resolve via validator direto.
 
-### 1.5 `supabase/functions/admin-users/index.ts`
-- Múltiplos erros de tipo com o Supabase client Deno. Os `roleRow.user_id`, `roleRow.role`, `permission.user_id` são `unknown`.
-- Solução: tipar explicitamente os resultados das queries com interfaces e ajustar as chamadas de função para aceitar `any` no client.
+### 2. `src/pages/WorkbookGerencial.tsx` — Remover prop `icon` inexistente
 
-## 2. Ajustar aliases e validators para os formatos dos arquivos
+`ModulePage` não aceita `icon`. Remover a prop. Além disso, `onGerar` espera `Promise<void>` mas `mutateAsync` retorna `Promise<string>`. Fazer wrap.
 
-### Formatos identificados nos 8 arquivos:
+### 3. `src/services/workbookService.ts` — Adicionar `as any` nos `.from()` de tabelas ausentes
 
-| Arquivo | Headers |
+As tabelas `workbook_templates`, `workbook_geracoes`, `fechamentos_mensais` não existem nos types gerados. Adicionar type assertions nos `.from()` e resultados, mesmo padrão já usado em `sessoes.service.ts`.
+
+### 4. `src/services/freteSimulacao.service.ts` — Corrigir tipos incompatíveis
+
+- Linha 290: `payload_raw` usa `Record<string, unknown>` que não é compatível com `Json`. Cast para `Json`.
+- Linha 423: `update` com `Record<string, unknown>` — cast para `any`.
+
+### 5. `src/components/importacao/ImportacaoTimeline.tsx` — Campo `etapa` não existe em `importacao_logs`
+
+O componente exibe `log.etapa` mas a tabela real só tem `lote_id`, `nivel`, `mensagem`, `created_at`. O `ReconciliacaoDetalhe` já consulta sem `etapa`. Solução: remover `etapa` da interface `ImportLog` e do render, extraindo uma etapa simulada do início da mensagem se desejado.
+
+### 6. Verificar `ReconciliacaoDetalhe.tsx` — já corrigido anteriormente
+
+O componente já usa `lote_id` e `created_at` — sem alteração necessária.
+
+### 7. Cadastros sem staging — manter como está
+
+O hook `useImportacaoCadastros` já funciona fazendo import direto (lookup + insert/update). Criar staging tables `stg_produtos/clientes/fornecedores` é opcional e não é necessário para o fluxo funcionar. Manter o padrão atual sem staging para cadastros.
+
+## Arquivos a alterar
+
+| Arquivo | Alteração |
 |---|---|
-| 01_produtos | CÓDIGO, DESCRIÇÃO, PREÇO, CUSTO, UNIDADE, NCM, GTIN |
-| 02_clientes | RAZÃO SOCIAL, CPF/CNPJ, EMAIL, TELEFONE, CIDADE, UF |
-| 03_fornecedores | RAZÃO SOCIAL, CPF/CNPJ, EMAIL, TELEFONE, CIDADE, UF |
-| 04_estoque | CÓDIGO, QTD, UNIDADE |
-| 04b_estoque | CÓDIGO, QTD, UNIDADE |
-| 05_financeiro | TIPO, HISTÓRICO, VENCIMENTO, VALOR, STATUS, CPF/CNPJ, OBSERVAÇÕES |
-| 05b_financeiro | TIPO, HISTÓRICO, VENCIMENTO, VALOR, STATUS, CPF/CNPJ, OBSERVAÇÕES |
-| 06_faturamento | NOTA, DATA, TOTAL, CLIENTE |
+| `src/lib/importacao/aliases.ts` | Remover linhas 149-150 (duplicatas `DESCRICAO`/`DESCRIÇÃO`) |
+| `src/pages/WorkbookGerencial.tsx` | Remover prop `icon`, wrap `mutateAsync` para `Promise<void>` |
+| `src/services/workbookService.ts` | Adicionar `as any` nos `.from()` de tabelas não mapeadas |
+| `src/services/freteSimulacao.service.ts` | Cast `payload_raw` para `Json`, cast update payload |
+| `src/components/importacao/ImportacaoTimeline.tsx` | Remover `etapa` da interface e render |
 
-### 2.1 `src/lib/importacao/aliases.ts`
-Adicionar aliases que faltam para mapear corretamente:
-- `'DESCRIÇÃO'` → `'nome'` (produtos usam DESCRIÇÃO, não NOME)
-- `'PREÇO'` → `'preco_venda'`
-- `'TIPO'` → `'tipo'`
-- `'PAGAR_RECEBER'` → `'tipo'`
-- `'HISTÓRICO'` → `'descricao'`
-- `'VENCIMENTO'` → `'data_vencimento'`
-- `'STATUS'` → `'status'`
-- `'SITUACAO'` → `'status'`
-- `'OBSERVAÇÕES'` → `'observacoes'`
-- `'NOTA'` → `'numero_nota'`
-- `'DATA'` → `'data'`
-- `'TOTAL'` → `'valor'`
-- `'CLIENTE'` → `'cliente'`
+## Sem migrations necessárias
 
-Muitos já existem no `FIELD_ALIASES`. Verificar e preencher os que faltam.
-
-### 2.2 `src/lib/importacao/validators.ts`
-- `validateFinanceiroImport`: os campos do arquivo são `TIPO`, `HISTÓRICO`, `VENCIMENTO`, `VALOR`, `STATUS`, `CPF/CNPJ`, `OBSERVAÇÕES`. O validator já busca `data.HISTORICO` e `data.HISTÓRICO` — OK. Precisa suportar `data.observacoes` → salvar no campo `observacoes` do normalizedData.
-- `validateFaturamentoImport`: headers são `NOTA`, `DATA`, `TOTAL`, `CLIENTE`. O validator já busca `data.NOTA`, `data.DATA`, `data.TOTAL`, `data.CLIENTE` — OK.
-- `validateEstoqueInicialImport`: headers são `CÓDIGO`, `QTD`, `UNIDADE`. O validator busca `data.CÓDIGO` e `data.QTD` — OK.
-
-### 2.3 `src/components/importacao/MapeamentoColunasForm.tsx`
-- Adicionar campo `observacoes` ao financeiro se necessário (atualmente o tipo `financeiro` não está na lista de `fieldsByImportType` — precisa ser adicionado como tipo ou tratado via a aba de financeiro que usa seu próprio flow).
-
-## 3. Limpar dados de exemplo
-
-### 3.1 `src/mocks/erpMockData.ts`
-- O arquivo não é importado em nenhum lugar do código. Pode ser esvaziado ou mantido com arrays vazios para não quebrar nada caso exista referência dinâmica.
-
-### 3.2 Dados no banco
-- Limpar dados de exemplo existentes nas tabelas (produtos, clientes, fornecedores, estoque_movimentos, financeiro_lancamentos, notas_fiscais) via migration SQL com `TRUNCATE` ou `DELETE`.
-
-## Arquivos afetados
-
-- `src/hooks/useDashboardLayout.ts` — fix type
-- `src/pages/Index.tsx` — fix layout type
-- `src/services/admin/sessoes.service.ts` — add ts-ignore/any
-- `src/pages/estoque/services/estoque.service.ts` — fix cast
-- `src/pages/relatorios/components/Graficos/RelatorioChart.tsx` — fix activeDot type
-- `supabase/functions/admin-users/index.ts` — fix Deno types
-- `src/lib/importacao/aliases.ts` — add missing aliases
-- `src/lib/importacao/validators.ts` — add observacoes field
-- `src/mocks/erpMockData.ts` — empty arrays
-- Migration SQL — truncate example data
+Nenhuma alteração de schema é necessária. O módulo de importação já funciona com o schema real.
 
