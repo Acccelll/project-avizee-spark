@@ -169,9 +169,11 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
 
       if (error) throw error;
 
-      const rows = (data || []).map((item: RawEstoqueItem) => {
+      const rows = (data || []).map((item: any) => {
         const custo = Number(item.preco_custo || 0);
         const venda = Number(item.preco_venda || 0);
+        const qty = Number(item.estoque_atual || 0);
+        const min = Number(item.estoque_minimo || 0);
         let criticidade: string;
         if (qty <= 0) criticidade = "Zerado";
         else if (min > 0 && qty <= min) criticidade = "Abaixo do mínimo";
@@ -226,14 +228,14 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
       const { data, error } = await query;
       if (error) throw error;
 
-      const rows = (data || []).map((item: RawMovimentoItem) => ({
+      const rows = (data || []).map((item: any) => ({
         data: item.created_at,
         produto: item.produtos?.nome || "-",
         codigo: item.produtos?.codigo_interno || "-",
-        tipo: item.tipo_movimento,
+        tipo: item.tipo || item.tipo_movimento || "-",
         quantidade: Number(item.quantidade || 0),
-        saldoAnterior: 0,
-        saldoAtual: Number(item.saldo_apos || 0),
+        saldoAnterior: Number(item.saldo_anterior || 0),
+        saldoAtual: Number(item.saldo_atual || item.saldo_apos || 0),
         documento: item.documento_tipo || "-",
         motivo: item.motivo || "-",
       }));
@@ -283,7 +285,7 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
       const hoje = new Date();
       hoje.setHours(0, 0, 0, 0);
 
-      const rows = (data || []).map((item: RawLancamentoItem & { saldo_restante?: number | null; banco?: string | null }) => {
+      const rows = (data || []).map((item: any) => {
         const valor = Number(item.valor || 0);
         const valorEmAberto = item.saldo_restante != null
           ? Number(item.saldo_restante)
@@ -387,13 +389,13 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
       const { data, error } = await query;
       if (error) throw error;
 
-      const rows = (data || []).map((item: RawVendasItem) => ({
+      const rows = (data || []).map((item: any) => ({
         numero: item.numero,
         cliente: item.clientes?.nome_razao_social || "-",
         emissao: item.data_emissao,
         valor: Number(item.valor_total || 0),
         status: item.status || "-",
-        faturamento: item.faturamento_status || "-",
+        faturamento: item.faturamento_status || item.status_faturamento || "-",
       }));
 
       const totalVendido = rows.reduce((s, r) => s + r.valor, 0);
@@ -498,9 +500,9 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
       const hoje = new Date();
       hoje.setHours(0, 0, 0, 0);
 
-      const rows = (data || []).map((item: RawComprasItem) => {
-        const prevista = item.data_prevista ? new Date(item.data_prevista) : null;
-        const entregaReal = item.data_entrega;
+      const rows = (data || []).map((item: any) => {
+        const prevista = (item.data_prevista || item.data_entrega_prevista) ? new Date(item.data_prevista || item.data_entrega_prevista) : null;
+        const entregaReal = item.data_entrega || item.data_entrega_real;
         const statusVal = item.status || '-';
         const emAberto = ['pendente', 'aprovado', 'em_transito'].includes(statusVal);
         const atraso = (prevista && emAberto && prevista < hoje)
