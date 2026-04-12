@@ -27,21 +27,6 @@ function monthRange(iniYM: string, fimYM: string): string[] {
   return out;
 }
 
-async function ensureClosedCoverage(iniYM: string, fimYM: string): Promise<string[]> {
-  const { data, error } = await (supabase as any)
-    .from('fechamentos_mensais')
-    .select('id, competencia, status')
-    .gte('competencia', `${iniYM}-01`)
-    .lte('competencia', `${fimYM}-31`)
-    .eq('status', 'fechado');
-  if (error) throw error;
-  const normalized = (data ?? []).map((f: any) => ({ id: String(f.id), competencia: String(f.competencia).slice(0, 7) }));
-  const expected = monthRange(iniYM, fimYM);
-  const missing = expected.filter((m) => !normalized.some((n) => n.competencia === m));
-  if (missing.length) throw new Error(`Modo fechado sem cobertura completa: ${missing.join(', ')}`);
-  return normalized.map((n) => n.id);
-}
-
 const viewMap: Record<SlideCodigo, string> = {
   cover: '',
   highlights_financeiros: 'vw_apresentacao_highlights_financeiros',
@@ -74,7 +59,20 @@ const viewMap: Record<SlideCodigo, string> = {
 };
 
 async function fetchClosedSnapshotData(iniYM: string, fimYM: string, slidesList: SlideCodigo[]) {
-  const fechamentoIds = await ensureClosedCoverage(iniYM, fimYM);
+  const { data: fechamentoData, error: fechamentoError } = await (supabase as any)
+    .from('fechamentos_mensais')
+    .select('id, competencia, status')
+    .gte('competencia', `${iniYM}-01`)
+    .lte('competencia', `${fimYM}-31`)
+    .eq('status', 'fechado');
+  if (fechamentoError) throw fechamentoError;
+  const fechamentos = (fechamentoData ?? []).map((f: any) => ({ id: String(f.id), competencia: String(f.competencia).slice(0, 7) }));
+  const expected = monthRange(iniYM, fimYM);
+  const missing = expected.filter((m) => !fechamentos.some((f) => f.competencia === m));
+  if (missing.length) throw new Error(`Modo fechado sem cobertura completa: ${missing.join(', ')}`);
+
+  const fechamentoIds = fechamentos.map((f) => f.id);
+  const competenciaByFechamentoId = new Map(fechamentos.map((f) => [f.id, f.competencia]));
 
   const [finRes, caixaRes, estoqueRes, fopagRes] = await Promise.all([
     (supabase as any).from('fechamento_financeiro_saldos').select('*').in('fechamento_id', fechamentoIds),
@@ -88,10 +86,11 @@ async function fetchClosedSnapshotData(iniYM: string, fimYM: string, slidesList:
   const estoque = estoqueRes.data ?? [];
   const fopag = fopagRes.data ?? [];
 
-  const byComp = <T extends { competencia?: string }>(rows: T[]) => {
+  const byComp = <T extends { fechamento_id?: string }>(rows: T[]) => {
     const map = new Map<string, T[]>();
     rows.forEach((row) => {
-      const comp = String(row.competencia ?? '').slice(0, 7);
+      const fechamentoId = String(row.fechamento_id ?? '');
+      const comp = competenciaByFechamentoId.get(fechamentoId) ?? '';
       if (!comp) return;
       if (!map.has(comp)) map.set(comp, []);
       map.get(comp)!.push(row);
@@ -119,8 +118,13 @@ async function fetchClosedSnapshotData(iniYM: string, fimYM: string, slidesList:
         slides[codigo] = { indisponivel: true, motivo: 'snapshot caixa indisponível' };
         continue;
       }
-      const total = rows.reduce((acc, r: any) => acc + Number(r.saldo ?? 0), 0);
-      slides[codigo] = { competencia: selectedComp, valor_atual: total };
+      const total = rows.reduce((acc, r: any) => acc + Number(r.saldo_final ?? 0), 0);
+      slides[codigo] = {
+        competencia: selectedComp,
+        valor_atual: total,
+        total_entradas: rows.reduce((acc, r: any) => acc + Number(r.total_entradas ?? 0), 0),
+        total_saidas: rows.reduce((acc, r: any) => acc + Number(r.total_saidas ?? 0), 0),
+      };
       continue;
     }
 
@@ -132,8 +136,11 @@ async function fetchClosedSnapshotData(iniYM: string, fimYM: string, slidesList:
       }
       slides[codigo] = {
         competencia: selectedComp,
-        valor_atual: rows.reduce((acc: number, r: any) => acc + Number(r.valor_custo ?? r.valor_total ?? 0), 0),
+        valor_atual: rows.reduce((acc: number, r: any) => acc + Number(r.valor_total ?? 0), 0),
         quantidade_itens: rows.length,
+        custo_unitario_medio: rows.length
+          ? rows.reduce((acc: number, r: any) => acc + Number(r.custo_unitario ?? 0), 0) / rows.length
+          : 0,
       };
       continue;
     }
@@ -158,12 +165,14 @@ async function fetchClosedSnapshotData(iniYM: string, fimYM: string, slidesList:
         slides[codigo] = { indisponivel: true, motivo: 'snapshot financeiro indisponível' };
         continue;
       }
-      const receita = rows.filter((r: any) => r.tipo === 'receber').reduce((a: number, r: any) => a + Number(r.saldo_total ?? 0), 0);
-      const despesa = rows.filter((r: any) => r.tipo === 'pagar').reduce((a: number, r: any) => a + Number(r.saldo_total ?? 0), 0);
+      const receita = rows.filter((r: any) => r.tipo === 'receber').reduce((a: number, r: any) => a + Number(r.saldo_aberto ?? 0), 0);
+      const despesa = rows.filter((r: any) => r.tipo === 'pagar').reduce((a: number, r: any) => a + Number(r.saldo_aberto ?? 0), 0);
       slides[codigo] = {
         competencia: selectedComp,
         receita_atual: receita,
         despesa_atual: despesa,
+        cr_aberto: receita,
+        cp_aberto: despesa,
         valor_atual: receita - despesa,
         valor_inadimplente: receita,
       };

@@ -55,23 +55,32 @@ FULL OUTER JOIN public.vw_workbook_despesa_mensal d ON d.competencia = r.compete
 
 CREATE OR REPLACE VIEW public.vw_apresentacao_rol_caixa AS
 SELECT
-  fcs.competencia,
-  COALESCE(SUM(fcs.saldo), 0) AS valor_atual,
+  to_char(fm.competencia, 'YYYY-MM') AS competencia,
+  COALESCE(SUM(fcs.saldo_final), 0) AS valor_atual,
   COALESCE(MAX(r.total_receita), 0) AS rol,
   CASE WHEN COALESCE(MAX(r.total_receita), 0) = 0 THEN 0
-       ELSE (COALESCE(SUM(fcs.saldo), 0) / NULLIF(MAX(r.total_receita), 0)) * 100
+       ELSE (COALESCE(SUM(fcs.saldo_final), 0) / NULLIF(MAX(r.total_receita), 0)) * 100
   END AS cobertura_pct
 FROM public.fechamento_caixa_saldos fcs
-LEFT JOIN public.vw_workbook_receita_mensal r ON r.competencia = fcs.competencia
-GROUP BY fcs.competencia;
+JOIN public.fechamentos_mensais fm ON fm.id = fcs.fechamento_id
+LEFT JOIN (
+  SELECT competencia, SUM(valor_bruto) AS total_receita
+  FROM public.vw_workbook_receita_mensal
+  GROUP BY competencia
+) r ON r.competencia = fm.competencia
+WHERE fm.status = 'fechado'
+GROUP BY fm.competencia;
 
 CREATE OR REPLACE VIEW public.vw_apresentacao_variacao_estoque AS
 SELECT
-  fes.competencia,
-  SUM(COALESCE(fes.valor_custo, 0)) AS valor_atual,
+  to_char(fm.competencia, 'YYYY-MM') AS competencia,
+  SUM(COALESCE(fes.valor_total, 0)) AS valor_atual,
+  AVG(COALESCE(fes.custo_unitario, 0)) AS custo_unitario_medio,
   COUNT(*) AS quantidade_itens
 FROM public.fechamento_estoque_saldos fes
-GROUP BY fes.competencia;
+JOIN public.fechamentos_mensais fm ON fm.id = fes.fechamento_id
+WHERE fm.status = 'fechado'
+GROUP BY fm.competencia;
 
 CREATE OR REPLACE VIEW public.vw_apresentacao_redes_sociais AS
 SELECT
@@ -85,83 +94,97 @@ FROM (SELECT DISTINCT competencia FROM public.vw_workbook_faturamento_mensal) v
 
 CREATE OR REPLACE VIEW public.vw_apresentacao_capital_giro AS
 SELECT
-  COALESCE(cr.competencia, cp.competencia) AS competencia,
+  to_char(fm.competencia, 'YYYY-MM') AS competencia,
   COALESCE(cr.total_cr, 0) AS contas_receber,
   COALESCE(cp.total_cp, 0) AS contas_pagar,
   COALESCE(cr.total_cr, 0) - COALESCE(cp.total_cp, 0) AS valor_atual
-FROM (
-  SELECT to_char(data_vencimento::date, 'YYYY-MM') AS competencia, SUM(saldo_aberto) AS total_cr
-  FROM public.vw_workbook_aging_cr
-  GROUP BY 1
-) cr
-FULL OUTER JOIN (
-  SELECT to_char(data_vencimento::date, 'YYYY-MM') AS competencia, SUM(saldo_aberto) AS total_cp
-  FROM public.vw_workbook_aging_cp
-  GROUP BY 1
-) cp ON cp.competencia = cr.competencia;
+FROM public.fechamentos_mensais fm
+LEFT JOIN (
+  SELECT fechamento_id, SUM(saldo_aberto) AS total_cr
+  FROM public.fechamento_financeiro_saldos
+  WHERE tipo = 'receber'
+  GROUP BY fechamento_id
+) cr ON cr.fechamento_id = fm.id
+LEFT JOIN (
+  SELECT fechamento_id, SUM(saldo_aberto) AS total_cp
+  FROM public.fechamento_financeiro_saldos
+  WHERE tipo = 'pagar'
+  GROUP BY fechamento_id
+) cp ON cp.fechamento_id = fm.id
+WHERE fm.status = 'fechado';
 
 CREATE OR REPLACE VIEW public.vw_apresentacao_balanco_gerencial AS
 SELECT
-  x.competencia,
+  to_char(x.competencia, 'YYYY-MM') AS competencia,
   x.ativo_circulante,
   x.passivo_circulante,
   x.ativo_circulante - x.passivo_circulante AS valor_atual
 FROM (
   SELECT
-    fcs.competencia,
-    SUM(COALESCE(fcs.saldo, 0)) AS ativo_circulante,
+    fm.competencia,
+    SUM(COALESCE(fcs.saldo_final, 0)) AS ativo_circulante,
     COALESCE((
-      SELECT SUM(saldo_total)
+      SELECT SUM(ffs.saldo_aberto)
       FROM public.fechamento_financeiro_saldos ffs
-      WHERE ffs.competencia = fcs.competencia AND ffs.tipo = 'pagar'
+      WHERE ffs.fechamento_id = fm.id AND ffs.tipo = 'pagar'
     ), 0) AS passivo_circulante
   FROM public.fechamento_caixa_saldos fcs
-  GROUP BY fcs.competencia
+  JOIN public.fechamentos_mensais fm ON fm.id = fcs.fechamento_id
+  WHERE fm.status = 'fechado'
+  GROUP BY fm.id, fm.competencia
 ) x;
 
 CREATE OR REPLACE VIEW public.vw_apresentacao_aging_consolidado AS
 SELECT
-  competencia,
-  SUM(CASE WHEN tipo = 'receber' THEN saldo_total ELSE 0 END) AS cr_aberto,
-  SUM(CASE WHEN tipo = 'pagar' THEN saldo_total ELSE 0 END) AS cp_aberto,
-  SUM(COALESCE(saldo_total, 0)) AS valor_atual
-FROM public.fechamento_financeiro_saldos
-GROUP BY competencia;
+  to_char(fm.competencia, 'YYYY-MM') AS competencia,
+  SUM(CASE WHEN ffs.tipo = 'receber' THEN ffs.saldo_aberto ELSE 0 END) AS cr_aberto,
+  SUM(CASE WHEN ffs.tipo = 'pagar' THEN ffs.saldo_aberto ELSE 0 END) AS cp_aberto,
+  SUM(COALESCE(ffs.saldo_aberto, 0)) AS valor_atual
+FROM public.fechamento_financeiro_saldos ffs
+JOIN public.fechamentos_mensais fm ON fm.id = ffs.fechamento_id
+WHERE fm.status = 'fechado'
+GROUP BY fm.competencia;
 
 CREATE OR REPLACE VIEW public.vw_apresentacao_debt AS
 SELECT
-  to_char(fl.data_vencimento::date, 'YYYY-MM') AS competencia,
-  SUM(CASE WHEN fl.tipo = 'pagar' THEN COALESCE(fl.saldo_restante, fl.valor - COALESCE(fl.valor_pago, 0)) ELSE 0 END) AS valor_atual
-FROM public.financeiro_lancamentos fl
-WHERE fl.ativo = true
-GROUP BY 1;
+  to_char(fm.competencia, 'YYYY-MM') AS competencia,
+  SUM(CASE WHEN ffs.tipo = 'pagar' THEN COALESCE(ffs.saldo_aberto, 0) ELSE 0 END) AS valor_atual
+FROM public.fechamento_financeiro_saldos ffs
+JOIN public.fechamentos_mensais fm ON fm.id = ffs.fechamento_id
+WHERE fm.status = 'fechado'
+GROUP BY fm.competencia;
 
 CREATE OR REPLACE VIEW public.vw_apresentacao_bancos_detalhado AS
 SELECT
-  fcs.competencia,
+  to_char(fm.competencia, 'YYYY-MM') AS competencia,
   fcs.conta_bancaria_id AS conta_id,
   COALESCE(cb.descricao, 'Sem conta') AS descricao,
   COALESCE(b.nome, 'Sem banco') AS banco_nome,
-  COALESCE(fcs.saldo, 0) AS valor_atual
+  COALESCE(fcs.saldo_final, 0) AS valor_atual
 FROM public.fechamento_caixa_saldos fcs
+JOIN public.fechamentos_mensais fm ON fm.id = fcs.fechamento_id
 LEFT JOIN public.contas_bancarias cb ON cb.id = fcs.conta_bancaria_id
-LEFT JOIN public.bancos b ON b.id = cb.banco_id;
+LEFT JOIN public.bancos b ON b.id = cb.banco_id
+WHERE fm.status = 'fechado';
 
 CREATE OR REPLACE VIEW public.vw_apresentacao_inadimplencia AS
 SELECT
-  to_char(fl.data_vencimento::date, 'YYYY-MM') AS competencia,
-  SUM(COALESCE(fl.saldo_restante, fl.valor - COALESCE(fl.valor_pago, 0))) AS valor_inadimplente,
-  CASE WHEN SUM(COALESCE(fl.valor, 0)) = 0 THEN 0
-       ELSE (SUM(COALESCE(fl.saldo_restante, fl.valor - COALESCE(fl.valor_pago, 0))) / NULLIF(SUM(fl.valor), 0)) * 100
+  to_char(fm.competencia, 'YYYY-MM') AS competencia,
+  SUM(COALESCE(ffs.saldo_aberto, 0)) AS valor_inadimplente,
+  CASE WHEN SUM(COALESCE(ffs.valor_original, 0)) = 0 THEN 0
+       ELSE (SUM(COALESCE(ffs.saldo_aberto, 0)) / NULLIF(SUM(ffs.valor_original), 0)) * 100
   END AS pct_inadimplencia,
-  SUM(COALESCE(fl.saldo_restante, fl.valor - COALESCE(fl.valor_pago, 0))) AS valor_atual
-FROM public.financeiro_lancamentos fl
-WHERE fl.tipo = 'receber' AND fl.ativo = true AND COALESCE(fl.status, 'aberto') != 'pago'
-GROUP BY 1;
+  SUM(COALESCE(ffs.saldo_aberto, 0)) AS valor_atual
+FROM public.fechamento_financeiro_saldos ffs
+JOIN public.fechamentos_mensais fm ON fm.id = ffs.fechamento_id
+WHERE fm.status = 'fechado'
+  AND ffs.tipo = 'receber'
+  AND COALESCE(ffs.status, 'aberto') != 'pago'
+GROUP BY fm.competencia;
 
 CREATE OR REPLACE VIEW public.vw_apresentacao_backorder AS
 SELECT
-  to_char(ov.data_pedido::date, 'YYYY-MM') AS competencia,
+  to_char(COALESCE(ov.data_aprovacao, ov.data_emissao)::date, 'YYYY-MM') AS competencia,
   COUNT(*) FILTER (WHERE COALESCE(ov.status, '') NOT IN ('faturado', 'cancelado')) AS qtd_pedidos_pendentes,
   SUM(COALESCE(ov.valor_total, 0)) FILTER (WHERE COALESCE(ov.status, '') NOT IN ('faturado', 'cancelado')) AS valor_backorder,
   SUM(COALESCE(ov.valor_total, 0)) FILTER (WHERE COALESCE(ov.status, '') NOT IN ('faturado', 'cancelado')) AS valor_atual
