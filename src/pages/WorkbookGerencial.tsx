@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { FileSpreadsheet, Plus, RefreshCcw } from 'lucide-react';
+import { Plus, RefreshCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import { AppLayout } from '@/components/AppLayout';
 import { ModulePage } from '@/components/ModulePage';
@@ -12,6 +12,7 @@ import {
   listarTemplates,
   listarGeracoes,
   gerarWorkbook,
+  downloadGeracao,
   downloadBlob,
 } from '@/services/workbookService';
 import type { WorkbookGeracao, WorkbookModoGeracao } from '@/types/workbook';
@@ -21,8 +22,8 @@ export default function WorkbookGerencial() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const { can } = useCan();
 
-  const canGerar = can('relatorios:exportar');
-  const canDownload = can('relatorios:exportar');
+  const canGerar = can('workbook:exportar');
+  const canDownload = can('workbook:visualizar');
 
   const { data: templates = [], isLoading: loadingTemplates } = useQuery({
     queryKey: ['workbook-templates'],
@@ -47,7 +48,7 @@ export default function WorkbookGerencial() {
           competenciaInicial: params.competenciaInicial + '-01',
           competenciaFinal: params.competenciaFinal + '-01',
           modoGeracao: params.modoGeracao,
-          aborarSelecionadas: [],
+          abasSelecionadas: [],
         },
         undefined
       );
@@ -66,27 +67,8 @@ export default function WorkbookGerencial() {
   });
 
   const handleDownload = async (geracao: WorkbookGeracao) => {
-    if (!geracao.parametros_json) {
-      toast.error('Parâmetros da geração não encontrados.');
-      return;
-    }
     try {
-      const params = geracao.parametros_json as {
-        templateId?: string;
-        competenciaInicial?: string;
-        competenciaFinal?: string;
-        modoGeracao?: WorkbookModoGeracao;
-      };
-      const { blob } = await gerarWorkbook(
-        {
-          templateId: params.templateId ?? '',
-          competenciaInicial: params.competenciaInicial ?? '',
-          competenciaFinal: params.competenciaFinal ?? '',
-          modoGeracao: params.modoGeracao ?? 'dinamico',
-          aborarSelecionadas: [],
-        },
-        undefined
-      );
+      const blob = await downloadGeracao(geracao);
       const filename = `workbook_gerencial_${geracao.id.slice(0, 8)}.xlsx`;
       downloadBlob(blob, filename);
       toast.success('Download iniciado.');
@@ -106,7 +88,7 @@ export default function WorkbookGerencial() {
               Atualizar
             </Button>
             {canGerar && (
-              <Button size="sm" onClick={() => setDialogOpen(true)} disabled={loadingTemplates}>
+              <Button size="sm" onClick={() => setDialogOpen(true)} disabled={loadingTemplates || templates.length === 0}>
                 <Plus className="h-4 w-4 mr-1" />
                 Gerar Workbook
               </Button>
@@ -114,6 +96,11 @@ export default function WorkbookGerencial() {
           </div>
         }
       >
+        {templates.length === 0 && !loadingTemplates && (
+          <div className="mb-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-200 rounded-md text-sm">
+            Nenhum template de workbook disponível. Contacte o administrador.
+          </div>
+        )}
         <WorkbookHistoricoTable
           geracoes={geracoes}
           isLoading={loadingGeracoes}
