@@ -84,7 +84,11 @@ export function VendasChart({ onBarClick }: VendasChartProps) {
     load();
   }, [range]);
 
-  const handleBarClick = (payload: any) => {
+interface RechartsClickPayload {
+  activePayload?: Array<{ payload: VendasPoint }>;
+}
+
+  const handleBarClick = (payload: RechartsClickPayload) => {
     if (!payload?.activePayload?.[0]) return;
     const point = payload.activePayload[0].payload as VendasPoint;
     const { start, end } = parseMonth(point.rawDate);
