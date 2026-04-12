@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Página de Logs de Auditoria (módulo Admin).
  *
@@ -343,11 +342,11 @@ export default function Logs() {
             {isFetching && !isLoading ? (
               <span className="text-xs text-muted-foreground">Atualizando…</span>
             ) : null}
-            <Button variant="outline" size="sm" onClick={handleExportarExcel} disabled={exporting || logs.length === 0}>
+            <Button variant="outline" size="sm" onClick={handleExportarExcel} disabled={exporting || logs.length === 0} aria-label="Exportar logs em Excel">
               <Download className="h-4 w-4 mr-1" />
               Excel
             </Button>
-            <Button variant="outline" size="sm" onClick={handleExportarPdf} disabled={exporting || logs.length === 0}>
+            <Button variant="outline" size="sm" onClick={handleExportarPdf} disabled={exporting || logs.length === 0} aria-label="Exportar logs em PDF">
               <Download className="h-4 w-4 mr-1" />
               PDF
             </Button>
@@ -374,11 +373,11 @@ export default function Logs() {
               Página {page} de {totalPages} — {totalCount} registros
             </span>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}>
+              <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} aria-label="Página anterior de logs">
                 <ChevronLeft className="h-4 w-4" />
                 Anterior
               </Button>
-              <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages}>
+              <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} aria-label="Próxima página de logs">
                 Próxima
                 <ChevronRight className="h-4 w-4" />
               </Button>

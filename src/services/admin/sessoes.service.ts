@@ -23,6 +23,11 @@ export interface ListarSessoesOptions {
   userId?: string;
 }
 
+// `user_sessions` is managed by the auth layer and is not in the generated
+// Supabase DB types.  Using a targeted cast to avoid widespread `any`.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const supabaseUntyped = supabase as unknown as { from: (table: string) => any };
+
 /**
  * Lista sessões de usuários.
  */
@@ -31,7 +36,7 @@ export async function listarSessoes(
 ): Promise<UserSession[]> {
   const { apenasAtivas = true, userId } = options;
 
-  let query = (supabase as any)
+  let query = supabaseUntyped
     .from("user_sessions")
     .select("*")
     .order("last_active_at", { ascending: false });
@@ -53,7 +58,7 @@ export async function listarSessoes(
  * Define `is_active = false` no registro correspondente.
  */
 export async function revogarSessao(sessionId: string): Promise<void> {
-  const { error } = await (supabase as any)
+  const { error } = await supabaseUntyped
     .from("user_sessions")
     .update({ is_active: false })
     .eq("id", sessionId);

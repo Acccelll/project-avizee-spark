@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * PermissaoMatrix — Tabela visual de permissões por perfil.
  *
@@ -34,6 +33,7 @@ import {
 import type { AppRole } from "@/contexts/AuthContext";
 import { atribuirPerfil } from "@/services/admin/perfis.service";
 import { supabase } from "@/integrations/supabase/client";
+import { getUserFriendlyError } from "@/utils/errorMessages";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -139,7 +139,7 @@ export function PermissaoMatrix() {
     },
     onError: (err: Error) => {
       console.error("[PermissaoMatrix] Erro ao salvar:", err);
-      toast.error("Erro ao salvar permissões. Tente novamente.");
+      toast.error(getUserFriendlyError(err));
     },
   });
 
@@ -172,6 +172,7 @@ export function PermissaoMatrix() {
             size="sm"
             onClick={handleReset}
             disabled={pendingChanges.length === 0 || saveMutation.isPending}
+            aria-label="Desfazer alterações de permissões"
           >
             Desfazer
           </Button>
@@ -179,6 +180,7 @@ export function PermissaoMatrix() {
             size="sm"
             onClick={handleSave}
             disabled={pendingChanges.length === 0 || saveMutation.isPending}
+            aria-label="Salvar alterações de permissões"
           >
             {saveMutation.isPending ? (
               <Loader2 className="h-4 w-4 animate-spin mr-1" />
@@ -248,6 +250,7 @@ export function PermissaoMatrix() {
                                 disabled={isAdmin}
                                 onCheckedChange={() => toggle(role, key)}
                                 className={changed ? "ring-2 ring-primary" : undefined}
+                                aria-label={`${ROLE_LABELS[role]}: ${resource} ${action}`}
                               />
                             </TableCell>
                           );
