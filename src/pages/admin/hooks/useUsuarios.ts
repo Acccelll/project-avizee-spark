@@ -4,6 +4,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { getUserFriendlyError } from "@/utils/errorMessages";
 import {
   desativarUsuario,
   fetchUsuarios,
@@ -38,7 +39,7 @@ export function useUsuarios() {
     },
     onError: (err: Error) => {
       console.error("[admin] Erro ao atualizar usuário:", err);
-      toast.error("Erro ao atualizar usuário. Tente novamente.");
+      toast.error(getUserFriendlyError(err));
     },
   });
 
@@ -51,7 +52,7 @@ export function useUsuarios() {
     },
     onError: (err: Error) => {
       console.error("[admin] Erro ao alterar perfil:", err);
-      toast.error("Erro ao alterar perfil do usuário.");
+      toast.error(getUserFriendlyError(err));
     },
   });
 
@@ -63,7 +64,7 @@ export function useUsuarios() {
     },
     onError: (err: Error) => {
       console.error("[admin] Erro ao desativar usuário:", err);
-      toast.error("Erro ao desativar usuário.");
+      toast.error(getUserFriendlyError(err));
     },
   });
 

@@ -866,7 +866,7 @@ const Produtos = () => {
                     />
                     <Label className="text-xs cursor-pointer whitespace-nowrap">Principal</Label>
                   </div>
-                  <Button type="button" size="icon" variant="ghost" className="h-9 w-9 text-destructive shrink-0" onClick={() => removeFornecedor(idx)}>
+                  <Button type="button" size="icon" variant="ghost" aria-label="Remover fornecedor" className="h-9 w-9 text-destructive shrink-0" onClick={() => removeFornecedor(idx)}>
                     <Trash2 className="w-4 h-4" />
                   </Button>
                 </div>
@@ -919,7 +919,7 @@ const Produtos = () => {
                   </div>
                   <div className="space-y-1"><Label className="text-xs">Qtd</Label><Input type="number" min={0.01} step="0.01" value={comp.quantidade} onChange={(e) => updateComponent(idx, "quantidade", Number(e.target.value))} className="h-9" /></div>
                   <div className="space-y-1"><Label className="text-xs">Custo</Label><p className="h-9 flex items-center text-xs font-mono text-muted-foreground">{prod ? formatCurrency(comp.quantidade * (prod.preco_custo || 0)) : "—"}</p></div>
-                  <Button type="button" size="icon" variant="ghost" className="h-9 w-9 text-destructive" onClick={() => removeComponent(idx)}><Trash2 className="w-4 h-4" /></Button>
+                  <Button type="button" size="icon" variant="ghost" aria-label="Remover componente" className="h-9 w-9 text-destructive" onClick={() => removeComponent(idx)}><Trash2 className="w-4 h-4" /></Button>
                 </div>
               );
             })}

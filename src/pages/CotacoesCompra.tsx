@@ -167,7 +167,7 @@ export default function CotacoesCompra() {
                       onChange={(e) => updateLocalItem(item._localId, "unidade", e.target.value)}
                       className="w-16 text-center" placeholder="UN"
                     />
-                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removeLocalItem(item._localId)}>
+                    <Button type="button" variant="ghost" size="icon" aria-label="Remover item" className="h-8 w-8 text-destructive" onClick={() => removeLocalItem(item._localId)}>
                       <X className="h-4 w-4" />
                     </Button>
                   </div>
