@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { getUserFriendlyError } from "@/utils/errorMessages";
 import { supabase } from "@/integrations/supabase/client";
 import { calcularStatusFaturamentoOV } from "@/lib/fiscal";
 import { registrarEventoFiscal } from "@/services/fiscal.service";
@@ -168,7 +169,7 @@ export function useFaturarPedido() {
       toast.success(`NF ${result.nfNumero} gerada com sucesso!`);
     },
     onError: (err: Error) => {
-      toast.error(`Erro ao gerar Nota Fiscal: ${err.message}`);
+      toast.error(getUserFriendlyError(err));
     },
   });
 }

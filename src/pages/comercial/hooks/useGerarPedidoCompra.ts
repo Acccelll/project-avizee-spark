@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { getUserFriendlyError } from "@/utils/errorMessages";
 import { supabase } from "@/integrations/supabase/client";
 
 interface CotacaoCompraBase {
@@ -95,7 +96,7 @@ export function useGerarPedidoCompra() {
       toast.success(`Pedido de compra ${result.pedidoNumero} gerado!`);
     },
     onError: (err: Error) => {
-      toast.error(`Erro ao gerar pedido de compra: ${err.message}`);
+      toast.error(getUserFriendlyError(err));
     },
   });
 }
