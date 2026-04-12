@@ -287,7 +287,7 @@ export async function salvarOpcoesCorreios(
     valor_adicional: 0,
     valor_total: o.valor,
     selecionada: false,
-    payload_raw: o as unknown as Record<string, unknown>,
+    payload_raw: o as unknown as import('@/integrations/supabase/types').Json,
   }));
 
   const { data, error } = await supabase
@@ -434,7 +434,7 @@ export async function selecionarOpcaoFrete(
       altura_cm: dimensoes.altura_cm,
       largura_cm: dimensoes.largura_cm,
       comprimento_cm: dimensoes.comprimento_cm,
-    } as Record<string, unknown>)
+    } as any)
     .eq('id', orcamentoId);
 }
 

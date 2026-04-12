@@ -1,12 +1,11 @@
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CheckCircle2, AlertCircle, Info, Clock } from "lucide-react";
+import { AlertCircle, Info, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface ImportLog {
   id: string;
   nivel: "info" | "warning" | "error";
-  etapa: string;
   mensagem: string;
   created_at: string;
 }
@@ -34,13 +33,16 @@ export function ImportacaoTimeline({ logs }: ImportacaoTimelineProps) {
             log.nivel === "info" ? "bg-blue-500 text-white" :
             log.nivel === "warning" ? "bg-amber-500 text-white" : "bg-rose-500 text-white"
           )}>
-            {log.nivel === "info" ? <Info className="h-4 w-4" /> :
-             log.nivel === "warning" ? <AlertCircle className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
+            {log.nivel === "info" ? <Info className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
           </div>
           <div className="flex flex-col pt-1.5">
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                {log.etapa}
+              <span className={cn(
+                "text-[10px] font-bold uppercase tracking-wider",
+                log.nivel === "error" ? "text-rose-600" :
+                log.nivel === "warning" ? "text-amber-600" : "text-muted-foreground"
+              )}>
+                {log.nivel}
               </span>
               <span className="text-[10px] text-muted-foreground">•</span>
               <span className="text-[10px] text-muted-foreground">

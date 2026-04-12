@@ -99,8 +99,7 @@ export default function WorkbookGerencial() {
     <AppLayout>
       <ModulePage
         title="Workbook Gerencial"
-        icon={<FileSpreadsheet className="h-5 w-5" />}
-        actions={
+        headerActions={
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => refetch()}>
               <RefreshCcw className="h-4 w-4 mr-1" />
@@ -128,7 +127,7 @@ export default function WorkbookGerencial() {
           open={dialogOpen}
           onOpenChange={setDialogOpen}
           templates={templates}
-          onGerar={gerarMutation.mutateAsync}
+          onGerar={async (p) => { await gerarMutation.mutateAsync(p); }}
           isGenerating={gerarMutation.isPending}
         />
       )}
