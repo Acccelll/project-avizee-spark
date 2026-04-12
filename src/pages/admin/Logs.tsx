@@ -164,7 +164,7 @@ function DiffViewer({ anterior, novo }: { anterior: unknown; novo: unknown }) {
 
 // ─── Colunas da tabela ────────────────────────────────────────────────────────
 
-const columns: ColumnDef<AuditLog>[] = [
+const columns: Array<{ accessorKey?: string; id?: string; header: string; cell: (props: { row: { original: AuditLog } }) => React.ReactNode }> = [
   {
     accessorKey: "created_at",
     header: "Data/Hora",
