@@ -1,6 +1,9 @@
 import { supabase } from '@/integrations/supabase/client';
 import { Tables } from '@/integrations/supabase/types';
 
+// Alias for supabase client to bypass missing table types for frete_simulacoes / frete_simulacoes_opcoes
+const sb = supabase as any;
+
 // ---------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------
