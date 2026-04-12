@@ -78,7 +78,7 @@ export function PedidoCompraDrawer({
     secondary: "text-muted-foreground",
   };
 
-  const estoquePorProduto: Record<string, number> = (viewEstoque as Array<Record<string, unknown>>).reduce(
+  const estoquePorProduto: Record<string, number> = (viewEstoque as Array<Record<string, unknown>>).reduce<Record<string, number>>(
     (acc: Record<string, number>, m) => {
       const key = String(m.produto_id);
       acc[key] = (acc[key] || 0) + Number(m.quantidade || 0);

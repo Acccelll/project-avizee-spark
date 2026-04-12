@@ -25,7 +25,7 @@ export function RecentCompras({ items, loading }: { items: PedidoCompra[]; loadi
             <div key={idx} className="border rounded-lg p-3 hover:bg-muted/20 cursor-pointer" onClick={() => pushView("pedido_compra", c.id)}>
               <div className="flex justify-between items-center mb-1">
                 <span className="mono text-xs font-medium text-primary">{c.numero}</span>
-                <span className="text-xs text-muted-foreground">{formatDate(c.data_compra)}</span>
+                <span className="text-xs text-muted-foreground">{formatDate(c.data_pedido)}</span>
               </div>
               <p className="text-sm truncate">{c.fornecedores?.nome_razao_social || '—'}</p>
               <p className="mono font-semibold text-sm mt-1">{formatCurrency(Number(c.valor_total || 0))}</p>

@@ -38,11 +38,11 @@ async function fetchPendencias(): Promise<Pendencia[]> {
 
   return (data || []).map((r: { id: string; tipo: string; descricao: string | null; valor: number; data_vencimento: string; status: string | null }) => ({
     id: r.id,
-    tipo: r.tipo,
+    tipo: r.tipo as 'receber' | 'pagar',
     descricao: r.descricao || (r.tipo === 'receber' ? 'A receber' : 'A pagar'),
     valor: Number(r.valor || 0),
     data_vencimento: r.data_vencimento,
-    status: r.status,
+    status: r.status ?? 'aberto',
   }));
 }
 
