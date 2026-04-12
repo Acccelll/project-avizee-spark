@@ -1,37 +1,82 @@
 import type { SlideCodigo } from '@/types/apresentacao';
 import { calculateVariation, formatCurrency, formatPercent } from './utils';
 
-export function buildAutomaticComment(slide: SlideCodigo, data: Record<string, unknown>): string {
+export interface ExecutiveComment {
+  text: string;
+  severity: 'info' | 'warning' | 'critical' | 'positive';
+  priority: number;
+  tags: string[];
+}
+
+function buildCoreSummary(slide: SlideCodigo, data: Record<string, unknown>): ExecutiveComment {
   const current = Number(data.valor_atual ?? data.total_atual ?? 0);
   const previous = Number(data.valor_anterior ?? data.total_anterior ?? 0);
   const variation = calculateVariation(current, previous);
 
-  switch (slide) {
-    case 'highlights_financeiros':
-      return `Resultado do período em ${formatCurrency(current)}, variação de ${formatPercent(variation)} vs competência anterior.`;
-    case 'faturamento':
-      return `Faturamento do período em ${formatCurrency(current)} (${formatPercent(variation)} vs mês anterior).`;
-    case 'despesas':
-      return `Despesas em ${formatCurrency(current)} no período, com variação de ${formatPercent(variation)}.`;
-    case 'rol_caixa':
-      return `Caixa consolidado em ${formatCurrency(current)} e cobertura sobre ROL de ${formatPercent(Number(data.cobertura_pct ?? 0))}.`;
-    case 'receita_vs_despesa':
-      return `Receita ${formatCurrency(Number(data.receita_atual ?? 0))} vs despesa ${formatCurrency(Number(data.despesa_atual ?? 0))} no fechamento.`;
-    case 'fopag':
-      return `Folha líquida do período em ${formatCurrency(current)} para ${Number(data.funcionarios ?? 0)} colaboradores.`;
-    case 'fluxo_caixa':
-      return `Fluxo líquido do período em ${formatCurrency(Number(data.fluxo_liquido ?? current))}.`;
-    case 'lucro_produto_cliente':
-      return `Maior cliente do período: ${String(data.maior_cliente ?? 'não identificado')}; maior produto: ${String(data.maior_produto ?? 'não identificado')}.`;
-    case 'variacao_estoque':
-      return `Estoque avaliado em ${formatCurrency(current)} com variação de ${formatPercent(variation)}.`;
-    case 'venda_estado':
-      return `Estado líder no período: ${String(data.estado_lider ?? 'não identificado')} com ${formatCurrency(Number(data.valor_lider ?? 0))}.`;
-    case 'redes_sociais':
-      return data.indisponivel
-        ? 'Dados indisponíveis no ERP para automação desta seção na V1.'
-        : `Evolução de seguidores no período: ${Number(data.seguidores_novos ?? 0)} novos perfis.`;
-    default:
-      return 'Slide de abertura do fechamento mensal.';
+  const common: ExecutiveComment = {
+    text: `Valor atual ${formatCurrency(current)} e variação ${formatPercent(variation)} vs período anterior.`,
+    severity: variation < -10 ? 'warning' : 'info',
+    priority: 1,
+    tags: [slide, 'variacao'],
+  };
+
+  if (slide === 'inadimplencia') {
+    return {
+      text: `Inadimplência em ${formatCurrency(Number(data.valor_inadimplente ?? 0))}, representando ${formatPercent(Number(data.pct_inadimplencia ?? 0))}.`,
+      severity: Number(data.pct_inadimplencia ?? 0) > 15 ? 'critical' : 'warning',
+      priority: 1,
+      tags: ['risco_caixa', 'recebiveis'],
+    };
   }
+
+  if (slide === 'backorder') {
+    return {
+      text: `Backorder no período: ${Number(data.qtd_pedidos_pendentes ?? 0)} pedidos pendentes e ${formatCurrency(Number(data.valor_backorder ?? 0))}.`,
+      severity: Number(data.qtd_pedidos_pendentes ?? 0) > 0 ? 'warning' : 'info',
+      priority: 1,
+      tags: ['carteira', 'operacional'],
+    };
+  }
+
+  return common;
+}
+
+function buildConcentrationComment(slide: SlideCodigo, data: Record<string, unknown>): ExecutiveComment | null {
+  if (slide === 'top_clientes') {
+    return {
+      text: `Concentração em clientes: líder ${String(data.cliente_lider ?? 'N/I')} com ${formatCurrency(Number(data.valor_lider ?? 0))}.`,
+      severity: 'info',
+      priority: 2,
+      tags: ['concentracao', 'clientes'],
+    };
+  }
+  if (slide === 'top_fornecedores') {
+    return {
+      text: `Maior fornecedor: ${String(data.fornecedor_lider ?? 'N/I')} com ${formatCurrency(Number(data.valor_lider ?? 0))}.`,
+      severity: 'info',
+      priority: 2,
+      tags: ['concentracao', 'fornecedores'],
+    };
+  }
+  return null;
+}
+
+export function buildAutomaticComments(slide: SlideCodigo, data: Record<string, unknown>): ExecutiveComment[] {
+  if (data.indisponivel) {
+    return [{ text: 'Dados indisponíveis ou não automatizados nesta fase.', severity: 'warning', priority: 1, tags: ['indisponivel'] }];
+  }
+
+  const comments: ExecutiveComment[] = [buildCoreSummary(slide, data)];
+  const concentration = buildConcentrationComment(slide, data);
+  if (concentration) comments.push(concentration);
+
+  if (slide === 'rol_caixa' && Number(data.cobertura_pct ?? 0) < 30) {
+    comments.push({ text: 'Alerta de risco de caixa: cobertura de ROL abaixo do limite de atenção.', severity: 'critical', priority: 1, tags: ['risco_caixa'] });
+  }
+
+  return comments.sort((a, b) => a.priority - b.priority).slice(0, 3);
+}
+
+export function buildAutomaticComment(slide: SlideCodigo, data: Record<string, unknown>): string {
+  return buildAutomaticComments(slide, data).map((c) => c.text).join(' | ');
 }

@@ -1,7 +1,7 @@
 import JSZip from 'jszip';
-import { APRESENTACAO_SLIDES_V1 } from './slideDefinitions';
+import { APRESENTACAO_SLIDES_MAP } from './slideDefinitions';
 import { buildAutomaticComment } from './commentRules';
-import type { ApresentacaoDataBundle, SlideData } from '@/types/apresentacao';
+import type { ApresentacaoDataBundle, SlideCodigo, SlideData } from '@/types/apresentacao';
 import { pickEditedComment } from './utils';
 
 function esc(value: string): string {
@@ -9,48 +9,12 @@ function esc(value: string): string {
 }
 
 function contentTypes(slideCount: number): string {
-  const slideOverrides = Array.from({ length: slideCount }, (_, i) =>
-    `<Override PartName="/ppt/slides/slide${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/>`).join('');
-  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
-  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
-  <Default Extension="xml" ContentType="application/xml"/>
-  <Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/>
-  <Override PartName="/ppt/slideLayouts/slideLayout1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml"/>
-  <Override PartName="/ppt/slideMasters/slideMaster1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideMaster+xml"/>
-  <Override PartName="/ppt/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/>
-  <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
-  <Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>
-  ${slideOverrides}
-</Types>`;
+  const slideOverrides = Array.from({ length: slideCount }, (_, i) => `<Override PartName="/ppt/slides/slide${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/>`).join('');
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/><Override PartName="/ppt/slideLayouts/slideLayout1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml"/><Override PartName="/ppt/slideMasters/slideMaster1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideMaster+xml"/><Override PartName="/ppt/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>${slideOverrides}</Types>`;
 }
 
 function slideXml(title: string, subtitle: string, comment: string): string {
-  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<p:sld xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main">
-  <p:cSld>
-    <p:spTree>
-      <p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>
-      <p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>
-      <p:sp>
-        <p:nvSpPr><p:cNvPr id="2" name="Title"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
-        <p:spPr><a:xfrm><a:off x="457200" y="304800"/><a:ext cx="8229600" cy="914400"/></a:xfrm></p:spPr>
-        <p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr sz="3400" b="1"/><a:t>${esc(title)}</a:t></a:r></a:p></p:txBody>
-      </p:sp>
-      <p:sp>
-        <p:nvSpPr><p:cNvPr id="3" name="Subtitle"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
-        <p:spPr><a:xfrm><a:off x="457200" y="1371600"/><a:ext cx="8229600" cy="762000"/></a:xfrm></p:spPr>
-        <p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr sz="1800"/><a:t>${esc(subtitle)}</a:t></a:r></a:p></p:txBody>
-      </p:sp>
-      <p:sp>
-        <p:nvSpPr><p:cNvPr id="4" name="Comment"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
-        <p:spPr><a:xfrm><a:off x="457200" y="2362200"/><a:ext cx="8229600" cy="2743200"/></a:xfrm></p:spPr>
-        <p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr sz="1600"/><a:t>${esc(comment)}</a:t></a:r></a:p></p:txBody>
-      </p:sp>
-    </p:spTree>
-  </p:cSld>
-  <p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr>
-</p:sld>`;
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><p:sld xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:cSld><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr><p:sp><p:nvSpPr><p:cNvPr id="2" name="Title"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="457200" y="304800"/><a:ext cx="8229600" cy="914400"/></a:xfrm></p:spPr><p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr sz="3400" b="1"/><a:t>${esc(title)}</a:t></a:r></a:p></p:txBody></p:sp><p:sp><p:nvSpPr><p:cNvPr id="3" name="Subtitle"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="457200" y="1371600"/><a:ext cx="8229600" cy="762000"/></a:xfrm></p:spPr><p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr sz="1800"/><a:t>${esc(subtitle)}</a:t></a:r></a:p></p:txBody></p:sp><p:sp><p:nvSpPr><p:cNvPr id="4" name="Comment"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="457200" y="2362200"/><a:ext cx="8229600" cy="2743200"/></a:xfrm></p:spPr><p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr sz="1600"/><a:t>${esc(comment)}</a:t></a:r></a:p></p:txBody></p:sp></p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>`;
 }
 
 function baseXml(slideCount: number): Record<string, string> {
@@ -70,21 +34,28 @@ function baseXml(slideCount: number): Record<string, string> {
   };
 }
 
-export async function generatePresentation(data: ApresentacaoDataBundle, comentariosEditados: Partial<Record<string, string>>): Promise<Blob> {
-  const slides: SlideData[] = APRESENTACAO_SLIDES_V1.map((def) => {
-    const dadosSlide = data.slides[def.codigo] ?? {};
-    const auto = buildAutomaticComment(def.codigo, dadosSlide);
+export async function generatePresentation(
+  data: ApresentacaoDataBundle,
+  comentariosEditados: Partial<Record<string, string>>,
+  options?: { slideOrder?: SlideCodigo[]; metadata?: Record<string, unknown> },
+): Promise<Blob> {
+  const order = options?.slideOrder?.length ? options.slideOrder : (Object.keys(data.slides) as SlideCodigo[]);
+
+  const slides: SlideData[] = order.map((codigo) => {
+    const def = APRESENTACAO_SLIDES_MAP.get(codigo);
+    const dadosSlide = data.slides[codigo] ?? {};
     return {
-      codigo: def.codigo,
-      titulo: def.titulo,
-      subtitulo: def.subtitulo,
+      codigo,
+      titulo: def?.titulo ?? codigo,
+      subtitulo: def?.subtitulo ?? '',
       dados: dadosSlide,
-      comentarioAutomatico: auto,
-      comentarioEditado: comentariosEditados[def.codigo],
+      comentarioAutomatico: buildAutomaticComment(codigo, dadosSlide),
+      comentarioEditado: comentariosEditados[codigo],
       indisponivel: Boolean(dadosSlide.indisponivel),
     };
   });
 
+  const metadataText = options?.metadata ? JSON.stringify(options.metadata) : '';
   const zip = new JSZip();
   const files = baseXml(slides.length);
   Object.entries(files).forEach(([path, content]) => zip.file(path, content));
@@ -92,9 +63,10 @@ export async function generatePresentation(data: ApresentacaoDataBundle, comenta
   slides.forEach((slide, index) => {
     const comment = pickEditedComment(slide.comentarioAutomatico, slide.comentarioEditado);
     const detail = slide.indisponivel
-      ? `${comment} (dados indisponíveis nesta V1)`
+      ? `${comment} (dados indisponíveis nesta fase)`
       : `${comment} | Base: ${Object.keys(slide.dados).slice(0, 5).join(', ') || 'sem campos'}`;
-    zip.file(`ppt/slides/slide${index + 1}.xml`, slideXml(slide.titulo, slide.subtitulo ?? '', detail));
+    const merged = slide.codigo === 'closing' ? `${detail} | metadata: ${metadataText}` : detail;
+    zip.file(`ppt/slides/slide${index + 1}.xml`, slideXml(slide.titulo, slide.subtitulo ?? '', merged));
   });
 
   return zip.generateAsync({ type: 'blob' });

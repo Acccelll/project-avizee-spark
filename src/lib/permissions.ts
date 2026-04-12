@@ -37,6 +37,7 @@ export const ERP_ACTIONS = [
   "gerar",
   "download",
   "editar_comentarios",
+  "gerenciar_templates",
 ] as const;
 
 export type ErpResource = (typeof ERP_RESOURCES)[number];
@@ -72,6 +73,7 @@ const rolePermissionMatrix: Record<AppRole, PermissionKey[]> = {
     "apresentacao:gerar",
     "apresentacao:editar_comentarios",
     "apresentacao:download",
+    "apresentacao:aprovar",
   ],
   estoquista: [
     "dashboard:visualizar",

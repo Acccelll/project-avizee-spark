@@ -27,6 +27,8 @@ export function ApresentacaoHistoricoTable({
     { key: 'template', label: 'Template', render: (r: ApresentacaoGeracao) => r.apresentacao_templates?.nome ?? '—' },
     { key: 'periodo', label: 'Período', render: (r: ApresentacaoGeracao) => `${r.competencia_inicial ?? '—'} → ${r.competencia_final ?? '—'}` },
     { key: 'modo', label: 'Modo', render: (r: ApresentacaoGeracao) => <Badge variant="outline">{r.modo_geracao ?? '—'}</Badge> },
+    { key: 'editorial', label: 'Editorial', render: (r: ApresentacaoGeracao) => <Badge variant="secondary">{r.status_editorial ?? 'rascunho'}</Badge> },
+    { key: 'slides', label: '#Slides', render: (r: ApresentacaoGeracao) => r.total_slides ?? '—' },
     {
       key: 'status',
       label: 'Status',

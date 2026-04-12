@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { APRESENTACAO_SLIDES_V1 } from './slideDefinitions';
+import { APRESENTACAO_SLIDES_V2 } from './slideDefinitions';
 
 describe('slideDefinitions', () => {
-  it('contém os 12 slides mínimos da V1', () => {
-    expect(APRESENTACAO_SLIDES_V1).toHaveLength(12);
-    expect(APRESENTACAO_SLIDES_V1.map((s) => s.codigo)).toContain('redes_sociais');
+  it('contém V1 + slides avançados da fase 2', () => {
+    expect(APRESENTACAO_SLIDES_V2.length).toBeGreaterThanOrEqual(28);
+    expect(APRESENTACAO_SLIDES_V2.map((s) => s.codigo)).toContain('bridge_ebitda');
+    expect(APRESENTACAO_SLIDES_V2.map((s) => s.codigo)).toContain('closing');
   });
 });

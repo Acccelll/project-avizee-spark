@@ -14,6 +14,7 @@ export function ApresentacaoComentariosEditor({
       {comentarios.map((c) => (
         <div key={c.id} className="rounded-md border p-3 space-y-2">
           <p className="text-sm font-medium">{c.titulo ?? c.slide_codigo}</p>
+          <p className="text-xs text-muted-foreground">Status: {c.comentario_status} · prioridade: {c.prioridade}</p>
           <p className="text-xs text-muted-foreground">Auto: {c.comentario_automatico ?? '—'}</p>
           <Label>Comentário editado</Label>
           <Textarea

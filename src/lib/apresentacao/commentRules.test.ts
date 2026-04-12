@@ -5,7 +5,7 @@ import { pickEditedComment } from './utils';
 describe('commentRules', () => {
   it('gera comentário determinístico para faturamento', () => {
     const comment = buildAutomaticComment('faturamento', { valor_atual: 1000, valor_anterior: 800 });
-    expect(comment).toContain('Faturamento do período');
+    expect(comment).toContain('Valor atual');
     expect(comment).toContain('R$');
   });
 
