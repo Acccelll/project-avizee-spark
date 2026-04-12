@@ -12,12 +12,12 @@ export async function fetchConfig<T>(chave: ConfigChave): Promise<T> {
     .maybeSingle();
 
   if (error) throw error;
-  return ((data?.valor as T) ?? {}) as T;
+  return ((data?.valor ?? {}) as unknown) as T;
 }
 
-export async function updateConfig<T extends Record<string, unknown>>(
+export async function updateConfig(
   chave: ConfigChave,
-  valor: T,
+  valor: Record<string, unknown>,
   usuarioId: string | undefined
 ): Promise<void> {
   const { data: existingData } = await supabase
