@@ -4,12 +4,13 @@ import { Button } from '@/components/ui/button';
 import { formatCurrency, formatNumber } from '@/lib/format';
 import { useRelationalNavigation } from '@/contexts/RelationalNavigationContext';
 import { Skeleton } from '@/components/ui/skeleton';
+import type { Orcamento } from '@/types/domain';
 
 interface ComercialBlockProps {
   cotacoesAbertas: number;
   pedidosPendentes: number;
   ticketMedio: number;
-  recentOrcamentos: any[];
+  recentOrcamentos: Orcamento[];
   loading?: boolean;
 }
 
@@ -94,7 +95,7 @@ export function ComercialBlock({
           <p className="py-4 text-center text-sm text-muted-foreground">Nenhum orçamento no período</p>
         ) : (
           <div className="space-y-1">
-            {recentOrcamentos.map((o: any) => (
+            {recentOrcamentos.map((o: Orcamento) => (
               <div
                 key={o.id}
                 className="flex items-center justify-between rounded py-1.5 px-1 hover:bg-muted/20 cursor-pointer"

@@ -3,13 +3,14 @@ import { ArrowRight, Truck, Clock, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { useRelationalNavigation } from '@/contexts/RelationalNavigationContext';
+import type { PedidoCompra } from '@/types/domain';
 
 interface LogisticaBlockProps {
-  comprasAguardando: any[];
+  comprasAguardando: PedidoCompra[];
   totalRemessasAtrasadas: number;
 }
 
-function calcDiasEntrega(compra: any) {
+function calcDiasEntrega(compra: PedidoCompra) {
   if (!compra.data_entrega_prevista) return null;
   const hoje = new Date();
   const prevista = new Date(compra.data_entrega_prevista);
@@ -74,7 +75,7 @@ export function LogisticaBlock({ comprasAguardando, totalRemessasAtrasadas }: Lo
           </p>
         ) : (
           <div className="space-y-1 max-h-[160px] overflow-y-auto">
-            {comprasAguardando.slice(0, 5).map((c: any) => {
+            {comprasAguardando.slice(0, 5).map((c: PedidoCompra) => {
               const dias = calcDiasEntrega(c);
               const atrasado = dias !== null && dias < 0;
               const urgente = dias !== null && dias >= 0 && dias <= 3;

@@ -36,7 +36,7 @@ async function fetchPendencias(): Promise<Pendencia[]> {
 
   if (error) throw error;
 
-  return (data || []).map((r: any) => ({
+  return (data || []).map((r: { id: string; tipo: string; descricao: string | null; valor: number; data_vencimento: string; status: string | null }) => ({
     id: r.id,
     tipo: r.tipo,
     descricao: r.descricao || (r.tipo === 'receber' ? 'A receber' : 'A pagar'),
@@ -49,7 +49,7 @@ async function fetchPendencias(): Promise<Pendencia[]> {
 async function marcarComoPago(id: string): Promise<void> {
   const { error } = await supabase
     .from('financeiro_lancamentos')
-    .update({ status: 'pago', data_pagamento: new Date().toISOString().slice(0, 10) } as any)
+    .update({ status: 'pago', data_pagamento: new Date().toISOString().slice(0, 10) } satisfies { status: string; data_pagamento: string })
     .eq('id', id);
   if (error) throw error;
 }
@@ -74,7 +74,7 @@ export function PendenciasList() {
       );
       return { previous };
     },
-    onError: (_err, _id, context: any) => {
+    onError: (_err, _id, context: { previous?: Pendencia[] } | undefined) => {
       queryClient.setQueryData(QUERY_KEY, context?.previous);
       toast.error('Erro ao registrar baixa. Tente novamente.');
     },

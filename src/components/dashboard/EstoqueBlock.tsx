@@ -3,9 +3,10 @@ import { ArrowRight, Package, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatCurrency, formatNumber } from '@/lib/format';
 import { useRelationalNavigation } from '@/contexts/RelationalNavigationContext';
+import type { Produto } from '@/types/domain';
 
 interface EstoqueBlockProps {
-  itensBaixoMinimo: any[];
+  itensBaixoMinimo: Produto[];
   valorTotalEstoque: number;
   totalProdutosAtivos: number;
 }
@@ -64,7 +65,7 @@ export function EstoqueBlock({ itensBaixoMinimo, valorTotalEstoque, totalProduto
           </div>
         ) : (
           <div className="space-y-1 max-h-[160px] overflow-y-auto">
-            {itensBaixoMinimo.slice(0, 6).map((p: any) => {
+            {itensBaixoMinimo.slice(0, 6).map((p: Produto) => {
               const pct = p.estoque_minimo > 0 ? (p.estoque_atual ?? 0) / p.estoque_minimo : 0;
               const isZero = (p.estoque_atual ?? 0) <= 0;
               return (

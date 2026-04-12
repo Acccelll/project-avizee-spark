@@ -2,15 +2,16 @@ import { useNavigate } from 'react-router-dom';
 import { Truck, Clock, AlertTriangle } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { useRelationalNavigation } from '@/contexts/RelationalNavigationContext';
+import type { PedidoCompra } from '@/types/domain';
 
-function calcDiasEntrega(compra: any) {
+function calcDiasEntrega(compra: PedidoCompra) {
   if (!compra.data_entrega_prevista) return null;
   const hoje = new Date();
   const prevista = new Date(compra.data_entrega_prevista);
   return Math.ceil((prevista.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
 }
 
-export function ComprasConfirmadasDetail({ items }: { items: any[] }) {
+export function ComprasConfirmadasDetail({ items }: { items: PedidoCompra[] }) {
   const navigate = useNavigate();
   const { pushView } = useRelationalNavigation();
   if (items.length === 0) return null;
@@ -36,7 +37,7 @@ export function ComprasConfirmadasDetail({ items }: { items: any[] }) {
         <button onClick={() => navigate('/pedidos-compra')} className="text-xs text-primary hover:underline">Ver todas →</button>
       </div>
       <div className="space-y-2 max-h-[260px] overflow-y-auto">
-        {items.map((c: any) => {
+        {items.map((c: PedidoCompra) => {
           const diasEntrega = calcDiasEntrega(c);
           return (
             <div

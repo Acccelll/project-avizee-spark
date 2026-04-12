@@ -1,8 +1,9 @@
 import { useNavigate } from 'react-router-dom';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { useRelationalNavigation } from '@/contexts/RelationalNavigationContext';
+import type { PedidoCompra } from '@/types/domain';
 
-export function RecentCompras({ items, loading }: { items: any[]; loading: boolean }) {
+export function RecentCompras({ items, loading }: { items: PedidoCompra[]; loading: boolean }) {
   const navigate = useNavigate();
   const { pushView } = useRelationalNavigation();
 
@@ -20,7 +21,7 @@ export function RecentCompras({ items, loading }: { items: any[]; loading: boole
         <p className="text-sm text-muted-foreground py-4 text-center">Nenhuma compra encontrada</p>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {items.map((c: any, idx: number) => (
+          {items.map((c: PedidoCompra, idx: number) => (
             <div key={idx} className="border rounded-lg p-3 hover:bg-muted/20 cursor-pointer" onClick={() => pushView("pedido_compra", c.id)}>
               <div className="flex justify-between items-center mb-1">
                 <span className="mono text-xs font-medium text-primary">{c.numero}</span>

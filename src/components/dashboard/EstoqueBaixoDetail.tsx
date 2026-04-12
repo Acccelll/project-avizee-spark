@@ -2,8 +2,9 @@ import { useNavigate } from 'react-router-dom';
 import { AlertTriangle } from 'lucide-react';
 import { formatNumber } from '@/lib/format';
 import { useRelationalNavigation } from '@/contexts/RelationalNavigationContext';
+import type { Produto } from '@/types/domain';
 
-export function EstoqueBaixoDetail({ items }: { items: any[] }) {
+export function EstoqueBaixoDetail({ items }: { items: Produto[] }) {
   const navigate = useNavigate();
   const { pushView } = useRelationalNavigation();
   if (items.length === 0) return null;
@@ -17,7 +18,7 @@ export function EstoqueBaixoDetail({ items }: { items: any[] }) {
         </h3>
       </div>
       <div className="space-y-2 max-h-[260px] overflow-y-auto">
-        {items.slice(0, 10).map((p: any) => (
+        {items.slice(0, 10).map((p: Produto) => (
           <div
             key={p.id}
             className="flex items-center justify-between py-2 px-2 border-b last:border-b-0 hover:bg-muted/20 rounded cursor-pointer"
