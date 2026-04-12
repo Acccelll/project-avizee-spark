@@ -363,8 +363,8 @@ export function useCotacoesCompra() {
         return {
           produto_id: item.produto_id,
           quantidade: item.quantidade,
-          valor_unitario: Number(proposta.preco_unitario || 0),
-          valor_total: item.quantidade * Number(proposta.preco_unitario || 0),
+          preco_unitario: Number(proposta.preco_unitario || 0),
+          subtotal: item.quantidade * Number(proposta.preco_unitario || 0),
         };
       })
       .filter(Boolean);
@@ -374,7 +374,7 @@ export function useCotacoesCompra() {
       return;
     }
 
-    const valorTotal = itensParaPedido.reduce((s, i) => s + (i?.valor_total || 0), 0);
+    const valorTotal = itensParaPedido.reduce((s, i) => s + (i?.subtotal || 0), 0);
     const numeroPedido = `PC-${String(Date.now()).slice(-6)}`;
 
     let pedidoId: string | null = null;
@@ -397,10 +397,10 @@ export function useCotacoesCompra() {
 
       pedidoId = (novoPedido as { id: string }).id;
 
-      const itemsPayload = itensParaPedido.map((i) => ({ pedido_compra_id: pedidoId, ...i }));
+      const itemsPayload = itensParaPedido.map((i) => ({ pedido_compra_id: pedidoId!, ...i }));
       const { error: erroItens } = await supabase
         .from("pedidos_compra_itens")
-        .insert(itemsPayload);
+        .insert(itemsPayload as any);
 
       if (erroItens) {
         const { error: erroRollback } = await supabase

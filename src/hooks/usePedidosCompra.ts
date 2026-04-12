@@ -473,9 +473,9 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
 
       // Parallel update of product stocks
       await Promise.all(
-        (itens as PedidoItemRow[]).map((item) => {
+        (itens as unknown as PedidoItemRow[]).map((item) => {
           const novoEstoque = Number(item.produtos?.estoque_atual || 0) + Number(item.quantidade || 0);
-          return supabase.from("produtos").update({ estoque_atual: novoEstoque }).eq("id", item.produto_id)
+          return supabase.from("produtos").update({ estoque_atual: novoEstoque }).eq("id", String(item.produto_id))
             .then(({ error }) => { if (error) throw error; });
         })
       );
@@ -483,14 +483,14 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
       const vTotal = Number(p.valor_total || 0);
       if (vTotal > 0) {
         await supabase.from("financeiro_lancamentos").insert({
-          tipo: "pagar" as const,
+          tipo: "pagar",
           descricao: `${pedidoNumero(p)} — ${p.fornecedores?.nome_razao_social || "Fornecedor"}`,
           valor: vTotal,
           saldo_restante: vTotal,
           data_vencimento: p.data_entrega_prevista || new Date().toISOString().split("T")[0],
-          status: "aberto" as const,
-          fornecedor_id: p.fornecedor_id || null,
-        });
+          status: "aberto",
+          fornecedor_id: p.fornecedor_id ? String(p.fornecedor_id) : null,
+        } as any);
       }
 
       const hoje = new Date().toISOString().split("T")[0];

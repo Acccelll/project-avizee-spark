@@ -127,7 +127,7 @@ export function PedidoCompraDrawer({
       <ViewSection title="Fornecedor">
         <ViewField label="Fornecedor">
           {selected.fornecedor_id ? (
-            <RelationalLink type="fornecedor" id={selected.fornecedor_id}>
+            <RelationalLink type="fornecedor" id={String(selected.fornecedor_id)}>
               {selected.fornecedores?.nome_razao_social || "—"}
             </RelationalLink>
           ) : (
@@ -451,7 +451,7 @@ export function PedidoCompraDrawer({
       <ViewSection title="Fornecedor">
         <ViewField label="Fornecedor">
           {selected.fornecedor_id ? (
-            <RelationalLink type="fornecedor" id={selected.fornecedor_id}>
+            <RelationalLink type="fornecedor" id={String(selected.fornecedor_id)}>
               <Building2 className="h-3.5 w-3.5" />
               {selected.fornecedores?.nome_razao_social || "—"}
             </RelationalLink>
