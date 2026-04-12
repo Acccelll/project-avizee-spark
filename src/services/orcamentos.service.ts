@@ -50,7 +50,7 @@ export async function convertToPedido(
     .eq("orcamento_id", orc.id);
 
   // Carregar dados de frete do orçamento
-  const { data: orcFrete } = await supabase
+  const { data: orcFrete } = await (supabase as any)
     .from("orcamentos")
     .select(
       "frete_valor, frete_tipo, modalidade, transportadora_id, frete_simulacao_id, origem_frete, servico_frete, peso_total, prazo_entrega_dias, volumes"
