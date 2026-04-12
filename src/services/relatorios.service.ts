@@ -344,14 +344,18 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
 
       let saldo = 0;
       const rows = (data || []).map((item: RawFluxoItem) => {
+        const itemValor = Number(item.valor || 0);
+        const entrada = item.tipo === "receber" ? itemValor : 0;
+        const saida = item.tipo === "pagar" ? itemValor : 0;
+        saldo = saldo + entrada - saida;
 
         return {
           data: item.data_pagamento || item.data_vencimento,
           descricao: item.descricao || "-",
           tipo: item.tipo,
           status: item.status || "-",
-          entrada: item.tipo === "receber" ? valor : 0,
-          saida: item.tipo === "pagar" ? valor : 0,
+          entrada,
+          saida,
           saldo,
         };
       });
@@ -566,21 +570,21 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
 
       if (!receitas && !pagos && !nfSaida) throw new Error("Erro ao carregar dados do DRE");
 
-      const receitaBruta = (receitas || []).reduce((s: number, r: RawDreLancamento) => s + Number(r.valor || 0), 0);
+      const receitaBruta = (receitas || []).reduce((s: number, r: any) => s + Number(r.valor || 0), 0);
 
-      const deducoes = (nfSaida || []).reduce((s: number, nf: RawDreNf) => {
-        return s + Number(nf.valor_icms || 0) + Number(nf.valor_pis || 0) + Number(nf.valor_cofins || 0) + Number(nf.valor_ipi || 0);
+      const deducoes = (nfSaida || []).reduce((s: number, nf: any) => {
+        return s + Number(nf.icms_valor || 0) + Number(nf.pis_valor || 0) + Number(nf.cofins_valor || 0) + Number(nf.ipi_valor || 0);
       }, 0);
 
       const receitaLiquida = receitaBruta - deducoes;
 
-      const cmv = (pagos || []).filter((p: RawDrePago) =>
-        p.fornecedores?.grupo_id || (p.tipo || "").toLowerCase().includes("compra")
-      ).reduce((s: number, p: RawDreLancamento) => s + Number(p.valor || 0), 0);
+      const cmv = (pagos || []).filter((p: any) =>
+        p.nota_fiscal_id || (p.descricao || "").toLowerCase().includes("compra")
+      ).reduce((s: number, p: any) => s + Number(p.valor || 0), 0);
 
-      const despesasOp = (pagos || []).filter((p: RawDrePago) =>
-        !p.fornecedores?.grupo_id && !(p.tipo || "").toLowerCase().includes("compra")
-      ).reduce((s: number, p: RawDreLancamento) => s + Number(p.valor || 0), 0);
+      const despesasOp = (pagos || []).filter((p: any) =>
+        !p.nota_fiscal_id && !(p.descricao || "").toLowerCase().includes("compra")
+      ).reduce((s: number, p: any) => s + Number(p.valor || 0), 0);
 
       const resultado = receitaLiquida - cmv - despesasOp;
 
