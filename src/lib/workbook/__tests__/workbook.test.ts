@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { calcularFaixaAging, hashParametros, formatCurrencyBR, formatDateBR } from '../utils';
-import { RAW_SHEET_NAMES, RAW_SHEET_HEADERS } from '../templateMap';
+import { SHEET_NAMES } from '../templateMap';
 
 describe('workbook utils', () => {
   describe('calcularFaixaAging', () => {
@@ -72,26 +72,17 @@ describe('workbook utils', () => {
     });
   });
 
-  describe('RAW_SHEET_NAMES', () => {
-    it('has all required sheets', () => {
-      expect(RAW_SHEET_NAMES.FINANCEIRO).toBe('RAW_FINANCEIRO');
-      expect(RAW_SHEET_NAMES.CAIXA).toBe('RAW_CAIXA');
-      expect(RAW_SHEET_NAMES.AGING_CR).toBe('RAW_AGING_CR');
-      expect(RAW_SHEET_NAMES.AGING_CP).toBe('RAW_AGING_CP');
-      expect(RAW_SHEET_NAMES.ESTOQUE).toBe('RAW_ESTOQUE');
-      expect(RAW_SHEET_NAMES.FOPAG).toBe('RAW_FOPAG');
-      expect(RAW_SHEET_NAMES.BANCOS).toBe('RAW_BANCOS');
-      expect(RAW_SHEET_NAMES.PARAMETROS).toBe('RAW_PARAMETROS');
-    });
-  });
-
-  describe('RAW_SHEET_HEADERS', () => {
-    it('has headers for all sheets', () => {
-      Object.values(RAW_SHEET_NAMES).forEach((name) => {
-        expect(RAW_SHEET_HEADERS[name]).toBeDefined();
-        expect(Array.isArray(RAW_SHEET_HEADERS[name])).toBe(true);
-        expect(RAW_SHEET_HEADERS[name].length).toBeGreaterThan(0);
-      });
+  describe('SHEET_NAMES', () => {
+    it('has all required analytical sheets', () => {
+      expect(SHEET_NAMES.CONFRONTO).toBe('Confronto');
+      expect(SHEET_NAMES.CAIXA).toBe('Caixa');
+      expect(SHEET_NAMES.DESPESA).toBe('Despesa');
+      expect(SHEET_NAMES.FOPAG).toBe('FOPAG');
+      expect(SHEET_NAMES.FATURAMENTO).toBe('Faturamento NFs');
+      expect(SHEET_NAMES.ESTOQUE).toBe('Estoque');
+      expect(SHEET_NAMES.AGING_CR).toBe('Aging CR');
+      expect(SHEET_NAMES.AGING_CP).toBe('Aging CP');
+      expect(SHEET_NAMES.PARAMETROS).toBe('Parâmetros');
     });
   });
 });
