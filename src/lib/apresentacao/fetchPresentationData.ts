@@ -10,17 +10,36 @@ async function queryView(viewName: string, iniYM: string, fimYM: string) {
   return data ?? [];
 }
 
+function monthRange(iniYM: string, fimYM: string): string[] {
+  const [iniY, iniM] = iniYM.split('-').map(Number);
+  const [fimY, fimM] = fimYM.split('-').map(Number);
+  const out: string[] = [];
+  let y = iniY;
+  let m = iniM;
+  while (y < fimY || (y === fimY && m <= fimM)) {
+    out.push(`${y}-${String(m).padStart(2, '0')}`);
+    m += 1;
+    if (m > 12) {
+      m = 1;
+      y += 1;
+    }
+  }
+  return out;
+}
+
 async function ensureClosedCoverage(iniYM: string, fimYM: string): Promise<string[]> {
   const { data, error } = await (supabase as any)
     .from('fechamentos_mensais')
     .select('id, competencia, status')
-    .gte('competencia', iniYM)
-    .lte('competencia', fimYM)
+    .gte('competencia', `${iniYM}-01`)
+    .lte('competencia', `${fimYM}-31`)
     .eq('status', 'fechado');
   if (error) throw error;
-  const ids = (data ?? []).map((f: any) => String(f.id));
-  if (!ids.length) throw new Error(`Modo fechado sem cobertura para ${iniYM} até ${fimYM}.`);
-  return ids;
+  const normalized = (data ?? []).map((f: any) => ({ id: String(f.id), competencia: String(f.competencia).slice(0, 7) }));
+  const expected = monthRange(iniYM, fimYM);
+  const missing = expected.filter((m) => !normalized.some((n) => n.competencia === m));
+  if (missing.length) throw new Error(`Modo fechado sem cobertura completa: ${missing.join(', ')}`);
+  return normalized.map((n) => n.id);
 }
 
 const viewMap: Record<SlideCodigo, string> = {
@@ -54,6 +73,110 @@ const viewMap: Record<SlideCodigo, string> = {
   closing: '',
 };
 
+async function fetchClosedSnapshotData(iniYM: string, fimYM: string, slidesList: SlideCodigo[]) {
+  const fechamentoIds = await ensureClosedCoverage(iniYM, fimYM);
+
+  const [finRes, caixaRes, estoqueRes, fopagRes] = await Promise.all([
+    (supabase as any).from('fechamento_financeiro_saldos').select('*').in('fechamento_id', fechamentoIds),
+    (supabase as any).from('fechamento_caixa_saldos').select('*').in('fechamento_id', fechamentoIds),
+    (supabase as any).from('fechamento_estoque_saldos').select('*').in('fechamento_id', fechamentoIds),
+    (supabase as any).from('fechamento_fopag_resumo').select('*').in('fechamento_id', fechamentoIds),
+  ]);
+
+  const fin = finRes.data ?? [];
+  const caixa = caixaRes.data ?? [];
+  const estoque = estoqueRes.data ?? [];
+  const fopag = fopagRes.data ?? [];
+
+  const byComp = <T extends { competencia?: string }>(rows: T[]) => {
+    const map = new Map<string, T[]>();
+    rows.forEach((row) => {
+      const comp = String(row.competencia ?? '').slice(0, 7);
+      if (!comp) return;
+      if (!map.has(comp)) map.set(comp, []);
+      map.get(comp)!.push(row);
+    });
+    return map;
+  };
+
+  const finMap = byComp(fin as any);
+  const caixaMap = byComp(caixa as any);
+  const estoqueMap = byComp(estoque as any);
+  const fopagMap = byComp(fopag as any);
+
+  const selectedComp = fimYM;
+  const slides = {} as Record<SlideCodigo, Record<string, unknown>>;
+
+  for (const codigo of slidesList) {
+    if (codigo === 'cover' || codigo === 'closing') {
+      slides[codigo] = { competencia: selectedComp, indisponivel: false };
+      continue;
+    }
+
+    if (['rol_caixa', 'fluxo_caixa', 'bancos_detalhado'].includes(codigo)) {
+      const rows = caixaMap.get(selectedComp) ?? [];
+      if (!rows.length) {
+        slides[codigo] = { indisponivel: true, motivo: 'snapshot caixa indisponível' };
+        continue;
+      }
+      const total = rows.reduce((acc, r: any) => acc + Number(r.saldo ?? 0), 0);
+      slides[codigo] = { competencia: selectedComp, valor_atual: total };
+      continue;
+    }
+
+    if (codigo === 'variacao_estoque') {
+      const rows = estoqueMap.get(selectedComp) ?? [];
+      if (!rows.length) {
+        slides[codigo] = { indisponivel: true, motivo: 'snapshot estoque indisponível' };
+        continue;
+      }
+      slides[codigo] = {
+        competencia: selectedComp,
+        valor_atual: rows.reduce((acc: number, r: any) => acc + Number(r.valor_custo ?? r.valor_total ?? 0), 0),
+        quantidade_itens: rows.length,
+      };
+      continue;
+    }
+
+    if (codigo === 'fopag') {
+      const rows = fopagMap.get(selectedComp) ?? [];
+      if (!rows.length) {
+        slides[codigo] = { indisponivel: true, motivo: 'snapshot fopag indisponível' };
+        continue;
+      }
+      slides[codigo] = {
+        competencia: selectedComp,
+        valor_atual: rows.reduce((acc: number, r: any) => acc + Number(r.valor_liquido ?? 0), 0),
+        funcionarios: rows.length,
+      };
+      continue;
+    }
+
+    if (['highlights_financeiros', 'receita_vs_despesa', 'despesas', 'faturamento', 'aging_consolidado', 'inadimplencia', 'capital_giro', 'balanco_gerencial', 'debt'].includes(codigo)) {
+      const rows = finMap.get(selectedComp) ?? [];
+      if (!rows.length) {
+        slides[codigo] = { indisponivel: true, motivo: 'snapshot financeiro indisponível' };
+        continue;
+      }
+      const receita = rows.filter((r: any) => r.tipo === 'receber').reduce((a: number, r: any) => a + Number(r.saldo_total ?? 0), 0);
+      const despesa = rows.filter((r: any) => r.tipo === 'pagar').reduce((a: number, r: any) => a + Number(r.saldo_total ?? 0), 0);
+      slides[codigo] = {
+        competencia: selectedComp,
+        receita_atual: receita,
+        despesa_atual: despesa,
+        valor_atual: receita - despesa,
+        valor_inadimplente: receita,
+      };
+      continue;
+    }
+
+    // Demais slides dependem de bases não snapshotadas atualmente
+    slides[codigo] = { indisponivel: true, motivo: 'não automatizado no modo fechado' };
+  }
+
+  return slides;
+}
+
 export async function fetchPresentationData(
   competenciaInicial: string,
   competenciaFinal: string,
@@ -62,35 +185,35 @@ export async function fetchPresentationData(
 ): Promise<ApresentacaoDataBundle> {
   const iniYM = competenciaInicial.slice(0, 7);
   const fimYM = competenciaFinal.slice(0, 7);
+  const slidesList = requestedSlides?.length ? requestedSlides : Object.keys(viewMap) as SlideCodigo[];
 
-  if (modoGeracao === 'fechado') {
-    await ensureClosedCoverage(iniYM, fimYM);
+  const slides = modoGeracao === 'fechado'
+    ? await fetchClosedSnapshotData(iniYM, fimYM, slidesList)
+    : ({} as ApresentacaoDataBundle['slides']);
+
+  if (modoGeracao === 'dinamico') {
+    for (const codigo of slidesList) {
+      const viewName = viewMap[codigo];
+      if (!viewName) {
+        slides[codigo] = { competencia: fimYM, indisponivel: false };
+        continue;
+      }
+
+      try {
+        const rows = await queryView(viewName, iniYM, fimYM);
+        slides[codigo] = rows[0] ?? { indisponivel: true, motivo: 'Sem dados para o período' };
+      } catch {
+        slides[codigo] = { indisponivel: true, motivo: 'não automatizado nesta fase' };
+      }
+    }
   }
 
-  const slidesList = requestedSlides?.length ? requestedSlides : Object.keys(viewMap) as SlideCodigo[];
-  const slides = {} as ApresentacaoDataBundle['slides'];
   const missingCritical: SlideCodigo[] = [];
-
   for (const codigo of slidesList) {
-    const viewName = viewMap[codigo];
-    if (!viewName) {
-      slides[codigo] = { competencia: fimYM, indisponivel: false };
-      continue;
-    }
-
-    try {
-      const rows = await queryView(viewName, iniYM, fimYM);
-      const row = rows[0] ?? { indisponivel: true, motivo: 'Sem dados para o período' };
-      slides[codigo] = row;
-
-      const def = APRESENTACAO_SLIDES_MAP.get(codigo);
-      if (modoGeracao === 'fechado' && def?.criticalInClosedMode && row.indisponivel) {
-        missingCritical.push(codigo);
-      }
-    } catch {
-      slides[codigo] = { indisponivel: true, motivo: 'não automatizado nesta fase' };
-      const def = APRESENTACAO_SLIDES_MAP.get(codigo);
-      if (modoGeracao === 'fechado' && def?.criticalInClosedMode) missingCritical.push(codigo);
+    const def = APRESENTACAO_SLIDES_MAP.get(codigo);
+    const row = slides[codigo] ?? { indisponivel: true };
+    if (modoGeracao === 'fechado' && def?.criticalInClosedMode && row.indisponivel) {
+      missingCritical.push(codigo);
     }
   }
 

@@ -10,12 +10,23 @@ vi.mock('@/integrations/supabase/client', () => ({
 
 import { fetchPresentationData } from './fetchPresentationData';
 
-function chainWithData(data: unknown[], error: unknown = null) {
+function closingQuery(data: unknown[], error: unknown = null) {
   return {
     select: vi.fn(() => ({
       gte: vi.fn(() => ({ lte: vi.fn(() => ({ eq: vi.fn(() => Promise.resolve({ data, error })) })) })),
-      eq: vi.fn(() => Promise.resolve({ data, error })),
     })),
+  };
+}
+
+function inQuery(data: unknown[], error: unknown = null) {
+  return {
+    select: vi.fn(() => ({ in: vi.fn(() => Promise.resolve({ data, error })) })),
+  };
+}
+
+function dynamicQuery(data: unknown[], error: unknown = null) {
+  return {
+    select: vi.fn(() => ({ gte: vi.fn(() => ({ lte: vi.fn(() => Promise.resolve({ data, error })) })) })),
   };
 }
 
@@ -24,18 +35,32 @@ describe('fetchPresentationData', () => {
     fromMock.mockReset();
   });
 
-  it('bloqueia modo fechado sem fechamento', async () => {
+  it('bloqueia modo fechado sem cobertura completa', async () => {
     fromMock.mockImplementation((table: string) => {
-      if (table === 'fechamentos_mensais') return chainWithData([]);
-      return chainWithData([{ competencia: '2026-03', valor_atual: 10 }]);
+      if (table === 'fechamentos_mensais') return closingQuery([{ id: 'f1', competencia: '2026-03-01', status: 'fechado' }]);
+      return inQuery([]);
     });
 
-    await expect(fetchPresentationData('2026-03-01', '2026-03-01', 'fechado')).rejects.toThrow(/Modo fechado/);
+    await expect(fetchPresentationData('2026-03-01', '2026-04-01', 'fechado', ['rol_caixa'])).rejects.toThrow(/cobertura completa/);
+  });
+
+  it('retorna fechado por snapshot para slide crítico', async () => {
+    fromMock.mockImplementation((table: string) => {
+      if (table === 'fechamentos_mensais') return closingQuery([{ id: 'f1', competencia: '2026-03-01', status: 'fechado' }]);
+      if (table === 'fechamento_caixa_saldos') return inQuery([{ competencia: '2026-03', saldo: 500 }]);
+      if (table === 'fechamento_financeiro_saldos') return inQuery([{ competencia: '2026-03', tipo: 'receber', saldo_total: 1000 }]);
+      if (table === 'fechamento_estoque_saldos') return inQuery([]);
+      if (table === 'fechamento_fopag_resumo') return inQuery([]);
+      return inQuery([]);
+    });
+
+    const result = await fetchPresentationData('2026-03-01', '2026-03-01', 'fechado', ['rol_caixa']);
+    expect(result.slides.rol_caixa.valor_atual).toBe(500);
   });
 
   it('retorna bundle no modo dinâmico', async () => {
-    fromMock.mockImplementation(() => chainWithData([{ competencia: '2026-03', valor_atual: 10 }]));
-    const result = await fetchPresentationData('2026-03-01', '2026-03-01', 'dinamico');
+    fromMock.mockImplementation(() => dynamicQuery([{ competencia: '2026-03', valor_atual: 10 }]));
+    const result = await fetchPresentationData('2026-03-01', '2026-03-01', 'dinamico', ['faturamento']);
     expect(result.slides.faturamento).toBeTruthy();
   });
 });
