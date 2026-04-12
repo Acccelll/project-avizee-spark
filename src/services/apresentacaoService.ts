@@ -56,7 +56,9 @@ export async function iniciarGeracao(parametros: ApresentacaoParametros, userId?
       competencia_final: parametros.competenciaFinal + '-01',
       modo_geracao: parametros.modoGeracao,
       status: 'pendente',
+      status_editorial: 'rascunho',
       parametros_json: parametros as any,
+      config_slides: { slides: parametros.slidesSelecionados },
       gerado_por: userId,
     })
     .select()
@@ -64,6 +66,21 @@ export async function iniciarGeracao(parametros: ApresentacaoParametros, userId?
 
   if (error) throw error;
   return data as ApresentacaoGeracao;
+}
+
+export async function atualizarStatusEditorial(geracaoId: string, status: 'rascunho' | 'revisao' | 'aprovado', aprovadorId?: string): Promise<void> {
+  const update: any = { status_editorial: status };
+  if (status === 'aprovado') {
+    update.aprovado_por = aprovadorId;
+    update.aprovado_em = new Date().toISOString();
+  }
+
+  const { error } = await supabase
+    .from('apresentacao_geracoes')
+    .update(update)
+    .eq('id', geracaoId);
+
+  if (error) throw error;
 }
 
 export async function processarGeracao(geracaoId: string): Promise<void> {
@@ -125,6 +142,7 @@ export async function processarGeracao(geracaoId: string): Promise<void> {
 
     await supabase.from('apresentacao_geracoes').update({
       status: 'concluido',
+      status_editorial: 'gerado',
       arquivo_path: storagePath,
       updated_at: new Date().toISOString()
     }).eq('id', geracaoId);

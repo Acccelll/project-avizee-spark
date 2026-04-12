@@ -18,6 +18,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { ApresentacaoParametros, ApresentacaoTemplate } from '@/types/apresentacao';
 import { SLIDE_DEFINITIONS } from '@/lib/apresentacao/slideDefinitions';
 import { Checkbox } from '@/components/ui/checkbox';
+import { GripVertical } from 'lucide-react';
 
 interface Props {
   open: boolean;
@@ -40,7 +41,7 @@ export const ApresentacaoGeracaoDialog: React.FC<Props> = ({ open, onOpenChange,
     mutationFn: (p: ApresentacaoParametros) => iniciarGeracao(p, user?.id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['apresentacao-geracoes'] });
-      toast.success('Geração solicitada com sucesso!');
+      toast.success('Rascunho da apresentação criado com sucesso!');
       onOpenChange(false);
     },
     onError: (error) => {
@@ -57,20 +58,28 @@ export const ApresentacaoGeracaoDialog: React.FC<Props> = ({ open, onOpenChange,
     mutation.mutate(params);
   };
 
+  const toggleSlide = (codigo: string, checked: boolean) => {
+    if (checked) {
+      setParams(p => ({ ...p, slidesSelecionados: [...p.slidesSelecionados, codigo] }));
+    } else {
+      setParams(p => ({ ...p, slidesSelecionados: p.slidesSelecionados.filter(s => s !== codigo) }));
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>Gerar Nova Apresentação</DialogTitle>
+          <DialogTitle>Gerar Nova Apresentação (Fase 2)</DialogTitle>
           <DialogDescription>
-            Configure os parâmetros para a geração do deck gerencial.
+            Configure os parâmetros e selecione os slides para o deck gerencial.
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+        <form onSubmit={handleSubmit} className="space-y-6 overflow-y-auto pr-2">
+          <div className="grid grid-cols-2 gap-6">
             <div className="space-y-2">
-              <Label htmlFor="template">Template</Label>
+              <Label htmlFor="template">Template Visual</Label>
               <Select
                 value={params.templateId}
                 onValueChange={(val) => setParams(p => ({ ...p, templateId: val }))}
@@ -86,7 +95,7 @@ export const ApresentacaoGeracaoDialog: React.FC<Props> = ({ open, onOpenChange,
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="modo">Modo de Geração</Label>
+              <Label htmlFor="modo">Modo de Dados</Label>
               <Select
                 value={params.modoGeracao}
                 onValueChange={(val: any) => setParams(p => ({ ...p, modoGeracao: val }))}
@@ -95,14 +104,14 @@ export const ApresentacaoGeracaoDialog: React.FC<Props> = ({ open, onOpenChange,
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="dinamico">Dinâmico (Dados Atuais)</SelectItem>
-                  <SelectItem value="fechado">Fechado (Snapshots)</SelectItem>
+                  <SelectItem value="dinamico">Dinâmico (Dados em Tempo Real)</SelectItem>
+                  <SelectItem value="fechado">Fechado (Baseado em Snapshots)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-6">
             <div className="space-y-2">
               <Label htmlFor="compIni">Competência Inicial</Label>
               <Input
@@ -121,34 +130,49 @@ export const ApresentacaoGeracaoDialog: React.FC<Props> = ({ open, onOpenChange,
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label>Slides a Incluir</Label>
-            <div className="grid grid-cols-2 gap-2 border rounded-md p-3 max-h-40 overflow-y-auto">
-              {SLIDE_DEFINITIONS.map(slide => (
-                <div key={slide.codigo} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={slide.codigo}
-                    checked={params.slidesSelecionados.includes(slide.codigo)}
-                    onCheckedChange={(checked) => {
-                      if (checked) {
-                        setParams(p => ({ ...p, slidesSelecionados: [...p.slidesSelecionados, slide.codigo] }));
-                      } else {
-                        setParams(p => ({ ...p, slidesSelecionados: p.slidesSelecionados.filter(s => s !== slide.codigo) }));
-                      }
-                    }}
-                  />
-                  <label htmlFor={slide.codigo} className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                    {slide.titulo}
-                  </label>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-base font-semibold">Seleção e Ordem dos Slides</Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setParams(p => ({ ...p, slidesSelecionados: SLIDE_DEFINITIONS.map(s => s.codigo) }))}
+              >
+                Selecionar Todos
+              </Button>
+            </div>
+            <div className="grid grid-cols-1 gap-2 border rounded-lg p-4 bg-muted/30">
+              {SLIDE_DEFINITIONS.map((slide, index) => (
+                <div key={slide.codigo} className="flex items-center justify-between p-2 bg-card border rounded-md shadow-sm">
+                  <div className="flex items-center space-x-3">
+                    <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />
+                    <Checkbox
+                      id={slide.codigo}
+                      checked={params.slidesSelecionados.includes(slide.codigo)}
+                      onCheckedChange={(checked) => toggleSlide(slide.codigo, !!checked)}
+                    />
+                    <div className="flex flex-col">
+                      <label htmlFor={slide.codigo} className="text-sm font-medium leading-none cursor-pointer">
+                        {index + 1}. {slide.titulo}
+                      </label>
+                      {slide.optional && (
+                        <span className="text-[10px] text-primary uppercase font-bold mt-1">Opcional / Fase 2</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded">
+                    {slide.dataset}
+                  </div>
                 </div>
               ))}
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="sticky bottom-0 bg-background pt-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
             <Button type="submit" disabled={mutation.isPending}>
-              {mutation.isPending ? 'Iniciando...' : 'Gerar Apresentação'}
+              {mutation.isPending ? 'Preparando...' : 'Criar Rascunho para Revisão'}
             </Button>
           </DialogFooter>
         </form>

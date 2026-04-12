@@ -23,6 +23,10 @@ export interface ApresentacaoGeracao {
   fechamento_id_inicial?: string;
   fechamento_id_final?: string;
   status: 'pendente' | 'gerando' | 'concluido' | 'erro';
+  status_editorial?: 'rascunho' | 'revisao' | 'aprovado' | 'gerado';
+  aprovado_por?: string;
+  aprovado_em?: string;
+  config_slides?: Record<string, any>;
   arquivo_path?: string;
   hash_geracao?: string;
   parametros_json?: Record<string, any>;
@@ -71,4 +75,17 @@ export interface ApresentacaoData {
   variacaoEstoque: any[];
   vendaEstado: any[];
   redesSociais: any[];
+  // Fase 2
+  dreGerencial?: any[];
+  bridgeEbitda?: any[];
+  capitalGiro?: any[];
+  agingConsolidado?: any[];
+  backorder?: any[];
+  topClientes?: any[];
+  topFornecedores?: any[];
+  inadimplencia?: any[];
+  resultadoFinanceiro?: any[];
+  tributos?: any[];
+  debt?: any[];
+  balancoGerencial?: any[];
 }

@@ -23,19 +23,7 @@ export async function fetchPresentationData(
     }
   }
 
-  const [
-    highlights,
-    faturamento,
-    despesas,
-    rolCaixa,
-    receitaVsDespesa,
-    fopag,
-    fluxoCaixa,
-    lucroProdutoCliente,
-    variacaoEstoque,
-    vendaEstado,
-    redesSociais
-  ] = await Promise.all([
+  const queries = [
     supabase.from('vw_apresentacao_highlights_financeiros').select('*').gte('competencia', iniYM).lte('competencia', fimYM),
     supabase.from('vw_apresentacao_faturamento').select('*').gte('competencia', iniYM).lte('competencia', fimYM),
     supabase.from('vw_apresentacao_despesas').select('*').gte('competencia', iniYM).lte('competencia', fimYM),
@@ -47,19 +35,48 @@ export async function fetchPresentationData(
     supabase.from('vw_apresentacao_variacao_estoque').select('*').gte('competencia', iniYM).lte('competencia', fimYM),
     supabase.from('vw_apresentacao_venda_estado').select('*').gte('competencia', iniYM).lte('competencia', fimYM),
     supabase.from('vw_apresentacao_redes_sociais').select('*').gte('competencia', iniYM).lte('competencia', fimYM),
-  ]);
+
+    // Fase 2
+    supabase.from('vw_apresentacao_dre_gerencial').select('*').gte('competencia', iniYM).lte('competencia', fimYM),
+    supabase.from('vw_apresentacao_bridge_ebitda').select('*').gte('competencia', iniYM).lte('competencia', fimYM),
+    supabase.from('vw_apresentacao_capital_giro').select('*'),
+    supabase.from('vw_apresentacao_aging_consolidado').select('*'),
+    supabase.from('vw_apresentacao_backorder').select('*').gte('competencia', iniYM).lte('competencia', fimYM),
+    supabase.from('vw_apresentacao_top_clientes').select('*'),
+    supabase.from('vw_apresentacao_top_fornecedores').select('*'),
+    supabase.from('vw_apresentacao_inadimplencia').select('*'),
+    supabase.from('vw_apresentacao_resultado_financeiro').select('*').gte('competencia', iniYM).lte('competencia', fimYM),
+    supabase.from('vw_apresentacao_tributos').select('*').gte('competencia', iniYM).lte('competencia', fimYM),
+    supabase.from('vw_apresentacao_debt').select('*'),
+    supabase.from('vw_apresentacao_balanco_gerencial').select('*'),
+  ];
+
+  const results = await Promise.all(queries);
 
   return {
-    highlights: highlights.data ?? [],
-    faturamento: faturamento.data ?? [],
-    despesas: despesas.data ?? [],
-    rolCaixa: rolCaixa.data ?? [],
-    receitaVsDespesa: receitaVsDespesa.data ?? [],
-    fopag: fopag.data ?? [],
-    fluxoCaixa: fluxoCaixa.data ?? [],
-    lucroProdutoCliente: lucroProdutoCliente.data ?? [],
-    variacaoEstoque: variacaoEstoque.data ?? [],
-    vendaEstado: vendaEstado.data ?? [],
-    redesSociais: redesSociais.data ?? [],
+    highlights: results[0].data ?? [],
+    faturamento: results[1].data ?? [],
+    despesas: results[2].data ?? [],
+    rolCaixa: results[3].data ?? [],
+    receitaVsDespesa: results[4].data ?? [],
+    fopag: results[5].data ?? [],
+    fluxoCaixa: results[6].data ?? [],
+    lucroProdutoCliente: results[7].data ?? [],
+    variacaoEstoque: results[8].data ?? [],
+    vendaEstado: results[9].data ?? [],
+    redesSociais: results[10].data ?? [],
+    // Fase 2
+    dreGerencial: results[11].data ?? [],
+    bridgeEbitda: results[12].data ?? [],
+    capitalGiro: results[13].data ?? [],
+    agingConsolidado: results[14].data ?? [],
+    backorder: results[15].data ?? [],
+    topClientes: results[16].data ?? [],
+    topFornecedores: results[17].data ?? [],
+    inadimplencia: results[18].data ?? [],
+    resultadoFinanceiro: results[19].data ?? [],
+    tributos: results[20].data ?? [],
+    debt: results[21].data ?? [],
+    balancoGerencial: results[22].data ?? [],
   };
 }
