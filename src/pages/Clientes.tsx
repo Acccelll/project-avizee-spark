@@ -3,6 +3,7 @@ import { useDebounce } from "@/hooks/useDebounce";
 import { useNavigate, useLocation } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { DataTable } from "@/components/DataTable";
+import { PullToRefresh } from "@/components/ui/PullToRefresh";
 import { StatusBadge } from "@/components/StatusBadge";
 import { ModulePage } from "@/components/ModulePage";
 import { FormModal } from "@/components/FormModal";
@@ -107,7 +108,7 @@ const Clientes = () => {
   const debouncedSearch = useDebounce(searchTerm, 350);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
-  const { data, loading, create, update, remove, duplicate } = useSupabaseCrud<Cliente>({
+  const { data, loading, create, update, remove, duplicate, fetchData } = useSupabaseCrud<Cliente>({
     table: "clientes",
     searchTerm: debouncedSearch,
     searchColumns: ["nome_razao_social", "nome_fantasia", "cpf_cnpj", "email", "cidade"],
@@ -416,6 +417,7 @@ const Clientes = () => {
           />
         </AdvancedFilterBar>
 
+        <PullToRefresh onRefresh={fetchData}>
         <DataTable
           columns={columns}
           data={filteredData}
@@ -426,6 +428,7 @@ const Clientes = () => {
           onEdit={openEdit}
           onDelete={(c) => remove(c.id)}
         />
+        </PullToRefresh>
       </ModulePage>
 
       <FormModal open={modalOpen} onClose={() => {

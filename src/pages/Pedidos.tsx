@@ -4,6 +4,7 @@ import { useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
+import { PullToRefresh } from "@/components/ui/PullToRefresh";
 import { StatusBadge } from "@/components/StatusBadge";
 import { SummaryCard } from "@/components/SummaryCard";
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
@@ -475,6 +476,7 @@ const Pedidos = () => {
           </div>
         </AdvancedFilterBar>
 
+        <PullToRefresh onRefresh={fetchData}>
         <DataTable
           columns={columns}
           data={filteredData}
@@ -483,6 +485,7 @@ const Pedidos = () => {
           showColumnToggle={true}
           onView={handleView}
         />
+        </PullToRefresh>
       </ModulePage>
 
       {/* Stock alert: shown when some items have insufficient stock */}
