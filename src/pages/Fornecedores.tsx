@@ -45,12 +45,12 @@ interface Fornecedor {
   observacoes: string;ativo: boolean;created_at: string;updated_at: string;
 }
 
-const emptyForm = {
+const emptyForm: Omit<Fornecedor, "id" | "ativo" | "created_at" | "updated_at"> = {
   tipo_pessoa: "J", nome_razao_social: "", nome_fantasia: "", cpf_cnpj: "",
   inscricao_estadual: "", email: "", telefone: "", celular: "", contato: "",
   prazo_padrao: 30, logradouro: "", numero: "", complemento: "",
   bairro: "", cidade: "", uf: "", cep: "", pais: "Brasil", observacoes: ""
-} as const satisfies Omit<Fornecedor, "id" | "ativo" | "created_at" | "updated_at">;
+};
 
 const Fornecedores = () => {
   const location = useLocation();

@@ -121,7 +121,7 @@ const Produtos = () => {
     if (!editId) return;
     navigate(location.pathname, { replace: true, state: {} });
     supabase.from("produtos").select("*").eq("id", editId).maybeSingle().then(({ data: p }) => {
-      if (p) openEdit(p as Produto);
+      if (p) openEdit(p as unknown as Produto);
     });
   // openEdit is stable; navigate/pathname are stable refs
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -701,7 +701,7 @@ const Produtos = () => {
                 <Label className="text-xs text-muted-foreground whitespace-nowrap">Classificação</Label>
                 <Select
                   value={form.tipo_item || "produto"}
-                  onValueChange={(v) => setForm({ ...form, tipo_item: v })}
+                  onValueChange={(v) => setForm({ ...form, tipo_item: v as TipoItem })}
                 >
                   <SelectTrigger className="h-8 w-[130px]">
                     <SelectValue />

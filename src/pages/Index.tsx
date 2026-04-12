@@ -88,7 +88,7 @@ interface ProdRow {
   id: string;
   nome: string;
   codigo_interno: string | null;
-  preco_custo: number | null;
+  unidade_medida: string;
 }
 
 interface DailyFinRow {
