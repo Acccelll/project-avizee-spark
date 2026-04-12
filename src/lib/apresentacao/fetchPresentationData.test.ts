@@ -77,4 +77,54 @@ describe('fetchPresentationData', () => {
     const result = await fetchPresentationData('2026-03-01', '2026-03-01', 'fechado', ['backorder']);
     expect(result.slides.backorder?.indisponivel).toBe(true);
   });
+
+  it('mantém slides semanticamente frágeis como indisponíveis no fechado mesmo com snapshot financeiro', async () => {
+    fromMock.mockImplementation((table: string) => {
+      if (table === 'fechamentos_mensais') return closingQuery([{ id: 'f1', competencia: '2026-03-01', status: 'fechado' }]);
+      if (table === 'fechamento_caixa_saldos') return inQuery([]);
+      if (table === 'fechamento_financeiro_saldos') return inQuery([{ fechamento_id: 'f1', tipo: 'receber', saldo_aberto: 1200 }]);
+      if (table === 'fechamento_estoque_saldos') return inQuery([]);
+      if (table === 'fechamento_fopag_resumo') return inQuery([]);
+      return inQuery([]);
+    });
+
+    const result = await fetchPresentationData('2026-03-01', '2026-03-01', 'fechado', ['faturamento', 'debt', 'highlights_financeiros']);
+    expect(result.slides.faturamento?.indisponivel).toBe(true);
+    expect(result.slides.debt?.indisponivel).toBe(true);
+    expect(result.slides.highlights_financeiros?.indisponivel).toBe(true);
+  });
+
+  it('mantém disponíveis no fechado apenas slides com base snapshot coerente', async () => {
+    fromMock.mockImplementation((table: string) => {
+      if (table === 'fechamentos_mensais') return closingQuery([{ id: 'f1', competencia: '2026-03-01', status: 'fechado' }]);
+      if (table === 'fechamento_caixa_saldos') return inQuery([]);
+      if (table === 'fechamento_financeiro_saldos') {
+        return inQuery([
+          { fechamento_id: 'f1', tipo: 'receber', saldo_aberto: 1000 },
+          { fechamento_id: 'f1', tipo: 'pagar', saldo_aberto: 700 },
+        ]);
+      }
+      if (table === 'fechamento_estoque_saldos') return inQuery([]);
+      if (table === 'fechamento_fopag_resumo') return inQuery([]);
+      return inQuery([]);
+    });
+
+    const result = await fetchPresentationData('2026-03-01', '2026-03-01', 'fechado', ['aging_consolidado', 'capital_giro']);
+    expect(result.slides.aging_consolidado?.indisponivel).not.toBe(true);
+    expect(result.slides.capital_giro?.indisponivel).not.toBe(true);
+    expect(result.slides.capital_giro?.valor_atual).toBe(300);
+  });
+
+  it('criticalInClosedMode continua bloqueando quando slide crítico fica indisponível', async () => {
+    fromMock.mockImplementation((table: string) => {
+      if (table === 'fechamentos_mensais') return closingQuery([{ id: 'f1', competencia: '2026-03-01', status: 'fechado' }]);
+      if (table === 'fechamento_caixa_saldos') return inQuery([]);
+      if (table === 'fechamento_financeiro_saldos') return inQuery([]);
+      if (table === 'fechamento_estoque_saldos') return inQuery([]);
+      if (table === 'fechamento_fopag_resumo') return inQuery([]);
+      return inQuery([]);
+    });
+
+    await expect(fetchPresentationData('2026-03-01', '2026-03-01', 'fechado', ['aging_consolidado'])).rejects.toThrow(/críticas/);
+  });
 });

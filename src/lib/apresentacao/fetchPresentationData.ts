@@ -159,7 +159,7 @@ async function fetchClosedSnapshotData(iniYM: string, fimYM: string, slidesList:
       continue;
     }
 
-    if (['highlights_financeiros', 'receita_vs_despesa', 'despesas', 'faturamento', 'aging_consolidado', 'inadimplencia', 'capital_giro', 'balanco_gerencial', 'debt'].includes(codigo)) {
+    if (codigo === 'aging_consolidado') {
       const rows = finMap.get(selectedComp) ?? [];
       if (!rows.length) {
         slides[codigo] = { indisponivel: true, motivo: 'snapshot financeiro indisponível' };
@@ -169,13 +169,32 @@ async function fetchClosedSnapshotData(iniYM: string, fimYM: string, slidesList:
       const despesa = rows.filter((r: any) => r.tipo === 'pagar').reduce((a: number, r: any) => a + Number(r.saldo_aberto ?? 0), 0);
       slides[codigo] = {
         competencia: selectedComp,
-        receita_atual: receita,
-        despesa_atual: despesa,
         cr_aberto: receita,
         cp_aberto: despesa,
-        valor_atual: receita - despesa,
-        valor_inadimplente: receita,
+        valor_atual: receita + despesa,
       };
+      continue;
+    }
+
+    if (codigo === 'capital_giro') {
+      const rows = finMap.get(selectedComp) ?? [];
+      if (!rows.length) {
+        slides[codigo] = { indisponivel: true, motivo: 'snapshot financeiro indisponível' };
+        continue;
+      }
+      const contasReceber = rows.filter((r: any) => r.tipo === 'receber').reduce((a: number, r: any) => a + Number(r.saldo_aberto ?? 0), 0);
+      const contasPagar = rows.filter((r: any) => r.tipo === 'pagar').reduce((a: number, r: any) => a + Number(r.saldo_aberto ?? 0), 0);
+      slides[codigo] = {
+        competencia: selectedComp,
+        contas_receber: contasReceber,
+        contas_pagar: contasPagar,
+        valor_atual: contasReceber - contasPagar,
+      };
+      continue;
+    }
+
+    if (['highlights_financeiros', 'receita_vs_despesa', 'despesas', 'faturamento', 'inadimplencia', 'balanco_gerencial', 'debt'].includes(codigo)) {
+      slides[codigo] = { indisponivel: true, motivo: 'não automatizado no modo fechado' };
       continue;
     }
 
