@@ -139,7 +139,11 @@ export function DataTable<T extends Record<string, any>>({
     const ro = new ResizeObserver(check);
     ro.observe(el);
     el.addEventListener("scroll", onScroll, { passive: true });
-    return () => { ro.disconnect(); el.removeEventListener("scroll", onScroll); };
+    return () => {
+      ro.disconnect();
+      // el is captured from the closure above and is guaranteed non-null here
+      el.removeEventListener("scroll", onScroll);
+    };
   }, []);
 
   useEffect(() => {
