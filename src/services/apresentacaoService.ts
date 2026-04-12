@@ -4,11 +4,13 @@ import type {
   ApresentacaoGeracao,
   ApresentacaoComentario,
   ApresentacaoParametros,
+  TemplateConfig,
 } from '@/types/apresentacao';
 import { fetchPresentationData } from '@/lib/apresentacao/fetchPresentationData';
 import { gerarComentariosAutomaticos } from '@/lib/apresentacao/commentRules';
 import { generatePresentation } from '@/lib/apresentacao/generatePresentation';
 import { hashParametros, serializeToJsonb } from '@/lib/apresentacao/utils';
+import { validateTemplateConfig } from '@/lib/apresentacao/templateConfig';
 
 // -------------------------------------------------------
 // Template queries
@@ -22,6 +24,91 @@ export async function listarApresentacaoTemplates(): Promise<ApresentacaoTemplat
     .order('nome');
   if (error) throw error;
   return (data ?? []) as ApresentacaoTemplate[];
+}
+
+export async function listarTodosApresentacaoTemplates(): Promise<ApresentacaoTemplate[]> {
+  const { data, error } = await (supabase as any)
+    .from('apresentacao_templates')
+    .select('*')
+    .order('nome');
+  if (error) throw error;
+  return (data ?? []) as ApresentacaoTemplate[];
+}
+
+export async function criarTemplate(
+  input: Pick<ApresentacaoTemplate, 'nome' | 'codigo' | 'versao' | 'descricao'> & {
+    config_json?: TemplateConfig | null;
+  }
+): Promise<ApresentacaoTemplate> {
+  const validation = validateTemplateConfig(input.config_json);
+  if (!validation.valid) {
+    throw new Error(`config_json inválido: ${validation.errors.join('; ')}`);
+  }
+  const { data, error } = await (supabase as any)
+    .from('apresentacao_templates')
+    .insert({
+      nome: input.nome,
+      codigo: input.codigo,
+      versao: input.versao,
+      descricao: input.descricao ?? null,
+      config_json: input.config_json ?? null,
+      ativo: true,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return data as ApresentacaoTemplate;
+}
+
+export async function atualizarTemplate(
+  id: string,
+  input: Partial<Pick<ApresentacaoTemplate, 'nome' | 'descricao' | 'ativo' | 'versao'>> & {
+    config_json?: TemplateConfig | null;
+  }
+): Promise<ApresentacaoTemplate> {
+  if ('config_json' in input) {
+    const validation = validateTemplateConfig(input.config_json);
+    if (!validation.valid) {
+      throw new Error(`config_json inválido: ${validation.errors.join('; ')}`);
+    }
+  }
+  const { data, error } = await (supabase as any)
+    .from('apresentacao_templates')
+    .update({ ...input, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data as ApresentacaoTemplate;
+}
+
+export async function desativarTemplate(id: string): Promise<void> {
+  const { error } = await (supabase as any)
+    .from('apresentacao_templates')
+    .update({ ativo: false, updated_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) throw error;
+}
+
+export async function duplicarTemplate(
+  sourceId: string,
+  novoCodigo: string,
+  novaVersao: string = 'v1'
+): Promise<ApresentacaoTemplate> {
+  const { data: source, error: fetchError } = await (supabase as any)
+    .from('apresentacao_templates')
+    .select('*')
+    .eq('id', sourceId)
+    .single();
+  if (fetchError) throw fetchError;
+  const src = source as ApresentacaoTemplate;
+  return criarTemplate({
+    nome: `${src.nome} (cópia)`,
+    codigo: novoCodigo,
+    versao: novaVersao,
+    descricao: src.descricao,
+    config_json: src.config_json,
+  });
 }
 
 // -------------------------------------------------------
@@ -75,6 +162,15 @@ export async function gerarApresentacao(
   empresaNome?: string
 ): Promise<{ blob: Blob; geracaoId: string }> {
   const hash = hashParametros(serializeToJsonb(parametros));
+
+  // Fetch template to get config_json
+  const { data: templateData, error: templateError } = await (supabase as any)
+    .from('apresentacao_templates')
+    .select('*')
+    .eq('id', parametros.templateId)
+    .single();
+  if (templateError) throw templateError;
+  const template = templateData as import('@/types/apresentacao').ApresentacaoTemplate;
 
   // Create generation record
   const { data: geracao, error: geracaoError } = await (supabase as any)
@@ -130,6 +226,7 @@ export async function gerarApresentacao(
       data,
       comentarios,
       empresaNome,
+      templateConfig: template.config_json ?? null,
     });
 
     // Save artifact to Supabase Storage

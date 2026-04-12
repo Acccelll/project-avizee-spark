@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Download, Plus, RefreshCcw, Layers } from 'lucide-react';
+import { Download, Plus, RefreshCcw, Layers, Settings2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { AppLayout } from '@/components/AppLayout';
 import { ModulePage } from '@/components/ModulePage';
@@ -10,17 +10,30 @@ import { ApresentacaoGeracaoDialog } from '@/components/apresentacao/Apresentaca
 import { ApresentacaoHistoricoTable } from '@/components/apresentacao/ApresentacaoHistoricoTable';
 import { ApresentacaoComentariosEditor } from '@/components/apresentacao/ApresentacaoComentariosEditor';
 import { ApresentacaoSlidesPreview } from '@/components/apresentacao/ApresentacaoSlidesPreview';
+import { ApresentacaoTemplatesTable } from '@/components/apresentacao/ApresentacaoTemplatesTable';
+import {
+  ApresentacaoTemplateFormDialog,
+  type TemplateFormValues,
+} from '@/components/apresentacao/ApresentacaoTemplateFormDialog';
 import { useCan } from '@/hooks/useCan';
 import {
   listarApresentacaoTemplates,
+  listarTodosApresentacaoTemplates,
   listarApresentacaoGeracoes,
   listarComentariosByGeracao,
   atualizarComentarioEditado,
   gerarApresentacao,
   downloadApresentacaoGeracao,
   downloadBlob,
+  criarTemplate,
+  atualizarTemplate,
+  duplicarTemplate,
 } from '@/services/apresentacaoService';
-import type { ApresentacaoGeracao, ApresentacaoModoGeracao } from '@/types/apresentacao';
+import type {
+  ApresentacaoGeracao,
+  ApresentacaoModoGeracao,
+  ApresentacaoTemplate,
+} from '@/types/apresentacao';
 import { getUserFriendlyError } from '@/utils/errorMessages';
 
 export default function ApresentacaoGerencial() {
@@ -28,6 +41,9 @@ export default function ApresentacaoGerencial() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [selectedGeracaoId, setSelectedGeracaoId] = useState<string | null>(null);
+  const [templateFormOpen, setTemplateFormOpen] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<ApresentacaoTemplate | null>(null);
+  const [togglingTemplateId, setTogglingTemplateId] = useState<string | null>(null);
   const { can } = useCan();
 
   const canVisualizar = can('apresentacao:visualizar');
@@ -39,6 +55,12 @@ export default function ApresentacaoGerencial() {
     queryKey: ['apresentacao-templates'],
     queryFn: listarApresentacaoTemplates,
     enabled: canVisualizar,
+  });
+
+  const { data: allTemplates = [], isLoading: loadingAllTemplates } = useQuery({
+    queryKey: ['apresentacao-templates-all'],
+    queryFn: listarTodosApresentacaoTemplates,
+    enabled: canEditar,
   });
 
   const {
@@ -101,6 +123,66 @@ export default function ApresentacaoGerencial() {
     },
   });
 
+  const saveTemplateMutation = useMutation({
+    mutationFn: async (values: TemplateFormValues) => {
+      if (editingTemplate) {
+        await atualizarTemplate(editingTemplate.id, {
+          nome: values.nome,
+          versao: values.versao,
+          descricao: values.descricao || null,
+          config_json: values.config_json,
+        });
+      } else {
+        await criarTemplate({
+          nome: values.nome,
+          codigo: values.codigo,
+          versao: values.versao,
+          descricao: values.descricao || null,
+          config_json: values.config_json,
+        });
+      }
+    },
+    onSuccess: () => {
+      toast.success(editingTemplate ? 'Template atualizado.' : 'Template criado.');
+      setTemplateFormOpen(false);
+      setEditingTemplate(null);
+      queryClient.invalidateQueries({ queryKey: ['apresentacao-templates'] });
+      queryClient.invalidateQueries({ queryKey: ['apresentacao-templates-all'] });
+    },
+    onError: (err) => {
+      toast.error(getUserFriendlyError(err));
+    },
+  });
+
+  const duplicateTemplateMutation = useMutation({
+    mutationFn: async (source: ApresentacaoTemplate) => {
+      const novoCodigo = `${source.codigo}_copia_${Date.now().toString(36)}`;
+      await duplicarTemplate(source.id, novoCodigo);
+    },
+    onSuccess: () => {
+      toast.success('Template duplicado com sucesso.');
+      queryClient.invalidateQueries({ queryKey: ['apresentacao-templates'] });
+      queryClient.invalidateQueries({ queryKey: ['apresentacao-templates-all'] });
+    },
+    onError: (err) => {
+      toast.error(getUserFriendlyError(err));
+    },
+  });
+
+  const handleToggleAtivo = async (template: ApresentacaoTemplate) => {
+    setTogglingTemplateId(template.id);
+    try {
+      await atualizarTemplate(template.id, { ativo: !template.ativo });
+      toast.success(`Template ${template.ativo ? 'desativado' : 'ativado'}.`);
+      queryClient.invalidateQueries({ queryKey: ['apresentacao-templates'] });
+      queryClient.invalidateQueries({ queryKey: ['apresentacao-templates-all'] });
+    } catch (err) {
+      toast.error(getUserFriendlyError(err));
+    } finally {
+      setTogglingTemplateId(null);
+    }
+  };
+
   const handleDownload = async (geracao: ApresentacaoGeracao) => {
     setDownloadingId(geracao.id);
     try {
@@ -130,6 +212,20 @@ export default function ApresentacaoGerencial() {
             >
               <RefreshCcw className="h-4 w-4" />
             </Button>
+            {canEditar && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setEditingTemplate(null);
+                  setTemplateFormOpen(true);
+                }}
+                aria-label="Novo template de apresentação"
+              >
+                <Settings2 className="mr-2 h-4 w-4" />
+                Novo Template
+              </Button>
+            )}
             {canGerar && (
               <Button
                 size="sm"
@@ -151,6 +247,12 @@ export default function ApresentacaoGerencial() {
               <Layers className="mr-1.5 h-3.5 w-3.5" />
               Estrutura dos Slides
             </TabsTrigger>
+            {canEditar && (
+              <TabsTrigger value="templates">
+                <Settings2 className="mr-1.5 h-3.5 w-3.5" />
+                Templates
+              </TabsTrigger>
+            )}
             {selectedGeracaoId && (
               <TabsTrigger value="comentarios">
                 Comentários da Geração
@@ -194,6 +296,28 @@ export default function ApresentacaoGerencial() {
             </div>
             <ApresentacaoSlidesPreview />
           </TabsContent>
+
+          {canEditar && (
+            <TabsContent value="templates">
+              <div className="mb-3">
+                <p className="text-sm text-muted-foreground">
+                  Gerencie os templates de apresentação. Cada template define paleta de cores,
+                  fontes e quais slides são incluídos na geração.
+                </p>
+              </div>
+              <ApresentacaoTemplatesTable
+                templates={allTemplates}
+                isLoading={loadingAllTemplates}
+                onEdit={(t) => {
+                  setEditingTemplate(t);
+                  setTemplateFormOpen(true);
+                }}
+                onDuplicate={(t) => duplicateTemplateMutation.mutate(t)}
+                onToggleAtivo={handleToggleAtivo}
+                togglingId={togglingTemplateId}
+              />
+            </TabsContent>
+          )}
 
           {selectedGeracaoId && (
             <TabsContent value="comentarios">
@@ -241,6 +365,19 @@ export default function ApresentacaoGerencial() {
         onGerar={(params) => gerarMutation.mutateAsync(params)}
         isGenerating={gerarMutation.isPending}
       />
+
+      {canEditar && (
+        <ApresentacaoTemplateFormDialog
+          open={templateFormOpen}
+          onOpenChange={(open) => {
+            setTemplateFormOpen(open);
+            if (!open) setEditingTemplate(null);
+          }}
+          template={editingTemplate}
+          onSave={(values) => saveTemplateMutation.mutateAsync(values)}
+          isSaving={saveTemplateMutation.isPending}
+        />
+      )}
     </AppLayout>
   );
 }

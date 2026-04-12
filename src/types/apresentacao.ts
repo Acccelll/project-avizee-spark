@@ -8,7 +8,7 @@ export interface ApresentacaoTemplate {
   versao: string;
   ativo: boolean;
   descricao: string | null;
-  config_json: Record<string, unknown> | null;
+  config_json: TemplateConfig | null;
   arquivo_path: string | null;
   created_at: string;
   updated_at: string;
@@ -203,4 +203,92 @@ export interface SlideComentarioInput {
   comentario_automatico: string;
   titulo: string;
   ordem: number;
+}
+
+// -------------------------------------------------------
+// Template config — stored in apresentacao_templates.config_json
+// -------------------------------------------------------
+
+/** Theme overrides: only colors and fonts can be customised; layout dimensions are fixed. */
+export interface TemplateThemeConfig {
+  /** Hex colour WITHOUT the leading # (e.g. "1F3864"). */
+  primaryColor?: string;
+  secondaryColor?: string;
+  accentColor?: string;
+  fontTitle?: string;
+  fontBody?: string;
+  /** Path inside the "dbavizee" Supabase Storage bucket (same as arquivo_path). */
+  logoUrl?: string;
+}
+
+/** Per-slide override inside a template. */
+export interface TemplateSlideConfig {
+  /** Must match a `codigo` in SLIDE_DEFINITIONS. */
+  codigo: string;
+  /** Whether the slide is included in the generated presentation. */
+  ativo: boolean;
+  /** Display order (0-based). */
+  ordem: number;
+  /** If set, replaces the default SlideDefinition.titulo. */
+  tituloCustom?: string;
+  /** If set, replaces the default SlideDefinition.subtitulo. */
+  subtituloCustom?: string;
+}
+
+/** Root config_json schema for a template (versionable). */
+export interface TemplateConfig {
+  version: '1.0';
+  theme?: TemplateThemeConfig;
+  /** Sparse: only slides that deviate from defaults need to be listed. */
+  slides?: TemplateSlideConfig[];
+}
+
+/** Resolved theme — all fields guaranteed to have a value. */
+export interface ResolvedTheme {
+  colors: {
+    primary: string;
+    secondary: string;
+    accent: string;
+    success: string;
+    danger: string;
+    warning: string;
+    white: string;
+    lightGray: string;
+    darkGray: string;
+    mediumGray: string;
+    background: string;
+    chartSeries: string[];
+  };
+  fonts: {
+    title: string;
+    body: string;
+    mono: string;
+  };
+  fontSizes: {
+    coverTitle: number;
+    coverSubtitle: number;
+    slideTitle: number;
+    slideSubtitle: number;
+    kpiValue: number;
+    kpiLabel: number;
+    body: number;
+    caption: number;
+    comment: number;
+    tableHeader: number;
+    tableBody: number;
+  };
+  slide: {
+    widthInches: number;
+    heightInches: number;
+  };
+  logoUrl?: string;
+}
+
+/** Resolved slide entry used by the generation engine. */
+export interface ResolvedSlide {
+  codigo: string;
+  ativo: boolean;
+  ordem: number;
+  titulo: string;
+  subtitulo: string;
 }

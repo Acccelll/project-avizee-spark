@@ -278,3 +278,206 @@ describe('fetchPresentationData - mode validation', () => {
     expect(errorMsg).toContain('modo dinâmico');
   });
 });
+
+// -------------------------------------------------------
+// templateConfig
+// -------------------------------------------------------
+import {
+  resolveTheme,
+  resolveSlides,
+  buildDefaultConfig,
+  validateTemplateConfig,
+} from '../templateConfig';
+import type { TemplateConfig } from '@/types/apresentacao';
+import { THEME } from '../theme';
+
+describe('templateConfig/resolveTheme', () => {
+  it('returns THEME defaults when config is null', () => {
+    const t = resolveTheme(null);
+    expect(t.colors.primary).toBe(THEME.colors.primary);
+    expect(t.colors.secondary).toBe(THEME.colors.secondary);
+    expect(t.fonts.title).toBe(THEME.fonts.title);
+  });
+
+  it('applies valid colour overrides', () => {
+    const config: TemplateConfig = {
+      version: '1.0',
+      theme: { primaryColor: 'FF0000', secondaryColor: '00FF00', accentColor: '0000FF' },
+    };
+    const t = resolveTheme(config);
+    expect(t.colors.primary).toBe('FF0000');
+    expect(t.colors.secondary).toBe('00FF00');
+    expect(t.colors.accent).toBe('0000FF');
+  });
+
+  it('ignores invalid hex values and falls back to default', () => {
+    const config: TemplateConfig = {
+      version: '1.0',
+      theme: { primaryColor: 'ZZZZZZ' },
+    };
+    const t = resolveTheme(config);
+    expect(t.colors.primary).toBe(THEME.colors.primary);
+  });
+
+  it('applies font overrides', () => {
+    const config: TemplateConfig = {
+      version: '1.0',
+      theme: { fontTitle: 'Arial', fontBody: 'Verdana' },
+    };
+    const t = resolveTheme(config);
+    expect(t.fonts.title).toBe('Arial');
+    expect(t.fonts.body).toBe('Verdana');
+  });
+
+  it('falls back to default font when override is empty string', () => {
+    const config: TemplateConfig = { version: '1.0', theme: { fontTitle: '  ' } };
+    const t = resolveTheme(config);
+    expect(t.fonts.title).toBe(THEME.fonts.title);
+  });
+
+  it('logoUrl is forwarded', () => {
+    const config: TemplateConfig = {
+      version: '1.0',
+      theme: { logoUrl: 'templates/logo.png' },
+    };
+    const t = resolveTheme(config);
+    expect(t.logoUrl).toBe('templates/logo.png');
+  });
+
+  it('immutable: changing returned chartSeries does not affect THEME', () => {
+    const t = resolveTheme(null);
+    t.colors.chartSeries.push('DEADFF');
+    expect(THEME.colors.chartSeries).not.toContain('DEADFF');
+  });
+});
+
+describe('templateConfig/resolveSlides', () => {
+  it('returns all 12 slides when config is null', () => {
+    const slides = resolveSlides(null);
+    expect(slides).toHaveLength(12);
+  });
+
+  it('all slides active by default', () => {
+    const slides = resolveSlides(null);
+    slides.forEach((s) => expect(s.ativo).toBe(true));
+  });
+
+  it('deactivates a slide via config', () => {
+    const config: TemplateConfig = {
+      version: '1.0',
+      slides: [{ codigo: 'redes_sociais', ativo: false, ordem: 11 }],
+    };
+    const slides = resolveSlides(config);
+    const rs = slides.find((s) => s.codigo === 'redes_sociais');
+    expect(rs?.ativo).toBe(false);
+  });
+
+  it('applies custom titles', () => {
+    const config: TemplateConfig = {
+      version: '1.0',
+      slides: [{ codigo: 'cover', ativo: true, ordem: 0, tituloCustom: 'Meu Título' }],
+    };
+    const slides = resolveSlides(config);
+    const cover = slides.find((s) => s.codigo === 'cover');
+    expect(cover?.titulo).toBe('Meu Título');
+  });
+
+  it('keeps default titulo when tituloCustom is blank', () => {
+    const config: TemplateConfig = {
+      version: '1.0',
+      slides: [{ codigo: 'cover', ativo: true, ordem: 0, tituloCustom: '  ' }],
+    };
+    const slides = resolveSlides(config);
+    const cover = slides.find((s) => s.codigo === 'cover');
+    expect(cover?.titulo).toBe(SLIDE_DEFINITIONS.find((d) => d.codigo === 'cover')!.titulo);
+  });
+
+  it('sorts by ordem', () => {
+    const config: TemplateConfig = {
+      version: '1.0',
+      slides: [
+        { codigo: 'faturamento', ativo: true, ordem: 0 },
+        { codigo: 'cover', ativo: true, ordem: 1 },
+      ],
+    };
+    const slides = resolveSlides(config);
+    expect(slides[0].codigo).toBe('faturamento');
+    expect(slides[1].codigo).toBe('cover');
+  });
+});
+
+describe('templateConfig/buildDefaultConfig', () => {
+  it('returns version 1.0', () => {
+    expect(buildDefaultConfig().version).toBe('1.0');
+  });
+
+  it('includes all 12 slides', () => {
+    const cfg = buildDefaultConfig();
+    expect(cfg.slides).toHaveLength(12);
+  });
+
+  it('all slides ativo by default', () => {
+    const cfg = buildDefaultConfig();
+    cfg.slides!.forEach((s) => expect(s.ativo).toBe(true));
+  });
+
+  it('theme primary matches THEME default', () => {
+    const cfg = buildDefaultConfig();
+    expect(cfg.theme?.primaryColor).toBe(THEME.colors.primary);
+  });
+});
+
+describe('templateConfig/validateTemplateConfig', () => {
+  it('null config is valid', () => {
+    expect(validateTemplateConfig(null).valid).toBe(true);
+  });
+
+  it('undefined config is valid', () => {
+    expect(validateTemplateConfig(undefined).valid).toBe(true);
+  });
+
+  it('valid config passes', () => {
+    const cfg = buildDefaultConfig();
+    expect(validateTemplateConfig(cfg).valid).toBe(true);
+  });
+
+  it('reports wrong version', () => {
+    const result = validateTemplateConfig({ version: '2.0' });
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((e) => e.includes('version'))).toBe(true);
+  });
+
+  it('reports invalid colour hex', () => {
+    const result = validateTemplateConfig({
+      version: '1.0',
+      theme: { primaryColor: 'GGGGGG' },
+    });
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((e) => e.includes('primaryColor'))).toBe(true);
+  });
+
+  it('reports non-array slides', () => {
+    const result = validateTemplateConfig({ version: '1.0', slides: 'bad' });
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((e) => e.includes('slides'))).toBe(true);
+  });
+
+  it('reports unknown slide codigo', () => {
+    const result = validateTemplateConfig({
+      version: '1.0',
+      slides: [{ codigo: 'fake_slide', ativo: true, ordem: 0 }],
+    });
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((e) => e.includes('fake_slide'))).toBe(true);
+  });
+
+  it('reports missing ativo boolean', () => {
+    const result = validateTemplateConfig({
+      version: '1.0',
+      slides: [{ codigo: 'cover', ativo: 'yes', ordem: 0 }],
+    });
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((e) => e.includes('ativo'))).toBe(true);
+  });
+});
+
