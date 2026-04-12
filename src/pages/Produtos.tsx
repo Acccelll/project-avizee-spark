@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { DataTable } from "@/components/DataTable";
+import { PullToRefresh } from "@/components/ui/PullToRefresh";
 import { StatusBadge } from "@/components/StatusBadge";
 import { ModulePage } from "@/components/ModulePage";
 import { SummaryCard } from "@/components/SummaryCard";
@@ -85,7 +86,7 @@ const emptyProduto = {
 const Produtos = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { data, loading, create, update, remove, duplicate } = useSupabaseCrud<Produto>({ table: "produtos" });
+  const { data, loading, create, update, remove, duplicate, fetchData } = useSupabaseCrud<Produto>({ table: "produtos" });
   const { pushView } = useRelationalNavigation();
   const [modalOpen, setModalOpen] = useState(false);
   const [mode, setMode] = useState<"create" | "edit">("create");
@@ -595,6 +596,7 @@ const Produtos = () => {
           />
         </AdvancedFilterBar>
 
+        <PullToRefresh onRefresh={fetchData}>
         <DataTable
           columns={columns}
           data={filteredData}
@@ -605,6 +607,7 @@ const Produtos = () => {
           onEdit={openEdit}
           onDelete={(p) => remove(p.id)}
         />
+        </PullToRefresh>
       </ModulePage>
 
       {/* Form Modal */}

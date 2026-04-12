@@ -5,6 +5,7 @@ import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
+import { PullToRefresh } from "@/components/ui/PullToRefresh";
 import { StatusBadge } from "@/components/StatusBadge";
 import { FormModal } from "@/components/FormModal";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
@@ -78,6 +79,7 @@ const Financeiro = () => {
     create,
     update,
     remove,
+    fetchData,
   } = useSupabaseCrud({
     table: "financeiro_lancamentos" as const,
     select: "*, clientes(nome_razao_social), fornecedores(nome_razao_social), contas_bancarias(descricao, bancos(nome))",
@@ -478,12 +480,14 @@ const Financeiro = () => {
         {viewMode === "calendario" ? (
           <FinanceiroCalendar data={filteredData} />
         ) : (
+          <PullToRefresh onRefresh={fetchData}>
           <DataTable columns={columns} data={filteredData} loading={loading}
             moduleKey="financeiro-lancamentos" showColumnToggle={true}
             selectable selectedIds={selectedIds} onSelectionChange={setSelectedIds}
             emptyTitle="Nenhum lançamento encontrado"
             emptyDescription="Tente ajustar os filtros ou crie um novo lançamento."
             onView={(l) => { setSelected(l); setDrawerOpen(true); }} />
+          </PullToRefresh>
         )}
       </ModulePage>
 

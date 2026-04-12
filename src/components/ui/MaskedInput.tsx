@@ -21,6 +21,15 @@ const masks: Record<string, (v: string) => string> = {
   cep: cepMask,
 };
 
+const inputModes: Record<string, React.HTMLAttributes<HTMLInputElement>["inputMode"]> = {
+  cpf: "numeric",
+  cnpj: "numeric",
+  cpf_cnpj: "numeric",
+  telefone: "tel",
+  celular: "tel",
+  cep: "numeric",
+};
+
 export function MaskedInput({ mask, value, onChange, className, showValidation = false, ...props }: MaskedInputProps) {
   const [touched, setTouched] = useState(false);
 
@@ -45,6 +54,7 @@ export function MaskedInput({ mask, value, onChange, className, showValidation =
     <div className="relative">
       <Input
         {...props}
+        inputMode={props.inputMode ?? inputModes[mask]}
         value={value}
         onChange={handleChange}
         onBlur={() => setTouched(true)}

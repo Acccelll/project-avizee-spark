@@ -125,18 +125,25 @@ export function DataTable<T extends Record<string, any>>({
   const [hiddenKeys, setHiddenKeys] = useState<Set<string>>(() => new Set(columns.filter((c) => c.hidden).map((c) => c.key)));
   const hasActions = !!(onView || onEdit || onDelete || onDuplicate || renderInlineDetails);
 
-  // Scroll-shadow: detect horizontal overflow in the table container
+  // Scroll-shadow + scroll-position: detect horizontal overflow in the table container
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [hasScrollX, setHasScrollX] = useState(false);
+  const [scrolledX, setScrolledX] = useState(false);
 
   useEffect(() => {
     const el = tableContainerRef.current;
     if (!el) return;
     const check = () => setHasScrollX(el.scrollWidth > el.clientWidth);
+    const onScroll = () => setScrolledX(el.scrollLeft > 0);
     check();
     const ro = new ResizeObserver(check);
     ro.observe(el);
-    return () => ro.disconnect();
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      ro.disconnect();
+      // el is captured from the closure above and is guaranteed non-null here
+      el.removeEventListener("scroll", onScroll);
+    };
   }, []);
 
   useEffect(() => {
@@ -675,11 +682,19 @@ export function DataTable<T extends Record<string, any>>({
             <EmptyState title={emptyTitle} description={emptyDescription} />
           ) : (
             <>
+              {/* "Deslize →" hint — shown only while the table has horizontal overflow and hasn't been scrolled yet */}
+              {hasScrollX && !scrolledX && (
+                <div className="mb-1 flex items-center justify-end gap-1 text-xs text-muted-foreground/70 md:hidden" aria-hidden="true">
+                  <span>Deslize</span>
+                  <span className="animate-bounce-x">→</span>
+                </div>
+              )}
               <div
                 ref={tableContainerRef}
                 className={cn(
                   'overflow-x-auto',
-                  hasScrollX && 'shadow-[inset_-8px_0_8px_-8px_rgba(0,0,0,0.08)]',
+                  hasScrollX && !scrolledX && 'shadow-[inset_-12px_0_10px_-10px_rgba(0,0,0,0.12)]',
+                  hasScrollX && scrolledX && 'shadow-[inset_12px_0_10px_-10px_rgba(0,0,0,0.12),inset_-12px_0_10px_-10px_rgba(0,0,0,0.12)]',
                 )}
               >
                 <table className="w-full">
