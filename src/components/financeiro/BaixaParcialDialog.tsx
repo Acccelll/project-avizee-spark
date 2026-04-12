@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { baixarTitulo } from "@/services/financeiro/titulos.service";
 import { formatCurrency } from "@/lib/format";
+import { getUserFriendlyError } from "@/utils/errorMessages";
 import { toast } from "sonner";
 
 interface ContaBancaria {
@@ -88,7 +89,7 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
       .eq("lancamento_id", lancamentoId)
       .order("data_baixa", { ascending: false });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    setBaixasAnteriores((data as any[]) || []);
+    setBaixasAnteriores((data ?? []) as Baixa[]);
     setLoadingBaixas(false);
   };
 
@@ -120,7 +121,7 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
       onClose();
     } catch (err: unknown) {
       console.error("[baixa]", err);
-      toast.error("Erro ao registrar baixa");
+      toast.error(getUserFriendlyError(err));
     }
     setSaving(false);
   };
@@ -275,8 +276,8 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={saving}>Cancelar</Button>
-          <Button onClick={handleSubmit} disabled={saving}>
+          <Button variant="outline" onClick={onClose} disabled={saving} aria-label="Cancelar baixa">Cancelar</Button>
+          <Button onClick={handleSubmit} disabled={saving} aria-label="Confirmar registro de baixa">
             {saving ? "Processando..." : "Confirmar Baixa"}
           </Button>
         </DialogFooter>
