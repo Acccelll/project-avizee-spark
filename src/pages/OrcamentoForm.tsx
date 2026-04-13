@@ -32,6 +32,7 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { TemplateConfig } from "@/types/orcamento";
 import { calcularRentabilidade, type InternalCostCandidate } from "@/lib/orcamentoRentabilidade";
 import { getOrcamentoInternalAccess } from "@/lib/orcamentoInternalAccess";
+import { logger } from '@/utils/logger';
 
 interface ClienteSnapshot {
   nome_razao_social: string; nome_fantasia: string; cpf_cnpj: string;
@@ -256,7 +257,7 @@ export default function OrcamentoForm() {
         if (isEdit) {
           const { data: orc, error: orcError } = await supabase.from("orcamentos").select("*").eq("id", id).maybeSingle();
           if (orcError) {
-            console.error("[OrcamentoForm] erro ao carregar cotação:", orcError);
+            logger.error("[OrcamentoForm] erro ao carregar cotação:", orcError);
             toast.error("Erro ao carregar cotação.", { description: orcError.message });
           } else if (orc) {
             reset({
@@ -300,7 +301,7 @@ export default function OrcamentoForm() {
           setValue('numero', `COT${String((count || 0) + 1).padStart(6, "0")}`);
         }
       } catch (err) {
-        console.error("[OrcamentoForm] erro ao carregar dados:", err);
+        logger.error("[OrcamentoForm] erro ao carregar dados:", err);
         toast.error("Erro ao carregar dados da cotação.", { description: "Verifique a conexão e tente novamente." });
       }
     };
@@ -506,7 +507,7 @@ export default function OrcamentoForm() {
       });
       if (!isEdit && orcId) navigate(`/cotacoes/${orcId}`, { replace: true });
     } catch (err: any) {
-      console.error('[orcamento]', err);
+      logger.error('[orcamento]', err);
       toast.error("Erro ao salvar cotação.", { description: "Confira conexão, campos obrigatórios e tente novamente." });
     }
     setSaving(false);
@@ -546,7 +547,7 @@ export default function OrcamentoForm() {
       toast.success(`Duplicado: ${newNumero}`);
       navigate(`/cotacoes/${newOrc.id}`, { replace: true });
     } catch (err: any) {
-      console.error('[orcamento] duplicar:', err);
+      logger.error('[orcamento] duplicar:', err);
       toast.error("Erro ao duplicar cotação. Tente novamente.");
     }
   };

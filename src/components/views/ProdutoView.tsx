@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { PrecosEspeciaisTab } from "@/components/precos/PrecosEspeciaisTab";
 import { RelationalLink } from "@/components/ui/RelationalLink";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
+import { logger } from '@/utils/logger';
 
 interface Props {
   id: string;
@@ -43,7 +44,7 @@ export function ProdutoView({ id }: Props) {
       try {
         const { data: p, error: pError } = await supabase.from("produtos").select("*").eq("id", id).maybeSingle();
         if (pError) {
-          console.error("[ProdutoView] erro ao buscar produto:", pError);
+          logger.error("[ProdutoView] erro ao buscar produto:", pError);
           setFetchError(`Erro ao carregar produto: ${pError.message}`);
           setLoading(false);
           return;
@@ -82,7 +83,7 @@ export function ProdutoView({ id }: Props) {
         setFornecedoresProd(fornRes.data || []);
         setGrupoNome((grupoRes.data as any)?.nome || null);
       } catch (error) {
-        console.error("[ProdutoView] erro inesperado:", error);
+        logger.error("[ProdutoView] erro inesperado:", error);
         setFetchError(`Erro inesperado: ${error instanceof Error ? error.message : String(error)}`);
       } finally {
         setLoading(false);
@@ -511,7 +512,7 @@ export function ProdutoView({ id }: Props) {
             toast.success("Produto excluído com sucesso.");
             clearStack();
           } catch (err) {
-            console.error("[ProdutoView] erro ao excluir:", err);
+            logger.error("[ProdutoView] erro ao excluir:", err);
             toast.error("Erro ao excluir produto.");
           } finally {
             setDeleteConfirmOpen(false);

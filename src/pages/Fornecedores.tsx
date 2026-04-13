@@ -32,6 +32,7 @@ import {
 import { formatDate, formatCurrency } from "@/lib/format";
 import { clienteFornecedorSchema, validateForm } from "@/lib/validationSchemas";
 import { StatCard } from "@/components/StatCard";
+import { logger } from '@/utils/logger';
 
 const MAX_OBSERVACOES_LENGTH = 2000;
 const MAX_PRAZO_DAYS = 365;
@@ -133,7 +134,7 @@ const Fornecedores = () => {
         total: comprasList.reduce((s, c) => s + Number(c.valor_total || 0), 0),
       });
     } catch (err) {
-      console.error("[fornecedores] erro ao carregar contexto:", err);
+      logger.error("[fornecedores] erro ao carregar contexto:", err);
     } finally {
       setLoadingFornContext(false);
     }
@@ -186,7 +187,7 @@ const Fornecedores = () => {
       setIsDirty(false);
       setModalOpen(false);
     } catch (err) {
-      console.error('[fornecedores] erro ao salvar:', err);
+      logger.error('[fornecedores] erro ao salvar:', err);
     }
     setSaving(false);
   };

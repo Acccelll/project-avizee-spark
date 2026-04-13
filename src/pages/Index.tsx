@@ -35,6 +35,7 @@ import { useMetas } from "@/hooks/useMetas";
 import { useInView } from "@/hooks/useInView";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
+import { logger } from '@/utils/logger';
 
 // Lazy-loaded heavy chart components
 const VendasChart = lazy(() =>
@@ -470,7 +471,7 @@ const DashboardContent = () => {
           setRemessasAtrasadas(count ?? 0);
         });
     } catch (err) {
-      console.error("[dashboard] erro ao carregar dados:", err);
+      logger.error("[dashboard] erro ao carregar dados:", err);
       toast.error("Erro ao carregar dados do dashboard. Tente novamente.");
     } finally {
       setLoading(false);

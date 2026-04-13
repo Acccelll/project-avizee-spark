@@ -28,6 +28,7 @@ import {
   Edit,
   PackageOpen,
 } from "lucide-react";
+import { logger } from '@/utils/logger';
 
 interface ContaContabil {
   id: string;
@@ -317,7 +318,7 @@ const ContasContabeis = () => {
         await create(payload);
       }
     } catch (err) {
-      console.error('[contas-contabeis] erro ao salvar:', err);
+      logger.error('[contas-contabeis] erro ao salvar:', err);
       throw err;
     }
   };

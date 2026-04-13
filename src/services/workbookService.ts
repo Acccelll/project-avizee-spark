@@ -2,6 +2,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { WorkbookTemplate, WorkbookGeracao, FechamentoMensal, WorkbookParametros } from '@/types/workbook';
 import { generateWorkbook } from '@/lib/workbook/generateWorkbook';
 import { hashParametros } from '@/lib/workbook/utils';
+import { logger } from '@/utils/logger';
 
 export async function listarTemplates(): Promise<WorkbookTemplate[]> {
   const { data, error } = await (supabase as any)
@@ -79,10 +80,10 @@ export async function gerarWorkbook(
       if (!uploadError) {
         arquivoPath = storagePath;
       } else {
-        console.warn('Falha ao salvar artefato no storage:', uploadError.message);
+        logger.warn('Falha ao salvar artefato no storage:', uploadError.message);
       }
     } catch (storageErr) {
-      console.warn('Storage não disponível para salvar artefato:', storageErr);
+      logger.warn('Storage não disponível para salvar artefato:', storageErr);
     }
 
     // Update generation record with success
@@ -126,7 +127,7 @@ export async function downloadGeracao(geracao: WorkbookGeracao): Promise<Blob> {
         return data;
       }
     } catch {
-      console.warn('Falha ao baixar artefato do storage, regenerando...');
+      logger.warn('Falha ao baixar artefato do storage, regenerando...');
     }
   }
 

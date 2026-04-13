@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { fetchConfig, updateConfig } from '../services/configuracoes.service';
 import { mergeConfiguracoes, type ConfigIntegracao } from '@/utils/configuracoes';
 import { getUserFriendlyError } from '@/utils/errorMessages';
+import { logger } from '@/utils/logger';
 
 const defaultIntegracao: ConfigIntegracao = {
   gateway_pagamento: '',
@@ -39,7 +40,7 @@ export function useConfiguracoesIntegracoes() {
       toast.success('Configurações de integrações salvas com sucesso.');
     },
     onError: (err: Error) => {
-      console.error('[configuracoes] Erro ao salvar config integracoes:', err);
+      logger.error('[configuracoes] Erro ao salvar config integracoes:', err);
       toast.error(getUserFriendlyError(err));
     },
   });

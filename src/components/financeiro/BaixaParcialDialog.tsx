@@ -11,6 +11,7 @@ import { baixarTitulo } from "@/services/financeiro/titulos.service";
 import { formatCurrency } from "@/lib/format";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import { toast } from "sonner";
+import { logger } from '@/utils/logger';
 
 interface ContaBancaria {
   id: string;
@@ -120,7 +121,7 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
       onSuccess();
       onClose();
     } catch (err: unknown) {
-      console.error("[baixa]", err);
+      logger.error("[baixa]", err);
       toast.error(getUserFriendlyError(err));
     }
     setSaving(false);

@@ -10,6 +10,7 @@ import { useViaCep } from "@/hooks/useViaCep";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Search } from "lucide-react";
+import { logger } from '@/utils/logger';
 
 interface QuickAddClientModalProps {
   open: boolean;
@@ -112,7 +113,7 @@ export function QuickAddClientModal({ open, onClose, onCreated }: QuickAddClient
       onClose();
       setForm({ ...emptyForm });
     } catch (err: any) {
-      console.error("[quick-add-client]", err);
+      logger.error("[quick-add-client]", err);
       toast.error("Erro ao cadastrar cliente.");
     }
     setSaving(false);

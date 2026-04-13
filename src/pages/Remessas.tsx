@@ -23,6 +23,7 @@ import { useRemessas } from "@/services/logistica/remessas.service";
 import type { Remessa, RemessaEvento } from "@/services/logistica/remessas.service";
 import { fetchTracking, normalizarEventos } from "@/services/correios.service";
 import { statusRemessa } from "@/lib/statusSchema";
+import { logger } from '@/utils/logger';
 
 type OrdemVenda = Database["public"]["Tables"]["ordens_venda"]["Row"];
 type PedidoCompra = Database["public"]["Tables"]["pedidos_compra"]["Row"];
@@ -86,7 +87,7 @@ export default function Remessas() {
         .order("data_hora", { ascending: false })
         .then(({ data: d, error }) => {
           if (error) {
-            console.error("[remessas] erro ao carregar eventos:", error);
+            logger.error("[remessas] erro ao carregar eventos:", error);
             toast.error("Erro ao carregar histórico de eventos");
             return;
           }
@@ -141,7 +142,7 @@ export default function Remessas() {
       else if (selected) await update(selected.id, payload);
       setModalOpen(false);
     } catch (err: unknown) {
-      console.error("[remessas] handleSubmit:", err);
+      logger.error("[remessas] handleSubmit:", err);
     }
     setSaving(false);
   };
@@ -171,7 +172,7 @@ export default function Remessas() {
       setEventos((evData ?? []) as RemessaEvento[]);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Tente novamente";
-      console.error("[remessas] handleAddEvento:", err);
+      logger.error("[remessas] handleAddEvento:", err);
       toast.error("Erro ao salvar evento: " + msg);
     } finally {
       setSavingEvento(false);
@@ -184,7 +185,7 @@ export default function Remessas() {
       if (selected?.id === remessa.id) setSelected({ ...remessa, status_transporte: newStatus });
       toast.success(`Status atualizado para ${statusMap[newStatus]?.label ?? newStatus}`);
     } catch (err: unknown) {
-      console.error("[remessas] handleStatusChange:", err);
+      logger.error("[remessas] handleStatusChange:", err);
       toast.error("Erro ao atualizar status");
     }
   };
@@ -236,7 +237,7 @@ export default function Remessas() {
 
       setEventos((updatedEvents ?? []) as RemessaEvento[]);
     } catch (err: unknown) {
-      console.error("[rastrear]", err);
+      logger.error("[rastrear]", err);
       toast.error(err instanceof Error ? err.message : "Erro ao consultar rastreio");
     }
   };

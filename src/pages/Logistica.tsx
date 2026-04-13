@@ -36,6 +36,7 @@ import {
   Eye, AlertTriangle, Truck, Package, CheckCheck, ExternalLink,
   Edit, Trash2, Plus, MapPin, Package as PackageIcon, Search, Clock, Timer,
 } from "lucide-react";
+import { logger } from '@/utils/logger';
 
 // ─── Remessa types ───
 type Remessa = Tables<"remessas">;
@@ -390,7 +391,7 @@ export default function Logistica() {
       if (remMode === "create") await createRemessa(payload);
       else if (remSelected) await updateRemessa(remSelected.id, payload);
       setRemModalOpen(false);
-    } catch (err: unknown) { console.error("[remessas] handleSubmit:", err); }
+    } catch (err: unknown) { logger.error("[remessas] handleSubmit:", err); }
     setRemSaving(false);
   };
 

@@ -35,6 +35,7 @@ import { statusFinanceiro as statusFinanceiroSchema, statusToOptions } from "@/l
 import { exportarParaExcel, exportarParaPdf } from "@/services/export.service";
 import type { Lancamento, ContaBancaria, Cliente, Fornecedor } from "@/types/domain";
 import { getUserFriendlyError } from "@/utils/errorMessages";
+import { logger } from '@/utils/logger';
 
 interface ContaContabil {
   id: string;
@@ -203,7 +204,7 @@ const Financeiro = () => {
       }
       setModalOpen(false);
     } catch (err) {
-      console.error('[financeiro] erro ao salvar:', err);
+      logger.error('[financeiro] erro ao salvar:', err);
       toast.error(getUserFriendlyError(err));
     }
     setSaving(false);

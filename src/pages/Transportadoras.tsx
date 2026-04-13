@@ -31,6 +31,7 @@ import { StatCard } from "@/components/StatCard";
 import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { logger } from '@/utils/logger';
 
 interface Transportadora {
   id: string;
@@ -141,7 +142,7 @@ export default function Transportadoras() {
       setModalCliCount(cliCount ?? 0);
       setModalRemCount(remCount ?? 0);
     } catch (err) {
-      console.error("[transportadoras] erro ao carregar contexto do modal:", err);
+      logger.error("[transportadoras] erro ao carregar contexto do modal:", err);
     } finally {
       setLoadingModalCtx(false);
     }
@@ -164,7 +165,7 @@ export default function Transportadoras() {
       if (error) throw error;
       setEditClientesVinculados((data || []) as ClienteVinculado[]);
     } catch (err) {
-      console.error("[transportadoras] erro ao carregar clientes vinculados:", err);
+      logger.error("[transportadoras] erro ao carregar clientes vinculados:", err);
     } finally {
       setLoadingEditClientes(false);
     }
@@ -185,7 +186,7 @@ export default function Transportadoras() {
       await loadEditClientes(transportadoraId);
       toast.success("Cliente vinculado");
     } catch (err) {
-      console.error("[transportadoras] erro ao vincular cliente:", err);
+      logger.error("[transportadoras] erro ao vincular cliente:", err);
       toast.error("Erro ao vincular cliente");
     }
     setSavingVinculoCliente(false);
@@ -198,7 +199,7 @@ export default function Transportadoras() {
       await loadEditClientes(transportadoraId);
       toast.success("Vínculo removido");
     } catch (err) {
-      console.error("[transportadoras] erro ao remover vínculo:", err);
+      logger.error("[transportadoras] erro ao remover vínculo:", err);
       toast.error("Erro ao remover vínculo");
     }
   };
@@ -256,7 +257,7 @@ export default function Transportadoras() {
       else if (selected) await update(selected.id, submitData);
       setModalOpen(false);
     } catch (err: unknown) {
-      console.error("[transportadoras] handleSubmit:", err);
+      logger.error("[transportadoras] handleSubmit:", err);
     }
     setSaving(false);
   };

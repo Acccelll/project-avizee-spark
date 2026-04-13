@@ -39,6 +39,7 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { TableSkeleton } from '@/components/ui/content-skeletons';
 import { EmptyState } from '@/components/ui/empty-state';
+import { logger } from '@/utils/logger';
 
 export interface Column<T> {
   key: string;
@@ -359,7 +360,7 @@ export function DataTable<T extends Record<string, any>>({
       pdf.save(`${moduleKey || 'dados'}.pdf`);
       toast.success('Exportação PDF concluída', { id: toastId });
     } catch (error) {
-      console.error('Erro ao exportar dados', error);
+      logger.error('Erro ao exportar dados', error);
       toast.error(`Falha ao exportar ${format.toUpperCase()}.`, {
         id: toastId,
         action: {

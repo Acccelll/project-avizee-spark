@@ -21,6 +21,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { UsuariosTab } from '@/components/usuarios/UsuariosTab';
 import { DashboardAdmin } from '@/pages/admin/components/DashboardAdmin';
 import { PermissaoMatrix } from '@/pages/admin/components/PermissaoMatrix';
+import { logger } from '@/utils/logger';
 
 const defaultConfig = {
   geral: {
@@ -256,7 +257,7 @@ export default function Administracao() {
           setFinanceiroLastSaved({ at: financeiroUpdatedAt || null, by: financeiroUpdatedByName || null });
         }
       } catch {
-        console.error('[admin] Erro ao carregar configurações do Supabase');
+        logger.error('[admin] Erro ao carregar configurações do Supabase');
         if (mounted) setConfig(defaultConfig);
       } finally {
         if (mounted) setLoading(false);
@@ -306,7 +307,7 @@ export default function Administracao() {
       updateSection('geral', { logoUrl: urlData.publicUrl });
       toast.success('Logo enviada com sucesso.');
     } catch (err) {
-      console.error('[admin] Erro ao enviar logo:', err);
+      logger.error('[admin] Erro ao enviar logo:', err);
       toast.error('Erro ao enviar a logo. Verifique sua conexão e tente novamente.');
     } finally {
       setLogoUploading(false);
@@ -375,7 +376,7 @@ export default function Administracao() {
         message: `E-mail de teste enviado com sucesso para ${emailTestAddress}.`,
       });
     } catch (err) {
-      console.error('[admin] Erro ao enviar e-mail de teste:', err);
+      logger.error('[admin] Erro ao enviar e-mail de teste:', err);
       setEmailTestResult({
         status: 'error',
         message: 'Não foi possível enviar o e-mail de teste. Verifique se a configuração do serviço de envio está ativa.',
@@ -447,7 +448,7 @@ export default function Administracao() {
       setFinanceiroLastSaved({ at: now, by: profile?.nome ?? user?.email ?? null });
       toast.success('Configurações salvas com sucesso.');
     } catch (error: unknown) {
-      console.error('[admin] Erro ao salvar:', error);
+      logger.error('[admin] Erro ao salvar:', error);
       toast.error('Erro ao salvar configurações. Verifique sua conexão e tente novamente.');
     } finally {
       setSaving(false);

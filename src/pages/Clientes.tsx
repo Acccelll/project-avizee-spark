@@ -36,6 +36,7 @@ import {
 import { StatCard } from "@/components/StatCard";
 import { Separator } from "@/components/ui/separator";
 import { clienteFornecedorSchema, validateForm } from "@/lib/validationSchemas";
+import { logger } from '@/utils/logger';
 
 interface Cliente {
   id: string;tipo_pessoa: string;nome_razao_social: string;nome_fantasia: string;
@@ -248,7 +249,7 @@ const Clientes = () => {
         prazo_medio: ct.prazo_medio,
       })));
     } catch (err) {
-      console.error("[clientes] erro ao carregar transportadoras:", err);
+      logger.error("[clientes] erro ao carregar transportadoras:", err);
     } finally {
       setLoadingTransportadoras(false);
     }
@@ -266,7 +267,7 @@ const Clientes = () => {
       if (error) throw error;
       setEnderecos((data || []) as EnderecoEntrega[]);
     } catch (err) {
-      console.error("[clientes] erro ao carregar endereços:", err);
+      logger.error("[clientes] erro ao carregar endereços:", err);
     } finally {
       setLoadingEnderecos(false);
     }
@@ -284,7 +285,7 @@ const Clientes = () => {
       if (error) throw error;
       setComunicacoes((data || []) as unknown as ComunicacaoCliente[]);
     } catch (err) {
-      console.error("[clientes] erro ao carregar comunicações:", err);
+      logger.error("[clientes] erro ao carregar comunicações:", err);
     } finally {
       setLoadingComunicacoes(false);
     }
@@ -306,7 +307,7 @@ const Clientes = () => {
       await loadTransportadoras(clienteId);
       toast.success("Transportadora vinculada");
     } catch (err) {
-      console.error("[clientes] erro ao vincular transportadora:", err);
+      logger.error("[clientes] erro ao vincular transportadora:", err);
       toast.error("Erro ao vincular transportadora");
     }
     setSavingVinculo(false);
@@ -319,7 +320,7 @@ const Clientes = () => {
       await loadTransportadoras(clienteId);
       toast.success("Vínculo removido");
     } catch (err) {
-      console.error("[clientes] erro ao remover vínculo:", err);
+      logger.error("[clientes] erro ao remover vínculo:", err);
       toast.error("Erro ao remover vínculo");
     }
   };
@@ -354,7 +355,7 @@ const Clientes = () => {
       setEnderecoEditId(null);
       await loadEnderecos(clienteId);
     } catch (err) {
-      console.error("[clientes] erro ao salvar endereço:", err);
+      logger.error("[clientes] erro ao salvar endereço:", err);
       toast.error("Erro ao salvar endereço");
     }
     setSavingEndereco(false);
@@ -367,7 +368,7 @@ const Clientes = () => {
       await loadEnderecos(clienteId);
       toast.success("Endereço principal definido");
     } catch (err) {
-      console.error("[clientes] erro ao definir principal:", err);
+      logger.error("[clientes] erro ao definir principal:", err);
       toast.error("Erro ao definir endereço principal");
     }
   };
@@ -378,7 +379,7 @@ const Clientes = () => {
       await loadEnderecos(clienteId);
       toast.success("Endereço removido");
     } catch (err) {
-      console.error("[clientes] erro ao remover endereço:", err);
+      logger.error("[clientes] erro ao remover endereço:", err);
       toast.error("Erro ao remover endereço");
     }
   };
@@ -404,7 +405,7 @@ const Clientes = () => {
       await loadComunicacoes(clienteId);
       toast.success("Comunicação registrada");
     } catch (err) {
-      console.error("[clientes] erro ao salvar comunicação:", err);
+      logger.error("[clientes] erro ao salvar comunicação:", err);
       toast.error("Erro ao salvar comunicação");
     }
     setSavingComunicacao(false);
@@ -489,7 +490,7 @@ const Clientes = () => {
       setIsDirty(false);
       setModalOpen(false);
     } catch (err) {
-      console.error('[clientes] erro ao salvar:', err);
+      logger.error('[clientes] erro ao salvar:', err);
     }
     setSaving(false);
   };

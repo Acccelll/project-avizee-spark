@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { fetchConfig, updateConfig } from '../services/configuracoes.service';
 import { mergeConfiguracoes, type ConfigBackup } from '@/utils/configuracoes';
 import { getUserFriendlyError } from '@/utils/errorMessages';
+import { logger } from '@/utils/logger';
 
 const defaultBackup: ConfigBackup = {
   frequencia: 'diario',
@@ -36,7 +37,7 @@ export function useConfiguracoesBackup() {
       toast.success('Configurações de backup salvas com sucesso.');
     },
     onError: (err: Error) => {
-      console.error('[configuracoes] Erro ao salvar config backup:', err);
+      logger.error('[configuracoes] Erro ao salvar config backup:', err);
       toast.error(getUserFriendlyError(err));
     },
   });

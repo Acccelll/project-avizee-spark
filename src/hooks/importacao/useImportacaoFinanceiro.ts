@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { validateFinanceiroImport } from "@/lib/importacao/validators";
 import { FIELD_ALIASES } from "@/lib/importacao/aliases";
 import { Mapping, PreviewFinanceiroRow } from "./types";
+import { logger } from '@/utils/logger';
 
 export function useImportacaoFinanceiro() {
   const [file, setFile] = useState<File | null>(null);
@@ -219,7 +220,7 @@ export function useImportacaoFinanceiro() {
 
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : "Erro desconhecido";
-      console.error("Erro na importação financeira:", error);
+      logger.error("Erro na importação financeira:", error);
       toast.error(`Falha no processamento: ${msg}`);
     } finally {
       setIsProcessing(false);

@@ -14,6 +14,7 @@ import {
   pedidoNumero,
 } from "@/components/compras/pedidoCompraTypes";
 import { statusPedidoCompra } from "@/lib/statusSchema";
+import { logger } from '@/utils/logger';
 
 /** Shape of a row from pedidos_compra_itens joined with produtos */
 interface PedidoItemRow {
@@ -439,7 +440,7 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
       setForm({ ...emptyPedidoForm });
       await refreshAll();
     } catch (err: unknown) {
-      console.error("[pedidos_compra] unexpected error", err);
+      logger.error("[pedidos_compra] unexpected error", err);
       toast.error(getUserFriendlyError(err));
     }
 
@@ -502,7 +503,7 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
       setDrawerOpen(false);
       await refreshAll();
     } catch (err: unknown) {
-      console.error("[darEntrada]", err);
+      logger.error("[darEntrada]", err);
       toast.error(getUserFriendlyError(err));
     }
 
@@ -517,7 +518,7 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
       toast.success("Pedido marcado como enviado ao fornecedor.");
       await refreshAll();
     } catch (err: unknown) {
-      console.error("[marcarEnviado]", err);
+      logger.error("[marcarEnviado]", err);
       toast.error(getUserFriendlyError(err));
     }
   };
@@ -531,7 +532,7 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
       setDrawerOpen(false);
       await refreshAll();
     } catch (err: unknown) {
-      console.error("[cancelarPedido]", err);
+      logger.error("[cancelarPedido]", err);
       toast.error(getUserFriendlyError(err));
     }
   };

@@ -3,6 +3,7 @@ import JSZip from "jszip";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { parseNFeXml, NFeData } from "@/lib/nfeXmlParser";
+import { logger } from '@/utils/logger';
 
 export interface XmlImportItem {
   fileName: string;
@@ -177,7 +178,7 @@ export function useImportacaoXml() {
       return currentLoteId;
 
     } catch (error: any) {
-      console.error("Erro na importação XML:", error);
+      logger.error("Erro na importação XML:", error);
       toast.error(`Falha na importação: ${error.message}`);
       setIsProcessing(false);
     }

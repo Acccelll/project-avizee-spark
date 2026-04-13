@@ -27,6 +27,7 @@ import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianG
 import { exportarParaExcel } from "@/services/export.service";
 import type { Lancamento, ContaBancaria } from "@/types/domain";
 import { getUserFriendlyError } from "@/utils/errorMessages";
+import { logger } from '@/utils/logger';
 
 type Periodicidade = "diaria" | "semanal" | "mensal";
 
@@ -321,7 +322,7 @@ const FluxoCaixa = () => {
       await reload();
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Erro desconhecido";
-      console.error("[fluxo_caixa]", msg);
+      logger.error("[fluxo_caixa]", msg);
       toast.error(getUserFriendlyError(err));
     }
     setSaving(false);

@@ -12,6 +12,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import { supabase } from "@/integrations/supabase/client";
+import { logger } from '@/utils/logger';
 
 export interface SessaoAtiva {
   id: string;
@@ -62,7 +63,7 @@ export function useSessoes() {
       toast.success("Sessão encerrada com sucesso.");
     },
     onError: (err: Error) => {
-      console.error("[admin] Erro ao revogar sessão:", err);
+      logger.error("[admin] Erro ao revogar sessão:", err);
       toast.error(getUserFriendlyError(err));
     },
   });

@@ -13,6 +13,7 @@ import {
   type LocalItem,
   emptyForm,
 } from "@/components/compras/cotacaoCompraTypes";
+import { logger } from '@/utils/logger';
 
 export function useCotacoesCompra() {
   const navigate = useNavigate();
@@ -211,7 +212,7 @@ export function useCotacoesCompra() {
       setModalOpen(false);
       fetchData();
     } catch (err: unknown) {
-      console.error("[cotacoes_compra]", err);
+      logger.error("[cotacoes_compra]", err);
       toast.error(getUserFriendlyError(err));
     }
     setSaving(false);
@@ -408,7 +409,7 @@ export function useCotacoesCompra() {
           .delete()
           .eq("id", pedidoId);
         if (erroRollback) {
-          console.error("[gerarPedido] rollback failed:", erroRollback?.message);
+          logger.error("[gerarPedido] rollback failed:", erroRollback?.message);
         }
         throw erroItens;
       }
@@ -420,7 +421,7 @@ export function useCotacoesCompra() {
       fetchData();
       navigate("/pedidos-compra");
     } catch (err: unknown) {
-      console.error("[gerarPedido]", err);
+      logger.error("[gerarPedido]", err);
       toast.error(getUserFriendlyError(err), { duration: 8000 });
     }
   };

@@ -24,6 +24,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { logger } from '@/utils/logger';
 
 const configuracaoSchema = z.object({
   crt: z.string().min(1, "CRT obrigatório"),
@@ -111,7 +112,7 @@ export default function ConfiguracaoFiscal() {
       }
       toast.success("Configurações fiscais salvas");
     } catch (err) {
-      console.error(err);
+      logger.error(err);
       toast.error("Erro ao salvar configurações");
     }
     setSaving(false);

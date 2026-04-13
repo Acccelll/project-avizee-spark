@@ -35,6 +35,7 @@ import {
   DollarSign,
 } from "lucide-react";
 import { toast } from "sonner";
+import { logger } from '@/utils/logger';
 
 interface Props {
   id: string;
@@ -620,7 +621,7 @@ export function OrcamentoView({ id }: Props) {
             toast.success("Cotação excluída com sucesso.");
             clearStack();
           } catch (err) {
-            console.error("[OrcamentoView] erro ao excluir:", err);
+            logger.error("[OrcamentoView] erro ao excluir:", err);
             toast.error("Erro ao excluir cotação.");
           } finally {
             setDeleteConfirmOpen(false);

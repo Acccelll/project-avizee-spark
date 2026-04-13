@@ -23,6 +23,7 @@ import { calcularStatusFaturamentoOV } from "@/lib/fiscal";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import { FileText, DollarSign, Truck } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { logger } from '@/utils/logger';
 
 interface Pedido {
   id: string;
@@ -271,7 +272,7 @@ const Pedidos = () => {
       toast.success(`NF ${nfNumero} gerada a partir do Pedido ${pedido.numero}!`);
       fetchData();
     } catch (err: unknown) {
-      console.error('[pedidos] gerar NF:', err);
+      logger.error('[pedidos] gerar NF:', err);
       toast.error(getUserFriendlyError(err));
     } finally {
       setGeneratingNfId(null);

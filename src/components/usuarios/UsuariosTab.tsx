@@ -60,6 +60,7 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { EmptyState } from '@/components/EmptyState';
 import { StatCard } from '@/components/StatCard';
 import type { Database } from '@/integrations/supabase/types';
+import { logger } from '@/utils/logger';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -541,7 +542,7 @@ function UserFormModal({
       onSaved();
       onClose();
     } catch (err) {
-      console.error('[usuarios] Erro ao salvar usuário:', err);
+      logger.error('[usuarios] Erro ao salvar usuário:', err);
       toast.error('Erro ao salvar usuário. Verifique sua conexão.');
     } finally {
       setSaving(false);
@@ -908,7 +909,7 @@ export function UsuariosTab() {
       );
       setUsers(merged);
     } catch (err) {
-      console.error('[usuarios] Erro ao carregar usuários:', err);
+      logger.error('[usuarios] Erro ao carregar usuários:', err);
       toast.error('Erro ao carregar lista de usuários.');
     } finally {
       setLoading(false);
@@ -1001,7 +1002,7 @@ export function UsuariosTab() {
           : `${toggleTarget.nome} inativado com sucesso.`,
       );
     } catch (err) {
-      console.error('[usuarios] Erro ao alterar status:', err);
+      logger.error('[usuarios] Erro ao alterar status:', err);
       toast.error('Erro ao alterar status do usuário.');
     } finally {
       setToggleLoading(false);

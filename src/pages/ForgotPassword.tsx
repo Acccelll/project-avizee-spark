@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { ArrowLeft, Mail, Send, CheckCircle2 } from "lucide-react";
 import logoAvizee from "@/assets/logoavizee.png";
+import { logger } from '@/utils/logger';
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
@@ -23,7 +24,7 @@ export default function ForgotPassword() {
     const { error: err } = await supabase.auth.resetPasswordForEmail(email.trim(), {
       redirectTo: `${window.location.origin}/reset-password`,
     });
-    if (err) { console.error('[forgot-password]', err); toast.error("Erro ao enviar e-mail de recuperação. Tente novamente."); }
+    if (err) { logger.error('[forgot-password]', err); toast.error("Erro ao enviar e-mail de recuperação. Tente novamente."); }
     else setSent(true);
     setLoading(false);
   };

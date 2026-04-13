@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { validateEstoqueInicialImport } from "@/lib/importacao/validators";
 import { FIELD_ALIASES } from "@/lib/importacao/aliases";
 import { Mapping } from "./types";
+import { logger } from '@/utils/logger';
 
 export function useImportacaoEstoque() {
   const [file, setFile] = useState<File | null>(null);
@@ -213,7 +214,7 @@ export function useImportacaoEstoque() {
       return currentLoteId;
 
     } catch (error: any) {
-      console.error("Erro na importação de estoque:", error);
+      logger.error("Erro na importação de estoque:", error);
       toast.error(`Falha no processamento: ${error.message}`);
     } finally {
       setIsProcessing(false);

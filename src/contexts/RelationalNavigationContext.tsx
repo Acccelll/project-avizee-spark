@@ -1,5 +1,6 @@
 import { createContext, useContext, useCallback, useEffect, useMemo, useReducer, useRef, ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
+import { logger } from '@/utils/logger';
 
 export const MAX_DRAWER_DEPTH = 5;
 
@@ -139,7 +140,7 @@ export function RelationalNavigationProvider({ children }: { children: ReactNode
 
   const pushView = useCallback((type: EntityType, id: string) => {
     if (!id || id === "undefined") {
-      console.warn(`[RelationalNavigation] pushView("${type}") called with invalid id: ${JSON.stringify(id)}. Ignoring.`);
+      logger.warn(`[RelationalNavigation] pushView("${type}") called with invalid id: ${JSON.stringify(id)}. Ignoring.`);
       return;
     }
     dispatch({ type: "request_push", payload: { type, id } });

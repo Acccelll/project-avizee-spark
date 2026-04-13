@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { formatCurrency } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
 import { Wallet, TrendingUp, TrendingDown, ArrowUpDown, Building2 } from "lucide-react";
+import { logger } from '@/utils/logger';
 
 interface CaixaMov {
   id: string; tipo: string; descricao: string; valor: number;
@@ -106,7 +107,7 @@ const Caixa = () => {
       const { data: contas } = await supabase.from("contas_bancarias").select("*, bancos(nome)").eq("ativo", true);
       setContasBancarias((contas as any[]) || []);
     } catch (err) {
-      console.error('[caixa] erro ao salvar:', err);
+      logger.error('[caixa] erro ao salvar:', err);
       toast.error("Erro ao registrar movimentação");
     }
     setSaving(false);

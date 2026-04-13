@@ -23,6 +23,7 @@ import {
   Link2,
   AlertTriangle,
 } from "lucide-react";
+import { logger } from '@/utils/logger';
 
 interface Props {
   id: string;
@@ -222,7 +223,7 @@ export function OrdemVendaView({ id }: Props) {
       toast.success(`NF ${nfNumero} gerada a partir do Pedido ${selected.numero}!`);
       await fetchData();
     } catch (err: any) {
-      console.error("[OrdemVendaView] gerar NF:", err);
+      logger.error("[OrdemVendaView] gerar NF:", err);
       toast.error("Erro ao gerar Nota Fiscal.");
     } finally {
       setGeneratingNf(false);

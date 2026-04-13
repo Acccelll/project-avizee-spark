@@ -28,6 +28,7 @@ import { DevolucaoDialog } from "@/components/fiscal/DevolucaoDialog";
 import { NotaFiscalDrawer } from "@/components/fiscal/NotaFiscalDrawer";
 import { confirmarNotaFiscal, estornarNotaFiscal, registrarEventoFiscal, verificarDuplicidadeChave } from "@/services/fiscal.service";
 import { NotaFiscalEditModal } from "@/components/fiscal/NotaFiscalEditModal";
+import { logger } from '@/utils/logger';
 
 interface NotaFiscal {
   id: string; tipo: string; numero: string; serie: string; chave_acesso: string;
@@ -177,7 +178,7 @@ const Fiscal = () => {
       toast.success("Nota fiscal confirmada! Estoque e financeiro atualizados.");
       fetchData();
     } catch (err: any) {
-      console.error('[fiscal] confirmar NF:', err);
+      logger.error('[fiscal] confirmar NF:', err);
       toast.error("Erro ao confirmar nota fiscal.");
     }
   };
@@ -189,7 +190,7 @@ const Fiscal = () => {
       toast.success(`NF ${nf.numero} estornada! Estoque e financeiro revertidos.`);
       fetchData();
     } catch (err: any) {
-      console.error('[fiscal] estornar NF:', err);
+      logger.error('[fiscal] estornar NF:', err);
       toast.error("Erro ao estornar nota fiscal.");
     }
   };
@@ -210,7 +211,7 @@ const Fiscal = () => {
       setModalOpen(false);
       fetchData();
     } catch (err: any) {
-      console.error('[fiscal] cancelar rascunho:', err);
+      logger.error('[fiscal] cancelar rascunho:', err);
       toast.error("Erro ao cancelar rascunho.");
     }
   };
@@ -249,7 +250,7 @@ const Fiscal = () => {
       setModalOpen(false);
       fetchData();
     } catch (err: any) {
-      console.error('[fiscal] salvar e confirmar NF:', err);
+      logger.error('[fiscal] salvar e confirmar NF:', err);
       toast.error("Erro ao salvar e confirmar nota fiscal.");
     }
     setSaving(false);
@@ -289,7 +290,7 @@ const Fiscal = () => {
       if (unmatchedCount > 0) toast.warning(`${unmatchedCount} item(ns) não foram vinculados automaticamente. Vincule manualmente.`);
       else toast.success("XML importado com sucesso! Todos os itens foram vinculados.");
     } catch (err: any) {
-      console.error("[fiscal] XML import:", err);
+      logger.error("[fiscal] XML import:", err);
       toast.error(`Erro ao importar XML: ${err.message}`);
     }
     if (xmlInputRef.current) xmlInputRef.current.value = "";
@@ -335,7 +336,7 @@ const Fiscal = () => {
         if (itemsPayload.length > 0) await supabase.from("notas_fiscais_itens").insert(itemsPayload);
       }
       toast.success("Nota fiscal salva!"); setModalOpen(false); fetchData();
-    } catch (err: any) { console.error('[fiscal] salvar NF:', err); toast.error("Erro ao salvar nota fiscal."); }
+    } catch (err: any) { logger.error('[fiscal] salvar NF:', err); toast.error("Erro ao salvar nota fiscal."); }
     setSaving(false);
   };
 

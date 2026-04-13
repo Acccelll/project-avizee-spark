@@ -9,6 +9,7 @@ import {
 } from "@/lib/importacao/validators";
 import { FIELD_ALIASES } from "@/lib/importacao/aliases";
 import { ImportType, Mapping } from "./types";
+import { logger } from '@/utils/logger';
 
 export function useImportacaoCadastros() {
   const [file, setFile] = useState<File | null>(null);
@@ -192,13 +193,13 @@ export function useImportacaoCadastros() {
           const results = await Promise.all([
             toInsert.length > 0
               ? supabase.from("produtos").insert(toInsert).then(({ error }) => {
-                  if (error) { console.error("Erro ao inserir produtos:", error.message); return 0; }
+                  if (error) { logger.error("Erro ao inserir produtos:", error.message); return 0; }
                   return toInsert.length;
                 })
               : Promise.resolve(0),
             ...toUpdate.map(({ id, ...data }) =>
               supabase.from("produtos").update(data).eq("id", id).then(({ error }) => {
-                if (error) { console.error(`Erro ao atualizar produto ${id}:`, error.message); return 0; }
+                if (error) { logger.error(`Erro ao atualizar produto ${id}:`, error.message); return 0; }
                 return 1;
               })
             )
@@ -248,13 +249,13 @@ export function useImportacaoCadastros() {
           const results = await Promise.all([
             toInsert.length > 0
               ? supabase.from(targetTable).insert(toInsert).then(({ error }) => {
-                  if (error) { console.error(`Erro ao inserir ${targetTable}:`, error.message); return 0; }
+                  if (error) { logger.error(`Erro ao inserir ${targetTable}:`, error.message); return 0; }
                   return toInsert.length;
                 })
               : Promise.resolve(0),
             ...toUpdate.map(({ id, ...data }) =>
               supabase.from(targetTable).update(data).eq("id", id).then(({ error }) => {
-                if (error) { console.error(`Erro ao atualizar ${id}:`, error.message); return 0; }
+                if (error) { logger.error(`Erro ao atualizar ${id}:`, error.message); return 0; }
                 return 1;
               })
             )
@@ -277,7 +278,7 @@ export function useImportacaoCadastros() {
       return currentLoteId;
 
     } catch (error: any) {
-      console.error("Erro na importação:", error);
+      logger.error("Erro na importação:", error);
       toast.error(`Falha no processamento: ${error.message}`);
       setIsProcessing(false);
     }

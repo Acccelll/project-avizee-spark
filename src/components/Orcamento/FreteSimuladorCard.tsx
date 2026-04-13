@@ -33,6 +33,7 @@ import {
   type SimulacaoDimensoes,
   type FreteSelecaoPayload,
 } from '@/services/freteSimulacao.service';
+import { logger } from '@/utils/logger';
 
 // ---------------------------------------------------------------
 // Props
@@ -169,7 +170,7 @@ export function FreteSimuladorCard({
         if (selecionada?.id) setOpcaoSelecionadaId(selecionada.id);
       })
       .catch((err) => {
-        console.error('[FreteSimulador] falha ao carregar simulação salva:', err);
+        logger.error('[FreteSimulador] falha ao carregar simulação salva:', err);
         toast.warning('Não foi possível carregar a simulação de frete salva.');
       });
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -231,7 +232,7 @@ export function FreteSimuladorCard({
       setDesatualizado(false);
       return id;
     } catch (err) {
-      console.error('[FreteSimulador] garantirSimulacao:', err);
+      logger.error('[FreteSimulador] garantirSimulacao:', err);
       toast.error('Erro ao criar simulação de frete.');
       return null;
     }
@@ -288,7 +289,7 @@ export function FreteSimuladorCard({
       ]);
       toast.success(`${validas.length} opção(ões) dos Correios encontrada(s).`);
     } catch (err) {
-      console.error('[frete-correios]', err);
+      logger.error('[frete-correios]', err);
       toast.error('Erro ao consultar Correios: ' + (err instanceof Error ? err.message : 'Tente novamente'));
     } finally {
       setLoadingCorreios(false);
@@ -344,7 +345,7 @@ export function FreteSimuladorCard({
       setTranspForm((prev) => ({ ...prev, [vt.id]: { valor: '', prazo: '', servico: '', obs: '' } }));
       toast.success(`Proposta de ${nomeTransp} adicionada.`);
     } catch (err) {
-      console.error('[frete-transp]', err);
+      logger.error('[frete-transp]', err);
       toast.error('Erro ao salvar proposta.');
     } finally {
       setSalvandoOpcao(false);
@@ -395,7 +396,7 @@ export function FreteSimuladorCard({
       setManualForm({ servico: '', modalidade: '', prazo: '', valor: '', obs: '' });
       toast.success('Opção manual adicionada.');
     } catch (err) {
-      console.error('[frete-manual]', err);
+      logger.error('[frete-manual]', err);
       toast.error('Erro ao salvar frete manual.');
     } finally {
       setSalvandoOpcao(false);
@@ -458,7 +459,7 @@ export function FreteSimuladorCard({
       onSelect(payload);
       toast.success('Frete selecionado!');
     } catch (err) {
-      console.error('[frete-selecionar]', err);
+      logger.error('[frete-selecionar]', err);
       toast.error('Erro ao selecionar frete.');
     }
   };

@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { validateFaturamentoImport } from "@/lib/importacao/validators";
 import { FIELD_ALIASES } from "@/lib/importacao/aliases";
 import { Mapping } from "./types";
+import { logger } from '@/utils/logger';
 
 export interface GroupedNF {
   numero: string;
@@ -245,7 +246,7 @@ export function useImportacaoFaturamento() {
           .single();
 
         if (nfError) {
-          console.error(`Erro ao criar NF ${nf.numero}:`, nfError.message);
+          logger.error(`Erro ao criar NF ${nf.numero}:`, nfError.message);
           continue;
         }
 
@@ -275,7 +276,7 @@ export function useImportacaoFaturamento() {
             .insert(itensPayload);
 
           if (itensError) {
-            console.error(`Erro ao inserir itens da NF ${nf.numero}:`, itensError.message);
+            logger.error(`Erro ao inserir itens da NF ${nf.numero}:`, itensError.message);
           }
         }
 
@@ -294,7 +295,7 @@ export function useImportacaoFaturamento() {
       return currentLoteId;
 
     } catch (error: any) {
-      console.error("Erro na importação de faturamento:", error);
+      logger.error("Erro na importação de faturamento:", error);
       toast.error(`Falha no processamento: ${error.message}`);
     } finally {
       setIsProcessing(false);

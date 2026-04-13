@@ -34,6 +34,7 @@ import { SocialAlertasTab } from '@/components/social/SocialAlertasTab';
 import { SocialContaModal } from '@/components/social/SocialContaModal';
 import { calculateContentDistribution, calculatePercentGrowth, calculatePostingFrequency, calculateTrend } from '@/components/social/socialAnalytics';
 import type { SocialAlerta, SocialConta, SocialDashboardConsolidado, SocialPost, SocialPostType } from '@/types/social';
+import { logger } from '@/utils/logger';
 
 const defaultRange = getDefaultDateRange(30);
 
@@ -80,7 +81,7 @@ export default function Social() {
       setPosts(postsData);
       setAlertas(alertasData);
     } catch (error) {
-      console.error('[social] erro ao carregar', error);
+      logger.error('[social] erro ao carregar', error);
       toast.error('Não foi possível carregar o módulo Social.');
     } finally {
       setLoading(false);
@@ -113,7 +114,7 @@ export default function Social() {
       toast.success('Sincronização social executada com sucesso.');
       await loadData();
     } catch (error) {
-      console.error('[social] sync', error);
+      logger.error('[social] sync', error);
       toast.error('Falha na sincronização social.');
     }
   };
@@ -126,7 +127,7 @@ export default function Social() {
       await loadData();
     } catch (error) {
       toast.error('Não foi possível criar conta social.');
-      console.error(error);
+      logger.error(error);
     }
   };
 
@@ -138,7 +139,7 @@ export default function Social() {
       await loadData();
     } catch (error) {
       toast.error('Não foi possível desativar conta social.');
-      console.error(error);
+      logger.error(error);
     }
   };
 

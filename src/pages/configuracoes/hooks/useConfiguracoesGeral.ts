@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { fetchConfig, updateConfig } from '../services/configuracoes.service';
 import { mergeConfiguracoes, type ConfigGeral } from '@/utils/configuracoes';
 import { getUserFriendlyError } from '@/utils/errorMessages';
+import { logger } from '@/utils/logger';
 
 const defaultGeral: ConfigGeral = {
   nome_sistema: 'Avizee Spark',
@@ -37,7 +38,7 @@ export function useConfiguracoesGeral() {
       toast.success('Configurações gerais salvas com sucesso.');
     },
     onError: (err: Error) => {
-      console.error('[configuracoes] Erro ao salvar config geral:', err);
+      logger.error('[configuracoes] Erro ao salvar config geral:', err);
       toast.error(getUserFriendlyError(err));
     },
   });

@@ -25,6 +25,7 @@ import { Send } from "lucide-react";
 import { sendForApproval, approveOrcamento, convertToPedido } from "@/services/orcamentos.service";
 import { statusOrcamento } from "@/lib/statusSchema";
 import { getUserFriendlyError } from "@/utils/errorMessages";
+import { logger } from '@/utils/logger';
 
 interface Orcamento {
   id: string;
@@ -200,7 +201,7 @@ const Orcamentos = () => {
       fetchData();
       navigate(`/cotacoes/${newOrc.id}`);
     } catch (err: unknown) {
-      console.error('[orcamentos] duplicar:', err);
+      logger.error('[orcamentos] duplicar:', err);
       toast.error(getUserFriendlyError(err));
     }
   };

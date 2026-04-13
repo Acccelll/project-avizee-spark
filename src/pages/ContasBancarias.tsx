@@ -33,6 +33,7 @@ import {
   Wallet, Landmark, AlertTriangle, ShieldAlert,
   CheckCircle, Ban, Building2,
 } from "lucide-react";
+import { logger } from '@/utils/logger';
 
 interface Banco { id: string; nome: string; tipo: string; ativo: boolean; }
 interface ContaBancaria {
@@ -192,7 +193,7 @@ const ContasBancarias = () => {
       toast.success("Conta criada com sucesso!");
       setModalOpen(false);
       fetchData();
-    } catch (err: unknown) { console.error('[contas-bancarias]', err); toast.error("Erro ao salvar conta bancária."); }
+    } catch (err: unknown) { logger.error('[contas-bancarias]', err); toast.error("Erro ao salvar conta bancária."); }
     setSaving(false);
   };
 
@@ -212,7 +213,7 @@ const ContasBancarias = () => {
       toast.success("Conta bancária atualizada com sucesso!");
       setModalOpen(false);
       fetchData();
-    } catch (err: unknown) { console.error('[contas-bancarias]', err); toast.error("Erro ao salvar conta bancária."); }
+    } catch (err: unknown) { logger.error('[contas-bancarias]', err); toast.error("Erro ao salvar conta bancária."); }
     setSaving(false);
   };
 

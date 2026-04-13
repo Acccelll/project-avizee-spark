@@ -13,6 +13,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Edit, Trash2, User, Mail, Phone, MapPin, FileText, CreditCard, MessageSquare, Truck, BarChart3 } from "lucide-react";
 import { toast } from "sonner";
+import { logger } from '@/utils/logger';
 
 interface Props {
   id: string;
@@ -46,7 +47,7 @@ export function ClienteView({ id }: Props) {
       try {
         const { data: c, error: cError } = await supabase.from("clientes").select("*, grupos_economicos!clientes_grupo_economico_id_fkey(nome)").eq("id", id).maybeSingle();
         if (cError) {
-          console.error("[ClienteView] erro ao buscar cliente:", cError);
+          logger.error("[ClienteView] erro ao buscar cliente:", cError);
           setFetchError(`Erro ao carregar cliente: ${cError.message}`);
           setSelected(null);
           return;
@@ -86,7 +87,7 @@ export function ClienteView({ id }: Props) {
         setComunicacao(commRes.data || []);
         setTransportadoras(transRes.data || []);
       } catch (error) {
-        console.error("[ClienteView] erro inesperado:", error);
+        logger.error("[ClienteView] erro inesperado:", error);
         setFetchError(`Erro inesperado: ${error instanceof Error ? error.message : String(error)}`);
         setSelected(null);
       } finally {
@@ -336,7 +337,7 @@ export function ClienteView({ id }: Props) {
             toast.success("Cliente excluído com sucesso.");
             clearStack();
           } catch (err) {
-            console.error("[ClienteView] erro ao excluir:", err);
+            logger.error("[ClienteView] erro ao excluir:", err);
             toast.error("Erro ao excluir cliente.");
           } finally {
             setDeleteConfirmOpen(false);

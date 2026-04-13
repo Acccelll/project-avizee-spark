@@ -12,6 +12,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Truck, Mail, MapPin, ShoppingBag, CreditCard, Package, FileText, Edit, Trash2, Building2, Clock, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
+import { logger } from '@/utils/logger';
 
 interface Props {
   id: string;
@@ -40,7 +41,7 @@ export function FornecedorView({ id }: Props) {
       try {
         const { data: f, error: fError } = await supabase.from("fornecedores").select("*").eq("id", id).maybeSingle();
         if (fError) {
-          console.error("[FornecedorView] erro ao buscar fornecedor:", fError);
+          logger.error("[FornecedorView] erro ao buscar fornecedor:", fError);
           setFetchError(`Erro ao carregar fornecedor: ${fError.message}`);
           setLoading(false);
           return;
@@ -74,7 +75,7 @@ export function FornecedorView({ id }: Props) {
         setFinanceiro(fRes.data || []);
         setProdutos(pRes.data || []);
       } catch (error) {
-        console.error("[FornecedorView] erro inesperado:", error);
+        logger.error("[FornecedorView] erro inesperado:", error);
         setFetchError(`Erro inesperado: ${error instanceof Error ? error.message : String(error)}`);
       } finally {
         setLoading(false);
@@ -377,7 +378,7 @@ export function FornecedorView({ id }: Props) {
             toast.success("Fornecedor excluído com sucesso.");
             clearStack();
           } catch (err) {
-            console.error("[FornecedorView] erro ao excluir:", err);
+            logger.error("[FornecedorView] erro ao excluir:", err);
             toast.error("Erro ao excluir fornecedor.");
           } finally {
             setDeleteConfirmOpen(false);

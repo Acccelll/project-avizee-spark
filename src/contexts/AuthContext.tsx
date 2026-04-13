@@ -3,6 +3,7 @@ import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { buildPermissionSet, type ErpAction, type ErpResource, type PermissionKey, toPermissionKey } from "@/lib/permissions";
+import { logger } from '@/utils/logger';
 
 /** Roles recognised by the application. Aligns with the `app_role` enum in the database. */
 export type AppRole = "admin" | "vendedor" | "financeiro" | "estoquista";
@@ -58,7 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const safetyTimeout = setTimeout(() => {
       if (loading) {
-        console.warn("[auth] Auth initialization timed out. Forcing loading false.");
+        logger.warn("[auth] Auth initialization timed out. Forcing loading false.");
         setLoading(false);
       }
     }, 5000);

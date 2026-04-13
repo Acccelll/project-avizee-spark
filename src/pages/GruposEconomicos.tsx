@@ -23,6 +23,7 @@ import { StatCard } from "@/components/StatCard";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { toast } from "sonner";
+import { logger } from '@/utils/logger';
 
 interface GrupoEconomico {
   id: string;
@@ -113,7 +114,7 @@ const GruposEconomicos = () => {
       .eq("ativo", true)
       .not("grupo_economico_id", "is", null)
       .then(({ data: clientes, error }) => {
-        if (error) { console.error("[grupos-economicos] erro ao carregar contagem de clientes:", error); return; }
+        if (error) { logger.error("[grupos-economicos] erro ao carregar contagem de clientes:", error); return; }
         const counts: Record<string, number> = {};
         for (const c of (clientes || []) as { grupo_economico_id: string; id: string }[]) {
           counts[c.grupo_economico_id] = (counts[c.grupo_economico_id] || 0) + 1;
@@ -135,7 +136,7 @@ const GruposEconomicos = () => {
       .select("id, nome_razao_social")
       .in("id", matrizIds)
       .then(({ data: clientes, error }) => {
-        if (error) { console.error("[grupos-economicos] erro ao carregar nomes de matriz:", error); return; }
+        if (error) { logger.error("[grupos-economicos] erro ao carregar nomes de matriz:", error); return; }
         const map: Record<string, string> = {};
         for (const c of (clientes || []) as { id: string; nome_razao_social: string }[]) {
           map[c.id] = c.nome_razao_social;
@@ -327,7 +328,7 @@ const GruposEconomicos = () => {
       else if (selected) await update(selected.id, payload);
       setModalOpen(false);
     } catch (err) {
-      console.error("[grupos-economicos] erro ao salvar:", err);
+      logger.error("[grupos-economicos] erro ao salvar:", err);
       toast.error("Erro ao salvar grupo econômico");
     }
     setSaving(false);
@@ -341,7 +342,7 @@ const GruposEconomicos = () => {
       setDeleteConfirmOpen(false);
       setDrawerOpen(false);
     } catch (err) {
-      console.error("[grupos-economicos] erro ao excluir:", err);
+      logger.error("[grupos-economicos] erro ao excluir:", err);
       toast.error("Erro ao excluir grupo econômico");
     }
     setDeleting(false);
