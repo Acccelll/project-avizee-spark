@@ -87,7 +87,6 @@ type SortDirection = 'asc' | 'desc' | null;
 
 const getStorageKey = (moduleKey: string, suffix: string) => `datatable:${moduleKey}:${suffix}`;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function DataTable<T extends Record<string, unknown>>({
   columns,
   data,
@@ -196,7 +195,7 @@ export function DataTable<T extends Record<string, unknown>>({
     });
   };
 
-  const applyRule = (item: T, rule: FilterRule) => {
+  const applyRule = useCallback((item: T, rule: FilterRule) => {
     const raw = item[rule.field];
     if (raw === undefined || raw === null) return false;
     const text = String(raw).toLowerCase();
@@ -206,12 +205,12 @@ export function DataTable<T extends Record<string, unknown>>({
     if (rule.operator === 'gt') return Number(raw) > Number(rule.value);
     if (rule.operator === 'between') return Number(raw) >= Number(rule.value) && Number(raw) <= Number(rule.valueTo || rule.value);
     return true;
-  };
+  }, []);
 
   const filteredData = useMemo(() => {
     if (!rules.length) return data;
     return data.filter((item) => rules.every((rule) => applyRule(item, rule)));
-  }, [data, rules]);
+  }, [data, rules, applyRule]);
 
   const handleSort = (key: string) => {
     if (sortKey === key) {

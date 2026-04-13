@@ -212,7 +212,7 @@ const Financeiro = () => {
 
   const hoje = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }, []);
 
-  const getLancamentoStatus = (l: Lancamento) => getEffectiveStatus(l.status, l.data_vencimento, hoje);
+  const getLancamentoStatus = useCallback((l: Lancamento) => getEffectiveStatus(l.status, l.data_vencimento, hoje), [hoje]);
 
   const filteredData = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
@@ -236,7 +236,7 @@ const Financeiro = () => {
       }
       return true;
     });
-  }, [data, statusFilters, tipoFilters, bancoFilters, searchTerm, hoje, period]);
+  }, [data, statusFilters, tipoFilters, bancoFilters, searchTerm, period, getLancamentoStatus]);
 
   const hojeStr = useMemo(() => hoje.toISOString().split("T")[0], [hoje]);
 
@@ -256,7 +256,7 @@ const Financeiro = () => {
       }
     });
     return { aVencer, venceHoje, vencido, pagoNoPeriodo, parcialCount, totalAVencer, totalVencido, totalPago, totalParcial };
-  }, [filteredData, hoje, hojeStr]);
+  }, [filteredData, hojeStr, getLancamentoStatus]);
 
   const handleEstorno = async () => {
     if (!estornoTarget) return;

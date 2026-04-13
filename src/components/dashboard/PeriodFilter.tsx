@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components -- file exports context/variants alongside components */
 import { Button } from '@/components/ui/button';
 import { Calendar } from 'lucide-react';
 import { cn } from '@/lib/utils';

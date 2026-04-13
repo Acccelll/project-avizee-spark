@@ -137,7 +137,6 @@ export interface RelatorioResultado<T = Record<string, unknown>> {
   _isDreReport?: boolean;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Supabase query builder uses 'any' internally
 function withDateRange<Q extends { gte: (col: string, val: string) => Q; lte: (col: string, val: string) => Q }>(
   query: Q,
   column: string,
@@ -1047,7 +1046,6 @@ export async function exportarXlsx(title: string, rows: Record<string, unknown>[
     })
   );
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await writeXlsxFile([headerRow, ...dataRows] as Parameters<typeof writeXlsxFile>[0], { fileName: `${title}.xlsx` });
 }
 

@@ -100,11 +100,11 @@ export function AppSidebar({ collapsed, onToggleCollapsed, mobileOpen, onCloseMo
       });
   }, [isAdmin, socialPermissions.canViewModule, can, roles, permissionsLoaded]);
 
-  const isItemActive = (targetPath: string) => {
+  const isItemActive = useCallback((targetPath: string) => {
     const [targetBase, targetQuery] = targetPath.split('?');
     if (targetQuery) return currentRoute === targetPath;
     return location.pathname === targetBase || location.pathname.startsWith(`${targetBase}/`);
-  };
+  }, [currentRoute, location.pathname]);
 
   const [manualSections, setManualSections] = useState<Record<string, boolean>>({});
 
@@ -120,7 +120,6 @@ export function AppSidebar({ collapsed, onToggleCollapsed, mobileOpen, onCloseMo
     info: 'bg-primary text-primary-foreground',
   };
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   const activeSectionKeys = useMemo(
     () =>
       visibleSections
@@ -132,7 +131,7 @@ export function AppSidebar({ collapsed, onToggleCollapsed, mobileOpen, onCloseMo
           return section.items.some((group) => group.items.some((item) => isItemActive(item.path)));
         })
         .map((section) => section.key),
-    [currentRoute, visibleSections],
+    [location.pathname, visibleSections, isItemActive],
   );
 
   const favoritedItems = useMemo(

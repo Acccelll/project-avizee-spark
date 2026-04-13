@@ -62,6 +62,7 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
         setBaixas((data as Baixa[]) || []);
         setLoadingBaixas(false);
       });
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- selected?.id is sufficient; including selected would cause loops
   }, [open, selected?.id]);
 
   const hoje = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }, []);

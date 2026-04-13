@@ -80,7 +80,8 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
       setObservacoes("");
       loadBaixas(lancamento.id);
     }
-  }, [open, lancamento?.id]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- lancamento?.id covers the object change; adding lancamento would cause reference instability
+  }, [open, lancamento?.id, saldoAtual]);
 
   const loadBaixas = async (lancamentoId: string) => {
     setLoadingBaixas(true);
@@ -89,7 +90,6 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
       .select("*")
       .eq("lancamento_id", lancamentoId)
       .order("data_baixa", { ascending: false });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     setBaixasAnteriores((data ?? []) as Baixa[]);
     setLoadingBaixas(false);
   };

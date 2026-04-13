@@ -88,7 +88,7 @@ export default function ConfiguracaoFiscal() {
       }
       setLoading(false);
     })();
-  }, []);
+  }, [form]);
 
   async function handleSalvar(values: FormData) {
     setSaving(true);

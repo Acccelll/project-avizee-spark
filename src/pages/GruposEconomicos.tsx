@@ -121,7 +121,6 @@ const GruposEconomicos = () => {
         }
         setClienteCountMap(counts);
       });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dataIdsKey]);
 
   // Build a lookup of empresa_matriz_id -> nome_razao_social when the set of matriz IDs changes

@@ -306,7 +306,7 @@ export default function OrcamentoForm() {
       }
     };
     loadData();
-  }, [id, isEdit]);
+  }, [id, isEdit, reset, setValue]);
 
   const handleClienteChange = useCallback((cId: string) => {
     setValue('clienteId', cId);

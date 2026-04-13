@@ -313,7 +313,6 @@ export default function Conciliacao() {
       // TODO: replace with a conciliacao.service.ts call when the table is ready.
       // Example: await confirmarConciliacao(payload);
       // The payload is fully structured and validated, ready to plug into a service.
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const _payload = payload;
 
       const total = extratoItems.length;

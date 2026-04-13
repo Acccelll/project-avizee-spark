@@ -58,6 +58,9 @@ const modeloLabels: Record<string, string> = {
   '55': 'NF-e', '65': 'NFC-e', '57': 'CT-e', '67': 'CT-e OS', 'nfse': 'NFS-e', 'outro': 'Outro'
 };
 
+const origemLabels: Record<string, string> = { manual: "Manual", pedido: "Pedido", importacao_xml: "Importação XML" };
+const statusSefazLabels: Record<string, string> = { nao_enviada: "Não Enviada", pendente_envio: "Pendente Envio", em_processamento: "Em Processamento", autorizada: "Autorizada", rejeitada: "Rejeitada", cancelada_sefaz: "Cancelada SEFAZ", inutilizada: "Inutilizada", importada_externa: "Importada Externa" };
+
 const Fiscal = () => {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const { data, loading, create, update, remove, fetchData } = useSupabaseCrud<NotaFiscal>({
@@ -363,9 +366,6 @@ const Fiscal = () => {
       return haystack.includes(query);
     });
   }, [consultaSearch, data, tipoParam, modeloFilters, statusFilters, tipoFilters, origemFilters, statusSefazFilters]);
-
-  const origemLabels: Record<string, string> = { manual: "Manual", pedido: "Pedido", importacao_xml: "Importação XML" };
-  const statusSefazLabels: Record<string, string> = { nao_enviada: "Não Enviada", pendente_envio: "Pendente Envio", em_processamento: "Em Processamento", autorizada: "Autorizada", rejeitada: "Rejeitada", cancelada_sefaz: "Cancelada SEFAZ", inutilizada: "Inutilizada", importada_externa: "Importada Externa" };
 
   const fiscalActiveFilters = useMemo(() => {
     const chips: FilterChip[] = [];

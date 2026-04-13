@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,7 +33,7 @@ export function PrecosEspeciaisTab({ clienteId, produtoId }: Props) {
     observacao: "",
   });
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     let query = supabase.from("precos_especiais").select("*, clientes(nome_razao_social), produtos(nome, sku, preco_venda)").eq("ativo", true);
     if (clienteId) query = query.eq("cliente_id", clienteId);
@@ -42,7 +42,7 @@ export function PrecosEspeciaisTab({ clienteId, produtoId }: Props) {
     const { data } = await query.order("created_at", { ascending: false });
     setItems(data || []);
     setLoading(false);
-  };
+  }, [clienteId, produtoId]);
 
   useEffect(() => {
     fetchData();
@@ -52,7 +52,7 @@ export function PrecosEspeciaisTab({ clienteId, produtoId }: Props) {
     if (!produtoId) {
       supabase.from("produtos").select("id, nome, sku").eq("ativo", true).then(({ data }) => setProdutos(data || []));
     }
-  }, [clienteId, produtoId]);
+  }, [clienteId, produtoId, fetchData]);
 
   const handleSave = async () => {
     if (!form.cliente_id || !form.produto_id || !form.preco_especial) {

@@ -164,6 +164,7 @@ export function ContaContabilEditModal({
       });
       setLoadingVinculos(false);
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- conta?.id is sufficient
   }, [open, conta?.id]);
 
   // Check code uniqueness on blur

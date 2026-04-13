@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components -- file exports context/variants alongside components */
 import { createContext, useContext, useCallback, useEffect, useMemo, useReducer, useRef, ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
 import { logger } from '@/utils/logger';

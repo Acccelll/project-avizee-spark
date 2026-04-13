@@ -35,29 +35,6 @@ export function useImportacaoFaturamento() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [loteId, setLoteId] = useState<string | null>(null);
 
-  const onFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (!selectedFile) return;
-
-    setFile(selectedFile);
-    const reader = new FileReader();
-    reader.onload = async (evt) => {
-      const bstr = evt.target?.result;
-      try {
-        const wb = XLSX.read(bstr, { type: "binary" });
-        await XLSX.ensureLoaded(wb);
-        setWorkbook(wb);
-        setSheets(wb.SheetNames);
-        if (wb.SheetNames.length > 0) {
-          onSheetChange(wb.SheetNames[0], wb);
-        }
-      } catch (err: unknown) {
-        toast.error(`Erro ao ler arquivo: ${err.message}`);
-      }
-    };
-    reader.readAsBinaryString(selectedFile);
-  }, []);
-
   const onSheetChange = useCallback((sheetName: string, wb: XLSX.WorkBook | null = null) => {
     const activeWb = wb || workbook;
     if (!activeWb) return;
@@ -80,6 +57,29 @@ export function useImportacaoFaturamento() {
       setMapping(initialMapping);
     }
   }, [workbook]);
+
+  const onFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (!selectedFile) return;
+
+    setFile(selectedFile);
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      const bstr = evt.target?.result;
+      try {
+        const wb = XLSX.read(bstr, { type: "binary" });
+        await XLSX.ensureLoaded(wb);
+        setWorkbook(wb);
+        setSheets(wb.SheetNames);
+        if (wb.SheetNames.length > 0) {
+          onSheetChange(wb.SheetNames[0], wb);
+        }
+      } catch (err: unknown) {
+        toast.error(`Erro ao ler arquivo: ${err.message}`);
+      }
+    };
+    reader.readAsBinaryString(selectedFile);
+  }, [onSheetChange]);
 
   const generatePreview = useCallback(async () => {
     if (rawRows.length === 0) return;

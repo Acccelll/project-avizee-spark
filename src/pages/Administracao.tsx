@@ -196,6 +196,7 @@ export default function Administracao() {
   useEffect(() => {
     const tab = searchParams.get('tab');
     if (tab && tab !== activeSection) setActiveSection(tab);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only run when searchParams change, not when activeSection changes
   }, [searchParams]);
 
   // ── Load config ──
