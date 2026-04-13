@@ -11,7 +11,7 @@ import { ViewDrawerV2, ViewField, ViewSection } from "@/components/ViewDrawerV2"
 import { RelationalLink } from "@/components/ui/RelationalLink";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
-import { Edit, Trash2, Search, Building2, MapPin, Package, Truck, Star, AlertTriangle, Phone, FileText, Loader2, Users, UserCheck, UserX } from "lucide-react";
+import { Edit, Trash2, Search, Building2, MapPin, Package, Truck, Star, AlertTriangle, Phone, FileText, Loader2, Users, UserCheck, UserX, Plus } from "lucide-react";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { useCnpjLookup } from "@/hooks/useCnpjLookup";
@@ -59,6 +59,7 @@ type TransportadoraFormData = Omit<Transportadora, "id" | "ativo" | "created_at"
 
 interface ClienteVinculado {
   id: string;
+  cliente_id: string;
   prioridade: number | null;
   modalidade: string | null;
   prazo_medio: string | null;
@@ -122,6 +123,11 @@ export default function Transportadoras() {
   const [modalCliCount, setModalCliCount] = useState(0);
   const [modalRemCount, setModalRemCount] = useState(0);
   const [loadingModalCtx, setLoadingModalCtx] = useState(false);
+  const [clientesList, setClientesList] = useState<{id: string; nome_razao_social: string}[]>([]);
+  const [editClientesVinculados, setEditClientesVinculados] = useState<ClienteVinculado[]>([]);
+  const [loadingEditClientes, setLoadingEditClientes] = useState(false);
+  const [vinculoClienteId, setVinculoClienteId] = useState("");
+  const [savingVinculoCliente, setSavingVinculoCliente] = useState(false);
 
   const loadModalContext = async (transportadoraId: string) => {
     setLoadingModalCtx(true);
@@ -138,6 +144,62 @@ export default function Transportadoras() {
       console.error("[transportadoras] erro ao carregar contexto do modal:", err);
     } finally {
       setLoadingModalCtx(false);
+    }
+  };
+
+  useEffect(() => {
+    supabase.from("clientes").select("id, nome_razao_social").eq("ativo", true).order("nome_razao_social")
+      .then(({ data }) => setClientesList(data || []));
+  }, []);
+
+  const loadEditClientes = async (transportadoraId: string) => {
+    setLoadingEditClientes(true);
+    try {
+      const { data, error } = await supabase
+        .from("cliente_transportadoras")
+        .select("id, cliente_id, prioridade, modalidade, prazo_medio, clientes(nome_razao_social, cpf_cnpj)")
+        .eq("transportadora_id", transportadoraId)
+        .eq("ativo", true)
+        .order("prioridade");
+      if (error) throw error;
+      setEditClientesVinculados((data || []) as ClienteVinculado[]);
+    } catch (err) {
+      console.error("[transportadoras] erro ao carregar clientes vinculados:", err);
+    } finally {
+      setLoadingEditClientes(false);
+    }
+  };
+
+  const handleVincularCliente = async (transportadoraId: string) => {
+    if (!vinculoClienteId) { toast.error("Selecione um cliente"); return; }
+    const already = editClientesVinculados.some(cv => cv.cliente_id === vinculoClienteId);
+    if (already) { toast.error("Cliente já vinculado a esta transportadora"); return; }
+    setSavingVinculoCliente(true);
+    try {
+      const { error } = await supabase.from("cliente_transportadoras").insert({
+        cliente_id: vinculoClienteId, transportadora_id: transportadoraId,
+        prioridade: editClientesVinculados.length + 1, ativo: true,
+      });
+      if (error) throw error;
+      setVinculoClienteId("");
+      await loadEditClientes(transportadoraId);
+      toast.success("Cliente vinculado");
+    } catch (err) {
+      console.error("[transportadoras] erro ao vincular cliente:", err);
+      toast.error("Erro ao vincular cliente");
+    }
+    setSavingVinculoCliente(false);
+  };
+
+  const handleDesvincularCliente = async (vinculoId: string, transportadoraId: string) => {
+    try {
+      const { error } = await supabase.from("cliente_transportadoras").update({ ativo: false }).eq("id", vinculoId);
+      if (error) throw error;
+      await loadEditClientes(transportadoraId);
+      toast.success("Vínculo removido");
+    } catch (err) {
+      console.error("[transportadoras] erro ao remover vínculo:", err);
+      toast.error("Erro ao remover vínculo");
     }
   };
 
@@ -174,7 +236,9 @@ export default function Transportadoras() {
     });
     setFormAtivo(t.ativo ?? true);
     setModalCliCount(0); setModalRemCount(0);
-    loadModalContext(t.id);
+    setEditClientesVinculados([]);
+    setVinculoClienteId("");
+    Promise.all([loadModalContext(t.id), loadEditClientes(t.id)]);
     setModalOpen(true);
   };
   const openView = (t: Transportadora) => {
@@ -405,6 +469,12 @@ export default function Transportadoras() {
               <TabsTrigger value="contatos" className="gap-1.5"><Phone className="h-3.5 w-3.5" />Contatos</TabsTrigger>
               <TabsTrigger value="operacional" className="gap-1.5"><Truck className="h-3.5 w-3.5" />Operacional</TabsTrigger>
               <TabsTrigger value="endereco" className="gap-1.5"><MapPin className="h-3.5 w-3.5" />Endereço</TabsTrigger>
+              {mode === "edit" && (
+                <TabsTrigger value="clientes-vinculados" className="gap-1.5">
+                  <Users className="h-3.5 w-3.5" />Clientes
+                  {editClientesVinculados.length > 0 && <span className="ml-1 text-[10px] bg-primary/10 text-primary rounded-full px-1.5">{editClientesVinculados.length}</span>}
+                </TabsTrigger>
+              )}
               <TabsTrigger value="observacoes" className="gap-1.5"><FileText className="h-3.5 w-3.5" />Obs.</TabsTrigger>
             </TabsList>
 
@@ -567,6 +637,78 @@ export default function Transportadoras() {
             </div>
           </div>
             </TabsContent>
+
+            {/* ── TAB: CLIENTES VINCULADOS ────────────────── */}
+            {mode === "edit" && (
+            <TabsContent value="clientes-vinculados" className="space-y-4 mt-0">
+          <div className="flex items-center justify-between pb-2">
+            <div className="flex items-center gap-2">
+              <Users className="w-4 h-4 text-primary/70" />
+              <h3 className="font-semibold text-sm">Clientes Vinculados</h3>
+              {editClientesVinculados.length > 0 && (
+                <Badge variant="secondary" className="text-xs">{editClientesVinculados.length}</Badge>
+              )}
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground mb-2">
+            Vincule clientes a esta transportadora para facilitar o uso nos processos logísticos.
+          </p>
+          {/* Adicionar vínculo */}
+          <div className="flex gap-2 mb-3">
+            <Select value={vinculoClienteId} onValueChange={setVinculoClienteId}>
+              <SelectTrigger className="flex-1 h-9"><SelectValue placeholder="Selecionar cliente..." /></SelectTrigger>
+              <SelectContent>
+                {clientesList
+                   .filter(cl => !editClientesVinculados.some(cv => cv.cliente_id === cl.id))
+                  .map(cl => <SelectItem key={cl.id} value={cl.id}>{cl.nome_razao_social}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Button
+              type="button" size="sm"
+              disabled={!vinculoClienteId || savingVinculoCliente}
+              onClick={() => selected && handleVincularCliente(selected.id)}
+              className="gap-1 h-9"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Vincular
+            </Button>
+          </div>
+          {loadingEditClientes ? (
+            <div className="h-16 bg-muted/30 rounded-lg animate-pulse" />
+          ) : editClientesVinculados.length === 0 ? (
+            <div className="flex items-start gap-2 bg-muted/30 rounded-lg px-3 py-3 border border-dashed text-xs text-muted-foreground">
+              <Users className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+              <span>Nenhum cliente vinculado. Use o seletor acima para vincular clientes a esta transportadora.</span>
+            </div>
+          ) : (
+            <div className="space-y-0.5">
+              {editClientesVinculados.map((cv) => (
+                <div key={cv.id} className="flex items-center justify-between py-1.5 px-2 rounded-md hover:bg-muted/30 transition-colors border-b last:border-b-0 group">
+                  <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                    {cv.prioridade === 1 && <Star className="h-3 w-3 text-amber-500 shrink-0" />}
+                    <div>
+                      <span className="text-xs font-medium text-foreground">{cv.clientes?.nome_razao_social}</span>
+                      {cv.clientes?.cpf_cnpj && <span className="ml-1.5 text-[10px] text-muted-foreground font-mono">{cv.clientes.cpf_cnpj}</span>}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {cv.modalidade && <span className="text-xs text-muted-foreground capitalize">{cv.modalidade}</span>}
+                    {cv.prazo_medio && <span className="text-xs text-muted-foreground font-mono">{cv.prazo_medio}d</span>}
+                    <Button
+                      type="button" size="icon" variant="ghost"
+                      className="h-6 w-6 text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                      aria-label="Remover vínculo"
+                      onClick={() => selected && handleDesvincularCliente(cv.id, selected.id)}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+            </TabsContent>
+            )}
 
             {/* ── TAB: OBSERVAÇÕES ──────────────────────────── */}
             <TabsContent value="observacoes" className="space-y-4 mt-0">

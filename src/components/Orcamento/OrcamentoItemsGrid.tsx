@@ -67,14 +67,21 @@ export function OrcamentoItemsGrid({ items, onChange, produtos, precosEspeciais 
 
   const addItem = () => onChange([...items, emptyItem()]);
 
-  const getProductOptions = () => produtos.map((p) => ({
-    id: p.id,
-    label: p.nome,
-    sublabel: `${p.sku || p.codigo_interno || ""} · ${formatCurrency(p.preco_venda || 0)}`,
-    rightMeta: `Estoque: ${p.estoque_atual ?? 0}`,
-    imageUrl: null,
-    searchTerms: [p.sku, p.codigo_interno, p.nome].filter(Boolean) as string[],
-  }));
+  const getProductOptions = () => produtos.map((p) => {
+    const codePart = [p.sku, p.codigo_interno].filter(Boolean).join(" / ") || "—";
+    const variacoesArr = Array.isArray(p.variacoes) ? p.variacoes as string[] : [];
+    const variacaoStr = variacoesArr.length > 0 ? `· ${variacoesArr.slice(0, 3).join(", ")}${variacoesArr.length > 3 ? "…" : ""}` : "";
+    const unidade = p.unidade_medida || "UN";
+    return {
+      id: p.id,
+      label: p.nome,
+      sublabel: `${codePart} · ${unidade} · ${formatCurrency(p.preco_venda || 0)}${variacaoStr}`,
+      metaLine: `Estoque: ${p.estoque_atual ?? 0} ${unidade}${(p.estoque_atual ?? 0) <= (p.estoque_minimo ?? 0) ? " ⚠" : ""}`,
+      rightMeta: undefined,
+      imageUrl: null,
+      searchTerms: [p.sku, p.codigo_interno, p.nome, ...(variacoesArr)].filter(Boolean) as string[],
+    };
+  });
 
   const removeItem = (idx: number) => onChange(items.filter((_, i) => i !== idx));
   const duplicateItem = (idx: number) => {
@@ -243,7 +250,7 @@ export function OrcamentoItemsGrid({ items, onChange, produtos, precosEspeciais 
           <Button size="sm" onClick={addItem} className="gap-1.5"><Plus className="w-4 h-4" />Adicionar Item</Button>
         </div>
       </div>
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto min-h-[240px]">
         <table className="w-full min-w-[1150px]">
           <thead>
             <tr className="bg-accent/50 border-b">
@@ -277,7 +284,7 @@ export function OrcamentoItemsGrid({ items, onChange, produtos, precosEspeciais 
                   <td className="px-3 py-2"><Input className="h-8 text-xs font-mono" value={item.codigo_snapshot} onChange={(e) => updateItem(idx, "codigo_snapshot", e.target.value)} /></td>
                   <td className="px-3 py-2">
                     <div className="flex gap-1 items-center">
-                      <AutocompleteSearch options={getProductOptions()} value={item.produto_id} onChange={(val) => updateItem(idx, "produto_id", val)} placeholder="Buscar produto..." className="flex-1" onCreateNew={() => window.open('/produtos', '_blank')} createNewLabel="Produto não encontrado? Cadastrar" />
+                      <AutocompleteSearch options={getProductOptions()} value={item.produto_id} onChange={(val) => updateItem(idx, "produto_id", val)} placeholder="Buscar produto..." className="flex-1" onCreateNew={() => window.open('/produtos', '_blank')} createNewLabel="Produto não encontrado? Cadastrar" dropdownMinWidth="min-w-[420px]" />
                       <ProductSelector produtos={produtos} onSelect={(p) => updateItem(idx, "produto_id", p.id)} trigger={<Button variant="outline" size="icon" className="h-8 w-8"><Search className="h-3 w-3" /></Button>} />
                       {item.produto_id && <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setDetailProductId(item.produto_id)}><Info className="h-3 w-3" /></Button>}
                     </div>

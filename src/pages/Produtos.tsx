@@ -20,7 +20,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Trash2, Package, FileText, TrendingUp, Archive, ShoppingCart, AlertCircle, CheckCircle2, AlignLeft } from "lucide-react";
+import { Plus, Trash2, Package, FileText, TrendingUp, Archive, ShoppingCart, AlertCircle, CheckCircle2, AlignLeft, Tag } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { FiscalAutocomplete } from "@/components/ui/FiscalAutocomplete";
 import { cfopCodes, cstIcmsCodes } from "@/lib/fiscalData";
@@ -34,9 +34,10 @@ interface Produto {
   grupo_id: string;unidade_medida: string;preco_custo: number;preco_venda: number;
   estoque_atual: number;estoque_minimo: number;ncm: string;cst: string;cfop_padrao: string;
   peso: number;eh_composto: boolean;ativo: boolean;created_at: string;updated_at?: string;tipo_item: TipoItem;
+  variacoes?: string[] | null;
 }
 
-type ProdutoFormData = Omit<Produto, "id" | "estoque_atual" | "ativo" | "created_at" | "updated_at"> & { id?: string };
+type ProdutoFormData = Omit<Produto, "id" | "estoque_atual" | "ativo" | "created_at" | "updated_at"> & { id?: string; variacoes_texto: string };
 
 interface ComposicaoItem {
   id?: string;
@@ -59,6 +60,13 @@ interface FornecedorLink {
   preco_compra: number;
 }
 
+interface UnidadeMedidaOption {
+  id: string;
+  codigo: string;
+  descricao: string;
+  sigla: string | null;
+}
+
 type SituacaoEstoque = "normal" | "atencao" | "critico" | "zerado";
 
 function getSituacaoEstoque(p: { estoque_atual?: number | null; estoque_minimo?: number | null }): SituacaoEstoque {
@@ -77,10 +85,12 @@ const situacaoEstoqueConfig: Record<SituacaoEstoque, { label: string; statusBadg
   zerado:  { label: "Sem estoque",      statusBadge: "cancelado",   textClass: "text-destructive"  },
 };
 
+const UNIDADES_FALLBACK = ["UN", "KG", "MT", "CX", "PC", "LT", "G", "M2", "M3", "ML", "PR", "JG", "KIT", "SC", "RL"];
+
 const emptyProduto = {
   nome: "", sku: "", codigo_interno: "", descricao: "", unidade_medida: "UN" as string,
   preco_custo: 0, preco_venda: 0, estoque_minimo: 0, ncm: "", cst: "", cfop_padrao: "", peso: 0, eh_composto: false,
-  grupo_id: "", tipo_item: "produto" as TipoItem,
+  grupo_id: "", tipo_item: "produto" as TipoItem, variacoes_texto: "",
 };
 
 const Produtos = () => {
@@ -88,6 +98,7 @@ const Produtos = () => {
   const navigate = useNavigate();
   const { data, loading, create, update, remove, duplicate, fetchData } = useSupabaseCrud<Produto>({ table: "produtos" });
   const { pushView } = useRelationalNavigation();
+  const [unidadesMedida, setUnidadesMedida] = useState<UnidadeMedidaOption[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [mode, setMode] = useState<"create" | "edit">("create");
   const [form, setForm] = useState<ProdutoFormData>(emptyProduto);
@@ -110,9 +121,11 @@ const Produtos = () => {
     Promise.all([
       supabase.from("grupos_produto").select("id, nome").eq("ativo", true).order("nome"),
       supabase.from("fornecedores").select("id, nome_razao_social").eq("ativo", true).order("nome_razao_social"),
-    ]).then(([{ data: g }, { data: f }]) => {
+      supabase.from("unidades_medida").select("id, codigo, descricao, sigla").eq("ativo", true).order("codigo"),
+    ]).then(([{ data: g }, { data: f }, { data: um }]) => {
       if (g) setGrupos(g);
       if (f) setFornecedoresList(f);
+      if (um) setUnidadesMedida(um as UnidadeMedidaOption[]);
     });
   }, []);
 
@@ -149,6 +162,7 @@ const Produtos = () => {
   const openEdit = async (p: Produto) => {
     setMode("edit");
     setEditingProduct(p);
+    const variacoesArr = Array.isArray(p.variacoes) ? p.variacoes as string[] : [];
     setForm({
       id: p.id,
       nome: p.nome, sku: p.sku || "", codigo_interno: p.codigo_interno || "", descricao: p.descricao || "",
@@ -156,7 +170,8 @@ const Produtos = () => {
       estoque_minimo: p.estoque_minimo || 0, ncm: (p.ncm || "").replace(/\D/g, ''), cst: p.cst || "", cfop_padrao: p.cfop_padrao || "",
       peso: p.peso || 0, eh_composto: p.eh_composto || false,
       grupo_id: p.grupo_id || "",
-      tipo_item: p.tipo_item || "produto"
+      tipo_item: p.tipo_item || "produto",
+      variacoes_texto: variacoesArr.join(", "),
     });
     const [compRes, fornRes] = await Promise.all([
       p.eh_composto
@@ -214,7 +229,11 @@ const Produtos = () => {
     if (fornDups.length !== new Set(fornDups).size) {toast.error("Fornecedor duplicado: o mesmo fornecedor não pode ser vinculado duas vezes");return;}
     setSaving(true);
     try {
-      const payload = { ...form, preco_custo: form.eh_composto ? custoComposto : form.preco_custo };
+      const variacoesArr = form.variacoes_texto
+        ? form.variacoes_texto.split(",").map(v => v.trim()).filter(Boolean)
+        : null;
+      const { variacoes_texto: _vt, ...rest } = form;
+      const payload = { ...rest, variacoes: variacoesArr, preco_custo: form.eh_composto ? custoComposto : form.preco_custo };
       let produtoId: string;
       if (mode === "create") {
         const result = await create(payload);
@@ -675,9 +694,16 @@ const Produtos = () => {
                 <Select value={form.unidade_medida} onValueChange={(v) => setForm({ ...form, unidade_medida: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="UN">UN</SelectItem><SelectItem value="KG">KG</SelectItem>
-                    <SelectItem value="MT">MT</SelectItem><SelectItem value="CX">CX</SelectItem>
-                    <SelectItem value="PC">PC</SelectItem><SelectItem value="LT">LT</SelectItem>
+                    {unidadesMedida.length > 0
+                      ? unidadesMedida.map((u) => (
+                          <SelectItem key={u.codigo} value={u.codigo}>
+                            {u.codigo}{u.descricao !== u.codigo ? ` — ${u.descricao}` : ""}
+                          </SelectItem>
+                        ))
+                      : UNIDADES_FALLBACK.map((u) => (
+                          <SelectItem key={u} value={u}>{u}</SelectItem>
+                        ))
+                    }
                   </SelectContent>
                 </Select>
               </div>
@@ -750,6 +776,33 @@ const Produtos = () => {
                   {custoParaCalculo > 0 ? `${margemPercent.toFixed(1)}%` : "—"}
                 </div>
               </div>
+            </div>
+          </div>
+
+          {/* ── Variações ──────────────────────────── */}
+          <div className="space-y-3 border-t pt-3">
+            <h3 className="font-semibold text-sm flex items-center gap-2">
+              <Tag className="w-4 h-4" /> Variações Comerciais
+            </h3>
+            <div className="space-y-2">
+              <Input
+                value={form.variacoes_texto}
+                onChange={(e) => setForm({ ...form, variacoes_texto: e.target.value })}
+                placeholder="Ex: Azul, Vermelho, Verde, P, M, G"
+              />
+              <p className="text-xs text-muted-foreground">
+                Separe as variações por vírgula. Exemplo: <em>Azul, Vermelho, 100ml, 200ml</em>.
+                As variações ficam disponíveis para uso no orçamento.
+              </p>
+              {form.variacoes_texto && (
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {form.variacoes_texto.split(",").map((v) => v.trim()).filter(Boolean).map((v, i) => (
+                    <span key={i} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-primary/10 text-primary border border-primary/20 font-medium">
+                      {v}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
             </TabsContent>
