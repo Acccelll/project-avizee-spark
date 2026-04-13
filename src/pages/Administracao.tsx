@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Building2, Calendar, CheckCircle2, Database, Globe, Image, Info, Loader2, Mail, MapPin, PenLine, Phone, Receipt, Reply, Send, Shield, Upload, User, Users, Wallet, XCircle } from 'lucide-react';
+import { Building2, Calendar, CheckCircle2, ChevronDown, ChevronRight, Database, Globe, Image, Info, Loader2, Mail, MapPin, PenLine, Phone, Receipt, Reply, Send, Shield, Upload, Users, Wallet, XCircle } from 'lucide-react';
 import { AppLayout } from '@/components/AppLayout';
 import { ModulePage } from '@/components/ModulePage';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database as SupabaseDatabase } from '@/integrations/supabase/types';
@@ -76,6 +77,12 @@ interface SideNavItem {
   icon: typeof Building2;
 }
 
+interface SideNavGroup {
+  key: string;
+  label: string;
+  items: SideNavItem[];
+}
+
 // Typed shapes for JSONB config values stored in app_configuracoes
 interface GeralConfigRaw {
   inscricaoMunicipal?: string;
@@ -113,16 +120,39 @@ interface UsuariosConfigRaw {
   [key: string]: unknown;
 }
 
-const sideNavItems: SideNavItem[] = [
-  { key: 'dashboard', label: 'Dashboard de Segurança', icon: Shield },
-  { key: 'empresa', label: 'Empresa', icon: Building2 },
-  { key: 'usuarios', label: 'Usuários e Permissões', icon: Users },
-  { key: 'permissoes', label: 'Matriz de Permissões', icon: User },
-  { key: 'email', label: 'E-mails', icon: Mail },
-  { key: 'fiscal', label: 'Parâmetros Fiscais', icon: Receipt },
-  { key: 'financeiro', label: 'Parâmetros Financeiros', icon: Wallet },
-  { key: 'migracao', label: 'Migração de Dados', icon: Database },
-  { key: 'auditoria', label: 'Auditoria', icon: Shield },
+const sideNavGroups: SideNavGroup[] = [
+  {
+    key: 'empresa',
+    label: 'Empresa',
+    items: [
+      { key: 'empresa', label: 'Dados da Empresa', icon: Building2 },
+    ],
+  },
+  {
+    key: 'acesso',
+    label: 'Acesso & Segurança',
+    items: [
+      { key: 'dashboard', label: 'Dashboard de Segurança', icon: Shield },
+      { key: 'usuarios', label: 'Usuários e Permissões', icon: Users },
+    ],
+  },
+  {
+    key: 'configuracoes',
+    label: 'Configurações',
+    items: [
+      { key: 'email', label: 'E-mails', icon: Mail },
+      { key: 'fiscal', label: 'Parâmetros Fiscais', icon: Receipt },
+      { key: 'financeiro', label: 'Parâmetros Financeiros', icon: Wallet },
+    ],
+  },
+  {
+    key: 'dados',
+    label: 'Dados & Auditoria',
+    items: [
+      { key: 'migracao', label: 'Migração de Dados', icon: Database },
+      { key: 'auditoria', label: 'Auditoria', icon: Shield },
+    ],
+  },
 ];
 
 export default function Administracao() {
@@ -132,6 +162,14 @@ export default function Administracao() {
   const initialTab = searchParams.get('tab') || 'empresa';
   const [config, setConfig] = useState(defaultConfig);
   const [activeSection, setActiveSection] = useState(initialTab);
+
+  // Grouped accordion nav – track which group is open
+  const getActiveGroupKey = (section: string) =>
+    sideNavGroups.find((g) => g.items.some((i) => i.key === section))?.key ?? 'empresa';
+
+  const [openGroupKey, setOpenGroupKey] = useState<string>(() => getActiveGroupKey(initialTab));
+
+  const toggleGroup = (key: string) => setOpenGroupKey((prev) => (prev === key ? '' : key));
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [empresaConfigId, setEmpresaConfigId] = useState<string | null>(null);
@@ -238,6 +276,7 @@ export default function Administracao() {
       return;
     }
     setActiveSection(key);
+    setOpenGroupKey(getActiveGroupKey(key));
     setSearchParams((current) => {
       const next = new URLSearchParams(current);
       next.set('tab', key);
@@ -1291,19 +1330,29 @@ export default function Administracao() {
         return renderEmpresa();
 
       case 'usuarios':
-        return <UsuariosTab />;
-
-      case 'permissoes':
         return (
-          <Card>
-            <CardHeader>
-              <CardTitle>Matriz de Permissões</CardTitle>
-              <CardDescription>Gerencie visualmente as permissões por perfil de acesso.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <PermissaoMatrix />
-            </CardContent>
-          </Card>
+          <div className="space-y-4">
+            <Tabs defaultValue="usuarios" className="w-full">
+              <TabsList className="mb-4">
+                <TabsTrigger value="usuarios" className="gap-1.5"><Users className="h-3.5 w-3.5" />Usuários</TabsTrigger>
+                <TabsTrigger value="permissoes" className="gap-1.5"><Shield className="h-3.5 w-3.5" />Matriz de Permissões</TabsTrigger>
+              </TabsList>
+              <TabsContent value="usuarios">
+                <UsuariosTab />
+              </TabsContent>
+              <TabsContent value="permissoes">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Matriz de Permissões</CardTitle>
+                    <CardDescription>Gerencie visualmente as permissões por perfil de acesso.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <PermissaoMatrix />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
+          </div>
         );
 
       case 'email':
@@ -1338,30 +1387,60 @@ export default function Administracao() {
     }
   };
 
-  const showSaveButton = activeSection !== 'auditoria' && activeSection !== 'usuarios' && activeSection !== 'migracao' && activeSection !== 'dashboard' && activeSection !== 'permissoes';
+  const showSaveButton = activeSection !== 'auditoria' && activeSection !== 'usuarios' && activeSection !== 'migracao' && activeSection !== 'dashboard';
 
   return (
     <AppLayout>
       <ModulePage title="Administração" subtitle="Governança, parâmetros globais e gestão do sistema.">
         <div className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
-          <nav className="space-y-1">
-            {sideNavItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = activeSection === item.key;
+          <nav className="space-y-0.5" aria-label="Navegação administrativa">
+            {sideNavGroups.map((group) => {
+              const isGroupActive = group.items.some((item) => item.key === activeSection);
+              const isOpen = openGroupKey === group.key;
               return (
-                <button
-                  key={item.key}
-                  onClick={() => handleSectionChange(item.key)}
-                  className={cn(
-                    'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors text-left',
-                    isActive
-                      ? 'bg-primary/10 text-primary'
-                      : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+                <div key={group.key}>
+                  {/* Group header */}
+                  <button
+                    type="button"
+                    onClick={() => toggleGroup(group.key)}
+                    aria-expanded={isOpen}
+                    className={cn(
+                      'flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide transition-colors',
+                      isGroupActive
+                        ? 'text-primary'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-accent',
+                    )}
+                  >
+                    <span className="flex-1">{group.label}</span>
+                    {isOpen
+                      ? <ChevronDown className="h-3.5 w-3.5 shrink-0" />
+                      : <ChevronRight className="h-3.5 w-3.5 shrink-0" />}
+                  </button>
+                  {/* Group items (only when expanded) */}
+                  {isOpen && (
+                    <div className="ml-2 mb-1 space-y-0.5 border-l border-border pl-3 py-0.5">
+                      {group.items.map((item) => {
+                        const Icon = item.icon;
+                        const isActive = activeSection === item.key;
+                        return (
+                          <button
+                            key={item.key}
+                            onClick={() => handleSectionChange(item.key)}
+                            className={cn(
+                              'flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium transition-colors text-left',
+                              isActive
+                                ? 'bg-primary/10 text-primary'
+                                : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+                            )}
+                          >
+                            <Icon className="h-4 w-4 shrink-0" />
+                            {item.label}
+                          </button>
+                        );
+                      })}
+                    </div>
                   )}
-                >
-                  <Icon className="h-4 w-4 shrink-0" />
-                  {item.label}
-                </button>
+                </div>
               );
             })}
           </nav>

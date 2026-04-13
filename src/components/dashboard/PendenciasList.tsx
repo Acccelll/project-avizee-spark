@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, Eye, AlertTriangle, Clock } from 'lucide-react';
@@ -54,9 +55,12 @@ async function marcarComoPago(id: string): Promise<void> {
   if (error) throw error;
 }
 
+const INITIAL_VISIBLE = 5;
+
 export function PendenciasList() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [showAll, setShowAll] = useState(false);
 
   const { data: pendencias = [], isLoading } = useQuery<Pendencia[], Error>({
     queryKey: QUERY_KEY,
@@ -113,8 +117,8 @@ export function PendenciasList() {
           <p className="text-xs text-success font-medium">Sem pendências nos próximos 7 dias.</p>
         </div>
       ) : (
-        <div className="space-y-1 overflow-y-auto flex-1">
-          {pendencias.map((p) => {
+        <div className="space-y-1 flex-1">
+          {(showAll ? pendencias : pendencias.slice(0, INITIAL_VISIBLE)).map((p) => {
             const vencido = p.data_vencimento < today;
             const isReceber = p.tipo === 'receber';
             return (
@@ -176,6 +180,15 @@ export function PendenciasList() {
               </div>
             );
           })}
+          {pendencias.length > INITIAL_VISIBLE && (
+            <button
+              type="button"
+              className="w-full mt-1 text-xs text-primary hover:underline py-1 text-center"
+              onClick={() => setShowAll((v) => !v)}
+            >
+              {showAll ? 'Mostrar menos' : `Mostrar todas (${pendencias.length})`}
+            </button>
+          )}
         </div>
       )}
     </div>

@@ -51,7 +51,6 @@ const Conciliacao = lazy(() => import("./pages/Conciliacao"));
 const WorkbookGerencial = lazy(() => import("./pages/WorkbookGerencial"));
 const ApresentacaoGerencial = lazy(() => import("./pages/ApresentacaoGerencial"));
 const Social = lazy(() => import("./pages/Social"));
-const UnidadesMedida = lazy(() => import("./pages/UnidadesMedida"));
 
 // Redirect component that properly maps :id param
 function CotacaoIdRedirect() {
@@ -106,7 +105,7 @@ const App = () => (
             <Route path="/fornecedores" element={<ProtectedRoute><LazyPage><Fornecedores /></LazyPage></ProtectedRoute>} />
             <Route path="/transportadoras" element={<ProtectedRoute><LazyPage><Transportadoras /></LazyPage></ProtectedRoute>} />
             <Route path="/formas-pagamento" element={<ProtectedRoute><LazyPage><FormasPagamento /></LazyPage></ProtectedRoute>} />
-            <Route path="/unidades-medida" element={<ProtectedRoute><LazyPage><UnidadesMedida /></LazyPage></ProtectedRoute>} />
+            <Route path="/unidades-medida" element={<Navigate to="/produtos" replace />} />
             <Route path="/grupos-economicos" element={<ProtectedRoute><LazyPage><GruposEconomicos /></LazyPage></ProtectedRoute>} />
             <Route path="/funcionarios" element={<ProtectedRoute><LazyPage><Funcionarios /></LazyPage></ProtectedRoute>} />
             <Route path="/compras" element={<Navigate to="/pedidos-compra" replace />} />
