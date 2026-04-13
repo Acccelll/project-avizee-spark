@@ -373,7 +373,7 @@ const Clientes = () => {
 
   const handleRemoveEndereco = async (enderecoId: string, clienteId: string) => {
     try {
-      await supabase.from("clientes_enderecos_entrega").update({ ativo: false }).eq("id", enderecoId);
+      await (supabase as any).from("clientes_enderecos_entrega").update({ ativo: false }).eq("id", enderecoId);
       await loadEnderecos(clienteId);
       toast.success("Endereço removido");
     } catch (err) {
@@ -386,7 +386,7 @@ const Clientes = () => {
     if (!comunicacaoForm.assunto.trim()) { toast.error("Assunto é obrigatório"); return; }
     setSavingComunicacao(true);
     try {
-      const { error } = await supabase.from("cliente_registros_comunicacao").insert({
+      const { error } = await (supabase as any).from("cliente_registros_comunicacao").insert({
         cliente_id: clienteId,
         tipo: comunicacaoForm.tipo,
         assunto: comunicacaoForm.assunto,
