@@ -44,7 +44,7 @@ export async function fetchProdutosEstoque(): Promise<ProdutoRow[]> {
  */
 export async function fetchEstoquePosicao(): Promise<EstoquePosicaoRow[]> {
   const { data, error } = await supabase
-    // @ts-ignore – the view may not be reflected in the generated types yet
+    // @ts-expect-error – the view may not be reflected in the generated types yet
     .from("vw_estoque_posicao")
     .select("*")
     .order("produto_nome");

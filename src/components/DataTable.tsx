@@ -22,7 +22,6 @@ import {
   Copy,
   ChevronsUpDown as ExpandIcon,
 } from 'lucide-react';
-import * as XLSX from '@/lib/xlsx-compat';
 import jsPDF from 'jspdf';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -324,6 +323,7 @@ export function DataTable<T extends Record<string, any>>({
       }
 
       if (format === 'xlsx') {
+        const XLSX = await import('@/lib/xlsx-compat');
         const ws = XLSX.utils.json_to_sheet(rows);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'Dados');

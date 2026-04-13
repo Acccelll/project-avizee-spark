@@ -106,7 +106,7 @@ export function useImportacaoFinanceiro() {
         const legado = nd.codigo_legado_pessoa || "";
 
         // Priority: codigo_legado → cpf_cnpj → (not found)
-        let entity = (legado && entityByLegado.get(legado)) || (cpfClean && entityByCpf.get(cpfClean)) || null;
+        const entity = (legado && entityByLegado.get(legado)) || (cpfClean && entityByCpf.get(cpfClean)) || null;
 
         if (entity) {
           nd.entity_id = entity.id;

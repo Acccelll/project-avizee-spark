@@ -13,8 +13,7 @@ import {
 
 const PAGE_SIZE = 50;
 
-export interface UseAuditLogsFilters
-  extends Omit<AuditLogFilters, "page" | "pageSize"> {}
+export type UseAuditLogsFilters = Omit<AuditLogFilters, "page" | "pageSize">;
 
 export function useAuditLogs(filters: UseAuditLogsFilters = {}) {
   const [page, setPage] = useState(1);
