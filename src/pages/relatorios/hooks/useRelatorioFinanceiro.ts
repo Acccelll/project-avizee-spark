@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Hooks for Financeiro reports (Contas a Pagar/Receber, Fluxo de Caixa, Aging, DRE).
  *
