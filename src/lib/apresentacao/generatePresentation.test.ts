@@ -124,6 +124,18 @@ describe('generatePresentation', () => {
     expect(themeXml).toContain('111827');
   });
 
+  it('aplica override de cor de acento do template', async () => {
+    const bundle: ApresentacaoDataBundle = {
+      periodo: { competenciaInicial: '2026-03', competenciaFinal: '2026-03' },
+      slides: { cover: {} } as any,
+    };
+
+    const blob = await generatePresentation(bundle, {}, { themeConfig: { theme: { palette: 'default', accentColor: '#22C55E' } } });
+    const zip = await unzip(blob);
+    const themeXml = await zip.file('ppt/theme/theme1.xml')!.async('text');
+    expect(themeXml).toContain('22C55E');
+  });
+
   it('slides avançados opcionais não quebram a geração', async () => {
     const bundle: ApresentacaoDataBundle = {
       periodo: { competenciaInicial: '2026-03', competenciaFinal: '2026-03' },

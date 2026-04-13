@@ -118,6 +118,7 @@ export default function ApresentacaoGerencial() {
                   versao: draft.versao,
                   descricao: draft.descricao,
                   arquivo: file,
+                  configJson: { theme: { palette: draft.themePreset }, origem: 'manual', layout: 'apresentacao_v2' },
                 });
               }}
             />

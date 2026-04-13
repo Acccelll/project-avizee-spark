@@ -57,7 +57,23 @@ export const apresentacaoThemeDark: ApresentacaoTheme = {
 
 export type ThemePreset = 'default' | 'dark';
 
-export function resolveApresentacaoTheme(preset?: string | null): ApresentacaoTheme {
-  if (preset === 'dark') return apresentacaoThemeDark;
-  return apresentacaoTheme;
+export interface ThemeOverrides {
+  accentColor?: string;
+}
+
+function applyOverrides(theme: ApresentacaoTheme, overrides?: ThemeOverrides | null): ApresentacaoTheme {
+  if (!overrides?.accentColor) return theme;
+  return {
+    ...theme,
+    colors: {
+      ...theme.colors,
+      accent: overrides.accentColor.replace('#', '').toUpperCase(),
+      secondary: overrides.accentColor.replace('#', '').toUpperCase(),
+    },
+  };
+}
+
+export function resolveApresentacaoTheme(preset?: string | null, overrides?: ThemeOverrides | null): ApresentacaoTheme {
+  const base = preset === 'dark' ? apresentacaoThemeDark : apresentacaoTheme;
+  return applyOverrides(base, overrides);
 }

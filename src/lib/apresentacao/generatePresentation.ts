@@ -7,6 +7,8 @@ import { apresentacaoTheme, resolveApresentacaoTheme } from './theme';
 import { defaultSlideLayout } from './layouts';
 import { formatMoneyCompact, formatPercentOne } from './numberFormat';
 import { getSeverityColor } from './colorRules';
+import { pickRows } from './charts';
+import { parseTemplateConfig } from './templateConfig';
 
 const EMU = 914400;
 let activeTheme = apresentacaoTheme;
@@ -69,10 +71,7 @@ function flatPairs(dados: Record<string, unknown>): Array<{ key: string; value: 
 }
 
 function findArrayRows(dados: Record<string, unknown>): Array<Record<string, unknown>> {
-  for (const value of Object.values(dados)) {
-    if (Array.isArray(value) && value.length && typeof value[0] === 'object') return value as Array<Record<string, unknown>>;
-  }
-  return [];
+  return pickRows(dados);
 }
 
 function shapeBox(id: number, name: string, x: number, y: number, w: number, h: number, fill = apresentacaoTheme.colors.white, line = 'D1D5DB', radius = false): string {
@@ -89,10 +88,11 @@ function shapeText(id: number, name: string, x: number, y: number, w: number, h:
 
 function unavailablePanel(idStart: number, motivo: string): string[] {
   const c = getSeverityColor('warning');
+  const area = defaultSlideLayout.unavailable;
   return [
-    shapeBox(idStart, 'UnavailableBox', defaultSlideLayout.chart.x, defaultSlideLayout.chart.y, defaultSlideLayout.chart.w, defaultSlideLayout.chart.h, 'FFF7ED', hex(c), true),
-    shapeText(idStart + 1, 'UnavailableTitle', defaultSlideLayout.chart.x + 0.3, defaultSlideLayout.chart.y + 0.4, defaultSlideLayout.chart.w - 0.6, 0.5, ['Dados indisponíveis nesta fase'], { size: 18, bold: true, color: hex(c) }),
-    shapeText(idStart + 2, 'UnavailableBody', defaultSlideLayout.chart.x + 0.3, defaultSlideLayout.chart.y + 1.0, defaultSlideLayout.chart.w - 0.6, 1.2, [motivo || 'Este slide não possui base confiável no modo atual.'], { size: 12, color: activeTheme.colors.muted }),
+    shapeBox(idStart, 'UnavailableBox', area.x, area.y, area.w, area.h, 'FFF7ED', hex(c), true),
+    shapeText(idStart + 1, 'UnavailableTitle', area.x + 0.3, area.y + 0.35, area.w - 0.6, 0.5, ['Dados indisponíveis nesta fase'], { size: 18, bold: true, color: hex(c) }),
+    shapeText(idStart + 2, 'UnavailableBody', area.x + 0.3, area.y + 0.95, area.w - 0.6, 1.2, [motivo || 'Este slide não possui base confiável no modo atual.'], { size: 12, color: activeTheme.colors.muted }),
   ];
 }
 
@@ -100,8 +100,8 @@ function renderCards(idStart: number, dados: Record<string, unknown>): string[] 
   const pairs = flatPairs(dados).slice(0, 4);
   if (!pairs.length) return unavailablePanel(idStart, 'Sem indicadores para exibição.');
   const cards: string[] = [];
-  const cardW = 4.1;
-  const cardH = 1.35;
+  const cardW = 4.15;
+  const cardH = 2.2;
   pairs.forEach((pair, idx) => {
     const col = idx % 2;
     const row = Math.floor(idx / 2);
@@ -109,7 +109,7 @@ function renderCards(idStart: number, dados: Record<string, unknown>): string[] 
     const y = defaultSlideLayout.chart.y + row * (cardH + 0.25);
     const base = idStart + idx * 2;
     cards.push(shapeBox(base, `Card${idx + 1}`, x, y, cardW, cardH, 'EEF2FF', 'C7D2FE', true));
-    cards.push(shapeText(base + 1, `CardText${idx + 1}`, x + 0.2, y + 0.18, cardW - 0.4, cardH - 0.3, [prettyLabel(pair.key), formatValue(pair.value, pair.key)], { size: 12, color: activeTheme.colors.primary, bold: true }));
+    cards.push(shapeText(base + 1, `CardText${idx + 1}`, x + 0.2, y + 0.22, cardW - 0.4, cardH - 0.4, [prettyLabel(pair.key), formatValue(pair.value, pair.key)], { size: 14, color: activeTheme.colors.primary, bold: true }));
   });
   return cards;
 }
@@ -118,9 +118,9 @@ function renderTable(idStart: number, dados: Record<string, unknown>): string[] 
   const rows = findArrayRows(dados);
   const shapes: string[] = [shapeBox(idStart, 'TableArea', defaultSlideLayout.chart.x, defaultSlideLayout.chart.y, defaultSlideLayout.chart.w, defaultSlideLayout.chart.h, 'FFFFFF', 'CBD5E1', true)];
   if (rows.length) {
-    const cols = Object.keys(rows[0]).slice(0, 3);
-    shapes.push(shapeText(idStart + 1, 'TableHeader', defaultSlideLayout.chart.x + 0.2, defaultSlideLayout.chart.y + 0.15, defaultSlideLayout.chart.w - 0.4, 0.4, [cols.map(prettyLabel).join('  |  ')], { size: 12, bold: true, color: activeTheme.colors.primary }));
-    const lineRows = rows.slice(0, 6).map((r) => cols.map((c) => formatValue(r[c], c)).join('  |  '));
+    const cols = Object.keys(rows[0]).slice(0, 4);
+    shapes.push(shapeText(idStart + 1, 'TableHeader', defaultSlideLayout.chart.x + 0.2, defaultSlideLayout.chart.y + 0.15, defaultSlideLayout.chart.w - 0.4, 0.4, [cols.map(prettyLabel).join('   |   ')], { size: 12, bold: true, color: activeTheme.colors.primary }));
+    const lineRows = rows.slice(0, 8).map((r) => cols.map((c) => formatValue(r[c], c)).join('   |   '));
     shapes.push(shapeText(idStart + 2, 'TableRows', defaultSlideLayout.chart.x + 0.2, defaultSlideLayout.chart.y + 0.6, defaultSlideLayout.chart.w - 0.4, defaultSlideLayout.chart.h - 0.8, lineRows, { size: 11 }));
     return shapes;
   }
@@ -132,7 +132,7 @@ function renderTable(idStart: number, dados: Record<string, unknown>): string[] 
 
 function renderRanking(idStart: number, dados: Record<string, unknown>): string[] {
   const rows = findArrayRows(dados);
-  const items = rows.slice(0, 5).map((r, idx) => {
+  const items = rows.slice(0, 7).map((r, idx) => {
     const name = String(r.nome ?? r.label ?? r.estado ?? `Item ${idx + 1}`);
     const valKey = Object.keys(r).find((k) => typeof r[k] === 'number') ?? 'valor';
     const value = formatValue(r[valKey], valKey);
@@ -146,18 +146,34 @@ function renderRanking(idStart: number, dados: Record<string, unknown>): string[
 }
 
 function renderSeries(idStart: number, dados: Record<string, unknown>): string[] {
-  const numerics = flatPairs(dados)
+  const rows = findArrayRows(dados);
+  const numericRows: Array<{ key: string; value: number }> = rows.length
+    ? rows
+      .slice(0, 8)
+      .map((r) => {
+        const valueKey = Object.keys(r).find((k) => typeof r[k] === 'number');
+        const label = String(r.competencia ?? r.mes ?? r.label ?? r.nome ?? '-');
+        return valueKey ? { key: label, value: Number(r[valueKey] ?? 0) } : null;
+      })
+      .filter((r): r is { key: string; value: number } => Boolean(r))
+    : [];
+  const numerics = (numericRows.length ? numericRows : flatPairs(dados)
     .filter((p) => typeof p.value === 'number')
-    .slice(0, 6) as Array<{ key: string; value: number }>;
+    .slice(0, 8)
+    .map((p) => ({ key: prettyLabel(p.key), value: Number(p.value) }))) as Array<{ key: string; value: number }>;
   if (!numerics.length) return unavailablePanel(idStart, 'Sem série numérica para visualização.');
   const max = Math.max(...numerics.map((n) => Math.abs(n.value)), 1);
-  const lines = numerics.map((n) => {
-    const bars = Math.max(1, Math.round((Math.abs(n.value) / max) * 16));
+  const lines = numerics.map((n, idx) => {
+    const bars = Math.max(1, Math.round((Math.abs(n.value) / max) * 20));
     return `${prettyLabel(n.key)} ${'█'.repeat(bars)} ${formatValue(n.value, n.key)}`;
   });
+  const trend = numerics.length >= 2
+    ? numerics[numerics.length - 1].value - numerics[numerics.length - 2].value
+    : 0;
   return [
     shapeBox(idStart, 'SeriesBox', defaultSlideLayout.chart.x, defaultSlideLayout.chart.y, defaultSlideLayout.chart.w, defaultSlideLayout.chart.h, 'FFFFFF', 'D1D5DB', true),
-    shapeText(idStart + 1, 'SeriesText', defaultSlideLayout.chart.x + 0.25, defaultSlideLayout.chart.y + 0.25, defaultSlideLayout.chart.w - 0.5, defaultSlideLayout.chart.h - 0.5, lines, { size: 11 }),
+    shapeText(idStart + 1, 'SeriesText', defaultSlideLayout.chart.x + 0.25, defaultSlideLayout.chart.y + 0.25, defaultSlideLayout.chart.w - 0.5, defaultSlideLayout.chart.h - 0.9, lines, { size: 11 }),
+    shapeText(idStart + 2, 'SeriesTrend', defaultSlideLayout.chart.x + 0.25, defaultSlideLayout.chart.y + defaultSlideLayout.chart.h - 0.45, defaultSlideLayout.chart.w - 0.5, 0.2, [`Tendência do período: ${trend >= 0 ? '▲' : '▼'} ${formatValue(Math.abs(trend), 'valor')}`], { size: 10, color: trend >= 0 ? activeTheme.colors.accent : activeTheme.colors.danger }),
   ];
 }
 
@@ -194,13 +210,13 @@ function renderCommentaryBox(comment: string): string[] {
 }
 
 function renderFooterMeta(slide: SlideData, data: ApresentacaoDataBundle): string {
-  return shapeText(104, 'Footer', 0.5, 6.95, 12.2, 0.25, [`${slide.codigo} · ${data.periodo.competenciaInicial}–${data.periodo.competenciaFinal}`], { size: 9, color: activeTheme.colors.muted });
+  return shapeText(104, 'Footer', defaultSlideLayout.footer.x, defaultSlideLayout.footer.y, defaultSlideLayout.footer.w, defaultSlideLayout.footer.h, [`${slide.codigo} · ${data.periodo.competenciaInicial}–${data.periodo.competenciaFinal}`], { size: 9, color: activeTheme.colors.muted });
 }
 
 function slideXml(slide: SlideData, data: ApresentacaoDataBundle, comment: string, metadata?: Record<string, unknown>): string {
   const def = APRESENTACAO_SLIDES_MAP.get(slide.codigo);
   const content: string[] = [];
-  content.push(shapeBox(2, 'HeaderBand', 0, 0, 13.33, 0.9, 'F1F5F9', 'F1F5F9'));
+  content.push(shapeBox(2, 'HeaderBand', defaultSlideLayout.headerBand.x, defaultSlideLayout.headerBand.y, defaultSlideLayout.headerBand.w, defaultSlideLayout.headerBand.h, 'F1F5F9', 'F1F5F9'));
   content.push(shapeText(3, 'Title', defaultSlideLayout.title.x, defaultSlideLayout.title.y, defaultSlideLayout.title.w, defaultSlideLayout.title.h, [slide.titulo], { size: 22, bold: true, color: activeTheme.colors.primary }));
   content.push(shapeText(4, 'Subtitle', defaultSlideLayout.subtitle.x, defaultSlideLayout.subtitle.y, defaultSlideLayout.subtitle.w, defaultSlideLayout.subtitle.h, [slide.subtitulo || ''], { size: 12, color: activeTheme.colors.muted }));
 
@@ -231,9 +247,10 @@ function slideXml(slide: SlideData, data: ApresentacaoDataBundle, comment: strin
 export async function generatePresentation(
   data: ApresentacaoDataBundle,
   comentariosEditados: Partial<Record<string, string>>,
-  options?: { slideOrder?: SlideCodigo[]; metadata?: Record<string, unknown>; themePreset?: string | null },
+  options?: { slideOrder?: SlideCodigo[]; metadata?: Record<string, unknown>; themePreset?: string | null; themeConfig?: Record<string, unknown> | null },
 ): Promise<Blob> {
-  activeTheme = resolveApresentacaoTheme(options?.themePreset ?? (options?.metadata?.themePreset as string | undefined));
+  const parsedTheme = parseTemplateConfig(options?.themeConfig).theme;
+  activeTheme = resolveApresentacaoTheme(options?.themePreset ?? parsedTheme.palette ?? (options?.metadata?.themePreset as string | undefined), { accentColor: parsedTheme.accentColor });
   const order = options?.slideOrder?.length ? options.slideOrder : (Object.keys(data.slides) as SlideCodigo[]);
 
   const slides: SlideData[] = order.map((codigo) => {

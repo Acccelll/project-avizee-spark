@@ -11,6 +11,7 @@ interface TemplateDraft {
   codigo: string;
   versao: string;
   descricao: string;
+  themePreset: 'default' | 'dark';
 }
 
 export function ApresentacaoTemplateManager({
@@ -22,7 +23,7 @@ export function ApresentacaoTemplateManager({
   isSaving: boolean;
   onCreate: (draft: TemplateDraft, file?: File) => Promise<void>;
 }) {
-  const [draft, setDraft] = useState<TemplateDraft>({ nome: '', codigo: '', versao: '1.0', descricao: '' });
+  const [draft, setDraft] = useState<TemplateDraft>({ nome: '', codigo: '', versao: '1.0', descricao: '', themePreset: 'default' });
   const [file, setFile] = useState<File | undefined>();
 
   return (
@@ -35,6 +36,13 @@ export function ApresentacaoTemplateManager({
         <div className="space-y-1"><Label>Nome</Label><Input value={draft.nome} onChange={(e) => setDraft((d) => ({ ...d, nome: e.target.value }))} /></div>
         <div className="space-y-1"><Label>Código</Label><Input value={draft.codigo} onChange={(e) => setDraft((d) => ({ ...d, codigo: e.target.value.toUpperCase().replace(/\s+/g, '_') }))} /></div>
         <div className="space-y-1"><Label>Versão</Label><Input value={draft.versao} onChange={(e) => setDraft((d) => ({ ...d, versao: e.target.value }))} /></div>
+        <div className="space-y-1">
+          <Label>Tema</Label>
+          <select className="w-full rounded-md border px-3 py-2 text-sm" value={draft.themePreset} onChange={(e) => setDraft((d) => ({ ...d, themePreset: e.target.value as 'default' | 'dark' }))}>
+            <option value="default">Padrão claro</option>
+            <option value="dark">Dark</option>
+          </select>
+        </div>
         <div className="space-y-1"><Label>Arquivo .pptx (opcional)</Label><Input type="file" accept=".pptx" onChange={(e) => setFile(e.target.files?.[0])} /></div>
       </div>
       <div className="space-y-1"><Label>Descrição</Label><Textarea value={draft.descricao} onChange={(e) => setDraft((d) => ({ ...d, descricao: e.target.value }))} /></div>
