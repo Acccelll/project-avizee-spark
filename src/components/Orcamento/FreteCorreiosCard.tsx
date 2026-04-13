@@ -63,7 +63,7 @@ export function FreteCorreiosCard({ cepDestino, pesoTotal, onSelect }: FreteCorr
       const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL as string || '').replace(/\/$/, '');
       const url = `${supabaseUrl}/functions/v1/correios-api?action=cotacao_multi`;
       const session = await supabase.auth.getSession();
-      const token = session.data.session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || '';
+      const token = session.data.session?.access_token ?? '';
 
       const res = await fetch(url, {
         method: 'POST',
