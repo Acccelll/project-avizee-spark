@@ -1316,9 +1316,6 @@ export default function Administracao() {
           </div>
         );
 
-      case 'permissoes':
-        return null;
-
       case 'email':
         return renderEmail();
 
