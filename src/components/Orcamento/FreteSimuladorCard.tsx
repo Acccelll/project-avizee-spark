@@ -4,6 +4,9 @@
  * Toda a lógica de estado/serviço foi extraída para `useFreteSimulador.ts`.
  * A UI foi dividida em: FreteSimuladorForm e FreteOpcoesList (FreteSimuladorResultados).
  */
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { FreteSimuladorForm } from './FreteSimuladorForm';
+import { FreteOpcoesList } from './FreteSimuladorResultados';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -544,9 +547,9 @@ export function FreteSimuladorCard({
         {!loadingConfig && cepOrigem.length !== 8 && (
           <p className="text-xs text-destructive mt-1">⚠ CEP de origem não configurado. Vá em Administração → Empresa.</p>
         )}
-        {!props.clienteId && <p className="text-xs text-muted-foreground mt-1">Selecione um cliente para habilitar o simulador.</p>}
-        {props.clienteId && cepDestinoClean.length !== 8 && <p className="text-xs text-muted-foreground mt-1">O cliente não possui CEP válido.</p>}
-        {props.pesoTotal <= 0 && <p className="text-xs text-muted-foreground mt-1">Adicione itens com peso para simular o frete.</p>}
+        {!clienteId && <p className="text-xs text-muted-foreground mt-1">Selecione um cliente para habilitar o simulador.</p>}
+        {clienteId && cepDestinoClean.length !== 8 && <p className="text-xs text-muted-foreground mt-1">O cliente não possui CEP válido.</p>}
+        {pesoTotal <= 0 && <p className="text-xs text-muted-foreground mt-1">Adicione itens com peso para simular o frete.</p>}
 
         {desatualizado && opcoes.length > 0 && (
           <div className="flex items-center gap-1.5 text-xs text-amber-600 bg-amber-50 rounded-md px-2 py-1 mt-2">
@@ -558,7 +561,7 @@ export function FreteSimuladorCard({
           <div className="flex flex-wrap gap-4 text-xs text-muted-foreground mt-2">
             <span>Origem: <strong className="text-foreground">{cepOrigem}</strong></span>
             <span>Destino: <strong className="text-foreground">{cepDestinoClean}</strong></span>
-            <span>Peso: <strong className="text-foreground">{props.pesoTotal.toFixed(3)} kg</strong></span>
+            <span>Peso: <strong className="text-foreground">{pesoTotal.toFixed(3)} kg</strong></span>
           </div>
         )}
       </CardHeader>

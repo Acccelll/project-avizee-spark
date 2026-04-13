@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, isSupabaseConfigured } from "@/integrations/supabase/client";
+import { getUserFriendlyError } from "@/utils/errorMessages";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,7 +43,7 @@ export default function Login() {
     e.preventDefault();
     if (!validate()) return;
 
-    if (!supabase) {
+    if (!isSupabaseConfigured) {
       toast.error("Serviço de autenticação não disponível. Contate o administrador do sistema.");
       return;
     }
@@ -61,8 +62,8 @@ export default function Login() {
         toast.success("Login realizado com sucesso!");
         navigate("/", { replace: true });
       }
-    } catch {
-      toast.error("Erro de conexão com o servidor. Tente novamente.");
+    } catch (err) {
+      toast.error(getUserFriendlyError(err));
     }
     setLoading(false);
   };
