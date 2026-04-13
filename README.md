@@ -139,6 +139,22 @@ Tabelas sensíveis (financeiro, RH, config) possuem políticas RLS restritivas.
 Tabelas de cadastro compartilhado (clientes, produtos) usam `USING(true)` para
 permitir acesso a todos os usuários autenticados.
 
+### Edge Functions — CORS (`ALLOWED_ORIGIN`)
+
+Todas as Edge Functions utilizam a variável de ambiente `ALLOWED_ORIGIN` para controlar
+a origem permitida no cabeçalho `Access-Control-Allow-Origin`.
+
+| Função               | Comportamento sem `ALLOWED_ORIGIN`                  |
+|----------------------|------------------------------------------------------|
+| `admin-users`        | **Rejeita todas as requisições** (retorna erro 500)  |
+| `setup-admin`        | Fallback para `*` (wildcard)                         |
+| `correios-api`       | Fallback para `*` (wildcard)                         |
+| `social-sync`        | Fallback para `*` (wildcard)                         |
+| `process-email-queue`| Função interna (sem CORS)                            |
+
+**Em produção**, configure o secret `ALLOWED_ORIGIN` com o domínio real da aplicação
+(ex: `https://app.avizee.com.br`) nos secrets do backend (Lovable Cloud).
+
 ## Dívida Técnica
 
 ### `@ts-nocheck` remanescentes

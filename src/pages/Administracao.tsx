@@ -758,7 +758,7 @@ export default function Administracao() {
       <Card>
         <CardHeader>
           <div className="flex items-start gap-3">
-            <User className="mt-0.5 h-5 w-5 text-muted-foreground shrink-0" />
+            <Users className="mt-0.5 h-5 w-5 text-muted-foreground shrink-0" />
             <div>
               <CardTitle>Identidade do remetente</CardTitle>
               <CardDescription>Nome e endereço utilizados como origem dos e-mails comerciais e notificações automáticas do sistema.</CardDescription>
