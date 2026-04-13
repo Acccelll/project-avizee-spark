@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import {
   Eye,
   ChevronUp,
@@ -81,6 +82,17 @@ interface DataTableProps<T> {
   onBatchDelete?: (ids: string[]) => void;
   onBatchStatusChange?: (ids: string[], status: string) => void;
   renderInlineDetails?: (item: T) => React.ReactNode;
+  /**
+   * Row count threshold above which virtualization is enabled.
+   * Below this threshold, rows render normally without virtualization.
+   * @default 100
+   */
+  virtualizeThreshold?: number;
+  /**
+   * Maximum height (px) of the table body when virtualization is active.
+   * @default 600
+   */
+  maxHeight?: number;
 }
 
 type SortDirection = 'asc' | 'desc' | null;
