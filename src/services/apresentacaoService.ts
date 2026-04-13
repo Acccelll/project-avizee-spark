@@ -1,0 +1,248 @@
+import { supabase } from '@/integrations/supabase/client';
+import type {
+  ApresentacaoComentario,
+  ApresentacaoGeracao,
+  ApresentacaoModoGeracao,
+  ApresentacaoParametros,
+  ApresentacaoStatusEditorial,
+  ApresentacaoTemplate,
+  SlideCodigo,
+  SlideConfigItem,
+} from '@/types/apresentacao';
+import { fetchPresentationData } from '@/lib/apresentacao/fetchPresentationData';
+import { generatePresentation } from '@/lib/apresentacao/generatePresentation';
+import { buildAutomaticComments } from '@/lib/apresentacao/commentRules';
+import { APRESENTACAO_SLIDES_MAP } from '@/lib/apresentacao/slideDefinitions';
+import { hashPayload } from '@/lib/apresentacao/utils';
+import { activeSlides, resolveSlideConfig } from '@/lib/apresentacao/templateResolver';
+
+export async function listarApresentacaoTemplates(): Promise<ApresentacaoTemplate[]> {
+  const { data, error } = await (supabase as any).from('apresentacao_templates').select('*').eq('ativo', true).order('nome');
+  if (error) throw error;
+  return (data ?? []) as ApresentacaoTemplate[];
+}
+
+export async function incluirTemplateApresentacao(input: {
+  nome: string;
+  codigo: string;
+  versao: string;
+  descricao?: string;
+  arquivo?: File;
+  configJson?: Record<string, unknown>;
+}): Promise<ApresentacaoTemplate> {
+  let arquivoPath: string | null = null;
+
+  if (input.arquivo) {
+    const filename = `${input.codigo.toLowerCase()}_${input.versao.replace(/\s+/g, '_')}.pptx`;
+    arquivoPath = `templates/apresentacao/${filename}`;
+    const { error: uploadError } = await supabase.storage
+      .from('dbavizee')
+      .upload(arquivoPath, input.arquivo, {
+        upsert: true,
+        contentType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      });
+    if (uploadError) throw uploadError;
+  }
+
+  const { data, error } = await (supabase as any)
+    .from('apresentacao_templates')
+    .insert({
+      nome: input.nome,
+      codigo: input.codigo,
+      versao: input.versao,
+      descricao: input.descricao ?? null,
+      arquivo_path: arquivoPath,
+      config_json: input.configJson ?? { origem: 'manual', layout: 'apresentacao_v2' },
+      ativo: true,
+    })
+    .select('*')
+    .single();
+  if (error) throw error;
+  return data as ApresentacaoTemplate;
+}
+
+export async function listarApresentacaoGeracoes(): Promise<ApresentacaoGeracao[]> {
+  const { data, error } = await (supabase as any)
+    .from('apresentacao_geracoes')
+    .select('*, apresentacao_templates(nome, versao, codigo)')
+    .order('created_at', { ascending: false })
+    .limit(80);
+  if (error) throw error;
+  return (data ?? []) as ApresentacaoGeracao[];
+}
+
+export async function listarComentarios(geracaoId: string): Promise<ApresentacaoComentario[]> {
+  const { data, error } = await (supabase as any)
+    .from('apresentacao_comentarios')
+    .select('*')
+    .eq('geracao_id', geracaoId)
+    .order('ordem');
+  if (error) throw error;
+  return (data ?? []) as ApresentacaoComentario[];
+}
+
+export async function atualizarComentario(id: string, comentario_editado: string): Promise<void> {
+  const { error } = await (supabase as any)
+    .from('apresentacao_comentarios')
+    .update({ comentario_editado, comentario_status: comentario_editado ? 'editado' : 'automatico', updated_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) throw error;
+}
+
+export async function atualizarStatusEditorial(geracaoId: string, status: ApresentacaoStatusEditorial, aprovadorId?: string): Promise<void> {
+  const payload: Record<string, unknown> = { status_editorial: status, updated_at: new Date().toISOString() };
+  if (status === 'aprovado') {
+    payload.aprovado_por = aprovadorId ?? null;
+    payload.aprovado_em = new Date().toISOString();
+  }
+  const { error } = await (supabase as any).from('apresentacao_geracoes').update(payload).eq('id', geracaoId);
+  if (error) throw error;
+}
+
+async function buildSlideSelection(templateId: string, generationSlideConfig?: SlideConfigItem[]) {
+  const { data: template } = await (supabase as any).from('apresentacao_templates').select('*').eq('id', templateId).single();
+  const resolved = resolveSlideConfig(template as ApresentacaoTemplate, generationSlideConfig);
+  return { resolved, active: activeSlides(resolved) };
+}
+
+export async function gerarApresentacao(params: ApresentacaoParametros, userId?: string) {
+  const { resolved: resolvedConfig, active } = await buildSlideSelection(params.templateId, params.slideConfig);
+  const hash = hashPayload({ ...params, slides: active });
+  const nowIso = new Date().toISOString();
+
+  const { data: geracao, error: geracaoError } = await (supabase as any)
+    .from('apresentacao_geracoes')
+    .insert({
+      template_id: params.templateId,
+      empresa_id: params.empresaId ?? null,
+      competencia_inicial: `${params.competenciaInicial}-01`,
+      competencia_final: `${params.competenciaFinal}-01`,
+      modo_geracao: params.modoGeracao,
+      status: 'gerando',
+      status_editorial: 'rascunho',
+      hash_geracao: hash,
+      parametros_json: params,
+      slide_config_json: resolvedConfig,
+      gerado_por: userId ?? null,
+      data_origem_json: { modo: params.modoGeracao, workbook_views: true },
+      gerado_em: nowIso,
+    })
+    .select('*')
+    .single();
+  if (geracaoError) throw geracaoError;
+
+  try {
+    const bundle = await fetchPresentationData(`${params.competenciaInicial}-01`, `${params.competenciaFinal}-01`, params.modoGeracao, active);
+
+    const comentarios = active.map((codigo, ordem) => {
+      const list = buildAutomaticComments(codigo, bundle.slides[codigo] ?? {});
+      return {
+        geracao_id: geracao.id,
+        slide_codigo: codigo,
+        titulo: APRESENTACAO_SLIDES_MAP.get(codigo)?.titulo ?? codigo,
+        comentario_automatico: list.map((c) => c.text).join(' | '),
+        comentario_editado: null,
+        comentario_status: 'automatico',
+        prioridade: list[0]?.priority ?? 1,
+        tags_json: { tags: list.flatMap((c) => c.tags), severidade: list[0]?.severity ?? 'info' },
+        origem: params.modoGeracao,
+        ordem,
+      };
+    });
+
+    await (supabase as any).from('apresentacao_comentarios').insert(comentarios);
+
+    const { error: updateError } = await (supabase as any)
+      .from('apresentacao_geracoes')
+      .update({
+        status: 'concluido',
+        status_editorial: params.exigirRevisao ? 'revisao' : 'aprovado',
+        is_final: !params.exigirRevisao,
+        total_slides: active.length,
+        slides_json: { ativos: active },
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', geracao.id);
+    if (updateError) throw updateError;
+
+    if (params.exigirRevisao) {
+      return { geracaoId: geracao.id as string, blob: null as Blob | null, aguardandoAprovacao: true };
+    }
+
+    const { blob, arquivoPath } = await gerarArquivoFinal(geracao.id, active, bundle, hash);
+    return { geracaoId: geracao.id as string, blob, arquivoPath, aguardandoAprovacao: false };
+  } catch (err) {
+    await (supabase as any)
+      .from('apresentacao_geracoes')
+      .update({ status: 'erro', observacoes: err instanceof Error ? err.message : String(err), updated_at: new Date().toISOString() })
+      .eq('id', geracao.id);
+    throw err;
+  }
+}
+
+async function gerarArquivoFinal(geracaoId: string, active: SlideCodigo[], bundle: Awaited<ReturnType<typeof fetchPresentationData>>, hash: string) {
+  const comentarios = await listarComentarios(geracaoId);
+  const comentarioMap = comentarios.reduce((acc, c) => {
+    acc[c.slide_codigo] = c.comentario_editado ?? undefined;
+    return acc;
+  }, {} as Partial<Record<SlideCodigo, string | undefined>>);
+
+  const blob = await generatePresentation(bundle, comentarioMap as Partial<Record<string, string>>, {
+    slideOrder: active,
+    metadata: { geracaoId, hash, geradoEm: new Date().toISOString(), origem: 'erp-avizee-v2' },
+  });
+
+  const arquivoPath = `apresentacoes/apresentacao_${geracaoId}.pptx`;
+  const { error: uploadError } = await supabase.storage
+    .from('dbavizee')
+    .upload(arquivoPath, blob, {
+      upsert: true,
+      contentType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    });
+  if (uploadError) throw uploadError;
+
+  await (supabase as any)
+    .from('apresentacao_geracoes')
+    .update({ status: 'concluido', status_editorial: 'gerado', is_final: true, arquivo_path: arquivoPath, updated_at: new Date().toISOString() })
+    .eq('id', geracaoId);
+
+  return { blob, arquivoPath };
+}
+
+export async function aprovarEGerarFinal(geracaoId: string, aprovadorId?: string): Promise<Blob> {
+  const { data: geracao, error } = await (supabase as any).from('apresentacao_geracoes').select('*').eq('id', geracaoId).single();
+  if (error) throw error;
+  if (!geracao) throw new Error('Geração não encontrada.');
+
+  await atualizarStatusEditorial(geracaoId, 'aprovado', aprovadorId);
+
+  const p = geracao.parametros_json as {
+    competenciaInicial: string;
+    competenciaFinal: string;
+    modoGeracao: ApresentacaoModoGeracao;
+  };
+
+  const active = (geracao.slides_json?.ativos as SlideCodigo[] | undefined) ?? (geracao.slide_config_json as SlideConfigItem[] | null)?.filter((s) => s.enabled).map((s) => s.codigo) ?? [];
+
+  const bundle = await fetchPresentationData(`${p.competenciaInicial}-01`, `${p.competenciaFinal}-01`, p.modoGeracao, active);
+  const { blob } = await gerarArquivoFinal(geracaoId, active, bundle, geracao.hash_geracao ?? '');
+  return blob;
+}
+
+export async function downloadApresentacao(geracao: ApresentacaoGeracao): Promise<Blob> {
+  if (!geracao.arquivo_path) throw new Error('Arquivo não encontrado no histórico.');
+  const { data, error } = await supabase.storage.from('dbavizee').download(geracao.arquivo_path);
+  if (error || !data) throw error ?? new Error('Falha no download do storage.');
+  return data;
+}
+
+export function downloadBlob(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
