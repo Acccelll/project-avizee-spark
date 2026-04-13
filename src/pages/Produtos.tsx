@@ -218,7 +218,7 @@ const Produtos = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.nome || !form.preco_venda) {toast.error("Nome e preço de venda são obrigatórios");return;}
+    if (!form.nome || (form.tipo_item !== 'insumo' && !form.preco_venda)) {toast.error("Nome e preço de venda são obrigatórios");return;}
     if (Number(form.preco_venda) < 0) {toast.error("Preço de venda não pode ser negativo");return;}
     if (!form.eh_composto && Number(form.preco_custo) < 0) {toast.error("Preço de custo não pode ser negativo");return;}
     if (Number(form.peso) < 0) {toast.error("Peso não pode ser negativo");return;}
@@ -761,8 +761,8 @@ const Produtos = () => {
                 </div>
               )}
               <div className="space-y-2">
-                <Label>Preço de Venda *</Label>
-                <Input type="number" step="0.01" min="0" value={form.preco_venda} onChange={(e) => setForm({ ...form, preco_venda: Number(e.target.value) })} required />
+                <Label>Preço de Venda {form.tipo_item !== 'insumo' ? <span className="text-destructive">*</span> : <span className="text-muted-foreground font-normal text-xs">(opcional para insumo)</span>}</Label>
+                <Input type="number" step="0.01" min="0" value={form.preco_venda} onChange={(e) => setForm({ ...form, preco_venda: Number(e.target.value) })} />
               </div>
               <div className="space-y-2">
                 <Label className="text-xs text-muted-foreground">Lucro Bruto</Label>

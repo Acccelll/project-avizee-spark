@@ -86,7 +86,6 @@ export const navSections: NavSection[] = [
           { title: 'Clientes', path: '/clientes' },
           { title: 'Fornecedores', path: '/fornecedores' },
           { title: 'Transportadoras', path: '/transportadoras', keywords: ['frete', 'logistica'] },
-          { title: 'Unidades de Medida', path: '/unidades-medida', keywords: ['um', 'unidade', 'medida', 'kg', 'metro'] },
           { title: 'Formas de Pagamento', path: '/formas-pagamento', keywords: ['prazo', 'parcelamento'] },
           { title: 'Grupos Econômicos', path: '/grupos-economicos', keywords: ['matriz', 'filiais'] },
           { title: 'Funcionários', path: '/funcionarios', keywords: ['fopag', 'folha', 'salario', 'rh'] },

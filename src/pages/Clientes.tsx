@@ -1314,9 +1314,22 @@ const Clientes = () => {
           {loadingEnderecos ? (
             <div className="h-20 bg-muted/30 rounded-lg animate-pulse" />
           ) : enderecos.length === 0 ? (
-            <div className="flex items-center gap-2 bg-muted/20 rounded-lg px-3 py-4 border border-dashed text-xs text-muted-foreground">
-              <Home className="h-3.5 w-3.5 shrink-0" />
-              <span>Nenhum endereço de entrega cadastrado. Clique em <strong>Incluir</strong> para adicionar.</span>
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 bg-muted/20 rounded-lg px-3 py-3 border border-dashed text-xs text-muted-foreground">
+                <Home className="h-3.5 w-3.5 shrink-0 text-primary/60" />
+                <div>
+                  <p className="font-medium text-foreground/80 mb-0.5">Usando endereço de faturamento como padrão</p>
+                  <p>Enquanto não houver endereços de entrega alternativos cadastrados, o endereço principal do cliente será usado automaticamente como endereço de entrega.</p>
+                </div>
+              </div>
+              {(form.logradouro || form.cidade) && (
+                <div className="rounded-lg border bg-muted/20 px-4 py-3 text-xs text-muted-foreground">
+                  <p className="font-semibold text-foreground text-xs mb-1 flex items-center gap-1"><MapPin className="h-3 w-3" /> Endereço de faturamento (padrão de entrega)</p>
+                  <p>{[form.logradouro, form.numero, form.complemento].filter(Boolean).join(", ")}{form.bairro ? ` — ${form.bairro}` : ""}</p>
+                  <p>{[form.cidade, form.uf].filter(Boolean).join("/")} {form.cep ? `(${form.cep})` : ""}</p>
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">Clique em <strong>Incluir</strong> para adicionar um endereço de entrega alternativo.</p>
             </div>
           ) : (
             <div className="space-y-1">

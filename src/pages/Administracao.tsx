@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Building2, Calendar, CheckCircle2, Database, Globe, Image, Info, Loader2, Mail, MapPin, PenLine, Phone, Receipt, Reply, Send, Shield, Upload, User, Users, Wallet, XCircle } from 'lucide-react';
+import { Building2, Calendar, CheckCircle2, Database, Globe, Image, Info, Loader2, Mail, MapPin, PenLine, Phone, Receipt, Reply, Send, Shield, Upload, Users, Wallet, XCircle } from 'lucide-react';
 import { AppLayout } from '@/components/AppLayout';
 import { ModulePage } from '@/components/ModulePage';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database as SupabaseDatabase } from '@/integrations/supabase/types';
@@ -117,7 +118,6 @@ const sideNavItems: SideNavItem[] = [
   { key: 'dashboard', label: 'Dashboard de Segurança', icon: Shield },
   { key: 'empresa', label: 'Empresa', icon: Building2 },
   { key: 'usuarios', label: 'Usuários e Permissões', icon: Users },
-  { key: 'permissoes', label: 'Matriz de Permissões', icon: User },
   { key: 'email', label: 'E-mails', icon: Mail },
   { key: 'fiscal', label: 'Parâmetros Fiscais', icon: Receipt },
   { key: 'financeiro', label: 'Parâmetros Financeiros', icon: Wallet },
@@ -1291,20 +1291,33 @@ export default function Administracao() {
         return renderEmpresa();
 
       case 'usuarios':
-        return <UsuariosTab />;
+        return (
+          <div className="space-y-4">
+            <Tabs defaultValue="usuarios" className="w-full">
+              <TabsList className="mb-4">
+                <TabsTrigger value="usuarios" className="gap-1.5"><Users className="h-3.5 w-3.5" />Usuários</TabsTrigger>
+                <TabsTrigger value="permissoes" className="gap-1.5"><Shield className="h-3.5 w-3.5" />Matriz de Permissões</TabsTrigger>
+              </TabsList>
+              <TabsContent value="usuarios">
+                <UsuariosTab />
+              </TabsContent>
+              <TabsContent value="permissoes">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Matriz de Permissões</CardTitle>
+                    <CardDescription>Gerencie visualmente as permissões por perfil de acesso.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <PermissaoMatrix />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
+          </div>
+        );
 
       case 'permissoes':
-        return (
-          <Card>
-            <CardHeader>
-              <CardTitle>Matriz de Permissões</CardTitle>
-              <CardDescription>Gerencie visualmente as permissões por perfil de acesso.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <PermissaoMatrix />
-            </CardContent>
-          </Card>
-        );
+        return null;
 
       case 'email':
         return renderEmail();
@@ -1338,7 +1351,7 @@ export default function Administracao() {
     }
   };
 
-  const showSaveButton = activeSection !== 'auditoria' && activeSection !== 'usuarios' && activeSection !== 'migracao' && activeSection !== 'dashboard' && activeSection !== 'permissoes';
+  const showSaveButton = activeSection !== 'auditoria' && activeSection !== 'usuarios' && activeSection !== 'migracao' && activeSection !== 'dashboard';
 
   return (
     <AppLayout>

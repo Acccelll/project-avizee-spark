@@ -15,6 +15,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
 import { Card, CardContent } from "@/components/ui/card";
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
@@ -25,9 +27,10 @@ import { formatNumber, formatCurrency } from "@/lib/format";
 import type { Database } from "@/integrations/supabase/types";
 import { AlertTriangle, ArrowDownCircle, RotateCcw,
   TrendingDown, Package, CheckCircle, XCircle, ShieldAlert,
-  DollarSign, SlidersHorizontal,
+  DollarSign, SlidersHorizontal, ChevronsUpDown,
 } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { cn } from "@/lib/utils";
 
 type ProdutoRow = Database["public"]["Tables"]["produtos"]["Row"];
 
@@ -99,6 +102,7 @@ const Estoque = () => {
   const [saving, setSaving] = useState(false);
   const [confirmMovOpen, setConfirmMovOpen] = useState(false);
   const [pendingMovForm, setPendingMovForm] = useState<typeof form | null>(null);
+  const [produtoSelectorOpen, setProdutoSelectorOpen] = useState(false);
   // Saldos filters
   const [searchPosicao, setSearchPosicao] = useState("");
   const [situacaoFilters, setSituacaoFilters] = useState<string[]>([]);
@@ -468,18 +472,63 @@ const Estoque = () => {
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
                   <Label>Produto *</Label>
-                  <Select value={form.produto_id} onValueChange={(v) => setForm({ ...form, produto_id: v })}>
-                    <SelectTrigger><SelectValue placeholder="Selecione o produto..." /></SelectTrigger>
-                    <SelectContent>
-                      {produtosCrud.data.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {p.nome}
-                          {p.sku && <span className="ml-1 text-muted-foreground font-mono text-xs">({p.sku})</span>}
-                          <span className="ml-2 text-muted-foreground text-xs">Est: {formatNumber(p.estoque_atual)}</span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Popover open={produtoSelectorOpen} onOpenChange={setProdutoSelectorOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={produtoSelectorOpen}
+                        className="w-full justify-between font-normal h-9 text-left"
+                      >
+                        {form.produto_id ? (() => {
+                          const p = produtosCrud.data.find((x) => x.id === form.produto_id);
+                          return p ? (
+                            <span className="truncate flex items-center gap-2">
+                              <span className="font-medium">{p.nome}</span>
+                              {p.sku && <span className="text-muted-foreground font-mono text-xs">({p.sku})</span>}
+                              <span className="text-muted-foreground text-xs ml-1">Est: {formatNumber(p.estoque_atual)}</span>
+                            </span>
+                          ) : "Selecione o produto...";
+                        })() : (
+                          <span className="text-muted-foreground">Selecione o produto...</span>
+                        )}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 text-muted-foreground" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[420px] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Buscar por nome, SKU ou código..." />
+                        <CommandList>
+                          <CommandEmpty>Nenhum produto encontrado.</CommandEmpty>
+                          <CommandGroup>
+                            {produtosCrud.data.filter((p) => p.ativo !== false).map((p) => (
+                              <CommandItem
+                                key={p.id}
+                                value={[p.nome, p.sku, p.codigo_interno].filter(Boolean).join(" ")}
+                                onSelect={() => {
+                                  setForm((f) => ({ ...f, produto_id: p.id }));
+                                  setProdutoSelectorOpen(false);
+                                }}
+                                className={cn("gap-2 cursor-pointer", form.produto_id === p.id && "bg-primary/5")}
+                              >
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-medium text-sm truncate">{p.nome}</p>
+                                  <div className="flex items-center gap-2 mt-0.5">
+                                    {p.sku && <span className="text-[11px] text-muted-foreground font-mono">{p.sku}</span>}
+                                    {p.codigo_interno && p.codigo_interno !== p.sku && <span className="text-[11px] text-muted-foreground font-mono">CI: {p.codigo_interno}</span>}
+                                    <span className="text-[11px] text-muted-foreground">{p.unidade_medida || "UN"}</span>
+                                  </div>
+                                </div>
+                                <span className={cn("text-xs font-mono font-semibold shrink-0", Number(p.estoque_atual) <= 0 ? "text-destructive" : "text-success")}>
+                                  {formatNumber(p.estoque_atual)} {p.unidade_medida || "UN"}
+                                </span>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </div>
 
                 {/* Preview do saldo atual */}
