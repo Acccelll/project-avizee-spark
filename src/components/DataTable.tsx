@@ -388,13 +388,6 @@ export function DataTable<T extends Record<string, any>>({
           </Button>
         </TooltipTrigger><TooltipContent>Visualizar</TooltipContent></Tooltip>
       )}
-      {onEdit && (
-        <Tooltip><TooltipTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Editar registro" onClick={(e) => { e.stopPropagation(); onEdit(item); }}>
-            <Pencil className="h-4 w-4" />
-          </Button>
-        </TooltipTrigger><TooltipContent>Editar</TooltipContent></Tooltip>
-      )}
       {onDuplicate && (
         <Tooltip><TooltipTrigger asChild>
           <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Duplicar registro" onClick={(e) => { e.stopPropagation(); onDuplicate(item); }}>
@@ -402,19 +395,12 @@ export function DataTable<T extends Record<string, any>>({
           </Button>
         </TooltipTrigger><TooltipContent>Duplicar</TooltipContent></Tooltip>
       )}
-      {onDelete && (
-        <Tooltip><TooltipTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" aria-label="Excluir registro" onClick={(e) => { e.stopPropagation(); setDeleteItem(item); }}>
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </TooltipTrigger><TooltipContent>Excluir</TooltipContent></Tooltip>
-      )}
     </div>
   );
 
   // Mobile card action menu
   const renderMobileActions = (item: T) => {
-    const hasMenu = onView || onEdit || onDelete || onDuplicate;
+    const hasMenu = onView || onDuplicate;
     if (!hasMenu) return null;
     return (
       <DropdownMenu>
@@ -429,26 +415,10 @@ export function DataTable<T extends Record<string, any>>({
               <Eye className="mr-2 h-4 w-4" /> Visualizar
             </DropdownMenuItem>
           )}
-          {onEdit && (
-            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(item); }}>
-              <Pencil className="mr-2 h-4 w-4" /> Editar
-            </DropdownMenuItem>
-          )}
           {onDuplicate && (
             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onDuplicate(item); }}>
               <Copy className="mr-2 h-4 w-4" /> Duplicar
             </DropdownMenuItem>
-          )}
-          {onDelete && (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="text-destructive focus:text-destructive"
-                onClick={(e) => { e.stopPropagation(); setDeleteItem(item); }}
-              >
-                <Trash2 className="mr-2 h-4 w-4" /> Excluir
-              </DropdownMenuItem>
-            </>
           )}
         </DropdownMenuContent>
       </DropdownMenu>
