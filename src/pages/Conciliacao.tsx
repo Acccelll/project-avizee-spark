@@ -315,7 +315,14 @@ export default function Conciliacao() {
         payload.pares.map((par) => {
           const extrato = extratoItems.find((e) => e.id === par.extrato_id);
           if (!extrato) return Promise.resolve();
-          return conciliarTransacao(selectedConta, extrato, par.lancamento_id);
+          const transacao: TransacaoExtrato = {
+            id: extrato.id,
+            data: extrato.data,
+            descricao: extrato.descricao,
+            valor: extrato.valor,
+            tipo: extrato.valor >= 0 ? "C" : "D",
+          };
+          return conciliarTransacao(selectedConta, transacao, par.lancamento_id);
         }),
       );
 
