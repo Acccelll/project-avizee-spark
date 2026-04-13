@@ -285,7 +285,7 @@ const Produtos = () => {
 
   const handleSalvarNovaUnidade = async (e: React.FormEvent) => {
     e.preventDefault();
-    const codigo = novaUnidadeForm.codigo.trim().toUpperCase();
+    const codigo = novaUnidadeForm.codigo.trim();
     const descricao = novaUnidadeForm.descricao.trim();
     if (!codigo) { toast.error("Código é obrigatório"); return; }
     if (!descricao) { toast.error("Descrição é obrigatória"); return; }
