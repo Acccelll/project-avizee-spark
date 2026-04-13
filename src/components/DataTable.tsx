@@ -693,8 +693,11 @@ export function DataTable<T extends Record<string, any>>({
                       ))}
                     </tr>
                   </thead>
-                  <tbody>
-                    {pagedData.map((item, idx) => (
+                  <VirtualizedOrPlainTbody
+                    data={pagedData}
+                    useVirtual={pagedData.length > virtualizeThreshold}
+                    maxHeight={maxHeight}
+                    renderRow={(item, idx) => (
                       <>
                         <tr key={item.id || idx} onClick={() => onRowClick?.(item)} onDoubleClick={onView ? () => onView(item) : undefined} className={cn('border-b transition-colors last:border-b-0 hover:bg-muted/30', selectable && selectedIds.includes(item.id) && 'bg-primary/5')}>
                           {hasActions && <td className="px-2 py-3">{renderActions(item)}</td>}
@@ -705,8 +708,8 @@ export function DataTable<T extends Record<string, any>>({
                           <tr key={`detail-${item.id || idx}`} className="border-b bg-muted/20"><td colSpan={visibleColumns.length + (hasActions ? 1 : 0) + (selectable ? 1 : 0)} className="px-4 py-3">{renderInlineDetails(item)}</td></tr>
                         )}
                       </>
-                    ))}
-                  </tbody>
+                    )}
+                  />
                 </table>
               </div>
 
