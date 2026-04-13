@@ -750,3 +750,60 @@ export function DataTable<T extends Record<string, any>>({
     </>
   );
 }
+
+// ── Virtualized or plain tbody ──────────────────────────────────────────────
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function VirtualizedOrPlainTbody<T extends Record<string, any>>({
+  data,
+  useVirtual,
+  maxHeight,
+  renderRow,
+}: {
+  data: T[];
+  useVirtual: boolean;
+  maxHeight: number;
+  renderRow: (item: T, index: number) => React.ReactNode;
+}) {
+  const parentRef = useRef<HTMLTableSectionElement>(null);
+  const virtualizer = useVirtualizer({
+    count: data.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 44,
+    overscan: 10,
+    enabled: useVirtual,
+  });
+
+  if (!useVirtual) {
+    return <tbody>{data.map((item, idx) => renderRow(item, idx))}</tbody>;
+  }
+
+  return (
+    <tbody
+      ref={parentRef}
+      style={{ display: 'block', maxHeight: `${maxHeight}px`, overflowY: 'auto' }}
+    >
+      <tr style={{ height: `${virtualizer.getTotalSize()}px`, display: 'block' }} aria-hidden="true" />
+      {virtualizer.getVirtualItems().map((virtualRow) => {
+        const item = data[virtualRow.index];
+        return (
+          <tr
+            key={virtualRow.key}
+            data-index={virtualRow.index}
+            ref={virtualizer.measureElement}
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              transform: `translateY(${virtualRow.start}px)`,
+            }}
+          >
+            <td style={{ display: 'contents' }}>
+              {renderRow(item, virtualRow.index)}
+            </td>
+          </tr>
+        );
+      })}
+    </tbody>
+  );
+}
