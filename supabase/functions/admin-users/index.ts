@@ -165,7 +165,20 @@ async function listUsers(serviceClient: any) {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
+    if (!allowedOrigin) {
+      return new Response(JSON.stringify({ error: "ALLOWED_ORIGIN env var is required" }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
     return new Response("ok", { headers: corsHeaders });
+  }
+
+  if (!allowedOrigin) {
+    return new Response(JSON.stringify({ error: "ALLOWED_ORIGIN env var is required" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
   try {
