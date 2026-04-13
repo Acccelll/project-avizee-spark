@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import {
   calcularScoreConciliacao,
+  conciliarTransacao,
   type TituloParaConciliacao,
 } from "@/services/financeiro/conciliacao.service";
 import type { TransacaoExtrato } from "@/services/financeiro/ofxParser.service";
