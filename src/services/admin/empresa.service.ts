@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Serviço de configuração da empresa — operações sobre `empresa_config` e
  * `app_configuracoes`.
