@@ -1,60 +1,83 @@
 
 
-# Plano: Corrigir build errors + Alinhar módulo de importação ao schema real
+# Plan: Fix Build Errors + Review Workbook/Apresentação/MigracaoDados/Clientes
 
-## Contexto
+## Summary of Issues Found
 
-O módulo de migração de dados já está majoritariamente alinhado ao schema real (lotes, logs, hooks). Os problemas remanescentes são:
+There are **3 groups** of build errors plus a UX concern about the Clientes contacts tab.
 
-1. **Build errors** em 4 arquivos não relacionados à importação
-2. **Aliases duplicados** em `aliases.ts` causando TS1117
-3. **Faturamento** tenta filtrar por `origem = 'importacao_historica'` que não existe na tabela `notas_fiscais` (campo `origem` existe no schema)
-4. **Cadastros** inserem diretamente nas tabelas finais (sem staging) — funcional mas sem staging tables `stg_produtos/clientes/fornecedores`
+---
 
-O código dos hooks de importação (cadastros, estoque, financeiro, faturamento, XML) já usa os campos corretos do schema (`tipo`, `total_registros`, `registros_sucesso`, `registros_erro`, `usuario_id`, `lote_id` em logs). A `ReconciliacaoDetalhe` e `ReconciliacaoIndicadores` também já usam os campos reais. O fluxo ponta-a-ponta está funcional — os problemas são pontuais.
+## 1. Edge Function Build Errors (`process-email-queue/index.ts`)
 
-## Correções
+**Root cause**: The `createClient` from `@supabase/supabase-js@2` infers strict table types. Since this edge function doesn't have access to the project's generated types, `supabase.from('email_send_log').insert(...)` resolves the row type to `never`.
 
-### 1. `src/lib/importacao/aliases.ts` — Remover chaves duplicadas (TS1117)
+**Fix**: Change `createClient` call to use explicit `any` generic: `createClient<any>(supabaseUrl, supabaseServiceKey)`. This also fixes the `moveToDlq` parameter type mismatch and the `msg`/`id` implicit `any` errors.
 
-Linhas 149-150 redefinem `DESCRICAO` e `DESCRIÇÃO` (já definidas em 92-93). Solução: remover as duplicatas do bloco financeiro, pois o mapeamento `DESCRICAO → nome` (produtos) já é feito pelo bloco de produtos, e o financeiro já resolve via validator direto.
+Also add explicit types to the `.map()` callbacks:
+- `(msg: any)` on line 159
+- `(id: any)` on line 164
 
-### 2. `src/pages/WorkbookGerencial.tsx` — Remover prop `icon` inexistente
+---
 
-`ModulePage` não aceita `icon`. Remover a prop. Além disso, `onGerar` espera `Promise<void>` mas `mutateAsync` retorna `Promise<string>`. Fazer wrap.
+## 2. Apresentação Build Errors
 
-### 3. `src/services/workbookService.ts` — Adicionar `as any` nos `.from()` de tabelas ausentes
+### 2a. `fetchPresentationData.ts` (lines 93-96)
+**Root cause**: `competenciaByFechamentoId` is inferred as `Map<string, string>` but within the generic function `byComp`, the `comp` variable ends up typed as `unknown` due to how TypeScript resolves the Map `.get()` return when the key comes from a generic type.
 
-As tabelas `workbook_templates`, `workbook_geracoes`, `fechamentos_mensais` não existem nos types gerados. Adicionar type assertions nos `.from()` e resultados, mesmo padrão já usado em `sessoes.service.ts`.
+**Fix**: Add explicit type annotation: `const comp: string = ...` or cast `comp as string` in the Map operations.
 
-### 4. `src/services/freteSimulacao.service.ts` — Corrigir tipos incompatíveis
+### 2b. `generatePresentation.test.ts` (line 14)
+**Root cause**: `ApresentacaoDataBundle.slides` expects `Record<SlideCodigo, Record<string, unknown>>` which requires ALL 27 `SlideCodigo` keys, but the test only provides 12.
 
-- Linha 290: `payload_raw` usa `Record<string, unknown>` que não é compatível com `Json`. Cast para `Json`.
-- Linha 423: `update` com `Record<string, unknown>` — cast para `any`.
+**Fix**: Change the `slides` type in `ApresentacaoDataBundle` to `Partial<Record<SlideCodigo, Record<string, unknown>>>`, OR cast in the test with `as any` / `as Record<SlideCodigo, ...>`.
 
-### 5. `src/components/importacao/ImportacaoTimeline.tsx` — Campo `etapa` não existe em `importacao_logs`
+**Preferred**: Use `Partial` in the type definition since not all slides need data, or use `as any` in test.
 
-O componente exibe `log.etapa` mas a tabela real só tem `lote_id`, `nivel`, `mensagem`, `created_at`. O `ReconciliacaoDetalhe` já consulta sem `etapa`. Solução: remover `etapa` da interface `ImportLog` e do render, extraindo uma etapa simulada do início da mensagem se desejado.
+---
 
-### 6. Verificar `ReconciliacaoDetalhe.tsx` — já corrigido anteriormente
+## 3. Page Build Errors
 
-O componente já usa `lote_id` e `created_at` — sem alteração necessária.
+### 3a. `Clientes.tsx` (line 1327)
+**Root cause**: Lucide React's `Star` component doesn't accept `title` as a prop in newer versions.
 
-### 7. Cadastros sem staging — manter como está
+**Fix**: Remove `title="Principal"` from the `<Star>` component, or wrap it in a `<span title="Principal">`.
 
-O hook `useImportacaoCadastros` já funciona fazendo import direto (lookup + insert/update). Criar staging tables `stg_produtos/clientes/fornecedores` é opcional e não é necessário para o fluxo funcionar. Manter o padrão atual sem staging para cadastros.
+### 3b. `UnidadesMedida.tsx` (lines 177, 182, 212)
+- Lines 177/182: `StatCard.value` expects `string` but receives `number` (`kpis.total`, `kpis.ativas`).
+- Line 212: `DataTable` doesn't have `onRefresh` prop.
 
-## Arquivos a alterar
+**Fix**: 
+- Wrap values with `String(kpis.total)` and `String(kpis.ativas)`
+- Remove the `onRefresh={fetchData}` prop from `DataTable`
 
-| Arquivo | Alteração |
-|---|---|
-| `src/lib/importacao/aliases.ts` | Remover linhas 149-150 (duplicatas `DESCRICAO`/`DESCRIÇÃO`) |
-| `src/pages/WorkbookGerencial.tsx` | Remover prop `icon`, wrap `mutateAsync` para `Promise<void>` |
-| `src/services/workbookService.ts` | Adicionar `as any` nos `.from()` de tabelas não mapeadas |
-| `src/services/freteSimulacao.service.ts` | Cast `payload_raw` para `Json`, cast update payload |
-| `src/components/importacao/ImportacaoTimeline.tsx` | Remover `etapa` da interface e render |
+---
 
-## Sem migrations necessárias
+## 4. Clientes Contacts Tab — "Incluir" Button
 
-Nenhuma alteração de schema é necessária. O módulo de importação já funciona com o schema real.
+The "Incluir" button for contact history **already exists** (line 919-928). It appears only in edit mode (`mode === "edit"`). If the user cannot see it, they may be in create mode. No code change needed unless the user clarifies the issue further.
+
+---
+
+## 5. Migração de Dados
+
+The page uses `@ts-nocheck` so it has no build errors. The module is functionally aligned with the real schema per previous work. No changes needed here for this fix round.
+
+---
+
+## 6. Workbook Gerencial
+
+The workbook module code is structurally sound (generateWorkbook, fillRawSheets, buildVisualSheets, fetchWorkbookData, workbookService). No build errors. The views may or may not exist in the DB — if they don't, the queries will return empty arrays gracefully. No code changes needed for build fixes.
+
+---
+
+## Files to Edit
+
+| File | Change |
+|------|--------|
+| `supabase/functions/process-email-queue/index.ts` | `createClient<any>(...)`, add `any` types to map callbacks |
+| `src/lib/apresentacao/fetchPresentationData.ts` | Explicit `string` type for `comp` variable |
+| `src/lib/apresentacao/generatePresentation.test.ts` | Cast `slides` as `any` or use `Partial` |
+| `src/pages/Clientes.tsx` | Wrap `<Star>` in `<span title="Principal">` |
+| `src/pages/UnidadesMedida.tsx` | `String()` for StatCard values, remove `onRefresh` |
 
