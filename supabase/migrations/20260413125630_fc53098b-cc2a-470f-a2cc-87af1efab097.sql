@@ -1,0 +1,1 @@
+ALTER TABLE public.apresentacao_templates ADD COLUMN IF NOT EXISTS config_json jsonb;

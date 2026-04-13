@@ -143,6 +143,7 @@ export type Database = {
           arquivo_path: string | null
           ativo: boolean
           codigo: string
+          config_json: Json | null
           created_at: string
           descricao: string | null
           id: string
@@ -154,6 +155,7 @@ export type Database = {
           arquivo_path?: string | null
           ativo?: boolean
           codigo: string
+          config_json?: Json | null
           created_at?: string
           descricao?: string | null
           id?: string
@@ -165,6 +167,7 @@ export type Database = {
           arquivo_path?: string | null
           ativo?: boolean
           codigo?: string
+          config_json?: Json | null
           created_at?: string
           descricao?: string | null
           id?: string
