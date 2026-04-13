@@ -64,7 +64,7 @@ export default function OrcamentoForm() {
   const pdfRef = useRef<HTMLDivElement>(null);
   const isEdit = !!id;
   const isMobile = useIsMobile();
-  const { user, roles } = useAuth();
+  const { user, roles, extraPermissions } = useAuth();
 
   const [saving, setSaving] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(searchParams.get("preview") === "1");
