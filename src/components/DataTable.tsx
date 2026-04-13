@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import {
   Eye,
   ChevronUp,
@@ -81,6 +82,17 @@ interface DataTableProps<T> {
   onBatchDelete?: (ids: string[]) => void;
   onBatchStatusChange?: (ids: string[], status: string) => void;
   renderInlineDetails?: (item: T) => React.ReactNode;
+  /**
+   * Row count threshold above which virtualization is enabled.
+   * Below this threshold, rows render normally without virtualization.
+   * @default 100
+   */
+  virtualizeThreshold?: number;
+  /**
+   * Maximum height (px) of the table body when virtualization is active.
+   * @default 600
+   */
+  maxHeight?: number;
 }
 
 type SortDirection = 'asc' | 'desc' | null;
@@ -107,6 +119,8 @@ export function DataTable<T extends Record<string, unknown>>({
   onBatchDelete,
   onBatchStatusChange,
   renderInlineDetails,
+  virtualizeThreshold = 100,
+  maxHeight = 600,
 }: DataTableProps<T>) {
   const isMobile = useIsMobile();
   const { user } = useAuth();
@@ -679,8 +693,11 @@ export function DataTable<T extends Record<string, unknown>>({
                       ))}
                     </tr>
                   </thead>
-                  <tbody>
-                    {pagedData.map((item, idx) => (
+                  <VirtualizedOrPlainTbody
+                    data={pagedData}
+                    useVirtual={pagedData.length > virtualizeThreshold}
+                    maxHeight={maxHeight}
+                    renderRow={(item, idx) => (
                       <>
                         <tr key={item.id || idx} onClick={() => onRowClick?.(item)} onDoubleClick={onView ? () => onView(item) : undefined} className={cn('border-b transition-colors last:border-b-0 hover:bg-muted/30', selectable && selectedIds.includes(item.id) && 'bg-primary/5')}>
                           {hasActions && <td className="px-2 py-3">{renderActions(item)}</td>}
@@ -691,8 +708,8 @@ export function DataTable<T extends Record<string, unknown>>({
                           <tr key={`detail-${item.id || idx}`} className="border-b bg-muted/20"><td colSpan={visibleColumns.length + (hasActions ? 1 : 0) + (selectable ? 1 : 0)} className="px-4 py-3">{renderInlineDetails(item)}</td></tr>
                         )}
                       </>
-                    ))}
-                  </tbody>
+                    )}
+                  />
                 </table>
               </div>
 
@@ -731,5 +748,62 @@ export function DataTable<T extends Record<string, unknown>>({
         </label>
       </ConfirmDialog>
     </>
+  );
+}
+
+// ── Virtualized or plain tbody ──────────────────────────────────────────────
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function VirtualizedOrPlainTbody<T extends Record<string, any>>({
+  data,
+  useVirtual,
+  maxHeight,
+  renderRow,
+}: {
+  data: T[];
+  useVirtual: boolean;
+  maxHeight: number;
+  renderRow: (item: T, index: number) => React.ReactNode;
+}) {
+  const parentRef = useRef<HTMLTableSectionElement>(null);
+  const virtualizer = useVirtualizer({
+    count: data.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 44,
+    overscan: 10,
+    enabled: useVirtual,
+  });
+
+  if (!useVirtual) {
+    return <tbody>{data.map((item, idx) => renderRow(item, idx))}</tbody>;
+  }
+
+  return (
+    <tbody
+      ref={parentRef}
+      style={{ display: 'block', maxHeight: `${maxHeight}px`, overflowY: 'auto' }}
+    >
+      <tr style={{ height: `${virtualizer.getTotalSize()}px`, display: 'block' }} aria-hidden="true" />
+      {virtualizer.getVirtualItems().map((virtualRow) => {
+        const item = data[virtualRow.index];
+        return (
+          <tr
+            key={virtualRow.key}
+            data-index={virtualRow.index}
+            ref={virtualizer.measureElement}
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              transform: `translateY(${virtualRow.start}px)`,
+            }}
+          >
+            <td style={{ display: 'contents' }}>
+              {renderRow(item, virtualRow.index)}
+            </td>
+          </tr>
+        );
+      })}
+    </tbody>
   );
 }

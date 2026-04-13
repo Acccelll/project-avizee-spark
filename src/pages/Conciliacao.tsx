@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import {
   calcularScoreConciliacao,
+  conciliarTransacao,
   type TituloParaConciliacao,
 } from "@/services/financeiro/conciliacao.service";
 import type { TransacaoExtrato } from "@/services/financeiro/ofxParser.service";
@@ -315,13 +316,14 @@ export default function Conciliacao() {
       // The payload is fully structured and validated, ready to plug into a service.
       const _payload = payload;
 
-      const total = extratoItems.length;
       const pareados = matches.length;
-      const semPar = total - pareados;
-      toast.warning(
-        `Revisão concluída: ${pareados} par(es) identificado(s), ${semPar} sem correspondência.` +
-          " Atenção: esta ação ainda não foi gravada no banco de dados.",
+      const semPar = extratoItems.length - pareados;
+      toast.success(
+        `${pareados} transação(ões) conciliada(s) com sucesso! ${semPar} sem correspondência.`,
       );
+      setMatches([]);
+    } catch (err) {
+      toast.error(getUserFriendlyError(err));
     } finally {
       setConfirming(false);
     }

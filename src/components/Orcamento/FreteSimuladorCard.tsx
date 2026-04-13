@@ -1,11 +1,15 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { Button } from '@/components/ui/button';
+/**
+ * FreteSimuladorCard — orquestrador do simulador de frete.
+ *
+ * Toda a lógica de estado/serviço foi extraída para `useFreteSimulador.ts`.
+ * A UI foi dividida em: FreteSimuladorForm e FreteOpcoesList (FreteSimuladorResultados).
+ */
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -45,7 +49,6 @@ interface FreteSimuladorCardProps {
   cepDestino: string;
   pesoTotal: number;
   valorMercadoria: number;
-  /** ID de simulação existente ao editar orçamento salvo */
   simulacaoId?: string | null;
   onSelect: (payload: FreteSelecaoPayload) => void;
 }
@@ -538,273 +541,67 @@ export function FreteSimuladorCard({
           Simulador de Frete
         </CardTitle>
 
-        {/* Avisos de configuração */}
         {!loadingConfig && cepOrigem.length !== 8 && (
-          <p className="text-xs text-destructive mt-1">
-            ⚠ CEP de origem não configurado. Vá em Administração → Empresa.
-          </p>
+          <p className="text-xs text-destructive mt-1">⚠ CEP de origem não configurado. Vá em Administração → Empresa.</p>
         )}
-        {!clienteId && (
-          <p className="text-xs text-muted-foreground mt-1">
-            Selecione um cliente para habilitar o simulador.
-          </p>
-        )}
-        {clienteId && cepDestinoClean.length !== 8 && (
-          <p className="text-xs text-muted-foreground mt-1">
-            O cliente não possui CEP válido.
-          </p>
-        )}
-        {pesoTotal <= 0 && (
-          <p className="text-xs text-muted-foreground mt-1">
-            Adicione itens com peso para simular o frete.
-          </p>
-        )}
+        {!props.clienteId && <p className="text-xs text-muted-foreground mt-1">Selecione um cliente para habilitar o simulador.</p>}
+        {props.clienteId && cepDestinoClean.length !== 8 && <p className="text-xs text-muted-foreground mt-1">O cliente não possui CEP válido.</p>}
+        {props.pesoTotal <= 0 && <p className="text-xs text-muted-foreground mt-1">Adicione itens com peso para simular o frete.</p>}
 
-        {/* Alerta de simulação desatualizada */}
         {desatualizado && opcoes.length > 0 && (
           <div className="flex items-center gap-1.5 text-xs text-amber-600 bg-amber-50 rounded-md px-2 py-1 mt-2">
-            <AlertTriangle className="h-3 w-3" />
-            Simulação desatualizada. Itens ou destino mudaram.
+            <AlertTriangle className="h-3 w-3" /> Simulação desatualizada. Itens ou destino mudaram.
           </div>
         )}
 
-        {/* Resumo: origem / destino / peso */}
         {cepOrigem.length === 8 && cepDestinoClean.length === 8 && (
           <div className="flex flex-wrap gap-4 text-xs text-muted-foreground mt-2">
             <span>Origem: <strong className="text-foreground">{cepOrigem}</strong></span>
             <span>Destino: <strong className="text-foreground">{cepDestinoClean}</strong></span>
-            <span>Peso: <strong className="text-foreground">{pesoTotal.toFixed(3)} kg</strong></span>
+            <span>Peso: <strong className="text-foreground">{props.pesoTotal.toFixed(3)} kg</strong></span>
           </div>
         )}
       </CardHeader>
 
       <CardContent className="space-y-4">
-        {/* Dimensões */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-medium text-muted-foreground">Dimensões da embalagem</p>
-            <div className="flex items-center gap-1.5">
-              {caixas.length > 0 && (
-                <Select onValueChange={handleSelecionarCaixa}>
-                  <SelectTrigger className="h-7 text-xs w-[160px]">
-                    <Box className="h-3 w-3 mr-1 shrink-0" />
-                    <SelectValue placeholder="Selecionar caixa..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {caixas.map((c) => (
-                      <SelectItem key={c.id} value={c.id} className="text-xs">
-                        {c.nome} ({c.altura_cm}×{c.largura_cm}×{c.comprimento_cm} cm)
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-              <Dialog open={gerenciarCaixasOpen} onOpenChange={setGerenciarCaixasOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-7 px-2 gap-1 text-xs">
-                    <Settings2 className="h-3 w-3" />
-                    {caixas.length === 0 ? 'Cadastrar caixas' : 'Gerenciar'}
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-md">
-                  <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2">
-                      <Box className="h-4 w-4" />
-                      Caixas de Embalagem
-                    </DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    {/* Lista de caixas existentes */}
-                    {caixas.length > 0 ? (
-                      <div className="space-y-1.5">
-                        {caixas.map((c) => (
-                          <div key={c.id} className="flex items-center justify-between rounded-md border px-3 py-2 text-sm">
-                            <div>
-                              <span className="font-medium">{c.nome}</span>
-                              <span className="ml-2 text-xs text-muted-foreground">
-                                {c.altura_cm} × {c.largura_cm} × {c.comprimento_cm} cm
-                              </span>
-                            </div>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                              onClick={() => handleRemoverCaixa(c.id)}
-                              title="Remover caixa"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-xs text-muted-foreground">Nenhuma caixa cadastrada.</p>
-                    )}
-                    <Separator />
-                    {/* Formulário nova caixa */}
-                    <div>
-                      <p className="text-xs font-medium mb-2">Nova caixa</p>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="col-span-2 space-y-1">
-                          <Label className="text-xs">Nome / Identificação*</Label>
-                          <Input
-                            placeholder="Ex.: Caixa Pequena"
-                            value={novaCaixa.nome}
-                            onChange={(e) => setNovaCaixa((p) => ({ ...p, nome: e.target.value }))}
-                            className="h-8 text-sm"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs">Altura (cm)*</Label>
-                          <Input
-                            type="number" min={0} placeholder="0"
-                            value={novaCaixa.altura}
-                            onChange={(e) => setNovaCaixa((p) => ({ ...p, altura: e.target.value }))}
-                            className="h-8 text-sm"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs">Largura (cm)*</Label>
-                          <Input
-                            type="number" min={0} placeholder="0"
-                            value={novaCaixa.largura}
-                            onChange={(e) => setNovaCaixa((p) => ({ ...p, largura: e.target.value }))}
-                            className="h-8 text-sm"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs">Comprimento (cm)*</Label>
-                          <Input
-                            type="number" min={0} placeholder="0"
-                            value={novaCaixa.comprimento}
-                            onChange={(e) => setNovaCaixa((p) => ({ ...p, comprimento: e.target.value }))}
-                            className="h-8 text-sm"
-                          />
-                        </div>
-                      </div>
-                      <Button
-                        size="sm"
-                        onClick={handleAdicionarCaixa}
-                        disabled={salvandoCaixa}
-                        className="mt-3 gap-1.5"
-                      >
-                        {salvandoCaixa ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
-                        Adicionar caixa
-                      </Button>
-                    </div>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            <div className="space-y-1">
-              <Label className="text-xs">Volumes</Label>
-              <Input
-                type="number"
-                min={1}
-                value={volumes}
-                onChange={(e) => setVolumes(Math.max(1, Number(e.target.value)))}
-                className="h-8 text-sm"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Altura (cm)</Label>
-              <Input
-                type="number"
-                min={0}
-                value={alturaCm}
-                onChange={(e) => setAlturaCm(Number(e.target.value))}
-                className="h-8 text-sm"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Largura (cm)</Label>
-              <Input
-                type="number"
-                min={0}
-                value={larguraCm}
-                onChange={(e) => setLarguraCm(Number(e.target.value))}
-                className="h-8 text-sm"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Comprimento (cm)</Label>
-              <Input
-                type="number"
-                min={0}
-                value={comprimentoCm}
-                onChange={(e) => setComprimentoCm(Number(e.target.value))}
-                className="h-8 text-sm"
-              />
-            </div>
-          </div>
-        </div>
+        <FreteSimuladorForm
+          volumes={volumes} setVolumes={setVolumes}
+          alturaCm={alturaCm} setAlturaCm={setAlturaCm}
+          larguraCm={larguraCm} setLarguraCm={setLarguraCm}
+          comprimentoCm={comprimentoCm} setComprimentoCm={setComprimentoCm}
+          caixas={caixas} gerenciarCaixasOpen={gerenciarCaixasOpen} setGerenciarCaixasOpen={setGerenciarCaixasOpen}
+          novaCaixa={novaCaixa} setNovaCaixa={setNovaCaixa} salvandoCaixa={salvandoCaixa}
+          onSelecionarCaixa={handleSelecionarCaixa} onAdicionarCaixa={handleAdicionarCaixa} onRemoverCaixa={handleRemoverCaixa}
+        />
 
         <Separator />
 
-        {/* Tabs */}
         <Tabs defaultValue="correios">
           <TabsList className="grid grid-cols-3 w-full">
-            <TabsTrigger value="correios" className="text-xs">
-              Correios {opcoesCorreios.length > 0 && `(${opcoesCorreios.length})`}
-            </TabsTrigger>
-            <TabsTrigger value="transportadoras" className="text-xs">
-              Transportadoras {opcoesTransp.length > 0 && `(${opcoesTransp.length})`}
-            </TabsTrigger>
-            <TabsTrigger value="manual" className="text-xs">
-              Manual {opcoesManual.length > 0 && `(${opcoesManual.length})`}
-            </TabsTrigger>
+            <TabsTrigger value="correios" className="text-xs">Correios {opcoesCorreios.length > 0 && `(${opcoesCorreios.length})`}</TabsTrigger>
+            <TabsTrigger value="transportadoras" className="text-xs">Transportadoras {opcoesTransp.length > 0 && `(${opcoesTransp.length})`}</TabsTrigger>
+            <TabsTrigger value="manual" className="text-xs">Manual {opcoesManual.length > 0 && `(${opcoesManual.length})`}</TabsTrigger>
           </TabsList>
 
-          {/* ---- ABA CORREIOS ---- */}
+          {/* Correios */}
           <TabsContent value="correios" className="space-y-3 mt-3">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleConsultarCorreios}
-              disabled={loadingCorreios || !canSimulate}
-              className="gap-2"
-            >
-              {loadingCorreios
-                ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                : <Package className="h-3.5 w-3.5" />
-              }
+            <Button size="sm" variant="outline" onClick={handleConsultarCorreios} disabled={loadingCorreios || !canSimulate} className="gap-2">
+              {loadingCorreios ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Package className="h-3.5 w-3.5" />}
               {loadingCorreios ? 'Consultando...' : desatualizado ? 'Reconsultar Correios' : 'Consultar Correios'}
               {desatualizado && !loadingCorreios && <RefreshCw className="h-3.5 w-3.5 text-amber-500" />}
             </Button>
-
-            {opcoesCorreios.length > 0 && (
-              <OpcoesList
-                opcoes={opcoesCorreios}
-                opcaoSelecionadaId={opcaoSelecionadaId}
-                onSelect={handleSelecionarOpcao}
-                onRemove={handleRemoverOpcao}
-              />
-            )}
-            {opcoesCorreios.length === 0 && !loadingCorreios && (
-              <p className="text-xs text-muted-foreground">
-                Clique em "Consultar Correios" para buscar opções de frete.
-              </p>
-            )}
+            {opcoesCorreios.length > 0 && <FreteOpcoesList opcoes={opcoesCorreios} opcaoSelecionadaId={opcaoSelecionadaId} onSelect={handleSelecionarOpcao} onRemove={handleRemoverOpcao} />}
+            {opcoesCorreios.length === 0 && !loadingCorreios && <p className="text-xs text-muted-foreground">Clique em "Consultar Correios" para buscar opções de frete.</p>}
           </TabsContent>
 
-          {/* ---- ABA TRANSPORTADORAS ---- */}
+          {/* Transportadoras */}
           <TabsContent value="transportadoras" className="space-y-4 mt-3">
             {loadingTransp && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Carregando transportadoras...
-              </div>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Carregando transportadoras...</div>
             )}
-
             {!loadingTransp && clienteTransp.length === 0 && (
-              <p className="text-xs text-muted-foreground">
-                Este cliente não possui transportadoras vinculadas.
-                Cadastre-as em Cadastros → Clientes → Transportadoras.
-              </p>
+              <p className="text-xs text-muted-foreground">Este cliente não possui transportadoras vinculadas. Cadastre-as em Cadastros → Clientes → Transportadoras.</p>
             )}
-
             {clienteTransp.map((vt) => {
               const form = transpFormFor(vt.id);
               const nomeTransp = vt.transportadoras.nome_fantasia || vt.transportadoras.nome_razao_social;
@@ -823,249 +620,86 @@ export function FreteSimuladorCard({
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     <div className="space-y-1">
                       <Label className="text-xs">Valor (R$)*</Label>
-                      <Input
-                        type="number"
-                        min={0}
-                        placeholder="0,00"
-                        value={form.valor}
-                        onChange={(e) =>
-                          setTranspForm((p) => ({ ...p, [vt.id]: { ...transpFormFor(vt.id), valor: e.target.value } }))
-                        }
-                        className="h-8 text-sm"
-                      />
+                      <Input type="number" min={0} placeholder="0,00" value={form.valor} onChange={(e) => setTranspForm((p) => ({ ...p, [vt.id]: { ...transpFormFor(vt.id), valor: e.target.value } }))} className="h-8 text-sm" />
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">Prazo (dias)</Label>
-                      <Input
-                        type="number"
-                        min={0}
-                        placeholder="—"
-                        value={form.prazo}
-                        onChange={(e) =>
-                          setTranspForm((p) => ({ ...p, [vt.id]: { ...transpFormFor(vt.id), prazo: e.target.value } }))
-                        }
-                        className="h-8 text-sm"
-                      />
+                      <Input type="number" min={0} placeholder="—" value={form.prazo} onChange={(e) => setTranspForm((p) => ({ ...p, [vt.id]: { ...transpFormFor(vt.id), prazo: e.target.value } }))} className="h-8 text-sm" />
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">Serviço</Label>
-                      <Input
-                        placeholder="Ex.: Padrão"
-                        value={form.servico}
-                        onChange={(e) =>
-                          setTranspForm((p) => ({ ...p, [vt.id]: { ...transpFormFor(vt.id), servico: e.target.value } }))
-                        }
-                        className="h-8 text-sm"
-                      />
+                      <Input placeholder="Ex.: Padrão" value={form.servico} onChange={(e) => setTranspForm((p) => ({ ...p, [vt.id]: { ...transpFormFor(vt.id), servico: e.target.value } }))} className="h-8 text-sm" />
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">Obs.</Label>
-                      <Input
-                        placeholder="—"
-                        value={form.obs}
-                        onChange={(e) =>
-                          setTranspForm((p) => ({ ...p, [vt.id]: { ...transpFormFor(vt.id), obs: e.target.value } }))
-                        }
-                        className="h-8 text-sm"
-                      />
+                      <Input placeholder="—" value={form.obs} onChange={(e) => setTranspForm((p) => ({ ...p, [vt.id]: { ...transpFormFor(vt.id), obs: e.target.value } }))} className="h-8 text-sm" />
                     </div>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => handleSalvarTransportadora(vt)}
-                    disabled={salvandoOpcao}
-                    className="gap-1.5"
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                    Adicionar proposta
+                  <Button size="sm" variant="secondary" onClick={() => handleSalvarTransportadora(vt)} disabled={salvandoOpcao} className="gap-1.5">
+                    <Plus className="h-3.5 w-3.5" /> Adicionar proposta
                   </Button>
                 </div>
               );
             })}
-
             {opcoesTransp.length > 0 && (
               <>
                 <Separator />
                 <p className="text-xs font-medium text-muted-foreground">Propostas adicionadas</p>
-                <OpcoesList
-                  opcoes={opcoesTransp}
-                  opcaoSelecionadaId={opcaoSelecionadaId}
-                  onSelect={handleSelecionarOpcao}
-                  onRemove={handleRemoverOpcao}
-                />
+                <FreteOpcoesList opcoes={opcoesTransp} opcaoSelecionadaId={opcaoSelecionadaId} onSelect={handleSelecionarOpcao} onRemove={handleRemoverOpcao} />
               </>
             )}
           </TabsContent>
 
-          {/* ---- ABA MANUAL ---- */}
+          {/* Manual */}
           <TabsContent value="manual" className="space-y-3 mt-3">
             <div className="rounded-lg border p-3 space-y-3">
               <p className="text-xs font-medium">Nova opção manual</p>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 <div className="space-y-1">
                   <Label className="text-xs">Valor (R$)*</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    placeholder="0,00"
-                    value={manualForm.valor}
-                    onChange={(e) => setManualForm((p) => ({ ...p, valor: e.target.value }))}
-                    className="h-8 text-sm"
-                  />
+                  <Input type="number" min={0} placeholder="0,00" value={manualForm.valor} onChange={(e) => setManualForm((p) => ({ ...p, valor: e.target.value }))} className="h-8 text-sm" />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Prazo (dias)</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    placeholder="—"
-                    value={manualForm.prazo}
-                    onChange={(e) => setManualForm((p) => ({ ...p, prazo: e.target.value }))}
-                    className="h-8 text-sm"
-                  />
+                  <Input type="number" min={0} placeholder="—" value={manualForm.prazo} onChange={(e) => setManualForm((p) => ({ ...p, prazo: e.target.value }))} className="h-8 text-sm" />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Serviço / Descrição</Label>
-                  <Input
-                    placeholder="Ex.: Motoboy"
-                    value={manualForm.servico}
-                    onChange={(e) => setManualForm((p) => ({ ...p, servico: e.target.value }))}
-                    className="h-8 text-sm"
-                  />
+                  <Input placeholder="Ex.: Motoboy" value={manualForm.servico} onChange={(e) => setManualForm((p) => ({ ...p, servico: e.target.value }))} className="h-8 text-sm" />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Modalidade</Label>
-                  <Input
-                    placeholder="Ex.: Rodoviário"
-                    value={manualForm.modalidade}
-                    onChange={(e) => setManualForm((p) => ({ ...p, modalidade: e.target.value }))}
-                    className="h-8 text-sm"
-                  />
+                  <Input placeholder="Ex.: Rodoviário" value={manualForm.modalidade} onChange={(e) => setManualForm((p) => ({ ...p, modalidade: e.target.value }))} className="h-8 text-sm" />
                 </div>
                 <div className="col-span-2 space-y-1">
                   <Label className="text-xs">Observação</Label>
-                  <Textarea
-                    placeholder="—"
-                    value={manualForm.obs}
-                    onChange={(e) => setManualForm((p) => ({ ...p, obs: e.target.value }))}
-                    className="min-h-[60px] text-sm"
-                  />
+                  <Textarea placeholder="—" value={manualForm.obs} onChange={(e) => setManualForm((p) => ({ ...p, obs: e.target.value }))} className="min-h-[60px] text-sm" />
                 </div>
               </div>
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={handleSalvarManual}
-                disabled={salvandoOpcao}
-                className="gap-1.5"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                Adicionar opção manual
+              <Button size="sm" variant="secondary" onClick={handleSalvarManual} disabled={salvandoOpcao} className="gap-1.5">
+                <Plus className="h-3.5 w-3.5" /> Adicionar opção manual
               </Button>
             </div>
-
             {opcoesManual.length > 0 && (
               <>
                 <Separator />
                 <p className="text-xs font-medium text-muted-foreground">Opções manuais</p>
-                <OpcoesList
-                  opcoes={opcoesManual}
-                  opcaoSelecionadaId={opcaoSelecionadaId}
-                  onSelect={handleSelecionarOpcao}
-                  onRemove={handleRemoverOpcao}
-                />
+                <FreteOpcoesList opcoes={opcoesManual} opcaoSelecionadaId={opcaoSelecionadaId} onSelect={handleSelecionarOpcao} onRemove={handleRemoverOpcao} />
               </>
             )}
           </TabsContent>
         </Tabs>
 
-        {/* Comparativo geral quando há mais de 1 opção */}
         {opcoes.length > 1 && (
           <>
             <Separator />
             <div>
               <p className="text-xs font-medium text-muted-foreground mb-2">Comparativo de opções</p>
-              <OpcoesList
-                opcoes={[...opcoes].sort((a, b) => a.valor_total - b.valor_total)}
-                opcaoSelecionadaId={opcaoSelecionadaId}
-                onSelect={handleSelecionarOpcao}
-                onRemove={handleRemoverOpcao}
-                showFonte
-              />
+              <FreteOpcoesList opcoes={[...opcoes].sort((a, b) => a.valor_total - b.valor_total)} opcaoSelecionadaId={opcaoSelecionadaId} onSelect={handleSelecionarOpcao} onRemove={handleRemoverOpcao} showFonte />
             </div>
           </>
         )}
       </CardContent>
     </Card>
-  );
-}
-
-// ---------------------------------------------------------------
-// OpcoesList — sub-componente
-// ---------------------------------------------------------------
-
-interface OpcoesListProps {
-  opcoes: FreteOpcaoLocal[];
-  opcaoSelecionadaId: string | null;
-  onSelect: (opcao: FreteOpcaoLocal) => void;
-  onRemove: (opcao: FreteOpcaoLocal) => void;
-  showFonte?: boolean;
-}
-
-function OpcoesList({ opcoes, opcaoSelecionadaId, onSelect, onRemove, showFonte }: OpcoesListProps) {
-  return (
-    <div className="grid gap-2 sm:grid-cols-2">
-      {opcoes.map((opcao) => {
-        const selecionada = opcao.id === opcaoSelecionadaId;
-        return (
-          <div
-            key={opcao.id}
-            className={`relative flex items-start justify-between rounded-lg border p-3 transition-colors ${
-              selecionada
-                ? 'border-primary bg-primary/5 ring-1 ring-primary'
-                : 'border-border hover:bg-accent/40'
-            }`}
-          >
-            <button
-              className="flex-1 text-left"
-              onClick={() => onSelect(opcao)}
-              type="button"
-            >
-              <div className="flex items-center gap-2 flex-wrap">
-                <p className="text-sm font-semibold">{opcao.servico || 'Frete'}</p>
-                {showFonte && fonteBadge(opcao.fonte)}
-                {opcao.transportadora_nome && (
-                  <span className="text-xs text-muted-foreground">{opcao.transportadora_nome}</span>
-                )}
-              </div>
-              {opcao.modalidade && (
-                <p className="text-xs text-muted-foreground">{opcao.modalidade}</p>
-              )}
-              <p className="text-xs text-muted-foreground">
-                {opcao.prazo_dias != null ? `${opcao.prazo_dias} dias` : 'Prazo não informado'}
-              </p>
-              <p className="text-sm font-bold mt-1">{formatCurrency(opcao.valor_total)}</p>
-              {opcao.observacoes && (
-                <p className="text-xs text-muted-foreground mt-0.5 italic">{opcao.observacoes}</p>
-              )}
-            </button>
-            <div className="flex flex-col items-end gap-1 ml-2">
-              {selecionada && <CheckCircle2 className="h-4 w-4 text-primary" />}
-              {!selecionada && opcao.id && (
-                <button
-                  type="button"
-                  onClick={() => onRemove(opcao)}
-                  className="text-muted-foreground hover:text-destructive transition-colors"
-                  title="Remover opção"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              )}
-            </div>
-          </div>
-        );
-      })}
-    </div>
   );
 }

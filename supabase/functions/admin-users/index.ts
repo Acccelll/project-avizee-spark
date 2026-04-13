@@ -1,8 +1,15 @@
 // deno-lint-ignore-file no-explicit-any
+// IMPORTANT: This function uses service role key and MUST NOT be accessed from arbitrary origins.
+// The ALLOWED_ORIGIN env var MUST be set in production with the real application domain.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
+const allowedOrigin = Deno.env.get("ALLOWED_ORIGIN");
+if (!allowedOrigin) {
+  console.warn("[admin-users] ALLOWED_ORIGIN env var is not set. Requests will be rejected.");
+}
+
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": allowedOrigin ?? "",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
@@ -158,7 +165,20 @@ async function listUsers(serviceClient: any) {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
+    if (!allowedOrigin) {
+      return new Response(JSON.stringify({ error: "ALLOWED_ORIGIN env var is required" }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
     return new Response("ok", { headers: corsHeaders });
+  }
+
+  if (!allowedOrigin) {
+    return new Response(JSON.stringify({ error: "ALLOWED_ORIGIN env var is required" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
   try {
