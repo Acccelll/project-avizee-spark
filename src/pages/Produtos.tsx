@@ -18,9 +18,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Trash2, Package, FileText, TrendingUp, Archive, ShoppingCart, AlertCircle, CheckCircle2, AlignLeft, Tag } from "lucide-react";
+import { Loader2, Plus, Trash2, Package, FileText, TrendingUp, Archive, ShoppingCart, AlertCircle, CheckCircle2, AlignLeft, Tag } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { FiscalAutocomplete } from "@/components/ui/FiscalAutocomplete";
 import { cfopCodes, cstIcmsCodes } from "@/lib/fiscalData";
@@ -116,6 +117,11 @@ const Produtos = () => {
   const [ativoFilters, setAtivoFilters] = useState<string[]>([]);
   const [grupos, setGrupos] = useState<{id: string; nome: string}[]>([]);
   const { buscarNcm, loading: ncmLoading } = useNcmLookup();
+
+  // State for inline unit creation dialog
+  const [novaUnidadeDialogOpen, setNovaUnidadeDialogOpen] = useState(false);
+  const [novaUnidadeForm, setNovaUnidadeForm] = useState({ codigo: "", descricao: "", sigla: "" });
+  const [savingNovaUnidade, setSavingNovaUnidade] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -275,6 +281,38 @@ const Produtos = () => {
       toast.error("Erro ao salvar produto");
     }
     setSaving(false);
+  };
+
+  const handleSalvarNovaUnidade = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const codigo = novaUnidadeForm.codigo.trim().toUpperCase();
+    const descricao = novaUnidadeForm.descricao.trim();
+    if (!codigo) { toast.error("Código é obrigatório"); return; }
+    if (!descricao) { toast.error("Descrição é obrigatória"); return; }
+    setSavingNovaUnidade(true);
+    try {
+      const { data: inserted, error } = await (supabase as any)
+        .from("unidades_medida")
+        .insert({ codigo, descricao, sigla: novaUnidadeForm.sigla.trim() || null, ativo: true })
+        .select("id, codigo, descricao, sigla")
+        .maybeSingle();
+      if (error) {
+        if (error.code === "23505") { toast.error("Já existe uma unidade com este código"); }
+        else { toast.error("Erro ao criar unidade de medida"); }
+        setSavingNovaUnidade(false);
+        return;
+      }
+      const nova = inserted as UnidadeMedidaOption;
+      setUnidadesMedida((prev) => [...prev, nova].sort((a, b) => a.codigo.localeCompare(b.codigo)));
+      setForm((f) => ({ ...f, unidade_medida: nova.codigo }));
+      setNovaUnidadeDialogOpen(false);
+      setNovaUnidadeForm({ codigo: "", descricao: "", sigla: "" });
+      toast.success(`Unidade "${nova.codigo}" criada com sucesso`);
+    } catch (err) {
+      console.error('[produtos] erro ao criar unidade:', err);
+      toast.error("Erro ao criar unidade de medida");
+    }
+    setSavingNovaUnidade(false);
   };
 
   const filteredData = useMemo(() => {
@@ -691,21 +729,34 @@ const Produtos = () => {
               </div>
               <div className="space-y-2">
                 <Label>Unidade de Medida</Label>
-                <Select value={form.unidade_medida} onValueChange={(v) => setForm({ ...form, unidade_medida: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {unidadesMedida.length > 0
-                      ? unidadesMedida.map((u) => (
-                          <SelectItem key={u.codigo} value={u.codigo}>
-                            {u.codigo}{u.descricao !== u.codigo ? ` — ${u.descricao}` : ""}
-                          </SelectItem>
-                        ))
-                      : UNIDADES_FALLBACK.map((u) => (
-                          <SelectItem key={u} value={u}>{u}</SelectItem>
-                        ))
-                    }
-                  </SelectContent>
-                </Select>
+                <div className="flex gap-1.5">
+                  <Select value={form.unidade_medida} onValueChange={(v) => setForm({ ...form, unidade_medida: v })}>
+                    <SelectTrigger className="flex-1"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {unidadesMedida.length > 0
+                        ? unidadesMedida.map((u) => (
+                            <SelectItem key={u.codigo} value={u.codigo}>
+                              {u.codigo}{u.descricao !== u.codigo ? ` — ${u.descricao}` : ""}
+                            </SelectItem>
+                          ))
+                        : UNIDADES_FALLBACK.map((u) => (
+                            <SelectItem key={u} value={u}>{u}</SelectItem>
+                          ))
+                      }
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="shrink-0 h-9 w-9"
+                    title="Criar nova unidade de medida"
+                    aria-label="Criar nova unidade de medida"
+                    onClick={() => { setNovaUnidadeForm({ codigo: "", descricao: "", sigla: "" }); setNovaUnidadeDialogOpen(true); }}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </div>
             {/* Tipo toggle */}
@@ -1015,6 +1066,53 @@ const Produtos = () => {
           </div>
         </form>
       </FormModal>
+
+      {/* ── Dialog: Nova Unidade de Medida ───────────────── */}
+      <Dialog open={novaUnidadeDialogOpen} onOpenChange={(v) => { if (!v) { setNovaUnidadeDialogOpen(false); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Nova Unidade de Medida</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSalvarNovaUnidade} className="space-y-3 pt-1">
+            <div className="space-y-1.5">
+              <Label>Código <span className="text-destructive">*</span></Label>
+              <Input
+                value={novaUnidadeForm.codigo}
+                onChange={(e) => setNovaUnidadeForm((f) => ({ ...f, codigo: e.target.value.toUpperCase() }))}
+                placeholder="Ex: UN, KG, MT, CX"
+                maxLength={10}
+                autoFocus
+              />
+              <p className="text-[11px] text-muted-foreground">Código curto em maiúsculas. Ex: KG, MT, LT.</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Descrição <span className="text-destructive">*</span></Label>
+              <Input
+                value={novaUnidadeForm.descricao}
+                onChange={(e) => setNovaUnidadeForm((f) => ({ ...f, descricao: e.target.value }))}
+                placeholder="Ex: Quilograma, Metro, Litro"
+                maxLength={80}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Sigla <span className="text-muted-foreground font-normal text-xs">(opcional)</span></Label>
+              <Input
+                value={novaUnidadeForm.sigla}
+                onChange={(e) => setNovaUnidadeForm((f) => ({ ...f, sigla: e.target.value }))}
+                placeholder="Ex: kg, m, l"
+                maxLength={10}
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="outline" onClick={() => setNovaUnidadeDialogOpen(false)}>Cancelar</Button>
+              <Button type="submit" disabled={savingNovaUnidade} className="gap-1.5">
+                {savingNovaUnidade ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                Criar Unidade
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
     </AppLayout>);
 
