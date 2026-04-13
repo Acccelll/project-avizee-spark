@@ -10,18 +10,6 @@ async function queryView(viewName: string, iniYM: string, fimYM: string) {
   return data ?? [];
 }
 
-function normalizeDynamicRows(rows: Record<string, unknown>[], fimYM: string): Record<string, unknown> {
-  if (!rows.length) return { indisponivel: true, motivo: 'Sem dados para o período' };
-  if (rows.length === 1) return rows[0];
-  const latest = rows[rows.length - 1] ?? {};
-  return {
-    ...latest,
-    competencia: String((latest as any).competencia ?? fimYM),
-    series: rows,
-    table: rows,
-  };
-}
-
 function monthRange(iniYM: string, fimYM: string): string[] {
   const [iniY, iniM] = iniYM.split('-').map(Number);
   const [fimY, fimM] = fimYM.split('-').map(Number);
@@ -241,7 +229,7 @@ export async function fetchPresentationData(
 
       try {
         const rows = await queryView(viewName, iniYM, fimYM);
-        slides[codigo] = normalizeDynamicRows(rows as Record<string, unknown>[], fimYM);
+        slides[codigo] = rows[0] ?? { indisponivel: true, motivo: 'Sem dados para o período' };
       } catch {
         slides[codigo] = { indisponivel: true, motivo: 'não automatizado nesta fase' };
       }

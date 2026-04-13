@@ -25,7 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ChevronLeft, ChevronRight, AlertTriangle, Download, Edit, Plus, Shield, Trash2, User } from "lucide-react";
-import type { ColumnDef } from "@tanstack/react-table";
+// ColumnDef removed — not used with DataTable
 import { useAuditLogs } from "@/pages/admin/hooks/useAuditLogs";
 import type { AuditLog } from "@/services/admin/audit.service";
 import { exportarParaExcel, exportarParaPdf } from "@/services/export.service";
@@ -164,10 +164,10 @@ function DiffViewer({ anterior, novo }: { anterior: unknown; novo: unknown }) {
 
 // ─── Colunas da tabela ────────────────────────────────────────────────────────
 
-const columns: ColumnDef<AuditLog>[] = [
+const columns: Array<{ key: string; label: string; cell?: (props: { row: { original: AuditLog } }) => React.ReactNode }> = [
   {
-    accessorKey: "created_at",
-    header: "Data/Hora",
+    key: "created_at",
+    label: "Data/Hora",
     cell: ({ row }) => (
       <span className="text-sm">
         {new Date(row.original.created_at).toLocaleString("pt-BR")}
@@ -175,13 +175,13 @@ const columns: ColumnDef<AuditLog>[] = [
     ),
   },
   {
-    accessorKey: "acao",
-    header: "Ação",
+    key: "acao",
+    label: "Ação",
     cell: ({ row }) => <ActionBadge acao={row.original.acao} />,
   },
   {
-    accessorKey: "tabela",
-    header: "Entidade",
+    key: "tabela",
+    label: "Entidade",
     cell: ({ row }) => {
       const meta = getTableMeta(row.original.tabela);
       return (
@@ -193,8 +193,8 @@ const columns: ColumnDef<AuditLog>[] = [
     },
   },
   {
-    accessorKey: "registro_id",
-    header: "Registro",
+    key: "registro_id",
+    label: "Registro",
     cell: ({ row }) => (
       <span className="font-mono text-xs text-muted-foreground">
         {row.original.registro_id?.slice(0, 8) ?? "—"}…
@@ -202,15 +202,15 @@ const columns: ColumnDef<AuditLog>[] = [
     ),
   },
   {
-    accessorKey: "ip_address",
-    header: "IP",
+    key: "ip_address",
+    label: "IP",
     cell: ({ row }) => (
       <span className="font-mono text-xs">{row.original.ip_address ?? "—"}</span>
     ),
   },
   {
-    id: "criticidade",
-    header: "Criticidade",
+    key: "criticidade",
+    label: "Criticidade",
     cell: ({ row }) => <CriticalityBadge log={row.original} />,
   },
 ];
@@ -301,7 +301,6 @@ export default function Logs() {
       <ModulePage
         title="Logs de Auditoria"
         subtitle="Histórico de operações realizadas no sistema"
-        icon={Shield}
         summaryCards={
           <>
             <SummaryCard title="Total de Eventos" value={String(kpis.total)} icon={Shield} variationType="neutral" />

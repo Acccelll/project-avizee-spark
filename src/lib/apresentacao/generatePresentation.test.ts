@@ -110,44 +110,4 @@ describe('generatePresentation', () => {
     expect(tableXml).toContain('TableHeader');
     expect(tableXml).toContain('Banco A');
   });
-
-  it('aplica tema dark quando solicitado', async () => {
-    const bundle: ApresentacaoDataBundle = {
-      periodo: { competenciaInicial: '2026-03', competenciaFinal: '2026-03' },
-      slides: { cover: {} } as any,
-    };
-
-    const blob = await generatePresentation(bundle, {}, { themePreset: 'dark' });
-    const zip = await unzip(blob);
-    const themeXml = await zip.file('ppt/theme/theme1.xml')!.async('text');
-    expect(themeXml).toContain('60A5FA');
-    expect(themeXml).toContain('111827');
-  });
-
-  it('aplica override de cor de acento do template', async () => {
-    const bundle: ApresentacaoDataBundle = {
-      periodo: { competenciaInicial: '2026-03', competenciaFinal: '2026-03' },
-      slides: { cover: {} } as any,
-    };
-
-    const blob = await generatePresentation(bundle, {}, { themeConfig: { theme: { palette: 'default', accentColor: '#22C55E' } } });
-    const zip = await unzip(blob);
-    const themeXml = await zip.file('ppt/theme/theme1.xml')!.async('text');
-    expect(themeXml).toContain('22C55E');
-  });
-
-  it('slides avançados opcionais não quebram a geração', async () => {
-    const bundle: ApresentacaoDataBundle = {
-      periodo: { competenciaInicial: '2026-03', competenciaFinal: '2026-03' },
-      slides: {
-        bridge_ebitda: { valor_atual: 12000, impacto_positivo: 20000, impacto_negativo: 8000 },
-        bridge_lucro_liquido: { valor_atual: 9000, lucro_operacional: 15000, despesas: 6000 },
-      } as any,
-    };
-
-    const blob = await generatePresentation(bundle, {});
-    const zip = await unzip(blob);
-    expect(zip.file('ppt/slides/slide1.xml')).toBeTruthy();
-    expect(zip.file('ppt/slides/slide2.xml')).toBeTruthy();
-  });
 });

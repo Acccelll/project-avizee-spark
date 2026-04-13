@@ -68,7 +68,7 @@ export default function Email() {
   }, [config, form]);
 
   function onSubmit(data: EmailFormData) {
-    handleSave(data);
+    handleSave(data as any);
   }
 
   if (isLoading) {
@@ -196,7 +196,7 @@ export default function Email() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <TestConnectionButton
-                  onTest={() => testarConexaoSMTP(form.getValues())}
+                  onTest={() => testarConexaoSMTP(form.getValues() as any)}
                   label="Testar SMTP"
                 />
                 <Button

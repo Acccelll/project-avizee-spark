@@ -54,7 +54,7 @@ export default function Integracoes() {
   }, [config, form]);
 
   function onSubmit(data: IntegracoesFormData) {
-    handleSave(data);
+    handleSave(data as any);
   }
 
   if (isLoading) {
@@ -133,7 +133,7 @@ export default function Integracoes() {
 
               <div className="flex justify-start">
                 <TestConnectionButton
-                  onTest={() => testarGatewayPagamento(form.getValues())}
+                  onTest={() => testarGatewayPagamento(form.getValues() as any)}
                   label="Testar Gateway"
                 />
               </div>
@@ -199,7 +199,7 @@ export default function Integracoes() {
 
               <div className="flex justify-start">
                 <TestConnectionButton
-                  onTest={() => testarApiSefaz(form.getValues())}
+                  onTest={() => testarApiSefaz(form.getValues() as any)}
                   label="Testar SEFAZ"
                 />
               </div>

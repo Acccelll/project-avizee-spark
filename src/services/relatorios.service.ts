@@ -169,9 +169,11 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
 
       if (error) throw error;
 
-      const rows = (data || []).map((item: RawEstoqueItem) => {
+      const rows = (data || []).map((item: any) => {
         const custo = Number(item.preco_custo || 0);
         const venda = Number(item.preco_venda || 0);
+        const qty = Number(item.estoque_atual || 0);
+        const min = Number(item.estoque_minimo || 0);
         let criticidade: string;
         if (qty <= 0) criticidade = "Zerado";
         else if (min > 0 && qty <= min) criticidade = "Abaixo do mínimo";
@@ -226,14 +228,14 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
       const { data, error } = await query;
       if (error) throw error;
 
-      const rows = (data || []).map((item: RawMovimentoItem) => ({
+      const rows = (data || []).map((item: any) => ({
         data: item.created_at,
         produto: item.produtos?.nome || "-",
         codigo: item.produtos?.codigo_interno || "-",
-        tipo: item.tipo_movimento,
+        tipo: item.tipo || item.tipo_movimento || "-",
         quantidade: Number(item.quantidade || 0),
-        saldoAnterior: 0,
-        saldoAtual: Number(item.saldo_apos || 0),
+        saldoAnterior: Number(item.saldo_anterior || 0),
+        saldoAtual: Number(item.saldo_atual || item.saldo_apos || 0),
         documento: item.documento_tipo || "-",
         motivo: item.motivo || "-",
       }));
@@ -283,7 +285,7 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
       const hoje = new Date();
       hoje.setHours(0, 0, 0, 0);
 
-      const rows = (data || []).map((item: RawLancamentoItem & { saldo_restante?: number | null; banco?: string | null }) => {
+      const rows = (data || []).map((item: any) => {
         const valor = Number(item.valor || 0);
         const valorEmAberto = item.saldo_restante != null
           ? Number(item.saldo_restante)
@@ -342,14 +344,18 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
 
       let saldo = 0;
       const rows = (data || []).map((item: RawFluxoItem) => {
+        const itemValor = Number(item.valor || 0);
+        const entrada = item.tipo === "receber" ? itemValor : 0;
+        const saida = item.tipo === "pagar" ? itemValor : 0;
+        saldo = saldo + entrada - saida;
 
         return {
           data: item.data_pagamento || item.data_vencimento,
           descricao: item.descricao || "-",
           tipo: item.tipo,
           status: item.status || "-",
-          entrada: item.tipo === "receber" ? valor : 0,
-          saida: item.tipo === "pagar" ? valor : 0,
+          entrada,
+          saida,
           saldo,
         };
       });
@@ -387,13 +393,13 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
       const { data, error } = await query;
       if (error) throw error;
 
-      const rows = (data || []).map((item: RawVendasItem) => ({
+      const rows = (data || []).map((item: any) => ({
         numero: item.numero,
         cliente: item.clientes?.nome_razao_social || "-",
         emissao: item.data_emissao,
         valor: Number(item.valor_total || 0),
         status: item.status || "-",
-        faturamento: item.faturamento_status || "-",
+        faturamento: item.faturamento_status || item.status_faturamento || "-",
       }));
 
       const totalVendido = rows.reduce((s, r) => s + r.valor, 0);
@@ -498,9 +504,9 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
       const hoje = new Date();
       hoje.setHours(0, 0, 0, 0);
 
-      const rows = (data || []).map((item: RawComprasItem) => {
-        const prevista = item.data_prevista ? new Date(item.data_prevista) : null;
-        const entregaReal = item.data_entrega;
+      const rows = (data || []).map((item: any) => {
+        const prevista = (item.data_prevista || item.data_entrega_prevista) ? new Date(item.data_prevista || item.data_entrega_prevista) : null;
+        const entregaReal = item.data_entrega || item.data_entrega_real;
         const statusVal = item.status || '-';
         const emAberto = ['pendente', 'aprovado', 'em_transito'].includes(statusVal);
         const atraso = (prevista && emAberto && prevista < hoje)
@@ -564,21 +570,21 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
 
       if (!receitas && !pagos && !nfSaida) throw new Error("Erro ao carregar dados do DRE");
 
-      const receitaBruta = (receitas || []).reduce((s: number, r: RawDreLancamento) => s + Number(r.valor || 0), 0);
+      const receitaBruta = (receitas || []).reduce((s: number, r: any) => s + Number(r.valor || 0), 0);
 
-      const deducoes = (nfSaida || []).reduce((s: number, nf: RawDreNf) => {
-        return s + Number(nf.valor_icms || 0) + Number(nf.valor_pis || 0) + Number(nf.valor_cofins || 0) + Number(nf.valor_ipi || 0);
+      const deducoes = (nfSaida || []).reduce((s: number, nf: any) => {
+        return s + Number(nf.icms_valor || 0) + Number(nf.pis_valor || 0) + Number(nf.cofins_valor || 0) + Number(nf.ipi_valor || 0);
       }, 0);
 
       const receitaLiquida = receitaBruta - deducoes;
 
-      const cmv = (pagos || []).filter((p: RawDrePago) =>
-        p.fornecedores?.grupo_id || (p.tipo || "").toLowerCase().includes("compra")
-      ).reduce((s: number, p: RawDreLancamento) => s + Number(p.valor || 0), 0);
+      const cmv = (pagos || []).filter((p: any) =>
+        p.nota_fiscal_id || (p.descricao || "").toLowerCase().includes("compra")
+      ).reduce((s: number, p: any) => s + Number(p.valor || 0), 0);
 
-      const despesasOp = (pagos || []).filter((p: RawDrePago) =>
-        !p.fornecedores?.grupo_id && !(p.tipo || "").toLowerCase().includes("compra")
-      ).reduce((s: number, p: RawDreLancamento) => s + Number(p.valor || 0), 0);
+      const despesasOp = (pagos || []).filter((p: any) =>
+        !p.nota_fiscal_id && !(p.descricao || "").toLowerCase().includes("compra")
+      ).reduce((s: number, p: any) => s + Number(p.valor || 0), 0);
 
       const resultado = receitaLiquida - cmv - despesasOp;
 
@@ -983,7 +989,7 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
       return {
         title: "Divergências",
         subtitle: "Pedidos sem nota fiscal e notas sem lançamento financeiro.",
-        rows,
+        rows: rows as unknown as Record<string, unknown>[],
         chartData: [
           { name: "Pedidos s/ NF", value: (pedidos || []).length },
           { name: "NF s/ Financeiro", value: nfsSemFinanceiro.length },

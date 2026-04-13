@@ -73,7 +73,15 @@ const ROLE_LABELS: Record<string, string> = {
   estoquista: 'Estoquista',
 };
 
-const APPEARANCE_DEFAULTS = {
+const APPEARANCE_DEFAULTS: {
+  theme: string;
+  densidade: string;
+  fontScale: number;
+  menuCompacto: boolean;
+  reduceMotion: boolean;
+  corPrimaria: string;
+  corSecundaria: string;
+} = {
   theme: 'system',
   densidade: 'confortavel',
   fontScale: 16,
@@ -81,7 +89,7 @@ const APPEARANCE_DEFAULTS = {
   reduceMotion: false,
   corPrimaria: '#6b0d0d',
   corSecundaria: '#b85b2d',
-} as const;
+};
 
 function getFontLabel(scale: number): string {
   if (scale <= 16) return 'Padrão';

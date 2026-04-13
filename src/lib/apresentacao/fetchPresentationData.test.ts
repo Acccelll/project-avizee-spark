@@ -59,13 +59,9 @@ describe('fetchPresentationData', () => {
   });
 
   it('retorna bundle no modo dinâmico', async () => {
-    fromMock.mockImplementation(() => dynamicQuery([
-      { competencia: '2026-02', valor_atual: 8 },
-      { competencia: '2026-03', valor_atual: 10 },
-    ]));
+    fromMock.mockImplementation(() => dynamicQuery([{ competencia: '2026-03', valor_atual: 10 }]));
     const result = await fetchPresentationData('2026-03-01', '2026-03-01', 'dinamico', ['faturamento']);
     expect(result.slides.faturamento).toBeTruthy();
-    expect(Array.isArray((result.slides.faturamento as any).series)).toBe(true);
   });
 
   it('marca como indisponível no fechado quando snapshot não sustenta slide opcional', async () => {

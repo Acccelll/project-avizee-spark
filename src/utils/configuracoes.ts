@@ -46,18 +46,19 @@ export interface ConfigBackup {
   destino: 'local' | 'cloud';
 }
 
-export function mergeConfiguracoes<T extends Record<string, unknown>>(
+export function mergeConfiguracoes<T>(
   defaultConfig: T,
-  savedConfig: Partial<T>
+  savedConfig: Partial<T> | null | undefined
 ): T {
-  const result = { ...defaultConfig };
+  if (!savedConfig) return { ...defaultConfig };
+  const result = { ...defaultConfig } as any;
   for (const key of Object.keys(savedConfig) as (keyof T)[]) {
-    const value = savedConfig[key];
+    const value = (savedConfig as any)[key as string];
     if (value !== undefined && value !== null) {
-      result[key] = value as T[keyof T];
+      result[key] = value;
     }
   }
-  return result;
+  return result as T;
 }
 
 export function validarEmailConfig(config: ConfigEmail): { valido: boolean; erros: string[] } {

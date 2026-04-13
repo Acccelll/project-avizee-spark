@@ -15,7 +15,6 @@ import { buildAutomaticComments } from '@/lib/apresentacao/commentRules';
 import { APRESENTACAO_SLIDES_MAP } from '@/lib/apresentacao/slideDefinitions';
 import { hashPayload } from '@/lib/apresentacao/utils';
 import { activeSlides, resolveSlideConfig } from '@/lib/apresentacao/templateResolver';
-import { parseTemplateConfig } from '@/lib/apresentacao/templateConfig';
 
 export async function listarApresentacaoTemplates(): Promise<ApresentacaoTemplate[]> {
   const { data, error } = await (supabase as any).from('apresentacao_templates').select('*').eq('ativo', true).order('nome');
@@ -170,12 +169,7 @@ export async function gerarApresentacao(params: ApresentacaoParametros, userId?:
       return { geracaoId: geracao.id as string, blob: null as Blob | null, aguardandoAprovacao: true };
     }
 
-    const { data: templateData } = await (supabase as any)
-      .from('apresentacao_templates')
-      .select('config_json')
-      .eq('id', params.templateId)
-      .single();
-    const { blob, arquivoPath } = await gerarArquivoFinal(geracao.id, active, bundle, hash, templateData?.config_json ?? null);
+    const { blob, arquivoPath } = await gerarArquivoFinal(geracao.id, active, bundle, hash);
     return { geracaoId: geracao.id as string, blob, arquivoPath, aguardandoAprovacao: false };
   } catch (err) {
     await (supabase as any)
@@ -186,13 +180,7 @@ export async function gerarApresentacao(params: ApresentacaoParametros, userId?:
   }
 }
 
-async function gerarArquivoFinal(
-  geracaoId: string,
-  active: SlideCodigo[],
-  bundle: Awaited<ReturnType<typeof fetchPresentationData>>,
-  hash: string,
-  templateConfig?: Record<string, unknown> | null,
-) {
+async function gerarArquivoFinal(geracaoId: string, active: SlideCodigo[], bundle: Awaited<ReturnType<typeof fetchPresentationData>>, hash: string) {
   const comentarios = await listarComentarios(geracaoId);
   const comentarioMap = comentarios.reduce((acc, c) => {
     acc[c.slide_codigo] = c.comentario_editado ?? undefined;
@@ -202,8 +190,6 @@ async function gerarArquivoFinal(
   const blob = await generatePresentation(bundle, comentarioMap as Partial<Record<string, string>>, {
     slideOrder: active,
     metadata: { geracaoId, hash, geradoEm: new Date().toISOString(), origem: 'erp-avizee-v2' },
-    themePreset: parseTemplateConfig(templateConfig).theme.palette,
-    themeConfig: templateConfig,
   });
 
   const arquivoPath = `apresentacoes/apresentacao_${geracaoId}.pptx`;
@@ -239,12 +225,7 @@ export async function aprovarEGerarFinal(geracaoId: string, aprovadorId?: string
   const active = (geracao.slides_json?.ativos as SlideCodigo[] | undefined) ?? (geracao.slide_config_json as SlideConfigItem[] | null)?.filter((s) => s.enabled).map((s) => s.codigo) ?? [];
 
   const bundle = await fetchPresentationData(`${p.competenciaInicial}-01`, `${p.competenciaFinal}-01`, p.modoGeracao, active);
-  const { data: templateData } = await (supabase as any)
-    .from('apresentacao_templates')
-    .select('config_json')
-    .eq('id', geracao.template_id)
-    .single();
-  const { blob } = await gerarArquivoFinal(geracaoId, active, bundle, geracao.hash_geracao ?? '', templateData?.config_json ?? null);
+  const { blob } = await gerarArquivoFinal(geracaoId, active, bundle, geracao.hash_geracao ?? '');
   return blob;
 }
 
