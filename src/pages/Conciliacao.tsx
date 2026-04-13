@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import {
   calcularScoreConciliacao,
+  conciliarTransacao,
   type TituloParaConciliacao,
 } from "@/services/financeiro/conciliacao.service";
 import type { TransacaoExtrato } from "@/services/financeiro/ofxParser.service";
@@ -309,19 +310,30 @@ export default function Conciliacao() {
 
     setConfirming(true);
     try {
-      // TODO: replace with a conciliacao.service.ts call when the table is ready.
-      // Example: await confirmarConciliacao(payload);
-      // The payload is fully structured and validated, ready to plug into a service.
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const _payload = payload;
-
-      const total = extratoItems.length;
-      const pareados = matches.length;
-      const semPar = total - pareados;
-      toast.warning(
-        `Revisão concluída: ${pareados} par(es) identificado(s), ${semPar} sem correspondência.` +
-          " Atenção: esta ação ainda não foi gravada no banco de dados.",
+      // Persist each matched pair via conciliacao.service
+      await Promise.all(
+        payload.pares.map((par) => {
+          const extrato = extratoItems.find((e) => e.id === par.extrato_id);
+          if (!extrato) return Promise.resolve();
+          const transacao: TransacaoExtrato = {
+            id: extrato.id,
+            data: extrato.data,
+            descricao: extrato.descricao,
+            valor: extrato.valor,
+            tipo: extrato.valor >= 0 ? "C" : "D",
+          };
+          return conciliarTransacao(selectedConta, transacao, par.lancamento_id);
+        }),
       );
+
+      const pareados = matches.length;
+      const semPar = extratoItems.length - pareados;
+      toast.success(
+        `${pareados} transação(ões) conciliada(s) com sucesso! ${semPar} sem correspondência.`,
+      );
+      setMatches([]);
+    } catch (err) {
+      toast.error(getUserFriendlyError(err));
     } finally {
       setConfirming(false);
     }
