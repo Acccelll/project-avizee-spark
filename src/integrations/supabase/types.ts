@@ -155,13 +155,9 @@ export type Database = {
           cliente_id: string
           conteudo: string | null
           created_at: string
-          data_hora: string | null
           data_registro: string
           id: string
           responsavel_id: string | null
-          responsavel_nome: string | null
-          retorno_previsto: string | null
-          status: string
           tipo: string | null
         }
         Insert: {
@@ -169,13 +165,9 @@ export type Database = {
           cliente_id: string
           conteudo?: string | null
           created_at?: string
-          data_hora?: string | null
           data_registro?: string
           id?: string
           responsavel_id?: string | null
-          responsavel_nome?: string | null
-          retorno_previsto?: string | null
-          status?: string
           tipo?: string | null
         }
         Update: {
@@ -183,13 +175,9 @@ export type Database = {
           cliente_id?: string
           conteudo?: string | null
           created_at?: string
-          data_hora?: string | null
           data_registro?: string
           id?: string
           responsavel_id?: string | null
-          responsavel_nome?: string | null
-          retorno_previsto?: string | null
-          status?: string
           tipo?: string | null
         }
         Relationships: [
@@ -350,74 +338,6 @@ export type Database = {
             columns: ["grupo_economico_id"]
             isOneToOne: false
             referencedRelation: "grupos_economicos"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      clientes_enderecos_entrega: {
-        Row: {
-          ativo: boolean
-          bairro: string | null
-          cep: string | null
-          cidade: string | null
-          cliente_id: string
-          complemento: string | null
-          contato: string | null
-          created_at: string
-          id: string
-          identificacao: string
-          logradouro: string | null
-          numero: string | null
-          observacoes: string | null
-          principal: boolean
-          telefone: string | null
-          uf: string | null
-          updated_at: string
-        }
-        Insert: {
-          ativo?: boolean
-          bairro?: string | null
-          cep?: string | null
-          cidade?: string | null
-          cliente_id: string
-          complemento?: string | null
-          contato?: string | null
-          created_at?: string
-          id?: string
-          identificacao?: string
-          logradouro?: string | null
-          numero?: string | null
-          observacoes?: string | null
-          principal?: boolean
-          telefone?: string | null
-          uf?: string | null
-          updated_at?: string
-        }
-        Update: {
-          ativo?: boolean
-          bairro?: string | null
-          cep?: string | null
-          cidade?: string | null
-          cliente_id?: string
-          complemento?: string | null
-          contato?: string | null
-          created_at?: string
-          id?: string
-          identificacao?: string
-          logradouro?: string | null
-          numero?: string | null
-          observacoes?: string | null
-          principal?: boolean
-          telefone?: string | null
-          uf?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "clientes_enderecos_entrega_cliente_id_fkey"
-            columns: ["cliente_id"]
-            isOneToOne: false
-            referencedRelation: "clientes"
             referencedColumns: ["id"]
           },
         ]
@@ -2825,7 +2745,6 @@ export type Database = {
           cest: string | null
           cfop_padrao: string | null
           codigo_interno: string | null
-          codigo_legado: string | null
           created_at: string
           cst: string | null
           descricao: string | null
@@ -2847,18 +2766,15 @@ export type Database = {
           preco_custo: number | null
           preco_venda: number | null
           sku: string | null
-          tipo_item: string | null
           unidade_medida: string | null
           unidade_tributavel: string | null
           updated_at: string
-          variacoes: Json | null
         }
         Insert: {
           ativo?: boolean
           cest?: string | null
           cfop_padrao?: string | null
           codigo_interno?: string | null
-          codigo_legado?: string | null
           created_at?: string
           cst?: string | null
           descricao?: string | null
@@ -2880,18 +2796,15 @@ export type Database = {
           preco_custo?: number | null
           preco_venda?: number | null
           sku?: string | null
-          tipo_item?: string | null
           unidade_medida?: string | null
           unidade_tributavel?: string | null
           updated_at?: string
-          variacoes?: Json | null
         }
         Update: {
           ativo?: boolean
           cest?: string | null
           cfop_padrao?: string | null
           codigo_interno?: string | null
-          codigo_legado?: string | null
           created_at?: string
           cst?: string | null
           descricao?: string | null
@@ -2913,11 +2826,9 @@ export type Database = {
           preco_custo?: number | null
           preco_venda?: number | null
           sku?: string | null
-          tipo_item?: string | null
           unidade_medida?: string | null
           unidade_tributavel?: string | null
           updated_at?: string
-          variacoes?: Json | null
         }
         Relationships: [
           {
@@ -3533,39 +3444,6 @@ export type Database = {
           nome?: string
           updated_at?: string
           versao?: string
-        }
-        Relationships: []
-      }
-      unidades_medida: {
-        Row: {
-          ativo: boolean
-          codigo: string
-          created_at: string
-          descricao: string
-          id: string
-          observacoes: string | null
-          sigla: string | null
-          updated_at: string
-        }
-        Insert: {
-          ativo?: boolean
-          codigo: string
-          created_at?: string
-          descricao: string
-          id?: string
-          observacoes?: string | null
-          sigla?: string | null
-          updated_at?: string
-        }
-        Update: {
-          ativo?: boolean
-          codigo?: string
-          created_at?: string
-          descricao?: string
-          id?: string
-          observacoes?: string | null
-          sigla?: string | null
-          updated_at?: string
         }
         Relationships: []
       }

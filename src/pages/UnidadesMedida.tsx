@@ -174,12 +174,12 @@ export default function UnidadesMedida() {
           <>
             <StatCard
               title="Total"
-              value={kpis.total}
+              value={String(kpis.total)}
               icon={Tag}
             />
             <StatCard
               title="Ativas"
-              value={kpis.ativas}
+              value={String(kpis.ativas)}
               icon={CheckCircle2}
             />
           </>
@@ -209,7 +209,7 @@ export default function UnidadesMedida() {
           data={filteredData}
           columns={columns}
           loading={loading}
-          onRefresh={fetchData}
+          
           onEdit={openEdit}
           onDelete={(u) => remove(u.id)}
           moduleKey="unidades-medida"
