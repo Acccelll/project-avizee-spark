@@ -64,7 +64,7 @@ export default function OrcamentoForm() {
   const pdfRef = useRef<HTMLDivElement>(null);
   const isEdit = !!id;
   const isMobile = useIsMobile();
-  const { user, roles } = useAuth();
+  const { user, roles, extraPermissions } = useAuth();
 
   const [saving, setSaving] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(searchParams.get("preview") === "1");
@@ -166,7 +166,7 @@ export default function OrcamentoForm() {
   const valorSimulado = Math.max(0, valorTotal - simDescontoGeral + simFreteSeguro);
   const quantidadeTotal = items.reduce((sum, i) => sum + (i.quantidade || 0), 0);
   const pesoTotal = items.reduce((sum, i) => sum + (i.peso_total || 0), 0);
-  const internalAccess = useMemo(() => getOrcamentoInternalAccess(roles), [roles]);
+  const internalAccess = useMemo(() => getOrcamentoInternalAccess(roles, extraPermissions), [roles, extraPermissions]);
 
   const productCostMap = useMemo(() => {
     const map = new Map<string, InternalCostCandidate>();
