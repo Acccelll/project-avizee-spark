@@ -13,10 +13,9 @@ CREATE TABLE IF NOT EXISTS public.unidades_medida (
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Código único por unidade
+-- Código único por unidade (constraint simples — compatível com ON CONFLICT)
 CREATE UNIQUE INDEX IF NOT EXISTS unidades_medida_codigo_unique
-  ON public.unidades_medida (codigo)
-  WHERE codigo IS NOT NULL;
+  ON public.unidades_medida (codigo);
 
 -- Trigger de updated_at
 CREATE OR REPLACE FUNCTION public.set_updated_at()
@@ -49,7 +48,7 @@ INSERT INTO public.unidades_medida (codigo, descricao, sigla, ativo) VALUES
   ('KIT', 'Kit',            'KIT', TRUE),
   ('SC',  'Saco',           'SC',  TRUE),
   ('RL',  'Rolo',           'RL',  TRUE)
-ON CONFLICT (codigo) DO NOTHING;
+ON CONFLICT DO NOTHING;
 
 -- RLS
 ALTER TABLE public.unidades_medida ENABLE ROW LEVEL SECURITY;

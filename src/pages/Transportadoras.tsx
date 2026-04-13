@@ -59,6 +59,7 @@ type TransportadoraFormData = Omit<Transportadora, "id" | "ativo" | "created_at"
 
 interface ClienteVinculado {
   id: string;
+  cliente_id: string;
   prioridade: number | null;
   modalidade: string | null;
   prazo_medio: string | null;
@@ -156,7 +157,7 @@ export default function Transportadoras() {
     try {
       const { data, error } = await supabase
         .from("cliente_transportadoras")
-        .select("id, prioridade, modalidade, prazo_medio, clientes(nome_razao_social, cpf_cnpj)")
+        .select("id, cliente_id, prioridade, modalidade, prazo_medio, clientes(nome_razao_social, cpf_cnpj)")
         .eq("transportadora_id", transportadoraId)
         .eq("ativo", true)
         .order("prioridade");
@@ -171,7 +172,8 @@ export default function Transportadoras() {
 
   const handleVincularCliente = async (transportadoraId: string) => {
     if (!vinculoClienteId) { toast.error("Selecione um cliente"); return; }
-    const already = editClientesVinculados.some(cv => (cv.clientes as {nome_razao_social: string; cpf_cnpj: string} | null) && vinculoClienteId === (cv as {id: string}).id);
+    const already = editClientesVinculados.some(cv => cv.cliente_id === vinculoClienteId);
+    if (already) { toast.error("Cliente já vinculado a esta transportadora"); return; }
     setSavingVinculoCliente(true);
     try {
       const { error } = await supabase.from("cliente_transportadoras").insert({
@@ -200,6 +202,9 @@ export default function Transportadoras() {
       toast.error("Erro ao remover vínculo");
     }
   };
+
+  useEffect(() => {
+    if (selected && drawerOpen) {
       supabase.from("cliente_transportadoras")
         .select("*, clientes(nome_razao_social, cpf_cnpj)")
         .eq("transportadora_id", selected.id)
@@ -656,7 +661,7 @@ export default function Transportadoras() {
               <SelectTrigger className="flex-1 h-9"><SelectValue placeholder="Selecionar cliente..." /></SelectTrigger>
               <SelectContent>
                 {clientesList
-                  .filter(cl => !editClientesVinculados.some(cv => cv.clientes && cv.clientes.nome_razao_social === cl.nome_razao_social))
+                   .filter(cl => !editClientesVinculados.some(cv => cv.cliente_id === cl.id))
                   .map(cl => <SelectItem key={cl.id} value={cl.id}>{cl.nome_razao_social}</SelectItem>)}
               </SelectContent>
             </Select>

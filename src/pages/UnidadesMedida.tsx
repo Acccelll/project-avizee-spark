@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
-import { Tag, CheckCircle2 } from "lucide-react";
+import { Loader2, Tag, CheckCircle2 } from "lucide-react";
 import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { StatCard } from "@/components/StatCard";
@@ -220,12 +220,10 @@ export default function UnidadesMedida() {
 
       <FormModal
         open={modalOpen}
-        onOpenChange={setModalOpen}
+        onClose={() => setModalOpen(false)}
         title={mode === "create" ? "Nova Unidade de Medida" : "Editar Unidade de Medida"}
-        onSubmit={handleSubmit}
-        saving={saving}
       >
-        <div className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Código <span className="text-destructive">*</span></Label>
@@ -276,7 +274,20 @@ export default function UnidadesMedida() {
               {form.ativo ? "Ativo — disponível para seleção nos produtos" : "Inativo — não aparece nas seleções"}
             </Label>
           </div>
-        </div>
+          <div className="flex justify-end gap-2 pt-4 border-t">
+            <Button type="button" variant="outline" onClick={() => setModalOpen(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={saving} className="min-w-[100px]">
+              {saving ? (
+                <span className="flex items-center gap-1.5">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Salvando...
+                </span>
+              ) : "Salvar"}
+            </Button>
+          </div>
+        </form>
       </FormModal>
     </AppLayout>
   );

@@ -329,6 +329,14 @@ const Clientes = () => {
     try {
       const payload = { ...enderecoForm, cliente_id: clienteId };
       if (enderecoEditId) {
+        // When editing, if marking as principal, unset others first
+        if (enderecoForm.principal) {
+          await supabase
+            .from("clientes_enderecos_entrega")
+            .update({ principal: false })
+            .eq("cliente_id", clienteId)
+            .neq("id", enderecoEditId);
+        }
         const { error } = await supabase.from("clientes_enderecos_entrega").update(enderecoForm).eq("id", enderecoEditId);
         if (error) throw error;
         toast.success("Endereço atualizado");
@@ -1276,8 +1284,6 @@ const Clientes = () => {
           </div>
             </TabsContent>
 
-            </TabsContent>
-
             {/* ── TAB: ENTREGAS ──────────────────────────── */}
             {mode === "edit" && (
             <TabsContent value="entregas" className="space-y-4 mt-0">
@@ -1596,3 +1602,5 @@ const Clientes = () => {
     </AppLayout>);
 
 };
+
+export default Clientes;
