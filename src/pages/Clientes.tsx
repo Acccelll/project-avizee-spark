@@ -256,7 +256,7 @@ const Clientes = () => {
   const loadEnderecos = async (clienteId: string) => {
     setLoadingEnderecos(true);
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("clientes_enderecos_entrega")
         .select("*")
         .eq("cliente_id", clienteId)
@@ -281,7 +281,7 @@ const Clientes = () => {
         .order("data_registro", { ascending: false })
         .limit(50);
       if (error) throw error;
-      setComunicacoes((data || []) as ComunicacaoCliente[]);
+      setComunicacoes((data || []) as unknown as ComunicacaoCliente[]);
     } catch (err) {
       console.error("[clientes] erro ao carregar comunicações:", err);
     } finally {
@@ -331,21 +331,21 @@ const Clientes = () => {
       if (enderecoEditId) {
         // When editing, if marking as principal, unset others first
         if (enderecoForm.principal) {
-          await supabase
+          await (supabase as any)
             .from("clientes_enderecos_entrega")
             .update({ principal: false })
             .eq("cliente_id", clienteId)
             .neq("id", enderecoEditId);
         }
-        const { error } = await supabase.from("clientes_enderecos_entrega").update(enderecoForm).eq("id", enderecoEditId);
+        const { error } = await (supabase as any).from("clientes_enderecos_entrega").update(enderecoForm).eq("id", enderecoEditId);
         if (error) throw error;
         toast.success("Endereço atualizado");
       } else {
         // If principal, unset other principals
         if (enderecoForm.principal) {
-          await supabase.from("clientes_enderecos_entrega").update({ principal: false }).eq("cliente_id", clienteId);
+          await (supabase as any).from("clientes_enderecos_entrega").update({ principal: false }).eq("cliente_id", clienteId);
         }
-        const { error } = await supabase.from("clientes_enderecos_entrega").insert(payload);
+        const { error } = await (supabase as any).from("clientes_enderecos_entrega").insert(payload);
         if (error) throw error;
         toast.success("Endereço de entrega adicionado");
       }
@@ -361,8 +361,8 @@ const Clientes = () => {
 
   const handleSetPrincipalEndereco = async (enderecoId: string, clienteId: string) => {
     try {
-      await supabase.from("clientes_enderecos_entrega").update({ principal: false }).eq("cliente_id", clienteId);
-      await supabase.from("clientes_enderecos_entrega").update({ principal: true }).eq("id", enderecoId);
+      await (supabase as any).from("clientes_enderecos_entrega").update({ principal: false }).eq("cliente_id", clienteId);
+      await (supabase as any).from("clientes_enderecos_entrega").update({ principal: true }).eq("id", enderecoId);
       await loadEnderecos(clienteId);
       toast.success("Endereço principal definido");
     } catch (err) {
