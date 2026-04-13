@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { Tables } from '@/integrations/supabase/types';
+import { logger } from '@/utils/logger';
 
 // Alias for supabase client to bypass missing table types for frete_simulacoes / frete_simulacoes_opcoes
 const sb = supabase as any;
@@ -277,7 +278,7 @@ export async function salvarOpcoesCorreios(
     .eq('selecionada', false);
 
   if (deleteError) {
-    console.warn('[freteSimulacao] falha ao remover opções Correios antigas:', deleteError);
+    logger.warn('[freteSimulacao] falha ao remover opções Correios antigas:', deleteError);
   }
 
   const rows = opcoes.map((o) => ({
