@@ -119,6 +119,6 @@ export interface SlideData {
 
 export interface ApresentacaoDataBundle {
   periodo: { competenciaInicial: string; competenciaFinal: string };
-  slides: Record<SlideCodigo, Record<string, unknown>>;
+  slides: Partial<Record<SlideCodigo, Record<string, unknown>>>;
   missingCritical?: SlideCodigo[];
 }

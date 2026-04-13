@@ -90,7 +90,7 @@ async function fetchClosedSnapshotData(iniYM: string, fimYM: string, slidesList:
     const map = new Map<string, T[]>();
     rows.forEach((row) => {
       const fechamentoId = String(row.fechamento_id ?? '');
-      const comp = competenciaByFechamentoId.get(fechamentoId) ?? '';
+      const comp: string = competenciaByFechamentoId.get(fechamentoId) ?? '';
       if (!comp) return;
       if (!map.has(comp)) map.set(comp, []);
       map.get(comp)!.push(row);
