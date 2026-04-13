@@ -56,6 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    // Safety net: if auth initialization takes > 5s, force loading = false to unblock the UI.
     const safetyTimeout = setTimeout(() => {
       if (loading) {
         console.warn("[auth] Auth initialization timed out. Forcing loading false.");
@@ -63,32 +64,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }, 5000);
 
-    // onAuthStateChange já emite INITIAL_SESSION no mount com a sessão
-    // existente (ou null). Usar apenas ele como fonte da verdade evita
-    // o double-fetch que ocorria ao combinar getSession() + onAuthStateChange,
-    // ambos disparando fetchProfile/fetchPermissions simultaneamente.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      clearTimeout(safetyTimeout);
-
+    // Sequencing logic:
+    // - INITIAL_SESSION: We await fetchProfile + fetchPermissions BEFORE setting loading=false
+    //   so the app never flashes in a state where user is set but permissions aren't loaded.
+    // - SIGNED_IN / TOKEN_REFRESHED: These fire after the initial session, so permissions
+    //   are already loaded. We refresh them in the background without blocking the UI.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
       if (event === 'SIGNED_OUT' && !manualSignOut.current && user) {
         toast.error("Sua sessão expirou. Faça login novamente.");
       }
       manualSignOut.current = false;
 
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        setTimeout(() => {
-          fetchProfile(session.user.id);
-          fetchPermissions(session.user.id);
-        }, 0);
+      setSession(currentSession);
+      setUser(currentSession?.user ?? null);
+
+      if (currentSession?.user) {
+        if (event === 'INITIAL_SESSION') {
+          // First load: await profile & permissions before clearing loading state
+          try {
+            await Promise.all([
+              fetchProfile(currentSession.user.id),
+              fetchPermissions(currentSession.user.id),
+            ]);
+          } finally {
+            clearTimeout(safetyTimeout);
+            setLoading(false);
+          }
+        } else {
+          // Subsequent events (SIGNED_IN, TOKEN_REFRESHED): refresh in background
+          clearTimeout(safetyTimeout);
+          setLoading(false);
+          fetchProfile(currentSession.user.id);
+          fetchPermissions(currentSession.user.id);
+        }
       } else {
         setProfile(null);
         setRoles([]);
         setExtraPermissions([]);
         setPermissionsLoaded(false);
+        clearTimeout(safetyTimeout);
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     return () => {
