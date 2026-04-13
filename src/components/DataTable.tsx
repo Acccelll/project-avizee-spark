@@ -120,6 +120,8 @@ export function DataTable<T extends Record<string, any>>({
   onBatchDelete,
   onBatchStatusChange,
   renderInlineDetails,
+  virtualizeThreshold = 100,
+  maxHeight = 600,
 }: DataTableProps<T>) {
   const isMobile = useIsMobile();
   const { user } = useAuth();
