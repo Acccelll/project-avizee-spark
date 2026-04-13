@@ -38,6 +38,142 @@ export type Database = {
         }
         Relationships: []
       }
+      apresentacao_comentarios: {
+        Row: {
+          comentario_automatico: string | null
+          comentario_manual: string | null
+          created_at: string
+          geracao_id: string
+          id: string
+          slide_codigo: string
+          updated_at: string
+        }
+        Insert: {
+          comentario_automatico?: string | null
+          comentario_manual?: string | null
+          created_at?: string
+          geracao_id: string
+          id?: string
+          slide_codigo: string
+          updated_at?: string
+        }
+        Update: {
+          comentario_automatico?: string | null
+          comentario_manual?: string | null
+          created_at?: string
+          geracao_id?: string
+          id?: string
+          slide_codigo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "apresentacao_comentarios_geracao_id_fkey"
+            columns: ["geracao_id"]
+            isOneToOne: false
+            referencedRelation: "apresentacao_geracoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      apresentacao_geracoes: {
+        Row: {
+          arquivo_path: string | null
+          competencia_final: string | null
+          competencia_inicial: string | null
+          created_at: string
+          gerado_por: string | null
+          hash_geracao: string | null
+          id: string
+          modo_geracao: string
+          observacoes: string | null
+          parametros_json: Json | null
+          slides_json: Json | null
+          status: string
+          status_editorial: string | null
+          template_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          arquivo_path?: string | null
+          competencia_final?: string | null
+          competencia_inicial?: string | null
+          created_at?: string
+          gerado_por?: string | null
+          hash_geracao?: string | null
+          id?: string
+          modo_geracao?: string
+          observacoes?: string | null
+          parametros_json?: Json | null
+          slides_json?: Json | null
+          status?: string
+          status_editorial?: string | null
+          template_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          arquivo_path?: string | null
+          competencia_final?: string | null
+          competencia_inicial?: string | null
+          created_at?: string
+          gerado_por?: string | null
+          hash_geracao?: string | null
+          id?: string
+          modo_geracao?: string
+          observacoes?: string | null
+          parametros_json?: Json | null
+          slides_json?: Json | null
+          status?: string
+          status_editorial?: string | null
+          template_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "apresentacao_geracoes_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "apresentacao_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      apresentacao_templates: {
+        Row: {
+          arquivo_path: string | null
+          ativo: boolean
+          codigo: string
+          created_at: string
+          descricao: string | null
+          id: string
+          nome: string
+          updated_at: string
+          versao: string
+        }
+        Insert: {
+          arquivo_path?: string | null
+          ativo?: boolean
+          codigo: string
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          nome: string
+          updated_at?: string
+          versao?: string
+        }
+        Update: {
+          arquivo_path?: string | null
+          ativo?: boolean
+          codigo?: string
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          nome?: string
+          updated_at?: string
+          versao?: string
+        }
+        Relationships: []
+      }
       auditoria_logs: {
         Row: {
           acao: string
