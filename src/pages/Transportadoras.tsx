@@ -638,8 +638,6 @@ export default function Transportadoras() {
           </div>
             </TabsContent>
 
-            </TabsContent>
-
             {/* ── TAB: CLIENTES VINCULADOS ────────────────── */}
             {mode === "edit" && (
             <TabsContent value="clientes-vinculados" className="space-y-4 mt-0">
