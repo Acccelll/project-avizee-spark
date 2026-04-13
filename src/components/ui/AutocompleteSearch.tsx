@@ -9,6 +9,8 @@ export interface AutocompleteOption {
   searchTerms?: string[];
   imageUrl?: string | null;
   rightMeta?: string;
+  /** Optional third line rendered below sublabel */
+  metaLine?: string;
 }
 
 interface Props {
@@ -19,6 +21,8 @@ interface Props {
   className?: string;
   onCreateNew?: () => void;
   createNewLabel?: string;
+  /** Minimum width of the dropdown. Defaults to 'min-w-[360px]' */
+  dropdownMinWidth?: string;
 }
 
 export function AutocompleteSearch({
@@ -29,6 +33,7 @@ export function AutocompleteSearch({
   className,
   onCreateNew,
   createNewLabel = "Cadastrar novo",
+  dropdownMinWidth = "min-w-[360px]",
 }: Props) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
@@ -124,10 +129,14 @@ export function AutocompleteSearch({
         />
       </div>
       {open && (
-        <div ref={listRef} className="absolute z-50 top-full mt-1 w-full bg-popover border rounded-lg shadow-md max-h-72 overflow-y-auto">
+        <div
+          ref={listRef}
+          className={`absolute z-50 top-full mt-1 w-full ${dropdownMinWidth} bg-popover border rounded-lg shadow-lg max-h-72 overflow-y-auto`}
+          style={{ maxWidth: "min(520px, 100vw - 24px)" }}
+        >
           {filtered.length === 0 ? (
-            <div className="px-3 py-2 text-sm text-muted-foreground">
-              Nenhum resultado
+            <div className="px-3 py-3 text-sm text-muted-foreground">
+              Nenhum resultado encontrado
               {onCreateNew && (
                 <button type="button" onClick={onCreateNew} className="mt-2 flex items-center gap-1 text-primary text-xs font-medium">
                   <PlusCircle className="h-3.5 w-3.5" />
@@ -140,20 +149,30 @@ export function AutocompleteSearch({
               <button
                 key={o.id}
                 type="button"
-                className={`w-full text-left px-3 py-2 text-sm transition-colors flex items-center justify-between gap-2 ${
+                className={`w-full text-left px-3 py-2.5 text-sm transition-colors flex items-start justify-between gap-2 ${
                   idx === highlightIdx ? "bg-accent" : "hover:bg-accent"
-                }`}
+                } ${idx > 0 ? "border-t border-border/40" : ""}`}
                 onClick={() => selectOption(o.id)}
                 onMouseEnter={() => setHighlightIdx(idx)}
               >
-                <span className="flex items-center gap-2 min-w-0">
-                  {o.imageUrl ? <img src={o.imageUrl} alt={o.label} className="h-8 w-8 rounded object-cover" /> : null}
-                  <span className="min-w-0">
-                    <span className="font-medium block truncate">{o.label}</span>
-                    {o.sublabel && <span className="text-xs text-muted-foreground block truncate">{o.sublabel}</span>}
+                <span className="flex items-start gap-2 min-w-0 flex-1">
+                  {o.imageUrl ? <img src={o.imageUrl} alt={o.label} className="h-8 w-8 rounded object-cover mt-0.5 shrink-0" /> : null}
+                  <span className="min-w-0 flex-1">
+                    {/* Primary line: product name */}
+                    <span className="font-medium block truncate leading-snug text-foreground">{o.label}</span>
+                    {/* Secondary line: code / SKU / variation / unit */}
+                    {o.sublabel && (
+                      <span className="text-xs text-muted-foreground block truncate leading-snug mt-0.5">{o.sublabel}</span>
+                    )}
+                    {/* Tertiary line: stock / group / other meta */}
+                    {o.metaLine && (
+                      <span className="text-[11px] text-muted-foreground/70 block truncate leading-snug mt-0.5">{o.metaLine}</span>
+                    )}
                   </span>
                 </span>
-                {o.rightMeta && <span className="text-[11px] text-muted-foreground whitespace-nowrap">{o.rightMeta}</span>}
+                {o.rightMeta && (
+                  <span className="text-[11px] text-muted-foreground whitespace-nowrap shrink-0 mt-0.5 font-mono">{o.rightMeta}</span>
+                )}
               </button>
             ))
           )}

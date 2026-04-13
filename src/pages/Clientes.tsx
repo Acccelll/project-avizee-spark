@@ -23,12 +23,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { MaskedInput } from "@/components/ui/MaskedInput";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import {
   Building2, Search, User2, Phone, CreditCard, MapPin, Truck, FileText,
   Info, Loader2, Calendar, Mail, Star, Users, UserCheck,
+  Plus, Trash2, MessageSquare, Clock, CheckCircle, Home,
 } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
 import { clienteFornecedorSchema, validateForm } from "@/lib/validationSchemas";
@@ -54,6 +57,72 @@ interface ClienteTransportadoraRow {
   modalidade: string | null;
   prazo_medio: string | null;
 }
+
+interface TransportadoraBasic { id: string; nome_razao_social: string; }
+
+interface EnderecoEntrega {
+  id: string;
+  cliente_id: string;
+  identificacao: string;
+  logradouro: string | null;
+  numero: string | null;
+  complemento: string | null;
+  bairro: string | null;
+  cidade: string | null;
+  uf: string | null;
+  cep: string | null;
+  contato: string | null;
+  telefone: string | null;
+  principal: boolean;
+  ativo: boolean;
+  observacoes: string | null;
+}
+
+type EnderecoFormData = Omit<EnderecoEntrega, "id" | "cliente_id">;
+
+const emptyEnderecoForm: EnderecoFormData = {
+  identificacao: "Endereço de Entrega",
+  logradouro: "", numero: "", complemento: "", bairro: "",
+  cidade: "", uf: "", cep: "", contato: "", telefone: "",
+  principal: false, ativo: true, observacoes: "",
+};
+
+interface ComunicacaoCliente {
+  id: string;
+  cliente_id: string;
+  tipo: string | null;
+  assunto: string | null;
+  conteudo: string | null;
+  data_registro: string;
+  data_hora: string | null;
+  responsavel_id: string | null;
+  responsavel_nome: string | null;
+  retorno_previsto: string | null;
+  status: string;
+}
+
+type ComunicacaoFormData = {
+  tipo: string;
+  assunto: string;
+  conteudo: string;
+  responsavel_nome: string;
+  retorno_previsto: string;
+  status: string;
+};
+
+const emptyComunicacaoForm: ComunicacaoFormData = {
+  tipo: "ligacao", assunto: "", conteudo: "", responsavel_nome: "", retorno_previsto: "", status: "registrado",
+};
+
+const COMUNICACAO_TIPO_LABEL: Record<string, string> = {
+  ligacao: "Ligação", email: "E-mail", reuniao: "Reunião",
+  whatsapp: "WhatsApp", visita: "Visita", proposta: "Proposta", outros: "Outros",
+};
+
+const COMUNICACAO_STATUS_LABEL: Record<string, string> = {
+  registrado: "Registrado", em_andamento: "Em andamento",
+  aguardando_retorno: "Aguardando retorno", concluido: "Concluído", cancelado: "Cancelado",
+};
 
 interface ClienteFormData {
   tipo_pessoa: string;
@@ -138,6 +207,26 @@ const Clientes = () => {
     prioridade: number | null; modalidade: string | null; prazo_medio: string | null;
   }>>([]);
   const [loadingTransportadoras, setLoadingTransportadoras] = useState(false);
+  const [transportadorasList, setTransportadorasList] = useState<TransportadoraBasic[]>([]);
+  const [vinculoTranspId, setVinculoTranspId] = useState("");
+  const [vinculoTranspPrioridade, setVinculoTranspPrioridade] = useState<number>(1);
+  const [savingVinculo, setSavingVinculo] = useState(false);
+
+  // Delivery addresses
+  const [enderecos, setEnderecos] = useState<EnderecoEntrega[]>([]);
+  const [loadingEnderecos, setLoadingEnderecos] = useState(false);
+  const [enderecoDialogOpen, setEnderecoDialogOpen] = useState(false);
+  const [enderecoEditId, setEnderecoEditId] = useState<string | null>(null);
+  const [enderecoForm, setEnderecoForm] = useState<EnderecoFormData>({ ...emptyEnderecoForm });
+  const [savingEndereco, setSavingEndereco] = useState(false);
+  const { buscarCep: buscarCepEndereco, loading: cepEnderecoLoading } = useViaCep();
+
+  // Communications
+  const [comunicacoes, setComunicacoes] = useState<ComunicacaoCliente[]>([]);
+  const [loadingComunicacoes, setLoadingComunicacoes] = useState(false);
+  const [comunicacaoDialogOpen, setComunicacaoDialogOpen] = useState(false);
+  const [comunicacaoForm, setComunicacaoForm] = useState<ComunicacaoFormData>({ ...emptyComunicacaoForm });
+  const [savingComunicacao, setSavingComunicacao] = useState(false);
 
   const loadTransportadoras = async (clienteId: string) => {
     setLoadingTransportadoras(true);
@@ -164,9 +253,164 @@ const Clientes = () => {
     }
   };
 
+  const loadEnderecos = async (clienteId: string) => {
+    setLoadingEnderecos(true);
+    try {
+      const { data, error } = await supabase
+        .from("clientes_enderecos_entrega")
+        .select("*")
+        .eq("cliente_id", clienteId)
+        .eq("ativo", true)
+        .order("principal", { ascending: false });
+      if (error) throw error;
+      setEnderecos((data || []) as EnderecoEntrega[]);
+    } catch (err) {
+      console.error("[clientes] erro ao carregar endereços:", err);
+    } finally {
+      setLoadingEnderecos(false);
+    }
+  };
+
+  const loadComunicacoes = async (clienteId: string) => {
+    setLoadingComunicacoes(true);
+    try {
+      const { data, error } = await supabase
+        .from("cliente_registros_comunicacao")
+        .select("*")
+        .eq("cliente_id", clienteId)
+        .order("data_registro", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      setComunicacoes((data || []) as ComunicacaoCliente[]);
+    } catch (err) {
+      console.error("[clientes] erro ao carregar comunicações:", err);
+    } finally {
+      setLoadingComunicacoes(false);
+    }
+  };
+
+  const handleAddTransportadora = async (clienteId: string) => {
+    if (!vinculoTranspId) { toast.error("Selecione uma transportadora"); return; }
+    const already = modalTransportadoras.some(t => t.transportadora_id === vinculoTranspId);
+    if (already) { toast.error("Transportadora já vinculada"); return; }
+    setSavingVinculo(true);
+    try {
+      const { error } = await supabase.from("cliente_transportadoras").insert({
+        cliente_id: clienteId, transportadora_id: vinculoTranspId,
+        prioridade: vinculoTranspPrioridade, ativo: true,
+      });
+      if (error) throw error;
+      setVinculoTranspId("");
+      setVinculoTranspPrioridade(modalTransportadoras.length + 2);
+      await loadTransportadoras(clienteId);
+      toast.success("Transportadora vinculada");
+    } catch (err) {
+      console.error("[clientes] erro ao vincular transportadora:", err);
+      toast.error("Erro ao vincular transportadora");
+    }
+    setSavingVinculo(false);
+  };
+
+  const handleRemoveTransportadora = async (vinculoId: string, clienteId: string) => {
+    try {
+      const { error } = await supabase.from("cliente_transportadoras").update({ ativo: false }).eq("id", vinculoId);
+      if (error) throw error;
+      await loadTransportadoras(clienteId);
+      toast.success("Vínculo removido");
+    } catch (err) {
+      console.error("[clientes] erro ao remover vínculo:", err);
+      toast.error("Erro ao remover vínculo");
+    }
+  };
+
+  const handleSaveEndereco = async (clienteId: string) => {
+    if (!enderecoForm.identificacao.trim()) { toast.error("Identificação do endereço é obrigatória"); return; }
+    setSavingEndereco(true);
+    try {
+      const payload = { ...enderecoForm, cliente_id: clienteId };
+      if (enderecoEditId) {
+        const { error } = await supabase.from("clientes_enderecos_entrega").update(enderecoForm).eq("id", enderecoEditId);
+        if (error) throw error;
+        toast.success("Endereço atualizado");
+      } else {
+        // If principal, unset other principals
+        if (enderecoForm.principal) {
+          await supabase.from("clientes_enderecos_entrega").update({ principal: false }).eq("cliente_id", clienteId);
+        }
+        const { error } = await supabase.from("clientes_enderecos_entrega").insert(payload);
+        if (error) throw error;
+        toast.success("Endereço de entrega adicionado");
+      }
+      setEnderecoDialogOpen(false);
+      setEnderecoEditId(null);
+      await loadEnderecos(clienteId);
+    } catch (err) {
+      console.error("[clientes] erro ao salvar endereço:", err);
+      toast.error("Erro ao salvar endereço");
+    }
+    setSavingEndereco(false);
+  };
+
+  const handleSetPrincipalEndereco = async (enderecoId: string, clienteId: string) => {
+    try {
+      await supabase.from("clientes_enderecos_entrega").update({ principal: false }).eq("cliente_id", clienteId);
+      await supabase.from("clientes_enderecos_entrega").update({ principal: true }).eq("id", enderecoId);
+      await loadEnderecos(clienteId);
+      toast.success("Endereço principal definido");
+    } catch (err) {
+      console.error("[clientes] erro ao definir principal:", err);
+      toast.error("Erro ao definir endereço principal");
+    }
+  };
+
+  const handleRemoveEndereco = async (enderecoId: string, clienteId: string) => {
+    try {
+      await supabase.from("clientes_enderecos_entrega").update({ ativo: false }).eq("id", enderecoId);
+      await loadEnderecos(clienteId);
+      toast.success("Endereço removido");
+    } catch (err) {
+      console.error("[clientes] erro ao remover endereço:", err);
+      toast.error("Erro ao remover endereço");
+    }
+  };
+
+  const handleSaveComunicacao = async (clienteId: string) => {
+    if (!comunicacaoForm.assunto.trim()) { toast.error("Assunto é obrigatório"); return; }
+    setSavingComunicacao(true);
+    try {
+      const { error } = await supabase.from("cliente_registros_comunicacao").insert({
+        cliente_id: clienteId,
+        tipo: comunicacaoForm.tipo,
+        assunto: comunicacaoForm.assunto,
+        conteudo: comunicacaoForm.conteudo || null,
+        responsavel_nome: comunicacaoForm.responsavel_nome || null,
+        retorno_previsto: comunicacaoForm.retorno_previsto || null,
+        status: comunicacaoForm.status,
+        data_registro: new Date().toISOString().split("T")[0],
+        data_hora: new Date().toISOString(),
+      });
+      if (error) throw error;
+      setComunicacaoDialogOpen(false);
+      setComunicacaoForm({ ...emptyComunicacaoForm });
+      await loadComunicacoes(clienteId);
+      toast.success("Comunicação registrada");
+    } catch (err) {
+      console.error("[clientes] erro ao salvar comunicação:", err);
+      toast.error("Erro ao salvar comunicação");
+    }
+    setSavingComunicacao(false);
+  };
+
   useEffect(() => {
-    supabase.from("grupos_economicos").select("id, nome").eq("ativo", true).order("nome").then(({ data: g }) => setGrupos((g as GrupoEconomico[]) || []));
-    supabase.from("formas_pagamento").select("id, descricao").eq("ativo", true).order("descricao").then(({ data: fp }) => setFormasPagamento((fp || []) as FormaPagamentoBasic[]));
+    Promise.all([
+      supabase.from("grupos_economicos").select("id, nome").eq("ativo", true).order("nome"),
+      supabase.from("formas_pagamento").select("id, descricao").eq("ativo", true).order("descricao"),
+      supabase.from("transportadoras").select("id, nome_razao_social").eq("ativo", true).order("nome_razao_social"),
+    ]).then(([{ data: g }, { data: fp }, { data: tr }]) => {
+      setGrupos((g as GrupoEconomico[]) || []);
+      setFormasPagamento((fp || []) as FormaPagamentoBasic[]);
+      setTransportadorasList((tr || []) as TransportadoraBasic[]);
+    });
   }, []);
 
   useEffect(() => {
@@ -180,7 +424,7 @@ const Clientes = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.state]);
 
-  const openCreate = () => {setMode("create");setForm({ ...emptyCliente });setSelected(null);setIsDirty(false);setModalTransportadoras([]);setModalOpen(true);};
+  const openCreate = () => {setMode("create");setForm({ ...emptyCliente });setSelected(null);setIsDirty(false);setModalTransportadoras([]);setEnderecos([]);setComunicacoes([]);setModalOpen(true);};
   const openEdit = (c: Cliente) => {
     setMode("edit");setSelected(c);
     setForm({
@@ -198,7 +442,13 @@ const Clientes = () => {
     });
     setIsDirty(false);
     setModalTransportadoras([]);
-    loadTransportadoras(c.id);
+    setEnderecos([]);
+    setComunicacoes([]);
+    Promise.all([
+      loadTransportadoras(c.id),
+      loadEnderecos(c.id),
+      loadComunicacoes(c.id),
+    ]);
     setModalOpen(true);
   };
 
@@ -473,6 +723,12 @@ const Clientes = () => {
               <TabsTrigger value="dados-gerais" className="gap-1.5"><User2 className="h-3.5 w-3.5" />Dados Gerais</TabsTrigger>
               <TabsTrigger value="contatos" className="gap-1.5"><Phone className="h-3.5 w-3.5" />Contatos</TabsTrigger>
               <TabsTrigger value="endereco" className="gap-1.5"><MapPin className="h-3.5 w-3.5" />Endereço</TabsTrigger>
+              {mode === "edit" && (
+                <TabsTrigger value="entregas" className="gap-1.5">
+                  <Home className="h-3.5 w-3.5" />Entregas
+                  {enderecos.length > 0 && <span className="ml-1 text-[10px] bg-primary/10 text-primary rounded-full px-1.5">{enderecos.length}</span>}
+                </TabsTrigger>
+              )}
               <TabsTrigger value="comercial" className="gap-1.5"><CreditCard className="h-3.5 w-3.5" />Comercial</TabsTrigger>
               <TabsTrigger value="observacoes" className="gap-1.5"><FileText className="h-3.5 w-3.5" />Obs.</TabsTrigger>
             </TabsList>
@@ -640,6 +896,72 @@ const Clientes = () => {
               </div>
             </div>
           </div>
+
+          {/* ── Histórico de Comunicações (apenas modo edição) ── */}
+          {mode === "edit" && selected && (
+            <div className="border-t pt-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4 text-primary/70" />
+                  <h3 className="font-semibold text-sm">Histórico de Comunicações</h3>
+                  {comunicacoes.length > 0 && (
+                    <Badge variant="secondary" className="text-xs px-1.5">{comunicacoes.length}</Badge>
+                  )}
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5 h-8"
+                  onClick={() => { setComunicacaoForm({ ...emptyComunicacaoForm }); setComunicacaoDialogOpen(true); }}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Incluir
+                </Button>
+              </div>
+              {loadingComunicacoes ? (
+                <div className="h-16 bg-muted/30 rounded-lg animate-pulse" />
+              ) : comunicacoes.length === 0 ? (
+                <div className="flex items-center gap-2 bg-muted/20 rounded-lg px-3 py-3 text-xs text-muted-foreground border border-dashed">
+                  <MessageSquare className="h-3.5 w-3.5 shrink-0" />
+                  <span>Nenhuma comunicação registrada. Clique em <strong>Incluir</strong> para registrar a primeira interação.</span>
+                </div>
+              ) : (
+                <div className="space-y-1 max-h-[260px] overflow-y-auto">
+                  {comunicacoes.map((com) => (
+                    <div key={com.id} className="flex items-start justify-between py-2 px-2 rounded-md hover:bg-muted/30 border-b last:border-b-0 gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-xs font-semibold text-foreground">{com.assunto || "—"}</span>
+                          {com.tipo && (
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                              {COMUNICACAO_TIPO_LABEL[com.tipo] || com.tipo}
+                            </Badge>
+                          )}
+                        </div>
+                        {com.conteudo && (
+                          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{com.conteudo}</p>
+                        )}
+                        <div className="flex items-center gap-2 mt-1 text-[10px] text-muted-foreground">
+                          <Clock className="h-2.5 w-2.5" />
+                          <span>{new Date(com.data_hora || com.data_registro).toLocaleString("pt-BR")}</span>
+                          {com.responsavel_nome && <span>· {com.responsavel_nome}</span>}
+                          {com.retorno_previsto && (
+                            <span className="text-amber-600">· Retorno: {new Date(com.retorno_previsto + "T00:00:00").toLocaleDateString("pt-BR")}</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="shrink-0">
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 whitespace-nowrap">
+                          {COMUNICACAO_STATUS_LABEL[com.status] || com.status}
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
             </TabsContent>
 
             {/* ── TAB: ENDEREÇO ─────────────────────────────── */}
@@ -883,9 +1205,9 @@ const Clientes = () => {
 
           <div className="flex items-center gap-2 pt-3 pb-3 border-t">
             <Truck className="w-4 h-4 text-primary/70" />
-            <h3 className="font-semibold text-sm">Logística</h3>
-            {mode === "edit" && !loadingTransportadoras && modalTransportadoras.length > 0 && (
-              <span className="ml-auto text-[10px] text-muted-foreground uppercase tracking-wider">apenas leitura</span>
+            <h3 className="font-semibold text-sm">Transportadoras Preferenciais</h3>
+            {modalTransportadoras.length > 0 && (
+              <Badge variant="secondary" className="text-xs px-1.5">{modalTransportadoras.length}</Badge>
             )}
           </div>
           <div className="mb-4">
@@ -893,41 +1215,182 @@ const Clientes = () => {
               <div className="flex items-start gap-2 bg-muted/30 rounded-lg px-3 py-2.5 border border-dashed text-xs text-muted-foreground">
                 <Truck className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                 <span>
-                  Transportadoras preferenciais, modalidades de entrega e observações logísticas são gerenciadas após o cadastro, na aba <strong className="text-foreground">Logística</strong> do registro do cliente.
+                  Transportadoras preferenciais podem ser vinculadas após o cadastro inicial do cliente.
                 </span>
               </div>
             ) : loadingTransportadoras ? (
               <div className="h-[60px] rounded-lg bg-muted/30 animate-pulse" />
-            ) : modalTransportadoras.length === 0 ? (
-              <div className="flex items-start gap-2 bg-muted/30 rounded-lg px-3 py-2.5 border border-dashed text-xs text-muted-foreground">
-                <Truck className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                <span>
-                  Nenhuma transportadora vinculada ainda. Para definir transportadoras preferenciais, acesse a aba <strong className="text-foreground">Logística</strong> no painel do cliente.
-                </span>
-              </div>
             ) : (
-              <div className="space-y-0.5">
-                {modalTransportadoras.slice(0, 4).map((ct) => (
-                  <div key={ct.id} className="flex items-center justify-between py-1.5 px-2 rounded-md hover:bg-muted/30 transition-colors border-b last:border-b-0">
-                    <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                      {ct.prioridade === 1 && <Star className="h-3 w-3 text-amber-500 shrink-0" />}
-                      <span className="text-xs font-medium text-foreground truncate">{ct.transportadora_nome}</span>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0 ml-2 text-xs text-muted-foreground">
-                      {ct.modalidade && <span className="capitalize">{ct.modalidade}</span>}
-                      {ct.prazo_medio && <span className="font-mono">{ct.prazo_medio} dias</span>}
-                    </div>
+              <>
+                {/* Add new transport link */}
+                <div className="flex gap-2 mb-3">
+                  <Select value={vinculoTranspId} onValueChange={setVinculoTranspId}>
+                    <SelectTrigger className="flex-1 h-9"><SelectValue placeholder="Selecionar transportadora..." /></SelectTrigger>
+                    <SelectContent>
+                      {transportadorasList
+                        .filter(t => !modalTransportadoras.some(ct => ct.transportadora_id === t.id))
+                        .map(t => <SelectItem key={t.id} value={t.id}>{t.nome_razao_social}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    type="button" size="sm"
+                    disabled={!vinculoTranspId || savingVinculo}
+                    onClick={() => selected && handleAddTransportadora(selected.id)}
+                    className="gap-1 h-9"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Vincular
+                  </Button>
+                </div>
+                {modalTransportadoras.length === 0 ? (
+                  <div className="flex items-start gap-2 bg-muted/30 rounded-lg px-3 py-2.5 border border-dashed text-xs text-muted-foreground">
+                    <Truck className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                    <span>Nenhuma transportadora vinculada. Use o seletor acima para vincular.</span>
                   </div>
-                ))}
-                {modalTransportadoras.length > 4 && (
-                  <p className="text-[10px] text-muted-foreground text-center pt-1">
-                    +{modalTransportadoras.length - 4} transportadora(s) vinculada(s)
-                  </p>
+                ) : (
+                  <div className="space-y-0.5">
+                    {modalTransportadoras.map((ct) => (
+                      <div key={ct.id} className="flex items-center justify-between py-1.5 px-2 rounded-md hover:bg-muted/30 transition-colors border-b last:border-b-0 group">
+                        <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                          {ct.prioridade === 1 && <Star className="h-3 w-3 text-amber-500 shrink-0" />}
+                          <span className="text-xs font-medium text-foreground truncate">{ct.transportadora_nome}</span>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0 ml-2">
+                          {ct.modalidade && <span className="text-xs text-muted-foreground capitalize">{ct.modalidade}</span>}
+                          {ct.prazo_medio && <span className="text-xs text-muted-foreground font-mono">{ct.prazo_medio}d</span>}
+                          <Button
+                            type="button" size="icon" variant="ghost"
+                            className="h-6 w-6 text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                            aria-label="Remover vínculo"
+                            onClick={() => selected && handleRemoveTransportadora(ct.id, selected.id)}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 )}
-              </div>
+              </>
             )}
           </div>
             </TabsContent>
+
+            </TabsContent>
+
+            {/* ── TAB: ENTREGAS ──────────────────────────── */}
+            {mode === "edit" && (
+            <TabsContent value="entregas" className="space-y-4 mt-0">
+          <div className="flex items-center justify-between pb-2">
+            <div className="flex items-center gap-2">
+              <Home className="w-4 h-4 text-primary/70" />
+              <h3 className="font-semibold text-sm">Endereços de Entrega</h3>
+              {enderecos.length > 0 && <Badge variant="secondary" className="text-xs">{enderecos.length}</Badge>}
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="gap-1.5 h-8"
+              onClick={() => {
+                setEnderecoForm({ ...emptyEnderecoForm, principal: enderecos.length === 0 });
+                setEnderecoEditId(null);
+                setEnderecoDialogOpen(true);
+              }}
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Incluir
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Endereços alternativos de entrega para este cliente. Um pode ser marcado como principal.
+          </p>
+          {loadingEnderecos ? (
+            <div className="h-20 bg-muted/30 rounded-lg animate-pulse" />
+          ) : enderecos.length === 0 ? (
+            <div className="flex items-center gap-2 bg-muted/20 rounded-lg px-3 py-4 border border-dashed text-xs text-muted-foreground">
+              <Home className="h-3.5 w-3.5 shrink-0" />
+              <span>Nenhum endereço de entrega cadastrado. Clique em <strong>Incluir</strong> para adicionar.</span>
+            </div>
+          ) : (
+            <div className="space-y-1">
+              {enderecos.map((end) => (
+                <div key={end.id} className="group rounded-lg border bg-card p-3 hover:bg-muted/20 transition-colors">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      {end.principal && <Star className="h-3.5 w-3.5 text-amber-500 shrink-0" title="Principal" />}
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-medium">{end.identificacao}</span>
+                          {end.principal && <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-amber-600 border-amber-300">Principal</Badge>}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {[end.logradouro, end.numero, end.complemento].filter(Boolean).join(", ")}
+                          {end.bairro ? ` — ${end.bairro}` : ""}
+                          {end.cidade ? ` — ${end.cidade}` : ""}
+                          {end.uf ? `/${end.uf}` : ""}
+                          {end.cep ? ` (${end.cep})` : ""}
+                        </p>
+                        {(end.contato || end.telefone) && (
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {[end.contato, end.telefone].filter(Boolean).join(" · ")}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {!end.principal && selected && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button type="button" size="icon" variant="ghost" className="h-7 w-7"
+                              aria-label="Marcar como principal"
+                              onClick={() => selected && handleSetPrincipalEndereco(end.id, selected.id)}>
+                              <Star className="h-3.5 w-3.5 text-amber-500" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Marcar como principal</TooltipContent>
+                        </Tooltip>
+                      )}
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button type="button" size="icon" variant="ghost" className="h-7 w-7"
+                            aria-label="Editar endereço"
+                            onClick={() => {
+                              setEnderecoForm({
+                                identificacao: end.identificacao,
+                                logradouro: end.logradouro || "", numero: end.numero || "",
+                                complemento: end.complemento || "", bairro: end.bairro || "",
+                                cidade: end.cidade || "", uf: end.uf || "", cep: end.cep || "",
+                                contato: end.contato || "", telefone: end.telefone || "",
+                                principal: end.principal, ativo: end.ativo,
+                                observacoes: end.observacoes || "",
+                              });
+                              setEnderecoEditId(end.id);
+                              setEnderecoDialogOpen(true);
+                            }}>
+                            <FileText className="h-3.5 w-3.5" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Editar</TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button type="button" size="icon" variant="ghost" className="h-7 w-7 text-destructive"
+                            aria-label="Remover endereço"
+                            onClick={() => selected && handleRemoveEndereco(end.id, selected.id)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Remover</TooltipContent>
+                      </Tooltip>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+            </TabsContent>
+            )}
 
             {/* ── TAB: OBSERVAÇÕES ──────────────────────────── */}
             <TabsContent value="observacoes" className="space-y-4 mt-0">
@@ -971,8 +1434,165 @@ const Clientes = () => {
         </form>
       </FormModal>
 
+      {/* ── Dialog: Endereço de Entrega ──────────────── */}
+      <Dialog open={enderecoDialogOpen} onOpenChange={(v) => { if (!v) { setEnderecoDialogOpen(false); setEnderecoEditId(null); } }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{enderecoEditId ? "Editar Endereço de Entrega" : "Novo Endereço de Entrega"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 pt-1">
+            <div className="space-y-2">
+              <Label>Identificação <span className="text-destructive">*</span></Label>
+              <Input
+                value={enderecoForm.identificacao}
+                onChange={(e) => setEnderecoForm({ ...enderecoForm, identificacao: e.target.value })}
+                placeholder="Ex: Filial SP, Depósito Central"
+              />
+            </div>
+            <div className="flex gap-2">
+              <div className="flex-1 space-y-2">
+                <Label>CEP</Label>
+                <div className="flex gap-2">
+                  <Input
+                    value={enderecoForm.cep || ""}
+                    onChange={(e) => setEnderecoForm({ ...enderecoForm, cep: e.target.value })}
+                    placeholder="00000-000"
+                    maxLength={9}
+                    className="flex-1"
+                  />
+                  <Button
+                    type="button" variant="outline" size="sm"
+                    disabled={cepEnderecoLoading || (enderecoForm.cep || "").replace(/\D/g, "").length < 8}
+                    onClick={async () => {
+                      const result = await buscarCepEndereco(enderecoForm.cep || "");
+                      if (result) setEnderecoForm({ ...enderecoForm, logradouro: result.logradouro, bairro: result.bairro, cidade: result.localidade, uf: result.uf });
+                    }}
+                    aria-label="Buscar CEP"
+                  >
+                    {cepEnderecoLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                  </Button>
+                </div>
+              </div>
+              <div className="w-24 space-y-2">
+                <Label>Número</Label>
+                <Input value={enderecoForm.numero || ""} onChange={(e) => setEnderecoForm({ ...enderecoForm, numero: e.target.value })} placeholder="Nº" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Logradouro</Label>
+              <Input value={enderecoForm.logradouro || ""} onChange={(e) => setEnderecoForm({ ...enderecoForm, logradouro: e.target.value })} placeholder="Rua, Avenida..." />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Complemento</Label>
+                <Input value={enderecoForm.complemento || ""} onChange={(e) => setEnderecoForm({ ...enderecoForm, complemento: e.target.value })} placeholder="Sala, Bloco..." />
+              </div>
+              <div className="space-y-2">
+                <Label>Bairro</Label>
+                <Input value={enderecoForm.bairro || ""} onChange={(e) => setEnderecoForm({ ...enderecoForm, bairro: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label>Cidade</Label>
+                <Input value={enderecoForm.cidade || ""} onChange={(e) => setEnderecoForm({ ...enderecoForm, cidade: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label>UF</Label>
+                <Input maxLength={2} value={enderecoForm.uf || ""} onChange={(e) => setEnderecoForm({ ...enderecoForm, uf: e.target.value.toUpperCase() })} className="uppercase" />
+              </div>
+              <div className="space-y-2">
+                <Label>Contato</Label>
+                <Input value={enderecoForm.contato || ""} onChange={(e) => setEnderecoForm({ ...enderecoForm, contato: e.target.value })} placeholder="Nome do responsável" />
+              </div>
+              <div className="space-y-2">
+                <Label>Telefone</Label>
+                <Input value={enderecoForm.telefone || ""} onChange={(e) => setEnderecoForm({ ...enderecoForm, telefone: e.target.value })} placeholder="(00) 00000-0000" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Observações</Label>
+              <Textarea value={enderecoForm.observacoes || ""} onChange={(e) => setEnderecoForm({ ...enderecoForm, observacoes: e.target.value })} rows={2} placeholder="Instruções de entrega, restrições de acesso..." />
+            </div>
+            <div className="flex justify-end gap-2 pt-2 border-t">
+              <Button type="button" variant="outline" onClick={() => { setEnderecoDialogOpen(false); setEnderecoEditId(null); }}>Cancelar</Button>
+              <Button
+                type="button"
+                disabled={savingEndereco}
+                onClick={() => selected && handleSaveEndereco(selected.id)}
+              >
+                {savingEndereco ? "Salvando..." : "Salvar Endereço"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Dialog: Nova Comunicação ──────────────────── */}
+      <Dialog open={comunicacaoDialogOpen} onOpenChange={(v) => { if (!v) setComunicacaoDialogOpen(false); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MessageSquare className="h-4 w-4 text-primary" />
+              Registrar Comunicação
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 pt-1">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Tipo</Label>
+                <Select value={comunicacaoForm.tipo} onValueChange={(v) => setComunicacaoForm({ ...comunicacaoForm, tipo: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(COMUNICACAO_TIPO_LABEL).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <Select value={comunicacaoForm.status} onValueChange={(v) => setComunicacaoForm({ ...comunicacaoForm, status: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(COMUNICACAO_STATUS_LABEL).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Assunto <span className="text-destructive">*</span></Label>
+              <Input value={comunicacaoForm.assunto} onChange={(e) => setComunicacaoForm({ ...comunicacaoForm, assunto: e.target.value })} placeholder="Resumo da comunicação" />
+            </div>
+            <div className="space-y-2">
+              <Label>Descrição / Conteúdo</Label>
+              <Textarea
+                value={comunicacaoForm.conteudo}
+                onChange={(e) => setComunicacaoForm({ ...comunicacaoForm, conteudo: e.target.value })}
+                rows={3}
+                placeholder="Detalhes da comunicação, pontos discutidos, conclusões..."
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Responsável</Label>
+                <Input value={comunicacaoForm.responsavel_nome} onChange={(e) => setComunicacaoForm({ ...comunicacaoForm, responsavel_nome: e.target.value })} placeholder="Nome do responsável" />
+              </div>
+              <div className="space-y-2">
+                <Label>Retorno Previsto</Label>
+                <Input type="date" value={comunicacaoForm.retorno_previsto} onChange={(e) => setComunicacaoForm({ ...comunicacaoForm, retorno_previsto: e.target.value })} />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2 border-t">
+              <Button type="button" variant="outline" onClick={() => setComunicacaoDialogOpen(false)}>Cancelar</Button>
+              <Button
+                type="button"
+                disabled={savingComunicacao}
+                onClick={() => selected && handleSaveComunicacao(selected.id)}
+              >
+                {savingComunicacao ? "Registrando..." : "Registrar"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
     </AppLayout>);
 
 };
-
-export default Clientes;
