@@ -16,13 +16,13 @@ interface Props {
 }
 
 export function PrecosEspeciaisTab({ clienteId, produtoId }: Props) {
-  const [items, setItems] = useState<any[]>([]);
+  const [items, setItems] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
 
-  const [clientes, setClientes] = useState<any[]>([]);
-  const [produtos, setProdutos] = useState<any[]>([]);
+  const [clientes, setClientes] = useState<Record<string, unknown>[]>([]);
+  const [produtos, setProdutos] = useState<Record<string, unknown>[]>([]);
 
   const [form, setForm] = useState({
     cliente_id: clienteId || "",

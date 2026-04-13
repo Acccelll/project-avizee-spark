@@ -91,7 +91,7 @@ export function QuickAddClientModal({ open, onClose, onCreated }: QuickAddClient
           nome_razao_social: form.nome_razao_social,
           nome_fantasia: form.nome_fantasia || null,
           cpf_cnpj: form.cpf_cnpj || null,
-          tipo_pessoa: form.tipo_pessoa as any,
+          tipo_pessoa: form.tipo_pessoa,
           inscricao_estadual: form.inscricao_estadual || null,
           email: form.email || null,
           telefone: form.telefone || null,
@@ -112,7 +112,7 @@ export function QuickAddClientModal({ open, onClose, onCreated }: QuickAddClient
       onCreated(data.id);
       onClose();
       setForm({ ...emptyForm });
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error("[quick-add-client]", err);
       toast.error("Erro ao cadastrar cliente.");
     }

@@ -171,7 +171,7 @@ const ContasBancarias = () => {
     });
     const [{ count: lCount }, { count: bCount }, { count: cCount }] = await Promise.all([
       supabase.from("financeiro_lancamentos").select("id", { count: "exact", head: true }).eq("conta_bancaria_id", c.id).eq("ativo", true),
-      supabase.from("financeiro_baixas" as any).select("id", { count: "exact", head: true }).eq("conta_bancaria_id", c.id),
+      supabase.from("financeiro_baixas").select("id", { count: "exact", head: true }).eq("conta_bancaria_id", c.id),
       supabase.from("caixa_movimentos").select("id", { count: "exact", head: true }).eq("conta_bancaria_id", c.id),
     ]);
     setInUseCounts({ lancamentos: lCount ?? 0, baixas: bCount ?? 0, caixaMovs: cCount ?? 0 });

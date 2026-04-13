@@ -258,7 +258,7 @@ const Clientes = () => {
   const loadEnderecos = async (clienteId: string) => {
     setLoadingEnderecos(true);
     try {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await db
         .from("clientes_enderecos_entrega")
         .select("*")
         .eq("cliente_id", clienteId)
@@ -333,21 +333,21 @@ const Clientes = () => {
       if (enderecoEditId) {
         // When editing, if marking as principal, unset others first
         if (enderecoForm.principal) {
-          await (supabase as any)
+          await db
             .from("clientes_enderecos_entrega")
             .update({ principal: false })
             .eq("cliente_id", clienteId)
             .neq("id", enderecoEditId);
         }
-        const { error } = await (supabase as any).from("clientes_enderecos_entrega").update(enderecoForm).eq("id", enderecoEditId);
+        const { error } = await db.from("clientes_enderecos_entrega").update(enderecoForm).eq("id", enderecoEditId);
         if (error) throw error;
         toast.success("Endereço atualizado");
       } else {
         // If principal, unset other principals
         if (enderecoForm.principal) {
-          await (supabase as any).from("clientes_enderecos_entrega").update({ principal: false }).eq("cliente_id", clienteId);
+          await db.from("clientes_enderecos_entrega").update({ principal: false }).eq("cliente_id", clienteId);
         }
-        const { error } = await (supabase as any).from("clientes_enderecos_entrega").insert(payload);
+        const { error } = await db.from("clientes_enderecos_entrega").insert(payload);
         if (error) throw error;
         toast.success("Endereço de entrega adicionado");
       }
@@ -363,8 +363,8 @@ const Clientes = () => {
 
   const handleSetPrincipalEndereco = async (enderecoId: string, clienteId: string) => {
     try {
-      await (supabase as any).from("clientes_enderecos_entrega").update({ principal: false }).eq("cliente_id", clienteId);
-      await (supabase as any).from("clientes_enderecos_entrega").update({ principal: true }).eq("id", enderecoId);
+      await db.from("clientes_enderecos_entrega").update({ principal: false }).eq("cliente_id", clienteId);
+      await db.from("clientes_enderecos_entrega").update({ principal: true }).eq("id", enderecoId);
       await loadEnderecos(clienteId);
       toast.success("Endereço principal definido");
     } catch (err) {
@@ -375,7 +375,7 @@ const Clientes = () => {
 
   const handleRemoveEndereco = async (enderecoId: string, clienteId: string) => {
     try {
-      await (supabase as any).from("clientes_enderecos_entrega").update({ ativo: false }).eq("id", enderecoId);
+      await db.from("clientes_enderecos_entrega").update({ ativo: false }).eq("id", enderecoId);
       await loadEnderecos(clienteId);
       toast.success("Endereço removido");
     } catch (err) {
@@ -388,7 +388,7 @@ const Clientes = () => {
     if (!comunicacaoForm.assunto.trim()) { toast.error("Assunto é obrigatório"); return; }
     setSavingComunicacao(true);
     try {
-      const { error } = await (supabase as any).from("cliente_registros_comunicacao").insert({
+      const { error } = await db.from("cliente_registros_comunicacao").insert({
         cliente_id: clienteId,
         tipo: comunicacaoForm.tipo,
         assunto: comunicacaoForm.assunto,

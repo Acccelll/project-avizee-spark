@@ -26,11 +26,11 @@ interface Props {
 }
 
 export function PedidoCompraView({ id }: Props) {
-  const [selected, setSelected] = useState<any | null>(null);
+  const [selected, setSelected] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(true);
-  const [viewItems, setViewItems] = useState<any[]>([]);
-  const [viewEstoque, setViewEstoque] = useState<any[]>([]);
-  const [viewCotacao, setViewCotacao] = useState<any | null>(null);
+  const [viewItems, setViewItems] = useState<Record<string, unknown>[]>([]);
+  const [viewEstoque, setViewEstoque] = useState<Record<string, unknown>[]>([]);
+  const [viewCotacao, setViewCotacao] = useState<Record<string, unknown> | null>(null);
   const { pushView } = useRelationalNavigation();
 
   useEffect(() => {
@@ -58,10 +58,10 @@ export function PedidoCompraView({ id }: Props) {
       ]);
 
       setViewItems(itensResult.data || []);
-      setViewEstoque((estResult.data as any[]) || []);
+      setViewEstoque((estResult.data as Record<string, unknown>[]) || []);
 
       if (p.cotacao_compra_id) {
-        const { data: cot } = await (supabase.from as any)("cotacoes_compra")
+        const { data: cot } = await ( supabase.from as unknown as typeof supabase.from)("cotacoes_compra")
           .select("id, numero, status, data_cotacao")
           .eq("id", p.cotacao_compra_id)
           .single();
@@ -92,15 +92,15 @@ export function PedidoCompraView({ id }: Props) {
   })();
 
   const estoquePorProduto: Record<string, number> = viewEstoque.reduce(
-    (acc: Record<string, number>, m: any) => {
+    ( acc: Record<string, number>, m: Record<string, unknown>) => {
       const key = String(m.produto_id);
       acc[key] = (acc[key] || 0) + Number(m.quantidade || 0);
       return acc;
     },
     {},
   );
-  const totalOrdenado = viewItems.reduce((s: number, i: any) => s + Number(i.quantidade || 0), 0);
-  const totalRecebido = viewEstoque.reduce((s: number, m: any) => s + Number(m.quantidade || 0), 0);
+  const totalOrdenado = viewItems.reduce(( s: number, i: Record<string, unknown>) => s + Number(i.quantidade || 0), 0);
+  const totalRecebido = viewEstoque.reduce(( s: number, m: Record<string, unknown>) => s + Number(m.quantidade || 0), 0);
   const pctRecebimento = totalOrdenado > 0 ? Math.min(100, Math.round((totalRecebido / totalOrdenado) * 100)) : 0;
 
   const pedidoNum = selected.numero || `PC-${selected.id}`;
@@ -228,7 +228,7 @@ export function PedidoCompraView({ id }: Props) {
                 </tr>
               </thead>
               <tbody>
-                {viewItems.map((i: any, idx: number) => {
+                {viewItems.map((i: Record<string, unknown>, idx: number) => {
                   const qtdRec = estoquePorProduto[String(i.produto_id)] || 0;
                   const qtdPend = Math.max(0, Number(i.quantidade) - qtdRec);
                   return (
@@ -281,7 +281,7 @@ export function PedidoCompraView({ id }: Props) {
           {viewItems.length > 0 && (
             <ViewSection title="Progresso por Item">
               <div className="space-y-3">
-                {viewItems.map((i: any, idx: number) => {
+                {viewItems.map((i: Record<string, unknown>, idx: number) => {
                   const qtdRec = estoquePorProduto[String(i.produto_id)] || 0;
                   const qtdPend = Math.max(0, Number(i.quantidade) - qtdRec);
                   const pct = Number(i.quantidade) > 0 ? Math.min(100, Math.round((qtdRec / Number(i.quantidade)) * 100)) : 0;
@@ -340,7 +340,7 @@ export function PedidoCompraView({ id }: Props) {
                     </tr>
                   </thead>
                   <tbody>
-                    {viewEstoque.map((m: any, idx: number) => (
+                    {viewEstoque.map((m: Record<string, unknown>, idx: number) => (
                       <tr key={idx} className="border-b last:border-b-0 hover:bg-muted/20">
                         <td className="px-2 py-2 font-medium">{m.produtos?.nome || "—"}</td>
                         <td className="px-2 py-2 text-right font-mono text-success font-semibold">+{m.quantidade}</td>
@@ -410,7 +410,7 @@ export function PedidoCompraView({ id }: Props) {
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Produtos</span>
                 <span className="font-mono">
-                  {formatCurrency(viewItems.reduce((s: number, i: any) => s + Number(i.valor_total || 0), 0))}
+                  {formatCurrency(viewItems.reduce(( s: number, i: Record<string, unknown>) => s + Number(i.valor_total || 0), 0))}
                 </span>
               </div>
               {Number(selected.frete_valor) > 0 && (

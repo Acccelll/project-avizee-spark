@@ -25,10 +25,10 @@ export function ProdutoView({ id }: Props) {
   const [grupoNome, setGrupoNome] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
-  const [historico, setHistorico] = useState<any[]>([]);
-  const [composicao, setComposicao] = useState<any[]>([]);
-  const [movimentos, setMovimentos] = useState<any[]>([]);
-  const [fornecedoresProd, setFornecedoresProd] = useState<any[]>([]);
+  const [historico, setHistorico] = useState<Record<string, unknown>[]>([]);
+  const [composicao, setComposicao] = useState<Record<string, unknown>[]>([]);
+  const [movimentos, setMovimentos] = useState<Record<string, unknown>[]>([]);
+  const [fornecedoresProd, setFornecedoresProd] = useState<Record<string, unknown>[]>([]);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const { pushView, clearStack } = useRelationalNavigation();
 
@@ -74,14 +74,14 @@ export function ProdutoView({ id }: Props) {
         ]);
 
         setHistorico(nfRes.data || []);
-        setComposicao((compRes.data || []).map((c: any) => ({
+        setComposicao((compRes.data || []).map((c: Record<string, unknown>) => ({
           id: c.produtos?.id,
           nome: c.produtos?.nome, sku: c.produtos?.sku, preco_custo: c.produtos?.preco_custo,
           quantidade: c.quantidade, ordem: c.ordem,
         })));
         setMovimentos(movRes.data || []);
         setFornecedoresProd(fornRes.data || []);
-        setGrupoNome((grupoRes.data as any)?.nome || null);
+        setGrupoNome(( grupoRes.data as Record<string, unknown>)?.nome || null);
       } catch (error) {
         logger.error("[ProdutoView] erro inesperado:", error);
         setFetchError(`Erro inesperado: ${error instanceof Error ? error.message : String(error)}`);
@@ -103,9 +103,9 @@ export function ProdutoView({ id }: Props) {
   const estoqueValor = (selected.estoque_atual || 0) * (selected.preco_custo || 0);
   const estoqueBaixo = Number(selected.estoque_atual) <= Number(selected.estoque_minimo) && Number(selected.estoque_minimo) > 0;
   const fiscalCompleto = !!(selected.ncm && selected.cst && selected.cfop_padrao);
-  const fornecedorPrincipal = fornecedoresProd.find((f: any) => f.eh_principal);
-  const ultimaEntrada = movimentos.find((m: any) => m.tipo === 'entrada');
-  const ultimaSaida = movimentos.find((m: any) => m.tipo === 'saida');
+  const fornecedorPrincipal = fornecedoresProd.find((f: Record<string, unknown>) => f.eh_principal);
+  const ultimaEntrada = movimentos.find((m: Record<string, unknown>) => m.tipo === 'entrada');
+  const ultimaSaida = movimentos.find((m: Record<string, unknown>) => m.tipo === 'saida');
 
   return (
     <div className="space-y-5">
@@ -143,7 +143,7 @@ export function ProdutoView({ id }: Props) {
           <div className="flex flex-wrap items-center gap-2 mt-2">
             <StatusBadge status={selected.ativo ? "ativo" : "inativo"} />
             <StatusBadge status={selected.eh_composto ? "composto" : "simples"} />
-            <StatusBadge status={(selected as any).tipo_item || "produto"} />
+            <StatusBadge status={(selected as Record<string, unknown>).tipo_item || "produto"} />
             {grupoNome && (
               <span className="inline-flex items-center gap-1 rounded-full border bg-muted/50 px-2 py-0.5 text-[10px] text-muted-foreground font-medium">
                 <Layers className="h-2.5 w-2.5" />
@@ -221,7 +221,7 @@ export function ProdutoView({ id }: Props) {
             </div>
             <div>
               <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Classificação</span>
-              <p className="text-sm capitalize">{(selected as any).tipo_item || "produto"}</p>
+              <p className="text-sm capitalize">{(selected as Record<string, unknown>).tipo_item || "produto"}</p>
             </div>
           </div>
           {selected.descricao && (
@@ -267,7 +267,7 @@ export function ProdutoView({ id }: Props) {
             </p>
           ) : (
             <div className="space-y-2">
-              {fornecedoresProd.map((f: any, idx: number) => (
+              {fornecedoresProd.map((f: Record<string, unknown>, idx: number) => (
                 <div key={idx} className={`rounded-lg border p-3 bg-card hover:bg-muted/30 transition-colors ${f.eh_principal ? "border-primary/30" : ""}`}>
                   <div className="flex items-center gap-2 flex-wrap mb-2">
                     <RelationalLink onClick={() => pushView("fornecedor", f.fornecedores?.id)} className="font-medium text-sm">
@@ -307,16 +307,16 @@ export function ProdutoView({ id }: Props) {
               ))}
             </div>
           )}
-          {historico.filter((h: any) => h.notas_fiscais?.tipo === 'entrada' || h.notas_fiscais?.tipo === 'compra').length > 0 && (
+          {historico.filter((h: Record<string, unknown>) => h.notas_fiscais?.tipo === 'entrada' || h.notas_fiscais?.tipo === 'compra').length > 0 && (
             <div className="border-t pt-3">
               <h4 className="font-semibold text-xs text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-2">
                 <FileText className="w-3.5 h-3.5" /> Últimas Compras
               </h4>
               <div className="space-y-1.5">
                 {historico
-                  .filter((h: any) => h.notas_fiscais?.tipo === 'entrada' || h.notas_fiscais?.tipo === 'compra')
+                  .filter((h: Record<string, unknown>) => h.notas_fiscais?.tipo === 'entrada' || h.notas_fiscais?.tipo === 'compra')
                   .slice(0, 10)
-                  .map((h: any, idx: number) => (
+                  .map((h: Record<string, unknown>, idx: number) => (
                     <div key={idx} className="flex justify-between text-xs py-1.5 border-b last:border-b-0">
                       <div>
                         <RelationalLink onClick={() => pushView("nota_fiscal", h.notas_fiscais?.id)} mono className="text-xs">{h.notas_fiscais?.numero}</RelationalLink>
@@ -422,7 +422,7 @@ export function ProdutoView({ id }: Props) {
                 <Archive className="w-3.5 h-3.5" /> Últimas Movimentações
               </h4>
               <div className="space-y-1 max-h-[300px] overflow-y-auto">
-                {movimentos.map((m: any, idx: number) => (
+                {movimentos.map((m: Record<string, unknown>, idx: number) => (
                   <div key={idx} className="flex items-center justify-between py-1.5 border-b last:border-b-0 text-sm">
                     <div className="flex items-center gap-2">
                       <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${m.tipo === 'entrada' ? 'bg-success/10 text-success' : m.tipo === 'saida' ? 'bg-destructive/10 text-destructive' : 'bg-warning/10 text-warning'}`}>
@@ -485,7 +485,7 @@ export function ProdutoView({ id }: Props) {
             <p className="text-sm text-muted-foreground text-center py-8 border border-dashed rounded-lg">Nenhum histórico de notas</p>
           ) : (
             <div className="space-y-2 max-h-[350px] overflow-y-auto">
-              {historico.map((h: any, idx: number) => (
+              {historico.map((h: Record<string, unknown>, idx: number) => (
                 <div key={idx} className="text-sm py-1.5 border-b last:border-b-0">
                   <div className="flex justify-between items-center">
                     <RelationalLink onClick={() => pushView("nota_fiscal", h.notas_fiscais?.id)} mono className="text-xs">{h.notas_fiscais?.numero}</RelationalLink>

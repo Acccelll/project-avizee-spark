@@ -7,7 +7,7 @@ describe('templateResolver', () => {
       id: 'seed', nome: 'seed', codigo: 'APRESENTACAO_GERENCIAL_V1', versao: '1.0', ativo: true, descricao: null,
       config_json: { slides: [{ codigo: 'cover', enabled: true, order: 1 }, { codigo: 'bridge_ebitda', enabled: false, order: 21 }] },
       arquivo_path: null, created_at: '', updated_at: '',
-    } as any);
+    } as Parameters<typeof resolveSlides>[0]);
 
     expect(config.find((c) => c.codigo === 'cover')?.enabled).toBe(true);
     expect(config.find((c) => c.codigo === 'bridge_ebitda')?.enabled).toBe(false);
@@ -18,7 +18,7 @@ describe('templateResolver', () => {
       id: '1', nome: 'T', codigo: 'T1', versao: '1.0', ativo: true, descricao: null,
       config_json: { slides: [{ codigo: 'bridge_ebitda', enabled: true, order: 14 }] },
       arquivo_path: null, created_at: '', updated_at: '',
-    } as any, [{ codigo: 'top_clientes', enabled: true, order: 20 } as any]);
+    } as Parameters<typeof resolveSlides>[0], [{ codigo: "top_clientes", enabled: true, order: 20 }]);
 
     const actives = activeSlides(config);
     expect(actives).toContain('bridge_ebitda');

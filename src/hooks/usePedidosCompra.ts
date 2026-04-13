@@ -296,7 +296,7 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
       return;
     }
 
-    setItems((itens || []).map((i: any) => ({
+    setItems((itens || []).map((i: Record<string, unknown>) => ({
       id: String(i.id),
       produto_id: i.produto_id ? String(i.produto_id) : "",
       codigo: i.produtos?.codigo_interno || "",
@@ -491,7 +491,7 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
           data_vencimento: p.data_entrega_prevista || new Date().toISOString().split("T")[0],
           status: "aberto",
           fornecedor_id: p.fornecedor_id ? String(p.fornecedor_id) : null,
-        } as any);
+        });
       }
 
       const hoje = new Date().toISOString().split("T")[0];

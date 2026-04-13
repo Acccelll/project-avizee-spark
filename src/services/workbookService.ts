@@ -1,11 +1,13 @@
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+const db = supabase as unknown as SupabaseClient;
 import type { WorkbookTemplate, WorkbookGeracao, FechamentoMensal, WorkbookParametros } from '@/types/workbook';
 import { generateWorkbook } from '@/lib/workbook/generateWorkbook';
 import { hashParametros } from '@/lib/workbook/utils';
 import { logger } from '@/utils/logger';
 
 export async function listarTemplates(): Promise<WorkbookTemplate[]> {
-  const { data, error } = await (supabase as any)
+  const { data, error } = await db
     .from('workbook_templates')
     .select('*')
     .eq('ativo', true)
@@ -15,7 +17,7 @@ export async function listarTemplates(): Promise<WorkbookTemplate[]> {
 }
 
 export async function listarGeracoes(): Promise<WorkbookGeracao[]> {
-  const { data, error } = await (supabase as any)
+  const { data, error } = await db
     .from('workbook_geracoes')
     .select('*, workbook_templates(nome, versao)')
     .order('created_at', { ascending: false })
@@ -25,7 +27,7 @@ export async function listarGeracoes(): Promise<WorkbookGeracao[]> {
 }
 
 export async function listarFechamentos(): Promise<FechamentoMensal[]> {
-  const { data, error } = await (supabase as any)
+  const { data, error } = await db
     .from('fechamentos_mensais')
     .select('*')
     .order('competencia', { ascending: false });
@@ -43,7 +45,7 @@ export async function gerarWorkbook(
   const hash = hashParametros(parametros as unknown as Record<string, unknown>);
 
   // Create generation record with status 'gerando'
-  const { data: geracao, error: geracaoError } = await (supabase as any)
+  const { data: geracao, error: geracaoError } = await db
     .from('workbook_geracoes')
     .insert({
       template_id: parametros.templateId,
@@ -87,7 +89,7 @@ export async function gerarWorkbook(
     }
 
     // Update generation record with success
-    await (supabase as any)
+    await db
       .from('workbook_geracoes')
       .update({
         status: 'concluido',
@@ -99,7 +101,7 @@ export async function gerarWorkbook(
     return { blob, geracaoId: geracao.id };
   } catch (err) {
     // Update generation record with error
-    await (supabase as any)
+    await db
       .from('workbook_geracoes')
       .update({
         status: 'erro',

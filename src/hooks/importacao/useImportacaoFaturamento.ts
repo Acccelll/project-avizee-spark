@@ -20,7 +20,7 @@ export interface GroupedNF {
   itens_count: number;
   status: "valido" | "erro";
   errors: string[];
-  itens: any[];
+  itens: Record<string, unknown>[];
 }
 
 export function useImportacaoFaturamento() {
@@ -28,7 +28,7 @@ export function useImportacaoFaturamento() {
   const [workbook, setWorkbook] = useState<XLSX.WorkBook | null>(null);
   const [sheets, setSheets] = useState<string[]>([]);
   const [currentSheet, setCurrentSheet] = useState<string>("");
-  const [rawRows, setRawRows] = useState<any[]>([]);
+  const [rawRows, setRawRows] = useState<Record<string, unknown>[]>([]);
   const [headers, setHeaders] = useState<string[]>([]);
   const [mapping, setMapping] = useState<Mapping>({});
   const [previewData, setPreviewData] = useState<GroupedNF[]>([]);
@@ -51,7 +51,7 @@ export function useImportacaoFaturamento() {
         if (wb.SheetNames.length > 0) {
           onSheetChange(wb.SheetNames[0], wb);
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         toast.error(`Erro ao ler arquivo: ${err.message}`);
       }
     };
@@ -111,7 +111,7 @@ export function useImportacaoFaturamento() {
       const grouped = new Map<string, GroupedNF>();
 
       rawRows.forEach((row, index) => {
-        const mappedRow: any = {};
+        const mappedRow: Record<string, unknown> = {};
         Object.entries(mapping).forEach(([field, colName]) => {
           mappedRow[field] = row[colName];
         });
@@ -189,7 +189,7 @@ export function useImportacaoFaturamento() {
       }
 
       setPreviewData(Array.from(grouped.values()));
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast.error(`Erro ao gerar prévia: ${err.message}`);
     } finally {
       setIsProcessing(false);
@@ -254,7 +254,7 @@ export function useImportacaoFaturamento() {
 
         // Insert all items for this NF
         if (nf.itens && nf.itens.length > 0) {
-          const itensPayload = nf.itens.map((item: any) => ({
+          const itensPayload = nf.itens.map((item: Record<string, unknown>) => ({
             nota_fiscal_id: nfId,
             produto_id: item.produto_id || null,
             descricao: item.nome_produto || item.descricao || "Item",
@@ -294,7 +294,7 @@ export function useImportacaoFaturamento() {
       toast.success(`${importedCount} notas fiscais históricas importadas (sem impacto em estoque/financeiro).`);
       return currentLoteId;
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Erro na importação de faturamento:", error);
       toast.error(`Falha no processamento: ${error.message}`);
     } finally {

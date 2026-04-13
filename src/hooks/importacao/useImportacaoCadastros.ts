@@ -16,11 +16,11 @@ export function useImportacaoCadastros() {
   const [workbook, setWorkbook] = useState<XLSX.WorkBook | null>(null);
   const [sheets, setSheets] = useState<string[]>([]);
   const [currentSheet, setCurrentSheet] = useState<string>("");
-  const [rawRows, setRawRows] = useState<any[]>([]);
+  const [rawRows, setRawRows] = useState<Record<string, unknown>[]>([]);
   const [headers, setHeaders] = useState<string[]>([]);
   const [mapping, setMapping] = useState<Mapping>({});
   const [importType, setImportType] = useState<ImportType>("produtos");
-  const [previewData, setPreviewData] = useState<any[]>([]);
+  const [previewData, setPreviewData] = useState<Record<string, unknown>[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [loteId, setLoteId] = useState<string | null>(null);
 
@@ -63,7 +63,7 @@ export function useImportacaoCadastros() {
         if (wb.SheetNames.length > 0) {
           onSheetChange(wb.SheetNames[0], wb);
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         toast.error(`Erro ao ler arquivo: ${err.message}`);
       }
     };
@@ -74,7 +74,7 @@ export function useImportacaoCadastros() {
     if (rawRows.length === 0) return;
 
     const preview = rawRows.map((row, index) => {
-      const mappedRow: any = {};
+      const mappedRow: Record<string, unknown> = {};
       Object.entries(mapping).forEach(([field, colName]) => {
         mappedRow[field] = row[colName];
       });
@@ -170,8 +170,8 @@ export function useImportacaoCadastros() {
             grupos?.forEach(g => grupoMap.set(g.nome.toUpperCase(), g.id));
           }
 
-          const toInsert: any[] = [];
-          const toUpdate: any[] = [];
+          const toInsert: Record<string, unknown>[] = [];
+          const toUpdate: Record<string, unknown>[] = [];
 
           validos.forEach(item => {
             const { _valid, _errors, _warnings, _originalLine, _originalRow, grupo, ...rest } = item;
@@ -231,8 +231,8 @@ export function useImportacaoCadastros() {
             ex?.forEach(p => existingByCpf.set(p.cpf_cnpj, p.id));
           }
 
-          const toInsert: any[] = [];
-          const toUpdate: any[] = [];
+          const toInsert: Record<string, unknown>[] = [];
+          const toUpdate: Record<string, unknown>[] = [];
 
           validos.forEach(item => {
             const { _valid, _errors, _warnings, _originalLine, _originalRow, ...payload } = item;
@@ -277,7 +277,7 @@ export function useImportacaoCadastros() {
       setIsProcessing(false);
       return currentLoteId;
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Erro na importação:", error);
       toast.error(`Falha no processamento: ${error.message}`);
       setIsProcessing(false);

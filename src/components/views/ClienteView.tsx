@@ -28,10 +28,10 @@ export function ClienteView({ id }: Props) {
   const [selected, setSelected] = useState<ClienteWithGroup | null>(null);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
-  const [vendas, setVendas] = useState<any[]>([]);
-  const [financeiro, setFinanceiro] = useState<any[]>([]);
-  const [comunicacao, setComunicacao] = useState<any[]>([]);
-  const [transportadoras, setTransportadoras] = useState<any[]>([]);
+  const [vendas, setVendas] = useState<Record<string, unknown>[]>([]);
+  const [financeiro, setFinanceiro] = useState<Record<string, unknown>[]>([]);
+  const [comunicacao, setComunicacao] = useState<Record<string, unknown>[]>([]);
+  const [transportadoras, setTransportadoras] = useState<Record<string, unknown>[]>([]);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const { pushView, clearStack } = useRelationalNavigation();
 

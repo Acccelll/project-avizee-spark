@@ -22,12 +22,12 @@ export function normalizeTemplateSlides(input: unknown): SlideConfigItem[] {
   const normalized: SlideConfigItem[] = [];
   for (const row of input) {
     if (!row || typeof row !== 'object') continue;
-    const codigo = String((row as any).codigo ?? '');
+    const codigo = String(( row as Record<string, unknown>).codigo ?? '');
     if (!codigo || !isSlideCode(codigo)) continue;
     normalized.push({
       codigo,
-      enabled: Boolean((row as any).enabled),
-      order: Number((row as any).order ?? 999),
+      enabled: Boolean(( row as Record<string, unknown>).enabled),
+      order: Number(( row as Record<string, unknown>).order ?? 999),
     });
   }
   return normalized;

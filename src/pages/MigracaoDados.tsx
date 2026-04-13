@@ -96,7 +96,7 @@ export default function MigracaoDados() {
     generatePreview,
     processImport,
     finalizeImport
-  } = activeHook as any;
+  } = activeHook as typeof activeHook;
 
   const filteredLotes = lotes.filter(lote => {
     const matchesSearch = lote.arquivo_nome?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -208,10 +208,10 @@ export default function MigracaoDados() {
       setActiveImportSource("xml");
     } else if (type === "faturamento") {
       setActiveImportSource("faturamento");
-      setImportType("produtos" as any); // fallback dummy
+      setImportType("produtos"); // fallback dummy
     } else if (type === "financeiro") {
       setActiveImportSource("financeiro");
-      setImportType("produtos" as any); // fallback dummy
+      setImportType("produtos"); // fallback dummy
     } else {
       setActiveImportSource("cadastros");
       setImportType(type as ImportType);

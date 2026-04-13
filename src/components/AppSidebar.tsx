@@ -96,7 +96,7 @@ export function AppSidebar({ collapsed, onToggleCollapsed, mobileOpen, onCloseMo
         if (permissionsLoaded && !hasRecognizedRoles) return true;
         const resources = sectionResourcesMap[s.key];
         if (!resources || resources.length === 0) return true;
-        return resources.some((resource) => can(resource as any, 'visualizar'));
+        return resources.some((resource) => can(resource as Parameters<typeof can>[0], 'visualizar'));
       });
   }, [isAdmin, socialPermissions.canViewModule, can, roles, permissionsLoaded]);
 

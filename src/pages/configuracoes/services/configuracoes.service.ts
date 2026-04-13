@@ -30,7 +30,7 @@ export async function updateConfig(
 
   const { error } = await supabase
     .from('app_configuracoes')
-    .upsert({ chave, valor: valor as any } as any, { onConflict: 'chave' });
+    .upsert({ chave, valor: valor as unknown }, { onConflict: 'chave' });
 
   if (error) throw error;
 
@@ -38,8 +38,8 @@ export async function updateConfig(
     acao: 'configuracao:update',
     tabela: 'app_configuracoes',
     registro_id: chave,
-    dados_anteriores: oldValue as any,
-    dados_novos: valor as any,
+    dados_anteriores: oldValue as unknown,
+    dados_novos: valor as unknown,
     usuario_id: usuarioId ?? null,
   });
 }

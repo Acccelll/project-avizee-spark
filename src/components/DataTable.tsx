@@ -88,7 +88,7 @@ type SortDirection = 'asc' | 'desc' | null;
 const getStorageKey = (moduleKey: string, suffix: string) => `datatable:${moduleKey}:${suffix}`;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function DataTable<T extends Record<string, any>>({
+export function DataTable<T extends Record<string, unknown>>({
   columns,
   data,
   moduleKey,
@@ -175,7 +175,7 @@ export function DataTable<T extends Record<string, any>>({
 
   useEffect(() => {
     if (!moduleKey || !user?.id) return;
-    supabase.from('user_preferences' as any).upsert({
+    supabase.from('user_preferences').upsert({
       user_id: user.id,
       module_key: moduleKey,
       columns_config: [...hiddenKeys],

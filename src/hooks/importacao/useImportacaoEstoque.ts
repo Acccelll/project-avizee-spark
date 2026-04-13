@@ -12,10 +12,10 @@ export function useImportacaoEstoque() {
   const [workbook, setWorkbook] = useState<XLSX.WorkBook | null>(null);
   const [sheets, setSheets] = useState<string[]>([]);
   const [currentSheet, setCurrentSheet] = useState<string>("");
-  const [rawRows, setRawRows] = useState<any[]>([]);
+  const [rawRows, setRawRows] = useState<Record<string, unknown>[]>([]);
   const [headers, setHeaders] = useState<string[]>([]);
   const [mapping, setMapping] = useState<Mapping>({});
-  const [previewData, setPreviewData] = useState<any[]>([]);
+  const [previewData, setPreviewData] = useState<Record<string, unknown>[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [loteId, setLoteId] = useState<string | null>(null);
 
@@ -58,7 +58,7 @@ export function useImportacaoEstoque() {
         if (wb.SheetNames.length > 0) {
           onSheetChange(wb.SheetNames[0], wb);
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         toast.error(`Erro ao ler arquivo: ${err.message}`);
       }
     };
@@ -79,7 +79,7 @@ export function useImportacaoEstoque() {
       const prodByInterno = new Map(produtosBanco?.filter(p => p.codigo_interno).map(p => [p.codigo_interno, p]));
 
       const preview = rawRows.map((row, index) => {
-        const mappedRow: any = {};
+        const mappedRow: Record<string, unknown> = {};
         Object.entries(mapping).forEach(([field, colName]) => {
           mappedRow[field] = row[colName];
         });
@@ -112,7 +112,7 @@ export function useImportacaoEstoque() {
       });
 
       setPreviewData(preview);
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast.error(`Erro ao validar dados: ${err.message}`);
     } finally {
       setIsProcessing(false);
@@ -161,7 +161,7 @@ export function useImportacaoEstoque() {
 
         const prodById = new Map(allProds?.map(p => [p.id, p]));
 
-        const movements: any[] = [];
+        const movements: Record<string, unknown>[] = [];
         const productUpdates: { id: string; estoque_atual: number }[] = [];
 
         validos.forEach(item => {
@@ -213,7 +213,7 @@ export function useImportacaoEstoque() {
       toast.success(`${validos.length} saldos de estoque atualizados.`);
       return currentLoteId;
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Erro na importação de estoque:", error);
       toast.error(`Falha no processamento: ${error.message}`);
     } finally {

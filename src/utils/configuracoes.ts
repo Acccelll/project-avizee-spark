@@ -51,9 +51,9 @@ export function mergeConfiguracoes<T>(
   savedConfig: Partial<T> | null | undefined
 ): T {
   if (!savedConfig) return { ...defaultConfig };
-  const result = { ...defaultConfig } as any;
+  const result = { ...defaultConfig } as Record<string, unknown>;
   for (const key of Object.keys(savedConfig) as (keyof T)[]) {
-    const value = (savedConfig as any)[key as string];
+    const value = ( savedConfig as Record<string, unknown>)[key as string];
     if (value !== undefined && value !== null) {
       result[key] = value;
     }

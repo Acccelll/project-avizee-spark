@@ -30,7 +30,8 @@ export function LogisticaRastreioSection({ pedidoCompraId, notaFiscalId, remessa
 
   const fetchLogistica = async () => {
     setLoading(true);
-    let query = supabase.from("remessas").select("*, transportadoras(nome_razao_social)") as any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let query = supabase.from("remessas").select("*, transportadoras(nome_razao_social)") as ReturnType<typeof supabase.from>;
 
     if (remessaId) query = query.eq("id", remessaId);
     if (pedidoCompraId) query = query.eq("pedido_compra_id", pedidoCompraId);

@@ -4,7 +4,7 @@ import { parseDecimalFlexible, parseDateFlexible, parseQuantidadeEstoque } from 
 /**
  * Resultado da validação de importação.
  */
-export interface ImportValidationResult<T = any> {
+export interface ImportValidationResult<T = unknown> {
   valid: boolean;
   errors: string[];
   warnings?: string[];
@@ -14,7 +14,7 @@ export interface ImportValidationResult<T = any> {
 /**
  * Validação genérica para produtos.
  */
-export function validateProdutoImport(data: any): ImportValidationResult {
+export function validateProdutoImport(data: Record<string, unknown>): ImportValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
 
@@ -23,7 +23,7 @@ export function validateProdutoImport(data: any): ImportValidationResult {
   ).toLowerCase();
   const tipoItem = tipoRaw === 'insumo' ? 'insumo' : 'produto';
 
-  const normalizedData: any = {
+  const normalizedData: Record<string, unknown> = {
     codigo_legado: normalizeText(
       data.codigo_legado || data['CODIGO LEGADO'] || data['CÓDIGO LEGADO'] || data.CODLEG || ''
     ) || null,
@@ -61,14 +61,14 @@ export function validateProdutoImport(data: any): ImportValidationResult {
 /**
  * Validação para clientes.
  */
-export function validateClienteImport(data: any): ImportValidationResult {
+export function validateClienteImport(data: Record<string, unknown>): ImportValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
 
   const cpfCnpjRaw = normalizeCpfCnpj(data.cpf_cnpj || data.CPF || data.CNPJ || data['CPF/CNPJ'] || '');
   const tipoPessoa = cpfCnpjRaw.length === 11 ? 'F' : 'J';
 
-  const normalizedData: any = {
+  const normalizedData: Record<string, unknown> = {
     codigo_legado: normalizeText(
       data.codigo_legado || data['CODIGO LEGADO'] || data['CÓDIGO LEGADO'] || data.CODLEG || ''
     ) || null,
@@ -106,14 +106,14 @@ export function validateClienteImport(data: any): ImportValidationResult {
 /**
  * Validação para fornecedores.
  */
-export function validateFornecedorImport(data: any): ImportValidationResult {
+export function validateFornecedorImport(data: Record<string, unknown>): ImportValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
 
   const cpfCnpjRaw = normalizeCpfCnpj(data.cpf_cnpj || data.CPF || data.CNPJ || data['CPF/CNPJ'] || '');
   const tipoPessoa = cpfCnpjRaw.length === 11 ? 'F' : 'J';
 
-  const normalizedData: any = {
+  const normalizedData: Record<string, unknown> = {
     codigo_legado: normalizeText(
       data.codigo_legado || data['CODIGO LEGADO'] || data['CÓDIGO LEGADO'] || data.CODLEG || ''
     ) || null,
@@ -151,7 +151,7 @@ export function validateFornecedorImport(data: any): ImportValidationResult {
 /**
  * Validação para estoque inicial.
  */
-export function validateEstoqueInicialImport(data: any): ImportValidationResult {
+export function validateEstoqueInicialImport(data: Record<string, unknown>): ImportValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
   const qtdResult = parseQuantidadeEstoque(data.quantidade || data.ESTOQUE || data.QTD);
@@ -159,7 +159,7 @@ export function validateEstoqueInicialImport(data: any): ImportValidationResult 
   const dataEstoqueRaw = data.data_estoque_inicial || data['DATA ESTOQUE'] || data['DATA DO ESTOQUE'] || data.DATA || data['DATA INICIAL'] || null;
   const dataEstoqueResult = parseDateFlexible(dataEstoqueRaw);
 
-  const normalizedData: any = {
+  const normalizedData: Record<string, unknown> = {
     codigo_legado: normalizeText(
       data.codigo_legado || data['CODIGO LEGADO'] || data['CÓDIGO LEGADO'] || ''
     ) || null,
@@ -188,7 +188,7 @@ export function validateEstoqueInicialImport(data: any): ImportValidationResult 
 /**
  * Validação para faturamento histórico (uma linha por item da NF).
  */
-export function validateFaturamentoImport(data: any): ImportValidationResult {
+export function validateFaturamentoImport(data: Record<string, unknown>): ImportValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
 
@@ -209,7 +209,7 @@ export function validateFaturamentoImport(data: any): ImportValidationResult {
     data.cpf_cnpj || data['CPF/CNPJ'] || data.cpf_cnpj_destinatario || ''
   );
 
-  const normalizedData: any = {
+  const normalizedData: Record<string, unknown> = {
     numero_nota: normalizeText(data.numero_nota || data.NOTA || data.NF || data['NUMERO NOTA'] || ''),
     chave_acesso: normalizeText(data.chave_acesso || data['CHAVE ACESSO'] || data['CHAVE DE ACESSO'] || '') || null,
     data_emissao: dataRef.value,
@@ -257,7 +257,7 @@ export function validateFaturamentoImport(data: any): ImportValidationResult {
 /**
  * Validação para financeiro (contas a pagar/receber) — suporta aberto e baixado.
  */
-export function validateFinanceiroImport(data: any): ImportValidationResult {
+export function validateFinanceiroImport(data: Record<string, unknown>): ImportValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
 
@@ -286,7 +286,7 @@ export function validateFinanceiroImport(data: any): ImportValidationResult {
   const isBaixado = !!(dataPagamento.value);
   const statusNorm = isBaixado ? 'baixado' : 'aberto';
 
-  const normalizedData: any = {
+  const normalizedData: Record<string, unknown> = {
     tipo,
     descricao: normalizeText(
       data.descricao || data.HISTORICO || data.HISTÓRICO || data.DESCRIÇÃO || data.DESCRICAO || data.titulo || data.TÍTULO || data.TITULO || ''

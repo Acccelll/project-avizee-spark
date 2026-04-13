@@ -42,7 +42,7 @@ const Caixa = () => {
   useEffect(() => {
     const loadContas = async () => {
       const { data: contas } = await supabase.from("contas_bancarias").select("*, bancos(nome)").eq("ativo", true);
-      setContasBancarias((contas as any[]) || []);
+      setContasBancarias((contas as Record<string, unknown>[]) || []);
     };
     loadContas();
   }, []);
@@ -97,15 +97,15 @@ const Caixa = () => {
           saldo_atual,
           conta_bancaria_id: form.conta_bancaria_id,
           forma_pagamento: form.forma_pagamento || null,
-        } as any),
+        }),
         // Update conta bancaria saldo
-        supabase.from("contas_bancarias").update({ saldo_atual } as any).eq("id", form.conta_bancaria_id),
+        supabase.from("contas_bancarias").update({ saldo_atual }).eq("id", form.conta_bancaria_id),
       ]);
       setModalOpen(false);
       setForm({ tipo: "suprimento", descricao: "", valor: 0, conta_bancaria_id: "", forma_pagamento: "" });
       // Refresh contas
       const { data: contas } = await supabase.from("contas_bancarias").select("*, bancos(nome)").eq("ativo", true);
-      setContasBancarias((contas as any[]) || []);
+      setContasBancarias((contas as Record<string, unknown>[]) || []);
     } catch (err) {
       logger.error('[caixa] erro ao salvar:', err);
       toast.error("Erro ao registrar movimentação");

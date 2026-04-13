@@ -3,7 +3,7 @@ import { UNIDADE_MEDIDA_ALIASES, STATUS_IMPORTACAO_ALIASES } from './aliases';
 /**
  * Normaliza uma string de texto qualquer para o sistema.
  */
-export function normalizeText(value: any): string {
+export function normalizeText(value: unknown): string {
   if (value === null || value === undefined) return '';
   return String(value).trim();
 }
@@ -11,7 +11,7 @@ export function normalizeText(value: any): string {
 /**
  * Normaliza código de produto (SKU/Ref).
  */
-export function normalizeCodigoProduto(value: any): string {
+export function normalizeCodigoProduto(value: unknown): string {
   if (!value) return '';
   return String(value).trim().toUpperCase().replace(/\s+/g, '-');
 }
@@ -19,7 +19,7 @@ export function normalizeCodigoProduto(value: any): string {
 /**
  * Normaliza CPF ou CNPJ (apenas números).
  */
-export function normalizeCpfCnpj(value: any): string {
+export function normalizeCpfCnpj(value: unknown): string {
   if (!value) return '';
   return String(value).replace(/\D/g, '');
 }
@@ -27,7 +27,7 @@ export function normalizeCpfCnpj(value: any): string {
 /**
  * Normaliza E-mail.
  */
-export function normalizeEmail(value: any): string {
+export function normalizeEmail(value: unknown): string {
   if (!value) return '';
   return String(value).trim().toLowerCase();
 }
@@ -35,7 +35,7 @@ export function normalizeEmail(value: any): string {
 /**
  * Normaliza Telefone.
  */
-export function normalizePhone(value: any): string {
+export function normalizePhone(value: unknown): string {
   if (!value) return '';
   return String(value).replace(/\D/g, '');
 }
@@ -43,7 +43,7 @@ export function normalizePhone(value: any): string {
 /**
  * Normaliza CEP.
  */
-export function normalizeCep(value: any): string {
+export function normalizeCep(value: unknown): string {
   if (!value) return '';
   return String(value).replace(/\D/g, '').padStart(8, '0').slice(0, 8);
 }
@@ -52,7 +52,7 @@ export function normalizeCep(value: any): string {
  * Normaliza valor monetário em formato brasileiro string para número.
  * Ex: "R$ 1.250,50" -> 1250.5
  */
-export function normalizeMoneyBR(value: any): number {
+export function normalizeMoneyBR(value: unknown): number {
   if (typeof value === 'number') return value;
   if (!value) return 0;
   const clean = String(value)
@@ -66,7 +66,7 @@ export function normalizeMoneyBR(value: any): number {
 /**
  * Converte data no formato string BR (dd/mm/aaaa) para ISO.
  */
-export function normalizeDateBR(value: any): string | null {
+export function normalizeDateBR(value: unknown): string | null {
   if (!value) return null;
   if (value instanceof Date) return value.toISOString();
 
@@ -89,7 +89,7 @@ export function normalizeDateBR(value: any): string | null {
 /**
  * Normaliza valores booleanos ou similares ("S", "N", "1", "0", "true", "ativo").
  */
-export function normalizeBooleanLike(value: any): boolean {
+export function normalizeBooleanLike(value: unknown): boolean {
   if (value === true || value === 1 || value === '1') return true;
   if (value === false || value === 0 || value === '0') return false;
   if (!value) return false;
@@ -101,7 +101,7 @@ export function normalizeBooleanLike(value: any): boolean {
 /**
  * Normaliza unidade de medida usando aliases.
  */
-export function normalizeUnidadeMedida(value: any): string {
+export function normalizeUnidadeMedida(value: unknown): string {
   if (!value) return 'UN';
   const str = String(value).trim().toUpperCase();
   return UNIDADE_MEDIDA_ALIASES[str] || str;
@@ -110,7 +110,7 @@ export function normalizeUnidadeMedida(value: any): string {
 /**
  * Normaliza status da importação.
  */
-export function normalizeStatusImportacao(value: any): string {
+export function normalizeStatusImportacao(value: unknown): string {
   if (!value) return 'pendente';
   const str = String(value).trim().toUpperCase();
   return STATUS_IMPORTACAO_ALIASES[str] || 'pendente';

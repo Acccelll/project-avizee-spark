@@ -107,7 +107,7 @@ export default function ConfiguracaoFiscal() {
       if (configId) {
         await supabase.from("empresa_config").update(payload).eq("id", configId);
       } else {
-        const { data } = await supabase.from("empresa_config").insert(payload as any).select().single();
+        const { data } = await supabase.from("empresa_config").insert(payload as Record<string, unknown>).select().single();
         if (data) setConfigId(data.id);
       }
       toast.success("Configurações fiscais salvas");

@@ -49,7 +49,7 @@ interface ClienteSimples {
   nome_razao_social: string;
 }
 
-const emptyForm: Record<string, any> = { nome: "", observacoes: "", empresa_matriz_id: "" };
+const emptyForm: Record<string, unknown> = { nome: "", observacoes: "", empresa_matriz_id: "" };
 
 const relacaoLabel: Record<string, string> = {
   matriz: "Matriz",
@@ -297,16 +297,16 @@ const GruposEconomicos = () => {
         .in("status", ["aberto", "vencido"]);
 
       const tots = titulos || [];
-      setSaldoConsolidado(tots.reduce((s, t: any) => s + Number(t.valor || 0), 0));
-      setTitulosVencidos(tots.filter((t: any) => t.status === "vencido").length);
-      setTitulosAbertos(tots.filter((t: any) => t.status === "aberto").length);
+      setSaldoConsolidado(tots.reduce(( s, t: Record<string, unknown>) => s + Number(t.valor || 0), 0));
+      setTitulosVencidos(tots.filter((t: Record<string, unknown>) => t.status === "vencido").length);
+      setTitulosAbertos(tots.filter((t: Record<string, unknown>) => t.status === "aberto").length);
 
       const perEmp: Record<string, { saldo: number; vencidos: number }> = {};
       for (const c of clientesList) {
-        const empTitulos = tots.filter((t: any) => t.cliente_id === c.id);
+        const empTitulos = tots.filter((t: Record<string, unknown>) => t.cliente_id === c.id);
         perEmp[c.id] = {
-          saldo: empTitulos.reduce((s, t: any) => s + Number(t.valor || 0), 0),
-          vencidos: empTitulos.filter((t: any) => t.status === "vencido").length,
+          saldo: empTitulos.reduce(( s, t: Record<string, unknown>) => s + Number(t.valor || 0), 0),
+          vencidos: empTitulos.filter((t: Record<string, unknown>) => t.status === "vencido").length,
         };
       }
       setPerEmpresaFinanceiro(perEmp);

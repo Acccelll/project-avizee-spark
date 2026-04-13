@@ -611,9 +611,9 @@ const Financeiro = () => {
         onClose={() => setDrawerOpen(false)}
         selected={selected}
         effectiveStatus={selected ? getLancamentoStatus(selected) : ""}
-        onBaixa={(l) => { setBaixaParcialTarget(l as any); setBaixaParcialOpen(true); }}
-        onEstorno={(l) => { setDrawerOpen(false); setEstornoTarget(l as any); }}
-        onEdit={(l) => { setDrawerOpen(false); openEdit(l as any); }}
+        onBaixa={(l) => { setBaixaParcialTarget(l); setBaixaParcialOpen(true); }}
+        onEstorno={(l) => { setDrawerOpen(false); setEstornoTarget(l); }}
+        onEdit={(l) => { setDrawerOpen(false); openEdit(l); }}
         onDelete={(id) => { setDrawerOpen(false); remove(id); }}
       />
 

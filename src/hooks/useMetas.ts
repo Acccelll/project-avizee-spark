@@ -29,7 +29,7 @@ async function saveMetas(metas: MetaConfig): Promise<void> {
   const { error } = await supabase
     .from('app_configuracoes')
     .upsert(
-      { chave: METAS_CHAVE, valor: metas as any, updated_at: new Date().toISOString() },
+      { chave: METAS_CHAVE, valor: metas as unknown, updated_at: new Date().toISOString() },
       { onConflict: 'chave' },
     );
   if (error) throw error;

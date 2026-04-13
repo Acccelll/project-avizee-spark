@@ -20,12 +20,12 @@ interface Props {
 
 export function FornecedorView({ id }: Props) {
   const navigate = useNavigate();
-  const [selected, setSelected] = useState<any | null>(null);
+  const [selected, setSelected] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
-  const [compras, setCompras] = useState<any[]>([]);
-  const [financeiro, setFinanceiro] = useState<any[]>([]);
-  const [produtos, setProdutos] = useState<any[]>([]);
+  const [compras, setCompras] = useState<Record<string, unknown>[]>([]);
+  const [financeiro, setFinanceiro] = useState<Record<string, unknown>[]>([]);
+  const [produtos, setProdutos] = useState<Record<string, unknown>[]>([]);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const { pushView, clearStack } = useRelationalNavigation();
 

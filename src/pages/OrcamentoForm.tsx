@@ -279,7 +279,7 @@ export default function OrcamentoForm() {
               freteTipo: orc.frete_tipo || '',
               modalidade: orc.modalidade || '',
             });
-            if (orc.cliente_snapshot) setClienteSnapshot(orc.cliente_snapshot as any);
+            if (orc.cliente_snapshot) setClienteSnapshot(orc.cliente_snapshot as Record<string, unknown>);
             // Load frete simulator state
             const orcAny = orc as Record<string, unknown>;
             if (orcAny.frete_simulacao_id) setFreteSimulacaoId(orcAny.frete_simulacao_id as string);
@@ -432,7 +432,7 @@ export default function OrcamentoForm() {
       payload,
     };
 
-    await (supabase.from("app_configuracoes") as any).upsert(
+    await supabase.from("app_configuracoes" as Parameters<typeof supabase.from>[0]).upsert(
       { chave: key, valor: templateRecord, updated_at: new Date().toISOString() },
       { onConflict: "chave" },
     );
@@ -481,11 +481,11 @@ export default function OrcamentoForm() {
       let orcId = id;
       if (isEdit) {
         await Promise.all([
-          supabase.from("orcamentos").update(payload as any).eq("id", id),
+          supabase.from("orcamentos").update(payload as Record<string, unknown>).eq("id", id),
           supabase.from("orcamentos_itens").delete().eq("orcamento_id", id),
         ]);
       } else {
-        const { data: newOrc, error } = await supabase.from("orcamentos").insert(payload as any).select().single();
+        const { data: newOrc, error } = await supabase.from("orcamentos").insert(payload as Record<string, unknown>).select().single();
         if (error) throw error;
         orcId = newOrc.id;
       }
@@ -506,7 +506,7 @@ export default function OrcamentoForm() {
         action: { label: "Visualizar", onClick: () => navigate(orcId ? `/cotacoes/${orcId}` : "/cotacoes") },
       });
       if (!isEdit && orcId) navigate(`/cotacoes/${orcId}`, { replace: true });
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('[orcamento]', err);
       toast.error("Erro ao salvar cotação.", { description: "Confira conexão, campos obrigatórios e tente novamente." });
     }
@@ -531,7 +531,7 @@ export default function OrcamentoForm() {
         largura_cm: freteLarguraCm || null,
         comprimento_cm: freteComprimentoCm || null,
       };
-      const { data: newOrc, error } = await supabase.from("orcamentos").insert(payload as any).select().single();
+      const { data: newOrc, error } = await supabase.from("orcamentos").insert(payload as Record<string, unknown>).select().single();
       if (error) throw error;
 
       if (items.length > 0) {
@@ -546,7 +546,7 @@ export default function OrcamentoForm() {
 
       toast.success(`Duplicado: ${newNumero}`);
       navigate(`/cotacoes/${newOrc.id}`, { replace: true });
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('[orcamento] duplicar:', err);
       toast.error("Erro ao duplicar cotação. Tente novamente.");
     }
@@ -630,11 +630,11 @@ export default function OrcamentoForm() {
 
   useEffect(() => {
     supabase.from('empresa_config').select('*').limit(1).single().then(({ data }) => {
-      if (data) setEmpresaConfig(data as any);
+      if (data) setEmpresaConfig(data as Record<string, unknown>);
     });
   }, []);
 
-  const clienteOptions = clientes.map((c: any) => ({
+  const clienteOptions = clientes.map((c: Record<string, unknown>) => ({
     id: c.id,
     label: c.nome_razao_social,
     sublabel: `${c.cpf_cnpj || "sem documento"} ${Number(c.limite_credito || 0) > 10000 ? "· Cliente Premium - 10% desconto" : ""}`.trim(),
@@ -981,7 +981,7 @@ export default function OrcamentoForm() {
           <div className="p-4 border-b flex justify-between items-center sticky top-0 bg-card z-10">
             <h3 className="font-semibold">Pré-visualização do Orçamento</h3>
             <div className="flex gap-2">
-              <Select value={layoutTemplate} onValueChange={(v: any) => setLayoutTemplate(v)}>
+              <Select value={layoutTemplate} onValueChange={(v: string) => setLayoutTemplate(v)}>
                 <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="simples">Simples</SelectItem>

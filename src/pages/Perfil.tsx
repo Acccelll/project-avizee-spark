@@ -40,7 +40,7 @@ export default function Perfil() {
       const { error } = await supabase.from("profiles").update({ nome, cargo }).eq("id", user.id);
       if (error) throw error;
       toast.success("Dados pessoais salvos com sucesso.");
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error("[perfil] save:", err);
       toast.error("Erro ao salvar perfil.");
     }
@@ -58,7 +58,7 @@ export default function Perfil() {
       if (error) throw error;
       toast.success("Senha alterada com sucesso!");
       setNewPassword("");
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error("[perfil] password:", err);
       toast.error("Erro ao alterar senha.");
     }

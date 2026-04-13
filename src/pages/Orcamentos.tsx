@@ -184,8 +184,8 @@ const Orcamentos = () => {
         peso_total: orc.peso_total, pagamento: orc.pagamento,
         prazo_pagamento: orc.prazo_pagamento, prazo_entrega: orc.prazo_entrega,
         frete_tipo: orc.frete_tipo, modalidade: orc.modalidade,
-        cliente_snapshot: orc.cliente_snapshot as any,
-      } as any).select().single();
+        cliente_snapshot: orc.cliente_snapshot,
+      }).select().single();
       if (error) throw error;
       if (items && items.length > 0 && newOrc) {
         const newItems = items.map((i) => ({

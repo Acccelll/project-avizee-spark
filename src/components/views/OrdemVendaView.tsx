@@ -82,11 +82,11 @@ const statusNFLabels: Record<string, string> = {
 };
 
 export function OrdemVendaView({ id }: Props) {
-  const [selected, setSelected] = useState<any | null>(null);
+  const [selected, setSelected] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(true);
-  const [items, setItems] = useState<any[]>([]);
-  const [notasFiscais, setNotasFiscais] = useState<any[]>([]);
-  const [lancamentos, setLancamentos] = useState<any[]>([]);
+  const [items, setItems] = useState<Record<string, unknown>[]>([]);
+  const [notasFiscais, setNotasFiscais] = useState<Record<string, unknown>[]>([]);
+  const [lancamentos, setLancamentos] = useState<Record<string, unknown>[]>([]);
   const [generateNfOpen, setGenerateNfOpen] = useState(false);
   const [generatingNf, setGeneratingNf] = useState(false);
   const { pushView } = useRelationalNavigation();
@@ -127,7 +127,7 @@ export function OrdemVendaView({ id }: Props) {
     setNotasFiscais(nfList);
 
     if (nfList.length > 0) {
-      const nfIds = nfList.map((n: any) => n.id);
+      const nfIds = nfList.map((n: Record<string, unknown>) => n.id);
       const { data: lanc } = await supabase
         .from("financeiro_lancamentos")
         .select("id, descricao, valor, status, data_vencimento, data_pagamento, forma_pagamento, parcela_numero, parcela_total")
@@ -161,7 +161,7 @@ export function OrdemVendaView({ id }: Props) {
       const nfNumero = String((count || 0) + 1).padStart(6, "0");
 
       const totalProdutos = (pedidoItems || []).reduce(
-        (s: number, i: any) => s + Number(i.valor_total || 0),
+        ( s: number, i: Record<string, unknown>) => s + Number(i.valor_total || 0),
         0
       );
 
@@ -185,7 +185,7 @@ export function OrdemVendaView({ id }: Props) {
       if (error) throw error;
 
       if (pedidoItems && pedidoItems.length > 0 && newNF) {
-        const nfItems = pedidoItems.map((i: any) => ({
+        const nfItems = pedidoItems.map((i: Record<string, unknown>) => ({
           nota_fiscal_id: newNF.id,
           produto_id: i.produto_id,
           quantidade: i.quantidade,
@@ -196,7 +196,7 @@ export function OrdemVendaView({ id }: Props) {
 
       if (pedidoItems) {
         await Promise.all(
-          pedidoItems.map((item: any) =>
+          pedidoItems.map((item: Record<string, unknown>) =>
             supabase
               .from("ordens_venda_itens")
               .update({ quantidade_faturada: (item.quantidade_faturada || 0) + item.quantidade })
@@ -209,9 +209,9 @@ export function OrdemVendaView({ id }: Props) {
         .from("ordens_venda_itens")
         .select("quantidade, quantidade_faturada")
         .eq("ordem_venda_id", selected.id);
-      const totalQ = (updatedItems || []).reduce((s: number, i: any) => s + Number(i.quantidade), 0);
+      const totalQ = (updatedItems || []).reduce(( s: number, i: Record<string, unknown>) => s + Number(i.quantidade), 0);
       const totalF = (updatedItems || []).reduce(
-        (s: number, i: any) => s + Number(i.quantidade_faturada || 0),
+        ( s: number, i: Record<string, unknown>) => s + Number(i.quantidade_faturada || 0),
         0
       );
       const newFatStatus = calcularStatusFaturamentoOV(totalQ, totalF);
@@ -222,7 +222,7 @@ export function OrdemVendaView({ id }: Props) {
 
       toast.success(`NF ${nfNumero} gerada a partir do Pedido ${selected.numero}!`);
       await fetchData();
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error("[OrdemVendaView] gerar NF:", err);
       toast.error("Erro ao gerar Nota Fiscal.");
     } finally {
@@ -234,13 +234,13 @@ export function OrdemVendaView({ id }: Props) {
   if (loading) return <div className="p-8 text-center animate-pulse">Carregando pedido...</div>;
   if (!selected) return <div className="p-8 text-center text-destructive">Pedido não encontrado</div>;
 
-  const pesoTotal = items.reduce((s: number, i: any) => s + Number(i.peso_total || 0), 0);
-  const qtdTotal = items.reduce((s: number, i: any) => s + Number(i.quantidade || 0), 0);
+  const pesoTotal = items.reduce(( s: number, i: Record<string, unknown>) => s + Number(i.peso_total || 0), 0);
+  const qtdTotal = items.reduce(( s: number, i: Record<string, unknown>) => s + Number(i.quantidade || 0), 0);
   const canGenerateNF =
     ["aprovada", "em_separacao", "separado"].includes(selected.status) &&
     selected.status_faturamento !== "total";
 
-  const valorFaturado = notasFiscais.reduce((s: number, n: any) => s + Number(n.valor_total || 0), 0);
+  const valorFaturado = notasFiscais.reduce(( s: number, n: Record<string, unknown>) => s + Number(n.valor_total || 0), 0);
   const valorPendente = Math.max(0, Number(selected.valor_total || 0) - valorFaturado);
 
   return (
@@ -421,7 +421,7 @@ export function OrdemVendaView({ id }: Props) {
                     </tr>
                   </thead>
                   <tbody>
-                    {items.map((i: any, idx: number) => (
+                    {items.map((i: Record<string, unknown>, idx: number) => (
                       <tr key={idx} className="border-b last:border-b-0 hover:bg-muted/20">
                         <td className="px-2 py-2">
                           <button
@@ -505,7 +505,7 @@ export function OrdemVendaView({ id }: Props) {
           {notasFiscais.length > 0 ? (
             <div className="space-y-2">
               <p className="text-[10px] uppercase font-semibold text-muted-foreground">Notas Fiscais Vinculadas</p>
-              {notasFiscais.map((nf: any) => (
+              {notasFiscais.map((nf: Record<string, unknown>) => (
                 <div
                   key={nf.id}
                   className="flex items-center justify-between rounded-lg border px-3 py-2 hover:bg-muted/20"
@@ -552,7 +552,7 @@ export function OrdemVendaView({ id }: Props) {
           {lancamentos.length > 0 && (
             <div className="space-y-2 pt-1">
               <p className="text-[10px] uppercase font-semibold text-muted-foreground">Lançamentos Financeiros</p>
-              {lancamentos.map((l: any) => (
+              {lancamentos.map((l: Record<string, unknown>) => (
                 <div
                   key={l.id}
                   className="flex items-center justify-between rounded-lg border px-3 py-2"
@@ -610,7 +610,7 @@ export function OrdemVendaView({ id }: Props) {
               </div>
             )}
 
-            {notasFiscais.map((nf: any) => (
+            {notasFiscais.map((nf: Record<string, unknown>) => (
               <div key={nf.id} className="flex items-center justify-between rounded-lg border px-3 py-2">
                 <div>
                   <p className="text-[10px] text-muted-foreground uppercase font-semibold">Nota Fiscal</p>

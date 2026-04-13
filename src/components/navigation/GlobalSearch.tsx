@@ -91,10 +91,10 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
     ]).then(([clientes, produtos, orcamentos, notas]) => {
       if (!active) return;
       const merged: EntityResult[] = [
-        ...(clientes.data || []).map((c: any) => ({ id: `cli-${c.id}`, title: c.nome_razao_social, subtitle: c.cpf_cnpj || 'Cliente', path: '/clientes', category: 'Clientes' as const })),
-        ...(produtos.data || []).map((p: any) => ({ id: `pro-${p.id}`, title: p.nome, subtitle: p.codigo_interno || 'Produto', path: '/produtos', category: 'Produtos' as const })),
-        ...(orcamentos.data || []).map((o: any) => ({ id: `orc-${o.id}`, title: `Orçamento #${o.numero}`, subtitle: o.status || 'Orçamento', path: `/orcamentos/${o.id}`, category: 'Orçamentos' as const })),
-        ...(notas.data || []).map((n: any) => ({ id: `nf-${n.id}`, title: `NF #${n.numero}`, subtitle: `${n.tipo || 'nota'} · ${n.status || ''}`, path: '/fiscal', category: 'Notas' as const })),
+        ...(clientes.data || []).map((c: Record<string, unknown>) => ({ id: `cli-${c.id}`, title: c.nome_razao_social, subtitle: c.cpf_cnpj || 'Cliente', path: '/clientes', category: 'Clientes' as const })),
+        ...(produtos.data || []).map((p: Record<string, unknown>) => ({ id: `pro-${p.id}`, title: p.nome, subtitle: p.codigo_interno || 'Produto', path: '/produtos', category: 'Produtos' as const })),
+        ...(orcamentos.data || []).map((o: Record<string, unknown>) => ({ id: `orc-${o.id}`, title: `Orçamento #${o.numero}`, subtitle: o.status || 'Orçamento', path: `/orcamentos/${o.id}`, category: 'Orçamentos' as const })),
+        ...(notas.data || []).map((n: Record<string, unknown>) => ({ id: `nf-${n.id}`, title: `NF #${n.numero}`, subtitle: `${n.tipo || 'nota'} · ${n.status || ''}`, path: '/fiscal', category: 'Notas' as const })),
       ];
       setEntityResults(merged);
     });
