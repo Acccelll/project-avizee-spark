@@ -250,7 +250,7 @@ export function OrcamentoItemsGrid({ items, onChange, produtos, precosEspeciais 
           <Button size="sm" onClick={addItem} className="gap-1.5"><Plus className="w-4 h-4" />Adicionar Item</Button>
         </div>
       </div>
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto min-h-[240px]">
         <table className="w-full min-w-[1150px]">
           <thead>
             <tr className="bg-accent/50 border-b">
