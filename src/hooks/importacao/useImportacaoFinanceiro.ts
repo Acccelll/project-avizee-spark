@@ -7,6 +7,14 @@ import { FIELD_ALIASES } from "@/lib/importacao/aliases";
 import { Mapping, PreviewFinanceiroRow } from "./types";
 import { logger } from '@/utils/logger';
 
+/**
+ * Hook de importação financeira com staging real.
+ *
+ * Fluxo:
+ *  1. generatePreview — valida, resolve pessoa, monta preview (sem escrita)
+ *  2. processImport  — grava em stg_financeiro_aberto + importacao_lotes (status "staging")
+ *  3. finalizeImport — chama RPC consolidar_lote_financeiro
+ */
 export function useImportacaoFinanceiro() {
   const [file, setFile] = useState<File | null>(null);
   const [workbook, setWorkbook] = useState<XLSX.WorkBook | null>(null);
@@ -70,7 +78,6 @@ export function useImportacaoFinanceiro() {
     setIsProcessing(true);
 
     try {
-      // Build lookup maps: by codigo_legado, by cpf_cnpj (stripped), by name
       const { data: clientes } = await supabase
         .from("clientes")
         .select("id, nome_razao_social, cpf_cnpj, codigo_legado");
@@ -80,17 +87,14 @@ export function useImportacaoFinanceiro() {
 
       const entityByLegado = new Map<string, { id: string; type: "cliente" | "fornecedor" }>();
       const entityByCpf = new Map<string, { id: string; type: "cliente" | "fornecedor" }>();
-      const entityByName = new Map<string, { id: string; type: "cliente" | "fornecedor" }>();
 
       clientes?.forEach(c => {
         if (c.codigo_legado) entityByLegado.set(c.codigo_legado, { id: c.id, type: "cliente" });
         if (c.cpf_cnpj) entityByCpf.set(c.cpf_cnpj.replace(/\D/g, ""), { id: c.id, type: "cliente" });
-        entityByName.set(c.nome_razao_social.toUpperCase(), { id: c.id, type: "cliente" });
       });
       fornecedores?.forEach(f => {
         if (f.codigo_legado) entityByLegado.set(f.codigo_legado, { id: f.id, type: "fornecedor" });
         if (f.cpf_cnpj) entityByCpf.set(f.cpf_cnpj.replace(/\D/g, ""), { id: f.id, type: "fornecedor" });
-        entityByName.set(f.nome_razao_social.toUpperCase(), { id: f.id, type: "fornecedor" });
       });
 
       const preview: PreviewFinanceiroRow[] = rawRows.map((row, index) => {
@@ -105,8 +109,7 @@ export function useImportacaoFinanceiro() {
         const cpfClean = nd.cpf_cnpj?.replace(/\D/g, "") || "";
         const legado = nd.codigo_legado_pessoa || "";
 
-        // Priority: codigo_legado → cpf_cnpj → (not found)
-        const entity = (legado && entityByLegado.get(legado)) || (cpfClean && entityByCpf.get(cpfClean)) || null;
+        let entity = (legado && entityByLegado.get(legado)) || (cpfClean && entityByCpf.get(cpfClean)) || null;
 
         if (entity) {
           nd.entity_id = entity.id;
@@ -135,6 +138,9 @@ export function useImportacaoFinanceiro() {
     }
   }, [rawRows, mapping]);
 
+  /**
+   * Write to staging only — no final table writes.
+   */
   const processImport = async () => {
     if (previewData.length === 0) return;
     setIsProcessing(true);
@@ -144,21 +150,25 @@ export function useImportacaoFinanceiro() {
       const validos = previewData.filter(i => i._valid);
       const errosCount = previewData.length - validos.length;
 
+      const totalCP = validos.filter(i => i.tipo === 'pagar').reduce((s, i) => s + (i.valor || 0), 0);
+      const totalCR = validos.filter(i => i.tipo === 'receber').reduce((s, i) => s + (i.valor || 0), 0);
+      const abertos = validos.filter(i => !i.data_pagamento).length;
+      const baixados = validos.filter(i => !!i.data_pagamento).length;
+
       const { data: lote, error: loteError } = await supabase
         .from("importacao_lotes")
         .insert({
           tipo: "financeiro_aberto",
           arquivo_nome: file?.name,
-          status: "processando",
+          status: "staging",
+          fase: "financeiro",
           total_registros: previewData.length,
-          registros_sucesso: validos.length,
+          registros_sucesso: 0,
           registros_erro: errosCount,
           usuario_id: user?.user?.id,
+          resumo: { totalCP, totalCR, abertos, baixados, semVinculo: validos.filter(i => !i.entity_id).length },
           erros: errosCount > 0
-            ? previewData
-                .filter(i => !i._valid)
-                .slice(0, 50)
-                .map(i => ({ linha: i._originalLine, erros: i._errors }))
+            ? previewData.filter(i => !i._valid).slice(0, 50).map(i => ({ linha: i._originalLine, erros: i._errors }))
             : null,
         })
         .select()
@@ -169,53 +179,44 @@ export function useImportacaoFinanceiro() {
       setLoteId(currentLoteId);
 
       if (validos.length > 0) {
-        const dataToInsert = validos.map(item => {
-          // Map tipo CP/CR → pagar/receber (DB default is 'pagar')
-          const tipoDb = item.tipo === 'receber' ? 'receber' : 'pagar';
-          const isBaixado = item.status === 'baixado' && !!item.data_pagamento;
-
-          return {
-            tipo: tipoDb,
-            descricao: item.descricao || item.titulo || 'Carga de saldo via migração',
-            valor: item.valor,
-            data_emissao: item.data_emissao || null,
+        const stagingRows = validos.map(item => ({
+          lote_id: currentLoteId,
+          dados: {
+            tipo: item.tipo === 'receber' ? 'receber' : 'pagar',
+            descricao: item.descricao || item.titulo || 'Carga via migração',
+            titulo: item.titulo,
+            data_emissao: item.data_emissao,
             data_vencimento: item.data_vencimento,
-            data_pagamento: isBaixado ? item.data_pagamento : null,
-            valor_pago: isBaixado ? (item.valor_pago ?? item.valor) : null,
-            status: isBaixado ? 'baixado' : 'aberto',
-            forma_pagamento: item.forma_pagamento || null,
-            banco: item.banco || null,
-            parcela_numero: item.parcela_numero || null,
-            parcela_total: item.parcela_total || null,
-            cliente_id: item.entity_type === "cliente" ? item.entity_id : null,
-            fornecedor_id: item.entity_type === "fornecedor" ? item.entity_id : null,
-            observacoes: [
-              item.observacoes,
-              item.titulo ? `Doc: ${item.titulo}` : null,
-              `Migração lote ${currentLoteId}`,
-            ].filter(Boolean).join(' | '),
-          };
-        });
+            data_pagamento: item.data_pagamento,
+            valor: item.valor,
+            valor_pago: item.valor_pago,
+            forma_pagamento: item.forma_pagamento,
+            banco: item.banco,
+            parcela_numero: item.parcela_numero,
+            parcela_total: item.parcela_total,
+            cpf_cnpj: item.cpf_cnpj,
+            codigo_legado_pessoa: item.codigo_legado_pessoa,
+            entity_id: item.entity_id,
+            entity_type: item.entity_type,
+            observacoes: item.observacoes,
+          },
+          status: "pendente",
+        }));
 
-        const { error: insError } = await supabase
-          .from("financeiro_lancamentos")
-          .insert(dataToInsert);
-        if (insError) throw insError;
+        for (let i = 0; i < stagingRows.length; i += 500) {
+          const batch = stagingRows.slice(i, i + 500);
+          const { error: stgError } = await supabase.from("stg_financeiro_aberto").insert(batch);
+          if (stgError) throw stgError;
+        }
       }
 
-      await supabase
-        .from("importacao_lotes")
-        .update({
-          status: errosCount > 0 ? "parcial" : "concluido",
-          registros_sucesso: validos.length,
-        })
-        .eq("id", currentLoteId);
+      await supabase.from("importacao_logs").insert({
+        lote_id: currentLoteId,
+        nivel: "info",
+        mensagem: `Staging financeiro: ${validos.length} títulos (CP: ${totalCP.toFixed(2)}, CR: ${totalCR.toFixed(2)}), ${errosCount} erros.`,
+      });
 
-      const baixados = validos.filter(i => i.status === 'baixado').length;
-      const abertos = validos.length - baixados;
-      toast.success(
-        `${validos.length} títulos importados (${abertos} em aberto, ${baixados} baixados).`
-      );
+      toast.success(`${validos.length} títulos enviados para staging. Confirme para consolidar.`);
       return currentLoteId;
 
     } catch (error: unknown) {
@@ -227,9 +228,54 @@ export function useImportacaoFinanceiro() {
     }
   };
 
-  const finalizeImport = async () => {
-    toast.info("Importação já foi concluída no passo anterior.");
-    return true;
+  const finalizeImport = async (loteIdParam?: string) => {
+    const targetLoteId = loteIdParam || loteId;
+    if (!targetLoteId) {
+      toast.error("Nenhum lote selecionado para consolidar.");
+      return false;
+    }
+
+    setIsProcessing(true);
+    try {
+      const { data, error } = await supabase.rpc("consolidar_lote_financeiro", {
+        p_lote_id: targetLoteId,
+      });
+
+      if (error) throw error;
+
+      const result = data as any;
+      if (result?.erro) {
+        toast.error(`Erro na consolidação: ${result.erro}`);
+        return false;
+      }
+
+      await supabase.from("importacao_logs").insert({
+        lote_id: targetLoteId,
+        nivel: "info",
+        mensagem: `Consolidação financeira: ${result.inseridos} lançamentos criados, ${result.erros} erros.`,
+      });
+
+      toast.success(`${result.inseridos} lançamentos financeiros consolidados.`);
+      return true;
+    } catch (error: any) {
+      console.error("Erro na consolidação financeira:", error);
+      toast.error(`Falha na consolidação: ${error.message}`);
+      return false;
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const cancelLote = async (loteIdParam?: string) => {
+    const targetLoteId = loteIdParam || loteId;
+    if (!targetLoteId) return;
+    try {
+      await supabase.from("stg_financeiro_aberto").delete().eq("lote_id", targetLoteId);
+      await supabase.from("importacao_lotes").update({ status: "cancelado" }).eq("id", targetLoteId);
+      toast.info("Lote cancelado.");
+    } catch (err: any) {
+      toast.error(`Erro ao cancelar: ${err.message}`);
+    }
   };
 
   return {
@@ -246,7 +292,7 @@ export function useImportacaoFinanceiro() {
     generatePreview,
     processImport,
     finalizeImport,
+    cancelLote,
     loteId
   };
 }
-

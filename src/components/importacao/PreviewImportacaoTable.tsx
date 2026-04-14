@@ -1,59 +1,125 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CheckCircle2, XCircle, AlertCircle } from "lucide-react";
+import { CheckCircle2, XCircle, AlertCircle, AlertTriangle, ArrowUpCircle, PlusCircle, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 
 interface PreviewImportacaoTableProps {
   data: Record<string, unknown>[];
   importType: string;
 }
 
+const actionConfig: Record<string, { label: string; icon: React.ReactNode; className: string }> = {
+  inserir: { label: "Novo", icon: <PlusCircle className="h-3 w-3" />, className: "bg-emerald-100 text-emerald-700 border-emerald-200" },
+  atualizar: { label: "Atualizar", icon: <ArrowUpCircle className="h-3 w-3" />, className: "bg-blue-100 text-blue-700 border-blue-200" },
+  duplicado: { label: "Duplicado", icon: <Copy className="h-3 w-3" />, className: "bg-amber-100 text-amber-700 border-amber-200" },
+};
+
 export function PreviewImportacaoTable({ data, importType }: PreviewImportacaoTableProps) {
   if (data.length === 0) return null;
 
+  const stats = {
+    total: data.length,
+    validos: data.filter(r => r._valid).length,
+    novos: data.filter(r => r._action === "inserir" && r._valid).length,
+    atualizados: data.filter(r => r._action === "atualizar" && r._valid).length,
+    erros: data.filter(r => !r._valid).length,
+    warnings: data.filter(r => r._warnings?.length > 0).length,
+  };
+
   return (
-    <div className="rounded-md border bg-card max-h-[500px] overflow-auto">
-      <Table>
-        <TableHeader className="sticky top-0 bg-muted/50">
-          <TableRow>
-            <TableHead className="w-[80px]">Status</TableHead>
-            <TableHead className="w-[80px]">Linha</TableHead>
-            <TableHead>Campo Principal</TableHead>
-            <TableHead>Identificação</TableHead>
-            <TableHead>Erros/Avisos</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {data.map((row, i) => (
-            <TableRow key={i} className={cn(!row._valid && "bg-rose-50/50 hover:bg-rose-50 transition-colors")}>
-              <TableCell className="text-center">
-                {row._valid ? (
-                  <CheckCircle2 className="h-5 w-5 text-emerald-500 mx-auto" />
-                ) : (
-                  <XCircle className="h-5 w-5 text-rose-500 mx-auto" />
-                )}
-              </TableCell>
-              <TableCell className="text-center font-mono text-xs">{row._originalLine}</TableCell>
-              <TableCell className="font-medium">{row.nome}</TableCell>
-              <TableCell className="font-mono text-xs">
-                {importType === "produtos" ? row.codigo_interno : row.cpf_cnpj}
-              </TableCell>
-              <TableCell>
-                {!row._valid && (
-                  <div className="flex flex-col gap-1 text-[11px] text-rose-600">
-                    {row._errors.map((err: string, i: number) => (
-                      <div key={i} className="flex items-center gap-1">
-                        <AlertCircle className="h-3 w-3" />
-                        {err}
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {row._valid && <span className="text-[11px] text-emerald-600">Pronto para importar</span>}
-              </TableCell>
+    <div className="space-y-3">
+      {/* Summary bar */}
+      <div className="flex flex-wrap gap-2 text-[11px]">
+        <Badge variant="outline" className="gap-1">{stats.total} total</Badge>
+        <Badge variant="outline" className="gap-1 bg-emerald-50 text-emerald-700 border-emerald-200">
+          <PlusCircle className="h-3 w-3" /> {stats.novos} novos
+        </Badge>
+        <Badge variant="outline" className="gap-1 bg-blue-50 text-blue-700 border-blue-200">
+          <ArrowUpCircle className="h-3 w-3" /> {stats.atualizados} atualizações
+        </Badge>
+        {stats.erros > 0 && (
+          <Badge variant="outline" className="gap-1 bg-rose-50 text-rose-700 border-rose-200">
+            <XCircle className="h-3 w-3" /> {stats.erros} erros
+          </Badge>
+        )}
+        {stats.warnings > 0 && (
+          <Badge variant="outline" className="gap-1 bg-amber-50 text-amber-700 border-amber-200">
+            <AlertTriangle className="h-3 w-3" /> {stats.warnings} avisos
+          </Badge>
+        )}
+      </div>
+
+      <div className="rounded-md border bg-card max-h-[500px] overflow-auto">
+        <Table>
+          <TableHeader className="sticky top-0 bg-muted/50">
+            <TableRow>
+              <TableHead className="w-[70px]">Status</TableHead>
+              <TableHead className="w-[70px]">Ação</TableHead>
+              <TableHead className="w-[60px]">Linha</TableHead>
+              <TableHead>Campo Principal</TableHead>
+              <TableHead>Identificação</TableHead>
+              <TableHead>Erros/Avisos</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {data.map((row, i) => {
+              const action = actionConfig[row._action] || actionConfig.inserir;
+              return (
+                <TableRow key={i} className={cn(
+                  !row._valid && "bg-rose-50/50 hover:bg-rose-50",
+                  row._warnings?.length > 0 && row._valid && "bg-amber-50/30",
+                  "transition-colors"
+                )}>
+                  <TableCell className="text-center">
+                    {row._valid ? (
+                      <CheckCircle2 className="h-4 w-4 text-emerald-500 mx-auto" />
+                    ) : (
+                      <XCircle className="h-4 w-4 text-rose-500 mx-auto" />
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <span className={cn("inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border", action.className)}>
+                      {action.icon} {action.label}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-center font-mono text-xs">{row._originalLine}</TableCell>
+                  <TableCell className="font-medium text-sm truncate max-w-[200px]">
+                    {row.nome || row.nome_razao_social || row.descricao || "-"}
+                  </TableCell>
+                  <TableCell className="font-mono text-xs">
+                    {importType === "produtos"
+                      ? (row.codigo_legado || row.codigo_interno || "-")
+                      : (row.cpf_cnpj || row.codigo_legado || "-")}
+                  </TableCell>
+                  <TableCell>
+                    {!row._valid && (
+                      <div className="flex flex-col gap-0.5 text-[10px] text-rose-600">
+                        {row._errors?.map((err: string, j: number) => (
+                          <div key={j} className="flex items-center gap-1">
+                            <AlertCircle className="h-3 w-3 shrink-0" /> {err}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {row._warnings?.length > 0 && (
+                      <div className="flex flex-col gap-0.5 text-[10px] text-amber-600">
+                        {row._warnings.map((w: string, j: number) => (
+                          <div key={j} className="flex items-center gap-1">
+                            <AlertTriangle className="h-3 w-3 shrink-0" /> {w}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {row._valid && (!row._warnings || row._warnings.length === 0) && (
+                      <span className="text-[10px] text-emerald-600">Pronto</span>
+                    )}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }

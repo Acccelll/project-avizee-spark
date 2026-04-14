@@ -1,0 +1,100 @@
+# Migração de Dados — Documentação Técnica
+
+## Visão Geral
+
+O módulo de migração de dados do ERP AviZee implementa um fluxo de **staging real** com consolidação transacional controlada por lote, garantindo segurança, auditabilidade e idempotência.
+
+## Fluxo de Staging
+
+```
+Arquivo → generatePreview → processImport → [STAGING] → finalizeImport → [TABELAS FINAIS]
+           (validação)      (stg_* tables)                (RPC SQL)
+```
+
+1. **generatePreview**: Valida os dados, resolve lookups (produto, cliente, fornecedor), enriquece o preview com `_action` (inserir/atualizar/duplicado). Nenhuma escrita no banco.
+
+2. **processImport**: Grava registros válidos nas tabelas de staging (`stg_cadastros`, `stg_estoque_inicial`, `stg_financeiro_aberto`, `stg_faturamento`) e cria o lote em `importacao_lotes` com `status = 'staging'`. Nenhum dado operacional é alterado.
+
+3. **finalizeImport**: Chama a RPC de consolidação correspondente que processa as linhas de staging e faz upsert/insert nas tabelas finais de forma transacional.
+
+## Tabelas de Staging
+
+| Tabela | Fase | Destino Final |
+|--------|------|---------------|
+| `stg_cadastros` | Cadastros + Enriquecimento | `produtos`, `clientes`, `fornecedores`, `grupos_produto`, `produtos_fornecedores`, `formas_pagamento`, `contas_contabeis`, `contas_bancarias` |
+| `stg_estoque_inicial` | Estoque | `estoque_movimentos` (+ trigger atualiza `produtos.estoque_atual`) |
+| `stg_financeiro_aberto` | Financeiro | `financeiro_lancamentos`, `financeiro_baixas` |
+| `stg_faturamento` | Faturamento | `notas_fiscais`, `notas_fiscais_itens` |
+
+Todas possuem schema: `id`, `lote_id` (FK para `importacao_lotes`), `dados` (jsonb), `status`, `erro`, `created_at`.
+
+## RPCs de Consolidação
+
+| Função | Fase |
+|--------|------|
+| `consolidar_lote_cadastros(p_lote_id)` | Cadastros-base |
+| `consolidar_lote_estoque(p_lote_id)` | Estoque inicial |
+| `consolidar_lote_financeiro(p_lote_id)` | Financeiro em aberto |
+| `consolidar_lote_faturamento(p_lote_id)` | Faturamento histórico |
+
+Todas são `SECURITY DEFINER` com `SET search_path = public` e retornam `jsonb` com contadores (`inseridos`, `atualizados`, `erros`, `ignorados`).
+
+## Chaves de Deduplicação
+
+| Entidade | Prioridade 1 | Prioridade 2 | Fallback |
+|----------|-------------|-------------|----------|
+| Produtos | `codigo_legado` | `codigo_interno` | — |
+| Clientes | `codigo_legado` | `cpf_cnpj` | — |
+| Fornecedores | `codigo_legado` | `cpf_cnpj` | — |
+| NF Histórica | `chave_acesso` | `numero + serie + data_emissao` | — |
+| Financeiro (pessoa) | `codigo_legado_pessoa` | `cpf_cnpj` | — |
+
+## Ordem Correta das Fases
+
+```
+Fase 1: Saneamento Estrutural (schema, staging, RPCs)
+Fase 2: Cadastros-base (grupos_produto → produtos/insumos → clientes → fornecedores)
+Fase 3: Enriquecimento Relacional (produtos_fornecedores, formas_pagamento, contas)
+Fase 4: Estoque Inicial (saldo de corte → estoque_movimentos)
+Fase 5: Financeiro em Aberto (CR/CP → financeiro_lancamentos + baixas)
+Fase 6: Faturamento Histórico (NFs → notas_fiscais com movimenta_estoque=false)
+```
+
+**Importante**: Cadastros-base (Fase 2) DEVEM ser concluídos antes das fases 4-6, pois os lookups de produto/pessoa dependem dos registros já existentes.
+
+## Status de Lote
+
+| Status | Descrição |
+|--------|-----------|
+| `rascunho` | Lote criado, ainda sem dados |
+| `validado` | Dados validados, preview gerado |
+| `staging` | Dados gravados nas tabelas stg_* |
+| `consolidando` | RPC de consolidação em execução |
+| `concluido` | Consolidação finalizada com sucesso |
+| `parcial` | Consolidação com erros parciais |
+| `erro` | Consolidação falhou completamente |
+| `cancelado` | Lote descartado pelo usuário |
+
+## Campos Adicionados
+
+- `produtos.codigo_legado` — chave do sistema legado
+- `produtos.variacoes` — variações do produto (texto)
+- `produtos.tipo_item` — `'produto'` ou `'insumo'`
+- `clientes.codigo_legado` — chave do sistema legado
+- `fornecedores.codigo_legado` — chave do sistema legado
+- `importacao_lotes.fase` — fase da migração
+- `importacao_lotes.resumo` — jsonb com contadores detalhados
+- `importacao_lotes.registros_duplicados/atualizados/ignorados` — contadores
+
+## Idempotência
+
+A consolidação é idempotente: registros de staging com `status = 'consolidado'` são ignorados em execuções subsequentes. Apenas registros com `status = 'pendente'` são processados.
+
+## Faturamento Histórico
+
+NFs importadas via faturamento histórico são criadas com:
+- `movimenta_estoque = false`
+- `gera_financeiro = false`
+- `origem = 'importacao_historica'`
+
+Isso garante que o histórico não impacta estoque nem financeiro.

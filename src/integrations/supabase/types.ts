@@ -385,6 +385,7 @@ export type Database = {
           celular: string | null
           cep: string | null
           cidade: string | null
+          codigo_legado: string | null
           complemento: string | null
           contato: string | null
           cpf_cnpj: string | null
@@ -416,6 +417,7 @@ export type Database = {
           celular?: string | null
           cep?: string | null
           cidade?: string | null
+          codigo_legado?: string | null
           complemento?: string | null
           contato?: string | null
           cpf_cnpj?: string | null
@@ -447,6 +449,7 @@ export type Database = {
           celular?: string | null
           cep?: string | null
           cidade?: string | null
+          codigo_legado?: string | null
           complemento?: string | null
           contato?: string | null
           cpf_cnpj?: string | null
@@ -1599,6 +1602,7 @@ export type Database = {
           celular: string | null
           cep: string | null
           cidade: string | null
+          codigo_legado: string | null
           complemento: string | null
           contato: string | null
           cpf_cnpj: string | null
@@ -1624,6 +1628,7 @@ export type Database = {
           celular?: string | null
           cep?: string | null
           cidade?: string | null
+          codigo_legado?: string | null
           complemento?: string | null
           contato?: string | null
           cpf_cnpj?: string | null
@@ -1649,6 +1654,7 @@ export type Database = {
           celular?: string | null
           cep?: string | null
           cidade?: string | null
+          codigo_legado?: string | null
           complemento?: string | null
           contato?: string | null
           cpf_cnpj?: string | null
@@ -1806,9 +1812,14 @@ export type Database = {
           arquivo_nome: string | null
           created_at: string
           erros: Json | null
+          fase: string | null
           id: string
+          registros_atualizados: number | null
+          registros_duplicados: number | null
           registros_erro: number | null
+          registros_ignorados: number | null
           registros_sucesso: number | null
+          resumo: Json | null
           status: string | null
           tipo: string
           total_registros: number | null
@@ -1819,9 +1830,14 @@ export type Database = {
           arquivo_nome?: string | null
           created_at?: string
           erros?: Json | null
+          fase?: string | null
           id?: string
+          registros_atualizados?: number | null
+          registros_duplicados?: number | null
           registros_erro?: number | null
+          registros_ignorados?: number | null
           registros_sucesso?: number | null
+          resumo?: Json | null
           status?: string | null
           tipo: string
           total_registros?: number | null
@@ -1832,9 +1848,14 @@ export type Database = {
           arquivo_nome?: string | null
           created_at?: string
           erros?: Json | null
+          fase?: string | null
           id?: string
+          registros_atualizados?: number | null
+          registros_duplicados?: number | null
           registros_erro?: number | null
+          registros_ignorados?: number | null
           registros_sucesso?: number | null
+          resumo?: Json | null
           status?: string | null
           tipo?: string
           total_registros?: number | null
@@ -2884,6 +2905,7 @@ export type Database = {
           cest: string | null
           cfop_padrao: string | null
           codigo_interno: string | null
+          codigo_legado: string | null
           created_at: string
           cst: string | null
           descricao: string | null
@@ -2905,15 +2927,18 @@ export type Database = {
           preco_custo: number | null
           preco_venda: number | null
           sku: string | null
+          tipo_item: string | null
           unidade_medida: string | null
           unidade_tributavel: string | null
           updated_at: string
+          variacoes: string | null
         }
         Insert: {
           ativo?: boolean
           cest?: string | null
           cfop_padrao?: string | null
           codigo_interno?: string | null
+          codigo_legado?: string | null
           created_at?: string
           cst?: string | null
           descricao?: string | null
@@ -2935,15 +2960,18 @@ export type Database = {
           preco_custo?: number | null
           preco_venda?: number | null
           sku?: string | null
+          tipo_item?: string | null
           unidade_medida?: string | null
           unidade_tributavel?: string | null
           updated_at?: string
+          variacoes?: string | null
         }
         Update: {
           ativo?: boolean
           cest?: string | null
           cfop_padrao?: string | null
           codigo_interno?: string | null
+          codigo_legado?: string | null
           created_at?: string
           cst?: string | null
           descricao?: string | null
@@ -2965,9 +2993,11 @@ export type Database = {
           preco_custo?: number | null
           preco_venda?: number | null
           sku?: string | null
+          tipo_item?: string | null
           unidade_medida?: string | null
           unidade_tributavel?: string | null
           updated_at?: string
+          variacoes?: string | null
         }
         Relationships: [
           {
@@ -3200,6 +3230,41 @@ export type Database = {
             columns: ["transportadora_id"]
             isOneToOne: false
             referencedRelation: "transportadoras"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stg_cadastros: {
+        Row: {
+          created_at: string | null
+          dados: Json
+          erro: string | null
+          id: string
+          lote_id: string
+          status: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          dados: Json
+          erro?: string | null
+          id?: string
+          lote_id: string
+          status?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          dados?: Json
+          erro?: string | null
+          id?: string
+          lote_id?: string
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stg_cadastros_lote_id_fkey"
+            columns: ["lote_id"]
+            isOneToOne: false
+            referencedRelation: "importacao_lotes"
             referencedColumns: ["id"]
           },
         ]
@@ -3809,6 +3874,17 @@ export type Database = {
       }
     }
     Functions: {
+      consolidar_lote_cadastros: { Args: { p_lote_id: string }; Returns: Json }
+      consolidar_lote_enriquecimento: {
+        Args: { p_lote_id: string }
+        Returns: Json
+      }
+      consolidar_lote_estoque: { Args: { p_lote_id: string }; Returns: Json }
+      consolidar_lote_faturamento: {
+        Args: { p_lote_id: string }
+        Returns: Json
+      }
+      consolidar_lote_financeiro: { Args: { p_lote_id: string }; Returns: Json }
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean

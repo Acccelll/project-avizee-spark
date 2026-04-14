@@ -18,11 +18,19 @@ export interface GroupedNF {
   data_emissao: string;
   valor_total: number;
   itens_count: number;
-  status: "valido" | "erro";
+  status: "valido" | "erro" | "duplicado";
   errors: string[];
   itens: Record<string, unknown>[];
 }
 
+/**
+ * Hook de importação de faturamento histórico com staging real.
+ *
+ * Fluxo:
+ *  1. generatePreview — valida, agrupa NFs, resolve cliente/produto (sem escrita)
+ *  2. processImport  — grava em stg_faturamento + importacao_lotes (status "staging")
+ *  3. finalizeImport — chama RPC consolidar_lote_faturamento
+ */
 export function useImportacaoFaturamento() {
   const [file, setFile] = useState<File | null>(null);
   const [workbook, setWorkbook] = useState<XLSX.WorkBook | null>(null);
@@ -86,7 +94,6 @@ export function useImportacaoFaturamento() {
     setIsProcessing(true);
 
     try {
-      // Prefetch clientes by cpf_cnpj (priority) and name (fallback)
       const { data: clientes } = await supabase
         .from("clientes")
         .select("id, nome_razao_social, cpf_cnpj");
@@ -97,7 +104,6 @@ export function useImportacaoFaturamento() {
         clientes?.map(c => [c.nome_razao_social.toUpperCase(), c.id]) || []
       );
 
-      // Prefetch products for item lookup: by codigo_legado first, then codigo_interno
       const { data: produtosBanco } = await supabase
         .from("produtos")
         .select("id, codigo_interno, codigo_legado, nome");
@@ -121,15 +127,10 @@ export function useImportacaoFaturamento() {
         const numero = nd.numero_nota || `S/N-${index}`;
 
         if (!grouped.has(numero)) {
-          // Resolve client: try cpf_cnpj, then name
           const cpfClean = nd.cpf_cnpj_destinatario?.replace(/\D/g, "") || "";
           const clienteId = (cpfClean && clienteByCpf.get(cpfClean))
             || clienteByName.get(nd.cliente_nome?.toUpperCase() || "")
             || null;
-
-          if (nd.cliente_nome && !clienteId) {
-            nd._cliente_lookup_warning = `Cliente não localizado: "${nd.cliente_nome}" – será importado sem vínculo.`;
-          }
 
           grouped.set(numero, {
             numero,
@@ -150,15 +151,10 @@ export function useImportacaoFaturamento() {
 
         const nf = grouped.get(numero)!;
 
-        // Resolve product for item
         const codigoProduto = nd.codigo_produto_nf || nd.codigo_legado_produto || "";
         const produtoId = (nd.codigo_legado_produto && prodByLegado.get(nd.codigo_legado_produto))
           || (nd.codigo_produto_nf && prodByInterno.get(nd.codigo_produto_nf))
           || null;
-
-        if (codigoProduto && !produtoId) {
-          nd._produto_lookup_warning = `Produto não localizado: "${codigoProduto}" – item sem vínculo.`;
-        }
 
         nd.produto_id = produtoId;
         nf.itens.push({ ...nd, _originalLine: index + 2, _originalRow: row });
@@ -170,7 +166,7 @@ export function useImportacaoFaturamento() {
         }
       });
 
-      // Check duplicates in DB by numero
+      // Check DB duplicates
       const numeros = Array.from(grouped.keys());
       if (numeros.length > 0) {
         const { data: existentes } = await supabase
@@ -182,8 +178,8 @@ export function useImportacaoFaturamento() {
         const existentesSet = new Set(existentes?.map(e => e.numero));
         grouped.forEach(nf => {
           if (existentesSet.has(nf.numero)) {
-            nf.status = "erro";
-            nf.errors.push("Nota Fiscal já cadastrada no sistema (histórico).");
+            nf.status = "duplicado";
+            nf.errors.push("NF já cadastrada (histórico).");
           }
         });
       }
@@ -196,6 +192,9 @@ export function useImportacaoFaturamento() {
     }
   }, [rawRows, mapping]);
 
+  /**
+   * Write to staging only — no final table writes.
+   */
   const processImport = async () => {
     if (previewData.length === 0) return;
     setIsProcessing(true);
@@ -204,17 +203,29 @@ export function useImportacaoFaturamento() {
       const { data: user } = await supabase.auth.getUser();
       const validos = previewData.filter(i => i.status === "valido");
       const errosCount = previewData.length - validos.length;
+      const totalItens = validos.reduce((s, nf) => s + nf.itens_count, 0);
+      const totalValor = validos.reduce((s, nf) => s + nf.valor_total, 0);
+      const comCliente = validos.filter(nf => nf.cliente_id).length;
+      const comProduto = validos.reduce((s, nf) => s + nf.itens.filter((i: any) => i.produto_id).length, 0);
 
       const { data: lote, error: loteError } = await supabase
         .from("importacao_lotes")
         .insert({
           tipo: "faturamento",
           arquivo_nome: file?.name,
-          status: "processando",
+          status: "staging",
+          fase: "faturamento",
           total_registros: rawRows.length,
-          registros_sucesso: validos.length,
+          registros_sucesso: 0,
           registros_erro: errosCount,
           usuario_id: user?.user?.id,
+          resumo: {
+            nfs: validos.length,
+            itens: totalItens,
+            valor_total: totalValor,
+            pct_com_cliente: validos.length > 0 ? Math.round((comCliente / validos.length) * 100) : 0,
+            pct_com_produto: totalItens > 0 ? Math.round((comProduto / totalItens) * 100) : 0,
+          },
         })
         .select()
         .single();
@@ -223,75 +234,55 @@ export function useImportacaoFaturamento() {
       const currentLoteId = lote.id;
       setLoteId(currentLoteId);
 
-      // Insert NF headers + items sequentially to get IDs for item FK
-      let importedCount = 0;
-      for (const nf of validos) {
-        const { data: nfRow, error: nfError } = await supabase
-          .from("notas_fiscais")
-          .insert({
-            tipo: "saida",
+      // Write each NF as a single staging row with itens embedded
+      if (validos.length > 0) {
+        const stagingRows = validos.map(nf => ({
+          lote_id: currentLoteId,
+          dados: {
             numero: nf.numero,
-            chave_acesso: nf.chave_acesso || null,
+            serie: "1",
             data_emissao: nf.data_emissao,
+            chave_acesso: nf.chave_acesso,
             valor_total: nf.valor_total,
-            cliente_id: nf.cliente_id || null,
-            status: "confirmada",
-            origem: "importacao_historica",
-            // ⬇ Historical document: must NOT generate stock or financial entries
-            movimenta_estoque: false,
-            gera_financeiro: false,
-            observacoes: `Faturamento histórico – Lote ${currentLoteId}`,
-          })
-          .select("id")
-          .single();
+            valor_produtos: nf.valor_total,
+            cpf_cnpj_cliente: nf.cpf_cnpj_destinatario,
+            natureza_operacao: "VENDA",
+            tipo: "saida",
+            tipo_operacao: "venda",
+            itens: nf.itens.map((item: any) => ({
+              codigo_produto: item.codigo_produto_nf,
+              codigo_legado_produto: item.codigo_legado_produto,
+              descricao: item.nome_produto || item.descricao || "Item",
+              quantidade: item.quantidade || 1,
+              unidade: item.unidade || "UN",
+              valor_unitario: item.valor_unitario || 0,
+              valor_total: item.valor_total || 0,
+              ncm: item.ncm,
+              cfop: item.cfop,
+              cst: item.cst,
+              icms_valor: item.icms_valor || 0,
+              ipi_valor: item.ipi_valor || 0,
+              pis_valor: item.pis_valor || 0,
+              cofins_valor: item.cofins_valor || 0,
+            })),
+          },
+          status: "pendente",
+        }));
 
-        if (nfError) {
-          logger.error(`Erro ao criar NF ${nf.numero}:`, nfError.message);
-          continue;
+        for (let i = 0; i < stagingRows.length; i += 200) {
+          const batch = stagingRows.slice(i, i + 200);
+          const { error: stgError } = await supabase.from("stg_faturamento").insert(batch);
+          if (stgError) throw stgError;
         }
-
-        const nfId = nfRow.id;
-
-        // Insert all items for this NF
-        if (nf.itens && nf.itens.length > 0) {
-          const itensPayload = nf.itens.map((item: Record<string, unknown>) => ({
-            nota_fiscal_id: nfId,
-            produto_id: item.produto_id || null,
-            descricao: item.nome_produto || item.descricao || "Item",
-            cfop: item.cfop || null,
-            ncm: item.ncm || null,
-            cst: item.cst || null,
-            unidade: item.unidade || "UN",
-            quantidade: item.quantidade || 1,
-            valor_unitario: item.valor_unitario || 0,
-            valor_total: item.valor_total || 0,
-            icms_valor: item.icms_valor || 0,
-            ipi_valor: item.ipi_valor || 0,
-            pis_valor: item.pis_valor || 0,
-            cofins_valor: item.cofins_valor || 0,
-          }));
-
-          const { error: itensError } = await supabase
-            .from("notas_fiscais_itens")
-            .insert(itensPayload);
-
-          if (itensError) {
-            logger.error(`Erro ao inserir itens da NF ${nf.numero}:`, itensError.message);
-          }
-        }
-
-        importedCount++;
       }
 
-      await supabase
-        .from("importacao_lotes")
-        .update({
-          status: errosCount > 0 ? "parcial" : "concluido",
-          registros_sucesso: importedCount,
-        })
-        .eq("id", currentLoteId);
+      await supabase.from("importacao_logs").insert({
+        lote_id: currentLoteId,
+        nivel: "info",
+        mensagem: `Staging de faturamento: ${validos.length} NFs, ${totalItens} itens, valor total R$ ${totalValor.toFixed(2)}.`,
+      });
 
-      toast.success(`${importedCount} notas fiscais históricas importadas (sem impacto em estoque/financeiro).`);
+      toast.success(`${validos.length} NFs enviadas para staging. Confirme para consolidar.`);
       return currentLoteId;
 
     } catch (error: unknown) {
@@ -302,9 +293,54 @@ export function useImportacaoFaturamento() {
     }
   };
 
-  const finalizeImport = async () => {
-    toast.info("Importação já foi concluída no passo anterior.");
-    return true;
+  const finalizeImport = async (loteIdParam?: string) => {
+    const targetLoteId = loteIdParam || loteId;
+    if (!targetLoteId) {
+      toast.error("Nenhum lote selecionado para consolidar.");
+      return false;
+    }
+
+    setIsProcessing(true);
+    try {
+      const { data, error } = await supabase.rpc("consolidar_lote_faturamento", {
+        p_lote_id: targetLoteId,
+      });
+
+      if (error) throw error;
+
+      const result = data as any;
+      if (result?.erro) {
+        toast.error(`Erro na consolidação: ${result.erro}`);
+        return false;
+      }
+
+      await supabase.from("importacao_logs").insert({
+        lote_id: targetLoteId,
+        nivel: "info",
+        mensagem: `Consolidação de faturamento: ${result.nfs_inseridas} NFs, ${result.itens_inseridos} itens, ${result.erros} erros.`,
+      });
+
+      toast.success(`${result.nfs_inseridas} NFs históricas consolidadas (sem impacto em estoque/financeiro).`);
+      return true;
+    } catch (error: any) {
+      console.error("Erro na consolidação de faturamento:", error);
+      toast.error(`Falha na consolidação: ${error.message}`);
+      return false;
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const cancelLote = async (loteIdParam?: string) => {
+    const targetLoteId = loteIdParam || loteId;
+    if (!targetLoteId) return;
+    try {
+      await supabase.from("stg_faturamento").delete().eq("lote_id", targetLoteId);
+      await supabase.from("importacao_lotes").update({ status: "cancelado" }).eq("id", targetLoteId);
+      toast.info("Lote cancelado.");
+    } catch (err: any) {
+      toast.error(`Erro ao cancelar: ${err.message}`);
+    }
   };
 
   return {
@@ -321,6 +357,7 @@ export function useImportacaoFaturamento() {
     generatePreview,
     processImport,
     finalizeImport,
+    cancelLote,
     loteId
   };
 }

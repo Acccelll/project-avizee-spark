@@ -30,6 +30,10 @@ function createQueryResult() {
       return query;
     }),
     eq: vi.fn(() => query),
+    neq: vi.fn(() => query),
+    in: vi.fn(() => query),
+    is: vi.fn(() => query),
+    limit: vi.fn(() => query),
     order: vi.fn(() => Promise.resolve({ data: [], error: null })),
     limit: vi.fn(() => query),
     single: vi.fn(() => Promise.resolve({ data: null, error: null })),

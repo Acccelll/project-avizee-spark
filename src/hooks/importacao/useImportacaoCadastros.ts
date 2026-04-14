@@ -11,6 +11,14 @@ import { FIELD_ALIASES } from "@/lib/importacao/aliases";
 import { ImportType, Mapping } from "./types";
 import { logger } from '@/utils/logger';
 
+/**
+ * Hook de importação de cadastros (produtos, clientes, fornecedores).
+ *
+ * Fluxo staging real:
+ *  1. generatePreview — valida e monta preview (sem escrita)
+ *  2. processImport  — grava em stg_cadastros + importacao_lotes (status "staging")
+ *  3. finalizeImport — chama RPC consolidar_lote_cadastros, atualiza status
+ */
 export function useImportacaoCadastros() {
   const [file, setFile] = useState<File | null>(null);
   const [workbook, setWorkbook] = useState<XLSX.WorkBook | null>(null);
@@ -70,34 +78,82 @@ export function useImportacaoCadastros() {
     reader.readAsBinaryString(selectedFile);
   }, [onSheetChange]);
 
-  const generatePreview = useCallback(() => {
+  /**
+   * Step 1: Validate and build preview (no DB writes).
+   * Enriches each row with _action: 'inserir' | 'atualizar' | 'duplicado'.
+   */
+  const generatePreview = useCallback(async () => {
     if (rawRows.length === 0) return;
+    setIsProcessing(true);
 
-    const preview = rawRows.map((row, index) => {
-      const mappedRow: Record<string, unknown> = {};
-      Object.entries(mapping).forEach(([field, colName]) => {
-        mappedRow[field] = row[colName];
+    try {
+      // Pre-fetch existing records for dedup detection
+      let existingByLegado = new Map<string, string>();
+      let existingByKey = new Map<string, string>(); // codigo_interno or cpf_cnpj
+
+      if (importType === "produtos") {
+        const { data: prods } = await supabase.from("produtos").select("id, codigo_legado, codigo_interno");
+        prods?.forEach(p => {
+          if (p.codigo_legado) existingByLegado.set(p.codigo_legado, p.id);
+          if (p.codigo_interno) existingByKey.set(p.codigo_interno, p.id);
+        });
+      } else {
+        const table = importType === "clientes" ? "clientes" : "fornecedores";
+        const { data: entities } = await supabase.from(table).select("id, codigo_legado, cpf_cnpj");
+        entities?.forEach(e => {
+          if (e.codigo_legado) existingByLegado.set(e.codigo_legado, e.id);
+          if (e.cpf_cnpj) existingByKey.set(e.cpf_cnpj.replace(/\D/g, ""), e.id);
+        });
+      }
+
+      const preview = rawRows.map((row, index) => {
+        const mappedRow: any = {};
+        Object.entries(mapping).forEach(([field, colName]) => {
+          mappedRow[field] = row[colName];
+        });
+
+        let validation;
+        if (importType === "produtos") validation = validateProdutoImport(mappedRow);
+        else if (importType === "clientes") validation = validateClienteImport(mappedRow);
+        else validation = validateFornecedorImport(mappedRow);
+
+        const nd = validation.normalizedData;
+
+        // Determine action: inserir/atualizar
+        let _action: 'inserir' | 'atualizar' | 'duplicado' = 'inserir';
+        const legadoKey = nd.codigo_legado;
+        const secondaryKey = importType === "produtos" ? nd.codigo_interno : nd.cpf_cnpj?.replace(/\D/g, "");
+
+        if (legadoKey && existingByLegado.has(legadoKey)) {
+          _action = 'atualizar';
+        } else if (secondaryKey && existingByKey.has(secondaryKey)) {
+          _action = 'atualizar';
+        }
+
+        return {
+          ...nd,
+          _valid: validation.valid,
+          _errors: validation.errors,
+          _warnings: validation.warnings || [],
+          _action,
+          _originalLine: index + 2,
+          _originalRow: row
+        };
       });
 
-      let validation;
-      if (importType === "produtos") validation = validateProdutoImport(mappedRow);
-      else if (importType === "clientes") validation = validateClienteImport(mappedRow);
-      else validation = validateFornecedorImport(mappedRow);
-
-      return {
-        ...validation.normalizedData,
-        _valid: validation.valid,
-        _errors: validation.errors,
-        _warnings: validation.warnings || [],
-        _originalLine: index + 2,
-        _originalRow: row
-      };
-    });
-
-    setPreviewData(preview);
-    return preview;
+      setPreviewData(preview);
+      return preview;
+    } catch (err: any) {
+      toast.error(`Erro ao gerar prévia: ${err.message}`);
+    } finally {
+      setIsProcessing(false);
+    }
   }, [rawRows, mapping, importType]);
 
+  /**
+   * Step 2: Write to staging (stg_cadastros + importacao_lotes).
+   * NO data is written to final tables here.
+   */
   const processImport = async () => {
     if (previewData.length === 0) return;
     setIsProcessing(true);
@@ -107,17 +163,25 @@ export function useImportacaoCadastros() {
 
       const validos = previewData.filter(i => i._valid);
       const errosCount = previewData.length - validos.length;
+      const novos = validos.filter(i => i._action === 'inserir').length;
+      const atualizados = validos.filter(i => i._action === 'atualizar').length;
 
+      // Create lote with status "staging"
       const { data: lote, error: loteError } = await supabase
         .from("importacao_lotes")
         .insert({
           tipo: importType,
           arquivo_nome: file?.name,
-          status: "processando",
+          status: "staging",
+          fase: "cadastros",
           total_registros: previewData.length,
-          registros_sucesso: validos.length,
+          registros_sucesso: 0,
           registros_erro: errosCount,
+          registros_atualizados: 0,
+          registros_duplicados: 0,
+          registros_ignorados: 0,
           usuario_id: user?.user?.id,
+          resumo: { novos, atualizados, erros: errosCount },
           erros: errosCount > 0
             ? previewData
                 .filter(i => !i._valid)
@@ -132,148 +196,36 @@ export function useImportacaoCadastros() {
       const currentLoteId = lote.id;
       setLoteId(currentLoteId);
 
-      let importedCount = 0;
+      // Write valid records to stg_cadastros
       if (validos.length > 0) {
-        const { _valid, _errors, _warnings, _originalLine, _originalRow, ...rest } = validos[0];
-        void rest;
+        const tipoEntidade = importType === "produtos" ? "produto" :
+                            importType === "clientes" ? "cliente" : "fornecedor";
 
-        if (importType === "produtos") {
-          // Fetch existing products by codigo_legado and codigo_interno to avoid duplicates
-          const legadoCodes = validos.map(i => i.codigo_legado).filter(Boolean);
-          const internosCodes = validos.map(i => i.codigo_interno).filter(Boolean);
+        const stagingRows = validos.map(item => {
+          const { _valid, _errors, _warnings, _action, _originalLine, _originalRow, ...rest } = item;
+          return {
+            lote_id: currentLoteId,
+            dados: { ...rest, _tipo_entidade: tipoEntidade },
+            status: "pendente",
+          };
+        });
 
-          const existingByLegado = new Map<string, string>();
-          if (legadoCodes.length > 0) {
-            const { data: ex } = await supabase
-              .from("produtos")
-              .select("id, codigo_legado")
-              .in("codigo_legado", legadoCodes);
-            ex?.forEach(p => existingByLegado.set(p.codigo_legado, p.id));
-          }
-          const existingByInterno = new Map<string, string>();
-          if (internosCodes.length > 0) {
-            const { data: ex } = await supabase
-              .from("produtos")
-              .select("id, codigo_interno")
-              .in("codigo_interno", internosCodes);
-            ex?.forEach(p => existingByInterno.set(p.codigo_interno, p.id));
-          }
-
-          // Resolve grupo_id by name
-          const grupoNames = [...new Set(validos.map(i => i.grupo).filter(Boolean))];
-          const grupoMap = new Map<string, string>();
-          if (grupoNames.length > 0) {
-            const { data: grupos } = await supabase
-              .from("grupos_produto")
-              .select("id, nome")
-              .in("nome", grupoNames);
-            grupos?.forEach(g => grupoMap.set(g.nome.toUpperCase(), g.id));
-          }
-
-          const toInsert: Record<string, unknown>[] = [];
-          const toUpdate: Record<string, unknown>[] = [];
-
-          validos.forEach(item => {
-            const { _valid, _errors, _warnings, _originalLine, _originalRow, grupo, ...rest } = item;
-            const payload = {
-              ...rest,
-              grupo_id: grupo ? (grupoMap.get(grupo.toUpperCase()) || null) : null,
-            };
-
-            const existingId = (item.codigo_legado && existingByLegado.get(item.codigo_legado))
-              || (item.codigo_interno && existingByInterno.get(item.codigo_interno));
-
-            if (existingId) {
-              toUpdate.push({ id: existingId, ...payload });
-            } else {
-              toInsert.push(payload);
-            }
-          });
-
-          const results = await Promise.all([
-            toInsert.length > 0
-              ? supabase.from("produtos").insert(toInsert).then(({ error }) => {
-                  if (error) { logger.error("Erro ao inserir produtos:", error.message); return 0; }
-                  return toInsert.length;
-                })
-              : Promise.resolve(0),
-            ...toUpdate.map(({ id, ...data }) =>
-              supabase.from("produtos").update(data).eq("id", id).then(({ error }) => {
-                if (error) { logger.error(`Erro ao atualizar produto ${id}:`, error.message); return 0; }
-                return 1;
-              })
-            )
-          ]);
-          importedCount = results.reduce((a, b) => a + (b as number), 0);
-
-        } else {
-          // Clientes ou Fornecedores
-          const targetTable = importType === "clientes" ? "clientes" : "fornecedores";
-
-          // Fetch existing by codigo_legado and cpf_cnpj to detect duplicates
-          const legadoCodes = validos.map(i => i.codigo_legado).filter(Boolean);
-          const cpfCnpjs = validos.map(i => i.cpf_cnpj).filter(Boolean);
-
-          const existingByLegado = new Map<string, string>();
-          if (legadoCodes.length > 0) {
-            const { data: ex } = await supabase
-              .from(targetTable)
-              .select("id, codigo_legado")
-              .in("codigo_legado", legadoCodes);
-            ex?.forEach(p => existingByLegado.set(p.codigo_legado, p.id));
-          }
-          const existingByCpf = new Map<string, string>();
-          if (cpfCnpjs.length > 0) {
-            const { data: ex } = await supabase
-              .from(targetTable)
-              .select("id, cpf_cnpj")
-              .in("cpf_cnpj", cpfCnpjs);
-            ex?.forEach(p => existingByCpf.set(p.cpf_cnpj, p.id));
-          }
-
-          const toInsert: Record<string, unknown>[] = [];
-          const toUpdate: Record<string, unknown>[] = [];
-
-          validos.forEach(item => {
-            const { _valid, _errors, _warnings, _originalLine, _originalRow, ...payload } = item;
-            const existingId = (item.codigo_legado && existingByLegado.get(item.codigo_legado))
-              || (item.cpf_cnpj && existingByCpf.get(item.cpf_cnpj));
-
-            if (existingId) {
-              toUpdate.push({ id: existingId, ...payload });
-            } else {
-              toInsert.push(payload);
-            }
-          });
-
-          const results = await Promise.all([
-            toInsert.length > 0
-              ? supabase.from(targetTable).insert(toInsert).then(({ error }) => {
-                  if (error) { logger.error(`Erro ao inserir ${targetTable}:`, error.message); return 0; }
-                  return toInsert.length;
-                })
-              : Promise.resolve(0),
-            ...toUpdate.map(({ id, ...data }) =>
-              supabase.from(targetTable).update(data).eq("id", id).then(({ error }) => {
-                if (error) { logger.error(`Erro ao atualizar ${id}:`, error.message); return 0; }
-                return 1;
-              })
-            )
-          ]);
-          importedCount = results.reduce((a, b) => a + (b as number), 0);
+        // Insert in batches of 500
+        for (let i = 0; i < stagingRows.length; i += 500) {
+          const batch = stagingRows.slice(i, i + 500);
+          const { error: stgError } = await supabase.from("stg_cadastros").insert(batch);
+          if (stgError) throw stgError;
         }
       }
 
-      await supabase
-        .from("importacao_lotes")
-        .update({
-          status: errosCount > 0 ? "parcial" : "concluido",
-          registros_sucesso: importedCount,
-          registros_erro: errosCount
-        })
-        .eq("id", currentLoteId);
+      // Log
+      await supabase.from("importacao_logs").insert({
+        lote_id: currentLoteId,
+        nivel: "info",
+        mensagem: `Staging concluído: ${validos.length} válidos (${novos} novos, ${atualizados} atualizações), ${errosCount} erros.`,
+      });
 
-      toast.success(`${importedCount} registros importados com sucesso.`);
+      toast.success(`${validos.length} registros enviados para staging. Confirme para consolidar.`);
       setIsProcessing(false);
       return currentLoteId;
 
@@ -284,9 +236,68 @@ export function useImportacaoCadastros() {
     }
   };
 
-  const finalizeImport = async () => {
-    toast.info("Importação já foi concluída no passo anterior.");
-    return true;
+  /**
+   * Step 3: Consolidate staging → final tables via RPC.
+   */
+  const finalizeImport = async (loteIdParam?: string) => {
+    const targetLoteId = loteIdParam || loteId;
+    if (!targetLoteId) {
+      toast.error("Nenhum lote selecionado para consolidar.");
+      return false;
+    }
+
+    setIsProcessing(true);
+    try {
+      const { data, error } = await supabase.rpc("consolidar_lote_cadastros", {
+        p_lote_id: targetLoteId,
+      });
+
+      if (error) throw error;
+
+      const result = data as any;
+      if (result?.erro) {
+        toast.error(`Erro na consolidação: ${result.erro}`);
+        return false;
+      }
+
+      await supabase.from("importacao_logs").insert({
+        lote_id: targetLoteId,
+        nivel: "info",
+        mensagem: `Consolidação concluída: ${result.inseridos} inseridos, ${result.atualizados} atualizados, ${result.erros} erros, ${result.ignorados} ignorados.`,
+      });
+
+      toast.success(
+        `Consolidação concluída: ${result.inseridos} inseridos, ${result.atualizados} atualizados.`
+      );
+      return true;
+    } catch (error: any) {
+      console.error("Erro na consolidação:", error);
+      toast.error(`Falha na consolidação: ${error.message}`);
+      return false;
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  /**
+   * Cancel a staging lote (mark as cancelled, clean staging data).
+   */
+  const cancelLote = async (loteIdParam?: string) => {
+    const targetLoteId = loteIdParam || loteId;
+    if (!targetLoteId) return;
+
+    try {
+      await supabase.from("stg_cadastros").delete().eq("lote_id", targetLoteId);
+      await supabase.from("importacao_lotes").update({ status: "cancelado" }).eq("id", targetLoteId);
+      await supabase.from("importacao_logs").insert({
+        lote_id: targetLoteId,
+        nivel: "warn",
+        mensagem: "Lote cancelado pelo usuário.",
+      });
+      toast.info("Lote cancelado com sucesso.");
+    } catch (err: any) {
+      toast.error(`Erro ao cancelar lote: ${err.message}`);
+    }
   };
 
   return {
@@ -305,7 +316,7 @@ export function useImportacaoCadastros() {
     generatePreview,
     processImport,
     finalizeImport,
+    cancelLote,
     loteId
   };
 }
-
