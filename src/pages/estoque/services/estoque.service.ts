@@ -43,8 +43,7 @@ export async function fetchProdutosEstoque(): Promise<ProdutoRow[]> {
  * the frontend does not need to perform client-side aggregation.
  */
 export async function fetchEstoquePosicao(): Promise<EstoquePosicaoRow[]> {
-  const { data, error } = await supabase
-    // @ts-ignore – the view may not be reflected in the generated types yet
+  const { data, error } = await (supabase as any)
     .from("vw_estoque_posicao")
     .select("*")
     .order("produto_nome");
