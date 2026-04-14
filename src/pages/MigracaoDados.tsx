@@ -444,6 +444,56 @@ export default function MigracaoDados() {
               />
             </ImportacaoGrupoSection>
 
+            {/* Grupo 2.5 — Vínculos e Auxiliares (Fase 3) */}
+            <ImportacaoGrupoSection
+              order={2.5}
+              title="Vínculos e Auxiliares"
+              description="— enriquecimento relacional"
+              colorClass="bg-teal-100 text-teal-700"
+            >
+              <ImportacaoTipoCard
+                type="produtos_fornecedores"
+                title="Produto × Fornecedor"
+                description="Vínculo de produtos com seus fornecedores, preço de compra e referência."
+                criticidade="cadastral"
+                dependencies={["Produtos", "Fornecedores"]}
+                cardStatus={cardInfoMap.produtos?.cardStatus || "nunca_importado"}
+                summary={{ nextAction: "Importar vínculos" }}
+                onImport={() => handleOpenImport("produtos_fornecedores")}
+                onViewBatches={() => { setTypeFilter("produtos_fornecedores"); setActiveTab("lotes"); }}
+              />
+              <ImportacaoTipoCard
+                type="formas_pagamento"
+                title="Formas de Pagamento"
+                description="Cadastro de condições de pagamento (boleto, cartão, etc)."
+                criticidade="cadastral"
+                cardStatus={"nunca_importado"}
+                summary={{ nextAction: "Importar formas" }}
+                onImport={() => handleOpenImport("formas_pagamento")}
+                onViewBatches={() => { setTypeFilter("formas_pagamento"); setActiveTab("lotes"); }}
+              />
+              <ImportacaoTipoCard
+                type="contas_contabeis"
+                title="Plano de Contas"
+                description="Importação do plano de contas contábil legado."
+                criticidade="cadastral"
+                cardStatus={"nunca_importado"}
+                summary={{ nextAction: "Importar plano de contas" }}
+                onImport={() => handleOpenImport("contas_contabeis")}
+                onViewBatches={() => { setTypeFilter("contas_contabeis"); setActiveTab("lotes"); }}
+              />
+              <ImportacaoTipoCard
+                type="contas_bancarias"
+                title="Contas Bancárias"
+                description="Cadastro mínimo de contas bancárias para o financeiro."
+                criticidade="cadastral"
+                cardStatus={"nunca_importado"}
+                summary={{ nextAction: "Importar contas" }}
+                onImport={() => handleOpenImport("contas_bancarias")}
+                onViewBatches={() => { setTypeFilter("contas_bancarias"); setActiveTab("lotes"); }}
+              />
+            </ImportacaoGrupoSection>
+
             {/* Grupo 3 — Histórico / documentos */}
             <ImportacaoGrupoSection
               order={3}
