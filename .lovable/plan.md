@@ -1,182 +1,127 @@
 
 
-# Plan: Migração de Dados Completa — 6 Fases
+# Revisão End-to-End — Projeto AviZee ERP
 
-## Diagnóstico Atual
+## Resumo Executivo
 
-**Problemas confirmados:**
-- `processImport` grava **diretamente nas tabelas finais** (produtos, clientes, fornecedores, financeiro_lancamentos, notas_fiscais) — NÃO há staging real
-- `finalizeImport` é um no-op em todos os 4 hooks (apenas exibe toast)
-- Colunas `codigo_legado`, `variacoes`, `tipo_item` **NÃO existem** em `produtos`, `clientes`, `fornecedores`
-- Tabelas `stg_*` existem mas são genéricas (apenas `id`, `lote_id`, `dados` jsonb, `status`, `erro`) — suficiente para staging real
-- `produtos_fornecedores` já existe com schema adequado
-- `importacao_lotes` não tem status granulares (faltam `staging`, `pronto_para_consolidar`)
+O projeto está em estado funcional sólido: **TypeScript compila sem erros**, **623 de 624 testes passam**, e a arquitetura é coerente. Há áreas específicas que precisam de atenção, organizadas abaixo por prioridade.
 
 ---
 
-## Fase 1 — Saneamento Estrutural
+## 1. CRÍTICO — Segurança (2 findings)
 
-### Migration SQL
+### 1.1 `user_permissions` expõe permissões de todos os usuários
+- Qualquer usuário autenticado pode ler as permissões de qualquer outro usuário via SELECT.
+- **Correção:** Restringir a policy SELECT para `WHERE user_id = auth.uid()`, mantendo acesso total para admins via `has_role`.
 
-Adicionar colunas faltantes e staging para cadastros:
+### 1.2 Storage `dbavizee` sem verificação de ownership
+- Qualquer autenticado pode ler/sobrescrever/deletar arquivos de outros usuários.
+- **Correção:** Adicionar verificação de `auth.uid()` no path ou em tabela de ownership.
 
-```sql
--- produtos: codigo_legado, variacoes, tipo_item
-ALTER TABLE produtos ADD COLUMN IF NOT EXISTS codigo_legado text;
-ALTER TABLE produtos ADD COLUMN IF NOT EXISTS variacoes text;
-ALTER TABLE produtos ADD COLUMN IF NOT EXISTS tipo_item text DEFAULT 'produto';
+### 1.3 Funções SQL sem `search_path` definido (119 warnings)
+- Todas as funções RPC criadas nas migrations não definem `SET search_path = public`.
+- **Correção:** Migration corretiva para as funções críticas (`consolidar_lote_*`, `has_role`, `sync_produto_estoque_atual`).
 
--- clientes/fornecedores: codigo_legado
-ALTER TABLE clientes ADD COLUMN IF NOT EXISTS codigo_legado text;
-ALTER TABLE fornecedores ADD COLUMN IF NOT EXISTS codigo_legado text;
-
--- Staging para cadastros (mesmo padrão das stg_* existentes)
-CREATE TABLE IF NOT EXISTS stg_cadastros (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  lote_id uuid NOT NULL,
-  dados jsonb NOT NULL,
-  status text DEFAULT 'pendente',
-  erro text,
-  created_at timestamptz DEFAULT now()
-);
-
--- Índices de deduplicação
-CREATE INDEX IF NOT EXISTS idx_produtos_codigo_legado ON produtos(codigo_legado);
-CREATE INDEX IF NOT EXISTS idx_clientes_codigo_legado ON clientes(codigo_legado);
-CREATE INDEX IF NOT EXISTS idx_fornecedores_codigo_legado ON fornecedores(codigo_legado);
-
--- RLS para stg_cadastros (mesma pattern das stg_* existentes)
-ALTER TABLE stg_cadastros ENABLE ROW LEVEL SECURITY;
-CREATE POLICY stg_cad_select ON stg_cadastros FOR SELECT TO authenticated USING (true);
-CREATE POLICY stg_cad_insert ON stg_cadastros FOR INSERT TO authenticated WITH CHECK (true);
-CREATE POLICY stg_cad_update ON stg_cadastros FOR UPDATE TO authenticated USING (true);
-CREATE POLICY stg_cad_delete ON stg_cadastros FOR DELETE TO authenticated USING (true);
-```
-
-### RPC de Consolidação
-
-Criar função SQL `consolidar_lote_cadastros(p_lote_id uuid)` que:
-1. Lê registros de `stg_cadastros` com `status = 'pendente'` para o lote
-2. Para cada registro, faz upsert na tabela destino (produtos/clientes/fornecedores) usando codigo_legado ou cpf_cnpj/codigo_interno como chave
-3. Atualiza `stg_cadastros.status` para `consolidado` ou `erro`
-4. Atualiza contadores em `importacao_lotes`
-5. Retorna resumo (inseridos, atualizados, erros)
-
-Criar RPCs análogas: `consolidar_lote_estoque`, `consolidar_lote_financeiro`, `consolidar_lote_faturamento`.
-
-### Refatoração dos 4 Hooks
-
-Todos os hooks seguirão o mesmo padrão:
-
-- **`generatePreview`** — valida, resolve lookups, monta preview (sem escrita)
-- **`processImport`** — grava apenas em `stg_*` + `importacao_lotes` (status `staging`)
-- **`finalizeImport(loteId)`** — chama RPC de consolidação, atualiza status para `concluido`/`parcial`/`erro`
-
-**Arquivos alterados:**
-- `src/hooks/importacao/useImportacaoCadastros.ts`
-- `src/hooks/importacao/useImportacaoEstoque.ts`
-- `src/hooks/importacao/useImportacaoFinanceiro.ts`
-- `src/hooks/importacao/useImportacaoFaturamento.ts`
-
-### Status de Lote
-
-Usar os status: `rascunho`, `validado`, `staging`, `consolidando`, `concluido`, `parcial`, `erro`, `cancelado`.
+### 1.4 RLS permissiva em tabelas de cadastro
+- Tabelas `clientes`, `fornecedores`, `produtos`, `grupos_produto`, `contas_contabeis`, `formas_pagamento` têm INSERT/UPDATE/DELETE com `USING(true)` — qualquer autenticado pode apagar dados.
+- **Ação:** Avaliar quais tabelas devem restringir DELETE/UPDATE a admin ou roles específicos.
 
 ---
 
-## Fase 2 — Cadastros-Base
+## 2. ALTO — Teste Falhando
 
-Melhorias no `useImportacaoCadastros`:
-- Importar grupos de produto automaticamente (auto-criar se não existir)
-- Suportar `tipo_item` (produto/insumo)
-- Suportar `variacoes`, `codigo_legado`
-- Preview enriquecido: mostrar se é novo/atualização/duplicado
-- Deduplicação: `codigo_legado` → `codigo_interno`/`cpf_cnpj` → insert
-
-**Consolidação via RPC** faz upsert com prioridade de chave legada.
+### 2.1 `OrcamentoForm.test.tsx` — 1 falha
+- **Causa:** Mock do Supabase não implementa `.limit()` na cadeia `supabase.from('empresa_config').select('*').limit(1).single()`.
+- **Correção:** Atualizar o mock em `src/test/setup.ts` para suportar `.limit()` retornando `this`.
 
 ---
 
-## Fase 3 — Enriquecimento Relacional
+## 3. ALTO — Dívida Técnica
 
-- Criar importador de `produtos_fornecedores` (novo hook `useImportacaoProdutosFornecedores` ou subtipo no cadastros)
-- Importação de `formas_pagamento` e `contas_contabeis` via dados na planilha ou cadastro mínimo manual
-- Popular `contas_bancarias` mínimas necessárias
-- Adicionar card na UI de migração para "Vínculos e Auxiliares"
+### 3.1 `@ts-nocheck` em 36 arquivos
+Arquivos mais críticos (hooks de importação e páginas transacionais):
+- 4 hooks de importação (`useImportacaoCadastros/Estoque/Financeiro/Faturamento`)
+- Páginas: `OrcamentoForm`, `MigracaoDados`, `Financeiro`, `Fiscal`
+- Componentes: `UsuariosTab`, `ClienteView`
 
----
+### 3.2 `as any` em 59 arquivos
+- Muitos são consequência do `@ts-nocheck` (uma vez removido, os `as any` ficam explícitos).
+- Hooks de importação usam `as any` extensivamente nos dados de staging.
 
-## Fase 4 — Estoque Inicial
-
-Refatorar `useImportacaoEstoque`:
-- `processImport` → grava em `stg_estoque_inicial`
-- `finalizeImport` → chama RPC que:
-  - Resolve produto por `codigo_legado` → `codigo_interno`
-  - Gera `estoque_movimentos` (tipo `abertura`)
-  - Atualiza `produtos.estoque_atual` via trigger existente
-  - Bloqueia linhas sem produto
-- Preview melhorado: saldo atual vs. novo, diferença, custo
+### 3.3 Enriquecimento (`useImportacaoEnriquecimento`) NÃO usa staging real
+- A consolidação (`finalizeImport`) faz escrita direta nas tabelas finais (`produtos_fornecedores`, `formas_pagamento`, `contas_contabeis`, `contas_bancarias`) em loop individual — sem transação, sem RPC.
+- **Risco:** Falha parcial deixa dados inconsistentes.
+- **Correção:** Migrar para RPC transacional como os outros hooks.
 
 ---
 
-## Fase 5 — Financeiro em Aberto
+## 4. MÉDIO — Arquitetura e Manutenibilidade
 
-Refatorar `useImportacaoFinanceiro`:
-- `processImport` → grava em `stg_financeiro_aberto`
-- `finalizeImport` → RPC que:
-  - Cria `financeiro_lancamentos` com campos completos
-  - Para baixados: cria `financeiro_baixas`
-  - Lookup de pessoa: `codigo_legado` → `cpf_cnpj`
-- Preview: tipo CP/CR, vínculo, saldo, status
-- Resumo: total CP, total CR, aberto, parcial, baixado
+### 4.1 Arquivos grandes (God Components restantes)
+| Arquivo | Linhas |
+|---------|--------|
+| `Clientes.tsx` | 1622 |
+| `Administracao.tsx` | 1462 |
+| `UsuariosTab.tsx` | 1252 |
+| `Produtos.tsx` | 1121 |
+| `OrcamentoForm.tsx` | 1063 |
+| `NotaFiscalEditModal.tsx` | 1059 |
+| `GruposEconomicos.tsx` | 1049 |
 
----
+Estes são candidatos a decomposição futura seguindo o padrão já aplicado em `FreteSimuladorCard` e `CotacaoCompraDrawer`.
 
-## Fase 6 — Faturamento Histórico
+### 4.2 Edge Functions sem testes
+- 5 Edge Functions (`admin-users`, `correios-api`, `process-email-queue`, `setup-admin`, `social-sync`) sem cobertura de teste.
 
-Refatorar `useImportacaoFaturamento`:
-- `processImport` → grava em `stg_faturamento`
-- `finalizeImport` → RPC que:
-  - Cria `notas_fiscais` com `movimenta_estoque=false`, `gera_financeiro=false`, `origem='importacao_historica'`
-  - Cria `notas_fiscais_itens`
-  - Deduplicação por `chave_acesso` → `numero+serie+data`
-- Relatório: total NFs, itens, valor, % com cliente, % com produto
+### 4.3 Migrations acumuladas (35 arquivos)
+- Sem impacto funcional, mas dificulta leitura. Considerar squash em versão futura de baseline.
 
 ---
 
-## Melhorias na UI (MigracaoDados.tsx)
+## 5. BAIXO — Melhorias Sugeridas
 
-1. Atualizar step 3 para mostrar resumo de staging (novos/atualizados/erros)
-2. Step 4 passa a ser confirmação real (chama `finalizeImport`)
-3. Adicionar botão "Cancelar Lote" para staging
-4. Mostrar status `staging` nos filtros
-5. Adicionar grupo "Vínculos e Auxiliares" para Fase 3
-6. Remover `@ts-nocheck` quando possível
+### 5.1 `useImportacaoXml` ainda grava direto em `compras`
+- Linha 143: `supabase.from("compras").insert(...)` — não segue o padrão de staging.
 
----
+### 5.2 `OrcamentoForm.tsx` faz queries diretas ao Supabase
+- 10 chamadas `supabase.from(...)` diretas na página em vez de usar hooks/services.
 
-## Arquivos a Criar/Alterar
-
-| Arquivo | Ação |
-|---------|------|
-| `supabase/migrations/2026041400XX_*.sql` | Migration: colunas + stg_cadastros + RPCs |
-| `src/hooks/importacao/useImportacaoCadastros.ts` | Refatorar staging real |
-| `src/hooks/importacao/useImportacaoEstoque.ts` | Refatorar staging real |
-| `src/hooks/importacao/useImportacaoFinanceiro.ts` | Refatorar staging real |
-| `src/hooks/importacao/useImportacaoFaturamento.ts` | Refatorar staging real |
-| `src/lib/importacao/validators.ts` | Melhorar validações |
-| `src/lib/importacao/aliases.ts` | Novos aliases |
-| `src/pages/MigracaoDados.tsx` | UI: staging real, confirmação |
-| `src/hooks/importacao/types.ts` | Tipos atualizados |
-| `src/components/importacao/PreviewImportacaoTable.tsx` | Mostrar novo/atualizado/duplicado |
-| `docs/MIGRACAO.md` | Documentação técnica |
+### 5.3 Sem CI/CD para testes
+- Os testes rodam localmente mas não há evidência de pipeline automatizado.
 
 ---
 
-## Riscos e Validações Manuais
+## Plano de Correção Recomendado
 
-- Chaves legadas dependem da qualidade da planilha de origem
-- Vínculo produto-fornecedor requer planilha estruturada com ambos os códigos
-- Financeiro baixado precisa de conferência manual de saldos
-- CHECK constraint existente em `financeiro_lancamentos.status` não inclui `baixado` — precisa ser adicionado ou usar `pago`
+### Fase A — Segurança (imediata)
+1. Migration para restringir `user_permissions` SELECT a `user_id = auth.uid() OR has_role(admin)`
+2. Migration para storage policies com ownership check
+3. Migration para adicionar `SET search_path = public` nas funções RPC críticas
+4. Revisar policies permissivas em tabelas de cadastro (restringir DELETE a admin)
+
+### Fase B — Estabilidade (curto prazo)
+5. Corrigir mock do Supabase para `.limit()` no setup de testes
+6. Migrar `useImportacaoEnriquecimento` para RPC transacional
+7. Remover `@ts-nocheck` dos 4 hooks de importação (já refatorados recentemente)
+
+### Fase C — Qualidade (médio prazo)
+8. Decompor `Clientes.tsx`, `Produtos.tsx`, `OrcamentoForm.tsx`
+9. Extrair queries diretas do `OrcamentoForm` para um service
+10. Remover `@ts-nocheck` das páginas restantes progressivamente
+
+---
+
+## Métricas Atuais
+
+| Indicador | Valor |
+|-----------|-------|
+| Total de arquivos `.ts`/`.tsx` | ~90K linhas |
+| TypeScript `--noEmit` | 0 erros |
+| Testes | 623/624 passando (99.8%) |
+| `@ts-nocheck` | 36 arquivos |
+| `as any` | 59 arquivos |
+| Security findings (críticos) | 2 |
+| Security warnings (RLS) | ~100+ |
+| Edge Functions | 5 (sem testes) |
+| Migrations | 35 |
 
