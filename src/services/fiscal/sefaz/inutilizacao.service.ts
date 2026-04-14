@@ -1,9 +1,9 @@
 /**
  * Serviço de inutilização de numeração de NF-e na SEFAZ.
+ * A assinatura digital é realizada server-side na Edge Function sefaz-proxy.
  */
 
 import { construirXMLInutilizacao } from "./xmlBuilder.service";
-import { assinarXML } from "./assinaturaDigital.service";
 import type { CertificadoDigital } from "./assinaturaDigital.service";
 import { enviarParaSefaz } from "./httpClient.service";
 
@@ -32,6 +32,10 @@ export async function inutilizarNumeracao(
   certificado: CertificadoDigital,
   urlSefaz: string,
 ): Promise<InutilizacaoResult> {
+  if (!certificado.conteudo || !certificado.senha) {
+    return { sucesso: false, motivo: "Conteúdo e senha do certificado são obrigatórios." };
+  }
+
   const xml = construirXMLInutilizacao(
     params.cnpj,
     params.ano,
@@ -42,15 +46,11 @@ export async function inutilizarNumeracao(
     params.uf,
   );
 
-  const { xmlAssinado, sucesso: assinado, erro: erroAssinatura } = assinarXML(xml, certificado);
-  if (!assinado) {
-    return { sucesso: false, motivo: erroAssinatura };
-  }
-
   const resposta = await enviarParaSefaz(
-    xmlAssinado,
+    xml,
     urlSefaz,
     "http://www.portalfiscal.inf.br/nfe/wsdl/NFeInutilizacao4/nfeInutilizacaoNF",
+    { certificado_base64: certificado.conteudo, certificado_senha: certificado.senha },
   );
 
   if (!resposta.sucesso) {

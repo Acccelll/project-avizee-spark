@@ -1,5 +1,7 @@
 /**
  * Serviço de consulta de NF-e na SEFAZ.
+ * Consulta não requer assinatura digital, mas usa a Edge Function
+ * sefaz-proxy para evitar problemas de CORS com a SEFAZ.
  */
 
 import type { CertificadoDigital } from "./assinaturaDigital.service";
@@ -18,9 +20,13 @@ export interface ConsultaResult {
  */
 export async function consultarNFe(
   chave: string,
-  _certificado: CertificadoDigital,
+  certificado: CertificadoDigital,
   urlSefaz: string,
 ): Promise<ConsultaResult> {
+  if (!certificado.conteudo || !certificado.senha) {
+    return { sucesso: false, motivo: "Conteúdo e senha do certificado são obrigatórios." };
+  }
+
   const xml = `<consSitNFe versao="4.00" xmlns="http://www.portalfiscal.inf.br/nfe">
     <tpAmb>2</tpAmb>
     <xServ>CONSULTAR</xServ>
@@ -31,6 +37,7 @@ export async function consultarNFe(
     xml,
     urlSefaz,
     "http://www.portalfiscal.inf.br/nfe/wsdl/NFeConsultaProtocolo4/nfeConsultaNF",
+    { certificado_base64: certificado.conteudo, certificado_senha: certificado.senha },
   );
 
   if (!resposta.sucesso) {
