@@ -1008,10 +1008,27 @@ export default function OrcamentoForm() {
             <DialogTitle>Reenviar orçamento por e-mail</DialogTitle>
             <DialogDescription>Edite a mensagem antes de enviar.</DialogDescription>
           </DialogHeader>
+          {clienteSnapshot.email ? (
+            <p className="text-sm text-muted-foreground">Enviando para: <span className="font-medium text-foreground">{clienteSnapshot.email}</span></p>
+          ) : (
+            <p className="text-sm text-destructive">Cliente não possui e-mail cadastrado.</p>
+          )}
           <Textarea value={emailTemplate} onChange={(e) => setEmailTemplate(e.target.value)} className="min-h-32" />
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setMailModalOpen(false)}>Cancelar</Button>
-            <Button onClick={() => { toast.success('E-mail reenviado com sucesso'); setMailModalOpen(false); }}>Enviar</Button>
+            <Button
+              disabled={!clienteSnapshot.email}
+              onClick={async () => {
+                if (!clienteSnapshot.email || !id) return;
+                try {
+                  const { enviarOrcamentoPorEmail } = await import('@/services/orcamentos.service');
+                  await enviarOrcamentoPorEmail(id, clienteSnapshot.email, emailTemplate);
+                  setMailModalOpen(false);
+                } catch {
+                  toast.error('Erro ao enviar e-mail. Verifique as configurações.');
+                }
+              }}
+            >Enviar</Button>
           </div>
         </DialogContent>
       </Dialog>

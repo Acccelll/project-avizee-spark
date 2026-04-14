@@ -146,3 +146,38 @@ export async function conciliarTransacao(
 
   if (error) throw new Error(error.message);
 }
+
+/**
+ * Persiste um lote de conciliação bancária (header + pares) no banco de dados.
+ */
+export async function confirmarConciliacao(payload: {
+  conta_bancaria_id: string;
+  data_conciliacao: string;
+  pares: Array<{
+    extrato_id: string;
+    lancamento_id: string;
+    valor_extrato: number | null;
+    valor_lancamento: number | null;
+  }>;
+  usuario_id?: string;
+}): Promise<string> {
+  const { data: conc, error } = await supabase
+    .from('conciliacao_bancaria' as any)
+    .insert({
+      conta_bancaria_id: payload.conta_bancaria_id,
+      data_conciliacao: payload.data_conciliacao,
+      total_pares: payload.pares.length,
+      usuario_id: payload.usuario_id ?? null,
+    })
+    .select('id')
+    .single();
+  if (error) throw new Error(error.message);
+
+  if (payload.pares.length > 0) {
+    const { error: paresError } = await supabase
+      .from('conciliacao_pares' as any)
+      .insert(payload.pares.map(p => ({ ...p, conciliacao_id: (conc as any).id })));
+    if (paresError) throw new Error(paresError.message);
+  }
+  return (conc as any).id;
+}

@@ -601,6 +601,110 @@ export type Database = {
           },
         ]
       }
+      conciliacao_bancaria: {
+        Row: {
+          conta_bancaria_id: string
+          created_at: string
+          data_conciliacao: string
+          id: string
+          observacoes: string | null
+          total_pares: number
+          usuario_id: string | null
+        }
+        Insert: {
+          conta_bancaria_id: string
+          created_at?: string
+          data_conciliacao?: string
+          id?: string
+          observacoes?: string | null
+          total_pares?: number
+          usuario_id?: string | null
+        }
+        Update: {
+          conta_bancaria_id?: string
+          created_at?: string
+          data_conciliacao?: string
+          id?: string
+          observacoes?: string | null
+          total_pares?: number
+          usuario_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conciliacao_bancaria_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "contas_bancarias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conciliacao_bancaria_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_bancos_saldo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conciliacao_pares: {
+        Row: {
+          conciliacao_id: string
+          criado_em: string
+          extrato_id: string
+          id: string
+          lancamento_id: string | null
+          valor_extrato: number | null
+          valor_lancamento: number | null
+        }
+        Insert: {
+          conciliacao_id: string
+          criado_em?: string
+          extrato_id: string
+          id?: string
+          lancamento_id?: string | null
+          valor_extrato?: number | null
+          valor_lancamento?: number | null
+        }
+        Update: {
+          conciliacao_id?: string
+          criado_em?: string
+          extrato_id?: string
+          id?: string
+          lancamento_id?: string | null
+          valor_extrato?: number | null
+          valor_lancamento?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conciliacao_pares_conciliacao_id_fkey"
+            columns: ["conciliacao_id"]
+            isOneToOne: false
+            referencedRelation: "conciliacao_bancaria"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conciliacao_pares_lancamento_id_fkey"
+            columns: ["lancamento_id"]
+            isOneToOne: false
+            referencedRelation: "financeiro_lancamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conciliacao_pares_lancamento_id_fkey"
+            columns: ["lancamento_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_aging_cp"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conciliacao_pares_lancamento_id_fkey"
+            columns: ["lancamento_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_aging_cr"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contas_bancarias: {
         Row: {
           agencia: string | null
@@ -3234,6 +3338,142 @@ export type Database = {
           },
         ]
       }
+      social_contas: {
+        Row: {
+          access_token: string | null
+          ativo: boolean
+          data_cadastro: string
+          id: string
+          identificador: string | null
+          nome: string
+          plataforma: string
+          token_expira_em: string | null
+          updated_at: string
+        }
+        Insert: {
+          access_token?: string | null
+          ativo?: boolean
+          data_cadastro?: string
+          id?: string
+          identificador?: string | null
+          nome: string
+          plataforma: string
+          token_expira_em?: string | null
+          updated_at?: string
+        }
+        Update: {
+          access_token?: string | null
+          ativo?: boolean
+          data_cadastro?: string
+          id?: string
+          identificador?: string | null
+          nome?: string
+          plataforma?: string
+          token_expira_em?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      social_metricas_snapshot: {
+        Row: {
+          alcance: number | null
+          conta_id: string
+          created_at: string
+          data_referencia: string
+          engajamento: number | null
+          id: string
+          impressoes: number | null
+          publicacoes: number | null
+          seguidores: number | null
+          seguindo: number | null
+        }
+        Insert: {
+          alcance?: number | null
+          conta_id: string
+          created_at?: string
+          data_referencia: string
+          engajamento?: number | null
+          id?: string
+          impressoes?: number | null
+          publicacoes?: number | null
+          seguidores?: number | null
+          seguindo?: number | null
+        }
+        Update: {
+          alcance?: number | null
+          conta_id?: string
+          created_at?: string
+          data_referencia?: string
+          engajamento?: number | null
+          id?: string
+          impressoes?: number | null
+          publicacoes?: number | null
+          seguidores?: number | null
+          seguindo?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_metricas_snapshot_conta_id_fkey"
+            columns: ["conta_id"]
+            isOneToOne: false
+            referencedRelation: "social_contas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      social_posts: {
+        Row: {
+          alcance: number | null
+          comentarios: number | null
+          compartilhamentos: number | null
+          conta_id: string
+          conteudo: string | null
+          created_at: string
+          curtidas: number | null
+          data_publicacao: string | null
+          id: string
+          impressoes: number | null
+          post_id_externo: string | null
+          tipo: string | null
+        }
+        Insert: {
+          alcance?: number | null
+          comentarios?: number | null
+          compartilhamentos?: number | null
+          conta_id: string
+          conteudo?: string | null
+          created_at?: string
+          curtidas?: number | null
+          data_publicacao?: string | null
+          id?: string
+          impressoes?: number | null
+          post_id_externo?: string | null
+          tipo?: string | null
+        }
+        Update: {
+          alcance?: number | null
+          comentarios?: number | null
+          compartilhamentos?: number | null
+          conta_id?: string
+          conteudo?: string | null
+          created_at?: string
+          curtidas?: number | null
+          data_publicacao?: string | null
+          id?: string
+          impressoes?: number | null
+          post_id_externo?: string | null
+          tipo?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_posts_conta_id_fkey"
+            columns: ["conta_id"]
+            isOneToOne: false
+            referencedRelation: "social_contas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stg_cadastros: {
         Row: {
           created_at: string | null
@@ -3525,6 +3765,30 @@ export type Database = {
           created_at?: string
           id?: string
           resource?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_preferences: {
+        Row: {
+          columns_config: Json | null
+          id: string
+          module_key: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          columns_config?: Json | null
+          id?: string
+          module_key: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          columns_config?: Json | null
+          id?: string
+          module_key?: string
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
@@ -3909,6 +4173,10 @@ export type Database = {
         }
         Returns: number
       }
+      proximo_numero_cotacao_compra: { Args: never; Returns: string }
+      proximo_numero_orcamento: { Args: never; Returns: string }
+      proximo_numero_ordem_venda: { Args: never; Returns: string }
+      proximo_numero_pedido_compra: { Args: never; Returns: string }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }
         Returns: {
@@ -3921,6 +4189,43 @@ export type Database = {
         Args: { p_id: string; p_itens: Json; p_payload: Json }
         Returns: string
       }
+      social_alertas_periodo: {
+        Args: { _data_fim: string; _data_inicio: string }
+        Returns: {
+          created_at: string
+          id: string
+          mensagem: string
+          tipo: string
+        }[]
+      }
+      social_dashboard_consolidado: {
+        Args: { _data_fim: string; _data_inicio: string }
+        Returns: Json
+      }
+      social_posts_filtrados: {
+        Args: { _conta_id?: string; _data_fim: string; _data_inicio: string }
+        Returns: {
+          alcance: number | null
+          comentarios: number | null
+          compartilhamentos: number | null
+          conta_id: string
+          conteudo: string | null
+          created_at: string
+          curtidas: number | null
+          data_publicacao: string | null
+          id: string
+          impressoes: number | null
+          post_id_externo: string | null
+          tipo: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "social_posts"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      social_sincronizar_manual: { Args: { _conta_id?: string }; Returns: Json }
     }
     Enums: {
       app_role:

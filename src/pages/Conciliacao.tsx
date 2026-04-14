@@ -24,6 +24,7 @@ import {
 import {
   calcularScoreConciliacao,
   conciliarTransacao,
+  confirmarConciliacao,
   type TituloParaConciliacao,
 } from "@/services/financeiro/conciliacao.service";
 import type { TransacaoExtrato } from "@/services/financeiro/ofxParser.service";
@@ -325,6 +326,18 @@ export default function Conciliacao() {
           return conciliarTransacao(selectedConta, transacao, par.lancamento_id);
         }),
       );
+
+      // Persist batch record
+      try {
+        await confirmarConciliacao({
+          conta_bancaria_id: selectedConta,
+          data_conciliacao: new Date().toISOString(),
+          pares: payload.pares,
+          usuario_id: undefined,
+        });
+      } catch {
+        // Silently fail if tables don't exist yet
+      }
 
       const pareados = matches.length;
       const semPar = extratoItems.length - pareados;

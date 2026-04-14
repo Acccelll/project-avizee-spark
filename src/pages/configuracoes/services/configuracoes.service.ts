@@ -47,55 +47,39 @@ export async function updateConfig(
 export async function testarConexaoSMTP(
   config: ConfigEmail
 ): Promise<{ sucesso: boolean; mensagem: string }> {
-  await new Promise((resolve) => setTimeout(resolve, 500));
-
-  if (!config.smtp_host || config.smtp_host.trim() === '') {
-    return { sucesso: false, mensagem: 'Servidor SMTP não configurado.' };
-  }
-
-  if (
-    !config.smtp_porta ||
-    !Number.isInteger(config.smtp_porta) ||
-    config.smtp_porta < 1 ||
-    config.smtp_porta > 65535
-  ) {
-    return { sucesso: false, mensagem: 'Porta SMTP inválida.' };
-  }
-
-  if (!config.smtp_usuario || config.smtp_usuario.trim() === '') {
-    return { sucesso: false, mensagem: 'Usuário SMTP não configurado.' };
-  }
-
-  return { sucesso: true, mensagem: 'Conexão SMTP realizada com sucesso.' };
+  const { data, error } = await supabase.functions.invoke('test-smtp', {
+    body: {
+      host: config.smtp_host,
+      porta: config.smtp_porta,
+      usuario: config.smtp_usuario,
+      senha: config.smtp_senha,
+      ssl: config.smtp_ssl,
+    },
+  });
+  if (error) return { sucesso: false, mensagem: error.message };
+  return data as { sucesso: boolean; mensagem: string };
 }
 
 export async function testarGatewayPagamento(
   config: ConfigIntegracao
 ): Promise<{ sucesso: boolean; mensagem: string }> {
-  await new Promise((resolve) => setTimeout(resolve, 500));
-
   if (!config.gateway_api_key || config.gateway_api_key.trim() === '') {
     return { sucesso: false, mensagem: 'API Key do gateway não configurada.' };
   }
-
   if (!config.gateway_secret_key || config.gateway_secret_key.trim() === '') {
     return { sucesso: false, mensagem: 'Secret Key do gateway não configurada.' };
   }
-
-  return { sucesso: true, mensagem: 'Conexão com gateway de pagamento realizada com sucesso.' };
+  return { sucesso: true, mensagem: 'Campos preenchidos corretamente. Teste real indisponível.' };
 }
 
 export async function testarApiSefaz(
   config: ConfigIntegracao
 ): Promise<{ sucesso: boolean; mensagem: string }> {
-  await new Promise((resolve) => setTimeout(resolve, 500));
-
   if (!config.sefaz_ambiente) {
     return { sucesso: false, mensagem: 'Ambiente SEFAZ não configurado.' };
   }
-
   const ambiente = config.sefaz_ambiente === 'homologacao' ? 'homologação' : 'produção';
-  return { sucesso: true, mensagem: `Conexão com SEFAZ (${ambiente}) realizada com sucesso.` };
+  return { sucesso: true, mensagem: `Campos preenchidos para ${ambiente}. Teste real via Edge Function.` };
 }
 
 export async function testarUrl(
