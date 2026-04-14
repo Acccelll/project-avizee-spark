@@ -3917,6 +3917,10 @@ export type Database = {
           read_ct: number
         }[]
       }
+      salvar_orcamento: {
+        Args: { p_id: string; p_itens: Json; p_payload: Json }
+        Returns: string
+      }
     }
     Enums: {
       app_role:
