@@ -174,7 +174,7 @@ export const navSections: NavSection[] = [
     title: 'Social',
     icon: Share2,
     directPath: '/social',
-    items: [] as NavGroup[],
+    items: [] as NavSubgroup[],
   }] : []),
 
   {
