@@ -1,10 +1,8 @@
-/* eslint-disable react-refresh/only-export-components -- file exports context/variants alongside components */
 import { createContext, useContext, useEffect, useState, useRef, ReactNode, useMemo } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { buildPermissionSet, type ErpAction, type ErpResource, type PermissionKey, toPermissionKey } from "@/lib/permissions";
-import { logger } from '@/utils/logger';
 
 /** Roles recognised by the application. Aligns with the `app_role` enum in the database. */
 export type AppRole = "admin" | "vendedor" | "financeiro" | "estoquista";
@@ -61,7 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Safety net: if auth initialization takes > 5s, force loading = false to unblock the UI.
     const safetyTimeout = setTimeout(() => {
       if (loading) {
-        logger.warn("[auth] Auth initialization timed out. Forcing loading false.");
+        console.warn("[auth] Auth initialization timed out. Forcing loading false.");
         setLoading(false);
       }
     }, 5000);
