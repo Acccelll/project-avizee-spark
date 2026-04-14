@@ -175,8 +175,8 @@ export default function OrcamentoForm() {
       const lastPurchase = [...fornecedores]
         .filter((row) => row.preco_compra && Number(row.preco_compra) > 0)
         .sort((a, b) => {
-          const dateA = (row as any).ultima_compra ? new Date((row as any).ultima_compra).getTime() : 0;
-          const dateB = (row as any).ultima_compra ? new Date((row as any).ultima_compra).getTime() : 0;
+          const dateA = (a as any).ultima_compra ? new Date((a as any).ultima_compra).getTime() : 0;
+          const dateB = (b as any).ultima_compra ? new Date((b as any).ultima_compra).getTime() : 0;
           return dateB - dateA;
         })[0];
 
