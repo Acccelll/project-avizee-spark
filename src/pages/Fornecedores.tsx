@@ -89,13 +89,19 @@ const Fornecedores = () => {
     selected?.id,
   );
   const [isDirty, setIsDirty] = useState(false);
+  const [submitAttempted, setSubmitAttempted] = useState(false);
   const [saving, setSaving] = useState(false);
   const [tipoFilters, setTipoFilters] = useState<string[]>([]);
   const [ativoFilters, setAtivoFilters] = useState<string[]>([]);
   const [modalProdutosForn, setModalProdutosForn] = useState<Array<{
-    id: string; produto_nome: string; preco_compra: number | null;
+    id: string; produto_id: string | null; produto_nome: string; preco_compra: number | null;
     lead_time_dias: number | null; eh_principal: boolean | null;
   }>>([]);
+  const [produtosOptions, setProdutosOptions] = useState<Array<{ id: string; nome: string }>>([]);
+  const [novoProdutoId, setNovoProdutoId] = useState("");
+  const [novoProdutoPreco, setNovoProdutoPreco] = useState<number>(0);
+  const [novoProdutoLeadTime, setNovoProdutoLeadTime] = useState<number>(0);
+  const [addingProdutoFornecedor, setAddingProdutoFornecedor] = useState(false);
   const [modalComprasForn, setModalComprasForn] = useState<{ count: number; ultima: string | null; total: number }>({ count: 0, ultima: null, total: 0 });
   const [loadingFornContext, setLoadingFornContext] = useState(false);
 
@@ -105,7 +111,7 @@ const Fornecedores = () => {
       const [{ data: pf, error: pfErr }, { data: compras, error: comprasErr }] = await Promise.all([
         supabase
           .from("produtos_fornecedores")
-          .select("id, lead_time_dias, preco_compra, eh_principal, produtos(nome)")
+          .select("id, produto_id, lead_time_dias, preco_compra, eh_principal, produtos(nome)")
           .eq("fornecedor_id", fornecedorId)
           .order("eh_principal", { ascending: false })
           .limit(5),
@@ -119,8 +125,9 @@ const Fornecedores = () => {
       ]);
       if (pfErr) throw pfErr;
       if (comprasErr) throw comprasErr;
-      setModalProdutosForn(((pf || []) as Array<{id: string; lead_time_dias: number | null; preco_compra: number | null; eh_principal: boolean | null; produtos: {nome: string} | null}>).map((p) => ({
+      setModalProdutosForn(((pf || []) as Array<{id: string; produto_id: string | null; lead_time_dias: number | null; preco_compra: number | null; eh_principal: boolean | null; produtos: {nome: string} | null}>).map((p) => ({
         id: p.id,
+        produto_id: p.produto_id,
         produto_nome: p.produtos?.nome || "—",
         preco_compra: p.preco_compra,
         lead_time_dias: p.lead_time_dias,
@@ -139,6 +146,11 @@ const Fornecedores = () => {
     }
   };
 
+  useEffect(() => {
+    supabase.from("produtos").select("id, nome").eq("ativo", true).order("nome")
+      .then(({ data }) => setProdutosOptions((data || []) as Array<{ id: string; nome: string }>));
+  }, []);
+
   const updateForm = (patch: Partial<typeof form>) => {
     setForm(prev => ({ ...prev, ...patch }));
     setIsDirty(true);
@@ -146,6 +158,7 @@ const Fornecedores = () => {
 
   const openCreate = () => {
     setMode("create"); setForm({ ...emptyForm }); setSelected(null); setIsDirty(false);
+    setSubmitAttempted(false);
     setModalProdutosForn([]); setModalComprasForn({ count: 0, ultima: null, total: 0 });
     setModalOpen(true);
   };
@@ -160,6 +173,7 @@ const Fornecedores = () => {
       uf: f.uf || "", cep: f.cep || "", pais: f.pais || "Brasil", observacoes: f.observacoes || ""
     });
     setIsDirty(false);
+    setSubmitAttempted(false);
     setModalProdutosForn([]); setModalComprasForn({ count: 0, ultima: null, total: 0 });
     loadFornContext(f.id);
     setModalOpen(true);
@@ -169,13 +183,51 @@ const Fornecedores = () => {
     pushView("fornecedor", f.id);
   };
 
+  const handleAddProdutoFornecedor = async () => {
+    if (!selected || !novoProdutoId) {
+      toast.error("Selecione um produto.");
+      return;
+    }
+    const exists = modalProdutosForn.some((p) => p.produto_id === novoProdutoId);
+    if (exists) {
+      toast.error("Produto já relacionado a este fornecedor.");
+      return;
+    }
+    setAddingProdutoFornecedor(true);
+    try {
+      const { error } = await supabase.from("produtos_fornecedores").insert({
+        fornecedor_id: selected.id,
+        produto_id: novoProdutoId,
+        preco_compra: novoProdutoPreco || null,
+        lead_time_dias: novoProdutoLeadTime || null,
+        eh_principal: modalProdutosForn.length === 0,
+      });
+      if (error) throw error;
+      await loadFornContext(selected.id);
+      setNovoProdutoId("");
+      setNovoProdutoPreco(0);
+      setNovoProdutoLeadTime(0);
+      toast.success("Produto relacionado com sucesso.");
+    } catch (err) {
+      console.error("[fornecedores] erro ao incluir produto manualmente:", err);
+      toast.error("Erro ao incluir produto manualmente.");
+    } finally {
+      setAddingProdutoFornecedor(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitAttempted(true);
     const validation = validateForm(clienteFornecedorSchema, form);
     if (!validation.success) {
       setFormErrors(validation.errors);
       const firstError = Object.values(validation.errors)[0];
       toast.error(firstError || "Corrija os erros do formulário");
+      return;
+    }
+    if (mode === "create" && docUnico === false) {
+      toast.error("Já existe cadastro com este CPF/CNPJ.");
       return;
     }
     setFormErrors({});
@@ -473,7 +525,7 @@ const Fornecedores = () => {
                   <Loader2 className="h-3 w-3 animate-spin" />Verificando unicidade...
                 </p>
               )}
-              {!formErrors.cpf_cnpj && !docChecking && docUnico === false && (
+              {!formErrors.cpf_cnpj && !docChecking && mode === "create" && submitAttempted && docUnico === false && (
                 <p className="text-xs text-destructive">CPF/CNPJ já cadastrado em cliente ou fornecedor.</p>
               )}
               {form.tipo_pessoa === "J" && !formErrors.cpf_cnpj && (
@@ -645,6 +697,26 @@ const Fornecedores = () => {
           <p className="text-xs text-muted-foreground mb-3">
             Condições comerciais padrão deste fornecedor. Aplicadas automaticamente em cotações e pedidos de compra. Podem ser sobrescritas por operação.
           </p>
+          {mode === "edit" && (
+            <div className="rounded-md border bg-muted/20 p-3 mb-4">
+              <p className="text-xs font-medium mb-2">Relacionar produto manualmente</p>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+                <Select value={novoProdutoId} onValueChange={setNovoProdutoId}>
+                  <SelectTrigger className="h-9 md:col-span-2"><SelectValue placeholder="Selecione o produto" /></SelectTrigger>
+                  <SelectContent>
+                    {produtosOptions.map((p) => <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Input type="number" className="h-9" placeholder="Preço compra" min={0} step="0.01" value={novoProdutoPreco} onChange={(e) => setNovoProdutoPreco(Number(e.target.value))} />
+                <Input type="number" className="h-9" placeholder="Lead time (dias)" min={0} value={novoProdutoLeadTime} onChange={(e) => setNovoProdutoLeadTime(Number(e.target.value))} />
+              </div>
+              <div className="mt-2 flex justify-end">
+                <Button type="button" size="sm" onClick={handleAddProdutoFornecedor} disabled={addingProdutoFornecedor || !novoProdutoId}>
+                  {addingProdutoFornecedor ? "Incluindo..." : "Incluir produto"}
+                </Button>
+              </div>
+            </div>
+          )}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <div className="col-span-2 md:col-span-2 space-y-1.5">
               <div className="flex items-center gap-1">

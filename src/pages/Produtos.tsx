@@ -105,6 +105,7 @@ const Produtos = () => {
   const [form, setForm] = useState<ProdutoFormData>(emptyProduto);
   const [saving, setSaving] = useState(false);
   const [editComposicao, setEditComposicao] = useState<ComposicaoItem[]>([]);
+  const [componentSearch, setComponentSearch] = useState<Record<number, string>>({});
   const [editFornecedores, setEditFornecedores] = useState<FornecedorLink[]>([]);
   const [fornecedoresList, setFornecedoresList] = useState<{id: string; nome_razao_social: string}[]>([]);
   const [editingProduct, setEditingProduct] = useState<Produto | null>(null);
@@ -206,7 +207,18 @@ const Produtos = () => {
   const addComponent = () => {
     setEditComposicao([...editComposicao, { produto_filho_id: "", quantidade: 1, ordem: editComposicao.length + 1 }]);
   };
-  const removeComponent = (idx: number) => setEditComposicao(editComposicao.filter((_, i) => i !== idx));
+  const removeComponent = (idx: number) => {
+    setEditComposicao(editComposicao.filter((_, i) => i !== idx));
+    setComponentSearch((prev) => {
+      const next: Record<number, string> = {};
+      Object.entries(prev).forEach(([k, v]) => {
+        const key = Number(k);
+        if (key < idx) next[key] = v;
+        if (key > idx) next[key - 1] = v;
+      });
+      return next;
+    });
+  };
   const updateComponent = (idx: number, field: keyof ComposicaoItem, value: ComposicaoItem[keyof ComposicaoItem]) => {
     setEditComposicao(editComposicao.map((c, i) => i === idx ? { ...c, [field]: value } : c));
   };
@@ -1019,9 +1031,24 @@ const Produtos = () => {
               return (
                 <div key={idx} className="grid grid-cols-[1fr_100px_80px_40px] gap-2 items-end">
                   <div className="space-y-1"><Label className="text-xs">Produto</Label>
+                    <Input
+                      className="h-8 text-xs"
+                      placeholder="Pesquisar componente..."
+                      value={componentSearch[idx] || ""}
+                      onChange={(e) => setComponentSearch((prev) => ({ ...prev, [idx]: e.target.value }))}
+                    />
                     <Select value={comp.produto_filho_id} onValueChange={(v) => updateComponent(idx, "produto_filho_id", v)}>
                       <SelectTrigger className="h-9"><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                      <SelectContent>{produtosDisponiveis.map((p) => <SelectItem key={p.id} value={p.id}>{p.sku ? `[${p.sku}] ` : ""}{p.nome}</SelectItem>)}</SelectContent>
+                      <SelectContent>
+                        {produtosDisponiveis
+                          .filter((p) => p.id !== form.id)
+                          .filter((p) => {
+                            const q = (componentSearch[idx] || "").trim().toLowerCase();
+                            if (!q) return true;
+                            return [p.nome, p.codigo_interno, p.sku].filter(Boolean).join(" ").toLowerCase().includes(q);
+                          })
+                          .map((p) => <SelectItem key={p.id} value={p.id}>{p.sku ? `[${p.sku}] ` : ""}{p.nome}</SelectItem>)}
+                      </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-1"><Label className="text-xs">Qtd</Label><Input type="number" min={0.01} step="0.01" value={comp.quantidade} onChange={(e) => updateComponent(idx, "quantidade", Number(e.target.value))} className="h-9" /></div>

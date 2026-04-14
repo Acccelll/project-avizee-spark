@@ -197,6 +197,7 @@ const Clientes = () => {
     selected?.id,
   );
   const [saving, setSaving] = useState(false);
+  const [submitAttempted, setSubmitAttempted] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
   const [grupos, setGrupos] = useState<GrupoEconomico[]>([]);
   const [formasPagamento, setFormasPagamento] = useState<FormaPagamentoBasic[]>([]);
@@ -328,7 +329,7 @@ const Clientes = () => {
     if (!enderecoForm.identificacao.trim()) { toast.error("Identificação do endereço é obrigatória"); return; }
     setSavingEndereco(true);
     try {
-      const payload = { ...enderecoForm, cliente_id: clienteId };
+      const payload = { ...enderecoForm, identificacao: enderecoForm.identificacao.trim(), cliente_id: clienteId, ativo: true };
       if (enderecoEditId) {
         // When editing, if marking as principal, unset others first
         if (enderecoForm.principal) {
@@ -387,16 +388,18 @@ const Clientes = () => {
     if (!comunicacaoForm.assunto.trim()) { toast.error("Assunto é obrigatório"); return; }
     setSavingComunicacao(true);
     try {
+      const detalhesExtras = [
+        comunicacaoForm.status ? `Status: ${comunicacaoForm.status}` : null,
+        comunicacaoForm.responsavel_nome ? `Responsável: ${comunicacaoForm.responsavel_nome}` : null,
+        comunicacaoForm.retorno_previsto ? `Retorno previsto: ${comunicacaoForm.retorno_previsto}` : null,
+      ].filter(Boolean).join(" | ");
+      const conteudoFinal = [comunicacaoForm.conteudo, detalhesExtras].filter(Boolean).join("\n\n");
       const { error } = await (supabase as any).from("cliente_registros_comunicacao").insert({
         cliente_id: clienteId,
         tipo: comunicacaoForm.tipo,
         assunto: comunicacaoForm.assunto,
-        conteudo: comunicacaoForm.conteudo || null,
-        responsavel_nome: comunicacaoForm.responsavel_nome || null,
-        retorno_previsto: comunicacaoForm.retorno_previsto || null,
-        status: comunicacaoForm.status,
+        conteudo: conteudoFinal || null,
         data_registro: new Date().toISOString().split("T")[0],
-        data_hora: new Date().toISOString(),
       });
       if (error) throw error;
       setComunicacaoDialogOpen(false);
@@ -433,7 +436,7 @@ const Clientes = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.state]);
 
-  const openCreate = () => {setMode("create");setForm({ ...emptyCliente });setSelected(null);setIsDirty(false);setModalTransportadoras([]);setEnderecos([]);setComunicacoes([]);setModalOpen(true);};
+  const openCreate = () => {setMode("create");setForm({ ...emptyCliente });setSelected(null);setIsDirty(false);setSubmitAttempted(false);setModalTransportadoras([]);setEnderecos([]);setComunicacoes([]);setModalOpen(true);};
   const openEdit = (c: Cliente) => {
     setMode("edit");setSelected(c);
     setForm({
@@ -450,6 +453,7 @@ const Clientes = () => {
       caixa_postal: c.caixa_postal || ""
     });
     setIsDirty(false);
+    setSubmitAttempted(false);
     setModalTransportadoras([]);
     setEnderecos([]);
     setComunicacoes([]);
@@ -467,11 +471,16 @@ const Clientes = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitAttempted(true);
     const validation = validateForm(clienteFornecedorSchema, form);
     if (!validation.success) {
       setFormErrors(validation.errors);
       const firstError = Object.values(validation.errors)[0];
       toast.error(firstError || "Corrija os erros do formulário");
+      return;
+    }
+    if (mode === "create" && docUnico === false) {
+      toast.error("Já existe cadastro com este CPF/CNPJ.");
       return;
     }
     setFormErrors({});
@@ -815,7 +824,7 @@ const Clientes = () => {
                   <Loader2 className="h-3 w-3 animate-spin" />Verificando unicidade...
                 </p>
               )}
-              {!formErrors.cpf_cnpj && !docChecking && docUnico === false && (
+              {!formErrors.cpf_cnpj && !docChecking && mode === "create" && submitAttempted && docUnico === false && (
                 <p className="text-xs text-destructive">CPF/CNPJ já cadastrado em cliente ou fornecedor.</p>
               )}
             </div>

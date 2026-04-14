@@ -22,6 +22,17 @@ export async function processarBaixaLote(params: BaixaLoteParams): Promise<boole
   const { selectedIds, selectedLancamentos, tipoBaixa, valorPagoBaixa, totalBaixa, baixaDate, formaPagamento, contaBancariaId } = params;
 
   try {
+    const { data: statusRows, error: statusError } = await supabase
+      .from("financeiro_lancamentos")
+      .select("id, status")
+      .in("id", selectedIds);
+    if (statusError) throw statusError;
+    const invalido = (statusRows || []).find((row: any) => row.status === "pago" || row.status === "cancelado");
+    if (invalido) {
+      toast.error("Há título já baixado ou cancelado na seleção. Revise para continuar.");
+      return false;
+    }
+
     if (tipoBaixa === "total") {
       const items = selectedIds.map((id) => {
         const l = selectedLancamentos.find(x => x.id === id);
@@ -87,12 +98,17 @@ export async function processarBaixaLote(params: BaixaLoteParams): Promise<boole
   }
 }
 
-export async function processarEstorno(lancamentoId: string): Promise<boolean> {
+export async function processarEstorno(lancamentoId: string, motivo: string): Promise<boolean> {
   try {
+    if (!motivo?.trim()) {
+      toast.error("Informe o motivo para cancelar a baixa.");
+      return false;
+    }
     await supabase.from("financeiro_lancamentos").update({
       status: "aberto", data_pagamento: null,
       valor_pago: null, tipo_baixa: null,
       saldo_restante: null,
+      observacoes: `Baixa cancelada: ${motivo.trim()}`,
     } as any).eq("id", lancamentoId);
     await supabase.from("financeiro_baixas").delete().eq("lancamento_id", lancamentoId);
     await supabase.from("financeiro_lancamentos").update({ ativo: false } as any).eq("documento_pai_id", lancamentoId);

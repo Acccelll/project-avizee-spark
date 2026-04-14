@@ -151,6 +151,12 @@ const DashboardContent = () => {
     setLoading(true);
     const { dateFrom, dateTo } = globalRange;
     const today = new Date().toISOString().slice(0, 10);
+    const applyDateRange = <T,>(query: T, field: string): T => {
+      let next = query as any;
+      if (dateFrom) next = next.gte(field, dateFrom);
+      if (dateTo) next = next.lte(field, dateTo);
+      return next as T;
+    };
 
     const buildFinTotalQuery = (tipo: string) => {
       let q = supabase
@@ -159,6 +165,7 @@ const DashboardContent = () => {
         .eq("tipo", tipo)
         .eq("ativo", true)
         .in("status", ["aberto", "vencido", "parcial"]);
+      if (dateFrom) q = q.gte("data_vencimento", dateFrom);
       if (dateTo) q = q.lte("data_vencimento", dateTo);
       return q;
     };
@@ -186,16 +193,24 @@ const DashboardContent = () => {
       supabase.from("produtos").select("*", { count: "exact", head: true }).eq("ativo", true),
       supabase.from("clientes").select("*", { count: "exact", head: true }).eq("ativo", true),
       supabase.from("fornecedores").select("*", { count: "exact", head: true }).eq("ativo", true),
-      supabase.from("orcamentos").select("*", { count: "exact", head: true }).eq("ativo", true).gte("data_orcamento", dateFrom),
-      supabase.from("pedidos_compra").select("*", { count: "exact", head: true }).eq("ativo", true).gte("data_pedido", dateFrom),
+      applyDateRange(
+        supabase.from("orcamentos").select("*", { count: "exact", head: true }).eq("ativo", true),
+        "data_orcamento",
+      ),
+      applyDateRange(
+        supabase.from("pedidos_compra").select("*", { count: "exact", head: true }).eq("ativo", true),
+        "data_pedido",
+      ),
       buildFinTotalQuery("receber"),
       buildFinTotalQuery("pagar"),
       supabase.from("financeiro_lancamentos").select("valor").eq("status", "vencido").eq("ativo", true),
-      supabase
-        .from("orcamentos")
-        .select("id, numero, valor_total, status, data_orcamento, clientes(nome_razao_social)")
-        .eq("ativo", true)
-        .gte("data_orcamento", dateFrom)
+      applyDateRange(
+        supabase
+          .from("orcamentos")
+          .select("id, numero, valor_total, status, data_orcamento, clientes(nome_razao_social)")
+          .eq("ativo", true),
+        "data_orcamento",
+      )
         .order("created_at", { ascending: false })
         .limit(6),
       supabase
@@ -220,33 +235,16 @@ const DashboardContent = () => {
         .eq("ativo", true)
         .not("estoque_minimo", "is", null)
         .limit(100),
-      (() => {
-        const now = new Date();
-        const inicioMesAtual = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
-        return supabase
+      applyDateRange(
+        supabase
           .from("notas_fiscais")
           .select("valor_total")
           .eq("ativo", true)
           .eq("tipo", "saida")
-          .eq("status", "confirmada")
-          .gte("data_emissao", inicioMesAtual);
-      })(),
-      (() => {
-        const now = new Date();
-        const inicioMesAnterior = (() => {
-          const d = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-          return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
-        })();
-        const fimMesAnterior = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
-        return supabase
-          .from("notas_fiscais")
-          .select("valor_total")
-          .eq("ativo", true)
-          .eq("tipo", "saida")
-          .eq("status", "confirmada")
-          .gte("data_emissao", inicioMesAnterior)
-          .lt("data_emissao", fimMesAnterior);
-      })(),
+          .eq("status", "confirmada"),
+        "data_emissao",
+      ),
+      Promise.resolve({ data: [] }),
       // Fiscal stats for current month
       (() => {
         const now = new Date();

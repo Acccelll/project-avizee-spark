@@ -117,6 +117,7 @@ export default function Transportadoras() {
   );
   const [formAtivo, setFormAtivo] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [submitAttempted, setSubmitAttempted] = useState(false);
   const [clientesVinculados, setClientesVinculados] = useState<ClienteVinculado[]>([]);
   const [remessasVinculadas, setRemessasVinculadas] = useState<RemessaVinculada[]>([]);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -221,7 +222,7 @@ export default function Transportadoras() {
     }
   }, [selected, drawerOpen]);
 
-  const openCreate = () => { setMode("create"); setForm({...emptyForm}); setFormAtivo(true); setSelected(null); setModalCliCount(0); setModalRemCount(0); setModalOpen(true); };
+  const openCreate = () => { setMode("create"); setForm({...emptyForm}); setFormAtivo(true); setSelected(null); setSubmitAttempted(false); setModalCliCount(0); setModalRemCount(0); setModalOpen(true); };
   const openEdit = (t: Transportadora) => {
     setMode("edit"); setSelected(t);
     setForm({
@@ -235,6 +236,7 @@ export default function Transportadoras() {
       prazo_medio: t.prazo_medio || "", observacoes: t.observacoes || "",
     });
     setFormAtivo(t.ativo ?? true);
+    setSubmitAttempted(false);
     setModalCliCount(0); setModalRemCount(0);
     setEditClientesVinculados([]);
     setVinculoClienteId("");
@@ -248,7 +250,9 @@ export default function Transportadoras() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitAttempted(true);
     if (!form.nome_razao_social) { toast.error("Razão Social é obrigatória"); return; }
+    if (mode === "create" && docUnico === false) { toast.error("Já existe cadastro com este CNPJ."); return; }
     setSaving(true);
     try {
       const submitData = { ...form, ativo: formAtivo };
@@ -508,7 +512,7 @@ export default function Transportadoras() {
                   <Loader2 className="h-3 w-3 animate-spin" />Verificando unicidade...
                 </p>
               )}
-              {!docChecking && docUnico === false && (
+              {!docChecking && mode === "create" && submitAttempted && docUnico === false && (
                 <p className="text-xs text-destructive">CNPJ já cadastrado em cliente ou fornecedor.</p>
               )}
             </div>

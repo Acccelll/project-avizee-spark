@@ -259,8 +259,12 @@ const Financeiro = () => {
 
   const handleEstorno = async () => {
     if (!estornoTarget) return;
+    const motivo = window.prompt("Informe o motivo obrigatório para cancelar a baixa:", "");
+    if (!motivo?.trim()) {
+      return;
+    }
     setEstornoProcessing(true);
-    const ok = await processarEstorno(estornoTarget.id);
+    const ok = await processarEstorno(estornoTarget.id, motivo);
     setEstornoProcessing(false);
     if (ok) { setEstornoTarget(null); window.location.reload(); }
   };
