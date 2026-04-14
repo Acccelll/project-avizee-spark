@@ -128,6 +128,36 @@ export async function convertToPedido(
   return { ovId: newOV!.id, ovNumero };
 }
 
+export async function enviarOrcamentoPorEmail(
+  orcamentoId: string,
+  emailDestino: string,
+  mensagem: string
+): Promise<void> {
+  const token = await ensurePublicToken(orcamentoId);
+  const linkPublico = `${window.location.origin}/orcamento-publico?token=${token}`;
+
+  try {
+    const { error } = await supabase.rpc('enqueue_email' as any, {
+      queue_name: 'transactional_emails',
+      payload: {
+        to: emailDestino,
+        subject: 'Orçamento disponível para visualização',
+        html: `<p>${mensagem.replace(/\n/g, '<br>')}</p><p><a href="${linkPublico}">Clique aqui para visualizar o orçamento</a></p>`,
+        label: 'orcamento',
+        message_id: `orcamento-${orcamentoId}-${Date.now()}`,
+      },
+    });
+    if (error) throw error;
+    toast.success('E-mail enfileirado para envio.');
+  } catch {
+    // Fallback: abrir mailto
+    const assunto = encodeURIComponent('Orçamento disponível para visualização');
+    const corpo = encodeURIComponent(`${mensagem}\n\n${linkPublico}`);
+    window.open(`mailto:${emailDestino}?subject=${assunto}&body=${corpo}`);
+    toast.info('E-mail aberto no cliente de e-mail padrão.');
+  }
+}
+
 export async function ensurePublicToken(orcId: string): Promise<string> {
   const { data: existing } = await supabase
     .from("orcamentos")
