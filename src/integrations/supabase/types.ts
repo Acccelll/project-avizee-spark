@@ -3875,6 +3875,10 @@ export type Database = {
     }
     Functions: {
       consolidar_lote_cadastros: { Args: { p_lote_id: string }; Returns: Json }
+      consolidar_lote_enriquecimento: {
+        Args: { p_lote_id: string }
+        Returns: Json
+      }
       consolidar_lote_estoque: { Args: { p_lote_id: string }; Returns: Json }
       consolidar_lote_faturamento: {
         Args: { p_lote_id: string }
