@@ -2421,13 +2421,17 @@ export type Database = {
           cliente_snapshot: Json | null
           created_at: string
           data_orcamento: string | null
+          desconto: number | null
           frete_tipo: string | null
           frete_valor: number | null
           id: string
+          imposto_ipi: number | null
+          imposto_st: number | null
           modalidade: string | null
           numero: string
           observacoes: string | null
           observacoes_internas: string | null
+          outras_despesas: number | null
           pagamento: string | null
           peso_total: number | null
           prazo_entrega: string | null
@@ -2446,13 +2450,17 @@ export type Database = {
           cliente_snapshot?: Json | null
           created_at?: string
           data_orcamento?: string | null
+          desconto?: number | null
           frete_tipo?: string | null
           frete_valor?: number | null
           id?: string
+          imposto_ipi?: number | null
+          imposto_st?: number | null
           modalidade?: string | null
           numero: string
           observacoes?: string | null
           observacoes_internas?: string | null
+          outras_despesas?: number | null
           pagamento?: string | null
           peso_total?: number | null
           prazo_entrega?: string | null
@@ -2471,13 +2479,17 @@ export type Database = {
           cliente_snapshot?: Json | null
           created_at?: string
           data_orcamento?: string | null
+          desconto?: number | null
           frete_tipo?: string | null
           frete_valor?: number | null
           id?: string
+          imposto_ipi?: number | null
+          imposto_st?: number | null
           modalidade?: string | null
           numero?: string
           observacoes?: string | null
           observacoes_internas?: string | null
+          outras_despesas?: number | null
           pagamento?: string | null
           peso_total?: number | null
           prazo_entrega?: string | null
