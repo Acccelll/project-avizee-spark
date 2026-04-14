@@ -297,8 +297,8 @@ export default function OrcamentoForm() {
             toast.error("Cotação não encontrada.", { description: `Nenhuma cotação com ID ${id}.` });
           }
         } else {
-          const { count } = await supabase.from("orcamentos").select("*", { count: "exact", head: true });
-          setValue('numero', `COT${String((count || 0) + 1).padStart(6, "0")}`);
+          const { data: novoNumero } = await supabase.rpc('proximo_numero_orcamento');
+          setValue('numero', novoNumero || `COT${String(Date.now()).slice(-6)}`);
         }
       } catch (err) {
         console.error("[OrcamentoForm] erro ao carregar dados:", err);
@@ -478,27 +478,19 @@ export default function OrcamentoForm() {
         comprimento_cm: freteComprimentoCm || null,
       };
 
-      let orcId = id;
-      if (isEdit) {
-        await Promise.all([
-          supabase.from("orcamentos").update(payload as any).eq("id", id),
-          supabase.from("orcamentos_itens").delete().eq("orcamento_id", id),
-        ]);
-      } else {
-        const { data: newOrc, error } = await supabase.from("orcamentos").insert(payload as any).select().single();
-        if (error) throw error;
-        orcId = newOrc.id;
-      }
+      const itemsPayload = items.filter(i => i.produto_id).map(i => ({
+        produto_id: i.produto_id, codigo_snapshot: i.codigo_snapshot,
+        descricao_snapshot: i.descricao_snapshot, variacao: i.variacao || null,
+        quantidade: i.quantidade, unidade: i.unidade, valor_unitario: i.valor_unitario,
+        valor_total: i.valor_total, peso_unitario: i.peso_unitario || 0, peso_total: i.peso_total || 0,
+      }));
 
-      if (items.length > 0 && orcId) {
-        const itemsPayload = items.filter(i => i.produto_id).map(i => ({
-          orcamento_id: orcId, produto_id: i.produto_id, codigo_snapshot: i.codigo_snapshot,
-          descricao_snapshot: i.descricao_snapshot, variacao: i.variacao || null,
-          quantidade: i.quantidade, unidade: i.unidade, valor_unitario: i.valor_unitario,
-          valor_total: i.valor_total, peso_unitario: i.peso_unitario || 0, peso_total: i.peso_total || 0,
-        }));
-        if (itemsPayload.length > 0) await supabase.from("orcamentos_itens").insert(itemsPayload);
-      }
+      const { data: orcId, error } = await supabase.rpc('salvar_orcamento', {
+        p_id: isEdit ? id : null,
+        p_payload: payload as any,
+        p_itens: itemsPayload as any,
+      });
+      if (error) throw error;
 
       localStorage.removeItem(draftKey);
       toast.success(isEdit ? "Orçamento atualizado com sucesso" : "Orçamento criado com sucesso", {
@@ -516,10 +508,10 @@ export default function OrcamentoForm() {
   const handleDuplicate = async () => {
     if (!id) { toast.error("Salve o orçamento antes de duplicar"); return; }
     try {
-      const { count } = await supabase.from("orcamentos").select("*", { count: "exact", head: true });
-      const newNumero = `COT${String((count || 0) + 1).padStart(6, "0")}`;
+      const { data: newNumero } = await supabase.rpc('proximo_numero_orcamento');
       const payload = {
-        numero: newNumero, data_orcamento: new Date().toISOString().split("T")[0], status: "rascunho",
+        numero: newNumero || `COT${String(Date.now()).slice(-6)}`,
+        data_orcamento: new Date().toISOString().split("T")[0], status: "rascunho",
         cliente_id: clienteId || null, validade: null, observacoes, observacoes_internas: observacoesInternas || null,
         desconto, imposto_st: impostoSt,
         imposto_ipi: impostoIpi, frete_valor: freteValor, outras_despesas: outrasDespesas,
@@ -531,21 +523,23 @@ export default function OrcamentoForm() {
         largura_cm: freteLarguraCm || null,
         comprimento_cm: freteComprimentoCm || null,
       };
-      const { data: newOrc, error } = await supabase.from("orcamentos").insert(payload as any).select().single();
+
+      const itemsPayload = items.filter(i => i.produto_id).map(i => ({
+        produto_id: i.produto_id, codigo_snapshot: i.codigo_snapshot,
+        descricao_snapshot: i.descricao_snapshot, variacao: i.variacao || null,
+        quantidade: i.quantidade, unidade: i.unidade, valor_unitario: i.valor_unitario,
+        valor_total: i.valor_total, peso_unitario: i.peso_unitario || 0, peso_total: i.peso_total || 0,
+      }));
+
+      const { data: orcId, error } = await supabase.rpc('salvar_orcamento', {
+        p_id: null,
+        p_payload: payload as any,
+        p_itens: itemsPayload as any,
+      });
       if (error) throw error;
 
-      if (items.length > 0) {
-        const itemsPayload = items.filter(i => i.produto_id).map(i => ({
-          orcamento_id: newOrc.id, produto_id: i.produto_id, codigo_snapshot: i.codigo_snapshot,
-          descricao_snapshot: i.descricao_snapshot, variacao: i.variacao || null,
-          quantidade: i.quantidade, unidade: i.unidade, valor_unitario: i.valor_unitario,
-          valor_total: i.valor_total, peso_unitario: i.peso_unitario || 0, peso_total: i.peso_total || 0,
-        }));
-        await supabase.from("orcamentos_itens").insert(itemsPayload);
-      }
-
-      toast.success(`Duplicado: ${newNumero}`);
-      navigate(`/cotacoes/${newOrc.id}`, { replace: true });
+      toast.success(`Duplicado: ${payload.numero}`);
+      navigate(`/cotacoes/${orcId}`, { replace: true });
     } catch (err: any) {
       console.error('[orcamento] duplicar:', err);
       toast.error("Erro ao duplicar cotação. Tente novamente.");
