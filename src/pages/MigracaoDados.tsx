@@ -82,7 +82,8 @@ export default function MigracaoDados() {
   const activeHook = activeImportSource === "cadastros" ? hookCadastros :
                     activeImportSource === "estoque" ? hookEstoque :
                     activeImportSource === "xml" ? hookXml :
-                    activeImportSource === "faturamento" ? hookFaturamento : hookFinanceiro;
+                    activeImportSource === "faturamento" ? hookFaturamento :
+                    activeImportSource === "enriquecimento" ? hookEnriquecimento : hookFinanceiro;
 
   const {
     file,
