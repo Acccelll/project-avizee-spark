@@ -175,8 +175,8 @@ export default function OrcamentoForm() {
       const lastPurchase = [...fornecedores]
         .filter((row) => row.preco_compra && Number(row.preco_compra) > 0)
         .sort((a, b) => {
-          const dateA = a.ultima_compra ? new Date(a.ultima_compra).getTime() : 0;
-          const dateB = b.ultima_compra ? new Date(b.ultima_compra).getTime() : 0;
+          const dateA = (row as any).ultima_compra ? new Date((row as any).ultima_compra).getTime() : 0;
+          const dateB = (row as any).ultima_compra ? new Date((row as any).ultima_compra).getTime() : 0;
           return dateB - dateA;
         })[0];
 
@@ -268,11 +268,11 @@ export default function OrcamentoForm() {
               observacoes: orc.observacoes || '',
               observacoesInternas: orc.observacoes_internas || '',
               validade: orc.validade || '',
-              desconto: orc.desconto || 0,
-              impostoSt: orc.imposto_st || 0,
-              impostoIpi: orc.imposto_ipi || 0,
+              desconto: (orc as any).desconto || 0,
+              impostoSt: (orc as any).imposto_st || 0,
+              impostoIpi: (orc as any).imposto_ipi || 0,
               freteValor: orc.frete_valor || 0,
-              outrasDespesas: orc.outras_despesas || 0,
+              outrasDespesas: (orc as any).outras_despesas || 0,
               pagamento: orc.pagamento || '',
               prazoPagamento: orc.prazo_pagamento || '',
               prazoEntrega: orc.prazo_entrega || '',
@@ -310,7 +310,7 @@ export default function OrcamentoForm() {
 
   const handleClienteChange = useCallback((cId: string) => {
     setValue('clienteId', cId);
-    const c = clientes.find((cl) => (cl as { id: string }).id === cId) as Record<string, string> | undefined;
+    const c = clientes.find((cl) => cl.id === cId) as unknown as Record<string, string> | undefined;
     if (c) {
       setClienteSnapshot({
         nome_razao_social: c.nome_razao_social || "", nome_fantasia: c.nome_fantasia || "",
