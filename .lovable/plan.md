@@ -1,127 +1,133 @@
 
 
-# Revisão End-to-End — Projeto AviZee ERP
+# Plan: P0-P3 Implementation (20 Prompts)
 
-## Resumo Executivo
-
-O projeto está em estado funcional sólido: **TypeScript compila sem erros**, **623 de 624 testes passam**, e a arquitetura é coerente. Há áreas específicas que precisam de atenção, organizadas abaixo por prioridade.
+This is a large cross-cutting implementation spanning Edge Functions, migrations, security hardening, and code quality. Due to scope, I'll execute in batches.
 
 ---
 
-## 1. CRÍTICO — Segurança (2 findings)
+## Batch 1: P0 — Functional (Prompts 1-6)
 
-### 1.1 `user_permissions` expõe permissões de todos os usuários
-- Qualquer usuário autenticado pode ler as permissões de qualquer outro usuário via SELECT.
-- **Correção:** Restringir a policy SELECT para `WHERE user_id = auth.uid()`, mantendo acesso total para admins via `has_role`.
+### Prompt 1 — Edge Function `sefaz-proxy`
+Create `supabase/functions/sefaz-proxy/index.ts`:
+- Import `node-forge` from esm.sh
+- Handle `action: "assinar-e-enviar"`: parse PFX, extract private key + cert, compute SHA-1 digest of `<infNFe>`, sign with RSA-SHA1, inject `<Signature>` (xmldsig), wrap in SOAP envelope, send to SEFAZ URL
+- Handle `action: "parse-certificado"`: extract CNPJ from subject serialNumber, razaoSocial from CN, validity dates from cert
+- JWT auth via Supabase, CORS via `ALLOWED_ORIGIN`
 
-### 1.2 Storage `dbavizee` sem verificação de ownership
-- Qualquer autenticado pode ler/sobrescrever/deletar arquivos de outros usuários.
-- **Correção:** Adicionar verificação de `auth.uid()` no path ou em tabela de ownership.
+### Prompt 2 — Rewrite `httpClient.service.ts`
+Replace direct `fetch()` to SEFAZ with `supabase.functions.invoke('sefaz-proxy', { body: { action: 'assinar-e-enviar', ... } })`. Keep `SefazResponse`, `SefazRequestOptions`, `enviarParaSefaz()` public interface. Add `certificado_base64` and `certificado_senha` as new required params.
 
-### 1.3 Funções SQL sem `search_path` definido (119 warnings)
-- Todas as funções RPC criadas nas migrations não definem `SET search_path = public`.
-- **Correção:** Migration corretiva para as funções críticas (`consolidar_lote_*`, `has_role`, `sync_produto_estoque_atual`).
+### Prompt 3 — Simplify `assinaturaDigital.service.ts`
+Keep only types `CertificadoDigital` and `AssinaturaResult`. Remove `assinarXML()` function. Add comment explaining signing happens in sefaz-proxy.
 
-### 1.4 RLS permissiva em tabelas de cadastro
-- Tabelas `clientes`, `fornecedores`, `produtos`, `grupos_produto`, `contas_contabeis`, `formas_pagamento` têm INSERT/UPDATE/DELETE com `USING(true)` — qualquer autenticado pode apagar dados.
-- **Ação:** Avaliar quais tabelas devem restringir DELETE/UPDATE a admin ou roles específicos.
+Update `autorizacao.service.ts` to pass certificado through to `enviarParaSefaz()` instead of calling `assinarXML()` separately.
 
----
+### Prompt 4 — Edge Function `admin-sessions`
+Create `supabase/functions/admin-sessions/index.ts`:
+- Verify JWT, check admin role via `user_roles` table using service_role client
+- `action: "list"`: `supabase.auth.admin.listUsers()`, map to `SessaoAtiva` interface
+- `action: "revoke"`: `supabase.auth.admin.signOut(userId, 'global')`
+- CORS with `ALLOWED_ORIGIN`, strict 500 if not set (like admin-users)
 
-## 2. ALTO — Teste Falhando
+### Prompt 5 — Numeração atômica (migration)
+Create `supabase/migrations/20260415000003_numeracao_atomica.sql`:
+- Create sequences `seq_orcamento`, `seq_ordem_venda`, `seq_pedido_compra`, `seq_cotacao_compra`, `seq_nota_fiscal`
+- Initialize each with `setval(seq, COALESCE(MAX(numero_int), 0) + 1)` based on existing data
+- Create SECURITY DEFINER functions: `proximo_numero_orcamento()` → `'COT' || LPAD(nextval(...)::text, 6, '0')`, etc.
+- Add UNIQUE constraints with `DO $$ EXCEPTION WHEN duplicate_object` guard
+- Update `OrcamentoForm.tsx`: replace `COUNT(*)+1` with `supabase.rpc('proximo_numero_orcamento')` in both create and duplicate flows
 
-### 2.1 `OrcamentoForm.test.tsx` — 1 falha
-- **Causa:** Mock do Supabase não implementa `.limit()` na cadeia `supabase.from('empresa_config').select('*').limit(1).single()`.
-- **Correção:** Atualizar o mock em `src/test/setup.ts` para suportar `.limit()` retornando `this`.
+### Prompt 6 — Atomic save via stored procedure
+Create `supabase/migrations/20260415000004_fn_salvar_orcamento.sql`:
+- `salvar_orcamento(p_id UUID, p_payload JSONB, p_itens JSONB)` — transactional upsert + delete-and-reinsert items
+- Update `handleSave` and `handleDuplicate` in `OrcamentoForm.tsx` to use `supabase.rpc('salvar_orcamento', ...)`
 
----
+### Prompt 7 — Email: keep Lovable Email (NOT Resend)
+**Important deviation**: The project already uses `@lovable.dev/email-js` which is the built-in Lovable Email system. Per platform guidelines, I should NOT replace it with Resend. The existing `process-email-queue` is working correctly. I will skip this prompt or only document that the current implementation is correct.
 
-## 3. ALTO — Dívida Técnica
-
-### 3.1 `@ts-nocheck` em 36 arquivos
-Arquivos mais críticos (hooks de importação e páginas transacionais):
-- 4 hooks de importação (`useImportacaoCadastros/Estoque/Financeiro/Faturamento`)
-- Páginas: `OrcamentoForm`, `MigracaoDados`, `Financeiro`, `Fiscal`
-- Componentes: `UsuariosTab`, `ClienteView`
-
-### 3.2 `as any` em 59 arquivos
-- Muitos são consequência do `@ts-nocheck` (uma vez removido, os `as any` ficam explícitos).
-- Hooks de importação usam `as any` extensivamente nos dados de staging.
-
-### 3.3 Enriquecimento (`useImportacaoEnriquecimento`) NÃO usa staging real
-- A consolidação (`finalizeImport`) faz escrita direta nas tabelas finais (`produtos_fornecedores`, `formas_pagamento`, `contas_contabeis`, `contas_bancarias`) em loop individual — sem transação, sem RPC.
-- **Risco:** Falha parcial deixa dados inconsistentes.
-- **Correção:** Migrar para RPC transacional como os outros hooks.
+### Prompt 8 — Certificate service rewrite
+Rewrite `lerCertificadoA1()` in `certificado.service.ts` to call `supabase.functions.invoke('sefaz-proxy', { body: { action: 'parse-certificado', ... } })` instead of returning fake data.
 
 ---
 
-## 4. MÉDIO — Arquitetura e Manutenibilidade
+## Batch 2: P1 — Security (Prompts 7-10)
 
-### 4.1 Arquivos grandes (God Components restantes)
-| Arquivo | Linhas |
-|---------|--------|
-| `Clientes.tsx` | 1622 |
-| `Administracao.tsx` | 1462 |
-| `UsuariosTab.tsx` | 1252 |
-| `Produtos.tsx` | 1121 |
-| `OrcamentoForm.tsx` | 1063 |
-| `NotaFiscalEditModal.tsx` | 1059 |
-| `GruposEconomicos.tsx` | 1049 |
+### Prompt 9 — RLS restrictions (migration)
+Create migration to:
+- Restrict INSERT/UPDATE on `app_configuracoes`, `empresa_config` to admin only
+- Restrict DELETE on `financeiro_lancamentos`, `financeiro_baixas`, `notas_fiscais`, `notas_fiscais_itens` to admin
+- Drop DELETE policy on `auditoria_logs` (immutable)
+- Add conditional UPDATE on `notas_fiscais` for authorized/cancelled status
 
-Estes são candidatos a decomposição futura seguindo o padrão já aplicado em `FreteSimuladorCard` e `CotacaoCompraDrawer`.
+### Prompt 10 — Vault for credentials
+Create migration with `upsert_secret()` and `get_secret()` SECURITY DEFINER functions wrapping `vault.create_secret`/`vault.decrypted_secrets`.
+Update `configuracoes.service.ts` to store sensitive fields via vault RPC.
 
-### 4.2 Edge Functions sem testes
-- 5 Edge Functions (`admin-users`, `correios-api`, `process-email-queue`, `setup-admin`, `social-sync`) sem cobertura de teste.
+### Prompt 11 — CORS strict in all Edge Functions
+Update `social-sync`, `setup-admin`, `correios-api` to use `""` instead of `"*"` as CORS fallback. Ensure `admin-users` pattern (500 if not set) is documented.
 
-### 4.3 Migrations acumuladas (35 arquivos)
-- Sem impacto funcional, mas dificulta leitura. Considerar squash em versão futura de baseline.
+### Prompt 12 — RLS read restrictions (migration)
+Restrict SELECT on financial/audit tables to admin/financeiro roles.
 
 ---
 
-## 5. BAIXO — Melhorias Sugeridas
+## Batch 3: P2 — Database (Prompts 11-14)
 
-### 5.1 `useImportacaoXml` ainda grava direto em `compras`
-- Linha 143: `supabase.from("compras").insert(...)` — não segue o padrão de staging.
+### Prompt 13 — FK indexes (migration)
+`CREATE INDEX CONCURRENTLY IF NOT EXISTS` for all FK columns and common filter columns across ~15 tables.
 
-### 5.2 `OrcamentoForm.tsx` faz queries diretas ao Supabase
-- 10 chamadas `supabase.from(...)` diretas na página em vez de usar hooks/services.
+### Prompt 14 — CHECK constraints (migration)
+Add CHECK constraints for status/tipo fields on all transactional tables using `DO $$ EXCEPTION` guard.
 
-### 5.3 Sem CI/CD para testes
-- Os testes rodam localmente mas não há evidência de pipeline automatizado.
+### Prompt 15 — Estoque trigger + UNIQUE docs (migration)
+Create trigger `trg_estoque_movimentos_sync` and partial unique indexes on `cpf_cnpj` for clientes/fornecedores.
 
----
-
-## Plano de Correção Recomendado
-
-### Fase A — Segurança (imediata)
-1. Migration para restringir `user_permissions` SELECT a `user_id = auth.uid() OR has_role(admin)`
-2. Migration para storage policies com ownership check
-3. Migration para adicionar `SET search_path = public` nas funções RPC críticas
-4. Revisar policies permissivas em tabelas de cadastro (restringir DELETE a admin)
-
-### Fase B — Estabilidade (curto prazo)
-5. Corrigir mock do Supabase para `.limit()` no setup de testes
-6. Migrar `useImportacaoEnriquecimento` para RPC transacional
-7. Remover `@ts-nocheck` dos 4 hooks de importação (já refatorados recentemente)
-
-### Fase C — Qualidade (médio prazo)
-8. Decompor `Clientes.tsx`, `Produtos.tsx`, `OrcamentoForm.tsx`
-9. Extrair queries diretas do `OrcamentoForm` para um service
-10. Remover `@ts-nocheck` das páginas restantes progressivamente
+### Prompt 16 — Indexes for new modules (migration)
+Indexes for `apresentacao_geracoes`, `workbook_geracoes`, `email_send_log`, `remessas`.
 
 ---
 
-## Métricas Atuais
+## Batch 4: P3 — Code Quality (Prompts 15-20)
+These are large refactoring tasks. Due to scope constraints, I'll prioritize:
+- Removing `@ts-nocheck` from OrcamentoForm (already being modified)
+- Integration tests for fiscal and financial flows
 
-| Indicador | Valor |
-|-----------|-------|
-| Total de arquivos `.ts`/`.tsx` | ~90K linhas |
-| TypeScript `--noEmit` | 0 erros |
-| Testes | 623/624 passando (99.8%) |
-| `@ts-nocheck` | 36 arquivos |
-| `as any` | 59 arquivos |
-| Security findings (críticos) | 2 |
-| Security warnings (RLS) | ~100+ |
-| Edge Functions | 5 (sem testes) |
-| Migrations | 35 |
+Lower priority items (decomposing Clientes.tsx/Produtos.tsx, virtualizing DataTable, typing useSupabaseCrud) will be noted for follow-up.
+
+---
+
+## Files Created/Modified
+
+| File | Action |
+|------|--------|
+| `supabase/functions/sefaz-proxy/index.ts` | Create |
+| `supabase/functions/admin-sessions/index.ts` | Create |
+| `supabase/migrations/20260415000003_*.sql` | Create (sequences + functions) |
+| `supabase/migrations/20260415000004_*.sql` | Create (salvar_orcamento) |
+| `supabase/migrations/20260415000007_*.sql` | Create (RLS restrictions) |
+| `supabase/migrations/20260415000008_*.sql` | Create (vault functions) |
+| `supabase/migrations/20260415000010_*.sql` | Create (RLS read) |
+| `supabase/migrations/20260415000011_*.sql` | Create (FK indexes) |
+| `supabase/migrations/20260415000012_*.sql` | Create (CHECK constraints) |
+| `supabase/migrations/20260415000013_*.sql` | Create (estoque trigger + unique) |
+| `supabase/migrations/20260415000014_*.sql` | Create (new module indexes) |
+| `src/services/fiscal/sefaz/httpClient.service.ts` | Rewrite |
+| `src/services/fiscal/sefaz/assinaturaDigital.service.ts` | Simplify |
+| `src/services/fiscal/sefaz/autorizacao.service.ts` | Update |
+| `src/services/fiscal/certificado.service.ts` | Rewrite |
+| `src/pages/OrcamentoForm.tsx` | Update (RPC calls, remove @ts-nocheck) |
+| `src/pages/configuracoes/services/configuracoes.service.ts` | Update (vault) |
+| `supabase/functions/social-sync/index.ts` | CORS fix |
+| `supabase/functions/setup-admin/index.ts` | CORS fix |
+| `supabase/functions/correios-api/index.ts` | CORS fix |
+| `src/tests/integration/fluxo-fiscal.test.ts` | Create |
+
+## Key Decision: Email
+The `process-email-queue` uses `@lovable.dev/email-js` which is the built-in Lovable Email system. Per platform policy, this should NOT be replaced with Resend. The current implementation is correct and functional.
+
+## Risks
+- `node-forge` via esm.sh in Deno Edge Functions may have compatibility issues — needs testing after deploy
+- Vault functions require the `vault` extension to be enabled
+- CORS strict mode requires `ALLOWED_ORIGIN` secret to be set before Edge Functions work
 
