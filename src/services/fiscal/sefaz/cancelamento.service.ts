@@ -1,9 +1,9 @@
 /**
  * Serviço de cancelamento de NF-e na SEFAZ.
+ * A assinatura digital é realizada server-side na Edge Function sefaz-proxy.
  */
 
 import { construirXMLCancelamento } from "./xmlBuilder.service";
-import { assinarXML } from "./assinaturaDigital.service";
 import type { CertificadoDigital } from "./assinaturaDigital.service";
 import { enviarParaSefaz } from "./httpClient.service";
 
@@ -26,6 +26,10 @@ export async function cancelarNFe(
   urlSefaz: string,
   dadosEmitente: { cnpj: string },
 ): Promise<CancelamentoResult> {
+  if (!certificado.conteudo || !certificado.senha) {
+    return { sucesso: false, motivo: "Conteúdo e senha do certificado são obrigatórios." };
+  }
+
   const dataHora = new Date().toISOString().replace("Z", "-03:00");
   const xml = construirXMLCancelamento(
     chave,
@@ -35,15 +39,11 @@ export async function cancelarNFe(
     dataHora,
   );
 
-  const { xmlAssinado, sucesso: assinado, erro: erroAssinatura } = assinarXML(xml, certificado);
-  if (!assinado) {
-    return { sucesso: false, motivo: erroAssinatura };
-  }
-
   const resposta = await enviarParaSefaz(
-    xmlAssinado,
+    xml,
     urlSefaz,
     "http://www.portalfiscal.inf.br/nfe/wsdl/NFeRecepcaoEvento4/nfeRecepcaoEvento",
+    { certificado_base64: certificado.conteudo, certificado_senha: certificado.senha },
   );
 
   if (!resposta.sucesso) {

@@ -1,13 +1,7 @@
 /**
  * Serviço de gerenciamento de certificado digital A1/A3.
- *
- * ATENÇÃO: A leitura real de certificados PFX requer a biblioteca node-forge.
- * Esta implementação fornece a interface e integração com Supabase para
- * armazenar/recuperar os metadados do certificado configurado.
- *
- * Para produção com node-forge:
- *   npm install node-forge @types/node-forge
- *   const pfx = forge.pkcs12.pkcs12FromAsn1(forge.asn1.fromDer(forge.util.decode64(base64)), senha);
+ * A leitura real do certificado PFX é feita via Edge Function sefaz-proxy
+ * usando node-forge server-side.
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -28,35 +22,46 @@ function calcularDiasRestantes(validadeFim: string): number {
 }
 
 /**
+ * Converte um File para base64 (sem o prefixo data:...).
+ */
+async function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve((reader.result as string).split(",")[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+/**
  * Lê os metadados de um certificado A1 (arquivo .pfx/.p12).
- *
- * NOTA: A extração real das datas e CNPJ do certificado requer node-forge.
- * Esta implementação retorna dados baseados no nome do arquivo e datas
- * estimadas enquanto a integração com node-forge não está disponível.
+ * Envia o arquivo para a Edge Function sefaz-proxy que faz o parsing
+ * real com node-forge e retorna CNPJ, razão social e datas de validade.
  */
 export async function lerCertificadoA1(
   arquivo: File,
-  _senha: string,
+  senha: string,
 ): Promise<CertificadoInfo> {
-  // Em produção, usar node-forge para parsear o PFX e extrair:
-  // - Subject CN (razão social)
-  // - Subject serialNumber (CNPJ)
-  // - notBefore (validade início)
-  // - notAfter (validade fim)
-  //
-  // Placeholder: retorna metadados estimados baseados no nome do arquivo
-  const validadeInicio = new Date().toISOString().split("T")[0];
-  const validadeFim = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
-    .toISOString()
-    .split("T")[0];
+  const base64 = await fileToBase64(arquivo);
 
-  return {
-    cnpj: "00000000000000",
-    razaoSocial: arquivo.name.replace(/\.(pfx|p12)$/i, ""),
-    validadeInicio,
-    validadeFim,
-    diasRestantes: calcularDiasRestantes(validadeFim),
-  };
+  const { data, error } = await supabase.functions.invoke("sefaz-proxy", {
+    body: { action: "parse-certificado", certificado_base64: base64, senha },
+  });
+
+  if (error) {
+    throw new Error(`Erro ao ler certificado: ${error.message}`);
+  }
+
+  if (!data || typeof data !== "object") {
+    throw new Error("Certificado inválido ou senha incorreta.");
+  }
+
+  // Validar que temos os campos esperados
+  if (data.error) {
+    throw new Error(data.error);
+  }
+
+  return data as CertificadoInfo;
 }
 
 /**

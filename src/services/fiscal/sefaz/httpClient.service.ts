@@ -1,7 +1,10 @@
 /**
- * Cliente HTTP para comunicação com a SEFAZ via SOAP.
+ * Cliente HTTP para comunicação com a SEFAZ via Edge Function sefaz-proxy.
+ * A assinatura digital e o envio SOAP são feitos server-side na Edge Function.
  * Suporta retry automático e timeout configurável.
  */
+
+import { supabase } from "@/integrations/supabase/client";
 
 export interface SefazResponse {
   sucesso: boolean;
@@ -15,68 +18,68 @@ export interface SefazRequestOptions {
   tentativas?: number;
 }
 
-const TIMEOUT_PADRAO = 30_000;
+export interface SefazCertificado {
+  certificado_base64: string;
+  certificado_senha: string;
+}
+
 const TENTATIVAS_PADRAO = 3;
 
 /**
- * Envia um XML assinado para a SEFAZ via SOAP e retorna o XML de retorno.
- * Realiza retry automático em caso de falha de rede ou timeout.
+ * Envia um XML para a SEFAZ via Edge Function sefaz-proxy.
+ * A Edge Function assina o XML com o certificado A1 e envia para a SEFAZ via SOAP.
+ * Realiza retry automático em caso de falha.
  */
 export async function enviarParaSefaz(
   xml: string,
   url: string,
   soapAction: string,
+  certificado: SefazCertificado,
   options: SefazRequestOptions = {},
 ): Promise<SefazResponse> {
-  const timeoutMs = options.timeoutMs ?? TIMEOUT_PADRAO;
   const tentativas = options.tentativas ?? TENTATIVAS_PADRAO;
 
-  const envelope = `<?xml version="1.0" encoding="UTF-8"?>
-<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:nfe="http://www.portalfiscal.inf.br/nfe/wsdl">
-  <soapenv:Header/>
-  <soapenv:Body>
-    <nfe:nfeDadosMsg>${xml}</nfe:nfeDadosMsg>
-  </soapenv:Body>
-</soapenv:Envelope>`;
-
-  let ultimoErro: string = "Erro desconhecido";
+  let ultimoErro = "Erro desconhecido";
 
   for (let tentativa = 1; tentativa <= tentativas; tentativa++) {
     try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), timeoutMs);
-
-      const response = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "text/xml; charset=utf-8",
-          SOAPAction: soapAction,
+      const { data, error } = await supabase.functions.invoke("sefaz-proxy", {
+        body: {
+          action: "assinar-e-enviar",
+          xml,
+          url,
+          soapAction,
+          certificado_base64: certificado.certificado_base64,
+          certificado_senha: certificado.certificado_senha,
         },
-        body: envelope,
-        signal: controller.signal,
       });
 
-      clearTimeout(timer);
-
-      const xmlRetorno = await response.text();
-
-      if (!response.ok) {
-        ultimoErro = `HTTP ${response.status}: ${response.statusText}`;
-        if (tentativa < tentativas) continue;
-        return { sucesso: false, erro: ultimoErro, statusHttp: response.status };
+      if (error) {
+        ultimoErro = error.message ?? "Erro na Edge Function sefaz-proxy";
+        if (tentativa < tentativas) {
+          await new Promise((r) => setTimeout(r, 1000 * tentativa));
+          continue;
+        }
+        return { sucesso: false, erro: ultimoErro };
       }
 
-      return { sucesso: true, xmlRetorno, statusHttp: response.status };
+      // A Edge Function retorna { sucesso, xmlRetorno?, erro? }
+      if (data && typeof data === "object") {
+        return {
+          sucesso: data.sucesso ?? false,
+          xmlRetorno: data.xmlRetorno,
+          erro: data.erro,
+        };
+      }
+
+      return { sucesso: false, erro: "Resposta inesperada da Edge Function" };
     } catch (err) {
       ultimoErro =
         err instanceof Error
-          ? err.name === "AbortError"
-            ? `Timeout após ${timeoutMs}ms (tentativa ${tentativa}/${tentativas})`
-            : err.message
+          ? `Tentativa ${tentativa}/${tentativas}: ${err.message}`
           : String(err);
 
       if (tentativa < tentativas) {
-        // Aguarda exponencial antes do próximo retry
         await new Promise((r) => setTimeout(r, 1000 * tentativa));
         continue;
       }

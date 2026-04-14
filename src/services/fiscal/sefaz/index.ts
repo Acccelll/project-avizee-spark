@@ -10,11 +10,10 @@ export type {
   NFePagamentoData,
 } from "./xmlBuilder.service";
 
-export { assinarXML } from "./assinaturaDigital.service";
 export type { CertificadoDigital, AssinaturaResult } from "./assinaturaDigital.service";
 
 export { enviarParaSefaz } from "./httpClient.service";
-export type { SefazResponse, SefazRequestOptions } from "./httpClient.service";
+export type { SefazResponse, SefazRequestOptions, SefazCertificado } from "./httpClient.service";
 
 export { autorizarNFe } from "./autorizacao.service";
 export type { AutorizacaoResult } from "./autorizacao.service";
