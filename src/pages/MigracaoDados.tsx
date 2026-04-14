@@ -70,13 +70,14 @@ export default function MigracaoDados() {
     orderBy: "created_at"
   });
 
-  const [activeImportSource, setActiveImportSource] = useState<ImportSource>("cadastros");
+  const [activeImportSource, setActiveImportSource] = useState<ImportSource | "enriquecimento">("cadastros");
 
   const hookCadastros = useImportacaoCadastros();
   const hookEstoque = useImportacaoEstoque();
   const hookXml = useImportacaoXml();
   const hookFaturamento = useImportacaoFaturamento();
   const hookFinanceiro = useImportacaoFinanceiro();
+  const hookEnriquecimento = useImportacaoEnriquecimento();
 
   const activeHook = activeImportSource === "cadastros" ? hookCadastros :
                     activeImportSource === "estoque" ? hookEstoque :
