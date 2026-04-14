@@ -243,132 +243,36 @@ export function useImportacaoEnriquecimento() {
     setIsProcessing(true);
 
     try {
-      // Update lote status
-      await supabase.from("importacao_lotes").update({ status: "consolidando" }).eq("id", targetLoteId);
+      const { data, error } = await supabase.rpc("consolidar_lote_enriquecimento", {
+        p_lote_id: targetLoteId,
+      });
 
-      // Fetch staging data
-      const { data: stgRows, error: stgErr } = await supabase
-        .from("stg_cadastros")
-        .select("id, dados")
-        .eq("lote_id", targetLoteId)
-        .eq("status", "pendente");
+      if (error) throw error;
 
-      if (stgErr) throw stgErr;
-      if (!stgRows || stgRows.length === 0) {
-        toast.info("Nenhum registro pendente neste lote.");
+      const resultado = data as Record<string, number>;
+      if (resultado.erro) {
+        toast.error(String(resultado.erro));
         return false;
       }
 
-      let inseridos = 0, erros = 0;
-      const type = (stgRows[0].dados as Record<string, unknown>)?._tipo_enriquecimento as EnrichmentType;
-
-      for (const row of stgRows) {
-        const d = row.dados as Record<string, unknown>;
-        try {
-          if (type === "produtos_fornecedores") {
-            // Resolve produto
-            let produtoId: string | null = null;
-            if (d.codigo_legado_produto) {
-              const { data } = await supabase.from("produtos").select("id").eq("codigo_legado", d.codigo_legado_produto as string).limit(1).single();
-              produtoId = data?.id || null;
-            }
-            if (!produtoId && d.codigo_produto) {
-              const { data } = await supabase.from("produtos").select("id").eq("codigo_interno", d.codigo_produto as string).limit(1).single();
-              produtoId = data?.id || null;
-            }
-            // Resolve fornecedor
-            let fornecedorId: string | null = null;
-            if (d.codigo_legado_fornecedor) {
-              const { data } = await supabase.from("fornecedores").select("id").eq("codigo_legado", d.codigo_legado_fornecedor as string).limit(1).single();
-              fornecedorId = data?.id || null;
-            }
-            if (!fornecedorId && d.cpf_cnpj_fornecedor) {
-              const { data } = await supabase.from("fornecedores").select("id").eq("cpf_cnpj", d.cpf_cnpj_fornecedor as string).limit(1).single();
-              fornecedorId = data?.id || null;
-            }
-
-            if (!produtoId || !fornecedorId) {
-              await supabase.from("stg_cadastros").update({ status: "erro", erro: `Produto ou fornecedor não encontrado` }).eq("id", row.id);
-              erros++;
-              continue;
-            }
-
-            await supabase.from("produtos_fornecedores").upsert({
-              produto_id: produtoId,
-              fornecedor_id: fornecedorId,
-              eh_principal: d.eh_principal as boolean || false,
-              referencia_fornecedor: (d.referencia_fornecedor as string) || null,
-              descricao_fornecedor: (d.descricao_fornecedor as string) || null,
-              preco_compra: (d.preco_compra as number) || null,
-              unidade_fornecedor: (d.unidade_fornecedor as string) || null,
-              lead_time_dias: (d.lead_time_dias as number) || null,
-            }, { onConflict: "produto_id,fornecedor_id" });
-
-          } else if (type === "formas_pagamento") {
-            await supabase.from("formas_pagamento").insert({
-              descricao: d.descricao as string,
-              tipo: (d.tipo as string) || null,
-              parcelas: (d.parcelas as number) || 1,
-              prazo_dias: (d.prazo_dias as number) || 0,
-              gera_financeiro: d.gera_financeiro as boolean,
-            });
-
-          } else if (type === "contas_contabeis") {
-            await supabase.from("contas_contabeis").upsert({
-              codigo: d.codigo as string,
-              descricao: d.descricao as string,
-              natureza: (d.natureza as string) || null,
-              aceita_lancamento: d.aceita_lancamento as boolean,
-            }, { onConflict: "codigo" });
-
-          } else if (type === "contas_bancarias") {
-            // Resolve banco
-            let bancoId: string | null = null;
-            if (d.banco_nome) {
-              const { data: banco } = await supabase.from("bancos").select("id").eq("nome", d.banco_nome as string).limit(1).single();
-              if (banco) {
-                bancoId = banco.id;
-              } else {
-                const { data: newBanco } = await supabase.from("bancos").insert({ nome: d.banco_nome as string }).select().single();
-                bancoId = newBanco?.id || null;
-              }
-            }
-
-            await supabase.from("contas_bancarias").insert({
-              descricao: d.descricao as string,
-              banco_id: bancoId,
-              agencia: (d.agencia as string) || null,
-              conta: (d.conta as string) || null,
-              titular: (d.titular as string) || null,
-              saldo_atual: (d.saldo_atual as number) || 0,
-            });
-          }
-
-          await supabase.from("stg_cadastros").update({ status: "consolidado" }).eq("id", row.id);
-          inseridos++;
-        } catch (e: unknown) {
-          const msg = e instanceof Error ? e.message : "Erro desconhecido";
-          await supabase.from("stg_cadastros").update({ status: "erro", erro: msg }).eq("id", row.id);
-          erros++;
-        }
-      }
-
-      const finalStatus = erros === 0 ? "concluido" : inseridos > 0 ? "parcial" : "erro";
-      await supabase.from("importacao_lotes").update({
-        status: finalStatus,
-        registros_sucesso: inseridos,
-        registros_erro: erros,
-        resumo: { inseridos, erros },
-      }).eq("id", targetLoteId);
+      const inseridos = resultado.inseridos || 0;
+      const erros = resultado.erros || 0;
 
       await supabase.from("importacao_logs").insert({
         lote_id: targetLoteId,
         nivel: "info",
-        mensagem: `Consolidação de ${type}: ${inseridos} inseridos, ${erros} erros.`,
+        mensagem: `Consolidação de ${enrichmentType}: ${inseridos} inseridos, ${erros} erros.`,
       });
 
-      toast.success(`${inseridos} registros consolidados.`);
-      return true;
+      if (erros === 0) {
+        toast.success(`${inseridos} registros consolidados com sucesso.`);
+      } else if (inseridos > 0) {
+        toast.warning(`${inseridos} consolidados, ${erros} erros.`);
+      } else {
+        toast.error(`Consolidação falhou: ${erros} erros.`);
+      }
+
+      return erros === 0;
     } catch (error: unknown) {
       toast.error(`Falha: ${error instanceof Error ? error.message : "Desconhecido"}`);
       return false;
