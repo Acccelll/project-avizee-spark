@@ -213,10 +213,13 @@ export default function MigracaoDados() {
       setActiveImportSource("xml");
     } else if (type === "faturamento") {
       setActiveImportSource("faturamento");
-      setImportType("produtos" as any); // fallback dummy
+      setImportType("produtos" as any);
     } else if (type === "financeiro") {
       setActiveImportSource("financeiro");
-      setImportType("produtos" as any); // fallback dummy
+      setImportType("produtos" as any);
+    } else if (["produtos_fornecedores", "formas_pagamento", "contas_contabeis", "contas_bancarias"].includes(type)) {
+      setActiveImportSource("enriquecimento");
+      hookEnriquecimento.setEnrichmentType(type as EnrichmentType);
     } else {
       setActiveImportSource("cadastros");
       setImportType(type as ImportType);
