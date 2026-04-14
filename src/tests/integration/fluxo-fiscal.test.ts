@@ -4,7 +4,6 @@ import { autorizarNFe } from '@/services/fiscal/sefaz/autorizacao.service';
 import type { NFeData } from '@/services/fiscal/sefaz/xmlBuilder.service';
 import type { CertificadoDigital } from '@/services/fiscal/sefaz/assinaturaDigital.service';
 
-// Mock supabase for edge function calls
 vi.mock('@/integrations/supabase/client', () => ({
   supabase: {
     functions: {
@@ -17,15 +16,24 @@ const mockNFeData: NFeData = {
   emitente: {
     cnpj: '11222333000181',
     razaoSocial: 'Empresa Teste Ltda',
-    inscricaoEstadual: '1234567890',
-    endereco: { logradouro: 'Rua Teste', numero: '100', bairro: 'Centro', codigoMunicipio: '3550308', municipio: 'São Paulo', uf: 'SP', cep: '01001000' },
-    crt: '1',
+    ie: '1234567890',
+    uf: 'SP',
+    cep: '01001000',
+    logradouro: 'Rua Teste',
+    numero: '100',
+    municipio: 'São Paulo',
+    codigoMunicipio: '3550308',
   },
   destinatario: {
-    cnpj: '44555666000199',
+    cpfCnpj: '44555666000199',
     razaoSocial: 'Cliente Teste SA',
-    inscricaoEstadual: '9876543210',
-    endereco: { logradouro: 'Av Teste', numero: '200', bairro: 'Jardim', codigoMunicipio: '3304557', municipio: 'Rio de Janeiro', uf: 'RJ', cep: '20040020' },
+    ie: '9876543210',
+    uf: 'RJ',
+    cep: '20040020',
+    logradouro: 'Av Teste',
+    numero: '200',
+    municipio: 'Rio de Janeiro',
+    codigoMunicipio: '3304557',
   },
   itens: [
     {
@@ -38,22 +46,25 @@ const mockNFeData: NFeData = {
       quantidade: 10,
       valorUnitario: 100.00,
       valorTotal: 1000.00,
-      impostos: {
-        icms: { cst: '00', aliquota: 18, valor: 180.00, baseCalculo: 1000.00 },
-        pis: { cst: '01', aliquota: 1.65, valor: 16.50, baseCalculo: 1000.00 },
-        cofins: { cst: '01', aliquota: 7.60, valor: 76.00, baseCalculo: 1000.00 },
-      },
+      icms: { cst: '00', modalidade: '3', aliquota: 18, valor: 180.00, base: 1000.00 },
+      pis: { cst: '01', aliquota: 1.65, valor: 16.50 },
+      cofins: { cst: '01', aliquota: 7.60, valor: 76.00 },
     },
   ],
-  numero: 1,
+  totais: {
+    baseIcms: 1000, valorIcms: 180, valorIcmsSt: 0, valorProdutos: 1000,
+    valorFrete: 0, valorSeguro: 0, valorDesconto: 0, valorIpi: 0,
+    valorPis: 16.5, valorCofins: 76, outrasDespesas: 0, valorNF: 1000,
+  },
+  pagamentos: [{ forma: '01', valor: 1000 }],
+  cfop: '5102',
+  numero: '1',
   serie: '1',
   naturezaOperacao: 'Venda de mercadoria',
   dataEmissao: '2026-04-14T10:00:00-03:00',
   chave: '35260411222333000181550010000000011123456789',
-  ambiente: '2',
+  tipoDocumento: '1',
   finalidade: '1',
-  tipoOperacao: '1',
-  modelo: '55',
 };
 
 const mockCertA1: CertificadoDigital = {
@@ -75,7 +86,7 @@ describe('Fluxo Fiscal — construção e autorização de NF-e', () => {
   });
 
   it('validação de chave de acesso (44 dígitos)', () => {
-    const chave = mockNFeData.chave!;
+    const chave = mockNFeData.chave;
     expect(chave).toHaveLength(44);
     expect(chave).toMatch(/^\d{44}$/);
   });
