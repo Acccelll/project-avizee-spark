@@ -40,12 +40,14 @@ import { useImportacaoEstoque } from "@/hooks/importacao/useImportacaoEstoque";
 import { useImportacaoXml } from "@/hooks/importacao/useImportacaoXml";
 import { useImportacaoFaturamento } from "@/hooks/importacao/useImportacaoFaturamento";
 import { useImportacaoFinanceiro } from "@/hooks/importacao/useImportacaoFinanceiro";
+import { useImportacaoEnriquecimento, type EnrichmentType } from "@/hooks/importacao/useImportacaoEnriquecimento";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
 import { ImportSource, ImportType } from "@/hooks/importacao/types";
+import { Link2 } from "lucide-react";
 import { AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -68,18 +70,20 @@ export default function MigracaoDados() {
     orderBy: "created_at"
   });
 
-  const [activeImportSource, setActiveImportSource] = useState<ImportSource>("cadastros");
+  const [activeImportSource, setActiveImportSource] = useState<ImportSource | "enriquecimento">("cadastros");
 
   const hookCadastros = useImportacaoCadastros();
   const hookEstoque = useImportacaoEstoque();
   const hookXml = useImportacaoXml();
   const hookFaturamento = useImportacaoFaturamento();
   const hookFinanceiro = useImportacaoFinanceiro();
+  const hookEnriquecimento = useImportacaoEnriquecimento();
 
   const activeHook = activeImportSource === "cadastros" ? hookCadastros :
                     activeImportSource === "estoque" ? hookEstoque :
                     activeImportSource === "xml" ? hookXml :
-                    activeImportSource === "faturamento" ? hookFaturamento : hookFinanceiro;
+                    activeImportSource === "faturamento" ? hookFaturamento :
+                    activeImportSource === "enriquecimento" ? hookEnriquecimento : hookFinanceiro;
 
   const {
     file,
@@ -209,10 +213,13 @@ export default function MigracaoDados() {
       setActiveImportSource("xml");
     } else if (type === "faturamento") {
       setActiveImportSource("faturamento");
-      setImportType("produtos" as any); // fallback dummy
+      setImportType("produtos" as any);
     } else if (type === "financeiro") {
       setActiveImportSource("financeiro");
-      setImportType("produtos" as any); // fallback dummy
+      setImportType("produtos" as any);
+    } else if (["produtos_fornecedores", "formas_pagamento", "contas_contabeis", "contas_bancarias"].includes(type)) {
+      setActiveImportSource("enriquecimento");
+      hookEnriquecimento.setEnrichmentType(type as EnrichmentType);
     } else {
       setActiveImportSource("cadastros");
       setImportType(type as ImportType);
@@ -434,6 +441,56 @@ export default function MigracaoDados() {
                 summary={cardInfoMap.financeiro.summary}
                 onImport={() => handleOpenImport("financeiro")}
                 onViewBatches={() => { setTypeFilter("financeiro_aberto"); setActiveTab("lotes"); }}
+              />
+            </ImportacaoGrupoSection>
+
+            {/* Grupo 2.5 — Vínculos e Auxiliares (Fase 3) */}
+            <ImportacaoGrupoSection
+              order={2.5}
+              title="Vínculos e Auxiliares"
+              description="— enriquecimento relacional"
+              colorClass="bg-teal-100 text-teal-700"
+            >
+              <ImportacaoTipoCard
+                type="produtos_fornecedores"
+                title="Produto × Fornecedor"
+                description="Vínculo de produtos com seus fornecedores, preço de compra e referência."
+                criticidade="cadastral"
+                dependencies={["Produtos", "Fornecedores"]}
+                cardStatus={cardInfoMap.produtos?.cardStatus || "nunca_importado"}
+                summary={{ nextAction: "Importar vínculos" }}
+                onImport={() => handleOpenImport("produtos_fornecedores")}
+                onViewBatches={() => { setTypeFilter("produtos_fornecedores"); setActiveTab("lotes"); }}
+              />
+              <ImportacaoTipoCard
+                type="formas_pagamento"
+                title="Formas de Pagamento"
+                description="Cadastro de condições de pagamento (boleto, cartão, etc)."
+                criticidade="cadastral"
+                cardStatus={"nunca_importado"}
+                summary={{ nextAction: "Importar formas" }}
+                onImport={() => handleOpenImport("formas_pagamento")}
+                onViewBatches={() => { setTypeFilter("formas_pagamento"); setActiveTab("lotes"); }}
+              />
+              <ImportacaoTipoCard
+                type="contas_contabeis"
+                title="Plano de Contas"
+                description="Importação do plano de contas contábil legado."
+                criticidade="cadastral"
+                cardStatus={"nunca_importado"}
+                summary={{ nextAction: "Importar plano de contas" }}
+                onImport={() => handleOpenImport("contas_contabeis")}
+                onViewBatches={() => { setTypeFilter("contas_contabeis"); setActiveTab("lotes"); }}
+              />
+              <ImportacaoTipoCard
+                type="contas_bancarias"
+                title="Contas Bancárias"
+                description="Cadastro mínimo de contas bancárias para o financeiro."
+                criticidade="cadastral"
+                cardStatus={"nunca_importado"}
+                summary={{ nextAction: "Importar contas" }}
+                onImport={() => handleOpenImport("contas_bancarias")}
+                onViewBatches={() => { setTypeFilter("contas_bancarias"); setActiveTab("lotes"); }}
               />
             </ImportacaoGrupoSection>
 
