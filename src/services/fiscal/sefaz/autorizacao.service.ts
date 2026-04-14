@@ -1,10 +1,10 @@
 /**
  * Serviço de autorização de NF-e junto à SEFAZ.
+ * A assinatura digital é realizada server-side na Edge Function sefaz-proxy.
  */
 
 import { construirXMLNFe } from "./xmlBuilder.service";
 import type { NFeData } from "./xmlBuilder.service";
-import { assinarXML } from "./assinaturaDigital.service";
 import type { CertificadoDigital } from "./assinaturaDigital.service";
 import { enviarParaSefaz } from "./httpClient.service";
 
@@ -19,24 +19,39 @@ export interface AutorizacaoResult {
 
 /**
  * Autoriza uma NF-e junto à SEFAZ.
- * Orquestra: construção do XML → assinatura → envio → parseamento do retorno.
+ * Orquestra: construção do XML → envio (com assinatura server-side) → parseamento do retorno.
  */
 export async function autorizarNFe(
   dadosNFe: NFeData,
   certificado: CertificadoDigital,
   urlSefaz: string,
 ): Promise<AutorizacaoResult> {
-  const xmlNFe = construirXMLNFe(dadosNFe);
-  const { xmlAssinado, sucesso: assinado, erro: erroAssinatura } = assinarXML(xmlNFe, certificado);
-
-  if (!assinado) {
-    return { sucesso: false, motivo: erroAssinatura };
+  if (certificado.tipo === "A3") {
+    return {
+      sucesso: false,
+      motivo:
+        "Certificado A3 requer middleware específico. Não suportado diretamente.",
+    };
   }
 
+  if (!certificado.conteudo || !certificado.senha) {
+    return {
+      sucesso: false,
+      motivo: "Conteúdo e senha do certificado A1 são obrigatórios.",
+    };
+  }
+
+  const xmlNFe = construirXMLNFe(dadosNFe);
+
+  // Assinatura + envio são feitos na Edge Function sefaz-proxy
   const resposta = await enviarParaSefaz(
-    xmlAssinado,
+    xmlNFe,
     urlSefaz,
     "http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4/nfeAutorizacaoLote",
+    {
+      certificado_base64: certificado.conteudo,
+      certificado_senha: certificado.senha,
+    },
   );
 
   if (!resposta.sucesso) {
@@ -55,7 +70,7 @@ export async function autorizarNFe(
     sucesso: autorizado,
     protocolo,
     chave: dadosNFe.chave,
-    xmlAutorizado: autorizado ? xmlAssinado : undefined,
+    xmlAutorizado: autorizado ? xmlRetorno : undefined,
     status,
     motivo,
   };
