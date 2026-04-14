@@ -45,6 +45,7 @@ function createQueryResult() {
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
     from: () => createQueryResult(),
+    rpc: vi.fn(() => Promise.resolve({ data: 'COT000001', error: null })),
   },
 }));
 
