@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useMemo, useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";
@@ -72,7 +71,7 @@ interface FinanceiroLancamentoComFuncionario {
 }
 
 export default function Funcionarios() {
-  const { data, loading, create, update, remove } = useSupabaseCrud<Funcionario>({ table: "funcionarios" as any });
+  const { data, loading, create, update, remove } = useSupabaseCrud<Funcionario>({ table: "funcionarios" });
   const [modalOpen, setModalOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selected, setSelected] = useState<Funcionario | null>(null);
@@ -113,10 +112,10 @@ export default function Funcionarios() {
   const openView = async (f: Funcionario) => {
     setSelected(f); setDrawerOpen(true); setLoadingFolhas(true); setLoadingLancamentos(true);
     const [folhaResult, lancamentosResult] = await Promise.all([
-      supabase.from("folha_pagamento" as any).select("*").eq("funcionario_id", f.id).order("competencia", { ascending: false }),
+      supabase.from("folha_pagamento").select("*").eq("funcionario_id", f.id).order("competencia", { ascending: false }),
       // `funcionario_id` exists in the DB but is absent from the generated Supabase types.
       // The cast is intentional; remove once types are regenerated.
-      supabase.from("financeiro_lancamentos").select("id,descricao,valor,data_vencimento,data_pagamento,status").eq("funcionario_id" as any, f.id).order("data_vencimento", { ascending: false }),
+      supabase.from("financeiro_lancamentos").select("id,descricao,valor,data_vencimento,data_pagamento,status").eq("funcionario_id", f.id).order("data_vencimento", { ascending: false }),
     ]);
     setFolhas((folhaResult.data as unknown as FolhaPagamento[]) || []);
     setLancamentos((lancamentosResult.data as unknown as FinanceiroLancamento[]) || []);
@@ -132,9 +131,9 @@ export default function Funcionarios() {
     setSubmitting(true);
     try {
       const payload = { ...form, data_demissao: form.data_demissao || null };
-      if (mode === "create") await create(payload as any);
+      if (mode === "create") await create(payload);
       else if (selected) {
-        await update(selected.id, payload as any);
+        await update(selected.id, payload);
         if (selected.ativo && !form.ativo && folhas.length > 0) {
           toast.info(`${selected.nome} foi inativado. O histórico de folha foi preservado.`);
         }
@@ -148,7 +147,7 @@ export default function Funcionarios() {
   const handleFolhaSubmit = async () => {
     if (!selected || !folhaForm.competencia) { toast.error("Competência é obrigatória"); return; }
     const liquido = Number(selected.salario_base) + Number(folhaForm.proventos) - Number(folhaForm.descontos);
-    const { error } = await supabase.from("folha_pagamento" as any).insert({
+    const { error } = await supabase.from("folha_pagamento").insert({
       funcionario_id: selected.id,
       competencia: folhaForm.competencia,
       salario_base: selected.salario_base,
@@ -157,7 +156,7 @@ export default function Funcionarios() {
       valor_liquido: liquido,
       observacoes: folhaForm.observacoes || null,
       status: "processada",
-    } as any);
+    });
     if (error) { toast.error("Erro: " + error.message); return; }
     toast.success("Folha registrada!");
     setFolhaModalOpen(false);
@@ -198,9 +197,9 @@ export default function Funcionarios() {
     const inserts: Promise<unknown>[] = [
       // `FinanceiroLancamentoComFuncionario` is a local type (funcionario_id absent from
       // generated Supabase types). Cast required until types are regenerated.
-      supabase.from('financeiro_lancamentos').insert(salarioPayload as any),
+      supabase.from('financeiro_lancamentos').insert(salarioPayload),
       // Marcar folha como financeiro_gerado
-      supabase.from('folha_pagamento' as any).update({ status: 'pago', financeiro_gerado: true }).eq('id', folha.id),
+      supabase.from('folha_pagamento').update({ status: 'pago', financeiro_gerado: true }).eq('id', folha.id),
     ];
 
     if (fgts > 0) {
@@ -212,7 +211,7 @@ export default function Funcionarios() {
           data_vencimento: dataFgts,
           status: 'aberto',
           ativo: true,
-        } as any)
+        })
       );
     }
 

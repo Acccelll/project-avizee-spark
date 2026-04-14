@@ -27,6 +27,7 @@ import { FiscalAutocomplete } from "@/components/ui/FiscalAutocomplete";
 import { cfopCodes, cstIcmsCodes } from "@/lib/fiscalData";
 import { useNcmLookup } from '@/hooks/useNcmLookup';
 import { Switch } from "@/components/ui/switch";
+import { logger } from '@/utils/logger';
 
 type TipoItem = "produto" | "insumo";
 
@@ -127,7 +128,7 @@ const Produtos = () => {
     Promise.all([
       supabase.from("grupos_produto").select("id, nome").eq("ativo", true).order("nome"),
       supabase.from("fornecedores").select("id, nome_razao_social").eq("ativo", true).order("nome_razao_social"),
-      (supabase as any).from("unidades_medida").select("id, codigo, descricao, sigla").eq("ativo", true).order("codigo"),
+      db.from("unidades_medida").select("id, codigo, descricao, sigla").eq("ativo", true).order("codigo"),
     ]).then(([{ data: g }, { data: f }, { data: um }]) => {
       if (g) setGrupos(g);
       if (f) setFornecedoresList(f);
@@ -261,7 +262,7 @@ const Produtos = () => {
       if (form.eh_composto && editComposicao.length > 0) {
         const rows = editComposicao.map((c, i) => ({ produto_pai_id: produtoId, produto_filho_id: c.produto_filho_id, quantidade: c.quantidade, ordem: i + 1 }));
         const { error } = await supabase.from("produto_composicoes").insert(rows);
-        if (error) {console.error('[produtos] composição:', error);toast.error("Erro ao salvar composição. Tente novamente.");}
+        if (error) {logger.error('[produtos] composição:', error);toast.error("Erro ao salvar composição. Tente novamente.");}
       }
 
       const validForn = editFornecedores.filter(f => f.fornecedor_id);
@@ -273,11 +274,11 @@ const Produtos = () => {
           preco_compra: f.preco_compra || null,
         }));
         const { error } = await supabase.from("produtos_fornecedores").insert(fRows);
-        if (error) {console.error('[produtos] fornecedores:', error);toast.error("Erro ao salvar fornecedores. Tente novamente.");}
+        if (error) {logger.error('[produtos] fornecedores:', error);toast.error("Erro ao salvar fornecedores. Tente novamente.");}
       }
       setModalOpen(false);
     } catch (err) {
-      console.error('[produtos] erro ao salvar:', err);
+      logger.error('[produtos] erro ao salvar:', err);
       toast.error("Erro ao salvar produto");
     }
     setSaving(false);
@@ -291,7 +292,7 @@ const Produtos = () => {
     if (!descricao) { toast.error("Descrição é obrigatória"); return; }
     setSavingNovaUnidade(true);
     try {
-      const { data: inserted, error } = await (supabase as any)
+      const { data: inserted, error } = await db
         .from("unidades_medida")
         .insert({ codigo, descricao, sigla: novaUnidadeForm.sigla.trim() || null, ativo: true })
         .select("id, codigo, descricao, sigla")
@@ -309,7 +310,7 @@ const Produtos = () => {
       setNovaUnidadeForm({ codigo: "", descricao: "", sigla: "" });
       toast.success(`Unidade "${nova.codigo}" criada com sucesso`);
     } catch (err) {
-      console.error('[produtos] erro ao criar unidade:', err);
+      logger.error('[produtos] erro ao criar unidade:', err);
       toast.error("Erro ao criar unidade de medida");
     }
     setSavingNovaUnidade(false);

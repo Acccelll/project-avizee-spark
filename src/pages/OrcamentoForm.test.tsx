@@ -22,7 +22,7 @@ vi.mock("react-router-dom", async () => {
 });
 
 function createQueryResult() {
-  const query: any = {
+  const query: Record<string, unknown> = {
     select: vi.fn((_: string, options?: { head?: boolean }) => {
       if (options?.head) {
         return Promise.resolve({ count: 0, error: null });
@@ -35,6 +35,7 @@ function createQueryResult() {
     is: vi.fn(() => query),
     limit: vi.fn(() => query),
     order: vi.fn(() => Promise.resolve({ data: [], error: null })),
+    limit: vi.fn(() => query),
     single: vi.fn(() => Promise.resolve({ data: null, error: null })),
     maybeSingle: vi.fn(() => Promise.resolve({ data: null, error: null })),
   };

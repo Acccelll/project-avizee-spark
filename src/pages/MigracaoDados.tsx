@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useMemo, useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { ImportacaoResumoCards } from "@/components/importacao/ImportacaoResumoCards";
@@ -101,7 +100,7 @@ export default function MigracaoDados() {
     generatePreview,
     processImport,
     finalizeImport
-  } = activeHook as any;
+  } = activeHook as typeof activeHook;
 
   const filteredLotes = lotes.filter(lote => {
     const matchesSearch = lote.arquivo_nome?.toLowerCase().includes(searchTerm.toLowerCase());

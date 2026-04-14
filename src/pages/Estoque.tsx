@@ -31,6 +31,7 @@ import { AlertTriangle, ArrowDownCircle, RotateCcw,
 } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { cn } from "@/lib/utils";
+import { logger } from '@/utils/logger';
 
 type ProdutoRow = Database["public"]["Tables"]["produtos"]["Row"];
 
@@ -188,7 +189,7 @@ const Estoque = () => {
       setPendingMovForm(null);
       toast.success("Ajuste registrado com sucesso");
     } catch (err) {
-      console.error("[estoque] erro ao salvar:", err);
+      logger.error("[estoque] erro ao salvar:", err);
       toast.error("Erro ao registrar movimentação de estoque");
     }
     setSaving(false);

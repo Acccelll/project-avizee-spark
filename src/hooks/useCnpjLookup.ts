@@ -46,7 +46,7 @@ export function useCnpjLookup() {
       let inscricaoEstadual = "";
       if (data.inscricoes_estaduais && Array.isArray(data.inscricoes_estaduais)) {
         const ieAtiva = data.inscricoes_estaduais.find(
-          (ie: any) => ie.ativo === true || ie.situacao_cadastral === "ATIVA"
+          ( ie: Record<string, unknown>) => ie.ativo === true || ie.situacao_cadastral === "ATIVA"
         );
         if (ieAtiva) inscricaoEstadual = ieAtiva.inscricao_estadual || "";
       }

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/utils/logger';
 
 export interface SidebarAlerts {
   financeiroVencidos: number;
@@ -65,7 +66,7 @@ export function useSidebarAlerts() {
           lastUpdatedAt: new Date().toISOString(),
         });
       } catch (err) {
-        console.error('[sidebar-alerts] Error loading alerts:', err);
+        logger.error('[sidebar-alerts] Error loading alerts:', err);
       }
     };
 

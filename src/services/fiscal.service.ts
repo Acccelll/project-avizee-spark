@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- Supabase update type workaround */
 import { supabase } from "@/integrations/supabase/client";
+import { logger } from "@/utils/logger";
 import {
   calcularValorParcela,
   calcularVencimentoParcela,
@@ -52,7 +53,7 @@ export async function confirmarNotaFiscal({ nf, parcelas }: ConfirmarNFParams) {
     .single();
 
   if (current?.status === "confirmada") {
-    console.warn("[fiscal] NF já confirmada, ignorando duplicidade");
+    logger.warn("[fiscal] NF já confirmada, ignorando duplicidade");
     return;
   }
 
@@ -183,7 +184,7 @@ export async function estornarNotaFiscal(nf: {
     .single();
 
   if (current?.status === "cancelada") {
-    console.warn("[fiscal] NF já cancelada, ignorando duplicidade");
+    logger.warn("[fiscal] NF já cancelada, ignorando duplicidade");
     return;
   }
 
@@ -344,7 +345,7 @@ async function updateOVFaturamento(ordemVendaId: string, nfItens: any[]) {
       .update({ status_faturamento: newStatus })
       .eq("id", ordemVendaId);
   } catch (err: any) {
-    console.error("Erro ao atualizar faturamento OV:", err);
+    logger.error("Erro ao atualizar faturamento OV:", err);
   }
 }
 

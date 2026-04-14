@@ -13,6 +13,7 @@ import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { type MultiSelectOption } from "@/components/ui/MultiSelect";
 import type { Database } from "@/integrations/supabase/types";
 import { getUserFriendlyError } from "@/utils/errorMessages";
+import { logger } from '@/utils/logger';
 
 type CompraInsert = Database["public"]["Tables"]["compras"]["Insert"];
 type CompraUpdate = Database["public"]["Tables"]["compras"]["Update"];
@@ -371,7 +372,7 @@ export function useCompras(): UseComprasReturn {
         setModalOpen(false);
         invalidateCompras();
       } catch (err: unknown) {
-        console.error("[compras]", err);
+        logger.error("[compras]", err);
         toast.error(getUserFriendlyError(err));
       }
       setSaving(false);

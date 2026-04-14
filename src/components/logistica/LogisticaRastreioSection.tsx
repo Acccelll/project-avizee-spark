@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Tables } from "@/integrations/supabase/types";
 import { Button } from "@/components/ui/button";
@@ -28,9 +28,9 @@ export function LogisticaRastreioSection({ pedidoCompraId, notaFiscalId, remessa
   const [trackingLoading, setTrackingLoading] = useState<string | null>(null);
   const [mockWarning, setMockWarning] = useState<string | null>(null);
 
-  const fetchLogistica = async () => {
+  const fetchLogistica = useCallback(async () => {
     setLoading(true);
-    let query = supabase.from("remessas").select("*, transportadoras(nome_razao_social)") as any;
+    let query = supabase.from("remessas").select("*, transportadoras(nome_razao_social)") as ReturnType<typeof supabase.from>;
 
     if (remessaId) query = query.eq("id", remessaId);
     if (pedidoCompraId) query = query.eq("pedido_compra_id", pedidoCompraId);
@@ -61,11 +61,11 @@ export function LogisticaRastreioSection({ pedidoCompraId, notaFiscalId, remessa
       }
     }
     setLoading(false);
-  };
+  }, [pedidoCompraId, notaFiscalId, remessaId, ordemVendaId]);
 
   useEffect(() => {
     fetchLogistica();
-  }, [pedidoCompraId, notaFiscalId, remessaId, ordemVendaId]);
+  }, [fetchLogistica]);
 
   const handleRastrear = async (remessa: Remessa) => {
     if (!remessa.codigo_rastreio) return;

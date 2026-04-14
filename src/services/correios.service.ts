@@ -47,10 +47,7 @@ export async function fetchTracking(codigo: string): Promise<CorreiosTrackingRes
   const url = `${supabaseUrl}/functions/v1/correios-api?action=rastrear&codigo=${encodeURIComponent(codigoSanitizado)}`;
 
   const { data: sessionData } = await supabase.auth.getSession();
-  const token =
-    sessionData.session?.access_token ??
-    (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string) ??
-    "";
+  const token = sessionData.session?.access_token ?? "";
 
   const res = await fetch(url, {
     headers: {

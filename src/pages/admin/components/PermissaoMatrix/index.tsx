@@ -34,6 +34,7 @@ import type { AppRole } from "@/contexts/AuthContext";
 import { atribuirPerfil } from "@/services/admin/perfis.service";
 import { supabase } from "@/integrations/supabase/client";
 import { getUserFriendlyError } from "@/utils/errorMessages";
+import { logger } from '@/utils/logger';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -118,7 +119,7 @@ export function PermissaoMatrix() {
             const { error } = await supabase
               .from("user_permissions")
               .upsert(
-                { resource, action, allowed: true } as any,
+                { resource, action, allowed: true },
                 { onConflict: "resource,action" }
               );
             if (error) throw error;
@@ -138,7 +139,7 @@ export function PermissaoMatrix() {
       toast.success("Permissões atualizadas com sucesso.");
     },
     onError: (err: Error) => {
-      console.error("[PermissaoMatrix] Erro ao salvar:", err);
+      logger.error("[PermissaoMatrix] Erro ao salvar:", err);
       toast.error(getUserFriendlyError(err));
     },
   });

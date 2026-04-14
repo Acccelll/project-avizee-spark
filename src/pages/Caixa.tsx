@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useMemo, useEffect } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";
@@ -16,6 +15,7 @@ import { toast } from "sonner";
 import { formatCurrency } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
 import { Wallet, TrendingUp, TrendingDown, ArrowUpDown, Building2 } from "lucide-react";
+import { logger } from '@/utils/logger';
 
 interface CaixaMov {
   id: string; tipo: string; descricao: string; valor: number;
@@ -42,7 +42,7 @@ const Caixa = () => {
   useEffect(() => {
     const loadContas = async () => {
       const { data: contas } = await supabase.from("contas_bancarias").select("*, bancos(nome)").eq("ativo", true);
-      setContasBancarias((contas as any[]) || []);
+      setContasBancarias((contas as Record<string, unknown>[]) || []);
     };
     loadContas();
   }, []);
@@ -97,17 +97,17 @@ const Caixa = () => {
           saldo_atual,
           conta_bancaria_id: form.conta_bancaria_id,
           forma_pagamento: form.forma_pagamento || null,
-        } as any),
+        }),
         // Update conta bancaria saldo
-        supabase.from("contas_bancarias").update({ saldo_atual } as any).eq("id", form.conta_bancaria_id),
+        supabase.from("contas_bancarias").update({ saldo_atual }).eq("id", form.conta_bancaria_id),
       ]);
       setModalOpen(false);
       setForm({ tipo: "suprimento", descricao: "", valor: 0, conta_bancaria_id: "", forma_pagamento: "" });
       // Refresh contas
       const { data: contas } = await supabase.from("contas_bancarias").select("*, bancos(nome)").eq("ativo", true);
-      setContasBancarias((contas as any[]) || []);
+      setContasBancarias((contas as Record<string, unknown>[]) || []);
     } catch (err) {
-      console.error('[caixa] erro ao salvar:', err);
+      logger.error('[caixa] erro ao salvar:', err);
       toast.error("Erro ao registrar movimentação");
     }
     setSaving(false);

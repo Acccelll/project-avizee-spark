@@ -35,6 +35,7 @@ import { useMetas } from "@/hooks/useMetas";
 import { useInView } from "@/hooks/useInView";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
+import { logger } from '@/utils/logger';
 
 // Lazy-loaded heavy chart components
 const VendasChart = lazy(() =>
@@ -126,10 +127,10 @@ const DashboardContent = () => {
   });
   const [faturamento, setFaturamento] = useState({ mesAtual: 0, mesAnterior: 0 });
   const [loading, setLoading] = useState(true);
-  const [recentOrcamentos, setRecentOrcamentos] = useState<any[]>([]);
-  const [backlogOVs, setBacklogOVs] = useState<any[]>([]);
-  const [comprasAguardando, setComprasAguardando] = useState<any[]>([]);
-  const [estoqueBaixo, setEstoqueBaixo] = useState<any[]>([]);
+  const [recentOrcamentos, setRecentOrcamentos] = useState<Record<string, unknown>[]>([]);
+  const [backlogOVs, setBacklogOVs] = useState<Record<string, unknown>[]>([]);
+  const [comprasAguardando, setComprasAguardando] = useState<Record<string, unknown>[]>([]);
+  const [estoqueBaixo, setEstoqueBaixo] = useState<Record<string, unknown>[]>([]);
   const [fiscalStats, setFiscalStats] = useState({ emitidas: 0, pendentes: 0, canceladas: 0, valorEmitidas: 0 });
   const [vencimentosHoje, setVencimentosHoje] = useState({ receber: 0, pagar: 0 });
   const [topClientes, setTopClientes] = useState<{ nome: string; valor: number }[]>([]);
@@ -470,7 +471,7 @@ const DashboardContent = () => {
           setRemessasAtrasadas(count ?? 0);
         });
     } catch (err) {
-      console.error("[dashboard] erro ao carregar dados:", err);
+      logger.error("[dashboard] erro ao carregar dados:", err);
       toast.error("Erro ao carregar dados do dashboard. Tente novamente.");
     } finally {
       setLoading(false);

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { describe, expect, it } from "vitest";
 import {
   checkPermission,
@@ -78,7 +77,8 @@ describe("checkPermissionArray", () => {
   });
 
   it("suporta pseudo-permissão admin no array", () => {
-    expect(checkPermissionArray(["admin"], "qualquer:permissao")).toBe(true);
+    // cast needed: "qualquer:permissao" is not in the PermissionKey union
+    expect(checkPermissionArray(["admin"], "qualquer:permissao" as Permission)).toBe(true);
   });
 
   it("suporta wildcard no array", () => {

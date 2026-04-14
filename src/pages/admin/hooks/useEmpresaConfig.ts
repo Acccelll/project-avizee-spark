@@ -15,6 +15,7 @@ import {
   type EmpresaConfig,
   type EmpresaConfigUpdate,
 } from "@/services/admin/empresa.service";
+import { logger } from '@/utils/logger';
 
 const EMPRESA_KEY = ["admin", "empresa-config"] as const;
 const appConfigKey = (chave: AppConfigChave) =>
@@ -37,7 +38,7 @@ export function useEmpresaConfig() {
       toast.success("Configurações da empresa salvas com sucesso.");
     },
     onError: (err: Error) => {
-      console.error("[admin] Erro ao salvar empresa_config:", err);
+      logger.error("[admin] Erro ao salvar empresa_config:", err);
       toast.error(getUserFriendlyError(err));
     },
   });
@@ -68,7 +69,7 @@ export function useAppConfig(chave: AppConfigChave) {
       toast.success("Configurações salvas com sucesso.");
     },
     onError: (err: Error) => {
-      console.error(`[admin] Erro ao salvar config '${chave}':`, err);
+      logger.error(`[admin] Erro ao salvar config '${chave}':`, err);
       toast.error(getUserFriendlyError(err));
     },
   });

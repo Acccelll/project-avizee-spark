@@ -41,8 +41,7 @@ export function FinanceiroCalendar({ data }: Props) {
     ? eventsByDate.get(selectedDateStr) || []
     : [];
 
-  const hoje = new Date();
-  hoje.setHours(0, 0, 0, 0);
+  const hoje = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }, []);
 
   const modifiers = useMemo(() => {
     const receber: Date[] = [];

@@ -1,9 +1,10 @@
-// @ts-nocheck
 import { supabase } from '@/integrations/supabase/client';
 import { Tables } from '@/integrations/supabase/types';
+import { logger } from '@/utils/logger';
 
 // Alias for supabase client to bypass missing table types for frete_simulacoes / frete_simulacoes_opcoes
-const sb = supabase as any;
+import type { SupabaseClient } from "@supabase/supabase-js";
+const sb = supabase as unknown as SupabaseClient;
 
 // ---------------------------------------------------------------
 // Types
@@ -33,7 +34,7 @@ export async function listarCaixasEmbalagem(): Promise<CaixaEmbalagem[]> {
 }
 
 export async function salvarCaixasEmbalagem(caixas: CaixaEmbalagem[]): Promise<void> {
-  await (sb.from('app_configuracoes') as any).upsert(
+  await sb.from('app_configuracoes').upsert(
     { chave: CAIXAS_CONFIG_KEY, valor: caixas, updated_at: new Date().toISOString() },
     { onConflict: 'chave' }
   );
@@ -192,7 +193,7 @@ export async function criarOuAtualizarSimulacao(
 export async function carregarSimulacaoPorOrigem(
   origemTipo: 'orcamento' | 'pedido',
   origemId: string
-): Promise<(any & { opcoes: FreteOpcaoLocal[] }) | null> {
+): Promise<(Record<string, unknown> & { opcoes: FreteOpcaoLocal[] }) | null> {
   const { data: sim, error } = await sb
     .from('frete_simulacoes')
     .select('*')
@@ -241,7 +242,7 @@ export async function consultarCorreios(
   const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL as string || '').replace(/\/$/, '');
   const url = `${supabaseUrl}/functions/v1/correios-api?action=cotacao_multi`;
   const session = await supabase.auth.getSession();
-  const token = session.data.session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || '';
+  const token = session.data.session?.access_token ?? "";
 
   const res = await fetch(url, {
     method: 'POST',
@@ -278,7 +279,7 @@ export async function salvarOpcoesCorreios(
     .eq('selecionada', false);
 
   if (deleteError) {
-    console.warn('[freteSimulacao] falha ao remover opções Correios antigas:', deleteError);
+    logger.warn('[freteSimulacao] falha ao remover opções Correios antigas:', deleteError);
   }
 
   const rows = opcoes.map((o) => ({
@@ -438,7 +439,7 @@ export async function selecionarOpcaoFrete(
       altura_cm: dimensoes.altura_cm,
       largura_cm: dimensoes.largura_cm,
       comprimento_cm: dimensoes.comprimento_cm,
-    } as any)
+    })
     .eq('id', orcamentoId);
 }
 

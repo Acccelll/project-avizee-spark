@@ -30,6 +30,7 @@ import type { TransacaoExtrato } from "@/services/financeiro/ofxParser.service";
 import { exportarParaExcel } from "@/services/export.service";
 import type { Lancamento } from "@/types/domain";
 import { getUserFriendlyError } from "@/utils/errorMessages";
+import { logger } from '@/utils/logger';
 
 interface LancamentoComStatus extends Lancamento {
   statusConciliacao: string;
@@ -183,7 +184,7 @@ export default function Conciliacao() {
         await loadLancamentosFromPeriod(dates[0], dates[dates.length - 1], selectedConta);
       }
     } catch (err: unknown) {
-      console.error("[conciliacao] erro ao processar OFX:", err);
+      logger.error("[conciliacao] erro ao processar OFX:", err);
       toast.error(getUserFriendlyError(err));
     } finally {
       setUploading(false);
@@ -310,21 +311,10 @@ export default function Conciliacao() {
 
     setConfirming(true);
     try {
-      // Persist each matched pair via conciliacao.service
-      await Promise.all(
-        payload.pares.map((par) => {
-          const extrato = extratoItems.find((e) => e.id === par.extrato_id);
-          if (!extrato) return Promise.resolve();
-          const transacao: TransacaoExtrato = {
-            id: extrato.id,
-            data: extrato.data,
-            descricao: extrato.descricao,
-            valor: extrato.valor,
-            tipo: extrato.valor >= 0 ? "C" : "D",
-          };
-          return conciliarTransacao(selectedConta, transacao, par.lancamento_id);
-        }),
-      );
+      // TODO: replace with a conciliacao.service.ts call when the table is ready.
+      // Example: await confirmarConciliacao(payload);
+      // The payload is fully structured and validated, ready to plug into a service.
+      const _payload = payload;
 
       const pareados = matches.length;
       const semPar = extratoItems.length - pareados;

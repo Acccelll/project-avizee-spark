@@ -15,6 +15,7 @@ import {
   revogarPermissao,
   type AppRole,
 } from "@/services/admin/perfis.service";
+import { logger } from '@/utils/logger';
 
 export function usePerfis(userId: string) {
   const queryClient = useQueryClient();
@@ -43,7 +44,7 @@ export function usePerfis(userId: string) {
       toast.success("Perfil atribuído com sucesso.");
     },
     onError: (err: Error) => {
-      console.error("[admin] Erro ao atribuir perfil:", err);
+      logger.error("[admin] Erro ao atribuir perfil:", err);
       toast.error(getUserFriendlyError(err));
     },
   });
@@ -56,7 +57,7 @@ export function usePerfis(userId: string) {
       toast.success("Perfil removido.");
     },
     onError: (err: Error) => {
-      console.error("[admin] Erro ao remover perfil:", err);
+      logger.error("[admin] Erro ao remover perfil:", err);
       toast.error(getUserFriendlyError(err));
     },
   });
@@ -69,7 +70,7 @@ export function usePerfis(userId: string) {
       toast.success("Permissão concedida.");
     },
     onError: (err: Error) => {
-      console.error("[admin] Erro ao conceder permissão:", err);
+      logger.error("[admin] Erro ao conceder permissão:", err);
       toast.error(getUserFriendlyError(err));
     },
   });
@@ -82,7 +83,7 @@ export function usePerfis(userId: string) {
       toast.success("Permissão revogada.");
     },
     onError: (err: Error) => {
-      console.error("[admin] Erro ao revogar permissão:", err);
+      logger.error("[admin] Erro ao revogar permissão:", err);
       toast.error(getUserFriendlyError(err));
     },
   });

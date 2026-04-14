@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import { processarDevolucao } from "@/services/fiscal.service";
+import { logger } from '@/utils/logger';
 
 /** Minimal shape of the originating NF used by the devolução flow. */
 export interface NfSimples {
@@ -58,7 +59,7 @@ export function DevolucaoDialog({ open, onOpenChange, devolucaoNF, devolucaoIten
       onOpenChange(false);
       onSuccess();
     } catch (err: unknown) {
-      console.error("[fiscal] devolução:", err);
+      logger.error("[fiscal] devolução:", err);
       toast.error(getUserFriendlyError(err));
     }
     setProcessing(false);

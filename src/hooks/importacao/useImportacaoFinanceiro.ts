@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useCallback } from "react";
 import * as XLSX from "@/lib/xlsx-compat";
 import { supabase } from "@/integrations/supabase/client";
@@ -6,6 +5,7 @@ import { toast } from "sonner";
 import { validateFinanceiroImport } from "@/lib/importacao/validators";
 import { FIELD_ALIASES } from "@/lib/importacao/aliases";
 import { Mapping, PreviewFinanceiroRow } from "./types";
+import { logger } from '@/utils/logger';
 
 /**
  * Hook de importação financeira com staging real.
@@ -26,29 +26,6 @@ export function useImportacaoFinanceiro() {
   const [previewData, setPreviewData] = useState<PreviewFinanceiroRow[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [loteId, setLoteId] = useState<string | null>(null);
-
-  const onFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (!selectedFile) return;
-
-    setFile(selectedFile);
-    const reader = new FileReader();
-    reader.onload = async (evt) => {
-      const bstr = evt.target?.result;
-      try {
-        const wb = XLSX.read(bstr, { type: "binary" });
-        await XLSX.ensureLoaded(wb);
-        setWorkbook(wb);
-        setSheets(wb.SheetNames);
-        if (wb.SheetNames.length > 0) {
-          onSheetChange(wb.SheetNames[0], wb);
-        }
-      } catch (err: any) {
-        toast.error(`Erro ao ler arquivo: ${err.message}`);
-      }
-    };
-    reader.readAsBinaryString(selectedFile);
-  }, []);
 
   const onSheetChange = useCallback((sheetName: string, wb: XLSX.WorkBook | null = null) => {
     const activeWb = wb || workbook;
@@ -72,6 +49,29 @@ export function useImportacaoFinanceiro() {
       setMapping(initialMapping);
     }
   }, [workbook]);
+
+  const onFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (!selectedFile) return;
+
+    setFile(selectedFile);
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      const bstr = evt.target?.result;
+      try {
+        const wb = XLSX.read(bstr, { type: "binary" });
+        await XLSX.ensureLoaded(wb);
+        setWorkbook(wb);
+        setSheets(wb.SheetNames);
+        if (wb.SheetNames.length > 0) {
+          onSheetChange(wb.SheetNames[0], wb);
+        }
+      } catch (err: unknown) {
+        toast.error(`Erro ao ler arquivo: ${err.message}`);
+      }
+    };
+    reader.readAsBinaryString(selectedFile);
+  }, [onSheetChange]);
 
   const generatePreview = useCallback(async () => {
     if (rawRows.length === 0) return;
@@ -221,7 +221,7 @@ export function useImportacaoFinanceiro() {
 
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : "Erro desconhecido";
-      console.error("Erro na importação financeira:", error);
+      logger.error("Erro na importação financeira:", error);
       toast.error(`Falha no processamento: ${msg}`);
     } finally {
       setIsProcessing(false);

@@ -1,6 +1,6 @@
-export const mockNotifications: any[] = [];
+export const mockNotifications: unknown[] = [];
 export const mockRecentActivities: string[] = [];
-export const mockQuickActions: any[] = [];
-export const mockSearchEntities: any[] = [];
-export const mockPedidos: any[] = [];
-export const mockMovimentacoes: any[] = [];
+export const mockQuickActions: unknown[] = [];
+export const mockSearchEntities: unknown[] = [];
+export const mockPedidos: unknown[] = [];
+export const mockMovimentacoes: unknown[] = [];

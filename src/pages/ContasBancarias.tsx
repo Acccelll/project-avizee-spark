@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useEffect, useMemo } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";
@@ -34,6 +33,7 @@ import {
   Wallet, Landmark, AlertTriangle, ShieldAlert,
   CheckCircle, Ban, Building2,
 } from "lucide-react";
+import { logger } from '@/utils/logger';
 
 interface Banco { id: string; nome: string; tipo: string; ativo: boolean; }
 interface ContaBancaria {
@@ -171,7 +171,7 @@ const ContasBancarias = () => {
     });
     const [{ count: lCount }, { count: bCount }, { count: cCount }] = await Promise.all([
       supabase.from("financeiro_lancamentos").select("id", { count: "exact", head: true }).eq("conta_bancaria_id", c.id).eq("ativo", true),
-      supabase.from("financeiro_baixas" as any).select("id", { count: "exact", head: true }).eq("conta_bancaria_id", c.id),
+      supabase.from("financeiro_baixas").select("id", { count: "exact", head: true }).eq("conta_bancaria_id", c.id),
       supabase.from("caixa_movimentos").select("id", { count: "exact", head: true }).eq("conta_bancaria_id", c.id),
     ]);
     setInUseCounts({ lancamentos: lCount ?? 0, baixas: bCount ?? 0, caixaMovs: cCount ?? 0 });
@@ -193,7 +193,7 @@ const ContasBancarias = () => {
       toast.success("Conta criada com sucesso!");
       setModalOpen(false);
       fetchData();
-    } catch (err: unknown) { console.error('[contas-bancarias]', err); toast.error("Erro ao salvar conta bancária."); }
+    } catch (err: unknown) { logger.error('[contas-bancarias]', err); toast.error("Erro ao salvar conta bancária."); }
     setSaving(false);
   };
 
@@ -213,7 +213,7 @@ const ContasBancarias = () => {
       toast.success("Conta bancária atualizada com sucesso!");
       setModalOpen(false);
       fetchData();
-    } catch (err: unknown) { console.error('[contas-bancarias]', err); toast.error("Erro ao salvar conta bancária."); }
+    } catch (err: unknown) { logger.error('[contas-bancarias]', err); toast.error("Erro ao salvar conta bancária."); }
     setSaving(false);
   };
 

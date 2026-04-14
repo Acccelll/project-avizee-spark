@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";
@@ -13,6 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { CalendarDays, Clock, Lock, Loader2, Mail, Save, Shield } from "lucide-react";
+import { logger } from '@/utils/logger';
 
 const ROLE_LABELS: Record<string, string> = {
   admin: "Administrador",
@@ -40,8 +40,8 @@ export default function Perfil() {
       const { error } = await supabase.from("profiles").update({ nome, cargo }).eq("id", user.id);
       if (error) throw error;
       toast.success("Dados pessoais salvos com sucesso.");
-    } catch (err: any) {
-      console.error("[perfil] save:", err);
+    } catch (err: unknown) {
+      logger.error("[perfil] save:", err);
       toast.error("Erro ao salvar perfil.");
     }
     setSaving(false);
@@ -58,8 +58,8 @@ export default function Perfil() {
       if (error) throw error;
       toast.success("Senha alterada com sucesso!");
       setNewPassword("");
-    } catch (err: any) {
-      console.error("[perfil] password:", err);
+    } catch (err: unknown) {
+      logger.error("[perfil] password:", err);
       toast.error("Erro ao alterar senha.");
     }
     setChangingPassword(false);

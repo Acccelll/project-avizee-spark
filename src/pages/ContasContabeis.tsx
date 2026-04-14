@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";
@@ -29,6 +28,7 @@ import {
   Edit,
   PackageOpen,
 } from "lucide-react";
+import { logger } from '@/utils/logger';
 
 interface ContaContabil {
   id: string;
@@ -318,7 +318,7 @@ const ContasContabeis = () => {
         await create(payload);
       }
     } catch (err) {
-      console.error('[contas-contabeis] erro ao salvar:', err);
+      logger.error('[contas-contabeis] erro ao salvar:', err);
       throw err;
     }
   };

@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+const db = supabase as unknown as SupabaseClient;
 import { formatCurrency, formatDate } from '@/lib/format';
 import { FileText, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -16,7 +18,7 @@ interface OrcamentoPublicoData {
   prazo_entrega: string | null;
   prazo_pagamento: string | null;
   frete_tipo: string | null;
-  cliente_snapshot: any;
+  cliente_snapshot: Record<string, unknown>;
   itens: Array<{
     descricao_snapshot: string;
     codigo_snapshot: string;
@@ -57,8 +59,7 @@ export default function OrcamentoPublico() {
     const load = async () => {
       setLoading(true);
 
-      const { data: orc, error: orcError } = await (supabase
-        .from('orcamentos_public_view' as any) as any)
+      const { data: orc, error: orcError } = await db.from('orcamentos_public_view')
         .select('id, numero, data_orcamento, validade, valor_total, observacoes, status, prazo_entrega, prazo_pagamento, frete_tipo, cliente_snapshot, public_token')
         .eq('public_token', token)
         .single();
@@ -69,8 +70,7 @@ export default function OrcamentoPublico() {
         return;
       }
 
-      const { data: itens } = await (supabase
-        .from('orcamentos_itens_public_view' as any) as any)
+      const { data: itens } = await db.from('orcamentos_itens_public_view')
         .select('descricao_snapshot, codigo_snapshot, quantidade, unidade, valor_unitario, valor_total, variacao')
         .eq('orcamento_id', orc.id);
 
@@ -87,10 +87,10 @@ export default function OrcamentoPublico() {
         valor_total: Number(orc.valor_total || 0),
         observacoes: orc.observacoes,
         status: orc.status,
-        prazo_entrega: (orc as any).prazo_entrega,
-        prazo_pagamento: (orc as any).prazo_pagamento,
-        frete_tipo: (orc as any).frete_tipo,
-        cliente_snapshot: (orc as any).cliente_snapshot,
+        prazo_entrega: (orc as Record<string, unknown>).prazo_entrega,
+        prazo_pagamento: (orc as Record<string, unknown>).prazo_pagamento,
+        frete_tipo: (orc as Record<string, unknown>).frete_tipo,
+        cliente_snapshot: (orc as Record<string, unknown>).cliente_snapshot,
         itens: itens || [],
         empresa: empresa || null,
       });
@@ -117,12 +117,12 @@ export default function OrcamentoPublico() {
     );
   }
 
-  const cliente = data.cliente_snapshot as any;
+  const cliente = data.cliente_snapshot as Record<string, unknown>;
   const isExpired = data.validade && new Date(data.validade) < new Date();
   const handleAction = async (acao: 'aprovado' | 'rejeitado') => {
     if (!data || !token) return;
     setActionLoading(true);
-    const { error } = await (supabase.from('orcamentos') as any)
+    const { error } = await db.from('orcamentos')
       .update({ status: acao })
       .eq('public_token', token)
       .eq('ativo', true);
@@ -130,7 +130,7 @@ export default function OrcamentoPublico() {
       toast.error('Erro ao registrar sua resposta. Tente novamente.');
     } else {
       setActionDone(acao);
-      setData((prev: any) => prev ? { ...prev, status: acao } : prev);
+      setData(( prev: typeof data) => prev ? { ...prev, status: acao } : prev);
     }
     setActionLoading(false);
   };

@@ -48,7 +48,7 @@ export default function Notificacoes() {
   }, [config, form]);
 
   function onSubmit(data: NotificacoesFormData) {
-    handleSave(data as any);
+    handleSave(data as Parameters<typeof handleSave>[0]);
   }
 
   if (isLoading) {

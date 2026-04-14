@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components -- file exports context/variants alongside components */
 import { createContext, ReactNode, useContext, useMemo, useState } from "react";
 
 const formatLocalDate = (date: Date): string => {

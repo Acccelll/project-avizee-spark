@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useEffect, useMemo, useState } from "react";
 import { ViewDrawerV2, ViewField, ViewSection } from "@/components/ViewDrawerV2";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -128,6 +127,7 @@ export function ContaContabilDrawer({
       });
       setLoadingVinculos(false);
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- selected?.id is sufficient; including selected would cause loops
   }, [open, selected?.id]);
 
   if (!selected) return <ViewDrawerV2 open={open} onClose={onClose} title="" />;

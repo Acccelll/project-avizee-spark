@@ -1,9 +1,9 @@
-// @ts-nocheck
 import { useState, useCallback } from "react";
 import JSZip from "jszip";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { parseNFeXml, NFeData } from "@/lib/nfeXmlParser";
+import { logger } from '@/utils/logger';
 
 export interface XmlImportItem {
   fileName: string;
@@ -38,7 +38,7 @@ export function useImportacaoXml() {
             try {
               const parsed = parseNFeXml(content);
               results.push({ fileName: zipFile.name, data: parsed, status: "pendente" });
-            } catch (err: any) {
+            } catch (err: unknown) {
               results.push({ fileName: zipFile.name, data: null, status: "erro", error: err.message });
             }
           }
@@ -47,7 +47,7 @@ export function useImportacaoXml() {
           try {
             const parsed = parseNFeXml(content);
             results.push({ fileName: file.name, data: parsed, status: "pendente" });
-          } catch (err: any) {
+          } catch (err: unknown) {
             results.push({ fileName: file.name, data: null, status: "erro", error: err.message });
           }
         }
@@ -80,7 +80,7 @@ export function useImportacaoXml() {
       }
 
       setXmlData(results);
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast.error(`Erro ao processar arquivos: ${err.message}`);
     } finally {
       setIsProcessing(false);
@@ -177,8 +177,8 @@ export function useImportacaoXml() {
       setIsProcessing(false);
       return currentLoteId;
 
-    } catch (error: any) {
-      console.error("Erro na importação XML:", error);
+    } catch (error: unknown) {
+      logger.error("Erro na importação XML:", error);
       toast.error(`Falha na importação: ${error.message}`);
       setIsProcessing(false);
     }

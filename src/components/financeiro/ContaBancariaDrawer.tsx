@@ -127,6 +127,7 @@ export function ContaBancariaDrawer({
       setCaixaMovs((cx.data as CaixaMovimento[]) || []);
       setLoading(false);
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- selected?.id is sufficient; including selected would cause loops
   }, [open, selected?.id]);
 
   if (!selected) return <ViewDrawerV2 open={open} onClose={onClose} title="" />;

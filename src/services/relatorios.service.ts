@@ -137,7 +137,6 @@ export interface RelatorioResultado<T = Record<string, unknown>> {
   _isDreReport?: boolean;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Supabase query builder uses 'any' internally
 function withDateRange<Q extends { gte: (col: string, val: string) => Q; lte: (col: string, val: string) => Q }>(
   query: Q,
   column: string,
@@ -169,7 +168,7 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
 
       if (error) throw error;
 
-      const rows = (data || []).map((item: any) => {
+      const rows = (data || []).map((item: Record<string, unknown>) => {
         const custo = Number(item.preco_custo || 0);
         const venda = Number(item.preco_venda || 0);
         const qty = Number(item.estoque_atual || 0);
@@ -228,7 +227,7 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
       const { data, error } = await query;
       if (error) throw error;
 
-      const rows = (data || []).map((item: any) => ({
+      const rows = (data || []).map((item: Record<string, unknown>) => ({
         data: item.created_at,
         produto: item.produtos?.nome || "-",
         codigo: item.produtos?.codigo_interno || "-",
@@ -285,7 +284,7 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
       const hoje = new Date();
       hoje.setHours(0, 0, 0, 0);
 
-      const rows = (data || []).map((item: any) => {
+      const rows = (data || []).map((item: Record<string, unknown>) => {
         const valor = Number(item.valor || 0);
         const valorEmAberto = item.saldo_restante != null
           ? Number(item.saldo_restante)
@@ -393,7 +392,7 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
       const { data, error } = await query;
       if (error) throw error;
 
-      const rows = (data || []).map((item: any) => ({
+      const rows = (data || []).map((item: Record<string, unknown>) => ({
         numero: item.numero,
         cliente: item.clientes?.nome_razao_social || "-",
         emissao: item.data_emissao,
@@ -504,7 +503,7 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
       const hoje = new Date();
       hoje.setHours(0, 0, 0, 0);
 
-      const rows = (data || []).map((item: any) => {
+      const rows = (data || []).map((item: Record<string, unknown>) => {
         const prevista = (item.data_prevista || item.data_entrega_prevista) ? new Date(item.data_prevista || item.data_entrega_prevista) : null;
         const entregaReal = item.data_entrega || item.data_entrega_real;
         const statusVal = item.status || '-';
@@ -570,21 +569,21 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
 
       if (!receitas && !pagos && !nfSaida) throw new Error("Erro ao carregar dados do DRE");
 
-      const receitaBruta = (receitas || []).reduce((s: number, r: any) => s + Number(r.valor || 0), 0);
+      const receitaBruta = (receitas || []).reduce((s: number, r: Record<string, unknown>) => s + Number(r.valor || 0), 0);
 
-      const deducoes = (nfSaida || []).reduce((s: number, nf: any) => {
+      const deducoes = (nfSaida || []).reduce((s: number, nf: Record<string, unknown>) => {
         return s + Number(nf.icms_valor || 0) + Number(nf.pis_valor || 0) + Number(nf.cofins_valor || 0) + Number(nf.ipi_valor || 0);
       }, 0);
 
       const receitaLiquida = receitaBruta - deducoes;
 
-      const cmv = (pagos || []).filter((p: any) =>
+      const cmv = (pagos || []).filter((p: Record<string, unknown>) =>
         p.nota_fiscal_id || (p.descricao || "").toLowerCase().includes("compra")
-      ).reduce((s: number, p: any) => s + Number(p.valor || 0), 0);
+      ).reduce((s: number, p: Record<string, unknown>) => s + Number(p.valor || 0), 0);
 
-      const despesasOp = (pagos || []).filter((p: any) =>
+      const despesasOp = (pagos || []).filter((p: Record<string, unknown>) =>
         !p.nota_fiscal_id && !(p.descricao || "").toLowerCase().includes("compra")
-      ).reduce((s: number, p: any) => s + Number(p.valor || 0), 0);
+      ).reduce((s: number, p: Record<string, unknown>) => s + Number(p.valor || 0), 0);
 
       const resultado = receitaLiquida - cmv - despesasOp;
 
@@ -1047,8 +1046,7 @@ export async function exportarXlsx(title: string, rows: Record<string, unknown>[
     })
   );
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await writeXlsxFile([headerRow, ...dataRows] as any, { fileName: `${title}.xlsx` });
+  await writeXlsxFile([headerRow, ...dataRows] as Parameters<typeof writeXlsxFile>[0], { fileName: `${title}.xlsx` });
 }
 
 function formatCsvValue(value: unknown) {

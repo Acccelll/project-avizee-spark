@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { fetchConfig, updateConfig } from '../services/configuracoes.service';
 import { mergeConfiguracoes, type ConfigNotificacoes } from '@/utils/configuracoes';
 import { getUserFriendlyError } from '@/utils/errorMessages';
+import { logger } from '@/utils/logger';
 
 const defaultNotificacoes: ConfigNotificacoes = {
   email_novo_pedido: true,
@@ -36,7 +37,7 @@ export function useConfiguracoesNotificacoes() {
       toast.success('Configurações de notificações salvas com sucesso.');
     },
     onError: (err: Error) => {
-      console.error('[configuracoes] Erro ao salvar config notificacoes:', err);
+      logger.error('[configuracoes] Erro ao salvar config notificacoes:', err);
       toast.error(getUserFriendlyError(err));
     },
   });

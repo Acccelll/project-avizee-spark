@@ -9,7 +9,7 @@ interface Props {
 }
 
 export function RemessaView({ id }: Props) {
-  const [selected, setSelected] = useState<any | null>(null);
+  const [selected, setSelected] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

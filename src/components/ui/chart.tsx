@@ -58,33 +58,42 @@ const ChartContainer = React.forwardRef<
 });
 ChartContainer.displayName = "Chart";
 
+/** Allows only safe CSS color values (hex, rgb/a, hsl/a, named colors, variables). */
+function sanitizeCssValue(value: string): string {
+  return /^[a-zA-Z0-9#()\s.,/%_-]+$/.test(value) ? value : "";
+}
+
+/** Allows only alphanumeric, dash, and underscore characters for identifiers. */
+function sanitizeCssIdentifier(value: string): string {
+  return value.replace(/[^a-zA-Z0-9_-]/g, "");
+}
+
 const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
-  const colorConfig = Object.entries(config).filter(([_, config]) => config.theme || config.color);
+  const colorConfig = Object.entries(config).filter(([, cfg]) => cfg.theme || cfg.color);
 
   if (!colorConfig.length) {
     return null;
   }
 
-  return (
-    <style
-      dangerouslySetInnerHTML={{
-        __html: Object.entries(THEMES)
-          .map(
-            ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
-${colorConfig
-  .map(([key, itemConfig]) => {
-    const color = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
-    return color ? `  --color-${key}: ${color};` : null;
-  })
-  .join("\n")}
-}
-`,
-          )
-          .join("\n"),
-      }}
-    />
-  );
+  const safeId = sanitizeCssIdentifier(id);
+
+  const cssText = Object.entries(THEMES)
+    .map(([theme, prefix]) => {
+      const declarations = colorConfig
+        .map(([key, itemConfig]) => {
+          const rawColor =
+            itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
+          const color = rawColor ? sanitizeCssValue(rawColor) : "";
+          const safeKey = sanitizeCssIdentifier(key);
+          return color && safeKey ? `  --color-${safeKey}: ${color};` : null;
+        })
+        .filter(Boolean)
+        .join("\n");
+      return `${prefix} [data-chart=${safeId}] {\n${declarations}\n}`;
+    })
+    .join("\n");
+
+  return <style>{cssText}</style>;
 };
 
 const ChartTooltip = RechartsPrimitive.Tooltip;

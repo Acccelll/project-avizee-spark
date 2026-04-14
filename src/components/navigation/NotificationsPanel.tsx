@@ -77,7 +77,7 @@ export function NotificationsPanel() {
             .in('status_faturamento', ['aguardando', 'parcial']),
         ]);
 
-        const estoqueCritico = (estoque || []).filter((item: any) => Number(item.estoque_atual || 0) <= Number(item.estoque_minimo || 0));
+        const estoqueCritico = (estoque || []).filter((item: Record<string, unknown>) => Number(item.estoque_atual || 0) <= Number(item.estoque_minimo || 0));
 
         // Read dismissed alerts from localStorage
         const dismissedRaw = localStorage.getItem('notifications_dismissed') || '{}';
@@ -106,7 +106,7 @@ export function NotificationsPanel() {
             time: 'Agora',
           },
           // Per-product stock alerts
-          ...estoqueCritico.slice(0, 5).filter((item: any) => !dismissed[`estoque-${item.id}`]).map((item: any) => ({
+          ...estoqueCritico.slice(0, 5).filter((item: Record<string, unknown>) => !dismissed[`estoque-${item.id}`]).map((item: Record<string, unknown>) => ({
             id: `estoque-${item.id}`,
             level: 'warning' as const,
             title: `${item.nome}`,

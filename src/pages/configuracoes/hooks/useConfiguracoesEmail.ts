@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { fetchConfig, updateConfig } from '../services/configuracoes.service';
 import { mergeConfiguracoes, type ConfigEmail } from '@/utils/configuracoes';
 import { getUserFriendlyError } from '@/utils/errorMessages';
+import { logger } from '@/utils/logger';
 
 const defaultEmail: ConfigEmail = {
   smtp_host: '',
@@ -40,7 +41,7 @@ export function useConfiguracoesEmail() {
       toast.success('Configurações de e-mail salvas com sucesso.');
     },
     onError: (err: Error) => {
-      console.error('[configuracoes] Erro ao salvar config email:', err);
+      logger.error('[configuracoes] Erro ao salvar config email:', err);
       toast.error(getUserFriendlyError(err));
     },
   });

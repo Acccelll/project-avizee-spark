@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useEffect, useMemo, useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";
@@ -63,12 +62,12 @@ const tipoIcon: Record<string, React.ElementType> = {
   pix: QrCode, cheque: CheckSquare, deposito: Building2,
 };
 
-const emptyForm: Record<string, any> = {
+const emptyForm: Record<string, unknown> = {
   descricao: "", prazo_dias: 0, parcelas: 1, intervalos_dias: [], gera_financeiro: true, tipo: "boleto", observacoes: "", ativo: true,
 };
 
 export default function FormasPagamento() {
-  const { data, loading, create, update, remove } = useSupabaseCrud<FormaPagamento>({ table: "formas_pagamento" as any });
+  const { data, loading, create, update, remove } = useSupabaseCrud<FormaPagamento>({ table: "formas_pagamento" });
   const [modalOpen, setModalOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selected, setSelected] = useState<FormaPagamento | null>(null);
@@ -101,17 +100,17 @@ export default function FormasPagamento() {
     setLoadingRelated(true);
     (async () => {
       const [clientesRes, lancamentosRes, caixaRes] = await Promise.all([
-        (supabase as any)
+        supabase
           .from("clientes")
           .select("id, nome_razao_social, prazo_preferencial")
           .eq("forma_pagamento_padrao", selected.descricao)
           .eq("ativo", true)
           .limit(50),
-        (supabase as any)
+        supabase
           .from("financeiro_lancamentos")
           .select("id", { count: "exact", head: true })
           .eq("forma_pagamento", selected.tipo),
-        (supabase as any)
+        supabase
           .from("caixa_movimentos")
           .select("id", { count: "exact", head: true })
           .eq("forma_pagamento", selected.tipo),
@@ -126,6 +125,7 @@ export default function FormasPagamento() {
       }
     })();
     return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- selected?.id is sufficient
   }, [selected?.id, drawerOpen]);
 
   const openCreate = () => { setMode("create"); setForm({ ...emptyForm }); setSelected(null); setModalOpen(true); };
@@ -145,7 +145,7 @@ export default function FormasPagamento() {
   };
 
   const removeIntervalo = (idx: number) => {
-    const updated = (form.intervalos_dias as number[]).filter((_: any, i: number) => i !== idx);
+    const updated = (form.intervalos_dias as number[]).filter((_: unknown, i: number) => i !== idx);
     setForm({ ...form, intervalos_dias: updated, parcelas: Math.max(1, updated.length) });
   };
 
@@ -157,8 +157,8 @@ export default function FormasPagamento() {
       intervalos_dias: form.intervalos_dias.length > 0 ? form.intervalos_dias : [],
       parcelas: form.intervalos_dias.length > 0 ? form.intervalos_dias.length : form.parcelas,
     };
-    if (mode === "create") await create(payload as any);
-    else if (selected) await update(selected.id, payload as any);
+    if (mode === "create") await create(payload);
+    else if (selected) await update(selected.id, payload);
     setModalOpen(false);
   };
 

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useEffect, useMemo } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";
@@ -24,6 +23,7 @@ import { StatCard } from "@/components/StatCard";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { toast } from "sonner";
+import { logger } from '@/utils/logger';
 
 interface GrupoEconomico {
   id: string;
@@ -49,7 +49,7 @@ interface ClienteSimples {
   nome_razao_social: string;
 }
 
-const emptyForm: Record<string, any> = { nome: "", observacoes: "", empresa_matriz_id: "" };
+const emptyForm: Record<string, unknown> = { nome: "", observacoes: "", empresa_matriz_id: "" };
 
 const relacaoLabel: Record<string, string> = {
   matriz: "Matriz",
@@ -114,14 +114,13 @@ const GruposEconomicos = () => {
       .eq("ativo", true)
       .not("grupo_economico_id", "is", null)
       .then(({ data: clientes, error }) => {
-        if (error) { console.error("[grupos-economicos] erro ao carregar contagem de clientes:", error); return; }
+        if (error) { logger.error("[grupos-economicos] erro ao carregar contagem de clientes:", error); return; }
         const counts: Record<string, number> = {};
         for (const c of (clientes || []) as { grupo_economico_id: string; id: string }[]) {
           counts[c.grupo_economico_id] = (counts[c.grupo_economico_id] || 0) + 1;
         }
         setClienteCountMap(counts);
       });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dataIdsKey]);
 
   // Build a lookup of empresa_matriz_id -> nome_razao_social when the set of matriz IDs changes
@@ -136,7 +135,7 @@ const GruposEconomicos = () => {
       .select("id, nome_razao_social")
       .in("id", matrizIds)
       .then(({ data: clientes, error }) => {
-        if (error) { console.error("[grupos-economicos] erro ao carregar nomes de matriz:", error); return; }
+        if (error) { logger.error("[grupos-economicos] erro ao carregar nomes de matriz:", error); return; }
         const map: Record<string, string> = {};
         for (const c of (clientes || []) as { id: string; nome_razao_social: string }[]) {
           map[c.id] = c.nome_razao_social;
@@ -297,16 +296,16 @@ const GruposEconomicos = () => {
         .in("status", ["aberto", "vencido"]);
 
       const tots = titulos || [];
-      setSaldoConsolidado(tots.reduce((s, t: any) => s + Number(t.valor || 0), 0));
-      setTitulosVencidos(tots.filter((t: any) => t.status === "vencido").length);
-      setTitulosAbertos(tots.filter((t: any) => t.status === "aberto").length);
+      setSaldoConsolidado(tots.reduce(( s, t: Record<string, unknown>) => s + Number(t.valor || 0), 0));
+      setTitulosVencidos(tots.filter((t: Record<string, unknown>) => t.status === "vencido").length);
+      setTitulosAbertos(tots.filter((t: Record<string, unknown>) => t.status === "aberto").length);
 
       const perEmp: Record<string, { saldo: number; vencidos: number }> = {};
       for (const c of clientesList) {
-        const empTitulos = tots.filter((t: any) => t.cliente_id === c.id);
+        const empTitulos = tots.filter((t: Record<string, unknown>) => t.cliente_id === c.id);
         perEmp[c.id] = {
-          saldo: empTitulos.reduce((s, t: any) => s + Number(t.valor || 0), 0),
-          vencidos: empTitulos.filter((t: any) => t.status === "vencido").length,
+          saldo: empTitulos.reduce(( s, t: Record<string, unknown>) => s + Number(t.valor || 0), 0),
+          vencidos: empTitulos.filter((t: Record<string, unknown>) => t.status === "vencido").length,
         };
       }
       setPerEmpresaFinanceiro(perEmp);
@@ -328,7 +327,7 @@ const GruposEconomicos = () => {
       else if (selected) await update(selected.id, payload);
       setModalOpen(false);
     } catch (err) {
-      console.error("[grupos-economicos] erro ao salvar:", err);
+      logger.error("[grupos-economicos] erro ao salvar:", err);
       toast.error("Erro ao salvar grupo econômico");
     }
     setSaving(false);
@@ -342,7 +341,7 @@ const GruposEconomicos = () => {
       setDeleteConfirmOpen(false);
       setDrawerOpen(false);
     } catch (err) {
-      console.error("[grupos-economicos] erro ao excluir:", err);
+      logger.error("[grupos-economicos] erro ao excluir:", err);
       toast.error("Erro ao excluir grupo econômico");
     }
     setDeleting(false);

@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Lock, Eye, EyeOff, CheckCircle2, ShieldCheck } from "lucide-react";
 import logoAvizee from "@/assets/logoavizee.png";
+import { logger } from '@/utils/logger';
 
 export default function ResetPassword() {
   const [password, setPassword] = useState("");
@@ -40,7 +41,7 @@ export default function ResetPassword() {
     setLoading(true);
     const { error } = await supabase.auth.updateUser({ password });
     if (error) {
-      console.error('[reset-password]', error);
+      logger.error('[reset-password]', error);
       toast.error("Erro ao atualizar senha. Tente novamente.");
     } else {
       setSuccess(true);

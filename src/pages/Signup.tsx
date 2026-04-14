@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { UserPlus, Eye, EyeOff, Mail, Lock, User, CheckCircle2 } from "lucide-react";
 import logoAvizee from "@/assets/logoavizee.png";
+import { logger } from '@/utils/logger';
 
 export default function Signup() {
   const [nome, setNome] = useState("");
@@ -38,7 +39,7 @@ export default function Signup() {
       options: { data: { nome: nome.trim() }, emailRedirectTo: window.location.origin },
     });
     if (error) {
-      console.error('[signup]', error);
+      logger.error('[signup]', error);
       toast.error("Erro ao criar conta. Tente novamente.");
     } else {
       setSuccess(true);

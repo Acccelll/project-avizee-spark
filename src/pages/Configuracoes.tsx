@@ -29,6 +29,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { Database as SupabaseDatabase } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { logger } from '@/utils/logger';
 
 type AppConfigInsert = SupabaseDatabase['public']['Tables']['app_configuracoes']['Insert'];
 
@@ -180,7 +181,7 @@ export default function Configuracoes() {
       if (error) throw error;
       toast.success('Dados pessoais salvos com sucesso.');
     } catch (err: unknown) {
-      console.error('[perfil] save:', err);
+      logger.error('[perfil] save:', err);
       toast.error('Erro ao salvar perfil.');
     }
     setSavingProfile(false);
@@ -222,7 +223,7 @@ export default function Configuracoes() {
       setConfirmPassword('');
       setPasswordChangedAt(new Date());
     } catch (err: unknown) {
-      console.error('[perfil] password:', err);
+      logger.error('[perfil] password:', err);
       toast.error('Erro ao alterar senha. Tente novamente.');
     }
     setChangingPassword(false);

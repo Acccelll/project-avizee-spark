@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useCallback } from "react";
 import * as XLSX from "@/lib/xlsx-compat";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,6 +9,7 @@ import {
 } from "@/lib/importacao/validators";
 import { FIELD_ALIASES } from "@/lib/importacao/aliases";
 import { ImportType, Mapping } from "./types";
+import { logger } from '@/utils/logger';
 
 /**
  * Hook de importação de cadastros (produtos, clientes, fornecedores).
@@ -24,11 +24,11 @@ export function useImportacaoCadastros() {
   const [workbook, setWorkbook] = useState<XLSX.WorkBook | null>(null);
   const [sheets, setSheets] = useState<string[]>([]);
   const [currentSheet, setCurrentSheet] = useState<string>("");
-  const [rawRows, setRawRows] = useState<any[]>([]);
+  const [rawRows, setRawRows] = useState<Record<string, unknown>[]>([]);
   const [headers, setHeaders] = useState<string[]>([]);
   const [mapping, setMapping] = useState<Mapping>({});
   const [importType, setImportType] = useState<ImportType>("produtos");
-  const [previewData, setPreviewData] = useState<any[]>([]);
+  const [previewData, setPreviewData] = useState<Record<string, unknown>[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [loteId, setLoteId] = useState<string | null>(null);
 
@@ -71,7 +71,7 @@ export function useImportacaoCadastros() {
         if (wb.SheetNames.length > 0) {
           onSheetChange(wb.SheetNames[0], wb);
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         toast.error(`Erro ao ler arquivo: ${err.message}`);
       }
     };
@@ -229,8 +229,8 @@ export function useImportacaoCadastros() {
       setIsProcessing(false);
       return currentLoteId;
 
-    } catch (error: any) {
-      console.error("Erro na importação:", error);
+    } catch (error: unknown) {
+      logger.error("Erro na importação:", error);
       toast.error(`Falha no processamento: ${error.message}`);
       setIsProcessing(false);
     }

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useMemo, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/AppLayout';
@@ -127,7 +126,7 @@ export default function Relatorios() {
 
   const isQtyReport = resultado?._isQuantityReport === true;
   const isDreReport = resultado?._isDreReport === true;
-  const rows = (resultado?.rows ?? []) as Record<string, unknown>[];
+  const rows = useMemo(() => (resultado?.rows ?? []) as Record<string, unknown>[], [resultado?.rows]);
 
   const filteredRows = useMemo(() => filtrarPorStatus(rows, filtrosState.statusFiltro), [rows, filtrosState.statusFiltro]);
   const sortedRows = useMemo(() => sortarRows(filteredRows, filtrosState.agrupamento), [filteredRows, filtrosState.agrupamento]);

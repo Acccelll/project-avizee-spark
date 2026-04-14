@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useCallback } from "react";
 import * as XLSX from "@/lib/xlsx-compat";
 import { supabase } from "@/integrations/supabase/client";
@@ -6,6 +5,7 @@ import { toast } from "sonner";
 import { validateEstoqueInicialImport } from "@/lib/importacao/validators";
 import { FIELD_ALIASES } from "@/lib/importacao/aliases";
 import { Mapping } from "./types";
+import { logger } from '@/utils/logger';
 
 /**
  * Hook de importação de estoque inicial com staging real.
@@ -20,10 +20,10 @@ export function useImportacaoEstoque() {
   const [workbook, setWorkbook] = useState<XLSX.WorkBook | null>(null);
   const [sheets, setSheets] = useState<string[]>([]);
   const [currentSheet, setCurrentSheet] = useState<string>("");
-  const [rawRows, setRawRows] = useState<any[]>([]);
+  const [rawRows, setRawRows] = useState<Record<string, unknown>[]>([]);
   const [headers, setHeaders] = useState<string[]>([]);
   const [mapping, setMapping] = useState<Mapping>({});
-  const [previewData, setPreviewData] = useState<any[]>([]);
+  const [previewData, setPreviewData] = useState<Record<string, unknown>[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [loteId, setLoteId] = useState<string | null>(null);
 
@@ -66,7 +66,7 @@ export function useImportacaoEstoque() {
         if (wb.SheetNames.length > 0) {
           onSheetChange(wb.SheetNames[0], wb);
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         toast.error(`Erro ao ler arquivo: ${err.message}`);
       }
     };
@@ -86,7 +86,7 @@ export function useImportacaoEstoque() {
       const prodByInterno = new Map(produtosBanco?.filter(p => p.codigo_interno).map(p => [p.codigo_interno, p]));
 
       const preview = rawRows.map((row, index) => {
-        const mappedRow: any = {};
+        const mappedRow: Record<string, unknown> = {};
         Object.entries(mapping).forEach(([field, colName]) => {
           mappedRow[field] = row[colName];
         });
@@ -120,7 +120,7 @@ export function useImportacaoEstoque() {
       });
 
       setPreviewData(preview);
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast.error(`Erro ao validar dados: ${err.message}`);
     } finally {
       setIsProcessing(false);
@@ -192,8 +192,8 @@ export function useImportacaoEstoque() {
       toast.success(`${validos.length} itens enviados para staging. Confirme para consolidar.`);
       return currentLoteId;
 
-    } catch (error: any) {
-      console.error("Erro na importação de estoque:", error);
+    } catch (error: unknown) {
+      logger.error("Erro na importação de estoque:", error);
       toast.error(`Falha no processamento: ${error.message}`);
     } finally {
       setIsProcessing(false);

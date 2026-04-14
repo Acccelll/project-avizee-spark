@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components -- file exports context/variants alongside components */
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useUserPreference } from '@/hooks/useUserPreference';

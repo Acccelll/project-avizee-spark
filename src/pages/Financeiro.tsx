@@ -35,6 +35,7 @@ import { statusFinanceiro as statusFinanceiroSchema, statusToOptions } from "@/l
 import { exportarParaExcel, exportarParaPdf } from "@/services/export.service";
 import type { Lancamento, ContaBancaria, Cliente, Fornecedor } from "@/types/domain";
 import { getUserFriendlyError } from "@/utils/errorMessages";
+import { logger } from '@/utils/logger';
 
 interface ContaContabil {
   id: string;
@@ -203,7 +204,7 @@ const Financeiro = () => {
       }
       setModalOpen(false);
     } catch (err) {
-      console.error('[financeiro] erro ao salvar:', err);
+      logger.error('[financeiro] erro ao salvar:', err);
       toast.error(getUserFriendlyError(err));
     }
     setSaving(false);
@@ -211,7 +212,7 @@ const Financeiro = () => {
 
   const hoje = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }, []);
 
-  const getLancamentoStatus = (l: Lancamento) => getEffectiveStatus(l.status, l.data_vencimento, hoje);
+  const getLancamentoStatus = useCallback((l: Lancamento) => getEffectiveStatus(l.status, l.data_vencimento, hoje), [hoje]);
 
   const filteredData = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
@@ -235,7 +236,7 @@ const Financeiro = () => {
       }
       return true;
     });
-  }, [data, statusFilters, tipoFilters, bancoFilters, searchTerm, hoje, period]);
+  }, [data, statusFilters, tipoFilters, bancoFilters, searchTerm, period, getLancamentoStatus]);
 
   const hojeStr = useMemo(() => hoje.toISOString().split("T")[0], [hoje]);
 
@@ -255,7 +256,7 @@ const Financeiro = () => {
       }
     });
     return { aVencer, venceHoje, vencido, pagoNoPeriodo, parcialCount, totalAVencer, totalVencido, totalPago, totalParcial };
-  }, [filteredData, hoje, hojeStr]);
+  }, [filteredData, hojeStr, getLancamentoStatus]);
 
   const handleEstorno = async () => {
     if (!estornoTarget) return;
@@ -610,9 +611,9 @@ const Financeiro = () => {
         onClose={() => setDrawerOpen(false)}
         selected={selected}
         effectiveStatus={selected ? getLancamentoStatus(selected) : ""}
-        onBaixa={(l) => { setBaixaParcialTarget(l as any); setBaixaParcialOpen(true); }}
-        onEstorno={(l) => { setDrawerOpen(false); setEstornoTarget(l as any); }}
-        onEdit={(l) => { setDrawerOpen(false); openEdit(l as any); }}
+        onBaixa={(l) => { setBaixaParcialTarget(l); setBaixaParcialOpen(true); }}
+        onEstorno={(l) => { setDrawerOpen(false); setEstornoTarget(l); }}
+        onEdit={(l) => { setDrawerOpen(false); openEdit(l); }}
         onDelete={(id) => { setDrawerOpen(false); remove(id); }}
       />
 

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -33,6 +32,7 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { TemplateConfig } from "@/types/orcamento";
 import { calcularRentabilidade, type InternalCostCandidate } from "@/lib/orcamentoRentabilidade";
 import { getOrcamentoInternalAccess } from "@/lib/orcamentoInternalAccess";
+import { logger } from '@/utils/logger';
 
 interface ClienteSnapshot {
   nome_razao_social: string; nome_fantasia: string; cpf_cnpj: string;
@@ -257,7 +257,7 @@ export default function OrcamentoForm() {
         if (isEdit) {
           const { data: orc, error: orcError } = await supabase.from("orcamentos").select("*").eq("id", id).maybeSingle();
           if (orcError) {
-            console.error("[OrcamentoForm] erro ao carregar cotação:", orcError);
+            logger.error("[OrcamentoForm] erro ao carregar cotação:", orcError);
             toast.error("Erro ao carregar cotação.", { description: orcError.message });
           } else if (orc) {
             reset({
@@ -279,7 +279,7 @@ export default function OrcamentoForm() {
               freteTipo: orc.frete_tipo || '',
               modalidade: orc.modalidade || '',
             });
-            if (orc.cliente_snapshot) setClienteSnapshot(orc.cliente_snapshot as any);
+            if (orc.cliente_snapshot) setClienteSnapshot(orc.cliente_snapshot as Record<string, unknown>);
             // Load frete simulator state
             const orcAny = orc as Record<string, unknown>;
             if (orcAny.frete_simulacao_id) setFreteSimulacaoId(orcAny.frete_simulacao_id as string);
@@ -301,12 +301,12 @@ export default function OrcamentoForm() {
           setValue('numero', `COT${String((count || 0) + 1).padStart(6, "0")}`);
         }
       } catch (err) {
-        console.error("[OrcamentoForm] erro ao carregar dados:", err);
+        logger.error("[OrcamentoForm] erro ao carregar dados:", err);
         toast.error("Erro ao carregar dados da cotação.", { description: "Verifique a conexão e tente novamente." });
       }
     };
     loadData();
-  }, [id, isEdit]);
+  }, [id, isEdit, reset, setValue]);
 
   const handleClienteChange = useCallback((cId: string) => {
     setValue('clienteId', cId);
@@ -432,7 +432,7 @@ export default function OrcamentoForm() {
       payload,
     };
 
-    await (supabase.from("app_configuracoes") as any).upsert(
+    await supabase.from("app_configuracoes" as Parameters<typeof supabase.from>[0]).upsert(
       { chave: key, valor: templateRecord, updated_at: new Date().toISOString() },
       { onConflict: "chave" },
     );
@@ -481,11 +481,11 @@ export default function OrcamentoForm() {
       let orcId = id;
       if (isEdit) {
         await Promise.all([
-          supabase.from("orcamentos").update(payload as any).eq("id", id),
+          supabase.from("orcamentos").update(payload as Record<string, unknown>).eq("id", id),
           supabase.from("orcamentos_itens").delete().eq("orcamento_id", id),
         ]);
       } else {
-        const { data: newOrc, error } = await supabase.from("orcamentos").insert(payload as any).select().single();
+        const { data: newOrc, error } = await supabase.from("orcamentos").insert(payload as Record<string, unknown>).select().single();
         if (error) throw error;
         orcId = newOrc.id;
       }
@@ -506,8 +506,8 @@ export default function OrcamentoForm() {
         action: { label: "Visualizar", onClick: () => navigate(orcId ? `/cotacoes/${orcId}` : "/cotacoes") },
       });
       if (!isEdit && orcId) navigate(`/cotacoes/${orcId}`, { replace: true });
-    } catch (err: any) {
-      console.error('[orcamento]', err);
+    } catch (err: unknown) {
+      logger.error('[orcamento]', err);
       toast.error("Erro ao salvar cotação.", { description: "Confira conexão, campos obrigatórios e tente novamente." });
     }
     setSaving(false);
@@ -531,7 +531,7 @@ export default function OrcamentoForm() {
         largura_cm: freteLarguraCm || null,
         comprimento_cm: freteComprimentoCm || null,
       };
-      const { data: newOrc, error } = await supabase.from("orcamentos").insert(payload as any).select().single();
+      const { data: newOrc, error } = await supabase.from("orcamentos").insert(payload as Record<string, unknown>).select().single();
       if (error) throw error;
 
       if (items.length > 0) {
@@ -546,8 +546,8 @@ export default function OrcamentoForm() {
 
       toast.success(`Duplicado: ${newNumero}`);
       navigate(`/cotacoes/${newOrc.id}`, { replace: true });
-    } catch (err: any) {
-      console.error('[orcamento] duplicar:', err);
+    } catch (err: unknown) {
+      logger.error('[orcamento] duplicar:', err);
       toast.error("Erro ao duplicar cotação. Tente novamente.");
     }
   };
@@ -630,11 +630,11 @@ export default function OrcamentoForm() {
 
   useEffect(() => {
     supabase.from('empresa_config').select('*').limit(1).single().then(({ data }) => {
-      if (data) setEmpresaConfig(data as any);
+      if (data) setEmpresaConfig(data as Record<string, unknown>);
     });
   }, []);
 
-  const clienteOptions = clientes.map((c: any) => ({
+  const clienteOptions = clientes.map((c: Record<string, unknown>) => ({
     id: c.id,
     label: c.nome_razao_social,
     sublabel: `${c.cpf_cnpj || "sem documento"} ${Number(c.limite_credito || 0) > 10000 ? "· Cliente Premium - 10% desconto" : ""}`.trim(),
@@ -981,7 +981,7 @@ export default function OrcamentoForm() {
           <div className="p-4 border-b flex justify-between items-center sticky top-0 bg-card z-10">
             <h3 className="font-semibold">Pré-visualização do Orçamento</h3>
             <div className="flex gap-2">
-              <Select value={layoutTemplate} onValueChange={(v: any) => setLayoutTemplate(v)}>
+              <Select value={layoutTemplate} onValueChange={(v: string) => setLayoutTemplate(v)}>
                 <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="simples">Simples</SelectItem>

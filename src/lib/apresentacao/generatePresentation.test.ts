@@ -4,7 +4,7 @@ import { generatePresentation } from './generatePresentation';
 import type { ApresentacaoDataBundle } from '@/types/apresentacao';
 
 async function unzip(blob: Blob) {
-  return JSZip.loadAsync(blob as any);
+  return JSZip.loadAsync(blob as ArrayBuffer);
 }
 
 describe('generatePresentation', () => {
@@ -41,7 +41,7 @@ describe('generatePresentation', () => {
       periodo: { competenciaInicial: '2026-03', competenciaFinal: '2026-03' },
       slides: {
         redes_sociais: { indisponivel: true, motivo: 'não automatizado no modo fechado' },
-      } as any,
+      } as Parameters<typeof generatePresentation>[0],
     };
 
     const blob = await generatePresentation(bundle, {});
@@ -56,7 +56,7 @@ describe('generatePresentation', () => {
       periodo: { competenciaInicial: '2026-03', competenciaFinal: '2026-03' },
       slides: {
         rol_caixa: { valor_atual: 1000, total_entradas: 3000, total_saidas: 2000 },
-      } as any,
+      } as Parameters<typeof generatePresentation>[0],
     };
 
     const blob = await generatePresentation(bundle, { rol_caixa: 'Comentário editado final' });
@@ -72,7 +72,7 @@ describe('generatePresentation', () => {
       slides: {
         cover: {},
         closing: {},
-      } as any,
+      } as Parameters<typeof generatePresentation>[0],
     };
 
     const blob = await generatePresentation(bundle, {}, { metadata: { empresaId: 'e1', modo: 'fechado', usuario: 'u1', extra: 'x' } });
@@ -97,7 +97,7 @@ describe('generatePresentation', () => {
             { banco_nome: 'Banco B', descricao: 'Conta 2', valor_atual: 20000 },
           ],
         },
-      } as any,
+      } as Parameters<typeof generatePresentation>[0],
     };
 
     const blob = await generatePresentation(bundle, {});

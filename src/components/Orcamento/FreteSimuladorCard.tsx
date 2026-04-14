@@ -4,6 +4,9 @@
  * Toda a lógica de estado/serviço foi extraída para `useFreteSimulador.ts`.
  * A UI foi dividida em: FreteSimuladorForm e FreteOpcoesList (FreteSimuladorResultados).
  */
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { FreteSimuladorForm } from './FreteSimuladorForm';
+import { FreteOpcoesList } from './FreteSimuladorResultados';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,11 +14,37 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
-import { Loader2, Package, Truck, Plus, RefreshCw, AlertTriangle } from 'lucide-react';
-import { useFreteSimulador, type UseFreteSimuladorProps } from './useFreteSimulador';
-import { FreteSimuladorForm } from './FreteSimuladorForm';
-import { FreteOpcoesList } from './FreteSimuladorResultados';
-import type { FreteSelecaoPayload } from '@/services/freteSimulacao.service';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import {
+  Loader2, Package, Truck, CheckCircle2, AlertTriangle, Plus, Trash2, RefreshCw, Box, Settings2,
+} from 'lucide-react';
+import { toast } from 'sonner';
+import { formatCurrency } from '@/lib/format';
+import {
+  getEmpresaCepOrigem,
+  getClienteTransportadoras,
+  criarOuAtualizarSimulacao,
+  carregarSimulacaoPorOrigem,
+  consultarCorreios,
+  salvarOpcoesCorreios,
+  salvarOpcaoTransportadora,
+  salvarOpcaoManual,
+  removerOpcao,
+  selecionarOpcaoFrete,
+  listarCaixasEmbalagem,
+  salvarCaixasEmbalagem,
+  type CaixaEmbalagem,
+  type FreteOpcaoLocal,
+  type ClienteTransportadoraComTransportadora,
+  type SimulacaoDimensoes,
+  type FreteSelecaoPayload,
+} from '@/services/freteSimulacao.service';
+import { logger } from '@/utils/logger';
+
+// ---------------------------------------------------------------
+// Props
+// ---------------------------------------------------------------
 
 interface FreteSimuladorCardProps {
   orcamentoId: string | null;
@@ -27,19 +56,486 @@ interface FreteSimuladorCardProps {
   onSelect: (payload: FreteSelecaoPayload) => void;
 }
 
-export function FreteSimuladorCard(props: FreteSimuladorCardProps) {
-  const {
-    volumes, setVolumes, alturaCm, setAlturaCm, larguraCm, setLarguraCm, comprimentoCm, setComprimentoCm,
-    opcoes, opcaoSelecionadaId, desatualizado, loadingCorreios, loadingTransp, salvandoOpcao, cepOrigem, loadingConfig,
-    clienteTransp, cepDestinoClean, canSimulate,
-    opcoesCorreios, opcoesTransp, opcoesManual,
-    transpForm, setTranspForm, transpFormFor, manualForm, setManualForm,
-    caixas, gerenciarCaixasOpen, setGerenciarCaixasOpen, novaCaixa, setNovaCaixa, salvandoCaixa,
-    handleConsultarCorreios, handleSalvarTransportadora, handleSalvarManual,
-    handleRemoverOpcao, handleSelecionarOpcao,
-    handleSelecionarCaixa, handleAdicionarCaixa, handleRemoverCaixa,
-  } = useFreteSimulador(props);
+// ---------------------------------------------------------------
+// Helpers de exibição
+// ---------------------------------------------------------------
 
+function fonteBadge(fonte: FreteOpcaoLocal['fonte']) {
+  if (fonte === 'correios') return <Badge variant="secondary">Correios</Badge>;
+  if (fonte === 'cliente_vinculada') return <Badge variant="outline">Transportadora</Badge>;
+  return <Badge>Manual</Badge>;
+}
+
+// ---------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------
+
+export function FreteSimuladorCard({
+  orcamentoId,
+  clienteId,
+  cepDestino,
+  pesoTotal,
+  valorMercadoria,
+  simulacaoId: simulacaoIdProp,
+  onSelect,
+}: FreteSimuladorCardProps) {
+  // dimensões editáveis
+  const [volumes, setVolumes] = useState(1);
+  const [alturaCm, setAlturaCm] = useState(15);
+  const [larguraCm, setLarguraCm] = useState(10);
+  const [comprimentoCm, setComprimentoCm] = useState(30);
+
+  // simulação
+  const [simulacaoId, setSimulacaoId] = useState<string | null>(simulacaoIdProp || null);
+  const [opcoes, setOpcoes] = useState<FreteOpcaoLocal[]>([]);
+  const [opcaoSelecionadaId, setOpcaoSelecionadaId] = useState<string | null>(null);
+  const [desatualizado, setDesatualizado] = useState(false);
+
+  // refs para detectar mudança
+  const lastPesoRef = useRef(pesoTotal);
+  const lastCepRef = useRef(cepDestino);
+
+  // loading states
+  const [loadingCorreios, setLoadingCorreios] = useState(false);
+  const [loadingTransp, setLoadingTransp] = useState(false);
+  const [salvandoOpcao, setSalvandoOpcao] = useState(false);
+  const [cepOrigem, setCepOrigem] = useState('');
+  const [loadingConfig, setLoadingConfig] = useState(true);
+
+  // transportadoras do cliente
+  const [clienteTransp, setClienteTransp] = useState<ClienteTransportadoraComTransportadora[]>([]);
+
+  // formulários das abas
+  const [transpForm, setTranspForm] = useState<Record<string, {
+    valor: string; prazo: string; servico: string; obs: string;
+  }>>({});
+  const [manualForm, setManualForm] = useState({
+    servico: '', modalidade: '', prazo: '', valor: '', obs: '',
+  });
+
+  // caixas de embalagem (presets)
+  const [caixas, setCaixas] = useState<CaixaEmbalagem[]>([]);
+  const [gerenciarCaixasOpen, setGerenciarCaixasOpen] = useState(false);
+  const [novaCaixa, setNovaCaixa] = useState({ nome: '', altura: '', largura: '', comprimento: '' });
+  const [salvandoCaixa, setSalvandoCaixa] = useState(false);
+
+  // ---------------------------------------------------------------
+  // Carregar CEP de origem e caixas cadastradas
+  // ---------------------------------------------------------------
+  useEffect(() => {
+    getEmpresaCepOrigem()
+      .then(setCepOrigem)
+      .catch(() => {})
+      .finally(() => setLoadingConfig(false));
+    listarCaixasEmbalagem().then(setCaixas).catch(() => {});
+  }, []);
+
+  // ---------------------------------------------------------------
+  // Carregar transportadoras do cliente
+  // ---------------------------------------------------------------
+  useEffect(() => {
+    if (!clienteId) { setClienteTransp([]); return; }
+    setLoadingTransp(true);
+    getClienteTransportadoras(clienteId)
+      .then(setClienteTransp)
+      .catch(() => setClienteTransp([]))
+      .finally(() => setLoadingTransp(false));
+  }, [clienteId]);
+
+  // ---------------------------------------------------------------
+  // Carregar simulação existente (ao editar orçamento salvo)
+  // ---------------------------------------------------------------
+  useEffect(() => {
+    if (!orcamentoId) return;
+    carregarSimulacaoPorOrigem('orcamento', orcamentoId)
+      .then((sim) => {
+        if (!sim) return;
+        setSimulacaoId(sim.id);
+        if (sim.volumes) setVolumes(sim.volumes);
+        if (sim.altura_cm) setAlturaCm(sim.altura_cm);
+        if (sim.largura_cm) setLarguraCm(sim.largura_cm);
+        if (sim.comprimento_cm) setComprimentoCm(sim.comprimento_cm);
+
+        const opcoesCarregadas: FreteOpcaoLocal[] = sim.opcoes.map((o) => ({
+          id: o.id,
+          simulacao_id: o.simulacao_id,
+          transportadora_id: o.transportadora_id,
+          fonte: o.fonte as FreteOpcaoLocal['fonte'],
+          servico: o.servico,
+          codigo: o.codigo,
+          modalidade: o.modalidade,
+          prazo_dias: o.prazo_dias,
+          valor_frete: o.valor_frete,
+          valor_adicional: o.valor_adicional,
+          valor_total: o.valor_total,
+          selecionada: o.selecionada,
+          observacoes: o.observacoes,
+        }));
+        setOpcoes(opcoesCarregadas);
+        const selecionada = opcoesCarregadas.find((o) => o.selecionada);
+        if (selecionada?.id) setOpcaoSelecionadaId(selecionada.id);
+      })
+      .catch((err) => {
+        logger.error('[FreteSimulador] falha ao carregar simulação salva:', err);
+        toast.warning('Não foi possível carregar a simulação de frete salva.');
+      });
+  }, [orcamentoId]);
+
+  // ---------------------------------------------------------------
+  // Detectar simulação desatualizada
+  // ---------------------------------------------------------------
+  useEffect(() => {
+    const pesoMudou = lastPesoRef.current !== pesoTotal;
+    const cepMudou = lastCepRef.current !== cepDestino;
+    if ((pesoMudou || cepMudou) && opcoes.length > 0) {
+      setDesatualizado(true);
+    }
+    lastPesoRef.current = pesoTotal;
+    lastCepRef.current = cepDestino;
+  }, [pesoTotal, cepDestino, opcoes.length]);
+
+  // ---------------------------------------------------------------
+  // Garantir simulação criada
+  // ---------------------------------------------------------------
+  const garantirSimulacao = useCallback(async (): Promise<string | null> => {
+    if (!orcamentoId) {
+      toast.warning('Salve o orçamento antes de simular o frete.');
+      return null;
+    }
+    const cepDest = (cepDestino || '').replace(/\D/g, '');
+    if (cepOrigem.length !== 8) {
+      toast.error('Configure o CEP da empresa em Administração → Empresa.');
+      return null;
+    }
+    if (cepDest.length !== 8) {
+      toast.error('O cliente selecionado não possui CEP válido.');
+      return null;
+    }
+    if (pesoTotal <= 0) {
+      toast.error('Adicione itens com peso para simular o frete.');
+      return null;
+    }
+
+    try {
+      const id = await criarOuAtualizarSimulacao(
+        {
+          origemTipo: 'orcamento',
+          origemId: orcamentoId,
+          clienteId: clienteId || null,
+          cepOrigem,
+          cepDestino: cepDest,
+          pesoTotal,
+          valorMercadoria,
+          volumes,
+          alturaCm,
+          larguraCm,
+          comprimentoCm,
+        },
+        simulacaoId
+      );
+      setSimulacaoId(id);
+      setDesatualizado(false);
+      return id;
+    } catch (err) {
+      logger.error('[FreteSimulador] garantirSimulacao:', err);
+      toast.error('Erro ao criar simulação de frete.');
+      return null;
+    }
+  }, [
+    orcamentoId, clienteId, cepDestino, cepOrigem, pesoTotal, valorMercadoria,
+    volumes, alturaCm, larguraCm, comprimentoCm, simulacaoId,
+  ]);
+
+  // ---------------------------------------------------------------
+  // Aba Correios: consultar
+  // ---------------------------------------------------------------
+  const handleConsultarCorreios = async () => {
+    const simId = await garantirSimulacao();
+    if (!simId) return;
+
+    setLoadingCorreios(true);
+    try {
+      const cepDest = (cepDestino || '').replace(/\D/g, '');
+      const result = await consultarCorreios({
+        cepOrigem,
+        cepDestino: cepDest,
+        peso: pesoTotal,
+        comprimento: comprimentoCm,
+        altura: alturaCm,
+        largura: larguraCm,
+      });
+
+      const validas = result.filter((o) => !o.erro && o.valor > 0);
+      if (validas.length === 0) {
+        toast.warning('Nenhuma opção de frete disponível para este destino.');
+        return;
+      }
+
+      const salvas = await salvarOpcoesCorreios(simId, validas);
+      const novasOpcoes: FreteOpcaoLocal[] = salvas.map((s) => ({
+        id: s.id,
+        simulacao_id: s.simulacao_id,
+        transportadora_id: s.transportadora_id,
+        fonte: s.fonte as FreteOpcaoLocal['fonte'],
+        servico: s.servico,
+        codigo: s.codigo,
+        modalidade: s.modalidade,
+        prazo_dias: s.prazo_dias,
+        valor_frete: s.valor_frete,
+        valor_adicional: s.valor_adicional,
+        valor_total: s.valor_total,
+        selecionada: s.selecionada,
+        observacoes: s.observacoes,
+      }));
+
+      setOpcoes((prev) => [
+        ...prev.filter((o) => o.fonte !== 'correios'),
+        ...novasOpcoes,
+      ]);
+      toast.success(`${validas.length} opção(ões) dos Correios encontrada(s).`);
+    } catch (err) {
+      logger.error('[frete-correios]', err);
+      toast.error('Erro ao consultar Correios: ' + (err instanceof Error ? err.message : 'Tente novamente'));
+    } finally {
+      setLoadingCorreios(false);
+    }
+  };
+
+  // ---------------------------------------------------------------
+  // Aba Transportadoras: salvar proposta
+  // ---------------------------------------------------------------
+  const handleSalvarTransportadora = async (vt: ClienteTransportadoraComTransportadora) => {
+    const form = transpForm[vt.id];
+    if (!form?.valor || Number(form.valor) <= 0) {
+      toast.error('Informe o valor do frete.');
+      return;
+    }
+    const simId = await garantirSimulacao();
+    if (!simId) return;
+
+    setSalvandoOpcao(true);
+    try {
+      const salva = await salvarOpcaoTransportadora({
+        simulacaoId: simId,
+        transportadoraId: vt.transportadora_id,
+        servico: form.servico || null,
+        modalidade: vt.modalidade,
+        prazoDias: form.prazo ? Number(form.prazo) : null,
+        valorFrete: Number(form.valor),
+        observacoes: form.obs || null,
+      });
+
+      const nomeTransp = vt.transportadoras.nome_fantasia || vt.transportadoras.nome_razao_social;
+
+      setOpcoes((prev) => [
+        ...prev,
+        {
+          id: salva.id,
+          simulacao_id: salva.simulacao_id,
+          transportadora_id: salva.transportadora_id,
+          fonte: 'cliente_vinculada',
+          servico: salva.servico,
+          codigo: null,
+          modalidade: salva.modalidade,
+          prazo_dias: salva.prazo_dias,
+          valor_frete: salva.valor_frete,
+          valor_adicional: salva.valor_adicional,
+          valor_total: salva.valor_total,
+          selecionada: false,
+          observacoes: salva.observacoes,
+          transportadora_nome: nomeTransp,
+        },
+      ]);
+
+      setTranspForm((prev) => ({ ...prev, [vt.id]: { valor: '', prazo: '', servico: '', obs: '' } }));
+      toast.success(`Proposta de ${nomeTransp} adicionada.`);
+    } catch (err) {
+      logger.error('[frete-transp]', err);
+      toast.error('Erro ao salvar proposta.');
+    } finally {
+      setSalvandoOpcao(false);
+    }
+  };
+
+  // ---------------------------------------------------------------
+  // Aba Manual: salvar
+  // ---------------------------------------------------------------
+  const handleSalvarManual = async () => {
+    if (!manualForm.valor || Number(manualForm.valor) <= 0) {
+      toast.error('Informe o valor do frete manual.');
+      return;
+    }
+    const simId = await garantirSimulacao();
+    if (!simId) return;
+
+    setSalvandoOpcao(true);
+    try {
+      const salva = await salvarOpcaoManual({
+        simulacaoId: simId,
+        servico: manualForm.servico || null,
+        modalidade: manualForm.modalidade || null,
+        prazoDias: manualForm.prazo ? Number(manualForm.prazo) : null,
+        valorFrete: Number(manualForm.valor),
+        observacoes: manualForm.obs || null,
+      });
+
+      setOpcoes((prev) => [
+        ...prev,
+        {
+          id: salva.id,
+          simulacao_id: salva.simulacao_id,
+          transportadora_id: null,
+          fonte: 'manual',
+          servico: salva.servico,
+          codigo: null,
+          modalidade: salva.modalidade,
+          prazo_dias: salva.prazo_dias,
+          valor_frete: salva.valor_frete,
+          valor_adicional: salva.valor_adicional,
+          valor_total: salva.valor_total,
+          selecionada: false,
+          observacoes: salva.observacoes,
+        },
+      ]);
+
+      setManualForm({ servico: '', modalidade: '', prazo: '', valor: '', obs: '' });
+      toast.success('Opção manual adicionada.');
+    } catch (err) {
+      logger.error('[frete-manual]', err);
+      toast.error('Erro ao salvar frete manual.');
+    } finally {
+      setSalvandoOpcao(false);
+    }
+  };
+
+  // ---------------------------------------------------------------
+  // Remover opção (não selecionada)
+  // ---------------------------------------------------------------
+  const handleRemoverOpcao = async (opcao: FreteOpcaoLocal) => {
+    if (!opcao.id) return;
+    if (opcao.selecionada) {
+      toast.warning('Não é possível remover a opção selecionada. Selecione outra primeiro.');
+      return;
+    }
+    try {
+      await removerOpcao(opcao.id);
+      setOpcoes((prev) => prev.filter((o) => o.id !== opcao.id));
+    } catch {
+      toast.error('Erro ao remover opção.');
+    }
+  };
+
+  // ---------------------------------------------------------------
+  // Selecionar opção
+  // ---------------------------------------------------------------
+  const handleSelecionarOpcao = async (opcao: FreteOpcaoLocal) => {
+    if (!opcao.id || !simulacaoId || !orcamentoId) {
+      toast.warning('Salve o orçamento antes de selecionar um frete.');
+      return;
+    }
+
+    const dims: SimulacaoDimensoes = { volumes, altura_cm: alturaCm, largura_cm: larguraCm, comprimento_cm: comprimentoCm };
+
+    try {
+      await selecionarOpcaoFrete(simulacaoId, opcao.id, orcamentoId, opcao, dims);
+
+      setOpcoes((prev) => prev.map((o) => ({ ...o, selecionada: o.id === opcao.id })));
+      setOpcaoSelecionadaId(opcao.id);
+
+      const freteTipo = opcao.fonte === 'correios'
+        ? `CORREIOS (${opcao.servico || ''})`
+        : opcao.transportadora_nome || opcao.servico || 'MANUAL';
+
+      const payload: FreteSelecaoPayload = {
+        freteValor: opcao.valor_total,
+        freteTipo,
+        prazoEntrega: opcao.prazo_dias ? `${opcao.prazo_dias} dias` : '',
+        modalidade: opcao.modalidade,
+        transportadoraId: opcao.transportadora_id || null,
+        origemFrete: opcao.fonte,
+        servicoFrete: opcao.servico || null,
+        prazoEntregaDias: opcao.prazo_dias,
+        freteSimulacaoId: simulacaoId,
+        volumes,
+        alturaCm,
+        larguraCm,
+        comprimentoCm,
+      };
+      onSelect(payload);
+      toast.success('Frete selecionado!');
+    } catch (err) {
+      logger.error('[frete-selecionar]', err);
+      toast.error('Erro ao selecionar frete.');
+    }
+  };
+
+  // ---------------------------------------------------------------
+  // Derived
+  // ---------------------------------------------------------------
+  const cepDestinoClean = (cepDestino || '').replace(/\D/g, '');
+  const canSimulate =
+    !loadingConfig &&
+    cepOrigem.length === 8 &&
+    cepDestinoClean.length === 8 &&
+    pesoTotal > 0;
+
+  const opcoesCorreios = opcoes.filter((o) => o.fonte === 'correios');
+  const opcoesTransp = opcoes.filter((o) => o.fonte === 'cliente_vinculada');
+  const opcoesManual = opcoes.filter((o) => o.fonte === 'manual');
+
+  const transpFormFor = (vtId: string) =>
+    transpForm[vtId] || { valor: '', prazo: '', servico: '', obs: '' };
+
+  // ---------------------------------------------------------------
+  // Caixas helpers
+  // ---------------------------------------------------------------
+  const handleSelecionarCaixa = (caixaId: string) => {
+    const caixa = caixas.find((c) => c.id === caixaId);
+    if (!caixa) return;
+    setAlturaCm(caixa.altura_cm);
+    setLarguraCm(caixa.largura_cm);
+    setComprimentoCm(caixa.comprimento_cm);
+  };
+
+  const handleAdicionarCaixa = async () => {
+    if (!novaCaixa.nome.trim()) { toast.error('Informe o nome da caixa.'); return; }
+    if (!novaCaixa.altura || !novaCaixa.largura || !novaCaixa.comprimento) {
+      toast.error('Preencha todas as dimensões.'); return;
+    }
+    setSalvandoCaixa(true);
+    try {
+      const nova: CaixaEmbalagem = {
+        id: crypto.randomUUID(),
+        nome: novaCaixa.nome.trim(),
+        altura_cm: Number(novaCaixa.altura),
+        largura_cm: Number(novaCaixa.largura),
+        comprimento_cm: Number(novaCaixa.comprimento),
+      };
+      const atualizadas = [...caixas, nova];
+      await salvarCaixasEmbalagem(atualizadas);
+      setCaixas(atualizadas);
+      setNovaCaixa({ nome: '', altura: '', largura: '', comprimento: '' });
+      toast.success(`Caixa "${nova.nome}" cadastrada.`);
+    } catch {
+      toast.error('Erro ao salvar caixa.');
+    } finally {
+      setSalvandoCaixa(false);
+    }
+  };
+
+  const handleRemoverCaixa = async (id: string) => {
+    try {
+      const atualizadas = caixas.filter((c) => c.id !== id);
+      await salvarCaixasEmbalagem(atualizadas);
+      setCaixas(atualizadas);
+    } catch {
+      toast.error('Erro ao remover caixa.');
+    }
+  };
+
+  // ---------------------------------------------------------------
+  // Render
+  // ---------------------------------------------------------------
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -51,9 +547,9 @@ export function FreteSimuladorCard(props: FreteSimuladorCardProps) {
         {!loadingConfig && cepOrigem.length !== 8 && (
           <p className="text-xs text-destructive mt-1">⚠ CEP de origem não configurado. Vá em Administração → Empresa.</p>
         )}
-        {!props.clienteId && <p className="text-xs text-muted-foreground mt-1">Selecione um cliente para habilitar o simulador.</p>}
-        {props.clienteId && cepDestinoClean.length !== 8 && <p className="text-xs text-muted-foreground mt-1">O cliente não possui CEP válido.</p>}
-        {props.pesoTotal <= 0 && <p className="text-xs text-muted-foreground mt-1">Adicione itens com peso para simular o frete.</p>}
+        {!clienteId && <p className="text-xs text-muted-foreground mt-1">Selecione um cliente para habilitar o simulador.</p>}
+        {clienteId && cepDestinoClean.length !== 8 && <p className="text-xs text-muted-foreground mt-1">O cliente não possui CEP válido.</p>}
+        {pesoTotal <= 0 && <p className="text-xs text-muted-foreground mt-1">Adicione itens com peso para simular o frete.</p>}
 
         {desatualizado && opcoes.length > 0 && (
           <div className="flex items-center gap-1.5 text-xs text-amber-600 bg-amber-50 rounded-md px-2 py-1 mt-2">
@@ -65,7 +561,7 @@ export function FreteSimuladorCard(props: FreteSimuladorCardProps) {
           <div className="flex flex-wrap gap-4 text-xs text-muted-foreground mt-2">
             <span>Origem: <strong className="text-foreground">{cepOrigem}</strong></span>
             <span>Destino: <strong className="text-foreground">{cepDestinoClean}</strong></span>
-            <span>Peso: <strong className="text-foreground">{props.pesoTotal.toFixed(3)} kg</strong></span>
+            <span>Peso: <strong className="text-foreground">{pesoTotal.toFixed(3)} kg</strong></span>
           </div>
         )}
       </CardHeader>

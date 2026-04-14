@@ -16,7 +16,7 @@ export interface GridItem {
 interface Props {
   items: GridItem[];
   onChange: (items: GridItem[]) => void;
-  produtos: any[];
+  produtos: Record<string, unknown>[];
   title?: string;
   readOnly?: boolean;
   /** Per-item validation errors keyed by item index */
@@ -31,12 +31,12 @@ export function ItemsGrid({ items, onChange, produtos, title = "Itens", readOnly
   const addItem = () => onChange([...items, emptyItem()]);
   const removeItem = (idx: number) => onChange(items.filter((_, i) => i !== idx));
 
-  const updateItem = (idx: number, field: string, value: any) => {
+  const updateItem = (idx: number, field: string, value: unknown) => {
     const next = [...items];
     const item = { ...next[idx], [field]: value };
 
     if (field === "produto_id" && value) {
-      const prod = produtos.find((p: any) => p.id === value);
+      const prod = produtos.find((p: Record<string, unknown>) => p.id === value);
       if (prod) {
         item.codigo = prod.codigo_interno || "";
         item.descricao = prod.nome;
@@ -56,7 +56,7 @@ export function ItemsGrid({ items, onChange, produtos, title = "Itens", readOnly
 
   const total = items.reduce((s, i) => s + (i.valor_total || 0), 0);
 
-  const produtoOptions = produtos.map((p: any) => ({
+  const produtoOptions = produtos.map((p: Record<string, unknown>) => ({
     id: p.id,
     label: p.nome,
     sublabel: [p.codigo_interno, p.unidade_medida].filter(Boolean).join(" • "),

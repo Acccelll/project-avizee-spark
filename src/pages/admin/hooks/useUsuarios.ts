@@ -13,6 +13,7 @@ import {
   type AppRole,
   type UsuarioComPerfil,
 } from "@/services/admin/usuarios.service";
+import { logger } from '@/utils/logger';
 
 const QUERY_KEY = ["admin", "usuarios"] as const;
 
@@ -38,7 +39,7 @@ export function useUsuarios() {
       toast.success("Usuário atualizado com sucesso.");
     },
     onError: (err: Error) => {
-      console.error("[admin] Erro ao atualizar usuário:", err);
+      logger.error("[admin] Erro ao atualizar usuário:", err);
       toast.error(getUserFriendlyError(err));
     },
   });
@@ -51,7 +52,7 @@ export function useUsuarios() {
       toast.success("Perfil do usuário atualizado.");
     },
     onError: (err: Error) => {
-      console.error("[admin] Erro ao alterar perfil:", err);
+      logger.error("[admin] Erro ao alterar perfil:", err);
       toast.error(getUserFriendlyError(err));
     },
   });
@@ -63,7 +64,7 @@ export function useUsuarios() {
       toast.success("Usuário desativado.");
     },
     onError: (err: Error) => {
-      console.error("[admin] Erro ao desativar usuário:", err);
+      logger.error("[admin] Erro ao desativar usuário:", err);
       toast.error(getUserFriendlyError(err));
     },
   });

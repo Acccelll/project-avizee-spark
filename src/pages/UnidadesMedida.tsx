@@ -17,6 +17,7 @@ import { Loader2, Tag, CheckCircle2 } from "lucide-react";
 import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { StatCard } from "@/components/StatCard";
+import { logger } from '@/utils/logger';
 
 interface UnidadeMedida {
   id: string;
@@ -91,7 +92,7 @@ export default function UnidadesMedida() {
       }
       setModalOpen(false);
     } catch (err) {
-      console.error("[unidades-medida] erro ao salvar:", err);
+      logger.error("[unidades-medida] erro ao salvar:", err);
     }
     setSaving(false);
   };

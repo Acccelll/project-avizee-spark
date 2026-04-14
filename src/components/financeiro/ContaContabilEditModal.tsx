@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useEffect, useMemo, useState } from "react";
 import {
   Dialog,
@@ -165,6 +164,7 @@ export function ContaContabilEditModal({
       });
       setLoadingVinculos(false);
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- conta?.id is sufficient
   }, [open, conta?.id]);
 
   // Check code uniqueness on blur

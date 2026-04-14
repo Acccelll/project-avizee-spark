@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 
 interface PreviewImportacaoTableProps {
-  data: any[];
+  data: Record<string, unknown>[];
   importType: string;
 }
 

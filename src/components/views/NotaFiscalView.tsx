@@ -13,9 +13,9 @@ interface Props {
 }
 
 export function NotaFiscalView({ id }: Props) {
-  const [selected, setSelected] = useState<any | null>(null);
+  const [selected, setSelected] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(true);
-  const [items, setItems] = useState<any[]>([]);
+  const [items, setItems] = useState<Record<string, unknown>[]>([]);
   const { pushView } = useRelationalNavigation();
 
   useEffect(() => {
@@ -93,7 +93,7 @@ export function NotaFiscalView({ id }: Props) {
                 </tr>
               </thead>
               <tbody>
-                {items.map((i: any, idx: number) => (
+                {items.map((i: Record<string, unknown>, idx: number) => (
                   <tr key={idx} className="border-b last:border-b-0 hover:bg-muted/20">
                     <td className="px-2 py-2">
                       <button onClick={() => pushView("produto", i.produtos?.id)} className="text-left hover:underline block truncate max-w-[120px]">

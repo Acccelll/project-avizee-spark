@@ -35,6 +35,7 @@ import {
   DollarSign,
 } from "lucide-react";
 import { toast } from "sonner";
+import { logger } from '@/utils/logger';
 
 interface Props {
   id: string;
@@ -59,11 +60,11 @@ const freteTipoLabels: Record<string, string> = {
 
 export function OrcamentoView({ id }: Props) {
   const navigate = useNavigate();
-  const [selected, setSelected] = useState<any | null>(null);
+  const [selected, setSelected] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
-  const [items, setItems] = useState<any[]>([]);
-  const [linkedOV, setLinkedOV] = useState<any | null>(null);
+  const [items, setItems] = useState<Record<string, unknown>[]>([]);
+  const [linkedOV, setLinkedOV] = useState<Record<string, unknown> | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [convertConfirmOpen, setConvertConfirmOpen] = useState(false);
   const [approveConfirmOpen, setApproveConfirmOpen] = useState(false);
@@ -196,7 +197,7 @@ export function OrcamentoView({ id }: Props) {
     setGeneratingToken(true);
     try {
       const token = await ensurePublicToken(selected.id);
-      setSelected((prev: any) => ({ ...prev, public_token: token }));
+      setSelected(( prev: Record<string, unknown>) => ({ ...prev, public_token: token }));
       toast.success("Link público gerado!");
     } catch {
       toast.error("Erro ao gerar link público.");
@@ -437,7 +438,7 @@ export function OrcamentoView({ id }: Props) {
                     <td colSpan={5} className="px-2 py-4 text-center text-muted-foreground text-xs">Nenhum item</td>
                   </tr>
                 )}
-                {items.map((i: any, idx: number) => (
+                {items.map((i: Record<string, unknown>, idx: number) => (
                   <tr key={idx} className="border-b last:border-b-0 hover:bg-muted/20">
                     <td className="px-2 py-2 font-mono text-[10px] text-muted-foreground">
                       {i.codigo_snapshot || i.produtos?.sku || "—"}
@@ -620,7 +621,7 @@ export function OrcamentoView({ id }: Props) {
             toast.success("Cotação excluída com sucesso.");
             clearStack();
           } catch (err) {
-            console.error("[OrcamentoView] erro ao excluir:", err);
+            logger.error("[OrcamentoView] erro ao excluir:", err);
             toast.error("Erro ao excluir cotação.");
           } finally {
             setDeleteConfirmOpen(false);

@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Package, Truck, CheckCircle2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { logger } from '@/utils/logger';
 
 interface FreteOption {
   servico: string;
@@ -63,7 +64,7 @@ export function FreteCorreiosCard({ cepDestino, pesoTotal, onSelect }: FreteCorr
       const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL as string || '').replace(/\/$/, '');
       const url = `${supabaseUrl}/functions/v1/correios-api?action=cotacao_multi`;
       const session = await supabase.auth.getSession();
-      const token = session.data.session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || '';
+      const token = session.data.session?.access_token ?? '';
 
       const res = await fetch(url, {
         method: 'POST',
@@ -96,7 +97,7 @@ export function FreteCorreiosCard({ cepDestino, pesoTotal, onSelect }: FreteCorr
 
       setOpcoes(validas);
     } catch (err: unknown) {
-      console.error('[frete-correios]', err);
+      logger.error('[frete-correios]', err);
       toast.error('Erro ao consultar frete: ' + (err instanceof Error ? err.message : 'Tente novamente'));
     }
     setLoading(false);

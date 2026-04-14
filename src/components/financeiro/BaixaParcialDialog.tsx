@@ -11,6 +11,7 @@ import { baixarTitulo } from "@/services/financeiro/titulos.service";
 import { formatCurrency } from "@/lib/format";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import { toast } from "sonner";
+import { logger } from '@/utils/logger';
 
 interface ContaBancaria {
   id: string;
@@ -79,7 +80,8 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
       setObservacoes("");
       loadBaixas(lancamento.id);
     }
-  }, [open, lancamento?.id]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- lancamento?.id covers the object change; adding lancamento would cause reference instability
+  }, [open, lancamento?.id, saldoAtual]);
 
   const loadBaixas = async (lancamentoId: string) => {
     setLoadingBaixas(true);
@@ -88,7 +90,6 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
       .select("*")
       .eq("lancamento_id", lancamentoId)
       .order("data_baixa", { ascending: false });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     setBaixasAnteriores((data ?? []) as Baixa[]);
     setLoadingBaixas(false);
   };
@@ -120,7 +121,7 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
       onSuccess();
       onClose();
     } catch (err: unknown) {
-      console.error("[baixa]", err);
+      logger.error("[baixa]", err);
       toast.error(getUserFriendlyError(err));
     }
     setSaving(false);

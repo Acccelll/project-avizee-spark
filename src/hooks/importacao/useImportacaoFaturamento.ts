@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useCallback } from "react";
 import * as XLSX from "@/lib/xlsx-compat";
 import { supabase } from "@/integrations/supabase/client";
@@ -6,6 +5,7 @@ import { toast } from "sonner";
 import { validateFaturamentoImport } from "@/lib/importacao/validators";
 import { FIELD_ALIASES } from "@/lib/importacao/aliases";
 import { Mapping } from "./types";
+import { logger } from '@/utils/logger';
 
 export interface GroupedNF {
   numero: string;
@@ -20,7 +20,7 @@ export interface GroupedNF {
   itens_count: number;
   status: "valido" | "erro" | "duplicado";
   errors: string[];
-  itens: any[];
+  itens: Record<string, unknown>[];
 }
 
 /**
@@ -36,35 +36,12 @@ export function useImportacaoFaturamento() {
   const [workbook, setWorkbook] = useState<XLSX.WorkBook | null>(null);
   const [sheets, setSheets] = useState<string[]>([]);
   const [currentSheet, setCurrentSheet] = useState<string>("");
-  const [rawRows, setRawRows] = useState<any[]>([]);
+  const [rawRows, setRawRows] = useState<Record<string, unknown>[]>([]);
   const [headers, setHeaders] = useState<string[]>([]);
   const [mapping, setMapping] = useState<Mapping>({});
   const [previewData, setPreviewData] = useState<GroupedNF[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [loteId, setLoteId] = useState<string | null>(null);
-
-  const onFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (!selectedFile) return;
-
-    setFile(selectedFile);
-    const reader = new FileReader();
-    reader.onload = async (evt) => {
-      const bstr = evt.target?.result;
-      try {
-        const wb = XLSX.read(bstr, { type: "binary" });
-        await XLSX.ensureLoaded(wb);
-        setWorkbook(wb);
-        setSheets(wb.SheetNames);
-        if (wb.SheetNames.length > 0) {
-          onSheetChange(wb.SheetNames[0], wb);
-        }
-      } catch (err: any) {
-        toast.error(`Erro ao ler arquivo: ${err.message}`);
-      }
-    };
-    reader.readAsBinaryString(selectedFile);
-  }, []);
 
   const onSheetChange = useCallback((sheetName: string, wb: XLSX.WorkBook | null = null) => {
     const activeWb = wb || workbook;
@@ -88,6 +65,29 @@ export function useImportacaoFaturamento() {
       setMapping(initialMapping);
     }
   }, [workbook]);
+
+  const onFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (!selectedFile) return;
+
+    setFile(selectedFile);
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      const bstr = evt.target?.result;
+      try {
+        const wb = XLSX.read(bstr, { type: "binary" });
+        await XLSX.ensureLoaded(wb);
+        setWorkbook(wb);
+        setSheets(wb.SheetNames);
+        if (wb.SheetNames.length > 0) {
+          onSheetChange(wb.SheetNames[0], wb);
+        }
+      } catch (err: unknown) {
+        toast.error(`Erro ao ler arquivo: ${err.message}`);
+      }
+    };
+    reader.readAsBinaryString(selectedFile);
+  }, [onSheetChange]);
 
   const generatePreview = useCallback(async () => {
     if (rawRows.length === 0) return;
@@ -117,7 +117,7 @@ export function useImportacaoFaturamento() {
       const grouped = new Map<string, GroupedNF>();
 
       rawRows.forEach((row, index) => {
-        const mappedRow: any = {};
+        const mappedRow: Record<string, unknown> = {};
         Object.entries(mapping).forEach(([field, colName]) => {
           mappedRow[field] = row[colName];
         });
@@ -185,7 +185,7 @@ export function useImportacaoFaturamento() {
       }
 
       setPreviewData(Array.from(grouped.values()));
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast.error(`Erro ao gerar prévia: ${err.message}`);
     } finally {
       setIsProcessing(false);
@@ -285,8 +285,8 @@ export function useImportacaoFaturamento() {
       toast.success(`${validos.length} NFs enviadas para staging. Confirme para consolidar.`);
       return currentLoteId;
 
-    } catch (error: any) {
-      console.error("Erro na importação de faturamento:", error);
+    } catch (error: unknown) {
+      logger.error("Erro na importação de faturamento:", error);
       toast.error(`Falha no processamento: ${error.message}`);
     } finally {
       setIsProcessing(false);

@@ -1,9 +1,13 @@
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import type { ApresentacaoDataBundle, ApresentacaoModoGeracao, SlideCodigo } from '@/types/apresentacao';
 import { APRESENTACAO_SLIDES_MAP } from './slideDefinitions';
 
+// Views not in the generated schema — cast to untyped client
+const db = supabase as unknown as SupabaseClient;
+
 async function queryView(viewName: string, iniYM: string, fimYM: string) {
-  const q = (supabase as any).from(viewName).select('*');
+  const q = db.from(viewName).select('*');
   const filtered = q.gte?.('competencia', iniYM)?.lte?.('competencia', fimYM);
   const { data, error } = await (filtered ?? q);
   if (error) throw error;
@@ -59,14 +63,14 @@ const viewMap: Record<SlideCodigo, string> = {
 };
 
 async function fetchClosedSnapshotData(iniYM: string, fimYM: string, slidesList: SlideCodigo[]) {
-  const { data: fechamentoData, error: fechamentoError } = await (supabase as any)
+  const { data: fechamentoData, error: fechamentoError } = await db
     .from('fechamentos_mensais')
     .select('id, competencia, status')
     .gte('competencia', `${iniYM}-01`)
     .lte('competencia', `${fimYM}-31`)
     .eq('status', 'fechado');
   if (fechamentoError) throw fechamentoError;
-  const fechamentos = (fechamentoData ?? []).map((f: any) => ({ id: String(f.id), competencia: String(f.competencia).slice(0, 7) }));
+  const fechamentos = (fechamentoData ?? []).map((f: Record<string, unknown>) => ({ id: String(f.id), competencia: String(f.competencia).slice(0, 7) }));
   const expected = monthRange(iniYM, fimYM);
   const missing = expected.filter((m) => !fechamentos.some((f) => f.competencia === m));
   if (missing.length) throw new Error(`Modo fechado sem cobertura completa: ${missing.join(', ')}`);
@@ -75,20 +79,20 @@ async function fetchClosedSnapshotData(iniYM: string, fimYM: string, slidesList:
   const competenciaByFechamentoId = new Map(fechamentos.map((f) => [f.id, f.competencia]));
 
   const [finRes, caixaRes, estoqueRes, fopagRes] = await Promise.all([
-    (supabase as any).from('fechamento_financeiro_saldos').select('*').in('fechamento_id', fechamentoIds),
-    (supabase as any).from('fechamento_caixa_saldos').select('*').in('fechamento_id', fechamentoIds),
-    (supabase as any).from('fechamento_estoque_saldos').select('*').in('fechamento_id', fechamentoIds),
-    (supabase as any).from('fechamento_fopag_resumo').select('*').in('fechamento_id', fechamentoIds),
+    db.from('fechamento_financeiro_saldos').select('*').in('fechamento_id', fechamentoIds),
+    db.from('fechamento_caixa_saldos').select('*').in('fechamento_id', fechamentoIds),
+    db.from('fechamento_estoque_saldos').select('*').in('fechamento_id', fechamentoIds),
+    db.from('fechamento_fopag_resumo').select('*').in('fechamento_id', fechamentoIds),
   ]);
 
-  const fin = finRes.data ?? [];
-  const caixa = caixaRes.data ?? [];
-  const estoque = estoqueRes.data ?? [];
-  const fopag = fopagRes.data ?? [];
+  const fin = (finRes.data ?? []) as Record<string, unknown>[];
+  const caixa = (caixaRes.data ?? []) as Record<string, unknown>[];
+  const estoque = (estoqueRes.data ?? []) as Record<string, unknown>[];
+  const fopag = (fopagRes.data ?? []) as Record<string, unknown>[];
 
-  const byComp = (rows: any[]) => {
-    const map = new Map<string, any[]>();
-    rows.forEach((row: any) => {
+  const byComp = ( rows: Record<string, unknown>[]) => {
+    const map = new Map<string, Record<string, unknown>[]>();
+    rows.forEach(( row: Record<string, unknown>) => {
       const fechamentoId = String(row.fechamento_id ?? '');
       const comp = String(competenciaByFechamentoId.get(fechamentoId) ?? '');
       if (!comp) return;
@@ -98,10 +102,10 @@ async function fetchClosedSnapshotData(iniYM: string, fimYM: string, slidesList:
     return map;
   };
 
-  const finMap = byComp(fin as any);
-  const caixaMap = byComp(caixa as any);
-  const estoqueMap = byComp(estoque as any);
-  const fopagMap = byComp(fopag as any);
+  const finMap = byComp(fin);
+  const caixaMap = byComp(caixa);
+  const estoqueMap = byComp(estoque);
+  const fopagMap = byComp(fopag);
 
   const selectedComp = fimYM;
   const slides = {} as Record<SlideCodigo, Record<string, unknown>>;
@@ -118,12 +122,12 @@ async function fetchClosedSnapshotData(iniYM: string, fimYM: string, slidesList:
         slides[codigo] = { indisponivel: true, motivo: 'snapshot caixa indisponível' };
         continue;
       }
-      const total = rows.reduce((acc, r: any) => acc + Number(r.saldo_final ?? 0), 0);
+      const total = rows.reduce(( acc, r: Record<string, unknown>) => acc + Number(r.saldo_final ?? 0), 0);
       slides[codigo] = {
         competencia: selectedComp,
         valor_atual: total,
-        total_entradas: rows.reduce((acc, r: any) => acc + Number(r.total_entradas ?? 0), 0),
-        total_saidas: rows.reduce((acc, r: any) => acc + Number(r.total_saidas ?? 0), 0),
+        total_entradas: rows.reduce(( acc, r: Record<string, unknown>) => acc + Number(r.total_entradas ?? 0), 0),
+        total_saidas: rows.reduce(( acc, r: Record<string, unknown>) => acc + Number(r.total_saidas ?? 0), 0),
       };
       continue;
     }
@@ -136,10 +140,10 @@ async function fetchClosedSnapshotData(iniYM: string, fimYM: string, slidesList:
       }
       slides[codigo] = {
         competencia: selectedComp,
-        valor_atual: rows.reduce((acc: number, r: any) => acc + Number(r.valor_total ?? 0), 0),
+        valor_atual: rows.reduce(( acc: number, r: Record<string, unknown>) => acc + Number(r.valor_total ?? 0), 0),
         quantidade_itens: rows.length,
         custo_unitario_medio: rows.length
-          ? rows.reduce((acc: number, r: any) => acc + Number(r.custo_unitario ?? 0), 0) / rows.length
+          ? rows.reduce(( acc: number, r: Record<string, unknown>) => acc + Number(r.custo_unitario ?? 0), 0) / rows.length
           : 0,
       };
       continue;
@@ -153,7 +157,7 @@ async function fetchClosedSnapshotData(iniYM: string, fimYM: string, slidesList:
       }
       slides[codigo] = {
         competencia: selectedComp,
-        valor_atual: rows.reduce((acc: number, r: any) => acc + Number(r.valor_liquido ?? 0), 0),
+        valor_atual: rows.reduce(( acc: number, r: Record<string, unknown>) => acc + Number(r.valor_liquido ?? 0), 0),
         funcionarios: rows.length,
       };
       continue;
@@ -165,8 +169,8 @@ async function fetchClosedSnapshotData(iniYM: string, fimYM: string, slidesList:
         slides[codigo] = { indisponivel: true, motivo: 'snapshot financeiro indisponível' };
         continue;
       }
-      const receita = rows.filter((r: any) => r.tipo === 'receber').reduce((a: number, r: any) => a + Number(r.saldo_aberto ?? 0), 0);
-      const despesa = rows.filter((r: any) => r.tipo === 'pagar').reduce((a: number, r: any) => a + Number(r.saldo_aberto ?? 0), 0);
+      const receita = rows.filter((r: Record<string, unknown>) => r.tipo === 'receber').reduce((a: number, r: Record<string, unknown>) => a + Number(r.saldo_aberto ?? 0), 0);
+      const despesa = rows.filter((r: Record<string, unknown>) => r.tipo === 'pagar').reduce((a: number, r: Record<string, unknown>) => a + Number(r.saldo_aberto ?? 0), 0);
       slides[codigo] = {
         competencia: selectedComp,
         cr_aberto: receita,
@@ -182,8 +186,8 @@ async function fetchClosedSnapshotData(iniYM: string, fimYM: string, slidesList:
         slides[codigo] = { indisponivel: true, motivo: 'snapshot financeiro indisponível' };
         continue;
       }
-      const contasReceber = rows.filter((r: any) => r.tipo === 'receber').reduce((a: number, r: any) => a + Number(r.saldo_aberto ?? 0), 0);
-      const contasPagar = rows.filter((r: any) => r.tipo === 'pagar').reduce((a: number, r: any) => a + Number(r.saldo_aberto ?? 0), 0);
+      const contasReceber = rows.filter((r: Record<string, unknown>) => r.tipo === 'receber').reduce((a: number, r: Record<string, unknown>) => a + Number(r.saldo_aberto ?? 0), 0);
+      const contasPagar = rows.filter((r: Record<string, unknown>) => r.tipo === 'pagar').reduce((a: number, r: Record<string, unknown>) => a + Number(r.saldo_aberto ?? 0), 0);
       slides[codigo] = {
         competencia: selectedComp,
         contas_receber: contasReceber,

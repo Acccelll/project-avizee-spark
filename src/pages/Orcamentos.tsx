@@ -25,6 +25,7 @@ import { Send } from "lucide-react";
 import { sendForApproval, approveOrcamento, convertToPedido } from "@/services/orcamentos.service";
 import { statusOrcamento } from "@/lib/statusSchema";
 import { getUserFriendlyError } from "@/utils/errorMessages";
+import { logger } from '@/utils/logger';
 
 interface Orcamento {
   id: string;
@@ -183,8 +184,8 @@ const Orcamentos = () => {
         peso_total: orc.peso_total, pagamento: orc.pagamento,
         prazo_pagamento: orc.prazo_pagamento, prazo_entrega: orc.prazo_entrega,
         frete_tipo: orc.frete_tipo, modalidade: orc.modalidade,
-        cliente_snapshot: orc.cliente_snapshot as any,
-      } as any).select().single();
+        cliente_snapshot: orc.cliente_snapshot,
+      }).select().single();
       if (error) throw error;
       if (items && items.length > 0 && newOrc) {
         const newItems = items.map((i) => ({
@@ -200,7 +201,7 @@ const Orcamentos = () => {
       fetchData();
       navigate(`/cotacoes/${newOrc.id}`);
     } catch (err: unknown) {
-      console.error('[orcamentos] duplicar:', err);
+      logger.error('[orcamentos] duplicar:', err);
       toast.error(getUserFriendlyError(err));
     }
   };

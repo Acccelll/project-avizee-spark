@@ -23,7 +23,6 @@ import {
   Copy,
   ChevronsUpDown as ExpandIcon,
 } from 'lucide-react';
-import * as XLSX from '@/lib/xlsx-compat';
 import jsPDF from 'jspdf';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -40,6 +39,7 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { TableSkeleton } from '@/components/ui/content-skeletons';
 import { EmptyState } from '@/components/ui/empty-state';
+import { logger } from '@/utils/logger';
 
 export interface Column<T> {
   key: string;
@@ -99,8 +99,7 @@ type SortDirection = 'asc' | 'desc' | null;
 
 const getStorageKey = (moduleKey: string, suffix: string) => `datatable:${moduleKey}:${suffix}`;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function DataTable<T extends Record<string, any>>({
+export function DataTable<T extends Record<string, unknown>>({
   columns,
   data,
   moduleKey,
@@ -189,7 +188,7 @@ export function DataTable<T extends Record<string, any>>({
 
   useEffect(() => {
     if (!moduleKey || !user?.id) return;
-    supabase.from('user_preferences' as any).upsert({
+    supabase.from('user_preferences').upsert({
       user_id: user.id,
       module_key: moduleKey,
       columns_config: [...hiddenKeys],
@@ -210,7 +209,7 @@ export function DataTable<T extends Record<string, any>>({
     });
   };
 
-  const applyRule = (item: T, rule: FilterRule) => {
+  const applyRule = useCallback((item: T, rule: FilterRule) => {
     const raw = item[rule.field];
     if (raw === undefined || raw === null) return false;
     const text = String(raw).toLowerCase();
@@ -220,12 +219,12 @@ export function DataTable<T extends Record<string, any>>({
     if (rule.operator === 'gt') return Number(raw) > Number(rule.value);
     if (rule.operator === 'between') return Number(raw) >= Number(rule.value) && Number(raw) <= Number(rule.valueTo || rule.value);
     return true;
-  };
+  }, []);
 
   const filteredData = useMemo(() => {
     if (!rules.length) return data;
     return data.filter((item) => rules.every((rule) => applyRule(item, rule)));
-  }, [data, rules]);
+  }, [data, rules, applyRule]);
 
   const handleSort = (key: string) => {
     if (sortKey === key) {
@@ -337,6 +336,7 @@ export function DataTable<T extends Record<string, any>>({
       }
 
       if (format === 'xlsx') {
+        const XLSX = await import('@/lib/xlsx-compat');
         const ws = XLSX.utils.json_to_sheet(rows);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'Dados');
@@ -373,7 +373,7 @@ export function DataTable<T extends Record<string, any>>({
       pdf.save(`${moduleKey || 'dados'}.pdf`);
       toast.success('Exportação PDF concluída', { id: toastId });
     } catch (error) {
-      console.error('Erro ao exportar dados', error);
+      logger.error('Erro ao exportar dados', error);
       toast.error(`Falha ao exportar ${format.toUpperCase()}.`, {
         id: toastId,
         action: {
