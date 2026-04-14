@@ -169,13 +169,13 @@ export const navSections: NavSection[] = [
     ],
   },
 
-  {
-    key: 'social',
+  ...(import.meta.env.VITE_FEATURE_SOCIAL === 'true' ? [{
+    key: 'social' as const,
     title: 'Social',
     icon: Share2,
     directPath: '/social',
-    items: [],
-  },
+    items: [] as NavGroup[],
+  }] : []),
 
   {
     key: 'relatorios',
