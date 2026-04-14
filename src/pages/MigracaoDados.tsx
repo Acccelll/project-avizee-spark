@@ -170,7 +170,7 @@ export default function MigracaoDados() {
   const kpiMetrics = useMemo(() => {
     const totalRegistrosImportados = lotes.reduce((acc, l) => acc + (l.registros_sucesso || 0), 0);
     const totalRegistrosRejeitados = lotes.reduce((acc, l) => acc + (l.registros_erro || 0), 0);
-    const totalPendenciasConferencia = lotes.filter(l => l.status === 'validado' || l.status === 'parcial').length;
+    const totalPendenciasConferencia = lotes.filter(l => l.status === 'validado' || l.status === 'parcial' || l.status === 'staging').length;
     const totalConcluidosComAlertas = lotes.filter(l => l.status === 'concluido' && (l.registros_erro || 0) > 0).length;
     return { totalRegistrosImportados, totalRegistrosRejeitados, totalPendenciasConferencia, totalConcluidosComAlertas };
   }, [lotes]);
@@ -505,10 +505,13 @@ export default function MigracaoDados() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="todos">Todos status</SelectItem>
+                    <SelectItem value="staging">Staging</SelectItem>
                     <SelectItem value="concluido">Concluído</SelectItem>
                     <SelectItem value="validado">Validado</SelectItem>
                     <SelectItem value="parcial">Parcial</SelectItem>
                     <SelectItem value="processando">Processando</SelectItem>
+                    <SelectItem value="consolidando">Consolidando</SelectItem>
+                    <SelectItem value="erro">Erro</SelectItem>
                     <SelectItem value="cancelado">Cancelado</SelectItem>
                   </SelectContent>
                 </Select>
@@ -572,14 +575,14 @@ export default function MigracaoDados() {
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
                   <h4 className="text-sm font-bold tracking-tight">
-                    Lotes pendentes de conferência
+                    Lotes pendentes de conferência / staging
                   </h4>
                   <span className="inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-amber-100 text-amber-700 text-[10px] font-bold">
                     {kpiMetrics.totalPendenciasConferencia}
                   </span>
                 </div>
                 <ImportacaoLotesTable
-                  lotes={lotes.filter(l => l.status === 'validado' || l.status === 'parcial')}
+                  lotes={lotes.filter(l => ['validado', 'parcial', 'staging'].includes(l.status))}
                   isLoading={loadingLotes}
                   onView={handleViewLote}
                   onImport={(id) => {
