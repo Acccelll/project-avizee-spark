@@ -294,9 +294,13 @@ export type Database = {
           cliente_id: string
           conteudo: string | null
           created_at: string
+          data_hora: string | null
           data_registro: string
           id: string
           responsavel_id: string | null
+          responsavel_nome: string | null
+          retorno_previsto: string | null
+          status: string | null
           tipo: string | null
         }
         Insert: {
@@ -304,9 +308,13 @@ export type Database = {
           cliente_id: string
           conteudo?: string | null
           created_at?: string
+          data_hora?: string | null
           data_registro?: string
           id?: string
           responsavel_id?: string | null
+          responsavel_nome?: string | null
+          retorno_previsto?: string | null
+          status?: string | null
           tipo?: string | null
         }
         Update: {
@@ -314,9 +322,13 @@ export type Database = {
           cliente_id?: string
           conteudo?: string | null
           created_at?: string
+          data_hora?: string | null
           data_registro?: string
           id?: string
           responsavel_id?: string | null
+          responsavel_nome?: string | null
+          retorno_previsto?: string | null
+          status?: string | null
           tipo?: string | null
         }
         Relationships: [
@@ -1476,6 +1488,7 @@ export type Database = {
           fornecedor_id: string | null
           funcionario_id: string | null
           id: string
+          motivo_estorno: string | null
           nota_fiscal_id: string | null
           observacoes: string | null
           parcela_numero: number | null
@@ -1504,6 +1517,7 @@ export type Database = {
           fornecedor_id?: string | null
           funcionario_id?: string | null
           id?: string
+          motivo_estorno?: string | null
           nota_fiscal_id?: string | null
           observacoes?: string | null
           parcela_numero?: number | null
@@ -1532,6 +1546,7 @@ export type Database = {
           fornecedor_id?: string | null
           funcionario_id?: string | null
           id?: string
+          motivo_estorno?: string | null
           nota_fiscal_id?: string | null
           observacoes?: string | null
           parcela_numero?: number | null
@@ -3267,6 +3282,7 @@ export type Database = {
           previsao_entrega: string | null
           servico: string | null
           status_transporte: string | null
+          tipo_remessa: string | null
           transportadora_id: string | null
           updated_at: string
           valor_frete: number | null
@@ -3287,6 +3303,7 @@ export type Database = {
           previsao_entrega?: string | null
           servico?: string | null
           status_transporte?: string | null
+          tipo_remessa?: string | null
           transportadora_id?: string | null
           updated_at?: string
           valor_frete?: number | null
@@ -3307,6 +3324,7 @@ export type Database = {
           previsao_entrega?: string | null
           servico?: string | null
           status_transporte?: string | null
+          tipo_remessa?: string | null
           transportadora_id?: string | null
           updated_at?: string
           valor_frete?: number | null
