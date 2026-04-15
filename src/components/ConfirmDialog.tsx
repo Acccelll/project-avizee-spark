@@ -19,6 +19,7 @@ interface ConfirmDialogProps {
   confirmLabel?: string;
   confirmVariant?: "destructive" | "default";
   loading?: boolean;
+  confirmDisabled?: boolean;
   children?: React.ReactNode;
 }
 
