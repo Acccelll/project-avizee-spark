@@ -195,6 +195,7 @@ const Clientes = () => {
     docTipo,
     form.cpf_cnpj,
     selected?.id,
+    "clientes",
   );
   const [saving, setSaving] = useState(false);
   const [isDirty, setIsDirty] = useState(false);

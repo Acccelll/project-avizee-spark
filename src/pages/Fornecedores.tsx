@@ -87,6 +87,7 @@ const Fornecedores = () => {
     docTipo,
     form.cpf_cnpj,
     selected?.id,
+    "fornecedores",
   );
   const [isDirty, setIsDirty] = useState(false);
   const [saving, setSaving] = useState(false);

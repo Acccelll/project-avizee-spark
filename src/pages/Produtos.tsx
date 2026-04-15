@@ -1019,10 +1019,17 @@ const Produtos = () => {
               return (
                 <div key={idx} className="grid grid-cols-[1fr_100px_80px_40px] gap-2 items-end">
                   <div className="space-y-1"><Label className="text-xs">Produto</Label>
-                    <Select value={comp.produto_filho_id} onValueChange={(v) => updateComponent(idx, "produto_filho_id", v)}>
-                      <SelectTrigger className="h-9"><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                      <SelectContent>{produtosDisponiveis.map((p) => <SelectItem key={p.id} value={p.id}>{p.sku ? `[${p.sku}] ` : ""}{p.nome}</SelectItem>)}</SelectContent>
-                    </Select>
+                    <FiscalAutocomplete
+                      value={comp.produto_filho_id}
+                      onSelect={(v) => updateComponent(idx, "produto_filho_id", v)}
+                      placeholder="Buscar produto..."
+                      items={produtosDisponiveis.map((p) => ({
+                        value: p.id,
+                        label: `${p.sku ? `[${p.sku}] ` : ""}${p.nome}`,
+                        searchTerms: [p.nome, p.sku, p.codigo_interno].filter(Boolean).join(" "),
+                      }))}
+                      className="h-9"
+                    />
                   </div>
                   <div className="space-y-1"><Label className="text-xs">Qtd</Label><Input type="number" min={0.01} step="0.01" value={comp.quantidade} onChange={(e) => updateComponent(idx, "quantidade", Number(e.target.value))} className="h-9" /></div>
                   <div className="space-y-1"><Label className="text-xs">Custo</Label><p className="h-9 flex items-center text-xs font-mono text-muted-foreground">{prod ? formatCurrency(comp.quantidade * (prod.preco_custo || 0)) : "—"}</p></div>

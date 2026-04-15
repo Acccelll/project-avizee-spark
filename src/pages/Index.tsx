@@ -159,6 +159,7 @@ const DashboardContent = () => {
         .eq("tipo", tipo)
         .eq("ativo", true)
         .in("status", ["aberto", "vencido", "parcial"]);
+      if (dateFrom) q = q.gte("data_vencimento", dateFrom);
       if (dateTo) q = q.lte("data_vencimento", dateTo);
       return q;
     };
