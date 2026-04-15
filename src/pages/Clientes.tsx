@@ -191,6 +191,12 @@ const Clientes = () => {
   const [mode, setMode] = useState<"create" | "edit">("create");
   const [form, setForm] = useState<ClienteFormData>(emptyCliente);
   const docTipo = form.tipo_pessoa === "F" ? "cpf" : "cnpj";
+  const docChanged = useMemo(() => {
+    if (!selected) return true;
+    const digitsForm = form.cpf_cnpj.replace(/\D/g, "");
+    const digitsSelected = (selected.cpf_cnpj || "").replace(/\D/g, "");
+    return digitsForm !== digitsSelected;
+  }, [form.cpf_cnpj, selected]);
   const { isUnique: docUnico, isLoading: docChecking } = useDocumentoUnico(
     docTipo,
     form.cpf_cnpj,
@@ -330,21 +336,24 @@ const Clientes = () => {
     try {
       const payload = { ...enderecoForm, cliente_id: clienteId };
       if (enderecoEditId) {
-        // When editing, if marking as principal, unset others first
         if (enderecoForm.principal) {
-          await (supabase as any)
+          const { error: unsetError } = await (supabase as any)
             .from("clientes_enderecos_entrega")
             .update({ principal: false })
             .eq("cliente_id", clienteId)
             .neq("id", enderecoEditId);
+          if (unsetError) throw unsetError;
         }
         const { error } = await (supabase as any).from("clientes_enderecos_entrega").update(enderecoForm).eq("id", enderecoEditId);
         if (error) throw error;
         toast.success("Endereço atualizado");
       } else {
-        // If principal, unset other principals
         if (enderecoForm.principal) {
-          await (supabase as any).from("clientes_enderecos_entrega").update({ principal: false }).eq("cliente_id", clienteId);
+          const { error: unsetError } = await (supabase as any)
+            .from("clientes_enderecos_entrega")
+            .update({ principal: false })
+            .eq("cliente_id", clienteId);
+          if (unsetError) throw unsetError;
         }
         const { error } = await (supabase as any).from("clientes_enderecos_entrega").insert(payload);
         if (error) throw error;
@@ -362,8 +371,10 @@ const Clientes = () => {
 
   const handleSetPrincipalEndereco = async (enderecoId: string, clienteId: string) => {
     try {
-      await (supabase as any).from("clientes_enderecos_entrega").update({ principal: false }).eq("cliente_id", clienteId);
-      await (supabase as any).from("clientes_enderecos_entrega").update({ principal: true }).eq("id", enderecoId);
+      const { error: unsetError } = await (supabase as any).from("clientes_enderecos_entrega").update({ principal: false }).eq("cliente_id", clienteId);
+      if (unsetError) throw unsetError;
+      const { error: setError } = await (supabase as any).from("clientes_enderecos_entrega").update({ principal: true }).eq("id", enderecoId);
+      if (setError) throw setError;
       await loadEnderecos(clienteId);
       toast.success("Endereço principal definido");
     } catch (err) {
@@ -374,7 +385,8 @@ const Clientes = () => {
 
   const handleRemoveEndereco = async (enderecoId: string, clienteId: string) => {
     try {
-      await (supabase as any).from("clientes_enderecos_entrega").update({ ativo: false }).eq("id", enderecoId);
+      const { error } = await (supabase as any).from("clientes_enderecos_entrega").update({ ativo: false }).eq("id", enderecoId);
+      if (error) throw error;
       await loadEnderecos(clienteId);
       toast.success("Endereço removido");
     } catch (err) {
@@ -395,7 +407,7 @@ const Clientes = () => {
         responsavel_nome: comunicacaoForm.responsavel_nome || null,
         retorno_previsto: comunicacaoForm.retorno_previsto || null,
         status: comunicacaoForm.status,
-        data_registro: new Date().toISOString().split("T")[0],
+        data_registro: new Date().toISOString(),
         data_hora: new Date().toISOString(),
       });
       if (error) throw error;
@@ -815,7 +827,7 @@ const Clientes = () => {
                   <Loader2 className="h-3 w-3 animate-spin" />Verificando unicidade...
                 </p>
               )}
-              {!formErrors.cpf_cnpj && !docChecking && docUnico === false && (
+              {!formErrors.cpf_cnpj && !docChecking && docUnico === false && docChanged && (
                 <p className="text-xs text-destructive">CPF/CNPJ já cadastrado em cliente ou fornecedor.</p>
               )}
             </div>

@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AutocompleteSearch } from "@/components/ui/AutocompleteSearch";
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
@@ -1018,11 +1019,19 @@ const Produtos = () => {
               const prod = data.find((p) => p.id === comp.produto_filho_id);
               return (
                 <div key={idx} className="grid grid-cols-[1fr_100px_80px_40px] gap-2 items-end">
-                  <div className="space-y-1"><Label className="text-xs">Produto</Label>
-                    <Select value={comp.produto_filho_id} onValueChange={(v) => updateComponent(idx, "produto_filho_id", v)}>
-                      <SelectTrigger className="h-9"><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                      <SelectContent>{produtosDisponiveis.map((p) => <SelectItem key={p.id} value={p.id}>{p.sku ? `[${p.sku}] ` : ""}{p.nome}</SelectItem>)}</SelectContent>
-                    </Select>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Produto</Label>
+                    <AutocompleteSearch
+                      options={produtosDisponiveis.map((p) => ({
+                        id: p.id,
+                        label: p.nome,
+                        sublabel: p.sku || p.codigo_interno || "",
+                      }))}
+                      value={comp.produto_filho_id}
+                      onChange={(v) => updateComponent(idx, "produto_filho_id", v)}
+                      placeholder="Buscar produto..."
+                      className="h-9"
+                    />
                   </div>
                   <div className="space-y-1"><Label className="text-xs">Qtd</Label><Input type="number" min={0.01} step="0.01" value={comp.quantidade} onChange={(e) => updateComponent(idx, "quantidade", Number(e.target.value))} className="h-9" /></div>
                   <div className="space-y-1"><Label className="text-xs">Custo</Label><p className="h-9 flex items-center text-xs font-mono text-muted-foreground">{prod ? formatCurrency(comp.quantidade * (prod.preco_custo || 0)) : "—"}</p></div>

@@ -186,18 +186,28 @@ const DashboardContent = () => {
       supabase.from("produtos").select("*", { count: "exact", head: true }).eq("ativo", true),
       supabase.from("clientes").select("*", { count: "exact", head: true }).eq("ativo", true),
       supabase.from("fornecedores").select("*", { count: "exact", head: true }).eq("ativo", true),
-      supabase.from("orcamentos").select("*", { count: "exact", head: true }).eq("ativo", true).gte("data_orcamento", dateFrom),
-      supabase.from("pedidos_compra").select("*", { count: "exact", head: true }).eq("ativo", true).gte("data_pedido", dateFrom),
+      (() => {
+        let q = supabase.from("orcamentos").select("*", { count: "exact", head: true }).eq("ativo", true).gte("data_orcamento", dateFrom);
+        if (dateTo) q = q.lte("data_orcamento", dateTo);
+        return q;
+      })(),
+      (() => {
+        let q = supabase.from("pedidos_compra").select("*", { count: "exact", head: true }).eq("ativo", true).gte("data_pedido", dateFrom);
+        if (dateTo) q = q.lte("data_pedido", dateTo);
+        return q;
+      })(),
       buildFinTotalQuery("receber"),
       buildFinTotalQuery("pagar"),
       supabase.from("financeiro_lancamentos").select("valor").eq("status", "vencido").eq("ativo", true),
-      supabase
-        .from("orcamentos")
-        .select("id, numero, valor_total, status, data_orcamento, clientes(nome_razao_social)")
-        .eq("ativo", true)
-        .gte("data_orcamento", dateFrom)
-        .order("created_at", { ascending: false })
-        .limit(6),
+      (() => {
+        let q = supabase
+          .from("orcamentos")
+          .select("id, numero, valor_total, status, data_orcamento, clientes(nome_razao_social)")
+          .eq("ativo", true)
+          .gte("data_orcamento", dateFrom);
+        if (dateTo) q = q.lte("data_orcamento", dateTo);
+        return q.order("created_at", { ascending: false }).limit(6);
+      })(),
       supabase
         .from("ordens_venda")
         .select("id, numero, valor_total, data_emissao, data_prometida_despacho, prazo_despacho_dias, status, status_faturamento, clientes(nome_razao_social)")
@@ -221,15 +231,21 @@ const DashboardContent = () => {
         .not("estoque_minimo", "is", null)
         .limit(100),
       (() => {
-        const now = new Date();
-        const inicioMesAtual = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
-        return supabase
+        let q = supabase
           .from("notas_fiscais")
           .select("valor_total")
           .eq("ativo", true)
           .eq("tipo", "saida")
-          .eq("status", "confirmada")
-          .gte("data_emissao", inicioMesAtual);
+          .eq("status", "confirmada");
+
+        if (dateFrom && dateTo) {
+          q = q.gte("data_emissao", dateFrom).lte("data_emissao", dateTo);
+        } else {
+          const now = new Date();
+          const inicioMesAtual = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+          q = q.gte("data_emissao", inicioMesAtual);
+        }
+        return q;
       })(),
       (() => {
         const now = new Date();
@@ -247,15 +263,21 @@ const DashboardContent = () => {
           .gte("data_emissao", inicioMesAnterior)
           .lt("data_emissao", fimMesAnterior);
       })(),
-      // Fiscal stats for current month
+      // Fiscal stats for selected period
       (() => {
-        const now = new Date();
-        const inicioMes = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
-        return supabase
+        let q = supabase
           .from("notas_fiscais")
           .select("status, valor_total")
-          .eq("ativo", true)
-          .gte("data_emissao", inicioMes);
+          .eq("ativo", true);
+
+        if (dateFrom && dateTo) {
+          q = q.gte("data_emissao", dateFrom).lte("data_emissao", dateTo);
+        } else {
+          const now = new Date();
+          const inicioMes = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+          q = q.gte("data_emissao", inicioMes);
+        }
+        return q;
       })(),
       // Recebimentos com vencimento hoje
       supabase
