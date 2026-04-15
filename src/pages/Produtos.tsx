@@ -24,6 +24,7 @@ import { toast } from "sonner";
 import { Loader2, Plus, Trash2, Package, FileText, TrendingUp, Archive, ShoppingCart, AlertCircle, CheckCircle2, AlignLeft, Tag } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { FiscalAutocomplete } from "@/components/ui/FiscalAutocomplete";
+import { ProductAutocomplete } from "@/components/ui/ProductAutocomplete";
 import { cfopCodes, cstIcmsCodes } from "@/lib/fiscalData";
 import { useNcmLookup } from '@/hooks/useNcmLookup';
 import { Switch } from "@/components/ui/switch";
