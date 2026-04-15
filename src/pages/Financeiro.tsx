@@ -264,7 +264,7 @@ const Financeiro = () => {
     setEstornoProcessing(true);
     const ok = await processarEstorno(estornoTarget.id, estornoMotivo.trim());
     setEstornoProcessing(false);
-    if (ok) { setEstornoTarget(null); setEstornoMotivo(""); window.location.reload(); }
+    if (ok) { setEstornoTarget(null); setEstornoMotivo(""); fetchData(); }
   };
 
   const selectedForBaixa = useMemo(() => data.filter(l => selectedIds.includes(l.id)), [data, selectedIds]);
@@ -624,7 +624,7 @@ const Financeiro = () => {
         onClose={() => setBaixaLoteOpen(false)}
         selectedLancamentos={selectedForBaixa}
         contasBancarias={contasBancarias}
-        onSuccess={() => { setSelectedIds([]); window.location.reload(); }}
+        onSuccess={() => { setSelectedIds([]); fetchData(); }}
       />
 
       {/* Estorno Confirm */}
@@ -644,7 +644,7 @@ const Financeiro = () => {
       <BaixaParcialDialog
         open={baixaParcialOpen} onClose={() => setBaixaParcialOpen(false)}
         lancamento={baixaParcialTarget} contasBancarias={contasBancarias}
-        onSuccess={() => { window.location.reload(); }}
+        onSuccess={() => { fetchData(); }}
       />
     </AppLayout>
   );
