@@ -22,6 +22,14 @@ declare
   v_ratio numeric;
   v_status text;
 begin
+  if auth.uid() is null then
+    raise exception 'Usuário não autenticado';
+  end if;
+
+  if not (public.has_role(auth.uid(), 'admin'::app_role) or public.has_role(auth.uid(), 'financeiro'::app_role)) then
+    raise exception 'Permissão negada para processar baixa em lote';
+  end if;
+
   if p_selected_ids is null or cardinality(p_selected_ids) = 0 then
     raise exception 'Nenhum lançamento selecionado para baixa em lote';
   end if;
@@ -95,6 +103,14 @@ security definer
 set search_path = public
 as $$
 begin
+  if auth.uid() is null then
+    raise exception 'Usuário não autenticado';
+  end if;
+
+  if not (public.has_role(auth.uid(), 'admin'::app_role) or public.has_role(auth.uid(), 'financeiro'::app_role)) then
+    raise exception 'Permissão negada para processar estorno';
+  end if;
+
   update financeiro_lancamentos
      set status = 'aberto',
          data_pagamento = null,
@@ -115,3 +131,10 @@ begin
    where documento_pai_id = p_lancamento_id;
 end;
 $$;
+
+
+revoke execute on function public.financeiro_processar_baixa_lote(uuid[], text, numeric, numeric, date, text, uuid) from public;
+grant execute on function public.financeiro_processar_baixa_lote(uuid[], text, numeric, numeric, date, text, uuid) to authenticated, service_role;
+
+revoke execute on function public.financeiro_processar_estorno(uuid, text) from public;
+grant execute on function public.financeiro_processar_estorno(uuid, text) to authenticated, service_role;
