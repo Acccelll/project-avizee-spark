@@ -35,12 +35,19 @@ async function fetchDynamicModeData(compIni: string, compFim: string): Promise<W
 
   // Use views for aggregated data
   const [receitaRes, despesaRes, fatRes, caixaRes, estoqueRes, agingCRRes, agingCPRes, fopagRes] = await Promise.all([
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (supabase as any).from('vw_workbook_receita_mensal').select('*').gte('competencia', iniYM).lte('competencia', fimYM),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (supabase as any).from('vw_workbook_despesa_mensal').select('*').gte('competencia', iniYM).lte('competencia', fimYM),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (supabase as any).from('vw_workbook_faturamento_mensal').select('*').gte('competencia', iniYM).lte('competencia', fimYM),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (supabase as any).from('vw_workbook_bancos_saldo').select('*'),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (supabase as any).from('vw_workbook_estoque_posicao').select('*'),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (supabase as any).from('vw_workbook_aging_cr').select('*'),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (supabase as any).from('vw_workbook_aging_cp').select('*'),
     supabase.from('folha_pagamento')
       .select('competencia, salario_base, proventos, descontos, valor_liquido, funcionarios(nome)')
@@ -48,36 +55,36 @@ async function fetchDynamicModeData(compIni: string, compFim: string): Promise<W
       .lte('competencia', fimYM),
   ]);
 
-  const receita = (receitaRes.data ?? []).map((r: any) => ({
+  const receita = (receitaRes.data ?? []).map((r: Record<string, unknown>) => ({
     competencia: r.competencia,
     total_receita: Number(r.total_receita ?? 0),
     total_recebido: Number(r.total_recebido ?? 0),
     quantidade: Number(r.quantidade ?? 0),
   }));
 
-  const despesa = (despesaRes.data ?? []).map((r: any) => ({
+  const despesa = (despesaRes.data ?? []).map((r: Record<string, unknown>) => ({
     competencia: r.competencia,
     total_despesa: Number(r.total_despesa ?? 0),
     total_pago: Number(r.total_pago ?? 0),
     quantidade: Number(r.quantidade ?? 0),
   }));
 
-  const faturamento = (fatRes.data ?? []).map((r: any) => ({
+  const faturamento = (fatRes.data ?? []).map((r: Record<string, unknown>) => ({
     competencia: r.competencia,
     total_faturado: Number(r.total_faturado ?? 0),
     quantidade_nfs: Number(r.quantidade_nfs ?? 0),
   }));
 
-  const fopag = (fopagRes.data ?? []).map((r: any) => ({
+  const fopag = (fopagRes.data ?? []).map((r: Record<string, unknown>) => ({
     competencia: String(r.competencia ?? '').slice(0, 7), // normalize 2026-02-01 -> 2026-02
-    funcionario_nome: String((r.funcionarios as any)?.nome ?? 'Sem Nome'),
+    funcionario_nome: String((r.funcionarios as Record<string, unknown>)?.nome ?? 'Sem Nome'),
     salario_base: Number(r.salario_base ?? 0),
     proventos: Number(r.proventos ?? 0),
     descontos: Number(r.descontos ?? 0),
     valor_liquido: Number(r.valor_liquido ?? 0),
   }));
 
-  const caixa = (caixaRes.data ?? []).map((r: any) => ({
+  const caixa = (caixaRes.data ?? []).map((r: Record<string, unknown>) => ({
     conta_descricao: String(r.descricao ?? ''),
     banco_nome: String(r.banco_nome ?? ''),
     agencia: String(r.agencia ?? ''),
@@ -85,7 +92,7 @@ async function fetchDynamicModeData(compIni: string, compFim: string): Promise<W
     saldo_atual: Number(r.saldo_atual ?? 0),
   }));
 
-  const estoque = (estoqueRes.data ?? []).map((r: any) => ({
+  const estoque = (estoqueRes.data ?? []).map((r: Record<string, unknown>) => ({
     produto_nome: String(r.nome ?? ''),
     sku: String(r.sku ?? ''),
     grupo_nome: String(r.grupo_nome ?? ''),
@@ -94,7 +101,7 @@ async function fetchDynamicModeData(compIni: string, compFim: string): Promise<W
     valor_total: Number(r.valor_total ?? 0),
   }));
 
-  const agingCR = (agingCRRes.data ?? []).map((r: any) => ({
+  const agingCR = (agingCRRes.data ?? []).map((r: Record<string, unknown>) => ({
     id: String(r.id ?? ''),
     data_vencimento: String(r.data_vencimento ?? ''),
     valor: Number(r.valor ?? 0),
@@ -105,7 +112,7 @@ async function fetchDynamicModeData(compIni: string, compFim: string): Promise<W
     descricao: String(r.descricao ?? ''),
   }));
 
-  const agingCP = (agingCPRes.data ?? []).map((r: any) => ({
+  const agingCP = (agingCPRes.data ?? []).map((r: Record<string, unknown>) => ({
     id: String(r.id ?? ''),
     data_vencimento: String(r.data_vencimento ?? ''),
     valor: Number(r.valor ?? 0),
@@ -124,6 +131,7 @@ async function fetchClosedModeData(compIni: string, compFim: string): Promise<Wo
   const fimYM = compFim.slice(0, 7);
 
   // Validate that fechamentos exist for the period
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: fechamentos } = await (supabase as any)
     .from('fechamentos_mensais')
     .select('id, competencia, status')
@@ -138,18 +146,22 @@ async function fetchClosedModeData(compIni: string, compFim: string): Promise<Wo
     );
   }
 
-  const fechamentoIds = fechamentos.map((f: any) => f.id);
+  const fechamentoIds = fechamentos.map((f: Record<string, unknown>) => f.id);
 
   // Fetch from snapshot tables
   const [finRes, caixaRes, estoqueRes, fopagRes] = await Promise.all([
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (supabase as any).from('fechamento_financeiro_saldos').select('*').in('fechamento_id', fechamentoIds),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (supabase as any).from('fechamento_caixa_saldos').select('*, contas_bancarias(descricao, agencia, conta, bancos(nome))').in('fechamento_id', fechamentoIds),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (supabase as any).from('fechamento_estoque_saldos').select('*, produtos(nome, sku, grupo_id, grupos_produto(nome))').in('fechamento_id', fechamentoIds),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (supabase as any).from('fechamento_fopag_resumo').select('*, funcionarios(nome)').in('fechamento_id', fechamentoIds),
   ]);
 
   // Build receita/despesa from snapshot financeiro
-  const finData = (finRes.data ?? []) as any[];
+  const finData = (finRes.data ?? []) as Record<string, unknown>[];
   const receitaMap: Record<string, { total: number; qty: number }> = {};
   const despesaMap: Record<string, { total: number; qty: number }> = {};
 
@@ -176,17 +188,17 @@ async function fetchClosedModeData(compIni: string, compFim: string): Promise<Wo
   // Faturamento - not available in snapshot, return empty
   const faturamento: WorkbookRawData['faturamento'] = [];
 
-  const fopag = (fopagRes.data ?? []).map((r: any) => ({
+  const fopag = (fopagRes.data ?? []).map((r: Record<string, unknown>) => ({
     competencia: String(r.competencia ?? '').slice(0, 7),
-    funcionario_nome: String((r.funcionarios as any)?.nome ?? 'Sem Nome'),
+    funcionario_nome: String((r.funcionarios as Record<string, unknown>)?.nome ?? 'Sem Nome'),
     salario_base: Number(r.salario_base ?? 0),
     proventos: Number(r.proventos ?? 0),
     descontos: Number(r.descontos ?? 0),
     valor_liquido: Number(r.valor_liquido ?? 0),
   }));
 
-  const caixa = (caixaRes.data ?? []).map((r: any) => {
-    const cb = r.contas_bancarias as any;
+  const caixa = (caixaRes.data ?? []).map((r: Record<string, unknown>) => {
+    const cb = r.contas_bancarias as Record<string, unknown>;
     return {
       conta_descricao: String(cb?.descricao ?? ''),
       banco_nome: String(cb?.bancos?.nome ?? ''),
@@ -196,8 +208,8 @@ async function fetchClosedModeData(compIni: string, compFim: string): Promise<Wo
     };
   });
 
-  const estoque = (estoqueRes.data ?? []).map((r: any) => {
-    const p = r.produtos as any;
+  const estoque = (estoqueRes.data ?? []).map((r: Record<string, unknown>) => {
+    const p = r.produtos as Record<string, unknown>;
     return {
       produto_nome: String(p?.nome ?? ''),
       sku: String(p?.sku ?? ''),
@@ -210,11 +222,13 @@ async function fetchClosedModeData(compIni: string, compFim: string): Promise<Wo
 
   // Aging - not snapshotted in closed mode currently, use live data
   const [agingCRRes, agingCPRes] = await Promise.all([
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (supabase as any).from('vw_workbook_aging_cr').select('*'),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (supabase as any).from('vw_workbook_aging_cp').select('*'),
   ]);
 
-  const mapAging = (data: any[], idField: string) => (data ?? []).map((r: any) => ({
+  const mapAging = (data: Record<string, unknown>[], idField: string) => (data ?? []).map((r: Record<string, unknown>) => ({
     id: String(r.id ?? ''),
     data_vencimento: String(r.data_vencimento ?? ''),
     valor: Number(r.valor ?? 0),
@@ -227,7 +241,7 @@ async function fetchClosedModeData(compIni: string, compFim: string): Promise<Wo
 
   return {
     receita, despesa, faturamento, fopag, caixa, estoque,
-    agingCR: mapAging(agingCRRes.data, 'cliente_id') as any,
-    agingCP: mapAging(agingCPRes.data, 'fornecedor_id') as any,
+    agingCR: mapAging(agingCRRes.data, 'cliente_id') as WorkbookRawData['agingCR'],
+    agingCP: mapAging(agingCPRes.data, 'fornecedor_id') as WorkbookRawData['agingCP'],
   };
 }

@@ -7,6 +7,7 @@ describe('templateResolver', () => {
       id: 'seed', nome: 'seed', codigo: 'APRESENTACAO_GERENCIAL_V1', versao: '1.0', ativo: true, descricao: null,
       config_json: { slides: [{ codigo: 'cover', enabled: true, order: 1 }, { codigo: 'bridge_ebitda', enabled: false, order: 21 }] },
       arquivo_path: null, created_at: '', updated_at: '',
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any);
 
     expect(config.find((c) => c.codigo === 'cover')?.enabled).toBe(true);
@@ -18,6 +19,7 @@ describe('templateResolver', () => {
       id: '1', nome: 'T', codigo: 'T1', versao: '1.0', ativo: true, descricao: null,
       config_json: { slides: [{ codigo: 'bridge_ebitda', enabled: true, order: 14 }] },
       arquivo_path: null, created_at: '', updated_at: '',
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any, [{ codigo: 'top_clientes', enabled: true, order: 20 } as any]);
 
     const actives = activeSlides(config);

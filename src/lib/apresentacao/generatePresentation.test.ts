@@ -4,7 +4,7 @@ import { generatePresentation } from './generatePresentation';
 import type { ApresentacaoDataBundle } from '@/types/apresentacao';
 
 async function unzip(blob: Blob) {
-  return JSZip.loadAsync(blob as any);
+  return JSZip.loadAsync(blob as Blob);
 }
 
 describe('generatePresentation', () => {
@@ -41,6 +41,7 @@ describe('generatePresentation', () => {
       periodo: { competenciaInicial: '2026-03', competenciaFinal: '2026-03' },
       slides: {
         redes_sociais: { indisponivel: true, motivo: 'não automatizado no modo fechado' },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any,
     };
 
@@ -56,6 +57,7 @@ describe('generatePresentation', () => {
       periodo: { competenciaInicial: '2026-03', competenciaFinal: '2026-03' },
       slides: {
         rol_caixa: { valor_atual: 1000, total_entradas: 3000, total_saidas: 2000 },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any,
     };
 
@@ -72,6 +74,7 @@ describe('generatePresentation', () => {
       slides: {
         cover: {},
         closing: {},
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any,
     };
 
@@ -97,6 +100,7 @@ describe('generatePresentation', () => {
             { banco_nome: 'Banco B', descricao: 'Conta 2', valor_atual: 20000 },
           ],
         },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any,
     };
 

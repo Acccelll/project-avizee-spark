@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";
@@ -317,7 +316,7 @@ const ContasContabeis = () => {
       } else {
         await create(payload);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('[contas-contabeis] erro ao salvar:', err);
       throw err;
     }

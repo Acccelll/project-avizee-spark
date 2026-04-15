@@ -17,6 +17,7 @@ import { hashPayload } from '@/lib/apresentacao/utils';
 import { activeSlides, resolveSlideConfig } from '@/lib/apresentacao/templateResolver';
 
 export async function listarApresentacaoTemplates(): Promise<ApresentacaoTemplate[]> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase as any).from('apresentacao_templates').select('*').eq('ativo', true).order('nome');
   if (error) throw error;
   return (data ?? []) as ApresentacaoTemplate[];
@@ -44,6 +45,7 @@ export async function incluirTemplateApresentacao(input: {
     if (uploadError) throw uploadError;
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase as any)
     .from('apresentacao_templates')
     .insert({
@@ -62,6 +64,7 @@ export async function incluirTemplateApresentacao(input: {
 }
 
 export async function listarApresentacaoGeracoes(): Promise<ApresentacaoGeracao[]> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase as any)
     .from('apresentacao_geracoes')
     .select('*, apresentacao_templates(nome, versao, codigo)')
@@ -72,6 +75,7 @@ export async function listarApresentacaoGeracoes(): Promise<ApresentacaoGeracao[
 }
 
 export async function listarComentarios(geracaoId: string): Promise<ApresentacaoComentario[]> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase as any)
     .from('apresentacao_comentarios')
     .select('*')
@@ -82,6 +86,7 @@ export async function listarComentarios(geracaoId: string): Promise<Apresentacao
 }
 
 export async function atualizarComentario(id: string, comentario_editado: string): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await (supabase as any)
     .from('apresentacao_comentarios')
     .update({ comentario_editado, comentario_status: comentario_editado ? 'editado' : 'automatico', updated_at: new Date().toISOString() })
@@ -95,11 +100,13 @@ export async function atualizarStatusEditorial(geracaoId: string, status: Aprese
     payload.aprovado_por = aprovadorId ?? null;
     payload.aprovado_em = new Date().toISOString();
   }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await (supabase as any).from('apresentacao_geracoes').update(payload).eq('id', geracaoId);
   if (error) throw error;
 }
 
 async function buildSlideSelection(templateId: string, generationSlideConfig?: SlideConfigItem[]) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: template } = await (supabase as any).from('apresentacao_templates').select('*').eq('id', templateId).single();
   const resolved = resolveSlideConfig(template as ApresentacaoTemplate, generationSlideConfig);
   return { resolved, active: activeSlides(resolved) };
@@ -110,6 +117,7 @@ export async function gerarApresentacao(params: ApresentacaoParametros, userId?:
   const hash = hashPayload({ ...params, slides: active });
   const nowIso = new Date().toISOString();
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: geracao, error: geracaoError } = await (supabase as any)
     .from('apresentacao_geracoes')
     .insert({
@@ -150,8 +158,10 @@ export async function gerarApresentacao(params: ApresentacaoParametros, userId?:
       };
     });
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (supabase as any).from('apresentacao_comentarios').insert(comentarios);
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error: updateError } = await (supabase as any)
       .from('apresentacao_geracoes')
       .update({
@@ -172,6 +182,7 @@ export async function gerarApresentacao(params: ApresentacaoParametros, userId?:
     const { blob, arquivoPath } = await gerarArquivoFinal(geracao.id, active, bundle, hash);
     return { geracaoId: geracao.id as string, blob, arquivoPath, aguardandoAprovacao: false };
   } catch (err) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (supabase as any)
       .from('apresentacao_geracoes')
       .update({ status: 'erro', observacoes: err instanceof Error ? err.message : String(err), updated_at: new Date().toISOString() })
@@ -201,6 +212,7 @@ async function gerarArquivoFinal(geracaoId: string, active: SlideCodigo[], bundl
     });
   if (uploadError) throw uploadError;
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await (supabase as any)
     .from('apresentacao_geracoes')
     .update({ status: 'concluido', status_editorial: 'gerado', is_final: true, arquivo_path: arquivoPath, updated_at: new Date().toISOString() })
@@ -210,6 +222,7 @@ async function gerarArquivoFinal(geracaoId: string, active: SlideCodigo[], bundl
 }
 
 export async function aprovarEGerarFinal(geracaoId: string, aprovadorId?: string): Promise<Blob> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: geracao, error } = await (supabase as any).from('apresentacao_geracoes').select('*').eq('id', geracaoId).single();
   if (error) throw error;
   if (!geracao) throw new Error('Geração não encontrada.');

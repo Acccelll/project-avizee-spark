@@ -162,6 +162,7 @@ export async function confirmarConciliacao(payload: {
   usuario_id?: string;
 }): Promise<string> {
   const { data: conc, error } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .from('conciliacao_bancaria' as any)
     .insert({
       conta_bancaria_id: payload.conta_bancaria_id,
@@ -175,9 +176,12 @@ export async function confirmarConciliacao(payload: {
 
   if (payload.pares.length > 0) {
     const { error: paresError } = await supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .from('conciliacao_pares' as any)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .insert(payload.pares.map(p => ({ ...p, conciliacao_id: (conc as any).id })));
     if (paresError) throw new Error(paresError.message);
   }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (conc as any).id;
 }

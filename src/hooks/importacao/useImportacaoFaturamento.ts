@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useCallback } from "react";
 import * as XLSX from "@/lib/xlsx-compat";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,6 +19,7 @@ export interface GroupedNF {
   itens_count: number;
   status: "valido" | "erro" | "duplicado";
   errors: string[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   itens: any[];
 }
 
@@ -36,7 +36,7 @@ export function useImportacaoFaturamento() {
   const [workbook, setWorkbook] = useState<XLSX.WorkBook | null>(null);
   const [sheets, setSheets] = useState<string[]>([]);
   const [currentSheet, setCurrentSheet] = useState<string>("");
-  const [rawRows, setRawRows] = useState<any[]>([]);
+  const [rawRows, setRawRows] = useState<Record<string, unknown>[]>([]);
   const [headers, setHeaders] = useState<string[]>([]);
   const [mapping, setMapping] = useState<Mapping>({});
   const [previewData, setPreviewData] = useState<GroupedNF[]>([]);
@@ -59,8 +59,8 @@ export function useImportacaoFaturamento() {
         if (wb.SheetNames.length > 0) {
           onSheetChange(wb.SheetNames[0], wb);
         }
-      } catch (err: any) {
-        toast.error(`Erro ao ler arquivo: ${err.message}`);
+      } catch (err: unknown) {
+        toast.error(`Erro ao ler arquivo: ${err instanceof Error ? err.message : String(err)}`);
       }
     };
     reader.readAsBinaryString(selectedFile);
@@ -76,7 +76,7 @@ export function useImportacaoFaturamento() {
     if (data.length > 0) {
       const headerRow = data[0] as string[];
       setHeaders(headerRow);
-      setRawRows(XLSX.utils.sheet_to_json(ws));
+      setRawRows(XLSX.utils.sheet_to_json(ws) as Record<string, unknown>[]);
 
       const initialMapping: Mapping = {};
       headerRow.forEach(h => {
@@ -117,6 +117,7 @@ export function useImportacaoFaturamento() {
       const grouped = new Map<string, GroupedNF>();
 
       rawRows.forEach((row, index) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const mappedRow: any = {};
         Object.entries(mapping).forEach(([field, colName]) => {
           mappedRow[field] = row[colName];
@@ -185,8 +186,8 @@ export function useImportacaoFaturamento() {
       }
 
       setPreviewData(Array.from(grouped.values()));
-    } catch (err: any) {
-      toast.error(`Erro ao gerar prévia: ${err.message}`);
+    } catch (err: unknown) {
+      toast.error(`Erro ao gerar prévia: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setIsProcessing(false);
     }
@@ -206,6 +207,7 @@ export function useImportacaoFaturamento() {
       const totalItens = validos.reduce((s, nf) => s + nf.itens_count, 0);
       const totalValor = validos.reduce((s, nf) => s + nf.valor_total, 0);
       const comCliente = validos.filter(nf => nf.cliente_id).length;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const comProduto = validos.reduce((s, nf) => s + nf.itens.filter((i: any) => i.produto_id).length, 0);
 
       const { data: lote, error: loteError } = await supabase
@@ -249,6 +251,7 @@ export function useImportacaoFaturamento() {
             natureza_operacao: "VENDA",
             tipo: "saida",
             tipo_operacao: "venda",
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             itens: nf.itens.map((item: any) => ({
               codigo_produto: item.codigo_produto_nf,
               codigo_legado_produto: item.codigo_legado_produto,
@@ -285,9 +288,9 @@ export function useImportacaoFaturamento() {
       toast.success(`${validos.length} NFs enviadas para staging. Confirme para consolidar.`);
       return currentLoteId;
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Erro na importação de faturamento:", error);
-      toast.error(`Falha no processamento: ${error.message}`);
+      toast.error(`Falha no processamento: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setIsProcessing(false);
     }
@@ -308,6 +311,7 @@ export function useImportacaoFaturamento() {
 
       if (error) throw error;
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const result = data as any;
       if (result?.erro) {
         toast.error(`Erro na consolidação: ${result.erro}`);
@@ -322,9 +326,9 @@ export function useImportacaoFaturamento() {
 
       toast.success(`${result.nfs_inseridas} NFs históricas consolidadas (sem impacto em estoque/financeiro).`);
       return true;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Erro na consolidação de faturamento:", error);
-      toast.error(`Falha na consolidação: ${error.message}`);
+      toast.error(`Falha na consolidação: ${error instanceof Error ? error.message : String(error)}`);
       return false;
     } finally {
       setIsProcessing(false);
@@ -338,8 +342,8 @@ export function useImportacaoFaturamento() {
       await supabase.from("stg_faturamento").delete().eq("lote_id", targetLoteId);
       await supabase.from("importacao_lotes").update({ status: "cancelado" }).eq("id", targetLoteId);
       toast.info("Lote cancelado.");
-    } catch (err: any) {
-      toast.error(`Erro ao cancelar: ${err.message}`);
+    } catch (err: unknown) {
+      toast.error(`Erro ao cancelar: ${err instanceof Error ? err.message : String(err)}`);
     }
   };
 

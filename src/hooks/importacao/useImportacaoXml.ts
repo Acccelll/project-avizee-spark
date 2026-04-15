@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 import { useState, useCallback } from "react";
 import JSZip from "jszip";
 import { supabase } from "@/integrations/supabase/client";
@@ -38,8 +38,8 @@ export function useImportacaoXml() {
             try {
               const parsed = parseNFeXml(content);
               results.push({ fileName: zipFile.name, data: parsed, status: "pendente" });
-            } catch (err: any) {
-              results.push({ fileName: zipFile.name, data: null, status: "erro", error: err.message });
+            } catch (err: unknown) {
+              results.push({ fileName: zipFile.name, data: null, status: "erro", error: err instanceof Error ? err.message : String(err) });
             }
           }
         } else if (file.name.endsWith(".xml")) {
@@ -47,8 +47,8 @@ export function useImportacaoXml() {
           try {
             const parsed = parseNFeXml(content);
             results.push({ fileName: file.name, data: parsed, status: "pendente" });
-          } catch (err: any) {
-            results.push({ fileName: file.name, data: null, status: "erro", error: err.message });
+          } catch (err: unknown) {
+            results.push({ fileName: file.name, data: null, status: "erro", error: err instanceof Error ? err.message : String(err) });
           }
         }
       }
@@ -80,8 +80,8 @@ export function useImportacaoXml() {
       }
 
       setXmlData(results);
-    } catch (err: any) {
-      toast.error(`Erro ao processar arquivos: ${err.message}`);
+    } catch (err: unknown) {
+      toast.error(`Erro ao processar arquivos: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setIsProcessing(false);
     }
@@ -118,7 +118,7 @@ export function useImportacaoXml() {
       const { data: vendors } = await supabase.from("fornecedores").select("id, cpf_cnpj");
       const vendorMap = new Map(vendors?.map(v => [v.cpf_cnpj?.replace(/\D/g, ""), v.id]));
 
-      const itemsComDados = validos.filter(i => i.data);
+      const itemsComDados = validos.filter((i): i is XmlImportItem & { data: NFeData } => i.data !== null);
 
       // Split by whether the supplier is registered
       const semFornecedor = itemsComDados.filter(item => !vendorMap.get(item.data.emitente.cnpj.replace(/\D/g, "")));
@@ -158,7 +158,7 @@ export function useImportacaoXml() {
           failures.map(({ nfe, error: cError }) => ({
             lote_id: currentLoteId,
             nivel: "error",
-            mensagem: `Erro ao criar compra ${nfe.numero}: ${cError.message}`,
+            mensagem: `Erro ao criar compra ${nfe.numero}: ${cError?.message ?? 'Erro desconhecido'}`,
           }))
         );
       }
@@ -177,9 +177,9 @@ export function useImportacaoXml() {
       setIsProcessing(false);
       return currentLoteId;
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Erro na importação XML:", error);
-      toast.error(`Falha na importação: ${error.message}`);
+      toast.error(`Falha na importação: ${error instanceof Error ? error.message : String(error)}`);
       setIsProcessing(false);
     }
   };

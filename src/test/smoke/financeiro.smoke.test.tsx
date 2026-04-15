@@ -122,10 +122,13 @@ describe("smoke: financeiro abertura, filtros e baixa mínima", () => {
       fetchData: vi.fn(),
     };
 
-    mockUseSupabaseCrud
-      .mockReturnValueOnce(lancamentos)
-      .mockReturnValueOnce({ data: [], loading: false })
-      .mockReturnValueOnce({ data: [], loading: false });
+    const emptyResult = { data: [], loading: false, create: vi.fn(), update: vi.fn(), remove: vi.fn(), fetchData: vi.fn() };
+
+    // Stable implementation: return lancamentos for the financeiro table, empty for others
+    mockUseSupabaseCrud.mockImplementation((opts: { table: string }) => {
+      if (opts.table === "financeiro_lancamentos") return lancamentos;
+      return emptyResult;
+    });
   });
 
   it("abre financeiro, aplica busca principal e permite iniciar baixa", async () => {

@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * FiltrosRelatorio — composite filter row rendered below the period filter.
  *

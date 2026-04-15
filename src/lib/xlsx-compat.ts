@@ -44,7 +44,7 @@ export function read(data: unknown, _opts?: { type?: string }): WorkBook {
   const result: WorkBook = { SheetNames: [], Sheets: {}, _wb: wb };
 
   // We store a promise so consumers can await it before using data
-  (result as any)._loaded = (async () => {
+  (result as WorkBook & { _loaded: Promise<void> })._loaded = (async () => {
     let buffer: ArrayBuffer;
     if (typeof data === "string") {
       const buf = new Uint8Array(data.length);
@@ -70,7 +70,7 @@ export function read(data: unknown, _opts?: { type?: string }): WorkBook {
 
 /** Ensure workbook is loaded (call once before accessing sheets). */
 export async function ensureLoaded(wb: WorkBook): Promise<void> {
-  await (wb as any)._loaded;
+  await (wb as WorkBook & { _loaded: Promise<void> })._loaded;
 }
 
 /* ---------- utils ---------- */

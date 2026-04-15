@@ -56,6 +56,7 @@ describe("listarSessoes", () => {
   it("retorna lista de sessões quando a query é bem-sucedida", async () => {
     const sessions = [buildSession(), buildSession({ id: "session-2", user_id: "user-2" })];
     const chain = buildSelectChain({ data: sessions, error: null });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     vi.mocked(supabase.from).mockReturnValue(chain as any);
 
     const result = await listarSessoes({ apenasAtivas: false });
@@ -68,6 +69,7 @@ describe("listarSessoes", () => {
   it("filtra por is_active=true quando apenasAtivas é true (padrão)", async () => {
     const sessions = [buildSession()];
     const chain = buildSelectChain({ data: sessions, error: null });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     vi.mocked(supabase.from).mockReturnValue(chain as any);
 
     const result = await listarSessoes();
@@ -79,6 +81,7 @@ describe("listarSessoes", () => {
   it("filtra por user_id quando userId é fornecido", async () => {
     const sessions = [buildSession({ user_id: "user-42" })];
     const chain = buildSelectChain({ data: sessions, error: null });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     vi.mocked(supabase.from).mockReturnValue(chain as any);
 
     const result = await listarSessoes({ userId: "user-42" });
@@ -89,6 +92,7 @@ describe("listarSessoes", () => {
 
   it("retorna array vazio quando data é null", async () => {
     const chain = buildSelectChain({ data: null, error: null });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     vi.mocked(supabase.from).mockReturnValue(chain as any);
 
     const result = await listarSessoes({ apenasAtivas: false });
@@ -99,6 +103,7 @@ describe("listarSessoes", () => {
   it("lança erro quando a query retorna erro", async () => {
     const dbError = new Error("DB error");
     const chain = buildSelectChain({ data: null, error: dbError });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     vi.mocked(supabase.from).mockReturnValue(chain as any);
 
     await expect(listarSessoes({ apenasAtivas: false })).rejects.toThrow("DB error");
@@ -114,6 +119,7 @@ describe("revogarSessao", () => {
 
   it("atualiza is_active para false para o sessionId informado", async () => {
     const chain = buildUpdateChain({ data: null, error: null });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     vi.mocked(supabase.from).mockReturnValue(chain as any);
 
     await revogarSessao("session-abc");
@@ -125,6 +131,7 @@ describe("revogarSessao", () => {
 
   it("resolve sem erro em caso de sucesso", async () => {
     const chain = buildUpdateChain({ data: null, error: null });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     vi.mocked(supabase.from).mockReturnValue(chain as any);
 
     await expect(revogarSessao("session-xyz")).resolves.toBeUndefined();
@@ -133,6 +140,7 @@ describe("revogarSessao", () => {
   it("lança erro quando o update falha", async () => {
     const dbError = new Error("Update failed");
     const chain = buildUpdateChain({ data: null, error: dbError });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     vi.mocked(supabase.from).mockReturnValue(chain as any);
 
     await expect(revogarSessao("session-bad")).rejects.toThrow("Update failed");
