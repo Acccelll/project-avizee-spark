@@ -1,152 +1,99 @@
 
 
-# Rodada Corretiva e Evolutiva — ERP AviZee
+# Rodada Corretiva — Erros Ativos + Melhorias
 
-## Summary
+## Issues Found
 
-This plan addresses 12 distinct areas across Dashboard, Produtos, Clientes, Fornecedores, Orçamentos, Compras, Logística, and Financeiro. Due to the breadth, implementation will proceed in 4 sequential batches.
+### 1. Orçamento: `transportadora_id` column missing
+The `salvar_orcamento` RPC references columns that don't exist on the `orcamentos` table: `transportadora_id`, `frete_simulacao_id`, `origem_frete`, `servico_frete`, `prazo_entrega_dias`, `volumes`, `altura_cm`, `largura_cm`, `comprimento_cm`. The RPC was updated but the table migration was never applied.
 
----
+**Fix**: Migration to add all 9 missing columns to `orcamentos`.
 
-## Batch 1: Clientes, Produtos, Fornecedores
+### 2. Clientes: `clientes_enderecos_entrega` table doesn't exist
+The table was never created despite being referenced in `Clientes.tsx`.
 
-### 1. Clientes — Comunicações (save fails)
+**Fix**: Migration to create `clientes_enderecos_entrega` with columns matching the code's usage (id, cliente_id, descricao, logradouro, numero, complemento, bairro, cidade, uf, cep, principal, ativo, created_at), plus RLS policies.
 
-**Root cause**: The `handleSaveComunicacao` inserts columns `responsavel_nome`, `retorno_previsto`, `status`, `data_hora` that do NOT exist on `cliente_registros_comunicacao`. The table only has: `id, cliente_id, tipo, assunto, conteudo, data_registro, responsavel_id, created_at`.
+### 3. Preços Especiais: column name mismatch
+Code sends `vigencia_inicio`, `vigencia_fim`, `observacao` but the actual columns are `data_inicio`, `data_fim`, `observacoes`.
 
-**Fix**:
-- Migration: add columns `responsavel_nome TEXT`, `retorno_previsto DATE`, `status TEXT DEFAULT 'registrado'`, `data_hora TIMESTAMPTZ` to `cliente_registros_comunicacao`.
-- No code changes needed — the insert payload already matches.
+**Fix**: Update `PrecosEspeciaisTab.tsx` to use the correct column names.
 
-### 2. Clientes — Endereços Alternativos (save fails)
+### 4. Pedidos Compra: CHECK constraint blocks "aprovado" status
+The `chk_pedidos_compra_status` only allows `'rascunho','enviado','parcial','recebido','cancelado'`. The code tries to insert with `status: "aprovado"`.
 
-**Root cause**: The `clientes_enderecos_entrega` table exists (migration found), but it's not in the Supabase types because it was added via raw SQL. The code uses `(supabase as any)` to work around this, so the CRUD should work if the table migration ran.
+**Fix**: Migration to drop and recreate the constraint adding `'aprovado'` to the allowed values.
 
-**Action**: Verify table exists via query; if save still fails, the issue may be RLS. The current RLS policy uses `auth.role() = 'authenticated'` which differs from the typical `TO authenticated` pattern. Will confirm and fix if needed.
+### 5. Tab switching causes reload
+`refetchOnWindowFocus: false` is already set globally, so React Query isn't the culprit. The `AuthContext` fires `setSession`/`setUser` on `TOKEN_REFRESHED` events (triggered by Supabase GoTrue on tab return), which causes re-renders. Pages that use `useEffect` depending on auth state may re-fetch data, but this shouldn't cause form data loss. The real data loss risk is on pages using `window.location.reload()` after mutations (Financeiro). The tab-switch issue likely relates to `TOKEN_REFRESHED` triggering unnecessary profile/permissions re-fetches which cascade to child components.
 
-### 3. Produtos — Component search UX
+**Fix**: In `AuthContext.tsx`, skip `setSession`/`setUser` on `TOKEN_REFRESHED` if the user ID hasn't changed (avoid unnecessary re-renders).
 
-**Current**: Component selection uses a raw `<Select>` dropdown which is hard to search through when many products exist.
-
-**Fix**: Replace the component product `<Select>` with the existing `AutocompleteSearch` component (already used in CotacoesCompra), filtering `produtosDisponiveis` with search-as-you-type. Follow the same pattern as `FiscalAutocomplete`.
-
-### 4. Produtos — CNPJ/CPF duplicate warning on edit
-
-**Root cause**: `useDocumentoUnico` fires immediately when the document value is populated (on edit open), showing "already registered" warning for the record being edited. The hook does pass `excludeId` correctly, but it checks BOTH `clientes` AND `fornecedores` tables. On the Fornecedores page, `excludeId` is passed to filter `clientes.neq("id", excludeId)` but the ID belongs to `fornecedores` table — so it won't match and the check returns `isUnique=false`.
-
-**Fix**: Add a `table` parameter to `useDocumentoUnico` so it knows which table to exclude from:
-- When called from Clientes: exclude from `clientes` by ID
-- When called from Fornecedores: exclude from `fornecedores` by ID
-- Cross-table check should not exclude the current record
-
-### 5. Fornecedores — Manual product linkage
-
-**Current**: The "Compras" tab only shows auto-detected `produtos_fornecedores` entries (read-only). No way to manually add a product relationship.
-
-**Fix**: Add an "Add Product" section below the existing context block, with:
-- Product autocomplete (from `produtosCrud.data`)
-- Price, lead time, unit fields
-- Save button that inserts into `produtos_fornecedores`
-- Delete button on existing entries
-
----
-
-## Batch 2: Dashboard, Orçamentos
-
-### 6. Dashboard — Date filters not working
-
-**Root cause**: `DashboardPeriodContext` computes `range` correctly, and `loadData` in Index.tsx uses `globalRange.dateFrom`/`dateTo`. However, the queries apply `dateFrom` inconsistently — some use `.gte()` but not `.lte()` for `dateTo`. Also, `buildFinTotalQuery` only applies `dateTo` but not `dateFrom`, so "Today" and "This Week" periods show all-time financial data.
+### 6. Financeiro: No warning on already-paid baixa + FluxoCaixa not reflecting saldo_restante
+The `canBaixa` check hides the button for `pago` status, but the `BaixaParcialDialog` doesn't block submission if status changed between render and click. FluxoCaixa uses `l.valor` instead of `saldo_restante` for the realized calculation.
 
 **Fix**:
-- In `buildFinTotalQuery`: add `.gte("data_vencimento", dateFrom)` alongside the existing `.lte()`.
-- In all other queries: ensure both `dateFrom` and `dateTo` bounds are applied consistently.
-- Verify `orcamentos`, `pedidos_compra`, `notas_fiscais`, and `financeiro_lancamentos` queries all use both bounds.
+- Add server-side check in `BaixaParcialDialog.handleSubmit` — re-fetch status before processing.
+- In `FluxoCaixa.tsx`, use `saldo_restante` for partial payment tracking in the realized column.
+- Replace `window.location.reload()` with `queryClient.invalidateQueries` in Financeiro.
 
-### 7. Orçamentos — Field/schema alignment
+### 7. Logística review
+Deferred to a separate plan as the user asked for suggestions. Current assessment: the module needs a `tipo_remessa` column (already added in previous migration), but the UI doesn't expose it. The "Atualizar Rastreios" bulk button was added but the Entregas/Recebimentos tabs don't pull from `remessas`.
 
-**Current status**: Recent migrations added `desconto`, `imposto_st`, `imposto_ipi`, `outras_despesas` columns. The `salvar_orcamento` RPC was updated with date casts. Need to verify all form fields in `OrcamentoForm.tsx` map correctly to schema.
-
-**Action**: Audit `OrcamentoForm.tsx` handleSave payload against `salvar_orcamento` RPC and `orcamentos` table columns. Fix any remaining mismatches. Test the full create → edit → convert-to-order flow.
-
----
-
-## Batch 3: Compras (Cotações), Logística
-
-### 8. Compras — Purchase quote flow end-to-end
-
-The `useCotacoesCompra` hook already handles the full flow: create → add proposals → select → approve → generate order. Issues to fix:
-- `gerarPedido` uses `Date.now().slice(-6)` for numbering — replace with `proximo_numero_pedido_compra()` RPC.
-- Add the missing `status` value `"convertida"` to the `cotacoes_compra` CHECK constraint (if not already there).
-- Verify `pedidos_compra_itens` insert payload matches schema.
-
-### 9. Logística improvements
-
-Multiple sub-items:
-
-**a) Remessa type (Entrega vs Recebimento)**: Add a `tipo_remessa` column (`entrega` | `recebimento`) to `remessas` table. Update the form modal to show a type selector. Filter remessas into Entregas/Recebimentos tabs based on this field + linked `ordem_venda_id`/`pedido_compra_id`.
-
-**b) "Atualizar Rastreios" button**: Add a button next to "Nova Remessa" in the header that calls `handleRastrear` for all remessas with `codigo_rastreio` and non-terminal status.
-
-**c) Remessas feeding Entregas/Recebimentos**: Update `useEntregas` and `useRecebimentos` hooks to also query remessas linked via `ordem_venda_id` and `pedido_compra_id` respectively, merging tracking data.
-
-**d) Estoque Posição Atual manual adjustment**: Improve the adjust dialog in `Estoque.tsx` to show current stock, target value, and reason field.
+**Fix**: Update Logistica.tsx form to expose `tipo_remessa` selector and wire the Entregas/Recebimentos hooks to read from `remessas` by type.
 
 ---
 
-## Batch 4: Financeiro
+## Execution Plan
 
-### 10. Block baixa on already-paid items
+### Migration 1: Orcamentos missing columns
+```sql
+ALTER TABLE public.orcamentos
+  ADD COLUMN IF NOT EXISTS transportadora_id UUID,
+  ADD COLUMN IF NOT EXISTS frete_simulacao_id TEXT,
+  ADD COLUMN IF NOT EXISTS origem_frete TEXT,
+  ADD COLUMN IF NOT EXISTS servico_frete TEXT,
+  ADD COLUMN IF NOT EXISTS prazo_entrega_dias INTEGER,
+  ADD COLUMN IF NOT EXISTS volumes INTEGER,
+  ADD COLUMN IF NOT EXISTS altura_cm NUMERIC,
+  ADD COLUMN IF NOT EXISTS largura_cm NUMERIC,
+  ADD COLUMN IF NOT EXISTS comprimento_cm NUMERIC;
+```
 
-**Current**: The "Baixar" button already checks `canBaixa = es !== "pago" && es !== "cancelado"` and hides the button. But the `BaixaParcialDialog` doesn't validate on open.
+### Migration 2: clientes_enderecos_entrega
+```sql
+CREATE TABLE IF NOT EXISTS public.clientes_enderecos_entrega (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  cliente_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  -- actually references clientes
+  descricao TEXT,
+  logradouro TEXT, numero TEXT, complemento TEXT,
+  bairro TEXT, cidade TEXT, uf TEXT, cep TEXT,
+  principal BOOLEAN DEFAULT false,
+  ativo BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+ALTER TABLE public.clientes_enderecos_entrega ENABLE ROW LEVEL SECURITY;
+-- RLS policies for authenticated users
+```
 
-**Fix**:
-- Add validation in `BaixaParcialDialog.handleSubmit`: if `lancamento.status === 'pago'` or `saldo_restante <= 0`, show error toast and return.
-- In `BaixaLoteModal`: filter out already-paid items from selection with a warning message.
+### Migration 3: Fix pedidos_compra CHECK constraint
+```sql
+ALTER TABLE public.pedidos_compra DROP CONSTRAINT chk_pedidos_compra_status;
+ALTER TABLE public.pedidos_compra ADD CONSTRAINT chk_pedidos_compra_status
+  CHECK (status IN ('rascunho','enviado','parcial','recebido','cancelado','aprovado'));
+```
 
-### 11. Estorno with mandatory reason
+### Code Changes
 
-**Current**: `processarEstorno` in `financeiro.service.ts` does not require a reason. The `ConfirmDialog` doesn't have a text field.
+| File | Change |
+|------|--------|
+| `src/components/precos/PrecosEspeciaisTab.tsx` | Rename form fields: `vigencia_inicio`→`data_inicio`, `vigencia_fim`→`data_fim`, `observacao`→`observacoes` |
+| `src/contexts/AuthContext.tsx` | Skip `setSession`/`setUser` on `TOKEN_REFRESHED` if user ID unchanged |
+| `src/pages/Financeiro.tsx` | Replace 3x `window.location.reload()` with `crud.refetch()` or `queryClient.invalidateQueries` |
+| `src/components/financeiro/BaixaParcialDialog.tsx` | Add status re-check before submission |
+| `src/pages/FluxoCaixa.tsx` | Use `saldo_restante` in realized calculation |
+| `src/pages/Logistica.tsx` | Expose `tipo_remessa` in form; wire Entregas/Recebimentos to remessas |
 
-**Fix**:
-- Add `motivo_estorno` parameter to `processarEstorno`.
-- Store the reason in a new `motivo_estorno TEXT` column on `financeiro_lancamentos`.
-- Update the estorno `ConfirmDialog` in `Financeiro.tsx` to include a required `<Textarea>` for the reason. Disable confirm button until filled.
-- After successful estorno, status returns to `aberto` and the item becomes available for baixa again (already works).
-
-### 12. Fluxo de Caixa fed by Contas a Pagar/Receber
-
-**Current**: `FluxoCaixa.tsx` already queries `financeiro_lancamentos` and groups by `data_vencimento`, showing previsto vs realizado. This is fundamentally correct.
-
-**Improvements**:
-- Include `saldo_restante` in the realizado calculation for partial payments.
-- Add bank account initial balance from `contas_bancarias.saldo_atual` to the cumulative chart.
-- Show tooltip with breakdowns (previsão a receber, previsão a pagar, realizado).
-
----
-
-## Database Migrations Required
-
-1. `cliente_registros_comunicacao`: ADD `responsavel_nome`, `retorno_previsto`, `status`, `data_hora`
-2. `remessas`: ADD `tipo_remessa TEXT DEFAULT 'entrega'`
-3. `financeiro_lancamentos`: ADD `motivo_estorno TEXT`
-4. `cotacoes_compra` CHECK constraint: add `'convertida'` if missing
-
-## Files Modified (estimated)
-
-| Area | Files |
-|------|-------|
-| Clientes | Migration SQL, no code changes needed |
-| Produtos | `src/pages/Produtos.tsx` (component search) |
-| CNPJ check | `src/hooks/useDocumentoUnico.ts`, `Clientes.tsx`, `Fornecedores.tsx` |
-| Fornecedores | `src/pages/Fornecedores.tsx` (product linkage) |
-| Dashboard | `src/pages/Index.tsx` (date filter queries) |
-| Orçamentos | `src/pages/OrcamentoForm.tsx` (field audit) |
-| Cotações | `src/hooks/useCotacoesCompra.ts` (numbering, constraint) |
-| Logística | `src/pages/Logistica.tsx`, `useEntregas.ts`, `useRecebimentos.ts`, Migration |
-| Financeiro | `src/pages/Financeiro.tsx`, `src/services/financeiro.service.ts`, `BaixaParcialDialog.tsx`, Migration |
-| Fluxo Caixa | `src/pages/FluxoCaixa.tsx` |
-
-## Execution Order
-
-Batch 1 first (quick DB fixes + UI), then Batch 2 (Dashboard + Orçamentos audit), then Batch 3 (Logística), then Batch 4 (Financeiro). Each batch will be verified with `tsc --noEmit` before proceeding.
+### Estimated files touched: ~8 files + 3 migrations
 
