@@ -107,12 +107,14 @@ const prazoOptionsReceb: MultiSelectOption[] = [{ label: "Atrasados", value: "at
 
 // ─── Remessa form ───
 interface RemessaForm {
+  tipo_remessa: string;
   cliente_id: string; transportadora_id: string; servico: string; codigo_rastreio: string;
   data_postagem: string; previsao_entrega: string; status_transporte: string;
   peso: string; volumes: string; valor_frete: string; observacoes: string;
   ordem_venda_id: string; pedido_compra_id: string; nota_fiscal_id: string;
 }
 const emptyForm: RemessaForm = {
+  tipo_remessa: "entrega",
   cliente_id: "", transportadora_id: "", servico: "", codigo_rastreio: "",
   data_postagem: "", previsao_entrega: "", status_transporte: "pendente",
   peso: "", volumes: "1", valor_frete: "", observacoes: "",
