@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useCallback } from "react";
 import * as XLSX from "@/lib/xlsx-compat";
 import { supabase } from "@/integrations/supabase/client";
@@ -24,10 +23,11 @@ export function useImportacaoCadastros() {
   const [workbook, setWorkbook] = useState<XLSX.WorkBook | null>(null);
   const [sheets, setSheets] = useState<string[]>([]);
   const [currentSheet, setCurrentSheet] = useState<string>("");
-  const [rawRows, setRawRows] = useState<any[]>([]);
+  const [rawRows, setRawRows] = useState<Record<string, unknown>[]>([]);
   const [headers, setHeaders] = useState<string[]>([]);
   const [mapping, setMapping] = useState<Mapping>({});
   const [importType, setImportType] = useState<ImportType>("produtos");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [previewData, setPreviewData] = useState<any[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [loteId, setLoteId] = useState<string | null>(null);
@@ -42,7 +42,7 @@ export function useImportacaoCadastros() {
     if (data.length > 0) {
       const headerRow = data[0] as string[];
       setHeaders(headerRow);
-      setRawRows(XLSX.utils.sheet_to_json(ws));
+      setRawRows(XLSX.utils.sheet_to_json(ws) as Record<string, unknown>[]);
 
       const initialMapping: Mapping = {};
       headerRow.forEach(h => {
@@ -71,8 +71,8 @@ export function useImportacaoCadastros() {
         if (wb.SheetNames.length > 0) {
           onSheetChange(wb.SheetNames[0], wb);
         }
-      } catch (err: any) {
-        toast.error(`Erro ao ler arquivo: ${err.message}`);
+      } catch (err: unknown) {
+        toast.error(`Erro ao ler arquivo: ${err instanceof Error ? err.message : String(err)}`);
       }
     };
     reader.readAsBinaryString(selectedFile);
@@ -107,6 +107,7 @@ export function useImportacaoCadastros() {
       }
 
       const preview = rawRows.map((row, index) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const mappedRow: any = {};
         Object.entries(mapping).forEach(([field, colName]) => {
           mappedRow[field] = row[colName];
@@ -143,8 +144,8 @@ export function useImportacaoCadastros() {
 
       setPreviewData(preview);
       return preview;
-    } catch (err: any) {
-      toast.error(`Erro ao gerar prévia: ${err.message}`);
+    } catch (err: unknown) {
+      toast.error(`Erro ao gerar prévia: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setIsProcessing(false);
     }
@@ -229,9 +230,9 @@ export function useImportacaoCadastros() {
       setIsProcessing(false);
       return currentLoteId;
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Erro na importação:", error);
-      toast.error(`Falha no processamento: ${error.message}`);
+      toast.error(`Falha no processamento: ${error instanceof Error ? error.message : String(error)}`);
       setIsProcessing(false);
     }
   };
@@ -254,6 +255,7 @@ export function useImportacaoCadastros() {
 
       if (error) throw error;
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const result = data as any;
       if (result?.erro) {
         toast.error(`Erro na consolidação: ${result.erro}`);
@@ -270,9 +272,9 @@ export function useImportacaoCadastros() {
         `Consolidação concluída: ${result.inseridos} inseridos, ${result.atualizados} atualizados.`
       );
       return true;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Erro na consolidação:", error);
-      toast.error(`Falha na consolidação: ${error.message}`);
+      toast.error(`Falha na consolidação: ${error instanceof Error ? error.message : String(error)}`);
       return false;
     } finally {
       setIsProcessing(false);
@@ -295,8 +297,8 @@ export function useImportacaoCadastros() {
         mensagem: "Lote cancelado pelo usuário.",
       });
       toast.info("Lote cancelado com sucesso.");
-    } catch (err: any) {
-      toast.error(`Erro ao cancelar lote: ${err.message}`);
+    } catch (err: unknown) {
+      toast.error(`Erro ao cancelar lote: ${err instanceof Error ? err.message : String(err)}`);
     }
   };
 
