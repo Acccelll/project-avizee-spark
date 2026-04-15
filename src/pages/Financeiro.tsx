@@ -266,16 +266,16 @@ const Financeiro = () => {
         selected={selected}
         effectiveStatus={selected ? getLancamentoStatus(selected) : ""}
         onBaixa={(l) => {
-          setBaixaParcialTarget(l as any);
+          setBaixaParcialTarget(l);
           setBaixaParcialOpen(true);
         }}
         onEstorno={(l) => {
           setDrawerOpen(false);
-          setEstornoTarget(l as any);
+          setEstornoTarget(l);
         }}
         onEdit={(l) => {
           setDrawerOpen(false);
-          openEdit(l as any);
+          openEdit(l);
         }}
         onDelete={(id) => {
           setDrawerOpen(false);

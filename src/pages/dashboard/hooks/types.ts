@@ -1,7 +1,13 @@
+import type { Orcamento, OrdemVenda, PedidoCompra } from "@/types/domain";
+
 export interface DashboardDateRange {
   dateFrom?: string;
   dateTo?: string;
 }
+
+export type RecentOrcamento = Orcamento;
+export type BacklogOv = OrdemVenda;
+export type CompraAguardando = PedidoCompra;
 
 export interface FinRow {
   valor: number;

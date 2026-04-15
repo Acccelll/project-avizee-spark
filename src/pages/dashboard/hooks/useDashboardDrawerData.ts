@@ -10,27 +10,29 @@ interface DrawerParams {
 }
 
 export function useDashboardDrawerData(params: DrawerParams) {
+  const { dailyReceber, topClientes, estoqueBaixo, dailyVendas, topProdutos } = params;
+
   return useMemo(
     () => ({
       receber: {
         title: "Vencimentos dos Próximos 7 Dias",
-        daily: params.dailyReceber,
-        top: params.topClientes,
+        daily: dailyReceber,
+        top: topClientes,
       },
       estoque: {
         title: "Estoque Crítico",
         daily: [] as DailyPoint[],
-        top: params.estoqueBaixo.slice(0, 5).map((item) => ({
+        top: estoqueBaixo.slice(0, 5).map((item) => ({
           nome: item.codigo_interno ? `${item.codigo_interno} – ${item.nome}` : item.nome,
           valor: item.estoque_atual ?? 0,
         })),
       },
       vendas: {
         title: "Vendas dos Últimos 7 Dias",
-        daily: params.dailyVendas,
-        top: params.topProdutos,
+        daily: dailyVendas,
+        top: topProdutos,
       },
     }),
-    [params],
+    [dailyReceber, topClientes, estoqueBaixo, dailyVendas, topProdutos],
   );
 }

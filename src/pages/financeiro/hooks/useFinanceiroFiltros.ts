@@ -6,6 +6,11 @@ import { periodToFinancialRange } from "@/lib/periodFilter";
 import type { Period } from "@/components/dashboard/PeriodFilter";
 import type { ContaBancaria, Lancamento } from "@/types/domain";
 
+const validPeriods: readonly Period[] = ["7d", "15d", "30d", "90d", "mes", "todos", "vencidos"];
+
+const isPeriod = (value: string | null): value is Period =>
+  value !== null && validPeriods.includes(value as Period);
+
 interface Params {
   data: Lancamento[];
   contasBancarias: ContaBancaria[];
@@ -15,17 +20,20 @@ interface Params {
 export function useFinanceiroFiltros({ data, contasBancarias, getLancamentoStatus }: Params) {
   const [searchParams, setSearchParams] = useSearchParams();
   const tipoParam = searchParams.get("tipo");
+  const statusParam = searchParams.get("status");
+  const bancoParam = searchParams.get("banco");
+  const periodParam = searchParams.get("period");
 
   const [statusFilters, setStatusFilters] = useState<string[]>(
-    searchParams.get("status") ? searchParams.get("status")!.split(",") : [],
+    statusParam ? statusParam.split(",") : [],
   );
   const [tipoFilters, setTipoFilters] = useState<string[]>(tipoParam ? [tipoParam] : []);
   const [bancoFilters, setBancoFilters] = useState<string[]>(
-    searchParams.get("banco") ? searchParams.get("banco")!.split(",") : [],
+    bancoParam ? bancoParam.split(",") : [],
   );
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState(searchParams.get("search") ?? "");
-  const [period, setPeriod] = useState<Period>((searchParams.get("period") as Period) ?? "30d");
+  const [period, setPeriod] = useState<Period>(isPeriod(periodParam) ? periodParam : "30d");
 
   useEffect(() => {
     if (tipoParam) setTipoFilters([tipoParam]);
@@ -50,7 +58,6 @@ export function useFinanceiroFiltros({ data, contasBancarias, getLancamentoStatu
       { replace: true },
     );
   }, [searchTerm, statusFilters, tipoFilters, bancoFilters, period, setSearchParams]);
-
 
   const filteredData = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();

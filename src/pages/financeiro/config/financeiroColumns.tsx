@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/StatusBadge";
+import type { Column } from "@/components/DataTable";
 import { formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { CreditCard } from "lucide-react";
@@ -188,5 +189,5 @@ export function buildFinanceiroColumns({ getLancamentoStatus, hoje, hojeStr, onB
         );
       },
     },
-  ];
+  ] satisfies Column<Lancamento>[];
 }

@@ -27,43 +27,57 @@ interface KpiParams {
 }
 
 export function useDashboardKpis(params: KpiParams) {
-  const saldoProjetado = params.stats.totalReceber - params.stats.totalPagar;
+  const {
+    metas,
+    stats,
+    estoqueBaixoCount,
+    dailyReceber,
+    dailyPagar,
+    onOpenReceber,
+    onOpenPagar,
+    onOpenSaldo,
+    onOpenEstoque,
+    onReceberDetail,
+    onEstoqueDetail,
+  } = params;
+
+  const saldoProjetado = stats.totalReceber - stats.totalPagar;
 
   const kpiCards = useMemo(
     () => [
       {
         id: "receber",
         title: "Contas a Receber",
-        value: formatCurrency(params.stats.totalReceber),
-        subtitle: `${formatNumber(params.stats.contasReceber)} título${params.stats.contasReceber !== 1 ? "s" : ""} em aberto`,
+        value: formatCurrency(stats.totalReceber),
+        subtitle: `${formatNumber(stats.contasReceber)} título${stats.contasReceber !== 1 ? "s" : ""} em aberto`,
         icon: TrendingUp,
         variation:
-          params.stats.contasVencidas > 0
-            ? `${params.stats.contasVencidas} vencido${params.stats.contasVencidas > 1 ? "s" : ""}`
+          stats.contasVencidas > 0
+            ? `${stats.contasVencidas} vencido${stats.contasVencidas > 1 ? "s" : ""}`
             : "Sem vencidos",
-        variationType: params.stats.contasVencidas > 0 ? ("negative" as const) : ("positive" as const),
-        variant: params.stats.contasVencidas > 0 ? ("warning" as const) : ("success" as const),
-        sparklineData: params.dailyReceber.length > 0 ? params.dailyReceber.map((d) => d.valor) : undefined,
-        onClick: params.onOpenReceber,
-        onDetail: params.onReceberDetail,
+        variationType: stats.contasVencidas > 0 ? ("negative" as const) : ("positive" as const),
+        variant: stats.contasVencidas > 0 ? ("warning" as const) : ("success" as const),
+        sparklineData: dailyReceber.length > 0 ? dailyReceber.map((d) => d.valor) : undefined,
+        onClick: onOpenReceber,
+        onDetail: onReceberDetail,
         "aria-label": "Ver contas a receber no módulo financeiro",
-        meta: params.metas.receber,
-        realizado: params.stats.totalReceber,
+        meta: metas.receber,
+        realizado: stats.totalReceber,
       },
       {
         id: "pagar",
         title: "Contas a Pagar",
-        value: formatCurrency(params.stats.totalPagar),
-        subtitle: `${formatNumber(params.stats.contasPagar)} título${params.stats.contasPagar !== 1 ? "s" : ""} em aberto`,
+        value: formatCurrency(stats.totalPagar),
+        subtitle: `${formatNumber(stats.contasPagar)} título${stats.contasPagar !== 1 ? "s" : ""} em aberto`,
         icon: DollarSign,
-        variation: params.stats.totalPagar > params.stats.totalReceber ? "Saldo negativo" : "Saldo positivo",
-        variationType: params.stats.totalPagar > params.stats.totalReceber ? ("negative" as const) : ("positive" as const),
-        variant: params.stats.totalPagar > params.stats.totalReceber ? ("danger" as const) : ("warning" as const),
-        sparklineData: params.dailyPagar.length > 0 ? params.dailyPagar.map((d) => d.valor) : undefined,
-        onClick: params.onOpenPagar,
+        variation: stats.totalPagar > stats.totalReceber ? "Saldo negativo" : "Saldo positivo",
+        variationType: stats.totalPagar > stats.totalReceber ? ("negative" as const) : ("positive" as const),
+        variant: stats.totalPagar > stats.totalReceber ? ("danger" as const) : ("warning" as const),
+        sparklineData: dailyPagar.length > 0 ? dailyPagar.map((d) => d.valor) : undefined,
+        onClick: onOpenPagar,
         "aria-label": "Ver contas a pagar no módulo financeiro",
-        meta: params.metas.pagar,
-        realizado: params.stats.totalPagar,
+        meta: metas.pagar,
+        realizado: stats.totalPagar,
       },
       {
         id: "saldo",
@@ -75,30 +89,49 @@ export function useDashboardKpis(params: KpiParams) {
         variationType: saldoProjetado >= 0 ? ("positive" as const) : ("negative" as const),
         variant: saldoProjetado >= 0 ? ("success" as const) : ("danger" as const),
         sparklineData:
-          params.dailyReceber.length > 0 && params.dailyPagar.length > 0
-            ? params.dailyReceber.map((r, index) => r.valor - (params.dailyPagar[index]?.valor ?? 0))
+          dailyReceber.length > 0 && dailyPagar.length > 0
+            ? dailyReceber.map((r, index) => r.valor - (dailyPagar[index]?.valor ?? 0))
             : undefined,
-        onClick: params.onOpenSaldo,
+        onClick: onOpenSaldo,
         "aria-label": "Ver saldo projetado no fluxo de caixa",
-        meta: params.metas.saldo,
+        meta: metas.saldo,
         realizado: saldoProjetado,
       },
       {
         id: "estoque",
         title: "Estoque Crítico",
-        value: formatNumber(params.estoqueBaixoCount),
-        subtitle: params.estoqueBaixoCount > 0 ? "produto(s) abaixo do mínimo" : "Estoque dentro do normal",
+        value: formatNumber(estoqueBaixoCount),
+        subtitle: estoqueBaixoCount > 0 ? "produto(s) abaixo do mínimo" : "Estoque dentro do normal",
         icon: Package,
-        variation: params.estoqueBaixoCount > 0 ? "Reposição necessária" : "Sem itens críticos",
-        variationType: params.estoqueBaixoCount > 0 ? ("negative" as const) : ("positive" as const),
-        variant: params.estoqueBaixoCount > 0 ? ("danger" as const) : ("success" as const),
+        variation: estoqueBaixoCount > 0 ? "Reposição necessária" : "Sem itens críticos",
+        variationType: estoqueBaixoCount > 0 ? ("negative" as const) : ("positive" as const),
+        variant: estoqueBaixoCount > 0 ? ("danger" as const) : ("success" as const),
         sparklineData: undefined,
-        onClick: params.onOpenEstoque,
-        onDetail: params.onEstoqueDetail,
+        onClick: onOpenEstoque,
+        onDetail: onEstoqueDetail,
         "aria-label": "Ver produtos com estoque crítico",
       },
     ],
-    [params, saldoProjetado],
+    [
+      dailyPagar,
+      dailyReceber,
+      estoqueBaixoCount,
+      metas.pagar,
+      metas.receber,
+      metas.saldo,
+      onEstoqueDetail,
+      onOpenEstoque,
+      onOpenPagar,
+      onOpenReceber,
+      onOpenSaldo,
+      onReceberDetail,
+      saldoProjetado,
+      stats.contasPagar,
+      stats.contasReceber,
+      stats.contasVencidas,
+      stats.totalPagar,
+      stats.totalReceber,
+    ],
   );
 
   return { kpiCards, saldoProjetado };

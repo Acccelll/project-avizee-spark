@@ -8,6 +8,17 @@
     "src/pages/Perfil.tsx",
     "src/services/admin/empresa.service.ts",
     "src/pages/relatorios/hooks/useRelatorioVendas.ts",
-    "src/pages/relatorios/hooks/useRelatorioFinanceiro.ts"
+    "src/pages/relatorios/hooks/useRelatorioFinanceiro.ts",
+    "src/pages/dashboard/hooks/types.ts",
+    "src/pages/dashboard/hooks/useDashboardData.ts",
+    "src/pages/dashboard/hooks/useDashboardComercialData.ts",
+    "src/pages/dashboard/hooks/useDashboardAuxData.ts",
+    "src/pages/dashboard/hooks/useDashboardDrawerData.ts",
+    "src/pages/dashboard/hooks/useDashboardKpis.ts",
+    "src/pages/financeiro/types.ts",
+    "src/pages/financeiro/hooks/useFinanceiroActions.ts",
+    "src/pages/financeiro/hooks/useFinanceiroFiltros.ts",
+    "src/pages/financeiro/components/FinanceiroLancamentoForm.tsx",
+    "src/pages/financeiro/config/financeiroColumns.tsx"
   ]
 }

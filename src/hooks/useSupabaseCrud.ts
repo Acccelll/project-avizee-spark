@@ -247,7 +247,9 @@ export function useSupabaseCrud<R = any>({
   return {
     data: queryResult.data?.rows ?? ([] as R[]),
     loading: queryResult.isLoading,
-    fetchData: () => { queryResult.refetch(); },
+    fetchData: async () => {
+      await queryResult.refetch();
+    },
     create,
     update,
     remove,
