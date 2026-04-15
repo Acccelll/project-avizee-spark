@@ -77,7 +77,7 @@ export function criarPlanoBaixaLote(params: BaixaLoteParams): BaixaPlanItem[] {
 }
 
 async function ensureUpdateLancamento(item: BaixaPlanItem, params: BaixaLoteParams) {
-  const payload: LancamentoUpdate = {
+  const payload = {
     status: item.novoStatus,
     data_pagamento: item.novoStatus === "pago" ? params.baixaDate : null,
     valor_pago: item.valorPago,
@@ -89,7 +89,7 @@ async function ensureUpdateLancamento(item: BaixaPlanItem, params: BaixaLotePara
 
   const { data, error } = await supabase
     .from("financeiro_lancamentos")
-    .update(payload)
+    .update(payload as any)
     .eq("id", item.id)
     .select("id")
     .maybeSingle();
@@ -101,17 +101,15 @@ async function ensureUpdateLancamento(item: BaixaPlanItem, params: BaixaLotePara
 }
 
 async function ensureInsertBaixa(item: BaixaPlanItem, params: BaixaLoteParams) {
-  const payload: BaixaInsert = {
-    lancamento_id: item.id,
-    valor_pago: item.valorPago,
-    data_baixa: params.baixaDate,
-    forma_pagamento: params.formaPagamento,
-    conta_bancaria_id: params.contaBancariaId,
-  };
-
   const { data, error } = await supabase
-    .from("financeiro_baixas")
-    .insert(payload)
+    .from("financeiro_baixas" as any)
+    .insert({
+      lancamento_id: item.id,
+      valor_pago: item.valorPago,
+      data_baixa: params.baixaDate,
+      forma_pagamento: params.formaPagamento,
+      conta_bancaria_id: params.contaBancariaId,
+    })
     .select("id")
     .maybeSingle();
 
@@ -122,7 +120,7 @@ async function ensureInsertBaixa(item: BaixaPlanItem, params: BaixaLoteParams) {
 }
 
 async function processarBaixaLoteRpc(params: BaixaLoteParams): Promise<boolean | null> {
-  const rpcArgs: ProcessarBaixaLoteRpcArgs = {
+  const { error } = await supabase.rpc("financeiro_processar_baixa_lote", {
     p_selected_ids: params.selectedIds,
     p_tipo_baixa: params.tipoBaixa,
     p_valor_pago_baixa: params.valorPagoBaixa,
@@ -130,9 +128,7 @@ async function processarBaixaLoteRpc(params: BaixaLoteParams): Promise<boolean |
     p_baixa_date: params.baixaDate,
     p_forma_pagamento: params.formaPagamento,
     p_conta_bancaria_id: params.contaBancariaId,
-  };
-
-  const { error } = await supabase.rpc("financeiro_processar_baixa_lote", rpcArgs);
+  } as any);
 
   if (!error) return true;
 
@@ -175,12 +171,10 @@ export async function processarBaixaLote(params: BaixaLoteParams): Promise<boole
 }
 
 async function processarEstornoRpc(lancamentoId: string, motivoEstorno?: string): Promise<boolean | null> {
-  const rpcArgs: ProcessarEstornoRpcArgs = {
+  const { error } = await supabase.rpc("financeiro_processar_estorno", {
     p_lancamento_id: lancamentoId,
     p_motivo_estorno: motivoEstorno ?? null,
-  };
-
-  const { error } = await supabase.rpc("financeiro_processar_estorno", rpcArgs);
+  } as any);
 
   if (!error) return true;
 
@@ -208,18 +202,16 @@ export async function processarEstorno(lancamentoId: string, motivoEstorno?: str
     if (lancError) throw lancError;
     if (!lanc?.id) throw new Error("Lançamento não encontrado para estorno.");
 
-    const payload: LancamentoUpdate = {
-      status: "aberto",
-      data_pagamento: null,
-      valor_pago: null,
-      tipo_baixa: null,
-      saldo_restante: null,
-      motivo_estorno: motivoEstorno || null,
-    };
-
     const { data: upd, error: updateError } = await supabase
       .from("financeiro_lancamentos")
-      .update(payload)
+      .update({
+        status: "aberto",
+        data_pagamento: null,
+        valor_pago: null,
+        tipo_baixa: null,
+        saldo_restante: null,
+        motivo_estorno: motivoEstorno || null,
+      } as any)
       .eq("id", lancamentoId)
       .select("id")
       .maybeSingle();
@@ -232,7 +224,7 @@ export async function processarEstorno(lancamentoId: string, motivoEstorno?: str
 
     const { error: parcelasError } = await supabase
       .from("financeiro_lancamentos")
-      .update({ ativo: false })
+      .update({ ativo: false } as any)
       .eq("documento_pai_id", lancamentoId);
     if (parcelasError) throw parcelasError;
 

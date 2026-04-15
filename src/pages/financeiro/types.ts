@@ -1,4 +1,4 @@
-import type { ContaBancaria, TableInsert, TableUpdate } from "@/types/domain";
+import type { ContaBancaria } from "@/types/domain";
 
 export interface ContaContabil {
   id: string;
@@ -25,9 +25,6 @@ export interface LancamentoForm {
   num_parcelas: number;
   intervalo_dias: number;
 }
-
-export type LancamentoInsertPayload = TableInsert<"financeiro_lancamentos">;
-export type LancamentoUpdatePayload = TableUpdate<"financeiro_lancamentos">;
 
 export const emptyLancamentoForm: LancamentoForm = {
   tipo: "receber",

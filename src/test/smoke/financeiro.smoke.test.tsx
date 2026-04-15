@@ -6,12 +6,6 @@ import { renderWithSmokeProviders } from "./smokeTestUtils";
 
 const mockUseSupabaseCrud = vi.fn();
 
-interface FinanceiroRow {
-  id: string;
-  descricao: string;
-  [key: string]: unknown;
-}
-
 vi.mock("@/components/AppLayout", () => ({
   AppLayout: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));
@@ -44,7 +38,7 @@ vi.mock("@/components/AdvancedFilterBar", () => ({
     searchValue: string;
     onSearchChange: (value: string) => void;
     count: number;
-    children: ReactNode;
+    children: React.ReactNode;
   }) => (
     <div>
       <input aria-label="search" value={searchValue} onChange={(e) => onSearchChange(e.target.value)} />
@@ -55,7 +49,7 @@ vi.mock("@/components/AdvancedFilterBar", () => ({
 }));
 
 vi.mock("@/components/DataTable", () => ({
-  DataTable: ({ columns, data }: { columns: Array<{ key: string; render: (row: FinanceiroRow) => ReactNode }>; data: FinanceiroRow[] }) => (
+  DataTable: ({ columns, data }: { columns: any[]; data: any[] }) => (
     <div>
       <div>Rows: {data.length}</div>
       {data.map((row) => (

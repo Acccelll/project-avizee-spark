@@ -4,37 +4,14 @@ import { exportarParaExcel, exportarParaPdf } from "@/services/export.service";
 import { processarEstorno } from "@/services/financeiro.service";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import type { Lancamento } from "@/types/domain";
-import type {
-  LancamentoForm,
-  LancamentoInsertPayload,
-  LancamentoUpdatePayload,
-} from "@/pages/financeiro/types";
+import type { LancamentoForm } from "@/pages/financeiro/types";
 
 interface Params {
   filteredData: Lancamento[];
   getLancamentoStatus: (l: Lancamento) => string;
-  create: (payload: Partial<LancamentoInsertPayload>) => Promise<unknown>;
-  update: (id: string, payload: Partial<LancamentoUpdatePayload>) => Promise<unknown>;
+  create: (payload: any) => Promise<any>;
+  update: (id: string, payload: any) => Promise<any>;
   fetchData: () => Promise<void>;
-}
-
-function mapFormToPayload(form: LancamentoForm): LancamentoUpdatePayload {
-  return {
-    tipo: form.tipo,
-    descricao: form.descricao,
-    valor: form.valor,
-    data_vencimento: form.data_vencimento,
-    status: form.status,
-    forma_pagamento: form.forma_pagamento || null,
-    banco: form.banco || null,
-    cartao: form.cartao || null,
-    cliente_id: form.cliente_id || null,
-    fornecedor_id: form.fornecedor_id || null,
-    conta_bancaria_id: form.conta_bancaria_id || null,
-    conta_contabil_id: form.conta_contabil_id || null,
-    data_pagamento: form.data_pagamento || null,
-    observacoes: form.observacoes || null,
-  };
 }
 
 export function useFinanceiroActions({ filteredData, getLancamentoStatus, create, update, fetchData }: Params) {
@@ -67,20 +44,35 @@ export function useFinanceiroActions({ filteredData, getLancamentoStatus, create
       setSaving(true);
 
       try {
-        const basePayload = mapFormToPayload(form);
+        const basePayload = {
+          tipo: form.tipo,
+          descricao: form.descricao,
+          valor: form.valor,
+          data_vencimento: form.data_vencimento,
+          status: form.status,
+          forma_pagamento: form.forma_pagamento || null,
+          banco: form.banco || null,
+          cartao: form.cartao || null,
+          cliente_id: form.cliente_id || null,
+          fornecedor_id: form.fornecedor_id || null,
+          conta_bancaria_id: form.conta_bancaria_id || null,
+          conta_contabil_id: form.conta_contabil_id || null,
+          data_pagamento: form.data_pagamento || null,
+          observacoes: form.observacoes || null,
+        };
 
         if (mode === "create" && form.gerar_parcelas && form.num_parcelas > 1) {
           const numParcelas = Number(form.num_parcelas);
           const intervalo = Number(form.intervalo_dias) || 30;
           const valorParcela = Number((form.valor / numParcelas).toFixed(2));
           const resto = Number((form.valor - valorParcela * numParcelas).toFixed(2));
-          const parentPayload: Partial<LancamentoInsertPayload> = {
+          const parentPayload = {
             ...basePayload,
             descricao: `${form.descricao} (agrupador)`,
             parcela_numero: 0,
             parcela_total: numParcelas,
           };
-          const parentResult = (await create(parentPayload)) as { id?: string } | null;
+          const parentResult = await create(parentPayload);
           const parentId = parentResult?.id ?? null;
 
           for (let index = 0; index < numParcelas; index++) {
@@ -93,7 +85,7 @@ export function useFinanceiroActions({ filteredData, getLancamentoStatus, create
               data_vencimento: vencimento.toISOString().split("T")[0],
               parcela_numero: index + 1,
               parcela_total: numParcelas,
-              documento_pai_id: parentId,
+              documento_pai_id: parentId || null,
             });
           }
           toast.success(`${numParcelas} parcelas geradas com sucesso!`);

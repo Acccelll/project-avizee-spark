@@ -1,12 +1,12 @@
 import { useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import type { CompraAguardando, DashboardDateRange } from "./types";
+import type { DashboardDateRange } from "./types";
 
 interface AuxData {
   clientes: number;
   fornecedores: number;
   compras: number;
-  comprasAguardando: CompraAguardando[];
+  comprasAguardando: any[];
   remessasAtrasadas: number;
 }
 
@@ -49,7 +49,7 @@ export function useDashboardAuxData(range: DashboardDateRange) {
       clientes: clientesCount ?? 0,
       fornecedores: fornecedoresCount ?? 0,
       compras: comprasCount ?? 0,
-      comprasAguardando: (comprasAguardando ?? []) as CompraAguardando[],
+      comprasAguardando: comprasAguardando ?? [],
       remessasAtrasadas: remessasAtrasadasCount ?? 0,
     };
   }, [range]);

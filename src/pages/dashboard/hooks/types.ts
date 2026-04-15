@@ -58,36 +58,6 @@ export interface TopPoint {
   valor: number;
 }
 
-export interface RecentOrcamento {
-  id: string;
-  numero: string;
-  valor_total: number;
-  status: string;
-  data_orcamento: string;
-  clientes: { nome_razao_social: string } | null;
-}
-
-export interface BacklogOV {
-  id: string;
-  numero: string;
-  valor_total: number;
-  data_emissao: string;
-  data_prometida_despacho: string | null;
-  prazo_despacho_dias: number | null;
-  status: string;
-  status_faturamento: string;
-  clientes: { nome_razao_social: string } | null;
-}
-
-export interface CompraAguardando {
-  id: string;
-  numero: string;
-  valor_total: number;
-  data_pedido: string;
-  data_entrega_prevista: string | null;
-  fornecedores: { nome_razao_social: string } | null;
-}
-
 export interface DashboardStats {
   produtos: number;
   clientes: number;

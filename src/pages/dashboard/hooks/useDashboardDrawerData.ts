@@ -9,34 +9,28 @@ interface DrawerParams {
   topProdutos: TopPoint[];
 }
 
-export function useDashboardDrawerData({
-  dailyReceber,
-  topClientes,
-  estoqueBaixo,
-  dailyVendas,
-  topProdutos,
-}: DrawerParams) {
+export function useDashboardDrawerData(params: DrawerParams) {
   return useMemo(
     () => ({
       receber: {
         title: "Vencimentos dos Próximos 7 Dias",
-        daily: dailyReceber,
-        top: topClientes,
+        daily: params.dailyReceber,
+        top: params.topClientes,
       },
       estoque: {
         title: "Estoque Crítico",
         daily: [] as DailyPoint[],
-        top: estoqueBaixo.slice(0, 5).map((item) => ({
+        top: params.estoqueBaixo.slice(0, 5).map((item) => ({
           nome: item.codigo_interno ? `${item.codigo_interno} – ${item.nome}` : item.nome,
           valor: item.estoque_atual ?? 0,
         })),
       },
       vendas: {
         title: "Vendas dos Últimos 7 Dias",
-        daily: dailyVendas,
-        top: topProdutos,
+        daily: params.dailyVendas,
+        top: params.topProdutos,
       },
     }),
-    [dailyReceber, topClientes, estoqueBaixo, dailyVendas, topProdutos],
+    [params],
   );
 }
