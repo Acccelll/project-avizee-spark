@@ -34,8 +34,8 @@ import { useRecebimentos } from "@/pages/logistica/hooks/useRecebimentos";
 import type { Recebimento } from "@/pages/logistica/hooks/useRecebimentos";
 import { fetchTracking, normalizarEventos } from "@/services/correios.service";
 import {
-  Eye, AlertTriangle, Truck, Package, CheckCheck, ExternalLink,
-  Edit, Trash2, Plus, MapPin, Package as PackageIcon, Search, Clock, Timer,
+  Eye, AlertTriangle, Truck, Package, CheckCheck, ExternalLink, Loader2,
+  Edit, Trash2, Plus, MapPin, Package as PackageIcon, Search, Clock, Timer, RefreshCw,
 } from "lucide-react";
 
 // ─── Remessa types ───
