@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, BarChart3, FileText, RefreshCcw, Users } from 'lucide-react';
 import { toast } from 'sonner';
@@ -80,7 +79,7 @@ export default function Social() {
       setPreviousDashboard(previousData);
       setPosts(postsData);
       setAlertas(alertasData);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('[social] erro ao carregar', error);
       toast.error('Não foi possível carregar o módulo Social.');
     } finally {
@@ -113,7 +112,7 @@ export default function Social() {
       await sincronizarSocial({ contaId });
       toast.success('Sincronização social executada com sucesso.');
       await loadData();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('[social] sync', error);
       toast.error('Falha na sincronização social.');
     }
@@ -125,7 +124,7 @@ export default function Social() {
       await criarContaSocial(payload);
       toast.success('Conta social cadastrada com sucesso.');
       await loadData();
-    } catch (error) {
+    } catch (error: unknown) {
       toast.error('Não foi possível criar conta social.');
       console.error(error);
     }
@@ -137,7 +136,7 @@ export default function Social() {
       await removerContaSocial(contaId);
       toast.success('Conta social desativada com sucesso.');
       await loadData();
-    } catch (error) {
+    } catch (error: unknown) {
       toast.error('Não foi possível desativar conta social.');
       console.error(error);
     }

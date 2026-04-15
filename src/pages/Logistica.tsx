@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useEffect, useMemo, useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";
@@ -359,7 +358,7 @@ export default function Logistica() {
   const openEditRemessa = (r: Remessa) => {
     setRemMode("edit"); setRemSelected(r);
     setRemForm({
-      tipo_remessa: (r as any).tipo_remessa ?? "entrega",
+      tipo_remessa: r.tipo_remessa ?? "entrega",
       cliente_id: r.cliente_id ?? "", transportadora_id: r.transportadora_id ?? "",
       servico: r.servico ?? "", codigo_rastreio: r.codigo_rastreio ?? "",
       data_postagem: r.data_postagem ?? "", previsao_entrega: r.previsao_entrega ?? "",

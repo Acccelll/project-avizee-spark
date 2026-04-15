@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useEffect, useMemo } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";
@@ -49,7 +48,13 @@ interface ClienteSimples {
   nome_razao_social: string;
 }
 
-const emptyForm: Record<string, any> = { nome: "", observacoes: "", empresa_matriz_id: "" };
+interface GrupoEconomicoForm {
+  nome: string;
+  observacoes: string;
+  empresa_matriz_id: string;
+}
+
+const emptyForm: GrupoEconomicoForm = { nome: "", observacoes: "", empresa_matriz_id: "" };
 
 const relacaoLabel: Record<string, string> = {
   matriz: "Matriz",
@@ -297,16 +302,16 @@ const GruposEconomicos = () => {
         .in("status", ["aberto", "vencido"]);
 
       const tots = titulos || [];
-      setSaldoConsolidado(tots.reduce((s, t: any) => s + Number(t.valor || 0), 0));
-      setTitulosVencidos(tots.filter((t: any) => t.status === "vencido").length);
-      setTitulosAbertos(tots.filter((t: any) => t.status === "aberto").length);
+      setSaldoConsolidado(tots.reduce((s, t) => s + Number(t.valor || 0), 0));
+      setTitulosVencidos(tots.filter((t) => t.status === "vencido").length);
+      setTitulosAbertos(tots.filter((t) => t.status === "aberto").length);
 
       const perEmp: Record<string, { saldo: number; vencidos: number }> = {};
       for (const c of clientesList) {
-        const empTitulos = tots.filter((t: any) => t.cliente_id === c.id);
+        const empTitulos = tots.filter((t) => t.cliente_id === c.id);
         perEmp[c.id] = {
-          saldo: empTitulos.reduce((s, t: any) => s + Number(t.valor || 0), 0),
-          vencidos: empTitulos.filter((t: any) => t.status === "vencido").length,
+          saldo: empTitulos.reduce((s, t) => s + Number(t.valor || 0), 0),
+          vencidos: empTitulos.filter((t) => t.status === "vencido").length,
         };
       }
       setPerEmpresaFinanceiro(perEmp);
@@ -327,7 +332,7 @@ const GruposEconomicos = () => {
       if (mode === "create") await create(payload);
       else if (selected) await update(selected.id, payload);
       setModalOpen(false);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("[grupos-economicos] erro ao salvar:", err);
       toast.error("Erro ao salvar grupo econômico");
     }
@@ -341,7 +346,7 @@ const GruposEconomicos = () => {
       await remove(selected.id);
       setDeleteConfirmOpen(false);
       setDrawerOpen(false);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("[grupos-economicos] erro ao excluir:", err);
       toast.error("Erro ao excluir grupo econômico");
     }

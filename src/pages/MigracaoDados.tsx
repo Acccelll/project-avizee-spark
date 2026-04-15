@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useMemo, useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { ImportacaoResumoCards } from "@/components/importacao/ImportacaoResumoCards";
@@ -101,6 +100,7 @@ export default function MigracaoDados() {
     generatePreview,
     processImport,
     finalizeImport
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } = activeHook as any;
 
   const filteredLotes = lotes.filter(lote => {
@@ -213,10 +213,10 @@ export default function MigracaoDados() {
       setActiveImportSource("xml");
     } else if (type === "faturamento") {
       setActiveImportSource("faturamento");
-      setImportType("produtos" as any);
+      setImportType("produtos" as ImportType);
     } else if (type === "financeiro") {
       setActiveImportSource("financeiro");
-      setImportType("produtos" as any);
+      setImportType("produtos" as ImportType);
     } else if (["produtos_fornecedores", "formas_pagamento", "contas_contabeis", "contas_bancarias"].includes(type)) {
       setActiveImportSource("enriquecimento");
       hookEnriquecimento.setEnrichmentType(type as EnrichmentType);
