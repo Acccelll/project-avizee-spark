@@ -682,6 +682,16 @@ export default function Logistica() {
         <form onSubmit={handleRemessaSubmit} className="space-y-4">
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             <div className="space-y-2">
+              <Label>Tipo de Remessa *</Label>
+              <Select value={remForm.tipo_remessa} onValueChange={v => setRemForm({ ...remForm, tipo_remessa: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="entrega">Entrega (Saída)</SelectItem>
+                  <SelectItem value="recebimento">Recebimento (Entrada)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
               <Label>Transportadora *</Label>
               <Select value={remForm.transportadora_id} onValueChange={v => setRemForm({ ...remForm, transportadora_id: v })}>
                 <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
