@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -23,15 +22,20 @@ type ClienteWithGroup = Tables<"clientes"> & {
   grupos_economicos: { nome: string } | null;
 };
 
+interface VendaRow { id: string; numero: string; data_emissao: string; valor_total: number; status: string }
+type FinanceiroRow = Tables<"financeiro_lancamentos">;
+type ComunicacaoRow = Tables<"cliente_registros_comunicacao">;
+type TransportadoraRow = Tables<"cliente_transportadoras"> & { transportadoras: { nome_razao_social: string } | null };
+
 export function ClienteView({ id }: Props) {
   const navigate = useNavigate();
   const [selected, setSelected] = useState<ClienteWithGroup | null>(null);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
-  const [vendas, setVendas] = useState<any[]>([]);
-  const [financeiro, setFinanceiro] = useState<any[]>([]);
-  const [comunicacao, setComunicacao] = useState<any[]>([]);
-  const [transportadoras, setTransportadoras] = useState<any[]>([]);
+  const [vendas, setVendas] = useState<VendaRow[]>([]);
+  const [financeiro, setFinanceiro] = useState<FinanceiroRow[]>([]);
+  const [comunicacao, setComunicacao] = useState<ComunicacaoRow[]>([]);
+  const [transportadoras, setTransportadoras] = useState<TransportadoraRow[]>([]);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const { pushView, clearStack } = useRelationalNavigation();
 

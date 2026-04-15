@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -16,14 +15,32 @@ interface Props {
   produtoId?: string;
 }
 
+interface PrecoEspecialRow {
+  id: string;
+  cliente_id: string | null;
+  produto_id: string | null;
+  preco_especial: number;
+  data_inicio: string | null;
+  data_fim: string | null;
+  observacoes: string | null;
+  ativo: boolean;
+  created_at: string;
+  clientes: { nome_razao_social: string } | null;
+  produtos: { nome: string; sku: string | null; preco_venda: number | null } | null;
+}
+
+interface ClienteOption { id: string; nome_razao_social: string }
+
+interface ProdutoOption { id: string; nome: string; sku: string | null }
+
 export function PrecosEspeciaisTab({ clienteId, produtoId }: Props) {
-  const [items, setItems] = useState<any[]>([]);
+  const [items, setItems] = useState<PrecoEspecialRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
 
-  const [clientes, setClientes] = useState<any[]>([]);
-  const [produtos, setProdutos] = useState<any[]>([]);
+  const [clientes, setClientes] = useState<ClienteOption[]>([]);
+  const [produtos, setProdutos] = useState<ProdutoOption[]>([]);
 
   const [form, setForm] = useState({
     cliente_id: clienteId || "",
