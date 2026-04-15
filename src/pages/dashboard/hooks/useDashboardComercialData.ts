@@ -1,15 +1,15 @@
 import { useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { aggregateDailyVendas, aggregateTopProdutos, buildIsoDayRange, sumNfValues } from "@/lib/dashboard/aggregations";
-import type { DashboardDateRange, DailyNfRow, NfItemRow, NfRow } from "./types";
+import type { BacklogOv, DashboardDateRange, DailyNfRow, NfItemRow, NfRow, RecentOrcamento, TopPoint } from "./types";
 
 interface ComercialData {
   orcamentos: number;
-  recentOrcamentos: any[];
-  backlogOVs: any[];
+  recentOrcamentos: RecentOrcamento[];
+  backlogOVs: BacklogOv[];
   faturamento: { mesAtual: number; mesAnterior: number };
   dailyVendas: Array<{ dia: string; valor: number }>;
-  topProdutos: Array<{ nome: string; valor: number }>;
+  topProdutos: TopPoint[];
 }
 
 export function useDashboardComercialData(range: DashboardDateRange) {
@@ -89,8 +89,8 @@ export function useDashboardComercialData(range: DashboardDateRange) {
 
     return {
       orcamentos: orcamentosCount ?? 0,
-      recentOrcamentos: orcRecent ?? [],
-      backlogOVs: backlog ?? [],
+      recentOrcamentos: (orcRecent ?? []) as RecentOrcamento[],
+      backlogOVs: (backlog ?? []) as BacklogOv[],
       faturamento: {
         mesAtual: sumNfValues((nfAtual ?? []) as NfRow[]),
         mesAnterior: sumNfValues((nfAnterior ?? []) as NfRow[]),

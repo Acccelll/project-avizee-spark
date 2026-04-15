@@ -19,6 +19,15 @@ describe("dashboard aggregations", () => {
     ).toBe(140);
   });
 
+  it("trata saldo restante nulo em parcial usando valor integral", () => {
+    expect(
+      sumOpenFinanceiro([
+        { valor: 120, saldo_restante: null, status: "parcial" },
+        { valor: 80, saldo_restante: 20, status: "parcial" },
+      ]),
+    ).toBe(140);
+  });
+
   it("resume estatísticas fiscais por status", () => {
     expect(
       summarizeFiscalStats([
@@ -72,6 +81,20 @@ describe("dashboard aggregations", () => {
     ).toEqual([
       { dia: "13/04", valor: 50 },
       { dia: "14/04", valor: 0 },
+    ]);
+  });
+
+  it("mantém ordenação de dias mesmo com linhas fora do intervalo", () => {
+    const days = ["2026-04-13", "2026-04-14"];
+
+    expect(
+      aggregateDailyFinanceiro(days, [
+        { data_vencimento: "2026-04-16", valor: 999, saldo_restante: null, status: "aberto" },
+        { data_vencimento: "2026-04-14", valor: 10, saldo_restante: null, status: "aberto" },
+      ]),
+    ).toEqual([
+      { dia: "13/04", valor: 0 },
+      { dia: "14/04", valor: 10 },
     ]);
   });
 

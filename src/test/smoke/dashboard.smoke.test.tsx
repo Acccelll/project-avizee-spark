@@ -5,6 +5,7 @@ import { makeAuthState, renderWithSmokeProviders } from "./smokeTestUtils";
 
 const mockUseAuth = vi.fn();
 const mockUseDashboardData = vi.fn();
+const mockLoadData = vi.fn();
 
 vi.mock("@/contexts/AuthContext", () => ({
   useAuth: () => mockUseAuth(),
@@ -24,12 +25,13 @@ vi.mock("@/components/dashboard/VendasChart", () => ({
 
 describe("smoke: dashboard cenário feliz", () => {
   beforeEach(() => {
+    mockLoadData.mockReset();
     mockUseAuth.mockReturnValue(makeAuthState());
     mockUseDashboardData.mockReturnValue({
       stats: { produtos: 10, orcamentos: 2, contasReceber: 3, contasPagar: 2, contasVencidas: 1, totalReceber: 1200, totalPagar: 400 },
       loading: false,
       loadedAt: new Date("2026-04-15T10:00:00Z"),
-      loadData: vi.fn(),
+      loadData: mockLoadData,
       backlogOVs: [],
       comprasAguardando: [],
       dailyPagar: [{ dia: "15/04", valor: 100 }],
@@ -54,5 +56,7 @@ describe("smoke: dashboard cenário feliz", () => {
     expect(await screen.findByText(/Contas a Pagar/i)).toBeInTheDocument();
     expect(await screen.findByText(/Saldo Projetado/i)).toBeInTheDocument();
     expect(await screen.findByText(/Pendências/i)).toBeInTheDocument();
+    expect(await screen.findByText("VendasChartMock")).toBeInTheDocument();
+    expect(mockLoadData).toHaveBeenCalled();
   });
 });

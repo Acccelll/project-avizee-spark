@@ -7,13 +7,14 @@ import { useDashboardEstoqueData } from "./useDashboardEstoqueData";
 import { useDashboardFinanceiroData } from "./useDashboardFinanceiroData";
 import { useDashboardFiscalData } from "./useDashboardFiscalData";
 import type { DashboardStats, FaturamentoStats, FiscalStats, ProdRow, TopPoint } from "./types";
+import type { BacklogOv, CompraAguardando, RecentOrcamento } from "./types";
 
 interface DashboardDataState {
   stats: DashboardStats;
   faturamento: FaturamentoStats;
-  recentOrcamentos: any[];
-  backlogOVs: any[];
-  comprasAguardando: any[];
+  recentOrcamentos: RecentOrcamento[];
+  backlogOVs: BacklogOv[];
+  comprasAguardando: CompraAguardando[];
   estoqueBaixo: ProdRow[];
   fiscalStats: FiscalStats;
   vencimentosHoje: { receber: number; pagar: number };

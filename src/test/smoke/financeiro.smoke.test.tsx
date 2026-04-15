@@ -3,6 +3,8 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { fireEvent, screen } from "@testing-library/react";
 import FinanceiroPage from "@/pages/Financeiro";
 import { renderWithSmokeProviders } from "./smokeTestUtils";
+import type { Column } from "@/components/DataTable";
+import type { Lancamento } from "@/types/domain";
 
 const mockUseSupabaseCrud = vi.fn();
 
@@ -49,7 +51,7 @@ vi.mock("@/components/AdvancedFilterBar", () => ({
 }));
 
 vi.mock("@/components/DataTable", () => ({
-  DataTable: ({ columns, data }: { columns: any[]; data: any[] }) => (
+  DataTable: ({ columns, data }: { columns: Column<Lancamento>[]; data: Lancamento[] }) => (
     <div>
       <div>Rows: {data.length}</div>
       {data.map((row) => (
@@ -137,5 +139,7 @@ describe("smoke: financeiro abertura, filtros e baixa mínima", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /Baixar lançamento: Receita Projeto A/i }));
     expect(await screen.findByText("BaixaParcialAberta")).toBeInTheDocument();
+
+    expect(screen.queryByText("Despesa Operacional")).not.toBeInTheDocument();
   });
 });

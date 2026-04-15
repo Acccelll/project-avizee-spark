@@ -7,11 +7,13 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Lancamento } from "@/types/domain";
 import type { LancamentoForm } from "@/pages/financeiro/types";
 
+type LancamentoWritePayload = Partial<Lancamento>;
+
 interface Params {
   filteredData: Lancamento[];
   getLancamentoStatus: (l: Lancamento) => string;
-  create: (payload: any) => Promise<any>;
-  update: (id: string, payload: any) => Promise<any>;
+  create: (payload: LancamentoWritePayload) => Promise<Lancamento>;
+  update: (id: string, payload: LancamentoWritePayload) => Promise<Lancamento>;
   fetchData: () => Promise<void>;
 }
 
@@ -49,7 +51,7 @@ export function useFinanceiroActions({ filteredData, getLancamentoStatus, create
       setSaving(true);
 
       try {
-        const basePayload = {
+        const basePayload: LancamentoWritePayload = {
           tipo: form.tipo,
           descricao: form.descricao,
           valor: form.valor,
@@ -72,7 +74,7 @@ export function useFinanceiroActions({ filteredData, getLancamentoStatus, create
           const intervalo = Number(form.intervalo_dias) || 30;
           const valorParcela = Number((form.valor / numP).toFixed(2));
           const resto = Number((form.valor - valorParcela * numP).toFixed(2));
-          const parentPayload = {
+          const parentPayload: LancamentoWritePayload = {
             ...basePayload,
             descricao: `${form.descricao} (agrupador)`,
             parcela_numero: 0,

@@ -1,3 +1,4 @@
+import type { FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,7 +19,7 @@ interface Props {
   fornecedores: Fornecedor[];
   setForm: (next: LancamentoForm) => void;
   onCancel: () => void;
-  onSubmit: (e: React.FormEvent) => void;
+  onSubmit: (e: FormEvent) => void;
 }
 
 export function FinanceiroLancamentoForm({
@@ -33,17 +34,21 @@ export function FinanceiroLancamentoForm({
   onCancel,
   onSubmit,
 }: Props) {
+  const updateField = <K extends keyof LancamentoForm>(field: K, value: LancamentoForm[K]) => {
+    setForm({ ...form, [field]: value });
+  };
+
   return (
     <form onSubmit={onSubmit} className="space-y-4">
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <div className="space-y-2"><Label>Tipo</Label>
-          <Select value={form.tipo} onValueChange={(v) => setForm({ ...form, tipo: v })}>
+          <Select value={form.tipo} onValueChange={(v) => updateField("tipo", v)}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent><SelectItem value="receber">A Receber</SelectItem><SelectItem value="pagar">A Pagar</SelectItem></SelectContent>
           </Select>
         </div>
         <div className="space-y-2"><Label>Status</Label>
-          <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
+          <Select value={form.status} onValueChange={(v) => updateField("status", v)}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="aberto">Aberto</SelectItem><SelectItem value="pago">Pago</SelectItem>
@@ -52,7 +57,7 @@ export function FinanceiroLancamentoForm({
           </Select>
         </div>
         <div className="space-y-2"><Label>Forma de Pagamento</Label>
-          <Select value={form.forma_pagamento || "nenhum"} onValueChange={(v) => setForm({ ...form, forma_pagamento: v === "nenhum" ? "" : v })}>
+          <Select value={form.forma_pagamento || "nenhum"} onValueChange={(v) => updateField("forma_pagamento", v === "nenhum" ? "" : v)}>
             <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
             <SelectContent>
               <SelectItem value="nenhum">Selecione...</SelectItem>
@@ -62,12 +67,12 @@ export function FinanceiroLancamentoForm({
             </SelectContent>
           </Select>
         </div>
-        <div className="col-span-2 md:col-span-3 space-y-2"><Label>Descrição *</Label><Input value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} required /></div>
-        <div className="space-y-2"><Label>Valor *</Label><Input type="number" step="0.01" value={form.valor} onChange={(e) => setForm({ ...form, valor: Number(e.target.value) })} required /></div>
-        <div className="space-y-2"><Label>Vencimento *</Label><Input type="date" value={form.data_vencimento} onChange={(e) => setForm({ ...form, data_vencimento: e.target.value })} required /></div>
-        <div className="space-y-2"><Label>Data Pagamento</Label><Input type="date" value={form.data_pagamento} onChange={(e) => setForm({ ...form, data_pagamento: e.target.value })} /></div>
+        <div className="col-span-2 md:col-span-3 space-y-2"><Label>Descrição *</Label><Input value={form.descricao} onChange={(e) => updateField("descricao", e.target.value)} required /></div>
+        <div className="space-y-2"><Label>Valor *</Label><Input type="number" step="0.01" value={form.valor} onChange={(e) => updateField("valor", Number(e.target.value))} required /></div>
+        <div className="space-y-2"><Label>Vencimento *</Label><Input type="date" value={form.data_vencimento} onChange={(e) => updateField("data_vencimento", e.target.value)} required /></div>
+        <div className="space-y-2"><Label>Data Pagamento</Label><Input type="date" value={form.data_pagamento} onChange={(e) => updateField("data_pagamento", e.target.value)} /></div>
         <div className="space-y-2"><Label>Conta Bancária {form.status === "pago" ? "*" : ""}</Label>
-          <Select value={form.conta_bancaria_id || "nenhum"} onValueChange={(v) => setForm({ ...form, conta_bancaria_id: v === "nenhum" ? "" : v })}>
+          <Select value={form.conta_bancaria_id || "nenhum"} onValueChange={(v) => updateField("conta_bancaria_id", v === "nenhum" ? "" : v)}>
             <SelectTrigger><SelectValue placeholder="Selecione conta..." /></SelectTrigger>
             <SelectContent>
               <SelectItem value="nenhum">Selecione...</SelectItem>
@@ -75,10 +80,10 @@ export function FinanceiroLancamentoForm({
             </SelectContent>
           </Select>
         </div>
-        <div className="space-y-2"><Label>Cartão</Label><Input value={form.cartao} onChange={(e) => setForm({ ...form, cartao: e.target.value })} /></div>
+        <div className="space-y-2"><Label>Cartão</Label><Input value={form.cartao} onChange={(e) => updateField("cartao", e.target.value)} /></div>
         {form.tipo === "receber" && (
           <div className="space-y-2"><Label>Cliente</Label>
-            <Select value={form.cliente_id || "nenhum"} onValueChange={(v) => setForm({ ...form, cliente_id: v === "nenhum" ? "" : v })}>
+            <Select value={form.cliente_id || "nenhum"} onValueChange={(v) => updateField("cliente_id", v === "nenhum" ? "" : v)}>
               <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="nenhum">Selecione...</SelectItem>
@@ -89,7 +94,7 @@ export function FinanceiroLancamentoForm({
         )}
         {form.tipo === "pagar" && (
           <div className="space-y-2"><Label>Fornecedor</Label>
-            <Select value={form.fornecedor_id || "nenhum"} onValueChange={(v) => setForm({ ...form, fornecedor_id: v === "nenhum" ? "" : v })}>
+            <Select value={form.fornecedor_id || "nenhum"} onValueChange={(v) => updateField("fornecedor_id", v === "nenhum" ? "" : v)}>
               <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="nenhum">Selecione...</SelectItem>
@@ -103,7 +108,7 @@ export function FinanceiroLancamentoForm({
       {contasContabeis.length > 0 && (
         <div className="space-y-2">
           <Label>Conta Contábil (opcional)</Label>
-          <Select value={form.conta_contabil_id || "none"} onValueChange={(v) => setForm({ ...form, conta_contabil_id: v === "none" ? "" : v })}>
+          <Select value={form.conta_contabil_id || "none"} onValueChange={(v) => updateField("conta_contabil_id", v === "none" ? "" : v)}>
             <SelectTrigger><SelectValue placeholder="Vincular conta contábil..." /></SelectTrigger>
             <SelectContent>
               <SelectItem value="none">Nenhuma</SelectItem>
@@ -122,13 +127,13 @@ export function FinanceiroLancamentoForm({
       {mode === "create" && (
         <div className="space-y-3 rounded-lg border p-4">
           <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
-            <input type="checkbox" checked={form.gerar_parcelas} onChange={(e) => setForm({ ...form, gerar_parcelas: e.target.checked })} className="rounded" />
+            <input type="checkbox" checked={form.gerar_parcelas} onChange={(e) => updateField("gerar_parcelas", e.target.checked)} className="rounded" />
             Gerar parcelas automaticamente
           </label>
           {form.gerar_parcelas && (
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1"><Label className="text-xs">Nº de Parcelas</Label><Input type="number" min={2} max={48} value={form.num_parcelas} onChange={(e) => setForm({ ...form, num_parcelas: Number(e.target.value) })} className="h-9" /></div>
-              <div className="space-y-1"><Label className="text-xs">Intervalo (dias)</Label><Input type="number" min={1} max={365} value={form.intervalo_dias} onChange={(e) => setForm({ ...form, intervalo_dias: Number(e.target.value) })} className="h-9" /></div>
+              <div className="space-y-1"><Label className="text-xs">Nº de Parcelas</Label><Input type="number" min={2} max={48} value={form.num_parcelas} onChange={(e) => updateField("num_parcelas", Number(e.target.value))} className="h-9" /></div>
+              <div className="space-y-1"><Label className="text-xs">Intervalo (dias)</Label><Input type="number" min={1} max={365} value={form.intervalo_dias} onChange={(e) => updateField("intervalo_dias", Number(e.target.value))} className="h-9" /></div>
               <div className="col-span-2 text-xs text-muted-foreground">
                 {form.num_parcelas > 1 && form.valor > 0 && (<span>{form.num_parcelas}× de <strong>{formatCurrency(form.valor / form.num_parcelas)}</strong> a cada {form.intervalo_dias} dias</span>)}
               </div>
@@ -137,7 +142,7 @@ export function FinanceiroLancamentoForm({
         </div>
       )}
 
-      <div className="space-y-2"><Label>Observações</Label><Textarea value={form.observacoes} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} /></div>
+      <div className="space-y-2"><Label>Observações</Label><Textarea value={form.observacoes} onChange={(e) => updateField("observacoes", e.target.value)} /></div>
       <div className="flex justify-end gap-2">
         <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
         <Button type="submit" disabled={saving}>{saving ? "Salvando..." : "Salvar"}</Button>

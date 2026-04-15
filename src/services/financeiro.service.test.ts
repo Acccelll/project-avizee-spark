@@ -61,4 +61,28 @@ describe("criarPlanoBaixaLote", () => {
       }),
     ).toThrow("Baixa parcial inválida");
   });
+
+  it("falha quando dados obrigatórios da baixa estão ausentes", () => {
+    expect(() =>
+      criarPlanoBaixaLote({
+        ...baseParams,
+        formaPagamento: "",
+      }),
+    ).toThrow("Dados obrigatórios da baixa");
+  });
+
+  it("arredonda baixa parcial sem gerar saldo negativo", () => {
+    const plan = criarPlanoBaixaLote({
+      ...baseParams,
+      selectedIds: ["1"],
+      selectedLancamentos: [{ id: "1", valor: 100, saldo_restante: 0.01 }],
+      tipoBaixa: "parcial",
+      totalBaixa: 1,
+      valorPagoBaixa: 1,
+    });
+
+    expect(plan[0].valorPago).toBe(0.01);
+    expect(plan[0].novoSaldo).toBe(0);
+    expect(plan[0].novoStatus).toBe("pago");
+  });
 });
