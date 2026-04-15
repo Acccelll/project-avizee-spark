@@ -10,7 +10,7 @@ export interface ParseResult<T> {
 /**
  * Tenta converter qualquer valor para decimal de forma segura.
  */
-export function parseDecimalFlexible(value: any): ParseResult<number> {
+export function parseDecimalFlexible(value: unknown): ParseResult<number> {
   if (value === null || value === undefined || value === '') return { value: 0 };
   if (typeof value === 'number') return { value };
 
@@ -31,7 +31,7 @@ export function parseDecimalFlexible(value: any): ParseResult<number> {
 /**
  * Tenta converter qualquer valor para inteiro.
  */
-export function parseIntegerFlexible(value: any): ParseResult<number> {
+export function parseIntegerFlexible(value: unknown): ParseResult<number> {
   const result = parseDecimalFlexible(value);
   if (result.value === null) return result;
   return { value: Math.floor(result.value) };
@@ -40,7 +40,7 @@ export function parseIntegerFlexible(value: any): ParseResult<number> {
 /**
  * Tenta converter datas de diversos formatos (ISO, BR, Excel Serial).
  */
-export function parseDateFlexible(value: any): ParseResult<string> {
+export function parseDateFlexible(value: unknown): ParseResult<string> {
   if (!value) return { value: null };
   if (value instanceof Date) {
     if (isNaN(value.getTime())) return { value: null, error: 'Data inválida.' };
@@ -83,7 +83,7 @@ export function parseDateFlexible(value: any): ParseResult<string> {
  * Tenta calcular quantidades em estoque aceitando expressões e unidades mistas.
  * Ex: "12", "12.5", "38DZ e 8un", "=41+(8/12)"
  */
-export function parseQuantidadeEstoque(value: any): ParseResult<number> {
+export function parseQuantidadeEstoque(value: unknown): ParseResult<number> {
   if (value === null || value === undefined || value === '') return { value: 0 };
   if (typeof value === 'number') return { value };
 

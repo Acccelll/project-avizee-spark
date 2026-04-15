@@ -4,6 +4,7 @@ import { generateWorkbook } from '@/lib/workbook/generateWorkbook';
 import { hashParametros } from '@/lib/workbook/utils';
 
 export async function listarTemplates(): Promise<WorkbookTemplate[]> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase as any)
     .from('workbook_templates')
     .select('*')
@@ -14,6 +15,7 @@ export async function listarTemplates(): Promise<WorkbookTemplate[]> {
 }
 
 export async function listarGeracoes(): Promise<WorkbookGeracao[]> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase as any)
     .from('workbook_geracoes')
     .select('*, workbook_templates(nome, versao)')
@@ -24,6 +26,7 @@ export async function listarGeracoes(): Promise<WorkbookGeracao[]> {
 }
 
 export async function listarFechamentos(): Promise<FechamentoMensal[]> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase as any)
     .from('fechamentos_mensais')
     .select('*')
@@ -42,6 +45,7 @@ export async function gerarWorkbook(
   const hash = hashParametros(parametros as unknown as Record<string, unknown>);
 
   // Create generation record with status 'gerando'
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: geracao, error: geracaoError } = await (supabase as any)
     .from('workbook_geracoes')
     .insert({
@@ -86,6 +90,7 @@ export async function gerarWorkbook(
     }
 
     // Update generation record with success
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (supabase as any)
       .from('workbook_geracoes')
       .update({
@@ -98,6 +103,7 @@ export async function gerarWorkbook(
     return { blob, geracaoId: geracao.id };
   } catch (err) {
     // Update generation record with error
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (supabase as any)
       .from('workbook_geracoes')
       .update({

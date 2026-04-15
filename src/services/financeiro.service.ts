@@ -89,6 +89,7 @@ async function ensureUpdateLancamento(item: BaixaPlanItem, params: BaixaLotePara
 
   const { data, error } = await supabase
     .from("financeiro_lancamentos")
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .update(payload as any)
     .eq("id", item.id)
     .select("id")
@@ -102,6 +103,7 @@ async function ensureUpdateLancamento(item: BaixaPlanItem, params: BaixaLotePara
 
 async function ensureInsertBaixa(item: BaixaPlanItem, params: BaixaLoteParams) {
   const { data, error } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .from("financeiro_baixas" as any)
     .insert({
       lancamento_id: item.id,
@@ -128,6 +130,7 @@ async function processarBaixaLoteRpc(params: BaixaLoteParams): Promise<boolean |
     p_baixa_date: params.baixaDate,
     p_forma_pagamento: params.formaPagamento,
     p_conta_bancaria_id: params.contaBancariaId,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any);
 
   if (!error) return true;
@@ -174,6 +177,7 @@ async function processarEstornoRpc(lancamentoId: string, motivoEstorno?: string)
   const { error } = await supabase.rpc("financeiro_processar_estorno", {
     p_lancamento_id: lancamentoId,
     p_motivo_estorno: motivoEstorno ?? null,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any);
 
   if (!error) return true;
@@ -211,6 +215,7 @@ export async function processarEstorno(lancamentoId: string, motivoEstorno?: str
         tipo_baixa: null,
         saldo_restante: null,
         motivo_estorno: motivoEstorno || null,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any)
       .eq("id", lancamentoId)
       .select("id")
@@ -224,6 +229,7 @@ export async function processarEstorno(lancamentoId: string, motivoEstorno?: str
 
     const { error: parcelasError } = await supabase
       .from("financeiro_lancamentos")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .update({ ativo: false } as any)
       .eq("documento_pai_id", lancamentoId);
     if (parcelasError) throw parcelasError;
