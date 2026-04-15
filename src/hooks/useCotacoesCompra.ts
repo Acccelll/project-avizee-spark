@@ -375,7 +375,8 @@ export function useCotacoesCompra() {
     }
 
     const valorTotal = itensParaPedido.reduce((s, i) => s + (i?.subtotal || 0), 0);
-    const numeroPedido = `PC-${String(Date.now()).slice(-6)}`;
+    const { data: rpcNumero } = await supabase.rpc('proximo_numero_pedido_compra');
+    const numeroPedido = rpcNumero || `PC-${String(Date.now()).slice(-6)}`;
 
     let pedidoId: string | null = null;
     try {
