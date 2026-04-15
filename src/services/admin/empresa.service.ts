@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Serviço de configuração da empresa — operações sobre `empresa_config` e
  * `app_configuracoes`.
@@ -8,8 +7,12 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 
 export type EmpresaConfig = Database["public"]["Tables"]["empresa_config"]["Row"];
-export type EmpresaConfigUpdate =
-  Database["public"]["Tables"]["empresa_config"]["Update"];
+export type EmpresaConfigInsert = Database["public"]["Tables"]["empresa_config"]["Insert"];
+export type EmpresaConfigUpdate = Database["public"]["Tables"]["empresa_config"]["Update"];
+
+type AppConfigRow = Database["public"]["Tables"]["app_configuracoes"]["Row"];
+type AppConfigInsert = Database["public"]["Tables"]["app_configuracoes"]["Insert"];
+type AppConfigValue = Record<string, unknown>;
 
 /** Busca a configuração da empresa (sempre existe uma única linha). */
 export async function fetchEmpresaConfig(): Promise<EmpresaConfig | null> {
@@ -25,7 +28,7 @@ export async function fetchEmpresaConfig(): Promise<EmpresaConfig | null> {
 
 /** Salva a configuração da empresa (upsert). */
 export async function saveEmpresaConfig(
-  config: EmpresaConfigUpdate & { id?: string }
+  config: EmpresaConfigUpdate & { id?: string },
 ): Promise<EmpresaConfig> {
   if (config.id) {
     const { data, error } = await supabase
@@ -39,9 +42,13 @@ export async function saveEmpresaConfig(
     return data;
   }
 
+  const payload: EmpresaConfigInsert = {
+    ...(config as EmpresaConfigInsert),
+  };
+
   const { data, error } = await supabase
     .from("empresa_config")
-    .insert(config as Database["public"]["Tables"]["empresa_config"]["Insert"])
+    .insert(payload)
     .select()
     .single();
 
@@ -52,7 +59,7 @@ export async function saveEmpresaConfig(
 export type AppConfigChave = "email" | "fiscal" | "financeiro" | "geral" | "usuarios";
 
 /** Busca uma configuração do sistema por chave. */
-export async function fetchAppConfig(chave: AppConfigChave): Promise<Record<string, unknown>> {
+export async function fetchAppConfig(chave: AppConfigChave): Promise<AppConfigValue> {
   const { data, error } = await supabase
     .from("app_configuracoes")
     .select("valor")
@@ -60,17 +67,27 @@ export async function fetchAppConfig(chave: AppConfigChave): Promise<Record<stri
     .maybeSingle();
 
   if (error) throw error;
-  return (data?.valor as Record<string, unknown>) ?? {};
+
+  const row = data as Pick<AppConfigRow, "valor"> | null;
+  const value = row?.valor;
+
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as AppConfigValue;
+  }
+
+  return {};
 }
 
 /** Salva uma configuração do sistema (upsert por chave). */
 export async function saveAppConfig(
   chave: AppConfigChave,
-  valor: Record<string, unknown>
+  valor: AppConfigValue,
 ): Promise<void> {
+  const payload: AppConfigInsert = { chave, valor };
+
   const { error } = await supabase
     .from("app_configuracoes")
-    .upsert({ chave, valor }, { onConflict: "chave" });
+    .upsert(payload, { onConflict: "chave" });
 
   if (error) throw error;
 }
