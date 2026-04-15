@@ -3,7 +3,7 @@
  *
  * Provides three export formats:
  *   - CSV  (synchronous, plain text)
- *   - Excel (.xlsx via write-excel-file, no known CVEs)
+ *   - Excel (.xlsx via exceljs)
  *   - PDF   (jsPDF, landscape A4, dynamic column widths)
  *
  * All public functions accept the same `ExportPayload` so callers do not need
@@ -68,33 +68,47 @@ function formatCsvCell(value: unknown): string {
 // ─── Excel ───────────────────────────────────────────────────────────────────
 
 /**
- * Exports `rows` as an .xlsx file using write-excel-file (no known CVEs).
- * Numbers are preserved as numeric cells so Excel can aggregate them.
+ * Exports `rows` as an .xlsx file using exceljs.
  */
 export async function exportarParaExcel(options: ExportOptions): Promise<void> {
   const { titulo, rows } = options;
   if (!rows.length) return;
 
-  const { default: writeXlsxFile } = await import("write-excel-file/browser");
+  const { default: ExcelJS } = await import("exceljs");
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet(titulo.slice(0, 31));
 
-  type CellValue = string | number | boolean | null;
-  type WriteCell = { value: CellValue; fontWeight?: "bold" };
+  const headers = Object.keys(rows[0]);
+  sheet.addRow(headers);
+  sheet.getRow(1).font = { bold: true };
+  sheet.getRow(1).fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FFE8E8E8" },
+  };
 
-  const keys = Object.keys(rows[0]);
-  const headerRow: WriteCell[] = keys.map((k) => ({ value: k, fontWeight: "bold" }));
-  const dataRows: WriteCell[][] = rows.map((row) =>
-    keys.map((k) => {
-      const v = row[k];
-      if (v == null) return { value: null };
-      if (typeof v === "number" || typeof v === "boolean") return { value: v };
-      return { value: String(v) };
-    })
-  );
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- library typings are loose
-  await writeXlsxFile([headerRow, ...dataRows] as any, {
-    fileName: `${titulo}.xlsx`,
+  rows.forEach((row) => {
+    sheet.addRow(headers.map((h) => row[h] ?? ""));
   });
+
+  sheet.columns.forEach((col) => {
+    let maxLen = 10;
+    col.eachCell?.({ includeEmpty: true }, (cell) => {
+      maxLen = Math.max(maxLen, String(cell.value ?? "").length + 2);
+    });
+    col.width = Math.min(maxLen, 50);
+  });
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${titulo}.xlsx`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 // ─── PDF ─────────────────────────────────────────────────────────────────────

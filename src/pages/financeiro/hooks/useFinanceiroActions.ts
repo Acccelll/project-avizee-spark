@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { exportarParaExcel, exportarParaPdf } from "@/services/export.service";
 import { processarEstorno } from "@/services/financeiro.service";
 import { getUserFriendlyError } from "@/utils/errorMessages";
+import { supabase } from "@/integrations/supabase/client";
 import type { Lancamento } from "@/types/domain";
 import type { LancamentoForm } from "@/pages/financeiro/types";
 
@@ -24,6 +25,10 @@ export function useFinanceiroActions({ filteredData, getLancamentoStatus, create
     async (mode: "create" | "edit", form: LancamentoForm, selected: Lancamento | null, onSuccess: () => void) => {
       if (!form.descricao || !form.valor) {
         toast.error("Descrição e valor são obrigatórios");
+        return;
+      }
+      if (!form.data_vencimento) {
+        toast.error("Data de vencimento é obrigatória");
         return;
       }
       if (form.status === "pago") {
@@ -63,31 +68,38 @@ export function useFinanceiroActions({ filteredData, getLancamentoStatus, create
 
         if (mode === "create" && form.gerar_parcelas && form.num_parcelas > 1) {
           const numParcelas = Number(form.num_parcelas);
+          const numP = numParcelas;
           const intervalo = Number(form.intervalo_dias) || 30;
-          const valorParcela = Number((form.valor / numParcelas).toFixed(2));
-          const resto = Number((form.valor - valorParcela * numParcelas).toFixed(2));
+          const valorParcela = Number((form.valor / numP).toFixed(2));
+          const resto = Number((form.valor - valorParcela * numP).toFixed(2));
           const parentPayload = {
             ...basePayload,
             descricao: `${form.descricao} (agrupador)`,
             parcela_numero: 0,
-            parcela_total: numParcelas,
+            parcela_total: numP,
           };
           const parentResult = await create(parentPayload);
           const parentId = parentResult?.id ?? null;
 
-          for (let index = 0; index < numParcelas; index++) {
-            const vencimento = new Date(form.data_vencimento);
-            vencimento.setDate(vencimento.getDate() + intervalo * index);
-            await create({
+          const parcelas = Array.from({ length: numP }, (_, i) => {
+            const venc = new Date(form.data_vencimento);
+            venc.setDate(venc.getDate() + intervalo * i);
+            return {
               ...basePayload,
-              descricao: `${form.descricao} - ${index + 1}/${numParcelas}`,
-              valor: index === numParcelas - 1 ? valorParcela + resto : valorParcela,
-              data_vencimento: vencimento.toISOString().split("T")[0],
-              parcela_numero: index + 1,
-              parcela_total: numParcelas,
+              descricao: `${form.descricao} - ${i + 1}/${numP}`,
+              valor: i === numP - 1 ? valorParcela + resto : valorParcela,
+              data_vencimento: venc.toISOString().split("T")[0],
+              parcela_numero: i + 1,
+              parcela_total: numP,
               documento_pai_id: parentId || null,
-            });
-          }
+            };
+          });
+
+          const { error: parcelasError } = await supabase
+            .from("financeiro_lancamentos")
+            .insert(parcelas);
+          if (parcelasError) throw parcelasError;
+
           toast.success(`${numParcelas} parcelas geradas com sucesso!`);
         } else if (mode === "create") {
           await create(basePayload);
