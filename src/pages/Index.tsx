@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState, useCallback } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -26,22 +26,20 @@ import { DashboardCard } from "@/components/dashboard/DashboardCard";
 import { BlockErrorBoundary } from "@/components/dashboard/BlockErrorBoundary";
 import { ViewDrawerV2 } from "@/components/ViewDrawerV2";
 import { useAuth } from "@/contexts/AuthContext";
-import { DashboardPeriodProvider, useDashboardPeriod } from "@/contexts/DashboardPeriodContext";
-import { supabase } from "@/integrations/supabase/client";
-import { formatCurrency, formatNumber } from "@/lib/format";
-import { TrendingUp, DollarSign, Package, BarChart2 } from "lucide-react";
+import { DashboardPeriodProvider } from "@/contexts/DashboardPeriodContext";
+import { formatCurrency } from "@/lib/format";
 import { useNavigate } from "react-router-dom";
 import { useMetas } from "@/hooks/useMetas";
 import { useInView } from "@/hooks/useInView";
-import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useDashboardData } from "@/pages/dashboard/hooks/useDashboardData";
+import { useDashboardKpis } from "@/pages/dashboard/hooks/useDashboardKpis";
+import { useDashboardDrawerData } from "@/pages/dashboard/hooks/useDashboardDrawerData";
 
-// Lazy-loaded heavy chart components
 const VendasChart = lazy(() =>
-  import("@/components/dashboard/VendasChart").then((m) => ({ default: m.VendasChart }))
+  import("@/components/dashboard/VendasChart").then((m) => ({ default: m.VendasChart })),
 );
 
-/** Renders children only once the element enters the viewport. */
 function LazyInViewWidget({
   children,
   fallback,
@@ -57,88 +55,37 @@ function LazyInViewWidget({
   );
 }
 
-/** Minimal row shapes returned by Supabase select() calls – used to avoid `any` in callbacks */
-interface FinRow {
-  valor: number;
-  saldo_restante: number | null;
-  status: string | null;
-}
-
-interface NfRow {
-  status: string | null;
-  valor_total: number | null;
-}
-
-interface RecDataRow {
-  clientes?: { nome_razao_social: string } | null;
-  valor: number;
-  saldo_restante: number | null;
-  status: string | null;
-}
-
-interface NfItemRow {
-  quantidade: number | null;
-  valor_unitario: number | null;
-  produtos?: { nome: string } | null;
-}
-
-interface ProdRow {
-  estoque_minimo: number;
-  estoque_atual: number | null;
-  id: string;
-  nome: string;
-  codigo_interno: string | null;
-  unidade_medida: string;
-}
-
-interface DailyFinRow {
-  data_vencimento: string;
-  valor: number;
-  saldo_restante: number | null;
-  status: string | null;
-}
-
-interface DailyNfRow {
-  data_emissao: string;
-  valor_total: number | null;
-}
-
 const DashboardContent = () => {
   const navigate = useNavigate();
-  const { profile, user } = useAuth();
-  const { range: globalRange } = useDashboardPeriod();
-
+  const { profile } = useAuth();
   const { metas } = useMetas();
-  const [metricDrawer, setMetricDrawer] = useState<null | "receber" | "estoque" | "vendas">(null);
-  const [loadedAt, setLoadedAt] = useState<Date>(new Date());
 
-  const [stats, setStats] = useState({
-    produtos: 0,
-    clientes: 0,
-    fornecedores: 0,
-    orcamentos: 0,
-    compras: 0,
-    contasReceber: 0,
-    contasPagar: 0,
-    contasVencidas: 0,
-    totalReceber: 0,
-    totalPagar: 0,
-  });
-  const [faturamento, setFaturamento] = useState({ mesAtual: 0, mesAnterior: 0 });
-  const [loading, setLoading] = useState(true);
-  const [recentOrcamentos, setRecentOrcamentos] = useState<any[]>([]);
-  const [backlogOVs, setBacklogOVs] = useState<any[]>([]);
-  const [comprasAguardando, setComprasAguardando] = useState<any[]>([]);
-  const [estoqueBaixo, setEstoqueBaixo] = useState<any[]>([]);
-  const [fiscalStats, setFiscalStats] = useState({ emitidas: 0, pendentes: 0, canceladas: 0, valorEmitidas: 0 });
-  const [vencimentosHoje, setVencimentosHoje] = useState({ receber: 0, pagar: 0 });
-  const [topClientes, setTopClientes] = useState<{ nome: string; valor: number }[]>([]);
-  const [topProdutos, setTopProdutos] = useState<{ nome: string; valor: number }[]>([]);
-  const [dailyReceber, setDailyReceber] = useState<{ dia: string; valor: number }[]>([]);
-  const [dailyPagar, setDailyPagar] = useState<{ dia: string; valor: number }[]>([]);
-  const [dailyVendas, setDailyVendas] = useState<{ dia: string; valor: number }[]>([]);
-  const [valorEstoque, setValorEstoque] = useState(0);
-  const [remessasAtrasadas, setRemessasAtrasadas] = useState(0);
+  const [metricDrawer, setMetricDrawer] = useState<null | "receber" | "estoque" | "vendas">(null);
+
+  const {
+    stats,
+    loading,
+    loadedAt,
+    loadData,
+    backlogOVs,
+    comprasAguardando,
+    dailyPagar,
+    dailyReceber,
+    dailyVendas,
+    estoqueBaixo,
+    fiscalStats,
+    recentOrcamentos,
+    remessasAtrasadas,
+    ticketMedio,
+    topClientes,
+    topProdutos,
+    valorEstoque,
+    vencimentosHoje,
+  } = useDashboardData();
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
@@ -147,433 +94,27 @@ const DashboardContent = () => {
     return "Boa noite";
   }, []);
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    const { dateFrom, dateTo } = globalRange;
-    const today = new Date().toISOString().slice(0, 10);
+  const { kpiCards, saldoProjetado } = useDashboardKpis({
+    metas,
+    stats,
+    estoqueBaixoCount: estoqueBaixo.length,
+    dailyReceber,
+    dailyPagar,
+    onOpenReceber: () => navigate("/financeiro?tipo=receber"),
+    onOpenPagar: () => navigate("/financeiro?tipo=pagar"),
+    onOpenSaldo: () => navigate("/fluxo-caixa"),
+    onOpenEstoque: () => navigate("/estoque"),
+    onReceberDetail: () => setMetricDrawer("receber"),
+    onEstoqueDetail: () => setMetricDrawer("estoque"),
+  });
 
-    const buildFinTotalQuery = (tipo: string) => {
-      let q = supabase
-        .from("financeiro_lancamentos")
-        .select("valor, saldo_restante, status")
-        .eq("tipo", tipo)
-        .eq("ativo", true)
-        .in("status", ["aberto", "vencido", "parcial"]);
-      if (dateFrom) q = q.gte("data_vencimento", dateFrom);
-      if (dateTo) q = q.lte("data_vencimento", dateTo);
-      return q;
-    };
-
-    try {
-      const [
-        { count: produtos },
-        { count: clientes },
-        { count: fornecedores },
-        { count: orcamentos },
-        { count: compras },
-        { data: receber },
-        { data: pagar },
-        { data: vencidas },
-        { data: orcRecent },
-        { data: backlog },
-        { data: compAguardando },
-        { data: estMin },
-        { data: nfAtual },
-        { data: nfAnterior },
-        { data: nfStats },
-        { count: receberHoje },
-        { count: pagarHoje },
-      ] = await Promise.all([
-      supabase.from("produtos").select("*", { count: "exact", head: true }).eq("ativo", true),
-      supabase.from("clientes").select("*", { count: "exact", head: true }).eq("ativo", true),
-      supabase.from("fornecedores").select("*", { count: "exact", head: true }).eq("ativo", true),
-      supabase.from("orcamentos").select("*", { count: "exact", head: true }).eq("ativo", true).gte("data_orcamento", dateFrom).lte("data_orcamento", dateTo),
-      supabase.from("pedidos_compra").select("*", { count: "exact", head: true }).eq("ativo", true).gte("data_pedido", dateFrom).lte("data_pedido", dateTo),
-      buildFinTotalQuery("receber"),
-      buildFinTotalQuery("pagar"),
-      supabase.from("financeiro_lancamentos").select("valor").eq("status", "vencido").eq("ativo", true),
-      supabase
-        .from("orcamentos")
-        .select("id, numero, valor_total, status, data_orcamento, clientes(nome_razao_social)")
-        .eq("ativo", true)
-        .gte("data_orcamento", dateFrom)
-        .lte("data_orcamento", dateTo)
-        .order("created_at", { ascending: false })
-        .limit(6),
-      supabase
-        .from("ordens_venda")
-        .select("id, numero, valor_total, data_emissao, data_prometida_despacho, prazo_despacho_dias, status, status_faturamento, clientes(nome_razao_social)")
-        .eq("ativo", true)
-        .in("status", ["aprovada", "em_separacao"])
-        .in("status_faturamento", ["aguardando", "parcial"])
-        .order("data_emissao", { ascending: true })
-        .limit(15),
-      supabase
-        .from("pedidos_compra")
-        .select("id, numero, valor_total, data_pedido, data_entrega_prevista, fornecedores(nome_razao_social)")
-        .eq("ativo", true)
-        .in("status", ["aprovado", "enviado_ao_fornecedor", "aguardando_recebimento", "parcialmente_recebido"])
-        .is("data_entrega_real", null)
-        .order("data_entrega_prevista", { ascending: true })
-        .limit(10),
-      supabase
-        .from("produtos")
-        .select("id, nome, codigo_interno, estoque_atual, estoque_minimo, unidade_medida")
-        .eq("ativo", true)
-        .not("estoque_minimo", "is", null)
-        .limit(100),
-      (() => {
-        const now = new Date();
-        const inicioMesAtual = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
-        return supabase
-          .from("notas_fiscais")
-          .select("valor_total")
-          .eq("ativo", true)
-          .eq("tipo", "saida")
-          .eq("status", "confirmada")
-          .gte("data_emissao", inicioMesAtual);
-      })(),
-      (() => {
-        const now = new Date();
-        const inicioMesAnterior = (() => {
-          const d = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-          return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
-        })();
-        const fimMesAnterior = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
-        return supabase
-          .from("notas_fiscais")
-          .select("valor_total")
-          .eq("ativo", true)
-          .eq("tipo", "saida")
-          .eq("status", "confirmada")
-          .gte("data_emissao", inicioMesAnterior)
-          .lt("data_emissao", fimMesAnterior);
-      })(),
-      // Fiscal stats for current month
-      (() => {
-        const now = new Date();
-        const inicioMes = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
-        return supabase
-          .from("notas_fiscais")
-          .select("status, valor_total")
-          .eq("ativo", true)
-          .gte("data_emissao", inicioMes);
-      })(),
-      // Recebimentos com vencimento hoje
-      supabase
-        .from("financeiro_lancamentos")
-        .select("id", { count: "exact", head: true })
-        .eq("ativo", true)
-        .eq("tipo", "receber")
-        .eq("status", "aberto")
-        .eq("data_vencimento", today),
-      // Pagamentos com vencimento hoje
-      supabase
-        .from("financeiro_lancamentos")
-        .select("id", { count: "exact", head: true })
-        .eq("ativo", true)
-        .eq("tipo", "pagar")
-        .eq("status", "aberto")
-        .eq("data_vencimento", today),
-    ]);
-
-      const totalReceber = (receber || []).reduce((s: number, r: FinRow) => {
-        // For partially paid items, use saldo_restante instead of valor
-        const val = r.status === "parcial"
-          ? Number(r.saldo_restante ?? r.valor ?? 0)
-          : Number(r.valor || 0);
-        return s + val;
-      }, 0);
-      const totalPagar = (pagar || []).reduce((s: number, r: FinRow) => {
-        const val = r.status === "parcial"
-          ? Number(r.saldo_restante ?? r.valor ?? 0)
-          : Number(r.valor || 0);
-        return s + val;
-      }, 0);
-
-      setStats({
-        produtos: produtos || 0,
-        clientes: clientes || 0,
-        fornecedores: fornecedores || 0,
-        orcamentos: orcamentos || 0,
-        compras: compras || 0,
-        totalReceber,
-        totalPagar,
-        contasVencidas: (vencidas || []).length,
-        contasReceber: (receber || []).length,
-        contasPagar: (pagar || []).length,
-      });
-
-      const fatAtual = (nfAtual || []).reduce((s: number, n: NfRow) => s + Number(n.valor_total || 0), 0);
-      const fatAnterior = (nfAnterior || []).reduce((s: number, n: NfRow) => s + Number(n.valor_total || 0), 0);
-      setFaturamento({ mesAtual: fatAtual, mesAnterior: fatAnterior });
-
-      // Fiscal stats
-      const nfArr = nfStats || [];
-      const emitidas = nfArr.filter((n: NfRow) => n.status === "confirmada").length;
-      const pendentes = nfArr.filter((n: NfRow) => n.status === "pendente" || n.status === "rascunho").length;
-      const canceladas = nfArr.filter((n: NfRow) => n.status === "cancelada").length;
-      const valorEmitidas = nfArr
-        .filter((n: NfRow) => n.status === "confirmada")
-        .reduce((s: number, n: NfRow) => s + Number(n.valor_total || 0), 0);
-      setFiscalStats({ emitidas, pendentes, canceladas, valorEmitidas });
-
-      setRecentOrcamentos(orcRecent || []);
-      setBacklogOVs(backlog || []);
-      setComprasAguardando(compAguardando || []);
-      setEstoqueBaixo(
-        (estMin || []).filter((p: ProdRow) => p.estoque_minimo > 0 && (p.estoque_atual ?? 0) <= p.estoque_minimo)
-      );
-      setVencimentosHoje({ receber: receberHoje || 0, pagar: pagarHoje || 0 });
-      setLoadedAt(new Date());
-
-      // Load top-5 clients by open receivables (fire & forget — non-critical)
-      supabase
-        .from("financeiro_lancamentos")
-        .select("valor, saldo_restante, status, clientes(nome_razao_social)")
-        .eq("tipo", "receber")
-        .eq("ativo", true)
-        .in("status", ["aberto", "vencido", "parcial"])
-        .then(({ data: recData }) => {
-          if (!recData) return;
-          const map = new Map<string, number>();
-          for (const r of recData as RecDataRow[]) {
-            const nome: string = r.clientes?.nome_razao_social ?? "Sem cliente";
-            const val = r.status === "parcial"
-              ? Number(r.saldo_restante ?? r.valor ?? 0)
-              : Number(r.valor ?? 0);
-            map.set(nome, (map.get(nome) ?? 0) + val);
-          }
-          const sorted = [...map.entries()]
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 5)
-            .map(([nome, valor]) => ({ nome, valor }));
-          setTopClientes(sorted);
-        });
-
-      // Load top-5 products by NF-e sales this month (fire & forget — non-critical)
-      const inicioMes = (() => {
-        const now = new Date();
-        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
-      })();
-      supabase
-        .from("notas_fiscais_itens")
-        .select("quantidade, valor_unitario, produtos(nome), notas_fiscais!inner(status, tipo, data_emissao)")
-        .eq("notas_fiscais.status", "confirmada")
-        .eq("notas_fiscais.tipo", "saida")
-        .gte("notas_fiscais.data_emissao", inicioMes)
-        .then(({ data: itemData }) => {
-          if (!itemData) return;
-          const map = new Map<string, number>();
-          for (const it of itemData as NfItemRow[]) {
-            const nome: string = it.produtos?.nome ?? "Sem produto";
-            const val = Number(it.quantidade ?? 0) * Number(it.valor_unitario ?? 0);
-            map.set(nome, (map.get(nome) ?? 0) + val);
-          }
-          const sorted = [...map.entries()]
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 5)
-            .map(([nome, valor]) => ({ nome, valor }));
-          setTopProdutos(sorted);
-        });
-
-      // --- 7-day daily data for sparklines + detail drawers ---
-      const buildDays = (fromOffset: number, count: number): string[] =>
-        Array.from({ length: count }, (_, i) => {
-          const d = new Date();
-          d.setDate(d.getDate() + fromOffset + i);
-          return d.toISOString().slice(0, 10);
-        });
-
-      const fmt = (iso: string) => {
-        const [, mm, dd] = iso.split("-");
-        return `${dd}/${mm}`;
-      };
-
-      // Receivables: next 7 days (today … today+6)
-      const nextDays = buildDays(0, 7);
-      supabase
-        .from("financeiro_lancamentos")
-        .select("data_vencimento, valor, saldo_restante, status")
-        .eq("tipo", "receber")
-        .eq("ativo", true)
-        .in("status", ["aberto", "vencido", "parcial"])
-        .in("data_vencimento", nextDays)
-        .then(({ data: dr }) => {
-          if (!dr) return;
-          const map = new Map<string, number>(nextDays.map((d) => [d, 0]));
-          for (const r of dr as DailyFinRow[]) {
-            const val = r.status === "parcial"
-              ? Number(r.saldo_restante ?? r.valor ?? 0)
-              : Number(r.valor ?? 0);
-            map.set(r.data_vencimento, (map.get(r.data_vencimento) ?? 0) + val);
-          }
-          setDailyReceber(nextDays.map((d) => ({ dia: fmt(d), valor: map.get(d) ?? 0 })));
-        });
-
-      // Payables: next 7 days
-      supabase
-        .from("financeiro_lancamentos")
-        .select("data_vencimento, valor, saldo_restante, status")
-        .eq("tipo", "pagar")
-        .eq("ativo", true)
-        .in("status", ["aberto", "vencido", "parcial"])
-        .in("data_vencimento", nextDays)
-        .then(({ data: dp }) => {
-          if (!dp) return;
-          const map = new Map<string, number>(nextDays.map((d) => [d, 0]));
-          for (const r of dp as DailyFinRow[]) {
-            const val = r.status === "parcial"
-              ? Number(r.saldo_restante ?? r.valor ?? 0)
-              : Number(r.valor ?? 0);
-            map.set(r.data_vencimento, (map.get(r.data_vencimento) ?? 0) + val);
-          }
-          setDailyPagar(nextDays.map((d) => ({ dia: fmt(d), valor: map.get(d) ?? 0 })));
-        });
-
-      // Vendas: last 7 days NF-e saída confirmed
-      const lastDays = buildDays(-6, 7);
-      supabase
-        .from("notas_fiscais")
-        .select("data_emissao, valor_total")
-        .eq("ativo", true)
-        .eq("tipo", "saida")
-        .eq("status", "confirmada")
-        .in("data_emissao", lastDays)
-        .then(({ data: dv }) => {
-          if (!dv) return;
-          const map = new Map<string, number>(lastDays.map((d) => [d, 0]));
-          for (const n of dv as DailyNfRow[]) {
-            map.set(n.data_emissao, (map.get(n.data_emissao) ?? 0) + Number(n.valor_total ?? 0));
-          }
-          setDailyVendas(lastDays.map((d) => ({ dia: fmt(d), valor: map.get(d) ?? 0 })));
-        });
-
-      // Valor total em estoque: SUM(estoque_atual * preco_custo) for active products
-      supabase
-        .from("produtos")
-        .select("estoque_atual, preco_custo")
-        .eq("ativo", true)
-        .then(({ data: estoqueData }) => {
-          if (!estoqueData) return;
-          const total = (estoqueData as Array<{estoque_atual: number | null; preco_custo: number | null}>).reduce((s, p) => {
-            return s + (Number(p.estoque_atual ?? 0) * Number(p.preco_custo ?? 0));
-          }, 0);
-          setValorEstoque(total);
-        });
-
-      // Remessas atrasadas: past previsao_entrega and not terminal status
-      supabase
-        .from("remessas")
-        .select("id", { count: "exact", head: true })
-        .lt("previsao_entrega", today)
-        .not("status_transporte", "in", '("entregue","cancelado")')
-        .then(({ count }) => {
-          setRemessasAtrasadas(count ?? 0);
-        });
-    } catch (err) {
-      console.error("[dashboard] erro ao carregar dados:", err);
-      toast.error("Erro ao carregar dados do dashboard. Tente novamente.");
-    } finally {
-      setLoading(false);
-    }
-  }, [globalRange]);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
-
-  const saldoProjetado = stats.totalReceber - stats.totalPagar;
-
-  const kpiCards = [
-    {
-      id: "receber",
-      title: "Contas a Receber",
-      value: formatCurrency(stats.totalReceber),
-      subtitle: `${formatNumber(stats.contasReceber)} título${stats.contasReceber !== 1 ? "s" : ""} em aberto`,
-      icon: TrendingUp,
-      variation: stats.contasVencidas > 0 ? `${stats.contasVencidas} vencido${stats.contasVencidas > 1 ? "s" : ""}` : "Sem vencidos",
-      variationType: stats.contasVencidas > 0 ? ("negative" as const) : ("positive" as const),
-      variant: stats.contasVencidas > 0 ? ("warning" as const) : ("success" as const),
-      sparklineData: dailyReceber.length > 0 ? dailyReceber.map((d) => d.valor) : undefined,
-      onClick: () => navigate("/financeiro?tipo=receber"),
-      onDetail: () => setMetricDrawer("receber"),
-      'aria-label': "Ver contas a receber no módulo financeiro",
-      meta: metas.receber,
-      realizado: stats.totalReceber,
-    },
-    {
-      id: "pagar",
-      title: "Contas a Pagar",
-      value: formatCurrency(stats.totalPagar),
-      subtitle: `${formatNumber(stats.contasPagar)} título${stats.contasPagar !== 1 ? "s" : ""} em aberto`,
-      icon: DollarSign,
-      variation: stats.totalPagar > stats.totalReceber ? "Saldo negativo" : "Saldo positivo",
-      variationType: stats.totalPagar > stats.totalReceber ? ("negative" as const) : ("positive" as const),
-      variant: stats.totalPagar > stats.totalReceber ? ("danger" as const) : ("warning" as const),
-      sparklineData: dailyPagar.length > 0 ? dailyPagar.map((d) => d.valor) : undefined,
-      onClick: () => navigate("/financeiro?tipo=pagar"),
-      'aria-label': "Ver contas a pagar no módulo financeiro",
-      meta: metas.pagar,
-      realizado: stats.totalPagar,
-    },
-    {
-      id: "saldo",
-      title: "Saldo Projetado",
-      value: formatCurrency(saldoProjetado),
-      subtitle: "receber − pagar",
-      icon: BarChart2,
-      variation: saldoProjetado >= 0 ? "Caixa positivo" : "Caixa negativo",
-      variationType: saldoProjetado >= 0 ? ("positive" as const) : ("negative" as const),
-      variant: saldoProjetado >= 0 ? ("success" as const) : ("danger" as const),
-      sparklineData:
-        dailyReceber.length > 0 && dailyPagar.length > 0
-          ? dailyReceber.map((r, i) => r.valor - (dailyPagar[i]?.valor ?? 0))
-          : undefined,
-      onClick: () => navigate("/fluxo-caixa"),
-      'aria-label': "Ver saldo projetado no fluxo de caixa",
-      meta: metas.saldo,
-      realizado: saldoProjetado,
-    },
-    {
-      id: "estoque",
-      title: "Estoque Crítico",
-      value: formatNumber(estoqueBaixo.length),
-      subtitle: estoqueBaixo.length > 0 ? "produto(s) abaixo do mínimo" : "Estoque dentro do normal",
-      icon: Package,
-      variation: estoqueBaixo.length > 0 ? "Reposição necessária" : "Sem itens críticos",
-      variationType: estoqueBaixo.length > 0 ? ("negative" as const) : ("positive" as const),
-      variant: estoqueBaixo.length > 0 ? ("danger" as const) : ("success" as const),
-      sparklineData: undefined,
-      onClick: () => navigate("/estoque"),
-      onDetail: () => setMetricDrawer("estoque"),
-      'aria-label': "Ver produtos com estoque crítico",
-    },
-  ];
-
-  const ticketMedio =
-    stats.orcamentos > 0 ? faturamento.mesAtual / (stats.orcamentos || 1) : 0;
-
-  const detailData = {
-    receber: {
-      title: "Vencimentos dos Próximos 7 Dias",
-      daily: dailyReceber,
-      top: topClientes,
-    },
-    estoque: {
-      title: "Estoque Crítico",
-      daily: [] as { dia: string; valor: number }[],
-      top: estoqueBaixo.slice(0, 5).map((p: ProdRow) => ({
-        nome: p.codigo_interno ? `${p.codigo_interno} – ${p.nome}` : p.nome,
-        valor: p.estoque_atual ?? 0,
-      })),
-    },
-    vendas: {
-      title: "Vendas dos Últimos 7 Dias",
-      daily: dailyVendas,
-      top: topProdutos,
-    },
-  };
+  const detailData = useDashboardDrawerData({
+    dailyReceber,
+    topClientes,
+    estoqueBaixo,
+    dailyVendas,
+    topProdutos,
+  });
 
   if (loading) {
     return (
@@ -587,10 +128,8 @@ const DashboardContent = () => {
 
   return (
     <AppLayout>
-      {/* ── Header ── */}
       <DashboardHeader lastUpdated={loadedAt} onRefresh={loadData} />
 
-      {/* ── Saudação contextual ── */}
       <div className="mb-4 rounded-lg border border-border/60 bg-muted/10 px-4 py-3">
         <p className="text-sm font-medium text-foreground">
           {greeting}, {profile?.nome?.split(" ")[0] || "time"} 👋
@@ -606,14 +145,12 @@ const DashboardContent = () => {
       </div>
 
       <div className="space-y-4">
-        {/* KPIs */}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {kpiCards.map((c) => (
             <SummaryCard key={c.id} {...c} density="compact" />
           ))}
         </div>
 
-        {/* Alertas */}
         <AlertStrip
           titulosVencidos={stats.contasVencidas}
           estoqueBaixo={estoqueBaixo.length}
@@ -626,7 +163,6 @@ const DashboardContent = () => {
           ovsPendentes={backlogOVs.length}
         />
 
-        {/* Financeiro + Ações Rápidas */}
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           <div className="lg:col-span-2">
             <BlockErrorBoundary label="Financeiro">
@@ -647,7 +183,6 @@ const DashboardContent = () => {
           </div>
         </div>
 
-        {/* Vendas chart + Pendências */}
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <LazyInViewWidget fallback={<Skeleton className="h-[240px] w-full rounded-xl" />}>
             <DashboardCard>
@@ -671,7 +206,6 @@ const DashboardContent = () => {
           </DashboardCard>
         </div>
 
-        {/* Comercial + Estoque */}
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <BlockErrorBoundary label="Comercial">
             <ComercialBlock
@@ -691,7 +225,6 @@ const DashboardContent = () => {
           </BlockErrorBoundary>
         </div>
 
-        {/* Logística + Fiscal */}
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <LazyInViewWidget fallback={<Skeleton className="h-[220px] w-full rounded-xl" />}>
             <BlockErrorBoundary label="Logística">
@@ -709,7 +242,6 @@ const DashboardContent = () => {
         </div>
       </div>
 
-      {/* ── Drawer de detalhes por métrica ── */}
       <ViewDrawerV2
         open={!!metricDrawer}
         onClose={() => setMetricDrawer(null)}
@@ -743,7 +275,10 @@ const DashboardContent = () => {
                         <div className="text-right">
                           <button
                             type="button"
-                            onClick={() => { setMetricDrawer(null); navigate("/financeiro?tipo=receber"); }}
+                            onClick={() => {
+                              setMetricDrawer(null);
+                              navigate("/financeiro?tipo=receber");
+                            }}
                             className="text-xs text-primary underline-offset-2 hover:underline"
                           >
                             Ver todos os títulos →
@@ -779,7 +314,10 @@ const DashboardContent = () => {
                         <div className="text-right">
                           <button
                             type="button"
-                            onClick={() => { setMetricDrawer(null); navigate("/estoque"); }}
+                            onClick={() => {
+                              setMetricDrawer(null);
+                              navigate("/estoque");
+                            }}
                             className="text-xs text-primary underline-offset-2 hover:underline"
                           >
                             Ver estoque completo →

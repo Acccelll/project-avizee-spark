@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    "strict": true,
+    "noEmit": true
+  },
+  "include": [
+    "src/pages/Perfil.tsx",
+    "src/services/admin/empresa.service.ts",
+    "src/pages/relatorios/hooks/useRelatorioVendas.ts",
+    "src/pages/relatorios/hooks/useRelatorioFinanceiro.ts"
+  ]
+}
