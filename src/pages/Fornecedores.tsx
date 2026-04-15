@@ -32,6 +32,7 @@ import {
 import { formatDate, formatCurrency } from "@/lib/format";
 import { clienteFornecedorSchema, validateForm } from "@/lib/validationSchemas";
 import { StatCard } from "@/components/StatCard";
+import { AddProdutoFornecedor } from "@/components/fornecedores/AddProdutoFornecedor";
 
 const MAX_OBSERVACOES_LENGTH = 2000;
 const MAX_PRAZO_DAYS = 365;
