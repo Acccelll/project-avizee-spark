@@ -1,133 +1,152 @@
 
 
-# Plan: P0-P3 Implementation (20 Prompts)
+# Rodada Corretiva e Evolutiva — ERP AviZee
 
-This is a large cross-cutting implementation spanning Edge Functions, migrations, security hardening, and code quality. Due to scope, I'll execute in batches.
+## Summary
 
----
-
-## Batch 1: P0 — Functional (Prompts 1-6)
-
-### Prompt 1 — Edge Function `sefaz-proxy`
-Create `supabase/functions/sefaz-proxy/index.ts`:
-- Import `node-forge` from esm.sh
-- Handle `action: "assinar-e-enviar"`: parse PFX, extract private key + cert, compute SHA-1 digest of `<infNFe>`, sign with RSA-SHA1, inject `<Signature>` (xmldsig), wrap in SOAP envelope, send to SEFAZ URL
-- Handle `action: "parse-certificado"`: extract CNPJ from subject serialNumber, razaoSocial from CN, validity dates from cert
-- JWT auth via Supabase, CORS via `ALLOWED_ORIGIN`
-
-### Prompt 2 — Rewrite `httpClient.service.ts`
-Replace direct `fetch()` to SEFAZ with `supabase.functions.invoke('sefaz-proxy', { body: { action: 'assinar-e-enviar', ... } })`. Keep `SefazResponse`, `SefazRequestOptions`, `enviarParaSefaz()` public interface. Add `certificado_base64` and `certificado_senha` as new required params.
-
-### Prompt 3 — Simplify `assinaturaDigital.service.ts`
-Keep only types `CertificadoDigital` and `AssinaturaResult`. Remove `assinarXML()` function. Add comment explaining signing happens in sefaz-proxy.
-
-Update `autorizacao.service.ts` to pass certificado through to `enviarParaSefaz()` instead of calling `assinarXML()` separately.
-
-### Prompt 4 — Edge Function `admin-sessions`
-Create `supabase/functions/admin-sessions/index.ts`:
-- Verify JWT, check admin role via `user_roles` table using service_role client
-- `action: "list"`: `supabase.auth.admin.listUsers()`, map to `SessaoAtiva` interface
-- `action: "revoke"`: `supabase.auth.admin.signOut(userId, 'global')`
-- CORS with `ALLOWED_ORIGIN`, strict 500 if not set (like admin-users)
-
-### Prompt 5 — Numeração atômica (migration)
-Create `supabase/migrations/20260415000003_numeracao_atomica.sql`:
-- Create sequences `seq_orcamento`, `seq_ordem_venda`, `seq_pedido_compra`, `seq_cotacao_compra`, `seq_nota_fiscal`
-- Initialize each with `setval(seq, COALESCE(MAX(numero_int), 0) + 1)` based on existing data
-- Create SECURITY DEFINER functions: `proximo_numero_orcamento()` → `'COT' || LPAD(nextval(...)::text, 6, '0')`, etc.
-- Add UNIQUE constraints with `DO $$ EXCEPTION WHEN duplicate_object` guard
-- Update `OrcamentoForm.tsx`: replace `COUNT(*)+1` with `supabase.rpc('proximo_numero_orcamento')` in both create and duplicate flows
-
-### Prompt 6 — Atomic save via stored procedure
-Create `supabase/migrations/20260415000004_fn_salvar_orcamento.sql`:
-- `salvar_orcamento(p_id UUID, p_payload JSONB, p_itens JSONB)` — transactional upsert + delete-and-reinsert items
-- Update `handleSave` and `handleDuplicate` in `OrcamentoForm.tsx` to use `supabase.rpc('salvar_orcamento', ...)`
-
-### Prompt 7 — Email: keep Lovable Email (NOT Resend)
-**Important deviation**: The project already uses `@lovable.dev/email-js` which is the built-in Lovable Email system. Per platform guidelines, I should NOT replace it with Resend. The existing `process-email-queue` is working correctly. I will skip this prompt or only document that the current implementation is correct.
-
-### Prompt 8 — Certificate service rewrite
-Rewrite `lerCertificadoA1()` in `certificado.service.ts` to call `supabase.functions.invoke('sefaz-proxy', { body: { action: 'parse-certificado', ... } })` instead of returning fake data.
+This plan addresses 12 distinct areas across Dashboard, Produtos, Clientes, Fornecedores, Orçamentos, Compras, Logística, and Financeiro. Due to the breadth, implementation will proceed in 4 sequential batches.
 
 ---
 
-## Batch 2: P1 — Security (Prompts 7-10)
+## Batch 1: Clientes, Produtos, Fornecedores
 
-### Prompt 9 — RLS restrictions (migration)
-Create migration to:
-- Restrict INSERT/UPDATE on `app_configuracoes`, `empresa_config` to admin only
-- Restrict DELETE on `financeiro_lancamentos`, `financeiro_baixas`, `notas_fiscais`, `notas_fiscais_itens` to admin
-- Drop DELETE policy on `auditoria_logs` (immutable)
-- Add conditional UPDATE on `notas_fiscais` for authorized/cancelled status
+### 1. Clientes — Comunicações (save fails)
 
-### Prompt 10 — Vault for credentials
-Create migration with `upsert_secret()` and `get_secret()` SECURITY DEFINER functions wrapping `vault.create_secret`/`vault.decrypted_secrets`.
-Update `configuracoes.service.ts` to store sensitive fields via vault RPC.
+**Root cause**: The `handleSaveComunicacao` inserts columns `responsavel_nome`, `retorno_previsto`, `status`, `data_hora` that do NOT exist on `cliente_registros_comunicacao`. The table only has: `id, cliente_id, tipo, assunto, conteudo, data_registro, responsavel_id, created_at`.
 
-### Prompt 11 — CORS strict in all Edge Functions
-Update `social-sync`, `setup-admin`, `correios-api` to use `""` instead of `"*"` as CORS fallback. Ensure `admin-users` pattern (500 if not set) is documented.
+**Fix**:
+- Migration: add columns `responsavel_nome TEXT`, `retorno_previsto DATE`, `status TEXT DEFAULT 'registrado'`, `data_hora TIMESTAMPTZ` to `cliente_registros_comunicacao`.
+- No code changes needed — the insert payload already matches.
 
-### Prompt 12 — RLS read restrictions (migration)
-Restrict SELECT on financial/audit tables to admin/financeiro roles.
+### 2. Clientes — Endereços Alternativos (save fails)
 
----
+**Root cause**: The `clientes_enderecos_entrega` table exists (migration found), but it's not in the Supabase types because it was added via raw SQL. The code uses `(supabase as any)` to work around this, so the CRUD should work if the table migration ran.
 
-## Batch 3: P2 — Database (Prompts 11-14)
+**Action**: Verify table exists via query; if save still fails, the issue may be RLS. The current RLS policy uses `auth.role() = 'authenticated'` which differs from the typical `TO authenticated` pattern. Will confirm and fix if needed.
 
-### Prompt 13 — FK indexes (migration)
-`CREATE INDEX CONCURRENTLY IF NOT EXISTS` for all FK columns and common filter columns across ~15 tables.
+### 3. Produtos — Component search UX
 
-### Prompt 14 — CHECK constraints (migration)
-Add CHECK constraints for status/tipo fields on all transactional tables using `DO $$ EXCEPTION` guard.
+**Current**: Component selection uses a raw `<Select>` dropdown which is hard to search through when many products exist.
 
-### Prompt 15 — Estoque trigger + UNIQUE docs (migration)
-Create trigger `trg_estoque_movimentos_sync` and partial unique indexes on `cpf_cnpj` for clientes/fornecedores.
+**Fix**: Replace the component product `<Select>` with the existing `AutocompleteSearch` component (already used in CotacoesCompra), filtering `produtosDisponiveis` with search-as-you-type. Follow the same pattern as `FiscalAutocomplete`.
 
-### Prompt 16 — Indexes for new modules (migration)
-Indexes for `apresentacao_geracoes`, `workbook_geracoes`, `email_send_log`, `remessas`.
+### 4. Produtos — CNPJ/CPF duplicate warning on edit
 
----
+**Root cause**: `useDocumentoUnico` fires immediately when the document value is populated (on edit open), showing "already registered" warning for the record being edited. The hook does pass `excludeId` correctly, but it checks BOTH `clientes` AND `fornecedores` tables. On the Fornecedores page, `excludeId` is passed to filter `clientes.neq("id", excludeId)` but the ID belongs to `fornecedores` table — so it won't match and the check returns `isUnique=false`.
 
-## Batch 4: P3 — Code Quality (Prompts 15-20)
-These are large refactoring tasks. Due to scope constraints, I'll prioritize:
-- Removing `@ts-nocheck` from OrcamentoForm (already being modified)
-- Integration tests for fiscal and financial flows
+**Fix**: Add a `table` parameter to `useDocumentoUnico` so it knows which table to exclude from:
+- When called from Clientes: exclude from `clientes` by ID
+- When called from Fornecedores: exclude from `fornecedores` by ID
+- Cross-table check should not exclude the current record
 
-Lower priority items (decomposing Clientes.tsx/Produtos.tsx, virtualizing DataTable, typing useSupabaseCrud) will be noted for follow-up.
+### 5. Fornecedores — Manual product linkage
+
+**Current**: The "Compras" tab only shows auto-detected `produtos_fornecedores` entries (read-only). No way to manually add a product relationship.
+
+**Fix**: Add an "Add Product" section below the existing context block, with:
+- Product autocomplete (from `produtosCrud.data`)
+- Price, lead time, unit fields
+- Save button that inserts into `produtos_fornecedores`
+- Delete button on existing entries
 
 ---
 
-## Files Created/Modified
+## Batch 2: Dashboard, Orçamentos
 
-| File | Action |
-|------|--------|
-| `supabase/functions/sefaz-proxy/index.ts` | Create |
-| `supabase/functions/admin-sessions/index.ts` | Create |
-| `supabase/migrations/20260415000003_*.sql` | Create (sequences + functions) |
-| `supabase/migrations/20260415000004_*.sql` | Create (salvar_orcamento) |
-| `supabase/migrations/20260415000007_*.sql` | Create (RLS restrictions) |
-| `supabase/migrations/20260415000008_*.sql` | Create (vault functions) |
-| `supabase/migrations/20260415000010_*.sql` | Create (RLS read) |
-| `supabase/migrations/20260415000011_*.sql` | Create (FK indexes) |
-| `supabase/migrations/20260415000012_*.sql` | Create (CHECK constraints) |
-| `supabase/migrations/20260415000013_*.sql` | Create (estoque trigger + unique) |
-| `supabase/migrations/20260415000014_*.sql` | Create (new module indexes) |
-| `src/services/fiscal/sefaz/httpClient.service.ts` | Rewrite |
-| `src/services/fiscal/sefaz/assinaturaDigital.service.ts` | Simplify |
-| `src/services/fiscal/sefaz/autorizacao.service.ts` | Update |
-| `src/services/fiscal/certificado.service.ts` | Rewrite |
-| `src/pages/OrcamentoForm.tsx` | Update (RPC calls, remove @ts-nocheck) |
-| `src/pages/configuracoes/services/configuracoes.service.ts` | Update (vault) |
-| `supabase/functions/social-sync/index.ts` | CORS fix |
-| `supabase/functions/setup-admin/index.ts` | CORS fix |
-| `supabase/functions/correios-api/index.ts` | CORS fix |
-| `src/tests/integration/fluxo-fiscal.test.ts` | Create |
+### 6. Dashboard — Date filters not working
 
-## Key Decision: Email
-The `process-email-queue` uses `@lovable.dev/email-js` which is the built-in Lovable Email system. Per platform policy, this should NOT be replaced with Resend. The current implementation is correct and functional.
+**Root cause**: `DashboardPeriodContext` computes `range` correctly, and `loadData` in Index.tsx uses `globalRange.dateFrom`/`dateTo`. However, the queries apply `dateFrom` inconsistently — some use `.gte()` but not `.lte()` for `dateTo`. Also, `buildFinTotalQuery` only applies `dateTo` but not `dateFrom`, so "Today" and "This Week" periods show all-time financial data.
 
-## Risks
-- `node-forge` via esm.sh in Deno Edge Functions may have compatibility issues — needs testing after deploy
-- Vault functions require the `vault` extension to be enabled
-- CORS strict mode requires `ALLOWED_ORIGIN` secret to be set before Edge Functions work
+**Fix**:
+- In `buildFinTotalQuery`: add `.gte("data_vencimento", dateFrom)` alongside the existing `.lte()`.
+- In all other queries: ensure both `dateFrom` and `dateTo` bounds are applied consistently.
+- Verify `orcamentos`, `pedidos_compra`, `notas_fiscais`, and `financeiro_lancamentos` queries all use both bounds.
+
+### 7. Orçamentos — Field/schema alignment
+
+**Current status**: Recent migrations added `desconto`, `imposto_st`, `imposto_ipi`, `outras_despesas` columns. The `salvar_orcamento` RPC was updated with date casts. Need to verify all form fields in `OrcamentoForm.tsx` map correctly to schema.
+
+**Action**: Audit `OrcamentoForm.tsx` handleSave payload against `salvar_orcamento` RPC and `orcamentos` table columns. Fix any remaining mismatches. Test the full create → edit → convert-to-order flow.
+
+---
+
+## Batch 3: Compras (Cotações), Logística
+
+### 8. Compras — Purchase quote flow end-to-end
+
+The `useCotacoesCompra` hook already handles the full flow: create → add proposals → select → approve → generate order. Issues to fix:
+- `gerarPedido` uses `Date.now().slice(-6)` for numbering — replace with `proximo_numero_pedido_compra()` RPC.
+- Add the missing `status` value `"convertida"` to the `cotacoes_compra` CHECK constraint (if not already there).
+- Verify `pedidos_compra_itens` insert payload matches schema.
+
+### 9. Logística improvements
+
+Multiple sub-items:
+
+**a) Remessa type (Entrega vs Recebimento)**: Add a `tipo_remessa` column (`entrega` | `recebimento`) to `remessas` table. Update the form modal to show a type selector. Filter remessas into Entregas/Recebimentos tabs based on this field + linked `ordem_venda_id`/`pedido_compra_id`.
+
+**b) "Atualizar Rastreios" button**: Add a button next to "Nova Remessa" in the header that calls `handleRastrear` for all remessas with `codigo_rastreio` and non-terminal status.
+
+**c) Remessas feeding Entregas/Recebimentos**: Update `useEntregas` and `useRecebimentos` hooks to also query remessas linked via `ordem_venda_id` and `pedido_compra_id` respectively, merging tracking data.
+
+**d) Estoque Posição Atual manual adjustment**: Improve the adjust dialog in `Estoque.tsx` to show current stock, target value, and reason field.
+
+---
+
+## Batch 4: Financeiro
+
+### 10. Block baixa on already-paid items
+
+**Current**: The "Baixar" button already checks `canBaixa = es !== "pago" && es !== "cancelado"` and hides the button. But the `BaixaParcialDialog` doesn't validate on open.
+
+**Fix**:
+- Add validation in `BaixaParcialDialog.handleSubmit`: if `lancamento.status === 'pago'` or `saldo_restante <= 0`, show error toast and return.
+- In `BaixaLoteModal`: filter out already-paid items from selection with a warning message.
+
+### 11. Estorno with mandatory reason
+
+**Current**: `processarEstorno` in `financeiro.service.ts` does not require a reason. The `ConfirmDialog` doesn't have a text field.
+
+**Fix**:
+- Add `motivo_estorno` parameter to `processarEstorno`.
+- Store the reason in a new `motivo_estorno TEXT` column on `financeiro_lancamentos`.
+- Update the estorno `ConfirmDialog` in `Financeiro.tsx` to include a required `<Textarea>` for the reason. Disable confirm button until filled.
+- After successful estorno, status returns to `aberto` and the item becomes available for baixa again (already works).
+
+### 12. Fluxo de Caixa fed by Contas a Pagar/Receber
+
+**Current**: `FluxoCaixa.tsx` already queries `financeiro_lancamentos` and groups by `data_vencimento`, showing previsto vs realizado. This is fundamentally correct.
+
+**Improvements**:
+- Include `saldo_restante` in the realizado calculation for partial payments.
+- Add bank account initial balance from `contas_bancarias.saldo_atual` to the cumulative chart.
+- Show tooltip with breakdowns (previsão a receber, previsão a pagar, realizado).
+
+---
+
+## Database Migrations Required
+
+1. `cliente_registros_comunicacao`: ADD `responsavel_nome`, `retorno_previsto`, `status`, `data_hora`
+2. `remessas`: ADD `tipo_remessa TEXT DEFAULT 'entrega'`
+3. `financeiro_lancamentos`: ADD `motivo_estorno TEXT`
+4. `cotacoes_compra` CHECK constraint: add `'convertida'` if missing
+
+## Files Modified (estimated)
+
+| Area | Files |
+|------|-------|
+| Clientes | Migration SQL, no code changes needed |
+| Produtos | `src/pages/Produtos.tsx` (component search) |
+| CNPJ check | `src/hooks/useDocumentoUnico.ts`, `Clientes.tsx`, `Fornecedores.tsx` |
+| Fornecedores | `src/pages/Fornecedores.tsx` (product linkage) |
+| Dashboard | `src/pages/Index.tsx` (date filter queries) |
+| Orçamentos | `src/pages/OrcamentoForm.tsx` (field audit) |
+| Cotações | `src/hooks/useCotacoesCompra.ts` (numbering, constraint) |
+| Logística | `src/pages/Logistica.tsx`, `useEntregas.ts`, `useRecebimentos.ts`, Migration |
+| Financeiro | `src/pages/Financeiro.tsx`, `src/services/financeiro.service.ts`, `BaixaParcialDialog.tsx`, Migration |
+| Fluxo Caixa | `src/pages/FluxoCaixa.tsx` |
+
+## Execution Order
+
+Batch 1 first (quick DB fixes + UI), then Batch 2 (Dashboard + Orçamentos audit), then Batch 3 (Logística), then Batch 4 (Financeiro). Each batch will be verified with `tsc --noEmit` before proceeding.
 
