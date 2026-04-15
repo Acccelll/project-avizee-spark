@@ -26,10 +26,14 @@ interface Props {
 }
 
 export function PedidoCompraView({ id }: Props) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [selected, setSelected] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [viewItems, setViewItems] = useState<any[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [viewEstoque, setViewEstoque] = useState<any[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [viewCotacao, setViewCotacao] = useState<any | null>(null);
   const { pushView } = useRelationalNavigation();
 
@@ -58,9 +62,11 @@ export function PedidoCompraView({ id }: Props) {
       ]);
 
       setViewItems(itensResult.data || []);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       setViewEstoque((estResult.data as any[]) || []);
 
       if (p.cotacao_compra_id) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { data: cot } = await (supabase.from as any)("cotacoes_compra")
           .select("id, numero, status, data_cotacao")
           .eq("id", p.cotacao_compra_id)
@@ -92,6 +98,7 @@ export function PedidoCompraView({ id }: Props) {
   })();
 
   const estoquePorProduto: Record<string, number> = viewEstoque.reduce(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (acc: Record<string, number>, m: any) => {
       const key = String(m.produto_id);
       acc[key] = (acc[key] || 0) + Number(m.quantidade || 0);
@@ -99,7 +106,9 @@ export function PedidoCompraView({ id }: Props) {
     },
     {},
   );
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const totalOrdenado = viewItems.reduce((s: number, i: any) => s + Number(i.quantidade || 0), 0);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const totalRecebido = viewEstoque.reduce((s: number, m: any) => s + Number(m.quantidade || 0), 0);
   const pctRecebimento = totalOrdenado > 0 ? Math.min(100, Math.round((totalRecebido / totalOrdenado) * 100)) : 0;
 
@@ -228,6 +237,7 @@ export function PedidoCompraView({ id }: Props) {
                 </tr>
               </thead>
               <tbody>
+                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                 {viewItems.map((i: any, idx: number) => {
                   const qtdRec = estoquePorProduto[String(i.produto_id)] || 0;
                   const qtdPend = Math.max(0, Number(i.quantidade) - qtdRec);
@@ -281,6 +291,7 @@ export function PedidoCompraView({ id }: Props) {
           {viewItems.length > 0 && (
             <ViewSection title="Progresso por Item">
               <div className="space-y-3">
+                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                 {viewItems.map((i: any, idx: number) => {
                   const qtdRec = estoquePorProduto[String(i.produto_id)] || 0;
                   const qtdPend = Math.max(0, Number(i.quantidade) - qtdRec);
@@ -340,6 +351,7 @@ export function PedidoCompraView({ id }: Props) {
                     </tr>
                   </thead>
                   <tbody>
+                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                     {viewEstoque.map((m: any, idx: number) => (
                       <tr key={idx} className="border-b last:border-b-0 hover:bg-muted/20">
                         <td className="px-2 py-2 font-medium">{m.produtos?.nome || "—"}</td>
@@ -410,6 +422,7 @@ export function PedidoCompraView({ id }: Props) {
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Produtos</span>
                 <span className="font-mono">
+                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                   {formatCurrency(viewItems.reduce((s: number, i: any) => s + Number(i.valor_total || 0), 0))}
                 </span>
               </div>
