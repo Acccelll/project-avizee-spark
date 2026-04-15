@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 import { useState, useCallback } from "react";
 import * as XLSX from "@/lib/xlsx-compat";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,9 +20,10 @@ export function useImportacaoEstoque() {
   const [workbook, setWorkbook] = useState<XLSX.WorkBook | null>(null);
   const [sheets, setSheets] = useState<string[]>([]);
   const [currentSheet, setCurrentSheet] = useState<string>("");
-  const [rawRows, setRawRows] = useState<any[]>([]);
+  const [rawRows, setRawRows] = useState<Record<string, unknown>[]>([]);
   const [headers, setHeaders] = useState<string[]>([]);
   const [mapping, setMapping] = useState<Mapping>({});
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [previewData, setPreviewData] = useState<any[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [loteId, setLoteId] = useState<string | null>(null);
@@ -37,7 +38,7 @@ export function useImportacaoEstoque() {
     if (data.length > 0) {
       const headerRow = data[0] as string[];
       setHeaders(headerRow);
-      setRawRows(XLSX.utils.sheet_to_json(ws));
+      setRawRows(XLSX.utils.sheet_to_json(ws) as Record<string, unknown>[]);
 
       const initialMapping: Mapping = {};
       headerRow.forEach(h => {
@@ -66,8 +67,8 @@ export function useImportacaoEstoque() {
         if (wb.SheetNames.length > 0) {
           onSheetChange(wb.SheetNames[0], wb);
         }
-      } catch (err: any) {
-        toast.error(`Erro ao ler arquivo: ${err.message}`);
+      } catch (err: unknown) {
+        toast.error(`Erro ao ler arquivo: ${err instanceof Error ? err.message : String(err)}`);
       }
     };
     reader.readAsBinaryString(selectedFile);
@@ -86,6 +87,7 @@ export function useImportacaoEstoque() {
       const prodByInterno = new Map(produtosBanco?.filter(p => p.codigo_interno).map(p => [p.codigo_interno, p]));
 
       const preview = rawRows.map((row, index) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const mappedRow: any = {};
         Object.entries(mapping).forEach(([field, colName]) => {
           mappedRow[field] = row[colName];
@@ -120,8 +122,8 @@ export function useImportacaoEstoque() {
       });
 
       setPreviewData(preview);
-    } catch (err: any) {
-      toast.error(`Erro ao validar dados: ${err.message}`);
+    } catch (err: unknown) {
+      toast.error(`Erro ao validar dados: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setIsProcessing(false);
     }
@@ -192,9 +194,9 @@ export function useImportacaoEstoque() {
       toast.success(`${validos.length} itens enviados para staging. Confirme para consolidar.`);
       return currentLoteId;
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Erro na importação de estoque:", error);
-      toast.error(`Falha no processamento: ${error.message}`);
+      toast.error(`Falha no processamento: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setIsProcessing(false);
     }
@@ -215,6 +217,7 @@ export function useImportacaoEstoque() {
 
       if (error) throw error;
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const result = data as any;
       if (result?.erro) {
         toast.error(`Erro na consolidação: ${result.erro}`);
@@ -229,9 +232,9 @@ export function useImportacaoEstoque() {
 
       toast.success(`${result.inseridos} saldos de estoque atualizados.`);
       return true;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Erro na consolidação de estoque:", error);
-      toast.error(`Falha na consolidação: ${error.message}`);
+      toast.error(`Falha na consolidação: ${error instanceof Error ? error.message : String(error)}`);
       return false;
     } finally {
       setIsProcessing(false);
@@ -245,8 +248,8 @@ export function useImportacaoEstoque() {
       await supabase.from("stg_estoque_inicial").delete().eq("lote_id", targetLoteId);
       await supabase.from("importacao_lotes").update({ status: "cancelado" }).eq("id", targetLoteId);
       toast.info("Lote cancelado.");
-    } catch (err: any) {
-      toast.error(`Erro ao cancelar: ${err.message}`);
+    } catch (err: unknown) {
+      toast.error(`Erro ao cancelar: ${err instanceof Error ? err.message : String(err)}`);
     }
   };
 

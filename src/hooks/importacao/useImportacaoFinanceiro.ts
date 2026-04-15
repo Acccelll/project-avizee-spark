@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 import { useState, useCallback } from "react";
 import * as XLSX from "@/lib/xlsx-compat";
 import { supabase } from "@/integrations/supabase/client";
@@ -43,8 +43,8 @@ export function useImportacaoFinanceiro() {
         if (wb.SheetNames.length > 0) {
           onSheetChange(wb.SheetNames[0], wb);
         }
-      } catch (err: any) {
-        toast.error(`Erro ao ler arquivo: ${err.message}`);
+      } catch (err: unknown) {
+        toast.error(`Erro ao ler arquivo: ${err instanceof Error ? err.message : String(err)}`);
       }
     };
     reader.readAsBinaryString(selectedFile);
@@ -243,6 +243,7 @@ export function useImportacaoFinanceiro() {
 
       if (error) throw error;
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const result = data as any;
       if (result?.erro) {
         toast.error(`Erro na consolidação: ${result.erro}`);
@@ -257,9 +258,9 @@ export function useImportacaoFinanceiro() {
 
       toast.success(`${result.inseridos} lançamentos financeiros consolidados.`);
       return true;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Erro na consolidação financeira:", error);
-      toast.error(`Falha na consolidação: ${error.message}`);
+      toast.error(`Falha na consolidação: ${error instanceof Error ? error.message : String(error)}`);
       return false;
     } finally {
       setIsProcessing(false);
@@ -273,8 +274,8 @@ export function useImportacaoFinanceiro() {
       await supabase.from("stg_financeiro_aberto").delete().eq("lote_id", targetLoteId);
       await supabase.from("importacao_lotes").update({ status: "cancelado" }).eq("id", targetLoteId);
       toast.info("Lote cancelado.");
-    } catch (err: any) {
-      toast.error(`Erro ao cancelar: ${err.message}`);
+    } catch (err: unknown) {
+      toast.error(`Erro ao cancelar: ${err instanceof Error ? err.message : String(err)}`);
     }
   };
 
