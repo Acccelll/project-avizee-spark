@@ -454,7 +454,21 @@ export default function Logistica() {
     }
   };
 
-  // ─── Option lists ───
+  const [bulkTracking, setBulkTracking] = useState(false);
+  const handleBulkRastrear = async () => {
+    const rastreiaveis = (remessasData as Remessa[]).filter(
+      (r) => r.codigo_rastreio && !["entregue", "cancelado", "devolvido"].includes(r.status_transporte || "")
+    );
+    if (rastreiaveis.length === 0) { toast.info("Nenhuma remessa com rastreio pendente"); return; }
+    setBulkTracking(true);
+    let updated = 0;
+    for (const r of rastreiaveis) {
+      try { await handleRastrear(r); updated++; } catch { /* skip */ }
+    }
+    setBulkTracking(false);
+    toast.success(`${updated} remessa(s) atualizada(s)`);
+  };
+
   const transportadoraOptions: MultiSelectOption[] = transportadorasList.map((t) => ({ label: t, value: t }));
   const fornecedorOptions: MultiSelectOption[] = fornecedoresList.map((f) => ({ label: f, value: f }));
   const remStatusOptions: MultiSelectOption[] = Object.entries(remessaStatusMap).map(([k, v]) => ({ label: v.label, value: k }));
@@ -550,6 +564,12 @@ export default function Logistica() {
         subtitle="Central de acompanhamento logístico, entregas, recebimentos e remessas."
         addLabel={canEdit ? "Nova Remessa" : undefined}
         onAdd={canEdit ? openCreateRemessa : undefined}
+        headerActions={canEdit ? (
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={handleBulkRastrear} disabled={bulkTracking}>
+            {bulkTracking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
+            Atualizar Rastreios
+          </Button>
+        ) : undefined}
       >
         {!canEdit && (
           <div className="mb-4 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-muted-foreground">
