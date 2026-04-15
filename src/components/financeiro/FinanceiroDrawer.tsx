@@ -9,6 +9,7 @@ import { Edit, Trash2, CreditCard, RotateCcw } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import type { Lancamento } from "@/types/domain";
 
 interface Baixa {
   id: string;
@@ -17,22 +18,6 @@ interface Baixa {
   forma_pagamento: string | null;
   observacoes: string | null;
   created_at: string;
-}
-
-interface Lancamento {
-  id: string; tipo: string; descricao: string; valor: number;
-  data_vencimento: string; data_pagamento: string; status: string;
-  forma_pagamento: string; banco: string; cartao: string;
-  cliente_id: string; fornecedor_id: string; nota_fiscal_id: string;
-  conta_bancaria_id: string; conta_contabil_id: string;
-  parcela_numero: number; parcela_total: number;
-  documento_pai_id: string; saldo_restante: number | null;
-  observacoes: string; ativo: boolean;
-  created_at?: string;
-  clientes?: { nome_razao_social: string };
-  fornecedores?: { nome_razao_social: string };
-  contas_bancarias?: { descricao: string; bancos?: { nome: string } };
-  contas_contabeis?: { codigo: string; descricao: string };
 }
 
 interface FinanceiroDrawerProps {

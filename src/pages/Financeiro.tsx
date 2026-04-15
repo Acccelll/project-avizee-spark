@@ -43,17 +43,16 @@ import { emptyLancamentoForm, type LancamentoForm } from "@/pages/financeiro/typ
 
 const Financeiro = () => {
   const {
-    data: rawData,
+    data,
     loading,
     create,
     update,
     remove,
     fetchData,
-  } = useSupabaseCrud({
+  } = useSupabaseCrud<Lancamento>({
     table: "financeiro_lancamentos" as const,
     select: "*, clientes(nome_razao_social), fornecedores(nome_razao_social), contas_bancarias(descricao, bancos(nome))",
   });
-  const data = rawData as unknown as Lancamento[];
   const clientesCrud = useSupabaseCrud<Cliente>({ table: "clientes" });
   const fornecedoresCrud = useSupabaseCrud<Fornecedor>({ table: "fornecedores" });
 

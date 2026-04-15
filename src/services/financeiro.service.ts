@@ -1,11 +1,29 @@
-/* eslint-disable @typescript-eslint/no-explicit-any -- Supabase update type workaround */
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import {
   calcularPagamentoParcialLote,
   calcularNovoSaldo,
   statusPosBaixa,
 } from "@/lib/financeiro";
+
+type LancamentoUpdate = Database["public"]["Tables"]["financeiro_lancamentos"]["Update"];
+type BaixaInsert = Database["public"]["Tables"]["financeiro_baixas"]["Insert"];
+
+interface ProcessarBaixaLoteRpcArgs {
+  p_selected_ids: string[];
+  p_tipo_baixa: "total" | "parcial";
+  p_valor_pago_baixa: number;
+  p_total_baixa: number;
+  p_baixa_date: string;
+  p_forma_pagamento: string;
+  p_conta_bancaria_id: string;
+}
+
+interface ProcessarEstornoRpcArgs {
+  p_lancamento_id: string;
+  p_motivo_estorno: string | null;
+}
 
 export interface BaixaLoteParams {
   selectedIds: string[];
