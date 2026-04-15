@@ -187,8 +187,8 @@ const DashboardContent = () => {
       supabase.from("produtos").select("*", { count: "exact", head: true }).eq("ativo", true),
       supabase.from("clientes").select("*", { count: "exact", head: true }).eq("ativo", true),
       supabase.from("fornecedores").select("*", { count: "exact", head: true }).eq("ativo", true),
-      supabase.from("orcamentos").select("*", { count: "exact", head: true }).eq("ativo", true).gte("data_orcamento", dateFrom),
-      supabase.from("pedidos_compra").select("*", { count: "exact", head: true }).eq("ativo", true).gte("data_pedido", dateFrom),
+      supabase.from("orcamentos").select("*", { count: "exact", head: true }).eq("ativo", true).gte("data_orcamento", dateFrom).lte("data_orcamento", dateTo),
+      supabase.from("pedidos_compra").select("*", { count: "exact", head: true }).eq("ativo", true).gte("data_pedido", dateFrom).lte("data_pedido", dateTo),
       buildFinTotalQuery("receber"),
       buildFinTotalQuery("pagar"),
       supabase.from("financeiro_lancamentos").select("valor").eq("status", "vencido").eq("ativo", true),
@@ -197,6 +197,7 @@ const DashboardContent = () => {
         .select("id, numero, valor_total, status, data_orcamento, clientes(nome_razao_social)")
         .eq("ativo", true)
         .gte("data_orcamento", dateFrom)
+        .lte("data_orcamento", dateTo)
         .order("created_at", { ascending: false })
         .limit(6),
       supabase
