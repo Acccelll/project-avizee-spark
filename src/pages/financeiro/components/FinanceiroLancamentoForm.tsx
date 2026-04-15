@@ -64,7 +64,7 @@ export function FinanceiroLancamentoForm({
         </div>
         <div className="col-span-2 md:col-span-3 space-y-2"><Label>Descrição *</Label><Input value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} required /></div>
         <div className="space-y-2"><Label>Valor *</Label><Input type="number" step="0.01" value={form.valor} onChange={(e) => setForm({ ...form, valor: Number(e.target.value) })} required /></div>
-        <div className="space-y-2"><Label>Vencimento</Label><Input type="date" value={form.data_vencimento} onChange={(e) => setForm({ ...form, data_vencimento: e.target.value })} /></div>
+        <div className="space-y-2"><Label>Vencimento *</Label><Input type="date" value={form.data_vencimento} onChange={(e) => setForm({ ...form, data_vencimento: e.target.value })} required /></div>
         <div className="space-y-2"><Label>Data Pagamento</Label><Input type="date" value={form.data_pagamento} onChange={(e) => setForm({ ...form, data_pagamento: e.target.value })} /></div>
         <div className="space-y-2"><Label>Conta Bancária {form.status === "pago" ? "*" : ""}</Label>
           <Select value={form.conta_bancaria_id || "nenhum"} onValueChange={(v) => setForm({ ...form, conta_bancaria_id: v === "nenhum" ? "" : v })}>

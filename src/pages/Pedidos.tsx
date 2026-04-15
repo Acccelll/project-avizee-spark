@@ -19,10 +19,10 @@ import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { formatCurrency, formatDate, daysSince, formatNumber, calculateDaysBetween } from "@/lib/format";
-import { calcularStatusFaturamentoOV } from "@/lib/fiscal";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import { FileText, DollarSign, Truck } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { confirmarNotaFiscal } from "@/services/fiscal.service";
 
 interface Pedido {
   id: string;
@@ -234,18 +234,7 @@ const Pedidos = () => {
 
       if (error) throw error;
 
-      // Parallel: insert NF items + update OV item billing quantities
       await Promise.all([
-        pedidoItems && pedidoItems.length > 0 && newNF
-          ? supabase.from("notas_fiscais_itens").insert(
-              pedidoItems.map((i) => ({
-                nota_fiscal_id: newNF.id,
-                produto_id: i.produto_id,
-                quantidade: i.quantidade,
-                valor_unitario: i.valor_unitario,
-              }))
-            )
-          : Promise.resolve(),
         pedidoItems
           ? Promise.all(
               pedidoItems.map((item) => {
@@ -258,17 +247,27 @@ const Pedidos = () => {
           : Promise.resolve(),
       ]);
 
-      const { data: updatedItems } = await supabase
-        .from("ordens_venda_itens")
-        .select("quantidade, quantidade_faturada")
-        .eq("ordem_venda_id", pedido.id);
-      const totalQ = (updatedItems || []).reduce((s, i) => s + Number(i.quantidade), 0);
-      const totalF = (updatedItems || []).reduce((s, i) => s + Number(i.quantidade_faturada || 0), 0);
-      const newFatStatus = calcularStatusFaturamentoOV(totalQ, totalF);
+      await confirmarNotaFiscal({
+        nf: {
+          id: newNF.id,
+          numero: nfNumero,
+          tipo: "saida",
+          data_emissao: new Date().toISOString().split("T")[0],
+          valor_total: totalProdutos,
+          movimenta_estoque: true,
+          gera_financeiro: true,
+          condicao_pagamento: "a_vista",
+          forma_pagamento: "",
+          fornecedor_id: "",
+          cliente_id: pedido.cliente_id ?? "",
+          conta_contabil_id: null,
+          ordem_venda_id: pedido.id,
+          status: "pendente",
+        },
+        parcelas: 1,
+      });
 
-      await supabase.from("ordens_venda").update({ status_faturamento: newFatStatus }).eq("id", pedido.id);
-
-      toast.success(`NF ${nfNumero} gerada a partir do Pedido ${pedido.numero}!`);
+      toast.success(`NF ${nfNumero} gerada, estoque e financeiro atualizados.`);
       fetchData();
     } catch (err: unknown) {
       console.error('[pedidos] gerar NF:', err);

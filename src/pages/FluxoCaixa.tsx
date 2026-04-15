@@ -307,6 +307,7 @@ const FluxoCaixa = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.descricao || !form.valor) { toast.error("Descrição e valor são obrigatórios"); return; }
+    if (!form.data_vencimento) { toast.error("Data de vencimento é obrigatória"); return; }
     if (form.status === "pago" && !form.conta_bancaria_id) {
       toast.error("Conta bancária é obrigatória para lançamentos pagos"); return;
     }
@@ -691,8 +692,8 @@ const FluxoCaixa = () => {
               />
             </div>
             <div className="space-y-2">
-              <Label>Data de Vencimento <span className="text-destructive">*</span></Label>
-              <Input type="date" value={form.data_vencimento} onChange={e => setForm({ ...form, data_vencimento: e.target.value })} />
+              <Label>Vencimento <span className="text-destructive">*</span></Label>
+              <Input type="date" value={form.data_vencimento} onChange={e => setForm({ ...form, data_vencimento: e.target.value })} required />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">

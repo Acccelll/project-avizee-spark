@@ -1024,31 +1024,41 @@ export function exportarCsv(title: string, rows: Record<string, unknown>[]) {
 export async function exportarXlsx(title: string, rows: Record<string, unknown>[]) {
   if (!rows.length) return;
 
-  // write-excel-file replaces the vulnerable xlsx package.
-  // It has no known CVEs and produces valid .xlsx files via the browser API.
-  const { default: writeXlsxFile } = await import("write-excel-file/browser");
+  const { default: ExcelJS } = await import("exceljs");
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet(title.slice(0, 31));
+  const headers = Object.keys(rows[0]);
 
-  const keys = Object.keys(rows[0]);
+  sheet.addRow(headers);
+  sheet.getRow(1).font = { bold: true };
+  sheet.getRow(1).fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FFE8E8E8" },
+  };
 
-  // Build a 2-D cell array: header row followed by data rows.
-  // Cell values are kept in their native JS types so that the library can
-  // render numbers as numbers and booleans as booleans in Excel.
-  type CellValue = string | number | boolean | null;
-  type WriteCell = { value: CellValue; fontWeight?: "bold" };
+  rows.forEach((row) => {
+    sheet.addRow(headers.map((header) => row[header] ?? ""));
+  });
 
-  const headerRow: WriteCell[] = keys.map((key) => ({ value: key, fontWeight: "bold" }));
+  sheet.columns.forEach((col) => {
+    let maxLen = 10;
+    col.eachCell?.({ includeEmpty: true }, (cell) => {
+      maxLen = Math.max(maxLen, String(cell.value ?? "").length + 2);
+    });
+    col.width = Math.min(maxLen, 50);
+  });
 
-  const dataRows: WriteCell[][] = rows.map((row) =>
-    keys.map((key) => {
-      const v = row[key];
-      if (v == null) return { value: null };
-      if (typeof v === "number" || typeof v === "boolean") return { value: v };
-      return { value: String(v) };
-    })
-  );
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await writeXlsxFile([headerRow, ...dataRows] as any, { fileName: `${title}.xlsx` });
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${title}.xlsx`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 function formatCsvValue(value: unknown) {
