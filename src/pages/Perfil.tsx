@@ -1,5 +1,4 @@
-// @ts-nocheck
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,8 +12,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { CalendarDays, Clock, Lock, Loader2, Mail, Save, Shield } from "lucide-react";
+import { getUserFriendlyError } from "@/utils/errorMessages";
 
-const ROLE_LABELS: Record<string, string> = {
+type RoleLabel = "admin" | "vendedor" | "financeiro" | "estoquista";
+
+const ROLE_LABELS: Record<RoleLabel, string> = {
   admin: "Administrador",
   vendedor: "Vendedor",
   financeiro: "Financeiro",
@@ -23,28 +25,41 @@ const ROLE_LABELS: Record<string, string> = {
 
 export default function Perfil() {
   const { user, profile, roles } = useAuth();
-  const [nome, setNome] = useState(profile?.nome || "");
-  const [cargo, setCargo] = useState(profile?.cargo || "");
+  const [nome, setNome] = useState<string>(profile?.nome || "");
+  const [cargo, setCargo] = useState<string>(profile?.cargo || "");
   const [saving, setSaving] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
   const [newPassword, setNewPassword] = useState("");
 
-  const initials = nome.trim()
-    ? nome.trim().split(/\s+/).filter(Boolean).map((w) => w[0]).slice(0, 2).join("").toUpperCase()
-    : (user?.email || "U").substring(0, 2).toUpperCase();
+  const initials = useMemo(() => {
+    if (nome.trim()) {
+      return nome
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)
+        .map((w) => w[0])
+        .slice(0, 2)
+        .join("")
+        .toUpperCase();
+    }
+
+    return (user?.email || "U").substring(0, 2).toUpperCase();
+  }, [nome, user?.email]);
 
   const handleSaveProfile = async () => {
     if (!user) return;
+
     setSaving(true);
     try {
       const { error } = await supabase.from("profiles").update({ nome, cargo }).eq("id", user.id);
       if (error) throw error;
       toast.success("Dados pessoais salvos com sucesso.");
-    } catch (err: any) {
-      console.error("[perfil] save:", err);
-      toast.error("Erro ao salvar perfil.");
+    } catch (error: unknown) {
+      console.error("[perfil] save:", error);
+      toast.error(getUserFriendlyError(error));
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
   const handleChangePassword = async () => {
@@ -52,24 +67,25 @@ export default function Perfil() {
       toast.error("A senha deve ter pelo menos 6 caracteres.");
       return;
     }
+
     setChangingPassword(true);
     try {
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
       toast.success("Senha alterada com sucesso!");
       setNewPassword("");
-    } catch (err: any) {
-      console.error("[perfil] password:", err);
-      toast.error("Erro ao alterar senha.");
+    } catch (error: unknown) {
+      console.error("[perfil] password:", error);
+      toast.error(getUserFriendlyError(error));
+    } finally {
+      setChangingPassword(false);
     }
-    setChangingPassword(false);
   };
 
   return (
     <AppLayout>
       <ModulePage title="Meu Perfil" subtitle="Identidade pessoal e dados da sua conta no sistema">
         <div className="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
-          {/* Account summary card */}
           <Card>
             <CardContent className="pt-6 flex flex-col items-center text-center space-y-4">
               <Avatar className="h-20 w-20">
@@ -83,7 +99,7 @@ export default function Perfil() {
                   {roles.map((role) => (
                     <Badge key={role} variant="outline" className="gap-1">
                       <Shield className="h-3 w-3" />
-                      {ROLE_LABELS[role] ?? role}
+                      {ROLE_LABELS[role as RoleLabel] ?? role}
                     </Badge>
                   ))}
                   {user?.email_confirmed_at && (
@@ -127,7 +143,6 @@ export default function Perfil() {
           </Card>
 
           <div className="space-y-6">
-            {/* Editable personal info */}
             <Card>
               <CardHeader>
                 <CardTitle>Informações Pessoais</CardTitle>
@@ -156,7 +171,6 @@ export default function Perfil() {
               </CardContent>
             </Card>
 
-            {/* Read-only account data */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -190,7 +204,7 @@ export default function Perfil() {
                     <div className="flex flex-wrap gap-2">
                       {roles.map((role) => (
                         <Badge key={role} variant="secondary">
-                          {ROLE_LABELS[role] ?? role}
+                          {ROLE_LABELS[role as RoleLabel] ?? role}
                         </Badge>
                       ))}
                     </div>
@@ -202,7 +216,6 @@ export default function Perfil() {
               </CardContent>
             </Card>
 
-            {/* Security */}
             <Card>
               <CardHeader>
                 <CardTitle>Segurança</CardTitle>
