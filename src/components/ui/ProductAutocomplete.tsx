@@ -1,0 +1,71 @@
+import { useState, useMemo } from "react";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
+
+interface ProductAutocompleteProps {
+  products: { id: string; nome: string; sku?: string; codigo_interno?: string }[];
+  value: string;
+  onChange: (productId: string) => void;
+  placeholder?: string;
+  className?: string;
+}
+
+export function ProductAutocomplete({ products, value, onChange, placeholder, className }: ProductAutocompleteProps) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+
+  const selectedProduct = products.find((p) => p.id === value);
+  const displayValue = selectedProduct ? `${selectedProduct.sku ? `[${selectedProduct.sku}] ` : ""}${selectedProduct.nome}` : "";
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase();
+    if (!q) return products.slice(0, 15);
+    return products.filter((p) =>
+      p.nome.toLowerCase().includes(q) ||
+      (p.sku && p.sku.toLowerCase().includes(q)) ||
+      (p.codigo_interno && p.codigo_interno.toLowerCase().includes(q))
+    ).slice(0, 15);
+  }, [products, search]);
+
+  return (
+    <div className="relative">
+      <Input
+        value={open ? search : displayValue}
+        onChange={(e) => {
+          setSearch(e.target.value);
+          setOpen(true);
+        }}
+        onFocus={() => {
+          setSearch("");
+          setOpen(true);
+        }}
+        onBlur={() => setTimeout(() => setOpen(false), 200)}
+        placeholder={placeholder || "Buscar produto..."}
+        className={cn("h-9", className)}
+      />
+      {open && filtered.length > 0 && (
+        <div className="absolute z-50 mt-1 w-full max-h-48 overflow-auto rounded-md border bg-popover shadow-md">
+          {filtered.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              className={cn(
+                "w-full text-left px-3 py-1.5 text-sm hover:bg-accent cursor-pointer",
+                p.id === value && "bg-accent font-medium"
+              )}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                onChange(p.id);
+                setSearch("");
+                setOpen(false);
+              }}
+            >
+              {p.sku ? <span className="text-muted-foreground">[{p.sku}] </span> : null}
+              {p.nome}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
