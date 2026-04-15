@@ -496,6 +496,62 @@ export type Database = {
           },
         ]
       }
+      clientes_enderecos_entrega: {
+        Row: {
+          ativo: boolean | null
+          bairro: string | null
+          cep: string | null
+          cidade: string | null
+          cliente_id: string
+          complemento: string | null
+          created_at: string | null
+          descricao: string | null
+          id: string
+          logradouro: string | null
+          numero: string | null
+          principal: boolean | null
+          uf: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          bairro?: string | null
+          cep?: string | null
+          cidade?: string | null
+          cliente_id: string
+          complemento?: string | null
+          created_at?: string | null
+          descricao?: string | null
+          id?: string
+          logradouro?: string | null
+          numero?: string | null
+          principal?: boolean | null
+          uf?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          bairro?: string | null
+          cep?: string | null
+          cidade?: string | null
+          cliente_id?: string
+          complemento?: string | null
+          created_at?: string | null
+          descricao?: string | null
+          id?: string
+          logradouro?: string | null
+          numero?: string | null
+          principal?: boolean | null
+          uf?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clientes_enderecos_entrega_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       compras: {
         Row: {
           ativo: boolean
@@ -2431,91 +2487,118 @@ export type Database = {
       }
       orcamentos: {
         Row: {
+          altura_cm: number | null
           ativo: boolean
           cliente_id: string | null
           cliente_snapshot: Json | null
+          comprimento_cm: number | null
           created_at: string
           data_orcamento: string | null
           desconto: number | null
+          frete_simulacao_id: string | null
           frete_tipo: string | null
           frete_valor: number | null
           id: string
           imposto_ipi: number | null
           imposto_st: number | null
+          largura_cm: number | null
           modalidade: string | null
           numero: string
           observacoes: string | null
           observacoes_internas: string | null
+          origem_frete: string | null
           outras_despesas: number | null
           pagamento: string | null
           peso_total: number | null
           prazo_entrega: string | null
+          prazo_entrega_dias: number | null
           prazo_pagamento: string | null
           public_token: string | null
           quantidade_total: number | null
+          servico_frete: string | null
           status: string | null
+          transportadora_id: string | null
           updated_at: string
           validade: string | null
           valor_total: number | null
           vendedor_id: string | null
+          volumes: number | null
         }
         Insert: {
+          altura_cm?: number | null
           ativo?: boolean
           cliente_id?: string | null
           cliente_snapshot?: Json | null
+          comprimento_cm?: number | null
           created_at?: string
           data_orcamento?: string | null
           desconto?: number | null
+          frete_simulacao_id?: string | null
           frete_tipo?: string | null
           frete_valor?: number | null
           id?: string
           imposto_ipi?: number | null
           imposto_st?: number | null
+          largura_cm?: number | null
           modalidade?: string | null
           numero: string
           observacoes?: string | null
           observacoes_internas?: string | null
+          origem_frete?: string | null
           outras_despesas?: number | null
           pagamento?: string | null
           peso_total?: number | null
           prazo_entrega?: string | null
+          prazo_entrega_dias?: number | null
           prazo_pagamento?: string | null
           public_token?: string | null
           quantidade_total?: number | null
+          servico_frete?: string | null
           status?: string | null
+          transportadora_id?: string | null
           updated_at?: string
           validade?: string | null
           valor_total?: number | null
           vendedor_id?: string | null
+          volumes?: number | null
         }
         Update: {
+          altura_cm?: number | null
           ativo?: boolean
           cliente_id?: string | null
           cliente_snapshot?: Json | null
+          comprimento_cm?: number | null
           created_at?: string
           data_orcamento?: string | null
           desconto?: number | null
+          frete_simulacao_id?: string | null
           frete_tipo?: string | null
           frete_valor?: number | null
           id?: string
           imposto_ipi?: number | null
           imposto_st?: number | null
+          largura_cm?: number | null
           modalidade?: string | null
           numero?: string
           observacoes?: string | null
           observacoes_internas?: string | null
+          origem_frete?: string | null
           outras_despesas?: number | null
           pagamento?: string | null
           peso_total?: number | null
           prazo_entrega?: string | null
+          prazo_entrega_dias?: number | null
           prazo_pagamento?: string | null
           public_token?: string | null
           quantidade_total?: number | null
+          servico_frete?: string | null
           status?: string | null
+          transportadora_id?: string | null
           updated_at?: string
           validade?: string | null
           valor_total?: number | null
           vendedor_id?: string | null
+          volumes?: number | null
         }
         Relationships: [
           {

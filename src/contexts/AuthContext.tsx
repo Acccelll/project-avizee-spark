@@ -75,10 +75,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       manualSignOut.current = false;
 
-      setSession(currentSession);
-      setUser(currentSession?.user ?? null);
-
       if (currentSession?.user) {
+        // On TOKEN_REFRESHED, skip state updates if the user hasn't changed
+        // to avoid unnecessary re-renders (and potential form data loss).
+        if (event === 'TOKEN_REFRESHED') {
+          const userUnchanged = currentSession.user.id === user?.id;
+          if (userUnchanged) {
+            // Silently refresh the session reference without triggering re-renders
+            setSession(currentSession);
+            clearTimeout(safetyTimeout);
+            setLoading(false);
+            return;
+          }
+        }
+
+        setSession(currentSession);
+        setUser(currentSession.user);
+
         if (event === 'INITIAL_SESSION') {
           // First load: await profile & permissions before clearing loading state
           try {
@@ -91,13 +104,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setLoading(false);
           }
         } else {
-          // Subsequent events (SIGNED_IN, TOKEN_REFRESHED): refresh in background
+          // Subsequent events (SIGNED_IN): refresh in background
           clearTimeout(safetyTimeout);
           setLoading(false);
           fetchProfile(currentSession.user.id);
           fetchPermissions(currentSession.user.id);
         }
       } else {
+        setSession(currentSession);
+        setUser(null);
         setProfile(null);
         setRoles([]);
         setExtraPermissions([]);

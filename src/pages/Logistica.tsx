@@ -186,10 +186,7 @@ export default function Logistica() {
     supabase.from("pedidos_compra").select("id, numero").eq("ativo", true).then(({ data: d }) => setPedidosCompra(d ?? []));
     supabase.from("notas_fiscais").select("id, numero, tipo").eq("ativo", true).then(({ data: d }) => setNotasFiscais(d ?? []));
   }, []);
-          supabase.from("clientes").select("id,nome_razao_social,cidade,uf").eq("ativo", true),
-          supabase.from("transportadoras").select("id,nome_razao_social").eq("ativo", true),
-          supabase.from("ordens_venda_itens").select("ordem_venda_id,peso_total,quantidade"),
-          supabase.from("pedidos_compra").select("id,numero,fornecedor_id,data_entrega_prevista,data_entrega_real,status,usuario_id,updated_at").eq("ativo", true),
+
   // Load events when remessa drawer opens
   useEffect(() => {
     if (remSelected && remDrawerOpen) {
@@ -362,6 +359,7 @@ export default function Logistica() {
   const openEditRemessa = (r: Remessa) => {
     setRemMode("edit"); setRemSelected(r);
     setRemForm({
+      tipo_remessa: (r as any).tipo_remessa ?? "entrega",
       cliente_id: r.cliente_id ?? "", transportadora_id: r.transportadora_id ?? "",
       servico: r.servico ?? "", codigo_rastreio: r.codigo_rastreio ?? "",
       data_postagem: r.data_postagem ?? "", previsao_entrega: r.previsao_entrega ?? "",

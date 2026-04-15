@@ -29,9 +29,9 @@ export function PrecosEspeciaisTab({ clienteId, produtoId }: Props) {
     cliente_id: clienteId || "",
     produto_id: produtoId || "",
     preco_especial: 0,
-    vigencia_inicio: "",
-    vigencia_fim: "",
-    observacao: "",
+    data_inicio: "",
+    data_fim: "",
+    observacoes: "",
   });
 
   const fetchData = async () => {
@@ -75,9 +75,9 @@ export function PrecosEspeciaisTab({ clienteId, produtoId }: Props) {
         cliente_id: clienteId || "",
         produto_id: produtoId || "",
         preco_especial: 0,
-        vigencia_inicio: "",
-        vigencia_fim: "",
-        observacao: "",
+        data_inicio: "",
+        data_fim: "",
+        observacoes: "",
       });
       fetchData();
     } catch (err) {
@@ -146,23 +146,23 @@ export function PrecosEspeciaisTab({ clienteId, produtoId }: Props) {
               <Label className="text-xs">Início Vigência</Label>
               <Input
                 type="date"
-                value={form.vigencia_inicio}
-                onChange={(e) => setForm({...form, vigencia_inicio: e.target.value})}
+                value={form.data_inicio}
+                onChange={(e) => setForm({...form, data_inicio: e.target.value})}
               />
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Fim Vigência</Label>
               <Input
                 type="date"
-                value={form.vigencia_fim}
-                onChange={(e) => setForm({...form, vigencia_fim: e.target.value})}
+                value={form.data_fim}
+                onChange={(e) => setForm({...form, data_fim: e.target.value})}
               />
             </div>
             <div className="sm:col-span-2 space-y-1">
               <Label className="text-xs">Observação</Label>
               <Input
-                value={form.observacao}
-                onChange={(e) => setForm({...form, observacao: e.target.value})}
+                value={form.observacoes}
+                onChange={(e) => setForm({...form, observacoes: e.target.value})}
                 placeholder="Ex: Contrato Anual, Promoção, etc."
               />
             </div>
@@ -189,13 +189,13 @@ export function PrecosEspeciaisTab({ clienteId, produtoId }: Props) {
                   {!produtoId && <span className="text-xs truncate font-medium">· {item.produtos?.nome}</span>}
                 </div>
                 <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1">
-                  {item.vigencia_inicio && (
+                  {item.data_inicio && (
                     <span className="text-[10px] text-muted-foreground">
-                      Vigência: {formatDate(item.vigencia_inicio)} {item.vigencia_fim ? `até ${formatDate(item.vigencia_fim)}` : "em diante"}
+                      Vigência: {formatDate(item.data_inicio)} {item.data_fim ? `até ${formatDate(item.data_fim)}` : "em diante"}
                     </span>
                   )}
-                  {item.observacao && (
-                    <span className="text-[10px] text-muted-foreground italic">"{item.observacao}"</span>
+                  {item.observacoes && (
+                    <span className="text-[10px] text-muted-foreground italic">"{item.observacoes}"</span>
                   )}
                   {produtoId && item.produtos?.preco_venda && (
                     <span className="text-[10px] text-muted-foreground">
@@ -213,9 +213,9 @@ export function PrecosEspeciaisTab({ clienteId, produtoId }: Props) {
                         cliente_id: item.cliente_id,
                         produto_id: item.produto_id,
                         preco_especial: item.preco_especial,
-                        vigencia_inicio: item.vigencia_inicio || "",
-                        vigencia_fim: item.vigencia_fim || "",
-                        observacao: item.observacao || "",
+                        data_inicio: item.data_inicio || "",
+                        data_fim: item.data_fim || "",
+                        observacoes: item.observacoes || "",
                       });
                     }}>
                       <Edit className="w-3.5 h-3.5" />

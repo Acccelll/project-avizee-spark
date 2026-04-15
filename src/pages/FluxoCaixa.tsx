@@ -122,7 +122,7 @@ const FluxoCaixa = () => {
     setLoading(true);
     const [{ data: lancs }, { data: contas }] = await Promise.all([
       supabase.from("financeiro_lancamentos")
-        .select("id, tipo, valor, status, data_vencimento, data_pagamento, conta_bancaria_id, descricao, forma_pagamento, nota_fiscal_id, documento_pai_id, observacoes, contas_bancarias(descricao, bancos(nome))")
+        .select("id, tipo, valor, saldo_restante, valor_pago, status, data_vencimento, data_pagamento, conta_bancaria_id, descricao, forma_pagamento, nota_fiscal_id, documento_pai_id, observacoes, contas_bancarias(descricao, bancos(nome))")
         .eq("ativo", true)
         .gte("data_vencimento", dataInicio)
         .lte("data_vencimento", dataFim),
@@ -161,12 +161,16 @@ const FluxoCaixa = () => {
       const g = groups[key];
       g.items.push(l);
       const val = Number(l.valor || 0);
+      // For "realizado", use valor_pago when available (partial payments), otherwise full valor for "pago"
+      const realVal = (l.status === "pago" || l.status === "parcial")
+        ? Number((l as any).valor_pago || 0) || (l.status === "pago" ? val : 0)
+        : 0;
       if (l.tipo === "receber") {
         g.prevReceber += val;
-        if (l.status === "pago") g.realReceber += val;
+        g.realReceber += realVal;
       } else {
         g.prevPagar += val;
-        if (l.status === "pago") g.realPagar += val;
+        g.realPagar += realVal;
       }
     });
 
@@ -177,8 +181,11 @@ const FluxoCaixa = () => {
     let prevReceber = 0, prevPagar = 0, realReceber = 0, realPagar = 0;
     filtered.forEach(l => {
       const val = Number(l.valor || 0);
-      if (l.tipo === "receber") { prevReceber += val; if (l.status === "pago") realReceber += val; }
-      else { prevPagar += val; if (l.status === "pago") realPagar += val; }
+      const realVal = (l.status === "pago" || l.status === "parcial")
+        ? Number((l as any).valor_pago || 0) || (l.status === "pago" ? val : 0)
+        : 0;
+      if (l.tipo === "receber") { prevReceber += val; realReceber += realVal; }
+      else { prevPagar += val; realPagar += realVal; }
     });
     return { prevReceber, prevPagar, realReceber, realPagar, saldoPrevisto: prevReceber - prevPagar, saldoRealizado: realReceber - realPagar };
   }, [filtered]);
