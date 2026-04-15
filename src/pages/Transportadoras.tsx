@@ -114,6 +114,7 @@ export default function Transportadoras() {
     "cnpj",
     form.cpf_cnpj,
     selected?.id,
+    "transportadoras",
   );
   const [formAtivo, setFormAtivo] = useState(true);
   const [saving, setSaving] = useState(false);

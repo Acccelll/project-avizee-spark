@@ -24,6 +24,7 @@ import { toast } from "sonner";
 import { Loader2, Plus, Trash2, Package, FileText, TrendingUp, Archive, ShoppingCart, AlertCircle, CheckCircle2, AlignLeft, Tag } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { FiscalAutocomplete } from "@/components/ui/FiscalAutocomplete";
+import { ProductAutocomplete } from "@/components/ui/ProductAutocomplete";
 import { cfopCodes, cstIcmsCodes } from "@/lib/fiscalData";
 import { useNcmLookup } from '@/hooks/useNcmLookup';
 import { Switch } from "@/components/ui/switch";
@@ -1019,10 +1020,12 @@ const Produtos = () => {
               return (
                 <div key={idx} className="grid grid-cols-[1fr_100px_80px_40px] gap-2 items-end">
                   <div className="space-y-1"><Label className="text-xs">Produto</Label>
-                    <Select value={comp.produto_filho_id} onValueChange={(v) => updateComponent(idx, "produto_filho_id", v)}>
-                      <SelectTrigger className="h-9"><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                      <SelectContent>{produtosDisponiveis.map((p) => <SelectItem key={p.id} value={p.id}>{p.sku ? `[${p.sku}] ` : ""}{p.nome}</SelectItem>)}</SelectContent>
-                    </Select>
+                    <ProductAutocomplete
+                      products={produtosDisponiveis}
+                      value={comp.produto_filho_id}
+                      onChange={(v) => updateComponent(idx, "produto_filho_id", v)}
+                      placeholder="Buscar produto..."
+                    />
                   </div>
                   <div className="space-y-1"><Label className="text-xs">Qtd</Label><Input type="number" min={0.01} step="0.01" value={comp.quantidade} onChange={(e) => updateComponent(idx, "quantidade", Number(e.target.value))} className="h-9" /></div>
                   <div className="space-y-1"><Label className="text-xs">Custo</Label><p className="h-9 flex items-center text-xs font-mono text-muted-foreground">{prod ? formatCurrency(comp.quantidade * (prod.preco_custo || 0)) : "—"}</p></div>

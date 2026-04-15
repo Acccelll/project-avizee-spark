@@ -34,8 +34,8 @@ import { useRecebimentos } from "@/pages/logistica/hooks/useRecebimentos";
 import type { Recebimento } from "@/pages/logistica/hooks/useRecebimentos";
 import { fetchTracking, normalizarEventos } from "@/services/correios.service";
 import {
-  Eye, AlertTriangle, Truck, Package, CheckCheck, ExternalLink,
-  Edit, Trash2, Plus, MapPin, Package as PackageIcon, Search, Clock, Timer,
+  Eye, AlertTriangle, Truck, Package, CheckCheck, ExternalLink, Loader2,
+  Edit, Trash2, Plus, MapPin, Package as PackageIcon, Search, Clock, Timer, RefreshCw,
 } from "lucide-react";
 
 // ─── Remessa types ───
@@ -107,12 +107,14 @@ const prazoOptionsReceb: MultiSelectOption[] = [{ label: "Atrasados", value: "at
 
 // ─── Remessa form ───
 interface RemessaForm {
+  tipo_remessa: string;
   cliente_id: string; transportadora_id: string; servico: string; codigo_rastreio: string;
   data_postagem: string; previsao_entrega: string; status_transporte: string;
   peso: string; volumes: string; valor_frete: string; observacoes: string;
   ordem_venda_id: string; pedido_compra_id: string; nota_fiscal_id: string;
 }
 const emptyForm: RemessaForm = {
+  tipo_remessa: "entrega",
   cliente_id: "", transportadora_id: "", servico: "", codigo_rastreio: "",
   data_postagem: "", previsao_entrega: "", status_transporte: "pendente",
   peso: "", volumes: "1", valor_frete: "", observacoes: "",
@@ -452,7 +454,21 @@ export default function Logistica() {
     }
   };
 
-  // ─── Option lists ───
+  const [bulkTracking, setBulkTracking] = useState(false);
+  const handleBulkRastrear = async () => {
+    const rastreiaveis = (remessasData as Remessa[]).filter(
+      (r) => r.codigo_rastreio && !["entregue", "cancelado", "devolvido"].includes(r.status_transporte || "")
+    );
+    if (rastreiaveis.length === 0) { toast.info("Nenhuma remessa com rastreio pendente"); return; }
+    setBulkTracking(true);
+    let updated = 0;
+    for (const r of rastreiaveis) {
+      try { await handleRastrear(r); updated++; } catch { /* skip */ }
+    }
+    setBulkTracking(false);
+    toast.success(`${updated} remessa(s) atualizada(s)`);
+  };
+
   const transportadoraOptions: MultiSelectOption[] = transportadorasList.map((t) => ({ label: t, value: t }));
   const fornecedorOptions: MultiSelectOption[] = fornecedoresList.map((f) => ({ label: f, value: f }));
   const remStatusOptions: MultiSelectOption[] = Object.entries(remessaStatusMap).map(([k, v]) => ({ label: v.label, value: k }));
@@ -548,6 +564,12 @@ export default function Logistica() {
         subtitle="Central de acompanhamento logístico, entregas, recebimentos e remessas."
         addLabel={canEdit ? "Nova Remessa" : undefined}
         onAdd={canEdit ? openCreateRemessa : undefined}
+        headerActions={canEdit ? (
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={handleBulkRastrear} disabled={bulkTracking}>
+            {bulkTracking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
+            Atualizar Rastreios
+          </Button>
+        ) : undefined}
       >
         {!canEdit && (
           <div className="mb-4 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-muted-foreground">
@@ -659,6 +681,16 @@ export default function Logistica() {
       <FormModal open={remModalOpen} onClose={() => setRemModalOpen(false)} title={remMode === "create" ? "Nova Remessa" : "Editar Remessa"} size="lg">
         <form onSubmit={handleRemessaSubmit} className="space-y-4">
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label>Tipo de Remessa *</Label>
+              <Select value={remForm.tipo_remessa} onValueChange={v => setRemForm({ ...remForm, tipo_remessa: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="entrega">Entrega (Saída)</SelectItem>
+                  <SelectItem value="recebimento">Recebimento (Entrada)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-2">
               <Label>Transportadora *</Label>
               <Select value={remForm.transportadora_id} onValueChange={v => setRemForm({ ...remForm, transportadora_id: v })}>

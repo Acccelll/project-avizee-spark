@@ -87,12 +87,13 @@ export async function processarBaixaLote(params: BaixaLoteParams): Promise<boole
   }
 }
 
-export async function processarEstorno(lancamentoId: string): Promise<boolean> {
+export async function processarEstorno(lancamentoId: string, motivoEstorno?: string): Promise<boolean> {
   try {
     await supabase.from("financeiro_lancamentos").update({
       status: "aberto", data_pagamento: null,
       valor_pago: null, tipo_baixa: null,
       saldo_restante: null,
+      motivo_estorno: motivoEstorno || null,
     } as any).eq("id", lancamentoId);
     await supabase.from("financeiro_baixas").delete().eq("lancamento_id", lancamentoId);
     await supabase.from("financeiro_lancamentos").update({ ativo: false } as any).eq("documento_pai_id", lancamentoId);

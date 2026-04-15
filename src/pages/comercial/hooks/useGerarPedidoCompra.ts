@@ -44,7 +44,9 @@ export function useGerarPedidoCompra() {
         precoByItem[p.item_id] = Number(p.preco_unitario || 0);
       }
 
-      const numero = `PC-${String(Date.now()).slice(-6)}`;
+      // Use atomic numbering RPC
+      const { data: rpcNumero } = await supabase.rpc('proximo_numero_pedido_compra');
+      const numero = rpcNumero || `PC-${String(Date.now()).slice(-6)}`;
 
       const { data: newPedido, error: pedidoError } = await supabase
         .from("pedidos_compra")
@@ -53,7 +55,7 @@ export function useGerarPedidoCompra() {
           fornecedor_id: cotacao.fornecedor_id || null,
           data_pedido: new Date().toISOString().split("T")[0],
           valor_total: cotacao.valor_total || 0,
-          status: "rascunho",
+          status: "aprovado",
           observacoes: cotacao.observacoes || null,
           cotacao_compra_id: cotacao.id,
         })
