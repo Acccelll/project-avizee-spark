@@ -50,12 +50,12 @@ describe("smoke: dashboard cenário feliz", () => {
   });
 
   it("renderiza dashboard principal com cards e blocos críticos", async () => {
-    renderWithSmokeProviders(<DashboardPage />);
+    renderWithSmokeProviders(<DashboardPage />, "/", { relationalNav: true });
 
     expect(await screen.findByText(/Contas a Receber/i)).toBeInTheDocument();
     expect(await screen.findByText(/Contas a Pagar/i)).toBeInTheDocument();
-    expect(await screen.findByText(/Saldo Projetado/i)).toBeInTheDocument();
-    expect(await screen.findByText(/Pendências/i)).toBeInTheDocument();
+    expect((await screen.findAllByText(/Saldo Projetado/i)).length).toBeGreaterThanOrEqual(1);
+    expect((await screen.findAllByText(/Pendências/i)).length).toBeGreaterThanOrEqual(1);
     expect(await screen.findByText("VendasChartMock")).toBeInTheDocument();
     expect(mockLoadData).toHaveBeenCalled();
   });

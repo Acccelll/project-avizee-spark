@@ -2,7 +2,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ConfigEmail, ConfigIntegracao } from '@/utils/configuracoes';
 
 vi.mock('@/integrations/supabase/client', () => ({
-  supabase: { from: vi.fn() },
+  supabase: {
+    from: vi.fn(),
+    functions: {
+      invoke: vi.fn().mockResolvedValue({ data: { sucesso: true, mensagem: 'Conexão SMTP OK' }, error: null }),
+    },
+  },
 }));
 
 vi.mock('@/services/admin/audit.service', () => ({

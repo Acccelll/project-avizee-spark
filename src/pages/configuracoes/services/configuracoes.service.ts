@@ -47,6 +47,16 @@ export async function updateConfig(
 export async function testarConexaoSMTP(
   config: ConfigEmail
 ): Promise<{ sucesso: boolean; mensagem: string }> {
+  if (!config.smtp_host || config.smtp_host.trim() === '') {
+    return { sucesso: false, mensagem: 'Host SMTP não configurado.' };
+  }
+  if (!config.smtp_porta || config.smtp_porta <= 0 || config.smtp_porta > 65535) {
+    return { sucesso: false, mensagem: 'Porta SMTP inválida.' };
+  }
+  if (!config.smtp_usuario || config.smtp_usuario.trim() === '') {
+    return { sucesso: false, mensagem: 'Usuário SMTP não configurado.' };
+  }
+
   const { data, error } = await supabase.functions.invoke('test-smtp', {
     body: {
       host: config.smtp_host,
