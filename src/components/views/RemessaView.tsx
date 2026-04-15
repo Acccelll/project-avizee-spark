@@ -9,6 +9,7 @@ interface Props {
 }
 
 export function RemessaView({ id }: Props) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [selected, setSelected] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
 

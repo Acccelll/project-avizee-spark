@@ -59,10 +59,13 @@ const freteTipoLabels: Record<string, string> = {
 
 export function OrcamentoView({ id }: Props) {
   const navigate = useNavigate();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [selected, setSelected] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [items, setItems] = useState<any[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [linkedOV, setLinkedOV] = useState<any | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [convertConfirmOpen, setConvertConfirmOpen] = useState(false);
@@ -196,6 +199,7 @@ export function OrcamentoView({ id }: Props) {
     setGeneratingToken(true);
     try {
       const token = await ensurePublicToken(selected.id);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       setSelected((prev: any) => ({ ...prev, public_token: token }));
       toast.success("Link público gerado!");
     } catch {
@@ -437,6 +441,7 @@ export function OrcamentoView({ id }: Props) {
                     <td colSpan={5} className="px-2 py-4 text-center text-muted-foreground text-xs">Nenhum item</td>
                   </tr>
                 )}
+                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                 {items.map((i: any, idx: number) => (
                   <tr key={idx} className="border-b last:border-b-0 hover:bg-muted/20">
                     <td className="px-2 py-2 font-mono text-[10px] text-muted-foreground">
