@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
@@ -1150,7 +1149,7 @@ export function UsuariosTab() {
                 variant={filterExtra ? 'secondary' : 'outline'}
                 size="sm"
                 className="h-9 gap-1.5"
-                onClick={() => setFilterExtra((v) => !v)}
+                onClick={() => setFilterExtra(!filterExtra)}
                 title="Filtrar usuários com permissões complementares"
               >
                 <ShieldAlert className="h-3.5 w-3.5" />
