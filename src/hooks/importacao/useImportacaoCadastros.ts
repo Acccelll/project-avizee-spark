@@ -88,8 +88,8 @@ export function useImportacaoCadastros() {
 
     try {
       // Pre-fetch existing records for dedup detection
-      let existingByLegado = new Map<string, string>();
-      let existingByKey = new Map<string, string>(); // codigo_interno or cpf_cnpj
+      const existingByLegado = new Map<string, string>();
+      const existingByKey = new Map<string, string>(); // codigo_interno or cpf_cnpj
 
       if (importType === "produtos") {
         const { data: prods } = await supabase.from("produtos").select("id, codigo_legado, codigo_interno");

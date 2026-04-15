@@ -109,7 +109,7 @@ export function useImportacaoFinanceiro() {
         const cpfClean = nd.cpf_cnpj?.replace(/\D/g, "") || "";
         const legado = nd.codigo_legado_pessoa || "";
 
-        let entity = (legado && entityByLegado.get(legado)) || (cpfClean && entityByCpf.get(cpfClean)) || null;
+        const entity = (legado && entityByLegado.get(legado)) || (cpfClean && entityByCpf.get(cpfClean)) || null;
 
         if (entity) {
           nd.entity_id = entity.id;
