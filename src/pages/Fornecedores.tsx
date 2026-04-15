@@ -716,6 +716,40 @@ const Fornecedores = () => {
               </div>
             ) : null
           )}
+
+          {/* Manual product linkage */}
+          {mode === "edit" && selected && (
+            <div className="border rounded-lg p-3 space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                  <Package className="h-3.5 w-3.5" /> Vincular Produto Manualmente
+                </h4>
+              </div>
+              {/* All linked products */}
+              {modalProdutosForn.length > 0 && (
+                <div className="space-y-1">
+                  {modalProdutosForn.map((p) => (
+                    <div key={p.id} className="flex items-center justify-between gap-2 py-1 px-2 rounded bg-muted/30">
+                      <span className="text-xs truncate">{p.produto_nome}</span>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {p.preco_compra != null && <span className="text-[10px] font-mono text-muted-foreground">{formatCurrency(p.preco_compra)}</span>}
+                        {p.lead_time_dias != null && <span className="text-[10px] text-muted-foreground">{p.lead_time_dias}d</span>}
+                        <Button type="button" size="icon" variant="ghost" className="h-6 w-6 text-destructive"
+                          onClick={async () => {
+                            const { error } = await supabase.from("produtos_fornecedores").delete().eq("id", p.id);
+                            if (error) { toast.error("Erro ao remover vínculo"); return; }
+                            toast.success("Vínculo removido");
+                            loadFornContext(selected.id);
+                          }}
+                        ><Trash2 className="w-3 h-3" /></Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <AddProdutoFornecedor fornecedorId={selected.id} onAdded={() => loadFornContext(selected.id)} />
+            </div>
+          )}
             </TabsContent>
 
             {/* ── TAB: OBSERVAÇÕES ──────────────────────────── */}
