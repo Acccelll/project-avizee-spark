@@ -114,6 +114,7 @@ const Financeiro = () => {
   const [baixaParcialTarget, setBaixaParcialTarget] = useState<Lancamento | null>(null);
   const [estornoTarget, setEstornoTarget] = useState<Lancamento | null>(null);
   const [estornoProcessing, setEstornoProcessing] = useState(false);
+  const [estornoMotivo, setEstornoMotivo] = useState("");
 
   useEffect(() => { if (tipoParam) setTipoFilters([tipoParam]); }, [tipoParam]);
 
@@ -259,10 +260,11 @@ const Financeiro = () => {
 
   const handleEstorno = async () => {
     if (!estornoTarget) return;
+    if (!estornoMotivo.trim()) { toast.error("Informe o motivo do estorno"); return; }
     setEstornoProcessing(true);
-    const ok = await processarEstorno(estornoTarget.id);
+    const ok = await processarEstorno(estornoTarget.id, estornoMotivo.trim());
     setEstornoProcessing(false);
-    if (ok) { setEstornoTarget(null); window.location.reload(); }
+    if (ok) { setEstornoTarget(null); setEstornoMotivo(""); window.location.reload(); }
   };
 
   const selectedForBaixa = useMemo(() => data.filter(l => selectedIds.includes(l.id)), [data, selectedIds]);
@@ -627,11 +629,16 @@ const Financeiro = () => {
 
       {/* Estorno Confirm */}
       <ConfirmDialog
-        open={!!estornoTarget} onClose={() => setEstornoTarget(null)} onConfirm={handleEstorno}
+        open={!!estornoTarget} onClose={() => { setEstornoTarget(null); setEstornoMotivo(""); }} onConfirm={handleEstorno}
         title="Confirmar Estorno"
         description={`Deseja estornar a baixa do lançamento "${estornoTarget?.descricao}"? O status voltará para Aberto.`}
-        confirmLabel="Estornar" loading={estornoProcessing}
-      />
+        confirmLabel="Estornar" loading={estornoProcessing} confirmDisabled={!estornoMotivo.trim()}
+      >
+        <div className="space-y-2 mt-2">
+          <Label className="text-sm font-medium">Motivo do estorno *</Label>
+          <Textarea value={estornoMotivo} onChange={(e) => setEstornoMotivo(e.target.value)} placeholder="Informe o motivo do cancelamento da baixa..." rows={3} />
+        </div>
+      </ConfirmDialog>
 
       {/* Single Baixa Parcial */}
       <BaixaParcialDialog
