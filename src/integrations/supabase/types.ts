@@ -504,12 +504,16 @@ export type Database = {
           cidade: string | null
           cliente_id: string
           complemento: string | null
+          contato: string | null
           created_at: string | null
           descricao: string | null
           id: string
+          identificacao: string | null
           logradouro: string | null
           numero: string | null
+          observacoes: string | null
           principal: boolean | null
+          telefone: string | null
           uf: string | null
         }
         Insert: {
@@ -519,12 +523,16 @@ export type Database = {
           cidade?: string | null
           cliente_id: string
           complemento?: string | null
+          contato?: string | null
           created_at?: string | null
           descricao?: string | null
           id?: string
+          identificacao?: string | null
           logradouro?: string | null
           numero?: string | null
+          observacoes?: string | null
           principal?: boolean | null
+          telefone?: string | null
           uf?: string | null
         }
         Update: {
@@ -534,12 +542,16 @@ export type Database = {
           cidade?: string | null
           cliente_id?: string
           complemento?: string | null
+          contato?: string | null
           created_at?: string | null
           descricao?: string | null
           id?: string
+          identificacao?: string | null
           logradouro?: string | null
           numero?: string | null
+          observacoes?: string | null
           principal?: boolean | null
+          telefone?: string | null
           uf?: string | null
         }
         Relationships: [
@@ -1850,6 +1862,128 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      frete_simulacoes: {
+        Row: {
+          altura_cm: number | null
+          cep_destino: string | null
+          cep_origem: string | null
+          cliente_id: string | null
+          comprimento_cm: number | null
+          created_at: string
+          id: string
+          largura_cm: number | null
+          opcao_escolhida_id: string | null
+          origem_id: string
+          origem_tipo: string
+          peso_total: number | null
+          status: string | null
+          updated_at: string
+          valor_mercadoria: number | null
+          volumes: number | null
+        }
+        Insert: {
+          altura_cm?: number | null
+          cep_destino?: string | null
+          cep_origem?: string | null
+          cliente_id?: string | null
+          comprimento_cm?: number | null
+          created_at?: string
+          id?: string
+          largura_cm?: number | null
+          opcao_escolhida_id?: string | null
+          origem_id: string
+          origem_tipo?: string
+          peso_total?: number | null
+          status?: string | null
+          updated_at?: string
+          valor_mercadoria?: number | null
+          volumes?: number | null
+        }
+        Update: {
+          altura_cm?: number | null
+          cep_destino?: string | null
+          cep_origem?: string | null
+          cliente_id?: string | null
+          comprimento_cm?: number | null
+          created_at?: string
+          id?: string
+          largura_cm?: number | null
+          opcao_escolhida_id?: string | null
+          origem_id?: string
+          origem_tipo?: string
+          peso_total?: number | null
+          status?: string | null
+          updated_at?: string
+          valor_mercadoria?: number | null
+          volumes?: number | null
+        }
+        Relationships: []
+      }
+      frete_simulacoes_opcoes: {
+        Row: {
+          codigo: string | null
+          created_at: string
+          fonte: string
+          id: string
+          modalidade: string | null
+          observacoes: string | null
+          payload_raw: Json | null
+          prazo_dias: number | null
+          selecionada: boolean | null
+          servico: string | null
+          simulacao_id: string
+          transportadora_id: string | null
+          updated_at: string
+          valor_adicional: number | null
+          valor_frete: number | null
+          valor_total: number | null
+        }
+        Insert: {
+          codigo?: string | null
+          created_at?: string
+          fonte?: string
+          id?: string
+          modalidade?: string | null
+          observacoes?: string | null
+          payload_raw?: Json | null
+          prazo_dias?: number | null
+          selecionada?: boolean | null
+          servico?: string | null
+          simulacao_id: string
+          transportadora_id?: string | null
+          updated_at?: string
+          valor_adicional?: number | null
+          valor_frete?: number | null
+          valor_total?: number | null
+        }
+        Update: {
+          codigo?: string | null
+          created_at?: string
+          fonte?: string
+          id?: string
+          modalidade?: string | null
+          observacoes?: string | null
+          payload_raw?: Json | null
+          prazo_dias?: number | null
+          selecionada?: boolean | null
+          servico?: string | null
+          simulacao_id?: string
+          transportadora_id?: string | null
+          updated_at?: string
+          valor_adicional?: number | null
+          valor_frete?: number | null
+          valor_total?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "frete_simulacoes_opcoes_simulacao_id_fkey"
+            columns: ["simulacao_id"]
+            isOneToOne: false
+            referencedRelation: "frete_simulacoes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       funcionarios: {
         Row: {
