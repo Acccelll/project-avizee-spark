@@ -49,85 +49,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [extraPermissions, setExtraPermissions] = useState<PermissionKey[]>([]);
   const manualSignOut = useRef(false);
   const permissionsFetchId = useRef(0);
+  const userRef = useRef<User | null>(null);
+  const permissionsLoadedRef = useRef(false);
 
   useEffect(() => {
-    if (!supabase) {
-      setLoading(false);
-      return;
-    }
+    userRef.current = user;
+  }, [user]);
 
-    // Safety net: if auth initialization takes > 5s, force loading = false to unblock the UI.
-    const safetyTimeout = setTimeout(() => {
-      if (loading) {
-        console.warn("[auth] Auth initialization timed out. Forcing loading false.");
-        setLoading(false);
-      }
-    }, 5000);
-
-    // Sequencing logic:
-    // - INITIAL_SESSION: We await fetchProfile + fetchPermissions BEFORE setting loading=false
-    //   so the app never flashes in a state where user is set but permissions aren't loaded.
-    // - SIGNED_IN / TOKEN_REFRESHED: These fire after the initial session, so permissions
-    //   are already loaded. We refresh them in the background without blocking the UI.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
-      if (event === 'SIGNED_OUT' && !manualSignOut.current && user) {
-        toast.error("Sua sessão expirou. Faça login novamente.");
-      }
-      manualSignOut.current = false;
-
-      if (currentSession?.user) {
-        // On TOKEN_REFRESHED, skip state updates if the user hasn't changed
-        // to avoid unnecessary re-renders (and potential form data loss).
-        if (event === 'TOKEN_REFRESHED') {
-          const userUnchanged = currentSession.user.id === user?.id;
-          if (userUnchanged) {
-            // Silently refresh the session reference without triggering re-renders
-            setSession(currentSession);
-            clearTimeout(safetyTimeout);
-            setLoading(false);
-            return;
-          }
-        }
-
-        setSession(currentSession);
-        setUser(currentSession.user);
-
-        if (event === 'INITIAL_SESSION') {
-          // First load: await profile & permissions before clearing loading state
-          try {
-            await Promise.all([
-              fetchProfile(currentSession.user.id),
-              fetchPermissions(currentSession.user.id),
-            ]);
-          } finally {
-            clearTimeout(safetyTimeout);
-            setLoading(false);
-          }
-        } else {
-          // Subsequent events (SIGNED_IN): refresh in background
-          clearTimeout(safetyTimeout);
-          setLoading(false);
-          fetchProfile(currentSession.user.id);
-          fetchPermissions(currentSession.user.id);
-        }
-      } else {
-        setSession(currentSession);
-        setUser(null);
-        setProfile(null);
-        setRoles([]);
-        setExtraPermissions([]);
-        setPermissionsLoaded(false);
-        clearTimeout(safetyTimeout);
-        setLoading(false);
-      }
-    });
-
-    return () => {
-      clearTimeout(safetyTimeout);
-      subscription.unsubscribe();
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  useEffect(() => {
+    permissionsLoadedRef.current = permissionsLoaded;
+  }, [permissionsLoaded]);
 
   const fetchProfile = async (userId: string) => {
     try {
@@ -170,9 +101,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const fetchPermissions = async (userId: string) => {
+  const fetchPermissions = async (userId: string, options?: { background?: boolean }) => {
     const fetchId = ++permissionsFetchId.current;
-    setPermissionsLoaded(false);
+    const background = options?.background ?? false;
+
+    if (!background) {
+      setPermissionsLoaded(false);
+    }
+
     try {
       await Promise.all([fetchRoles(userId), fetchExtraPermissions(userId)]);
     } finally {
@@ -181,6 +117,82 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
   };
+
+  useEffect(() => {
+    if (!supabase) {
+      setLoading(false);
+      return;
+    }
+
+    const safetyTimeout = setTimeout(() => {
+      setLoading((currentLoading) => {
+        if (currentLoading) {
+          console.warn("[auth] Auth initialization timed out. Forcing loading false.");
+          return false;
+        }
+        return currentLoading;
+      });
+    }, 5000);
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
+      const currentUser = userRef.current;
+      const sameUser = currentSession?.user?.id === currentUser?.id;
+
+      if (event === 'SIGNED_OUT' && !manualSignOut.current && currentUser) {
+        toast.error("Sua sessão expirou. Faça login novamente.");
+      }
+      manualSignOut.current = false;
+
+      if (currentSession?.user) {
+        setSession(currentSession);
+
+        if (!sameUser) {
+          setUser(currentSession.user);
+        }
+
+        if (event === 'TOKEN_REFRESHED' && sameUser) {
+          clearTimeout(safetyTimeout);
+          setLoading(false);
+          return;
+        }
+
+        if (event === 'INITIAL_SESSION') {
+          try {
+            await Promise.all([
+              fetchProfile(currentSession.user.id),
+              fetchPermissions(currentSession.user.id),
+            ]);
+          } finally {
+            clearTimeout(safetyTimeout);
+            setLoading(false);
+          }
+          return;
+        }
+
+        clearTimeout(safetyTimeout);
+        setLoading(false);
+        fetchProfile(currentSession.user.id);
+        fetchPermissions(currentSession.user.id, {
+          background: sameUser && permissionsLoadedRef.current,
+        });
+        return;
+      }
+
+      setSession(currentSession);
+      setUser(null);
+      setProfile(null);
+      setRoles([]);
+      setExtraPermissions([]);
+      setPermissionsLoaded(false);
+      clearTimeout(safetyTimeout);
+      setLoading(false);
+    });
+
+    return () => {
+      clearTimeout(safetyTimeout);
+      subscription.unsubscribe();
+    };
+  }, []);
 
   const hasRole = (role: AppRole) => roles.includes(role);
   const mergedPermissions = useMemo(() => buildPermissionSet(roles, extraPermissions), [roles, extraPermissions]);
