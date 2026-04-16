@@ -183,7 +183,7 @@ const Orcamentos = () => {
         peso_total: orc.peso_total, pagamento: orc.pagamento,
         prazo_pagamento: orc.prazo_pagamento, prazo_entrega: orc.prazo_entrega,
         frete_tipo: orc.frete_tipo, modalidade: orc.modalidade,
-        cliente_snapshot: orc.cliente_snapshot as unknown,
+        cliente_snapshot: orc.cliente_snapshot,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Supabase insert type inference limitation
       } as any).select().single();
       if (error) throw error;

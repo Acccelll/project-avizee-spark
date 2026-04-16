@@ -71,6 +71,11 @@ interface CotacaoRow {
   data_cotacao: string;
 }
 
+/** Returns the item's total value, falling back from valor_total to subtotal. */
+function itemValorTotal(i: PedidoItemRow): number {
+  return Number(i.valor_total ?? i.subtotal ?? 0);
+}
+
 export function PedidoCompraView({ id }: Props) {
   const [selected, setSelected] = useState<PedidoCompraRow | null>(null);
   const [loading, setLoading] = useState(true);
@@ -298,7 +303,7 @@ export function PedidoCompraView({ id }: Props) {
                       </td>
                       <td className="px-2 py-2 text-right font-mono text-xs">{i.quantidade}</td>
                       <td className="px-2 py-2 text-right font-mono text-xs font-medium">
-                        {formatCurrency(i.valor_total ?? i.subtotal ?? 0)}
+                        {formatCurrency(itemValorTotal(i))}
                       </td>
                       <td className="px-2 py-2 text-right font-mono text-xs text-success font-medium">
                         {qtdRec > 0 ? qtdRec : "—"}
@@ -465,7 +470,7 @@ export function PedidoCompraView({ id }: Props) {
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Produtos</span>
                 <span className="font-mono">
-                  {formatCurrency(viewItems.reduce((s, i) => s + Number(i.valor_total ?? i.subtotal ?? 0), 0))}
+                  {formatCurrency(viewItems.reduce((s, i) => s + itemValorTotal(i), 0))}
                 </span>
               </div>
               {Number(selected.frete_valor) > 0 && (
