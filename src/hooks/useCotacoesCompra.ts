@@ -5,6 +5,7 @@ import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { getUserFriendlyError } from "@/utils/errorMessages";
+import type { Database } from "@/integrations/supabase/types";
 import {
   type CotacaoCompra,
   type CotacaoItem,
@@ -123,9 +124,10 @@ export function useCotacoesCompra() {
     return { uniqueSuppliers, bestTotal, selectedPropostas, selectedSupplierName, allItemsHaveSelected };
   }, [viewItems, viewPropostas]);
 
-  const openCreate = () => {
+  const openCreate = async () => {
     setMode("create");
-    setForm({ ...emptyForm, numero: `COT-C-${String(data.length + 1).padStart(4, "0")}` });
+    const { data: rpcNumero } = await supabase.rpc("proximo_numero_cotacao_compra");
+    setForm({ ...emptyForm, numero: rpcNumero || `COT-C-${String(Date.now()).slice(-6)}` });
     setLocalItems([]);
     setSelected(null);
     setModalOpen(true);
@@ -367,14 +369,14 @@ export function useCotacoesCompra() {
           subtotal: item.quantidade * Number(proposta.preco_unitario || 0),
         };
       })
-      .filter(Boolean);
+      .filter((i): i is NonNullable<typeof i> => i !== null);
 
     if (itensParaPedido.length === 0) {
       toast.error("Nenhum item com proposta válida para gerar pedido.");
       return;
     }
 
-    const valorTotal = itensParaPedido.reduce((s, i) => s + (i?.subtotal || 0), 0);
+    const valorTotal = itensParaPedido.reduce((s, i) => s + (i.subtotal || 0), 0);
     const { data: rpcNumero } = await supabase.rpc('proximo_numero_pedido_compra');
     const numeroPedido = rpcNumero || `PC-${String(Date.now()).slice(-6)}`;
 
@@ -401,7 +403,7 @@ export function useCotacoesCompra() {
       const itemsPayload = itensParaPedido.map((i) => ({ pedido_compra_id: pedidoId!, ...i }));
       const { error: erroItens } = await supabase
         .from("pedidos_compra_itens")
-        .insert(itemsPayload as any);
+        .insert(itemsPayload);
 
       if (erroItens) {
         const { error: erroRollback } = await supabase
@@ -426,13 +428,13 @@ export function useCotacoesCompra() {
     }
   };
 
-  const produtoOptions = (produtosCrud.data as any[]).map((p: any) => ({
+  const produtoOptions = (produtosCrud.data as Database["public"]["Tables"]["produtos"]["Row"][]).map((p) => ({
     id: p.id,
     label: p.nome,
     sublabel: p.codigo_interno || p.sku || "",
   }));
 
-  const fornecedorOptions = (fornecedoresCrud.data as any[]).map((f: any) => ({
+  const fornecedorOptions = (fornecedoresCrud.data as Database["public"]["Tables"]["fornecedores"]["Row"][]).map((f) => ({
     id: f.id,
     label: f.nome_razao_social,
     sublabel: f.cpf_cnpj || "",

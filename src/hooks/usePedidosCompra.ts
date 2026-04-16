@@ -56,57 +56,6 @@ const statusLabels: Record<string, string> = Object.fromEntries(
   Object.entries(statusPedidoCompra).map(([k, v]) => [k, v.label]),
 );
 
-const MOCK_PEDIDOS: PedidoCompra[] = [
-  {
-    id: "b3b3b3b3-b003-b003-b003-b00300000001",
-    numero: "PC-EX-0001",
-    fornecedor_id: "a5a5a5a5-0005-0005-0005-000000000001",
-    data_pedido: "2026-03-12",
-    data_entrega_prevista: "2026-03-20",
-    data_entrega_real: "2026-03-20",
-    valor_total: 3190.0,
-    frete_valor: 120.0,
-    condicao_pagamento: "30 dias",
-    status: "recebido",
-    observacoes: "Pedido exemplo recebido integralmente.",
-    cotacao_compra_id: null,
-    ativo: true,
-    fornecedores: { nome_razao_social: "BioVet Insumos Ltda", cpf_cnpj: "11.222.333/0001-44" },
-  },
-  {
-    id: "b3b3b3b3-b003-b003-b003-b00300000002",
-    numero: "PC-EX-0002",
-    fornecedor_id: "a5a5a5a5-0005-0005-0005-000000000002",
-    data_pedido: "2026-03-28",
-    data_entrega_prevista: "2026-04-10",
-    data_entrega_real: null,
-    valor_total: 2880.0,
-    frete_valor: 85.0,
-    condicao_pagamento: "45 dias",
-    status: "aguardando_recebimento",
-    observacoes: "Pedido exemplo aguardando recebimento do fornecedor.",
-    cotacao_compra_id: null,
-    ativo: true,
-    fornecedores: { nome_razao_social: "Agroinsumos do Sul Ltda", cpf_cnpj: "22.333.444/0001-55" },
-  },
-  {
-    id: "b3b3b3b3-b003-b003-b003-b00300000003",
-    numero: "PC-EX-0003",
-    fornecedor_id: "a5a5a5a5-0005-0005-0005-000000000003",
-    data_pedido: "2026-04-03",
-    data_entrega_prevista: "2026-04-18",
-    data_entrega_real: null,
-    valor_total: 1860.0,
-    frete_valor: 60.0,
-    condicao_pagamento: "a_vista",
-    status: "pedido_emitido",
-    observacoes: "Pedido exemplo recém emitido para acompanhamento de recebimento.",
-    cotacao_compra_id: null,
-    ativo: true,
-    fornecedores: { nome_razao_social: "Pack Rural Embalagens Ltda", cpf_cnpj: "33.444.555/0001-66" },
-  },
-];
-
 export interface UsePedidosCompraReturn {
   // Data
   pedidos: PedidoCompra[];
@@ -226,7 +175,7 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
     },
   });
 
-  const pedidos = pedidosRaw.length > 0 ? pedidosRaw : MOCK_PEDIDOS;
+  const pedidos = pedidosRaw;
   const fornecedoresAtivos = fornecedoresRaw.filter((f) => f.ativo !== false);
 
   const fornecedorOptions = fornecedoresAtivos.map((f) => ({
@@ -295,7 +244,7 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
       return;
     }
 
-    setItems((itens || []).map((i: any) => ({
+    setItems((itens || []).map((i: PedidoItemRow) => ({
       id: String(i.id),
       produto_id: i.produto_id ? String(i.produto_id) : "",
       codigo: i.produtos?.codigo_interno || "",
@@ -391,13 +340,14 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
 
     try {
       if (mode === "create") {
-        const numero = `PC-${String(Date.now()).slice(-6)}`;
+        const { data: rpcNumero } = await supabase.rpc("proximo_numero_pedido_compra");
+        const numero = rpcNumero || `PC-${String(Date.now()).slice(-6)}`;
         const { data: newP, error } = await supabase.from("pedidos_compra")
           .insert({ numero, ...payload })
           .select()
           .single();
         if (error) {
-          toast.error(`Erro ao criar pedido: ${error.message}`);
+          toast.error(getUserFriendlyError(error));
           setSaving(false);
           return;
         }
@@ -426,7 +376,7 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
             if (mode === "create" && pedidoId) {
               await supabase.from("pedidos_compra").delete().eq("id", pedidoId);
             }
-            toast.error(`Erro ao salvar itens: ${itemsError.message}`);
+            toast.error(getUserFriendlyError(itemsError));
             setSaving(false);
             return;
           }
@@ -490,7 +440,7 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
           data_vencimento: p.data_entrega_prevista || new Date().toISOString().split("T")[0],
           status: "aberto",
           fornecedor_id: p.fornecedor_id ? String(p.fornecedor_id) : null,
-        } as any);
+        });
       }
 
       const hoje = new Date().toISOString().split("T")[0];
