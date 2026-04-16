@@ -1,7 +1,9 @@
 import { useMemo, useState } from "react";
+import { useDebounce } from "@/hooks/useDebounce";
 import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
+import { PullToRefresh } from "@/components/ui/PullToRefresh";
 import { StatusBadge } from "@/components/StatusBadge";
 import { FormModal } from "@/components/FormModal";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
@@ -55,6 +57,20 @@ const emptyForm: FuncionarioForm = {
   data_demissao: null, salario_base: 0, tipo_contrato: "clt", observacoes: "", ativo: true,
 };
 
+function isValidCpf(cpf: string): boolean {
+  const digits = cpf.replace(/\D/g, "");
+  if (digits.length !== 11) return false;
+  // Reject known invalid sequences like 000...000, 111...111, etc.
+  if (/^(\d)\1{10}$/.test(digits)) return false;
+  const calc = (factor: number) => {
+    let sum = 0;
+    for (let i = 0; i < factor - 1; i++) sum += Number(digits[i]) * (factor - i);
+    const rem = (sum * 10) % 11;
+    return rem === 10 || rem === 11 ? 0 : rem;
+  };
+  return calc(10) === Number(digits[9]) && calc(11) === Number(digits[10]);
+}
+
 /**
  * Local augmented type for financeiro_lancamentos rows that include
  * `funcionario_id`.  The generated types don't carry this column yet;
@@ -72,13 +88,18 @@ interface FinanceiroLancamentoComFuncionario {
 }
 
 export default function Funcionarios() {
-  const { data, loading, create, update, remove } = useSupabaseCrud<Funcionario>({ table: "funcionarios" });
+  const [searchTerm, setSearchTerm] = useState("");
+  const debouncedSearch = useDebounce(searchTerm, 350);
+  const { data, loading, create, update, remove, fetchData } = useSupabaseCrud<Funcionario>({
+    table: "funcionarios",
+    searchTerm: debouncedSearch,
+    searchColumns: ["nome", "cpf", "cargo", "departamento"],
+  });
   const [modalOpen, setModalOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selected, setSelected] = useState<Funcionario | null>(null);
   const [mode, setMode] = useState<"create" | "edit">("create");
   const [form, setForm] = useState<FuncionarioForm>(emptyForm);
-  const [searchTerm, setSearchTerm] = useState("");
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [ativoFilters, setAtivoFilters] = useState<string[]>([]);
@@ -128,7 +149,7 @@ export default function Funcionarios() {
     e.preventDefault();
     if (!form.nome.trim()) { toast.error("Nome é obrigatório"); return; }
     const cpfDigits = form.cpf.replace(/\D/g, "");
-    if (form.cpf && cpfDigits.length !== 11) { toast.error("CPF inválido. Informe os 11 dígitos."); return; }
+    if (form.cpf && !isValidCpf(cpfDigits)) { toast.error("CPF inválido"); return; }
     setSubmitting(true);
     try {
       const payload = { ...form, data_demissao: form.data_demissao || null };
@@ -223,9 +244,7 @@ export default function Funcionarios() {
   };
 
   const filteredData = useMemo(() => {
-    const q = searchTerm.trim().toLowerCase();
     return data.filter(f => {
-      if (q && ![f.nome, f.cpf, f.cargo, f.departamento].filter(Boolean).join(" ").toLowerCase().includes(q)) return false;
       if (ativoFilters.length > 0) {
         const status = f.ativo ? "ativo" : "inativo";
         if (!ativoFilters.includes(status)) return false;
@@ -233,7 +252,7 @@ export default function Funcionarios() {
       if (tipoContratoFilters.length > 0 && !tipoContratoFilters.includes(f.tipo_contrato)) return false;
       return true;
     });
-  }, [data, searchTerm, ativoFilters, tipoContratoFilters]);
+  }, [data, ativoFilters, tipoContratoFilters]);
 
   const activeFilters = useMemo<FilterChip[]>(() => {
     const chips: FilterChip[] = [];
@@ -314,14 +333,16 @@ export default function Funcionarios() {
           />
         </AdvancedFilterBar>
 
-        <DataTable
-          columns={columns}
-          data={filteredData}
-          loading={loading}
-          moduleKey="funcionarios"
-          showColumnToggle={true}
-          onView={openView}
-        />
+        <PullToRefresh onRefresh={fetchData}>
+          <DataTable
+            columns={columns}
+            data={filteredData}
+            loading={loading}
+            moduleKey="funcionarios"
+            showColumnToggle={true}
+            onView={openView}
+          />
+        </PullToRefresh>
       </ModulePage>
 
       {/* Create/Edit Modal */}
