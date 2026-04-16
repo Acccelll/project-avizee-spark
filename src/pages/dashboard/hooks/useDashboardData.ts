@@ -6,6 +6,7 @@ import { useDashboardComercialData } from "./useDashboardComercialData";
 import { useDashboardEstoqueData } from "./useDashboardEstoqueData";
 import { useDashboardFinanceiroData } from "./useDashboardFinanceiroData";
 import { useDashboardFiscalData } from "./useDashboardFiscalData";
+import { getUserFriendlyError } from "@/utils/errorMessages";
 import type { DashboardStats, FaturamentoStats, FiscalStats, ProdRow, TopPoint } from "./types";
 import type { BacklogOv, CompraAguardando, RecentOrcamento } from "./types";
 
@@ -111,7 +112,7 @@ export function useDashboardData() {
       setLoadedAt(new Date());
     } catch (error) {
       console.error("[dashboard] erro ao carregar dados:", error);
-      toast.error("Erro ao carregar dados do dashboard. Tente novamente.");
+      toast.error(getUserFriendlyError(error));
     } finally {
       setLoading(false);
     }

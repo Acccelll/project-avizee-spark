@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { getUserFriendlyError } from '@/utils/errorMessages';
 
 interface Pendencia {
   id: string;
@@ -80,7 +81,7 @@ export function PendenciasList() {
     },
     onError: (_err, _id, context: { previous?: Pendencia[] } | undefined) => {
       queryClient.setQueryData(QUERY_KEY, context?.previous);
-      toast.error('Erro ao registrar baixa. Tente novamente.');
+      toast.error(getUserFriendlyError(_err));
     },
     onSuccess: () => {
       toast.success('Baixa registrada com sucesso.');
@@ -158,6 +159,7 @@ export function PendenciasList() {
                     variant="ghost"
                     className="h-6 w-6"
                     title="Visualizar no módulo financeiro"
+                    aria-label={`Visualizar lançamento ${p.descricao}`}
                     onClick={() =>
                       navigate(`/financeiro?tipo=${p.tipo}`, {
                         state: { lancamentoId: p.id },
@@ -171,6 +173,7 @@ export function PendenciasList() {
                     variant="ghost"
                     className="h-6 w-6 text-success hover:text-success"
                     title="Marcar como pago"
+                    aria-label={`Marcar como pago: ${p.descricao}`}
                     disabled={markPaidMutation.isPending}
                     onClick={() => markPaidMutation.mutate(p.id)}
                   >
