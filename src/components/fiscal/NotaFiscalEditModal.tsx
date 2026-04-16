@@ -65,8 +65,8 @@ interface NotaFiscalEditModalProps {
   open: boolean;
   onClose: () => void;
   selected: NotaFiscalForEdit;
-  form: Record<string, string | number | boolean>;
-  setForm: (f: Record<string, string | number | boolean>) => void;
+  form: Record<string, any>;
+  setForm: (f: Record<string, any>) => void;
   items: GridItem[];
   setItems: (items: GridItem[]) => void;
   itemContaContabil: Record<number, string>;
@@ -83,7 +83,7 @@ interface NotaFiscalEditModalProps {
   clientes: ClienteOpt[];
   ordensVenda: OrdemVendaOpt[];
   contasContabeis: ContaContabilOpt[];
-  produtosCrud: GridItem[];
+  produtosCrud: any[];
   valorProdutos: number;
   totalImpostos: number;
   totalNF: number;

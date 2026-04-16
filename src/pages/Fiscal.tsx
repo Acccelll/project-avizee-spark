@@ -203,15 +203,15 @@ const Fiscal = () => {
     });
     const { data: itens } = await supabase.from("notas_fiscais_itens")
       .select("*, produtos(nome, sku)").eq("nota_fiscal_id", n.id);
-    const loadedItems = (itens || []).map((i: NfItemRow) => ({
-      id: i.id, produto_id: i.produto_id, codigo: i.produtos?.sku || i.codigo_produto || "",
-      descricao: i.descricao || i.produtos?.nome || "", quantidade: i.quantidade,
+    const itensTyped = (itens || []) as unknown as NfItemRow[];
+    const loadedItems = itensTyped.map((i) => ({
+      id: i.id, produto_id: i.produto_id, codigo: i.produtos?.sku || "",
+      descricao: i.produtos?.nome || "", quantidade: i.quantidade,
       valor_unitario: i.valor_unitario, valor_total: i.quantidade * i.valor_unitario,
     }));
     setItems(loadedItems);
     const contaMap: Record<number, string> = {};
-    const fiscalMap: Record<number, NfItemFiscalData> = {};
-    (itens || []).forEach((i: NfItemRow, idx: number) => {
+    itensTyped.forEach((i, idx) => {
       if (i.conta_contabil_id) contaMap[idx] = i.conta_contabil_id;
       fiscalMap[idx] = {
         cfop: i.cfop, cst: i.cst, ncm: i.ncm, unidade: i.unidade,
@@ -243,7 +243,7 @@ const Fiscal = () => {
       data_emissao: n.data_emissao, tipo: n.tipo, status: n.status,
       emitente: n.tipo === "saida" && empresa ? { nome: empresa.razao_social, cnpj: empresa.cnpj, endereco: empresa.logradouro, cidade: empresa.cidade, uf: empresa.uf } : (n.fornecedores ? { nome: n.fornecedores.nome_razao_social, cnpj: n.fornecedores.cpf_cnpj } : undefined),
       destinatario: n.tipo === "saida" && n.clientes ? { nome: n.clientes.nome_razao_social } : (empresa ? { nome: empresa.razao_social, cnpj: empresa.cnpj } : undefined),
-      itens: (itens || []).map((i: NfItemRow) => ({ descricao: i.produtos?.nome || "", quantidade: i.quantidade, valor_unitario: i.valor_unitario, cfop: i.cfop, cst: i.cst, icms_valor: i.icms_valor, ipi_valor: i.ipi_valor, pis_valor: i.pis_valor, cofins_valor: i.cofins_valor })),
+      itens: ((itens || []) as unknown as NfItemRow[]).map((i) => ({ descricao: i.produtos?.nome || "", quantidade: i.quantidade, valor_unitario: i.valor_unitario, cfop: i.cfop, cst: i.cst, icms_valor: i.icms_valor, ipi_valor: i.ipi_valor, pis_valor: i.pis_valor, cofins_valor: i.cofins_valor })),
       valor_total: n.valor_total, frete_valor: n.frete_valor, icms_valor: n.icms_valor,
       ipi_valor: n.ipi_valor, pis_valor: n.pis_valor, cofins_valor: n.cofins_valor,
       desconto_valor: n.desconto_valor, outras_despesas: n.outras_despesas,
@@ -315,21 +315,19 @@ const Fiscal = () => {
         conta_contabil_id: form.conta_contabil_id || null,
         valor_total: savedTotal,
       };
-      const itemsPayload = items.filter(i => i.produto_id).map((i, idx) => ({
-        nota_fiscal_id: selected.id,
-        produto_id: i.produto_id,
-        quantidade: i.quantidade,
-        valor_unitario: i.valor_unitario,
-        conta_contabil_id: itemContaContabil[idx] || null,
-        // Preserve existing fiscal fields
-        ...(itemFiscalData[idx] || {}),
-      }));
-      // Validate → update header → delete old items → insert new items (sequential to reduce partial-state risk)
-      await supabase.from("notas_fiscais").update(payload as Record<string, unknown>).eq("id", selected.id);
-      await supabase.from("notas_fiscais_itens").delete().eq("nota_fiscal_id", selected.id);
-      if (itemsPayload.length > 0) {
-        const { error: itemsError } = await supabase.from("notas_fiscais_itens").insert(itemsPayload);
-        if (itemsError) throw itemsError;
+      await Promise.all([
+        supabase.from("notas_fiscais").update(payload as never).eq("id", selected.id),
+        supabase.from("notas_fiscais_itens").delete().eq("nota_fiscal_id", selected.id),
+      ]);
+      if (items.length > 0) {
+        const itemsPayload = items.filter(i => i.produto_id).map((i, idx) => ({
+          nota_fiscal_id: selected.id,
+          produto_id: i.produto_id,
+          quantidade: i.quantidade,
+          valor_unitario: i.valor_unitario,
+          conta_contabil_id: itemContaContabil[idx] || null,
+        }));
+        if (itemsPayload.length > 0) await supabase.from("notas_fiscais_itens").insert(itemsPayload as never);
       }
       const nfForConfirm = { ...selected, ...payload, valor_total: savedTotal };
       await confirmarNotaFiscal({ nf: nfForConfirm as NotaFiscal, parcelas });
@@ -414,7 +412,7 @@ const Fiscal = () => {
       const payload = { ...form, fornecedor_id: form.fornecedor_id || null, cliente_id: form.cliente_id || null, ordem_venda_id: form.ordem_venda_id || null, conta_contabil_id: form.conta_contabil_id || null, valor_total: savedTotal, valor_produtos: valorProdutos };
       let nfId = selected?.id;
       if (mode === "create") {
-        const { data: newNf, error } = await supabase.from("notas_fiscais").insert(payload as Record<string, unknown>).select().single();
+        const { data: newNf, error } = await supabase.from("notas_fiscais").insert(payload as never).select().single();
         if (error) throw error;
         nfId = newNf.id;
         // Register creation event
@@ -428,10 +426,10 @@ const Fiscal = () => {
           payload_resumido: { valor_total: savedTotal, itens: items.length },
         });
       } else if (selected) {
-        // Sequential edit: validate → update header → delete old → insert new
-        // This order minimises the risk of leaving the note without items.
-        await supabase.from("notas_fiscais").update(payload).eq("id", selected.id);
-        await supabase.from("notas_fiscais_itens").delete().eq("nota_fiscal_id", selected.id);
+        await Promise.all([
+          supabase.from("notas_fiscais").update(payload as never).eq("id", selected.id),
+          supabase.from("notas_fiscais_itens").delete().eq("nota_fiscal_id", selected.id),
+        ]);
         // Register edit event
         await registrarEventoFiscal({
           nota_fiscal_id: selected.id,
@@ -441,19 +439,8 @@ const Fiscal = () => {
         });
       }
       if (items.length > 0 && nfId) {
-        const itemsPayload = items.filter(i => i.produto_id).map((i, idx) => ({
-          nota_fiscal_id: nfId,
-          produto_id: i.produto_id,
-          quantidade: i.quantidade,
-          valor_unitario: i.valor_unitario,
-          conta_contabil_id: itemContaContabil[idx] || null,
-          // Preserve fiscal fields loaded from DB (or set by XML import)
-          ...(itemFiscalData[idx] || {}),
-        }));
-        if (itemsPayload.length > 0) {
-          const { error: itemsErr } = await supabase.from("notas_fiscais_itens").insert(itemsPayload);
-          if (itemsErr) throw itemsErr;
-        }
+        const itemsPayload = items.filter(i => i.produto_id).map((i, idx) => ({ nota_fiscal_id: nfId, produto_id: i.produto_id, quantidade: i.quantidade, valor_unitario: i.valor_unitario, conta_contabil_id: itemContaContabil[idx] || null }));
+        if (itemsPayload.length > 0) await supabase.from("notas_fiscais_itens").insert(itemsPayload as never);
       }
       toast.success("Nota fiscal salva!"); setModalOpen(false); fetchData();
     } catch (err: unknown) { console.error('[fiscal] salvar NF:', err); toast.error(getUserFriendlyError(err)); }
@@ -463,7 +450,7 @@ const Fiscal = () => {
   const openDevolucao = async (nf: NotaFiscal) => {
     const { data: itens } = await supabase.from("notas_fiscais_itens").select("*, produtos(nome, sku)").eq("nota_fiscal_id", nf.id);
     setDevolucaoNF(nf);
-    setDevolucaoItens((itens || []).map((i: NfItemRow) => ({ ...i, qtd_devolver: 0, nome: i.produtos?.nome || "—" })));
+    setDevolucaoItens(((itens || []) as unknown as NfItemRow[]).map((i) => ({ ...i, qtd_devolver: 0, nome: i.produtos?.nome || "—" })));
     setDevolucaoModalOpen(true);
   };
 
@@ -732,7 +719,7 @@ const Fiscal = () => {
               <Select value={form.ordem_venda_id || "none"} onValueChange={(v) => setForm({ ...form, ordem_venda_id: v === "none" ? "" : v })}><SelectTrigger><SelectValue placeholder="Vincular a um Pedido..." /></SelectTrigger><SelectContent><SelectItem value="none">Nenhum</SelectItem>{ordensVenda.map((ov) => (<SelectItem key={ov.id} value={ov.id}>{ov.numero} — {ov.clientes?.nome_razao_social || ""}</SelectItem>))}</SelectContent></Select>
             </div>
           )}
-          <ItemsGrid items={items} onChange={setItems} produtos={produtosCrud.data} title="Itens da Nota" />
+          <ItemsGrid items={items} onChange={setItems} produtos={produtosCrud.data as unknown as Record<string, unknown>[]} title="Itens da Nota" />
           {items.length > 0 && contasContabeis.length > 0 && (
             <div className="space-y-2"><Label className="text-sm font-semibold">Conta Contábil por Item</Label>
               <div className="space-y-2 rounded-lg border p-3">
@@ -748,7 +735,7 @@ const Fiscal = () => {
           <div className="space-y-3"><Label className="text-sm font-semibold">Frete, Impostos e Despesas</Label>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {[{ label: "Frete", key: "frete_valor" }, { label: "ICMS", key: "icms_valor" }, { label: "IPI", key: "ipi_valor" }, { label: "PIS", key: "pis_valor" }, { label: "COFINS", key: "cofins_valor" }, { label: "ICMS-ST", key: "icms_st_valor" }, { label: "Desconto", key: "desconto_valor" }, { label: "Outras Despesas", key: "outras_despesas" }].map(({ label, key }) => (
-                <div key={key} className="space-y-1"><Label className="text-xs">{label}</Label><Input type="number" step="0.01" value={form[key]} onChange={(e) => setForm({ ...form, [key]: Number(e.target.value) })} className="h-8 text-xs" /></div>
+                <div key={key} className="space-y-1"><Label className="text-xs">{label}</Label><Input type="number" step="0.01" value={String(form[key] ?? "")} onChange={(e) => setForm({ ...form, [key]: Number(e.target.value) })} className="h-8 text-xs" /></div>
               ))}
             </div>
           </div>
@@ -835,11 +822,11 @@ const Fiscal = () => {
         onOpenChange={setDevolucaoModalOpen}
         devolucaoNF={devolucaoNF}
         devolucaoItens={devolucaoItens}
-        setDevolucaoItens={setDevolucaoItens}
+        setDevolucaoItens={setDevolucaoItens as unknown as (itens: unknown[]) => void}
         onSuccess={fetchData}
       />
 
-      <DanfeViewer open={danfeOpen} onClose={() => setDanfeOpen(false)} data={danfeData} />
+      <DanfeViewer open={danfeOpen} onClose={() => setDanfeOpen(false)} data={danfeData as never} />
     </AppLayout>
   );
 };

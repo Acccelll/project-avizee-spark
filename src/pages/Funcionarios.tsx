@@ -220,9 +220,9 @@ export default function Funcionarios() {
     const inserts: Promise<unknown>[] = [
       // `FinanceiroLancamentoComFuncionario` is a local type (funcionario_id absent from
       // generated Supabase types). Cast required until types are regenerated.
-      supabase.from('financeiro_lancamentos').insert(salarioPayload as Record<string, unknown>),
+      supabase.from('financeiro_lancamentos').insert(salarioPayload as never) as unknown as Promise<unknown>,
       // Marcar folha como financeiro_gerado
-      supabase.from('folha_pagamento').update({ status: 'pago', financeiro_gerado: true }).eq('id', folha.id),
+      supabase.from('folha_pagamento').update({ status: 'pago', financeiro_gerado: true }).eq('id', folha.id) as unknown as Promise<unknown>,
     ];
 
     if (fgts > 0) {
@@ -234,7 +234,7 @@ export default function Funcionarios() {
           data_vencimento: dataFgts,
           status: 'aberto',
           ativo: true,
-        } as Record<string, unknown>)
+        } as never) as unknown as Promise<unknown>
       );
     }
 
