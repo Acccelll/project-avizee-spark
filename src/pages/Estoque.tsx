@@ -24,6 +24,7 @@ import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { formatNumber, formatCurrency } from "@/lib/format";
+import { getUserFriendlyError } from "@/utils/errorMessages";
 import type { Database } from "@/integrations/supabase/types";
 import { AlertTriangle, ArrowDownCircle, RotateCcw,
   TrendingDown, Package, CheckCircle, XCircle, ShieldAlert,
@@ -189,7 +190,7 @@ const Estoque = () => {
       toast.success("Ajuste registrado com sucesso");
     } catch (err) {
       console.error("[estoque] erro ao salvar:", err);
-      toast.error("Erro ao registrar movimentação de estoque");
+      toast.error(getUserFriendlyError(err));
     }
     setSaving(false);
   };
