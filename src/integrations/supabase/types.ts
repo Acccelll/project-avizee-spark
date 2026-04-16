@@ -1873,6 +1873,7 @@ export type Database = {
           created_at: string
           id: string
           largura_cm: number | null
+          observacoes: string | null
           opcao_escolhida_id: string | null
           origem_id: string
           origem_tipo: string
@@ -1891,6 +1892,7 @@ export type Database = {
           created_at?: string
           id?: string
           largura_cm?: number | null
+          observacoes?: string | null
           opcao_escolhida_id?: string | null
           origem_id: string
           origem_tipo?: string
@@ -1909,6 +1911,7 @@ export type Database = {
           created_at?: string
           id?: string
           largura_cm?: number | null
+          observacoes?: string | null
           opcao_escolhida_id?: string | null
           origem_id?: string
           origem_tipo?: string
@@ -2063,6 +2066,7 @@ export type Database = {
       grupos_produto: {
         Row: {
           ativo: boolean
+          conta_contabil_id: string | null
           created_at: string
           descricao: string | null
           id: string
@@ -2070,6 +2074,7 @@ export type Database = {
         }
         Insert: {
           ativo?: boolean
+          conta_contabil_id?: string | null
           created_at?: string
           descricao?: string | null
           id?: string
@@ -2077,16 +2082,26 @@ export type Database = {
         }
         Update: {
           ativo?: boolean
+          conta_contabil_id?: string | null
           created_at?: string
           descricao?: string | null
           id?: string
           nome?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "grupos_produto_conta_contabil_id_fkey"
+            columns: ["conta_contabil_id"]
+            isOneToOne: false
+            referencedRelation: "contas_contabeis"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       importacao_logs: {
         Row: {
           created_at: string
+          etapa: string | null
           id: string
           lote_id: string | null
           mensagem: string | null
@@ -2094,6 +2109,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          etapa?: string | null
           id?: string
           lote_id?: string | null
           mensagem?: string | null
@@ -2101,6 +2117,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          etapa?: string | null
           id?: string
           lote_id?: string | null
           mensagem?: string | null
@@ -2740,6 +2757,20 @@ export type Database = {
             columns: ["cliente_id"]
             isOneToOne: false
             referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orcamentos_frete_simulacao_id_fkey"
+            columns: ["frete_simulacao_id"]
+            isOneToOne: false
+            referencedRelation: "frete_simulacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orcamentos_transportadora_id_fkey"
+            columns: ["transportadora_id"]
+            isOneToOne: false
+            referencedRelation: "transportadoras"
             referencedColumns: ["id"]
           },
         ]
@@ -4385,6 +4416,7 @@ export type Database = {
       }
     }
     Functions: {
+      confirmar_nota_fiscal: { Args: { p_nf_id: string }; Returns: undefined }
       consolidar_lote_cadastros: { Args: { p_lote_id: string }; Returns: Json }
       consolidar_lote_enriquecimento: {
         Args: { p_lote_id: string }
@@ -4404,6 +4436,14 @@ export type Database = {
         Args: { payload: Json; queue_name: string }
         Returns: number
       }
+      financeiro_processar_baixa_lote: {
+        Args: { p_items: Json }
+        Returns: Json
+      }
+      financeiro_processar_estorno: {
+        Args: { p_lancamento_id: string; p_motivo?: string }
+        Returns: Json
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -4421,6 +4461,7 @@ export type Database = {
         Returns: number
       }
       proximo_numero_cotacao_compra: { Args: never; Returns: string }
+      proximo_numero_nota_fiscal: { Args: never; Returns: string }
       proximo_numero_orcamento: { Args: never; Returns: string }
       proximo_numero_ordem_venda: { Args: never; Returns: string }
       proximo_numero_pedido_compra: { Args: never; Returns: string }
