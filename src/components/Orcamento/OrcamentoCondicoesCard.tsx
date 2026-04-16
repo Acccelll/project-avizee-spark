@@ -58,11 +58,11 @@ export function OrcamentoCondicoesCard({ form, onChange }: Props) {
           <Input value={form.prazo_entrega} onChange={(e) => onChange("prazo_entrega", e.target.value)} placeholder="Ex: 12 dias úteis" />
         </div>
         <div className="space-y-1.5">
-          <Label className="text-xs">Frete</Label>
-          <Input value={form.frete_tipo} onChange={(e) => onChange("frete_tipo", e.target.value)} placeholder="Ex: CORREIOS (SEDEX)" />
+          <Label className="text-xs">Transportadora / Serviço de Frete</Label>
+          <Input value={form.frete_tipo} onChange={(e) => onChange("frete_tipo", e.target.value)} placeholder="Ex: CORREIOS SEDEX, Transportadora X" />
         </div>
         <div className="space-y-1.5">
-          <Label className="text-xs">Tipo</Label>
+          <Label className="text-xs">Modalidade (FOB / CIF)</Label>
           <Select value={form.modalidade} onValueChange={(v) => onChange("modalidade", v)}>
             <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
             <SelectContent>

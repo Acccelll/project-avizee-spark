@@ -194,10 +194,15 @@ export function OrcamentoView({ id }: Props) {
     }
   };
 
-  const handleCopyLink = () => {
+  const handleCopyLink = async () => {
     if (publicLink) {
-      navigator.clipboard.writeText(publicLink);
-      toast.success("Link copiado!");
+      try {
+        await navigator.clipboard.writeText(publicLink);
+        toast.success("Link copiado!");
+      } catch {
+        // Fallback para ambientes sem permissão de clipboard
+        toast.error("Não foi possível copiar o link. Copie manualmente.", { description: publicLink });
+      }
     }
   };
 
@@ -292,12 +297,21 @@ export function OrcamentoView({ id }: Props) {
                 size="icon"
                 className="h-8 w-8 text-destructive hover:text-destructive"
                 aria-label="Excluir cotação"
-                onClick={() => setDeleteConfirmOpen(true)}
+                onClick={() => {
+                  if (linkedOV) {
+                    toast.error("Não é possível excluir uma cotação com pedido vinculado.", {
+                      description: `Pedido ${linkedOV.numero} está vinculado a esta cotação.`,
+                    });
+                    return;
+                  }
+                  setDeleteConfirmOpen(true);
+                }}
+                disabled={Boolean(linkedOV)}
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Excluir</TooltipContent>
+            <TooltipContent>{linkedOV ? `Excluir bloqueado — pedido ${linkedOV.numero} vinculado` : "Excluir"}</TooltipContent>
           </Tooltip>
         </div>
       </div>

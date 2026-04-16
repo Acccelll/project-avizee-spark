@@ -30,6 +30,7 @@ const FluxoCaixa = lazy(() => import("./pages/FluxoCaixa"));
 const ContasContabeis = lazy(() => import("./pages/ContasContabeis"));
 const Login = lazy(() => import("./pages/Login"));
 const Pedidos = lazy(() => import("./pages/Pedidos"));
+const PedidoForm = lazy(() => import("./pages/PedidoForm"));
 const Relatorios = lazy(() => import("./pages/Relatorios"));
 const Configuracoes = lazy(() => import("./pages/Configuracoes"));
 const Administracao = lazy(() => import("./pages/Administracao"));
@@ -121,6 +122,7 @@ const App = () => (
             <Route path="/orcamentos/:id" element={<ProtectedRoute><LazyPage><OrcamentoForm /></LazyPage></ProtectedRoute>} />
             <Route path="/ordens-venda" element={<Navigate to="/pedidos" replace />} />
             <Route path="/pedidos" element={<ProtectedRoute><LazyPage><Pedidos /></LazyPage></ProtectedRoute>} />
+            <Route path="/pedidos/:id" element={<ProtectedRoute><LazyPage><PedidoForm /></LazyPage></ProtectedRoute>} />
             <Route path="/estoque" element={<ProtectedRoute><LazyPage><Estoque /></LazyPage></ProtectedRoute>} />
             <Route path="/fiscal" element={<ProtectedRoute><LazyPage><Fiscal /></LazyPage></ProtectedRoute>} />
             <Route path="/financeiro" element={<ProtectedRoute><LazyPage><Financeiro /></LazyPage></ProtectedRoute>} />

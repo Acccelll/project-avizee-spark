@@ -87,6 +87,7 @@ export default function OrcamentoForm() {
     setValue,
     getValues,
     reset,
+    trigger,
     formState: { errors: fieldErrors },
   } = useForm<OrcamentoFormValues>({
     resolver: zodResolver(orcamentoSchema),
@@ -307,6 +308,7 @@ export default function OrcamentoForm() {
       }
     };
     loadData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- reset/setValue are stable react-hook-form refs
   }, [id, isEdit]);
 
   const handleClienteChange = useCallback((cId: string) => {
@@ -454,20 +456,60 @@ export default function OrcamentoForm() {
   };
 
   const handleSave = async () => {
+    // Validar formulário via react-hook-form
+    const valid = await trigger(['numero', 'clienteId']);
+    if (!valid) {
+      toast.error("Preencha os campos obrigatórios para salvar.", { description: "Verifique número e cliente." });
+      return;
+    }
+    const { numero, clienteId } = getValues();
     if (!numero || !clienteId) {
       toast.error("Preencha os campos obrigatórios para salvar.", { description: "Verifique número e cliente." });
       return;
     }
+
+    // Verificar itens não vinculados (importados sem produto_id)
+    const unlinkedItems = items.filter(i => i._unlinked || (!i.produto_id && (i.codigo_snapshot || i.descricao_snapshot)));
+    if (unlinkedItems.length > 0) {
+      toast.error(
+        `Existem ${unlinkedItems.length} item(ns) não vinculado(s).`,
+        { description: "Vincule ou remova os itens marcados em vermelho antes de salvar." },
+      );
+      return;
+    }
+
+    // Exigir pelo menos um item válido
+    const validItems = items.filter(i => i.produto_id);
+    if (validItems.length === 0) {
+      toast.error("Adicione ao menos um item ao orçamento antes de salvar.");
+      return;
+    }
+
     setSaving(true);
     try {
+      const formValues = getValues();
       const payload = {
-        numero, data_orcamento: dataOrcamento, status, cliente_id: clienteId || null,
-        validade: validade || null, observacoes, observacoes_internas: observacoesInternas || null,
-        desconto, imposto_st: impostoSt,
-        imposto_ipi: impostoIpi, frete_valor: freteValor, outras_despesas: outrasDespesas,
-        valor_total: valorTotal, quantidade_total: quantidadeTotal, peso_total: pesoTotal,
-        pagamento, prazo_pagamento: prazoPagamento, prazo_entrega: prazoEntrega,
-        frete_tipo: freteTipo, modalidade, cliente_snapshot: clienteSnapshot,
+        numero: formValues.numero,
+        data_orcamento: formValues.dataOrcamento,
+        status: formValues.status,
+        cliente_id: formValues.clienteId || null,
+        validade: formValues.validade || null,
+        observacoes: formValues.observacoes,
+        observacoes_internas: formValues.observacoesInternas || null,
+        desconto: formValues.desconto,
+        imposto_st: formValues.impostoSt,
+        imposto_ipi: formValues.impostoIpi,
+        frete_valor: formValues.freteValor,
+        outras_despesas: formValues.outrasDespesas,
+        valor_total: valorTotal,
+        quantidade_total: quantidadeTotal,
+        peso_total: pesoTotal,
+        pagamento: formValues.pagamento,
+        prazo_pagamento: formValues.prazoPagamento,
+        prazo_entrega: formValues.prazoEntrega,
+        frete_tipo: formValues.freteTipo,
+        modalidade: formValues.modalidade,
+        cliente_snapshot: clienteSnapshot,
         transportadora_id: freteTransportadoraId || null,
         frete_simulacao_id: freteSimulacaoId || null,
         origem_frete: freteOrigemFrete || null,
@@ -479,7 +521,7 @@ export default function OrcamentoForm() {
         comprimento_cm: freteComprimentoCm || null,
       };
 
-      const itemsPayload = items.filter(i => i.produto_id).map(i => ({
+      const itemsPayload = validItems.map(i => ({
         produto_id: i.produto_id, codigo_snapshot: i.codigo_snapshot,
         descricao_snapshot: i.descricao_snapshot, variacao: i.variacao || null,
         quantidade: i.quantidade, unidade: i.unidade, valor_unitario: i.valor_unitario,
@@ -495,10 +537,10 @@ export default function OrcamentoForm() {
 
       localStorage.removeItem(draftKey);
       toast.success(isEdit ? "Orçamento atualizado com sucesso" : "Orçamento criado com sucesso", {
-        description: `Registro ${numero} salvo.`,
-        action: { label: "Visualizar", onClick: () => navigate(orcId ? `/cotacoes/${orcId}` : "/cotacoes") },
+        description: `Registro ${formValues.numero} salvo.`,
+        action: { label: "Visualizar", onClick: () => navigate(orcId ? `/orcamentos/${orcId}` : "/orcamentos") },
       });
-      if (!isEdit && orcId) navigate(`/cotacoes/${orcId}`, { replace: true });
+      if (!isEdit && orcId) navigate(`/orcamentos/${orcId}`, { replace: true });
     } catch (err: unknown) {
       console.error('[orcamento]', err);
       toast.error(getUserFriendlyError(err));
@@ -519,6 +561,12 @@ export default function OrcamentoForm() {
         valor_total: valorTotal, quantidade_total: quantidadeTotal, peso_total: pesoTotal,
         pagamento, prazo_pagamento: prazoPagamento, prazo_entrega: prazoEntrega,
         frete_tipo: freteTipo, modalidade, cliente_snapshot: clienteSnapshot,
+        // Preservar todos os metadados de frete do simulador
+        transportadora_id: freteTransportadoraId || null,
+        frete_simulacao_id: freteSimulacaoId || null,
+        origem_frete: freteOrigemFrete || null,
+        servico_frete: freteServico || null,
+        prazo_entrega_dias: fretePrazoEntregaDias || null,
         volumes: freteVolumes || null,
         altura_cm: freteAlturaCm || null,
         largura_cm: freteLarguraCm || null,
@@ -540,7 +588,7 @@ export default function OrcamentoForm() {
       if (error) throw error;
 
       toast.success(`Duplicado: ${payload.numero}`);
-      navigate(`/cotacoes/${orcId}`, { replace: true });
+      navigate(`/orcamentos/${orcId}`, { replace: true });
     } catch (err: unknown) {
       console.error('[orcamento] duplicar:', err);
       toast.error(getUserFriendlyError(err));
@@ -549,10 +597,10 @@ export default function OrcamentoForm() {
 
   const handleGeneratePdf = async () => {
     setPreviewOpen(true);
-    setTimeout(async () => {
+    // Aguardar a renderização do preview antes de capturar o PDF.
+    const capture = async () => {
       if (!pdfRef.current) return;
       try {
-        // Dynamically import heavy PDF libraries to keep the initial bundle lean.
         const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
           import("html2canvas"),
           import("jspdf"),
@@ -568,7 +616,9 @@ export default function OrcamentoForm() {
       } catch (err: unknown) {
         toast.error(getUserFriendlyError(err));
       }
-    }, 500);
+    };
+    // Usar requestAnimationFrame duplo para garantir que o DOM foi pintado antes da captura.
+    requestAnimationFrame(() => requestAnimationFrame(() => { capture(); }));
   };
 
   const handleTotalChange = (field: string, value: number) => {
@@ -603,11 +653,14 @@ export default function OrcamentoForm() {
 
   useEffect(() => {
     const timer = setInterval(() => {
+      // Só persiste rascunho se houver conteúdo significativo (numero ou cliente preenchido)
+      const { numero: n, clienteId: cid } = getValues();
+      if (!n && !cid && items.length === 0) return;
       const payload = buildDraftPayload();
       localStorage.setItem(draftKey, JSON.stringify(payload));
     }, 30000);
     return () => clearInterval(timer);
-  }, [buildDraftPayload, draftKey]);
+  }, [buildDraftPayload, draftKey, getValues, items.length]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -641,7 +694,7 @@ export default function OrcamentoForm() {
     <AppLayout>
       <div className="mb-6 space-y-3">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/cotacoes")}>
+          <Button variant="ghost" size="icon" onClick={() => navigate("/orcamentos")}>
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <div className="min-w-0">

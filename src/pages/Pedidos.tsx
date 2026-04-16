@@ -1,6 +1,6 @@
 
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
@@ -22,7 +22,7 @@ import { formatCurrency, formatDate, daysSince, formatNumber, calculateDaysBetwe
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import { FileText, DollarSign, Truck } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { confirmarNotaFiscal } from "@/services/fiscal.service";
+import { gerarNFParaPedido } from "@/services/nf.service";
 
 interface Pedido {
   id: string;
@@ -115,6 +115,7 @@ const prazoFilterOptions: MultiSelectOption[] = [
 
 const Pedidos = () => {
   const { pushView } = useRelationalNavigation();
+  const navigate = useNavigate();
   const { data: rawData, loading, fetchData } = useSupabaseCrud({
     table: "ordens_venda", select: "*, clientes(nome_razao_social), orcamentos(numero)",
   });
@@ -213,61 +214,11 @@ const Pedidos = () => {
 
   const handleGenerateNF = async (pedido: Pedido) => {
     try {
-      const { data: pedidoItems } = await supabase.from("ordens_venda_itens").select("*").eq("ordem_venda_id", pedido.id);
-      const { data: nfNumData, error: nfNumError } = await supabase.rpc("proximo_numero_nota_fiscal" as any);
-      if (nfNumError) throw nfNumError;
-      const nfNumero = nfNumData as string;
-
-      const totalProdutos = (pedidoItems || []).reduce((s, i) => s + Number(i.valor_total || 0), 0);
-
-      const { data: newNF, error } = await supabase.from("notas_fiscais").insert({
-        numero: nfNumero,
-        tipo: "saida",
-        data_emissao: new Date().toISOString().split("T")[0],
-        cliente_id: pedido.cliente_id,
-        ordem_venda_id: pedido.id,
-        valor_total: totalProdutos,
-        status: "pendente",
-        movimenta_estoque: true,
-        gera_financeiro: true,
-        observacoes: `Gerada a partir do Pedido ${pedido.numero}`,
-      }).select().single();
-
-      if (error) throw error;
-
-      await Promise.all([
-        pedidoItems
-          ? Promise.all(
-              pedidoItems.map((item) => {
-                const novaQtdFaturada = (item.quantidade_faturada || 0) + item.quantidade;
-                return supabase.from("ordens_venda_itens").update({
-                  quantidade_faturada: novaQtdFaturada,
-                }).eq("id", item.id).then(({ error }) => { if (error) throw error; });
-              })
-            )
-          : Promise.resolve(),
-      ]);
-
-      await confirmarNotaFiscal({
-        nf: {
-          id: newNF.id,
-          numero: nfNumero,
-          tipo: "saida",
-          data_emissao: new Date().toISOString().split("T")[0],
-          valor_total: totalProdutos,
-          movimenta_estoque: true,
-          gera_financeiro: true,
-          condicao_pagamento: "a_vista",
-          forma_pagamento: "",
-          fornecedor_id: "",
-          cliente_id: pedido.cliente_id ?? "",
-          conta_contabil_id: null,
-          ordem_venda_id: pedido.id,
-          status: "pendente",
-        },
-        parcelas: 1,
-      });
-
+      const { nfNumero } = await gerarNFParaPedido(
+        pedido.id,
+        pedido.numero,
+        pedido.cliente_id,
+      );
       toast.success(`NF ${nfNumero} gerada, estoque e financeiro atualizados.`);
       fetchData();
     } catch (err: unknown) {
@@ -402,6 +353,14 @@ const Pedidos = () => {
               <FileOutput className="w-3 h-3" /> Gerar NF
             </Button>
           )}
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 text-xs"
+            onClick={(e) => { e.stopPropagation(); navigate(`/pedidos/${p.id}`); }}
+          >
+            Editar
+          </Button>
         </div>
       ),
     },

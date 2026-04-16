@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -9,10 +10,10 @@ import { LogisticaRastreioSection } from "@/components/logistica/LogisticaRastre
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { calcularStatusFaturamentoOV } from "@/lib/fiscal";
 import { toast } from "sonner";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import { pagamentoLabels, freteTipoLabels } from "@/utils/comercial";
+import { gerarNFParaPedido } from "@/services/nf.service";
 import {
   FileOutput,
   DollarSign,
@@ -24,6 +25,7 @@ import {
   Receipt,
   Link2,
   AlertTriangle,
+  Edit,
 } from "lucide-react";
 
 interface Props {
@@ -78,6 +80,7 @@ export function OrdemVendaView({ id }: Props) {
   const [generateNfOpen, setGenerateNfOpen] = useState(false);
   const [generatingNf, setGeneratingNf] = useState(false);
   const { pushView } = useRelationalNavigation();
+  const navigate = useNavigate();
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -138,76 +141,11 @@ export function OrdemVendaView({ id }: Props) {
     if (!selected) return;
     setGeneratingNf(true);
     try {
-      const { data: pedidoItems } = await supabase
-        .from("ordens_venda_itens")
-        .select("*")
-        .eq("ordem_venda_id", selected.id);
-
-      const { data: nfNumData, error: nfNumError } =
-        await supabase.rpc("proximo_numero_nota_fiscal" as any);
-      if (nfNumError) throw nfNumError;
-      const nfNumero = nfNumData as string;
-
-      const totalProdutos = (pedidoItems || []).reduce(
-        (s: number, i: Record<string, unknown>) => s + Number(i.valor_total || 0),
-        0
+      const { nfNumero } = await gerarNFParaPedido(
+        selected.id,
+        selected.numero,
+        selected.cliente_id,
       );
-
-      const { data: newNF, error } = await supabase
-        .from("notas_fiscais")
-        .insert({
-          numero: nfNumero,
-          tipo: "saida",
-          data_emissao: new Date().toISOString().split("T")[0],
-          cliente_id: selected.cliente_id,
-          ordem_venda_id: selected.id,
-          valor_total: totalProdutos,
-          status: "pendente",
-          movimenta_estoque: true,
-          gera_financeiro: true,
-          observacoes: `Gerada a partir do Pedido ${selected.numero}`,
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      if (pedidoItems && pedidoItems.length > 0 && newNF) {
-        const nfItems = pedidoItems.map((i: any) => ({
-          nota_fiscal_id: newNF.id,
-          produto_id: i.produto_id as string,
-          quantidade: Number(i.quantidade),
-          valor_unitario: Number(i.valor_unitario),
-        }));
-        await supabase.from("notas_fiscais_itens").insert(nfItems);
-      }
-
-      if (pedidoItems) {
-        await Promise.all(
-          pedidoItems.map((item: any) =>
-            supabase
-              .from("ordens_venda_itens")
-              .update({ quantidade_faturada: Number(item.quantidade_faturada || 0) + Number(item.quantidade) })
-              .eq("id", item.id as string)
-          )
-        );
-      }
-
-      const { data: updatedItems } = await supabase
-        .from("ordens_venda_itens")
-        .select("quantidade, quantidade_faturada")
-        .eq("ordem_venda_id", selected.id);
-      const totalQ = (updatedItems || []).reduce((s: number, i: Record<string, unknown>) => s + Number(i.quantidade), 0);
-      const totalF = (updatedItems || []).reduce(
-        (s: number, i: Record<string, unknown>) => s + Number(i.quantidade_faturada || 0),
-        0
-      );
-      const newFatStatus = calcularStatusFaturamentoOV(totalQ, totalF);
-      await supabase
-        .from("ordens_venda")
-        .update({ status_faturamento: newFatStatus })
-        .eq("id", selected.id);
-
       toast.success(`NF ${nfNumero} gerada a partir do Pedido ${selected.numero}!`);
       await fetchData();
     } catch (err: unknown) {
@@ -235,6 +173,14 @@ export function OrdemVendaView({ id }: Props) {
     <div className="space-y-4">
       {/* Action bar */}
       <div className="flex items-center gap-1.5 flex-wrap border-b pb-3">
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-8 gap-1.5 text-xs"
+          onClick={() => navigate(`/pedidos/${selected.id}`)}
+        >
+          <Edit className="h-3.5 w-3.5" /> Editar Pedido
+        </Button>
         {canGenerateNF && (
           <Button
             size="sm"
@@ -246,16 +192,19 @@ export function OrdemVendaView({ id }: Props) {
             <FileOutput className="h-3.5 w-3.5" /> Gerar NF
           </Button>
         )}
-        {notasFiscais.length > 0 && (
+        {/* Mostrar acesso a todas as NFs vinculadas, não apenas a primeira */}
+        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+        {notasFiscais.map((nf: any) => (
           <Button
+            key={nf.id}
             size="sm"
             variant="outline"
             className="h-8 gap-1.5 text-xs"
-            onClick={() => pushView("nota_fiscal", notasFiscais[0].id)}
+            onClick={() => pushView("nota_fiscal", nf.id)}
           >
-            <FileText className="h-3.5 w-3.5" /> Ver NF {notasFiscais[0].numero}
+            <FileText className="h-3.5 w-3.5" /> NF {nf.numero}
           </Button>
-        )}
+        ))}
       </div>
 
       {/* KPI strip */}
