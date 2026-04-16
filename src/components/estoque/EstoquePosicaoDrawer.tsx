@@ -37,6 +37,7 @@ interface ProdutoPosicao {
   unidade_medida: string;
   estoque_atual: number;
   estoque_minimo: number;
+  preco_custo?: number | null;
   preco_venda: number;
   estoque_reservado?: number;
   estoque_ideal?: number;
@@ -123,7 +124,10 @@ export function EstoquePosicaoDrawer({
   const minimo = Number(produto.estoque_minimo || 0);
   const reservado = Number(produto.estoque_reservado || 0);
   const disponivel = atual - reservado;
-  const valorEstoque = atual * Number(produto.preco_venda || 0);
+  // Use preco_custo as primary valuation; fall back to preco_venda when cost is absent.
+  const custoPorUnidade = Number(produto.preco_custo ?? produto.preco_venda ?? 0);
+  const valorEstoque = atual * custoPorUnidade;
+  const valorLabel = produto.preco_custo ? "Custo Est." : "Valor Est.";
 
   const movsProduto = movimentos
     .filter((m) => m.produto_id === produto.id)
@@ -170,12 +174,14 @@ export function EstoquePosicaoDrawer({
       </div>
       <div className="rounded-lg border bg-card p-3 text-center">
         <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground mb-1">
-          Valor Est.
+          {valorLabel}
         </p>
         <p className="text-base font-bold font-mono leading-tight truncate">
-          {produto.preco_venda ? formatCurrency(valorEstoque) : "—"}
+          {custoPorUnidade > 0 ? formatCurrency(valorEstoque) : "—"}
         </p>
-        <p className="text-[10px] text-muted-foreground">R$ × qtd</p>
+        <p className="text-[10px] text-muted-foreground">
+          {produto.preco_custo ? "pelo custo" : produto.preco_venda ? "pelo preço venda" : "sem custo"}
+        </p>
       </div>
     </div>
   );
@@ -212,9 +218,12 @@ export function EstoquePosicaoDrawer({
           <ViewField label="Situação">
             <SituacaoBadge situacao={situacao} />
           </ViewField>
-          {produto.preco_venda ? (
-            <ViewField label="Valor em Estoque">
+          {custoPorUnidade > 0 ? (
+            <ViewField label={valorLabel}>
               <span className="font-semibold font-mono">{formatCurrency(valorEstoque)}</span>
+              {!produto.preco_custo && (
+                <span className="text-xs text-muted-foreground ml-1">(sem custo — usando preço venda)</span>
+              )}
             </ViewField>
           ) : null}
         </div>
@@ -349,13 +358,20 @@ export function EstoquePosicaoDrawer({
                 </div>
                 {m.documento_id && (
                   <RelationalLink
-                    to={
+                    type={
                       m.documento_tipo === "compra" || m.documento_tipo === "pedido_compra"
-                        ? "/compras"
+                        ? "pedido_compra"
                         : m.documento_tipo === "pedido"
-                        ? "/pedidos"
+                        ? "ordem_venda"
                         : m.documento_tipo === "nota_fiscal" || m.documento_tipo === "fiscal"
-                        ? "/fiscal"
+                        ? "nota_fiscal"
+                        : undefined
+                    }
+                    id={
+                      (m.documento_tipo === "compra" || m.documento_tipo === "pedido_compra" ||
+                       m.documento_tipo === "pedido" || m.documento_tipo === "nota_fiscal" ||
+                       m.documento_tipo === "fiscal")
+                        ? m.documento_id
                         : undefined
                     }
                   >

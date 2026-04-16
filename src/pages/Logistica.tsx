@@ -26,16 +26,17 @@ import { toast } from "sonner";
 import { formatNumber, formatDate } from "@/lib/format";
 import { format } from "date-fns";
 import { EntregaDrawer } from "@/components/logistica/EntregaDrawer";
+import { RecebimentoDrawer } from "@/components/logistica/RecebimentoDrawer";
 import { statusRemessa } from "@/lib/statusSchema";
 import { useEntregas } from "@/pages/logistica/hooks/useEntregas";
 import type { Entrega } from "@/pages/logistica/hooks/useEntregas";
 import { useRecebimentos } from "@/pages/logistica/hooks/useRecebimentos";
 import type { Recebimento } from "@/pages/logistica/hooks/useRecebimentos";
-import { fetchTracking, normalizarEventos } from "@/services/correios.service";
+import { trackAndPersistEventos } from "@/services/logistica/remessas.service";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import {
   Eye, AlertTriangle, Truck, Package, CheckCheck, ExternalLink, Loader2,
-  Edit, Trash2, Plus, MapPin, Package as PackageIcon, Search, Clock, Timer, RefreshCw,
+  Edit, Trash2, Plus, MapPin, Package as PackageIcon, Search, Clock, Timer,
 } from "lucide-react";
 
 // ─── Remessa types ───
@@ -46,11 +47,6 @@ type RemessaEvento = Tables<"remessa_eventos">;
 const entregaStatusOptions = [
   "aguardando_separacao", "em_separacao", "separado", "aguardando_expedicao",
   "em_transporte", "entregue", "entrega_parcial", "ocorrencia", "cancelado",
-] as const;
-
-const recebimentoStatusOptions = [
-  "pedido_emitido", "aguardando_envio_fornecedor", "em_transito",
-  "recebimento_parcial", "recebido", "recebido_com_divergencia", "atrasado", "cancelado",
 ] as const;
 
 const logisticaStatusMap: Record<string, { label: string; badgeStatus: string }> = {
@@ -76,10 +72,8 @@ const recebimentoStatusMap: Record<string, { label: string; badgeStatus: string 
   cancelado:                   { label: "Cancelado",            badgeStatus: "cancelado" },
 };
 
-const remessaStatusMap: Record<string, { label: string; color: string }> = {
-  ...statusRemessa,
-  postado: { label: "Postado", color: "info" },
-};
+// statusRemessa now includes postado, coletado and cancelado — use directly
+const remessaStatusMap: Record<string, { label: string; color: string }> = { ...statusRemessa };
 
 function getEntregaStatusCfg(status: string) {
   return logisticaStatusMap[status] ?? { label: status.replaceAll("_", " "), badgeStatus: "pendente" };
@@ -131,6 +125,7 @@ export default function Logistica() {
   const { data: recebimentos = [], isLoading: recebimentosLoading } = useRecebimentos();
   const loading = entregasLoading || recebimentosLoading;
   const [selectedEntrega, setSelectedEntrega] = useState<Entrega | null>(null);
+  const [selectedRecebimento, setSelectedRecebimento] = useState<Recebimento | null>(null);
 
   // Derived lists for filters (computed from hook data)
   const transportadorasList = useMemo(
@@ -347,11 +342,21 @@ export default function Logistica() {
 
   const updateRecebimentoStatus = async (recebimento: Recebimento, status: string) => {
     if (!canEdit) return;
-    const payload: Record<string, unknown> = { status };
-    if (status === "recebido") payload.data_entrega_real = new Date().toISOString().slice(0, 10);
-    const { error } = await supabase.from("pedidos_compra").update(payload).eq("id", recebimento.id);
+    // Guard: only allow transitions that are valid in the Compras domain.
+    // Writing an arbitrary logistic status (e.g. "em_transito") to pedidos_compra.status
+    // would corrupt the purchasing workflow.  Only "recebido" is safe to propagate here.
+    const ALLOWED_FROM_LOGISTICA = ["recebido"];
+    if (!ALLOWED_FROM_LOGISTICA.includes(status)) {
+      toast.warning("Esta transição deve ser feita no módulo de Compras.");
+      return;
+    }
+    // Only set data_entrega_real; do not overwrite the Compras status lifecycle.
+    const { error } = await supabase
+      .from("pedidos_compra")
+      .update({ data_entrega_real: new Date().toISOString().slice(0, 10) })
+      .eq("id", recebimento.id);
     if (error) { toast.error(getUserFriendlyError(error)); return; }
-    toast.success("Status atualizado");
+    toast.success("Data de recebimento registrada");
   };
 
   // ─── Remessa CRUD handlers ───
@@ -423,28 +428,22 @@ export default function Logistica() {
     setIsMockTracking(false);
     try {
       toast.info("Consultando rastreio...");
-      const tracking = await fetchTracking(remessa.codigo_rastreio);
-
-      const isMock = tracking.warning === "fallback_mock";
+      const { novos, isMock, eventos: evs } = await trackAndPersistEventos(
+        remessa.codigo_rastreio,
+        remessa.id,
+      );
       setIsMockTracking(isMock);
-
-      const eventosNormalizados = normalizarEventos(tracking, remessa.id);
 
       if (isMock) {
         toast.warning("Dados simulados — credenciais dos Correios não configuradas.");
-        setEventos(eventosNormalizados as unknown as RemessaEvento[]);
+        setEventos(evs as unknown as RemessaEvento[]);
         return;
       }
 
-      const { data: existentes } = await supabase.from("remessa_eventos").select("descricao, local, data_hora").eq("remessa_id", remessa.id);
-      const eventKey = (e: { descricao: string; local: string | null; data_hora: string }) =>
-        `${e.data_hora}::${e.descricao}::${e.local ?? ""}`;
-      const existentesSet = new Set((existentes ?? []).map(eventKey));
-      const novos = eventosNormalizados.filter((e) => !existentesSet.has(eventKey(e)));
-
-      if (novos.length > 0) await supabase.from("remessa_eventos").insert(novos);
-      toast.success(`${novos.length} novo(s) evento(s) incluído(s)`);
-      const { data: updatedEvents } = await supabase.from("remessa_eventos").select("*").eq("remessa_id", remessa.id).order("data_hora", { ascending: false });
+      toast.success(`${novos} novo(s) evento(s) incluído(s)`);
+      const { data: updatedEvents } = await supabase
+        .from("remessa_eventos").select("*").eq("remessa_id", remessa.id)
+        .order("data_hora", { ascending: false });
       setEventos((updatedEvents ?? []) as RemessaEvento[]);
     } catch (err: unknown) {
       toast.error(getUserFriendlyError(err));
@@ -525,12 +524,12 @@ export default function Logistica() {
     { key: "pendencia", label: "Pendência", render: (item: Recebimento) => item.pendencia > 0 ? <span className="text-xs text-warning font-medium">{formatNumber(item.pendencia)}</span> : <span className="text-xs text-muted-foreground">—</span> },
     { key: "acoes", label: "Ações", render: (item: Recebimento) => (
       <div className="flex items-center gap-1.5 flex-wrap">
+        <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => setSelectedRecebimento(item)}><Eye className="h-3.5 w-3.5" />Ver</Button>
         <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-muted-foreground" onClick={() => pushView("pedido_compra", item.id)}><ExternalLink className="h-3.5 w-3.5" />Compra</Button>
-        {canEdit && (
-          <Select value={item.status_logistico} onValueChange={(value) => updateRecebimentoStatus(item, value)}>
-            <SelectTrigger className="h-8 w-[220px] text-xs"><SelectValue /></SelectTrigger>
-            <SelectContent>{recebimentoStatusOptions.map((s) => <SelectItem key={s} value={s}>{recebimentoStatusMap[s]?.label || s.replaceAll("_", " ")}</SelectItem>)}</SelectContent>
-          </Select>
+        {canEdit && item.status_logistico !== "recebido" && (
+          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => updateRecebimentoStatus(item, "recebido")}>
+            <CheckCheck className="h-3.5 w-3.5 mr-1" />Marcar Recebido
+          </Button>
         )}
       </div>
     )},
@@ -673,6 +672,9 @@ export default function Logistica() {
 
       {/* Entrega Drawer */}
       <EntregaDrawer open={!!selectedEntrega} onClose={() => setSelectedEntrega(null)} entrega={selectedEntrega} />
+
+      {/* Recebimento Drawer */}
+      <RecebimentoDrawer open={!!selectedRecebimento} onClose={() => setSelectedRecebimento(null)} recebimento={selectedRecebimento} />
 
       {/* Remessa Form Modal */}
       <FormModal open={remModalOpen} onClose={() => setRemModalOpen(false)} title={remMode === "create" ? "Nova Remessa" : "Editar Remessa"} size="lg">

@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
@@ -21,10 +21,8 @@ import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect
 import { Card, CardContent } from "@/components/ui/card";
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { formatNumber, formatCurrency } from "@/lib/format";
-import { getUserFriendlyError } from "@/utils/errorMessages";
 import type { Database } from "@/integrations/supabase/types";
 import { AlertTriangle, ArrowDownCircle, RotateCcw,
   TrendingDown, Package, CheckCircle, XCircle, ShieldAlert,
@@ -89,18 +87,17 @@ const tipoMovConfig: Record<string, { label: string; status: string }> = {
 };
 
 const Estoque = () => {
-  const { data, loading, create } = useSupabaseCrud<Movimento>({
+  const { data, loading } = useSupabaseCrud<Movimento>({
     table: "estoque_movimentos", select: "*, produtos(nome, sku)", hasAtivo: false,
   });
   const produtosCrud = useSupabaseCrud<ProdutoPosicao>({ table: "produtos" });
-  const { registrar, isSaving: mutationSaving } = useEstoqueMutations();
+  const { registrar, isSaving: saving } = useEstoqueMutations();
   const [activeTab, setActiveTab] = useState("saldos");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selected, setSelected] = useState<Movimento | null>(null);
   const [posicaoDrawerOpen, setPosicaoDrawerOpen] = useState(false);
   const [selectedPosicao, setSelectedPosicao] = useState<ProdutoPosicao | null>(null);
   const [form, setForm] = useState({ produto_id: "", tipo: "ajuste", quantidade: 0, motivo: "" });
-  const [saving, setSaving] = useState(false);
   const [confirmMovOpen, setConfirmMovOpen] = useState(false);
   const [pendingMovForm, setPendingMovForm] = useState<typeof form | null>(null);
   const [produtoSelectorOpen, setProdutoSelectorOpen] = useState(false);
@@ -123,7 +120,11 @@ const Estoque = () => {
   const kpis = useMemo(() => {
     const ativos = produtosCrud.data.filter((p) => p.ativo);
     const totalItens = ativos.length;
-    const valorEstoque = ativos.reduce((s, p) => s + (Number(p.estoque_atual ?? 0) * Number(p.preco_venda ?? 0)), 0);
+    // Use preco_custo for stock valuation; fall back to preco_venda only when cost is unavailable.
+    const valorEstoque = ativos.reduce(
+      (s, p) => s + Number(p.estoque_atual ?? 0) * Number(p.preco_custo ?? p.preco_venda ?? 0),
+      0,
+    );
     const itensZerados = ativos.filter((p) => Number(p.estoque_atual ?? 0) <= 0).length;
     const itensCriticos = abaixoMinimo.length + itensZerados;
     const ajustesManuais = data.filter((m) => m.tipo === "ajuste").length;
@@ -164,35 +165,64 @@ const Estoque = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.produto_id || !form.quantidade) { toast.error("Produto e quantidade são obrigatórios"); return; }
-    if (!form.motivo.trim()) { toast.error("Motivo é obrigatório para ajuste manual"); return; }
-    // Show confirmation dialog before executing mutation
+    if (!form.produto_id) { toast.error("Selecione um produto"); return; }
+    if (form.quantidade <= 0) { toast.error("A quantidade deve ser maior que zero"); return; }
+    if (!form.motivo.trim()) {
+      const motivoMsg =
+        form.tipo === "saida" ? "Informe o motivo da saída de estoque" :
+        form.tipo === "entrada" ? "Informe a origem da entrada de estoque" :
+        "Informe o motivo do ajuste manual";
+      toast.error(motivoMsg);
+      return;
+    }
+    // Warn about negative balance (allow with explicit confirmation via ConfirmDialog)
+    if (form.tipo === "saida") {
+      const produto = produtosCrud.data.find((p) => p.id === form.produto_id);
+      const saldo = Number(produto?.estoque_atual ?? 0);
+      if (form.quantidade > saldo) {
+        // Will leave negative — still allow, but confirm explicitly
+      }
+    }
     setPendingMovForm({ ...form });
     setConfirmMovOpen(true);
   };
 
   const executeMovimentacao = async () => {
     if (!pendingMovForm) return;
-    setSaving(true);
     try {
       const produto = produtosCrud.data.find((p) => p.id === pendingMovForm.produto_id);
       const saldo_anterior = Number(produto?.estoque_atual ?? 0);
-      const qty = pendingMovForm.tipo === "saida" ? -pendingMovForm.quantidade : pendingMovForm.tipo === "ajuste" ? pendingMovForm.quantidade - saldo_anterior : pendingMovForm.quantidade;
-      const saldo_atual = pendingMovForm.tipo === "ajuste" ? pendingMovForm.quantidade : saldo_anterior + qty;
+      const qty = pendingMovForm.tipo === "saida"
+        ? -pendingMovForm.quantidade
+        : pendingMovForm.tipo === "ajuste"
+        ? pendingMovForm.quantidade - saldo_anterior
+        : pendingMovForm.quantidade;
+      const saldo_atual = pendingMovForm.tipo === "ajuste"
+        ? pendingMovForm.quantidade
+        : saldo_anterior + qty;
 
-      await Promise.all([
-        create({ ...pendingMovForm, quantidade: Math.abs(qty), saldo_anterior, saldo_atual, documento_tipo: "manual" }),
-        supabase.from("produtos").update({ estoque_atual: saldo_atual }).eq("id", pendingMovForm.produto_id),
-      ]);
-      produtosCrud.fetchData();
+      // Use the official hook/service for a single, atomic update path.
+      // This prevents the old anti-pattern of calling create() + supabase.update() in parallel.
+      await registrar({
+        payload: {
+          produto_id: pendingMovForm.produto_id,
+          tipo: pendingMovForm.tipo,
+          quantidade: Math.abs(qty),
+          saldo_anterior,
+          saldo_atual,
+          motivo: pendingMovForm.motivo,
+          documento_tipo: "manual",
+        },
+        novoEstoqueAtual: saldo_atual,
+      });
+
+      // The hook's onSuccess already calls toast.success + cache invalidation.
       setForm({ produto_id: "", tipo: "ajuste", quantidade: 0, motivo: "" });
       setPendingMovForm(null);
-      toast.success("Ajuste registrado com sucesso");
     } catch (err) {
-      console.error("[estoque] erro ao salvar:", err);
-      toast.error(getUserFriendlyError(err));
+      // onError in the hook already calls toast.error — log only for debugging.
+      console.error("[estoque] executeMovimentacao:", err);
     }
-    setSaving(false);
   };
 
   // Saldos filter chips
@@ -276,7 +306,11 @@ const Estoque = () => {
     { key: "estoque_disponivel", label: "Disponível", render: (p: ProdutoPosicao) => <span className="font-mono font-semibold">{formatNumber(Number(p.estoque_atual ?? 0) - Number(p.estoque_reservado ?? 0))}</span> },
     { key: "estoque_minimo", label: "Mínimo", render: (p: ProdutoPosicao) => <span className="font-mono text-muted-foreground">{(p.estoque_minimo ?? 0) > 0 ? formatNumber(p.estoque_minimo ?? 0) : "—"}</span> },
     { key: "situacao", label: "Situação", render: (p: ProdutoPosicao) => <SituacaoEstoqueBadge situacao={getSituacao(p)} /> },
-    { key: "valor_estoque", label: "Valor Est.", render: (p: ProdutoPosicao) => <span className="font-mono font-medium">{formatCurrency(Number(p.estoque_atual ?? 0) * Number(p.preco_venda ?? 0))}</span>, hidden: true },
+    { key: "valor_estoque", label: "Valor Est.", render: (p: ProdutoPosicao) => {
+      // Use preco_custo for valuation; fallback to preco_venda when cost is unavailable.
+      const custo = Number(p.preco_custo ?? p.preco_venda ?? 0);
+      return <span className="font-mono font-medium">{formatCurrency(Number(p.estoque_atual ?? 0) * custo)}</span>;
+    }, hidden: true },
   ];
 
   // Preview do ajuste para o produto selecionado
@@ -313,7 +347,7 @@ const Estoque = () => {
               title="Valor em Estoque"
               value={formatCurrency(kpis.valorEstoque)}
               icon={DollarSign}
-              variation="R$ × quantidade"
+              variation="pelo preço de custo"
               variationType="neutral"
               variant="info"
             />

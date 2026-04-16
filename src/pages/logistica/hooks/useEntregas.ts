@@ -49,9 +49,16 @@ async function fetchEntregas(): Promise<Entrega[]> {
   const transportadoraMap = new Map(
     (transportadorasRes.data ?? []).map((t) => [t.id, t.nome_razao_social] as const),
   );
-  const remessaByPedido = new Map(
-    (remessasRes.data ?? []).map((r) => [r.ordem_venda_id ?? "", r] as const),
-  );
+  // Keep the most recently updated remessa per order (avoids silently overwriting
+  // earlier entries when multiple remessas exist for the same ordem_venda).
+  const remessaByPedido = new Map<string, (typeof remessasRes.data)[0]>();
+  for (const r of remessasRes.data ?? []) {
+    const key = r.ordem_venda_id ?? "";
+    const existing = remessaByPedido.get(key);
+    if (!existing || (r.updated_at ?? "") > (existing.updated_at ?? "")) {
+      remessaByPedido.set(key, r);
+    }
+  }
 
   const pesoByOrder = new Map<string, { peso: number; qtd: number }>();
   (itensOvRes.data ?? []).forEach((item) => {

@@ -39,10 +39,38 @@ async function fetchRecebimentos(): Promise<Recebimento[]> {
     );
   });
 
+  // Status mapping from Compras domain to Logística display status.
+  // NOTE: This view does NOT substitute the real receiving process in Compras.
+  // The status shown here is READ-ONLY from the Compras domain; changes to
+  // receiving must be performed via the Compras module.
+  const comprasStatusToLogistico: Record<string, string> = {
+    rascunho:              "pedido_emitido",
+    aprovado:              "pedido_emitido",
+    enviado_ao_fornecedor: "aguardando_envio_fornecedor",
+    aguardando_recebimento:"em_transito",
+    parcialmente_recebido: "recebimento_parcial",
+    recebido:              "recebido",
+    cancelado:             "cancelado",
+  };
+
   return (comprasRes.data ?? []).map((compra) => {
     const qtdPedida = qtyByCompra.get(compra.id) ?? 0;
-    const qtdRecebida = compra.data_entrega_real ? qtdPedida : 0;
+
+    // Derive received quantity from the Compras status domain — no binary hack.
+    // "recebido" → full quantity; "parcialmente_recebido" → approximate 50%;
+    // otherwise 0 (we cannot know the real amount without a dedicated column).
+    const comprasStatus = compra.status ?? "rascunho";
+    let qtdRecebida = 0;
+    if (comprasStatus === "recebido") {
+      qtdRecebida = qtdPedida;
+    } else if (comprasStatus === "parcialmente_recebido") {
+      // Best-effort approximation until a real quantidade_recebida column is added.
+      qtdRecebida = Math.round(qtdPedida / 2);
+    }
     const pendencia = Math.max(0, qtdPedida - qtdRecebida);
+
+    const statusLogistico =
+      comprasStatusToLogistico[comprasStatus] ?? "pedido_emitido";
 
     return {
       id: compra.id,
@@ -53,11 +81,7 @@ async function fetchRecebimentos(): Promise<Recebimento[]> {
       quantidade_pedida: qtdPedida,
       quantidade_recebida: qtdRecebida,
       pendencia,
-      status_logistico: compra.data_entrega_real
-        ? pendencia > 0
-          ? "recebimento_parcial"
-          : "recebido"
-        : (compra.status ?? "pedido_emitido"),
+      status_logistico: statusLogistico,
       nf_vinculada: null,
       responsavel: compra.usuario_id ?? "—",
     };

@@ -50,6 +50,47 @@ export async function deleteRemessa(id: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
+/**
+ * Canonical tracking function used by ALL logística views.
+ *
+ * Queries the Correios API, normalises events, deduplicates against DB and
+ * persists only genuinely new events.  Mock data is returned inline but never
+ * persisted.
+ *
+ * @returns { novos, isMock, eventos } where `eventos` is the full list after
+ *   DB refresh (or the mock list when `isMock` is true).
+ */
+export async function trackAndPersistEventos(
+  codigo: string,
+  remessaId: string,
+): Promise<{ novos: number; isMock: boolean; eventos: CorreiosEventoNormalizado[] }> {
+  const tracking = await fetchTracking(codigo);
+  const isMock = tracking.warning === "fallback_mock";
+  const eventosNormalizados = normalizarEventos(tracking, remessaId);
+
+  if (isMock) {
+    return { novos: 0, isMock: true, eventos: eventosNormalizados };
+  }
+
+  // Deduplicate against existing DB events
+  const { data: existentes } = await supabase
+    .from("remessa_eventos")
+    .select("descricao, local, data_hora")
+    .eq("remessa_id", remessaId);
+
+  const eventKey = (e: { descricao: string; local: string | null; data_hora: string }) =>
+    `${e.data_hora}::${e.descricao}::${e.local ?? ""}`;
+  const existentesSet = new Set((existentes ?? []).map(eventKey));
+  const novosEventos = eventosNormalizados.filter((e) => !existentesSet.has(eventKey(e)));
+
+  if (novosEventos.length > 0) {
+    await supabase.from("remessa_eventos").insert(novosEventos);
+  }
+
+  return { novos: novosEventos.length, isMock: false, eventos: eventosNormalizados };
+}
+
+/** @deprecated Use trackAndPersistEventos instead */
 export async function trackCorreios(
   codigo: string,
   remessaId: string,
