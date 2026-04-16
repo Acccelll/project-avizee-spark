@@ -173,17 +173,18 @@ const Orcamentos = () => {
   const handleDuplicate = async (orc: Orcamento) => {
     try {
       const { data: items } = await supabase.from("orcamentos_itens").select("*").eq("orcamento_id", orc.id);
-      const { count } = await supabase.from("orcamentos").select("*", { count: "exact", head: true });
-      const newNumero = `COT${String((count || 0) + 1).padStart(6, "0")}`;
+      const { data: newNumero } = await supabase.rpc("proximo_numero_orcamento");
+      const newNumeroStr = newNumero || `COT${String(Date.now()).slice(-6)}`;
       const { data: newOrc, error } = await supabase.from("orcamentos").insert({
-        numero: newNumero, data_orcamento: new Date().toISOString().split("T")[0],
+        numero: newNumeroStr, data_orcamento: new Date().toISOString().split("T")[0],
         status: "rascunho", cliente_id: orc.cliente_id, validade: null,
         observacoes: orc.observacoes, frete_valor: orc.frete_valor || 0,
         valor_total: orc.valor_total, quantidade_total: orc.quantidade_total,
         peso_total: orc.peso_total, pagamento: orc.pagamento,
         prazo_pagamento: orc.prazo_pagamento, prazo_entrega: orc.prazo_entrega,
         frete_tipo: orc.frete_tipo, modalidade: orc.modalidade,
-        cliente_snapshot: orc.cliente_snapshot as any,
+        cliente_snapshot: orc.cliente_snapshot,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Supabase insert type inference limitation
       } as any).select().single();
       if (error) throw error;
       if (items && items.length > 0 && newOrc) {
@@ -196,7 +197,7 @@ const Orcamentos = () => {
         }));
         await supabase.from("orcamentos_itens").insert(newItems);
       }
-      toast.success(`Cotação duplicada: ${newNumero}`);
+      toast.success(`Cotação duplicada: ${newNumeroStr}`);
       fetchData();
       navigate(`/cotacoes/${newOrc.id}`);
     } catch (err: unknown) {
@@ -439,6 +440,8 @@ const Orcamentos = () => {
           showColumnToggle={true}
           onView={(o) => pushView("orcamento", o.id)}
           onEdit={(o) => navigate(`/cotacoes/${o.id}`)}
+          emptyTitle="Nenhuma cotação encontrada"
+          emptyDescription="Crie uma nova cotação ou ajuste os filtros aplicados."
         />
       </ModulePage>
 

@@ -6,6 +6,7 @@
  * derived from the report configuration.
  */
 
+import type React from "react";
 import {
   ResponsiveContainer,
   BarChart,
@@ -57,11 +58,14 @@ export function RelatorioChart({
   const formatValue = (v: number) =>
     isQuantityReport ? formatNumber(v) : formatCurrency(v);
 
-  const handleActiveDotClick = onDataPointClick
-    ? (_: unknown, payload: { payload?: ChartDataPoint }) => {
-        if (payload?.payload) onDataPointClick(payload.payload);
-      }
-    : undefined;
+  /** Recharts activeDot onClick receives (event, payload) with extra positional args. */
+  const handleActiveDotClick: React.MouseEventHandler<SVGCircleElement> | undefined =
+    onDataPointClick
+      ? ((...args: unknown[]) => {
+          const payload = args[1] as { payload?: ChartDataPoint } | undefined;
+          if (payload?.payload) onDataPointClick(payload.payload);
+        }) as React.MouseEventHandler<SVGCircleElement>
+      : undefined;
 
   const chartIcon = useLine ? (
     <LineChartIcon className="h-4 w-4 text-muted-foreground" />
@@ -94,7 +98,7 @@ export function RelatorioChart({
                       stroke="hsl(var(--primary))"
                       strokeWidth={2.5}
                       dot={{ r: 3 }}
-                      activeDot={handleActiveDotClick ? { r: 5, style: { cursor: 'pointer' }, onClick: handleActiveDotClick as any } : { r: 5 }}
+                      activeDot={handleActiveDotClick ? { r: 5, style: { cursor: 'pointer' }, onClick: handleActiveDotClick } : { r: 5 }}
                     />
                   </LineChart>
                 ) : usePie ? (

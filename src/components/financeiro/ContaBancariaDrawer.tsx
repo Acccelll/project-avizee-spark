@@ -91,8 +91,10 @@ export function ContaBancariaDrawer({
   const [caixaMovs, setCaixaMovs] = useState<CaixaMovimento[]>([]);
   const [loading, setLoading] = useState(false);
 
+  const selectedId = selected?.id;
+
   useEffect(() => {
-    if (!open || !selected) {
+    if (!open || !selectedId) {
       setLancamentos([]);
       setBaixas([]);
       setCaixaMovs([]);
@@ -105,20 +107,20 @@ export function ContaBancariaDrawer({
         .select(
           "id, tipo, descricao, valor, data_vencimento, status, forma_pagamento, clientes(nome_razao_social), fornecedores(nome_razao_social)"
         )
-        .eq("conta_bancaria_id", selected.id)
+        .eq("conta_bancaria_id", selectedId)
         .eq("ativo", true)
         .order("data_vencimento", { ascending: false })
         .limit(10),
       supabase
         .from("financeiro_baixas")
         .select("id, valor_pago, data_baixa, forma_pagamento, lancamento_id")
-        .eq("conta_bancaria_id", selected.id)
+        .eq("conta_bancaria_id", selectedId)
         .order("data_baixa", { ascending: false })
         .limit(10),
       supabase
         .from("caixa_movimentos")
         .select("id, tipo, descricao, valor, created_at")
-        .eq("conta_bancaria_id", selected.id)
+        .eq("conta_bancaria_id", selectedId)
         .order("created_at", { ascending: false })
         .limit(5),
     ]).then(([lanc, bx, cx]) => {
@@ -127,7 +129,7 @@ export function ContaBancariaDrawer({
       setCaixaMovs((cx.data as CaixaMovimento[]) || []);
       setLoading(false);
     });
-  }, [open, selected?.id]);
+  }, [open, selectedId]);
 
   if (!selected) return <ViewDrawerV2 open={open} onClose={onClose} title="" />;
 

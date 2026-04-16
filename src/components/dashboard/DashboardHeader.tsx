@@ -70,7 +70,7 @@ export function DashboardHeader({ companyName, lastUpdated, onRefresh }: Dashboa
             </Select>
           </div>
           {onRefresh && (
-            <Button variant="outline" size="sm" onClick={onRefresh} className="h-8 gap-1.5">
+            <Button variant="outline" size="sm" onClick={onRefresh} className="h-8 gap-1.5" aria-label="Atualizar dados do dashboard">
               <RefreshCw className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Atualizar</span>
             </Button>
@@ -103,6 +103,7 @@ export function DashboardHeader({ companyName, lastUpdated, onRefresh }: Dashboa
               variant="secondary"
               size="sm"
               className="w-full"
+              aria-label="Aplicar período personalizado"
               onClick={() => setPeriod('custom')}
             >
               Aplicar período

@@ -128,6 +128,7 @@ export function AlertStrip({
             <button
               key={item.id}
               onClick={() => navigate(item.href)}
+              aria-label={`${item.label}: ${item.count}`}
               className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-opacity hover:opacity-80 ${styles.badge}`}
             >
               <Icon className={`h-3 w-3 ${styles.icon}`} />

@@ -8,6 +8,7 @@ import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext"
 import { LogisticaRastreioSection } from "@/components/logistica/LogisticaRastreioSection";
 import { Progress } from "@/components/ui/progress";
 import { ViewField, ViewSection } from "@/components/ViewDrawer";
+import { getUserFriendlyError } from "@/utils/errorMessages";
 import {
   Truck,
   CheckCircle2,
@@ -25,29 +26,77 @@ interface Props {
   id: string;
 }
 
+/** Minimal shape of a pedido_compra row with joined fornecedor */
+interface PedidoCompraRow {
+  id: string;
+  numero: string | null;
+  fornecedor_id: string | null;
+  data_pedido: string | null;
+  data_entrega_prevista: string | null;
+  data_entrega_real: string | null;
+  valor_total: number | null;
+  frete_valor: number | null;
+  condicao_pagamento: string | null;
+  condicoes_pagamento?: string | null;
+  status: string;
+  observacoes: string | null;
+  cotacao_compra_id: string | null;
+  fornecedores: { id: string; nome_razao_social: string | null; cpf_cnpj: string | null } | null;
+}
+
+/** Minimal shape of a pedido_compra_item row with joined produto */
+interface PedidoItemRow {
+  id: string;
+  produto_id: string | null;
+  quantidade: number | null;
+  preco_unitario: number | null;
+  subtotal: number | null;
+  valor_total?: number | null;
+  produtos: { id: string; nome: string | null; sku: string | null; codigo_interno: string | null } | null;
+}
+
+/** Minimal shape of an estoque_movimento row */
+interface EstoqueMovRow {
+  produto_id: string | null;
+  quantidade: number | null;
+  produtos: { nome: string | null; codigo_interno: string | null } | null;
+}
+
+/** Minimal shape of a cotacao_compra row */
+interface CotacaoRow {
+  id: string;
+  numero: string;
+  status: string;
+  data_cotacao: string;
+}
+
+/** Returns the item's total value, falling back from valor_total to subtotal. */
+function itemValorTotal(i: PedidoItemRow): number {
+  return Number(i.valor_total ?? i.subtotal ?? 0);
+}
+
 export function PedidoCompraView({ id }: Props) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [selected, setSelected] = useState<any | null>(null);
+  const [selected, setSelected] = useState<PedidoCompraRow | null>(null);
   const [loading, setLoading] = useState(true);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [viewItems, setViewItems] = useState<any[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [viewEstoque, setViewEstoque] = useState<any[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [viewCotacao, setViewCotacao] = useState<any | null>(null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [viewItems, setViewItems] = useState<PedidoItemRow[]>([]);
+  const [viewEstoque, setViewEstoque] = useState<EstoqueMovRow[]>([]);
+  const [viewCotacao, setViewCotacao] = useState<CotacaoRow | null>(null);
   const { pushView } = useRelationalNavigation();
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
+      setFetchError(null);
+      try {
       const { data: p } = await supabase
         .from("pedidos_compra")
         .select("*, fornecedores(id, nome_razao_social, cpf_cnpj)")
         .eq("id", id)
         .single();
 
-      if (!p) return;
-      setSelected(p);
+      if (!p) { setLoading(false); return; }
+      setSelected(p as PedidoCompraRow);
 
       const [itensResult, estResult] = await Promise.all([
         supabase
@@ -61,19 +110,21 @@ export function PedidoCompraView({ id }: Props) {
           .eq("documento_tipo", "pedido_compra"),
       ]);
 
-      setViewItems(itensResult.data || []);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      setViewEstoque((estResult.data as any[]) || []);
+      setViewItems((itensResult.data || []) as PedidoItemRow[]);
+      setViewEstoque((estResult.data || []) as EstoqueMovRow[]);
 
       if (p.cotacao_compra_id) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data: cot } = await (supabase.from as any)("cotacoes_compra")
+        const { data: cot } = await supabase
+          .from("cotacoes_compra")
           .select("id, numero, status, data_cotacao")
           .eq("id", p.cotacao_compra_id)
           .single();
-        setViewCotacao(cot || null);
+        setViewCotacao(cot as CotacaoRow | null);
       }
-
+      } catch (err: unknown) {
+        console.error("[PedidoCompraView] erro ao carregar:", err);
+        setFetchError(getUserFriendlyError(err));
+      }
       setLoading(false);
     };
 
@@ -81,6 +132,7 @@ export function PedidoCompraView({ id }: Props) {
   }, [id]);
 
   if (loading) return <div className="p-8 text-center animate-pulse">Carregando pedido de compra...</div>;
+  if (fetchError) return <div className="p-8 text-center text-destructive">{fetchError}</div>;
   if (!selected) return <div className="p-8 text-center text-destructive">Pedido não encontrado</div>;
 
   const isOverdue =
@@ -98,18 +150,15 @@ export function PedidoCompraView({ id }: Props) {
   })();
 
   const estoquePorProduto: Record<string, number> = viewEstoque.reduce(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (acc: Record<string, number>, m: any) => {
+    (acc: Record<string, number>, m: EstoqueMovRow) => {
       const key = String(m.produto_id);
       acc[key] = (acc[key] || 0) + Number(m.quantidade || 0);
       return acc;
     },
     {},
   );
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const totalOrdenado = viewItems.reduce((s: number, i: any) => s + Number(i.quantidade || 0), 0);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const totalRecebido = viewEstoque.reduce((s: number, m: any) => s + Number(m.quantidade || 0), 0);
+  const totalOrdenado = viewItems.reduce((s, i) => s + Number(i.quantidade || 0), 0);
+  const totalRecebido = viewEstoque.reduce((s, m) => s + Number(m.quantidade || 0), 0);
   const pctRecebimento = totalOrdenado > 0 ? Math.min(100, Math.round((totalRecebido / totalOrdenado) * 100)) : 0;
 
   const pedidoNum = selected.numero || `PC-${selected.id}`;
@@ -237,8 +286,7 @@ export function PedidoCompraView({ id }: Props) {
                 </tr>
               </thead>
               <tbody>
-                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                {viewItems.map((i: any, idx: number) => {
+                {viewItems.map((i: PedidoItemRow, idx: number) => {
                   const qtdRec = estoquePorProduto[String(i.produto_id)] || 0;
                   const qtdPend = Math.max(0, Number(i.quantidade) - qtdRec);
                   return (
@@ -253,7 +301,7 @@ export function PedidoCompraView({ id }: Props) {
                       </td>
                       <td className="px-2 py-2 text-right font-mono text-xs">{i.quantidade}</td>
                       <td className="px-2 py-2 text-right font-mono text-xs font-medium">
-                        {formatCurrency(i.valor_total)}
+                        {formatCurrency(itemValorTotal(i))}
                       </td>
                       <td className="px-2 py-2 text-right font-mono text-xs text-success font-medium">
                         {qtdRec > 0 ? qtdRec : "—"}
@@ -291,8 +339,7 @@ export function PedidoCompraView({ id }: Props) {
           {viewItems.length > 0 && (
             <ViewSection title="Progresso por Item">
               <div className="space-y-3">
-                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                {viewItems.map((i: any, idx: number) => {
+                {viewItems.map((i: PedidoItemRow, idx: number) => {
                   const qtdRec = estoquePorProduto[String(i.produto_id)] || 0;
                   const qtdPend = Math.max(0, Number(i.quantidade) - qtdRec);
                   const pct = Number(i.quantidade) > 0 ? Math.min(100, Math.round((qtdRec / Number(i.quantidade)) * 100)) : 0;
@@ -351,8 +398,7 @@ export function PedidoCompraView({ id }: Props) {
                     </tr>
                   </thead>
                   <tbody>
-                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                    {viewEstoque.map((m: any, idx: number) => (
+                    {viewEstoque.map((m: EstoqueMovRow, idx: number) => (
                       <tr key={idx} className="border-b last:border-b-0 hover:bg-muted/20">
                         <td className="px-2 py-2 font-medium">{m.produtos?.nome || "—"}</td>
                         <td className="px-2 py-2 text-right font-mono text-success font-semibold">+{m.quantidade}</td>
@@ -422,8 +468,7 @@ export function PedidoCompraView({ id }: Props) {
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Produtos</span>
                 <span className="font-mono">
-                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                  {formatCurrency(viewItems.reduce((s: number, i: any) => s + Number(i.valor_total || 0), 0))}
+                  {formatCurrency(viewItems.reduce((s, i) => s + itemValorTotal(i), 0))}
                 </span>
               </div>
               {Number(selected.frete_valor) > 0 && (

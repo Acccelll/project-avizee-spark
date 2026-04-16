@@ -67,6 +67,7 @@ export function QuickActions() {
             <button
               key={action.label}
               onClick={() => navigate(action.href)}
+              aria-label={action.description}
               className="flex flex-col items-start gap-1.5 rounded-lg border border-border/60 bg-background p-2.5 text-left transition-colors hover:bg-muted/40 hover:border-primary/30 active:scale-[0.98]"
             >
               <div className="rounded-md bg-primary/10 p-1.5">

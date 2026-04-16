@@ -64,8 +64,7 @@ export default function Relatorios() {
     tipos: searchParams.get('tp') ? searchParams.get('tp')!.split(',') : [],
     dreCompetencia: (searchParams.get('drc') as FiltrosRelatorioState['dreCompetencia']) || 'mes',
     dreMes: searchParams.get('drm') || new Date().toISOString().slice(0, 7),
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [searchParams.toString()]);
+  }), [searchParams]);
 
   const [hiddenColumns, setHiddenColumns] = useState<string[]>([]);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -126,7 +125,7 @@ export default function Relatorios() {
 
   const isQtyReport = resultado?._isQuantityReport === true;
   const isDreReport = resultado?._isDreReport === true;
-  const rows = (resultado?.rows ?? []) as Record<string, unknown>[];
+  const rows = useMemo(() => (resultado?.rows ?? []) as Record<string, unknown>[], [resultado?.rows]);
 
   const filteredRows = useMemo(() => filtrarPorStatus(rows, filtrosState.statusFiltro), [rows, filtrosState.statusFiltro]);
   const sortedRows = useMemo(() => sortarRows(filteredRows, filtrosState.agrupamento), [filteredRows, filtrosState.agrupamento]);

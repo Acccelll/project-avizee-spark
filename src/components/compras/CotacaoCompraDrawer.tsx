@@ -82,7 +82,7 @@ export function CotacaoCompraDrawer({
           <>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { onClose(); onEdit(selected); }}>
+                <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Editar cotação" onClick={() => { onClose(); onEdit(selected); }}>
                   <Edit className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
@@ -90,7 +90,7 @@ export function CotacaoCompraDrawer({
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={onDeleteOpen}>
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" aria-label="Excluir cotação" onClick={onDeleteOpen}>
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>

@@ -257,17 +257,20 @@ export function useCompras(): UseComprasReturn {
     };
   }, [data, filteredData]);
 
-  const openCreate = useCallback(() => {
+  const openCreate = useCallback(async () => {
     setMode("create");
+    const { data: rpcNumero } = await supabase.rpc(
+      isCotacoesView ? "proximo_numero_cotacao_compra" : "proximo_numero_pedido_compra"
+    );
     setForm({
       ...emptyForm,
-      numero: `COMP-${String(data.length + 1).padStart(4, "0")}`,
+      numero: rpcNumero || `COMP-${String(Date.now()).slice(-6)}`,
       status: isCotacoesView ? "rascunho" : "confirmado",
     });
     setItems([]);
     setSelected(null);
     setModalOpen(true);
-  }, [data.length, isCotacoesView]);
+  }, [isCotacoesView]);
 
   const openEdit = useCallback(async (c: Compra) => {
     setMode("edit");

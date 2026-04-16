@@ -35,19 +35,21 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
   const [baixas, setBaixas] = useState<Baixa[]>([]);
   const [loadingBaixas, setLoadingBaixas] = useState(false);
 
+  const selectedId = selected?.id;
+
   useEffect(() => {
-    if (!open || !selected) { setBaixas([]); return; }
+    if (!open || !selectedId) { setBaixas([]); return; }
     setLoadingBaixas(true);
     supabase
       .from("financeiro_baixas")
       .select("*")
-      .eq("lancamento_id", selected.id)
+      .eq("lancamento_id", selectedId)
       .order("data_baixa", { ascending: false })
       .then(({ data }) => {
         setBaixas((data as Baixa[]) || []);
         setLoadingBaixas(false);
       });
-  }, [open, selected?.id]);
+  }, [open, selectedId]);
 
   const hoje = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }, []);
 
@@ -128,13 +130,13 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
       actions={
         <>
           {canBaixa && (
-            <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:text-primary" onClick={() => onBaixa(selected)}><CreditCard className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Registrar Baixa</TooltipContent></Tooltip>
+            <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:text-primary" aria-label="Registrar Baixa" onClick={() => onBaixa(selected)}><CreditCard className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Registrar Baixa</TooltipContent></Tooltip>
           )}
           {canEstorno && (
-            <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-warning hover:text-warning" onClick={() => { onClose(); onEstorno(selected); }}><RotateCcw className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Estornar Baixa</TooltipContent></Tooltip>
+            <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-warning hover:text-warning" aria-label="Estornar Baixa" onClick={() => { onClose(); onEstorno(selected); }}><RotateCcw className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Estornar Baixa</TooltipContent></Tooltip>
           )}
-          <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { onClose(); onEdit(selected); }}><Edit className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Editar</TooltipContent></Tooltip>
-          <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => { onClose(); onDelete(selected.id); }}><Trash2 className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Excluir</TooltipContent></Tooltip>
+          <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Editar lançamento" onClick={() => { onClose(); onEdit(selected); }}><Edit className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Editar</TooltipContent></Tooltip>
+          <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" aria-label="Excluir lançamento" onClick={() => { onClose(); onDelete(selected.id); }}><Trash2 className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Excluir</TooltipContent></Tooltip>
         </>
       }
       tabs={[

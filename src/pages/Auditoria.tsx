@@ -12,7 +12,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PeriodFilter, type Period } from "@/components/dashboard/PeriodFilter";
+import { PeriodFilter } from "@/components/dashboard/PeriodFilter";
+import type { Period } from "@/components/dashboard/periodTypes";
 import { periodToDateFrom } from "@/lib/periodFilter";
 import { supabase } from "@/integrations/supabase/client";
 import {

@@ -33,6 +33,7 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { TemplateConfig } from "@/types/orcamento";
 import { calcularRentabilidade, type InternalCostCandidate } from "@/lib/orcamentoRentabilidade";
 import { getOrcamentoInternalAccess } from "@/lib/orcamentoInternalAccess";
+import { getUserFriendlyError } from "@/utils/errorMessages";
 
 interface ClienteSnapshot {
   nome_razao_social: string; nome_fantasia: string; cpf_cnpj: string;
@@ -300,9 +301,9 @@ export default function OrcamentoForm() {
           const { data: novoNumero } = await supabase.rpc('proximo_numero_orcamento');
           setValue('numero', novoNumero || `COT${String(Date.now()).slice(-6)}`);
         }
-      } catch (err) {
+      } catch (err: unknown) {
         console.error("[OrcamentoForm] erro ao carregar dados:", err);
-        toast.error("Erro ao carregar dados da cotação.", { description: "Verifique a conexão e tente novamente." });
+        toast.error(getUserFriendlyError(err));
       }
     };
     loadData();
@@ -416,7 +417,7 @@ export default function OrcamentoForm() {
         .eq("chave", key)
         .maybeSingle();
       if (existingError) {
-        toast.error("Não foi possível validar template existente.");
+        toast.error(getUserFriendlyError(existingError));
         return;
       }
       if (existing) {
@@ -498,9 +499,9 @@ export default function OrcamentoForm() {
         action: { label: "Visualizar", onClick: () => navigate(orcId ? `/cotacoes/${orcId}` : "/cotacoes") },
       });
       if (!isEdit && orcId) navigate(`/cotacoes/${orcId}`, { replace: true });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('[orcamento]', err);
-      toast.error("Erro ao salvar cotação.", { description: "Confira conexão, campos obrigatórios e tente novamente." });
+      toast.error(getUserFriendlyError(err));
     }
     setSaving(false);
   };
@@ -540,9 +541,9 @@ export default function OrcamentoForm() {
 
       toast.success(`Duplicado: ${payload.numero}`);
       navigate(`/cotacoes/${orcId}`, { replace: true });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('[orcamento] duplicar:', err);
-      toast.error("Erro ao duplicar cotação. Tente novamente.");
+      toast.error(getUserFriendlyError(err));
     }
   };
 
@@ -564,8 +565,8 @@ export default function OrcamentoForm() {
         pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
         pdf.save(`${numero || "orcamento"}.pdf`);
         toast.success("PDF gerado com sucesso!");
-      } catch {
-        toast.error("Erro ao gerar PDF");
+      } catch (err: unknown) {
+        toast.error(getUserFriendlyError(err));
       }
     }, 500);
   };
@@ -1024,8 +1025,8 @@ export default function OrcamentoForm() {
                   const { enviarOrcamentoPorEmail } = await import('@/services/orcamentos.service');
                   await enviarOrcamentoPorEmail(id, clienteSnapshot.email, emailTemplate);
                   setMailModalOpen(false);
-                } catch {
-                  toast.error('Erro ao enviar e-mail. Verifique as configurações.');
+                } catch (err: unknown) {
+                  toast.error(getUserFriendlyError(err));
                 }
               }}
             >Enviar</Button>

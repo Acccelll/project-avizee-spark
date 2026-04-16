@@ -1,8 +1,27 @@
 /**
- * Pure calculation helpers for the Comercial module.
+ * Pure calculation helpers and shared label maps for the Comercial module.
  *
  * All functions are side-effect-free so they can be unit-tested without mocks.
  */
+
+/** Human-readable labels for payment methods used across Orcamento / OrdemVenda views. */
+export const pagamentoLabels: Record<string, string> = {
+  a_vista: "À Vista",
+  a_prazo: "A Prazo",
+  pix: "Pix",
+  boleto: "Boleto",
+  cartao: "Cartão",
+  cheque: "Cheque",
+  transferencia: "Transferência",
+};
+
+/** Human-readable labels for freight responsibility types. */
+export const freteTipoLabels: Record<string, string> = {
+  cif: "CIF (por conta do remetente)",
+  fob: "FOB (por conta do destinatário)",
+  terceiros: "Por conta de terceiros",
+  sem_frete: "Sem frete",
+};
 
 export interface ItemPedido {
   valor_unitario: number;

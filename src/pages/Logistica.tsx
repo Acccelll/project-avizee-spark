@@ -32,6 +32,7 @@ import type { Entrega } from "@/pages/logistica/hooks/useEntregas";
 import { useRecebimentos } from "@/pages/logistica/hooks/useRecebimentos";
 import type { Recebimento } from "@/pages/logistica/hooks/useRecebimentos";
 import { fetchTracking, normalizarEventos } from "@/services/correios.service";
+import { getUserFriendlyError } from "@/utils/errorMessages";
 import {
   Eye, AlertTriangle, Truck, Package, CheckCheck, ExternalLink, Loader2,
   Edit, Trash2, Plus, MapPin, Package as PackageIcon, Search, Clock, Timer, RefreshCw,
@@ -340,7 +341,7 @@ export default function Logistica() {
     const { data: remessa } = await supabase.from("remessas").select("id").eq("ordem_venda_id", entrega.id).maybeSingle();
     if (!remessa?.id) { toast.warning("Nenhuma remessa encontrada para o pedido."); return; }
     const { error } = await supabase.from("remessas").update({ status_transporte: status }).eq("id", remessa.id);
-    if (error) { toast.error("Não foi possível atualizar o status."); return; }
+    if (error) { toast.error(getUserFriendlyError(error)); return; }
     toast.success("Status atualizado");
   };
 
@@ -349,7 +350,7 @@ export default function Logistica() {
     const payload: Record<string, unknown> = { status };
     if (status === "recebido") payload.data_entrega_real = new Date().toISOString().slice(0, 10);
     const { error } = await supabase.from("pedidos_compra").update(payload).eq("id", recebimento.id);
-    if (error) { toast.error("Não foi possível atualizar o status."); return; }
+    if (error) { toast.error(getUserFriendlyError(error)); return; }
     toast.success("Status atualizado");
   };
 
@@ -390,7 +391,7 @@ export default function Logistica() {
       if (remMode === "create") await createRemessa(payload);
       else if (remSelected) await updateRemessa(remSelected.id, payload);
       setRemModalOpen(false);
-    } catch (err: unknown) { console.error("[remessas] handleSubmit:", err); }
+    } catch (err: unknown) { console.error("[remessas] handleSubmit:", err); toast.error(getUserFriendlyError(err)); }
     setRemSaving(false);
   };
 
@@ -405,8 +406,7 @@ export default function Logistica() {
       const { data: d } = await supabase.from("remessa_eventos").select("*").eq("remessa_id", remSelected.id).order("data_hora", { ascending: false });
       setEventos((d ?? []) as RemessaEvento[]);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Tente novamente";
-      toast.error("Erro ao salvar evento: " + msg);
+      toast.error(getUserFriendlyError(err));
     } finally { setSavingEvento(false); }
   };
 
@@ -415,7 +415,7 @@ export default function Logistica() {
       await updateRemessa(remessa.id, { status_transporte: newStatus });
       if (remSelected?.id === remessa.id) setRemSelected({ ...remessa, status_transporte: newStatus });
       toast.success(`Status atualizado para ${remessaStatusMap[newStatus]?.label ?? newStatus}`);
-    } catch { toast.error("Erro ao atualizar status"); }
+    } catch (err: unknown) { toast.error(getUserFriendlyError(err)); }
   };
 
   const handleRastrear = async (remessa: Remessa) => {
@@ -447,7 +447,7 @@ export default function Logistica() {
       const { data: updatedEvents } = await supabase.from("remessa_eventos").select("*").eq("remessa_id", remessa.id).order("data_hora", { ascending: false });
       setEventos((updatedEvents ?? []) as RemessaEvento[]);
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Erro ao consultar rastreio");
+      toast.error(getUserFriendlyError(err));
     }
   };
 
@@ -755,8 +755,8 @@ export default function Logistica() {
         onClose={() => setRemDrawerOpen(false)}
         title={remSelected?.codigo_rastreio ? `Remessa ${remSelected.codigo_rastreio}` : "Detalhes da Remessa"}
         actions={remSelected ? <>
-          <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setRemDrawerOpen(false); openEditRemessa(remSelected); }}><Edit className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Editar</TooltipContent></Tooltip>
-          <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => { setRemDrawerOpen(false); removeRemessa(remSelected.id); }}><Trash2 className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Excluir</TooltipContent></Tooltip>
+          <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Editar remessa" onClick={() => { setRemDrawerOpen(false); openEditRemessa(remSelected); }}><Edit className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Editar</TooltipContent></Tooltip>
+          <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" aria-label="Excluir remessa" onClick={() => { setRemDrawerOpen(false); removeRemessa(remSelected.id); }}><Trash2 className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Excluir</TooltipContent></Tooltip>
         </> : undefined}
         summary={remSelected ? (
           <div className="grid grid-cols-4 gap-3">

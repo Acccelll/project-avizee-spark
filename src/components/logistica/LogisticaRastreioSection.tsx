@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Tables } from "@/integrations/supabase/types";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { Search, MapPin, Truck, ExternalLink, Package, AlertTriangle } from "luc
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { fetchTracking, normalizarEventos } from "@/services/correios.service";
+import { getUserFriendlyError } from "@/utils/errorMessages";
 
 type Remessa = Tables<"remessas"> & {
   transportadoras?: { nome_razao_social: string };
@@ -28,9 +29,9 @@ export function LogisticaRastreioSection({ pedidoCompraId, notaFiscalId, remessa
   const [trackingLoading, setTrackingLoading] = useState<string | null>(null);
   const [mockWarning, setMockWarning] = useState<string | null>(null);
 
-  const fetchLogistica = async () => {
+  const fetchLogistica = useCallback(async () => {
     setLoading(true);
-    let query = supabase.from("remessas").select("*, transportadoras(nome_razao_social)") as any;
+    let query = supabase.from("remessas").select("*, transportadoras(nome_razao_social)");
 
     if (remessaId) query = query.eq("id", remessaId);
     if (pedidoCompraId) query = query.eq("pedido_compra_id", pedidoCompraId);
@@ -61,11 +62,11 @@ export function LogisticaRastreioSection({ pedidoCompraId, notaFiscalId, remessa
       }
     }
     setLoading(false);
-  };
+  }, [pedidoCompraId, notaFiscalId, remessaId, ordemVendaId]);
 
   useEffect(() => {
     fetchLogistica();
-  }, [pedidoCompraId, notaFiscalId, remessaId, ordemVendaId]);
+  }, [fetchLogistica]);
 
   const handleRastrear = async (remessa: Remessa) => {
     if (!remessa.codigo_rastreio) return;
@@ -115,7 +116,7 @@ export function LogisticaRastreioSection({ pedidoCompraId, notaFiscalId, remessa
         toast.success("Rastreio consultado — nenhum evento encontrado.");
       }
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Erro ao consultar rastreio");
+      toast.error(getUserFriendlyError(err));
     } finally {
       setTrackingLoading(null);
     }
@@ -156,7 +157,7 @@ export function LogisticaRastreioSection({ pedidoCompraId, notaFiscalId, remessa
                   {trackingLoading === r.id ? "Consultando..." : "Rastrear"}
                 </Button>
               )}
-              <Button size="sm" variant="ghost" className="h-8" onClick={() => window.location.href = `/logistica`}>
+              <Button size="sm" variant="ghost" className="h-8" aria-label="Ir para Logística" onClick={() => window.location.href = `/logistica`}>
                 <ExternalLink className="w-3.5 h-3.5" />
               </Button>
             </div>

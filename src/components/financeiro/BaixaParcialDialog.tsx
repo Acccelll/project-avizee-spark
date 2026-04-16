@@ -66,9 +66,14 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
   const valorLiquido = valorPago - desconto + juros + multa - abatimento;
   const novoSaldo = saldoAtual - valorPago + abatimento;
 
+  const lancamentoId = lancamento?.id;
+  const lancamentoSaldo = lancamento
+    ? (lancamento.saldo_restante != null ? Number(lancamento.saldo_restante) : Number(lancamento.valor))
+    : 0;
+
   useEffect(() => {
-    if (open && lancamento) {
-      setValorPago(saldoAtual);
+    if (open && lancamentoId) {
+      setValorPago(lancamentoSaldo);
       setDesconto(0);
       setJuros(0);
       setMulta(0);
@@ -77,9 +82,9 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
       setFormaPagamento("");
       setContaBancariaId("");
       setObservacoes("");
-      loadBaixas(lancamento.id);
+      loadBaixas(lancamentoId);
     }
-  }, [open, lancamento?.id]);
+  }, [open, lancamentoId, lancamentoSaldo]);
 
   const loadBaixas = async (lancamentoId: string) => {
     setLoadingBaixas(true);
@@ -88,7 +93,6 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
       .select("*")
       .eq("lancamento_id", lancamentoId)
       .order("data_baixa", { ascending: false });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     setBaixasAnteriores((data ?? []) as Baixa[]);
     setLoadingBaixas(false);
   };

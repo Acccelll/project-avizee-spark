@@ -187,7 +187,7 @@ export function CotacaoCompraPropostasPanel({
                             {!p.selecionado && selected.status !== "finalizada" && selected.status !== "convertida" && (
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onSelectProposal(p.id!, item.id)}>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Selecionar proposta" onClick={() => onSelectProposal(p.id!, item.id)}>
                                     <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
                                   </Button>
                                 </TooltipTrigger>
@@ -197,7 +197,7 @@ export function CotacaoCompraPropostasPanel({
                             {selected.status !== "finalizada" && selected.status !== "convertida" && (
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => onDeleteProposal(p.id!)}>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" aria-label="Remover proposta" onClick={() => onDeleteProposal(p.id!)}>
                                     <Trash2 className="h-3.5 w-3.5" />
                                   </Button>
                                 </TooltipTrigger>

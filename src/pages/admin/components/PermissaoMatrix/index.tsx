@@ -118,7 +118,7 @@ export function PermissaoMatrix() {
             const { error } = await supabase
               .from("user_permissions")
               .upsert(
-                { resource, action, allowed: true } as any,
+                { resource, action, allowed: true } as Record<string, unknown>,
                 { onConflict: "resource,action" }
               );
             if (error) throw error;

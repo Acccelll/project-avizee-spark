@@ -163,7 +163,7 @@ const FluxoCaixa = () => {
       const val = Number(l.valor || 0);
       // For "realizado", use valor_pago when available (partial payments), otherwise full valor for "pago"
       const realVal = (l.status === "pago" || l.status === "parcial")
-        ? Number((l as any).valor_pago || 0) || (l.status === "pago" ? val : 0)
+        ? Number(l.valor_pago || 0) || (l.status === "pago" ? val : 0)
         : 0;
       if (l.tipo === "receber") {
         g.prevReceber += val;
@@ -182,7 +182,7 @@ const FluxoCaixa = () => {
     filtered.forEach(l => {
       const val = Number(l.valor || 0);
       const realVal = (l.status === "pago" || l.status === "parcial")
-        ? Number((l as any).valor_pago || 0) || (l.status === "pago" ? val : 0)
+        ? Number(l.valor_pago || 0) || (l.status === "pago" ? val : 0)
         : 0;
       if (l.tipo === "receber") { prevReceber += val; realReceber += realVal; }
       else { prevPagar += val; realPagar += realVal; }

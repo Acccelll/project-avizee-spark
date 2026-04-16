@@ -12,6 +12,8 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { getUserFriendlyError } from "@/utils/errorMessages";
+import { pagamentoLabels, freteTipoLabels } from "@/utils/comercial";
 import {
   sendForApproval,
   approveOrcamento,
@@ -39,23 +41,6 @@ import { toast } from "sonner";
 interface Props {
   id: string;
 }
-
-const pagamentoLabels: Record<string, string> = {
-  a_vista: "À Vista",
-  a_prazo: "A Prazo",
-  pix: "Pix",
-  boleto: "Boleto",
-  cartao: "Cartão",
-  cheque: "Cheque",
-  transferencia: "Transferência",
-};
-
-const freteTipoLabels: Record<string, string> = {
-  cif: "CIF (por conta do remetente)",
-  fob: "FOB (por conta do destinatário)",
-  terceiros: "Por conta de terceiros",
-  sem_frete: "Sem frete",
-};
 
 export function OrcamentoView({ id }: Props) {
   const navigate = useNavigate();
@@ -155,8 +140,8 @@ export function OrcamentoView({ id }: Props) {
     try {
       await sendForApproval(selected);
       await fetchData();
-    } catch {
-      toast.error("Erro ao enviar cotação para aprovação.");
+    } catch (err: unknown) {
+      toast.error(getUserFriendlyError(err));
     } finally {
       setActionLoading(false);
     }
@@ -167,8 +152,8 @@ export function OrcamentoView({ id }: Props) {
     try {
       await approveOrcamento(selected);
       await fetchData();
-    } catch {
-      toast.error("Erro ao aprovar cotação.");
+    } catch (err: unknown) {
+      toast.error(getUserFriendlyError(err));
     } finally {
       setActionLoading(false);
       setApproveConfirmOpen(false);
@@ -187,8 +172,8 @@ export function OrcamentoView({ id }: Props) {
       await fetchData();
       clearStack();
       navigate(`/pedidos`);
-    } catch {
-      toast.error("Erro ao converter cotação em pedido.");
+    } catch (err: unknown) {
+      toast.error(getUserFriendlyError(err));
     } finally {
       setActionLoading(false);
       setConvertConfirmOpen(false);
@@ -202,8 +187,8 @@ export function OrcamentoView({ id }: Props) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       setSelected((prev: any) => ({ ...prev, public_token: token }));
       toast.success("Link público gerado!");
-    } catch {
-      toast.error("Erro ao gerar link público.");
+    } catch (err: unknown) {
+      toast.error(getUserFriendlyError(err));
     } finally {
       setGeneratingToken(false);
     }
@@ -292,6 +277,7 @@ export function OrcamentoView({ id }: Props) {
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8"
+                aria-label="Editar cotação"
                 onClick={() => { clearStack(); navigate(`/orcamentos/${id}`); }}
               >
                 <Edit className="h-4 w-4" />
@@ -305,6 +291,7 @@ export function OrcamentoView({ id }: Props) {
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8 text-destructive hover:text-destructive"
+                aria-label="Excluir cotação"
                 onClick={() => setDeleteConfirmOpen(true)}
               >
                 <Trash2 className="h-4 w-4" />
@@ -624,9 +611,9 @@ export function OrcamentoView({ id }: Props) {
             if (error) throw error;
             toast.success("Cotação excluída com sucesso.");
             clearStack();
-          } catch (err) {
+          } catch (err: unknown) {
             console.error("[OrcamentoView] erro ao excluir:", err);
-            toast.error("Erro ao excluir cotação.");
+            toast.error(getUserFriendlyError(err));
           } finally {
             setDeleteConfirmOpen(false);
           }

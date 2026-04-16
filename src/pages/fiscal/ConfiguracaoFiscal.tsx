@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
+import { getUserFriendlyError } from "@/utils/errorMessages";
 import { supabase } from "@/integrations/supabase/client";
 
 const configuracaoSchema = z.object({
@@ -87,7 +88,7 @@ export default function ConfiguracaoFiscal() {
       }
       setLoading(false);
     })();
-  }, []);
+  }, [form]);
 
   async function handleSalvar(values: FormData) {
     setSaving(true);
@@ -106,13 +107,13 @@ export default function ConfiguracaoFiscal() {
       if (configId) {
         await supabase.from("empresa_config").update(payload).eq("id", configId);
       } else {
-        const { data } = await supabase.from("empresa_config").insert(payload as any).select().single();
+        const { data } = await supabase.from("empresa_config").insert(payload as Record<string, unknown>).select().single();
         if (data) setConfigId(data.id);
       }
       toast.success("Configurações fiscais salvas");
     } catch (err) {
       console.error(err);
-      toast.error("Erro ao salvar configurações");
+      toast.error(getUserFriendlyError(err));
     }
     setSaving(false);
   }
