@@ -34,7 +34,6 @@ import {
   Plus, Trash2, MessageSquare, MessageSquarePlus, Clock, CheckCircle, Home,
 } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
-import { Separator } from "@/components/ui/separator";
 import { clienteFornecedorSchema, validateForm } from "@/lib/validationSchemas";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 
@@ -741,6 +740,12 @@ const Clientes = () => {
                 </TabsTrigger>
               )}
               <TabsTrigger value="comercial" className="gap-1.5"><CreditCard className="h-3.5 w-3.5" />Comercial</TabsTrigger>
+              {mode === "edit" && (
+                <TabsTrigger value="comunicacoes" className="gap-1.5">
+                  <MessageSquare className="h-3.5 w-3.5" />Comunicações
+                  {comunicacoes.length > 0 && <span className="ml-1 text-[10px] bg-primary/10 text-primary rounded-full px-1.5">{comunicacoes.length}</span>}
+                </TabsTrigger>
+              )}
               <TabsTrigger value="observacoes" className="gap-1.5"><FileText className="h-3.5 w-3.5" />Obs.</TabsTrigger>
             </TabsList>
 
@@ -908,10 +913,11 @@ const Clientes = () => {
             </div>
           </div>
 
-          {/* ── Histórico de Comunicações (apenas modo edição) ── */}
-          {mode === "edit" && selected && (
-            <div className="mt-2">
-              <Separator className="mb-4" />
+            </TabsContent>
+
+            {/* ── TAB: COMUNICAÇÕES (apenas modo edição) ──────── */}
+            {mode === "edit" && selected && (
+            <TabsContent value="comunicacoes" className="space-y-4 mt-0">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <MessageSquare className="h-4 w-4 text-primary/70" />
@@ -940,7 +946,7 @@ const Clientes = () => {
                   <span>Nenhuma comunicação registrada. Clique em <strong>Nova Comunicação</strong> para registrar a primeira interação.</span>
                 </div>
               ) : (
-                <div className="space-y-1 max-h-[260px] overflow-y-auto">
+                <div className="space-y-1 max-h-[360px] overflow-y-auto">
                   {comunicacoes.map((com) => (
                     <div key={com.id} className="flex items-start justify-between py-2 px-2 rounded-md hover:bg-muted/30 border-b last:border-b-0 gap-2">
                       <div className="min-w-0 flex-1">
@@ -973,9 +979,8 @@ const Clientes = () => {
                   ))}
                 </div>
               )}
-            </div>
-          )}
             </TabsContent>
+            )}
 
             {/* ── TAB: ENDEREÇO ─────────────────────────────── */}
             <TabsContent value="endereco" className="space-y-4 mt-0">

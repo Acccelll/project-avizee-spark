@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useDebounce } from "@/hooks/useDebounce";
 import { AppLayout } from "@/components/AppLayout";
 import { DataTable } from "@/components/DataTable";
 import { PullToRefresh } from "@/components/ui/PullToRefresh";
@@ -99,7 +100,13 @@ const emptyProduto = {
 const Produtos = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { data, loading, create, update, remove, duplicate, fetchData } = useSupabaseCrud<Produto>({ table: "produtos" });
+  const [searchTerm, setSearchTerm] = useState("");
+  const debouncedSearch = useDebounce(searchTerm, 350);
+  const { data, loading, create, update, remove, duplicate, fetchData } = useSupabaseCrud<Produto>({
+    table: "produtos",
+    searchTerm: debouncedSearch,
+    searchColumns: ["nome", "sku", "codigo_interno", "ncm"],
+  });
   const { pushView } = useRelationalNavigation();
   const [unidadesMedida, setUnidadesMedida] = useState<UnidadeMedidaOption[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
@@ -111,7 +118,6 @@ const Produtos = () => {
   const [fornecedoresList, setFornecedoresList] = useState<{id: string; nome_razao_social: string}[]>([]);
   const [editingProduct, setEditingProduct] = useState<Produto | null>(null);
   const [margemLucro, setMargemLucro] = useState(0);
-  const [searchTerm, setSearchTerm] = useState("");
   const [tipoFilters, setTipoFilters] = useState<string[]>([]);
   const [tipoItemFilters, setTipoItemFilters] = useState<string[]>([]);
   const [estoqueFilters, setEstoqueFilters] = useState<string[]>([]);
@@ -319,7 +325,6 @@ const Produtos = () => {
   };
 
   const filteredData = useMemo(() => {
-    const query = searchTerm.trim().toLowerCase();
     return data.filter((p) => {
       const isComposto = Boolean(p.eh_composto);
       const situacao = getSituacaoEstoque(p);
@@ -347,10 +352,9 @@ const Produtos = () => {
         return false;
       }
 
-      if (!query) return true;
-      return [p.nome, p.sku, p.codigo_interno, p.descricao, p.ncm].filter(Boolean).join(" ").toLowerCase().includes(query);
+      return true;
     });
-  }, [data, ativoFilters, estoqueFilters, searchTerm, tipoFilters, tipoItemFilters, grupoFilters]);
+  }, [data, ativoFilters, estoqueFilters, tipoFilters, tipoItemFilters, grupoFilters]);
 
   const columns = [
     {
@@ -768,7 +772,13 @@ const Produtos = () => {
                 <span className={`text-sm ${!form.eh_composto ? "font-semibold" : "text-muted-foreground"}`}>Simples</span>
                 <Switch
                   checked={form.eh_composto}
-                  onCheckedChange={(v) => { setForm({ ...form, eh_composto: v }); if (!v) setEditComposicao([]); }}
+                  onCheckedChange={(v) => {
+                    if (!v && editComposicao.length > 0) {
+                      const msg = `Desmarcar produto composto irá apagar os ${editComposicao.length} componente(s) ao salvar. Deseja continuar?`;
+                      if (!window.confirm(msg)) return;
+                    }
+                    setForm({ ...form, eh_composto: v }); if (!v) setEditComposicao([]);
+                  }}
                 />
                 <span className={`text-sm ${form.eh_composto ? "font-semibold" : "text-muted-foreground"}`}>Composto</span>
                 <span className="text-xs text-muted-foreground ml-1">

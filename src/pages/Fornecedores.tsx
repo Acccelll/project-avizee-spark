@@ -3,6 +3,7 @@ import { useDebounce } from "@/hooks/useDebounce";
 import { useNavigate, useLocation } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { DataTable } from "@/components/DataTable";
+import { PullToRefresh } from "@/components/ui/PullToRefresh";
 import { StatusBadge } from "@/components/StatusBadge";
 import { ModulePage } from "@/components/ModulePage";
 import { FormModal } from "@/components/FormModal";
@@ -72,7 +73,7 @@ const Fornecedores = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.state]);
 
-  const { data, loading, create, update, remove } = useSupabaseCrud<Fornecedor>({
+  const { data, loading, create, update, remove, fetchData } = useSupabaseCrud<Fornecedor>({
     table: "fornecedores",
     searchTerm: debouncedSearch,
     searchColumns: ["nome_razao_social", "nome_fantasia", "cpf_cnpj", "email", "cidade"],
@@ -342,16 +343,18 @@ const Fornecedores = () => {
           />
         </AdvancedFilterBar>
 
-        <DataTable
-          columns={columns}
-          data={filteredData}
-          loading={loading}
-          moduleKey="fornecedores"
-          showColumnToggle={true}
-          onView={openView}
-          onEdit={openEdit}
-          onDelete={(f) => remove(f.id)}
-        />
+        <PullToRefresh onRefresh={fetchData}>
+          <DataTable
+            columns={columns}
+            data={filteredData}
+            loading={loading}
+            moduleKey="fornecedores"
+            showColumnToggle={true}
+            onView={openView}
+            onEdit={openEdit}
+            onDelete={(f) => remove(f.id)}
+          />
+        </PullToRefresh>
       </ModulePage>
 
       <FormModal open={modalOpen} onClose={() => {

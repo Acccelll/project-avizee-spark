@@ -1,7 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
+import { useDebounce } from "@/hooks/useDebounce";
 import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
+import { PullToRefresh } from "@/components/ui/PullToRefresh";
 import { StatusBadge } from "@/components/StatusBadge";
 import { FormModal } from "@/components/FormModal";
 import { ViewDrawerV2, ViewField, ViewSection } from "@/components/ViewDrawerV2";
@@ -87,17 +89,12 @@ function getRiskInfo(titulosVencidos: number, saldoConsolidado: number) {
 
 const GruposEconomicos = () => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const debouncedSearch = useDebounce(searchTerm, 350);
   const [ativoFilters, setAtivoFilters] = useState<string[]>([]);
   const [clienteCountMap, setClienteCountMap] = useState<Record<string, number>>({});
   const [matrizNomeMap, setMatrizNomeMap] = useState<Record<string, string>>({});
 
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(searchTerm), 350);
-    return () => clearTimeout(timer);
-  }, [searchTerm]);
-
-  const { data, loading, create, update, remove } = useSupabaseCrud<GrupoEconomico>({
+  const { data, loading, create, update, remove, fetchData } = useSupabaseCrud<GrupoEconomico>({
     table: "grupos_economicos",
     searchTerm: debouncedSearch,
     searchColumns: ["nome"],
@@ -707,16 +704,18 @@ const GruposEconomicos = () => {
           />
         </AdvancedFilterBar>
 
-        <DataTable
-          columns={columns}
-          data={filteredData}
-          loading={loading}
-          moduleKey="grupos-economicos"
-          showColumnToggle={true}
-          onView={openView}
-          onEdit={openEdit}
-          onDelete={(g) => remove(g.id)}
-        />
+        <PullToRefresh onRefresh={fetchData}>
+          <DataTable
+            columns={columns}
+            data={filteredData}
+            loading={loading}
+            moduleKey="grupos-economicos"
+            showColumnToggle={true}
+            onView={openView}
+            onEdit={openEdit}
+            onDelete={(g) => remove(g.id)}
+          />
+        </PullToRefresh>
       </ModulePage>
 
       <FormModal open={modalOpen} onClose={handleCancel} title={mode === "create" ? "Novo Grupo Econômico" : "Editar Grupo Econômico"} size="lg">

@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useDebounce } from "@/hooks/useDebounce";
 import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
@@ -40,8 +41,12 @@ const emptyForm: UnidadeFormData = {
 };
 
 export default function UnidadesMedida() {
+  const [searchTerm, setSearchTerm] = useState("");
+  const debouncedSearch = useDebounce(searchTerm, 350);
   const { data, loading, create, update, remove, fetchData } = useSupabaseCrud<UnidadeMedida>({
     table: "unidades_medida",
+    searchTerm: debouncedSearch,
+    searchColumns: ["codigo", "descricao"],
   });
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -49,7 +54,6 @@ export default function UnidadesMedida() {
   const [form, setForm] = useState<UnidadeFormData>(emptyForm);
   const [selected, setSelected] = useState<UnidadeMedida | null>(null);
   const [saving, setSaving] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
   const [ativoFilters, setAtivoFilters] = useState<string[]>([]);
 
   const openCreate = () => {
@@ -97,16 +101,14 @@ export default function UnidadesMedida() {
   };
 
   const filteredData = useMemo(() => {
-    const q = searchTerm.trim().toLowerCase();
     return data.filter((u) => {
       if (ativoFilters.length > 0) {
         const val = u.ativo ? "ativo" : "inativo";
         if (!ativoFilters.includes(val)) return false;
       }
-      if (!q) return true;
-      return [u.codigo, u.descricao, u.sigla].filter(Boolean).join(" ").toLowerCase().includes(q);
+      return true;
     });
-  }, [data, searchTerm, ativoFilters]);
+  }, [data, ativoFilters]);
 
   const activeFilterChips = useMemo((): FilterChip[] => {
     return ativoFilters.map(f => ({

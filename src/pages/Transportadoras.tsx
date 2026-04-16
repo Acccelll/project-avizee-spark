@@ -3,6 +3,7 @@ import { useDebounce } from "@/hooks/useDebounce";
 import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
+import { PullToRefresh } from "@/components/ui/PullToRefresh";
 import { StatusBadge } from "@/components/StatusBadge";
 import { FormModal } from "@/components/FormModal";
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
@@ -56,7 +57,7 @@ interface Transportadora {
   updated_at: string;
 }
 
-type TransportadoraFormData = Omit<Transportadora, "id" | "ativo" | "created_at" | "updated_at">;
+type TransportadoraFormData = Omit<Transportadora, "id" | "created_at" | "updated_at">;
 
 interface ClienteVinculado {
   id: string;
@@ -81,7 +82,7 @@ const emptyForm: TransportadoraFormData = {
   nome_razao_social: "", nome_fantasia: "", cpf_cnpj: "", contato: "",
   telefone: "", email: "", logradouro: "", numero: "", complemento: "",
   bairro: "", cidade: "", uf: "", cep: "", modalidade: "rodoviario",
-  prazo_medio: "", observacoes: "",
+  prazo_medio: "", observacoes: "", ativo: true,
 };
 
 const MODALIDADE_LABEL: Record<string, string> = {
@@ -98,7 +99,7 @@ export default function Transportadoras() {
   const [ativoFilters, setAtivoFilters] = useState<string[]>([]);
   const [modalidadeFilters, setModalidadeFilters] = useState<string[]>([]);
 
-  const { data, loading, create, update, remove } = useSupabaseCrud<Transportadora>({
+  const { data, loading, create, update, remove, fetchData } = useSupabaseCrud<Transportadora>({
     table: "transportadoras",
     searchTerm: debouncedSearch,
     searchColumns: ["nome_razao_social", "nome_fantasia", "cpf_cnpj", "cidade"],
@@ -117,7 +118,6 @@ export default function Transportadoras() {
     selected?.id,
     "transportadoras",
   );
-  const [formAtivo, setFormAtivo] = useState(true);
   const [saving, setSaving] = useState(false);
   const [clientesVinculados, setClientesVinculados] = useState<ClienteVinculado[]>([]);
   const [remessasVinculadas, setRemessasVinculadas] = useState<RemessaVinculada[]>([]);
@@ -223,7 +223,7 @@ export default function Transportadoras() {
     }
   }, [selected, drawerOpen]);
 
-  const openCreate = () => { setMode("create"); setForm({...emptyForm}); setFormAtivo(true); setSelected(null); setModalCliCount(0); setModalRemCount(0); setModalOpen(true); };
+  const openCreate = () => { setMode("create"); setForm({...emptyForm}); setSelected(null); setModalCliCount(0); setModalRemCount(0); setModalOpen(true); };
   const openEdit = (t: Transportadora) => {
     setMode("edit"); setSelected(t);
     setForm({
@@ -235,8 +235,8 @@ export default function Transportadoras() {
       cidade: t.cidade || "", uf: t.uf || "", cep: t.cep || "",
       modalidade: t.modalidade || "rodoviario",
       prazo_medio: t.prazo_medio || "", observacoes: t.observacoes || "",
+      ativo: t.ativo ?? true,
     });
-    setFormAtivo(t.ativo ?? true);
     setModalCliCount(0); setModalRemCount(0);
     setEditClientesVinculados([]);
     setVinculoClienteId("");
@@ -253,7 +253,7 @@ export default function Transportadoras() {
     if (!form.nome_razao_social) { toast.error("Razão Social é obrigatória"); return; }
     setSaving(true);
     try {
-      const submitData = { ...form, ativo: formAtivo };
+      const submitData = { ...form };
       if (mode === "create") await create(submitData);
       else if (selected) await update(selected.id, submitData);
       setModalOpen(false);
@@ -267,7 +267,7 @@ export default function Transportadoras() {
   const hasChanges = useMemo(() => {
     if (mode === "create") return false;
     if (!selected) return false;
-    const original: Record<string, string> = {
+    const original: TransportadoraFormData = {
       nome_razao_social: selected.nome_razao_social || "",
       nome_fantasia: selected.nome_fantasia || "",
       cpf_cnpj: selected.cpf_cnpj || "",
@@ -284,9 +284,10 @@ export default function Transportadoras() {
       modalidade: selected.modalidade || "rodoviario",
       prazo_medio: selected.prazo_medio || "",
       observacoes: selected.observacoes || "",
+      ativo: selected.ativo ?? true,
     };
-    return JSON.stringify(form) !== JSON.stringify(original) || formAtivo !== selected.ativo;
-  }, [form, formAtivo, mode, selected]);
+    return JSON.stringify(form) !== JSON.stringify(original);
+  }, [form, mode, selected]);
 
   const remessaStatusMap: Record<string, { label: string; classes: string }> = {
     pendente:    { label: "Pendente",    classes: "bg-warning/10 text-warning border-warning/20" },
@@ -437,18 +438,20 @@ export default function Transportadoras() {
           />
         </AdvancedFilterBar>
 
-        <DataTable
-          columns={columns}
-          data={filteredData}
-          loading={loading}
-          moduleKey="transportadoras"
-          showColumnToggle={true}
-          onView={openView}
-          onEdit={openEdit}
-          onDelete={(t) => { setSelected(t); setDeleteConfirmOpen(true); }}
-          emptyTitle="Nenhuma transportadora encontrada"
-          emptyDescription="Tente ajustar os filtros ou cadastre uma nova transportadora."
-        />
+        <PullToRefresh onRefresh={fetchData}>
+          <DataTable
+            columns={columns}
+            data={filteredData}
+            loading={loading}
+            moduleKey="transportadoras"
+            showColumnToggle={true}
+            onView={openView}
+            onEdit={openEdit}
+            onDelete={(t) => { setSelected(t); setDeleteConfirmOpen(true); }}
+            emptyTitle="Nenhuma transportadora encontrada"
+            emptyDescription="Tente ajustar os filtros ou cadastre uma nova transportadora."
+          />
+        </PullToRefresh>
       </ModulePage>
 
       <FormModal open={modalOpen} onClose={() => setModalOpen(false)} title={mode === "create" ? "Nova Transportadora" : "Editar Transportadora"} size="xl">
@@ -526,8 +529,8 @@ export default function Transportadoras() {
             <div className="col-span-2 md:col-span-3 space-y-2">
               <Label>Status</Label>
               <div className="flex items-center gap-3 h-9 px-3 rounded-md border bg-background">
-                <Switch checked={formAtivo} onCheckedChange={setFormAtivo} />
-                <span className="text-sm text-muted-foreground">{formAtivo ? "Ativo" : "Inativo"}</span>
+                <Switch checked={form.ativo} onCheckedChange={(v) => setForm({ ...form, ativo: v })} />
+                <span className="text-sm text-muted-foreground">{form.ativo ? "Ativo" : "Inativo"}</span>
               </div>
             </div>
           </div>
