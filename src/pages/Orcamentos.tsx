@@ -174,10 +174,10 @@ const Orcamentos = () => {
     try {
       const { data: items } = await supabase.from("orcamentos_itens").select("*").eq("orcamento_id", orc.id);
       // Buscar metadados completos do orçamento original (frete simulador, etc.)
-      const { data: fullOrc } = await supabase.from("orcamentos").select("*").eq("id", orc.id).maybeSingle();
+      const { data: fullOrcamento } = await supabase.from("orcamentos").select("*").eq("id", orc.id).maybeSingle();
       const { data: newNumero } = await supabase.rpc("proximo_numero_orcamento");
       const newNumeroStr = newNumero || `COT${String(Date.now()).slice(-6)}`;
-      const fo = (fullOrc || {}) as Record<string, unknown>;
+      const fullOrc = (fullOrcamento || {}) as Record<string, unknown>;
       const { data: newOrc, error } = await supabase.from("orcamentos").insert({
         numero: newNumeroStr, data_orcamento: new Date().toISOString().split("T")[0],
         status: "rascunho", cliente_id: orc.cliente_id, validade: null,
@@ -188,15 +188,15 @@ const Orcamentos = () => {
         frete_tipo: orc.frete_tipo, modalidade: orc.modalidade,
         cliente_snapshot: orc.cliente_snapshot,
         // Preservar todos os metadados de frete do simulador
-        transportadora_id: fo.transportadora_id as string | null || null,
-        frete_simulacao_id: fo.frete_simulacao_id as string | null || null,
-        origem_frete: fo.origem_frete as string | null || null,
-        servico_frete: fo.servico_frete as string | null || null,
-        prazo_entrega_dias: fo.prazo_entrega_dias as number | null || null,
-        volumes: fo.volumes as number | null || null,
-        altura_cm: fo.altura_cm as number | null || null,
-        largura_cm: fo.largura_cm as number | null || null,
-        comprimento_cm: fo.comprimento_cm as number | null || null,
+        transportadora_id: (fullOrc.transportadora_id as string | null) ?? null,
+        frete_simulacao_id: (fullOrc.frete_simulacao_id as string | null) ?? null,
+        origem_frete: (fullOrc.origem_frete as string | null) ?? null,
+        servico_frete: (fullOrc.servico_frete as string | null) ?? null,
+        prazo_entrega_dias: (fullOrc.prazo_entrega_dias as number | null) ?? null,
+        volumes: (fullOrc.volumes as number | null) ?? null,
+        altura_cm: (fullOrc.altura_cm as number | null) ?? null,
+        largura_cm: (fullOrc.largura_cm as number | null) ?? null,
+        comprimento_cm: (fullOrc.comprimento_cm as number | null) ?? null,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Supabase insert type inference limitation
       } as any).select().single();
       if (error) throw error;

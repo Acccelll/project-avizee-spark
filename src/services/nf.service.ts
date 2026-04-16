@@ -7,6 +7,24 @@ import { supabase } from "@/integrations/supabase/client";
 import { confirmarNotaFiscal } from "@/services/fiscal.service";
 import { calcularStatusFaturamentoOV } from "@/lib/fiscal";
 
+/** Estrutura de um item de Ordem de Venda retornado pelo Supabase */
+interface OvItem {
+  id: string;
+  produto_id: string;
+  quantidade: number;
+  valor_unitario: number;
+  valor_total: number | null;
+  quantidade_faturada?: number | null;
+}
+
+/** Estrutura de um item de NF fiscal */
+interface NfItemInsert {
+  nota_fiscal_id: string;
+  produto_id: string;
+  quantidade: number;
+  valor_unitario: number;
+}
+
 export interface GerarNFResult {
   nfId: string;
   nfNumero: string;
@@ -25,9 +43,10 @@ export async function gerarNFParaPedido(
   // 1. Buscar itens do pedido
   const { data: pedidoItems, error: itemsError } = await supabase
     .from("ordens_venda_itens")
-    .select("*")
+    .select("id, produto_id, quantidade, valor_unitario, valor_total, quantidade_faturada")
     .eq("ordem_venda_id", pedidoId);
   if (itemsError) throw itemsError;
+  const ovItems: OvItem[] = (pedidoItems || []) as OvItem[];
 
   // 2. Obter próximo número de NF
   const { data: nfNumData, error: nfNumError } = await supabase.rpc(
@@ -36,10 +55,7 @@ export async function gerarNFParaPedido(
   if (nfNumError) throw nfNumError;
   const nfNumero = nfNumData as string;
 
-  const totalProdutos = (pedidoItems || []).reduce(
-    (s: number, i: Record<string, unknown>) => s + Number(i.valor_total || 0),
-    0,
-  );
+  const totalProdutos = ovItems.reduce((s, i) => s + Number(i.valor_total || 0), 0);
 
   // 3. Inserir NF
   const { data: newNF, error: nfError } = await supabase
@@ -61,11 +77,10 @@ export async function gerarNFParaPedido(
   if (nfError) throw nfError;
 
   // 4. Inserir itens da NF
-  if (pedidoItems && pedidoItems.length > 0 && newNF) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const nfItems = pedidoItems.map((i: any) => ({
+  if (ovItems.length > 0 && newNF) {
+    const nfItems: NfItemInsert[] = ovItems.map((i) => ({
       nota_fiscal_id: newNF.id,
-      produto_id: i.produto_id as string,
+      produto_id: i.produto_id,
       quantidade: Number(i.quantidade),
       valor_unitario: Number(i.valor_unitario),
     }));
@@ -76,17 +91,16 @@ export async function gerarNFParaPedido(
   }
 
   // 5. Atualizar quantidade_faturada em cada item do pedido
-  if (pedidoItems && pedidoItems.length > 0) {
+  if (ovItems.length > 0) {
     await Promise.all(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      pedidoItems.map((item: any) =>
+      ovItems.map((item) =>
         supabase
           .from("ordens_venda_itens")
           .update({
             quantidade_faturada:
               Number(item.quantidade_faturada || 0) + Number(item.quantidade),
           })
-          .eq("id", item.id as string),
+          .eq("id", item.id),
       ),
     );
   }
@@ -96,14 +110,8 @@ export async function gerarNFParaPedido(
     .from("ordens_venda_itens")
     .select("quantidade, quantidade_faturada")
     .eq("ordem_venda_id", pedidoId);
-  const totalQ = (updatedItems || []).reduce(
-    (s: number, i: Record<string, unknown>) => s + Number(i.quantidade),
-    0,
-  );
-  const totalF = (updatedItems || []).reduce(
-    (s: number, i: Record<string, unknown>) => s + Number(i.quantidade_faturada || 0),
-    0,
-  );
+  const totalQ = (updatedItems || []).reduce((s, i) => s + Number(i.quantidade), 0);
+  const totalF = (updatedItems || []).reduce((s, i) => s + Number(i.quantidade_faturada || 0), 0);
   const newFatStatus = calcularStatusFaturamentoOV(totalQ, totalF);
   await supabase
     .from("ordens_venda")

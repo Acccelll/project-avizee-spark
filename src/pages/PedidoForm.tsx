@@ -32,13 +32,27 @@ interface PedidoEditForm {
   observacoes: string;
 }
 
+interface PedidoRecord {
+  id: string;
+  numero: string;
+  status: string | null;
+  data_emissao: string | null;
+  po_number: string | null;
+  data_po_cliente: string | null;
+  data_prometida_despacho: string | null;
+  prazo_despacho_dias: number | null;
+  observacoes: string | null;
+  valor_total: number | null;
+  clientes?: { nome_razao_social: string } | null;
+  orcamentos?: { numero: string } | null;
+}
+
 const PedidoForm = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [pedido, setPedido] = useState<any | null>(null);
+  const [pedido, setPedido] = useState<PedidoRecord | null>(null);
   const [form, setForm] = useState<PedidoEditForm>({
     status: "",
     po_number: "",
@@ -55,7 +69,7 @@ const PedidoForm = () => {
       try {
         const { data, error } = await supabase
           .from("ordens_venda")
-          .select("*, clientes(nome_razao_social), orcamentos(numero)")
+          .select("id, numero, status, data_emissao, po_number, data_po_cliente, data_prometida_despacho, prazo_despacho_dias, observacoes, valor_total, clientes(nome_razao_social), orcamentos(numero)")
           .eq("id", id)
           .maybeSingle();
         if (error) throw error;
@@ -64,14 +78,15 @@ const PedidoForm = () => {
           navigate("/pedidos");
           return;
         }
-        setPedido(data);
+        const typed = data as unknown as PedidoRecord;
+        setPedido(typed);
         setForm({
-          status: data.status || "pendente",
-          po_number: data.po_number || "",
-          data_po_cliente: data.data_po_cliente || "",
-          data_prometida_despacho: data.data_prometida_despacho || "",
-          prazo_despacho_dias: data.prazo_despacho_dias != null ? String(data.prazo_despacho_dias) : "",
-          observacoes: data.observacoes || "",
+          status: typed.status || "pendente",
+          po_number: typed.po_number || "",
+          data_po_cliente: typed.data_po_cliente || "",
+          data_prometida_despacho: typed.data_prometida_despacho || "",
+          prazo_despacho_dias: typed.prazo_despacho_dias != null ? String(typed.prazo_despacho_dias) : "",
+          observacoes: typed.observacoes || "",
         });
       } catch (err: unknown) {
         toast.error(getUserFriendlyError(err));
