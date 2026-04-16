@@ -70,11 +70,11 @@ export function NotaFiscalView({ id }: Props) {
            <div className="flex justify-between">
              <span className="text-muted-foreground">{selected.tipo === 'entrada' ? 'Fornecedor' : 'Cliente'}:</span>
              {selected.tipo === 'entrada' ? (
-                <RelationalLink onClick={() => pushView("fornecedor", selected.fornecedores?.id)}>
+                <RelationalLink onClick={() => pushView("fornecedor", (selected.fornecedores as { id?: string } | undefined)?.id)}>
                   {selected.fornecedores?.nome_razao_social || "—"}
                 </RelationalLink>
              ) : (
-                <RelationalLink onClick={() => pushView("cliente", selected.clientes?.id)}>
+                <RelationalLink onClick={() => pushView("cliente", (selected.clientes as { id?: string } | undefined)?.id)}>
                   {selected.clientes?.nome_razao_social || "—"}
                 </RelationalLink>
              )}
@@ -131,7 +131,7 @@ export function NotaFiscalView({ id }: Props) {
           {selected.ordens_venda && (
             <div>
               <p className="text-[10px] text-muted-foreground uppercase font-semibold">Pedido</p>
-              <RelationalLink onClick={() => pushView("ordem_venda", selected.ordens_venda?.id)} className="font-mono">
+              <RelationalLink onClick={() => pushView("ordem_venda", (selected.ordens_venda as { id?: string } | undefined)?.id)} className="font-mono">
                 {selected.ordens_venda?.numero}
               </RelationalLink>
             </div>

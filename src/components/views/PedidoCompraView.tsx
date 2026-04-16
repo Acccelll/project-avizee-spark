@@ -59,6 +59,8 @@ interface PedidoItemRow {
 interface EstoqueMovRow {
   produto_id: string | null;
   quantidade: number | null;
+  saldo_anterior: number | null;
+  saldo_atual: number | null;
   produtos: { nome: string | null; codigo_interno: string | null } | null;
 }
 

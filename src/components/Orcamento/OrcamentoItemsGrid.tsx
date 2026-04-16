@@ -71,7 +71,12 @@ export function OrcamentoItemsGrid({ items, onChange, produtos, precosEspeciais 
 
   const getProductOptions = () => produtos.map((p) => {
     const codePart = [p.sku, p.codigo_interno].filter(Boolean).join(" / ") || "—";
-    const variacoesArr = Array.isArray((p as { variacoes?: unknown }).variacoes) ? (p as { variacoes: string[] }).variacoes : [];
+    const rawVariacoes = (p as { variacoes?: unknown }).variacoes;
+    const variacoesArr: string[] = Array.isArray(rawVariacoes)
+      ? (rawVariacoes as string[])
+      : typeof rawVariacoes === "string" && rawVariacoes
+        ? rawVariacoes.split(",").map((s) => s.trim()).filter(Boolean)
+        : [];
     const variacaoStr = variacoesArr.length > 0 ? `· ${variacoesArr.slice(0, 3).join(", ")}${variacoesArr.length > 3 ? "…" : ""}` : "";
     const unidade = p.unidade_medida || "UN";
     return {
