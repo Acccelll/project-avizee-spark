@@ -774,7 +774,10 @@ const Produtos = () => {
                 <Switch
                   checked={form.eh_composto}
                   onCheckedChange={(v) => {
-                    if (!v && editComposicao.length > 0 && !window.confirm(`Desmarcar produto composto irá apagar os ${editComposicao.length} componente(s) ao salvar. Deseja continuar?`)) return;
+                    if (!v && editComposicao.length > 0) {
+                      const msg = `Desmarcar produto composto irá apagar os ${editComposicao.length} componente(s) ao salvar. Deseja continuar?`;
+                      if (!window.confirm(msg)) return;
+                    }
                     setForm({ ...form, eh_composto: v }); if (!v) setEditComposicao([]);
                   }}
                 />

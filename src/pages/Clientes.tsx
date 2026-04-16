@@ -913,7 +913,6 @@ const Clientes = () => {
             </div>
           </div>
 
-          {/* ── Histórico de Comunicações moved to dedicated tab ── */}
             </TabsContent>
 
             {/* ── TAB: COMUNICAÇÕES (apenas modo edição) ──────── */}

@@ -60,7 +60,8 @@ const emptyForm: FuncionarioForm = {
 function isValidCpf(cpf: string): boolean {
   const digits = cpf.replace(/\D/g, "");
   if (digits.length !== 11) return false;
-  // Reject known invalid sequences like 000...000, 111...111, etc.
+  // CPFs with all identical digits (e.g. 000.000.000-00, 111.111.111-11) are structurally
+  // valid but officially rejected by the Receita Federal as non-existent.
   if (/^(\d)\1{10}$/.test(digits)) return false;
   const calc = (factor: number) => {
     let sum = 0;
