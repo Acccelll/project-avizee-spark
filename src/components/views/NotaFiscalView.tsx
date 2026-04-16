@@ -7,17 +7,26 @@ import { RelationalLink } from "@/components/ui/RelationalLink";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { LogisticaRastreioSection } from "@/components/logistica/LogisticaRastreioSection";
 import { Truck, FileText, User, ShoppingCart } from "lucide-react";
+import type { NotaFiscal } from "@/types/domain";
+
+/** Extended item type matching the select query with products join */
+interface NfViewItem {
+  id: string;
+  produto_id: string | null;
+  quantidade: number | null;
+  valor_unitario: number | null;
+  valor_total: number | null;
+  produtos?: { id: string; nome: string; sku: string | null } | null;
+}
 
 interface Props {
   id: string;
 }
 
 export function NotaFiscalView({ id }: Props) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [selected, setSelected] = useState<any | null>(null);
+  const [selected, setSelected] = useState<NotaFiscal | null>(null);
   const [loading, setLoading] = useState(true);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [items, setItems] = useState<any[]>([]);
+  const [items, setItems] = useState<NfViewItem[]>([]);
   const { pushView } = useRelationalNavigation();
 
   useEffect(() => {
@@ -30,14 +39,14 @@ export function NotaFiscalView({ id }: Props) {
         .single();
 
       if (!nf) return;
-      setSelected(nf);
+      setSelected(nf as NotaFiscal);
 
       const { data: it } = await supabase
         .from("notas_fiscais_itens")
         .select("*, produtos(id, nome, sku)")
         .eq("nota_fiscal_id", nf.id);
 
-      setItems(it || []);
+      setItems((it as NfViewItem[]) || []);
       setLoading(false);
     };
 
@@ -95,8 +104,7 @@ export function NotaFiscalView({ id }: Props) {
                 </tr>
               </thead>
               <tbody>
-                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                {items.map((i: any, idx: number) => (
+                {items.map((i, idx) => (
                   <tr key={idx} className="border-b last:border-b-0 hover:bg-muted/20">
                     <td className="px-2 py-2">
                       <button onClick={() => pushView("produto", i.produtos?.id)} className="text-left hover:underline block truncate max-w-[120px]">
@@ -104,7 +112,7 @@ export function NotaFiscalView({ id }: Props) {
                       </button>
                     </td>
                     <td className="px-2 py-2 text-right font-mono text-xs">{i.quantidade}</td>
-                    <td className="px-2 py-2 text-right font-mono text-xs font-medium">{formatCurrency(i.valor_total || i.quantidade * i.valor_unitario)}</td>
+                    <td className="px-2 py-2 text-right font-mono text-xs font-medium">{formatCurrency(i.valor_total || (i.quantidade ?? 0) * (i.valor_unitario ?? 0))}</td>
                   </tr>
                 ))}
               </tbody>

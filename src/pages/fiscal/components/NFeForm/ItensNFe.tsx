@@ -74,6 +74,7 @@ export function ItensNFe({ disabled }: ItensNFeProps) {
                 type="button"
                 variant="ghost"
                 size="sm"
+                aria-label={`Remover item ${index + 1}`}
                 onClick={() => remove(index)}
               >
                 <Trash2 className="h-4 w-4 text-destructive" />

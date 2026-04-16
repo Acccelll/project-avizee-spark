@@ -65,8 +65,8 @@ interface NotaFiscalEditModalProps {
   open: boolean;
   onClose: () => void;
   selected: NotaFiscalForEdit;
-  form: Record<string, any>;
-  setForm: (f: Record<string, any>) => void;
+  form: Record<string, string | number | boolean>;
+  setForm: (f: Record<string, string | number | boolean>) => void;
   items: GridItem[];
   setItems: (items: GridItem[]) => void;
   itemContaContabil: Record<number, string>;

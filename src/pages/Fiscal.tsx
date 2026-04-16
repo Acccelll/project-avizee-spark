@@ -19,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { getUserFriendlyError } from "@/utils/errorMessages";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { FileText, DollarSign, CheckCircle, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -86,6 +87,9 @@ const emptyForm: FiscalForm = {
 const modeloLabels: Record<string, string> = {
   '55': 'NF-e', '65': 'NFC-e', '57': 'CT-e', '67': 'CT-e OS', 'nfse': 'NFS-e', 'outro': 'Outro'
 };
+
+const origemLabels: Record<string, string> = { manual: "Manual", pedido: "Pedido", importacao_xml: "Importação XML" };
+const statusSefazLabels: Record<string, string> = { nao_enviada: "Não Enviada", pendente_envio: "Pendente Envio", em_processamento: "Em Processamento", autorizada: "Autorizada", rejeitada: "Rejeitada", cancelada_sefaz: "Cancelada SEFAZ", inutilizada: "Inutilizada", importada_externa: "Importada Externa" };
 
 interface FornecedorRef { id: string; nome_razao_social: string; cpf_cnpj: string | null; }
 interface ClienteRef { id: string; nome_razao_social: string; cpf_cnpj: string | null; }
@@ -173,14 +177,14 @@ const Fiscal = () => {
     });
     const { data: itens } = await supabase.from("notas_fiscais_itens")
       .select("*, produtos(nome, sku)").eq("nota_fiscal_id", n.id);
-    const loadedItems = (itens || []).map((i: any) => ({
+    const loadedItems = (itens || []).map((i: NfItemRow) => ({
       id: i.id, produto_id: i.produto_id, codigo: i.produtos?.sku || "",
       descricao: i.produtos?.nome || "", quantidade: i.quantidade,
       valor_unitario: i.valor_unitario, valor_total: i.quantidade * i.valor_unitario,
     }));
     setItems(loadedItems);
     const contaMap: Record<number, string> = {};
-    (itens || []).forEach((i: any, idx: number) => {
+    (itens || []).forEach((i: NfItemRow, idx: number) => {
       if (i.conta_contabil_id) contaMap[idx] = i.conta_contabil_id;
     });
     setItemContaContabil(contaMap);
@@ -201,7 +205,7 @@ const Fiscal = () => {
       data_emissao: n.data_emissao, tipo: n.tipo, status: n.status,
       emitente: n.tipo === "saida" && empresa ? { nome: empresa.razao_social, cnpj: empresa.cnpj, endereco: empresa.logradouro, cidade: empresa.cidade, uf: empresa.uf } : (n.fornecedores ? { nome: n.fornecedores.nome_razao_social, cnpj: n.fornecedores.cpf_cnpj } : undefined),
       destinatario: n.tipo === "saida" && n.clientes ? { nome: n.clientes.nome_razao_social } : (empresa ? { nome: empresa.razao_social, cnpj: empresa.cnpj } : undefined),
-      itens: (itens || []).map((i: any) => ({ descricao: i.produtos?.nome || "", quantidade: i.quantidade, valor_unitario: i.valor_unitario, cfop: i.cfop, cst: i.cst, icms_valor: i.icms_valor, ipi_valor: i.ipi_valor, pis_valor: i.pis_valor, cofins_valor: i.cofins_valor })),
+      itens: (itens || []).map((i: NfItemRow) => ({ descricao: i.produtos?.nome || "", quantidade: i.quantidade, valor_unitario: i.valor_unitario, cfop: i.cfop, cst: i.cst, icms_valor: i.icms_valor, ipi_valor: i.ipi_valor, pis_valor: i.pis_valor, cofins_valor: i.cofins_valor })),
       valor_total: n.valor_total, frete_valor: n.frete_valor, icms_valor: n.icms_valor,
       ipi_valor: n.ipi_valor, pis_valor: n.pis_valor, cofins_valor: n.cofins_valor,
       desconto_valor: n.desconto_valor, outras_despesas: n.outras_despesas,
@@ -217,7 +221,7 @@ const Fiscal = () => {
       fetchData();
     } catch (err: unknown) {
       console.error('[fiscal] confirmar NF:', err);
-      toast.error("Erro ao confirmar nota fiscal.");
+      toast.error(getUserFriendlyError(err));
     }
   };
 
@@ -229,7 +233,7 @@ const Fiscal = () => {
       fetchData();
     } catch (err: unknown) {
       console.error('[fiscal] estornar NF:', err);
-      toast.error("Erro ao estornar nota fiscal.");
+      toast.error(getUserFriendlyError(err));
     }
   };
 
@@ -250,7 +254,7 @@ const Fiscal = () => {
       fetchData();
     } catch (err: unknown) {
       console.error('[fiscal] cancelar rascunho:', err);
-      toast.error("Erro ao cancelar rascunho.");
+      toast.error(getUserFriendlyError(err));
     }
   };
 
@@ -269,7 +273,7 @@ const Fiscal = () => {
         valor_total: savedTotal,
       };
       await Promise.all([
-        supabase.from("notas_fiscais").update(payload as any).eq("id", selected.id),
+        supabase.from("notas_fiscais").update(payload as Record<string, unknown>).eq("id", selected.id),
         supabase.from("notas_fiscais_itens").delete().eq("nota_fiscal_id", selected.id),
       ]);
       if (items.length > 0) {
@@ -289,7 +293,7 @@ const Fiscal = () => {
       fetchData();
     } catch (err: unknown) {
       console.error('[fiscal] salvar e confirmar NF:', err);
-      toast.error("Erro ao salvar e confirmar nota fiscal.");
+      toast.error(getUserFriendlyError(err));
     }
     setSaving(false);
   };
@@ -374,7 +378,7 @@ const Fiscal = () => {
         if (itemsPayload.length > 0) await supabase.from("notas_fiscais_itens").insert(itemsPayload);
       }
       toast.success("Nota fiscal salva!"); setModalOpen(false); fetchData();
-    } catch (err: unknown) { console.error('[fiscal] salvar NF:', err); toast.error("Erro ao salvar nota fiscal."); }
+    } catch (err: unknown) { console.error('[fiscal] salvar NF:', err); toast.error(getUserFriendlyError(err)); }
     setSaving(false);
   };
 
@@ -401,9 +405,6 @@ const Fiscal = () => {
       return haystack.includes(query);
     });
   }, [consultaSearch, data, tipoParam, modeloFilters, statusFilters, tipoFilters, origemFilters, statusSefazFilters]);
-
-  const origemLabels: Record<string, string> = { manual: "Manual", pedido: "Pedido", importacao_xml: "Importação XML" };
-  const statusSefazLabels: Record<string, string> = { nao_enviada: "Não Enviada", pendente_envio: "Pendente Envio", em_processamento: "Em Processamento", autorizada: "Autorizada", rejeitada: "Rejeitada", cancelada_sefaz: "Cancelada SEFAZ", inutilizada: "Inutilizada", importada_externa: "Importada Externa" };
 
   const fiscalActiveFilters = useMemo(() => {
     const chips: FilterChip[] = [];
