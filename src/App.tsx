@@ -24,6 +24,7 @@ const OrcamentoForm = lazy(() => import("./pages/OrcamentoForm"));
 
 const Estoque = lazy(() => import("./pages/Estoque"));
 const Fiscal = lazy(() => import("./pages/Fiscal"));
+const FiscalDetail = lazy(() => import("./pages/FiscalDetail"));
 const Financeiro = lazy(() => import("./pages/Financeiro"));
 const ContasBancarias = lazy(() => import("./pages/ContasBancarias"));
 const FluxoCaixa = lazy(() => import("./pages/FluxoCaixa"));
@@ -132,6 +133,7 @@ const App = () => (
             <Route path="/pedidos/:id" element={<ProtectedRoute><LazyPage><PedidoForm /></LazyPage></ProtectedRoute>} />
             <Route path="/estoque" element={<ProtectedRoute><LazyPage><Estoque /></LazyPage></ProtectedRoute>} />
             <Route path="/fiscal" element={<ProtectedRoute><LazyPage><Fiscal /></LazyPage></ProtectedRoute>} />
+            <Route path="/fiscal/:id" element={<ProtectedRoute><LazyPage><FiscalDetail /></LazyPage></ProtectedRoute>} />
             <Route path="/financeiro" element={<ProtectedRoute><LazyPage><Financeiro /></LazyPage></ProtectedRoute>} />
             <Route path="/financeiro/:id" element={<ProtectedRoute><LazyPage><Financeiro /></LazyPage></ProtectedRoute>} />
             <Route path="/contas-bancarias" element={<ProtectedRoute><LazyPage><ContasBancarias /></LazyPage></ProtectedRoute>} />

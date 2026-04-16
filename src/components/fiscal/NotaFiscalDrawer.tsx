@@ -28,13 +28,33 @@ const statusInfoMap: Record<string, StatusInfo> = {
     description: "Nota em rascunho — pendente de confirmação. Estoque e financeiro ainda não foram impactados.",
     colorClass: "bg-warning/5 border-warning/20 text-warning",
   },
+  rascunho: {
+    description: "Nota em rascunho via subfluxo especializado. Ainda não confirmada no módulo principal.",
+    colorClass: "bg-muted/30 border-muted text-muted-foreground",
+  },
   confirmada: {
     description: "Nota fiscal confirmada. Estoque e lançamentos financeiros já foram registrados.",
+    colorClass: "bg-success/5 border-success/20 text-success",
+  },
+  autorizada: {
+    description: "Nota autorizada pela SEFAZ. Documento fiscal com validade eletrônica.",
     colorClass: "bg-success/5 border-success/20 text-success",
   },
   cancelada: {
     description: "Nota fiscal cancelada — sem vigência fiscal ou operacional.",
     colorClass: "bg-destructive/5 border-destructive/20 text-destructive",
+  },
+  cancelada_sefaz: {
+    description: "Nota cancelada junto à SEFAZ. Evento de cancelamento registrado na receita.",
+    colorClass: "bg-destructive/5 border-destructive/20 text-destructive",
+  },
+  rejeitada: {
+    description: "Nota rejeitada pela SEFAZ. Verifique os dados e reprocesse.",
+    colorClass: "bg-destructive/5 border-destructive/20 text-destructive",
+  },
+  inutilizada: {
+    description: "Numeração inutilizada junto à SEFAZ. Número não poderá ser reaproveitado.",
+    colorClass: "bg-muted/30 border-muted text-muted-foreground",
   },
   importada: {
     description: "Nota importada a partir de XML externo.",
@@ -147,7 +167,7 @@ export function NotaFiscalDrawer({
     Promise.all([
       supabase
         .from("notas_fiscais_itens")
-        .select("*, produtos(id, nome, sku)")
+        .select("*, produtos(id, nome, sku), contas_contabeis(codigo, descricao)")
         .eq("nota_fiscal_id", selected.id),
       supabase
         .from("financeiro_lancamentos")
@@ -185,14 +205,20 @@ export function NotaFiscalDrawer({
   // ── Derived values ───────────────────────────────────────────────────────────
 
   const parceiro =
-    selected.tipo === "entrada"
+    selected.tipo === "entrada" && selected.tipo_operacao === "devolucao" && selected.clientes?.nome_razao_social
+      ? selected.clientes.nome_razao_social
+      : selected.tipo === "entrada"
       ? selected.fornecedores?.nome_razao_social || "—"
       : selected.clientes?.nome_razao_social || "—";
 
   const parceiroId =
-    selected.tipo === "entrada" ? selected.fornecedor_id : selected.cliente_id;
+    selected.tipo === "entrada" && selected.tipo_operacao === "devolucao" && selected.cliente_id
+      ? selected.cliente_id
+      : selected.tipo === "entrada" ? selected.fornecedor_id : selected.cliente_id;
   const parceiroType =
-    selected.tipo === "entrada" ? "fornecedor" : "cliente";
+    selected.tipo === "entrada" && selected.tipo_operacao === "devolucao" && selected.cliente_id
+      ? "cliente"
+      : selected.tipo === "entrada" ? "fornecedor" : "cliente";
 
   const totalProdutos = items.reduce(
     (s, i) => s + Number(i.quantidade || 0) * Number(i.valor_unitario || 0), 0,
@@ -303,7 +329,11 @@ export function NotaFiscalDrawer({
 
       <ViewSection title="Parceiro">
         <div className="grid grid-cols-2 gap-4">
-          <ViewField label={selected.tipo === "entrada" ? "Fornecedor" : "Cliente"}>
+          <ViewField label={
+            selected.tipo === "entrada" && selected.tipo_operacao === "devolucao" && selected.cliente_id
+              ? "Cliente (Devolução)"
+              : selected.tipo === "entrada" ? "Fornecedor" : "Cliente"
+          }>
             {parceiroId ? (
               <RelationalLink type={parceiroType as "fornecedor" | "cliente"} id={parceiroId}>
                 {parceiro}
@@ -363,6 +393,7 @@ export function NotaFiscalDrawer({
                   <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">Total</th>
                   <th className="px-3 py-2 text-center text-xs font-semibold text-muted-foreground">CST</th>
                   <th className="px-3 py-2 text-center text-xs font-semibold text-muted-foreground">CFOP</th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground">Conta Contábil</th>
                 </tr>
               </thead>
               <tbody>
@@ -386,6 +417,9 @@ export function NotaFiscalDrawer({
                     </td>
                     <td className="px-3 py-2 text-center font-mono text-xs">{i.cst || "—"}</td>
                     <td className="px-3 py-2 text-center font-mono text-xs">{i.cfop || "—"}</td>
+                    <td className="px-3 py-2 text-xs text-muted-foreground">
+                      {i.contas_contabeis ? `${i.contas_contabeis.codigo} – ${i.contas_contabeis.descricao}` : "—"}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -639,7 +673,11 @@ export function NotaFiscalDrawer({
     <div className="space-y-5">
       <ViewSection title="Origem / Documento">
         <div className="grid grid-cols-2 gap-4">
-          <ViewField label={selected.tipo === "entrada" ? "Fornecedor" : "Cliente"}>
+          <ViewField label={
+            selected.tipo === "entrada" && selected.tipo_operacao === "devolucao" && selected.cliente_id
+              ? "Cliente (Devolução)"
+              : selected.tipo === "entrada" ? "Fornecedor" : "Cliente"
+          }>
             {parceiroId ? (
               <RelationalLink type={parceiroType as "fornecedor" | "cliente"} id={parceiroId}>
                 {parceiro}

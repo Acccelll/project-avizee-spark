@@ -99,6 +99,10 @@ export default function NFCe() {
   }
 
   function handleSubmit(data: NFeFormData) {
+    // NOTE: This specialized flow currently only persists header fields.
+    // Items (data.itens) from the form are NOT saved because this path targets
+    // the `notas_fiscais` table directly without the full Fiscal.tsx orchestration.
+    // Use the main Fiscal module for complete NF creation.
     criarNFCe.mutate(
       {
         numero: data.numero,
@@ -106,8 +110,14 @@ export default function NFCe() {
         data_emissao: data.dataEmissao,
         tipo_operacao: data.tipoOperacao,
         forma_pagamento: data.formaPagamento,
+        frete_valor: data.freteValor,
+        desconto_valor: data.descontoValor,
+        outras_despesas: data.outrasDespesas,
+        observacoes: data.observacoes,
+        cliente_id: data.clienteId || null,
         status: "rascunho",
         tipo: "saida",
+        modelo_documento: "65",
       },
       { onSuccess: () => setFormAberto(false) },
     );
@@ -116,6 +126,16 @@ export default function NFCe() {
   return (
     <div className="space-y-4 p-6">
       <CertificadoValidadeAlert />
+
+      <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 flex items-start gap-3">
+        <span className="text-primary text-sm mt-0.5">ℹ️</span>
+        <p className="text-xs text-muted-foreground">
+          <span className="font-semibold text-foreground">Fluxo especializado NFC-e:</span>{" "}
+          Esta tela cria rascunhos NFC-e com dados básicos. Para criação completa com itens
+          e confirmação fiscal, use o{" "}
+          <a href="/fiscal" className="underline text-primary font-medium">módulo Fiscal principal</a>.
+        </p>
+      </div>
 
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Nota Fiscal de Consumidor Eletrônica (NFC-e)</h1>
@@ -162,9 +182,13 @@ export default function NFCe() {
         >
           <option value="">Todos os status</option>
           <option value="rascunho">Rascunho</option>
+          <option value="pendente">Pendente</option>
+          <option value="confirmada">Confirmada</option>
           <option value="autorizada">Autorizada</option>
           <option value="cancelada">Cancelada</option>
+          <option value="cancelada_sefaz">Cancelada SEFAZ</option>
           <option value="rejeitada">Rejeitada</option>
+          <option value="inutilizada">Inutilizada</option>
         </select>
       </div>
 
