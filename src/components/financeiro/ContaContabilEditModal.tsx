@@ -23,6 +23,7 @@ import { Separator } from "@/components/ui/separator";
 import { StatusBadge } from "@/components/StatusBadge";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { getUserFriendlyError } from "@/utils/errorMessages";
 import {
   AlertTriangle,
   FileText,
@@ -137,25 +138,27 @@ export function ContaContabilEditModal({
     setCodigoExistente(false);
   }, [open, conta]);
 
+  const contaId = conta?.id;
+
   // Load vinculos in edit mode
   useEffect(() => {
-    if (!open || !conta) return;
+    if (!open || !contaId) return;
     setLoadingVinculos(true);
     Promise.all([
       supabase
         .from("financeiro_lancamentos")
         .select("id", { count: "exact", head: true })
-        .eq("conta_contabil_id", conta.id)
+        .eq("conta_contabil_id", contaId)
         .eq("ativo", true),
       supabase
         .from("notas_fiscais")
         .select("id", { count: "exact", head: true })
-        .eq("conta_contabil_id", conta.id)
+        .eq("conta_contabil_id", contaId)
         .eq("ativo", true),
       supabase
         .from("grupos_produto")
         .select("id", { count: "exact", head: true })
-        .eq("conta_contabil_id", conta.id),
+        .eq("conta_contabil_id", contaId),
     ]).then(([lanc, nf, gp]) => {
       setVinculos({
         lancamentos: lanc.count ?? 0,
@@ -164,7 +167,7 @@ export function ContaContabilEditModal({
       });
       setLoadingVinculos(false);
     });
-  }, [open, conta?.id]);
+  }, [open, contaId]);
 
   // Check code uniqueness on blur
   const checkCodigoDuplicado = async (value: string) => {
@@ -221,8 +224,8 @@ export function ContaContabilEditModal({
         ativo,
       });
       onClose();
-    } catch {
-      toast.error("Erro ao salvar conta contábil");
+    } catch (err: unknown) {
+      toast.error(getUserFriendlyError(err));
     }
     setSaving(false);
   };

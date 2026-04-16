@@ -97,28 +97,29 @@ export function ContaContabilDrawer({
 
   const parentMap = useMemo(() => buildParentMap(allContas), [allContas]);
 
+  const selectedId = selected?.id;
+
   useEffect(() => {
-    if (!open || !selected) {
+    if (!open || !selectedId) {
       setVinculos(null);
       return;
     }
-    const id = selected.id;
     setLoadingVinculos(true);
     Promise.all([
       supabase
         .from("financeiro_lancamentos")
         .select("id", { count: "exact", head: true })
-        .eq("conta_contabil_id", id)
+        .eq("conta_contabil_id", selectedId)
         .eq("ativo", true),
       supabase
         .from("notas_fiscais")
         .select("id", { count: "exact", head: true })
-        .eq("conta_contabil_id", id)
+        .eq("conta_contabil_id", selectedId)
         .eq("ativo", true),
       supabase
         .from("grupos_produto")
         .select("id", { count: "exact", head: true })
-        .eq("conta_contabil_id", id),
+        .eq("conta_contabil_id", selectedId),
     ]).then(([lanc, nf, gp]) => {
       setVinculos({
         lancamentos: lanc.count ?? 0,
@@ -127,7 +128,7 @@ export function ContaContabilDrawer({
       });
       setLoadingVinculos(false);
     });
-  }, [open, selected?.id]);
+  }, [open, selectedId]);
 
   if (!selected) return <ViewDrawerV2 open={open} onClose={onClose} title="" />;
 

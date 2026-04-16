@@ -6,6 +6,7 @@ import {
   calcularNovoSaldo,
   statusPosBaixa,
 } from "@/lib/financeiro";
+import { getUserFriendlyError } from "@/utils/errorMessages";
 
 type LancamentoUpdate = Database["public"]["Tables"]["financeiro_lancamentos"]["Update"];
 type BaixaInsert = Database["public"]["Tables"]["financeiro_baixas"]["Insert"];
@@ -168,7 +169,7 @@ export async function processarBaixaLote(params: BaixaLoteParams): Promise<boole
     return true;
   } catch (error) {
     console.error("[financeiro] erro na baixa em lote:", error);
-    toast.error(`Erro ao processar baixa em lote: ${String((error as Error)?.message || "falha inesperada")}`);
+    toast.error(getUserFriendlyError(error));
     return false;
   }
 }
@@ -238,7 +239,7 @@ export async function processarEstorno(lancamentoId: string, motivoEstorno?: str
     return true;
   } catch (error) {
     console.error("[financeiro] erro ao estornar:", error);
-    toast.error(`Erro ao estornar: ${String((error as Error)?.message || "falha inesperada")}`);
+    toast.error(getUserFriendlyError(error));
     return false;
   }
 }

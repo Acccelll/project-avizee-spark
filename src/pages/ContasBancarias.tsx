@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/format";
+import { getUserFriendlyError } from "@/utils/errorMessages";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Wallet, Landmark, AlertTriangle, ShieldAlert,
@@ -192,7 +193,7 @@ const ContasBancarias = () => {
       toast.success("Conta criada com sucesso!");
       setModalOpen(false);
       fetchData();
-    } catch (err: unknown) { console.error('[contas-bancarias]', err); toast.error("Erro ao salvar conta bancária."); }
+    } catch (err: unknown) { console.error('[contas-bancarias]', err); toast.error(getUserFriendlyError(err)); }
     setSaving(false);
   };
 
@@ -212,7 +213,7 @@ const ContasBancarias = () => {
       toast.success("Conta bancária atualizada com sucesso!");
       setModalOpen(false);
       fetchData();
-    } catch (err: unknown) { console.error('[contas-bancarias]', err); toast.error("Erro ao salvar conta bancária."); }
+    } catch (err: unknown) { console.error('[contas-bancarias]', err); toast.error(getUserFriendlyError(err)); }
     setSaving(false);
   };
 
@@ -231,7 +232,7 @@ const ContasBancarias = () => {
 
   const handleDelete = async (c: ContaBancaria) => {
     const { error } = await supabase.from("contas_bancarias").update({ ativo: false }).eq("id", c.id);
-    if (error) { toast.error("Erro ao remover conta."); return; }
+    if (error) { toast.error(getUserFriendlyError(error)); return; }
     toast.success("Conta removida!");
     fetchData();
   };
