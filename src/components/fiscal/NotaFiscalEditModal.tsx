@@ -104,9 +104,13 @@ const modeloLabels: Record<string, string> = {
 
 function getStatusRules(status: string) {
   return {
-    isFullyLocked: status === "cancelada",
-    isStructurallyLocked: status === "confirmada" || status === "importada",
-    canConfirmar: status === "pendente",
+    // Fully locked: no changes at all
+    isFullyLocked: status === "cancelada" || status === "cancelada_sefaz" || status === "inutilizada",
+    // Structurally locked: only observações can be changed
+    isStructurallyLocked:
+      status === "confirmada" || status === "importada" || status === "autorizada",
+    // Rejeitada: editable again (SEFAZ rejected, needs correction)
+    canConfirmar: status === "pendente" || status === "rascunho",
   };
 }
 
@@ -262,10 +266,18 @@ export function NotaFiscalEditModal({
             <Lock className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
             <div>
               <p className="text-xs font-semibold text-destructive">
-                Nota fiscal cancelada — somente leitura
+                {selected.status === "cancelada_sefaz"
+                  ? "Nota cancelada junto à SEFAZ — somente leitura"
+                  : selected.status === "inutilizada"
+                  ? "Numeração inutilizada — somente leitura"
+                  : "Nota fiscal cancelada — somente leitura"}
               </p>
               <p className="text-xs text-destructive/70 mt-0.5">
-                Esta nota foi cancelada. Nenhuma alteração pode ser realizada.
+                {selected.status === "cancelada_sefaz"
+                  ? "Cancelamento registrado na SEFAZ. Nenhuma alteração pode ser realizada."
+                  : selected.status === "inutilizada"
+                  ? "Número inutilizado junto à receita. Não pode ser reaproveitado."
+                  : "Esta nota foi cancelada. Nenhuma alteração pode ser realizada."}
               </p>
             </div>
           </div>
@@ -275,12 +287,27 @@ export function NotaFiscalEditModal({
             <AlertCircle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
             <div>
               <p className="text-xs font-semibold text-warning">
-                Nota fiscal confirmada — edição restrita
+                {selected.status === "autorizada"
+                  ? "Nota autorizada pela SEFAZ — edição restrita"
+                  : "Nota fiscal confirmada — edição restrita"}
               </p>
               <p className="text-xs text-warning/70 mt-0.5">
                 Dados fiscais, itens e valores estão bloqueados. Estoque e
                 financeiro já foram impactados. Apenas observações podem ser
                 alteradas.
+              </p>
+            </div>
+          </div>
+        )}
+        {selected.status === "rejeitada" && (
+          <div className="rounded-lg border bg-destructive/5 border-destructive/20 p-3 flex items-start gap-2">
+            <AlertCircle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+            <div>
+              <p className="text-xs font-semibold text-destructive">
+                Nota rejeitada pela SEFAZ — corrija e reenvie
+              </p>
+              <p className="text-xs text-destructive/70 mt-0.5">
+                SEFAZ rejeitou esta nota. Os campos estão liberados para correção.
               </p>
             </div>
           </div>

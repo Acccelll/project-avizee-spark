@@ -64,8 +64,8 @@ export default function SpedFiscal() {
     // Simulação: em produção, chamar o serviço de geração do SPED
     setTimeout(() => {
       setGerando(false);
-      toast.success(
-        `SPED ${data.tipo.toUpperCase()} gerado para o período ${data.periodoInicio} a ${data.periodoFim}`,
+      toast.info(
+        `[SIMULAÇÃO] SPED ${data.tipo.toUpperCase()} configurado para ${data.periodoInicio} a ${data.periodoFim}. Nenhum arquivo real foi gerado.`,
       );
     }, 1500);
   }
@@ -73,6 +73,17 @@ export default function SpedFiscal() {
   return (
     <div className="space-y-6 p-6">
       <h1 className="text-2xl font-bold">SPED Fiscal</h1>
+
+      <div className="rounded-lg border border-warning/30 bg-warning/5 p-4 flex items-start gap-3">
+        <span className="text-warning text-lg leading-none mt-0.5">⚠️</span>
+        <div>
+          <p className="text-sm font-semibold text-warning">Funcionalidade em simulação</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            A geração real do SPED ainda não está integrada. O botão abaixo simula o processo
+            localmente com um delay. Nenhum arquivo SPED real é gerado nem enviado à Receita Federal.
+          </p>
+        </div>
+      </div>
 
       <div className="max-w-lg rounded-md border p-6">
         <h2 className="mb-4 text-base font-semibold">Configurar Geração</h2>

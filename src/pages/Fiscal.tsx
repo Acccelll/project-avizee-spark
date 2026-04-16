@@ -30,7 +30,7 @@ import { NotaFiscalDrawer } from "@/components/fiscal/NotaFiscalDrawer";
 import { confirmarNotaFiscal, estornarNotaFiscal, registrarEventoFiscal, verificarDuplicidadeChave } from "@/services/fiscal.service";
 import { NotaFiscalEditModal } from "@/components/fiscal/NotaFiscalEditModal";
 
-interface NotaFiscal {
+export interface NotaFiscal {
   id: string; tipo: string; numero: string; serie: string; chave_acesso: string;
   data_emissao: string; fornecedor_id: string; cliente_id: string;
   valor_total: number; status: string; forma_pagamento: string; condicao_pagamento: string;
@@ -96,7 +96,32 @@ interface ClienteRef { id: string; nome_razao_social: string; cpf_cnpj: string |
 interface ProdutoRef { id: string; nome: string; sku: string | null; codigo_interno: string | null; }
 interface OrdemVendaRef { id: string; numero: string; clientes?: { nome_razao_social: string } | null; }
 interface ContaContabilRef { id: string; codigo: string; descricao: string; }
-interface NfItemRow { id: string; produto_id: string; quantidade: number; valor_unitario: number; conta_contabil_id: string | null; cfop: string | null; cst: string | null; icms_valor: number | null; ipi_valor: number | null; pis_valor: number | null; cofins_valor: number | null; produtos?: { nome: string; sku: string } | null; }
+interface NfItemRow {
+  id: string; produto_id: string; quantidade: number; valor_unitario: number;
+  conta_contabil_id: string | null; cfop: string | null; cst: string | null;
+  ncm: string | null; unidade: string | null; descricao: string | null;
+  icms_valor: number | null; icms_aliquota: number | null; icms_base: number | null;
+  ipi_valor: number | null; ipi_aliquota: number | null;
+  pis_valor: number | null; pis_aliquota: number | null; base_pis: number | null;
+  cofins_valor: number | null; cofins_aliquota: number | null; base_cofins: number | null;
+  valor_st: number | null; base_st: number | null;
+  csosn: string | null; cst_pis: string | null; cst_cofins: string | null; cst_ipi: string | null;
+  desconto: number | null; codigo_produto: string | null;
+  produtos?: { nome: string; sku: string } | null;
+}
+
+/** Fiscal fields preserved per item index across edits. */
+interface NfItemFiscalData {
+  cfop?: string | null; cst?: string | null; ncm?: string | null; unidade?: string | null;
+  descricao?: string | null; icms_valor?: number | null; icms_aliquota?: number | null;
+  icms_base?: number | null; ipi_valor?: number | null; ipi_aliquota?: number | null;
+  pis_valor?: number | null; pis_aliquota?: number | null; base_pis?: number | null;
+  cofins_valor?: number | null; cofins_aliquota?: number | null; base_cofins?: number | null;
+  valor_st?: number | null; base_st?: number | null;
+  csosn?: string | null; cst_pis?: string | null; cst_cofins?: string | null;
+  cst_ipi?: string | null; desconto?: number | null; codigo_produto?: string | null;
+}
+
 interface DevolucaoItem extends NfItemRow { qtd_devolver: number; nome: string; }
 
 const Fiscal = () => {
@@ -127,6 +152,7 @@ const Fiscal = () => {
   const [tipoFilters, setTipoFilters] = useState<string[]>([]);
   const [origemFilters, setOrigemFilters] = useState<string[]>([]);
   const [statusSefazFilters, setStatusSefazFilters] = useState<string[]>([]);
+  const [itemFiscalData, setItemFiscalData] = useState<Record<number, NfItemFiscalData>>({});
   // Devolução
   const [devolucaoModalOpen, setDevolucaoModalOpen] = useState(false);
   const [devolucaoNF, setDevolucaoNF] = useState<NotaFiscal | null>(null);
@@ -159,7 +185,7 @@ const Fiscal = () => {
     return { total, pendentes, confirmadas, valorTotal };
   }, [data, searchParams]);
 
-  const openCreate = () => { setMode("create"); setForm({ ...emptyForm }); setItems([]); setSelected(null); setParcelas(1); setItemContaContabil({}); setModalOpen(true); };
+  const openCreate = () => { setMode("create"); setForm({ ...emptyForm }); setItems([]); setSelected(null); setParcelas(1); setItemContaContabil({}); setItemFiscalData({}); setModalOpen(true); };
   const openEdit = async (n: NotaFiscal) => {
     setMode("edit"); setSelected(n);
     setForm({
@@ -178,16 +204,28 @@ const Fiscal = () => {
     const { data: itens } = await supabase.from("notas_fiscais_itens")
       .select("*, produtos(nome, sku)").eq("nota_fiscal_id", n.id);
     const loadedItems = (itens || []).map((i: NfItemRow) => ({
-      id: i.id, produto_id: i.produto_id, codigo: i.produtos?.sku || "",
-      descricao: i.produtos?.nome || "", quantidade: i.quantidade,
+      id: i.id, produto_id: i.produto_id, codigo: i.produtos?.sku || i.codigo_produto || "",
+      descricao: i.descricao || i.produtos?.nome || "", quantidade: i.quantidade,
       valor_unitario: i.valor_unitario, valor_total: i.quantidade * i.valor_unitario,
     }));
     setItems(loadedItems);
     const contaMap: Record<number, string> = {};
+    const fiscalMap: Record<number, NfItemFiscalData> = {};
     (itens || []).forEach((i: NfItemRow, idx: number) => {
       if (i.conta_contabil_id) contaMap[idx] = i.conta_contabil_id;
+      fiscalMap[idx] = {
+        cfop: i.cfop, cst: i.cst, ncm: i.ncm, unidade: i.unidade,
+        descricao: i.descricao, icms_valor: i.icms_valor, icms_aliquota: i.icms_aliquota,
+        icms_base: i.icms_base, ipi_valor: i.ipi_valor, ipi_aliquota: i.ipi_aliquota,
+        pis_valor: i.pis_valor, pis_aliquota: i.pis_aliquota, base_pis: i.base_pis,
+        cofins_valor: i.cofins_valor, cofins_aliquota: i.cofins_aliquota, base_cofins: i.base_cofins,
+        valor_st: i.valor_st, base_st: i.base_st,
+        csosn: i.csosn, cst_pis: i.cst_pis, cst_cofins: i.cst_cofins, cst_ipi: i.cst_ipi,
+        desconto: i.desconto, codigo_produto: i.codigo_produto,
+      };
     });
     setItemContaContabil(contaMap);
+    setItemFiscalData(fiscalMap);
     setModalOpen(true);
   };
 
@@ -260,6 +298,11 @@ const Fiscal = () => {
 
   const handleSaveAndConfirm = async () => {
     if (!form.numero) { toast.error("Número é obrigatório"); return; }
+    if (form.tipo === "entrada" && !form.fornecedor_id) { toast.error("Fornecedor é obrigatório para notas de entrada"); return; }
+    if (form.tipo === "saida" && !form.cliente_id) { toast.error("Cliente é obrigatório para notas de saída"); return; }
+    if (items.length === 0) { toast.error("Adicione ao menos um item antes de confirmar"); return; }
+    const unlinkedCount = items.filter(i => !i.produto_id).length;
+    if (unlinkedCount > 0) { toast.error(`${unlinkedCount} item(ns) sem produto vinculado. Vincule todos os itens antes de confirmar.`); return; }
     if (!selected) return;
     setSaving(true);
     try {
@@ -272,19 +315,21 @@ const Fiscal = () => {
         conta_contabil_id: form.conta_contabil_id || null,
         valor_total: savedTotal,
       };
-      await Promise.all([
-        supabase.from("notas_fiscais").update(payload as Record<string, unknown>).eq("id", selected.id),
-        supabase.from("notas_fiscais_itens").delete().eq("nota_fiscal_id", selected.id),
-      ]);
-      if (items.length > 0) {
-        const itemsPayload = items.filter(i => i.produto_id).map((i, idx) => ({
-          nota_fiscal_id: selected.id,
-          produto_id: i.produto_id,
-          quantidade: i.quantidade,
-          valor_unitario: i.valor_unitario,
-          conta_contabil_id: itemContaContabil[idx] || null,
-        }));
-        if (itemsPayload.length > 0) await supabase.from("notas_fiscais_itens").insert(itemsPayload);
+      const itemsPayload = items.filter(i => i.produto_id).map((i, idx) => ({
+        nota_fiscal_id: selected.id,
+        produto_id: i.produto_id,
+        quantidade: i.quantidade,
+        valor_unitario: i.valor_unitario,
+        conta_contabil_id: itemContaContabil[idx] || null,
+        // Preserve existing fiscal fields
+        ...(itemFiscalData[idx] || {}),
+      }));
+      // Validate → update header → delete old items → insert new items (sequential to reduce partial-state risk)
+      await supabase.from("notas_fiscais").update(payload as Record<string, unknown>).eq("id", selected.id);
+      await supabase.from("notas_fiscais_itens").delete().eq("nota_fiscal_id", selected.id);
+      if (itemsPayload.length > 0) {
+        const { error: itemsError } = await supabase.from("notas_fiscais_itens").insert(itemsPayload);
+        if (itemsError) throw itemsError;
       }
       const nfForConfirm = { ...selected, ...payload, valor_total: savedTotal };
       await confirmarNotaFiscal({ nf: nfForConfirm as NotaFiscal, parcelas });
@@ -326,10 +371,25 @@ const Fiscal = () => {
         const matchedProd = produtosCrud.data.find((p) => p.codigo_interno === nfeItem.codigo || p.sku === nfeItem.codigo);
         return { produto_id: matchedProd?.id || "", codigo: nfeItem.codigo, descricao: matchedProd?.nome || nfeItem.descricao, quantidade: nfeItem.quantidade, valor_unitario: nfeItem.valorUnitario, valor_total: nfeItem.valorTotal };
       });
+      // Preserve fiscal fields from XML import
+      const xmlFiscalMap: Record<number, NfItemFiscalData> = {};
+      nfe.itens.forEach((nfeItem, idx) => {
+        xmlFiscalMap[idx] = {
+          cfop: nfeItem.cfop || null,
+          ncm: nfeItem.ncm || null,
+          unidade: nfeItem.unidade || null,
+          icms_valor: nfeItem.icms || null,
+          ipi_valor: nfeItem.ipi || null,
+          pis_valor: nfeItem.pis || null,
+          cofins_valor: nfeItem.cofins || null,
+          descricao: nfeItem.descricao || null,
+          codigo_produto: nfeItem.codigo || null,
+        };
+      });
       setForm({ ...emptyForm, tipo: "entrada", numero: nfe.numero, serie: nfe.serie, chave_acesso: nfe.chaveAcesso, data_emissao: nfe.dataEmissao || new Date().toISOString().split("T")[0], fornecedor_id: fornecedorId, frete_valor: nfe.valorFrete, icms_valor: nfe.icmsTotal, ipi_valor: nfe.ipiTotal, pis_valor: nfe.pisTotal, cofins_valor: nfe.cofinsTotal, icms_st_valor: nfe.icmsStTotal, desconto_valor: nfe.valorDesconto, outras_despesas: nfe.valorOutrasDespesas, valor_total: nfe.valorTotal, origem: "importacao_xml" });
-      setItems(mappedItems); setMode("create"); setSelected(null); setItemContaContabil({}); setModalOpen(true);
+      setItems(mappedItems); setMode("create"); setSelected(null); setItemContaContabil({}); setItemFiscalData(xmlFiscalMap); setModalOpen(true);
       const unmatchedCount = mappedItems.filter((i) => !i.produto_id).length;
-      if (unmatchedCount > 0) toast.warning(`${unmatchedCount} item(ns) não foram vinculados automaticamente. Vincule manualmente.`);
+      if (unmatchedCount > 0) toast.warning(`${unmatchedCount} item(ns) não foram vinculados automaticamente. Vincule manualmente antes de salvar.`);
       else toast.success("XML importado com sucesso! Todos os itens foram vinculados.");
     } catch (err: unknown) {
       console.error("[fiscal] XML import:", err);
@@ -341,6 +401,13 @@ const Fiscal = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.numero) { toast.error("Número é obrigatório"); return; }
+    if (form.tipo === "entrada" && !form.fornecedor_id) { toast.error("Fornecedor é obrigatório para notas de entrada"); return; }
+    if (form.tipo === "saida" && !form.cliente_id) { toast.error("Cliente é obrigatório para notas de saída"); return; }
+    const unlinkedCount = items.filter(i => !i.produto_id).length;
+    if (unlinkedCount > 0) {
+      toast.error(`${unlinkedCount} item(ns) sem produto vinculado. Vincule todos os itens ou remova-os antes de salvar.`);
+      return;
+    }
     setSaving(true);
     try {
       const savedTotal = totalNF || form.valor_total;
@@ -361,10 +428,10 @@ const Fiscal = () => {
           payload_resumido: { valor_total: savedTotal, itens: items.length },
         });
       } else if (selected) {
-        await Promise.all([
-          supabase.from("notas_fiscais").update(payload).eq("id", selected.id),
-          supabase.from("notas_fiscais_itens").delete().eq("nota_fiscal_id", selected.id),
-        ]);
+        // Sequential edit: validate → update header → delete old → insert new
+        // This order minimises the risk of leaving the note without items.
+        await supabase.from("notas_fiscais").update(payload).eq("id", selected.id);
+        await supabase.from("notas_fiscais_itens").delete().eq("nota_fiscal_id", selected.id);
         // Register edit event
         await registrarEventoFiscal({
           nota_fiscal_id: selected.id,
@@ -374,8 +441,19 @@ const Fiscal = () => {
         });
       }
       if (items.length > 0 && nfId) {
-        const itemsPayload = items.filter(i => i.produto_id).map((i, idx) => ({ nota_fiscal_id: nfId, produto_id: i.produto_id, quantidade: i.quantidade, valor_unitario: i.valor_unitario, conta_contabil_id: itemContaContabil[idx] || null }));
-        if (itemsPayload.length > 0) await supabase.from("notas_fiscais_itens").insert(itemsPayload);
+        const itemsPayload = items.filter(i => i.produto_id).map((i, idx) => ({
+          nota_fiscal_id: nfId,
+          produto_id: i.produto_id,
+          quantidade: i.quantidade,
+          valor_unitario: i.valor_unitario,
+          conta_contabil_id: itemContaContabil[idx] || null,
+          // Preserve fiscal fields loaded from DB (or set by XML import)
+          ...(itemFiscalData[idx] || {}),
+        }));
+        if (itemsPayload.length > 0) {
+          const { error: itemsErr } = await supabase.from("notas_fiscais_itens").insert(itemsPayload);
+          if (itemsErr) throw itemsErr;
+        }
       }
       toast.success("Nota fiscal salva!"); setModalOpen(false); fetchData();
     } catch (err: unknown) { console.error('[fiscal] salvar NF:', err); toast.error(getUserFriendlyError(err)); }
@@ -428,9 +506,14 @@ const Fiscal = () => {
   const modeloOptions: MultiSelectOption[] = Object.entries(modeloLabels).map(([v, l]) => ({ label: l, value: v }));
   const statusOptions: MultiSelectOption[] = [
     { label: "Pendente", value: "pendente" },
+    { label: "Rascunho", value: "rascunho" },
     { label: "Importada", value: "importada" },
     { label: "Confirmada", value: "confirmada" },
+    { label: "Autorizada", value: "autorizada" },
+    { label: "Rejeitada", value: "rejeitada" },
     { label: "Cancelada", value: "cancelada" },
+    { label: "Cancelada SEFAZ", value: "cancelada_sefaz" },
+    { label: "Inutilizada", value: "inutilizada" },
   ];
   const origemOptions: MultiSelectOption[] = Object.entries(origemLabels).map(([v, l]) => ({ label: l, value: v }));
   const statusSefazOptions: MultiSelectOption[] = Object.entries(statusSefazLabels).map(([v, l]) => ({ label: l, value: v }));
@@ -442,10 +525,15 @@ const Fiscal = () => {
     : { title: "Fiscal", subtitle: "Notas fiscais, faturas e documentos", addLabel: "Nova NF", moduleKey: "notas-fiscais", parceiroLabel: "Parceiro" };
 
   const fiscalStatusMap: Record<string, { label: string; className: string }> = {
-    pendente:  { label: "Pendente",   className: "bg-warning/10 text-warning border-warning/20" },
-    confirmada:{ label: "Confirmada", className: "bg-success/10 text-success border-success/20" },
-    cancelada: { label: "Cancelada",  className: "bg-destructive/10 text-destructive border-destructive/20" },
-    importada: { label: "Importada",  className: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-800" },
+    pendente:        { label: "Pendente",        className: "bg-warning/10 text-warning border-warning/20" },
+    confirmada:      { label: "Confirmada",      className: "bg-success/10 text-success border-success/20" },
+    cancelada:       { label: "Cancelada",       className: "bg-destructive/10 text-destructive border-destructive/20" },
+    importada:       { label: "Importada",       className: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-800" },
+    autorizada:      { label: "Autorizada",      className: "bg-success/10 text-success border-success/20" },
+    rejeitada:       { label: "Rejeitada",       className: "bg-destructive/10 text-destructive border-destructive/20" },
+    cancelada_sefaz: { label: "Cancelada SEFAZ", className: "bg-destructive/10 text-destructive border-destructive/20" },
+    inutilizada:     { label: "Inutilizada",     className: "bg-muted text-muted-foreground border-muted" },
+    rascunho:        { label: "Rascunho",        className: "bg-muted text-muted-foreground border-muted" },
   };
 
   const renderFiscalStatus = (n: NotaFiscal) => {
@@ -470,11 +558,17 @@ const Fiscal = () => {
     {
       key: "parceiro",
       label: parceiroLabel,
-      render: (n: NotaFiscal) => (
-        <span className="font-medium">
-          {n.tipo === "entrada" ? n.fornecedores?.nome_razao_social || "—" : n.clientes?.nome_razao_social || "—"}
-        </span>
-      ),
+      render: (n: NotaFiscal) => {
+        // Devolução de saída: NF de entrada gerada a partir de uma saída.
+        // It carries cliente_id (not fornecedor_id), so we resolve correctly.
+        const nome =
+          n.tipo === "entrada" && n.tipo_operacao === "devolucao" && n.clientes?.nome_razao_social
+            ? n.clientes.nome_razao_social
+            : n.tipo === "entrada"
+            ? n.fornecedores?.nome_razao_social || "—"
+            : n.clientes?.nome_razao_social || "—";
+        return <span className="font-medium">{nome}</span>;
+      },
     },
     {
       key: "data_emissao",

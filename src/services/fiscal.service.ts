@@ -79,7 +79,10 @@ export async function confirmarNotaFiscal({ nf, parcelas }: ConfirmarNFParams) {
     .select("*")
     .eq("nota_fiscal_id", nf.id);
 
-  // Stock movements — parallelise to avoid N+1 serial queries
+  // Stock movements — parallelise to avoid N+1 serial queries.
+  // NOTE: estoque_atual is intentionally NOT updated here; the database trigger
+  // on estoque_movimentos handles that automatically, preventing dual-write
+  // inconsistency between the frontend and any concurrent updates.
   if (nf.movimenta_estoque !== false && itens) {
     await Promise.all(
       itens.map(async (item) => {
@@ -100,10 +103,6 @@ export async function confirmarNotaFiscal({ nf, parcelas }: ConfirmarNFParams) {
           documento_tipo: "fiscal",
           documento_id: nf.id,
         });
-        await supabase
-          .from("produtos")
-          .update({ estoque_atual: saldo_atual })
-          .eq("id", item.produto_id);
       })
     );
   }
@@ -190,6 +189,8 @@ export async function estornarNotaFiscal(nf: {
   const statusAnterior = current?.status || nf.status || "confirmada";
 
   // 1. Reverse stock
+  // NOTE: estoque_atual is intentionally NOT updated here; the database trigger
+  // on estoque_movimentos handles that, preventing dual-write inconsistency.
   if (nf.movimenta_estoque !== false) {
     const { data: movimentos } = await supabase
       .from("estoque_movimentos")
@@ -220,10 +221,6 @@ export async function estornarNotaFiscal(nf: {
             documento_id: nf.id,
             motivo: `Estorno da NF ${nf.numero}`,
           });
-          await supabase
-            .from("produtos")
-            .update({ estoque_atual: novoSaldo })
-            .eq("id", mov.produto_id);
         })
       );
     }
@@ -424,7 +421,9 @@ export async function processarDevolucao(params: {
     (produtosEstoque || []).map((p: any) => [p.id, Number(p.estoque_atual || 0)])
   );
 
-  // Batch insert stock movements
+  // Batch insert stock movements.
+  // NOTE: estoque_atual is intentionally NOT updated here; the database trigger
+  // on estoque_movimentos handles that, preventing dual-write inconsistency.
   const { error: movError } = await supabase.from("estoque_movimentos").insert(
     itensDevolver.map((item: any) => {
       const saldoAnterior = estoqueMap.get(item.produto_id) ?? 0;
@@ -442,18 +441,6 @@ export async function processarDevolucao(params: {
     })
   );
   if (movError) throw movError;
-
-  // Update product stocks in parallel (each row has a different value)
-  await Promise.all(
-    itensDevolver.map((item: any) => {
-      const novoEstoque = (estoqueMap.get(item.produto_id) ?? 0) + item.qtd_devolver;
-      return supabase
-        .from("produtos")
-        .update({ estoque_atual: novoEstoque })
-        .eq("id", item.produto_id)
-        .then(({ error }) => { if (error) throw error; });
-    })
-  );
 
   // Register event
   await registrarEventoFiscal({

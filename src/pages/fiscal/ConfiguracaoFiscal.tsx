@@ -97,11 +97,16 @@ export default function ConfiguracaoFiscal() {
         crt: values.crt,
         cnae: values.cnae || null,
         regime_tributario: values.regime_tributario || null,
+        inscricao_estadual: values.inscricao_estadual || null,
         codigo_ibge_municipio: values.codigo_ibge_municipio || null,
         email_fiscal: values.email_fiscal || null,
         serie_padrao_nfe: values.serie_padrao_nfe,
         proximo_numero_nfe: values.proximo_numero_nfe,
         ambiente_padrao: values.ambiente_padrao,
+        // NOTE: sefazUrlNFe, certificadoTipo, and certificadoSenha are collected
+        // in this form but are NOT persisted yet (empresa_config does not have those
+        // columns). They are kept in the schema so the UI can be wired up when the
+        // backend supports them.
       };
 
       if (configId) {
@@ -173,6 +178,13 @@ export default function ConfiguracaoFiscal() {
                     <FormMessage />
                   </FormItem>
                 )} />
+                <FormField control={form.control} name="inscricao_estadual" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Inscrição Estadual</FormLabel>
+                    <FormControl><Input {...field} placeholder="Ex: 123.456.789.000" /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
                 <FormField control={form.control} name="codigo_ibge_municipio" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Código IBGE Município</FormLabel>
@@ -240,24 +252,30 @@ export default function ConfiguracaoFiscal() {
             <div>
               <h2 className="text-base font-semibold">Certificado Digital</h2>
               <Separator className="my-2" />
-              <div className="grid grid-cols-2 gap-4">
+              <div className="rounded-lg border border-warning/30 bg-warning/5 p-3 mb-4 text-xs text-warning">
+                ⚠️ Os campos abaixo ainda <strong>não são persistidos</strong> no banco de dados.
+                Eles estão disponíveis para configuração futura quando a integração com certificado digital for implementada.
+              </div>
+              <div className="grid grid-cols-2 gap-4 opacity-70">
                 <FormField control={form.control} name="certificadoTipo" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Tipo de Certificado</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value} disabled>
                       <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                       <SelectContent>
                         <SelectItem value="A1">A1 – Arquivo .pfx</SelectItem>
                         <SelectItem value="A3">A3 – Token/Smartcard</SelectItem>
                       </SelectContent>
                     </Select>
+                    <FormDescription>Configuração futura — não persistida ainda.</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )} />
                 <FormField control={form.control} name="certificadoSenha" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Senha do Certificado</FormLabel>
-                    <FormControl><Input {...field} type="password" placeholder="Senha do arquivo .pfx" /></FormControl>
+                    <FormControl><Input {...field} type="password" placeholder="Senha do arquivo .pfx" disabled /></FormControl>
+                    <FormDescription>Configuração futura — não persistida ainda.</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )} />

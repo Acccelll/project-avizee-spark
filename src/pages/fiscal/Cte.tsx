@@ -99,9 +99,18 @@ export default function Cte() {
     <div className="space-y-4 p-6">
       <CertificadoValidadeAlert />
 
+      <div className="rounded-lg border border-muted bg-muted/20 p-3 flex items-start gap-3">
+        <span className="text-muted-foreground text-sm mt-0.5">ℹ️</span>
+        <p className="text-xs text-muted-foreground">
+          <span className="font-semibold text-foreground">Tela de consulta CT-e:</span>{" "}
+          Exibe CT-es (modelo 57) cadastrados no sistema. A emissão de novos CT-es
+          ainda não está disponível neste fluxo — o botão está desabilitado intencionalmente.
+        </p>
+      </div>
+
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Conhecimento de Transporte Eletrônico (CT-e)</h1>
-        <Button disabled>
+        <Button disabled aria-label="Novo CT-e (indisponível)">
           <Plus className="mr-2 h-4 w-4" />
           Novo CT-e
         </Button>
@@ -133,9 +142,12 @@ export default function Cte() {
           className="h-9 rounded-md border border-input bg-background px-3 text-sm"
         >
           <option value="">Todos os status</option>
+          <option value="pendente">Pendente</option>
           <option value="rascunho">Rascunho</option>
+          <option value="confirmada">Confirmada</option>
           <option value="autorizada">Autorizada</option>
           <option value="cancelada">Cancelada</option>
+          <option value="cancelada_sefaz">Cancelada SEFAZ</option>
           <option value="rejeitada">Rejeitada</option>
         </select>
       </div>
