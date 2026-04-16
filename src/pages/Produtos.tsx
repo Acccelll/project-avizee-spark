@@ -118,7 +118,6 @@ const Produtos = () => {
   const [fornecedoresList, setFornecedoresList] = useState<{id: string; nome_razao_social: string}[]>([]);
   const [editingProduct, setEditingProduct] = useState<Produto | null>(null);
   const [margemLucro, setMargemLucro] = useState(0);
-  const [searchTerm, setSearchTerm] = useState("");
   const [tipoFilters, setTipoFilters] = useState<string[]>([]);
   const [tipoItemFilters, setTipoItemFilters] = useState<string[]>([]);
   const [estoqueFilters, setEstoqueFilters] = useState<string[]>([]);
