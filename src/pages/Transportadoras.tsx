@@ -31,6 +31,7 @@ import { StatCard } from "@/components/StatCard";
 import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { getUserFriendlyError } from "@/utils/errorMessages";
 
 interface Transportadora {
   id: string;
@@ -187,7 +188,7 @@ export default function Transportadoras() {
       toast.success("Cliente vinculado");
     } catch (err) {
       console.error("[transportadoras] erro ao vincular cliente:", err);
-      toast.error("Erro ao vincular cliente");
+      toast.error(getUserFriendlyError(err));
     }
     setSavingVinculoCliente(false);
   };
@@ -200,7 +201,7 @@ export default function Transportadoras() {
       toast.success("Vínculo removido");
     } catch (err) {
       console.error("[transportadoras] erro ao remover vínculo:", err);
-      toast.error("Erro ao remover vínculo");
+      toast.error(getUserFriendlyError(err));
     }
   };
 
@@ -487,6 +488,7 @@ export default function Transportadoras() {
               <div className="flex gap-1">
                 <MaskedInput mask="cnpj" value={form.cpf_cnpj} onChange={(v) => setForm({ ...form, cpf_cnpj: v })} />
                 <Button type="button" variant="outline" size="icon" className="shrink-0" disabled={cnpjLoading}
+                  aria-label="Buscar CNPJ"
                   title="Buscar dados pelo CNPJ e preencher automaticamente"
                   onClick={async () => {
                     const result = await buscarCnpj(form.cpf_cnpj);
@@ -597,6 +599,7 @@ export default function Transportadoras() {
               <div className="flex gap-1">
                 <MaskedInput mask="cep" value={form.cep} onChange={(v) => setForm({ ...form, cep: v })} />
                 <Button type="button" variant="outline" size="icon" className="shrink-0" disabled={cepLoading}
+                  aria-label="Buscar CEP"
                   title="Buscar endereço pelo CEP"
                   onClick={async () => {
                     const result = await buscarCep(form.cep);
@@ -785,8 +788,8 @@ export default function Transportadoras() {
         title={selected?.nome_razao_social || "Detalhes da Transportadora"}
         badge={selected ? <StatusBadge status={selected.ativo ? "Ativo" : "Inativo"} /> : undefined}
         actions={selected ? <>
-          <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setDrawerOpen(false); openEdit(selected); }}><Edit className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Editar</TooltipContent></Tooltip>
-          <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteConfirmOpen(true)}><Trash2 className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Excluir</TooltipContent></Tooltip>
+          <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Editar transportadora" onClick={() => { setDrawerOpen(false); openEdit(selected); }}><Edit className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Editar</TooltipContent></Tooltip>
+          <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" aria-label="Excluir transportadora" onClick={() => setDeleteConfirmOpen(true)}><Trash2 className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Excluir</TooltipContent></Tooltip>
         </> : undefined}
         summary={selected ? (
           <div className="space-y-3">

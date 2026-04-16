@@ -23,6 +23,7 @@ import { StatCard } from "@/components/StatCard";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { toast } from "sonner";
+import { getUserFriendlyError } from "@/utils/errorMessages";
 
 interface GrupoEconomico {
   id: string;
@@ -334,7 +335,7 @@ const GruposEconomicos = () => {
       setModalOpen(false);
     } catch (err: unknown) {
       console.error("[grupos-economicos] erro ao salvar:", err);
-      toast.error("Erro ao salvar grupo econômico");
+      toast.error(getUserFriendlyError(err));
     }
     setSaving(false);
   };
@@ -348,7 +349,7 @@ const GruposEconomicos = () => {
       setDrawerOpen(false);
     } catch (err: unknown) {
       console.error("[grupos-economicos] erro ao excluir:", err);
-      toast.error("Erro ao excluir grupo econômico");
+      toast.error(getUserFriendlyError(err));
     }
     setDeleting(false);
   };
@@ -1014,7 +1015,7 @@ const GruposEconomicos = () => {
             <>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setDrawerOpen(false); openEdit(selected); }}>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Editar grupo econômico" onClick={() => { setDrawerOpen(false); openEdit(selected); }}>
                     <Edit className="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>
@@ -1022,7 +1023,7 @@ const GruposEconomicos = () => {
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteConfirmOpen(true)}>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" aria-label="Excluir grupo econômico" onClick={() => setDeleteConfirmOpen(true)}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>

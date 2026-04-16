@@ -22,6 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { formatCurrency, formatDate } from "@/lib/format";
+import { getUserFriendlyError } from "@/utils/errorMessages";
 
 interface Funcionario {
   id: string; nome: string; cpf: string; cargo: string; departamento: string;
@@ -157,7 +158,7 @@ export default function Funcionarios() {
       observacoes: folhaForm.observacoes || null,
       status: "processada",
     });
-    if (error) { toast.error("Erro: " + error.message); return; }
+    if (error) { toast.error(getUserFriendlyError(error)); return; }
     toast.success("Folha registrada!");
     setFolhaModalOpen(false);
     openView(selected);
@@ -790,7 +791,7 @@ export default function Funcionarios() {
             actions={<>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setDrawerOpen(false); openEdit(selected); }}>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Editar funcionário" onClick={() => { setDrawerOpen(false); openEdit(selected); }}>
                     <Edit className="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>
@@ -798,7 +799,7 @@ export default function Funcionarios() {
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setConfirmDeleteOpen(true)}>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" aria-label="Excluir funcionário" onClick={() => setConfirmDeleteOpen(true)}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>

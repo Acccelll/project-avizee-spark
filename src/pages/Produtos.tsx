@@ -28,6 +28,7 @@ import { ProductAutocomplete } from "@/components/ui/ProductAutocomplete";
 import { cfopCodes, cstIcmsCodes } from "@/lib/fiscalData";
 import { useNcmLookup } from '@/hooks/useNcmLookup';
 import { Switch } from "@/components/ui/switch";
+import { getUserFriendlyError } from "@/utils/errorMessages";
 
 type TipoItem = "produto" | "insumo";
 
@@ -279,7 +280,7 @@ const Produtos = () => {
       setModalOpen(false);
     } catch (err) {
       console.error('[produtos] erro ao salvar:', err);
-      toast.error("Erro ao salvar produto");
+      toast.error(getUserFriendlyError(err));
     }
     setSaving(false);
   };
@@ -298,8 +299,7 @@ const Produtos = () => {
         .select("id, codigo, descricao, sigla")
         .maybeSingle();
       if (error) {
-        if (error.code === "23505") { toast.error("Já existe uma unidade com este código"); }
-        else { toast.error("Erro ao criar unidade de medida"); }
+        toast.error(getUserFriendlyError(error));
         setSavingNovaUnidade(false);
         return;
       }
@@ -311,7 +311,7 @@ const Produtos = () => {
       toast.success(`Unidade "${nova.codigo}" criada com sucesso`);
     } catch (err) {
       console.error('[produtos] erro ao criar unidade:', err);
-      toast.error("Erro ao criar unidade de medida");
+      toast.error(getUserFriendlyError(err));
     }
     setSavingNovaUnidade(false);
   };

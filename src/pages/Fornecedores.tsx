@@ -33,6 +33,7 @@ import { formatDate, formatCurrency } from "@/lib/format";
 import { clienteFornecedorSchema, validateForm } from "@/lib/validationSchemas";
 import { StatCard } from "@/components/StatCard";
 import { AddProdutoFornecedor } from "@/components/fornecedores/AddProdutoFornecedor";
+import { getUserFriendlyError } from "@/utils/errorMessages";
 
 const MAX_OBSERVACOES_LENGTH = 2000;
 const MAX_PRAZO_DAYS = 365;
@@ -735,10 +736,10 @@ const Fornecedores = () => {
                       <div className="flex items-center gap-2 shrink-0">
                         {p.preco_compra != null && <span className="text-[10px] font-mono text-muted-foreground">{formatCurrency(p.preco_compra)}</span>}
                         {p.lead_time_dias != null && <span className="text-[10px] text-muted-foreground">{p.lead_time_dias}d</span>}
-                        <Button type="button" size="icon" variant="ghost" className="h-6 w-6 text-destructive"
+                        <Button type="button" size="icon" variant="ghost" className="h-6 w-6 text-destructive" aria-label="Remover vínculo"
                           onClick={async () => {
                             const { error } = await supabase.from("produtos_fornecedores").delete().eq("id", p.id);
-                            if (error) { toast.error("Erro ao remover vínculo"); return; }
+                            if (error) { toast.error(getUserFriendlyError(error)); return; }
                             toast.success("Vínculo removido");
                             loadFornContext(selected.id);
                           }}

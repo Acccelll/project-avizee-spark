@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Tables } from "@/integrations/supabase/types";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -10,8 +9,11 @@ import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext"
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Truck, Mail, MapPin, ShoppingBag, CreditCard, Package, FileText, Edit, Trash2, Building2, Clock, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
+import { getUserFriendlyError } from "@/utils/errorMessages";
+import type { FornecedorRow, CompraRow, FinanceiroLancamentoRow, ProdutoFornecedorRow } from "@/types/cadastros";
 
 interface Props {
   id: string;
@@ -19,16 +21,12 @@ interface Props {
 
 export function FornecedorView({ id }: Props) {
   const navigate = useNavigate();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [selected, setSelected] = useState<any | null>(null);
+  const [selected, setSelected] = useState<FornecedorRow | null>(null);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [compras, setCompras] = useState<any[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [financeiro, setFinanceiro] = useState<any[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [produtos, setProdutos] = useState<any[]>([]);
+  const [compras, setCompras] = useState<CompraRow[]>([]);
+  const [financeiro, setFinanceiro] = useState<FinanceiroLancamentoRow[]>([]);
+  const [produtos, setProdutos] = useState<ProdutoFornecedorRow[]>([]);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const { pushView, clearStack } = useRelationalNavigation();
 
@@ -74,12 +72,12 @@ export function FornecedorView({ id }: Props) {
           .eq("fornecedor_id", f.id)
         ]);
 
-        setCompras(cRes.data || []);
-        setFinanceiro(fRes.data || []);
-        setProdutos(pRes.data || []);
+        setCompras((cRes.data || []) as CompraRow[]);
+        setFinanceiro((fRes.data || []) as FinanceiroLancamentoRow[]);
+        setProdutos((pRes.data || []) as ProdutoFornecedorRow[]);
       } catch (error) {
         console.error("[FornecedorView] erro inesperado:", error);
-        setFetchError(`Erro inesperado: ${error instanceof Error ? error.message : String(error)}`);
+        setFetchError(getUserFriendlyError(error));
       } finally {
         setLoading(false);
       }
@@ -121,7 +119,7 @@ export function FornecedorView({ id }: Props) {
       <div className="flex items-center justify-end gap-1 border-b pb-3">
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { clearStack(); navigate('/fornecedores', { state: { editId: id } }); }}>
+            <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Editar fornecedor" onClick={() => { clearStack(); navigate('/fornecedores', { state: { editId: id } }); }}>
               <Edit className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
@@ -129,7 +127,7 @@ export function FornecedorView({ id }: Props) {
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteConfirmOpen(true)}>
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" aria-label="Excluir fornecedor" onClick={() => setDeleteConfirmOpen(true)}>
               <Trash2 className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
@@ -250,7 +248,7 @@ export function FornecedorView({ id }: Props) {
           )}
           <h4 className="font-semibold text-sm flex items-center gap-2 px-1 text-muted-foreground uppercase text-[10px]"><ShoppingBag className="h-3.5 w-3.5" /> Últimos Pedidos de Compra</h4>
           {compras.length === 0 ? (
-            <p className="text-xs text-muted-foreground text-center py-8 border rounded-xl border-dashed">Nenhum pedido de compra encontrado</p>
+            <EmptyState icon={ShoppingBag} title="Nenhum pedido de compra" description="Nenhum pedido de compra encontrado para este fornecedor" />
           ) : (
             <div className="space-y-2">
               {compras.map((c) => (
@@ -290,7 +288,7 @@ export function FornecedorView({ id }: Props) {
           </div>
           <h4 className="font-semibold flex items-center gap-2 px-1 text-muted-foreground uppercase text-[10px]"><FileText className="h-3.5 w-3.5" /> Lançamentos Recentes</h4>
           {financeiro.length === 0 ? (
-            <p className="text-xs text-muted-foreground text-center py-8 border rounded-xl border-dashed">Nenhum lançamento financeiro</p>
+            <EmptyState icon={CreditCard} title="Nenhum lançamento financeiro" description="Nenhum lançamento financeiro registrado para este fornecedor" />
           ) : (
             <div className="space-y-2">
               {financeiro.map((f) => (
@@ -315,7 +313,7 @@ export function FornecedorView({ id }: Props) {
         <TabsContent value="produtos" className="space-y-3 mt-3">
           <h4 className="font-semibold text-sm flex items-center gap-2 px-1 text-muted-foreground uppercase text-[10px]"><Package className="h-3.5 w-3.5" /> Produtos Fornecidos</h4>
           {produtos.length === 0 ? (
-            <p className="text-xs text-muted-foreground text-center py-8 border rounded-xl border-dashed">Nenhum produto vinculado</p>
+            <EmptyState icon={Package} title="Nenhum produto vinculado" description="Nenhum produto vinculado a este fornecedor" />
           ) : (
             <div className="space-y-2">
               {produtos.map((p) => (
@@ -382,7 +380,7 @@ export function FornecedorView({ id }: Props) {
             clearStack();
           } catch (err) {
             console.error("[FornecedorView] erro ao excluir:", err);
-            toast.error("Erro ao excluir fornecedor.");
+            toast.error(getUserFriendlyError(err));
           } finally {
             setDeleteConfirmOpen(false);
           }
