@@ -1,4 +1,5 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useParams } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
 import { ModulePage } from "@/components/ModulePage";
@@ -43,6 +44,8 @@ import { FinanceiroLancamentoForm } from "@/pages/financeiro/components/Financei
 import { emptyLancamentoForm, type LancamentoForm } from "@/pages/financeiro/types";
 
 const Financeiro = () => {
+  const { id: paramId } = useParams<{ id?: string }>();
+  const autoOpenedRef = useRef(false);
   const {
     data,
     loading,
@@ -52,7 +55,7 @@ const Financeiro = () => {
     fetchData,
   } = useSupabaseCrud<Lancamento>({
     table: "financeiro_lancamentos" as const,
-    select: "*, clientes(nome_razao_social), fornecedores(nome_razao_social), contas_bancarias(descricao, bancos(nome))",
+    select: "*, clientes(nome_razao_social), fornecedores(nome_razao_social), contas_bancarias(descricao, bancos(nome)), contas_contabeis(descricao, codigo)",
   });
   const clientesCrud = useSupabaseCrud<Cliente>({ table: "clientes" });
   const fornecedoresCrud = useSupabaseCrud<Fornecedor>({ table: "fornecedores" });
@@ -77,6 +80,16 @@ const Financeiro = () => {
   const hojeStr = useMemo(() => hoje.toISOString().split("T")[0], [hoje]);
 
   const getLancamentoStatus = useCallback((l: Lancamento) => getEffectiveStatus(l.status, l.data_vencimento, hoje), [hoje]);
+
+  useEffect(() => {
+    if (!paramId || autoOpenedRef.current || loading || data.length === 0) return;
+    const found = data.find((l) => l.id === paramId);
+    if (found) {
+      autoOpenedRef.current = true;
+      setSelected(found);
+      setDrawerOpen(true);
+    }
+  }, [paramId, data, loading]);
 
   const {
     selectedIds,

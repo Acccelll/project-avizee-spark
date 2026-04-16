@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { toast } from "sonner";
 import {
   FolderTree,
   FileText,
@@ -312,6 +313,13 @@ const ContasContabeis = () => {
   const handleSave = async (payload: Partial<ContaContabil>) => {
     try {
       if (selected) {
+        if (payload.ativo === false && selected.ativo !== false) {
+          const hasChildren = data.some((c) => c.conta_pai_id === selected.id);
+          if (hasChildren) {
+            toast.error("Não é possível inativar uma conta que possui subcontas.");
+            return;
+          }
+        }
         await update(selected.id, payload);
       } else {
         await create(payload);
@@ -321,6 +329,15 @@ const ContasContabeis = () => {
       throw err;
     }
   };
+
+  const handleDelete = useCallback((c: ContaContabil) => {
+    const hasChildren = data.some((d) => d.conta_pai_id === c.id);
+    if (hasChildren) {
+      toast.error("Não é possível excluir uma conta com subcontas. Remova as subcontas primeiro.");
+      return;
+    }
+    remove(c.id);
+  }, [data, remove]);
 
   // Depth map (used only in Lista view columns)
   const depthMap = useMemo(() => buildDepthMap(data), [data]);
@@ -607,7 +624,7 @@ const ContasContabeis = () => {
               showColumnToggle={true}
               onView={(c) => { setSelected(c); setDrawerOpen(true); }}
               onEdit={openEdit}
-              onDelete={(c) => remove(c.id)}
+              onDelete={(c) => handleDelete(c)}
               emptyTitle="Nenhuma conta encontrada"
               emptyDescription="Tente ajustar os filtros ou cadastre uma nova conta contábil."
             />
@@ -629,7 +646,7 @@ const ContasContabeis = () => {
         selected={selected}
         allContas={data}
         onEdit={(c) => { setDrawerOpen(false); openEdit(c); }}
-        onDelete={(c) => remove(c.id)}
+        onDelete={(c) => handleDelete(c)}
       />
     </AppLayout>
   );

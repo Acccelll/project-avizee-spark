@@ -179,13 +179,13 @@ export function ContaBancariaDrawer({
       </div>
       <div className="rounded-lg border bg-muted/30 p-3 space-y-0.5">
         <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Lançamentos
+          Lançamentos (últ. 10)
         </span>
         <p className="text-sm font-bold font-mono">{lancamentos.length}</p>
       </div>
       <div className="rounded-lg border bg-muted/30 p-3 space-y-0.5">
         <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Total Baixado
+          Total Baixado (últ. 10)
         </span>
         <p className="text-sm font-bold font-mono text-success">{formatCurrency(totalBaixas)}</p>
       </div>

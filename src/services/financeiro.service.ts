@@ -40,6 +40,7 @@ export interface BaixaLoteParams {
 interface BaixaPlanItem {
   id: string;
   saldo: number;
+  valor: number;
   valorPago: number;
   novoSaldo: number;
   novoStatus: "pago" | "parcial";
@@ -69,11 +70,12 @@ export function criarPlanoBaixaLote(params: BaixaLoteParams): BaixaPlanItem[] {
     }
 
     const saldo = Number(found.saldo_restante != null ? found.saldo_restante : found.valor);
+    const valor = Number(found.valor);
     const valorPago = tipoBaixa === "total" ? saldo : calcularPagamentoParcialLote(saldo, ratio);
     const novoSaldo = tipoBaixa === "total" ? 0 : calcularNovoSaldo(saldo, valorPago, 0);
     const novoStatus = tipoBaixa === "total" ? "pago" : statusPosBaixa(novoSaldo);
 
-    return { id, saldo, valorPago, novoSaldo, novoStatus };
+    return { id, saldo, valor, valorPago, novoSaldo, novoStatus };
   });
 }
 
@@ -81,7 +83,7 @@ async function ensureUpdateLancamento(item: BaixaPlanItem, params: BaixaLotePara
   const payload = {
     status: item.novoStatus,
     data_pagamento: item.novoStatus === "pago" ? params.baixaDate : null,
-    valor_pago: item.valorPago,
+    valor_pago: item.valor - item.novoSaldo,
     tipo_baixa: params.tipoBaixa,
     forma_pagamento: params.formaPagamento,
     conta_bancaria_id: params.contaBancariaId,
@@ -200,7 +202,7 @@ export async function processarEstorno(lancamentoId: string, motivoEstorno?: str
 
     const { data: lanc, error: lancError } = await supabase
       .from("financeiro_lancamentos")
-      .select("id,status")
+      .select("id,status,valor")
       .eq("id", lancamentoId)
       .maybeSingle();
 
@@ -210,11 +212,12 @@ export async function processarEstorno(lancamentoId: string, motivoEstorno?: str
     const { data: upd, error: updateError } = await supabase
       .from("financeiro_lancamentos")
       .update({
-        status: "aberto",
+        status: "estornado",
         data_pagamento: null,
-        valor_pago: null,
+        valor_pago: 0,
         tipo_baixa: null,
-        saldo_restante: null,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        saldo_restante: Number((lanc as any).valor ?? 0),
         motivo_estorno: motivoEstorno || null,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any)
@@ -224,9 +227,6 @@ export async function processarEstorno(lancamentoId: string, motivoEstorno?: str
 
     if (updateError) throw updateError;
     if (!upd?.id) throw new Error("Falha ao atualizar lançamento no estorno.");
-
-    const { error: baixaDeleteError } = await supabase.from("financeiro_baixas").delete().eq("lancamento_id", lancamentoId);
-    if (baixaDeleteError) throw baixaDeleteError;
 
     const { error: parcelasError } = await supabase
       .from("financeiro_lancamentos")

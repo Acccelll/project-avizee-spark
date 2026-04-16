@@ -135,12 +135,38 @@ export async function conciliarTransacao(
 ): Promise<void> {
   if (!tituloId) return; // Sem par — nada a persistir por ora
 
+  const { data: lanc, error: fetchError } = await supabase
+    .from("financeiro_lancamentos")
+    .select("id, valor, saldo_restante")
+    .eq("id", tituloId)
+    .maybeSingle();
+
+  if (fetchError) throw new Error(fetchError.message);
+  if (!lanc?.id) throw new Error("Lançamento não encontrado para conciliação.");
+
+  const saldoAtual = lanc.saldo_restante != null
+    ? Number(lanc.saldo_restante)
+    : Number(lanc.valor);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error: baixaError } = await (supabase.from as any)("financeiro_baixas").insert({
+    lancamento_id: tituloId,
+    valor_pago: saldoAtual,
+    data_baixa: transacaoExtrato.data,
+    forma_pagamento: null,
+    conta_bancaria_id: contaId,
+  });
+
+  if (baixaError) throw new Error(baixaError.message);
+
   const { error } = await supabase
     .from("financeiro_lancamentos")
     .update({
       status: "pago",
       data_pagamento: transacaoExtrato.data,
       conta_bancaria_id: contaId,
+      valor_pago: Number(lanc.valor) - 0,
+      saldo_restante: 0,
     })
     .eq("id", tituloId);
 

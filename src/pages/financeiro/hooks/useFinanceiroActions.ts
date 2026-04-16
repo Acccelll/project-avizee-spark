@@ -56,7 +56,7 @@ export function useFinanceiroActions({ filteredData, getLancamentoStatus, create
           descricao: form.descricao,
           valor: form.valor,
           data_vencimento: form.data_vencimento,
-          status: form.status,
+          status: form.status === "vencido" ? "aberto" : form.status,
           forma_pagamento: form.forma_pagamento || null,
           banco: form.banco || null,
           cartao: form.cartao || null,
@@ -97,10 +97,17 @@ export function useFinanceiroActions({ filteredData, getLancamentoStatus, create
             };
           });
 
-          const { error: parcelasError } = await supabase
-            .from("financeiro_lancamentos")
-            .insert(parcelas);
-          if (parcelasError) throw parcelasError;
+          try {
+            const { error: parcelasError } = await supabase
+              .from("financeiro_lancamentos")
+              .insert(parcelas);
+            if (parcelasError) throw parcelasError;
+          } catch (parcelaErr) {
+            if (parentId) {
+              await supabase.from("financeiro_lancamentos").delete().eq("id", parentId);
+            }
+            throw parcelaErr;
+          }
 
           toast.success(`${numParcelas} parcelas geradas com sucesso!`);
         } else if (mode === "create") {
