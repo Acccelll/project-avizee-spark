@@ -15,10 +15,21 @@ export interface PreviewFinanceiroRow {
   observacoes?: string;
   entity_id?: string;
   entity_type?: "cliente" | "fornecedor";
+  titulo?: string;
+  data_emissao?: string;
+  data_pagamento?: string;
+  valor_pago?: number;
+  forma_pagamento?: string;
+  banco?: string;
+  parcela_numero?: number;
+  parcela_total?: number;
+  codigo_legado_pessoa?: string;
   /** Indica se a linha passou na validação. */
   _valid: boolean;
   /** Lista de erros encontrados na validação. */
   _errors: string[];
+  /** Warnings */
+  _warnings?: string[];
   /** Número da linha no arquivo original (base 1, incluindo cabeçalho). */
   _originalLine: number;
   /** Dados brutos da linha original do arquivo. */

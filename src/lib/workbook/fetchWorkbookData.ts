@@ -198,10 +198,11 @@ async function fetchClosedModeData(compIni: string, compFim: string): Promise<Wo
   }));
 
   const caixa = (caixaRes.data ?? []).map((r: Record<string, unknown>) => {
-    const cb = r.contas_bancarias as Record<string, unknown>;
+    const cb = r.contas_bancarias as Record<string, unknown> | null;
+    const bancos = cb?.bancos as Record<string, unknown> | null;
     return {
       conta_descricao: String(cb?.descricao ?? ''),
-      banco_nome: String(cb?.bancos?.nome ?? ''),
+      banco_nome: String(bancos?.nome ?? ''),
       agencia: String(cb?.agencia ?? ''),
       conta: String(cb?.conta ?? ''),
       saldo_atual: Number(r.saldo ?? 0),
@@ -209,11 +210,12 @@ async function fetchClosedModeData(compIni: string, compFim: string): Promise<Wo
   });
 
   const estoque = (estoqueRes.data ?? []).map((r: Record<string, unknown>) => {
-    const p = r.produtos as Record<string, unknown>;
+    const p = r.produtos as Record<string, unknown> | null;
+    const gp = p?.grupos_produto as Record<string, unknown> | null;
     return {
       produto_nome: String(p?.nome ?? ''),
       sku: String(p?.sku ?? ''),
-      grupo_nome: String(p?.grupos_produto?.nome ?? 'Sem Grupo'),
+      grupo_nome: String(gp?.nome ?? 'Sem Grupo'),
       quantidade: Number(r.quantidade ?? 0),
       custo_unitario: Number(r.valor_custo ?? 0) / Math.max(Number(r.quantidade ?? 1), 1),
       valor_total: Number(r.valor_custo ?? 0),

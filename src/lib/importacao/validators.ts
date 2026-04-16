@@ -51,7 +51,7 @@ export function validateProdutoImport(data: Record<string, unknown>): ImportVali
     errors.push('Código do produto é obrigatório.');
   }
   if (!normalizedData.nome) errors.push('Nome/Descrição do produto é obrigatório.');
-  if (tipoItem === 'produto' && normalizedData.preco_venda <= 0) {
+  if (tipoItem === 'produto' && Number(normalizedData.preco_venda) <= 0) {
     warnings.push('Preço de venda é zero ou não informado.');
   }
 
@@ -177,7 +177,7 @@ export function validateEstoqueInicialImport(data: Record<string, unknown>): Imp
     errors.push('Código do produto (codigo_legado ou codigo_produto) é obrigatório.');
   }
   if (qtdResult.error) errors.push(qtdResult.error);
-  if (normalizedData.quantidade < 0) errors.push('Quantidade não pode ser negativa.');
+  if (Number(normalizedData.quantidade) < 0) errors.push('Quantidade não pode ser negativa.');
   if (!normalizedData.data_estoque_inicial) {
     warnings.push(dataEstoqueResult.error || 'Data do estoque inicial não informada; será usada a data atual.');
   }
@@ -244,7 +244,7 @@ export function validateFaturamentoImport(data: Record<string, unknown>): Import
 
   if (!normalizedData.numero_nota) errors.push('Número da nota fiscal é obrigatório.');
   if (!normalizedData.data_emissao) errors.push(dataRef.error || 'Data de emissão é obrigatória.');
-  if (normalizedData.valor_total <= 0) {
+  if (Number(normalizedData.valor_total) <= 0) {
     warnings.push('Valor total do item é zero ou não informado.');
   }
   if (!normalizedData.codigo_produto_nf && !normalizedData.codigo_legado_produto && !normalizedData.nome_produto) {
@@ -309,7 +309,7 @@ export function validateFinanceiroImport(data: Record<string, unknown>): ImportV
 
   if (!normalizedData.descricao) errors.push('Descrição/Histórico é obrigatório.');
   if (!normalizedData.data_vencimento) errors.push(dataVenc.error || 'Data de vencimento é obrigatória.');
-  if (normalizedData.valor <= 0) errors.push('Valor deve ser maior que zero.');
+  if (Number(normalizedData.valor) <= 0) errors.push('Valor deve ser maior que zero.');
   if (!normalizedData.cpf_cnpj && !normalizedData.codigo_legado_pessoa) {
     warnings.push('Sem CPF/CNPJ nem chave legada: título não poderá ser vinculado à pessoa.');
   }

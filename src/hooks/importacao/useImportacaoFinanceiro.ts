@@ -88,13 +88,13 @@ export function useImportacaoFinanceiro() {
       const entityByLegado = new Map<string, { id: string; type: "cliente" | "fornecedor" }>();
       const entityByCpf = new Map<string, { id: string; type: "cliente" | "fornecedor" }>();
 
-      clientes?.forEach(c => {
+      clientes?.forEach((c: any) => {
         if (c.codigo_legado) entityByLegado.set(c.codigo_legado, { id: c.id, type: "cliente" });
-        if (c.cpf_cnpj) entityByCpf.set(c.cpf_cnpj.replace(/\D/g, ""), { id: c.id, type: "cliente" });
+        if (c.cpf_cnpj) entityByCpf.set(String(c.cpf_cnpj).replace(/\D/g, ""), { id: c.id, type: "cliente" });
       });
-      fornecedores?.forEach(f => {
+      fornecedores?.forEach((f: any) => {
         if (f.codigo_legado) entityByLegado.set(f.codigo_legado, { id: f.id, type: "fornecedor" });
-        if (f.cpf_cnpj) entityByCpf.set(f.cpf_cnpj.replace(/\D/g, ""), { id: f.id, type: "fornecedor" });
+        if (f.cpf_cnpj) entityByCpf.set(String(f.cpf_cnpj).replace(/\D/g, ""), { id: f.id, type: "fornecedor" });
       });
 
       const preview: PreviewFinanceiroRow[] = rawRows.map((row, index) => {
@@ -106,8 +106,8 @@ export function useImportacaoFinanceiro() {
         const validation = validateFinanceiroImport(mappedRow);
         const nd = validation.normalizedData;
 
-        const cpfClean = nd.cpf_cnpj?.replace(/\D/g, "") || "";
-        const legado = nd.codigo_legado_pessoa || "";
+        const cpfClean = String(nd.cpf_cnpj || "").replace(/\D/g, "");
+        const legado = String(nd.codigo_legado_pessoa || "");
 
         const entity = (legado && entityByLegado.get(legado)) || (cpfClean && entityByCpf.get(cpfClean)) || null;
 
