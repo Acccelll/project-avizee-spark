@@ -425,25 +425,24 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
     }
 
     // Guard: block duplicate receipt
-    const { data: existingMovs } = await supabase
+    const { count: movCount } = await supabase
       .from("estoque_movimentos")
-      .select("id")
+      .select("id", { count: "exact", head: true })
       .eq("documento_id", String(p.id))
-      .eq("documento_tipo", "pedido_compra")
-      .limit(1);
-    if (existingMovs && existingMovs.length > 0) {
+      .eq("documento_tipo", "pedido_compra");
+    if (movCount && movCount > 0) {
       toast.error("Recebimento já registrado para este pedido. Verifique o estoque.");
       return;
     }
 
-    // Guard: block duplicate financial entry
-    const { data: existingLanc } = await supabase
+    // Guard: block duplicate financial entry (uses observacoes tag for exact match)
+    const pedidoTag = `ref:pedido_compra:${p.id}`;
+    const { count: lancCount } = await supabase
       .from("financeiro_lancamentos")
-      .select("id")
-      .ilike("descricao", `${pedidoNumero(p)}%`)
-      .eq("ativo", true)
-      .limit(1);
-    const financeiroDuplicado = existingLanc && existingLanc.length > 0;
+      .select("id", { count: "exact", head: true })
+      .eq("observacoes", pedidoTag)
+      .eq("ativo", true);
+    const financeiroDuplicado = lancCount !== null && lancCount > 0;
 
     let entradaOk = false;
     try {
@@ -467,6 +466,7 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
         const { error: lancError } = await supabase.from("financeiro_lancamentos").insert({
           tipo: "pagar",
           descricao: `${pedidoNumero(p)} — ${p.fornecedores?.nome_razao_social || "Fornecedor"}`,
+          observacoes: pedidoTag,
           valor: vTotal,
           saldo_restante: vTotal,
           data_vencimento: p.data_entrega_prevista || new Date().toISOString().split("T")[0],
