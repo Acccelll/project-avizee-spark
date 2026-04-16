@@ -1,6 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { registrarAuditLog } from '@/services/admin/audit.service';
 import type { ConfigEmail, ConfigIntegracao } from '@/utils/configuracoes';
+import type { Json } from '@/integrations/supabase/types';
 
 export type ConfigChave = 'geral' | 'email' | 'integracoes' | 'notificacoes' | 'backup';
 
@@ -30,7 +31,7 @@ export async function updateConfig(
 
   const { error } = await supabase
     .from('app_configuracoes')
-    .upsert({ chave, valor: valor as any } as any, { onConflict: 'chave' });
+    .upsert({ chave, valor: valor as Json }, { onConflict: 'chave' });
 
   if (error) throw error;
 
@@ -38,8 +39,8 @@ export async function updateConfig(
     acao: 'configuracao:update',
     tabela: 'app_configuracoes',
     registro_id: chave,
-    dados_anteriores: oldValue as any,
-    dados_novos: valor as any,
+    dados_anteriores: oldValue as Json,
+    dados_novos: valor as Json,
     usuario_id: usuarioId ?? null,
   });
 }

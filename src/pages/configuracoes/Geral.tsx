@@ -71,7 +71,7 @@ export default function Geral() {
   }, [config, form]);
 
   function onSubmit(data: GeralFormData) {
-    handleSave(data as any);
+    handleSave(data);
   }
 
   async function handleExport() {
