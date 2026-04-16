@@ -1,4 +1,7 @@
 
+// LEGADO: Este módulo é o fluxo antigo de compras (/compras).
+// O fluxo canônico é /cotacoes-compra → /pedidos-compra.
+// Mantido apenas para compatibilidade temporária — NÃO expandir.
 import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";

@@ -80,22 +80,27 @@ export function CotacaoCompraDrawer({
       actions={
         selected ? (
           <>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Editar cotação" onClick={() => { onClose(); onEdit(selected); }}>
-                  <Edit className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Editar</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" aria-label="Excluir cotação" onClick={onDeleteOpen}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Excluir</TooltipContent>
-            </Tooltip>
+            {/* Block edit/delete once the quotation is in a terminal state */}
+            {!["convertida", "cancelada"].includes(selected.status) && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Editar cotação" onClick={() => { onClose(); onEdit(selected); }}>
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Editar</TooltipContent>
+              </Tooltip>
+            )}
+            {!["convertida", "cancelada"].includes(selected.status) && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" aria-label="Excluir cotação" onClick={onDeleteOpen}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Excluir</TooltipContent>
+              </Tooltip>
+            )}
           </>
         ) : undefined
       }

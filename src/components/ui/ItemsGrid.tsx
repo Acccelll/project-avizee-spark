@@ -13,34 +13,44 @@ export interface GridItem {
   valor_total: number;
 }
 
+type ProdutoRow = Record<string, unknown>;
+
 interface Props {
   items: GridItem[];
   onChange: (items: GridItem[]) => void;
-  produtos: any[];
+  produtos: ProdutoRow[];
   title?: string;
   readOnly?: boolean;
   /** Per-item validation errors keyed by item index */
   itemErrors?: Record<number, string>;
+  /**
+   * Override the default unit price when a product is selected.
+   * Defaults to `preco_venda` when not provided.
+   * Use this to supply `preco_custo` (or 0) in purchase contexts.
+   */
+  getDefaultUnitPrice?: (produto: ProdutoRow) => number;
 }
 
 const emptyItem = (): GridItem => ({
   produto_id: "", codigo: "", descricao: "", quantidade: 0, valor_unitario: 0, valor_total: 0,
 });
 
-export function ItemsGrid({ items, onChange, produtos, title = "Itens", readOnly = false, itemErrors = {} }: Props) {
+export function ItemsGrid({ items, onChange, produtos, title = "Itens", readOnly = false, itemErrors = {}, getDefaultUnitPrice }: Props) {
   const addItem = () => onChange([...items, emptyItem()]);
   const removeItem = (idx: number) => onChange(items.filter((_, i) => i !== idx));
 
-  const updateItem = (idx: number, field: string, value: any) => {
+  const updateItem = (idx: number, field: string, value: unknown) => {
     const next = [...items];
     const item = { ...next[idx], [field]: value };
 
     if (field === "produto_id" && value) {
-      const prod = produtos.find((p: any) => p.id === value);
+      const prod = produtos.find((p) => p.id === value);
       if (prod) {
-        item.codigo = prod.codigo_interno || "";
-        item.descricao = prod.nome;
-        item.valor_unitario = prod.preco_venda || 0;
+        item.codigo = String(prod.codigo_interno || "");
+        item.descricao = String(prod.nome || "");
+        item.valor_unitario = getDefaultUnitPrice
+          ? getDefaultUnitPrice(prod)
+          : Number(prod.preco_venda || 0);
       }
     }
 
@@ -56,11 +66,11 @@ export function ItemsGrid({ items, onChange, produtos, title = "Itens", readOnly
 
   const total = items.reduce((s, i) => s + (i.valor_total || 0), 0);
 
-  const produtoOptions = produtos.map((p: any) => ({
-    id: p.id,
-    label: p.nome,
+  const produtoOptions = produtos.map((p) => ({
+    id: p.id as string,
+    label: String(p.nome || ""),
     sublabel: [p.codigo_interno, p.unidade_medida].filter(Boolean).join(" • "),
-    searchTerms: [p.codigo_interno, p.referencia_fornecedor].filter(Boolean),
+    searchTerms: [p.codigo_interno, p.referencia_fornecedor].filter(Boolean) as string[],
   }));
 
   return (

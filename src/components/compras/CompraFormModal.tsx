@@ -1,3 +1,6 @@
+// LEGADO: Modal de compra do fluxo antigo.
+// O fluxo canônico usa PedidoCompraFormModal e PedidoCompraForm.
+// Mantido apenas para compatibilidade temporária — NÃO expandir.
 import { useState } from "react";
 import { FormModal } from "@/components/FormModal";
 import { AutocompleteSearch } from "@/components/ui/AutocompleteSearch";

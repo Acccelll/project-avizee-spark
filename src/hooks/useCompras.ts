@@ -1,4 +1,7 @@
 
+// LEGADO: Hook do fluxo antigo de compras (/compras).
+// O fluxo canônico usa useCotacoesCompra e usePedidosCompra.
+// Mantido apenas para compatibilidade temporária — NÃO expandir.
 import { useCallback, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";

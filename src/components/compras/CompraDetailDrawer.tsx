@@ -1,3 +1,6 @@
+// LEGADO: Drawer de detalhe do fluxo antigo de compras.
+// O fluxo canônico usa PedidoCompraDrawer e PedidoCompraForm.
+// Mantido apenas para compatibilidade temporária — NÃO expandir.
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
