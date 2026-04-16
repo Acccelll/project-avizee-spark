@@ -64,7 +64,13 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
     : 0;
 
   const valorLiquido = valorPago - desconto + juros + multa - abatimento;
-  const novoSaldo = saldoAtual - valorPago + abatimento;
+  const novoSaldo = Math.max(0, saldoAtual - valorPago - abatimento);
+
+  const isStatusBlocked = lancamento
+    ? (lancamento.status === "pago" || lancamento.status === "estornado" || lancamento.status === "cancelado")
+    : false;
+
+  const isExcessivo = valorPago + abatimento > saldoAtual + 0.01;
 
   const lancamentoId = lancamento?.id;
   const lancamentoSaldo = lancamento
@@ -101,6 +107,7 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
     if (!lancamento) return;
     if (!dataBaixa) { toast.error("Data de baixa é obrigatória"); return; }
     if (valorPago <= 0) { toast.error("Valor pago deve ser maior que zero"); return; }
+    if (isExcessivo) { toast.error("Valor pago + abatimento não pode exceder o saldo restante"); return; }
     if (valorPago > saldoAtual) { toast.error("Valor pago não pode exceder o saldo restante"); return; }
     if (!formaPagamento) { toast.error("Forma de pagamento é obrigatória"); return; }
     if (!contaBancariaId) { toast.error("Conta bancária é obrigatória"); return; }
@@ -161,6 +168,11 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
 
         {lancamento && (
           <div className="space-y-5">
+            {isStatusBlocked && (
+              <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+                ⚠️ Este título possui status <strong>{lancamento.status}</strong> e não aceita nova baixa.
+              </div>
+            )}
             {/* Summary */}
             <div className="grid grid-cols-3 gap-3 rounded-lg border bg-muted/30 p-4">
               <div>
@@ -298,7 +310,7 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={saving} aria-label="Cancelar baixa">Cancelar</Button>
-          <Button onClick={handleSubmit} disabled={saving} aria-label="Confirmar registro de baixa">
+          <Button onClick={handleSubmit} disabled={saving || isStatusBlocked || isExcessivo} aria-label="Confirmar registro de baixa">
             {saving ? "Processando..." : "Confirmar Baixa"}
           </Button>
         </DialogFooter>

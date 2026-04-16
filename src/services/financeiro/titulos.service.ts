@@ -111,6 +111,7 @@ export async function baixarTitulo(
     .update({
       saldo_restante: novoSaldo,
       status: novoStatus,
+      valor_pago: Number(lancamento.valor) - novoSaldo,
       data_pagamento: novoStatus === "pago" ? dataBaixa : null,
       forma_pagamento: formaPagamento,
       conta_bancaria_id: contaBancariaId,

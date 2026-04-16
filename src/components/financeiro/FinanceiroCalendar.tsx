@@ -4,12 +4,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { getEffectiveStatus } from "@/services/financeiro.service";
 
 interface Lancamento {
   id: string;
   tipo: string;
   descricao: string;
   valor: number;
+  saldo_restante?: number | null;
   data_vencimento: string;
   status: string;
   clientes?: { nome_razao_social: string } | null;
@@ -55,9 +57,7 @@ export function FinanceiroCalendar({ data }: Props) {
     eventsByDate.forEach((items, dateStr) => {
       const d = new Date(dateStr + "T12:00:00");
       const hasVencido = items.some(
-        (i) =>
-          (i.status === "vencido" || i.status === "aberto") &&
-          new Date(i.data_vencimento) < hoje
+        (i) => getEffectiveStatus(i.status, i.data_vencimento, hoje) === "vencido"
       );
       if (hasVencido) {
         vencido.push(d);
@@ -158,7 +158,7 @@ export function FinanceiroCalendar({ data }: Props) {
                   Total:{" "}
                   {formatCurrency(
                     selectedItems.reduce(
-                      (s, l) => s + Number(l.valor || 0),
+                      (s, l) => s + Number(l.saldo_restante ?? l.valor ?? 0),
                       0
                     )
                   )}

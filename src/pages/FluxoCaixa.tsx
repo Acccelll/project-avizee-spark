@@ -142,28 +142,32 @@ const FluxoCaixa = () => {
   }, [lancamentos, filterBanco]);
 
   const grouped = useMemo(() => {
-    const groups: Record<string, { prevReceber: number; prevPagar: number; realReceber: number; realPagar: number; items: Lancamento[] }> = {};
+    const groups: Record<string, { prevReceber: number; prevPagar: number; realReceber: number; realPagar: number; items: Lancamento[]; sortKey: string }> = {};
 
-    const getKey = (dateStr: string): string => {
+    const getKey = (dateStr: string): { display: string; sort: string } => {
       const d = new Date(dateStr + "T00:00:00");
-      if (periodicidade === "diaria") return d.toISOString().split("T")[0];
+      if (periodicidade === "diaria") {
+        const iso = d.toISOString().split("T")[0];
+        return { display: iso, sort: iso };
+      }
       if (periodicidade === "semanal") {
         const start = new Date(d);
         start.setDate(d.getDate() - d.getDay());
-        return `Sem ${start.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}`;
+        const sort = start.toISOString().split("T")[0];
+        return { display: `Sem ${start.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}`, sort };
       }
-      return d.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+      const sort = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      return { display: d.toLocaleDateString("pt-BR", { month: "long", year: "numeric" }), sort };
     };
 
     filtered.forEach(l => {
-      const key = getKey(l.data_vencimento);
-      if (!groups[key]) groups[key] = { prevReceber: 0, prevPagar: 0, realReceber: 0, realPagar: 0, items: [] };
-      const g = groups[key];
+      const { display, sort } = getKey(l.data_vencimento);
+      if (!groups[display]) groups[display] = { prevReceber: 0, prevPagar: 0, realReceber: 0, realPagar: 0, items: [], sortKey: sort };
+      const g = groups[display];
       g.items.push(l);
       const val = Number(l.valor || 0);
-      // For "realizado", use valor_pago when available (partial payments), otherwise full valor for "pago"
       const realVal = (l.status === "pago" || l.status === "parcial")
-        ? Number(l.valor_pago || 0) || (l.status === "pago" ? val : 0)
+        ? val - Number(l.saldo_restante ?? 0)
         : 0;
       if (l.tipo === "receber") {
         g.prevReceber += val;
@@ -174,7 +178,9 @@ const FluxoCaixa = () => {
       }
     });
 
-    return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
+    return Object.entries(groups)
+      .sort(([, a], [, b]) => a.sortKey.localeCompare(b.sortKey))
+      .map(([key, g]) => [key, g] as [string, typeof g]);
   }, [filtered, periodicidade]);
 
   const totals = useMemo(() => {
@@ -182,7 +188,7 @@ const FluxoCaixa = () => {
     filtered.forEach(l => {
       const val = Number(l.valor || 0);
       const realVal = (l.status === "pago" || l.status === "parcial")
-        ? Number(l.valor_pago || 0) || (l.status === "pago" ? val : 0)
+        ? val - Number(l.saldo_restante ?? 0)
         : 0;
       if (l.tipo === "receber") { prevReceber += val; realReceber += realVal; }
       else { prevPagar += val; realPagar += realVal; }
@@ -196,12 +202,9 @@ const FluxoCaixa = () => {
     return grouped.map(([key, g]) => {
       saldoAcumPrev += (g.prevReceber - g.prevPagar);
       saldoAcumReal += (g.realReceber - g.realPagar);
-      const label = periodicidade === "diaria"
-        ? new Date(key + "T00:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })
-        : key;
-      return { name: label, previsto: saldoAcumPrev, realizado: saldoAcumReal };
+      return { name: key, previsto: saldoAcumPrev, realizado: saldoAcumReal };
     });
-  }, [grouped, periodicidade]);
+  }, [grouped]);
 
   const hasNegativeRisk = chartData.some(d => d.previsto < 0);
 
@@ -554,9 +557,7 @@ const FluxoCaixa = () => {
                         return (
                           <tr key={key} className="border-b hover:bg-muted/10">
                             <td className="p-3 font-medium">
-                              {periodicidade === "diaria"
-                                ? new Date(key + "T00:00:00").toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" })
-                                : key}
+                              {key}
                             </td>
                             <td className="p-3 text-right mono text-success">{formatCurrency(g.prevReceber)}</td>
                             <td className="p-3 text-right mono text-success/70">{formatCurrency(g.realReceber)}</td>

@@ -133,6 +133,7 @@ const App = () => (
             <Route path="/estoque" element={<ProtectedRoute><LazyPage><Estoque /></LazyPage></ProtectedRoute>} />
             <Route path="/fiscal" element={<ProtectedRoute><LazyPage><Fiscal /></LazyPage></ProtectedRoute>} />
             <Route path="/financeiro" element={<ProtectedRoute><LazyPage><Financeiro /></LazyPage></ProtectedRoute>} />
+            <Route path="/financeiro/:id" element={<ProtectedRoute><LazyPage><Financeiro /></LazyPage></ProtectedRoute>} />
             <Route path="/contas-bancarias" element={<ProtectedRoute><LazyPage><ContasBancarias /></LazyPage></ProtectedRoute>} />
             <Route path="/fluxo-caixa" element={<ProtectedRoute><LazyPage><FluxoCaixa /></LazyPage></ProtectedRoute>} />
             <Route path="/caixa" element={<Navigate to="/financeiro" replace />} />

@@ -267,7 +267,7 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
               )}
               {selected.contas_contabeis && (
                 <ViewField label="Conta Contábil">
-                  <RelationalLink to="/contas-contabeis">{selected.contas_contabeis.codigo} - {selected.contas_contabeis.descricao}</RelationalLink>
+                  <RelationalLink to="/contas-contabeis-plano">{selected.contas_contabeis.codigo} - {selected.contas_contabeis.descricao}</RelationalLink>
                 </ViewField>
               )}
             </ViewSection>

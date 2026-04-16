@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/format";
 import type { Cliente, Fornecedor } from "@/types/domain";
 import type { ContaContabil, LancamentoForm } from "@/pages/financeiro/types";
@@ -22,6 +23,20 @@ interface Props {
   onSubmit: (e: FormEvent) => void;
 }
 
+const STATUS_READONLY = new Set(["parcial", "estornado"]);
+const STATUS_BADGE_VARIANTS: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
+  parcial: "secondary",
+  estornado: "destructive",
+};
+const STATUS_LABELS: Record<string, string> = {
+  aberto: "Aberto",
+  pago: "Pago",
+  cancelado: "Cancelado",
+  vencido: "Vencido",
+  parcial: "Parcialmente Pago",
+  estornado: "Estornado",
+};
+
 export function FinanceiroLancamentoForm({
   form,
   mode,
@@ -38,6 +53,9 @@ export function FinanceiroLancamentoForm({
     setForm({ ...form, [field]: value });
   };
 
+  const isStatusReadonly = STATUS_READONLY.has(form.status);
+  const selectStatusValue = form.status === "vencido" ? "aberto" : form.status;
+
   return (
     <form onSubmit={onSubmit} className="space-y-4">
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -47,14 +65,28 @@ export function FinanceiroLancamentoForm({
             <SelectContent><SelectItem value="receber">A Receber</SelectItem><SelectItem value="pagar">A Pagar</SelectItem></SelectContent>
           </Select>
         </div>
-        <div className="space-y-2"><Label>Status</Label>
-          <Select value={form.status} onValueChange={(v) => updateField("status", v)}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="aberto">Aberto</SelectItem><SelectItem value="pago">Pago</SelectItem>
-              <SelectItem value="vencido">Vencido</SelectItem><SelectItem value="cancelado">Cancelado</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className="space-y-2">
+          <Label>Status</Label>
+          {isStatusReadonly ? (
+            <div className="flex items-center gap-2 h-9 px-3 rounded-md border bg-muted/30">
+              <Badge variant={STATUS_BADGE_VARIANTS[form.status] ?? "outline"}>
+                {STATUS_LABELS[form.status] ?? form.status}
+              </Badge>
+              <span className="text-xs text-muted-foreground">(somente leitura)</span>
+            </div>
+          ) : (
+            <Select value={selectStatusValue} onValueChange={(v) => updateField("status", v)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="aberto">Aberto</SelectItem>
+                <SelectItem value="pago">Pago</SelectItem>
+                <SelectItem value="cancelado">Cancelado</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+          {form.status === "vencido" && (
+            <p className="text-[11px] text-warning mt-1">Status efetivo: <strong>Vencido</strong> (salvo como Aberto)</p>
+          )}
         </div>
         <div className="space-y-2"><Label>Forma de Pagamento</Label>
           <Select value={form.forma_pagamento || "nenhum"} onValueChange={(v) => updateField("forma_pagamento", v === "nenhum" ? "" : v)}>
@@ -145,8 +177,10 @@ export function FinanceiroLancamentoForm({
       <div className="space-y-2"><Label>Observações</Label><Textarea value={form.observacoes} onChange={(e) => updateField("observacoes", e.target.value)} /></div>
       <div className="flex justify-end gap-2">
         <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
-        <Button type="submit" disabled={saving}>{saving ? "Salvando..." : "Salvar"}</Button>
+        <Button type="submit" disabled={saving || isStatusReadonly}>{saving ? "Salvando..." : "Salvar"}</Button>
       </div>
     </form>
   );
 }
+
+
