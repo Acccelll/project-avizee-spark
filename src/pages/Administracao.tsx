@@ -16,6 +16,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database as SupabaseDatabase } from '@/integrations/supabase/types';
 import { cn } from '@/lib/utils';
+import { getUserFriendlyError } from '@/utils/errorMessages';
 import { MaskedInput } from '@/components/ui/MaskedInput';
 import { useAuth } from '@/contexts/AuthContext';
 import { UsuariosTab } from '@/components/usuarios/UsuariosTab';
@@ -195,7 +196,7 @@ export default function Administracao() {
   useEffect(() => {
     const tab = searchParams.get('tab');
     if (tab && tab !== activeSection) setActiveSection(tab);
-  }, [searchParams]);
+  }, [searchParams, activeSection]);
 
   // ── Load config ──
   useEffect(() => {
@@ -255,8 +256,8 @@ export default function Administracao() {
           setFiscalLastSaved({ at: fiscalUpdatedAt || null, by: fiscalUpdatedByName || null });
           setFinanceiroLastSaved({ at: financeiroUpdatedAt || null, by: financeiroUpdatedByName || null });
         }
-      } catch {
-        console.error('[admin] Erro ao carregar configurações do Supabase');
+      } catch (err) {
+        console.error('[admin] Erro ao carregar configurações do Supabase:', err);
         if (mounted) setConfig(defaultConfig);
       } finally {
         if (mounted) setLoading(false);
@@ -307,7 +308,7 @@ export default function Administracao() {
       toast.success('Logo enviada com sucesso.');
     } catch (err) {
       console.error('[admin] Erro ao enviar logo:', err);
-      toast.error('Erro ao enviar a logo. Verifique sua conexão e tente novamente.');
+      toast.error(getUserFriendlyError(err));
     } finally {
       setLogoUploading(false);
       if (logoInputRef.current) logoInputRef.current.value = '';
@@ -378,7 +379,7 @@ export default function Administracao() {
       console.error('[admin] Erro ao enviar e-mail de teste:', err);
       setEmailTestResult({
         status: 'error',
-        message: 'Não foi possível enviar o e-mail de teste. Verifique se a configuração do serviço de envio está ativa.',
+        message: getUserFriendlyError(err),
       });
     } finally {
       setEmailTestLoading(false);
@@ -448,7 +449,7 @@ export default function Administracao() {
       toast.success('Configurações salvas com sucesso.');
     } catch (error: unknown) {
       console.error('[admin] Erro ao salvar:', error);
-      toast.error('Erro ao salvar configurações. Verifique sua conexão e tente novamente.');
+      toast.error(getUserFriendlyError(error));
     } finally {
       setSaving(false);
     }
@@ -667,6 +668,7 @@ export default function Administracao() {
                   size="sm"
                   onClick={() => logoInputRef.current?.click()}
                   disabled={logoUploading}
+                  aria-label={config.geral.logoUrl ? 'Substituir logo da empresa' : 'Enviar logo da empresa'}
                 >
                   {logoUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
                   {config.geral.logoUrl ? 'Substituir logo' : 'Enviar logo'}
@@ -678,6 +680,7 @@ export default function Administracao() {
                     size="sm"
                     className="text-destructive hover:text-destructive"
                     onClick={() => updateSection('geral', { logoUrl: '' })}
+                    aria-label="Remover logo da empresa"
                   >
                     Remover logo
                   </Button>
@@ -900,6 +903,7 @@ export default function Administracao() {
               disabled={emailTestLoading}
               onClick={handleEmailTest}
               className="shrink-0"
+              aria-label="Enviar e-mail de teste"
             >
               {emailTestLoading
                 ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -1375,7 +1379,7 @@ export default function Administracao() {
               <p className="text-sm text-muted-foreground mb-4">
                 Acesse o módulo completo de auditoria para visualizar logs de alterações.
               </p>
-              <Button variant="outline" onClick={() => window.location.href = '/auditoria'}>
+              <Button variant="outline" onClick={() => window.location.href = '/auditoria'} aria-label="Abrir auditoria completa">
                 <Shield className="mr-2 h-4 w-4" /> Abrir Auditoria Completa
               </Button>
             </CardContent>
@@ -1448,7 +1452,7 @@ export default function Administracao() {
             {renderContent()}
             {showSaveButton && (
               <div className="flex justify-end">
-                <Button onClick={handleSave} disabled={saving} className="gap-2">
+                <Button onClick={handleSave} disabled={saving} className="gap-2" aria-label="Salvar alterações de configuração">
                   {saving && <Loader2 className="h-4 w-4 animate-spin" />}
                   Salvar alterações
                 </Button>

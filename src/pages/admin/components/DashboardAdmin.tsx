@@ -41,7 +41,7 @@ async function fetchSessoesInativas(): Promise<number> {
   try {
     const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
     const { count, error } = await supabase
-      .from("auditoria_logs" as any)
+      .from("auditoria_logs")
       .select("*", { count: "exact", head: true })
       .eq("acao", "auth:login")
       .lt("created_at", cutoff);
