@@ -46,7 +46,7 @@ export interface ConfigBackup {
   destino: 'local' | 'cloud';
 }
 
-export function mergeConfiguracoes<T extends Record<string, unknown>>(
+export function mergeConfiguracoes<T extends object>(
   defaultConfig: T,
   savedConfig: Partial<T> | null | undefined
 ): T {
