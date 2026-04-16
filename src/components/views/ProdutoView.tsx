@@ -22,6 +22,13 @@ import type {
   ProdutoFornecedorViewRow,
 } from "@/types/cadastros";
 
+/** Raw shape returned by the produto_composicoes join query */
+interface ComposicaoQueryRow {
+  quantidade: number;
+  ordem: number | null;
+  produtos: { id: string; nome: string; sku: string; preco_custo: number | null } | null;
+}
+
 interface Props {
   id: string;
 }
@@ -81,14 +88,14 @@ export function ProdutoView({ id }: Props) {
         ]);
 
         setHistorico((nfRes.data || []) as HistoricoNfItemRow[]);
-        setComposicao((compRes.data || []).map((c: Record<string, unknown>) => {
-          const produtos = c.produtos as { id?: string; nome?: string; sku?: string; preco_custo?: number | null } | null;
-          return {
-            id: produtos?.id,
-            nome: produtos?.nome, sku: produtos?.sku, preco_custo: produtos?.preco_custo,
-            quantidade: c.quantidade as number, ordem: c.ordem as number | null,
-          };
-        }));
+        setComposicao((compRes.data || []).map((c: ComposicaoQueryRow) => ({
+          id: c.produtos?.id ?? null,
+          nome: c.produtos?.nome ?? null,
+          sku: c.produtos?.sku ?? null,
+          preco_custo: c.produtos?.preco_custo ?? null,
+          quantidade: c.quantidade,
+          ordem: c.ordem,
+        })));
         setMovimentos((movRes.data || []) as MovimentoEstoqueRow[]);
         setFornecedoresProd((fornRes.data || []) as ProdutoFornecedorViewRow[]);
         setGrupoNome((grupoRes.data as Record<string, unknown>)?.nome as string || null);

@@ -43,10 +43,10 @@ export interface HistoricoNfItemRow {
 }
 
 export interface ComposicaoItemRow {
-  id: string | undefined;
-  nome: string | undefined;
-  sku: string | undefined;
-  preco_custo: number | null | undefined;
+  id: string | null;
+  nome: string | null;
+  sku: string | null;
+  preco_custo: number | null;
   quantidade: number;
   ordem: number | null;
 }
