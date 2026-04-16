@@ -130,7 +130,7 @@ export function OrdemVendaView({ id }: Props) {
     setNotasFiscais(nfList);
 
     if (nfList.length > 0) {
-      const nfIds = nfList.map((n: Record<string, unknown>) => n.id);
+      const nfIds = nfList.map((n: Record<string, unknown>) => n.id as string);
       const { data: lanc } = await supabase
         .from("financeiro_lancamentos")
         .select("id, descricao, valor, status, data_vencimento, data_pagamento, forma_pagamento, parcela_numero, parcela_total")
@@ -158,10 +158,10 @@ export function OrdemVendaView({ id }: Props) {
         .select("*")
         .eq("ordem_venda_id", selected.id);
 
-      const { count } = await supabase
-        .from("notas_fiscais")
-        .select("*", { count: "exact", head: true });
-      const nfNumero = String((count || 0) + 1).padStart(6, "0");
+      const { data: nfNumData, error: nfNumError } =
+        await supabase.rpc("proximo_numero_nota_fiscal" as any);
+      if (nfNumError) throw nfNumError;
+      const nfNumero = nfNumData as string;
 
       const totalProdutos = (pedidoItems || []).reduce(
         (s: number, i: Record<string, unknown>) => s + Number(i.valor_total || 0),
@@ -188,22 +188,22 @@ export function OrdemVendaView({ id }: Props) {
       if (error) throw error;
 
       if (pedidoItems && pedidoItems.length > 0 && newNF) {
-        const nfItems = pedidoItems.map((i: Record<string, unknown>) => ({
+        const nfItems = pedidoItems.map((i: any) => ({
           nota_fiscal_id: newNF.id,
-          produto_id: i.produto_id,
-          quantidade: i.quantidade,
-          valor_unitario: i.valor_unitario,
+          produto_id: i.produto_id as string,
+          quantidade: Number(i.quantidade),
+          valor_unitario: Number(i.valor_unitario),
         }));
         await supabase.from("notas_fiscais_itens").insert(nfItems);
       }
 
       if (pedidoItems) {
         await Promise.all(
-          pedidoItems.map((item: Record<string, unknown>) =>
+          pedidoItems.map((item: any) =>
             supabase
               .from("ordens_venda_itens")
-              .update({ quantidade_faturada: (item.quantidade_faturada || 0) + item.quantidade })
-              .eq("id", item.id)
+              .update({ quantidade_faturada: Number(item.quantidade_faturada || 0) + Number(item.quantidade) })
+              .eq("id", item.id as string)
           )
         );
       }

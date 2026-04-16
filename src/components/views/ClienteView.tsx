@@ -289,8 +289,8 @@ export function ClienteView({ id }: Props) {
                      <p className="text-xs font-bold">{c.assunto || "Sem assunto"}</p>
                      <span className="text-[10px] text-muted-foreground bg-muted px-1.5 rounded">{formatDate(c.data_hora)}</span>
                    </div>
-                   <p className="text-xs text-muted-foreground leading-relaxed">{c.descricao}</p>
-                   <p className="text-[9px] text-primary/70 uppercase font-semibold">{c.canal || "Geral"}</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed">{c.conteudo}</p>
+                    <p className="text-[9px] text-primary/70 uppercase font-semibold">{c.tipo || "Geral"}</p>
                  </div>
                ))}
              </div>
@@ -319,7 +319,7 @@ export function ClienteView({ id }: Props) {
                        <p>{t.prazo_medio || "—"}</p>
                      </div>
                    </div>
-                   {t.observacoes && <p className="text-[10px] text-muted-foreground italic border-t pt-1">"{t.observacoes}"</p>}
+                   {(t as any).observacoes && <p className="text-[10px] text-muted-foreground italic border-t pt-1">"{(t as any).observacoes}"</p>}
                  </div>
                ))}
              </div>

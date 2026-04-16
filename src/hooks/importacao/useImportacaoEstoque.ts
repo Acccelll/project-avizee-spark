@@ -83,8 +83,8 @@ export function useImportacaoEstoque() {
         .from("produtos")
         .select("id, codigo_interno, codigo_legado, nome, preco_custo, preco_venda, estoque_atual");
 
-      const prodByLegado = new Map(produtosBanco?.filter(p => p.codigo_legado).map(p => [p.codigo_legado, p]));
-      const prodByInterno = new Map(produtosBanco?.filter(p => p.codigo_interno).map(p => [p.codigo_interno, p]));
+      const prodByLegado = new Map(produtosBanco?.filter((p: any) => p.codigo_legado).map((p: any) => [p.codigo_legado, p]));
+      const prodByInterno = new Map(produtosBanco?.filter((p: any) => p.codigo_interno).map((p: any) => [p.codigo_interno, p]));
 
       const preview = rawRows.map((row, index) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -96,19 +96,19 @@ export function useImportacaoEstoque() {
         const validation = validateEstoqueInicialImport(mappedRow);
         const nd = validation.normalizedData;
 
-        const produtoInfo = (nd.codigo_legado && prodByLegado.get(nd.codigo_legado))
-          || (nd.codigo_produto && prodByInterno.get(nd.codigo_produto));
+        const produtoInfo = (nd.codigo_legado && prodByLegado.get(nd.codigo_legado as string))
+          || (nd.codigo_produto && prodByInterno.get(nd.codigo_produto as string));
 
         if (!produtoInfo) {
           validation.valid = false;
           const chave = nd.codigo_legado || nd.codigo_produto || '(sem código)';
           validation.errors.push(`Produto não encontrado: ${chave}`);
         } else {
-          nd.produto_id = produtoInfo.id;
-          nd.nome_produto = produtoInfo.nome;
-          nd.estoque_atual_sistema = produtoInfo.estoque_atual || 0;
-          nd.diferenca = nd.quantidade - (produtoInfo.estoque_atual || 0);
-          nd.custo_unitario = nd.custo_unitario ?? produtoInfo.preco_custo ?? 0;
+          nd.produto_id = (produtoInfo as any).id;
+          nd.nome_produto = (produtoInfo as any).nome;
+          nd.estoque_atual_sistema = (produtoInfo as any).estoque_atual || 0;
+          nd.diferenca = Number(nd.quantidade) - ((produtoInfo as any).estoque_atual || 0);
+          nd.custo_unitario = nd.custo_unitario ?? (produtoInfo as any).preco_custo ?? 0;
         }
 
         return {
