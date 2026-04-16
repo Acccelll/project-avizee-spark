@@ -8,8 +8,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -17,7 +15,6 @@ import { SummaryCard } from "@/components/SummaryCard";
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
-import { FormModal } from "@/components/FormModal";
 import { ViewDrawerV2 } from "@/components/ViewDrawerV2";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/contexts/AuthContext";
@@ -100,22 +97,6 @@ const recebimentoStatusMultiOptions: MultiSelectOption[] = Object.entries(recebi
 const prazoOptions: MultiSelectOption[] = [{ label: "Atrasadas", value: "atrasado" }, { label: "No prazo", value: "ok" }];
 const prazoOptionsReceb: MultiSelectOption[] = [{ label: "Atrasados", value: "atrasado" }, { label: "No prazo", value: "ok" }];
 
-// ─── Remessa form ───
-interface RemessaForm {
-  tipo_remessa: string;
-  cliente_id: string; transportadora_id: string; servico: string; codigo_rastreio: string;
-  data_postagem: string; previsao_entrega: string; status_transporte: string;
-  peso: string; volumes: string; valor_frete: string; observacoes: string;
-  ordem_venda_id: string; pedido_compra_id: string; nota_fiscal_id: string;
-}
-const emptyForm: RemessaForm = {
-  tipo_remessa: "entrega",
-  cliente_id: "", transportadora_id: "", servico: "", codigo_rastreio: "",
-  data_postagem: "", previsao_entrega: "", status_transporte: "pendente",
-  peso: "", volumes: "1", valor_frete: "", observacoes: "",
-  ordem_venda_id: "", pedido_compra_id: "", nota_fiscal_id: "",
-};
-
 export default function Logistica() {
   const navigate = useNavigate();
   const { can } = useAuth();
@@ -154,20 +135,15 @@ export default function Logistica() {
   const [dataFimReceb, setDataFimReceb] = useState("");
 
   // ─── Remessas CRUD state (still using useSupabaseCrud for full CRUD) ───
-  const { data: remessasData, loading: remessasLoading, create: createRemessa, update: updateRemessa, remove: removeRemessa } = useSupabaseCrud<Remessa>({ table: "remessas" });
-  const [remModalOpen, setRemModalOpen] = useState(false);
+  const { data: remessasData, loading: remessasLoading, update: updateRemessa, remove: removeRemessa } = useSupabaseCrud<Remessa>({ table: "remessas" });
   const [remDrawerOpen, setRemDrawerOpen] = useState(false);
   const [remSelected, setRemSelected] = useState<Remessa | null>(null);
-  const [remMode, setRemMode] = useState<"create" | "edit">("create");
-  const [remForm, setRemForm] = useState<RemessaForm>(emptyForm);
-  const [remSaving, setRemSaving] = useState(false);
   const [remSearchTerm, setRemSearchTerm] = useState("");
   const [remStatusFilters, setRemStatusFilters] = useState<string[]>([]);
   const [remTranspFilters, setRemTranspFilters] = useState<string[]>([]);
 
   const [clientes, setClientes] = useState<Array<{ id: string; nome_razao_social: string }>>([]);
   const [transportadorasLookup, setTransportadorasLookup] = useState<Array<{ id: string; nome_razao_social: string }>>([]);
-  const [ordensVenda, setOrdensVenda] = useState<Array<{ id: string; numero: string | null }>>([]);
   const [pedidosCompra, setPedidosCompra] = useState<Array<{ id: string; numero: string | null }>>([]);
   const [notasFiscais, setNotasFiscais] = useState<Array<{ id: string; numero: string | null; tipo: string | null }>>([]);
   const [eventos, setEventos] = useState<RemessaEvento[]>([]);
@@ -179,7 +155,6 @@ export default function Logistica() {
   useEffect(() => {
     supabase.from("clientes").select("id,nome_razao_social").eq("ativo", true).then(({ data: d }) => setClientes(d ?? []));
     supabase.from("transportadoras").select("id,nome_razao_social").eq("ativo", true).then(({ data: d }) => setTransportadorasLookup(d ?? []));
-    supabase.from("ordens_venda").select("id, numero").eq("ativo", true).then(({ data: d }) => setOrdensVenda(d ?? []));
     supabase.from("pedidos_compra").select("id, numero").eq("ativo", true).then(({ data: d }) => setPedidosCompra(d ?? []));
     supabase.from("notas_fiscais").select("id, numero, tipo").eq("ativo", true).then(({ data: d }) => setNotasFiscais(d ?? []));
   }, []);
@@ -361,46 +336,7 @@ export default function Logistica() {
     toast.success("Data de recebimento registrada");
   };
 
-  // ─── Remessa CRUD handlers ───
-  const openCreateRemessa = () => { setRemMode("create"); setRemForm({ ...emptyForm }); setRemSelected(null); setRemModalOpen(true); };
-  const openEditRemessa = (r: Remessa) => {
-    setRemMode("edit"); setRemSelected(r);
-    setRemForm({
-      tipo_remessa: r.tipo_remessa ?? "entrega",
-      cliente_id: r.cliente_id ?? "", transportadora_id: r.transportadora_id ?? "",
-      servico: r.servico ?? "", codigo_rastreio: r.codigo_rastreio ?? "",
-      data_postagem: r.data_postagem ?? "", previsao_entrega: r.previsao_entrega ?? "",
-      status_transporte: r.status_transporte ?? "pendente",
-      peso: r.peso?.toString() ?? "",
-      volumes: r.volumes?.toString() ?? "1", valor_frete: r.valor_frete?.toString() ?? "",
-      observacoes: r.observacoes ?? "", ordem_venda_id: r.ordem_venda_id ?? "",
-      pedido_compra_id: r.pedido_compra_id ?? "", nota_fiscal_id: r.nota_fiscal_id ?? "",
-    });
-    setRemModalOpen(true);
-  };
   const openViewRemessa = (r: Remessa) => { setRemSelected(r); setRemDrawerOpen(true); };
-
-  const handleRemessaSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!remForm.transportadora_id) { toast.error("Transportadora é obrigatória"); return; }
-    setRemSaving(true);
-    const payload = {
-      ...remForm,
-      peso: remForm.peso ? Number(remForm.peso) : null,
-      volumes: remForm.volumes ? Number(remForm.volumes) : 1,
-      valor_frete: remForm.valor_frete ? Number(remForm.valor_frete) : null,
-      cliente_id: remForm.cliente_id || null, transportadora_id: remForm.transportadora_id || null,
-      ordem_venda_id: remForm.ordem_venda_id || null, pedido_compra_id: remForm.pedido_compra_id || null,
-      nota_fiscal_id: remForm.nota_fiscal_id || null, data_postagem: remForm.data_postagem || null,
-      previsao_entrega: remForm.previsao_entrega || null,
-    };
-    try {
-      if (remMode === "create") await createRemessa(payload);
-      else if (remSelected) await updateRemessa(remSelected.id, payload);
-      setRemModalOpen(false);
-    } catch (err: unknown) { console.error("[remessas] handleSubmit:", err); toast.error(getUserFriendlyError(err)); }
-    setRemSaving(false);
-  };
 
   const handleAddEvento = async () => {
     if (!remSelected || !eventoForm.descricao.trim()) { toast.error("Descrição obrigatória"); return; }
@@ -678,88 +614,13 @@ export default function Logistica() {
       {/* Recebimento Drawer */}
       <RecebimentoDrawer open={!!selectedRecebimento} onClose={() => setSelectedRecebimento(null)} recebimento={selectedRecebimento} />
 
-      {/* Remessa Form Modal */}
-      <FormModal open={remModalOpen} onClose={() => setRemModalOpen(false)} title={remMode === "create" ? "Nova Remessa" : "Editar Remessa"} size="lg">
-        <form onSubmit={handleRemessaSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label>Tipo de Remessa *</Label>
-              <Select value={remForm.tipo_remessa} onValueChange={v => setRemForm({ ...remForm, tipo_remessa: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="entrega">Entrega (Saída)</SelectItem>
-                  <SelectItem value="recebimento">Recebimento (Entrada)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Transportadora *</Label>
-              <Select value={remForm.transportadora_id} onValueChange={v => setRemForm({ ...remForm, transportadora_id: v })}>
-                <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                <SelectContent>{transportadorasLookup.map(t => <SelectItem key={t.id} value={t.id}>{t.nome_razao_social}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Cliente</Label>
-              <Select value={remForm.cliente_id} onValueChange={v => setRemForm({ ...remForm, cliente_id: v })}>
-                <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                <SelectContent>{clientes.map(c => <SelectItem key={c.id} value={c.id}>{c.nome_razao_social}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2"><Label>Serviço</Label><Input value={remForm.servico} onChange={e => setRemForm({ ...remForm, servico: e.target.value })} placeholder="Ex: SEDEX, PAC..." /></div>
-            <div className="space-y-2"><Label>Código de Rastreio</Label><Input value={remForm.codigo_rastreio} onChange={e => setRemForm({ ...remForm, codigo_rastreio: e.target.value.toUpperCase() })} placeholder="Ex: BR123456789BR" /></div>
-            <div className="space-y-2"><Label>Data de Postagem</Label><Input type="date" value={remForm.data_postagem} onChange={e => setRemForm({ ...remForm, data_postagem: e.target.value })} /></div>
-            <div className="space-y-2"><Label>Previsão de Entrega</Label><Input type="date" value={remForm.previsao_entrega} onChange={e => setRemForm({ ...remForm, previsao_entrega: e.target.value })} /></div>
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <Select value={remForm.status_transporte} onValueChange={v => setRemForm({ ...remForm, status_transporte: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{Object.entries(remessaStatusMap).map(([k, v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2"><Label>Peso (kg)</Label><Input type="number" step="0.01" value={remForm.peso} onChange={e => setRemForm({ ...remForm, peso: e.target.value })} /></div>
-            <div className="space-y-2"><Label>Volumes</Label><Input type="number" min="1" value={remForm.volumes} onChange={e => setRemForm({ ...remForm, volumes: e.target.value })} /></div>
-            <div className="space-y-2"><Label>Valor do Frete (R$)</Label><Input type="number" step="0.01" value={remForm.valor_frete} onChange={e => setRemForm({ ...remForm, valor_frete: e.target.value })} /></div>
-          </div>
-          <h4 className="font-semibold text-sm pt-2 border-t">Vínculos Operacionais</h4>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label>Pedido</Label>
-              <Select value={remForm.ordem_venda_id} onValueChange={v => setRemForm({ ...remForm, ordem_venda_id: v === "none" ? "" : v })}>
-                <SelectTrigger><SelectValue placeholder="Opcional..." /></SelectTrigger>
-                <SelectContent><SelectItem value="none">Nenhuma</SelectItem>{ordensVenda.map(ov => <SelectItem key={ov.id} value={ov.id}>{ov.numero}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Pedido de Compra</Label>
-              <Select value={remForm.pedido_compra_id} onValueChange={v => setRemForm({ ...remForm, pedido_compra_id: v === "none" ? "" : v })}>
-                <SelectTrigger><SelectValue placeholder="Opcional..." /></SelectTrigger>
-                <SelectContent><SelectItem value="none">Nenhum</SelectItem>{pedidosCompra.map(pc => <SelectItem key={pc.id} value={pc.id}>{pc.numero}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Nota Fiscal</Label>
-              <Select value={remForm.nota_fiscal_id} onValueChange={v => setRemForm({ ...remForm, nota_fiscal_id: v === "none" ? "" : v })}>
-                <SelectTrigger><SelectValue placeholder="Opcional..." /></SelectTrigger>
-                <SelectContent><SelectItem value="none">Nenhuma</SelectItem>{notasFiscais.map(nf => <SelectItem key={nf.id} value={nf.id}>{nf.numero} ({nf.tipo === 'entrada' ? 'Entr.' : 'Saída'})</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div className="space-y-2"><Label>Observações</Label><Textarea value={remForm.observacoes} onChange={e => setRemForm({ ...remForm, observacoes: e.target.value })} /></div>
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => setRemModalOpen(false)}>Cancelar</Button>
-            <Button type="submit" disabled={remSaving}>{remSaving ? "Salvando..." : "Salvar"}</Button>
-          </div>
-        </form>
-      </FormModal>
-
       {/* Remessa Detail Drawer */}
       <ViewDrawerV2
         open={remDrawerOpen}
         onClose={() => setRemDrawerOpen(false)}
         title={remSelected?.codigo_rastreio ? `Remessa ${remSelected.codigo_rastreio}` : "Detalhes da Remessa"}
         actions={remSelected ? <>
-          <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Editar remessa" onClick={() => { setRemDrawerOpen(false); openEditRemessa(remSelected); }}><Edit className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Editar</TooltipContent></Tooltip>
+          <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Editar remessa" onClick={() => { setRemDrawerOpen(false); navigate(`/remessas/${remSelected.id}`); }}><Edit className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Editar</TooltipContent></Tooltip>
           <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" aria-label="Excluir remessa" onClick={() => { setRemDrawerOpen(false); removeRemessa(remSelected.id); }}><Trash2 className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Excluir</TooltipContent></Tooltip>
         </> : undefined}
         summary={remSelected ? (
