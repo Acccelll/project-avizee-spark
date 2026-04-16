@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
@@ -116,6 +117,7 @@ const emptyForm: RemessaForm = {
 };
 
 export default function Logistica() {
+  const navigate = useNavigate();
   const { can } = useAuth();
   const { pushView } = useRelationalNavigation();
   const canEdit = can("logistica", "editar");
@@ -559,7 +561,7 @@ export default function Logistica() {
         title="Logística"
         subtitle="Central de acompanhamento logístico, entregas, recebimentos e remessas."
         addLabel={canEdit ? "Nova Remessa" : undefined}
-        onAdd={canEdit ? openCreateRemessa : undefined}
+        onAdd={canEdit ? () => navigate("/remessas/new") : undefined}
         headerActions={canEdit ? (
           <Button variant="outline" size="sm" className="gap-1.5" onClick={handleBulkRastrear} disabled={bulkTracking}>
             {bulkTracking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
@@ -665,7 +667,7 @@ export default function Logistica() {
               <MultiSelect options={remStatusOptions} selected={remStatusFilters} onChange={setRemStatusFilters} placeholder="Status" className="w-[180px]" />
               <MultiSelect options={remTranspOptions} selected={remTranspFilters} onChange={setRemTranspFilters} placeholder="Transportadoras" className="w-[220px]" />
             </AdvancedFilterBar>
-            <DataTable columns={remessaColumns} data={filteredRemessas} loading={remessasLoading} onView={openViewRemessa} onEdit={openEditRemessa} emptyTitle="Nenhuma remessa encontrada" emptyDescription="Tente ajustar os filtros ou crie uma nova remessa." />
+            <DataTable columns={remessaColumns} data={filteredRemessas} loading={remessasLoading} onView={openViewRemessa} onEdit={(r) => navigate(`/remessas/${r.id}`)} emptyTitle="Nenhuma remessa encontrada" emptyDescription="Tente ajustar os filtros ou crie uma nova remessa." />
           </TabsContent>
         </Tabs>
       </ModulePage>

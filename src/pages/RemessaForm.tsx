@@ -1,0 +1,329 @@
+/**
+ * RemessaForm — Dedicated edit/create page for a Remessa record.
+ *
+ * Route: /remessas/new  (create)
+ *        /remessas/:id  (edit)
+ *
+ * This page elevates the modal-only form from Logistica.tsx into a full-screen
+ * page to allow deeper editing, direct linking, and better back-navigation.
+ * Logistica.tsx remains the primary list/dispatch page.
+ */
+import { useState, useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { AppLayout } from "@/components/AppLayout";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { supabase } from "@/integrations/supabase/client";
+import { useRemessas } from "@/services/logistica/remessas.service";
+import type { Remessa } from "@/services/logistica/remessas.service";
+import { statusRemessa } from "@/lib/statusSchema";
+import { toast } from "sonner";
+import { ArrowLeft, Save, Truck } from "lucide-react";
+import { getUserFriendlyError } from "@/utils/errorMessages";
+import type { Tables } from "@/integrations/supabase/types";
+
+type Cliente = Tables<"clientes">;
+type Transportadora = Tables<"transportadoras">;
+type OrdemVenda = Tables<"ordens_venda">;
+type PedidoCompra = Tables<"pedidos_compra">;
+type NotaFiscal = Tables<"notas_fiscais">;
+
+interface RemessaForm {
+  tipo_remessa: string;
+  cliente_id: string;
+  transportadora_id: string;
+  servico: string;
+  codigo_rastreio: string;
+  data_postagem: string;
+  previsao_entrega: string;
+  status_transporte: string;
+  peso: string;
+  volumes: string;
+  valor_frete: string;
+  observacoes: string;
+  ordem_venda_id: string;
+  pedido_compra_id: string;
+  nota_fiscal_id: string;
+}
+
+const emptyForm: RemessaForm = {
+  tipo_remessa: "entrega",
+  cliente_id: "", transportadora_id: "", servico: "", codigo_rastreio: "",
+  data_postagem: "", previsao_entrega: "", status_transporte: "pendente",
+  peso: "", volumes: "1", valor_frete: "", observacoes: "",
+  ordem_venda_id: "", pedido_compra_id: "", nota_fiscal_id: "",
+};
+
+function remessaToForm(r: Remessa): RemessaForm {
+  return {
+    tipo_remessa: r.tipo_remessa ?? "entrega",
+    cliente_id: r.cliente_id ?? "", transportadora_id: r.transportadora_id ?? "",
+    servico: r.servico ?? "", codigo_rastreio: r.codigo_rastreio ?? "",
+    data_postagem: r.data_postagem ?? "", previsao_entrega: r.previsao_entrega ?? "",
+    status_transporte: r.status_transporte ?? "pendente",
+    peso: r.peso?.toString() ?? "", volumes: r.volumes?.toString() ?? "1",
+    valor_frete: r.valor_frete?.toString() ?? "", observacoes: r.observacoes ?? "",
+    ordem_venda_id: r.ordem_venda_id ?? "",
+    pedido_compra_id: r.pedido_compra_id ?? "", nota_fiscal_id: r.nota_fiscal_id ?? "",
+  };
+}
+
+export default function RemessaFormPage() {
+  const { id } = useParams<{ id: string }>();
+  const isNew = !id || id === "new";
+  const navigate = useNavigate();
+
+  const { create, update, isSaving } = useRemessas();
+
+  const [form, setForm] = useState<RemessaForm>(emptyForm);
+  const [loading, setLoading] = useState(!isNew);
+
+  // Lookup data
+  const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [transportadoras, setTransportadoras] = useState<Transportadora[]>([]);
+  const [ordensVenda, setOrdensVenda] = useState<OrdemVenda[]>([]);
+  const [pedidosCompra, setPedidosCompra] = useState<PedidoCompra[]>([]);
+  const [notasFiscais, setNotasFiscais] = useState<NotaFiscal[]>([]);
+
+  useEffect(() => {
+    const loadLookups = async () => {
+      const [c, t, ov, pc, nf] = await Promise.all([
+        supabase.from("clientes").select("id,nome_razao_social").eq("ativo", true).order("nome_razao_social"),
+        supabase.from("transportadoras").select("id,nome_razao_social").eq("ativo", true).order("nome_razao_social"),
+        supabase.from("ordens_venda").select("id,numero").eq("ativo", true).order("numero", { ascending: false }).limit(200),
+        supabase.from("pedidos_compra").select("id,numero").eq("ativo", true).order("numero", { ascending: false }).limit(200),
+        supabase.from("notas_fiscais").select("id,numero,tipo").eq("ativo", true).order("numero", { ascending: false }).limit(200),
+      ]);
+      setClientes((c.data ?? []) as Cliente[]);
+      setTransportadoras((t.data ?? []) as Transportadora[]);
+      setOrdensVenda((ov.data ?? []) as OrdemVenda[]);
+      setPedidosCompra((pc.data ?? []) as PedidoCompra[]);
+      setNotasFiscais((nf.data ?? []) as NotaFiscal[]);
+    };
+    loadLookups();
+  }, []);
+
+  useEffect(() => {
+    if (isNew) return;
+    const load = async () => {
+      setLoading(true);
+      const { data, error } = await supabase.from("remessas").select("*").eq("id", id).single();
+      if (error || !data) {
+        toast.error("Remessa não encontrada");
+        navigate("/logistica");
+        return;
+      }
+      setForm(remessaToForm(data as Remessa));
+      setLoading(false);
+    };
+    load();
+  }, [id, isNew, navigate]);
+
+  const setF = (patch: Partial<RemessaForm>) => setForm((prev) => ({ ...prev, ...patch }));
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.transportadora_id) { toast.error("Transportadora é obrigatória"); return; }
+    const payload = {
+      tipo_remessa: form.tipo_remessa,
+      cliente_id: form.cliente_id || null,
+      transportadora_id: form.transportadora_id || null,
+      servico: form.servico || null,
+      codigo_rastreio: form.codigo_rastreio || null,
+      data_postagem: form.data_postagem || null,
+      previsao_entrega: form.previsao_entrega || null,
+      status_transporte: form.status_transporte || "pendente",
+      peso: form.peso ? Number(form.peso) : null,
+      volumes: form.volumes ? Number(form.volumes) : 1,
+      valor_frete: form.valor_frete ? Number(form.valor_frete) : null,
+      observacoes: form.observacoes || null,
+      ordem_venda_id: form.ordem_venda_id || null,
+      pedido_compra_id: form.pedido_compra_id || null,
+      nota_fiscal_id: form.nota_fiscal_id || null,
+    };
+    try {
+      if (isNew) {
+        await create(payload);
+      } else {
+        await update(id!, payload);
+      }
+      navigate("/logistica");
+    } catch (err: unknown) {
+      toast.error(getUserFriendlyError(err));
+    }
+  };
+
+  return (
+    <AppLayout>
+      <div className="container max-w-3xl py-6 space-y-6">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="sm" onClick={() => navigate("/logistica")}>
+            <ArrowLeft className="h-4 w-4 mr-1" />
+            Voltar
+          </Button>
+          <div className="flex items-center gap-2">
+            <Truck className="h-5 w-5 text-primary" />
+            <h1 className="text-xl font-bold">{isNew ? "Nova Remessa" : "Editar Remessa"}</h1>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="text-center py-12 text-muted-foreground">Carregando...</div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <Card>
+              <CardHeader><CardTitle className="text-base">Informações Básicas</CardTitle></CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Tipo de Remessa *</Label>
+                    <Select value={form.tipo_remessa} onValueChange={(v) => setF({ tipo_remessa: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="entrega">Entrega (Saída)</SelectItem>
+                        <SelectItem value="recebimento">Recebimento (Entrada)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Status</Label>
+                    <Select value={form.status_transporte} onValueChange={(v) => setF({ status_transporte: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(statusRemessa).map(([k, v]) => (
+                          <SelectItem key={k} value={k}>{v.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Transportadora *</Label>
+                    <Select value={form.transportadora_id} onValueChange={(v) => setF({ transportadora_id: v })}>
+                      <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                      <SelectContent>
+                        {transportadoras.map((t) => (
+                          <SelectItem key={t.id} value={t.id}>{t.nome_razao_social}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Cliente</Label>
+                    <Select value={form.cliente_id || "none"} onValueChange={(v) => setF({ cliente_id: v === "none" ? "" : v })}>
+                      <SelectTrigger><SelectValue placeholder="Opcional..." /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Nenhum</SelectItem>
+                        {clientes.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>{c.nome_razao_social}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Serviço</Label>
+                    <Input value={form.servico} onChange={(e) => setF({ servico: e.target.value })} placeholder="Ex: SEDEX, PAC..." />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Código de Rastreio</Label>
+                    <Input value={form.codigo_rastreio} onChange={(e) => setF({ codigo_rastreio: e.target.value.toUpperCase() })} placeholder="Ex: BR123456789BR" className="font-mono" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Data de Postagem</Label>
+                    <Input type="date" value={form.data_postagem} onChange={(e) => setF({ data_postagem: e.target.value })} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Previsão de Entrega</Label>
+                    <Input type="date" value={form.previsao_entrega} onChange={(e) => setF({ previsao_entrega: e.target.value })} />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label>Peso (kg)</Label>
+                    <Input type="number" step="0.01" min="0" value={form.peso} onChange={(e) => setF({ peso: e.target.value })} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Volumes</Label>
+                    <Input type="number" min="1" value={form.volumes} onChange={(e) => setF({ volumes: e.target.value })} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Valor do Frete (R$)</Label>
+                    <Input type="number" step="0.01" min="0" value={form.valor_frete} onChange={(e) => setF({ valor_frete: e.target.value })} />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Observações</Label>
+                  <Textarea value={form.observacoes} onChange={(e) => setF({ observacoes: e.target.value })} rows={3} />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader><CardTitle className="text-base">Vínculos Operacionais</CardTitle></CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Pedido de Venda</Label>
+                    <Select value={form.ordem_venda_id || "none"} onValueChange={(v) => setF({ ordem_venda_id: v === "none" ? "" : v })}>
+                      <SelectTrigger><SelectValue placeholder="Opcional..." /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Nenhum</SelectItem>
+                        {ordensVenda.map((ov) => (
+                          <SelectItem key={ov.id} value={ov.id}>{ov.numero}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Pedido de Compra</Label>
+                    <Select value={form.pedido_compra_id || "none"} onValueChange={(v) => setF({ pedido_compra_id: v === "none" ? "" : v })}>
+                      <SelectTrigger><SelectValue placeholder="Opcional..." /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Nenhum</SelectItem>
+                        {pedidosCompra.map((pc) => (
+                          <SelectItem key={pc.id} value={pc.id}>{pc.numero}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2 col-span-2 sm:col-span-1">
+                    <Label>Nota Fiscal</Label>
+                    <Select value={form.nota_fiscal_id || "none"} onValueChange={(v) => setF({ nota_fiscal_id: v === "none" ? "" : v })}>
+                      <SelectTrigger><SelectValue placeholder="Opcional..." /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Nenhuma</SelectItem>
+                        {notasFiscais.map((nf) => (
+                          <SelectItem key={nf.id} value={nf.id}>
+                            {nf.numero} ({nf.tipo === "entrada" ? "Entr." : "Saída"})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="flex justify-end gap-3 pb-6">
+              <Button type="button" variant="outline" onClick={() => navigate("/logistica")}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={isSaving}>
+                <Save className="h-4 w-4 mr-1.5" />
+                {isSaving ? "Salvando..." : isNew ? "Criar Remessa" : "Salvar Alterações"}
+              </Button>
+            </div>
+          </form>
+        )}
+      </div>
+    </AppLayout>
+  );
+}
