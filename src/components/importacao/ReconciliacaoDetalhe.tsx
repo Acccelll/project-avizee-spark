@@ -22,13 +22,13 @@ interface ReconciliacaoDetalheProps {
 }
 
 export function ReconciliacaoDetalhe({ lote, isOpen, onClose }: ReconciliacaoDetalheProps) {
-  const logsCrud = useSupabaseCrud<ImportLog>({
+  const logsCrud = useSupabaseCrud<ImportLog & { etapa?: string }>({
     table: "importacao_logs",
     filter: lote ? [{ column: "lote_id", value: lote.id }] : [],
     orderBy: "created_at",
     ascending: true,
     hasAtivo: false
-  });
+  }) as any;
 
   if (!lote) return null;
 

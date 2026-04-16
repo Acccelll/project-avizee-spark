@@ -214,8 +214,9 @@ const Pedidos = () => {
   const handleGenerateNF = async (pedido: Pedido) => {
     try {
       const { data: pedidoItems } = await supabase.from("ordens_venda_itens").select("*").eq("ordem_venda_id", pedido.id);
-      const { count } = await supabase.from("notas_fiscais").select("*", { count: "exact", head: true });
-      const nfNumero = String((count || 0) + 1).padStart(6, "0");
+      const { data: nfNumData, error: nfNumError } = await supabase.rpc("proximo_numero_nota_fiscal" as any);
+      if (nfNumError) throw nfNumError;
+      const nfNumero = nfNumData as string;
 
       const totalProdutos = (pedidoItems || []).reduce((s, i) => s + Number(i.valor_total || 0), 0);
 

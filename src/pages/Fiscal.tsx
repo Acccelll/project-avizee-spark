@@ -169,17 +169,18 @@ const Fiscal = () => {
       frete_valor: n.frete_valor || 0, icms_valor: n.icms_valor || 0, ipi_valor: n.ipi_valor || 0,
       pis_valor: n.pis_valor || 0, cofins_valor: n.cofins_valor || 0, icms_st_valor: n.icms_st_valor || 0,
       desconto_valor: n.desconto_valor || 0, outras_despesas: n.outras_despesas || 0,
+      origem: n.origem || "manual",
     });
     const { data: itens } = await supabase.from("notas_fiscais_itens")
       .select("*, produtos(nome, sku)").eq("nota_fiscal_id", n.id);
-    const loadedItems = (itens || []).map((i: NfItemRow) => ({
+    const loadedItems = (itens || []).map((i: any) => ({
       id: i.id, produto_id: i.produto_id, codigo: i.produtos?.sku || "",
       descricao: i.produtos?.nome || "", quantidade: i.quantidade,
       valor_unitario: i.valor_unitario, valor_total: i.quantidade * i.valor_unitario,
     }));
     setItems(loadedItems);
     const contaMap: Record<number, string> = {};
-    (itens || []).forEach((i: NfItemRow, idx: number) => {
+    (itens || []).forEach((i: any, idx: number) => {
       if (i.conta_contabil_id) contaMap[idx] = i.conta_contabil_id;
     });
     setItemContaContabil(contaMap);
@@ -200,7 +201,7 @@ const Fiscal = () => {
       data_emissao: n.data_emissao, tipo: n.tipo, status: n.status,
       emitente: n.tipo === "saida" && empresa ? { nome: empresa.razao_social, cnpj: empresa.cnpj, endereco: empresa.logradouro, cidade: empresa.cidade, uf: empresa.uf } : (n.fornecedores ? { nome: n.fornecedores.nome_razao_social, cnpj: n.fornecedores.cpf_cnpj } : undefined),
       destinatario: n.tipo === "saida" && n.clientes ? { nome: n.clientes.nome_razao_social } : (empresa ? { nome: empresa.razao_social, cnpj: empresa.cnpj } : undefined),
-      itens: (itens || []).map((i: NfItemRow) => ({ descricao: i.produtos?.nome || "", quantidade: i.quantidade, valor_unitario: i.valor_unitario, cfop: i.cfop, cst: i.cst, icms_valor: i.icms_valor, ipi_valor: i.ipi_valor, pis_valor: i.pis_valor, cofins_valor: i.cofins_valor })),
+      itens: (itens || []).map((i: any) => ({ descricao: i.produtos?.nome || "", quantidade: i.quantidade, valor_unitario: i.valor_unitario, cfop: i.cfop, cst: i.cst, icms_valor: i.icms_valor, ipi_valor: i.ipi_valor, pis_valor: i.pis_valor, cofins_valor: i.cofins_valor })),
       valor_total: n.valor_total, frete_valor: n.frete_valor, icms_valor: n.icms_valor,
       ipi_valor: n.ipi_valor, pis_valor: n.pis_valor, cofins_valor: n.cofins_valor,
       desconto_valor: n.desconto_valor, outras_despesas: n.outras_despesas,
@@ -268,7 +269,7 @@ const Fiscal = () => {
         valor_total: savedTotal,
       };
       await Promise.all([
-        supabase.from("notas_fiscais").update(payload as Record<string, unknown>).eq("id", selected.id),
+        supabase.from("notas_fiscais").update(payload as any).eq("id", selected.id),
         supabase.from("notas_fiscais_itens").delete().eq("nota_fiscal_id", selected.id),
       ]);
       if (items.length > 0) {

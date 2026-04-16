@@ -72,6 +72,8 @@ const ROLE_LABELS: Record<AppRole, string> = {
   vendedor: 'Vendedor',
   financeiro: 'Financeiro',
   estoquista: 'Estoquista',
+  user: 'Usuário',
+  viewer: 'Visualizador',
 };
 
 const ROLE_DESCRIPTIONS: Record<AppRole, string> = {
@@ -79,6 +81,8 @@ const ROLE_DESCRIPTIONS: Record<AppRole, string> = {
   vendedor: 'Acesso a clientes, orçamentos, pedidos e logística.',
   financeiro: 'Acesso ao módulo financeiro, compras, faturamento e relatórios.',
   estoquista: 'Acesso a produtos, estoque, compras e logística.',
+  user: 'Acesso básico ao sistema.',
+  viewer: 'Acesso somente leitura ao sistema.',
 };
 
 const ROLE_COLORS: Record<AppRole, string> = {
@@ -88,6 +92,8 @@ const ROLE_COLORS: Record<AppRole, string> = {
     'bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-700',
   estoquista:
     'bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-700',
+  user: 'bg-muted text-muted-foreground border-muted-foreground/30',
+  viewer: 'bg-muted text-muted-foreground border-muted-foreground/30',
 };
 
 const MODULE_LABELS: Record<string, string> = {
@@ -346,7 +352,7 @@ function RolesCatalog({ users }: { users: UserWithRoles[] }) {
         </CardHeader>
         <CardContent className="space-y-3">
           {ALL_ROLES.map((role) => {
-            const perms = getRolePermissions(role);
+            const perms = getRolePermissions(role as any);
             const isExpanded = expandedRole === role;
             const count = userCountByRole[role] ?? 0;
 
@@ -446,7 +452,7 @@ function UserFormModal({
 
   // Inherited permissions from the selected role
   const inheritedPermissions = useMemo(
-    () => getRolePermissions(form.role_padrao),
+    () => getRolePermissions(form.role_padrao as any),
     [form.role_padrao],
   );
 

@@ -98,20 +98,20 @@ export function useImportacaoFaturamento() {
         .from("clientes")
         .select("id, nome_razao_social, cpf_cnpj");
       const clienteByCpf = new Map(
-        clientes?.filter(c => c.cpf_cnpj).map(c => [c.cpf_cnpj.replace(/\D/g, ""), c.id]) || []
+        clientes?.filter((c: any) => c.cpf_cnpj).map((c: any) => [String(c.cpf_cnpj).replace(/\D/g, ""), c.id]) || []
       );
       const clienteByName = new Map(
-        clientes?.map(c => [c.nome_razao_social.toUpperCase(), c.id]) || []
+        clientes?.map((c: any) => [String(c.nome_razao_social).toUpperCase(), c.id]) || []
       );
 
       const { data: produtosBanco } = await supabase
         .from("produtos")
         .select("id, codigo_interno, codigo_legado, nome");
       const prodByLegado = new Map(
-        produtosBanco?.filter(p => p.codigo_legado).map(p => [p.codigo_legado, p.id]) || []
+        produtosBanco?.filter((p: any) => p.codigo_legado).map((p: any) => [p.codigo_legado, p.id]) || []
       );
       const prodByInterno = new Map(
-        produtosBanco?.filter(p => p.codigo_interno).map(p => [p.codigo_interno, p.id]) || []
+        produtosBanco?.filter((p: any) => p.codigo_interno).map((p: any) => [p.codigo_interno, p.id]) || []
       );
 
       const grouped = new Map<string, GroupedNF>();
@@ -127,21 +127,21 @@ export function useImportacaoFaturamento() {
         const nd = validation.normalizedData;
         const numero = nd.numero_nota || `S/N-${index}`;
 
-        if (!grouped.has(numero)) {
-          const cpfClean = nd.cpf_cnpj_destinatario?.replace(/\D/g, "") || "";
+        if (!grouped.has(numero as string)) {
+          const cpfClean = String(nd.cpf_cnpj_destinatario || "").replace(/\D/g, "");
           const clienteId = (cpfClean && clienteByCpf.get(cpfClean))
-            || clienteByName.get(nd.cliente_nome?.toUpperCase() || "")
+            || clienteByName.get(String(nd.cliente_nome || "").toUpperCase())
             || null;
 
-          grouped.set(numero, {
-            numero,
-            cliente_nome: nd.cliente_nome,
+          grouped.set(numero as string, {
+            numero: numero as string,
+            cliente_nome: nd.cliente_nome as string,
             cliente_id: clienteId,
-            cpf_cnpj_destinatario: nd.cpf_cnpj_destinatario,
-            chave_acesso: nd.chave_acesso,
-            data_emissao: nd.data_emissao,
-            municipio: nd.municipio,
-            uf: nd.uf,
+            cpf_cnpj_destinatario: nd.cpf_cnpj_destinatario as string,
+            chave_acesso: nd.chave_acesso as string,
+            data_emissao: nd.data_emissao as string,
+            municipio: nd.municipio as string,
+            uf: nd.uf as string,
             valor_total: 0,
             itens_count: 0,
             status: "valido",
@@ -150,17 +150,17 @@ export function useImportacaoFaturamento() {
           });
         }
 
-        const nf = grouped.get(numero)!;
+        const nf = grouped.get(numero as string)!;
 
         const codigoProduto = nd.codigo_produto_nf || nd.codigo_legado_produto || "";
-        const produtoId = (nd.codigo_legado_produto && prodByLegado.get(nd.codigo_legado_produto))
-          || (nd.codigo_produto_nf && prodByInterno.get(nd.codigo_produto_nf))
+        const produtoId = (nd.codigo_legado_produto && prodByLegado.get(nd.codigo_legado_produto as string))
+          || (nd.codigo_produto_nf && prodByInterno.get(nd.codigo_produto_nf as string))
           || null;
 
         nd.produto_id = produtoId;
         nf.itens.push({ ...nd, _originalLine: index + 2, _originalRow: row });
         nf.itens_count++;
-        nf.valor_total += nd.valor_total || 0;
+        nf.valor_total += Number(nd.valor_total || 0);
         if (!validation.valid) {
           nf.status = "erro";
           nf.errors.push(...validation.errors);

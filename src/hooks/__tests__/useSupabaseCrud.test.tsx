@@ -24,25 +24,17 @@ vi.mock("@/integrations/supabase/client", () => ({
 
 type Row = { id: string; nome: string; ativo: boolean };
 
-type QueryMock = {
-  __selectedId: string | null;
-  __payload: Partial<Row> | null;
-  __inserted: Row | null;
-  __operation: "update" | "delete" | null;
-  select: ReturnType<typeof vi.fn>;
-  order: ReturnType<typeof vi.fn>;
-  eq: ReturnType<typeof vi.fn>;
-  update: ReturnType<typeof vi.fn>;
-  insert: ReturnType<typeof vi.fn>;
-  delete: ReturnType<typeof vi.fn>;
-  single: ReturnType<typeof vi.fn>;
-  then: (resolve: (value: { data: Row[]; error: null; count: number }) => void) => void;
-};
-
 function createQueryMock(initialData: Row[] = []) {
   let rows = [...initialData];
 
-  const query = {} as QueryMock;
+  const query: any = {
+    __selectedId: null as string | null,
+    __payload: null as Partial<Row> | null,
+    __inserted: null as Row | null,
+    __operation: null as "update" | "delete" | null,
+    __eqCalls: [] as { column: string; value: any }[],
+    __orFilter: null as string | null,
+  };
 
   const applyPendingMutation = () => {
     if (query.__operation === "update" && query.__selectedId) {
@@ -58,12 +50,6 @@ function createQueryMock(initialData: Row[] = []) {
   };
 
   Object.assign(query, {
-    __selectedId: null,
-    __payload: null,
-    __inserted: null,
-    __operation: null,
-    __eqCalls: [] as { column: string; value: string }[],
-    __orFilter: null as string | null,
     select: vi.fn(() => query),
     order: vi.fn(() => query),
     range: vi.fn(() => query),
@@ -71,8 +57,8 @@ function createQueryMock(initialData: Row[] = []) {
       query.__orFilter = filter;
       return query;
     }),
-    eq: vi.fn((column: string, value: string) => {
-      (query.__eqCalls as { column: string; value: string }[]).push({ column, value });
+    eq: vi.fn((column: string, value: any) => {
+      query.__eqCalls.push({ column, value });
       if (column === "id") {
         query.__selectedId = value;
         applyPendingMutation();
@@ -84,7 +70,7 @@ function createQueryMock(initialData: Row[] = []) {
       query.__operation = "update";
       return query;
     }),
-    insert: vi.fn((payload: Partial<Row>) => {
+    insert: vi.fn((payload: any) => {
       const newItem = { id: "novo-id", nome: payload.nome ?? "", ativo: payload.ativo ?? true };
       rows = [...rows, newItem];
       query.__inserted = newItem;
@@ -121,7 +107,7 @@ describe("useSupabaseCrud", () => {
     expect(result.current.data).toHaveLength(1);
 
     await act(async () => {
-      await result.current.create({ nome: "Produto B", ativo: true });
+      await result.current.create({ nome: "Produto B", ativo: true } as any);
     });
 
     await waitFor(() => expect(getRows()).toHaveLength(2));
@@ -155,8 +141,8 @@ describe("useSupabaseCrud", () => {
 
     await waitFor(() => expect(result.current.loading).toBe(false));
 
-    const eqCalls = (query.__eqCalls as { column: string; value: string }[]);
-    expect(eqCalls.some((c) => c.column === "ativo" && c.value === true)).toBe(true);
+    const eqCalls = query.__eqCalls as { column: string; value: any }[];
+    expect(eqCalls.some((c: any) => c.column === "ativo" && c.value === true)).toBe(true);
   });
 
   it("não aplica filtro ativo quando hasAtivo = false", async () => {
@@ -170,8 +156,8 @@ describe("useSupabaseCrud", () => {
 
     await waitFor(() => expect(result.current.loading).toBe(false));
 
-    const eqCalls = (query.__eqCalls as { column: string; value: string }[]);
-    expect(eqCalls.some((c) => c.column === "ativo")).toBe(false);
+    const eqCalls = query.__eqCalls as { column: string; value: any }[];
+    expect(eqCalls.some((c: any) => c.column === "ativo")).toBe(false);
   });
 
   it("aplica searchTerm com ilike nas colunas corretas", async () => {
@@ -205,7 +191,7 @@ describe("useSupabaseCrud", () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     await act(async () => {
-      await result.current.create({ nome: "Novo Produto", ativo: true });
+      await result.current.create({ nome: "Novo Produto", ativo: true } as any);
     });
 
     expect(query.insert).toHaveBeenCalledWith({ nome: "Novo Produto", ativo: true });
