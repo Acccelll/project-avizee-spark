@@ -118,6 +118,8 @@ export default function CotacoesCompra() {
             </div>
             <div className="space-y-2">
               <Label>Status</Label>
+              {/* Terminal statuses (convertida, cancelada) can only be set
+                  by system actions (gerarPedido, cancel), not the form. */}
               <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -126,7 +128,12 @@ export default function CotacoesCompra() {
                   <SelectItem value="aguardando_aprovacao">Aguardando Aprovação</SelectItem>
                   <SelectItem value="aprovada">Aprovada</SelectItem>
                   <SelectItem value="rejeitada">Rejeitada</SelectItem>
-                  <SelectItem value="cancelada">Cancelada</SelectItem>
+                  {/* Show current status if it's terminal (read-only, disabled) */}
+                  {["convertida", "cancelada"].includes(form.status) && (
+                    <SelectItem value={form.status} disabled>
+                      {form.status === "convertida" ? "Convertida" : "Cancelada"}
+                    </SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>

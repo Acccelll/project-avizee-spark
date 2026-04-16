@@ -61,7 +61,7 @@ export interface UsePedidosCompraReturn {
   pedidos: PedidoCompra[];
   fornecedoresAtivos: FornecedorOptionRow[];
   fornecedorOptions: { id: string; label: string; sublabel: string }[];
-  produtosOptionsData: (ProdutoOptionRow & { id: string; nome: string; codigo_interno: string; preco_venda: number; unidade_medida: string })[];
+  produtosOptionsData: (ProdutoOptionRow & { id: string; nome: string; codigo_interno: string; preco_venda: number; preco_custo: number; unidade_medida: string })[];
   formasPagamento: { id: string; descricao: string }[];
   loading: boolean;
   fornecedoresLoading: boolean;
@@ -155,7 +155,7 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
     queryKey: ["pedidos_compra_produtos"],
     queryFn: async () => {
       const { data, error } = await supabase.from("produtos")
-        .select("id, nome, codigo_interno, preco_venda, unidade_medida, ativo")
+        .select("id, nome, codigo_interno, preco_venda, preco_custo, unidade_medida, ativo")
         .eq("ativo", true)
         .order("id", { ascending: false });
       if (error) throw error;
@@ -190,6 +190,7 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
     nome: p.nome || "",
     codigo_interno: p.codigo_interno || "",
     preco_venda: Number(p.preco_venda || 0),
+    preco_custo: Number(p.preco_custo || 0),
     unidade_medida: p.unidade_medida || "",
   }));
 
@@ -318,6 +319,23 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
       return;
     }
 
+    // Validate items
+    const validItems = items.filter((i) => i.produto_id);
+    if (validItems.length === 0) {
+      toast.error("Adicione ao menos um item com produto selecionado.");
+      return;
+    }
+    const invalidQty = validItems.findIndex((i) => Number(i.quantidade || 0) <= 0);
+    if (invalidQty !== -1) {
+      toast.error(`Item ${invalidQty + 1}: quantidade deve ser maior que zero.`);
+      return;
+    }
+    const invalidPrice = validItems.findIndex((i) => Number(i.valor_unitario ?? 0) < 0);
+    if (invalidPrice !== -1) {
+      toast.error(`Item ${invalidPrice + 1}: preço unitário inválido.`);
+      return;
+    }
+
     const fornecedorId = String(form.fornecedor_id);
     setSaving(true);
 
@@ -406,8 +424,30 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
       return;
     }
 
+    // Guard: block duplicate receipt
+    const { count: movCount } = await supabase
+      .from("estoque_movimentos")
+      .select("id", { count: "exact", head: true })
+      .eq("documento_id", String(p.id))
+      .eq("documento_tipo", "pedido_compra");
+    if (movCount && movCount > 0) {
+      toast.error("Recebimento já registrado para este pedido. Verifique o estoque.");
+      return;
+    }
+
+    // Guard: block duplicate financial entry (uses observacoes tag for exact match)
+    const pedidoTag = `ref:pedido_compra:${p.id}`;
+    const { count: lancCount } = await supabase
+      .from("financeiro_lancamentos")
+      .select("id", { count: "exact", head: true })
+      .eq("observacoes", pedidoTag)
+      .eq("ativo", true);
+    const financeiroDuplicado = lancCount !== null && lancCount > 0;
+
+    let entradaOk = false;
     try {
-      // Batch insert all stock movements
+      // Insert stock movements — DO NOT manually update produtos.estoque_atual;
+      // the database trigger handles estoque synchronisation.
       const movements = (itens as unknown as PedidoItemRow[]).map((item) => ({
         produto_id: String(item.produto_id),
         tipo: "entrada" as const,
@@ -421,33 +461,30 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
       const { error: movError } = await supabase.from("estoque_movimentos").insert(movements);
       if (movError) throw movError;
 
-      // Parallel update of product stocks
-      await Promise.all(
-        (itens as unknown as PedidoItemRow[]).map((item) => {
-          const novoEstoque = Number(item.produtos?.estoque_atual || 0) + Number(item.quantidade || 0);
-          return supabase.from("produtos").update({ estoque_atual: novoEstoque }).eq("id", String(item.produto_id))
-            .then(({ error }) => { if (error) throw error; });
-        })
-      );
-
       const vTotal = Number(p.valor_total || 0);
-      if (vTotal > 0) {
-        await supabase.from("financeiro_lancamentos").insert({
+      if (vTotal > 0 && !financeiroDuplicado) {
+        const { error: lancError } = await supabase.from("financeiro_lancamentos").insert({
           tipo: "pagar",
           descricao: `${pedidoNumero(p)} — ${p.fornecedores?.nome_razao_social || "Fornecedor"}`,
+          observacoes: pedidoTag,
           valor: vTotal,
           saldo_restante: vTotal,
           data_vencimento: p.data_entrega_prevista || new Date().toISOString().split("T")[0],
           status: "aberto",
           fornecedor_id: p.fornecedor_id ? String(p.fornecedor_id) : null,
         });
+        if (lancError) throw lancError;
+      } else if (financeiroDuplicado) {
+        toast.warning("Lançamento financeiro já existente para este pedido — não gerou duplicata.");
       }
 
       const hoje = new Date().toISOString().split("T")[0];
-      await supabase.from("pedidos_compra")
+      const { error: statusError } = await supabase.from("pedidos_compra")
         .update({ status: "recebido", data_entrega_real: hoje })
         .eq("id", p.id);
+      if (statusError) throw statusError;
 
+      entradaOk = true;
       toast.success("Recebimento registrado! Estoque atualizado e financeiro gerado.");
       setDrawerOpen(false);
       await refreshAll();
@@ -456,7 +493,10 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
       toast.error(getUserFriendlyError(err));
     }
 
-    navigate(`/fiscal?tipo=entrada&fornecedor_id=${p.fornecedor_id || ""}&pedido_compra=${pedidoNumero(p)}`);
+    // Navigate to fiscal only after a successful entry
+    if (entradaOk) {
+      navigate(`/fiscal?tipo=entrada&fornecedor_id=${p.fornecedor_id || ""}&pedido_compra=${pedidoNumero(p)}`);
+    }
   };
 
   const marcarEnviado = async (p: PedidoCompra) => {

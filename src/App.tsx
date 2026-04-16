@@ -44,7 +44,9 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 const Transportadoras = lazy(() => import("./pages/Transportadoras"));
 const FormasPagamento = lazy(() => import("./pages/FormasPagamento"));
 const CotacoesCompra = lazy(() => import("./pages/CotacoesCompra"));
+const CotacaoCompraForm = lazy(() => import("./pages/CotacaoCompraForm"));
 const PedidosCompra = lazy(() => import("./pages/PedidosCompra"));
+const PedidoCompraForm = lazy(() => import("./pages/PedidoCompraForm"));
 const Logistica = lazy(() => import("./pages/Logistica"));
 const Funcionarios = lazy(() => import("./pages/Funcionarios"));
 const OrcamentoPublico = lazy(() => import("./pages/OrcamentoPublico"));
@@ -111,7 +113,9 @@ const App = () => (
             <Route path="/funcionarios" element={<ProtectedRoute><LazyPage><Funcionarios /></LazyPage></ProtectedRoute>} />
             <Route path="/compras" element={<Navigate to="/pedidos-compra" replace />} />
             <Route path="/cotacoes-compra" element={<ProtectedRoute><LazyPage><CotacoesCompra /></LazyPage></ProtectedRoute>} />
+            <Route path="/cotacoes-compra/:id" element={<ProtectedRoute><LazyPage><CotacaoCompraForm /></LazyPage></ProtectedRoute>} />
             <Route path="/pedidos-compra" element={<ProtectedRoute><LazyPage><PedidosCompra /></LazyPage></ProtectedRoute>} />
+            <Route path="/pedidos-compra/:id" element={<ProtectedRoute><LazyPage><PedidoCompraForm /></LazyPage></ProtectedRoute>} />
             <Route path="/logistica" element={<ProtectedRoute><LazyPage><Logistica /></LazyPage></ProtectedRoute>} />
             <Route path="/remessas" element={<Navigate to="/logistica" replace />} />
             <Route path="/cotacoes" element={<Navigate to="/orcamentos" replace />} />

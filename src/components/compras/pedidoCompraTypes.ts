@@ -32,6 +32,7 @@ export interface ProdutoOptionRow {
   nome: string | null;
   codigo_interno?: string | null;
   preco_venda?: number | null;
+  preco_custo?: number | null;
   unidade_medida?: string | null;
   ativo?: boolean | null;
 }

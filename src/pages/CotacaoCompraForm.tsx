@@ -1,0 +1,443 @@
+/**
+ * Página de detalhe e edição de Cotação de Compra.
+ * Rota: /cotacoes-compra/:id
+ *
+ * Reaprovecha os subcomponentes existentes do drawer e do form modal,
+ * expondo-os em rota dedicada para melhor usabilidade e rastreabilidade.
+ */
+import { useEffect, useState, useMemo } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { AppLayout } from "@/components/AppLayout";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { StatusBadge } from "@/components/StatusBadge";
+import { AutocompleteSearch } from "@/components/ui/AutocompleteSearch";
+import { CotacaoCompraPropostasPanel } from "@/components/compras/CotacaoCompraPropostasPanel";
+import { CotacaoCompraItensTable } from "@/components/compras/CotacaoCompraItensTable";
+import { ArrowLeft, Plus, Save, X } from "lucide-react";
+import { toast } from "sonner";
+import { getUserFriendlyError } from "@/utils/errorMessages";
+import { formatDate } from "@/lib/format";
+import {
+  type CotacaoCompra,
+  type CotacaoItem,
+  type Proposta,
+  type LocalItem,
+  statusLabels,
+} from "@/components/compras/cotacaoCompraTypes";
+import type { Database } from "@/integrations/supabase/types";
+
+type ProdutoRow = Database["public"]["Tables"]["produtos"]["Row"];
+type FornecedorRow = Database["public"]["Tables"]["fornecedores"]["Row"];
+
+export default function CotacaoCompraForm() {
+  const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
+
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [cotacao, setCotacao] = useState<CotacaoCompra | null>(null);
+  const [form, setForm] = useState({
+    numero: "",
+    data_cotacao: new Date().toISOString().split("T")[0],
+    data_validade: "",
+    observacoes: "",
+    status: "aberta",
+  });
+  const [localItems, setLocalItems] = useState<LocalItem[]>([]);
+  const [viewItems, setViewItems] = useState<CotacaoItem[]>([]);
+  const [viewPropostas, setViewPropostas] = useState<Proposta[]>([]);
+  const [addingProposal, setAddingProposal] = useState<string | null>(null);
+  const [proposalForm, setProposalForm] = useState({
+    fornecedor_id: "",
+    preco_unitario: 0,
+    prazo_entrega_dias: "",
+    observacoes: "",
+  });
+
+  const [produtoOptions, setProdutoOptions] = useState<{ id: string; label: string; sublabel: string }[]>([]);
+  const [fornecedorOptions, setFornecedorOptions] = useState<{ id: string; label: string; sublabel: string }[]>([]);
+
+  useEffect(() => {
+    async function load() {
+      if (!id) { navigate("/cotacoes-compra"); return; }
+      setLoading(true);
+      const [{ data: cot }, { data: itens }, { data: propostas }, { data: prods }, { data: fors }] =
+        await Promise.all([
+          supabase.from("cotacoes_compra").select("*").eq("id", id).single(),
+          supabase.from("cotacoes_compra_itens").select("*, produtos(nome, codigo_interno, sku)").eq("cotacao_compra_id", id),
+          supabase.from("cotacoes_compra_propostas").select("*, fornecedores(nome_razao_social)").eq("cotacao_compra_id", id),
+          supabase.from("produtos").select("id, nome, codigo_interno, sku").eq("ativo", true).order("nome"),
+          supabase.from("fornecedores").select("id, nome_razao_social, cpf_cnpj").eq("ativo", true).order("nome_razao_social"),
+        ]);
+
+      if (!cot) { toast.error("Cotação não encontrada."); navigate("/cotacoes-compra"); return; }
+
+      setCotacao(cot as CotacaoCompra);
+      setForm({
+        numero: cot.numero,
+        data_cotacao: cot.data_cotacao,
+        data_validade: cot.data_validade || "",
+        observacoes: cot.observacoes || "",
+        status: cot.status,
+      });
+      setLocalItems(
+        (itens || []).map((i: CotacaoItem) => ({
+          _localId: i.id,
+          id: i.id,
+          produto_id: i.produto_id,
+          quantidade: i.quantidade,
+          unidade: i.unidade || "UN",
+        }))
+      );
+      setViewItems((itens || []) as CotacaoItem[]);
+      setViewPropostas((propostas || []) as Proposta[]);
+      setProdutoOptions(
+        (prods || []).map((p: ProdutoRow) => ({
+          id: p.id,
+          label: p.nome || "",
+          sublabel: p.codigo_interno || p.sku || "",
+        }))
+      );
+      setFornecedorOptions(
+        (fors || []).map((f: FornecedorRow) => ({
+          id: f.id,
+          label: f.nome_razao_social || "",
+          sublabel: f.cpf_cnpj || "",
+        }))
+      );
+      setLoading(false);
+    }
+    load();
+  }, [id, navigate]);
+
+  const isTerminal = cotacao ? ["convertida", "cancelada"].includes(cotacao.status) : false;
+
+  const addLocalItem = () => {
+    setLocalItems([...localItems, { _localId: crypto.randomUUID(), produto_id: "", quantidade: 1, unidade: "UN" }]);
+  };
+  const updateLocalItem = (localId: string, field: string, value: unknown) => {
+    setLocalItems(localItems.map((i) => (i._localId === localId ? { ...i, [field]: value } : i)));
+  };
+  const removeLocalItem = (localId: string) => {
+    setLocalItems(localItems.filter((i) => i._localId !== localId));
+  };
+
+  const reloadPropostas = async () => {
+    if (!cotacao) return;
+    const { data } = await supabase
+      .from("cotacoes_compra_propostas")
+      .select("*, fornecedores(nome_razao_social)")
+      .eq("cotacao_compra_id", cotacao.id);
+    setViewPropostas((data || []) as Proposta[]);
+  };
+
+  const handleSave = async () => {
+    if (!cotacao || saving) return;
+
+    if (!form.numero) { toast.error("Número é obrigatório."); return; }
+    if (localItems.length === 0) { toast.error("Adicione ao menos um item."); return; }
+    const itemSemProduto = localItems.findIndex((i) => !i.produto_id);
+    if (itemSemProduto !== -1) { toast.error(`Item ${itemSemProduto + 1}: selecione um produto.`); return; }
+    const itemSemQtd = localItems.findIndex((i) => Number(i.quantidade || 0) <= 0);
+    if (itemSemQtd !== -1) { toast.error(`Item ${itemSemQtd + 1}: quantidade deve ser maior que zero.`); return; }
+    const prodIds = localItems.map((i) => i.produto_id);
+    if (prodIds.some((pid, idx) => prodIds.indexOf(pid) !== idx)) {
+      toast.error("Produto duplicado na cotação. Cada produto deve aparecer apenas uma vez.");
+      return;
+    }
+    if (["convertida", "cancelada"].includes(form.status)) {
+      toast.error("O status selecionado só pode ser definido por ações do sistema.");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const payload = {
+        numero: form.numero,
+        data_cotacao: form.data_cotacao,
+        data_validade: form.data_validade || null,
+        observacoes: form.observacoes || null,
+        status: form.status,
+      };
+      const { error: updErr } = await supabase.from("cotacoes_compra").update(payload).eq("id", cotacao.id);
+      if (updErr) throw updErr;
+
+      // Replace items
+      await supabase.from("cotacoes_compra_itens").delete().eq("cotacao_compra_id", cotacao.id);
+      const itemsPayload = localItems.filter((i) => i.produto_id).map((i) => ({
+        cotacao_compra_id: cotacao.id,
+        produto_id: i.produto_id,
+        quantidade: i.quantidade,
+        unidade: i.unidade,
+      }));
+      if (itemsPayload.length > 0) {
+        const { error: itemsErr } = await supabase.from("cotacoes_compra_itens").insert(itemsPayload);
+        if (itemsErr) throw itemsErr;
+      }
+
+      toast.success("Cotação salva!");
+      setCotacao({ ...cotacao, ...payload } as CotacaoCompra);
+
+      // Reload items to refresh viewItems with DB ids
+      const { data: itensReload } = await supabase
+        .from("cotacoes_compra_itens")
+        .select("*, produtos(nome, codigo_interno, sku)")
+        .eq("cotacao_compra_id", cotacao.id);
+      setViewItems((itensReload || []) as CotacaoItem[]);
+      setLocalItems(
+        (itensReload || []).map((i: CotacaoItem) => ({
+          _localId: i.id,
+          id: i.id,
+          produto_id: i.produto_id,
+          quantidade: i.quantidade,
+          unidade: i.unidade || "UN",
+        }))
+      );
+    } catch (err: unknown) {
+      toast.error(getUserFriendlyError(err));
+    }
+    setSaving(false);
+  };
+
+  const handleAddProposal = async (itemId: string) => {
+    if (!proposalForm.fornecedor_id || !cotacao) {
+      toast.error("Selecione um fornecedor.");
+      return;
+    }
+    if (Number(proposalForm.preco_unitario) <= 0) {
+      toast.error("Preço unitário deve ser maior que zero.");
+      return;
+    }
+    const duplicado = viewPropostas.some(
+      (p) => p.item_id === itemId && p.fornecedor_id === proposalForm.fornecedor_id,
+    );
+    if (duplicado) {
+      toast.error("Este fornecedor já tem uma proposta para este item.");
+      return;
+    }
+    try {
+      const { error } = await supabase.from("cotacoes_compra_propostas").insert({
+        cotacao_compra_id: cotacao.id,
+        item_id: itemId,
+        fornecedor_id: proposalForm.fornecedor_id,
+        preco_unitario: proposalForm.preco_unitario,
+        prazo_entrega_dias: proposalForm.prazo_entrega_dias ? Number(proposalForm.prazo_entrega_dias) : null,
+        observacoes: proposalForm.observacoes || null,
+        selecionado: false,
+      });
+      if (error) throw error;
+      toast.success("Proposta adicionada!");
+      setAddingProposal(null);
+      setProposalForm({ fornecedor_id: "", preco_unitario: 0, prazo_entrega_dias: "", observacoes: "" });
+      await reloadPropostas();
+    } catch (err: unknown) {
+      toast.error(getUserFriendlyError(err));
+    }
+  };
+
+  const handleSelectProposal = async (propostaId: string, itemId: string) => {
+    if (!cotacao) return;
+    try {
+      await Promise.all([
+        supabase.from("cotacoes_compra_propostas").update({ selecionado: false }).eq("cotacao_compra_id", cotacao.id).eq("item_id", itemId),
+        supabase.from("cotacoes_compra_propostas").update({ selecionado: true }).eq("id", propostaId),
+      ]);
+      toast.success("Fornecedor selecionado!");
+      await reloadPropostas();
+    } catch (err: unknown) {
+      toast.error(getUserFriendlyError(err));
+    }
+  };
+
+  const handleDeleteProposal = async (propostaId: string) => {
+    if (!cotacao) return;
+    try {
+      const { error } = await supabase.from("cotacoes_compra_propostas").delete().eq("id", propostaId);
+      if (error) throw error;
+      toast.success("Proposta removida.");
+      await reloadPropostas();
+    } catch (err: unknown) {
+      toast.error(getUserFriendlyError(err));
+    }
+  };
+
+  const uniqueSuppliers = useMemo(
+    () => new Set(viewPropostas.map((p) => p.fornecedor_id)).size,
+    [viewPropostas],
+  );
+
+  if (loading) {
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (!cotacao) return null;
+
+  return (
+    <AppLayout>
+      <div className="max-w-5xl mx-auto p-6 space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={() => navigate("/cotacoes-compra")} aria-label="Voltar">
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl font-bold font-mono">{cotacao.numero}</h1>
+                <StatusBadge status={cotacao.status} label={statusLabels[cotacao.status] || cotacao.status} />
+              </div>
+              <p className="text-sm text-muted-foreground">Criada em {formatDate(cotacao.data_cotacao)}</p>
+            </div>
+          </div>
+          {!isTerminal && (
+            <Button onClick={handleSave} disabled={saving} className="gap-2">
+              <Save className="h-4 w-4" />
+              {saving ? "Salvando..." : "Salvar Alterações"}
+            </Button>
+          )}
+        </div>
+
+        {isTerminal && (
+          <div className="rounded-lg border border-warning/30 bg-warning/5 px-4 py-3 text-sm text-warning">
+            Esta cotação está em status <strong>{statusLabels[cotacao.status]}</strong> e não pode ser editada.
+          </div>
+        )}
+
+        {/* Form */}
+        {!isTerminal && (
+          <div className="rounded-lg border bg-card p-5 space-y-5">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Dados da Cotação</p>
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+              <div className="space-y-2">
+                <Label>Número *</Label>
+                <Input value={form.numero} onChange={(e) => setForm({ ...form, numero: e.target.value })} required className="font-mono" />
+              </div>
+              <div className="space-y-2">
+                <Label>Data Cotação</Label>
+                <Input type="date" value={form.data_cotacao} onChange={(e) => setForm({ ...form, data_cotacao: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label>Validade</Label>
+                <Input type="date" value={form.data_validade} onChange={(e) => setForm({ ...form, data_validade: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="aberta">Aberta</SelectItem>
+                    <SelectItem value="em_analise">Em Análise</SelectItem>
+                    <SelectItem value="aguardando_aprovacao">Aguardando Aprovação</SelectItem>
+                    <SelectItem value="aprovada">Aprovada</SelectItem>
+                    <SelectItem value="rejeitada">Rejeitada</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-semibold">Itens Solicitados</Label>
+                <Button type="button" variant="outline" size="sm" onClick={addLocalItem} className="gap-1.5">
+                  <Plus className="h-3.5 w-3.5" /> Adicionar Item
+                </Button>
+              </div>
+              {localItems.length === 0 ? (
+                <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+                  Nenhum item adicionado. Clique em "Adicionar Item" para começar.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {localItems.map((item, idx) => (
+                    <div key={item._localId} className="flex items-center gap-3 rounded-lg border bg-card p-3">
+                      <span className="text-xs text-muted-foreground font-mono w-6">{idx + 1}.</span>
+                      <div className="flex-1 min-w-0">
+                        <AutocompleteSearch
+                          options={produtoOptions}
+                          value={item.produto_id}
+                          onChange={(val) => updateLocalItem(item._localId, "produto_id", val)}
+                          placeholder="Buscar produto..."
+                        />
+                      </div>
+                      <Input
+                        type="number" step="0.01" min="0.01"
+                        value={item.quantidade}
+                        onChange={(e) => updateLocalItem(item._localId, "quantidade", Number(e.target.value))}
+                        className="w-24 font-mono" placeholder="Qtd"
+                      />
+                      <Input
+                        value={item.unidade}
+                        onChange={(e) => updateLocalItem(item._localId, "unidade", e.target.value)}
+                        className="w-16 text-center" placeholder="UN"
+                      />
+                      <Button type="button" variant="ghost" size="icon" aria-label="Remover item" className="h-8 w-8 text-destructive" onClick={() => removeLocalItem(item._localId)}>
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label>Observações</Label>
+              <Textarea value={form.observacoes} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} />
+            </div>
+          </div>
+        )}
+
+        {/* Itens (read-only view when terminal) */}
+        {isTerminal && viewItems.length > 0 && (
+          <div className="rounded-lg border bg-card p-5 space-y-3">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Itens</p>
+            <CotacaoCompraItensTable items={viewItems} />
+          </div>
+        )}
+
+        {/* Proposals panel */}
+        {viewItems.length > 0 && (
+          <div className="rounded-lg border bg-card p-5 space-y-3">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Propostas de Fornecedores</p>
+            <CotacaoCompraPropostasPanel
+              selected={cotacao}
+              viewItems={viewItems}
+              viewPropostas={viewPropostas}
+              uniqueSuppliers={uniqueSuppliers}
+              fornecedorOptions={fornecedorOptions}
+              addingProposal={addingProposal}
+              setAddingProposal={setAddingProposal}
+              proposalForm={proposalForm}
+              setProposalForm={setProposalForm}
+              onSelectProposal={handleSelectProposal}
+              onDeleteProposal={handleDeleteProposal}
+              onAddProposal={handleAddProposal}
+            />
+          </div>
+        )}
+
+        <div className="flex justify-between">
+          <Button variant="outline" onClick={() => navigate("/cotacoes-compra")} className="gap-2">
+            <ArrowLeft className="h-4 w-4" /> Voltar para Cotações
+          </Button>
+          {!isTerminal && (
+            <Button onClick={handleSave} disabled={saving} className="gap-2">
+              <Save className="h-4 w-4" />
+              {saving ? "Salvando..." : "Salvar Alterações"}
+            </Button>
+          )}
+        </div>
+      </div>
+    </AppLayout>
+  );
+}

@@ -180,6 +180,31 @@ export function useCotacoesCompra() {
     e.preventDefault();
     if (!form.numero) { toast.error("Número é obrigatório"); return; }
     if (localItems.length === 0) { toast.error("Adicione ao menos um item"); return; }
+
+    // Validate items
+    const itemSemProduto = localItems.findIndex((i) => !i.produto_id);
+    if (itemSemProduto !== -1) {
+      toast.error(`Item ${itemSemProduto + 1}: selecione um produto.`);
+      return;
+    }
+    const itemSemQtd = localItems.findIndex((i) => Number(i.quantidade || 0) <= 0);
+    if (itemSemQtd !== -1) {
+      toast.error(`Item ${itemSemQtd + 1}: quantidade deve ser maior que zero.`);
+      return;
+    }
+    const prodIds = localItems.map((i) => i.produto_id);
+    const hasDuplicado = prodIds.some((id, idx) => prodIds.indexOf(id) !== idx);
+    if (hasDuplicado) {
+      toast.error("Produto duplicado na cotação. Cada produto deve aparecer apenas uma vez.");
+      return;
+    }
+
+    // Block saving with terminal status via form
+    if (["convertida", "cancelada"].includes(form.status)) {
+      toast.error("O status selecionado só pode ser definido por ações do sistema.");
+      return;
+    }
+
     setSaving(true);
     try {
       const payload = {
@@ -241,7 +266,22 @@ export function useCotacoesCompra() {
   };
 
   const handleAddProposal = async (itemId: string) => {
-    if (!proposalForm.fornecedor_id || !selected) return;
+    if (!proposalForm.fornecedor_id || !selected) {
+      toast.error("Selecione um fornecedor.");
+      return;
+    }
+    if (Number(proposalForm.preco_unitario) <= 0) {
+      toast.error("Preço unitário deve ser maior que zero.");
+      return;
+    }
+    // Block duplicate: same supplier + same item
+    const duplicado = viewPropostas.some(
+      (p) => p.item_id === itemId && p.fornecedor_id === proposalForm.fornecedor_id,
+    );
+    if (duplicado) {
+      toast.error("Este fornecedor já tem uma proposta para este item. Edite a proposta existente.");
+      return;
+    }
     try {
       await supabase.from("cotacoes_compra_propostas").insert({
         cotacao_compra_id: selected.id,

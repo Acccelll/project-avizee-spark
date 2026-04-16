@@ -11,7 +11,6 @@ import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatCurrency, formatDate } from "@/lib/format";
-import { statusPedidoCompra } from "@/lib/statusSchema";
 import {
   AlertCircle,
   ArrowDownToLine,
@@ -37,7 +36,7 @@ interface PedidoCompraFormModalProps {
   setItems: React.Dispatch<React.SetStateAction<GridItem[]>>;
   saving: boolean;
   fornecedorOptions: { id: string; label: string; sublabel: string }[];
-  produtosOptionsData: (ProdutoOptionRow & { id: string; nome: string; codigo_interno: string; preco_venda: number; unidade_medida: string })[];
+  produtosOptionsData: (ProdutoOptionRow & { id: string; nome: string; codigo_interno: string; preco_venda: number; preco_custo?: number; unidade_medida: string })[];
   formasPagamento: { id: string; descricao: string }[];
   fornecedoresLoading: boolean;
   produtosLoading: boolean;
@@ -220,12 +219,21 @@ export function PedidoCompraFormModal({
             </div>
             <div className="space-y-2">
               <Label>Status do Pedido</Label>
+              {/* Only allow editable workflow statuses — terminal/operational statuses
+                  (recebido, parcialmente_recebido, cancelado, aguardando_recebimento,
+                  enviado_ao_fornecedor) are set via drawer actions, not the form. */}
               <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {Object.entries(statusPedidoCompra).map(([value, { label }]) => (
-                    <SelectItem key={value} value={value}>{label}</SelectItem>
+                  {(["rascunho", "aprovado"] as const).map((value) => (
+                    <SelectItem key={value} value={value}>{statusLabels[value] ?? value}</SelectItem>
                   ))}
+                  {/* Keep current status selectable even if it's an operational one (read-only intent) */}
+                  {!["rascunho", "aprovado"].includes(form.status) && (
+                    <SelectItem value={form.status} disabled>
+                      {statusLabels[form.status] ?? form.status}
+                    </SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -263,6 +271,7 @@ export function PedidoCompraFormModal({
             onChange={setItems}
             produtos={produtosOptionsData}
             title={produtosLoading ? "Carregando produtos..." : ""}
+            getDefaultUnitPrice={(prod) => Number((prod as typeof produtosOptionsData[number]).preco_custo || 0)}
           />
         </div>
 
