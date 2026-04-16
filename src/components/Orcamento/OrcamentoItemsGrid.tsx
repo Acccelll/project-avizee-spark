@@ -44,6 +44,8 @@ export interface OrcamentoItem {
   usar_cenario?: boolean;
   origem_custo_padrao?: string | null;
   origem_custo_analise?: string | null;
+  /** Marcador de item importado sem correspondência no cadastro de produtos. */
+  _unlinked?: boolean;
 }
 
 interface Props {
@@ -69,7 +71,7 @@ export function OrcamentoItemsGrid({ items, onChange, produtos, precosEspeciais 
 
   const getProductOptions = () => produtos.map((p) => {
     const codePart = [p.sku, p.codigo_interno].filter(Boolean).join(" / ") || "—";
-    const variacoesArr = Array.isArray((p as any).variacoes) ? (p as any).variacoes as string[] : [];
+    const variacoesArr = Array.isArray((p as { variacoes?: unknown }).variacoes) ? (p as { variacoes: string[] }).variacoes : [];
     const variacaoStr = variacoesArr.length > 0 ? `· ${variacoesArr.slice(0, 3).join(", ")}${variacoesArr.length > 3 ? "…" : ""}` : "";
     const unidade = p.unidade_medida || "UN";
     return {
@@ -185,6 +187,7 @@ export function OrcamentoItemsGrid({ items, onChange, produtos, precosEspeciais 
     const lines = importText.split("\n").map((l) => l.trim()).filter(Boolean);
     const parsed: OrcamentoItem[] = [];
     let skipped = 0;
+    let unlinked = 0;
 
     for (let index = 0; index < lines.length; index += 1) {
       if (index > 0 && index % 25 === 0) {
@@ -217,6 +220,10 @@ export function OrcamentoItemsGrid({ items, onChange, produtos, precosEspeciais 
         }
       }
 
+      const isUnlinked = !prod?.id;
+      if (isUnlinked) unlinked += 1;
+
+      // Itens sem vínculo ficam marcados com _unlinked=true para tratamento posterior.
       parsed.push(recalc({
         ...emptyItem(),
         produto_id: prod?.id || "",
@@ -225,18 +232,22 @@ export function OrcamentoItemsGrid({ items, onChange, produtos, precosEspeciais 
         quantidade: Number(qtd) || 1,
         valor_unitario: Number(unit) || Number(prod?.preco_venda || 0),
         peso_unitario: Number(prod?.peso || 0),
+        _unlinked: isUnlinked || undefined,
       }));
     }
 
     onChange([...items, ...parsed]);
     setImportText("");
     setImportOpen(false);
-    if (skipped > 0) {
-      toast.success(`${parsed.length} itens importados`, {
-        description: `${skipped} item(ns) ignorado(s) por já estarem no orçamento.`,
-      });
+
+    const parts: string[] = [`${parsed.length} item(ns) importado(s)`];
+    if (skipped > 0) parts.push(`${skipped} ignorado(s) (já no orçamento)`);
+    if (unlinked > 0) parts.push(`${unlinked} não vinculado(s) — verifique o código`);
+
+    if (unlinked > 0) {
+      toast.warning(parts[0], { description: parts.slice(1).join(". ") });
     } else {
-      toast.success(`${parsed.length} itens importados`);
+      toast.success(parts[0], { description: parts.slice(1).join(". ") || undefined });
     }
   };
 
@@ -269,12 +280,20 @@ export function OrcamentoItemsGrid({ items, onChange, produtos, precosEspeciais 
               <tr><td colSpan={8} className="text-center text-muted-foreground py-8 text-sm">Nenhum item adicionado</td></tr>
             ) : items.map((item, idx) => {
               const prod = produtos.find((p) => p.id === item.produto_id);
-              const lowStock = item.quantidade > 0 && (prod?.estoque_atual ?? 0) <= item.quantidade;
+              // Sinalizar estoque baixo apenas quando estoque < quantidade (não quando igual).
+              const lowStock = item.quantidade > 0 && prod != null && (prod.estoque_atual ?? 0) < item.quantidade;
               const hasSpecial = precosEspeciais?.some((p) => p.produto_id === item.produto_id);
+              // Preço de referência efetivo: usa preço especial se existir, senão preço de venda.
+              const specialRecord = precosEspeciais?.find((p) => p.produto_id === item.produto_id);
+              const precoEfetivoReferencia =
+                specialRecord && Number(specialRecord.preco_especial) > 0
+                  ? Number(specialRecord.preco_especial)
+                  : (prod?.preco_venda || 0);
+              const isUnlinked = Boolean(item._unlinked);
               return (
                 <tr
                   key={idx}
-                  className={`border-b ${lowStock ? "bg-warning/10" : "hover:bg-muted/20"}`}
+                  className={`border-b ${isUnlinked ? "bg-destructive/10" : lowStock ? "bg-warning/10" : "hover:bg-muted/20"}`}
                   draggable
                   onDragStart={() => setDraggingIndex(idx)}
                   onDragOver={(e) => e.preventDefault()}
@@ -297,7 +316,7 @@ export function OrcamentoItemsGrid({ items, onChange, produtos, precosEspeciais 
                       <div className="mt-1">
                         <Input
                           placeholder="Justificativa de override"
-                          className={`h-7 text-xs ${item.valor_unitario !== (prod?.preco_venda || 0) && !item.override_justificativa ? 'border-destructive' : ''}`}
+                          className={`h-7 text-xs ${item.valor_unitario !== precoEfetivoReferencia && !item.override_justificativa ? 'border-destructive' : ''}`}
                           value={item.override_justificativa || ''}
                           onChange={(e) => updateItem(idx, 'override_justificativa', e.target.value)}
                         />
@@ -311,7 +330,7 @@ export function OrcamentoItemsGrid({ items, onChange, produtos, precosEspeciais 
                       <Button variant="ghost" size="icon" onClick={() => duplicateItem(idx)}><Copy className="h-3.5 w-3.5" /></Button>
                       <Button variant="ghost" size="icon" onClick={() => removeItem(idx)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
                     </div>
-                    {lowStock ? <span className="inline-flex mt-1 items-center gap-1 text-[11px] text-warning"><AlertTriangle className="h-3.5 w-3.5" />Estoque baixo</span> : <span className="inline-flex mt-1 items-center gap-1 text-[11px] text-success"><CheckCircle2 className="h-3.5 w-3.5" />OK</span>}
+                    {isUnlinked ? (<span className="inline-flex mt-1 items-center gap-1 text-[11px] text-destructive font-semibold"><AlertTriangle className="h-3.5 w-3.5" />Produto não vinculado</span>) : lowStock ? (<span className="inline-flex mt-1 items-center gap-1 text-[11px] text-warning"><AlertTriangle className="h-3.5 w-3.5" />Estoque baixo</span>) : (<span className="inline-flex mt-1 items-center gap-1 text-[11px] text-success"><CheckCircle2 className="h-3.5 w-3.5" />OK</span>)}
                   </td>
                 </tr>
               );
@@ -335,6 +354,7 @@ export function OrcamentoItemsGrid({ items, onChange, produtos, precosEspeciais 
         <DialogContent>
           <DialogHeader><DialogTitle>Importação rápida de itens</DialogTitle></DialogHeader>
           <p className="text-xs text-muted-foreground">Cole uma linha por item no formato: Código;Descrição;Quantidade;Unitário</p>
+          <p className="text-xs text-amber-600">Itens sem correspondência no cadastro ficam marcados como "Produto não vinculado" e devem ser vinculados antes de salvar.</p>
           <Textarea value={importText} onChange={(e) => setImportText(e.target.value)} className="min-h-40" />
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setImportOpen(false)}>Cancelar</Button>
