@@ -18,6 +18,7 @@ export interface EstoquePosicaoRow {
   codigo_interno: string | null;
   unidade_medida: string | null;
   estoque_minimo: number | null;
+  preco_custo: number | null;
   preco_venda: number | null;
   ativo: boolean;
   estoque_atual: number;

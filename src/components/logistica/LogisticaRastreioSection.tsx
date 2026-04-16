@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
 import { Tables } from "@/integrations/supabase/types";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Search, MapPin, Truck, ExternalLink, Package, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { fetchTracking, normalizarEventos } from "@/services/correios.service";
+import { trackAndPersistEventos } from "@/services/logistica/remessas.service";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 
 type Remessa = Tables<"remessas"> & {
@@ -23,6 +24,7 @@ interface Props {
 }
 
 export function LogisticaRastreioSection({ pedidoCompraId, notaFiscalId, remessaId, ordemVendaId }: Props) {
+  const navigate = useNavigate();
   const [remessas, setRemessas] = useState<Remessa[]>([]);
   const [eventos, setEventos] = useState<Record<string, RemessaEvento[]>>({});
   const [loading, setLoading] = useState(true);
@@ -73,36 +75,15 @@ export function LogisticaRastreioSection({ pedidoCompraId, notaFiscalId, remessa
     setTrackingLoading(remessa.id);
     setMockWarning(null);
     try {
-      const tracking = await fetchTracking(remessa.codigo_rastreio);
+      const { novos, isMock, eventos: evs } = await trackAndPersistEventos(
+        remessa.codigo_rastreio,
+        remessa.id,
+      );
 
-      const isMock = tracking.warning === "fallback_mock";
-      if (isMock) setMockWarning(remessa.id);
-
-      const eventosNormalizados = normalizarEventos(tracking, remessa.id);
-
-      if (!isMock && eventosNormalizados.length > 0) {
-        // Persist only genuinely new events (deduplicate)
-        const { data: existentes } = await supabase
-          .from("remessa_eventos")
-          .select("descricao, local, data_hora")
-          .eq("remessa_id", remessa.id);
-
-        const eventKey = (e: { descricao: string; local: string | null; data_hora: string }) =>
-          `${e.data_hora}::${e.descricao}::${e.local || ""}`;
-        const existentesSet = new Set((existentes || []).map(eventKey));
-        const novos = eventosNormalizados.filter((e) => !existentesSet.has(eventKey(e)));
-
-        if (novos.length > 0) {
-          await supabase.from("remessa_eventos").insert(novos);
-          toast.success(`${novos.length} novo(s) evento(s) incluído(s)`);
-        } else {
-          toast.success("Rastreio consultado — nenhum evento novo.");
-        }
-        // Refresh from DB to show persisted events
-        fetchLogistica();
-      } else if (isMock) {
-        // Mock data: show inline but don't persist
-        const mockEvs: RemessaEvento[] = eventosNormalizados.map((e, i) => ({
+      if (isMock) {
+        setMockWarning(remessa.id);
+        // Show mock events inline without persisting
+        const mockEvs: RemessaEvento[] = evs.map((e, i) => ({
           id: `mock-${i}`,
           remessa_id: remessa.id,
           descricao: e.descricao,
@@ -111,9 +92,12 @@ export function LogisticaRastreioSection({ pedidoCompraId, notaFiscalId, remessa
           created_at: new Date().toISOString(),
         }));
         setEventos((prev) => ({ ...prev, [remessa.id]: mockEvs }));
-        toast.warning("Dados mockados — credenciais dos Correios não configuradas.");
+        toast.warning("Dados simulados — credenciais dos Correios não configuradas.");
+      } else if (novos > 0) {
+        toast.success(`${novos} novo(s) evento(s) incluído(s)`);
+        fetchLogistica();
       } else {
-        toast.success("Rastreio consultado — nenhum evento encontrado.");
+        toast.success("Rastreio consultado — nenhum evento novo.");
       }
     } catch (err: unknown) {
       toast.error(getUserFriendlyError(err));
@@ -129,7 +113,7 @@ export function LogisticaRastreioSection({ pedidoCompraId, notaFiscalId, remessa
       <div className="py-8 text-center border rounded-lg bg-muted/20">
         <Truck className="w-8 h-8 mx-auto text-muted-foreground/50 mb-2" />
         <p className="text-sm text-muted-foreground">Nenhuma remessa vinculada.</p>
-        <Button variant="link" size="sm" className="mt-1" onClick={() => window.location.href = '/logistica'}>
+        <Button variant="link" size="sm" className="mt-1" onClick={() => navigate('/logistica')}>
           Ir para Remessas
         </Button>
       </div>
@@ -157,7 +141,7 @@ export function LogisticaRastreioSection({ pedidoCompraId, notaFiscalId, remessa
                   {trackingLoading === r.id ? "Consultando..." : "Rastrear"}
                 </Button>
               )}
-              <Button size="sm" variant="ghost" className="h-8" aria-label="Ir para Logística" onClick={() => window.location.href = `/logistica`}>
+              <Button size="sm" variant="ghost" className="h-8" aria-label="Ir para Logística" onClick={() => navigate('/logistica')}>
                 <ExternalLink className="w-3.5 h-3.5" />
               </Button>
             </div>

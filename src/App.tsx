@@ -48,6 +48,7 @@ const CotacaoCompraForm = lazy(() => import("./pages/CotacaoCompraForm"));
 const PedidosCompra = lazy(() => import("./pages/PedidosCompra"));
 const PedidoCompraForm = lazy(() => import("./pages/PedidoCompraForm"));
 const Logistica = lazy(() => import("./pages/Logistica"));
+const RemessaForm = lazy(() => import("./pages/RemessaForm"));
 const Funcionarios = lazy(() => import("./pages/Funcionarios"));
 const OrcamentoPublico = lazy(() => import("./pages/OrcamentoPublico"));
 const Conciliacao = lazy(() => import("./pages/Conciliacao"));
@@ -118,6 +119,8 @@ const App = () => (
             <Route path="/pedidos-compra/:id" element={<ProtectedRoute><LazyPage><PedidoCompraForm /></LazyPage></ProtectedRoute>} />
             <Route path="/logistica" element={<ProtectedRoute><LazyPage><Logistica /></LazyPage></ProtectedRoute>} />
             <Route path="/remessas" element={<Navigate to="/logistica" replace />} />
+            <Route path="/remessas/new" element={<ProtectedRoute><LazyPage><RemessaForm /></LazyPage></ProtectedRoute>} />
+            <Route path="/remessas/:id" element={<ProtectedRoute><LazyPage><RemessaForm /></LazyPage></ProtectedRoute>} />
             <Route path="/cotacoes" element={<Navigate to="/orcamentos" replace />} />
             <Route path="/cotacoes/novo" element={<Navigate to="/orcamentos/novo" replace />} />
             <Route path="/cotacoes/:id" element={<CotacaoIdRedirect />} />

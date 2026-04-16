@@ -52,10 +52,13 @@ export const statusFinanceiro: Record<string, { label: string; color: string }> 
 };
 
 export const statusRemessa: Record<string, { label: string; color: string }> = {
-  pendente: { label: "Pendente", color: "warning" },
-  em_transito: { label: "Em Trânsito", color: "info" },
-  entregue: { label: "Entregue", color: "success" },
-  devolvido: { label: "Devolvido", color: "destructive" },
+  pendente:   { label: "Pendente",    color: "warning" },
+  coletado:   { label: "Coletado",    color: "info" },
+  postado:    { label: "Postado",     color: "info" },
+  em_transito:{ label: "Em Trânsito", color: "info" },
+  entregue:   { label: "Entregue",    color: "success" },
+  devolvido:  { label: "Devolvido",   color: "destructive" },
+  cancelado:  { label: "Cancelado",   color: "destructive" },
 };
 
 export const statusCotacaoCompra: Record<string, { label: string; color: string }> = {

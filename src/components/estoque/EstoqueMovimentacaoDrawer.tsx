@@ -72,11 +72,18 @@ function origemLabel(tipo: string | null | undefined) {
 }
 
 const origemRoutes: Record<string, string> = {
-  compra:        "/compras",
-  pedido_compra: "/compras",
   pedido:        "/pedidos",
   nota_fiscal:   "/fiscal",
   fiscal:        "/fiscal",
+};
+
+// Tipos that should be navigated using RelationalLink with type+id (relational drawer)
+const origemEntityType: Record<string, "pedido_compra" | "ordem_venda" | "nota_fiscal"> = {
+  compra:        "pedido_compra",
+  pedido_compra: "pedido_compra",
+  pedido:        "ordem_venda",
+  nota_fiscal:   "nota_fiscal",
+  fiscal:        "nota_fiscal",
 };
 
 function OrigemBadge({ documentoTipo }: { documentoTipo: string | null | undefined }) {
@@ -257,15 +264,26 @@ export function EstoqueMovimentacaoDrawer({
         </ViewSection>
       )}
 
-      {temDocumento && origemRoutes[m.documento_tipo] && (
+      {temDocumento && m.documento_tipo && (origemEntityType[m.documento_tipo] || origemRoutes[m.documento_tipo]) && (
         <ViewSection title="Navegação Relacional">
           <div className="flex items-center gap-2">
-            <RelationalLink to={origemRoutes[m.documento_tipo]}>
-              Abrir {origemLabel(m.documento_tipo)}
-            </RelationalLink>
-            <span className="text-xs text-muted-foreground">
-              (ID: <span className="font-mono">{m.documento_id?.slice(0, 8)}…</span>)
-            </span>
+            {m.documento_id && origemEntityType[m.documento_tipo] ? (
+              <RelationalLink
+                type={origemEntityType[m.documento_tipo]}
+                id={m.documento_id}
+              >
+                Abrir {origemLabel(m.documento_tipo)}
+              </RelationalLink>
+            ) : (
+              <RelationalLink to={origemRoutes[m.documento_tipo]}>
+                Abrir {origemLabel(m.documento_tipo)}
+              </RelationalLink>
+            )}
+            {!origemEntityType[m.documento_tipo] && (
+              <span className="text-xs text-muted-foreground">
+                (ID: <span className="font-mono">{m.documento_id?.slice(0, 8)}…</span>)
+              </span>
+            )}
           </div>
         </ViewSection>
       )}

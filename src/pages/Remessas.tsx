@@ -1,3 +1,7 @@
+// @legacy — This page is kept for backward compatibility only.
+// Logistica.tsx (/logistica) is the CANONICAL flow for managing remessas,
+// entregas and recebimentos.  Do NOT expand functionality here.
+// New features should be implemented in src/pages/Logistica.tsx.
 import { useMemo, useState, useEffect } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";
@@ -19,19 +23,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { useRemessas } from "@/services/logistica/remessas.service";
+import { useRemessas, trackAndPersistEventos } from "@/services/logistica/remessas.service";
 import type { Remessa, RemessaEvento } from "@/services/logistica/remessas.service";
-import { fetchTracking, normalizarEventos } from "@/services/correios.service";
 import { statusRemessa } from "@/lib/statusSchema";
 
 type OrdemVenda = Database["public"]["Tables"]["ordens_venda"]["Row"];
 type PedidoCompra = Database["public"]["Tables"]["pedidos_compra"]["Row"];
 type NotaFiscal = Database["public"]["Tables"]["notas_fiscais"]["Row"];
 
-const statusMap: Record<string, { label: string; color: string }> = {
-  ...statusRemessa,
-  postado: { label: "Postado", color: "info" },
-};
+// statusRemessa now includes postado/coletado/cancelado — use directly
+const statusMap: Record<string, { label: string; color: string }> = { ...statusRemessa };
 
 interface RemessaForm {
   cliente_id: string; transportadora_id: string; servico: string; codigo_rastreio: string;
@@ -194,38 +195,19 @@ export default function Remessas() {
     setIsMockTracking(false);
     try {
       toast.info("Consultando rastreio...");
-      const tracking = await fetchTracking(remessa.codigo_rastreio);
-
-      const isMock = tracking.warning === "fallback_mock";
+      const { novos, isMock, eventos: evs } = await trackAndPersistEventos(
+        remessa.codigo_rastreio,
+        remessa.id,
+      );
       setIsMockTracking(isMock);
-
-      const eventosNormalizados = normalizarEventos(tracking, remessa.id);
 
       if (isMock) {
         toast.warning("Dados simulados — credenciais dos Correios não configuradas. Eventos não foram persistidos.");
-        setEventos(eventosNormalizados as unknown as RemessaEvento[]);
+        setEventos(evs as unknown as RemessaEvento[]);
         return;
       }
 
-      const { data: eventosExistentes, error: eventosExistentesError } = await supabase
-        .from("remessa_eventos")
-        .select("descricao, local, data_hora")
-        .eq("remessa_id", remessa.id);
-
-      if (eventosExistentesError) throw eventosExistentesError;
-
-      const eventKey = (evento: { descricao: string; local: string | null; data_hora: string }) =>
-        `${evento.data_hora}::${evento.descricao}::${evento.local ?? ""}`;
-
-      const existentesSet = new Set((eventosExistentes ?? []).map(eventKey));
-      const novosEventos = eventosNormalizados.filter((e) => !existentesSet.has(eventKey(e)));
-
-      if (novosEventos.length > 0) {
-        const { error: insertError } = await supabase.from("remessa_eventos").insert(novosEventos);
-        if (insertError) throw insertError;
-      }
-
-      toast.success(`${novosEventos.length} novo(s) evento(s) incluído(s)`);
+      toast.success(`${novos} novo(s) evento(s) incluído(s)`);
       const { data: updatedEvents, error: updatedEventsError } = await supabase
         .from("remessa_eventos")
         .select("*")
