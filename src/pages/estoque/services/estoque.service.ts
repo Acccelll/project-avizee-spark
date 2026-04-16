@@ -42,10 +42,17 @@ export async function fetchProdutosEstoque(): Promise<ProdutoRow[]> {
  * The view consolidates saldo_atual and estoque_reservado per product so that
  * the frontend does not need to perform client-side aggregation.
  */
+/**
+ * Typed accessor for Supabase DB views not present in generated types.
+ * Returns a standard query builder so `.select()`, `.order()`, etc. work.
+ */
+function fromView(viewName: string) {
+  return (supabase as unknown as { from: (t: string) => ReturnType<typeof supabase.from> })
+    .from(viewName);
+}
+
 export async function fetchEstoquePosicao(): Promise<EstoquePosicaoRow[]> {
-  // vw_estoque_posicao is a DB view not present in generated Supabase types
-  const { data, error } = await (supabase as unknown as { from: (t: string) => ReturnType<typeof supabase.from> })
-    .from("vw_estoque_posicao")
+  const { data, error } = await fromView("vw_estoque_posicao")
     .select("*")
     .order("produto_nome");
 

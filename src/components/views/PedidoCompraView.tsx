@@ -9,7 +9,6 @@ import { LogisticaRastreioSection } from "@/components/logistica/LogisticaRastre
 import { Progress } from "@/components/ui/progress";
 import { ViewField, ViewSection } from "@/components/ViewDrawer";
 import { getUserFriendlyError } from "@/utils/errorMessages";
-import { toast } from "sonner";
 import {
   Truck,
   CheckCircle2,
@@ -125,7 +124,6 @@ export function PedidoCompraView({ id }: Props) {
       } catch (err: unknown) {
         console.error("[PedidoCompraView] erro ao carregar:", err);
         setFetchError(getUserFriendlyError(err));
-        toast.error(getUserFriendlyError(err));
       }
       setLoading(false);
     };
