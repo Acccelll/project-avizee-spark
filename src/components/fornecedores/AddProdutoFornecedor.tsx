@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ProductAutocomplete } from "@/components/ui/ProductAutocomplete";
 import { toast } from "sonner";
+import { getUserFriendlyError } from "@/utils/errorMessages";
 import { Plus, Loader2 } from "lucide-react";
 
 interface AddProdutoFornecedorProps {
@@ -29,7 +30,7 @@ export function AddProdutoFornecedor({ fornecedorId, onAdded }: AddProdutoFornec
     if (!produtoId) { toast.error("Selecione um produto"); return; }
     setSaving(true);
     try {
-      const { error } = await (supabase as any).from("produtos_fornecedores").insert({
+      const { error } = await supabase.from("produtos_fornecedores").insert({
         produto_id: produtoId,
         fornecedor_id: fornecedorId,
         preco_compra: precoCompra || 0,
@@ -42,13 +43,9 @@ export function AddProdutoFornecedor({ fornecedorId, onAdded }: AddProdutoFornec
       setPrecoCompra(0);
       setLeadTime(0);
       onAdded();
-    } catch (err: any) {
-      if (err?.code === "23505") {
-        toast.error("Este produto já está vinculado a este fornecedor");
-      } else {
-        toast.error("Erro ao vincular produto");
-        console.error(err);
-      }
+    } catch (err: unknown) {
+      toast.error(getUserFriendlyError(err));
+      console.error(err);
     } finally {
       setSaving(false);
     }

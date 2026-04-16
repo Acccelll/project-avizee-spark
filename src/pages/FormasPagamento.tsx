@@ -556,7 +556,7 @@ export default function FormasPagamento() {
           <>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setDrawerOpen(false); openEdit(selected); }}>
+                <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Editar forma de pagamento" onClick={() => { setDrawerOpen(false); openEdit(selected); }}>
                   <Edit className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
@@ -564,7 +564,7 @@ export default function FormasPagamento() {
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteConfirmOpen(true)}>
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" aria-label="Excluir forma de pagamento" onClick={() => setDeleteConfirmOpen(true)}>
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>

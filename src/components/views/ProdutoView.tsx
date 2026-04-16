@@ -8,11 +8,26 @@ import { Package, AlertTriangle, Archive, FileText, Edit, Trash2, ShoppingCart, 
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { EmptyState } from "@/components/ui/empty-state";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { toast } from "sonner";
+import { getUserFriendlyError } from "@/utils/errorMessages";
 import { PrecosEspeciaisTab } from "@/components/precos/PrecosEspeciaisTab";
 import { RelationalLink } from "@/components/ui/RelationalLink";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
+import type {
+  HistoricoNfItemRow,
+  ComposicaoItemRow,
+  MovimentoEstoqueRow,
+  ProdutoFornecedorViewRow,
+} from "@/types/cadastros";
+
+/** Raw shape returned by the produto_composicoes join query */
+interface ComposicaoQueryRow {
+  quantidade: number;
+  ordem: number | null;
+  produtos: { id: string; nome: string; sku: string; preco_custo: number | null } | null;
+}
 
 interface Props {
   id: string;
@@ -24,14 +39,10 @@ export function ProdutoView({ id }: Props) {
   const [grupoNome, setGrupoNome] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [historico, setHistorico] = useState<any[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [composicao, setComposicao] = useState<any[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [movimentos, setMovimentos] = useState<any[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [fornecedoresProd, setFornecedoresProd] = useState<any[]>([]);
+  const [historico, setHistorico] = useState<HistoricoNfItemRow[]>([]);
+  const [composicao, setComposicao] = useState<ComposicaoItemRow[]>([]);
+  const [movimentos, setMovimentos] = useState<MovimentoEstoqueRow[]>([]);
+  const [fornecedoresProd, setFornecedoresProd] = useState<ProdutoFornecedorViewRow[]>([]);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const { pushView, clearStack } = useRelationalNavigation();
 
@@ -76,19 +87,21 @@ export function ProdutoView({ id }: Props) {
             : Promise.resolve({ data: null }),
         ]);
 
-        setHistorico(nfRes.data || []);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      setComposicao((compRes.data || []).map((c: any) => ({
-          id: c.produtos?.id,
-          nome: c.produtos?.nome, sku: c.produtos?.sku, preco_custo: c.produtos?.preco_custo,
-          quantidade: c.quantidade, ordem: c.ordem,
+        setHistorico((nfRes.data || []) as HistoricoNfItemRow[]);
+        setComposicao((compRes.data || []).map((c: ComposicaoQueryRow) => ({
+          id: c.produtos?.id ?? null,
+          nome: c.produtos?.nome ?? null,
+          sku: c.produtos?.sku ?? null,
+          preco_custo: c.produtos?.preco_custo ?? null,
+          quantidade: c.quantidade,
+          ordem: c.ordem,
         })));
-        setMovimentos(movRes.data || []);
-        setFornecedoresProd(fornRes.data || []);
+        setMovimentos((movRes.data || []) as MovimentoEstoqueRow[]);
+        setFornecedoresProd((fornRes.data || []) as ProdutoFornecedorViewRow[]);
         setGrupoNome((grupoRes.data as Record<string, unknown>)?.nome as string || null);
       } catch (error) {
         console.error("[ProdutoView] erro inesperado:", error);
-        setFetchError(`Erro inesperado: ${error instanceof Error ? error.message : String(error)}`);
+        setFetchError(getUserFriendlyError(error));
       } finally {
         setLoading(false);
       }
@@ -107,12 +120,9 @@ export function ProdutoView({ id }: Props) {
   const estoqueValor = (selected.estoque_atual || 0) * (selected.preco_custo || 0);
   const estoqueBaixo = Number(selected.estoque_atual) <= Number(selected.estoque_minimo) && Number(selected.estoque_minimo) > 0;
   const fiscalCompleto = !!(selected.ncm && selected.cst && selected.cfop_padrao);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const fornecedorPrincipal = fornecedoresProd.find((f: any) => f.eh_principal);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const ultimaEntrada = movimentos.find((m: any) => m.tipo === 'entrada');
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const ultimaSaida = movimentos.find((m: any) => m.tipo === 'saida');
+  const fornecedorPrincipal = fornecedoresProd.find((f) => f.eh_principal);
+  const ultimaEntrada = movimentos.find((m) => m.tipo === 'entrada');
+  const ultimaSaida = movimentos.find((m) => m.tipo === 'saida');
 
   return (
     <div className="space-y-5">
@@ -120,7 +130,7 @@ export function ProdutoView({ id }: Props) {
       <div className="flex items-center justify-end gap-1 border-b pb-3">
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { clearStack(); navigate('/produtos', { state: { editId: id } }); }}>
+            <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Editar produto" onClick={() => { clearStack(); navigate('/produtos', { state: { editId: id } }); }}>
               <Edit className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
@@ -128,7 +138,7 @@ export function ProdutoView({ id }: Props) {
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteConfirmOpen(true)}>
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" aria-label="Excluir produto" onClick={() => setDeleteConfirmOpen(true)}>
               <Trash2 className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
@@ -150,8 +160,7 @@ export function ProdutoView({ id }: Props) {
           <div className="flex flex-wrap items-center gap-2 mt-2">
             <StatusBadge status={selected.ativo ? "ativo" : "inativo"} />
             <StatusBadge status={selected.eh_composto ? "composto" : "simples"} />
-            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-            <StatusBadge status={(selected as any).tipo_item || "produto"} />
+            <StatusBadge status={selected.tipo_item || "produto"} />
             {grupoNome && (
               <span className="inline-flex items-center gap-1 rounded-full border bg-muted/50 px-2 py-0.5 text-[10px] text-muted-foreground font-medium">
                 <Layers className="h-2.5 w-2.5" />
@@ -229,8 +238,7 @@ export function ProdutoView({ id }: Props) {
             </div>
             <div>
               <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Classificação</span>
-              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-            <p className="text-sm capitalize">{(selected as any).tipo_item || "produto"}</p>
+            <p className="text-sm capitalize">{selected.tipo_item || "produto"}</p>
             </div>
           </div>
           {selected.descricao && (
@@ -271,13 +279,10 @@ export function ProdutoView({ id }: Props) {
             <ShoppingCart className="w-3.5 h-3.5" /> Fornecedores Vinculados
           </h4>
           {fornecedoresProd.length === 0 ? (
-            <p className="text-xs text-muted-foreground text-center py-8 border border-dashed rounded-lg">
-              Nenhum fornecedor vinculado a este produto
-            </p>
+            <EmptyState icon={ShoppingCart} title="Nenhum fornecedor vinculado" description="Nenhum fornecedor vinculado a este produto" />
           ) : (
             <div className="space-y-2">
-              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-            {fornecedoresProd.map((f: any, idx: number) => (
+            {fornecedoresProd.map((f, idx: number) => (
                 <div key={idx} className={`rounded-lg border p-3 bg-card hover:bg-muted/30 transition-colors ${f.eh_principal ? "border-primary/30" : ""}`}>
                   <div className="flex items-center gap-2 flex-wrap mb-2">
                     <RelationalLink onClick={() => pushView("fornecedor", f.fornecedores?.id)} className="font-medium text-sm">
@@ -317,18 +322,16 @@ export function ProdutoView({ id }: Props) {
               ))}
             </div>
           )}
-          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-        {historico.filter((h: any) => h.notas_fiscais?.tipo === 'entrada' || h.notas_fiscais?.tipo === 'compra').length > 0 && (
+        {historico.filter((h) => h.notas_fiscais?.tipo === 'entrada' || h.notas_fiscais?.tipo === 'compra').length > 0 && (
             <div className="border-t pt-3">
               <h4 className="font-semibold text-xs text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-2">
                 <FileText className="w-3.5 h-3.5" /> Últimas Compras
               </h4>
               <div className="space-y-1.5">
-                {/* eslint-disable @typescript-eslint/no-explicit-any */}
                 {historico
-                  .filter((h: any) => h.notas_fiscais?.tipo === 'entrada' || h.notas_fiscais?.tipo === 'compra')
+                  .filter((h) => h.notas_fiscais?.tipo === 'entrada' || h.notas_fiscais?.tipo === 'compra')
                   .slice(0, 10)
-                  .map((h: any, idx: number) => (
+                  .map((h, idx: number) => (
                     <div key={idx} className="flex justify-between text-xs py-1.5 border-b last:border-b-0">
                       <div>
                         <RelationalLink onClick={() => pushView("nota_fiscal", h.notas_fiscais?.id)} mono className="text-xs">{h.notas_fiscais?.numero}</RelationalLink>
@@ -340,7 +343,6 @@ export function ProdutoView({ id }: Props) {
                       </div>
                     </div>
                   ))}
-                {/* eslint-enable @typescript-eslint/no-explicit-any */}
               </div>
             </div>
           )}
@@ -435,8 +437,7 @@ export function ProdutoView({ id }: Props) {
                 <Archive className="w-3.5 h-3.5" /> Últimas Movimentações
               </h4>
               <div className="space-y-1 max-h-[300px] overflow-y-auto">
-                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-              {movimentos.map((m: any, idx: number) => (
+              {movimentos.map((m, idx: number) => (
                   <div key={idx} className="flex items-center justify-between py-1.5 border-b last:border-b-0 text-sm">
                     <div className="flex items-center gap-2">
                       <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${m.tipo === 'entrada' ? 'bg-success/10 text-success' : m.tipo === 'saida' ? 'bg-destructive/10 text-destructive' : 'bg-warning/10 text-warning'}`}>
@@ -496,11 +497,10 @@ export function ProdutoView({ id }: Props) {
             <FileText className="w-3.5 h-3.5" /> Histórico de Notas Fiscais
           </h4>
           {historico.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-8 border border-dashed rounded-lg">Nenhum histórico de notas</p>
+            <EmptyState icon={FileText} title="Nenhum histórico de notas" description="Nenhum histórico de notas fiscais para este produto" />
           ) : (
             <div className="space-y-2 max-h-[350px] overflow-y-auto">
-              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-            {historico.map((h: any, idx: number) => (
+            {historico.map((h, idx: number) => (
                 <div key={idx} className="text-sm py-1.5 border-b last:border-b-0">
                   <div className="flex justify-between items-center">
                     <RelationalLink onClick={() => pushView("nota_fiscal", h.notas_fiscais?.id)} mono className="text-xs">{h.notas_fiscais?.numero}</RelationalLink>
@@ -528,7 +528,7 @@ export function ProdutoView({ id }: Props) {
             clearStack();
           } catch (err) {
             console.error("[ProdutoView] erro ao excluir:", err);
-            toast.error("Erro ao excluir produto.");
+            toast.error(getUserFriendlyError(err));
           } finally {
             setDeleteConfirmOpen(false);
           }

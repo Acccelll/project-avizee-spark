@@ -28,6 +28,7 @@ import { ProductAutocomplete } from "@/components/ui/ProductAutocomplete";
 import { cfopCodes, cstIcmsCodes } from "@/lib/fiscalData";
 import { useNcmLookup } from '@/hooks/useNcmLookup';
 import { Switch } from "@/components/ui/switch";
+import { getUserFriendlyError } from "@/utils/errorMessages";
 
 type TipoItem = "produto" | "insumo";
 
@@ -128,6 +129,7 @@ const Produtos = () => {
     Promise.all([
       supabase.from("grupos_produto").select("id, nome").eq("ativo", true).order("nome"),
       supabase.from("fornecedores").select("id, nome_razao_social").eq("ativo", true).order("nome_razao_social"),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- unidades_medida not in generated Supabase types
       (supabase as any).from("unidades_medida").select("id, codigo, descricao, sigla").eq("ativo", true).order("codigo"),
     ]).then(([{ data: g }, { data: f }, { data: um }]) => {
       if (g) setGrupos(g);
@@ -279,7 +281,7 @@ const Produtos = () => {
       setModalOpen(false);
     } catch (err) {
       console.error('[produtos] erro ao salvar:', err);
-      toast.error("Erro ao salvar produto");
+      toast.error(getUserFriendlyError(err));
     }
     setSaving(false);
   };
@@ -292,14 +294,14 @@ const Produtos = () => {
     if (!descricao) { toast.error("Descrição é obrigatória"); return; }
     setSavingNovaUnidade(true);
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- unidades_medida not in generated Supabase types
       const { data: inserted, error } = await (supabase as any)
         .from("unidades_medida")
         .insert({ codigo, descricao, sigla: novaUnidadeForm.sigla.trim() || null, ativo: true })
         .select("id, codigo, descricao, sigla")
         .maybeSingle();
       if (error) {
-        if (error.code === "23505") { toast.error("Já existe uma unidade com este código"); }
-        else { toast.error("Erro ao criar unidade de medida"); }
+        toast.error(getUserFriendlyError(error));
         setSavingNovaUnidade(false);
         return;
       }
@@ -311,7 +313,7 @@ const Produtos = () => {
       toast.success(`Unidade "${nova.codigo}" criada com sucesso`);
     } catch (err) {
       console.error('[produtos] erro ao criar unidade:', err);
-      toast.error("Erro ao criar unidade de medida");
+      toast.error(getUserFriendlyError(err));
     }
     setSavingNovaUnidade(false);
   };
