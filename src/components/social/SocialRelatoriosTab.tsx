@@ -19,11 +19,11 @@ export function SocialRelatoriosTab({ canExportReports, onExportCsv, onExportXls
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="flex gap-2 flex-wrap">
-          <Button onClick={onExportCsv} disabled={!canExportReports}>
+          <Button onClick={onExportCsv} disabled={!canExportReports} aria-label="Exportar consolidado CSV">
             <Download className="h-4 w-4 mr-2" />
             Exportar consolidado CSV
           </Button>
-          <Button variant="outline" onClick={onExportXlsx} disabled={!canExportReports}>
+          <Button variant="outline" onClick={onExportXlsx} disabled={!canExportReports} aria-label="Exportar consolidado XLSX">
             <Download className="h-4 w-4 mr-2" />
             Exportar consolidado XLSX
           </Button>
