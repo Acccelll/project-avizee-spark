@@ -11,6 +11,8 @@ import { Badge } from "@/components/ui/badge";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { calcularStatusFaturamentoOV } from "@/lib/fiscal";
 import { toast } from "sonner";
+import { getUserFriendlyError } from "@/utils/errorMessages";
+import { pagamentoLabels, freteTipoLabels } from "@/utils/comercial";
 import {
   FileOutput,
   DollarSign,
@@ -27,23 +29,6 @@ import {
 interface Props {
   id: string;
 }
-
-const pagamentoLabels: Record<string, string> = {
-  a_vista: "À Vista",
-  a_prazo: "A Prazo",
-  pix: "Pix",
-  boleto: "Boleto",
-  cartao: "Cartão",
-  cheque: "Cheque",
-  transferencia: "Transferência",
-};
-
-const freteTipoLabels: Record<string, string> = {
-  cif: "CIF (por conta do remetente)",
-  fob: "FOB (por conta do destinatário)",
-  terceiros: "Por conta de terceiros",
-  sem_frete: "Sem frete",
-};
 
 const statusFaturamentoLabels: Record<string, string> = {
   aguardando: "Aguardando Faturamento",
@@ -227,7 +212,7 @@ export function OrdemVendaView({ id }: Props) {
       await fetchData();
     } catch (err: unknown) {
       console.error("[OrdemVendaView] gerar NF:", err);
-      toast.error("Erro ao gerar Nota Fiscal.");
+      toast.error(getUserFriendlyError(err));
     } finally {
       setGeneratingNf(false);
       setGenerateNfOpen(false);

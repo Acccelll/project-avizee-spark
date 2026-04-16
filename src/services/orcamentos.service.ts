@@ -58,11 +58,9 @@ export async function convertToPedido(
     .eq("id", orc.id)
     .maybeSingle();
 
-  const { count } = await supabase
-    .from("ordens_venda")
-    .select("*", { count: "exact", head: true });
-
-  const ovNumero = `PED${String((count || 0) + 1).padStart(6, "0")}`;
+  // Use atomic numbering RPC to avoid race conditions
+  const { data: rpcNumero } = await supabase.rpc("proximo_numero_ordem_venda");
+  const ovNumero = rpcNumero || `PED${String(Date.now()).slice(-6)}`;
 
   const fretePayload: Record<string, unknown> = {};
   if (orcFrete) {

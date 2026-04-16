@@ -484,6 +484,8 @@ const Pedidos = () => {
           moduleKey="pedidos"
           showColumnToggle={true}
           onView={handleView}
+          emptyTitle="Nenhum pedido encontrado"
+          emptyDescription="Converta uma cotação aprovada em pedido ou ajuste os filtros aplicados."
         />
         </PullToRefresh>
       </ModulePage>
