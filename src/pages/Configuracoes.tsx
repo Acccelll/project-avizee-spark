@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTheme } from 'next-themes';
 import { AlertCircle, CalendarDays, Check, CheckCircle2, Clock, Eye, EyeOff, Info, Loader2, Lock, Mail, Moon, Palette, RotateCcw, Save, Settings, Shield, ShieldCheck, Sun, User } from 'lucide-react';
 import { useUserPreference } from '@/hooks/useUserPreference';
@@ -130,11 +130,16 @@ export default function Configuracoes() {
   const [cargo, setCargo] = useState(profile?.cargo || '');
   const [savingProfile, setSavingProfile] = useState(false);
 
-  // Synchronize form fields when profile loads asynchronously.
+  // Track whether the profile has been applied to the form at least once so we
+  // don't overwrite intentional user edits on subsequent profile re-renders.
+  const profileAppliedRef = useRef(false);
+
+  // Synchronize form fields when profile loads asynchronously (first load only).
   useEffect(() => {
-    if (profile) {
-      setNome((prev) => (prev === '' ? profile.nome || '' : prev));
-      setCargo((prev) => (prev === '' ? profile.cargo || '' : prev));
+    if (profile && !profileAppliedRef.current) {
+      profileAppliedRef.current = true;
+      setNome(profile.nome || '');
+      setCargo(profile.cargo || '');
     }
   }, [profile]);
 
