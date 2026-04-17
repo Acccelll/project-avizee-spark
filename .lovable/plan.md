@@ -1,61 +1,52 @@
 
 
-Análise rápida:
+User aprovou execução completa das 8 fases. Plano confirmado da última proposta:
 
-1. **`ajustar_estoque_manual`** já existe como RPC no banco (vista em db-functions) e já é usada por `useAjustarEstoque.ts`. Faz exatamente o que o usuário pediu: `FOR UPDATE`, calcula novo saldo, insere movimento, atualiza `produtos.estoque_atual`. **Correção 2 já está implementada** — não há nada a fazer além de validar.
+**Fase 1** — Tabela `comentarios` polimórfica + RLS (autor edita/deleta, admin tudo)
+**Fase 2** — Workflow aprovação pedidos compra: colunas + 3 RPCs + UI
+**Fase 3** — `quantidade_recebida` em `pedidos_compra_itens` + ajuste `receber_compra` + `RecebimentoDrawer`
+**Fase 4** — Triggers anti-delete em `contas_bancarias` e `contas_contabeis`
+**Fase 5** — Triggers de auditoria em `empresa_config` e `app_configuracoes`
+**Fase 6** — Índices de performance (validar via `pg_indexes` antes)
+**Fase 7** — `orcamento_drafts` server-side + refator autosave em `OrcamentoForm`
+**Fase 8** — `hash_conteudo` em `importacao_lotes` (verificar existência primeiro)
 
-2. **`receber_compra`** já existe como RPC (vista em db-functions) e cobre o fluxo de recebimento, MAS:
-   - Foi desenhada para `compras` (recebimento parcial/total via tabela `compras` + `compras_itens`).
-   - Recebe `p_itens jsonb` (recebimento parcial), não apenas `p_pedido_id`.
-   - Já tem hook `useReceberCompra` em `src/pages/comercial/hooks/useReceberCompra.ts`.
-   - O `darEntrada` em `src/hooks/usePedidosCompra.ts` ainda faz lógica sequencial JS antiga (insere `estoque_movimentos` + opcionalmente `financeiro_lancamentos` + atualiza status), **não** usa essa RPC. Esse é o gap real.
+# Execução
 
-Portanto, o trabalho real é:
+## Ordem
+1 → 4 → 5 → 6 → 8 → 3 → 7 → 2 (DDL/triggers primeiro, refatores de UI por último)
 
-- **Não criar `receber_pedido_compra` nova** — usar a `receber_compra` existente (já transacional, já testada). Refatorar `darEntrada` para chamá-la, montando `p_itens` com a quantidade total dos itens do pedido (recebimento total simples).
-- **Não criar `ajustar_estoque_manual`** — já existe e já é usada.
+## Validações pré-execução
+- `pg_indexes` para Fase 6 (não duplicar)
+- Existência de `importacao_lotes` para Fase 8
+- Ler RPC `receber_compra` completa para Fase 3
+- Ler `OrcamentoForm.tsx` autosave atual para Fase 7
+- Ler `usePedidosCompra.ts` para Fase 2
 
-Preciso investigar o código atual de `darEntrada` e `useAjustarEstoque` para confirmar.
+## Migrations (consolidadas em arquivos por fase)
+- Fase 1: tabela `comentarios` + 4 policies RLS + índice
+- Fase 2: ALTER `pedidos_compra` (4 colunas) + 3 RPCs + insert config `compras.limite_aprovacao`
+- Fase 3: ALTER `pedidos_compra_itens` + UPDATE RPC `receber_compra`
+- Fase 4: 1 função + 2 triggers
+- Fase 5: 1 função + 2 triggers
+- Fase 6: CREATE INDEX condicional (IF NOT EXISTS)
+- Fase 7: tabela `orcamento_drafts` + RLS por dono
+- Fase 8: ALTER `importacao_lotes` (se existir)
 
-# Plano
+## Código (frontend)
+- `src/hooks/usePedidosCompra.ts` — ações aprovar/rejeitar via novas RPCs; novo status `aguardando_aprovacao` em filtros
+- `src/components/compras/PedidoCompraDrawer.tsx` — botões Aprovar/Rejeitar para admin quando status = aguardando_aprovacao
+- `src/components/logistica/RecebimentoDrawer.tsx` — exibir `quantidade_recebida` real
+- `src/pages/OrcamentoForm.tsx` — substituir `localStorage` autosave por upsert em `orcamento_drafts`
 
-## Diagnóstico
+## Riscos
+- Fase 4: lançamentos órfãos podem bloquear inativação — função filtra apenas `ativo=true` em referências
+- Fase 7: refator de form crítico — manter fallback `localStorage` em caso de erro de rede
+- Fase 2: status novo precisa ser tratado em todos os filtros existentes
 
-| Item solicitado | Estado real | Ação |
-|---|---|---|
-| RPC `ajustar_estoque_manual` | **Já existe e já é usada** por `useAjustarEstoque.ts` com `SELECT FOR UPDATE`, lock atômico, atualização de saldo. | Validar (ler hook + RPC) e reportar — nada a fazer. |
-| RPC transacional para receber pedido | **`receber_compra` já existe** e é transacional (cria `compras`, itens, movimentos de estoque, financeiro, atualiza status do pedido). | Refatorar `darEntrada` para usar essa RPC em vez de criar nova. |
-| `darEntrada` em `usePedidosCompra.ts` | Ainda faz fluxo sequencial JS antigo (inserts manuais, sem atomicidade). | Substituir por chamada à `receber_compra` com `p_itens` montado a partir dos itens do pedido. |
-
-## Fase única — Refatorar `darEntrada` para usar `receber_compra`
-
-**Escopo**:
-1. Ler `src/hooks/usePedidosCompra.ts` (`darEntrada` atual) para entender o que precisa ser preservado (toasts, `navigate('/fiscal')`, invalidações).
-2. Buscar itens do pedido (`pedidos_compra_itens`) — montar `p_itens` JSON com `produto_id`, `quantidade_recebida = quantidade pedida`, `valor_unitario`. Recebimento total.
-3. Chamar `supabase.rpc('receber_compra', { p_pedido_id, p_data_recebimento: today, p_itens, p_observacoes: null })`.
-4. Remover todos os inserts manuais (`estoque_movimentos`, `financeiro_lancamentos`, update de status). A RPC faz tudo.
-5. Manter `refreshAll()`, toast de sucesso, `navigate('/fiscal?source=pedido_compra&id=...')`.
-6. **Não** mexer em `useAjustarEstoque.ts` — já está correto.
-
-**Arquivos**:
-- `src/hooks/usePedidosCompra.ts` (única edição).
-
-**Riscos**:
-- `receber_compra` retorna `{ compra_id, numero, status_pedido, valor_total }` — confirmar que a navegação `/fiscal` não depende do antigo objeto retornado.
-- Se houver pedidos com `condicao_pagamento` específica, a RPC cria financeiro com base na lógica interna dela (verificar se gera 1 título único ou parcelas).
-- Validar antes: ler RPC `receber_compra` por completo para confirmar criação de financeiro (a versão truncada no contexto cortou no meio).
-
-**Critério de conclusão**:
-- `darEntrada` reduzida a ~15 linhas (buscar itens + chamar RPC + redirecionar).
-- Zero inserts diretos em `estoque_movimentos` ou `financeiro_lancamentos` no hook.
-- Compilação OK (`tsc --noEmit`).
-
-## Comunicação ao usuário
-
-Após aprovação, vou explicar que:
-- A RPC `ajustar_estoque_manual` **já existia** e já estava em uso — não foi necessário criar.
-- A RPC `receber_compra` **já existia** e já era transacional — apenas refatorei `darEntrada` para usá-la em vez de criar uma duplicata.
-- O ganho real é eliminar o fluxo sequencial antigo em `darEntrada`.
-
-Posso prosseguir?
+## Critério de conclusão
+- Build OK (`tsc --noEmit`)
+- Migrations aplicadas
+- Hooks e drawers refatorados
+- Sem regressão em fluxos críticos (recebimento, orçamento, pedidos compra)
 

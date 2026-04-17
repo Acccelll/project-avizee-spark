@@ -49,6 +49,10 @@ interface PedidoCompraDrawerProps {
   onSend: (p: PedidoCompra) => void;
   onReceive: (p: PedidoCompra) => void;
   onCancel: (p: PedidoCompra) => void;
+  onSolicitarAprovacao?: (p: PedidoCompra) => void;
+  onAprovar?: (p: PedidoCompra) => void;
+  onRejeitar?: (p: PedidoCompra, motivo: string) => void;
+  isAdmin?: boolean;
   statusLabels: Record<string, string>;
 }
 
@@ -65,11 +69,15 @@ export function PedidoCompraDrawer({
   onSend,
   onReceive,
   onCancel,
+  onSolicitarAprovacao,
+  onAprovar,
+  onRejeitar,
+  isAdmin,
   statusLabels,
 }: PedidoCompraDrawerProps) {
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
-  const [receiveDialogOpen, setReceiveDialogOpen] = useState(false);
-  const [receiveQtds, setReceiveQtds] = useState<Record<string, number>>({});
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [rejectMotivo, setRejectMotivo] = useState("");
 
   // Comparação por string YYYY-MM-DD evita bugs de timezone que ocorriam
   // ao usar `new Date(prevista) < new Date()` (UTC vs local).
@@ -517,16 +525,18 @@ export function PedidoCompraDrawer({
     </div>
   );
 
-  const canReceive = ["aprovado", "enviado_ao_fornecedor", "aguardando_recebimento", "parcialmente_recebido"].includes(
+  const canReceive = ["aprovado", "enviado_ao_fornecedor", "aguardando_recebimento", "parcialmente_recebido", "recebido_parcial"].includes(
     selected.status,
   );
   const canSend = selected.status === "aprovado";
   const canCancel = ["rascunho", "aprovado", "enviado_ao_fornecedor", "aguardando_recebimento"].includes(
     selected.status,
   );
+  const canSolicitarAprovacao = selected.status === "rascunho" && !!onSolicitarAprovacao;
+  const canApproveReject = selected.status === "aguardando_aprovacao" && !!isAdmin;
 
   const drawerFooter =
-    canReceive || canSend || canCancel ? (
+    canReceive || canSend || canCancel || canSolicitarAprovacao || canApproveReject ? (
       <div className="flex gap-2 w-full">
         {canCancel && (
           <Button
@@ -537,7 +547,26 @@ export function PedidoCompraDrawer({
             <XCircle className="w-4 h-4" /> Cancelar
           </Button>
         )}
-        <div className="flex gap-2 flex-1 justify-end">
+        <div className="flex gap-2 flex-1 justify-end flex-wrap">
+          {canSolicitarAprovacao && (
+            <Button variant="outline" className="gap-2" onClick={() => onSolicitarAprovacao!(selected)}>
+              <Clock className="w-4 h-4" /> Solicitar aprovação
+            </Button>
+          )}
+          {canApproveReject && (
+            <>
+              <Button
+                variant="outline"
+                className="gap-2 text-destructive border-destructive/30"
+                onClick={() => { setRejectMotivo(""); setRejectOpen(true); }}
+              >
+                <XCircle className="w-4 h-4" /> Rejeitar
+              </Button>
+              <Button className="gap-2" onClick={() => onAprovar!(selected)}>
+                <CheckCircle2 className="w-4 h-4" /> Aprovar
+              </Button>
+            </>
+          )}
           {canSend && (
             <Button variant="outline" className="gap-2" onClick={() => onSend(selected)}>
               <SendHorizontal className="w-4 h-4" /> Marcar como Enviado
@@ -652,80 +681,27 @@ export function PedidoCompraDrawer({
         confirmLabel="Cancelar pedido"
         confirmVariant="destructive"
       />
-
-      {/* Receive Summary Dialog */}
-      <Dialog open={receiveDialogOpen} onOpenChange={setReceiveDialogOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Confirmar Recebimento — {pedidoNumero(selected)}</DialogTitle>
-            <DialogDescription>
-              Revise as quantidades a receber. Itens com quantidade 0 serão ignorados.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
-            <div className="rounded-lg border overflow-hidden">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-muted/50 border-b">
-                    <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground">Produto</th>
-                    <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">Pedido</th>
-                    <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">Receber</th>
-                    <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">Valor</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {viewItems.map((i) => {
-                    const qtdRec = receiveQtds[String(i.id)] ?? 0;
-                    const valor = qtdRec * Number(i.valor_unitario || 0);
-                    return (
-                      <tr key={String(i.id)} className="border-b last:border-b-0">
-                        <td className="px-3 py-2 font-medium text-xs truncate max-w-[160px]">{i.produtos?.nome ?? "—"}</td>
-                        <td className="px-3 py-2 text-right font-mono text-xs text-muted-foreground">{String(i.quantidade)}</td>
-                        <td className="px-3 py-2 text-right">
-                          <Input
-                            type="number"
-                            min={0}
-                            max={Number(i.quantidade)}
-                            value={qtdRec}
-                            onChange={(e) => setReceiveQtds((prev) => ({
-                              ...prev,
-                              [String(i.id)]: Math.min(Number(i.quantidade), Math.max(0, Number(e.target.value))),
-                            }))}
-                            className="h-7 w-20 text-right font-mono text-xs"
-                          />
-                        </td>
-                        <td className="px-3 py-2 text-right font-mono text-xs">{formatCurrency(valor)}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-                <tfoot>
-                  <tr className="bg-muted/30 border-t">
-                    <td colSpan={3} className="px-3 py-2 text-xs font-semibold text-right text-muted-foreground">Total a receber</td>
-                    <td className="px-3 py-2 text-right font-mono font-bold text-primary text-xs">
-                      {formatCurrency(viewItems.reduce((s, i) => s + (receiveQtds[String(i.id)] ?? 0) * Number(i.valor_unitario || 0), 0))}
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-          </div>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setReceiveDialogOpen(false)}>Cancelar</Button>
-            <Button
-              className="gap-2"
-              disabled={Object.values(receiveQtds).every((q) => q === 0)}
-              onClick={() => {
-                setReceiveDialogOpen(false);
-                onReceive(selected);
-              }}
-            >
-              <PackageCheck className="h-4 w-4" />
-              Confirmar Recebimento
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        open={rejectOpen}
+        onClose={() => setRejectOpen(false)}
+        onConfirm={() => {
+          if (!rejectMotivo.trim()) return;
+          setRejectOpen(false);
+          onRejeitar?.(selected, rejectMotivo.trim());
+        }}
+        title="Rejeitar pedido"
+        description={`Informe o motivo da rejeição do pedido ${pedidoNumero(selected)}:`}
+        confirmLabel="Rejeitar"
+        confirmVariant="destructive"
+        confirmDisabled={!rejectMotivo.trim()}
+      >
+        <textarea
+          value={rejectMotivo}
+          onChange={(e) => setRejectMotivo(e.target.value)}
+          className="w-full min-h-20 rounded-md border border-input bg-background p-2 text-sm"
+          placeholder="Ex: valor acima do orçamento aprovado"
+        />
+      </ConfirmDialog>
     </>
   );
 }
