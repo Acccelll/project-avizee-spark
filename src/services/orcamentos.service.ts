@@ -18,7 +18,7 @@ export async function sendForApproval(orc: OrcamentoBase): Promise<void> {
     .from("orcamentos")
     .update({ status: "pendente" })
     .eq("id", orc.id);
-  if (error) throw error;
+  if (error) throw new Error(`Erro ao enviar orçamento para aprovação: ${error.message}`);
   toast.success(`Cotação ${orc.numero} enviada para aprovação!`);
 }
 
@@ -27,7 +27,7 @@ export async function approveOrcamento(orc: OrcamentoBase): Promise<void> {
     .from("orcamentos")
     .update({ status: "aprovado" })
     .eq("id", orc.id);
-  if (error) throw error;
+  if (error) throw new Error(`Erro ao aprovar orçamento: ${error.message}`);
   toast.success(`Cotação ${orc.numero} aprovada!`);
 }
 
@@ -52,9 +52,8 @@ export async function convertToPedido(
     p_po_number: options.poNumber ?? null,
     p_data_po: options.dataPo ?? null,
   });
-  if (error) throw error;
+  if (error) throw new Error(`Erro ao converter orçamento em pedido: ${error.message}`);
   const result = data as { ov_id: string; ov_numero: string };
-  toast.success(`Pedido ${result.ov_numero} criado com sucesso!`);
   return { ovId: result.ov_id, ovNumero: result.ov_numero };
 }
 
@@ -102,6 +101,6 @@ export async function ensurePublicToken(orcId: string): Promise<string> {
     .update({ public_token: token })
     .eq("id", orcId);
 
-  if (error) throw error;
+  if (error) throw new Error(`Erro ao gerar token público para orçamento: ${error.message}`);
   return token;
 }
