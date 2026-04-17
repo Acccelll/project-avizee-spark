@@ -340,19 +340,19 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
     }
 
     case "fluxo_caixa": {
+      // Considera valor efetivamente pago (valor_pago) quando disponível,
+      // exclui cancelados/estornados e ordena pela data de pagamento.
       let query = supabase
         .from("financeiro_lancamentos")
-        .select("tipo, descricao, valor, status, data_vencimento, data_pagamento")
-        .eq("ativo", true);
+        .select("tipo, descricao, valor, valor_pago, status, data_vencimento, data_pagamento")
+        .eq("ativo", true)
+        .not("status", "in", "(cancelado,estornado)");
 
       query = withDateRange(query, "data_vencimento", filtros);
-      // Apply tipo filter when requested (receber / pagar)
       if (filtros.tiposFinanceiros?.length) query = query.in('tipo', filtros.tiposFinanceiros);
       const { data, error } = await query;
       if (error) throw error;
 
-      // Sort by the effective date that will be displayed (pagamento when available, else vencimento)
-      // so that the accumulated saldo follows the same chronological order shown in the table.
       const sorted = (data || []).slice().sort((a: RawFluxoItem, b: RawFluxoItem) => {
         const da = a.data_pagamento || a.data_vencimento || '';
         const db = b.data_pagamento || b.data_vencimento || '';
@@ -360,17 +360,21 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
       });
 
       let saldo = 0;
-      const rows = sorted.map((item: RawFluxoItem) => {
-        const itemValor = Number(item.valor || 0);
-        const entrada = item.tipo === "receber" ? itemValor : 0;
-        const saida = item.tipo === "pagar" ? itemValor : 0;
+      const rows = sorted.map((item: RawFluxoItem & { valor_pago?: number | null }) => {
+        const status = item.status ?? '';
+        // Para itens pagos/parciais usa valor efetivamente pago; senão, valor previsto.
+        const valorEfetivo = (status === 'pago' || status === 'parcial') && item.valor_pago != null
+          ? Number(item.valor_pago)
+          : Number(item.valor || 0);
+        const entrada = item.tipo === "receber" ? valorEfetivo : 0;
+        const saida = item.tipo === "pagar" ? valorEfetivo : 0;
         saldo = saldo + entrada - saida;
 
         return {
           data: item.data_pagamento || item.data_vencimento,
           descricao: item.descricao || "-",
           tipo: item.tipo === 'receber' ? 'Entrada' : 'Saída',
-          status: item.status || "-",
+          status: status || "-",
           entrada,
           saida,
           saldo,
