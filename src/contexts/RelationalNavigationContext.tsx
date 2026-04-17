@@ -1,5 +1,6 @@
 import { createContext, useContext, useCallback, useEffect, useMemo, useReducer, useRef, ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
+import { toast } from "sonner";
 
 export const MAX_DRAWER_DEPTH = 5;
 
@@ -129,6 +130,7 @@ export function RelationalNavigationProvider({ children }: { children: ReactNode
       if (stackRef.current.length === 0) return;
       if (e.shiftKey) {
         e.stopImmediatePropagation();
+        toast.info(`${stackRef.current.length} drawer(s) fechados`, { duration: 2000 });
         dispatch({ type: "clear" });
       }
     };
@@ -141,6 +143,9 @@ export function RelationalNavigationProvider({ children }: { children: ReactNode
     if (!id || id === "undefined") {
       console.warn(`[RelationalNavigation] pushView("${type}") called with invalid id: ${JSON.stringify(id)}. Ignoring.`);
       return;
+    }
+    if (stackRef.current.length >= MAX_DRAWER_DEPTH) {
+      toast.info(`Limite de ${MAX_DRAWER_DEPTH} drawers atingido. Feche um antes de abrir outro.`, { duration: 3000 });
     }
     dispatch({ type: "request_push", payload: { type, id } });
   }, []);

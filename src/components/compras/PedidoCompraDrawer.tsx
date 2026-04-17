@@ -8,6 +8,8 @@ import { RelationalLink } from "@/components/ui/RelationalLink";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { LogisticaRastreioSection } from "@/components/logistica/LogisticaRastreioSection";
 import { formatCurrency, formatDate } from "@/lib/format";
 import {
@@ -571,7 +573,15 @@ export function PedidoCompraDrawer({
             </Button>
           )}
           {canReceive && (
-            <Button className="gap-2" onClick={() => onReceive(selected)}>
+            <Button className="gap-2" onClick={() => {
+              const initial: Record<string, number> = {};
+              viewItems.forEach((i) => {
+                const qtdRec = estoquePorProduto[String(i.produto_id)] || 0;
+                initial[String(i.id)] = Math.max(0, Number(i.quantidade) - qtdRec);
+              });
+              setReceiveQtds(initial);
+              setReceiveDialogOpen(true);
+            }}>
               <PackageCheck className="w-4 h-4" /> Registrar Recebimento
             </Button>
           )}

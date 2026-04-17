@@ -3,6 +3,7 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianG
 import { supabase } from '@/integrations/supabase/client';
 import { formatCurrency } from '@/lib/format';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useInView } from '@/hooks/useInView';
 
 interface ChartPoint {
   mes: string;
@@ -24,8 +25,10 @@ interface FluxoCaixaChartProps {
 export function FluxoCaixaChart({ embedded = false }: FluxoCaixaChartProps) {
   const [data, setData] = useState<ChartPoint[]>([]);
   const [loading, setLoading] = useState(true);
+  const [containerRef, inView] = useInView<HTMLDivElement>({ threshold: 0.1 });
 
   useEffect(() => {
+    if (!inView) return;
     const load = async () => {
       setLoading(true);
       const sixMonthsAgo = new Date();
@@ -95,7 +98,7 @@ export function FluxoCaixaChart({ embedded = false }: FluxoCaixaChartProps) {
       setLoading(false);
     };
     load();
-  }, []);
+  }, [inView]);
 
   const chartContent = (
     <>
@@ -135,14 +138,14 @@ export function FluxoCaixaChart({ embedded = false }: FluxoCaixaChartProps) {
   if (loading) {
     if (embedded) {
       return (
-        <div className="flex flex-col h-full gap-3">
+        <div ref={containerRef} className="flex flex-col h-full gap-3">
           <Skeleton className="h-4 w-40 shrink-0" />
           <Skeleton className="flex-1 w-full" />
         </div>
       );
     }
     return (
-      <div className="bg-card rounded-xl border p-5">
+      <div ref={containerRef} className="bg-card rounded-xl border p-5">
         <Skeleton className="h-5 w-40 mb-4" />
         <Skeleton className="h-[200px] w-full" />
       </div>
@@ -152,14 +155,14 @@ export function FluxoCaixaChart({ embedded = false }: FluxoCaixaChartProps) {
   if (data.length === 0) {
     if (embedded) {
       return (
-        <div className="flex flex-col h-full">
+        <div ref={containerRef} className="flex flex-col h-full">
           <p className="text-xs font-semibold text-foreground mb-2">Fluxo de Caixa</p>
           <p className="text-sm text-muted-foreground text-center py-4">Sem dados financeiros para exibir.</p>
         </div>
       );
     }
     return (
-      <div className="bg-card rounded-xl border p-5">
+      <div ref={containerRef} className="bg-card rounded-xl border p-5">
         <h3 className="font-semibold text-foreground mb-4">Fluxo de Caixa</h3>
         <p className="text-sm text-muted-foreground text-center py-8">Sem dados financeiros para exibir.</p>
       </div>
@@ -169,6 +172,7 @@ export function FluxoCaixaChart({ embedded = false }: FluxoCaixaChartProps) {
   if (embedded) {
     return (
       <div
+        ref={containerRef}
         className="flex flex-col h-full"
         role="img"
         aria-label="Gráfico de fluxo de caixa — realizados vs previstos (6 meses)"
@@ -198,7 +202,7 @@ export function FluxoCaixaChart({ embedded = false }: FluxoCaixaChartProps) {
   }
 
   return (
-    <figure className="bg-card rounded-xl border p-5" role="img" aria-label="Gráfico de área do fluxo de caixa dos últimos seis meses com séries de recebimentos e pagamentos realizados e previstos.">
+    <figure ref={containerRef} className="bg-card rounded-xl border p-5" role="img" aria-label="Gráfico de área do fluxo de caixa dos últimos seis meses com séries de recebimentos e pagamentos realizados e previstos.">
       <h3 className="font-semibold text-foreground mb-4">Fluxo de Caixa — Realizado vs Previsto (6 meses)</h3>
       <div
         role="img"

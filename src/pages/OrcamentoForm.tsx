@@ -23,7 +23,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ArrowLeft, Save, Eye, FileText, Copy, Plus, Search, Wand2, RefreshCw, CheckCircle2, AlertTriangle, CalendarDays, Clock } from "lucide-react";
+import { ArrowLeft, Save, Eye, FileText, Copy, Plus, Search, Wand2, RefreshCw, CheckCircle2, AlertTriangle, CalendarDays, Clock, User, Package, CreditCard, ClipboardList } from "lucide-react";
 import { QuickAddClientModal } from "@/components/QuickAddClientModal";
 import { ClientSelector, type ProductWithForn } from "@/components/ui/DataSelector";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -188,6 +188,20 @@ export default function OrcamentoForm() {
   const [mailModalOpen, setMailModalOpen] = useState(false);
   const [emailTemplate, setEmailTemplate] = useState('Olá, segue orçamento atualizado para sua análise.');
   const [empresaConfig, setEmpresaConfig] = useState<Record<string, string> | null>(null);
+  const [activeStep, setActiveStep] = useState(0);
+
+  // Refs for stepper scroll navigation
+  const stepClienteRef = useRef<HTMLDivElement>(null);
+  const stepItensRef = useRef<HTMLDivElement>(null);
+  const stepCondicoesRef = useRef<HTMLDivElement>(null);
+  const stepRevisaoRef = useRef<HTMLDivElement>(null);
+
+  const STEPS = [
+    { label: 'Cliente', icon: User, ref: stepClienteRef },
+    { label: 'Itens', icon: Package, ref: stepItensRef },
+    { label: 'Condições', icon: CreditCard, ref: stepCondicoesRef },
+    { label: 'Revisão', icon: ClipboardList, ref: stepRevisaoRef },
+  ] as const;
 
   // Dados de frete do simulador
   const [freteSimulacaoId, setFreteSimulacaoId] = useState<string | null>(null);
@@ -884,6 +898,39 @@ export default function OrcamentoForm() {
         )}
       </div>
 
+      {/* Horizontal stepper */}
+      <nav className="mb-4 hidden md:flex items-center gap-0 rounded-xl border bg-card overflow-hidden" aria-label="Etapas do orçamento">
+        {STEPS.map((step, idx) => {
+          const Icon = step.icon;
+          const isActive = idx === activeStep;
+          const isDone = idx < activeStep;
+          return (
+            <button
+              key={step.label}
+              type="button"
+              onClick={() => {
+                setActiveStep(idx);
+                step.ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-medium transition-colors border-r last:border-r-0 ${
+                isActive
+                  ? 'bg-primary/10 text-primary'
+                  : isDone
+                    ? 'text-success bg-success/5 hover:bg-success/10'
+                    : 'text-muted-foreground hover:bg-muted/50'
+              }`}
+              aria-current={isActive ? 'step' : undefined}
+            >
+              <span className={`flex h-5 w-5 items-center justify-center rounded-full text-xs font-bold shrink-0 ${
+                isActive ? 'bg-primary text-primary-foreground' : isDone ? 'bg-success text-success-foreground' : 'bg-muted text-muted-foreground'
+              }`}>{idx + 1}</span>
+              <Icon className="h-4 w-4 hidden lg:block" />
+              <span className="hidden sm:inline">{step.label}</span>
+            </button>
+          );
+        })}
+      </nav>
+
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
         <div className="lg:col-span-8 space-y-5">
           {/* Identificação do Orçamento */}
@@ -935,7 +982,7 @@ export default function OrcamentoForm() {
           </div>
 
           {/* Cliente */}
-          <div className="bg-card rounded-xl border shadow-soft p-5">
+          <div ref={stepClienteRef} className="bg-card rounded-xl border shadow-soft p-5">
             <h3 className="font-semibold text-foreground mb-4">Cliente</h3>
             <div className="space-y-4">
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -981,12 +1028,14 @@ export default function OrcamentoForm() {
             </div>
           </div>
 
+          <div ref={stepItensRef}>
           <OrcamentoItemsGrid
             items={items}
             onChange={setItems}
             produtos={produtos}
             precosEspeciais={precosEspeciais}
           />
+          </div>
 
           <OrcamentoInternalAnalysisPanel
             baseAnalysis={baseAnalysis}
@@ -1029,12 +1078,14 @@ export default function OrcamentoForm() {
             }}
           />
 
+          <div ref={stepCondicoesRef}>
           <OrcamentoCondicoesCard
             form={{ quantidade_total: quantidadeTotal, peso_total: pesoTotal, pagamento, prazo_pagamento: prazoPagamento, prazo_entrega: prazoEntrega, frete_tipo: freteTipo, modalidade }}
             onChange={handleCondicaoChange}
           />
+          </div>
 
-          <div className="bg-card rounded-xl border shadow-soft p-5 space-y-4">
+          <div ref={stepRevisaoRef} className="bg-card rounded-xl border shadow-soft p-5 space-y-4">
             <div>
               <h3 className="font-semibold text-foreground mb-3">Observações do Orçamento</h3>
               <Textarea {...register('observacoes')}
@@ -1137,7 +1188,7 @@ export default function OrcamentoForm() {
           <div className="p-4 border-b flex justify-between items-center sticky top-0 bg-card z-10">
             <h3 className="font-semibold">Pré-visualização do Orçamento</h3>
             <div className="flex gap-2">
-              <Select value={layoutTemplate} onValueChange={(v: any) => setLayoutTemplate(v)}>
+              <Select value={layoutTemplate} onValueChange={(v: 'simples' | 'completo' | 'logo') => setLayoutTemplate(v)}>
                 <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="simples">Simples</SelectItem>
