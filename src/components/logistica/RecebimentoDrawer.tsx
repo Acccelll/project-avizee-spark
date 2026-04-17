@@ -175,13 +175,12 @@ export function RecebimentoDrawer({ open, onClose, recebimento: r }: Recebimento
           </div>
         </div>
 
-        {r.status_logistico === "recebimento_parcial" && (
+        {r.status_logistico === "recebimento_parcial" && r.pendencia > 0 && (
           <div className="rounded-lg border border-warning/40 bg-warning/5 p-3 flex gap-2">
             <Package className="h-4 w-4 text-warning shrink-0 mt-0.5" />
             <p className="text-xs text-muted-foreground">
-              <strong className="text-warning">Recebimento parcial estimado.</strong>{" "}
-              O sistema não possui um campo de quantidade recebida por item. O valor exibido é
-              uma estimativa baseada no status do pedido.
+              <strong className="text-warning">Recebimento parcial.</strong>{" "}
+              Restam {formatNumber(r.pendencia)} unidades pendentes — registre o restante pelo módulo de Compras.
             </p>
           </div>
         )}

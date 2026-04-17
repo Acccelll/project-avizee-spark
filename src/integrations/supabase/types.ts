@@ -574,6 +574,36 @@ export type Database = {
           },
         ]
       }
+      comentarios: {
+        Row: {
+          created_at: string
+          entidade_id: string
+          entidade_tipo: string
+          id: string
+          texto: string
+          updated_at: string
+          usuario_id: string
+        }
+        Insert: {
+          created_at?: string
+          entidade_id: string
+          entidade_tipo: string
+          id?: string
+          texto: string
+          updated_at?: string
+          usuario_id: string
+        }
+        Update: {
+          created_at?: string
+          entidade_id?: string
+          entidade_tipo?: string
+          id?: string
+          texto?: string
+          updated_at?: string
+          usuario_id?: string
+        }
+        Relationships: []
+      }
       compras: {
         Row: {
           ativo: boolean
@@ -2169,6 +2199,7 @@ export type Database = {
           created_at: string
           erros: Json | null
           fase: string | null
+          hash_conteudo: string | null
           id: string
           registros_atualizados: number | null
           registros_duplicados: number | null
@@ -2187,6 +2218,7 @@ export type Database = {
           created_at?: string
           erros?: Json | null
           fase?: string | null
+          hash_conteudo?: string | null
           id?: string
           registros_atualizados?: number | null
           registros_duplicados?: number | null
@@ -2205,6 +2237,7 @@ export type Database = {
           created_at?: string
           erros?: Json | null
           fase?: string | null
+          hash_conteudo?: string | null
           id?: string
           registros_atualizados?: number | null
           registros_duplicados?: number | null
@@ -2666,6 +2699,33 @@ export type Database = {
           },
         ]
       }
+      orcamento_drafts: {
+        Row: {
+          created_at: string
+          draft_key: string
+          id: string
+          payload: Json
+          updated_at: string
+          usuario_id: string
+        }
+        Insert: {
+          created_at?: string
+          draft_key: string
+          id?: string
+          payload: Json
+          updated_at?: string
+          usuario_id: string
+        }
+        Update: {
+          created_at?: string
+          draft_key?: string
+          id?: string
+          payload?: Json
+          updated_at?: string
+          usuario_id?: string
+        }
+        Relationships: []
+      }
       orcamentos: {
         Row: {
           altura_cm: number | null
@@ -3096,6 +3156,8 @@ export type Database = {
       }
       pedidos_compra: {
         Row: {
+          aprovado_em: string | null
+          aprovado_por: string | null
           ativo: boolean
           condicao_pagamento: string | null
           condicoes_pagamento: string | null
@@ -3107,13 +3169,17 @@ export type Database = {
           fornecedor_id: string | null
           frete_valor: number | null
           id: string
+          motivo_rejeicao: string | null
           numero: string | null
           observacoes: string | null
+          requer_aprovacao: boolean
           status: string | null
           updated_at: string
           valor_total: number | null
         }
         Insert: {
+          aprovado_em?: string | null
+          aprovado_por?: string | null
           ativo?: boolean
           condicao_pagamento?: string | null
           condicoes_pagamento?: string | null
@@ -3125,13 +3191,17 @@ export type Database = {
           fornecedor_id?: string | null
           frete_valor?: number | null
           id?: string
+          motivo_rejeicao?: string | null
           numero?: string | null
           observacoes?: string | null
+          requer_aprovacao?: boolean
           status?: string | null
           updated_at?: string
           valor_total?: number | null
         }
         Update: {
+          aprovado_em?: string | null
+          aprovado_por?: string | null
           ativo?: boolean
           condicao_pagamento?: string | null
           condicoes_pagamento?: string | null
@@ -3143,8 +3213,10 @@ export type Database = {
           fornecedor_id?: string | null
           frete_valor?: number | null
           id?: string
+          motivo_rejeicao?: string | null
           numero?: string | null
           observacoes?: string | null
+          requer_aprovacao?: boolean
           status?: string | null
           updated_at?: string
           valor_total?: number | null
@@ -3174,6 +3246,7 @@ export type Database = {
           preco_unitario: number | null
           produto_id: string | null
           quantidade: number | null
+          quantidade_recebida: number
           subtotal: number | null
         }
         Insert: {
@@ -3183,6 +3256,7 @@ export type Database = {
           preco_unitario?: number | null
           produto_id?: string | null
           quantidade?: number | null
+          quantidade_recebida?: number
           subtotal?: number | null
         }
         Update: {
@@ -3192,6 +3266,7 @@ export type Database = {
           preco_unitario?: number | null
           produto_id?: string | null
           quantidade?: number | null
+          quantidade_recebida?: number
           subtotal?: number | null
         }
         Relationships: [
@@ -4637,6 +4712,7 @@ export type Database = {
         }
         Returns: string
       }
+      aprovar_pedido: { Args: { p_pedido_id: string }; Returns: Json }
       cancelar_remessa: {
         Args: { p_motivo?: string; p_remessa_id: string }
         Returns: undefined
@@ -4773,6 +4849,10 @@ export type Database = {
         }
         Returns: string
       }
+      rejeitar_pedido: {
+        Args: { p_motivo: string; p_pedido_id: string }
+        Returns: Json
+      }
       salvar_orcamento: {
         Args: { p_id: string; p_itens: Json; p_payload: Json }
         Returns: string
@@ -4824,6 +4904,10 @@ export type Database = {
         }
       }
       social_sincronizar_manual: { Args: { _conta_id?: string }; Returns: Json }
+      solicitar_aprovacao_pedido: {
+        Args: { p_pedido_id: string }
+        Returns: Json
+      }
       sugerir_conciliacao_bancaria: {
         Args: { p_conta_id: string; p_extrato: Json }
         Returns: {

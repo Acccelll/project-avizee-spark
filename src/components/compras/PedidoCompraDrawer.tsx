@@ -47,6 +47,10 @@ interface PedidoCompraDrawerProps {
   onSend: (p: PedidoCompra) => void;
   onReceive: (p: PedidoCompra) => void;
   onCancel: (p: PedidoCompra) => void;
+  onSolicitarAprovacao?: (p: PedidoCompra) => void;
+  onAprovar?: (p: PedidoCompra) => void;
+  onRejeitar?: (p: PedidoCompra, motivo: string) => void;
+  isAdmin?: boolean;
   statusLabels: Record<string, string>;
 }
 
@@ -63,9 +67,15 @@ export function PedidoCompraDrawer({
   onSend,
   onReceive,
   onCancel,
+  onSolicitarAprovacao,
+  onAprovar,
+  onRejeitar,
+  isAdmin,
   statusLabels,
 }: PedidoCompraDrawerProps) {
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [rejectMotivo, setRejectMotivo] = useState("");
 
   // Comparação por string YYYY-MM-DD evita bugs de timezone que ocorriam
   // ao usar `new Date(prevista) < new Date()` (UTC vs local).
@@ -513,16 +523,18 @@ export function PedidoCompraDrawer({
     </div>
   );
 
-  const canReceive = ["aprovado", "enviado_ao_fornecedor", "aguardando_recebimento", "parcialmente_recebido"].includes(
+  const canReceive = ["aprovado", "enviado_ao_fornecedor", "aguardando_recebimento", "parcialmente_recebido", "recebido_parcial"].includes(
     selected.status,
   );
   const canSend = selected.status === "aprovado";
   const canCancel = ["rascunho", "aprovado", "enviado_ao_fornecedor", "aguardando_recebimento"].includes(
     selected.status,
   );
+  const canSolicitarAprovacao = selected.status === "rascunho" && !!onSolicitarAprovacao;
+  const canApproveReject = selected.status === "aguardando_aprovacao" && !!isAdmin;
 
   const drawerFooter =
-    canReceive || canSend || canCancel ? (
+    canReceive || canSend || canCancel || canSolicitarAprovacao || canApproveReject ? (
       <div className="flex gap-2 w-full">
         {canCancel && (
           <Button
@@ -533,7 +545,26 @@ export function PedidoCompraDrawer({
             <XCircle className="w-4 h-4" /> Cancelar
           </Button>
         )}
-        <div className="flex gap-2 flex-1 justify-end">
+        <div className="flex gap-2 flex-1 justify-end flex-wrap">
+          {canSolicitarAprovacao && (
+            <Button variant="outline" className="gap-2" onClick={() => onSolicitarAprovacao!(selected)}>
+              <Clock className="w-4 h-4" /> Solicitar aprovação
+            </Button>
+          )}
+          {canApproveReject && (
+            <>
+              <Button
+                variant="outline"
+                className="gap-2 text-destructive border-destructive/30"
+                onClick={() => { setRejectMotivo(""); setRejectOpen(true); }}
+              >
+                <XCircle className="w-4 h-4" /> Rejeitar
+              </Button>
+              <Button className="gap-2" onClick={() => onAprovar!(selected)}>
+                <CheckCircle2 className="w-4 h-4" /> Aprovar
+              </Button>
+            </>
+          )}
           {canSend && (
             <Button variant="outline" className="gap-2" onClick={() => onSend(selected)}>
               <SendHorizontal className="w-4 h-4" /> Marcar como Enviado
@@ -638,6 +669,29 @@ export function PedidoCompraDrawer({
         title="Cancelar pedido de compra"
         description={`Cancelar o pedido ${pedidoNumero(selected)}? Esta ação não pode ser desfeita.`}
         confirmLabel="Cancelar pedido"
+        confirmVariant="destructive"
+      />
+      <ConfirmDialog
+        open={rejectOpen}
+        onClose={() => setRejectOpen(false)}
+        onConfirm={() => {
+          if (!rejectMotivo.trim()) return;
+          setRejectOpen(false);
+          onRejeitar?.(selected, rejectMotivo.trim());
+        }}
+        title="Rejeitar pedido"
+        description={
+          <div className="space-y-2">
+            <p>Informe o motivo da rejeição do pedido {pedidoNumero(selected)}:</p>
+            <textarea
+              value={rejectMotivo}
+              onChange={(e) => setRejectMotivo(e.target.value)}
+              className="w-full min-h-20 rounded-md border border-input bg-background p-2 text-sm"
+              placeholder="Ex: valor acima do orçamento aprovado"
+            />
+          </div>
+        }
+        confirmLabel="Rejeitar"
         confirmVariant="destructive"
       />
     </>

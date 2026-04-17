@@ -592,6 +592,14 @@ export default function OrcamentoForm() {
       if (error) throw error;
 
       localStorage.removeItem(draftKey);
+      if (user?.id) {
+        try {
+          await supabase.from("orcamento_drafts")
+            .delete()
+            .eq("usuario_id", user.id)
+            .eq("draft_key", draftKey);
+        } catch {/* ignore */}
+      }
       toast.success(isEdit ? "Orçamento atualizado com sucesso" : "Orçamento criado com sucesso", {
         description: `Registro ${formValues.numero} salvo.`,
         action: { label: "Visualizar", onClick: () => navigate(orcId ? `/orcamentos/${orcId}` : "/orcamentos") },
@@ -715,21 +723,52 @@ export default function OrcamentoForm() {
   };
 
 
+  // Restauração de rascunho: tenta servidor, faz fallback para localStorage.
   useEffect(() => {
-    const saved = localStorage.getItem(draftKey);
-    if (saved && !isEdit) setRestoreDraftOpen(true);
-  }, [draftKey, isEdit]);
+    if (isEdit) return;
+    let cancelled = false;
+    (async () => {
+      if (user?.id) {
+        const { data } = await supabase
+          .from("orcamento_drafts")
+          .select("payload")
+          .eq("usuario_id", user.id)
+          .eq("draft_key", draftKey)
+          .maybeSingle();
+        if (cancelled) return;
+        if (data?.payload) { setRestoreDraftOpen(true); return; }
+      }
+      const saved = localStorage.getItem(draftKey);
+      if (!cancelled && saved) setRestoreDraftOpen(true);
+    })();
+    return () => { cancelled = true; };
+  }, [draftKey, isEdit, user?.id]);
 
+  // Autosave: tenta servidor (orcamento_drafts), com fallback para localStorage em caso de erro.
   useEffect(() => {
-    const timer = setInterval(() => {
-      // Só persiste rascunho se houver conteúdo significativo (numero ou cliente preenchido)
+    const timer = setInterval(async () => {
       const { numero: n, clienteId: cid } = getValues();
       if (!n && !cid && items.length === 0) return;
       const payload = buildDraftPayload();
-      localStorage.setItem(draftKey, JSON.stringify(payload));
+      const serialized = JSON.stringify(payload);
+      let serverOk = false;
+      if (user?.id) {
+        try {
+          const { error } = await supabase
+            .from("orcamento_drafts")
+            .upsert(
+              { usuario_id: user.id, draft_key: draftKey, payload: payload as unknown as Json },
+              { onConflict: "usuario_id,draft_key" },
+            );
+          if (!error) serverOk = true;
+        } catch {/* fallback abaixo */}
+      }
+      if (!serverOk) {
+        try { localStorage.setItem(draftKey, serialized); } catch {/* quota */}
+      }
     }, 30000);
     return () => clearInterval(timer);
-  }, [buildDraftPayload, draftKey, getValues, items.length]);
+  }, [buildDraftPayload, draftKey, getValues, items.length, user?.id]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -1176,8 +1215,42 @@ export default function OrcamentoForm() {
             <DialogDescription>Encontramos um rascunho salvo automaticamente para esta cotação.</DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => { localStorage.removeItem(draftKey); setRestoreDraftOpen(false); }}>Descartar</Button>
-            <Button onClick={() => { const raw = localStorage.getItem(draftKey); if (raw) applyDraft(JSON.parse(raw)); setRestoreDraftOpen(false); }} className="gap-2"><RefreshCw className="h-4 w-4" />Restaurar</Button>
+            <Button
+              variant="outline"
+              onClick={async () => {
+                localStorage.removeItem(draftKey);
+                if (user?.id) {
+                  try {
+                    await supabase.from("orcamento_drafts")
+                      .delete()
+                      .eq("usuario_id", user.id)
+                      .eq("draft_key", draftKey);
+                  } catch {/* ignore */}
+                }
+                setRestoreDraftOpen(false);
+              }}
+            >Descartar</Button>
+            <Button
+              onClick={async () => {
+                let payload: unknown = null;
+                if (user?.id) {
+                  const { data } = await supabase
+                    .from("orcamento_drafts")
+                    .select("payload")
+                    .eq("usuario_id", user.id)
+                    .eq("draft_key", draftKey)
+                    .maybeSingle();
+                  if (data?.payload) payload = data.payload;
+                }
+                if (!payload) {
+                  const raw = localStorage.getItem(draftKey);
+                  if (raw) { try { payload = JSON.parse(raw); } catch {/* ignore */} }
+                }
+                if (payload) applyDraft(payload as Parameters<typeof applyDraft>[0]);
+                setRestoreDraftOpen(false);
+              }}
+              className="gap-2"
+            ><RefreshCw className="h-4 w-4" />Restaurar</Button>
           </div>
         </DialogContent>
       </Dialog>
