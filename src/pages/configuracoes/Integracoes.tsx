@@ -133,7 +133,7 @@ export default function Integracoes() {
 
               <div className="flex justify-start">
                 <TestConnectionButton
-                  onTest={() => testarGatewayPagamento(form.getValues())}
+                  onTest={() => testarGatewayPagamento(form.getValues() as Parameters<typeof testarGatewayPagamento>[0])}
                   label="Testar Gateway"
                 />
               </div>
@@ -199,7 +199,7 @@ export default function Integracoes() {
 
               <div className="flex justify-start">
                 <TestConnectionButton
-                  onTest={() => testarApiSefaz(form.getValues())}
+                  onTest={() => testarApiSefaz(form.getValues() as Parameters<typeof testarApiSefaz>[0])}
                   label="Testar SEFAZ"
                 />
               </div>

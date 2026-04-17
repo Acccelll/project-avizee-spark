@@ -83,7 +83,7 @@ export async function saveAppConfig(
   chave: AppConfigChave,
   valor: AppConfigValue,
 ): Promise<void> {
-  const payload: AppConfigInsert = { chave, valor };
+  const payload: AppConfigInsert = { chave, valor: valor as AppConfigInsert["valor"] };
 
   const { error } = await supabase
     .from("app_configuracoes")

@@ -196,7 +196,7 @@ export default function Email() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <TestConnectionButton
-                  onTest={() => testarConexaoSMTP(form.getValues())}
+                  onTest={() => testarConexaoSMTP(form.getValues() as Parameters<typeof testarConexaoSMTP>[0])}
                   label="Testar SMTP"
                 />
                 <Button

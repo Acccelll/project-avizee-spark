@@ -30,7 +30,7 @@ export async function listarCaixasEmbalagem(): Promise<CaixaEmbalagem[]> {
 
 export async function salvarCaixasEmbalagem(caixas: CaixaEmbalagem[]): Promise<void> {
   await supabase.from('app_configuracoes').upsert(
-    { chave: CAIXAS_CONFIG_KEY, valor: caixas, updated_at: new Date().toISOString() },
+    { chave: CAIXAS_CONFIG_KEY, valor: caixas as unknown as import('@/integrations/supabase/types').Json, updated_at: new Date().toISOString() } as never,
     { onConflict: 'chave' }
   );
 }
@@ -209,7 +209,7 @@ export async function carregarSimulacaoPorOrigem(
     .eq('simulacao_id', sim.id)
     .order('created_at', { ascending: true });
 
-  return { ...sim, opcoes: opcoes || [] };
+  return { ...sim, opcoes: (opcoes || []) as unknown as FreteOpcaoLocal[] };
 }
 
 // ---------------------------------------------------------------
@@ -297,7 +297,7 @@ export async function salvarOpcoesCorreios(
     .insert(rows)
     .select();
   if (error) throw error;
-  return data || [];
+  return (data || []) as unknown as FreteOpcaoLocal[];
 }
 
 // ---------------------------------------------------------------
@@ -335,7 +335,7 @@ export async function salvarOpcaoTransportadora(
     .select()
     .single();
   if (error) throw error;
-  return data;
+  return data as unknown as FreteOpcaoLocal;
 }
 
 // ---------------------------------------------------------------
@@ -371,7 +371,7 @@ export async function salvarOpcaoManual(
     .select()
     .single();
   if (error) throw error;
-  return data;
+  return data as unknown as FreteOpcaoLocal;
 }
 
 // ---------------------------------------------------------------
@@ -463,21 +463,22 @@ export async function sugerirDadosRemessaDePedido(pedidoId: string): Promise<{
   const { data, error } = await supabase
     .from('ordens_venda')
     .select(
-      'transportadora_id, servico_frete, frete_valor, peso_total, volumes, frete_simulacao_id'
+      'transportadora_id, servico_frete, frete_valor, peso_total, volumes, frete_simulacao_id' as never
     )
     .eq('id', pedidoId)
     .maybeSingle();
 
   if (error || !data) return null;
-  if (!data.transportadora_id && !data.frete_valor) return null;
+  const row = data as unknown as Record<string, unknown>;
+  if (!row.transportadora_id && !row.frete_valor) return null;
 
   return {
-    transportadora_id: (data as Record<string, unknown>).transportadora_id as string | null,
-    servico: (data as Record<string, unknown>).servico_frete as string | null,
-    valor_frete: (data as Record<string, unknown>).frete_valor as number | null,
-    peso: (data as Record<string, unknown>).peso_total as number | null,
-    volumes: (data as Record<string, unknown>).volumes as number | null,
-    frete_simulacao_id: (data as Record<string, unknown>).frete_simulacao_id as string | null,
+    transportadora_id: row.transportadora_id as string | null,
+    servico: row.servico_frete as string | null,
+    valor_frete: row.frete_valor as number | null,
+    peso: row.peso_total as number | null,
+    volumes: row.volumes as number | null,
+    frete_simulacao_id: row.frete_simulacao_id as string | null,
   };
 }
 
