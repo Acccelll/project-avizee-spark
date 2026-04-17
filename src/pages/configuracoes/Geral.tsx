@@ -80,7 +80,7 @@ export default function Geral() {
   }, [config, form]);
 
   function onSubmit(data: GeralFormData) {
-    handleSave(data);
+    handleSave(data as Parameters<typeof handleSave>[0]);
   }
 
   async function handleExport() {

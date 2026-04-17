@@ -217,7 +217,7 @@ const DashboardContent = () => {
           </BlockErrorBoundary>
           <BlockErrorBoundary label="Estoque">
             <EstoqueBlock
-              itensBaixoMinimo={estoqueBaixo}
+              itensBaixoMinimo={estoqueBaixo as unknown as Parameters<typeof EstoqueBlock>[0]['itensBaixoMinimo']}
               valorTotalEstoque={valorEstoque}
               totalProdutosAtivos={stats.produtos}
             />

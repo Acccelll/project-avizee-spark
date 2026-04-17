@@ -54,7 +54,7 @@ export default function Integracoes() {
   }, [config, form]);
 
   function onSubmit(data: IntegracoesFormData) {
-    handleSave(data);
+    handleSave(data as Parameters<typeof handleSave>[0]);
   }
 
   if (isLoading) {
