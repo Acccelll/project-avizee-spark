@@ -30,6 +30,7 @@ import { cfopCodes, cstIcmsCodes } from "@/lib/fiscalData";
 import { useNcmLookup } from '@/hooks/useNcmLookup';
 import { Switch } from "@/components/ui/switch";
 import { getUserFriendlyError } from "@/utils/errorMessages";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 
 type TipoItem = "produto" | "insumo";
 
@@ -102,6 +103,7 @@ const Produtos = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearch = useDebounce(searchTerm, 350);
+  const { confirm: confirmAction, dialog: confirmActionDialog } = useConfirmDialog();
   const { data, loading, create, update, remove, duplicate, fetchData } = useSupabaseCrud<Produto>({
     table: "produtos",
     searchTerm: debouncedSearch,
@@ -779,10 +781,15 @@ const Produtos = () => {
                 <span className={`text-sm ${!form.eh_composto ? "font-semibold" : "text-muted-foreground"}`}>Simples</span>
                 <Switch
                   checked={form.eh_composto}
-                  onCheckedChange={(v) => {
+                  onCheckedChange={async (v) => {
                     if (!v && editComposicao.length > 0) {
-                      const msg = `Desmarcar produto composto irá apagar os ${editComposicao.length} componente(s) ao salvar. Deseja continuar?`;
-                      if (!window.confirm(msg)) return;
+                      const ok = await confirmAction({
+                        title: "Desmarcar produto composto?",
+                        description: `Desmarcar produto composto irá apagar os ${editComposicao.length} componente(s) ao salvar. Deseja continuar?`,
+                        confirmLabel: "Continuar",
+                        confirmVariant: "destructive",
+                      });
+                      if (!ok) return;
                     }
                     setForm({ ...form, eh_composto: v }); if (!v) setEditComposicao([]);
                   }}
@@ -1136,6 +1143,7 @@ const Produtos = () => {
         </DialogContent>
       </Dialog>
 
+      {confirmActionDialog}
     </AppLayout>);
 
 };
