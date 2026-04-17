@@ -4603,6 +4603,10 @@ export type Database = {
         Args: { p_baixa_id: string; p_motivo?: string }
         Returns: undefined
       }
+      estornar_nota_fiscal: {
+        Args: { p_motivo?: string; p_nf_id: string }
+        Returns: undefined
+      }
       estornar_recebimento_compra: {
         Args: { p_compra_id: string; p_motivo?: string }
         Returns: Json
@@ -4618,6 +4622,10 @@ export type Database = {
       financeiro_processar_estorno: {
         Args: { p_lancamento_id: string; p_motivo?: string }
         Returns: Json
+      }
+      gerar_devolucao_nota_fiscal: {
+        Args: { p_itens?: Json; p_nf_origem_id: string }
+        Returns: string
       }
       gerar_financeiro_folha: {
         Args: { p_competencia: string; p_data_vencimento: string }
