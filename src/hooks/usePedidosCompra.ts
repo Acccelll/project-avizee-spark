@@ -1,6 +1,7 @@
 
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { addDays } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -52,6 +53,8 @@ interface FinanceiroLancRow {
   tipo: string | null;
 }
 
+type PedidoCompraForm = typeof emptyPedidoForm;
+
 const statusLabels: Record<string, string> = Object.fromEntries(
   Object.entries(statusPedidoCompra).map(([k, v]) => [k, v.label]),
 );
@@ -70,8 +73,8 @@ export interface UsePedidosCompraReturn {
   kpis: { total: number; totalValue: number; aguardando: number; recebidos: number };
 
   // Form state
-  form: Record<string, string>;
-  setForm: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  form: PedidoCompraForm;
+  setForm: React.Dispatch<React.SetStateAction<PedidoCompraForm>>;
   items: GridItem[];
   setItems: React.Dispatch<React.SetStateAction<GridItem[]>>;
   saving: boolean;
@@ -110,7 +113,7 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
   const [modalOpen, setModalOpen] = useState(false);
   const [selected, setSelected] = useState<PedidoCompra | null>(null);
   const [mode, setMode] = useState<"create" | "edit">("create");
-  const [form, setForm] = useState<Record<string, string>>(emptyPedidoForm);
+  const [form, setForm] = useState<PedidoCompraForm>(emptyPedidoForm);
   const [items, setItems] = useState<GridItem[]>([]);
   const [saving, setSaving] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -461,6 +464,14 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
       const { error: movError } = await supabase.from("estoque_movimentos").insert(movements);
       if (movError) throw movError;
 
+      const condicaoPagamento = String(p.condicao_pagamento || "").trim();
+      const diasMatch = condicaoPagamento.match(/\d+/);
+      const parsedDias = diasMatch ? Number(diasMatch[0]) : Number.NaN;
+      const baseDate = !Number.isNaN(new Date(p.data_pedido).getTime()) ? new Date(p.data_pedido) : new Date();
+      const dueDate = Number.isFinite(parsedDias)
+        ? addDays(baseDate, parsedDias)
+        : addDays(new Date(), 30);
+
       const vTotal = Number(p.valor_total || 0);
       if (vTotal > 0 && !financeiroDuplicado) {
         const { error: lancError } = await supabase.from("financeiro_lancamentos").insert({
@@ -469,7 +480,7 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
           observacoes: pedidoTag,
           valor: vTotal,
           saldo_restante: vTotal,
-          data_vencimento: p.data_entrega_prevista || new Date().toISOString().split("T")[0],
+          data_vencimento: dueDate.toISOString().split("T")[0],
           status: "aberto",
           fornecedor_id: p.fornecedor_id ? String(p.fornecedor_id) : null,
         });

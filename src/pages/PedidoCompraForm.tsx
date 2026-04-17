@@ -5,7 +5,7 @@
  * Reaprovecha subcomponentes existentes e a lógica de usePedidosCompra,
  * expondo-os em rota dedicada para melhor usabilidade e rastreabilidade.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useState, type SetStateAction } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
@@ -55,6 +55,17 @@ export default function PedidoCompraForm() {
   const [produtosOptionsData, setProdutosOptionsData] = useState<ProdutoRow[]>([]);
   const [formasPagamento, setFormasPagamento] = useState<FormasPagRow[]>([]);
   const [viewCotacao, setViewCotacao] = useState<{ numero: string; status: string } | null>(null);
+  const [isDirty, setIsDirty] = useState(false);
+
+  const updateForm = (next: SetStateAction<typeof form>) => {
+    setForm(next);
+    setIsDirty(true);
+  };
+
+  const updateItems = (next: SetStateAction<GridItem[]>) => {
+    setItems(next);
+    setIsDirty(true);
+  };
 
   useEffect(() => {
     async function load() {
@@ -73,7 +84,7 @@ export default function PedidoCompraForm() {
       if (!ped) { toast.error("Pedido não encontrado."); navigate("/pedidos-compra"); return; }
 
       setPedido(ped as PedidoCompra);
-      setForm({
+      updateForm({
         fornecedor_id: ped.fornecedor_id ? String(ped.fornecedor_id) : "",
         data_pedido: ped.data_pedido || new Date().toISOString().split("T")[0],
         data_entrega_prevista: ped.data_entrega_prevista || "",
@@ -83,7 +94,7 @@ export default function PedidoCompraForm() {
         status: ped.status || "rascunho",
         observacoes: ped.observacoes || "",
       });
-      setItems(
+      updateItems(
         (itens || []).map((i: Record<string, unknown>) => {
           const produtos = i.produtos as Record<string, unknown> | null;
           return {
@@ -115,6 +126,7 @@ export default function PedidoCompraForm() {
         setViewCotacao(cot || null);
       }
 
+      setIsDirty(false);
       setLoading(false);
     }
     load();
@@ -181,6 +193,7 @@ export default function PedidoCompraForm() {
 
       toast.success("Pedido de compra salvo!");
       setPedido({ ...pedido, ...payload } as PedidoCompra);
+      setIsDirty(false);
     } catch (err: unknown) {
       toast.error(getUserFriendlyError(err));
     }
@@ -205,7 +218,15 @@ export default function PedidoCompraForm() {
         {/* Header */}
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => navigate("/pedidos-compra")} aria-label="Voltar">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => {
+                if (isDirty && !window.confirm("Existem alterações não salvas. Deseja sair?")) return;
+                navigate("/pedidos-compra");
+              }}
+              aria-label="Voltar"
+            >
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div>
@@ -252,7 +273,7 @@ export default function PedidoCompraForm() {
               <Input
                 type="date"
                 value={form.data_pedido}
-                onChange={(e) => setForm({ ...form, data_pedido: e.target.value })}
+                onChange={(e) => updateForm({ ...form, data_pedido: e.target.value })}
                 disabled={isTerminal}
               />
             </div>
@@ -261,7 +282,7 @@ export default function PedidoCompraForm() {
               <Input
                 type="date"
                 value={form.data_entrega_prevista}
-                onChange={(e) => setForm({ ...form, data_entrega_prevista: e.target.value })}
+                onChange={(e) => updateForm({ ...form, data_entrega_prevista: e.target.value })}
                 className={dataEntregaError ? "border-destructive" : ""}
                 disabled={isTerminal}
               />
@@ -272,7 +293,7 @@ export default function PedidoCompraForm() {
               {/* Only allow non-terminal, non-workflow statuses to be set via form */}
               <Select
                 value={form.status}
-                onValueChange={(v) => setForm({ ...form, status: v })}
+                onValueChange={(v) => updateForm({ ...form, status: v })}
                 disabled={isTerminal}
               >
                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -298,7 +319,7 @@ export default function PedidoCompraForm() {
           <AutocompleteSearch
             options={fornecedorOptions}
             value={form.fornecedor_id}
-            onChange={(val) => setForm({ ...form, fornecedor_id: val })}
+            onChange={(val) => updateForm({ ...form, fornecedor_id: val })}
             placeholder="Buscar por nome ou CNPJ..."
           />
         </div>
@@ -307,7 +328,7 @@ export default function PedidoCompraForm() {
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Itens do Pedido</p>
           <ItemsGrid
             items={items}
-            onChange={setItems}
+            onChange={updateItems}
             produtos={produtosOptionsData}
             readOnly={isTerminal}
             getDefaultUnitPrice={(prod) => Number((prod as ProdutoRow).preco_custo || 0)}
@@ -322,7 +343,7 @@ export default function PedidoCompraForm() {
               <Input
                 type="number" min="0" step="0.01"
                 value={form.frete_valor}
-                onChange={(e) => setForm({ ...form, frete_valor: e.target.value })}
+                onChange={(e) => updateForm({ ...form, frete_valor: e.target.value })}
                 placeholder="0,00"
                 disabled={isTerminal}
               />
@@ -331,7 +352,7 @@ export default function PedidoCompraForm() {
               <Label>Condição de Pagamento</Label>
               <Select
                 value={form.condicao_pagamento || ""}
-                onValueChange={(v) => setForm({ ...form, condicao_pagamento: v === "__none__" ? "" : v })}
+                onValueChange={(v) => updateForm({ ...form, condicao_pagamento: v === "__none__" ? "" : v })}
                 disabled={isTerminal}
               >
                 <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
@@ -348,7 +369,7 @@ export default function PedidoCompraForm() {
               <Input
                 type="date"
                 value={form.data_entrega_real}
-                onChange={(e) => setForm({ ...form, data_entrega_real: e.target.value })}
+                onChange={(e) => updateForm({ ...form, data_entrega_real: e.target.value })}
                 disabled={isTerminal}
               />
             </div>
@@ -371,13 +392,20 @@ export default function PedidoCompraForm() {
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Observações</p>
           <Textarea
             value={form.observacoes}
-            onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
+            onChange={(e) => updateForm({ ...form, observacoes: e.target.value })}
             disabled={isTerminal}
           />
         </div>
 
         <div className="flex justify-between">
-          <Button variant="outline" onClick={() => navigate("/pedidos-compra")} className="gap-2">
+          <Button
+            variant="outline"
+            onClick={() => {
+              if (isDirty && !window.confirm("Existem alterações não salvas. Deseja sair?")) return;
+              navigate("/pedidos-compra");
+            }}
+            className="gap-2"
+          >
             <ArrowLeft className="h-4 w-4" /> Voltar para Pedidos
           </Button>
           {!isTerminal && (

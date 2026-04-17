@@ -329,14 +329,6 @@ export function useCotacoesCompra() {
     await reloadPropostas();
   };
 
-  const handleFinalize = async () => {
-    if (!selected) return;
-    await supabase.from("cotacoes_compra").update({ status: "finalizada" }).eq("id", selected.id);
-    toast.success("Cotação finalizada!");
-    setDrawerOpen(false);
-    fetchData();
-  };
-
   const handleSendForApproval = async () => {
     if (!selected) return;
     try {
@@ -517,7 +509,6 @@ export function useCotacoesCompra() {
     handleAddProposal,
     handleSelectProposal,
     handleDeleteProposal,
-    handleFinalize,
     handleSendForApproval,
     handleApprove,
     handleReject,

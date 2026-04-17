@@ -38,8 +38,8 @@ export function usePedidoCompraFilters(
   const statusFilters = searchParams.getAll("status");
   const fornecedorFilters = searchParams.getAll("fornecedor");
   const recebimentoFilters = searchParams.getAll("recebimento");
-  const dataInicio = searchParams.get("data_inicio") ?? "";
-  const dataFim = searchParams.get("data_fim") ?? "";
+  const dataInicio = searchParams.get("dataInicio") ?? searchParams.get("data_inicio") ?? "";
+  const dataFim = searchParams.get("dataFim") ?? searchParams.get("data_fim") ?? "";
 
   const updateParam = (key: string, value: string | string[] | null) => {
     setSearchParams(
@@ -70,8 +70,24 @@ export function usePedidoCompraFilters(
     const next = typeof fn === "function" ? fn(recebimentoFilters) : fn;
     updateParam("recebimento", next);
   };
-  const setDataInicio = (v: string) => updateParam("data_inicio", v || null);
-  const setDataFim = (v: string) => updateParam("data_fim", v || null);
+  const setDataInicio = (v: string) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete("data_inicio");
+      next.delete("dataInicio");
+      if (v) next.set("dataInicio", v);
+      return next;
+    }, { replace: true });
+  };
+  const setDataFim = (v: string) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete("data_fim");
+      next.delete("dataFim");
+      if (v) next.set("dataFim", v);
+      return next;
+    }, { replace: true });
+  };
 
   const pedidoNumero = (p: Pick<PedidoCompra, "id" | "numero">) => p.numero || `PC-${p.id}`;
 

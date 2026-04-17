@@ -1,6 +1,8 @@
 
+import { useState } from "react";
 import { ViewDrawerV2 } from "@/components/ViewDrawerV2";
 import { ViewField, ViewSection } from "@/components/ViewDrawer";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { StatusBadge } from "@/components/StatusBadge";
 import { RelationalLink } from "@/components/ui/RelationalLink";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -58,6 +60,8 @@ export function PedidoCompraDrawer({
   onCancel,
   statusLabels,
 }: PedidoCompraDrawerProps) {
+  const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
+
   const isOverdue =
     !["recebido", "cancelado"].includes(selected.status) &&
     !!selected.data_entrega_prevista &&
@@ -532,7 +536,7 @@ export function PedidoCompraDrawer({
           <Button
             variant="outline"
             className="gap-2 text-destructive border-destructive/30 hover:bg-destructive/10"
-            onClick={() => onCancel(selected)}
+            onClick={() => setCancelConfirmOpen(true)}
           >
             <XCircle className="w-4 h-4" /> Cancelar
           </Button>
@@ -553,7 +557,8 @@ export function PedidoCompraDrawer({
     ) : undefined;
 
   return (
-    <ViewDrawerV2
+    <>
+      <ViewDrawerV2
       open={open}
       onClose={onClose}
       title={pedidoNumero(selected)}
@@ -630,6 +635,19 @@ export function PedidoCompraDrawer({
         { value: "vinculos", label: "Vínculos", content: tabVinculos },
       ]}
       footer={drawerFooter}
-    />
+      />
+      <ConfirmDialog
+        open={cancelConfirmOpen}
+        onClose={() => setCancelConfirmOpen(false)}
+        onConfirm={() => {
+          setCancelConfirmOpen(false);
+          onCancel(selected);
+        }}
+        title="Cancelar pedido de compra"
+        description={`Cancelar o pedido ${pedidoNumero(selected)}? Esta ação não pode ser desfeita.`}
+        confirmText="Cancelar pedido"
+        confirmVariant="destructive"
+      />
+    </>
   );
 }
