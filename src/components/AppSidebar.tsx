@@ -107,7 +107,15 @@ export function AppSidebar({ collapsed, onToggleCollapsed, mobileOpen, onCloseMo
     return location.pathname === targetBase || location.pathname.startsWith(`${targetBase}/`);
   };
 
-  const [manualSections, setManualSections] = useState<Record<string, boolean>>({});
+  const { user } = useAuth();
+  const { value: manualSections, save: saveManualSections } = useUserPreference<Record<string, boolean>>(
+    user?.id ?? null,
+    'sidebar_sections_state',
+    {},
+  );
+  const setManualSections = (updater: (prev: Record<string, boolean>) => Record<string, boolean>) => {
+    void saveManualSections(updater(manualSections ?? {}));
+  };
 
   const moduleBadgeClass = {
     danger: 'bg-destructive text-destructive-foreground',
