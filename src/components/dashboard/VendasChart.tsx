@@ -13,6 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { formatCurrency } from '@/lib/format';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useDashboardPeriod } from '@/contexts/DashboardPeriodContext';
+import { useInView } from '@/hooks/useInView';
 
 interface VendasPoint {
   mes: string;
@@ -45,8 +46,10 @@ export function VendasChart({ onBarClick }: VendasChartProps) {
   const { range } = useDashboardPeriod();
   const [data, setData] = useState<VendasPoint[]>([]);
   const [loading, setLoading] = useState(true);
+  const [containerRef, inView] = useInView<HTMLDivElement>({ threshold: 0.1 });
 
   useEffect(() => {
+    if (!inView) return;
     const load = async () => {
       setLoading(true);
 
@@ -82,7 +85,7 @@ export function VendasChart({ onBarClick }: VendasChartProps) {
       setLoading(false);
     };
     load();
-  }, [range]);
+  }, [inView, range]);
 
 interface RechartsClickPayload {
   activePayload?: Array<{ payload: VendasPoint }>;
@@ -102,7 +105,7 @@ interface RechartsClickPayload {
 
   if (loading) {
     return (
-      <div className="flex flex-col h-full space-y-3">
+      <div ref={containerRef} className="flex flex-col h-full space-y-3">
         <Skeleton className="h-5 w-48 shrink-0" />
         <Skeleton className="flex-1 w-full min-h-[160px]" />
       </div>
@@ -111,13 +114,16 @@ interface RechartsClickPayload {
 
   if (data.length === 0) {
     return (
-      <p className="py-8 text-center text-sm text-muted-foreground">
-        Sem dados de faturamento para exibir.
-      </p>
+      <div ref={containerRef}>
+        <p className="py-8 text-center text-sm text-muted-foreground">
+          Sem dados de faturamento para exibir.
+        </p>
+      </div>
     );
   }
 
   return (
+    <div ref={containerRef}>
     <figure
       role="img"
       aria-label="Gráfico de barras de faturamento mensal dos últimos 6 meses. Clique em uma barra para detalhar o relatório de vendas."
@@ -154,5 +160,6 @@ interface RechartsClickPayload {
         Clique em uma barra para navegar ao relatório de vendas filtrado pelo mês correspondente.
       </figcaption>
     </figure>
+    </div>
   );
 }

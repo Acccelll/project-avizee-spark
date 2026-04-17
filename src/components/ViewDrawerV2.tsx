@@ -1,6 +1,8 @@
 import { ReactNode } from "react";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Layers } from "lucide-react";
 
 interface ViewDrawerV2Props {
   open: boolean;
@@ -14,12 +16,18 @@ interface ViewDrawerV2Props {
   tabs?: { value: string; label: string; content: ReactNode }[];
   defaultTab?: string;
   footer?: ReactNode;
+  /** 1-based index of this drawer in the stack (e.g. 2 for the second drawer) */
+  drawerIndex?: number;
+  /** Total number of drawers currently open in the stack */
+  drawerTotal?: number;
 }
 
 export function ViewDrawerV2({
   open, onClose, title, subtitle, children, badge, actions, summary, tabs, defaultTab, footer,
+  drawerIndex, drawerTotal,
 }: ViewDrawerV2Props) {
   const hasContextBlock = Boolean(subtitle) || Boolean(summary);
+  const showCounter = drawerIndex != null && drawerTotal != null && drawerTotal > 1;
 
   return (
     <Sheet open={open} onOpenChange={onClose}>
@@ -31,7 +39,22 @@ export function ViewDrawerV2({
               <SheetDescription className="sr-only">Visualização detalhada de {title}</SheetDescription>
               {badge}
             </div>
-            {actions && <div className="flex items-center gap-1 shrink-0">{actions}</div>}
+            <div className="flex items-center gap-2 shrink-0">
+              {showCounter && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="flex items-center gap-1 text-xs text-muted-foreground bg-muted/50 rounded px-1.5 py-0.5 select-none cursor-default">
+                      <Layers className="h-3 w-3" />
+                      {drawerIndex}/{drawerTotal}
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    Drawer {drawerIndex} de {drawerTotal} abertos · Shift+Esc fecha todos
+                  </TooltipContent>
+                </Tooltip>
+              )}
+              {actions && <div className="flex items-center gap-1">{actions}</div>}
+            </div>
           </div>
         </SheetHeader>
 

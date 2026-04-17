@@ -8,6 +8,8 @@ import { RelationalLink } from "@/components/ui/RelationalLink";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { LogisticaRastreioSection } from "@/components/logistica/LogisticaRastreioSection";
 import { formatCurrency, formatDate } from "@/lib/format";
 import {
@@ -66,6 +68,8 @@ export function PedidoCompraDrawer({
   statusLabels,
 }: PedidoCompraDrawerProps) {
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
+  const [receiveDialogOpen, setReceiveDialogOpen] = useState(false);
+  const [receiveQtds, setReceiveQtds] = useState<Record<string, number>>({});
 
   // Comparação por string YYYY-MM-DD evita bugs de timezone que ocorriam
   // ao usar `new Date(prevista) < new Date()` (UTC vs local).
@@ -540,7 +544,15 @@ export function PedidoCompraDrawer({
             </Button>
           )}
           {canReceive && (
-            <Button className="gap-2" onClick={() => onReceive(selected)}>
+            <Button className="gap-2" onClick={() => {
+              const initial: Record<string, number> = {};
+              viewItems.forEach((i) => {
+                const qtdRec = estoquePorProduto[String(i.produto_id)] || 0;
+                initial[String(i.id)] = Math.max(0, Number(i.quantidade) - qtdRec);
+              });
+              setReceiveQtds(initial);
+              setReceiveDialogOpen(true);
+            }}>
               <PackageCheck className="w-4 h-4" /> Registrar Recebimento
             </Button>
           )}
@@ -640,6 +652,80 @@ export function PedidoCompraDrawer({
         confirmLabel="Cancelar pedido"
         confirmVariant="destructive"
       />
+
+      {/* Receive Summary Dialog */}
+      <Dialog open={receiveDialogOpen} onOpenChange={setReceiveDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Confirmar Recebimento — {pedidoNumero(selected)}</DialogTitle>
+            <DialogDescription>
+              Revise as quantidades a receber. Itens com quantidade 0 serão ignorados.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+            <div className="rounded-lg border overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-muted/50 border-b">
+                    <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground">Produto</th>
+                    <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">Pedido</th>
+                    <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">Receber</th>
+                    <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">Valor</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {viewItems.map((i) => {
+                    const qtdRec = receiveQtds[String(i.id)] ?? 0;
+                    const valor = qtdRec * Number(i.valor_unitario || 0);
+                    return (
+                      <tr key={String(i.id)} className="border-b last:border-b-0">
+                        <td className="px-3 py-2 font-medium text-xs truncate max-w-[160px]">{i.produtos?.nome ?? "—"}</td>
+                        <td className="px-3 py-2 text-right font-mono text-xs text-muted-foreground">{String(i.quantidade)}</td>
+                        <td className="px-3 py-2 text-right">
+                          <Input
+                            type="number"
+                            min={0}
+                            max={Number(i.quantidade)}
+                            value={qtdRec}
+                            onChange={(e) => setReceiveQtds((prev) => ({
+                              ...prev,
+                              [String(i.id)]: Math.min(Number(i.quantidade), Math.max(0, Number(e.target.value))),
+                            }))}
+                            className="h-7 w-20 text-right font-mono text-xs"
+                          />
+                        </td>
+                        <td className="px-3 py-2 text-right font-mono text-xs">{formatCurrency(valor)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr className="bg-muted/30 border-t">
+                    <td colSpan={3} className="px-3 py-2 text-xs font-semibold text-right text-muted-foreground">Total a receber</td>
+                    <td className="px-3 py-2 text-right font-mono font-bold text-primary text-xs">
+                      {formatCurrency(viewItems.reduce((s, i) => s + (receiveQtds[String(i.id)] ?? 0) * Number(i.valor_unitario || 0), 0))}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setReceiveDialogOpen(false)}>Cancelar</Button>
+            <Button
+              className="gap-2"
+              disabled={Object.values(receiveQtds).every((q) => q === 0)}
+              onClick={() => {
+                setReceiveDialogOpen(false);
+                onReceive(selected);
+              }}
+            >
+              <PackageCheck className="h-4 w-4" />
+              Confirmar Recebimento
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

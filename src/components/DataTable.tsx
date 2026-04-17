@@ -1,6 +1,23 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  horizontalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import {
   Eye,
   ChevronUp,
   ChevronDown,
@@ -21,10 +38,12 @@ import {
   MoreVertical,
   Pencil,
   Copy,
+  GripVertical,
   ChevronsUpDown as ExpandIcon,
 } from 'lucide-react';
 import * as XLSX from '@/lib/xlsx-compat';
 import jsPDF from 'jspdf';
+import { generateCSVViaWorker } from '@/services/export.service';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
@@ -90,14 +109,58 @@ interface DataTableProps<T> {
   virtualizeThreshold?: number;
   /**
    * Maximum height (px) of the table body when virtualization is active.
-   * @default 600
+   * @default 500
    */
   maxHeight?: number;
+  /**
+   * Table density. `compact` reduces padding and font size.
+   * @default 'normal'
+   */
+  density?: 'normal' | 'compact';
 }
 
 type SortDirection = 'asc' | 'desc' | null;
 
+interface SortEntry { key: string; dir: 'asc' | 'desc' }
+
 const getStorageKey = (moduleKey: string, suffix: string) => `datatable:${moduleKey}:${suffix}`;
+
+/** Draggable column header cell for reordering via @dnd-kit/sortable. */
+function SortableColumnHeader({
+  id,
+  children,
+  className,
+  onClick,
+}: {
+  id: string;
+  children: React.ReactNode;
+  className: string;
+  onClick: (e: React.MouseEvent<HTMLTableCellElement>) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    cursor: isDragging ? 'grabbing' : undefined,
+  };
+  return (
+    <th ref={setNodeRef} style={style} className={cn(className, 'select-none')} onClick={onClick}>
+      <div className="flex items-center gap-1 group/th">
+        <span
+          {...attributes}
+          {...listeners}
+          className="cursor-grab text-muted-foreground/30 hover:text-muted-foreground opacity-0 group-hover/th:opacity-100 transition-opacity shrink-0"
+          onClick={(e) => e.stopPropagation()}
+          aria-label="Arrastar para reordenar coluna"
+        >
+          <GripVertical className="h-3.5 w-3.5" />
+        </span>
+        {children}
+      </div>
+    </th>
+  );
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function DataTable<T extends Record<string, any>>({
@@ -121,7 +184,8 @@ export function DataTable<T extends Record<string, any>>({
   onBatchStatusChange,
   renderInlineDetails,
   virtualizeThreshold = 50,
-  maxHeight = 600,
+  maxHeight = 500,
+  density = 'normal',
 }: DataTableProps<T>) {
   const isMobile = useIsMobile();
   const { user } = useAuth();
@@ -129,6 +193,7 @@ export function DataTable<T extends Record<string, any>>({
   const [skipDeleteConfirm, setSkipDeleteConfirm] = useState(() => localStorage.getItem('datatable:skip-delete-confirm') === '1');
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<SortDirection>(null);
+  const [multiSortKeys, setMultiSortKeys] = useState<SortEntry[]>([]);
   const [currentPage, setCurrentPage] = useState(0);
   const [viewMode, setViewMode] = useState<'pagination' | 'infinite'>('pagination');
   const [visibleCount, setVisibleCount] = useState(pageSize);
@@ -137,6 +202,43 @@ export function DataTable<T extends Record<string, any>>({
   const [filterName, setFilterName] = useState('');
   const [rules, setRules] = useState<FilterRule[]>([]);
   const [hiddenKeys, setHiddenKeys] = useState<Set<string>>(() => new Set(columns.filter((c) => c.hidden).map((c) => c.key)));
+
+  // Column order — persisted to localStorage per module
+  const [columnOrder, setColumnOrder] = useState<string[]>(() => {
+    if (!moduleKey) return columns.map((c) => c.key);
+    const saved = localStorage.getItem(getStorageKey(moduleKey, 'column-order'));
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved) as string[];
+        // Validate: only keep keys that exist in columns
+        const validKeys = new Set(columns.map((c) => c.key));
+        const filtered = parsed.filter((k) => validKeys.has(k));
+        // Add any new columns not in saved order
+        const missing = columns.map((c) => c.key).filter((k) => !filtered.includes(k));
+        return [...filtered, ...missing];
+      } catch { /* ignore */ }
+    }
+    return columns.map((c) => c.key);
+  });
+
+  const dndSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const handleColumnDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    setColumnOrder((prev) => {
+      const oldIdx = prev.indexOf(String(active.id));
+      const newIdx = prev.indexOf(String(over.id));
+      if (oldIdx === -1 || newIdx === -1) return prev;
+      const next = arrayMove(prev, oldIdx, newIdx);
+      if (moduleKey) localStorage.setItem(getStorageKey(moduleKey, 'column-order'), JSON.stringify(next));
+      return next;
+    });
+  }, [moduleKey]);
+
   const hasActions = !!(onView || onEdit || onDelete || onDuplicate || renderInlineDetails);
 
   // Scroll-shadow + scroll-position: detect horizontal overflow in the table container
@@ -201,7 +303,15 @@ export function DataTable<T extends Record<string, any>>({
     }
   }, [hiddenKeys, moduleKey, user?.id]);
 
-  const visibleColumns = columns.filter((c) => !hiddenKeys.has(c.key));
+  const visibleColumns = useMemo(() => {
+    const ordered = columnOrder
+      .map((key) => columns.find((c) => c.key === key))
+      .filter((c): c is (typeof columns)[number] => c != null && !hiddenKeys.has(c.key));
+    // Add any columns not present in order (e.g., new ones)
+    const orderedKeys = new Set(columnOrder);
+    const extra = columns.filter((c) => !orderedKeys.has(c.key) && !hiddenKeys.has(c.key));
+    return [...ordered, ...extra];
+  }, [columns, columnOrder, hiddenKeys]);
   const primaryColumn = visibleColumns[0] || { key: 'id', label: 'ID' };
   const secondaryColumns = visibleColumns.slice(1);
 
@@ -231,18 +341,50 @@ export function DataTable<T extends Record<string, any>>({
     return data.filter((item) => rules.every((rule) => applyRule(item, rule)));
   }, [data, rules]);
 
-  const handleSort = (key: string) => {
-    if (sortKey === key) {
-      if (sortDir === 'asc') setSortDir('desc');
-      else if (sortDir === 'desc') { setSortKey(null); setSortDir(null); }
+  const handleSort = (key: string, shiftKey = false) => {
+    if (shiftKey) {
+      // Multi-column sort: toggle this column in the multiSortKeys array
+      setMultiSortKeys((prev) => {
+        const existing = prev.find((e) => e.key === key);
+        if (existing) {
+          if (existing.dir === 'asc') return prev.map((e) => e.key === key ? { key, dir: 'desc' as const } : e);
+          return prev.filter((e) => e.key !== key);
+        }
+        return [...prev, { key, dir: 'asc' as const }];
+      });
+      // When entering multi-sort mode, clear single sort
+      setSortKey(null);
+      setSortDir(null);
     } else {
-      setSortKey(key);
-      setSortDir('asc');
+      // Single-column sort; clear multi-sort
+      setMultiSortKeys([]);
+      if (sortKey === key) {
+        if (sortDir === 'asc') setSortDir('desc');
+        else if (sortDir === 'desc') { setSortKey(null); setSortDir(null); }
+      } else {
+        setSortKey(key);
+        setSortDir('asc');
+      }
     }
     setCurrentPage(0);
   };
 
   const sortedData = useMemo(() => {
+    // Multi-column sort takes precedence when active
+    if (multiSortKeys.length > 0) {
+      return [...filteredData].sort((a, b) => {
+        for (const { key, dir } of multiSortKeys) {
+          const aVal = a[key];
+          const bVal = b[key];
+          if (aVal == null && bVal == null) continue;
+          if (aVal == null) return 1;
+          if (bVal == null) return -1;
+          const cmp = typeof aVal === 'number' ? aVal - bVal : String(aVal).localeCompare(String(bVal), 'pt-BR');
+          if (cmp !== 0) return dir === 'asc' ? cmp : -cmp;
+        }
+        return 0;
+      });
+    }
     if (!sortKey || !sortDir) return filteredData;
     return [...filteredData].sort((a, b) => {
       const aVal = a[sortKey];
@@ -253,7 +395,7 @@ export function DataTable<T extends Record<string, any>>({
       const cmp = typeof aVal === 'number' ? aVal - bVal : String(aVal).localeCompare(String(bVal), 'pt-BR');
       return sortDir === 'asc' ? cmp : -cmp;
     });
-  }, [filteredData, sortKey, sortDir]);
+  }, [filteredData, sortKey, sortDir, multiSortKeys]);
 
   const totalPages = Math.max(1, Math.ceil(sortedData.length / pageSize));
   const pageData = sortedData.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
@@ -332,9 +474,18 @@ export function DataTable<T extends Record<string, any>>({
       const rows = await buildExportRowsChunked(toastId, format, 1000);
 
       if (format === 'csv') {
-        const header = visibleColumns.map((c) => escapeCSV(c.label)).join(';');
-        const body = rows.map((r) => visibleColumns.map((c) => escapeCSV(r[c.label])).join(';')).join('\n');
-        const blob = new Blob([`${header}\n${body}`], { type: 'text/csv;charset=utf-8;' });
+        // Use Web Worker for large datasets to avoid blocking the UI
+        const useWorker = rows.length > 5000 && typeof Worker !== 'undefined';
+        let csv: string;
+        if (useWorker) {
+          const workerColumns = visibleColumns.map((c) => ({ key: c.key, label: c.label }));
+          csv = await generateCSVViaWorker(rows, workerColumns);
+        } else {
+          const header = visibleColumns.map((c) => escapeCSV(c.label)).join(';');
+          const body = rows.map((r) => visibleColumns.map((c) => escapeCSV(r[c.label])).join(';')).join('\n');
+          csv = `${header}\n${body}`;
+        }
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         downloadBlob(blob, `${moduleKey || 'dados'}.csv`);
         toast.success('Exportação CSV concluída', { id: toastId });
         return;
@@ -507,6 +658,16 @@ export function DataTable<T extends Record<string, any>>({
   };
 
   const SortIcon = ({ colKey }: { colKey: string }) => {
+    const multiEntry = multiSortKeys.find((e) => e.key === colKey);
+    if (multiEntry) {
+      const idx = multiSortKeys.findIndex((e) => e.key === colKey) + 1;
+      return (
+        <span className="flex items-center gap-0.5 text-primary">
+          {multiEntry.dir === 'asc' ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+          <span className="text-[10px] font-bold leading-none">{idx}</span>
+        </span>
+      );
+    }
     if (sortKey !== colKey) return <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground/50" />;
     return sortDir === 'asc' ? <ChevronUp className="h-3.5 w-3.5 text-primary" /> : <ChevronDown className="h-3.5 w-3.5 text-primary" />;
   };
@@ -663,7 +824,7 @@ export function DataTable<T extends Record<string, any>>({
         )
       ) : (
         /* Desktop: full table */
-        <div className="data-table">
+        <div className="data-table group" data-density={density}>
           {loading ? (
             <TableSkeleton rows={6} cols={Math.max(visibleColumns.length, 4)} />
           ) : sortedData.length === 0 ? (
@@ -686,17 +847,26 @@ export function DataTable<T extends Record<string, any>>({
                 )}
               >
                 <table className="w-full">
+                  <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleColumnDragEnd}>
+                    <SortableContext items={visibleColumns.map((c) => c.key)} strategy={horizontalListSortingStrategy}>
                   <thead>
                     <tr className="border-b bg-muted/50">
-                      {hasActions && <th className="px-2 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Ações</th>}
-                      {selectable && <th className="w-10 px-3 py-3"><Checkbox checked={pagedData.length > 0 && pagedData.every((item) => selectedIds.includes(item.id))} onCheckedChange={toggleSelectAll} /></th>}
+                      {hasActions && <th className="px-2 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground group-data-[density=compact]:py-1.5 group-data-[density=compact]:px-1">Ações</th>}
+                      {selectable && <th className="w-10 px-3 py-3 group-data-[density=compact]:py-1.5"><Checkbox checked={pagedData.length > 0 && pagedData.every((item) => selectedIds.includes(item.id))} onCheckedChange={toggleSelectAll} /></th>}
                       {visibleColumns.map((col) => (
-                        <th key={col.key} className={cn('px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground', col.sortable !== false && 'cursor-pointer')} onClick={() => col.sortable !== false && handleSort(col.key)}>
-                          <div className="flex items-center gap-1.5">{col.label}{col.sortable !== false && <SortIcon colKey={col.key} />}</div>
-                        </th>
+                        <SortableColumnHeader
+                          key={col.key}
+                          id={col.key}
+                          className={cn('px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground group-data-[density=compact]:py-1.5 group-data-[density=compact]:px-2 group-data-[density=compact]:text-[10px]', col.sortable !== false && 'cursor-pointer')}
+                          onClick={(e) => col.sortable !== false && handleSort(col.key, e.shiftKey)}
+                        >
+                          {col.label}{col.sortable !== false && <SortIcon colKey={col.key} />}
+                        </SortableColumnHeader>
                       ))}
                     </tr>
                   </thead>
+                    </SortableContext>
+                  </DndContext>
                   <VirtualizedOrPlainTbody
                     data={pagedData}
                     useVirtual={pagedData.length > virtualizeThreshold}
@@ -704,9 +874,9 @@ export function DataTable<T extends Record<string, any>>({
                     renderRow={(item, idx) => (
                       <>
                         <tr key={item.id || idx} onClick={() => onRowClick?.(item)} onDoubleClick={onView ? () => onView(item) : undefined} className={cn('border-b transition-colors last:border-b-0 hover:bg-muted/30', selectable && selectedIds.includes(item.id) && 'bg-primary/5')}>
-                          {hasActions && <td className="px-2 py-3">{renderActions(item)}</td>}
-                          {selectable && <td className="w-10 px-3 py-3"><Checkbox checked={selectedIds.includes(item.id)} onCheckedChange={() => toggleSelect(item.id)} onClick={(e) => e.stopPropagation()} /></td>}
-                          {visibleColumns.map((col) => <td key={col.key} className="px-4 py-3 text-sm whitespace-nowrap">{col.render ? col.render(item) : item[col.key]}</td>)}
+                          {hasActions && <td className="px-2 py-3 group-data-[density=compact]:py-1 group-data-[density=compact]:px-1">{renderActions(item)}</td>}
+                          {selectable && <td className="w-10 px-3 py-3 group-data-[density=compact]:py-1"><Checkbox checked={selectedIds.includes(item.id)} onCheckedChange={() => toggleSelect(item.id)} onClick={(e) => e.stopPropagation()} /></td>}
+                          {visibleColumns.map((col) => <td key={col.key} className="px-4 py-3 text-sm whitespace-nowrap group-data-[density=compact]:py-1 group-data-[density=compact]:px-2 group-data-[density=compact]:text-xs">{col.render ? col.render(item) : item[col.key]}</td>)}
                         </tr>
                         {renderInlineDetails && expandedRows.has(item.id) && (
                           <tr key={`detail-${item.id || idx}`} className="border-b bg-muted/20"><td colSpan={visibleColumns.length + (hasActions ? 1 : 0) + (selectable ? 1 : 0)} className="px-4 py-3">{renderInlineDetails(item)}</td></tr>

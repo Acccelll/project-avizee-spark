@@ -1,5 +1,6 @@
 import { createContext, useContext, useCallback, useEffect, useMemo, useReducer, useRef, ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
+import { toast } from "sonner";
 
 export const MAX_DRAWER_DEPTH = 5;
 
@@ -129,6 +130,7 @@ export function RelationalNavigationProvider({ children }: { children: ReactNode
       if (stackRef.current.length === 0) return;
       if (e.shiftKey) {
         e.stopImmediatePropagation();
+        toast.info(`${stackRef.current.length} drawer(s) fechados`, { duration: 2000 });
         dispatch({ type: "clear" });
       }
     };

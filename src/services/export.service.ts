@@ -373,3 +373,52 @@ function formatCellValuePdf(value: unknown, key: string, format?: string): strin
   }
   return (value ?? "-") as string;
 }
+
+// ─── Web Worker CSV ──────────────────────────────────────────────────────────
+
+/**
+ * Generates a CSV string off the main thread using a Web Worker.
+ * Useful for large datasets (>10k rows) to avoid blocking the UI.
+ *
+ * @param rows    Array of objects mapping column label → value
+ * @param columns Column definitions with key and label
+ * @returns Resolves with the CSV string
+ */
+export function generateCSVViaWorker(
+  rows: Record<string, unknown>[],
+  columns: ExportColumnDef[],
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(
+      new URL('./exportWorker.ts', import.meta.url),
+      { type: 'module' },
+    );
+
+    const id = crypto.randomUUID();
+
+    worker.onmessage = (e: MessageEvent) => {
+      const { type, id: responseId, csv, message } = e.data as {
+        type: string;
+        id: string;
+        csv?: string;
+        message?: string;
+      };
+      if (responseId !== id) return;
+
+      worker.terminate();
+
+      if (type === 'csv-done' && csv !== undefined) {
+        resolve(csv);
+      } else {
+        reject(new Error(message ?? 'CSV generation failed'));
+      }
+    };
+
+    worker.onerror = (err) => {
+      worker.terminate();
+      reject(err);
+    };
+
+    worker.postMessage({ type: 'generate-csv', id, payload: { rows, columns } });
+  });
+}

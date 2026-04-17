@@ -184,6 +184,7 @@ export default function Administracao() {
   const [empresaUpdatedAt, setEmpresaUpdatedAt] = useState<string | null>(null);
   const [empresaCreatedAt, setEmpresaCreatedAt] = useState<string | null>(null);
   const [logoUploading, setLogoUploading] = useState(false);
+  const [logoLocalPreview, setLogoLocalPreview] = useState<string | null>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
 
   const [emailErrors, setEmailErrors] = useState<Record<string, string>>({});
@@ -307,6 +308,9 @@ export default function Administracao() {
       toast.error('Arquivo muito grande. O tamanho máximo é 2 MB.');
       return;
     }
+    // Show local preview immediately
+    const previewUrl = URL.createObjectURL(file);
+    setLogoLocalPreview(previewUrl);
     setLogoUploading(true);
     try {
       const ext = file.name.split('.').pop() ?? 'png';
@@ -321,6 +325,8 @@ export default function Administracao() {
       toast.error(getUserFriendlyError(err));
     } finally {
       setLogoUploading(false);
+      setLogoLocalPreview(null);
+      URL.revokeObjectURL(previewUrl);
       if (logoInputRef.current) logoInputRef.current.value = '';
     }
   };
@@ -661,17 +667,20 @@ export default function Administracao() {
             {/* Logo */}
             <div className="space-y-3">
               <Label>Logo da empresa</Label>
-              {config.geral.logoUrl && (
+              {(logoLocalPreview || config.geral.logoUrl) && (
                 <div className="flex items-start gap-4">
-                  <div className="flex h-20 w-40 items-center justify-center overflow-hidden rounded-md border bg-muted/30 p-2">
+                  <div className="flex h-20 w-40 items-center justify-center overflow-hidden rounded-md border bg-muted/30 p-2 relative">
                     <img
-                      src={config.geral.logoUrl}
+                      src={logoLocalPreview || config.geral.logoUrl}
                       alt="Logo da empresa"
                       className="max-h-full max-w-full object-contain"
                       onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
                     />
+                    {logoLocalPreview && (
+                      <span className="absolute bottom-1 left-1 rounded bg-warning/80 px-1 py-0.5 text-[10px] text-warning-foreground font-medium">Pré-visualização</span>
+                    )}
                   </div>
-                  <p className="mt-2 truncate max-w-xs text-xs text-muted-foreground font-mono">{config.geral.logoUrl}</p>
+                  <p className="mt-2 truncate max-w-xs text-xs text-muted-foreground font-mono">{logoLocalPreview ? 'Enviando...' : config.geral.logoUrl}</p>
                 </div>
               )}
               <div className="flex flex-wrap gap-2">
