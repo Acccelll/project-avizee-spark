@@ -62,7 +62,7 @@ export async function sincronizarSocial(payload: SocialSyncPayload = {}): Promis
   if (payload.contaId) {
     const { data: conta, error: contaError } = await table('social_contas').select('plataforma').eq('id' as never, payload.contaId as never).single();
     if (contaError) throw contaError;
-    const provider = getSocialProvider((conta as { plataforma?: string } | null)?.plataforma);
+    const provider = getSocialProvider(((conta as { plataforma?: string } | null)?.plataforma) as Parameters<typeof getSocialProvider>[0]);
     await provider.syncInsights(payload);
   }
 
