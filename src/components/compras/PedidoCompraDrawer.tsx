@@ -416,12 +416,7 @@ export function PedidoCompraDrawer({
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Produtos</span>
             <span className="font-mono">
-              {formatCurrency(
-                (viewItems as Array<Record<string, unknown>>).reduce(
-                  (s, i) => s + Number(i.valor_total || 0),
-                  0,
-                ),
-              )}
+              {formatCurrency(viewItems.reduce((s, i) => s + Number(i.valor_total || 0), 0))}
             </span>
           </div>
           {Number(selected.frete_valor) > 0 && (
