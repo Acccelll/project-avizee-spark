@@ -1,61 +1,81 @@
 
 
-Análise rápida:
+Antes do plano dos 7 itens, há um **bloqueador imediato**: o build está quebrado em `OrcamentoForm.tsx` (linhas 589, 590, 654, 655) por incompatibilidade entre `SalvarOrcamentoPayload` / `SalvarOrcamentoItemPayload` e o tipo `Json` esperado pela RPC `salvar_orcamento`. O cast `as unknown as Json` aplicado na Fase C não resolveu — falta um cast mais explícito para o shape esperado pelo `supabase-js`.
 
-1. **`ajustar_estoque_manual`** já existe como RPC no banco (vista em db-functions) e já é usada por `useAjustarEstoque.ts`. Faz exatamente o que o usuário pediu: `FOR UPDATE`, calcula novo saldo, insere movimento, atualiza `produtos.estoque_atual`. **Correção 2 já está implementada** — não há nada a fazer além de validar.
+# 0. Pré-requisito — Corrigir build (bloqueante)
 
-2. **`receber_compra`** já existe como RPC (vista em db-functions) e cobre o fluxo de recebimento, MAS:
-   - Foi desenhada para `compras` (recebimento parcial/total via tabela `compras` + `compras_itens`).
-   - Recebe `p_itens jsonb` (recebimento parcial), não apenas `p_pedido_id`.
-   - Já tem hook `useReceberCompra` em `src/pages/comercial/hooks/useReceberCompra.ts`.
-   - O `darEntrada` em `src/hooks/usePedidosCompra.ts` ainda faz lógica sequencial JS antiga (insere `estoque_movimentos` + opcionalmente `financeiro_lancamentos` + atualiza status), **não** usa essa RPC. Esse é o gap real.
+**Causa**: tipos gerados de `salvar_orcamento` exigem `Json` (que requer `[key: string]: Json`). As interfaces de domínio têm campos opcionais e tipos específicos que o TS não infere como assinaláveis a `Json`.
 
-Portanto, o trabalho real é:
+**Correção**: trocar `as unknown as Json` por `as unknown as never` (padrão usado em outras RPCs do projeto, ex: `usePedidosCompra.ts` linha do `receber_compra`) nas 4 ocorrências. Sem alterar runtime.
 
-- **Não criar `receber_pedido_compra` nova** — usar a `receber_compra` existente (já transacional, já testada). Refatorar `darEntrada` para chamá-la, montando `p_itens` com a quantidade total dos itens do pedido (recebimento total simples).
-- **Não criar `ajustar_estoque_manual`** — já existe e já é usada.
+---
 
-Preciso investigar o código atual de `darEntrada` e `useAjustarEstoque` para confirmar.
+# Análise dos 7 itens do anexo vs. realidade do projeto
 
-# Plano
+| # | Item | Diagnóstico | Recomendação |
+|---|---|---|---|
+| 1 | `sidebar_sections_state` em `user_preferences` | `useUserPreference` já é genérico por chave. Hoje seções **não** persistem (`AppSidebar` mantém estado local). Não precisa de coluna nova nem alterar `admin-users` (essa edge function é só admin de usuários, nada a ver). RLS já cobre `user_preferences`. | **Fazer** — usar `useUserPreference<Record<string, boolean>>(user.id, 'sidebar_sections_state', {})` em `AppSidebar`. Zero migration, zero edge function. |
+| 2 | Edge function `validate-contrast` | Já existe `ContrastDevTool.tsx` client-side fazendo isso. Cálculo é matemática pura (sem segredo, sem dependência externa). Edge function adicionaria latência de rede para algo síncrono. | **Não fazer como edge function**. Extrair `contrastRatio` para `src/utils/contrast.ts` reutilizável. Se admin precisa validar cor ao salvar tema, chamar localmente. |
+| 3 | RPC `sugerir_conciliacao_bancaria` com `pg_trgm` | Heurística atual (`calcularScoreConciliacao`) usa valor exato + janela de 3 dias + Jaccard de palavras. `pg_trgm` melhoraria descrição, mas o gargalo real é volume (extratos têm dezenas, não milhares). Migrar para RPC tem custo (round-trips, perda de loop client-side em auto-match). | **Fazer parcialmente** — habilitar `pg_trgm` e criar RPC opcional `sugerir_conciliacao_bancaria(p_conta_id, p_extrato jsonb)` que retorna candidatos rankeados via `similarity()`. Manter heurística client como fallback. Ajuste mínimo no hook. |
+| 4 | `pedido_compra_id` em `financeiro_lancamentos` | **Crítico e correto**. Verifiquei: `receber_compra` cria `compras` mas **não** insere financeiro vinculado ao pedido (a RPC atual no contexto está truncada antes da parte financeira — preciso ler completa antes de implementar). Buscar por `observacoes ILIKE` é frágil. | **Fazer** — migration adiciona FK + índice; ajustar `receber_compra` (ou criar trigger) para popular o campo quando gera o lançamento de "a pagar". |
+| 5 | Relatórios assíncronos com `relatorio_jobs` | Verificar primeiro se existe timeout real reportado. Hoje `relatorios.service.ts` gera Excel/PDF client-side. Adicionar fila + tabela + edge function + polling é **infra significativa** para problema não comprovado. | **Adiar** — pedir ao usuário evidência (qual relatório, qual tamanho, qual erro). Sem isso é over-engineering. |
+| 6 | Push notifications (OneSignal/FCM) | Requer credencial de terceiros (segredo do usuário), tabela de tokens, service worker no front, integração com eventos. **Feature nova grande**, não correção. | **Adiar** — separar em projeto próprio. Pedir ao usuário se quer abrir como roadmap. |
+| 7 | Materialized views `vw_apresentacao_*` | Preciso verificar se existem `vw_apresentacao_*` (memória menciona "Apresentação Gerencial" usando estrutura analítica do Workbook). Se forem views regulares pesadas, MV + `pg_cron` faz sentido. Mas precisa medir antes. | **Investigar antes** — listar views `vw_apresentacao_*`, medir tempo de execução. Só materializar se houver ganho comprovado. |
 
-## Diagnóstico
+---
 
-| Item solicitado | Estado real | Ação |
-|---|---|---|
-| RPC `ajustar_estoque_manual` | **Já existe e já é usada** por `useAjustarEstoque.ts` com `SELECT FOR UPDATE`, lock atômico, atualização de saldo. | Validar (ler hook + RPC) e reportar — nada a fazer. |
-| RPC transacional para receber pedido | **`receber_compra` já existe** e é transacional (cria `compras`, itens, movimentos de estoque, financeiro, atualiza status do pedido). | Refatorar `darEntrada` para usar essa RPC em vez de criar nova. |
-| `darEntrada` em `usePedidosCompra.ts` | Ainda faz fluxo sequencial JS antigo (inserts manuais, sem atomicidade). | Substituir por chamada à `receber_compra` com `p_itens` montado a partir dos itens do pedido. |
+# Plano de execução
 
-## Fase única — Refatorar `darEntrada` para usar `receber_compra`
+## Fase 0 — Desbloquear build *(obrigatório antes de tudo)*
+- Trocar `as unknown as Json` → `as unknown as never` em `src/pages/OrcamentoForm.tsx` (4 ocorrências, linhas ~589, 590, 654, 655).
+- Validar com `tsc --noEmit`.
 
-**Escopo**:
-1. Ler `src/hooks/usePedidosCompra.ts` (`darEntrada` atual) para entender o que precisa ser preservado (toasts, `navigate('/fiscal')`, invalidações).
-2. Buscar itens do pedido (`pedidos_compra_itens`) — montar `p_itens` JSON com `produto_id`, `quantidade_recebida = quantidade pedida`, `valor_unitario`. Recebimento total.
-3. Chamar `supabase.rpc('receber_compra', { p_pedido_id, p_data_recebimento: today, p_itens, p_observacoes: null })`.
-4. Remover todos os inserts manuais (`estoque_movimentos`, `financeiro_lancamentos`, update de status). A RPC faz tudo.
-5. Manter `refreshAll()`, toast de sucesso, `navigate('/fiscal?source=pedido_compra&id=...')`.
-6. **Não** mexer em `useAjustarEstoque.ts` — já está correto.
+## Fase 1 — Item 1: Persistir expansão de seções da sidebar
+- Em `src/components/AppSidebar.tsx`, substituir o estado local de seções abertas por `useUserPreference<Record<string, boolean>>(user?.id, 'sidebar_sections_state', {})`.
+- Sem migration (a tabela `user_preferences` já é chave-valor com RLS por dono — o hook resolve tudo).
+- Sem mexer em `admin-users` (escopo errado no anexo).
 
-**Arquivos**:
-- `src/hooks/usePedidosCompra.ts` (única edição).
+## Fase 2 — Item 2: Utilitário de contraste reutilizável (não edge function)
+- Extrair `parseRgb`, `luminance`, `contrastRatio` de `ContrastDevTool.tsx` para `src/utils/contrast.ts` exportado.
+- Atualizar `ContrastDevTool` para importar do utilitário.
+- Disponibilizar para uso em `Configuracoes.tsx` (validação de cor de tema admin) — mostrar aviso se ratio < 4.5.
 
-**Riscos**:
-- `receber_compra` retorna `{ compra_id, numero, status_pedido, valor_total }` — confirmar que a navegação `/fiscal` não depende do antigo objeto retornado.
-- Se houver pedidos com `condicao_pagamento` específica, a RPC cria financeiro com base na lógica interna dela (verificar se gera 1 título único ou parcelas).
-- Validar antes: ler RPC `receber_compra` por completo para confirmar criação de financeiro (a versão truncada no contexto cortou no meio).
+## Fase 3 — Item 4: FK `pedido_compra_id` em `financeiro_lancamentos`
+- **Investigar primeiro** (read-only): ler `receber_compra` completa (db-functions truncou) e qualquer trigger em `compras` que crie financeiro.
+- Migration:
+  - `ALTER TABLE financeiro_lancamentos ADD COLUMN pedido_compra_id UUID REFERENCES pedidos_compra(id);`
+  - `CREATE INDEX idx_financeiro_lancamentos_pedido_compra ON financeiro_lancamentos(pedido_compra_id);`
+- Atualizar `receber_compra` (ou trigger correspondente) para preencher `pedido_compra_id` ao inserir lançamento "pagar".
+- Refatorar `usePedidosCompra.ts` (`viewFinanceiro`) — substituir busca por `observacoes ILIKE` por filtro `eq('pedido_compra_id', p.id)`.
 
-**Critério de conclusão**:
-- `darEntrada` reduzida a ~15 linhas (buscar itens + chamar RPC + redirecionar).
-- Zero inserts diretos em `estoque_movimentos` ou `financeiro_lancamentos` no hook.
-- Compilação OK (`tsc --noEmit`).
+## Fase 4 — Item 3: `pg_trgm` + RPC `sugerir_conciliacao_bancaria`
+- Migration: `CREATE EXTENSION IF NOT EXISTS pg_trgm;`
+- Criar RPC `sugerir_conciliacao_bancaria(p_conta_id uuid, p_extrato jsonb)` retornando `TABLE(extrato_id text, lancamento_id uuid, score numeric)` — combina valor exato, janela de data e `similarity(descricao_norm, extrato_descricao_norm)`.
+- `SECURITY DEFINER` + `SET search_path = public`.
+- Em `useConciliacaoBancaria.autoMatch`, tentar RPC; em caso de erro, cair no `sugerirConciliacao` client atual.
 
-## Comunicação ao usuário
+## Fase 5 — Itens 5, 6, 7: **Adiados**
+- Pedir confirmação ao usuário com evidência (item 5), escolha de provider (item 6), e medição de performance (item 7) antes de implementar.
 
-Após aprovação, vou explicar que:
-- A RPC `ajustar_estoque_manual` **já existia** e já estava em uso — não foi necessário criar.
-- A RPC `receber_compra` **já existia** e já era transacional — apenas refatorei `darEntrada` para usá-la em vez de criar uma duplicata.
-- O ganho real é eliminar o fluxo sequencial antigo em `darEntrada`.
+---
 
-Posso prosseguir?
+# Pontos a validar antes de avançar
+
+1. **Build OK** após Fase 0 (`tsc --noEmit`).
+2. **`receber_compra` versão completa** — confirmar onde o lançamento financeiro é criado (RPC ou trigger separada) antes de Fase 3.
+3. **Estrutura real de `pedidos_compra_itens`** — campos `produto_id`, `quantidade`, `valor_unitario` para reuso em Fase 3.
+4. **Existência de `vw_apresentacao_*`** — listar antes de qualquer ação no item 7.
+
+# Riscos
+- Fase 3: alterar `receber_compra` impacta fluxo crítico de recebimento — precisa de validação manual no preview após deploy.
+- Fase 4: RPC com `pg_trgm` pode retornar resultados diferentes do client em edge cases (acentos, normalização) — manter fallback é mandatório.
+- Fase 1: `useUserPreference` faz upsert por chave; chave nova convive sem conflito com `sidebar_collapsed`.
+
+# Sequência recomendada
+**0 → 1 → 2 → 3 → 4** nesta ordem. 5/6/7 só após confirmação explícita do usuário com escopo refinado.
+
+# Cautelas finais
+- Não criar edge function para validação de contraste (cálculo é matemático, sem segredo).
+- Não alterar `admin-users` no item 1 (escopo do anexo está incorreto).
+- Não criar tabela `relatorio_jobs` sem evidência de timeout.
 
