@@ -33,7 +33,7 @@ export function AppSidebar({ collapsed, onToggleCollapsed, mobileOpen, onCloseMo
   const navigate = useNavigate();
   const currentRoute = `${location.pathname}${location.search}`;
   const { isAdmin } = useIsAdmin();
-  const { roles, can, permissionsLoaded } = useAuth();
+  const { roles, can, permissionsLoaded, user } = useAuth();
   const socialPermissions = useMemo(() => getSocialPermissionFlags(roles), [roles]);
   const alerts = useSidebarAlerts();
   const { favoritos, toggleFavorito, isFavorito } = useFavoritos();
@@ -108,7 +108,6 @@ export function AppSidebar({ collapsed, onToggleCollapsed, mobileOpen, onCloseMo
     return location.pathname === targetBase || location.pathname.startsWith(`${targetBase}/`);
   };
 
-  const { user } = useAuth();
   const { value: manualSections, save: saveManualSections } = useUserPreference<Record<string, boolean>>(
     user?.id ?? null,
     'sidebar_sections_state',
