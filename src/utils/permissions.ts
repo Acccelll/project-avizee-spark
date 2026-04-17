@@ -35,7 +35,7 @@ export type Permission = PermissionKey | `${string}:*` | "admin";
  * checkPermission(adminPerms, "qualquer:coisa") // true
  */
 export function checkPermission(
-  userPermissions: Set<PermissionKey | Permission>,
+  userPermissions: Set<string>,
   required: Permission
 ): boolean {
   // Acesso total via pseudo-permissão "admin"
