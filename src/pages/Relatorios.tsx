@@ -170,21 +170,6 @@ export default function Relatorios() {
 
   const visibleColumns = useMemo(() => columns.filter((c) => !hiddenColumns.includes(c.key)), [columns, hiddenColumns]);
 
-  /**
-   * Column definitions for export — ordered, labeled and typed from the report config,
-   * filtered to only visible columns. This ensures CSV/Excel/PDF match exactly what
-   * the user sees on screen.
-   */
-  const exportColumnDefs = useMemo<ExportColumnDef[] | undefined>(() => {
-    if (!tipo || !selectedMeta) return undefined;
-    const cfgCols = selectedMeta.columns;
-    if (!cfgCols.length) return undefined;
-    return visibleColumns.map((vc) => {
-      const cfgCol = cfgCols.find((c) => c.key === vc.key);
-      return { key: vc.key, label: vc.label, format: cfgCol?.format };
-    });
-  }, [visibleColumns, tipo, selectedMeta]);
-
   const handleSelectTipo = (next: TipoRelatorio) => {
     setHiddenColumns([]);
     // Reset all filter params, keep only the new tipo
@@ -267,6 +252,21 @@ export default function Relatorios() {
   const prioritized = Object.values(reportConfigs).filter((r) => r.priority);
   const showEmpty = !isLoading && !isError && sortedRows.length === 0;
   const hasExportableData = sortedRows.length > 0;
+
+  /**
+   * Column definitions for export — ordered, labeled and typed from the report config,
+   * filtered to only visible columns. This ensures CSV/Excel/PDF match exactly what
+   * the user sees on screen.
+   */
+  const exportColumnDefs = useMemo<ExportColumnDef[] | undefined>(() => {
+    if (!tipo || !selectedMeta) return undefined;
+    const cfgCols = selectedMeta.columns;
+    if (!cfgCols.length) return undefined;
+    return visibleColumns.map((vc) => {
+      const cfgCol = cfgCols.find((c) => c.key === vc.key);
+      return { key: vc.key, label: vc.label, format: cfgCol?.format };
+    });
+  }, [visibleColumns, tipo, selectedMeta]);
 
   return (
     <AppLayout>
