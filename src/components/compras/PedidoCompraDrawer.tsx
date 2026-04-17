@@ -274,21 +274,21 @@ export function PedidoCompraDrawer({
         {pctRecebimento > 0 && <Progress value={pctRecebimento} className="h-1.5 mt-3" />}
       </div>
 
-      {(viewItems as Array<Record<string, unknown>>).length > 0 && (
+      {viewItems.length > 0 && (
         <ViewSection title="Progresso por Item">
           <div className="space-y-3">
-            {(viewItems as Array<Record<string, unknown>>).map((i, idx) => {
+            {viewItems.map((i) => {
               const qtdRec = estoquePorProduto[String(i.produto_id)] || 0;
               const qtdPend = Math.max(0, Number(i.quantidade) - qtdRec);
               const pct =
                 Number(i.quantidade) > 0
                   ? Math.min(100, Math.round((qtdRec / Number(i.quantidade)) * 100))
                   : 0;
-              const produtos = i.produtos as Record<string, unknown> | null | undefined;
+              const produtos = i.produtos;
               return (
-                <div key={idx} className="space-y-1">
+                <div key={String(i.id)} className="space-y-1">
                   <div className="flex justify-between items-center text-xs">
-                    <span className="font-medium truncate max-w-[200px]">{String(produtos?.nome ?? "—")}</span>
+                    <span className="font-medium truncate max-w-[200px]">{produtos?.nome ?? "—"}</span>
                     <span className="font-mono text-muted-foreground shrink-0 ml-2 flex items-center gap-1">
                       <span className="text-success font-medium">{qtdRec}</span>
                       <span>/</span>
