@@ -433,7 +433,7 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
   const darEntrada = async (p: PedidoCompra) => {
     const { data: itens, error: itensError } = await supabase
       .from("pedidos_compra_itens")
-      .select("produto_id, quantidade, valor_unitario")
+      .select("produto_id, quantidade, preco_unitario")
       .eq("pedido_compra_id", p.id);
 
     if (itensError) {
