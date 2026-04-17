@@ -638,13 +638,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "fk_compras_fornecedor"
-            columns: ["fornecedor_id"]
-            isOneToOne: false
-            referencedRelation: "fornecedores"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "fk_compras_pedido_compra"
             columns: ["pedido_compra_id"]
             isOneToOne: false
@@ -701,27 +694,6 @@ export type Database = {
           },
           {
             foreignKeyName: "compras_itens_produto_id_fkey"
-            columns: ["produto_id"]
-            isOneToOne: false
-            referencedRelation: "vw_workbook_estoque_posicao"
-            referencedColumns: ["produto_id"]
-          },
-          {
-            foreignKeyName: "fk_compras_itens_compra"
-            columns: ["compra_id"]
-            isOneToOne: false
-            referencedRelation: "compras"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_compras_itens_produto"
-            columns: ["produto_id"]
-            isOneToOne: false
-            referencedRelation: "produtos"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_compras_itens_produto"
             columns: ["produto_id"]
             isOneToOne: false
             referencedRelation: "vw_workbook_estoque_posicao"
@@ -1004,27 +976,6 @@ export type Database = {
             referencedRelation: "vw_workbook_estoque_posicao"
             referencedColumns: ["produto_id"]
           },
-          {
-            foreignKeyName: "fk_cci_cotacao"
-            columns: ["cotacao_compra_id"]
-            isOneToOne: false
-            referencedRelation: "cotacoes_compra"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_cci_produto"
-            columns: ["produto_id"]
-            isOneToOne: false
-            referencedRelation: "produtos"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_cci_produto"
-            columns: ["produto_id"]
-            isOneToOne: false
-            referencedRelation: "vw_workbook_estoque_posicao"
-            referencedColumns: ["produto_id"]
-          },
         ]
       }
       cotacoes_compra_propostas: {
@@ -1078,27 +1029,6 @@ export type Database = {
           },
           {
             foreignKeyName: "cotacoes_compra_propostas_item_id_fkey"
-            columns: ["item_id"]
-            isOneToOne: false
-            referencedRelation: "cotacoes_compra_itens"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_ccp_cotacao"
-            columns: ["cotacao_compra_id"]
-            isOneToOne: false
-            referencedRelation: "cotacoes_compra"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_ccp_fornecedor"
-            columns: ["fornecedor_id"]
-            isOneToOne: false
-            referencedRelation: "fornecedores"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_ccp_item"
             columns: ["item_id"]
             isOneToOne: false
             referencedRelation: "cotacoes_compra_itens"
@@ -3211,17 +3141,10 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "fk_pedidos_compra_cotacao"
+            foreignKeyName: "pedidos_compra_cotacao_compra_id_fkey"
             columns: ["cotacao_compra_id"]
             isOneToOne: false
             referencedRelation: "cotacoes_compra"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_pedidos_compra_fornecedor"
-            columns: ["fornecedor_id"]
-            isOneToOne: false
-            referencedRelation: "fornecedores"
             referencedColumns: ["id"]
           },
           {
@@ -3262,27 +3185,6 @@ export type Database = {
           subtotal?: number | null
         }
         Relationships: [
-          {
-            foreignKeyName: "fk_pci_pedido"
-            columns: ["pedido_compra_id"]
-            isOneToOne: false
-            referencedRelation: "pedidos_compra"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_pci_produto"
-            columns: ["produto_id"]
-            isOneToOne: false
-            referencedRelation: "produtos"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_pci_produto"
-            columns: ["produto_id"]
-            isOneToOne: false
-            referencedRelation: "vw_workbook_estoque_posicao"
-            referencedColumns: ["produto_id"]
-          },
           {
             foreignKeyName: "pedidos_compra_itens_pedido_compra_id_fkey"
             columns: ["pedido_compra_id"]
