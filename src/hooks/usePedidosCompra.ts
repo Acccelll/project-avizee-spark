@@ -433,7 +433,7 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
   const darEntrada = async (p: PedidoCompra) => {
     const { data: itens, error: itensError } = await supabase
       .from("pedidos_compra_itens")
-      .select("produto_id, descricao, quantidade, valor_unitario")
+      .select("produto_id, quantidade, valor_unitario")
       .eq("pedido_compra_id", p.id);
 
     if (itensError) {
@@ -450,7 +450,7 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
       .filter((i) => Number(i.quantidade || 0) > 0)
       .map((i) => ({
         produto_id: i.produto_id ? String(i.produto_id) : null,
-        descricao: i.descricao ?? null,
+        descricao: null,
         quantidade_recebida: Number(i.quantidade || 0),
         valor_unitario: Number(i.valor_unitario || 0),
       }));
