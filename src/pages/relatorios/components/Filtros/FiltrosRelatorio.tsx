@@ -12,10 +12,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { MultiSelect } from "@/components/ui/MultiSelect";
 import { Input } from "@/components/ui/input";
 import type { ReportFiltersDef } from "@/config/relatoriosConfig";
-import type { ClienteRef, FornecedorRef, GrupoProdutoRef } from "../hooks/useRelatoriosFiltrosData";
+import type { ClienteRef, FornecedorRef, GrupoProdutoRef } from "../../hooks/useRelatoriosFiltrosData";
 
 export type Agrupamento = "padrao" | "valor_desc" | "status" | "vencimento";
 export type DreCompetencia = "mes" | "trimestre" | "ano" | "personalizado";
+
+/** Fallback status options for financial-style reports (Financeiro, Aging). */
+const DEFAULT_STATUS_OPTIONS = [
+  { value: 'todos', label: 'Todos' },
+  { value: 'aberto', label: 'Em aberto' },
+  { value: 'vencido', label: 'Vencido' },
+  { value: 'pago', label: 'Pago/Confirmado' },
+  { value: 'pendente', label: 'Pendente' },
+];
 
 export interface FiltrosRelatorioState {
   clienteIds: string[];
@@ -93,11 +102,9 @@ export function FiltrosRelatorio({
             <Select value={state.statusFiltro} onValueChange={(v) => onChange({ statusFiltro: v })}>
               <SelectTrigger className="h-9 w-[160px]"><SelectValue placeholder="Todos" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="todos">Todos</SelectItem>
-                <SelectItem value="aberto">Em aberto</SelectItem>
-                <SelectItem value="vencido">Vencido</SelectItem>
-                <SelectItem value="pago">Pago/Confirmado</SelectItem>
-                <SelectItem value="pendente">Pendente</SelectItem>
+                {(filters.statusOptions ?? DEFAULT_STATUS_OPTIONS).map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

@@ -73,6 +73,8 @@ export interface ReportFiltersDef {
   showFornecedores: boolean;
   showGrupos: boolean;
   showStatus: boolean;
+  /** When provided, overrides the default status option list in FiltrosRelatorio. */
+  statusOptions?: Array<{ value: string; label: string }>;
   showTipos: boolean;
   showSomenteCriticos?: boolean;
   showSomenteZerados?: boolean;
@@ -325,6 +327,12 @@ const vendasConfig: ReportConfig = {
     showFornecedores: false,
     showGrupos: false,
     showStatus: true,
+    statusOptions: [
+      { value: 'todos', label: 'Todos' },
+      { value: 'rascunho', label: 'Rascunho' },
+      { value: 'confirmado', label: 'Confirmado' },
+      { value: 'cancelado', label: 'Cancelado' },
+    ],
     showTipos: false,
   },
   kpis: [
@@ -334,7 +342,7 @@ const vendasConfig: ReportConfig = {
     { key: 'aguardandoFaturamento', label: 'Aguard. Faturamento', format: 'number', variant: 'warning', variation: 'pedidos' },
   ],
   drillDown: [
-    { key: 'pedido', label: 'Abrir pedido', route: '/vendas', available: true },
+    { key: 'pedido', label: 'Abrir pedido', route: '/pedidos', available: true },
   ],
 };
 
@@ -397,6 +405,14 @@ const comprasConfig: ReportConfig = {
     showFornecedores: true,
     showGrupos: false,
     showStatus: true,
+    statusOptions: [
+      { value: 'todos', label: 'Todos' },
+      { value: 'pendente', label: 'Pendente' },
+      { value: 'aprovado', label: 'Aprovado' },
+      { value: 'em_transito', label: 'Em Trânsito' },
+      { value: 'entregue', label: 'Entregue' },
+      { value: 'cancelado', label: 'Cancelado' },
+    ],
     showTipos: false,
   },
   kpis: [
@@ -406,7 +422,7 @@ const comprasConfig: ReportConfig = {
     { key: 'atrasadas', label: 'Atrasadas', format: 'number', variant: 'danger', variation: 'pendentes' },
   ],
   drillDown: [
-    { key: 'compra', label: 'Abrir pedido', route: '/compras', available: true },
+    { key: 'compra', label: 'Abrir pedido', route: '/pedidos-compra', available: true },
     { key: 'fornecedor', label: 'Abrir fornecedor', route: '/fornecedores', available: false },
   ],
 };
@@ -484,7 +500,7 @@ const faturamentoConfig: ReportConfig = {
   drillDown: [
     { key: 'nf', label: 'Abrir NF', route: '/fiscal', available: true },
     { key: 'cliente', label: 'Abrir cliente', route: '/clientes', available: true },
-    { key: 'pedido', label: 'Abrir pedido', route: '/vendas', available: true },
+    { key: 'pedido', label: 'Abrir pedido', route: '/pedidos', available: true },
   ],
 };
 

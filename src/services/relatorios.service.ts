@@ -63,9 +63,9 @@ interface RawVendasItem {
 
 interface RawComprasItem {
   numero: string;
-  data_pedido: string | null;
-  data_prevista: string | null;
-  data_entrega: string | null;
+  data_compra: string | null;
+  data_entrega_prevista: string | null;
+  data_entrega_real: string | null;
   valor_total: number | null;
   status: string | null;
   fornecedores: { nome_razao_social: string } | null;
@@ -334,15 +334,24 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
       let query = supabase
         .from("financeiro_lancamentos")
         .select("tipo, descricao, valor, status, data_vencimento, data_pagamento")
-        .eq("ativo", true)
-        .order("data_vencimento", { ascending: true });
+        .eq("ativo", true);
 
       query = withDateRange(query, "data_vencimento", filtros);
+      // Apply tipo filter when requested (receber / pagar)
+      if (filtros.tiposFinanceiros?.length) query = query.in('tipo', filtros.tiposFinanceiros);
       const { data, error } = await query;
       if (error) throw error;
 
+      // Sort by the effective date that will be displayed (pagamento when available, else vencimento)
+      // so that the accumulated saldo follows the same chronological order shown in the table.
+      const sorted = (data || []).slice().sort((a: RawFluxoItem, b: RawFluxoItem) => {
+        const da = a.data_pagamento || a.data_vencimento || '';
+        const db = b.data_pagamento || b.data_vencimento || '';
+        return da.localeCompare(db);
+      });
+
       let saldo = 0;
-      const rows = (data || []).map((item: RawFluxoItem) => {
+      const rows = sorted.map((item: RawFluxoItem) => {
         const itemValor = Number(item.valor || 0);
         const entrada = item.tipo === "receber" ? itemValor : 0;
         const saida = item.tipo === "pagar" ? itemValor : 0;
@@ -351,7 +360,7 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
         return {
           data: item.data_pagamento || item.data_vencimento,
           descricao: item.descricao || "-",
-          tipo: item.tipo,
+          tipo: item.tipo === 'receber' ? 'Entrada' : 'Saída',
           status: item.status || "-",
           entrada,
           saida,
@@ -503,9 +512,9 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
       const hoje = new Date();
       hoje.setHours(0, 0, 0, 0);
 
-      const rows = (data || []).map((item: Record<string, unknown>) => {
-        const prevista = (item.data_prevista || item.data_entrega_prevista) ? new Date(item.data_prevista || item.data_entrega_prevista) : null;
-        const entregaReal = item.data_entrega || item.data_entrega_real;
+      const rows = (data || []).map((item: RawComprasItem) => {
+        const prevista = item.data_entrega_prevista ? new Date(item.data_entrega_prevista) : null;
+        const entregaReal = item.data_entrega_real;
         const statusVal = item.status || '-';
         const emAberto = ['pendente', 'aprovado', 'em_transito'].includes(statusVal);
         const atraso = (prevista && emAberto && prevista < hoje)
@@ -514,8 +523,8 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
         return {
           numero: item.numero,
           fornecedor: item.fornecedores?.nome_razao_social || "-",
-          compra: item.data_pedido,
-          prevista: item.data_prevista,
+          compra: item.data_compra,
+          prevista: item.data_entrega_prevista,
           entrega: entregaReal,
           valor: Number(item.valor_total || 0),
           atraso,
@@ -540,6 +549,20 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
     }
 
     case "dre": {
+      // ── Demonstrativo Gerencial Simplificado ─────────────────────────────────
+      // NOTE: This is a GERENCIAL (management) approximation — not an official
+      // accounting DRE. It is derived from financeiro_lancamentos records and
+      // notas_fiscais taxes. For a canonical DRE, a dedicated accounting view
+      // or RPC should replace these queries in the future.
+      //
+      // Methodology:
+      //   Receita Bruta    = sum of received (pago) receber-type entries
+      //   Deduções         = sum of ICMS/PIS/COFINS/IPI on outgoing NFs in the period
+      //   CMV              = pagar entries linked to nota_fiscal or described as "compra"
+      //   Despesas Op.     = remaining pagar entries
+      //   Resultado        = Receita Líquida − CMV − Despesas Operacionais
+      // ─────────────────────────────────────────────────────────────────────────
+
       let receitaQuery = supabase
         .from("financeiro_lancamentos")
         .select("valor")
@@ -571,28 +594,32 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
 
       const receitaBruta = (receitas || []).reduce((s: number, r: Record<string, unknown>) => s + Number(r.valor || 0), 0);
 
+      // Deduções fiscais (impostos incidentes sobre receita)
       const deducoes = (nfSaida || []).reduce((s: number, nf: Record<string, unknown>) => {
         return s + Number(nf.icms_valor || 0) + Number(nf.pis_valor || 0) + Number(nf.cofins_valor || 0) + Number(nf.ipi_valor || 0);
       }, 0);
 
       const receitaLiquida = receitaBruta - deducoes;
 
+      // CMV: lançamentos pagar com NF vinculada OU descrição contendo "compra"
       const cmv = (pagos || []).filter((p: Record<string, unknown>) =>
         p.nota_fiscal_id || (p.descricao || "").toLowerCase().includes("compra")
       ).reduce((s: number, p: Record<string, unknown>) => s + Number(p.valor || 0), 0);
 
+      // Despesas Operacionais: demais lançamentos pagar
       const despesasOp = (pagos || []).filter((p: Record<string, unknown>) =>
         !p.nota_fiscal_id && !(p.descricao || "").toLowerCase().includes("compra")
       ).reduce((s: number, p: Record<string, unknown>) => s + Number(p.valor || 0), 0);
 
-      const resultado = receitaLiquida - cmv - despesasOp;
+      const lucroBruto = receitaLiquida - cmv;
+      const resultado = lucroBruto - despesasOp;
 
       const rows = [
         { linha: "Receita Bruta", valor: receitaBruta, tipo: "header" },
         { linha: "(–) Deduções s/ Receita", valor: deducoes, tipo: "deducao" },
         { linha: "= Receita Líquida", valor: receitaLiquida, tipo: "subtotal" },
         { linha: "(–) CMV / CPV", valor: cmv, tipo: "deducao" },
-        { linha: "= Lucro Bruto", valor: receitaLiquida - cmv, tipo: "subtotal" },
+        { linha: "= Lucro Bruto", valor: lucroBruto, tipo: "subtotal" },
         { linha: "(–) Despesas Operacionais", valor: despesasOp, tipo: "deducao" },
         { linha: "= Resultado do Exercício", valor: resultado, tipo: "resultado" },
       ];
@@ -933,17 +960,25 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
     }
 
     case "divergencias": {
-      // Pedidos de compra sem NF
+      // Pedidos de compra sem NF:
+      // Only flag orders that are older than 3 days (newer ones may still be awaiting NF).
+      // Status 'pendente' and 'aprovado' are considered open; 'em_transito' are already progressing.
+      const threeDaysAgo = new Date();
+      threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+      const threeDaysAgoStr = threeDaysAgo.toISOString().slice(0, 10);
+
       const { data: pedidos } = await supabase
         .from("pedidos_compra")
-        .select("numero, fornecedor_id, valor_total, status, fornecedores(nome_razao_social)")
+        .select("numero, fornecedor_id, valor_total, status, created_at, fornecedores(nome_razao_social)")
         .eq("ativo", true)
-        .in("status", ["pendente", "aprovado"]);
+        .in("status", ["pendente", "aprovado"])
+        .lte("created_at", threeDaysAgoStr);
 
-      // Notas fiscais sem financeiro
+      // Notas fiscais with gera_financeiro=true but no corresponding financial entry.
+      // Include partner info for better parceiro display.
       const { data: nfs } = await supabase
         .from("notas_fiscais")
-        .select("id, numero, tipo, valor_total, data_emissao, fornecedor_id, cliente_id")
+        .select("id, numero, tipo, valor_total, data_emissao, fornecedor_id, cliente_id, clientes(nome_razao_social), fornecedores(nome_razao_social)")
         .eq("ativo", true)
         .eq("gera_financeiro", true);
 
@@ -969,19 +1004,27 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
           valor: Number(pc.valor_total || 0),
           status: pc.status,
           criticidade: "Alta",
-          observacao: "Pedido de compra sem nota fiscal vinculada",
+          observacao: "Pedido de compra aprovado/pendente há mais de 3 dias sem nota fiscal vinculada",
         });
       }
 
       for (const nf of nfsSemFinanceiro) {
+        const nfTyped = nf as {
+          numero: string; tipo: string; valor_total: number | null;
+          clientes: { nome_razao_social: string } | null;
+          fornecedores: { nome_razao_social: string } | null;
+        };
+        const parceiro = nfTyped.tipo === 'saida'
+          ? (nfTyped.clientes?.nome_razao_social || '-')
+          : (nfTyped.fornecedores?.nome_razao_social || '-');
         rows.push({
           tipo: "NF s/ Financeiro",
-          referencia: nf.numero,
-          parceiro: "-",
-          valor: Number(nf.valor_total || 0),
-          status: nf.tipo,
+          referencia: nfTyped.numero,
+          parceiro,
+          valor: Number(nfTyped.valor_total || 0),
+          status: nfTyped.tipo,
           criticidade: "Alta",
-          observacao: "Nota fiscal com flag financeiro mas sem lançamento",
+          observacao: "Nota fiscal com flag financeiro mas sem lançamento gerado",
         });
       }
 

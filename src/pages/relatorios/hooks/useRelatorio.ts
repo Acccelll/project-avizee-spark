@@ -1,8 +1,15 @@
 /**
  * Generic React Query hook for the Reports module.
  *
- * Used internally by the specialised hooks (useRelatorioVendas, etc.) to avoid
- * repeating the same React Query options on every hook.
+ * This hook is used directly by Relatorios.tsx for all report types, providing
+ * a single integration point with a consistent query key, staleTime and
+ * placeholderData strategy.
+ *
+ * Specialised hooks (useRelatorioVendas, useRelatorioFinanceiro,
+ * useRelatorioEstoque) wrap this hook with a `select` function to add
+ * pre-computed derived data (e.g. vendasPorPeriodo, agingPorFaixa). They are
+ * available for consumers that need those computed values directly without
+ * having to duplicate the transformation logic.
  */
 
 import { useQuery, keepPreviousData } from "@tanstack/react-query";

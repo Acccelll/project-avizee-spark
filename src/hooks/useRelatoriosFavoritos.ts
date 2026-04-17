@@ -4,6 +4,11 @@
  * Each favourite stores the full URL search-params string so that
  * restoring a favourite simply requires calling setSearchParams with the
  * stored value (parsed back into a URLSearchParams object).
+ *
+ * Guards:
+ *   - Favourites must have a valid `tipo` param to be saved or loaded.
+ *   - Duplicate names are rejected (case-insensitive).
+ *   - Invalid entries are silently discarded on load.
  */
 
 import { useCallback, useEffect, useState } from "react";
@@ -18,10 +23,20 @@ export interface RelatorioFavorito {
   criadoEm: string;
 }
 
+function isValidFavorito(f: unknown): f is RelatorioFavorito {
+  if (!f || typeof f !== "object") return false;
+  const fav = f as Record<string, unknown>;
+  if (!fav.id || !fav.nome || !fav.params || !fav.criadoEm) return false;
+  // Must contain a valid tipo param
+  return !!new URLSearchParams(String(fav.params)).get("tipo");
+}
+
 function loadFavoritos(): RelatorioFavorito[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as RelatorioFavorito[]) : [];
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as unknown[];
+    return Array.isArray(parsed) ? parsed.filter(isValidFavorito) : [];
   } catch {
     return [];
   }
@@ -45,19 +60,38 @@ export function useRelatoriosFavoritos() {
     return () => window.removeEventListener("storage", handler);
   }, []);
 
-  const salvar = useCallback((nome: string, searchParams: URLSearchParams) => {
-    const novo: RelatorioFavorito = {
-      id: crypto.randomUUID(),
-      nome: nome.trim(),
-      params: searchParams.toString(),
-      criadoEm: new Date().toISOString(),
-    };
+  /**
+   * Saves the current filter configuration as a named favourite.
+   * Returns the created item, or null when:
+   *   - nome is empty
+   *   - searchParams has no `tipo`
+   *   - a favourite with the same name already exists
+   */
+  const salvar = useCallback((nome: string, searchParams: URLSearchParams): RelatorioFavorito | null => {
+    const nomeClean = nome.trim();
+    if (!nomeClean) return null;
+    if (!searchParams.get("tipo")) return null;
+
+    let result: RelatorioFavorito | null = null;
+
     setFavoritos((prev) => {
+      // Reject duplicate names (case-insensitive)
+      if (prev.some((f) => f.nome.toLowerCase() === nomeClean.toLowerCase())) {
+        return prev;
+      }
+      const novo: RelatorioFavorito = {
+        id: crypto.randomUUID(),
+        nome: nomeClean,
+        params: searchParams.toString(),
+        criadoEm: new Date().toISOString(),
+      };
+      result = novo;
       const updated = [...prev, novo];
       saveFavoritos(updated);
       return updated;
     });
-    return novo;
+
+    return result;
   }, []);
 
   const remover = useCallback((id: string) => {
@@ -69,9 +103,11 @@ export function useRelatoriosFavoritos() {
   }, []);
 
   const renomear = useCallback((id: string, novoNome: string) => {
+    const nomeClean = novoNome.trim();
+    if (!nomeClean) return;
     setFavoritos((prev) => {
       const updated = prev.map((f) =>
-        f.id === id ? { ...f, nome: novoNome.trim() } : f
+        f.id === id ? { ...f, nome: nomeClean } : f
       );
       saveFavoritos(updated);
       return updated;
