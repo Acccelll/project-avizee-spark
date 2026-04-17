@@ -15,6 +15,7 @@ import { PedidoCompraFormModal } from "@/components/compras/PedidoCompraFormModa
 import { PedidoCompraDrawer } from "@/components/compras/PedidoCompraDrawer";
 import { type MultiSelectOption } from "@/components/ui/MultiSelect";
 import type { PedidoCompra } from "@/components/compras/pedidoCompraTypes";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 
 const statusLabels: Record<string, string> = Object.fromEntries(
   Object.entries(statusPedidoCompra).map(([k, v]) => [k, v.label]),
