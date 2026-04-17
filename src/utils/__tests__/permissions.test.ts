@@ -59,6 +59,24 @@ describe("checkPermission", () => {
     const perms = new Set<string>();
     expect(checkPermission(perms, "usuarios:criar")).toBe(false);
   });
+
+  it("retorna true para wildcard global '*' (canônico)", () => {
+    const perms = new Set<string>(["*"]);
+    const cases: Permission[] = [
+      "usuarios:visualizar",
+      "financeiro:criar",
+      "usuarios:*",
+      "qualquer:coisa" as Permission,
+    ];
+    cases.forEach((p) => {
+      expect(checkPermission(perms, p)).toBe(true);
+    });
+  });
+
+  it("trata 'admin' como alias legado equivalente a '*'", () => {
+    expect(checkPermission(new Set<string>(["admin"]), "*")).toBe(true);
+    expect(checkPermission(new Set<string>(["*"]), "admin")).toBe(true);
+  });
 });
 
 // ─── checkPermissionArray ─────────────────────────────────────────────────────
