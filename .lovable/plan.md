@@ -1,81 +1,52 @@
 
 
-Antes do plano dos 7 itens, há um **bloqueador imediato**: o build está quebrado em `OrcamentoForm.tsx` (linhas 589, 590, 654, 655) por incompatibilidade entre `SalvarOrcamentoPayload` / `SalvarOrcamentoItemPayload` e o tipo `Json` esperado pela RPC `salvar_orcamento`. O cast `as unknown as Json` aplicado na Fase C não resolveu — falta um cast mais explícito para o shape esperado pelo `supabase-js`.
+User aprovou execução completa das 8 fases. Plano confirmado da última proposta:
 
-# 0. Pré-requisito — Corrigir build (bloqueante)
+**Fase 1** — Tabela `comentarios` polimórfica + RLS (autor edita/deleta, admin tudo)
+**Fase 2** — Workflow aprovação pedidos compra: colunas + 3 RPCs + UI
+**Fase 3** — `quantidade_recebida` em `pedidos_compra_itens` + ajuste `receber_compra` + `RecebimentoDrawer`
+**Fase 4** — Triggers anti-delete em `contas_bancarias` e `contas_contabeis`
+**Fase 5** — Triggers de auditoria em `empresa_config` e `app_configuracoes`
+**Fase 6** — Índices de performance (validar via `pg_indexes` antes)
+**Fase 7** — `orcamento_drafts` server-side + refator autosave em `OrcamentoForm`
+**Fase 8** — `hash_conteudo` em `importacao_lotes` (verificar existência primeiro)
 
-**Causa**: tipos gerados de `salvar_orcamento` exigem `Json` (que requer `[key: string]: Json`). As interfaces de domínio têm campos opcionais e tipos específicos que o TS não infere como assinaláveis a `Json`.
+# Execução
 
-**Correção**: trocar `as unknown as Json` por `as unknown as never` (padrão usado em outras RPCs do projeto, ex: `usePedidosCompra.ts` linha do `receber_compra`) nas 4 ocorrências. Sem alterar runtime.
+## Ordem
+1 → 4 → 5 → 6 → 8 → 3 → 7 → 2 (DDL/triggers primeiro, refatores de UI por último)
 
----
+## Validações pré-execução
+- `pg_indexes` para Fase 6 (não duplicar)
+- Existência de `importacao_lotes` para Fase 8
+- Ler RPC `receber_compra` completa para Fase 3
+- Ler `OrcamentoForm.tsx` autosave atual para Fase 7
+- Ler `usePedidosCompra.ts` para Fase 2
 
-# Análise dos 7 itens do anexo vs. realidade do projeto
+## Migrations (consolidadas em arquivos por fase)
+- Fase 1: tabela `comentarios` + 4 policies RLS + índice
+- Fase 2: ALTER `pedidos_compra` (4 colunas) + 3 RPCs + insert config `compras.limite_aprovacao`
+- Fase 3: ALTER `pedidos_compra_itens` + UPDATE RPC `receber_compra`
+- Fase 4: 1 função + 2 triggers
+- Fase 5: 1 função + 2 triggers
+- Fase 6: CREATE INDEX condicional (IF NOT EXISTS)
+- Fase 7: tabela `orcamento_drafts` + RLS por dono
+- Fase 8: ALTER `importacao_lotes` (se existir)
 
-| # | Item | Diagnóstico | Recomendação |
-|---|---|---|---|
-| 1 | `sidebar_sections_state` em `user_preferences` | `useUserPreference` já é genérico por chave. Hoje seções **não** persistem (`AppSidebar` mantém estado local). Não precisa de coluna nova nem alterar `admin-users` (essa edge function é só admin de usuários, nada a ver). RLS já cobre `user_preferences`. | **Fazer** — usar `useUserPreference<Record<string, boolean>>(user.id, 'sidebar_sections_state', {})` em `AppSidebar`. Zero migration, zero edge function. |
-| 2 | Edge function `validate-contrast` | Já existe `ContrastDevTool.tsx` client-side fazendo isso. Cálculo é matemática pura (sem segredo, sem dependência externa). Edge function adicionaria latência de rede para algo síncrono. | **Não fazer como edge function**. Extrair `contrastRatio` para `src/utils/contrast.ts` reutilizável. Se admin precisa validar cor ao salvar tema, chamar localmente. |
-| 3 | RPC `sugerir_conciliacao_bancaria` com `pg_trgm` | Heurística atual (`calcularScoreConciliacao`) usa valor exato + janela de 3 dias + Jaccard de palavras. `pg_trgm` melhoraria descrição, mas o gargalo real é volume (extratos têm dezenas, não milhares). Migrar para RPC tem custo (round-trips, perda de loop client-side em auto-match). | **Fazer parcialmente** — habilitar `pg_trgm` e criar RPC opcional `sugerir_conciliacao_bancaria(p_conta_id, p_extrato jsonb)` que retorna candidatos rankeados via `similarity()`. Manter heurística client como fallback. Ajuste mínimo no hook. |
-| 4 | `pedido_compra_id` em `financeiro_lancamentos` | **Crítico e correto**. Verifiquei: `receber_compra` cria `compras` mas **não** insere financeiro vinculado ao pedido (a RPC atual no contexto está truncada antes da parte financeira — preciso ler completa antes de implementar). Buscar por `observacoes ILIKE` é frágil. | **Fazer** — migration adiciona FK + índice; ajustar `receber_compra` (ou criar trigger) para popular o campo quando gera o lançamento de "a pagar". |
-| 5 | Relatórios assíncronos com `relatorio_jobs` | Verificar primeiro se existe timeout real reportado. Hoje `relatorios.service.ts` gera Excel/PDF client-side. Adicionar fila + tabela + edge function + polling é **infra significativa** para problema não comprovado. | **Adiar** — pedir ao usuário evidência (qual relatório, qual tamanho, qual erro). Sem isso é over-engineering. |
-| 6 | Push notifications (OneSignal/FCM) | Requer credencial de terceiros (segredo do usuário), tabela de tokens, service worker no front, integração com eventos. **Feature nova grande**, não correção. | **Adiar** — separar em projeto próprio. Pedir ao usuário se quer abrir como roadmap. |
-| 7 | Materialized views `vw_apresentacao_*` | Preciso verificar se existem `vw_apresentacao_*` (memória menciona "Apresentação Gerencial" usando estrutura analítica do Workbook). Se forem views regulares pesadas, MV + `pg_cron` faz sentido. Mas precisa medir antes. | **Investigar antes** — listar views `vw_apresentacao_*`, medir tempo de execução. Só materializar se houver ganho comprovado. |
+## Código (frontend)
+- `src/hooks/usePedidosCompra.ts` — ações aprovar/rejeitar via novas RPCs; novo status `aguardando_aprovacao` em filtros
+- `src/components/compras/PedidoCompraDrawer.tsx` — botões Aprovar/Rejeitar para admin quando status = aguardando_aprovacao
+- `src/components/logistica/RecebimentoDrawer.tsx` — exibir `quantidade_recebida` real
+- `src/pages/OrcamentoForm.tsx` — substituir `localStorage` autosave por upsert em `orcamento_drafts`
 
----
+## Riscos
+- Fase 4: lançamentos órfãos podem bloquear inativação — função filtra apenas `ativo=true` em referências
+- Fase 7: refator de form crítico — manter fallback `localStorage` em caso de erro de rede
+- Fase 2: status novo precisa ser tratado em todos os filtros existentes
 
-# Plano de execução
-
-## Fase 0 — Desbloquear build *(obrigatório antes de tudo)*
-- Trocar `as unknown as Json` → `as unknown as never` em `src/pages/OrcamentoForm.tsx` (4 ocorrências, linhas ~589, 590, 654, 655).
-- Validar com `tsc --noEmit`.
-
-## Fase 1 — Item 1: Persistir expansão de seções da sidebar
-- Em `src/components/AppSidebar.tsx`, substituir o estado local de seções abertas por `useUserPreference<Record<string, boolean>>(user?.id, 'sidebar_sections_state', {})`.
-- Sem migration (a tabela `user_preferences` já é chave-valor com RLS por dono — o hook resolve tudo).
-- Sem mexer em `admin-users` (escopo errado no anexo).
-
-## Fase 2 — Item 2: Utilitário de contraste reutilizável (não edge function)
-- Extrair `parseRgb`, `luminance`, `contrastRatio` de `ContrastDevTool.tsx` para `src/utils/contrast.ts` exportado.
-- Atualizar `ContrastDevTool` para importar do utilitário.
-- Disponibilizar para uso em `Configuracoes.tsx` (validação de cor de tema admin) — mostrar aviso se ratio < 4.5.
-
-## Fase 3 — Item 4: FK `pedido_compra_id` em `financeiro_lancamentos`
-- **Investigar primeiro** (read-only): ler `receber_compra` completa (db-functions truncou) e qualquer trigger em `compras` que crie financeiro.
-- Migration:
-  - `ALTER TABLE financeiro_lancamentos ADD COLUMN pedido_compra_id UUID REFERENCES pedidos_compra(id);`
-  - `CREATE INDEX idx_financeiro_lancamentos_pedido_compra ON financeiro_lancamentos(pedido_compra_id);`
-- Atualizar `receber_compra` (ou trigger correspondente) para preencher `pedido_compra_id` ao inserir lançamento "pagar".
-- Refatorar `usePedidosCompra.ts` (`viewFinanceiro`) — substituir busca por `observacoes ILIKE` por filtro `eq('pedido_compra_id', p.id)`.
-
-## Fase 4 — Item 3: `pg_trgm` + RPC `sugerir_conciliacao_bancaria`
-- Migration: `CREATE EXTENSION IF NOT EXISTS pg_trgm;`
-- Criar RPC `sugerir_conciliacao_bancaria(p_conta_id uuid, p_extrato jsonb)` retornando `TABLE(extrato_id text, lancamento_id uuid, score numeric)` — combina valor exato, janela de data e `similarity(descricao_norm, extrato_descricao_norm)`.
-- `SECURITY DEFINER` + `SET search_path = public`.
-- Em `useConciliacaoBancaria.autoMatch`, tentar RPC; em caso de erro, cair no `sugerirConciliacao` client atual.
-
-## Fase 5 — Itens 5, 6, 7: **Adiados**
-- Pedir confirmação ao usuário com evidência (item 5), escolha de provider (item 6), e medição de performance (item 7) antes de implementar.
-
----
-
-# Pontos a validar antes de avançar
-
-1. **Build OK** após Fase 0 (`tsc --noEmit`).
-2. **`receber_compra` versão completa** — confirmar onde o lançamento financeiro é criado (RPC ou trigger separada) antes de Fase 3.
-3. **Estrutura real de `pedidos_compra_itens`** — campos `produto_id`, `quantidade`, `valor_unitario` para reuso em Fase 3.
-4. **Existência de `vw_apresentacao_*`** — listar antes de qualquer ação no item 7.
-
-# Riscos
-- Fase 3: alterar `receber_compra` impacta fluxo crítico de recebimento — precisa de validação manual no preview após deploy.
-- Fase 4: RPC com `pg_trgm` pode retornar resultados diferentes do client em edge cases (acentos, normalização) — manter fallback é mandatório.
-- Fase 1: `useUserPreference` faz upsert por chave; chave nova convive sem conflito com `sidebar_collapsed`.
-
-# Sequência recomendada
-**0 → 1 → 2 → 3 → 4** nesta ordem. 5/6/7 só após confirmação explícita do usuário com escopo refinado.
-
-# Cautelas finais
-- Não criar edge function para validação de contraste (cálculo é matemático, sem segredo).
-- Não alterar `admin-users` no item 1 (escopo do anexo está incorreto).
-- Não criar tabela `relatorio_jobs` sem evidência de timeout.
+## Critério de conclusão
+- Build OK (`tsc --noEmit`)
+- Migrations aplicadas
+- Hooks e drawers refatorados
+- Sem regressão em fluxos críticos (recebimento, orçamento, pedidos compra)
 
