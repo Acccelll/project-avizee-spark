@@ -249,8 +249,8 @@ export function useCompras(): UseComprasReturn {
   }, [data, isCotacoesView, statusFilters, fornecedorFilters, debouncedSearch]);
 
   const kpis = useMemo(() => {
-    const delivered = data.filter((c) => c.status === "entregue");
-    const pending = data.filter((c) => c.status === "confirmado" && !c.data_entrega_real);
+    const delivered = filteredData.filter((c) => c.status === "entregue");
+    const pending = filteredData.filter((c) => c.status === "confirmado" && !c.data_entrega_real);
     const totalValue = filteredData.reduce((s, c) => s + Number(c.valor_total || 0), 0);
     return {
       total: filteredData.length,
@@ -258,7 +258,7 @@ export function useCompras(): UseComprasReturn {
       pendingDelivery: pending.length,
       delivered: delivered.length,
     };
-  }, [data, filteredData]);
+  }, [filteredData]);
 
   const openCreate = useCallback(async () => {
     setMode("create");

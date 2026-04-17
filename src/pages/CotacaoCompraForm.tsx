@@ -5,7 +5,7 @@
  * Reaprovecha os subcomponentes existentes do drawer e do form modal,
  * expondo-os em rota dedicada para melhor usabilidade e rastreabilidade.
  */
-import { useEffect, useState, useMemo } from "react";
+import { useCallback, useEffect, useState, useMemo, type SetStateAction } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
@@ -61,6 +61,17 @@ export default function CotacaoCompraForm() {
 
   const [produtoOptions, setProdutoOptions] = useState<{ id: string; label: string; sublabel: string }[]>([]);
   const [fornecedorOptions, setFornecedorOptions] = useState<{ id: string; label: string; sublabel: string }[]>([]);
+  const [isDirty, setIsDirty] = useState(false);
+
+  const updateForm = useCallback((next: SetStateAction<typeof form>) => {
+    setForm(next);
+    setIsDirty(true);
+  }, []);
+
+  const updateLocalItems = useCallback((next: SetStateAction<LocalItem[]>) => {
+    setLocalItems(next);
+    setIsDirty(true);
+  }, []);
 
   useEffect(() => {
     async function load() {
@@ -78,14 +89,14 @@ export default function CotacaoCompraForm() {
       if (!cot) { toast.error("Cotação não encontrada."); navigate("/cotacoes-compra"); return; }
 
       setCotacao(cot as CotacaoCompra);
-      setForm({
+      updateForm({
         numero: cot.numero,
         data_cotacao: cot.data_cotacao,
         data_validade: cot.data_validade || "",
         observacoes: cot.observacoes || "",
         status: cot.status,
       });
-      setLocalItems(
+      updateLocalItems(
         (itens || []).map((i: CotacaoItem) => ({
           _localId: i.id,
           id: i.id,
@@ -110,21 +121,22 @@ export default function CotacaoCompraForm() {
           sublabel: f.cpf_cnpj || "",
         }))
       );
+      setIsDirty(false);
       setLoading(false);
     }
     load();
-  }, [id, navigate]);
+  }, [id, navigate, updateForm, updateLocalItems]);
 
   const isTerminal = cotacao ? ["convertida", "cancelada"].includes(cotacao.status) : false;
 
   const addLocalItem = () => {
-    setLocalItems([...localItems, { _localId: crypto.randomUUID(), produto_id: "", quantidade: 1, unidade: "UN" }]);
+    updateLocalItems([...localItems, { _localId: crypto.randomUUID(), produto_id: "", quantidade: 1, unidade: "UN" }]);
   };
   const updateLocalItem = (localId: string, field: string, value: unknown) => {
-    setLocalItems(localItems.map((i) => (i._localId === localId ? { ...i, [field]: value } : i)));
+    updateLocalItems(localItems.map((i) => (i._localId === localId ? { ...i, [field]: value } : i)));
   };
   const removeLocalItem = (localId: string) => {
-    setLocalItems(localItems.filter((i) => i._localId !== localId));
+    updateLocalItems(localItems.filter((i) => i._localId !== localId));
   };
 
   const reloadPropostas = async () => {
@@ -189,7 +201,7 @@ export default function CotacaoCompraForm() {
         .select("*, produtos(nome, codigo_interno, sku)")
         .eq("cotacao_compra_id", cotacao.id);
       setViewItems((itensReload || []) as CotacaoItem[]);
-      setLocalItems(
+      updateLocalItems(
         (itensReload || []).map((i: CotacaoItem) => ({
           _localId: i.id,
           id: i.id,
@@ -198,6 +210,7 @@ export default function CotacaoCompraForm() {
           unidade: i.unidade || "UN",
         }))
       );
+      setIsDirty(false);
     } catch (err: unknown) {
       toast.error(getUserFriendlyError(err));
     }
@@ -289,7 +302,15 @@ export default function CotacaoCompraForm() {
         {/* Header */}
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => navigate("/cotacoes-compra")} aria-label="Voltar">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => {
+                if (isDirty && !window.confirm("Existem alterações não salvas. Deseja sair?")) return;
+                navigate("/cotacoes-compra");
+              }}
+              aria-label="Voltar"
+            >
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div>
@@ -321,19 +342,19 @@ export default function CotacaoCompraForm() {
             <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
               <div className="space-y-2">
                 <Label>Número *</Label>
-                <Input value={form.numero} onChange={(e) => setForm({ ...form, numero: e.target.value })} required className="font-mono" />
+                <Input value={form.numero} onChange={(e) => updateForm({ ...form, numero: e.target.value })} required className="font-mono" />
               </div>
               <div className="space-y-2">
                 <Label>Data Cotação</Label>
-                <Input type="date" value={form.data_cotacao} onChange={(e) => setForm({ ...form, data_cotacao: e.target.value })} />
+                <Input type="date" value={form.data_cotacao} onChange={(e) => updateForm({ ...form, data_cotacao: e.target.value })} />
               </div>
               <div className="space-y-2">
                 <Label>Validade</Label>
-                <Input type="date" value={form.data_validade} onChange={(e) => setForm({ ...form, data_validade: e.target.value })} />
+                <Input type="date" value={form.data_validade} onChange={(e) => updateForm({ ...form, data_validade: e.target.value })} />
               </div>
               <div className="space-y-2">
                 <Label>Status</Label>
-                <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
+                <Select value={form.status} onValueChange={(v) => updateForm({ ...form, status: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="aberta">Aberta</SelectItem>
@@ -392,7 +413,7 @@ export default function CotacaoCompraForm() {
 
             <div className="space-y-2">
               <Label>Observações</Label>
-              <Textarea value={form.observacoes} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} />
+              <Textarea value={form.observacoes} onChange={(e) => updateForm({ ...form, observacoes: e.target.value })} />
             </div>
           </div>
         )}
@@ -427,7 +448,14 @@ export default function CotacaoCompraForm() {
         )}
 
         <div className="flex justify-between">
-          <Button variant="outline" onClick={() => navigate("/cotacoes-compra")} className="gap-2">
+          <Button
+            variant="outline"
+            onClick={() => {
+              if (isDirty && !window.confirm("Existem alterações não salvas. Deseja sair?")) return;
+              navigate("/cotacoes-compra");
+            }}
+            className="gap-2"
+          >
             <ArrowLeft className="h-4 w-4" /> Voltar para Cotações
           </Button>
           {!isTerminal && (
