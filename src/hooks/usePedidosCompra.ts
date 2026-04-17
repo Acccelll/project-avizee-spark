@@ -452,7 +452,7 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
         produto_id: i.produto_id ? String(i.produto_id) : null,
         descricao: null,
         quantidade_recebida: Number(i.quantidade || 0),
-        valor_unitario: Number(i.valor_unitario || 0),
+        valor_unitario: Number(i.preco_unitario || 0),
       }));
 
     if (payloadItens.length === 0) {
