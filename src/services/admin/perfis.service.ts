@@ -1,6 +1,11 @@
 /**
  * Serviço de perfis — operações sobre `user_roles` e permissões extra
  * (`user_permissions`).
+ *
+ * NOTA: `concederPermissao` e `revogarPermissao` são usadas pelo fluxo de
+ * permissões extras por usuário individual (canônico). As funções `fetchPerfisUsuario`,
+ * `atribuirPerfil` e `removerPerfil` são paralelas ao fluxo principal da edge
+ * function `admin-users` — prefira o fluxo canônico para criação/alteração de roles.
  */
 
 import { supabase } from "@/integrations/supabase/client";

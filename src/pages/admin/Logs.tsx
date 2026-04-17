@@ -1,4 +1,10 @@
 /**
+ * @deprecated Implementação paralela de logs de auditoria.
+ *
+ * A página canônica de auditoria é `src/pages/Auditoria.tsx` (rota `/auditoria`).
+ * Este arquivo é uma implementação alternativa não roteada. Evitar manutenção
+ * duplicada — qualquer evolução deve ser feita na página canônica.
+ *
  * Página de Logs de Auditoria (módulo Admin).
  *
  * Apresenta os registros da tabela `auditoria_logs` com filtros por
