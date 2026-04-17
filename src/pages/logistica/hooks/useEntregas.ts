@@ -15,6 +15,9 @@ export interface Entrega {
   status_logistico: string;
   responsavel: string;
   codigo_rastreio: string | null;
+  remessas_count: number;
+  remessa_ids: string[];
+  exibicao_remessas: "nenhuma" | "unica" | "multipla";
 }
 
 export interface EntregaFilters {
@@ -50,13 +53,12 @@ async function fetchEntregas(): Promise<Entrega[]> {
     (transportadorasRes.data ?? []).map((t) => [t.id, t.nome_razao_social] as const),
   );
   type RemessaRow = NonNullable<typeof remessasRes.data>[number];
-  const remessaByPedido = new Map<string, RemessaRow>();
+  const remessasByPedido = new Map<string, RemessaRow[]>();
   for (const r of remessasRes.data ?? []) {
     const key = r.ordem_venda_id ?? "";
-    const existing = remessaByPedido.get(key);
-    if (!existing || (r.updated_at ?? "") > (existing.updated_at ?? "")) {
-      remessaByPedido.set(key, r);
-    }
+    const list = remessasByPedido.get(key) ?? [];
+    list.push(r);
+    remessasByPedido.set(key, list);
   }
 
   const pesoByOrder = new Map<string, { peso: number; qtd: number }>();
@@ -78,9 +80,13 @@ async function fetchEntregas(): Promise<Entrega[]> {
   const ordens = (ordensRes.data ?? []) as unknown as OrdemRow[];
 
   return ordens.map((ov) => {
-    const remessa = remessaByPedido.get(ov.id);
+    const remessas = (remessasByPedido.get(ov.id) ?? []).sort(
+      (a, b) => (b.updated_at ?? "").localeCompare(a.updated_at ?? ""),
+    );
+    const remessa = remessas[0];
     const cliente = clienteMap.get(ov.cliente_id ?? "");
     const pesoQtd = pesoByOrder.get(ov.id) ?? { peso: 0, qtd: 0 };
+    const remessasCount = remessas.length;
 
     return {
       id: ov.id,
@@ -96,6 +102,10 @@ async function fetchEntregas(): Promise<Entrega[]> {
       status_logistico: remessa?.status_transporte ?? "aguardando_separacao",
       responsavel: ov.usuario_id ?? "—",
       codigo_rastreio: remessa?.codigo_rastreio ?? null,
+      remessas_count: remessasCount,
+      remessa_ids: remessas.map((r) => r.id),
+      exibicao_remessas:
+        remessasCount === 0 ? "nenhuma" : remessasCount === 1 ? "unica" : "multipla",
     };
   });
 }

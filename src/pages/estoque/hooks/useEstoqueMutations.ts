@@ -5,7 +5,6 @@ import { registrarMovimentacao, type EstoqueMovimentoInsert } from "../services/
 
 interface RegistrarMovimentacaoInput {
   payload: EstoqueMovimentoInsert;
-  novoEstoqueAtual: number;
 }
 
 export function useEstoqueMutations() {
@@ -17,8 +16,7 @@ export function useEstoqueMutations() {
   };
 
   const registrarMutation = useMutation<void, Error, RegistrarMovimentacaoInput>({
-    mutationFn: ({ payload, novoEstoqueAtual }) =>
-      registrarMovimentacao(payload, novoEstoqueAtual),
+    mutationFn: ({ payload }) => registrarMovimentacao(payload),
     onSuccess: () => {
       toast.success("Ajuste registrado com sucesso");
       invalidate();

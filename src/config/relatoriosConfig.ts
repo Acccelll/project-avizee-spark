@@ -189,7 +189,7 @@ const estoqueMinConfig: ReportConfig = {
   ],
   drillDown: [
     { key: 'produto', label: 'Abrir produto', route: '/produtos', available: true },
-    { key: 'compra', label: 'Iniciar reposição', route: '/compras', available: false },
+    { key: 'compra', label: 'Iniciar reposição', route: '/pedidos-compra', available: false },
   ],
 };
 

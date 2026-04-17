@@ -550,6 +550,19 @@ export default function OrcamentoForm() {
 
   const handleDuplicate = async () => {
     if (!id) { toast.error("Salve o orçamento antes de duplicar"); return; }
+    const unlinkedItems = items.filter(i => i._unlinked || (!i.produto_id && (i.codigo_snapshot || i.descricao_snapshot)));
+    if (unlinkedItems.length > 0) {
+      toast.error(
+        `Existem ${unlinkedItems.length} item(ns) não vinculado(s).`,
+        { description: "Vincule ou remova os itens marcados em vermelho antes de duplicar." },
+      );
+      return;
+    }
+    const validItems = items.filter(i => i.produto_id);
+    if (validItems.length === 0) {
+      toast.error("Adicione ao menos um item ao orçamento antes de duplicar.");
+      return;
+    }
     try {
       const { data: newNumero } = await supabase.rpc('proximo_numero_orcamento');
       const payload = {
@@ -573,7 +586,7 @@ export default function OrcamentoForm() {
         comprimento_cm: freteComprimentoCm || null,
       };
 
-      const itemsPayload = items.filter(i => i.produto_id).map(i => ({
+      const itemsPayload = validItems.map(i => ({
         produto_id: i.produto_id, codigo_snapshot: i.codigo_snapshot,
         descricao_snapshot: i.descricao_snapshot, variacao: i.variacao || null,
         quantidade: i.quantidade, unidade: i.unidade, valor_unitario: i.valor_unitario,

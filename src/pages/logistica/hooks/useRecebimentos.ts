@@ -13,6 +13,8 @@ export interface Recebimento {
   status_logistico: string;
   nf_vinculada: string | null;
   responsavel: string;
+  recebimento_real: boolean;
+  observacao_recebimento: string | null;
 }
 
 async function fetchRecebimentos(): Promise<Recebimento[]> {
@@ -65,10 +67,16 @@ async function fetchRecebimentos(): Promise<Recebimento[]> {
 
     const comprasStatus = compra.status ?? "rascunho";
     let qtdRecebida = 0;
+    let recebimentoReal = false;
+    let observacaoRecebimento: string | null = null;
     if (comprasStatus === "recebido") {
       qtdRecebida = qtdPedida;
+      recebimentoReal = true;
     } else if (comprasStatus === "parcialmente_recebido") {
-      qtdRecebida = Math.round(qtdPedida / 2);
+      // Não simular quantidades no frontend: o parcial real depende de consolidação
+      // de recebimento no fluxo canônico de Compras/RPC.
+      qtdRecebida = 0;
+      observacaoRecebimento = "Recebimento parcial informado no pedido, mas quantidade real pendente de consolidação.";
     }
     const pendencia = Math.max(0, qtdPedida - qtdRecebida);
 
@@ -87,6 +95,8 @@ async function fetchRecebimentos(): Promise<Recebimento[]> {
       status_logistico: statusLogistico,
       nf_vinculada: null,
       responsavel: compra.usuario_id ?? "—",
+      recebimento_real: recebimentoReal,
+      observacao_recebimento: observacaoRecebimento,
     };
   });
 }

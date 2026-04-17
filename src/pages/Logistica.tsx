@@ -310,9 +310,22 @@ export default function Logistica() {
   // ─── Status updates (invalidate query for fresh data after update) ───
   const updateEntregaStatus = async (entrega: Entrega, status: string) => {
     if (!canEdit) return;
-    const { data: remessa } = await supabase.from("remessas").select("id").eq("ordem_venda_id", entrega.id).maybeSingle();
-    if (!remessa?.id) { toast.warning("Nenhuma remessa encontrada para o pedido."); return; }
-    const { error } = await supabase.from("remessas").update({ status_transporte: status }).eq("id", remessa.id);
+    const { data: remessas, error: remessasError } = await supabase
+      .from("remessas")
+      .select("id")
+      .eq("ordem_venda_id", entrega.id)
+      .eq("ativo", true);
+    if (remessasError) {
+      toast.error(getUserFriendlyError(remessasError));
+      return;
+    }
+    const remessaIds = (remessas ?? []).map((r) => r.id);
+    if (remessaIds.length === 0) { toast.warning("Nenhuma remessa encontrada para o pedido."); return; }
+    if (remessaIds.length > 1) {
+      toast.warning("Este pedido possui múltiplas remessas. Atualize status por remessa na aba Remessas.");
+      return;
+    }
+    const { error } = await supabase.from("remessas").update({ status_transporte: status }).eq("id", remessaIds[0]);
     if (error) { toast.error(getUserFriendlyError(error)); return; }
     toast.success("Status atualizado");
   };
@@ -333,7 +346,7 @@ export default function Logistica() {
       .update({ data_entrega_real: new Date().toISOString().slice(0, 10) })
       .eq("id", recebimento.id);
     if (error) { toast.error(getUserFriendlyError(error)); return; }
-    toast.success("Data de recebimento registrada");
+    toast.success("Data de recebimento registrada. A consolidação quantitativa permanece no módulo Compras.");
   };
 
   const openViewRemessa = (r: Remessa) => { setRemSelected(r); setRemDrawerOpen(true); };
@@ -410,7 +423,16 @@ export default function Logistica() {
 
   // ─── Columns ───
   const entregaColumns = [
-    { key: "numero_pedido", label: "Pedido", sortable: true, render: (item: Entrega) => <span className="font-mono text-xs font-semibold text-primary">{item.numero_pedido}</span> },
+    { key: "numero_pedido", label: "Pedido", sortable: true, render: (item: Entrega) => (
+      <div className="inline-flex flex-col items-start gap-0.5">
+        <span className="font-mono text-xs font-semibold text-primary">{item.numero_pedido}</span>
+        {item.exibicao_remessas === "multipla" && (
+          <Badge variant="outline" className="text-[10px] h-4 px-1.5">
+            {item.remessas_count} remessas
+          </Badge>
+        )}
+      </div>
+    ) },
     { key: "cliente", label: "Cliente", sortable: true, render: (item: Entrega) => <span className="font-medium text-sm">{item.cliente}</span> },
     { key: "transportadora", label: "Transportadora", render: (item: Entrega) => item.transportadora === "—" ? <span className="text-muted-foreground text-xs">—</span> : <span className="text-sm">{item.transportadora}</span> },
     { key: "status_logistico", label: "Status", sortable: true, render: (item: Entrega) => {
@@ -435,9 +457,12 @@ export default function Logistica() {
         <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-muted-foreground" onClick={() => pushView("ordem_venda", item.id)}><ExternalLink className="h-3.5 w-3.5" />Pedido</Button>
         {canEdit && (
           <Select value={item.status_logistico} onValueChange={(value) => updateEntregaStatus(item, value)}>
-            <SelectTrigger className="h-8 w-[180px] text-xs"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="h-8 w-[180px] text-xs" disabled={item.exibicao_remessas === "multipla"}><SelectValue /></SelectTrigger>
             <SelectContent>{entregaStatusOptions.map((s) => <SelectItem key={s} value={s}>{logisticaStatusMap[s]?.label || s.replaceAll("_", " ")}</SelectItem>)}</SelectContent>
           </Select>
+        )}
+        {item.exibicao_remessas === "multipla" && (
+          <span className="text-[10px] text-muted-foreground">Atualize por remessa (aba Remessas)</span>
         )}
       </div>
     )},
@@ -458,8 +483,22 @@ export default function Logistica() {
     }},
     { key: "data_recebimento", label: "Recebido em", render: (item: Recebimento) => item.data_recebimento ? <span className="text-xs">{formatDate(item.data_recebimento)}</span> : <span className="text-muted-foreground text-xs">—</span> },
     { key: "quantidade_pedida", label: "Qtd. Pedida", render: (item: Recebimento) => <span className="text-xs">{formatNumber(item.quantidade_pedida)}</span> },
-    { key: "quantidade_recebida", label: "Qtd. Recebida", render: (item: Recebimento) => <span className="text-xs">{formatNumber(item.quantidade_recebida)}</span> },
-    { key: "pendencia", label: "Pendência", render: (item: Recebimento) => item.pendencia > 0 ? <span className="text-xs text-warning font-medium">{formatNumber(item.pendencia)}</span> : <span className="text-xs text-muted-foreground">—</span> },
+    { key: "quantidade_recebida", label: "Qtd. Recebida", render: (item: Recebimento) => (
+      <div className="inline-flex flex-col items-start gap-0.5">
+        <span className="text-xs">{formatNumber(item.quantidade_recebida)}</span>
+        {!item.recebimento_real && item.status_logistico === "recebimento_parcial" && (
+          <span className="text-[10px] text-muted-foreground">parcial não consolidado</span>
+        )}
+      </div>
+    ) },
+    { key: "pendencia", label: "Pendência", render: (item: Recebimento) => item.pendencia > 0 ? (
+      <div className="inline-flex flex-col items-start gap-0.5">
+        <span className="text-xs text-warning font-medium">{formatNumber(item.pendencia)}</span>
+        {!item.recebimento_real && item.status_logistico === "recebimento_parcial" && (
+          <span className="text-[10px] text-muted-foreground">depende do módulo Compras</span>
+        )}
+      </div>
+    ) : <span className="text-xs text-muted-foreground">—</span> },
     { key: "acoes", label: "Ações", render: (item: Recebimento) => (
       <div className="flex items-center gap-1.5 flex-wrap">
         <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => setSelectedRecebimento(item)}><Eye className="h-3.5 w-3.5" />Ver</Button>
