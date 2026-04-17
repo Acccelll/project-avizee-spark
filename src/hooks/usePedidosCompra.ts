@@ -109,6 +109,9 @@ export interface UsePedidosCompraReturn {
   darEntrada: (p: PedidoCompra) => Promise<void>;
   marcarEnviado: (p: PedidoCompra) => Promise<void>;
   cancelarPedido: (p: PedidoCompra) => Promise<void>;
+  solicitarAprovacao: (p: PedidoCompra) => Promise<void>;
+  aprovarPedido: (p: PedidoCompra) => Promise<void>;
+  rejeitarPedido: (p: PedidoCompra, motivo: string) => Promise<void>;
   deleteSelected: () => Promise<void>;
   setSelected: React.Dispatch<React.SetStateAction<PedidoCompra | null>>;
 
@@ -212,7 +215,7 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
 
   const kpis = useMemo(() => {
     const aguardando = pedidos.filter((p) =>
-      ["rascunho", "aprovado", "enviado_ao_fornecedor", "aguardando_recebimento"].includes(p.status),
+      ["rascunho", "aguardando_aprovacao", "aprovado", "enviado_ao_fornecedor", "aguardando_recebimento"].includes(p.status),
     );
     const recebidos = pedidos.filter((p) => p.status === "recebido");
     const totalValue = pedidos.reduce((s, p) => s + Number(p.valor_total || 0), 0);
@@ -600,6 +603,9 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
     darEntrada,
     marcarEnviado,
     cancelarPedido,
+    solicitarAprovacao,
+    aprovarPedido,
+    rejeitarPedido,
     deleteSelected,
     setSelected,
     modalOpen,
