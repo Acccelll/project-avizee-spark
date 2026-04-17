@@ -1,37 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle } from "lucide-react";
+import { contrastRatio, MIN_CONTRAST_AA } from "@/utils/contrast";
 
 interface ContrastIssue {
   id: string;
   text: string;
   ratio: number;
-}
-
-const MIN_CONTRAST_AA = 4.5;
-
-function parseRgb(color: string): [number, number, number] | null {
-  const matched = color.match(/\d+(\.\d+)?/g);
-  if (!matched || matched.length < 3) return null;
-  return [Number(matched[0]), Number(matched[1]), Number(matched[2])];
-}
-
-function luminance([r, g, b]: [number, number, number]) {
-  const [rs, gs, bs] = [r, g, b].map((value) => {
-    const c = value / 255;
-    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
-  });
-  return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs;
-}
-
-function contrastRatio(foreground: string, background: string) {
-  const fg = parseRgb(foreground);
-  const bg = parseRgb(background);
-  if (!fg || !bg) return null;
-  const l1 = luminance(fg);
-  const l2 = luminance(bg);
-  const lighter = Math.max(l1, l2);
-  const darker = Math.min(l1, l2);
-  return (lighter + 0.05) / (darker + 0.05);
 }
 
 export function ContrastDevTool() {

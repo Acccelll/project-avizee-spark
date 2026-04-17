@@ -586,8 +586,8 @@ export default function OrcamentoForm() {
 
       const { data: orcId, error } = await supabase.rpc('salvar_orcamento', {
         p_id: isEdit ? id : null,
-        p_payload: payload as SalvarOrcamentoPayload,
-        p_itens: itemsPayload as SalvarOrcamentoItemPayload[],
+        p_payload: payload as unknown as never,
+        p_itens: itemsPayload as unknown as never,
       });
       if (error) throw error;
 
@@ -651,8 +651,8 @@ export default function OrcamentoForm() {
 
       const { data: orcId, error } = await supabase.rpc('salvar_orcamento', {
         p_id: null,
-        p_payload: payload as SalvarOrcamentoPayload,
-        p_itens: itemsPayload as SalvarOrcamentoItemPayload[],
+        p_payload: payload as unknown as never,
+        p_itens: itemsPayload as unknown as never,
       });
       if (error) throw error;
 

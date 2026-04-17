@@ -1581,6 +1581,7 @@ export type Database = {
           observacoes: string | null
           parcela_numero: number | null
           parcela_total: number | null
+          pedido_compra_id: string | null
           saldo_restante: number | null
           status: string | null
           tipo: string
@@ -1610,6 +1611,7 @@ export type Database = {
           observacoes?: string | null
           parcela_numero?: number | null
           parcela_total?: number | null
+          pedido_compra_id?: string | null
           saldo_restante?: number | null
           status?: string | null
           tipo?: string
@@ -1639,6 +1641,7 @@ export type Database = {
           observacoes?: string | null
           parcela_numero?: number | null
           parcela_total?: number | null
+          pedido_compra_id?: string | null
           saldo_restante?: number | null
           status?: string | null
           tipo?: string
@@ -1709,6 +1712,13 @@ export type Database = {
             columns: ["nota_fiscal_id"]
             isOneToOne: false
             referencedRelation: "notas_fiscais"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_lancamentos_pedido_compra_id_fkey"
+            columns: ["pedido_compra_id"]
+            isOneToOne: false
+            referencedRelation: "pedidos_compra"
             referencedColumns: ["id"]
           },
         ]
@@ -4775,6 +4785,8 @@ export type Database = {
         Args: { p_cliente_id: string; p_endereco_id: string }
         Returns: undefined
       }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
       social_alertas_periodo: {
         Args: { _data_fim: string; _data_inicio: string }
         Returns: {
@@ -4812,6 +4824,14 @@ export type Database = {
         }
       }
       social_sincronizar_manual: { Args: { _conta_id?: string }; Returns: Json }
+      sugerir_conciliacao_bancaria: {
+        Args: { p_conta_id: string; p_extrato: Json }
+        Returns: {
+          extrato_id: string
+          lancamento_id: string
+          score: number
+        }[]
+      }
       user_has_permission: {
         Args: { _action: string; _resource: string; _user_id: string }
         Returns: boolean

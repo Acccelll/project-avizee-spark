@@ -321,7 +321,7 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
     const { data: finLanc } = await supabase
       .from("financeiro_lancamentos")
       .select("id, descricao, valor, status, data_vencimento, tipo")
-      .ilike("descricao", `${pedidoNumero(p)}%`)
+      .eq("pedido_compra_id", String(p.id))
       .eq("ativo", true);
     setViewFinanceiro((finLanc as FinanceiroLancRow[]) || []);
   };
