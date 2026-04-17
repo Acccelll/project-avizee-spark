@@ -28,14 +28,19 @@ import {
   XCircle,
 } from "lucide-react";
 import { PedidoCompra, pedidoNumero } from "./pedidoCompraTypes";
+import type {
+  PedidoItemRow,
+  EstoqueMovimentoRow,
+  FinanceiroLancRow,
+} from "@/hooks/usePedidosCompra";
 
 interface PedidoCompraDrawerProps {
   open: boolean;
   onClose: () => void;
   selected: PedidoCompra;
-  viewItems: unknown[];
-  viewEstoque: unknown[];
-  viewFinanceiro: unknown[];
+  viewItems: PedidoItemRow[];
+  viewEstoque: EstoqueMovimentoRow[];
+  viewFinanceiro: FinanceiroLancRow[];
   viewCotacao: { numero: string; status: string; data_cotacao: string } | null;
   onEdit: () => void;
   onDelete: () => void;
@@ -62,10 +67,13 @@ export function PedidoCompraDrawer({
 }: PedidoCompraDrawerProps) {
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
 
+  // Comparação por string YYYY-MM-DD evita bugs de timezone que ocorriam
+  // ao usar `new Date(prevista) < new Date()` (UTC vs local).
+  const todayIso = new Date().toISOString().slice(0, 10);
   const isOverdue =
     !["recebido", "cancelado"].includes(selected.status) &&
     !!selected.data_entrega_prevista &&
-    new Date(selected.data_entrega_prevista) < new Date();
+    String(selected.data_entrega_prevista).slice(0, 10) < todayIso;
 
   const recebimentoStatus = (() => {
     if (selected.status === "recebido") return { label: "Recebido", color: "success" };
@@ -82,8 +90,8 @@ export function PedidoCompraDrawer({
     secondary: "text-muted-foreground",
   };
 
-  const estoquePorProduto: Record<string, number> = (viewEstoque as Array<Record<string, unknown>>).reduce<Record<string, number>>(
-    (acc: Record<string, number>, m) => {
+  const estoquePorProduto: Record<string, number> = viewEstoque.reduce<Record<string, number>>(
+    (acc, m) => {
       const key = String(m.produto_id);
       acc[key] = (acc[key] || 0) + Number(m.quantidade || 0);
       return acc;
@@ -91,14 +99,8 @@ export function PedidoCompraDrawer({
     {},
   );
 
-  const totalOrdenado = (viewItems as Array<Record<string, unknown>>).reduce(
-    (s, i) => s + Number(i.quantidade || 0),
-    0,
-  );
-  const totalRecebido = (viewEstoque as Array<Record<string, unknown>>).reduce(
-    (s, m) => s + Number(m.quantidade || 0),
-    0,
-  );
+  const totalOrdenado = viewItems.reduce((s, i) => s + Number(i.quantidade || 0), 0);
+  const totalRecebido = viewEstoque.reduce((s, m) => s + Number(m.quantidade || 0), 0);
   const pctRecebimento =
     totalOrdenado > 0 ? Math.min(100, Math.round((totalRecebido / totalOrdenado) * 100)) : 0;
 
@@ -167,7 +169,7 @@ export function PedidoCompraDrawer({
 
   const tabItens = (
     <div className="space-y-3">
-      {(viewItems as Array<Record<string, unknown>>).length > 0 ? (
+      {viewItems.length > 0 ? (
         <>
           <div className="rounded-lg border overflow-hidden">
             <table className="w-full text-sm">
@@ -185,15 +187,15 @@ export function PedidoCompraDrawer({
                 </tr>
               </thead>
               <tbody>
-                {(viewItems as Array<Record<string, unknown>>).map((i, idx) => {
-                  const produtos = i.produtos as Record<string, unknown> | null | undefined;
+                {viewItems.map((i) => {
+                  const produtos = i.produtos;
                   const qtdRec = estoquePorProduto[String(i.produto_id)] || 0;
                   const qtdPend = Math.max(0, Number(i.quantidade) - qtdRec);
                   return (
-                    <tr key={idx} className="border-b last:border-b-0 hover:bg-muted/20">
-                      <td className="px-3 py-2 font-medium">{String(produtos?.nome ?? "—")}</td>
+                    <tr key={String(i.id)} className="border-b last:border-b-0 hover:bg-muted/20">
+                      <td className="px-3 py-2 font-medium">{produtos?.nome ?? "—"}</td>
                       <td className="px-3 py-2 text-xs text-muted-foreground font-mono hidden sm:table-cell">
-                        {String(produtos?.codigo_interno ?? "—")}
+                        {produtos?.codigo_interno ?? "—"}
                       </td>
                       <td className="px-3 py-2 text-right font-mono">{String(i.quantidade)}</td>
                       <td className="px-3 py-2 text-right font-mono text-muted-foreground text-xs">
@@ -218,12 +220,7 @@ export function PedidoCompraDrawer({
                     Total dos Itens
                   </td>
                   <td className="px-3 py-2 text-right font-mono font-bold text-primary">
-                    {formatCurrency(
-                      (viewItems as Array<Record<string, unknown>>).reduce(
-                        (s, i) => s + Number(i.valor_total || 0),
-                        0,
-                      ),
-                    )}
+                    {formatCurrency(viewItems.reduce((s, i) => s + Number(i.valor_total || 0), 0))}
                   </td>
                   <td colSpan={2} />
                 </tr>
@@ -277,21 +274,21 @@ export function PedidoCompraDrawer({
         {pctRecebimento > 0 && <Progress value={pctRecebimento} className="h-1.5 mt-3" />}
       </div>
 
-      {(viewItems as Array<Record<string, unknown>>).length > 0 && (
+      {viewItems.length > 0 && (
         <ViewSection title="Progresso por Item">
           <div className="space-y-3">
-            {(viewItems as Array<Record<string, unknown>>).map((i, idx) => {
+            {viewItems.map((i) => {
               const qtdRec = estoquePorProduto[String(i.produto_id)] || 0;
               const qtdPend = Math.max(0, Number(i.quantidade) - qtdRec);
               const pct =
                 Number(i.quantidade) > 0
                   ? Math.min(100, Math.round((qtdRec / Number(i.quantidade)) * 100))
                   : 0;
-              const produtos = i.produtos as Record<string, unknown> | null | undefined;
+              const produtos = i.produtos;
               return (
-                <div key={idx} className="space-y-1">
+                <div key={String(i.id)} className="space-y-1">
                   <div className="flex justify-between items-center text-xs">
-                    <span className="font-medium truncate max-w-[200px]">{String(produtos?.nome ?? "—")}</span>
+                    <span className="font-medium truncate max-w-[200px]">{produtos?.nome ?? "—"}</span>
                     <span className="font-mono text-muted-foreground shrink-0 ml-2 flex items-center gap-1">
                       <span className="text-success font-medium">{qtdRec}</span>
                       <span>/</span>
@@ -330,7 +327,7 @@ export function PedidoCompraDrawer({
         </ViewSection>
       )}
 
-      {(viewEstoque as Array<Record<string, unknown>>).length > 0 ? (
+      {viewEstoque.length > 0 ? (
         <ViewSection title="Movimentações de Estoque">
           <div className="rounded-lg border overflow-hidden">
             <table className="w-full text-xs">
@@ -343,18 +340,18 @@ export function PedidoCompraDrawer({
                 </tr>
               </thead>
               <tbody>
-                {(viewEstoque as Array<Record<string, unknown>>).map((m, idx) => {
-                  const produtos = m.produtos as Record<string, unknown> | null | undefined;
+                {viewEstoque.map((m, idx) => {
+                  const produtos = m.produtos;
                   return (
-                    <tr key={idx} className="border-b last:border-b-0 hover:bg-muted/20">
-                      <td className="px-3 py-2 font-medium">{String(produtos?.nome ?? "—")}</td>
+                    <tr key={m.id ?? `${m.produto_id ?? "x"}-${idx}`} className="border-b last:border-b-0 hover:bg-muted/20">
+                      <td className="px-3 py-2 font-medium">{produtos?.nome ?? "—"}</td>
                       <td className="px-3 py-2 text-right font-mono text-success font-semibold">
                         +{String(m.quantidade)}
                       </td>
                       <td className="px-3 py-2 text-right font-mono text-muted-foreground">
-                        {String(m.saldo_anterior)}
+                        {String(m.saldo_anterior ?? "—")}
                       </td>
-                      <td className="px-3 py-2 text-right font-mono font-medium">{String(m.saldo_atual)}</td>
+                      <td className="px-3 py-2 text-right font-mono font-medium">{String(m.saldo_atual ?? "—")}</td>
                     </tr>
                   );
                 })}
@@ -419,12 +416,7 @@ export function PedidoCompraDrawer({
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Produtos</span>
             <span className="font-mono">
-              {formatCurrency(
-                (viewItems as Array<Record<string, unknown>>).reduce(
-                  (s, i) => s + Number(i.valor_total || 0),
-                  0,
-                ),
-              )}
+              {formatCurrency(viewItems.reduce((s, i) => s + Number(i.valor_total || 0), 0))}
             </span>
           </div>
           {Number(selected.frete_valor) > 0 && (
@@ -483,17 +475,17 @@ export function PedidoCompraDrawer({
       </ViewSection>
 
       <ViewSection title="Financeiro">
-        {(viewFinanceiro as Array<Record<string, unknown>>).length > 0 ? (
+        {viewFinanceiro.length > 0 ? (
           <div className="space-y-2">
-            {(viewFinanceiro as Array<Record<string, unknown>>).map((l, idx) => (
+            {viewFinanceiro.map((l) => (
               <div
-                key={idx}
+                key={l.id}
                 className="flex items-center justify-between rounded-md bg-accent/20 px-3 py-2 text-sm"
               >
-                <span className="truncate text-xs">{String(l.descricao)}</span>
+                <span className="truncate text-xs">{l.descricao ?? "—"}</span>
                 <div className="flex items-center gap-2 shrink-0 ml-2">
-                  <StatusBadge status={String(l.status)} />
-                  <span className="font-mono font-medium">{formatCurrency(Number(l.valor))}</span>
+                  <StatusBadge status={String(l.status ?? "")} />
+                  <span className="font-mono font-medium">{formatCurrency(Number(l.valor ?? 0))}</span>
                 </div>
               </div>
             ))}

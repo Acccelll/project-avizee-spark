@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import type { PedidoCompra, ProdutoOptionRow } from "./pedidoCompraTypes";
 import { pedidoNumero } from "./pedidoCompraTypes";
-import type { PedidoCompraForm } from "@/hooks/usePedidosCompra";
+import type { PedidoCompraForm, EstoqueMovimentoRow } from "@/hooks/usePedidosCompra";
 
 interface PedidoCompraFormModalProps {
   open: boolean;
@@ -41,7 +41,7 @@ interface PedidoCompraFormModalProps {
   formasPagamento: { id: string; descricao: string }[];
   fornecedoresLoading: boolean;
   produtosLoading: boolean;
-  viewEstoque: unknown[];
+  viewEstoque: EstoqueMovimentoRow[];
   viewCotacao: { numero: string; status: string } | null;
   statusLabels: Record<string, string>;
   onSubmit: (e: React.FormEvent) => Promise<void>;
@@ -80,8 +80,8 @@ export function PedidoCompraFormModal({
 
   const editBanner = mode === "edit" && selected
     ? (() => {
-        const estoquePorProdutoEdit: Record<string, number> = (viewEstoque as Record<string, unknown>[]).reduce<Record<string, number>>(
-          (acc: Record<string, number>, m) => {
+        const estoquePorProdutoEdit: Record<string, number> = viewEstoque.reduce<Record<string, number>>(
+          (acc, m) => {
             const key = String(m.produto_id);
             acc[key] = (acc[key] || 0) + Number(m.quantidade || 0);
             return acc;
