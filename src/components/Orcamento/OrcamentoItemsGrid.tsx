@@ -106,11 +106,19 @@ export function OrcamentoItemsGrid({ items, onChange, produtos, precosEspeciais 
   };
 
   const recalc = (item: OrcamentoItem) => {
-    const qty = Number(item.quantidade || 0);
-    const unit = Number(item.valor_unitario || 0);
-    const desconto = Number(item.desconto_percentual || 0);
+    // Sanitize numeric inputs to avoid negative quantities/prices and discounts outside [0,100].
+    const qty = Math.max(0, Number(item.quantidade || 0));
+    const unit = Math.max(0, Number(item.valor_unitario || 0));
+    const desconto = Math.min(100, Math.max(0, Number(item.desconto_percentual || 0)));
     const subtotal = qty * unit * (1 - desconto / 100);
-    return { ...item, valor_total: subtotal, peso_total: qty * (item.peso_unitario || 0) };
+    return {
+      ...item,
+      quantidade: qty,
+      valor_unitario: unit,
+      desconto_percentual: desconto,
+      valor_total: subtotal,
+      peso_total: qty * (item.peso_unitario || 0),
+    };
   };
 
   const updateItem = (idx: number, field: keyof OrcamentoItem, value: OrcamentoItem[keyof OrcamentoItem]) => {
@@ -301,7 +309,7 @@ export function OrcamentoItemsGrid({ items, onChange, produtos, precosEspeciais 
               const isUnlinked = Boolean(item._unlinked);
               return (
                 <tr
-                  key={idx}
+                  key={item.id ?? `row-${item.produto_id || "new"}-${idx}`}
                   className={`border-b ${isUnlinked ? "bg-destructive/10" : lowStock ? "bg-warning/10" : "hover:bg-muted/20"}`}
                   draggable
                   onDragStart={() => setDraggingIndex(idx)}

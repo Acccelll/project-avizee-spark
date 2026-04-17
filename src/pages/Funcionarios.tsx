@@ -169,6 +169,15 @@ export default function Funcionarios() {
 
   const handleFolhaSubmit = async () => {
     if (!selected || !folhaForm.competencia) { toast.error("Competência é obrigatória"); return; }
+    // Validate AAAA-MM format and prevent duplicate competência for the same employee.
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(folhaForm.competencia)) {
+      toast.error("Competência inválida. Use o formato AAAA-MM.");
+      return;
+    }
+    if (folhas.some((f) => f.competencia === folhaForm.competencia)) {
+      toast.error(`Já existe folha para a competência ${folhaForm.competencia}.`);
+      return;
+    }
     const liquido = Number(selected.salario_base) + Number(folhaForm.proventos) - Number(folhaForm.descontos);
     const { error } = await supabase.from("folha_pagamento").insert({
       funcionario_id: selected.id,
