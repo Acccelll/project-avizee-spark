@@ -22,6 +22,7 @@ const statusLabels: Record<string, string> = Object.fromEntries(
 
 export default function PedidosCompra() {
   const ctx = usePedidosCompra();
+  const { isAdmin } = useIsAdmin();
 
   const filters = usePedidoCompraFilters(ctx.pedidos, ctx.fornecedoresAtivos, statusLabels);
 
