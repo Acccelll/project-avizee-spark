@@ -134,7 +134,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    let isMounted = true;
+
     const safetyTimeout = setTimeout(() => {
+      if (!isMounted) return;
       setLoading((currentLoading) => {
         if (currentLoading) {
           console.warn("[auth] Auth initialization timed out. Forcing loading false.");
@@ -199,20 +202,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     return () => {
+      isMounted = false;
       clearTimeout(safetyTimeout);
       subscription.unsubscribe();
     };
   }, []);
 
-  const hasRole = (role: AppRole) => roles.includes(role);
+  const hasRole = useCallback((role: AppRole) => roles.includes(role), [roles]);
   const mergedPermissions = useMemo(() => buildPermissionSet(roles, extraPermissions), [roles, extraPermissions]);
 
-  const can = (resource: ErpResource, action: ErpAction) => {
-    const key = toPermissionKey(resource, action);
-    return mergedPermissions.has(key);
-  };
+  const can = useCallback(
+    (resource: ErpResource, action: ErpAction) => {
+      const key = toPermissionKey(resource, action);
+      return mergedPermissions.has(key);
+    },
+    [mergedPermissions]
+  );
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     if (!supabase) return;
     manualSignOut.current = true;
     await supabase.auth.signOut();
@@ -222,11 +229,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setRoles([]);
     setExtraPermissions([]);
     setPermissionsLoaded(false);
-  };
+  }, []);
 
-  return (
-    <AuthContext.Provider value={{ user, session, loading, permissionsLoaded, profile, roles, extraPermissions, hasRole, can, signOut }}>
-      {children}
-    </AuthContext.Provider>
+  const contextValue = useMemo(
+    () => ({ user, session, loading, permissionsLoaded, profile, roles, extraPermissions, hasRole, can, signOut }),
+    [user, session, loading, permissionsLoaded, profile, roles, extraPermissions, hasRole, can, signOut]
   );
+
+  return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;
 }
