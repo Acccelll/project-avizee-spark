@@ -1,14 +1,23 @@
-import { createContext, useContext, useEffect, useState, useRef, ReactNode, useMemo } from "react";
+import { createContext, useContext, useEffect, useState, useRef, useCallback, ReactNode, useMemo } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { buildPermissionSet, type ErpAction, type ErpResource, type PermissionKey, toPermissionKey } from "@/lib/permissions";
+import {
+  APP_ROLES,
+  buildPermissionSet,
+  type AppRole,
+  type ErpAction,
+  type ErpResource,
+  type PermissionKey,
+  toPermissionKey,
+} from "@/lib/permissions";
 
-/** Roles recognised by the application. Aligns with the `app_role` enum in the database. */
-export type AppRole = "admin" | "vendedor" | "financeiro" | "estoquista";
+/** Re-export para preservar imports existentes (`import type { AppRole } from "@/contexts/AuthContext"`). */
+export type { AppRole };
 
 /** Values that may exist in legacy rows but are no longer issued. */
 const LEGACY_ROLES = new Set(["moderator", "user"]);
+const VALID_APP_ROLES: ReadonlySet<string> = new Set(APP_ROLES);
 
 interface AuthContextType {
   user: User | null;
