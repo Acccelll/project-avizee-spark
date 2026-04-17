@@ -270,10 +270,13 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
     }
 
     case "financeiro": {
+      // Status canônicos (Rodada 4): aberto | parcial | pago | vencido | cancelado | estornado.
+      // Para "em aberto" consideramos aberto, parcial e vencido (cancelado/estornado são excluídos).
       let query = supabase
         .from("financeiro_lancamentos")
         .select("tipo, descricao, valor, saldo_restante, valor_pago, status, data_vencimento, data_pagamento, banco, forma_pagamento, clientes(nome_razao_social), fornecedores(nome_razao_social)")
         .eq("ativo", true)
+        .not("status", "in", "(cancelado,estornado)")
         .order("data_vencimento", { ascending: true });
 
       query = withDateRange(query, "data_vencimento", filtros);
@@ -286,11 +289,16 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
 
       const rows = (data || []).map((item: Record<string, unknown>) => {
         const valor = Number(item.valor || 0);
-        const valorEmAberto = item.saldo_restante != null
-          ? Number(item.saldo_restante)
-          : item.status === 'pago' ? 0 : valor;
+        const status = (item.status as string | null) ?? '-';
+        // Saldo em aberto: usa saldo_restante quando o BD calcula (parcial); zera quando pago.
+        const valorEmAberto = status === 'pago'
+          ? 0
+          : item.saldo_restante != null
+            ? Number(item.saldo_restante)
+            : valor;
         const venc = item.data_vencimento ? new Date(item.data_vencimento as string) : null;
-        const atraso = (venc && item.status !== 'pago' && venc < hoje)
+        const isOpen = status === 'aberto' || status === 'parcial' || status === 'vencido';
+        const atraso = (venc && isOpen && venc < hoje)
           ? Math.floor((hoje.getTime() - venc.getTime()) / (1000 * 60 * 60 * 24))
           : 0;
         const parceiro = item.tipo === 'receber'
@@ -303,7 +311,7 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
           valor,
           valorEmAberto,
           atraso,
-          status: item.status || "-",
+          status,
           vencimento: item.data_vencimento,
           pagamento: item.data_pagamento,
           banco: item.banco || "-",
@@ -311,8 +319,9 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
         };
       });
 
-      const totalReceber = rows.filter((r) => r.tipo === 'Receber' && r.status !== 'pago').reduce((s, r) => s + r.valorEmAberto, 0);
-      const totalPagar = rows.filter((r) => r.tipo === 'Pagar' && r.status !== 'pago').reduce((s, r) => s + r.valorEmAberto, 0);
+      const isOpenStatus = (s: string) => s === 'aberto' || s === 'parcial' || s === 'vencido';
+      const totalReceber = rows.filter((r) => r.tipo === 'Receber' && isOpenStatus(r.status)).reduce((s, r) => s + r.valorEmAberto, 0);
+      const totalPagar = rows.filter((r) => r.tipo === 'Pagar' && isOpenStatus(r.status)).reduce((s, r) => s + r.valorEmAberto, 0);
       const totalVencido = rows.filter((r) => r.atraso > 0).reduce((s, r) => s + r.valorEmAberto, 0);
       const totalPago = rows.filter((r) => r.status === 'pago').reduce((s, r) => s + r.valor, 0);
 
