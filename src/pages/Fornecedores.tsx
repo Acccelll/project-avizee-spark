@@ -35,6 +35,7 @@ import { clienteFornecedorSchema, validateForm } from "@/lib/validationSchemas";
 import { StatCard } from "@/components/StatCard";
 import { AddProdutoFornecedor } from "@/components/fornecedores/AddProdutoFornecedor";
 import { getUserFriendlyError } from "@/utils/errorMessages";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 
 const MAX_OBSERVACOES_LENGTH = 2000;
 const MAX_PRAZO_DAYS = 365;
@@ -58,6 +59,7 @@ const emptyForm: Omit<Fornecedor, "id" | "ativo" | "created_at" | "updated_at"> 
 const Fornecedores = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { confirm: confirmDiscard, dialog: discardDialog } = useConfirmDialog();
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearch = useDebounce(searchTerm, 350);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -357,8 +359,8 @@ const Fornecedores = () => {
         </PullToRefresh>
       </ModulePage>
 
-      <FormModal open={modalOpen} onClose={() => {
-        if (isDirty && !window.confirm("Existem alterações não salvas. Deseja descartar as alterações?")) return;
+      <FormModal open={modalOpen} onClose={async () => {
+        if (isDirty && !(await confirmDiscard())) return;
         setModalOpen(false);
       }} title={mode === "create" ? "Novo Fornecedor" : "Editar Fornecedor"} size="xl">
         <form onSubmit={handleSubmit} className="space-y-0">
@@ -788,8 +790,8 @@ const Fornecedores = () => {
             <Button
               type="button"
               variant="outline"
-              onClick={() => {
-                if (isDirty && !window.confirm("Existem alterações não salvas. Deseja descartar as alterações?")) return;
+              onClick={async () => {
+                if (isDirty && !(await confirmDiscard())) return;
                 setModalOpen(false);
               }}
             >
@@ -807,6 +809,7 @@ const Fornecedores = () => {
         </form>
       </FormModal>
 
+      {discardDialog}
     </AppLayout>);
 
 };

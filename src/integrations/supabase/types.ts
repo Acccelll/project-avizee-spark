@@ -4189,6 +4189,39 @@ export type Database = {
         }
         Relationships: []
       }
+      unidades_medida: {
+        Row: {
+          ativo: boolean
+          codigo: string
+          created_at: string
+          descricao: string
+          id: string
+          observacoes: string | null
+          sigla: string | null
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          codigo: string
+          created_at?: string
+          descricao: string
+          id?: string
+          observacoes?: string | null
+          sigla?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          codigo?: string
+          created_at?: string
+          descricao?: string
+          id?: string
+          observacoes?: string | null
+          sigla?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_permissions: {
         Row: {
           action: string

@@ -36,6 +36,7 @@ import {
 import { StatCard } from "@/components/StatCard";
 import { clienteFornecedorSchema, validateForm } from "@/lib/validationSchemas";
 import { getUserFriendlyError } from "@/utils/errorMessages";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 
 interface Cliente {
   id: string;tipo_pessoa: string;nome_razao_social: string;nome_fantasia: string;
@@ -177,6 +178,7 @@ const Clientes = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearch = useDebounce(searchTerm, 350);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const { confirm: confirmDiscard, dialog: discardDialog } = useConfirmDialog();
 
   const { data, loading, create, update, remove, duplicate, fetchData } = useSupabaseCrud<Cliente>({
     table: "clientes",
@@ -694,8 +696,8 @@ const Clientes = () => {
         </PullToRefresh>
       </ModulePage>
 
-      <FormModal open={modalOpen} onClose={() => {
-        if (isDirty && !window.confirm("Existem alterações não salvas. Deseja descartar as alterações?")) return;
+      <FormModal open={modalOpen} onClose={async () => {
+        if (isDirty && !(await confirmDiscard())) return;
         setModalOpen(false);
       }} title={mode === "create" ? "Novo Cliente" : "Editar Cliente"} size="xl">
         <form onSubmit={handleSubmit} className="space-y-0">
@@ -1447,8 +1449,8 @@ const Clientes = () => {
             <Button
               type="button"
               variant="outline"
-              onClick={() => {
-                if (isDirty && !window.confirm("Existem alterações não salvas. Deseja descartar as alterações?")) return;
+              onClick={async () => {
+                if (isDirty && !(await confirmDiscard())) return;
                 setModalOpen(false);
               }}
             >
@@ -1625,6 +1627,7 @@ const Clientes = () => {
         </DialogContent>
       </Dialog>
 
+      {discardDialog}
     </AppLayout>);
 
 };

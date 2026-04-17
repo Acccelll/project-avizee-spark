@@ -8,6 +8,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { FormModal } from "@/components/FormModal";
 import { ViewDrawerV2, ViewField, ViewSection } from "@/components/ViewDrawerV2";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { RelationalLink } from "@/components/ui/RelationalLink";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
@@ -93,6 +94,7 @@ const GruposEconomicos = () => {
   const [ativoFilters, setAtivoFilters] = useState<string[]>([]);
   const [clienteCountMap, setClienteCountMap] = useState<Record<string, number>>({});
   const [matrizNomeMap, setMatrizNomeMap] = useState<Record<string, string>>({});
+  const { confirm: confirmDiscard, dialog: discardDialog } = useConfirmDialog();
 
   const { data, loading, create, update, remove, fetchData } = useSupabaseCrud<GrupoEconomico>({
     table: "grupos_economicos",
@@ -350,8 +352,8 @@ const GruposEconomicos = () => {
     setDeleting(false);
   };
 
-  const handleCancel = () => {
-    if (isDirty && !window.confirm("Há alterações não salvas. Deseja descartar e fechar?")) return;
+  const handleCancel = async () => {
+    if (isDirty && !(await confirmDiscard())) return;
     setModalOpen(false);
   };
 
@@ -1046,6 +1048,7 @@ const GruposEconomicos = () => {
         title="Excluir Grupo Econômico"
         description={deleteDescription}
       />
+      {discardDialog}
     </AppLayout>
   );
 };
