@@ -34,6 +34,7 @@ import { TemplateConfig } from "@/types/orcamento";
 import { calcularRentabilidade, type InternalCostCandidate } from "@/lib/orcamentoRentabilidade";
 import { getOrcamentoInternalAccess } from "@/lib/orcamentoInternalAccess";
 import { getUserFriendlyError } from "@/utils/errorMessages";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 
 interface ClienteSnapshot {
   nome_razao_social: string; nome_fantasia: string; cpf_cnpj: string;
@@ -79,6 +80,7 @@ export default function OrcamentoForm() {
   const [templateName, setTemplateName] = useState("");
   const [templates, setTemplates] = useState<OrcamentoTemplate[]>([]);
   const [layoutTemplate, setLayoutTemplate] = useState<'simples' | 'completo' | 'logo'>('completo');
+  const { confirm: confirmAction, dialog: confirmActionDialog } = useConfirmDialog();
 
   const {
     register,
@@ -423,7 +425,12 @@ export default function OrcamentoForm() {
         return;
       }
       if (existing) {
-        const shouldOverwrite = window.confirm("Template com este nome já existe. Deseja sobrescrever?");
+        const shouldOverwrite = await confirmAction({
+          title: "Sobrescrever template?",
+          description: "Template com este nome já existe. Deseja sobrescrever?",
+          confirmLabel: "Sobrescrever",
+          confirmVariant: "destructive",
+        });
         if (!shouldOverwrite) return;
       }
     }
@@ -1136,6 +1143,7 @@ export default function OrcamentoForm() {
           handleClienteChange(newId);
         }}
       />
+      {confirmActionDialog}
     </AppLayout>
   );
 }
