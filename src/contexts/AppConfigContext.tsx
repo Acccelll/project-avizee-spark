@@ -9,6 +9,14 @@ import { useAuth } from './AuthContext';
  * Contexto centralizado que expõe as configurações mais utilizadas pelo sistema:
  * - `cepEmpresa`: CEP da empresa (lido de empresa_config), fonte para cotação de frete.
  * - `sidebarCollapsed`: preferência de layout do menu lateral do usuário atual.
+ *
+ * ESCOPO INTENCIONAL: Este contexto expõe apenas os valores de configuração que
+ * são lidos de forma transversal por múltiplos módulos.  Ele NÃO gerencia:
+ * - preferências de aparência (tema, densidade, fonte) — gerenciadas localmente
+ *   em Configuracoes.tsx via `useUserPreference`;
+ * - configurações globais do sistema (nome, email, integrações) — gerenciadas
+ *   pelo módulo administrativo em `src/pages/configuracoes/*`;
+ * - cores globais da interface — lidas e aplicadas diretamente pelo ThemeProvider.
  */
 
 interface AppConfigContextValue {

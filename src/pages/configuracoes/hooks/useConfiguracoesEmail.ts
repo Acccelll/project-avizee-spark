@@ -1,3 +1,10 @@
+/**
+ * useConfiguracoesEmail
+ *
+ * Hook para as configurações de e-mail (SMTP) **globais** do sistema.
+ * Requer permissão de administrador.  Faz parte do módulo administrativo
+ * em `src/pages/configuracoes/*`.
+ */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';

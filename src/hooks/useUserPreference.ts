@@ -6,6 +6,22 @@ import { useSyncedStorage, buildSyncedStorageKey } from './useSyncedStorage';
 import { enqueueSync, processSyncQueue } from '@/services/syncQueue';
 import { useOnlineStatus } from './useOnlineStatus';
 
+/**
+ * useUserPreference
+ *
+ * Stores per-user preferences in `app_configuracoes` under keys prefixed with
+ * `user_pref:{userId}:{preferenceKey}`.  This is a temporary accommodation —
+ * `app_configuracoes` is a global config table and ideally preferences would
+ * live in a dedicated `user_preferences` table.  The architecture is prepared
+ * for that migration: the key schema and offline-sync queue already isolate
+ * user data; only the target table needs to change.
+ *
+ * Offline behavior: when the remote persist fails or the user is offline, the
+ * preference is still updated locally and queued for retry on the next
+ * successful connection.  A toast is shown so the user knows persistence is
+ * pending, not silent.
+ */
+
 const PREFIX = 'erp-user-pref';
 const REMOTE_TIMEOUT_MS = 8000;
 
@@ -31,7 +47,9 @@ export function useUserPreference<T = Json>(userId: string | null | undefined, p
   const { value, set: setCache, getMeta } = useSyncedStorage<T>(preferenceKey, defaultValue, {
     namespace,
     onRemoteSyncError: () => {
-      toast.error(`Inconsistência em '${preferenceKey}'. Recarregando...`);
+      // This fires when the cross-tab sync layer detects a conflict, not a
+      // network error — it is safe to surface a soft warning.
+      toast.warning(`Preferência '${preferenceKey}' pode estar desatualizada entre abas.`);
     },
   });
   const [loading, setLoading] = useState(true);
@@ -102,6 +120,9 @@ export function useUserPreference<T = Json>(userId: string | null | undefined, p
       if (!userId || !supabase || !isOnline) {
         if (userId) {
           enqueueSync({ scope: 'userpref', key: buildDbKey(userId, preferenceKey), value: nextValue, prevValue: previous });
+          if (!isOnline) {
+            toast.info(`Preferência salva localmente. Será sincronizada quando a conexão for restaurada.`);
+          }
         }
         return true;
       }

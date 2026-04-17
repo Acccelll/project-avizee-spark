@@ -1,3 +1,16 @@
+/**
+ * configuracoes.service.ts
+ *
+ * Serviço para as configurações **globais** do sistema (geral, email, integrações,
+ * notificações, backup).  Essas configurações afetam todos os usuários e requerem
+ * permissão de administrador para alteração.
+ *
+ * NOTA ARQUITETURAL: As páginas em `src/pages/configuracoes/*` constituem um
+ * módulo de administração global paralelo ao fluxo canônico de preferências
+ * pessoais em `/configuracoes` (src/pages/Configuracoes.tsx).  Elas não estão
+ * integradas às rotas principais da aplicação e devem ser tratadas como
+ * configurações administrativas/globais, não como preferências do usuário.
+ */
 import { supabase } from '@/integrations/supabase/client';
 import { registrarAuditLog } from '@/services/admin/audit.service';
 import type { ConfigEmail, ConfigIntegracao } from '@/utils/configuracoes';
