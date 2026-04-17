@@ -124,7 +124,7 @@ export async function getClienteTransportadoras(
     .eq('ativo', true)
     .order('prioridade', { ascending: true });
 
-  if (error) throw error;
+  if (error) throw new Error(`Erro ao buscar transportadoras do cliente: ${error.message}`);
   return (data || []) as unknown as ClienteTransportadoraComTransportadora[];
 }
 
@@ -170,7 +170,7 @@ export async function criarOuAtualizarSimulacao(
       .from('frete_simulacoes')
       .update(row)
       .eq('id', simulacaoIdExistente);
-    if (error) throw error;
+    if (error) throw new Error(`Erro ao atualizar simulação de frete: ${error.message}`);
     return simulacaoIdExistente;
   }
 
@@ -179,7 +179,7 @@ export async function criarOuAtualizarSimulacao(
     .insert(row)
     .select('id')
     .single();
-  if (error) throw error;
+  if (error) throw new Error(`Erro ao criar simulação de frete: ${error.message}`);
   return data.id;
 }
 
@@ -200,7 +200,7 @@ export async function carregarSimulacaoPorOrigem(
     .limit(1)
     .maybeSingle();
 
-  if (error) throw error;
+  if (error) throw new Error(`Erro ao carregar simulação de frete: ${error.message}`);
   if (!sim) return null;
 
   const { data: opcoes } = await supabase
@@ -296,7 +296,7 @@ export async function salvarOpcoesCorreios(
     .from('frete_simulacoes_opcoes')
     .insert(rows)
     .select();
-  if (error) throw error;
+  if (error) throw new Error(`Erro ao salvar opções de frete Correios: ${error.message}`);
   return (data || []) as unknown as FreteOpcaoLocal[];
 }
 
@@ -334,7 +334,7 @@ export async function salvarOpcaoTransportadora(
     })
     .select()
     .single();
-  if (error) throw error;
+  if (error) throw new Error(`Erro ao salvar opção de transportadora: ${error.message}`);
   return data as unknown as FreteOpcaoLocal;
 }
 
@@ -370,7 +370,7 @@ export async function salvarOpcaoManual(
     })
     .select()
     .single();
-  if (error) throw error;
+  if (error) throw new Error(`Erro ao salvar opção manual de frete: ${error.message}`);
   return data as unknown as FreteOpcaoLocal;
 }
 
@@ -384,7 +384,7 @@ export async function removerOpcao(opcaoId: string): Promise<void> {
     .delete()
     .eq('id', opcaoId)
     .eq('selecionada', false);
-  if (error) throw error;
+  if (error) throw new Error(`Erro ao remover opção de frete: ${error.message}`);
 }
 
 // ---------------------------------------------------------------

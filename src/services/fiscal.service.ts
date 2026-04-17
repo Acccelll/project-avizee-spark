@@ -389,7 +389,7 @@ export async function processarDevolucao(params: {
     } as any)
     .select()
     .single();
-  if (error) throw error;
+  if (error) throw new Error(`Erro ao criar nota fiscal de devolução: ${error.message}`);
 
   // Batch insert NF items
   const cfopFlip = (cfop: string | null | undefined) =>
@@ -408,7 +408,7 @@ export async function processarDevolucao(params: {
       cfop: cfopFlip(item.cfop),
     }))
   );
-  if (itemsError) throw itemsError;
+  if (itemsError) throw new Error(`Erro ao inserir itens na nota fiscal de devolução: ${itemsError.message}`);
 
   // Fetch current stock for all products in a single query
   const produtosIds = itensDevolver.map((i: any) => i.produto_id);
