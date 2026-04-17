@@ -18,7 +18,8 @@ const statusStyles: Record<string, string> = {
   rascunho: 'bg-muted text-muted-foreground',
   pendente: 'bg-warning/15 text-warning',
   aprovado: 'bg-success/15 text-success',
-  reprovado: 'bg-destructive/15 text-destructive',
+  convertido: 'bg-primary/15 text-primary',
+  rejeitado: 'bg-destructive/15 text-destructive',
   cancelado: 'bg-muted text-muted-foreground',
 };
 
@@ -26,7 +27,8 @@ const statusLabel: Record<string, string> = {
   rascunho: 'Rascunho',
   pendente: 'Pendente',
   aprovado: 'Aprovado',
-  reprovado: 'Reprovado',
+  convertido: 'Convertido',
+  rejeitado: 'Rejeitado',
   cancelado: 'Cancelado',
 };
 
@@ -61,7 +63,7 @@ export function ComercialBlock({
       {/* KPIs */}
       <div className="grid grid-cols-3 border-b border-border/60">
         <div className="px-4 py-2">
-          <p className="text-xs text-muted-foreground">Cotações abertas</p>
+          <p className="text-xs text-muted-foreground">Cotações em aberto</p>
           <p className="text-lg font-bold mono mt-0.5">{formatNumber(cotacoesAbertas)}</p>
         </div>
         <div className="px-4 py-2 border-l border-border/60">

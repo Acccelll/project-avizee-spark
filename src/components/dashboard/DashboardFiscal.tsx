@@ -1,10 +1,14 @@
 /**
- * DashboardFiscal – cards de KPIs fiscais para o painel principal.
+ * @legacy DashboardFiscal — parallel fiscal KPI component.
  *
- * Exibe:
- *   - Total de NF-e emitidas no mês corrente
- *   - Tempo médio de autorização (últimas 24 h)
- *   - Percentual de rejeições
+ * This component is NOT rendered by the main Dashboard (Index.tsx). The active
+ * fiscal block is {@link FiscalBlock}, which reads from `useDashboardFiscalData`.
+ *
+ * DashboardFiscal uses model_documento="55" / status="autorizada" vocabulary,
+ * which differs from FiscalBlock's "confirmada"/"pendente"/"cancelada" vocabulary.
+ *
+ * Keep this file for future reference but do NOT render it in the main flow
+ * until the fiscal status vocabulary is unified.
  */
 
 import { useQuery } from "@tanstack/react-query";

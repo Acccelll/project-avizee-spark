@@ -43,9 +43,9 @@ export function FluxoCaixaChart({ embedded = false }: FluxoCaixaChartProps) {
           .gte('data_pagamento', dateFrom),
         supabase
           .from('financeiro_lancamentos')
-          .select('tipo, valor, data_vencimento')
+          .select('tipo, valor, saldo_restante, data_vencimento')
           .eq('ativo', true)
-          .in('status', ['aberto', 'vencido'])
+          .in('status', ['aberto', 'vencido', 'parcial'])
           .gte('data_vencimento', dateFrom),
       ]);
 
@@ -64,7 +64,10 @@ export function FluxoCaixaChart({ embedded = false }: FluxoCaixaChartProps) {
       for (const l of previstos || []) {
         const month = l.data_vencimento.slice(0, 7);
         const current = prevMap.get(month) || { entradas_prev: 0, saidas_prev: 0 };
-        const valor = Number(l.valor || 0);
+        // For partial payments use the remaining balance, not the original amount.
+        const valor = l.status === 'parcial'
+          ? Number(l.saldo_restante ?? l.valor ?? 0)
+          : Number(l.valor || 0);
         if (l.tipo === 'receber') current.entradas_prev += valor;
         else current.saidas_prev += valor;
         prevMap.set(month, current);

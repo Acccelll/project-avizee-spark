@@ -1,3 +1,10 @@
+/**
+ * @legacy RecentOrcamentos — parallel recent quotations component.
+ *
+ * This component is NOT rendered by the main Dashboard (Index.tsx).
+ * Recent orçamentos are shown inside {@link ComercialBlock}.
+ * Keep for reference; do not render in the main flow.
+ */
 import { useNavigate } from 'react-router-dom';
 import { FileText } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/format';

@@ -123,7 +123,10 @@ interface RechartsClickPayload {
       aria-label="Gráfico de barras de faturamento mensal dos últimos 6 meses. Clique em uma barra para detalhar o relatório de vendas."
       className="flex flex-col h-full"
     >
-      <h3 className="mb-3 font-semibold text-foreground text-sm shrink-0">Faturamento Mensal</h3>
+      <h3 className="mb-3 font-semibold text-foreground text-sm shrink-0">
+        Faturamento — últimos 6 meses
+        <span className="ml-1.5 text-[10px] font-normal text-muted-foreground">(janela fixa)</span>
+      </h3>
       <div className="flex-1 min-h-0">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart

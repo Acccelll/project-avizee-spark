@@ -1,3 +1,10 @@
+/**
+ * @legacy BacklogDetail — parallel backlog detail component.
+ *
+ * This component is NOT rendered by the main Dashboard (Index.tsx).
+ * Backlog data is shown inline inside {@link ComercialBlock}.
+ * Keep for reference; do not render in the main flow.
+ */
 import { useNavigate } from 'react-router-dom';
 import { ClipboardList, Clock } from 'lucide-react';
 import { formatCurrency, daysSince } from '@/lib/format';

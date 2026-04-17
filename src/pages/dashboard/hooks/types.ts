@@ -87,4 +87,6 @@ export interface FiscalStats {
 export interface FaturamentoStats {
   mesAtual: number;
   mesAnterior: number;
+  /** Number of NFs confirmed this month – used for ticket-médio denominator. */
+  nfAtualCount: number;
 }

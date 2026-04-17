@@ -1,4 +1,4 @@
-import { CalendarRange, RefreshCw } from 'lucide-react';
+import { RefreshCw, CalendarRange } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
@@ -6,12 +6,11 @@ import { Label } from '@/components/ui/label';
 import { useDashboardPeriod, type DashboardPeriod } from '@/contexts/DashboardPeriodContext';
 
 interface DashboardHeaderProps {
-  companyName?: string;
   lastUpdated?: Date;
   onRefresh?: () => void;
 }
 
-export function DashboardHeader({ companyName, lastUpdated, onRefresh }: DashboardHeaderProps) {
+export function DashboardHeader({ lastUpdated, onRefresh }: DashboardHeaderProps) {
   const {
     period,
     setPeriod,
@@ -38,12 +37,6 @@ export function DashboardHeader({ companyName, lastUpdated, onRefresh }: Dashboa
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">Dashboard</h1>
           <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm text-muted-foreground">
-            {companyName && (
-              <>
-                <span className="font-medium text-foreground/70">{companyName}</span>
-                <span className="hidden md:inline text-border">·</span>
-              </>
-            )}
             <span>{dateLabel}</span>
             <span className="hidden md:inline text-border">·</span>
             <span className="flex items-center gap-1">
@@ -79,7 +72,7 @@ export function DashboardHeader({ companyName, lastUpdated, onRefresh }: Dashboa
       </div>
 
       {period === 'custom' && (
-        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3 rounded-lg border border-border/60 bg-muted/20 p-3">
+        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 rounded-lg border border-border/60 bg-muted/20 p-3">
           <div>
             <Label className="text-xs">Data inicial</Label>
             <Input
@@ -97,17 +90,6 @@ export function DashboardHeader({ companyName, lastUpdated, onRefresh }: Dashboa
               onChange={(e) => setCustomEnd(e.target.value)}
               className="mt-1 h-8 text-sm"
             />
-          </div>
-          <div className="flex items-end">
-            <Button
-              variant="secondary"
-              size="sm"
-              className="w-full"
-              aria-label="Aplicar período personalizado"
-              onClick={() => setPeriod('custom')}
-            >
-              Aplicar período
-            </Button>
           </div>
         </div>
       )}

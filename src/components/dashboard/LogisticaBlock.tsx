@@ -6,7 +6,9 @@ import { useRelationalNavigation } from '@/contexts/RelationalNavigationContext'
 import type { PedidoCompra } from '@/types/domain';
 
 interface LogisticaBlockProps {
+  /** Preview list of compras awaiting delivery (capped at 10 for UI). */
   comprasAguardando: PedidoCompra[];
+  /** Real count of shipments (remessas) with overdue delivery date. */
   totalRemessasAtrasadas: number;
 }
 
@@ -21,10 +23,13 @@ export function LogisticaBlock({ comprasAguardando, totalRemessasAtrasadas }: Lo
   const navigate = useNavigate();
   const { pushView } = useRelationalNavigation();
 
-  const atrasadas = comprasAguardando.filter((c) => {
+  /** Number of compras from the preview list that have a past delivery date. */
+  const comprasAtrasadasPreview = comprasAguardando.filter((c) => {
     const dias = calcDiasEntrega(c);
     return dias !== null && dias < 0;
   }).length;
+
+  const hasAlerts = comprasAtrasadasPreview > 0 || totalRemessasAtrasadas > 0;
 
   return (
     <div className="bg-card rounded-xl border flex flex-col">
@@ -33,11 +38,21 @@ export function LogisticaBlock({ comprasAguardando, totalRemessasAtrasadas }: Lo
         <h3 className="font-semibold text-foreground flex items-center gap-2">
           <Truck className="h-4 w-4 text-info" />
           Logística
-          {(atrasadas > 0 || totalRemessasAtrasadas > 0) && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-bold text-destructive">
-              <AlertTriangle className="h-2.5 w-2.5" />
-              {atrasadas + totalRemessasAtrasadas} atraso{atrasadas + totalRemessasAtrasadas > 1 ? 's' : ''}
-            </span>
+          {hasAlerts && (
+            <div className="flex items-center gap-1.5">
+              {comprasAtrasadasPreview > 0 && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-bold text-destructive">
+                  <AlertTriangle className="h-2.5 w-2.5" />
+                  {comprasAtrasadasPreview} compra{comprasAtrasadasPreview > 1 ? 's' : ''} atrasada{comprasAtrasadasPreview > 1 ? 's' : ''}
+                </span>
+              )}
+              {totalRemessasAtrasadas > 0 && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-warning/10 px-2 py-0.5 text-[10px] font-bold text-warning">
+                  <AlertTriangle className="h-2.5 w-2.5" />
+                  {totalRemessasAtrasadas} remessa{totalRemessasAtrasadas > 1 ? 's' : ''} atrasada{totalRemessasAtrasadas > 1 ? 's' : ''}
+                </span>
+              )}
+            </div>
           )}
         </h3>
         <Button
@@ -53,14 +68,16 @@ export function LogisticaBlock({ comprasAguardando, totalRemessasAtrasadas }: Lo
       {/* KPIs */}
       <div className="grid grid-cols-2 border-b border-border/60">
         <div className="px-4 py-2">
-          <p className="text-xs text-muted-foreground">Aguardando entrega</p>
+          <p className="text-xs text-muted-foreground">Compras aguardando entrega</p>
           <p className="text-lg font-bold mono mt-0.5">{comprasAguardando.length}</p>
+          <p className="text-[10px] text-muted-foreground">prévia — até 10 registros</p>
         </div>
         <div className="px-4 py-2 border-l border-border/60">
-          <p className="text-xs text-muted-foreground">Entregas atrasadas</p>
-          <p className={`text-lg font-bold mono mt-0.5 ${atrasadas > 0 ? 'text-destructive' : 'text-foreground'}`}>
-            {atrasadas}
+          <p className="text-xs text-muted-foreground">Remessas atrasadas</p>
+          <p className={`text-lg font-bold mono mt-0.5 ${totalRemessasAtrasadas > 0 ? 'text-destructive' : 'text-foreground'}`}>
+            {totalRemessasAtrasadas}
           </p>
+          <p className="text-[10px] text-muted-foreground">envios s/ confirmação</p>
         </div>
       </div>
 

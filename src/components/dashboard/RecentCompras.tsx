@@ -1,3 +1,10 @@
+/**
+ * @legacy RecentCompras — parallel recent purchases component.
+ *
+ * This component is NOT rendered by the main Dashboard (Index.tsx).
+ * Compras data is shown inside {@link LogisticaBlock}.
+ * Keep for reference; do not render in the main flow.
+ */
 import { useNavigate } from 'react-router-dom';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { useRelationalNavigation } from '@/contexts/RelationalNavigationContext';
