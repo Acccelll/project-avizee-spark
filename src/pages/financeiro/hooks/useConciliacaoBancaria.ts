@@ -117,22 +117,53 @@ export function useConciliacaoBancaria(
   }, []);
 
   // ── Auto-match por valor e data ───────────────────────────────────────────
-  const autoMatch = useCallback(() => {
+  const autoMatch = useCallback(async () => {
     const usados = new Set<string>();
     const novosPares: ParConciliacao[] = [];
 
-    for (const extrato of extratoItems) {
-      const disponiveis = lancamentos.filter((l) => !usados.has(l.id));
-      const sugestao = sugerirConciliacao(extrato, disponiveis);
-      if (sugestao) {
-        novosPares.push({ extratoId: extrato.id, lancamentoId: sugestao.id });
-        usados.add(sugestao.id);
+    // Tenta primeiro a RPC com pg_trgm; em falha, usa heurística client.
+    try {
+      const payload = extratoItems.map((e) => ({
+        id: e.id,
+        valor: e.valor,
+        data: e.data,
+        descricao: e.descricao,
+      }));
+      const { data, error } = await supabase.rpc('sugerir_conciliacao_bancaria', {
+        p_conta_id: contaId || null,
+        p_extrato: payload as unknown as never,
+      });
+      if (error) throw error;
+      const ranked = (data || []) as Array<{ extrato_id: string; lancamento_id: string; score: number }>;
+      // Para cada extrato, pega o melhor lançamento ainda não usado
+      const grouped = new Map<string, Array<{ lancamento_id: string; score: number }>>();
+      for (const r of ranked) {
+        if (!grouped.has(r.extrato_id)) grouped.set(r.extrato_id, []);
+        grouped.get(r.extrato_id)!.push({ lancamento_id: r.lancamento_id, score: Number(r.score) });
+      }
+      for (const extrato of extratoItems) {
+        const cands = (grouped.get(extrato.id) || []).sort((a, b) => b.score - a.score);
+        const escolhido = cands.find((c) => !usados.has(c.lancamento_id));
+        if (escolhido) {
+          novosPares.push({ extratoId: extrato.id, lancamentoId: escolhido.lancamento_id });
+          usados.add(escolhido.lancamento_id);
+        }
+      }
+    } catch {
+      // Fallback: heurística client-side
+      for (const extrato of extratoItems) {
+        const disponiveis = lancamentos.filter((l) => !usados.has(l.id));
+        const sugestao = sugerirConciliacao(extrato, disponiveis);
+        if (sugestao) {
+          novosPares.push({ extratoId: extrato.id, lancamentoId: sugestao.id });
+          usados.add(sugestao.id);
+        }
       }
     }
 
     setPares(novosPares);
     toast.success(`${novosPares.length} par(es) encontrado(s) automaticamente.`);
-  }, [extratoItems, lancamentos]);
+  }, [extratoItems, lancamentos, contaId]);
 
   // ── Persistir conciliação ─────────────────────────────────────────────────
   const { mutateAsync: persistirConciliacao, isPending: conciliando } = useMutation({
