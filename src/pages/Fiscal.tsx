@@ -297,6 +297,44 @@ const Fiscal = () => {
     }
   };
 
+  const buildNfItemsPayload = (nfId: string) => items.map((i, idx) => {
+    if (!i.produto_id) {
+      throw new Error(`Item ${idx + 1} sem vínculo de produto. Vincule todos os itens antes de salvar.`);
+    }
+    const fiscal = itemFiscalData[idx] || {};
+    return {
+      nota_fiscal_id: nfId,
+      produto_id: i.produto_id,
+      quantidade: i.quantidade,
+      valor_unitario: i.valor_unitario,
+      conta_contabil_id: itemContaContabil[idx] || null,
+      cfop: fiscal.cfop ?? null,
+      cst: fiscal.cst ?? null,
+      ncm: fiscal.ncm ?? null,
+      unidade: fiscal.unidade ?? null,
+      descricao: fiscal.descricao ?? i.descricao ?? null,
+      icms_valor: fiscal.icms_valor ?? null,
+      icms_aliquota: fiscal.icms_aliquota ?? null,
+      icms_base: fiscal.icms_base ?? null,
+      ipi_valor: fiscal.ipi_valor ?? null,
+      ipi_aliquota: fiscal.ipi_aliquota ?? null,
+      pis_valor: fiscal.pis_valor ?? null,
+      pis_aliquota: fiscal.pis_aliquota ?? null,
+      base_pis: fiscal.base_pis ?? null,
+      cofins_valor: fiscal.cofins_valor ?? null,
+      cofins_aliquota: fiscal.cofins_aliquota ?? null,
+      base_cofins: fiscal.base_cofins ?? null,
+      valor_st: fiscal.valor_st ?? null,
+      base_st: fiscal.base_st ?? null,
+      csosn: fiscal.csosn ?? null,
+      cst_pis: fiscal.cst_pis ?? null,
+      cst_cofins: fiscal.cst_cofins ?? null,
+      cst_ipi: fiscal.cst_ipi ?? null,
+      desconto: fiscal.desconto ?? null,
+      codigo_produto: fiscal.codigo_produto ?? i.codigo ?? null,
+    };
+  });
+
   const handleSaveAndConfirm = async () => {
     if (!form.numero) { toast.error("Número é obrigatório"); return; }
     if (form.tipo === "entrada" && !form.fornecedor_id) { toast.error("Fornecedor é obrigatório para notas de entrada"); return; }
@@ -307,6 +345,7 @@ const Fiscal = () => {
     if (!selected) return;
     setSaving(true);
     try {
+      const itemsPayload = buildNfItemsPayload(selected.id);
       const savedTotal = totalNF || form.valor_total;
       const payload = {
         ...form,
@@ -321,43 +360,6 @@ const Fiscal = () => {
         supabase.from("notas_fiscais_itens").delete().eq("nota_fiscal_id", selected.id),
       ]);
       if (items.length > 0) {
-        const itemsPayload = items.map((i, idx) => {
-          if (!i.produto_id) {
-            throw new Error(`Item ${idx + 1} sem vínculo de produto. Vincule todos os itens antes de salvar.`);
-          }
-          const fiscal = itemFiscalData[idx] || {};
-          return {
-            nota_fiscal_id: selected.id,
-            produto_id: i.produto_id,
-            quantidade: i.quantidade,
-            valor_unitario: i.valor_unitario,
-            conta_contabil_id: itemContaContabil[idx] || null,
-            cfop: fiscal.cfop ?? null,
-            cst: fiscal.cst ?? null,
-            ncm: fiscal.ncm ?? null,
-            unidade: fiscal.unidade ?? null,
-            descricao: fiscal.descricao ?? i.descricao ?? null,
-            icms_valor: fiscal.icms_valor ?? null,
-            icms_aliquota: fiscal.icms_aliquota ?? null,
-            icms_base: fiscal.icms_base ?? null,
-            ipi_valor: fiscal.ipi_valor ?? null,
-            ipi_aliquota: fiscal.ipi_aliquota ?? null,
-            pis_valor: fiscal.pis_valor ?? null,
-            pis_aliquota: fiscal.pis_aliquota ?? null,
-            base_pis: fiscal.base_pis ?? null,
-            cofins_valor: fiscal.cofins_valor ?? null,
-            cofins_aliquota: fiscal.cofins_aliquota ?? null,
-            base_cofins: fiscal.base_cofins ?? null,
-            valor_st: fiscal.valor_st ?? null,
-            base_st: fiscal.base_st ?? null,
-            csosn: fiscal.csosn ?? null,
-            cst_pis: fiscal.cst_pis ?? null,
-            cst_cofins: fiscal.cst_cofins ?? null,
-            cst_ipi: fiscal.cst_ipi ?? null,
-            desconto: fiscal.desconto ?? null,
-            codigo_produto: fiscal.codigo_produto ?? i.codigo ?? null,
-          };
-        });
         await supabase.from("notas_fiscais_itens").insert(itemsPayload as never);
       }
       const nfForConfirm = { ...selected, ...payload, valor_total: savedTotal };
@@ -470,43 +472,7 @@ const Fiscal = () => {
         });
       }
       if (items.length > 0 && nfId) {
-        const itemsPayload = items.map((i, idx) => {
-          if (!i.produto_id) {
-            throw new Error(`Item ${idx + 1} sem vínculo de produto. Vincule todos os itens antes de salvar.`);
-          }
-          const fiscal = itemFiscalData[idx] || {};
-          return {
-            nota_fiscal_id: nfId,
-            produto_id: i.produto_id,
-            quantidade: i.quantidade,
-            valor_unitario: i.valor_unitario,
-            conta_contabil_id: itemContaContabil[idx] || null,
-            cfop: fiscal.cfop ?? null,
-            cst: fiscal.cst ?? null,
-            ncm: fiscal.ncm ?? null,
-            unidade: fiscal.unidade ?? null,
-            descricao: fiscal.descricao ?? i.descricao ?? null,
-            icms_valor: fiscal.icms_valor ?? null,
-            icms_aliquota: fiscal.icms_aliquota ?? null,
-            icms_base: fiscal.icms_base ?? null,
-            ipi_valor: fiscal.ipi_valor ?? null,
-            ipi_aliquota: fiscal.ipi_aliquota ?? null,
-            pis_valor: fiscal.pis_valor ?? null,
-            pis_aliquota: fiscal.pis_aliquota ?? null,
-            base_pis: fiscal.base_pis ?? null,
-            cofins_valor: fiscal.cofins_valor ?? null,
-            cofins_aliquota: fiscal.cofins_aliquota ?? null,
-            base_cofins: fiscal.base_cofins ?? null,
-            valor_st: fiscal.valor_st ?? null,
-            base_st: fiscal.base_st ?? null,
-            csosn: fiscal.csosn ?? null,
-            cst_pis: fiscal.cst_pis ?? null,
-            cst_cofins: fiscal.cst_cofins ?? null,
-            cst_ipi: fiscal.cst_ipi ?? null,
-            desconto: fiscal.desconto ?? null,
-            codigo_produto: fiscal.codigo_produto ?? i.codigo ?? null,
-          };
-        });
+        const itemsPayload = buildNfItemsPayload(nfId);
         await supabase.from("notas_fiscais_itens").insert(itemsPayload as never);
       }
       toast.success("Nota fiscal salva!"); setModalOpen(false); fetchData();

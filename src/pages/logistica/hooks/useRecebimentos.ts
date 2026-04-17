@@ -1,6 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
+const PARTIAL_RECEIPT_PENDING_MESSAGE =
+  "Recebimento parcial informado no pedido, mas quantidade real pendente de consolidação.";
+
 export interface Recebimento {
   id: string;
   numero_compra: string;
@@ -74,9 +77,9 @@ async function fetchRecebimentos(): Promise<Recebimento[]> {
       recebimentoReal = true;
     } else if (comprasStatus === "parcialmente_recebido") {
       // Não simular quantidades no frontend: o parcial real depende de consolidação
-      // de recebimento no fluxo canônico de Compras/RPC.
+      // de recebimento no fluxo canônico de Compras/backend.
       qtdRecebida = 0;
-      observacaoRecebimento = "Recebimento parcial informado no pedido, mas quantidade real pendente de consolidação.";
+      observacaoRecebimento = PARTIAL_RECEIPT_PENDING_MESSAGE;
     }
     const pendencia = Math.max(0, qtdPedida - qtdRecebida);
 

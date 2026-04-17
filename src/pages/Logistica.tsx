@@ -82,6 +82,10 @@ function getRecebimentoStatusCfg(status: string) {
 
 const TERMINAL_ENTREGA = ["entregue", "cancelado"];
 const TERMINAL_RECEBIMENTO = ["recebido", "cancelado"];
+const MULTI_REMESSA_STATUS_MESSAGE =
+  "Este pedido possui múltiplas remessas. Atualize status por remessa na aba Remessas.";
+const RECEBIMENTO_REGISTRO_MESSAGE =
+  "Data de recebimento registrada. A consolidação quantitativa permanece no módulo Compras.";
 
 function isAtrasadoEntrega(e: Entrega): boolean {
   if (!e.previsao_entrega || TERMINAL_ENTREGA.includes(e.status_logistico)) return false;
@@ -322,7 +326,7 @@ export default function Logistica() {
     const remessaIds = (remessas ?? []).map((r) => r.id);
     if (remessaIds.length === 0) { toast.warning("Nenhuma remessa encontrada para o pedido."); return; }
     if (remessaIds.length > 1) {
-      toast.warning("Este pedido possui múltiplas remessas. Atualize status por remessa na aba Remessas.");
+      toast.warning(MULTI_REMESSA_STATUS_MESSAGE);
       return;
     }
     const { error } = await supabase.from("remessas").update({ status_transporte: status }).eq("id", remessaIds[0]);
@@ -346,7 +350,7 @@ export default function Logistica() {
       .update({ data_entrega_real: new Date().toISOString().slice(0, 10) })
       .eq("id", recebimento.id);
     if (error) { toast.error(getUserFriendlyError(error)); return; }
-    toast.success("Data de recebimento registrada. A consolidação quantitativa permanece no módulo Compras.");
+    toast.success(RECEBIMENTO_REGISTRO_MESSAGE);
   };
 
   const openViewRemessa = (r: Remessa) => { setRemSelected(r); setRemDrawerOpen(true); };
