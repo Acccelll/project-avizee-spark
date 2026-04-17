@@ -6,6 +6,7 @@
  * - CotacaoCompraItensTable
  * - CotacaoCompraPropostasPanel (comparativo + propostas por item)
  */
+import { useMemo } from "react";
 import { ViewDrawerV2 } from "@/components/ViewDrawerV2";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -71,6 +72,13 @@ export function CotacaoCompraDrawer({
   onEdit, onDeleteOpen, onSelectProposal, onDeleteProposal, onAddProposal,
   onSendForApproval, onApprove, onReject, onGerarPedido, onNavigatePedidos,
 }: CotacaoCompraDrawerProps) {
+  // Memoize the approved-total to avoid recomputing the reduce on every render of the Decisão tab.
+  const totalAprovado = useMemo(() => {
+    return drawerStats.selectedPropostas.reduce((sum, p) => {
+      const item = viewItems.find((i) => i.id === p.item_id);
+      return sum + (item ? Number(p.preco_unitario) * item.quantidade : 0);
+    }, 0);
+  }, [drawerStats.selectedPropostas, viewItems]);
   return (
     <ViewDrawerV2
       open={open}
@@ -249,10 +257,7 @@ export function CotacaoCompraDrawer({
                               <tr className="bg-muted/30 border-t">
                                 <td colSpan={2} className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase">Total aprovado</td>
                                 <td className="px-3 py-2 text-right font-mono text-sm font-bold text-primary">
-                                  {formatCurrency(drawerStats.selectedPropostas.reduce((sum, p) => {
-                                    const item = viewItems.find((i) => i.id === p.item_id);
-                                    return sum + (item ? Number(p.preco_unitario) * item.quantidade : 0);
-                                  }, 0))}
+                                  {formatCurrency(totalAprovado)}
                                 </td>
                               </tr>
                             </tbody>
