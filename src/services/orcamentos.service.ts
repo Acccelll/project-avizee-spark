@@ -54,6 +54,7 @@ export async function convertToPedido(
   });
   if (error) throw new Error(`Erro ao converter orçamento em pedido: ${error.message}`);
   const result = data as { ov_id: string; ov_numero: string };
+  toast.success(`Pedido ${result.ov_numero} criado com sucesso!`);
   return { ovId: result.ov_id, ovNumero: result.ov_numero };
 }
 
