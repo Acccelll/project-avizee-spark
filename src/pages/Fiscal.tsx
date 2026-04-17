@@ -211,6 +211,7 @@ const Fiscal = () => {
     }));
     setItems(loadedItems);
     const contaMap: Record<number, string> = {};
+    const fiscalMap: Record<number, NfItemFiscalData> = {};
     itensTyped.forEach((i, idx) => {
       if (i.conta_contabil_id) contaMap[idx] = i.conta_contabil_id;
       fiscalMap[idx] = {
