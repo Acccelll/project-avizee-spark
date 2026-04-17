@@ -1,4 +1,5 @@
-import { Fragment, useCallback, useMemo, useState } from 'react';
+import { Fragment, useCallback, useMemo } from 'react';
+import { useUserPreference } from '@/hooks/useUserPreference';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   ChevronDown,
