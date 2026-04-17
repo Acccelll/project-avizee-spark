@@ -86,18 +86,10 @@ export async function fetchMovimentacoesPorProduto(
 
 export async function registrarMovimentacao(
   payload: EstoqueMovimentoInsert,
-  novoEstoqueAtual: number,
 ): Promise<void> {
   const { error: movError } = await supabase
     .from("estoque_movimentos")
     .insert(payload);
 
   if (movError) throw new Error(movError.message);
-
-  const { error: prodError } = await supabase
-    .from("produtos")
-    .update({ estoque_atual: novoEstoqueAtual })
-    .eq("id", payload.produto_id);
-
-  if (prodError) throw new Error(prodError.message);
 }

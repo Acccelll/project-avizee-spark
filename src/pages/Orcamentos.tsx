@@ -452,7 +452,7 @@ const Orcamentos = () => {
           moduleKey="cotacoes"
           showColumnToggle={true}
           onView={(o) => pushView("orcamento", o.id)}
-          onEdit={(o) => navigate(`/cotacoes/${o.id}`)}
+          onEdit={(o) => navigate(`/orcamentos/${o.id}`)}
           emptyTitle="Nenhuma cotação encontrada"
           emptyDescription="Crie uma nova cotação ou ajuste os filtros aplicados."
         />

@@ -93,6 +93,10 @@ export function OrcamentoItemsGrid({ items, onChange, produtos, precosEspeciais 
   const removeItem = (idx: number) => onChange(items.filter((_, i) => i !== idx));
   const duplicateItem = (idx: number) => {
     const source = items[idx];
+    if (!source.produto_id) {
+      toast.warning("Vincule o produto antes de duplicar este item.");
+      return;
+    }
     if (source.produto_id && items.some((item, i) => i !== idx && item.produto_id === source.produto_id)) {
       toast.warning("Item já incluso no orçamento. Edite a quantidade na linha existente.");
       return;

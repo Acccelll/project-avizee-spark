@@ -213,7 +213,6 @@ const Estoque = () => {
           motivo: pendingMovForm.motivo,
           documento_tipo: "manual",
         },
-        novoEstoqueAtual: saldo_atual,
       });
 
       // The hook's onSuccess already calls toast.success + cache invalidation.
