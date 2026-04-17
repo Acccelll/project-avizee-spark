@@ -82,10 +82,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const { data } = await supabase.from("user_roles").select("role").eq("user_id", userId);
       if (data) {
-        const validAppRoles: string[] = ["admin", "vendedor", "financeiro", "estoquista"];
         const validRoles = (data as unknown as Array<{ role: string }>)
           .map((r) => r.role)
-          .filter((r): r is AppRole => !LEGACY_ROLES.has(r) && validAppRoles.includes(r));
+          .filter((r): r is AppRole => !LEGACY_ROLES.has(r) && VALID_APP_ROLES.has(r));
         setRoles(validRoles);
       }
     } catch (err) {
