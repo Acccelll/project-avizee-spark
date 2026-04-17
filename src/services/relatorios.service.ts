@@ -685,8 +685,17 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
       const hoje = new Date();
       hoje.setHours(0, 0, 0, 0);
 
-      const rows = (data || []).map((item: RawLancamentoItem & { saldo_restante?: number | null }) => {
-        const venc = new Date(item.data_vencimento!);
+      const rows = (data || []).map((raw: Record<string, unknown>) => {
+        const item = raw as {
+          tipo: string;
+          descricao: string | null;
+          valor: number | null;
+          saldo_restante: number | null;
+          data_vencimento: string;
+          clientes: { nome_razao_social: string } | null;
+          fornecedores: { nome_razao_social: string } | null;
+        };
+        const venc = new Date(item.data_vencimento);
         const diffDays = Math.floor((hoje.getTime() - venc.getTime()) / (1000 * 60 * 60 * 24));
         let faixa = "A vencer";
         if (diffDays > 0 && diffDays <= 30) faixa = "1-30 dias";
