@@ -363,8 +363,11 @@ const Clientes = () => {
 
   const handleSetPrincipalEndereco = async (enderecoId: string, clienteId: string) => {
     try {
-      await supabase.from("clientes_enderecos_entrega").update({ principal: false }).eq("cliente_id", clienteId);
-      await supabase.from("clientes_enderecos_entrega").update({ principal: true }).eq("id", enderecoId);
+      const { error } = await supabase.rpc("set_principal_endereco", {
+        p_cliente_id: clienteId,
+        p_endereco_id: enderecoId,
+      });
+      if (error) throw error;
       await loadEnderecos(clienteId);
       toast.success("Endereço principal definido");
     } catch (err) {

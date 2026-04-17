@@ -259,19 +259,26 @@ const Produtos = () => {
       } else {
         return;
       }
-      // Parallel delete of old composicoes and fornecedores
-      await Promise.all([
-        form.eh_composto
-          ? supabase.from("produto_composicoes").delete().eq("produto_pai_id", produtoId)
-          : Promise.resolve(),
-        supabase.from("produtos_fornecedores").delete().eq("produto_id", produtoId),
-      ]);
-
-      if (form.eh_composto && editComposicao.length > 0) {
-        const rows = editComposicao.map((c, i) => ({ produto_pai_id: produtoId, produto_filho_id: c.produto_filho_id, quantidade: c.quantidade, ordem: i + 1 }));
-        const { error } = await supabase.from("produto_composicoes").insert(rows);
-        if (error) {console.error('[produtos] composição:', error);toast.error("Erro ao salvar composição. Tente novamente.");}
+      // Composição: usa RPC transacional (delete + insert atômico). Fornecedores seguem fluxo padrão.
+      const composicaoItens = form.eh_composto
+        ? editComposicao
+            .filter((c) => c.produto_filho_id)
+            .map((c) => ({
+              produto_filho_id: c.produto_filho_id,
+              quantidade: c.quantidade,
+            }))
+        : [];
+      const { error: compError } = await supabase.rpc("save_produto_composicao", {
+        p_produto_pai_id: produtoId,
+        p_itens: composicaoItens,
+        p_payload: { eh_composto: form.eh_composto },
+      });
+      if (compError) {
+        console.error("[produtos] composição:", compError);
+        toast.error("Erro ao salvar composição. Tente novamente.");
       }
+
+      await supabase.from("produtos_fornecedores").delete().eq("produto_id", produtoId);
 
       const validForn = editFornecedores.filter(f => f.fornecedor_id);
       if (validForn.length > 0) {
