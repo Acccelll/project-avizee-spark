@@ -1,14 +1,23 @@
-import { createContext, useContext, useEffect, useState, useRef, ReactNode, useMemo } from "react";
+import { createContext, useContext, useEffect, useState, useRef, useCallback, ReactNode, useMemo } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { buildPermissionSet, type ErpAction, type ErpResource, type PermissionKey, toPermissionKey } from "@/lib/permissions";
+import {
+  APP_ROLES,
+  buildPermissionSet,
+  type AppRole,
+  type ErpAction,
+  type ErpResource,
+  type PermissionKey,
+  toPermissionKey,
+} from "@/lib/permissions";
 
-/** Roles recognised by the application. Aligns with the `app_role` enum in the database. */
-export type AppRole = "admin" | "vendedor" | "financeiro" | "estoquista";
+/** Re-export para preservar imports existentes (`import type { AppRole } from "@/contexts/AuthContext"`). */
+export type { AppRole };
 
 /** Values that may exist in legacy rows but are no longer issued. */
 const LEGACY_ROLES = new Set(["moderator", "user"]);
+const VALID_APP_ROLES: ReadonlySet<string> = new Set(APP_ROLES);
 
 interface AuthContextType {
   user: User | null;
@@ -73,10 +82,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const { data } = await supabase.from("user_roles").select("role").eq("user_id", userId);
       if (data) {
-        const validAppRoles: string[] = ["admin", "vendedor", "financeiro", "estoquista"];
         const validRoles = (data as unknown as Array<{ role: string }>)
           .map((r) => r.role)
-          .filter((r): r is AppRole => !LEGACY_ROLES.has(r) && validAppRoles.includes(r));
+          .filter((r): r is AppRole => !LEGACY_ROLES.has(r) && VALID_APP_ROLES.has(r));
         setRoles(validRoles);
       }
     } catch (err) {
@@ -126,7 +134,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    let isMounted = true;
+
     const safetyTimeout = setTimeout(() => {
+      if (!isMounted) return;
       setLoading((currentLoading) => {
         if (currentLoading) {
           console.warn("[auth] Auth initialization timed out. Forcing loading false.");
@@ -191,20 +202,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     return () => {
+      isMounted = false;
       clearTimeout(safetyTimeout);
       subscription.unsubscribe();
     };
   }, []);
 
-  const hasRole = (role: AppRole) => roles.includes(role);
+  const hasRole = useCallback((role: AppRole) => roles.includes(role), [roles]);
   const mergedPermissions = useMemo(() => buildPermissionSet(roles, extraPermissions), [roles, extraPermissions]);
 
-  const can = (resource: ErpResource, action: ErpAction) => {
-    const key = toPermissionKey(resource, action);
-    return mergedPermissions.has(key);
-  };
+  const can = useCallback(
+    (resource: ErpResource, action: ErpAction) => {
+      const key = toPermissionKey(resource, action);
+      return mergedPermissions.has(key);
+    },
+    [mergedPermissions]
+  );
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     if (!supabase) return;
     manualSignOut.current = true;
     await supabase.auth.signOut();
@@ -214,11 +229,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setRoles([]);
     setExtraPermissions([]);
     setPermissionsLoaded(false);
-  };
+  }, []);
 
-  return (
-    <AuthContext.Provider value={{ user, session, loading, permissionsLoaded, profile, roles, extraPermissions, hasRole, can, signOut }}>
-      {children}
-    </AuthContext.Provider>
+  const contextValue = useMemo(
+    () => ({ user, session, loading, permissionsLoaded, profile, roles, extraPermissions, hasRole, can, signOut }),
+    [user, session, loading, permissionsLoaded, profile, roles, extraPermissions, hasRole, can, signOut]
   );
+
+  return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;
 }

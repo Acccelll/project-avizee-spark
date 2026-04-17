@@ -1,4 +1,10 @@
-import type { AppRole } from "@/contexts/AuthContext";
+/**
+ * Roles reconhecidos pela aplicação. Alinhado com o enum `app_role` do banco.
+ * Definido aqui (e re-exportado em `AuthContext`) para evitar import cíclico
+ * conceitual entre o contexto de auth e a matriz de permissões.
+ */
+export const APP_ROLES = ["admin", "vendedor", "financeiro", "estoquista"] as const;
+export type AppRole = (typeof APP_ROLES)[number];
 
 export const ERP_RESOURCES = [
   "dashboard",
