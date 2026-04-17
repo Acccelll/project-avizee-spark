@@ -1,3 +1,10 @@
+/**
+ * useConfiguracoesIntegracoes
+ *
+ * Hook para as configurações de integrações (gateway, SEFAZ, webhooks)
+ * **globais** do sistema.  Requer permissão de administrador.  Faz parte do
+ * módulo administrativo em `src/pages/configuracoes/*`.
+ */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';

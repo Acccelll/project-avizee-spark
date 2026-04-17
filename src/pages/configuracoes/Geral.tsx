@@ -1,3 +1,12 @@
+/**
+ * Geral.tsx — Configurações globais do sistema (módulo administrativo).
+ *
+ * Esta página faz parte de `src/pages/configuracoes/*`, um módulo de
+ * administração global que NÃO é o fluxo canônico de preferências pessoais.
+ * O fluxo canônico de preferências do usuário é `src/pages/Configuracoes.tsx`
+ * (rota `/configuracoes`).  As páginas aqui são configurações que afetam todos
+ * os usuários e requerem permissão de administrador.
+ */
 import React, { useEffect, useRef, useState } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';

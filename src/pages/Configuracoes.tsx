@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTheme } from 'next-themes';
 import { AlertCircle, CalendarDays, Check, CheckCircle2, Clock, Eye, EyeOff, Info, Loader2, Lock, Mail, Moon, Palette, RotateCcw, Save, Settings, Shield, ShieldCheck, Sun, User } from 'lucide-react';
 import { useUserPreference } from '@/hooks/useUserPreference';
@@ -122,13 +122,28 @@ function getPasswordCriteria(pwd: string, confirm: string) {
 }
 
 export default function Configuracoes() {
-  const { user, profile, roles } = useAuth();
+  const { user, profile, roles, hasRole } = useAuth();
   const { theme, setTheme } = useTheme();
   const [activeSection, setActiveSection] = useState('perfil');
 
   const [nome, setNome] = useState(profile?.nome || '');
   const [cargo, setCargo] = useState(profile?.cargo || '');
   const [savingProfile, setSavingProfile] = useState(false);
+
+  // Track whether the profile has been applied to the form at least once so we
+  // don't overwrite intentional user edits on subsequent profile re-renders.
+  const profileAppliedRef = useRef(false);
+
+  // Synchronize form fields when profile loads asynchronously (first load only).
+  useEffect(() => {
+    if (profile && !profileAppliedRef.current) {
+      profileAppliedRef.current = true;
+      setNome(profile.nome || '');
+      setCargo(profile.cargo || '');
+    }
+  }, [profile]);
+
+  const isAdmin = hasRole('admin');
 
   const [newPassword, setNewPassword] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
@@ -232,8 +247,6 @@ export default function Configuracoes() {
   const handleResetAppearance = async () => {
     setTheme(APPEARANCE_DEFAULTS.theme);
     setDensidade(APPEARANCE_DEFAULTS.densidade);
-    setCorPrimaria(APPEARANCE_DEFAULTS.corPrimaria);
-    setCorSecundaria(APPEARANCE_DEFAULTS.corSecundaria);
     await saveDensidadePref(APPEARANCE_DEFAULTS.densidade);
     await saveFontScale(APPEARANCE_DEFAULTS.fontScale);
     await saveMenuCompacto(APPEARANCE_DEFAULTS.menuCompacto);
@@ -241,17 +254,27 @@ export default function Configuracoes() {
     document.documentElement.dataset.density = APPEARANCE_DEFAULTS.densidade === 'compacta' ? 'compact' : 'comfortable';
     document.documentElement.style.setProperty('--base-font-size', `${APPEARANCE_DEFAULTS.fontScale}px`);
     document.documentElement.classList.remove('reduce-motion');
-    const primaryHsl = hexToHslString(APPEARANCE_DEFAULTS.corPrimaria);
-    const secondaryHsl = hexToHslString(APPEARANCE_DEFAULTS.corSecundaria);
-    if (primaryHsl) document.documentElement.style.setProperty('--primary', primaryHsl);
-    if (secondaryHsl) document.documentElement.style.setProperty('--secondary', secondaryHsl);
-    await supabase.from('app_configuracoes').upsert(
-      [
-        { chave: 'theme_primary_color', valor: APPEARANCE_DEFAULTS.corPrimaria, updated_at: new Date().toISOString() },
-        { chave: 'theme_secondary_color', valor: APPEARANCE_DEFAULTS.corSecundaria, updated_at: new Date().toISOString() },
-      ] satisfies AppConfigInsert[],
-      { onConflict: 'chave' }
-    );
+    // Only reset global colors if the user is an admin.
+    if (isAdmin) {
+      setCorPrimaria(APPEARANCE_DEFAULTS.corPrimaria);
+      setCorSecundaria(APPEARANCE_DEFAULTS.corSecundaria);
+      const { error } = await supabase.from('app_configuracoes').upsert(
+        [
+          { chave: 'theme_primary_color', valor: APPEARANCE_DEFAULTS.corPrimaria, updated_at: new Date().toISOString() },
+          { chave: 'theme_secondary_color', valor: APPEARANCE_DEFAULTS.corSecundaria, updated_at: new Date().toISOString() },
+        ] satisfies AppConfigInsert[],
+        { onConflict: 'chave' }
+      );
+      if (error) {
+        console.error('[configuracoes] reset colors:', error);
+        toast.error(getUserFriendlyError(error));
+        return;
+      }
+      const primaryHsl = hexToHslString(APPEARANCE_DEFAULTS.corPrimaria);
+      const secondaryHsl = hexToHslString(APPEARANCE_DEFAULTS.corSecundaria);
+      if (primaryHsl) document.documentElement.style.setProperty('--primary', primaryHsl);
+      if (secondaryHsl) document.documentElement.style.setProperty('--secondary', secondaryHsl);
+    }
     toast.success('Aparência restaurada ao padrão.');
   };
 
@@ -370,15 +393,7 @@ export default function Configuracoes() {
                     <Lock className="absolute right-3 top-2.5 h-4 w-4 text-muted-foreground" />
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Este é o e-mail de acesso da sua conta. Para alterá-lo, utilize a seção{' '}
-                    <button
-                      type="button"
-                      className="underline underline-offset-2 hover:text-foreground transition-colors"
-                      onClick={() => setActiveSection('seguranca')}
-                    >
-                      Segurança
-                    </button>
-                    .
+                    Este é o e-mail de acesso da sua conta. Não pode ser alterado por aqui.
                   </p>
                 </div>
                 {roles.length > 0 && (
@@ -410,7 +425,7 @@ export default function Configuracoes() {
             <CardHeader>
               <CardTitle>Aparência</CardTitle>
               <CardDescription>
-                Ajuste as preferências visuais da sua conta. Essas configurações afetam apenas a interface para o seu usuário.
+                Ajuste suas preferências visuais. Tema, densidade, fonte, menu e animações são pessoais e afetam apenas o seu usuário. As cores da interface são configurações globais e afetam todos os usuários do sistema.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-8">
@@ -534,56 +549,62 @@ export default function Configuracoes() {
 
               <Separator />
 
-              {/* ── Bloco 4: Cores da interface ──────────────────────────────── */}
-              <div className="space-y-4">
-                <div>
-                  <h3 className="text-sm font-semibold text-foreground">Cores da interface</h3>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Cor de destaque aplicada na interface desta conta. Não altera a identidade visual corporativa global.
-                  </p>
-                </div>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label>Cor primária da interface</Label>
+              {/* ── Bloco 4: Cores da interface (global — apenas admins) ─────── */}
+              {isAdmin ? (
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="text-sm font-semibold text-foreground">Cores da interface</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Cor primária e secundária são configurações <strong>globais</strong> — afetam todos os usuários do sistema. Editável apenas por administradores.
+                    </p>
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label>Cor primária</Label>
+                      <div className="flex items-center gap-3">
+                        <Input
+                          type="color"
+                          value={corPrimaria}
+                          onChange={(e) => setCorPrimaria(e.target.value)}
+                          className="h-10 w-16 p-1 cursor-pointer"
+                          aria-label="Selecionar cor primária da interface"
+                        />
+                        <span className="text-sm text-muted-foreground font-mono">{corPrimaria}</span>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Cor secundária</Label>
+                      <div className="flex items-center gap-3">
+                        <Input
+                          type="color"
+                          value={corSecundaria}
+                          onChange={(e) => setCorSecundaria(e.target.value)}
+                          className="h-10 w-16 p-1 cursor-pointer"
+                          aria-label="Selecionar cor secundária da interface"
+                        />
+                        <span className="text-sm text-muted-foreground font-mono">{corSecundaria}</span>
+                      </div>
+                    </div>
+                  </div>
+                  {/* Preview */}
+                  <div className="rounded-lg border p-4 space-y-2">
+                    <p className="text-xs text-muted-foreground font-medium">Pré-visualização</p>
                     <div className="flex items-center gap-3">
-                      <Input
-                        type="color"
-                        value={corPrimaria}
-                        onChange={(e) => setCorPrimaria(e.target.value)}
-                        className="h-10 w-16 p-1 cursor-pointer"
-                        aria-label="Selecionar cor primária da interface"
-                      />
-                      <span className="text-sm text-muted-foreground font-mono">{corPrimaria}</span>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Cor secundária da interface</Label>
-                    <div className="flex items-center gap-3">
-                      <Input
-                        type="color"
-                        value={corSecundaria}
-                        onChange={(e) => setCorSecundaria(e.target.value)}
-                        className="h-10 w-16 p-1 cursor-pointer"
-                        aria-label="Selecionar cor secundária da interface"
-                      />
-                      <span className="text-sm text-muted-foreground font-mono">{corSecundaria}</span>
+                      <div className="h-8 w-8 rounded-md border" style={{ backgroundColor: corPrimaria }} />
+                      <div className="h-8 w-8 rounded-md border" style={{ backgroundColor: corSecundaria }} />
+                      <div className="flex flex-col gap-1 flex-1">
+                        <div className="h-2 rounded-full w-3/4" style={{ backgroundColor: corPrimaria, opacity: 0.85 }} />
+                        <div className="h-2 rounded-full w-1/2" style={{ backgroundColor: corSecundaria, opacity: 0.65 }} />
+                      </div>
+                      <span className="text-xs text-muted-foreground">Primária · Secundária</span>
                     </div>
                   </div>
                 </div>
-                {/* Preview */}
-                <div className="rounded-lg border p-4 space-y-2">
-                  <p className="text-xs text-muted-foreground font-medium">Pré-visualização</p>
-                  <div className="flex items-center gap-3">
-                    <div className="h-8 w-8 rounded-md border" style={{ backgroundColor: corPrimaria }} />
-                    <div className="h-8 w-8 rounded-md border" style={{ backgroundColor: corSecundaria }} />
-                    <div className="flex flex-col gap-1 flex-1">
-                      <div className="h-2 rounded-full w-3/4" style={{ backgroundColor: corPrimaria, opacity: 0.85 }} />
-                      <div className="h-2 rounded-full w-1/2" style={{ backgroundColor: corSecundaria, opacity: 0.65 }} />
-                    </div>
-                    <span className="text-xs text-muted-foreground">Primária · Secundária</span>
-                  </div>
+              ) : (
+                <div className="rounded-lg border bg-muted/30 p-4 text-sm text-muted-foreground">
+                  As cores globais da interface (primária e secundária) são gerenciadas pelo administrador do sistema.
                 </div>
-              </div>
+              )}
 
               <Separator />
 
@@ -600,7 +621,7 @@ export default function Configuracoes() {
                     <AlertDialogHeader>
                       <AlertDialogTitle>Restaurar aparência padrão?</AlertDialogTitle>
                       <AlertDialogDescription>
-                        Isso vai redefinir tema, densidade, tamanho da fonte, menu compacto, animações e cores da interface para os valores originais do sistema. A alteração afeta apenas a sua conta.
+                        Isso vai redefinir tema, densidade, tamanho da fonte, menu compacto e animações para os valores originais do sistema (preferências pessoais).{isAdmin && ' As cores globais da interface também serão restauradas ao padrão.'}
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -611,26 +632,33 @@ export default function Configuracoes() {
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
-                <Button
-                  className="gap-2"
-                  onClick={async () => {
-                    await supabase.from('app_configuracoes').upsert(
-                      [
-                        { chave: 'theme_primary_color', valor: corPrimaria, updated_at: new Date().toISOString() },
-                        { chave: 'theme_secondary_color', valor: corSecundaria, updated_at: new Date().toISOString() },
-                      ] satisfies AppConfigInsert[],
-                      { onConflict: 'chave' }
-                    );
-                    const primary = hexToHslString(corPrimaria);
-                    const secondary = hexToHslString(corSecundaria);
-                    if (primary) document.documentElement.style.setProperty('--primary', primary);
-                    if (secondary) document.documentElement.style.setProperty('--secondary', secondary);
-                    toast.success('Preferências de aparência salvas.');
-                  }}
-                >
-                  <Save className="h-4 w-4" />
-                  Salvar aparência
-                </Button>
+                {isAdmin && (
+                  <Button
+                    className="gap-2"
+                    onClick={async () => {
+                      const { error } = await supabase.from('app_configuracoes').upsert(
+                        [
+                          { chave: 'theme_primary_color', valor: corPrimaria, updated_at: new Date().toISOString() },
+                          { chave: 'theme_secondary_color', valor: corSecundaria, updated_at: new Date().toISOString() },
+                        ] satisfies AppConfigInsert[],
+                        { onConflict: 'chave' }
+                      );
+                      if (error) {
+                        console.error('[configuracoes] save colors:', error);
+                        toast.error(getUserFriendlyError(error));
+                        return;
+                      }
+                      const primary = hexToHslString(corPrimaria);
+                      const secondary = hexToHslString(corSecundaria);
+                      if (primary) document.documentElement.style.setProperty('--primary', primary);
+                      if (secondary) document.documentElement.style.setProperty('--secondary', secondary);
+                      toast.success('Cores globais da interface salvas.');
+                    }}
+                  >
+                    <Save className="h-4 w-4" />
+                    Salvar cores
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>

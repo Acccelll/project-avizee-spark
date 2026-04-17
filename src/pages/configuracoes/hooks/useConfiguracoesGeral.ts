@@ -1,3 +1,10 @@
+/**
+ * useConfiguracoesGeral
+ *
+ * Hook para as configurações gerais **globais** do sistema (nome, moeda,
+ * fuso horário, idioma, modo de manutenção).  Requer permissão de administrador.
+ * Faz parte do módulo administrativo em `src/pages/configuracoes/*`.
+ */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';

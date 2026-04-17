@@ -70,7 +70,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <NextThemesProvider attribute="class" defaultTheme="light" enableSystem={false}>
+    // enableSystem={true} to support the "Sistema" option exposed in Configuracoes > Aparência.
+    <NextThemesProvider attribute="class" defaultTheme="light" enableSystem={true}>
       {children}
     </NextThemesProvider>
   );
