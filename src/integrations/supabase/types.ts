@@ -3585,14 +3585,79 @@ export type Database = {
           },
         ]
       }
+      remessa_itens: {
+        Row: {
+          created_at: string
+          id: string
+          observacoes: string | null
+          ordem_venda_item_id: string | null
+          peso_unitario: number | null
+          produto_id: string
+          quantidade: number
+          remessa_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          observacoes?: string | null
+          ordem_venda_item_id?: string | null
+          peso_unitario?: number | null
+          produto_id: string
+          quantidade: number
+          remessa_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          observacoes?: string | null
+          ordem_venda_item_id?: string | null
+          peso_unitario?: number | null
+          produto_id?: string
+          quantidade?: number
+          remessa_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "remessa_itens_ordem_venda_item_id_fkey"
+            columns: ["ordem_venda_item_id"]
+            isOneToOne: false
+            referencedRelation: "ordens_venda_itens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "remessa_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produtos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "remessa_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_estoque_posicao"
+            referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "remessa_itens_remessa_id_fkey"
+            columns: ["remessa_id"]
+            isOneToOne: false
+            referencedRelation: "remessas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       remessas: {
         Row: {
           ativo: boolean
           cliente_id: string | null
           codigo_rastreio: string | null
           created_at: string
+          data_entrega_real: string | null
+          data_expedicao: string | null
           data_postagem: string | null
           id: string
+          motivo_cancelamento: string | null
           nota_fiscal_id: string | null
           observacoes: string | null
           ordem_venda_id: string | null
@@ -3612,8 +3677,11 @@ export type Database = {
           cliente_id?: string | null
           codigo_rastreio?: string | null
           created_at?: string
+          data_entrega_real?: string | null
+          data_expedicao?: string | null
           data_postagem?: string | null
           id?: string
+          motivo_cancelamento?: string | null
           nota_fiscal_id?: string | null
           observacoes?: string | null
           ordem_venda_id?: string | null
@@ -3633,8 +3701,11 @@ export type Database = {
           cliente_id?: string | null
           codigo_rastreio?: string | null
           created_at?: string
+          data_entrega_real?: string | null
+          data_expedicao?: string | null
           data_postagem?: string | null
           id?: string
+          motivo_cancelamento?: string | null
           nota_fiscal_id?: string | null
           observacoes?: string | null
           ordem_venda_id?: string | null
@@ -4487,6 +4558,19 @@ export type Database = {
       }
     }
     Functions: {
+      ajustar_estoque_manual: {
+        Args: {
+          p_motivo?: string
+          p_produto_id: string
+          p_quantidade: number
+          p_tipo: string
+        }
+        Returns: string
+      }
+      cancelar_remessa: {
+        Args: { p_motivo?: string; p_remessa_id: string }
+        Returns: undefined
+      }
       confirmar_nota_fiscal: { Args: { p_nf_id: string }; Returns: undefined }
       consolidar_lote_cadastros: { Args: { p_lote_id: string }; Returns: Json }
       consolidar_lote_enriquecimento: {
@@ -4519,6 +4603,10 @@ export type Database = {
         Args: { p_compra_id: string; p_motivo?: string }
         Returns: Json
       }
+      expedir_remessa: {
+        Args: { p_data_expedicao?: string; p_remessa_id: string }
+        Returns: undefined
+      }
       financeiro_processar_baixa_lote: {
         Args: { p_items: Json }
         Returns: Json
@@ -4538,6 +4626,14 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      marcar_remessa_em_transito: {
+        Args: { p_remessa_id: string }
+        Returns: undefined
+      }
+      marcar_remessa_entregue: {
+        Args: { p_data_entrega?: string; p_remessa_id: string }
+        Returns: undefined
       }
       move_to_dlq: {
         Args: {
