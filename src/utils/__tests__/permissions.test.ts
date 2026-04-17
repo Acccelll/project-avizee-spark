@@ -77,7 +77,7 @@ describe("checkPermissionArray", () => {
   });
 
   it("suporta pseudo-permissão admin no array", () => {
-    expect(checkPermissionArray(["admin"], "qualquer:permissao")).toBe(true);
+    expect(checkPermissionArray(["admin"], "qualquer:permissao" as never)).toBe(true);
   });
 
   it("suporta wildcard no array", () => {

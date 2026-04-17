@@ -29,7 +29,7 @@ async function fetchEntregas(): Promise<Entrega[]> {
       supabase
         .from("ordens_venda")
         .select(
-          "id,numero,cliente_id,data_prometida_despacho,usuario_id,created_at,updated_at",
+          "id,numero,cliente_id,data_prometida_despacho,usuario_id,created_at,updated_at" as never,
         )
         .eq("ativo", true),
       supabase
@@ -49,9 +49,8 @@ async function fetchEntregas(): Promise<Entrega[]> {
   const transportadoraMap = new Map(
     (transportadorasRes.data ?? []).map((t) => [t.id, t.nome_razao_social] as const),
   );
-  // Keep the most recently updated remessa per order (avoids silently overwriting
-  // earlier entries when multiple remessas exist for the same ordem_venda).
-  const remessaByPedido = new Map<string, (typeof remessasRes.data)[0]>();
+  type RemessaRow = NonNullable<typeof remessasRes.data>[number];
+  const remessaByPedido = new Map<string, RemessaRow>();
   for (const r of remessasRes.data ?? []) {
     const key = r.ordem_venda_id ?? "";
     const existing = remessaByPedido.get(key);
@@ -69,7 +68,16 @@ async function fetchEntregas(): Promise<Entrega[]> {
     });
   });
 
-  return (ordensRes.data ?? []).map((ov) => {
+  type OrdemRow = {
+    id: string;
+    numero: string | null;
+    cliente_id: string | null;
+    data_prometida_despacho: string | null;
+    usuario_id: string | null;
+  };
+  const ordens = (ordensRes.data ?? []) as unknown as OrdemRow[];
+
+  return ordens.map((ov) => {
     const remessa = remessaByPedido.get(ov.id);
     const cliente = clienteMap.get(ov.cliente_id ?? "");
     const pesoQtd = pesoByOrder.get(ov.id) ?? { peso: 0, qtd: 0 };

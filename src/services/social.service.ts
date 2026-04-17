@@ -35,34 +35,34 @@ async function socialRpc<T>(fn: SocialRpcName, params: Record<string, unknown>):
 export async function listarContasSocial(): Promise<SocialConta[]> {
   const { data, error } = await table('social_contas')
     .select('*')
-    .eq('ativo', true)
+    .eq('ativo' as never, true as never)
     .order('data_cadastro', { ascending: false });
   if (error) throw error;
-  return (data ?? []) as SocialConta[];
+  return (data ?? []) as unknown as SocialConta[];
 }
 
 export async function criarContaSocial(payload: SocialCreateContaPayload): Promise<SocialConta> {
-  const { data, error } = await table('social_contas').insert(payload).select('*').single();
+  const { data, error } = await table('social_contas').insert(payload as never).select('*').single();
   if (error) throw error;
-  return data as SocialConta;
+  return data as unknown as SocialConta;
 }
 
 export async function atualizarContaSocial(id: string, payload: SocialUpdateContaPayload): Promise<SocialConta> {
-  const { data, error } = await table('social_contas').update(payload).eq('id', id).select('*').single();
+  const { data, error } = await table('social_contas').update(payload as never).eq('id' as never, id as never).select('*').single();
   if (error) throw error;
-  return data as SocialConta;
+  return data as unknown as SocialConta;
 }
 
 export async function removerContaSocial(id: string): Promise<void> {
-  const { error } = await table('social_contas').update({ ativo: false }).eq('id', id);
+  const { error } = await table('social_contas').update({ ativo: false } as never).eq('id' as never, id as never);
   if (error) throw error;
 }
 
 export async function sincronizarSocial(payload: SocialSyncPayload = {}): Promise<{ success: boolean; message: string }> {
   if (payload.contaId) {
-    const { data: conta, error: contaError } = await table('social_contas').select('plataforma').eq('id', payload.contaId).single();
+    const { data: conta, error: contaError } = await table('social_contas').select('plataforma').eq('id' as never, payload.contaId as never).single();
     if (contaError) throw contaError;
-    const provider = getSocialProvider(conta?.plataforma);
+    const provider = getSocialProvider((conta as { plataforma?: string } | null)?.plataforma);
     await provider.syncInsights(payload);
   }
 
@@ -133,7 +133,7 @@ export async function exportSocialXlsx(filename: string, data: Record<string, un
   const workbook = XLSX.utils.book_new();
 
   Object.entries(data).forEach(([sheetName, rows]) => {
-    const worksheet = XLSX.utils.json_to_sheet(rows);
+    const worksheet = XLSX.utils.json_to_sheet(rows as Record<string, unknown>[]);
     XLSX.utils.book_append_sheet(workbook, worksheet, sheetName.slice(0, 31));
   });
 
