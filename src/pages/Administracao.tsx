@@ -308,7 +308,11 @@ export default function Administracao() {
       toast.error('Arquivo muito grande. O tamanho máximo é 2 MB.');
       return;
     }
-    // Show local preview immediately
+    // Show local preview immediately; revoke any existing preview URL first
+    setLogoLocalPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
     const previewUrl = URL.createObjectURL(file);
     setLogoLocalPreview(previewUrl);
     setLogoUploading(true);
@@ -671,7 +675,7 @@ export default function Administracao() {
                 <div className="flex items-start gap-4">
                   <div className="flex h-20 w-40 items-center justify-center overflow-hidden rounded-md border bg-muted/30 p-2 relative">
                     <img
-                      src={logoLocalPreview || config.geral.logoUrl}
+                      src={logoLocalPreview ?? (config.geral.logoUrl.startsWith('http') ? config.geral.logoUrl : '')}
                       alt="Logo da empresa"
                       className="max-h-full max-w-full object-contain"
                       onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}

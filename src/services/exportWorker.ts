@@ -34,7 +34,7 @@ self.onmessage = (e: MessageEvent) => {
     const { rows, columns } = payload;
     const header = columns.map((c) => escapeCSV(c.label)).join(';');
     const body = rows
-      .map((row) => columns.map((c) => escapeCSV(row[c.label])).join(';'))
+      .map((row) => columns.map((c) => escapeCSV(row[c.key])).join(';'))
       .join('\n');
     const csv = `${header}\n${body}`;
     self.postMessage({ type: 'csv-done', id, csv });

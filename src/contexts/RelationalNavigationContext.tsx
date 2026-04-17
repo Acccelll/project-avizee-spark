@@ -144,6 +144,9 @@ export function RelationalNavigationProvider({ children }: { children: ReactNode
       console.warn(`[RelationalNavigation] pushView("${type}") called with invalid id: ${JSON.stringify(id)}. Ignoring.`);
       return;
     }
+    if (stackRef.current.length >= MAX_DRAWER_DEPTH) {
+      toast.info(`Limite de ${MAX_DRAWER_DEPTH} drawers atingido. Feche um antes de abrir outro.`, { duration: 3000 });
+    }
     dispatch({ type: "request_push", payload: { type, id } });
   }, []);
   const popView = useCallback(() => dispatch({ type: "pop" }), []);

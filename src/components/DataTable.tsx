@@ -478,8 +478,12 @@ export function DataTable<T extends Record<string, any>>({
         const useWorker = rows.length > 5000 && typeof Worker !== 'undefined';
         let csv: string;
         if (useWorker) {
+          // Build key-keyed rows for the worker (cleaner than label-keyed)
+          const keyRows = sortedData.map((row) =>
+            Object.fromEntries(visibleColumns.map((col) => [col.key, row[col.key]])),
+          );
           const workerColumns = visibleColumns.map((c) => ({ key: c.key, label: c.label }));
-          csv = await generateCSVViaWorker(rows, workerColumns);
+          csv = await generateCSVViaWorker(keyRows, workerColumns);
         } else {
           const header = visibleColumns.map((c) => escapeCSV(c.label)).join(';');
           const body = rows.map((r) => visibleColumns.map((c) => escapeCSV(r[c.label])).join(';')).join('\n');
