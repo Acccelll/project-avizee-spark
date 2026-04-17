@@ -1,160 +1,82 @@
 
 
-# Rodada Corretiva — Schema Drift, Build Errors, NF Atômica
+# Plano — Execução do "Para_o_Lovable-2.md"
 
-## Summary
+## Diagnóstico do escopo
 
-This plan addresses: (1) 25+ build errors across the project, (2) migration drift for frete simulador tables, (3) atomic NF confirmation via RPC, (4) NF number sequence, (5) financeiro RPC robustness, and (6) setup-admin documentation.
+O documento contém **10 blocos** (Cadastros, Comercial, Compras, Suprimentos/Logística, Financeiro, Fiscal, Relatórios, Administração, Configurações, Dashboard, Cadastros v2, + 3 RPCs no final). Estimativa real:
 
----
+- ~50 migrations (consolidação de status, novas colunas, constraints, FKs, views)
+- ~25 RPCs novas/refatoradas (transacionais)
+- Refactor em ~50 arquivos do frontend (hooks, services, páginas)
+- Saneamento de dados legados em ~15 tabelas (UPDATE de status antigos → novos)
+- Regeneração de types (automática após cada migration)
+- ~30 erros TS pendentes do ciclo anterior
 
-## Part 1: Fix All Build Errors
+Executar tudo numa única rodada é **certeza de regressão massiva**. Cada bloco mexe em fluxos críticos (financeiro, estoque, fiscal) que precisam ser validados antes do próximo.
 
-### 1.1 `process-email-queue/index.ts` (7 errors)
-All errors stem from strict typing of `supabase` client. Fix by casting to `any` where needed (edge function pattern):
-- Line 57: Change `ReturnType<typeof createClient>` to `any` in `moveToDlq` param type
-- Lines 63, 70, 338: Add `as any` casts on `.from()` and `.rpc()` calls
-- Lines 159, 164: Add explicit types to `.map((msg: any)` and `.filter((id: any)`
+## Estratégia proposta — 8 rodadas
 
-### 1.2 `ContaContabilDrawer.tsx` + `ContaContabilEditModal.tsx` (2 errors)
-`grupos_produto` table doesn't have `conta_contabil_id` column. The `.eq("conta_contabil_id", id)` calls on `grupos_produto` are invalid.
-**Fix**: Remove the `grupos_produto` query from the vinculos check (or add `as any` cast if column should exist). Since the types don't have it, remove it.
+Cada rodada é auto-contida: migrations + RPCs + frontend + tests + correção dos TS errors do escopo. Você valida no preview antes de aprovar a próxima.
 
-### 1.3 `ReconciliacaoDetalhe.tsx` (2 errors)
-`importacao_logs` Row type doesn't have `etapa` column. Code references `l.etapa`.
-**Fix**: Cast to `any` or use `(l as any).etapa` — the column may exist in DB but not in generated types. Use `as any` pattern.
+**Rodada 0 — Estabilização (esta rodada, alta prioridade)**
+- Fechar os ~30 erros TS pendentes
+- Item 1 do bloco Cadastros: regenerar tipos Supabase (via migration vazia se necessário) + remover `as any` desnecessários
+- Items 3, 4 e 5 do bloco Cadastros (RPCs `set_principal_endereco`, filtro inativos, `save_produto_composicao`)
+- Item 2 do bloco Cadastros (FK `forma_pagamento_id`)
+- 3 RPCs avulsos do final do doc (`proximo_numero_nf`, `gerar_pedido_compra`, `proximo_numero_ordem_venda`)
 
-### 1.4 `UsuariosTab.tsx` (5 errors)
-`app_role` enum includes `"user"` and `"viewer"` but `ROLE_LABELS`, `ROLE_DESCRIPTIONS`, `ROLE_COLORS` Records only have 4 keys. TypeScript requires all enum values.
-**Fix**: Add `user` and `viewer` entries to all three Records. Also fix `getRolePermissions` call by casting role.
+**Rodada 1 — Comercial**: 7 itens (status canônico, frete em ordens_venda, salvar_orcamento, converter OV→pedido, gerar NF de pedido, integridade, types)
 
-### 1.5 `ClienteView.tsx` (3 errors)
-- `c.descricao` → should be `c.conteudo` (line 292)
-- `c.canal` → should be `c.tipo` (line 293)
-- `t.observacoes` doesn't exist on `TransportadoraRow` → cast with `as any`
+**Rodada 2 — Compras**: 8 itens (domínio oficial, status, propostas, RPCs converter/recebimento, integridade)
 
-### 1.6 `OrdemVendaView.tsx` (4 errors)
-`pedidoItems` typed as `unknown[]`. Fix by using `as any` on item fields in the NF generation and mapping.
+**Rodada 3 — Suprimentos/Logística**: 8 itens (estoque fonte de verdade, RPC manual, status remessas, recebimento parcial, 1:N pedido↔remessa)
 
-### 1.7 `useSupabaseCrud.test.tsx` (7 errors)
-Test file has stale mock types. Fix with `as any` casts on mock objects.
+**Rodada 4 — Financeiro**: 9 itens (status canônico, RPCs baixa/estorno/criar, parcelamento, conciliação, baixa de Dashboard)
 
-### 1.8 `useImportacaoEstoque.ts` (1 error)
-`produtoInfo.nome` typed as `unknown`. Fix with explicit type assertion.
+**Rodada 5 — Fiscal**: 11 itens (status canônico, status SEFAZ separado, RPCs confirmação/estorno/devolução, fonte estoque, alinhamento financeiro)
 
----
+**Rodada 6 — Relatórios + Dashboard**: views/RPCs canônicas, DRE estrutural, fluxo de caixa, drill-down, KPIs
 
-## Part 2: Migration — Consolidate Frete Schema Drift
+**Rodada 7 — Administração + Configurações**: role_permissions, singleton empresa_config, user_preferences, separação personal/global, /perfil consolidado
 
-Create a single corrective migration `20260416000001_consolidate_frete_schema.sql`:
+## O que faço NESTA rodada (Rodada 0)
 
-```sql
--- Ensure frete_simulacoes has all final columns (idempotent)
-ALTER TABLE public.frete_simulacoes
-  ADD COLUMN IF NOT EXISTS observacoes TEXT;
+| # | Tarefa | Tipo |
+|---|--------|------|
+| 1 | Corrigir os ~30 erros TS pendentes (Index, Relatorios, configuracoes/*, Backup, Email, Geral, Notificacoes, Integracoes, useFinanceiroActions, useFinanceiroFiltros, ConfiguracaoFiscal, useEntregas, FluxoCaixaChart, process-email-queue) | Frontend |
+| 2 | Migration: ajustar `mergeConfiguracoes` ou os tipos `Config*` para aceitar partial (resolve 6 erros de Backup/Email/Geral/Notificacoes/Integracoes) | Frontend |
+| 3 | Migration: corrigir `useEntregas.ts` — schema sem `usuario_id` em ordens_venda (remover ou trocar por `vendedor_id`) | Frontend/SQL |
+| 4 | RPC `set_principal_endereco(uuid, uuid)` + uso em Clientes.tsx | SQL + Frontend |
+| 5 | RPC `save_produto_composicao(uuid, jsonb, jsonb)` + uso em Produtos.tsx | SQL + Frontend |
+| 6 | Migration: FK `clientes.forma_pagamento_id` + dado migrado + drop `forma_pagamento_padrao` | SQL |
+| 7 | Frontend Clientes.tsx: usar `forma_pagamento_id` em vez de `forma_pagamento_padrao` | Frontend |
+| 8 | Filtro inativos: alterar `useSupabaseCrud` callers em Clientes/Fornecedores/Produtos/Funcionários/Transportadoras/GruposEconomicos/UnidadesMedida | Frontend |
+| 9 | RPC `proximo_numero_nf()` + uso em useFaturarPedido.ts | SQL + Frontend |
+| 10 | RPC `gerar_pedido_compra(...)` + uso em useGerarPedidoCompra.ts | SQL + Frontend |
+| 11 | Verificar/criar `proximo_numero_ordem_venda()` + checar `convertToPedido` em orcamentos.service.ts | SQL + Frontend |
 
--- Fix orcamentos.frete_simulacao_id type (was TEXT in one migration, UUID ref in another)
--- The 20260411 migration correctly creates it as UUID FK.
--- The 20260415024534 migration adds it as TEXT.
--- Corrective: if column is TEXT, drop and re-add as UUID.
-DO $$ BEGIN
-  IF EXISTS (
-    SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'orcamentos' AND column_name = 'frete_simulacao_id'
-    AND data_type = 'text'
-  ) THEN
-    ALTER TABLE public.orcamentos DROP COLUMN frete_simulacao_id;
-    ALTER TABLE public.orcamentos ADD COLUMN frete_simulacao_id UUID
-      REFERENCES public.frete_simulacoes(id);
-  END IF;
-END $$;
+**Saneamento de dados**: nenhum nesta rodada (não muda status). Apenas a migração de `forma_pagamento_padrao → forma_pagamento_id` (UPDATE simples, idempotente, dentro da migration).
 
--- Ensure orcamentos.transportadora_id has FK (may be missing from TEXT migration)
-DO $$ BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.table_constraints
-    WHERE constraint_name LIKE '%orcamentos_transportadora_id%'
-  ) THEN
-    ALTER TABLE public.orcamentos
-      ADD CONSTRAINT orcamentos_transportadora_id_fkey
-      FOREIGN KEY (transportadora_id) REFERENCES public.transportadoras(id);
-  END IF;
-EXCEPTION WHEN duplicate_object THEN NULL;
-END $$;
+## O que NÃO faço nesta rodada
 
--- Add conta_contabil_id to grupos_produto if it should exist
-ALTER TABLE public.grupos_produto
-  ADD COLUMN IF NOT EXISTS conta_contabil_id UUID REFERENCES public.contas_contabeis(id);
+- Consolidação de status de Comercial/Compras/Logística/Financeiro/Fiscal (Rodadas 1–5)
+- Novas views analíticas (Rodada 6)
+- Refactor de roles/permissões (Rodada 7)
+- Qualquer UPDATE em massa de status legados
 
--- Add etapa column to importacao_logs
-ALTER TABLE public.importacao_logs
-  ADD COLUMN IF NOT EXISTS etapa TEXT;
-```
+## Riscos & mitigação
 
----
+- A migration `clientes.forma_pagamento_padrao → forma_pagamento_id` faz DROP de coluna. Mitigo com `IF EXISTS` e UPDATE prévio.
+- Filtro de inativos pode mudar contagens já visíveis nas grids — comportamento esperado pelo prompt.
+- RPCs novas usam `SECURITY DEFINER` + `SET search_path = public` (regra de memória).
 
-## Part 3: NF Confirmation RPC (Atomic)
+## Estimativa
 
-### 3.1 Migration `20260416000002_fn_confirmar_nota_fiscal.sql`
-Create the `confirmar_nota_fiscal(p_nf_id UUID)` function as specified in the user's request — handles idempotency, stock movements, financial entries, all in a single transaction.
+~10 arquivos frontend + 1 migration consolidada (5 blocos SQL) + 3 RPCs novas. Build TS deve ficar verde ao final.
 
-### 3.2 Update `fiscal.service.ts`
-Replace the multi-step client-side logic in `confirmarNotaFiscal()` with a single RPC call, keeping only:
-- Pre-validation (`hasParceiro` check)
-- Post-RPC: `updateOVFaturamento()` and `registrarEventoFiscal()`
+## Ao final, retorno explicitamente
 
----
-
-## Part 4: NF Number Sequence
-
-### 4.1 Migration `20260416000003_nf_sequence.sql`
-- Create `seq_nota_fiscal` sequence
-- Initialize with MAX existing number + 1
-- Create `proximo_numero_nota_fiscal()` RPC
-- Add partial unique index `uq_nf_saida_numero_serie` on `(numero, serie)` for active saida NFs
-
-### 4.2 Update `Pedidos.tsx` and `OrdemVendaView.tsx`
-Replace count-based numbering with `supabase.rpc("proximo_numero_nota_fiscal")`.
-
----
-
-## Part 5: Financeiro RPC Robustness
-
-### 5.1 Improve `financeiro_processar_estorno`
-- Add `FOR UPDATE` lock on the lancamento row
-- Validate status before estorno (must be `pago` or `parcial`)
-- Reset `saldo_restante` to original `valor` instead of NULL
-
-### 5.2 Improve `financeiro_processar_baixa_lote`
-- Add status check: skip items already `pago` with warning
-- Ensure `valor_pago` accumulates (add to existing) rather than replaces
-
-Create migration `20260416000004_financeiro_rpc_v2.sql` with `CREATE OR REPLACE`.
-
----
-
-## Part 6: Setup-Admin Documentation
-
-Add a comment block at the top of `supabase/functions/setup-admin/index.ts` clearly marking it as development-only. No functional changes.
-
----
-
-## Files Modified (estimated ~15)
-
-| Area | Files |
-|------|-------|
-| Build fixes | `process-email-queue/index.ts`, `ContaContabilDrawer.tsx`, `ContaContabilEditModal.tsx`, `ReconciliacaoDetalhe.tsx`, `UsuariosTab.tsx`, `ClienteView.tsx`, `OrdemVendaView.tsx`, `useSupabaseCrud.test.tsx`, `useImportacaoEstoque.ts` |
-| NF atomic | `fiscal.service.ts`, `Pedidos.tsx`, `OrdemVendaView.tsx` |
-| Migrations | 4 new corrective migrations |
-| Documentation | `setup-admin/index.ts` (comment only) |
-
-## Execution Order
-
-1. All build error fixes (parallel)
-2. Corrective migrations (sequential)
-3. NF RPC + fiscal.service.ts update
-4. NF sequence + Pedidos/OrdemVendaView update
-5. Financeiro RPC v2
-6. Setup-admin documentation
-7. `tsc --noEmit` verification
+- ✅ O que foi feito nesta rodada
+- ⏳ **Pendente** (lista de cada item do documento que ficou para Rodadas 1–7), com a recomendação de iniciar a Rodada 1 (Comercial) na próxima mensagem.
 
