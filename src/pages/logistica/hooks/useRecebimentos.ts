@@ -1,9 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
-const PARTIAL_RECEIPT_PENDING_MESSAGE =
-  "Recebimento parcial informado no pedido, mas quantidade real pendente de consolidação.";
-
 export interface Recebimento {
   id: string;
   numero_compra: string;
@@ -28,7 +25,7 @@ async function fetchRecebimentos(): Promise<Recebimento[]> {
         "id,numero,fornecedor_id,data_entrega_prevista,data_entrega_real,status,usuario_id,updated_at" as never,
       )
       .eq("ativo", true),
-    supabase.from("pedidos_compra_itens").select("pedido_compra_id,quantidade"),
+    supabase.from("pedidos_compra_itens").select("pedido_compra_id,quantidade,quantidade_recebida"),
     supabase.from("fornecedores").select("id,nome_razao_social"),
   ]);
 
@@ -36,21 +33,24 @@ async function fetchRecebimentos(): Promise<Recebimento[]> {
     (fornecedoresRes.data ?? []).map((f) => [f.id, f.nome_razao_social] as const),
   );
 
-  const qtyByCompra = new Map<string, number>();
+  const qtyByCompra = new Map<string, { pedida: number; recebida: number }>();
   (itensCompraRes.data ?? []).forEach((item) => {
-    qtyByCompra.set(
-      item.pedido_compra_id,
-      (qtyByCompra.get(item.pedido_compra_id) ?? 0) + Number(item.quantidade ?? 0),
-    );
+    const acc = qtyByCompra.get(item.pedido_compra_id) ?? { pedida: 0, recebida: 0 };
+    acc.pedida += Number(item.quantidade ?? 0);
+    acc.recebida += Number(item.quantidade_recebida ?? 0);
+    qtyByCompra.set(item.pedido_compra_id, acc);
   });
 
   const comprasStatusToLogistico: Record<string, string> = {
     rascunho:              "pedido_emitido",
+    aguardando_aprovacao:  "pedido_emitido",
     aprovado:              "pedido_emitido",
     enviado_ao_fornecedor: "aguardando_envio_fornecedor",
     aguardando_recebimento:"em_transito",
+    recebido_parcial:      "recebimento_parcial",
     parcialmente_recebido: "recebimento_parcial",
     recebido:              "recebido",
+    rejeitado:             "cancelado",
     cancelado:             "cancelado",
   };
 
@@ -66,22 +66,12 @@ async function fetchRecebimentos(): Promise<Recebimento[]> {
   const compras = (comprasRes.data ?? []) as unknown as CompraRow[];
 
   return compras.map((compra) => {
-    const qtdPedida = qtyByCompra.get(compra.id) ?? 0;
-
+    const tot = qtyByCompra.get(compra.id) ?? { pedida: 0, recebida: 0 };
     const comprasStatus = compra.status ?? "rascunho";
-    let qtdRecebida = 0;
-    let recebimentoReal = false;
-    let observacaoRecebimento: string | null = null;
-    if (comprasStatus === "recebido") {
-      qtdRecebida = qtdPedida;
-      recebimentoReal = true;
-    } else if (comprasStatus === "parcialmente_recebido") {
-      // Não simular quantidades no frontend: o parcial real depende de consolidação
-      // de recebimento no fluxo canônico de Compras/backend.
-      qtdRecebida = 0;
-      observacaoRecebimento = PARTIAL_RECEIPT_PENDING_MESSAGE;
-    }
+    const qtdPedida = tot.pedida;
+    const qtdRecebida = tot.recebida;
     const pendencia = Math.max(0, qtdPedida - qtdRecebida);
+    const recebimentoReal = qtdRecebida > 0;
 
     const statusLogistico =
       comprasStatusToLogistico[comprasStatus] ?? "pedido_emitido";
@@ -99,7 +89,7 @@ async function fetchRecebimentos(): Promise<Recebimento[]> {
       nf_vinculada: null,
       responsavel: compra.usuario_id ?? "—",
       recebimento_real: recebimentoReal,
-      observacao_recebimento: observacaoRecebimento,
+      observacao_recebimento: null,
     };
   });
 }
