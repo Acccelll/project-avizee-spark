@@ -587,6 +587,7 @@ export type Database = {
           impostos_valor: number | null
           numero: string | null
           observacoes: string | null
+          pedido_compra_id: string | null
           status: string | null
           updated_at: string
           valor_produtos: number | null
@@ -604,6 +605,7 @@ export type Database = {
           impostos_valor?: number | null
           numero?: string | null
           observacoes?: string | null
+          pedido_compra_id?: string | null
           status?: string | null
           updated_at?: string
           valor_produtos?: number | null
@@ -621,6 +623,7 @@ export type Database = {
           impostos_valor?: number | null
           numero?: string | null
           observacoes?: string | null
+          pedido_compra_id?: string | null
           status?: string | null
           updated_at?: string
           valor_produtos?: number | null
@@ -632,6 +635,13 @@ export type Database = {
             columns: ["fornecedor_id"]
             isOneToOne: false
             referencedRelation: "fornecedores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_compras_pedido_compra"
+            columns: ["pedido_compra_id"]
+            isOneToOne: false
+            referencedRelation: "pedidos_compra"
             referencedColumns: ["id"]
           },
         ]
@@ -3131,7 +3141,7 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "fk_pedidos_compra_cotacao"
+            foreignKeyName: "pedidos_compra_cotacao_compra_id_fkey"
             columns: ["cotacao_compra_id"]
             isOneToOne: false
             referencedRelation: "cotacoes_compra"
@@ -4505,6 +4515,10 @@ export type Database = {
         Args: { payload: Json; queue_name: string }
         Returns: number
       }
+      estornar_recebimento_compra: {
+        Args: { p_compra_id: string; p_motivo?: string }
+        Returns: Json
+      }
       financeiro_processar_baixa_lote: {
         Args: { p_items: Json }
         Returns: Json
@@ -4547,6 +4561,15 @@ export type Database = {
           msg_id: number
           read_ct: number
         }[]
+      }
+      receber_compra: {
+        Args: {
+          p_data_recebimento: string
+          p_itens: Json
+          p_observacoes?: string
+          p_pedido_id: string
+        }
+        Returns: Json
       }
       salvar_orcamento: {
         Args: { p_id: string; p_itens: Json; p_payload: Json }
