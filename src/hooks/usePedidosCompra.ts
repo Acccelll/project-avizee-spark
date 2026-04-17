@@ -433,7 +433,7 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
   const darEntrada = async (p: PedidoCompra) => {
     const { data: itens, error: itensError } = await supabase
       .from("pedidos_compra_itens")
-      .select("produto_id, quantidade, preco_unitario")
+      .select("id, produto_id, quantidade, quantidade_recebida, preco_unitario")
       .eq("pedido_compra_id", p.id);
 
     if (itensError) {
@@ -447,16 +447,20 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
     }
 
     const payloadItens = itens
-      .filter((i) => Number(i.quantidade || 0) > 0)
-      .map((i) => ({
-        produto_id: i.produto_id ? String(i.produto_id) : null,
-        descricao: null,
-        quantidade_recebida: Number(i.quantidade || 0),
-        valor_unitario: Number(i.preco_unitario || 0),
-      }));
+      .map((i) => {
+        const pendente = Number(i.quantidade || 0) - Number(i.quantidade_recebida || 0);
+        return {
+          item_pedido_id: i.id ? String(i.id) : null,
+          produto_id: i.produto_id ? String(i.produto_id) : null,
+          descricao: null,
+          quantidade_recebida: pendente > 0 ? pendente : 0,
+          valor_unitario: Number(i.preco_unitario || 0),
+        };
+      })
+      .filter((i) => i.quantidade_recebida > 0);
 
     if (payloadItens.length === 0) {
-      toast.error("Nenhum item com quantidade válida para receber.");
+      toast.error("Nenhum item com quantidade pendente para receber.");
       return;
     }
 
@@ -482,6 +486,53 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
 
     if (entradaOk) {
       navigate(`/fiscal?tipo=entrada&fornecedor_id=${p.fornecedor_id || ""}&pedido_compra=${pedidoNumero(p)}`);
+    }
+  };
+
+  const solicitarAprovacao = async (p: PedidoCompra) => {
+    try {
+      const { data, error } = await supabase.rpc("solicitar_aprovacao_pedido", { p_pedido_id: String(p.id) });
+      if (error) throw error;
+      const status = (data as { status?: string } | null)?.status;
+      if (status === "aguardando_aprovacao") {
+        toast.success("Pedido enviado para aprovação.");
+      } else {
+        toast.success("Pedido aprovado automaticamente.");
+      }
+      await refreshAll();
+    } catch (err: unknown) {
+      console.error("[solicitarAprovacao]", err);
+      toast.error(getUserFriendlyError(err));
+    }
+  };
+
+  const aprovarPedido = async (p: PedidoCompra) => {
+    try {
+      const { error } = await supabase.rpc("aprovar_pedido", { p_pedido_id: String(p.id) });
+      if (error) throw error;
+      toast.success("Pedido aprovado.");
+      setDrawerOpen(false);
+      await refreshAll();
+    } catch (err: unknown) {
+      console.error("[aprovarPedido]", err);
+      toast.error(getUserFriendlyError(err));
+    }
+  };
+
+  const rejeitarPedido = async (p: PedidoCompra, motivo: string) => {
+    if (!motivo.trim()) {
+      toast.error("Informe o motivo da rejeição.");
+      return;
+    }
+    try {
+      const { error } = await supabase.rpc("rejeitar_pedido", { p_pedido_id: String(p.id), p_motivo: motivo });
+      if (error) throw error;
+      toast.success("Pedido rejeitado.");
+      setDrawerOpen(false);
+      await refreshAll();
+    } catch (err: unknown) {
+      console.error("[rejeitarPedido]", err);
+      toast.error(getUserFriendlyError(err));
     }
   };
 
