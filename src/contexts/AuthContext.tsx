@@ -64,8 +64,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const { data } = await supabase.from("profiles").select("*").eq("id", userId).single();
       if (data) setProfile(data);
-    } catch {
-      // Profile fetch failed silently
+    } catch (err) {
+      console.error("[auth] Failed to fetch profile", err);
     }
   };
 
@@ -79,7 +79,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .filter((r): r is AppRole => !LEGACY_ROLES.has(r) && validAppRoles.includes(r));
         setRoles(validRoles);
       }
-    } catch {
+    } catch (err) {
+      console.error("[auth] Failed to fetch roles", err);
       setRoles([]);
     }
   };
@@ -96,7 +97,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         (item) => `${item.resource}:${item.action}` as PermissionKey
       );
       setExtraPermissions(keys);
-    } catch {
+    } catch (err) {
+      console.error("[auth] Failed to fetch extra permissions", err);
       setExtraPermissions([]);
     }
   };

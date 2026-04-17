@@ -17,6 +17,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { getSocialPermissionFlags } from '@/types/social';
 import { useFavoritos } from '@/hooks/useFavoritos';
 import { NAVIGATION_ITEMS } from '@/config/navigation.config';
+import type { ErpResource } from '@/lib/permissions';
 
 interface AppSidebarProps {
   collapsed: boolean;
@@ -69,7 +70,7 @@ export function AppSidebar({ collapsed, onToggleCollapsed, mobileOpen, onCloseMo
 
     // Map each section to ALL resources it provides access to.
     // A section is visible when the user can visualizar ANY of its resources.
-    const sectionResourcesMap: Record<string, string[]> = {
+    const sectionResourcesMap: Record<string, ErpResource[]> = {
       cadastros: ['produtos', 'clientes', 'fornecedores', 'transportadoras', 'formas_pagamento'],
       comercial: ['orcamentos', 'pedidos'],
       compras: ['compras'],
@@ -96,7 +97,7 @@ export function AppSidebar({ collapsed, onToggleCollapsed, mobileOpen, onCloseMo
         if (permissionsLoaded && !hasRecognizedRoles) return true;
         const resources = sectionResourcesMap[s.key];
         if (!resources || resources.length === 0) return true;
-        return resources.some((resource) => can(resource as any, 'visualizar'));
+        return resources.some((resource) => can(resource, 'visualizar'));
       });
   }, [isAdmin, socialPermissions.canViewModule, can, roles, permissionsLoaded]);
 
@@ -295,7 +296,7 @@ export function AppSidebar({ collapsed, onToggleCollapsed, mobileOpen, onCloseMo
                     title={collapsed ? section.title : undefined}
                     aria-label={collapsed ? `Abrir ${section.title}` : undefined}
                   >
-                    <section.icon className="h-4.5 w-4.5 shrink-0" />
+                    <section.icon className="h-[18px] w-[18px] shrink-0" />
                     {!collapsed && <span className="flex-1">{section.title}</span>}
                   </button>
                 );
@@ -323,7 +324,7 @@ export function AppSidebar({ collapsed, onToggleCollapsed, mobileOpen, onCloseMo
                     title={collapsed ? section.title : undefined}
                     aria-label={collapsed ? `Abrir seção ${section.title}` : undefined}
                   >
-                    <section.icon className="h-4.5 w-4.5 shrink-0" />
+                    <section.icon className="h-[18px] w-[18px] shrink-0" />
                     {!collapsed && (
                       <>
                         <span className="flex-1">{section.title}</span>
