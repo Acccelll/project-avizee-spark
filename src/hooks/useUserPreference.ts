@@ -9,17 +9,13 @@ import { useOnlineStatus } from './useOnlineStatus';
 /**
  * useUserPreference
  *
- * Stores per-user preferences in `app_configuracoes` under keys prefixed with
- * `user_pref:{userId}:{preferenceKey}`.  This is a temporary accommodation —
- * `app_configuracoes` is a global config table and ideally preferences would
- * live in a dedicated `user_preferences` table.  The architecture is prepared
- * for that migration: the key schema and offline-sync queue already isolate
- * user data; only the target table needs to change.
+ * Persists per-user preferences in the dedicated `user_preferences` table
+ * (one row per user_id + module_key). RLS guarantees each user only reads
+ * and writes their own rows.
  *
  * Offline behavior: when the remote persist fails or the user is offline, the
- * preference is still updated locally and queued for retry on the next
- * successful connection.  A toast is shown so the user knows persistence is
- * pending, not silent.
+ * preference is updated locally and queued for retry on the next successful
+ * connection. A toast informs the user that persistence is pending.
  */
 
 const PREFIX = 'erp-user-pref';
@@ -27,10 +23,6 @@ const REMOTE_TIMEOUT_MS = 8000;
 
 function buildStorageKey(userId: string | null | undefined, preferenceKey: string) {
   return `${PREFIX}:${userId ?? 'anon'}:${preferenceKey}`;
-}
-
-function buildDbKey(userId: string, preferenceKey: string) {
-  return `user_pref:${userId}:${preferenceKey}`;
 }
 
 async function withTimeout<T>(promise: PromiseLike<T>) {
@@ -47,8 +39,6 @@ export function useUserPreference<T = Json>(userId: string | null | undefined, p
   const { value, set: setCache, getMeta } = useSyncedStorage<T>(preferenceKey, defaultValue, {
     namespace,
     onRemoteSyncError: () => {
-      // This fires when the cross-tab sync layer detects a conflict, not a
-      // network error — it is safe to surface a soft warning.
       toast.warning(`Preferência '${preferenceKey}' pode estar desatualizada entre abas.`);
     },
   });
@@ -75,13 +65,14 @@ export function useUserPreference<T = Json>(userId: string | null | undefined, p
   const reloadFromSupabase = useCallback(async () => {
     if (!supabase || !userId) return;
     const { data, error } = await supabase
-      .from('app_configuracoes')
-      .select('valor, updated_at')
-      .eq('chave', buildDbKey(userId, preferenceKey))
+      .from('user_preferences')
+      .select('columns_config, updated_at')
+      .eq('user_id', userId)
+      .eq('module_key', preferenceKey)
       .maybeSingle();
 
-    if (!error && data?.valor !== undefined && data?.valor !== null) {
-      setCache(data.valor as T);
+    if (!error && data?.columns_config !== undefined && data?.columns_config !== null) {
+      setCache(data.columns_config as unknown as T);
     }
   }, [userId, preferenceKey, setCache]);
 
@@ -90,7 +81,6 @@ export function useUserPreference<T = Json>(userId: string | null | undefined, p
       setLoading(false);
       return;
     }
-
     setLoading(true);
     reloadFromSupabase().finally(() => setLoading(false));
   }, [userId, reloadFromSupabase]);
@@ -100,9 +90,16 @@ export function useUserPreference<T = Json>(userId: string | null | undefined, p
       if (!isOnline || !supabase || !userId) return;
       await processSyncQueue(async (item) => {
         if (item.scope !== 'userpref') return false;
-        const { error } = await supabase.from('app_configuracoes').upsert(
-          { chave: item.key, valor: item.value as Json, updated_at: new Date().toISOString() },
-          { onConflict: 'chave' },
+        const [, uId, mKey] = item.key.split(':');
+        if (!uId || !mKey) return true;
+        const { error } = await supabase.from('user_preferences').upsert(
+          {
+            user_id: uId,
+            module_key: mKey,
+            columns_config: item.value as Json,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'user_id,module_key' },
         );
         return !error;
       });
@@ -117,9 +114,11 @@ export function useUserPreference<T = Json>(userId: string | null | undefined, p
       const meta = getMeta();
       setCache(nextValue);
 
+      const queueKey = `user_pref:${userId ?? 'anon'}:${preferenceKey}`;
+
       if (!userId || !supabase || !isOnline) {
         if (userId) {
-          enqueueSync({ scope: 'userpref', key: buildDbKey(userId, preferenceKey), value: nextValue, prevValue: previous });
+          enqueueSync({ scope: 'userpref', key: queueKey, value: nextValue, prevValue: previous });
           if (!isOnline) {
             toast.info(`Preferência salva localmente. Será sincronizada quando a conexão for restaurada.`);
           }
@@ -129,20 +128,21 @@ export function useUserPreference<T = Json>(userId: string | null | undefined, p
 
       const submit = async (): Promise<boolean> => {
         const res = await withTimeout(
-          supabase.from('app_configuracoes').upsert(
+          supabase.from('user_preferences').upsert(
             {
-              chave: buildDbKey(userId, preferenceKey),
-              valor: nextValue as unknown as Json,
+              user_id: userId,
+              module_key: preferenceKey,
+              columns_config: nextValue as unknown as Json,
               updated_at: new Date().toISOString(),
             },
-            { onConflict: 'chave' },
+            { onConflict: 'user_id,module_key' },
           ),
         );
         const error = res?.error;
 
         if (error) {
           setCache(previous);
-          enqueueSync({ scope: 'userpref', key: buildDbKey(userId, preferenceKey), value: nextValue, prevValue: previous });
+          enqueueSync({ scope: 'userpref', key: queueKey, value: nextValue, prevValue: previous });
           toast.error(`Erro ao salvar preferência '${preferenceKey}'.`, {
             action: { label: 'Tentar novamente', onClick: () => void submit() },
           });
