@@ -94,6 +94,7 @@ const GruposEconomicos = () => {
   const [ativoFilters, setAtivoFilters] = useState<string[]>([]);
   const [clienteCountMap, setClienteCountMap] = useState<Record<string, number>>({});
   const [matrizNomeMap, setMatrizNomeMap] = useState<Record<string, string>>({});
+  const { confirm: confirmDiscard, dialog: discardDialog } = useConfirmDialog();
 
   const { data, loading, create, update, remove, fetchData } = useSupabaseCrud<GrupoEconomico>({
     table: "grupos_economicos",
@@ -351,8 +352,8 @@ const GruposEconomicos = () => {
     setDeleting(false);
   };
 
-  const handleCancel = () => {
-    if (isDirty && !window.confirm("Há alterações não salvas. Deseja descartar e fechar?")) return;
+  const handleCancel = async () => {
+    if (isDirty && !(await confirmDiscard())) return;
     setModalOpen(false);
   };
 
@@ -1047,6 +1048,7 @@ const GruposEconomicos = () => {
         title="Excluir Grupo Econômico"
         description={deleteDescription}
       />
+      {discardDialog}
     </AppLayout>
   );
 };
