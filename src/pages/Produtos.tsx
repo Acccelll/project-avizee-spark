@@ -148,10 +148,13 @@ const Produtos = () => {
   useEffect(() => {
     const editId = (location.state as { editId?: string } | null)?.editId;
     if (!editId) return;
+    let cancelled = false;
     navigate(location.pathname, { replace: true, state: {} });
     supabase.from("produtos").select("*").eq("id", editId).maybeSingle().then(({ data: p }) => {
+      if (cancelled) return;
       if (p) openEdit(p as unknown as Produto);
     });
+    return () => { cancelled = true; };
   // openEdit is stable; navigate/pathname are stable refs
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.state]);
