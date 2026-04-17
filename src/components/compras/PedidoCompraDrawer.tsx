@@ -327,7 +327,7 @@ export function PedidoCompraDrawer({
         </ViewSection>
       )}
 
-      {(viewEstoque as Array<Record<string, unknown>>).length > 0 ? (
+      {viewEstoque.length > 0 ? (
         <ViewSection title="Movimentações de Estoque">
           <div className="rounded-lg border overflow-hidden">
             <table className="w-full text-xs">
@@ -340,18 +340,18 @@ export function PedidoCompraDrawer({
                 </tr>
               </thead>
               <tbody>
-                {(viewEstoque as Array<Record<string, unknown>>).map((m, idx) => {
-                  const produtos = m.produtos as Record<string, unknown> | null | undefined;
+                {viewEstoque.map((m, idx) => {
+                  const produtos = m.produtos;
                   return (
-                    <tr key={idx} className="border-b last:border-b-0 hover:bg-muted/20">
-                      <td className="px-3 py-2 font-medium">{String(produtos?.nome ?? "—")}</td>
+                    <tr key={m.id ?? `${m.produto_id ?? "x"}-${idx}`} className="border-b last:border-b-0 hover:bg-muted/20">
+                      <td className="px-3 py-2 font-medium">{produtos?.nome ?? "—"}</td>
                       <td className="px-3 py-2 text-right font-mono text-success font-semibold">
                         +{String(m.quantidade)}
                       </td>
                       <td className="px-3 py-2 text-right font-mono text-muted-foreground">
-                        {String(m.saldo_anterior)}
+                        {String(m.saldo_anterior ?? "—")}
                       </td>
-                      <td className="px-3 py-2 text-right font-mono font-medium">{String(m.saldo_atual)}</td>
+                      <td className="px-3 py-2 text-right font-mono font-medium">{String(m.saldo_atual ?? "—")}</td>
                     </tr>
                   );
                 })}
