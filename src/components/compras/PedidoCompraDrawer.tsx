@@ -475,17 +475,17 @@ export function PedidoCompraDrawer({
       </ViewSection>
 
       <ViewSection title="Financeiro">
-        {(viewFinanceiro as Array<Record<string, unknown>>).length > 0 ? (
+        {viewFinanceiro.length > 0 ? (
           <div className="space-y-2">
-            {(viewFinanceiro as Array<Record<string, unknown>>).map((l, idx) => (
+            {viewFinanceiro.map((l) => (
               <div
-                key={idx}
+                key={l.id}
                 className="flex items-center justify-between rounded-md bg-accent/20 px-3 py-2 text-sm"
               >
-                <span className="truncate text-xs">{String(l.descricao)}</span>
+                <span className="truncate text-xs">{l.descricao ?? "—"}</span>
                 <div className="flex items-center gap-2 shrink-0 ml-2">
-                  <StatusBadge status={String(l.status)} />
-                  <span className="font-mono font-medium">{formatCurrency(Number(l.valor))}</span>
+                  <StatusBadge status={String(l.status ?? "")} />
+                  <span className="font-mono font-medium">{formatCurrency(Number(l.valor ?? 0))}</span>
                 </div>
               </div>
             ))}
