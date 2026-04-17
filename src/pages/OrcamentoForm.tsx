@@ -592,6 +592,14 @@ export default function OrcamentoForm() {
       if (error) throw error;
 
       localStorage.removeItem(draftKey);
+      if (user?.id) {
+        try {
+          await supabase.from("orcamento_drafts")
+            .delete()
+            .eq("usuario_id", user.id)
+            .eq("draft_key", draftKey);
+        } catch {/* ignore */}
+      }
       toast.success(isEdit ? "Orçamento atualizado com sucesso" : "Orçamento criado com sucesso", {
         description: `Registro ${formValues.numero} salvo.`,
         action: { label: "Visualizar", onClick: () => navigate(orcId ? `/orcamentos/${orcId}` : "/orcamentos") },
@@ -1207,8 +1215,42 @@ export default function OrcamentoForm() {
             <DialogDescription>Encontramos um rascunho salvo automaticamente para esta cotação.</DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => { localStorage.removeItem(draftKey); setRestoreDraftOpen(false); }}>Descartar</Button>
-            <Button onClick={() => { const raw = localStorage.getItem(draftKey); if (raw) applyDraft(JSON.parse(raw)); setRestoreDraftOpen(false); }} className="gap-2"><RefreshCw className="h-4 w-4" />Restaurar</Button>
+            <Button
+              variant="outline"
+              onClick={async () => {
+                localStorage.removeItem(draftKey);
+                if (user?.id) {
+                  try {
+                    await supabase.from("orcamento_drafts")
+                      .delete()
+                      .eq("usuario_id", user.id)
+                      .eq("draft_key", draftKey);
+                  } catch {/* ignore */}
+                }
+                setRestoreDraftOpen(false);
+              }}
+            >Descartar</Button>
+            <Button
+              onClick={async () => {
+                let payload: unknown = null;
+                if (user?.id) {
+                  const { data } = await supabase
+                    .from("orcamento_drafts")
+                    .select("payload")
+                    .eq("usuario_id", user.id)
+                    .eq("draft_key", draftKey)
+                    .maybeSingle();
+                  if (data?.payload) payload = data.payload;
+                }
+                if (!payload) {
+                  const raw = localStorage.getItem(draftKey);
+                  if (raw) { try { payload = JSON.parse(raw); } catch {/* ignore */} }
+                }
+                if (payload) applyDraft(payload as Parameters<typeof applyDraft>[0]);
+                setRestoreDraftOpen(false);
+              }}
+              className="gap-2"
+            ><RefreshCw className="h-4 w-4" />Restaurar</Button>
           </div>
         </DialogContent>
       </Dialog>
