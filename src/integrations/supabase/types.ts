@@ -2783,6 +2783,13 @@ export type Database = {
             referencedRelation: "transportadoras"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "orcamentos_vendedor_id_fkey"
+            columns: ["vendedor_id"]
+            isOneToOne: false
+            referencedRelation: "funcionarios"
+            referencedColumns: ["id"]
+          },
         ]
       }
       orcamentos_itens: {
@@ -2875,16 +2882,26 @@ export type Database = {
           data_emissao: string | null
           data_po_cliente: string | null
           data_prometida_despacho: string | null
+          frete_simulacao_id: string | null
+          frete_tipo: string | null
+          frete_valor: number | null
           id: string
+          modalidade: string | null
           numero: string
           observacoes: string | null
+          origem_frete: string | null
+          peso_total: number | null
           po_number: string | null
           prazo_despacho_dias: number | null
+          prazo_entrega_dias: number | null
+          servico_frete: string | null
           status: string | null
           status_faturamento: string | null
+          transportadora_id: string | null
           updated_at: string
           valor_total: number | null
           vendedor_id: string | null
+          volumes: number | null
         }
         Insert: {
           ativo?: boolean
@@ -2895,16 +2912,26 @@ export type Database = {
           data_emissao?: string | null
           data_po_cliente?: string | null
           data_prometida_despacho?: string | null
+          frete_simulacao_id?: string | null
+          frete_tipo?: string | null
+          frete_valor?: number | null
           id?: string
+          modalidade?: string | null
           numero: string
           observacoes?: string | null
+          origem_frete?: string | null
+          peso_total?: number | null
           po_number?: string | null
           prazo_despacho_dias?: number | null
+          prazo_entrega_dias?: number | null
+          servico_frete?: string | null
           status?: string | null
           status_faturamento?: string | null
+          transportadora_id?: string | null
           updated_at?: string
           valor_total?: number | null
           vendedor_id?: string | null
+          volumes?: number | null
         }
         Update: {
           ativo?: boolean
@@ -2915,16 +2942,26 @@ export type Database = {
           data_emissao?: string | null
           data_po_cliente?: string | null
           data_prometida_despacho?: string | null
+          frete_simulacao_id?: string | null
+          frete_tipo?: string | null
+          frete_valor?: number | null
           id?: string
+          modalidade?: string | null
           numero?: string
           observacoes?: string | null
+          origem_frete?: string | null
+          peso_total?: number | null
           po_number?: string | null
           prazo_despacho_dias?: number | null
+          prazo_entrega_dias?: number | null
+          servico_frete?: string | null
           status?: string | null
           status_faturamento?: string | null
+          transportadora_id?: string | null
           updated_at?: string
           valor_total?: number | null
           vendedor_id?: string | null
+          volumes?: number | null
         }
         Relationships: [
           {
@@ -2946,6 +2983,20 @@ export type Database = {
             columns: ["cotacao_id"]
             isOneToOne: false
             referencedRelation: "orcamentos_public_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ordens_venda_transportadora_id_fkey"
+            columns: ["transportadora_id"]
+            isOneToOne: false
+            referencedRelation: "transportadoras"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ordens_venda_vendedor_id_fkey"
+            columns: ["vendedor_id"]
+            isOneToOne: false
+            referencedRelation: "funcionarios"
             referencedColumns: ["id"]
           },
         ]
@@ -4438,6 +4489,14 @@ export type Database = {
         Returns: Json
       }
       consolidar_lote_financeiro: { Args: { p_lote_id: string }; Returns: Json }
+      converter_orcamento_em_ov: {
+        Args: {
+          p_data_po?: string
+          p_orcamento_id: string
+          p_po_number?: string
+        }
+        Returns: Json
+      }
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
@@ -4454,6 +4513,7 @@ export type Database = {
         Args: { p_lancamento_id: string; p_motivo?: string }
         Returns: Json
       }
+      gerar_nf_de_pedido: { Args: { p_pedido_id: string }; Returns: Json }
       gerar_pedido_compra: {
         Args: { p_cotacao_id: string; p_observacoes?: string }
         Returns: Json
