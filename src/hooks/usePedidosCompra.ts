@@ -431,84 +431,45 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
   };
 
   const darEntrada = async (p: PedidoCompra) => {
-    const { data: itens } = await supabase.from("pedidos_compra_itens")
-      .select("*, produtos(nome, codigo_interno, estoque_atual)")
+    const { data: itens, error: itensError } = await supabase
+      .from("pedidos_compra_itens")
+      .select("produto_id, descricao, quantidade, valor_unitario")
       .eq("pedido_compra_id", p.id);
 
+    if (itensError) {
+      console.error("[darEntrada] fetch itens", itensError);
+      toast.error(getUserFriendlyError(itensError));
+      return;
+    }
     if (!itens || itens.length === 0) {
       toast.error("Pedido sem itens para registrar recebimento.");
       return;
     }
 
-    // Guard: block duplicate receipt
-    const { count: movCount } = await supabase
-      .from("estoque_movimentos")
-      .select("id", { count: "exact", head: true })
-      .eq("documento_id", String(p.id))
-      .eq("documento_tipo", "pedido_compra");
-    if (movCount && movCount > 0) {
-      toast.error("Recebimento já registrado para este pedido. Verifique o estoque.");
+    const payloadItens = itens
+      .filter((i) => Number(i.quantidade || 0) > 0)
+      .map((i) => ({
+        produto_id: i.produto_id ? String(i.produto_id) : null,
+        descricao: i.descricao ?? null,
+        quantidade_recebida: Number(i.quantidade || 0),
+        valor_unitario: Number(i.valor_unitario || 0),
+      }));
+
+    if (payloadItens.length === 0) {
+      toast.error("Nenhum item com quantidade válida para receber.");
       return;
     }
 
-    // Guard: block duplicate financial entry (uses observacoes tag for exact match)
-    const pedidoTag = `ref:pedido_compra:${p.id}`;
-    const { count: lancCount } = await supabase
-      .from("financeiro_lancamentos")
-      .select("id", { count: "exact", head: true })
-      .eq("observacoes", pedidoTag)
-      .eq("ativo", true);
-    const financeiroDuplicado = lancCount !== null && lancCount > 0;
-
     let entradaOk = false;
     try {
-      // Insert stock movements — DO NOT manually update produtos.estoque_atual;
-      // the database trigger handles estoque synchronisation.
-      const movements = (itens as unknown as PedidoItemRow[]).map((item) => ({
-        produto_id: String(item.produto_id),
-        tipo: "entrada" as const,
-        quantidade: Number(item.quantidade || 0),
-        saldo_anterior: Number(item.produtos?.estoque_atual || 0),
-        saldo_atual: Number(item.produtos?.estoque_atual || 0) + Number(item.quantidade || 0),
-        documento_tipo: "pedido_compra",
-        documento_id: p.id,
-        motivo: `Entrada via ${pedidoNumero(p)}`,
-      }));
-      const { error: movError } = await supabase.from("estoque_movimentos").insert(movements);
-      if (movError) throw movError;
-
-      const condicaoPagamento = String(p.condicao_pagamento || "").trim();
-      // Business rule: prefer explicit "<n> dias", otherwise fallback to the first isolated number (e.g., "30").
-      const diasMatch = condicaoPagamento.match(/(\d+)\s*dias?/i) ?? condicaoPagamento.match(/\b(\d+)\b/);
-      const parsedDias = diasMatch ? Number(diasMatch[1]) : Number.NaN;
-      const parsedPedidoDate = new Date(p.data_pedido);
-      const baseDate = !Number.isNaN(parsedPedidoDate.getTime()) ? parsedPedidoDate : new Date();
-      const dueDate = Number.isFinite(parsedDias)
-        ? addDays(baseDate, parsedDias)
-        : addDays(new Date(), DEFAULT_DUE_DAYS);
-
-      const vTotal = Number(p.valor_total || 0);
-      if (vTotal > 0 && !financeiroDuplicado) {
-        const { error: lancError } = await supabase.from("financeiro_lancamentos").insert({
-          tipo: "pagar",
-          descricao: `${pedidoNumero(p)} — ${p.fornecedores?.nome_razao_social || "Fornecedor"}`,
-          observacoes: pedidoTag,
-          valor: vTotal,
-          saldo_restante: vTotal,
-          data_vencimento: dueDate.toISOString().split("T")[0],
-          status: "aberto",
-          fornecedor_id: p.fornecedor_id ? String(p.fornecedor_id) : null,
-        });
-        if (lancError) throw lancError;
-      } else if (financeiroDuplicado) {
-        toast.warning("Lançamento financeiro já existente para este pedido — não gerou duplicata.");
-      }
-
       const hoje = new Date().toISOString().split("T")[0];
-      const { error: statusError } = await supabase.from("pedidos_compra")
-        .update({ status: "recebido", data_entrega_real: hoje })
-        .eq("id", p.id);
-      if (statusError) throw statusError;
+      const { error } = await supabase.rpc("receber_compra", {
+        p_pedido_id: p.id,
+        p_data_recebimento: hoje,
+        p_itens: payloadItens as unknown as never,
+        p_observacoes: null,
+      });
+      if (error) throw error;
 
       entradaOk = true;
       toast.success("Recebimento registrado! Estoque atualizado e financeiro gerado.");
@@ -519,7 +480,6 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
       toast.error(getUserFriendlyError(err));
     }
 
-    // Navigate to fiscal only after a successful entry
     if (entradaOk) {
       navigate(`/fiscal?tipo=entrada&fornecedor_id=${p.fornecedor_id || ""}&pedido_compra=${pedidoNumero(p)}`);
     }
