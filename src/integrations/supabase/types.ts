@@ -4599,6 +4599,10 @@ export type Database = {
         Args: { payload: Json; queue_name: string }
         Returns: number
       }
+      estornar_baixa_financeira: {
+        Args: { p_baixa_id: string; p_motivo?: string }
+        Returns: undefined
+      }
       estornar_recebimento_compra: {
         Args: { p_compra_id: string; p_motivo?: string }
         Returns: Json
@@ -4615,7 +4619,19 @@ export type Database = {
         Args: { p_lancamento_id: string; p_motivo?: string }
         Returns: Json
       }
+      gerar_financeiro_folha: {
+        Args: { p_competencia: string; p_data_vencimento: string }
+        Returns: number
+      }
       gerar_nf_de_pedido: { Args: { p_pedido_id: string }; Returns: Json }
+      gerar_parcelas_financeiras: {
+        Args: {
+          p_base: Json
+          p_intervalo_dias?: number
+          p_num_parcelas: number
+        }
+        Returns: string
+      }
       gerar_pedido_compra: {
         Args: { p_cotacao_id: string; p_observacoes?: string }
         Returns: Json
@@ -4627,6 +4643,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      marcar_lancamentos_vencidos: { Args: never; Returns: number }
       marcar_remessa_em_transito: {
         Args: { p_remessa_id: string }
         Returns: undefined
@@ -4666,6 +4683,17 @@ export type Database = {
           p_pedido_id: string
         }
         Returns: Json
+      }
+      registrar_baixa_financeira: {
+        Args: {
+          p_conta_bancaria_id: string
+          p_data_baixa: string
+          p_forma_pagamento: string
+          p_lancamento_id: string
+          p_observacoes?: string
+          p_valor_pago: number
+        }
+        Returns: string
       }
       salvar_orcamento: {
         Args: { p_id: string; p_itens: Json; p_payload: Json }
