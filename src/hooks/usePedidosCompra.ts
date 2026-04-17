@@ -17,7 +17,7 @@ import {
 import { statusPedidoCompra } from "@/lib/statusSchema";
 
 /** Shape of a row from pedidos_compra_itens joined with produtos */
-interface PedidoItemRow {
+export interface PedidoItemRow {
   id: string | number;
   produto_id: string | number | null;
   quantidade: number | null;
@@ -29,22 +29,25 @@ interface PedidoItemRow {
 }
 
 /** Minimal cotacao_compra row returned from the draw query */
-interface CotacaoRow {
+export interface CotacaoRow {
   id: string;
   numero: string;
   status: string;
   data_cotacao: string;
 }
 
-/** Minimal estoque_movimentos row */
-interface EstoqueMovimentoRow {
+/** Minimal estoque_movimentos row (joined com produtos para o drawer) */
+export interface EstoqueMovimentoRow {
+  id?: string;
   produto_id: string | null;
   quantidade: number | null;
-  [key: string]: unknown;
+  saldo_anterior?: number | null;
+  saldo_atual?: number | null;
+  produtos?: { nome: string | null; codigo_interno: string | null } | null;
 }
 
 /** Minimal financeiro_lancamentos row */
-interface FinanceiroLancRow {
+export interface FinanceiroLancRow {
   id: string;
   descricao: string | null;
   valor: number | null;
