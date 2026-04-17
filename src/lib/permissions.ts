@@ -45,6 +45,22 @@ export type ErpAction = (typeof ERP_ACTIONS)[number];
 
 export type PermissionKey = `${ErpResource}:${ErpAction}`;
 
+/** Centralised role labels. Use this instead of defining locally in each component. */
+export const ROLE_LABELS: Record<AppRole, string> = {
+  admin: "Administrador",
+  vendedor: "Vendedor",
+  financeiro: "Financeiro",
+  estoquista: "Estoquista",
+};
+
+/** Centralised role descriptions. Use this instead of defining locally in each component. */
+export const ROLE_DESCRIPTIONS: Record<AppRole, string> = {
+  admin: "Acesso total ao sistema. Gerencia usuários, configurações e todos os módulos.",
+  vendedor: "Acesso a clientes, orçamentos, pedidos e logística.",
+  financeiro: "Acesso ao módulo financeiro, compras, faturamento e relatórios.",
+  estoquista: "Acesso a produtos, estoque, compras e logística.",
+};
+
 const rolePermissionMatrix: Record<AppRole, PermissionKey[]> = {
   admin: ERP_RESOURCES.flatMap((resource) =>
     ERP_ACTIONS.map((action) => `${resource}:${action}` as PermissionKey)
@@ -86,8 +102,13 @@ const rolePermissionMatrix: Record<AppRole, PermissionKey[]> = {
   ],
 };
 
-export function getRolePermissions(role: AppRole): PermissionKey[] {
-  return rolePermissionMatrix[role] || [];
+/**
+ * Returns the list of PermissionKeys for a given role.
+ * Accepts a string to gracefully handle legacy roles (e.g. "user", "viewer")
+ * that exist in the DB but are not issued to new users — returns [] for those.
+ */
+export function getRolePermissions(role: string): PermissionKey[] {
+  return rolePermissionMatrix[role as AppRole] || [];
 }
 
 export function buildPermissionSet(roles: AppRole[], extraPermissions: PermissionKey[] = []): Set<PermissionKey> {

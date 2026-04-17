@@ -4,7 +4,10 @@
  * Exibe:
  *  - Tentativas de login falhas nas últimas 24 h
  *  - Usuários com permissões administrativas
- *  - Sessões inativas há mais de 30 dias
+ *  - Logins antigos (eventos de login registrados há mais de 30 dias)
+ *    NOTA: esta métrica conta registros de auditoria_logs com ação "auth:login",
+ *    NÃO sessões activas. Uma futura integração com `admin-sessions` permitirá
+ *    métricas reais de sessão.
  */
 
 import { useQuery } from "@tanstack/react-query";
@@ -36,8 +39,10 @@ async function fetchUsuariosAdministrativos(): Promise<number> {
   return count ?? 0;
 }
 
-async function fetchSessoesInativas(): Promise<number> {
-  // user_sessions table may not exist; return 0 gracefully
+async function fetchLoginsAntigos(): Promise<number> {
+  // Counts audit log entries for login events older than 30 days.
+  // This is NOT a real active-session metric — it reflects login events stored
+  // in auditoria_logs. Integration with admin-sessions is needed for true session data.
   try {
     const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
     const { count, error } = await supabase
@@ -69,16 +74,16 @@ export function DashboardAdmin() {
     retry: 1,
   });
 
-  const sessoesInativas = useQuery({
-    queryKey: ["admin", "security", "sessoes-inativas"],
-    queryFn: fetchSessoesInativas,
+  const loginsAntigos = useQuery({
+    queryKey: ["admin", "security", "logins-antigos"],
+    queryFn: fetchLoginsAntigos,
     staleTime: 5 * 60 * 1000,
     retry: 1,
   });
 
   const loginsFalhosCount = loginsFalhos.data ?? 0;
   const usuariosAdminCount = usuariosAdmin.data ?? 0;
-  const sessoesInativasCount = sessoesInativas.data ?? 0;
+  const loginsAntigosCount = loginsAntigos.data ?? 0;
 
   return (
     <div className="space-y-6">
@@ -115,13 +120,13 @@ export function DashboardAdmin() {
             />
 
             <SummaryCard
-              title="Sessões Inativas (+30 dias)"
-              value={sessoesInativasCount}
-              subtitle="Sessões ativas há mais de 30 dias sem uso"
+              title="Logins Antigos (+30 dias)"
+              value={loginsAntigosCount}
+              subtitle="Eventos de login com mais de 30 dias em auditoria"
               icon={Clock}
-              variant={sessoesInativasCount > 0 ? "warning" : "success"}
-              variationType={sessoesInativasCount > 0 ? "negative" : "neutral"}
-              loading={sessoesInativas.isLoading}
+              variant={loginsAntigosCount > 0 ? "warning" : "success"}
+              variationType={loginsAntigosCount > 0 ? "negative" : "neutral"}
+              loading={loginsAntigos.isLoading}
             />
           </div>
         </CardContent>

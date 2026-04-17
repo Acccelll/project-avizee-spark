@@ -1,17 +1,18 @@
 /**
- * PermissaoMatrix — Tabela visual de permissões por perfil.
+ * PermissaoMatrix — Tabela visual de permissões por perfil (CATÁLOGO READ-ONLY).
  *
  * Exibe linhas agrupadas por módulo (recursos ERP) e colunas por perfil de
- * acesso (app_role). Checkboxes permitem ativar/desativar permissões; ao clicar
- * em "Salvar Alterações" a lista de mudanças é enviada ao backend via
- * `concederPermissao` / `revogarPermissao`.
+ * acesso (app_role). Os checkboxes são apenas visuais — indicam as permissões
+ * padrão definidas em `src/lib/permissions.ts`.
+ *
+ * NOTA ARQUITETURAL: Esta matriz é um catálogo visual estático. A persistência
+ * de permissões globais por perfil exigiria uma migration que ainda não existe.
+ * Permissões individuais de usuário são gerenciadas via `admin-users` (edge fn).
+ * O botão de salvar foi removido para evitar gravações incompletas sem user_id.
  */
 
-import { useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
-import { Loader2, Save } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useMemo } from "react";
+import { Info } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
@@ -31,9 +32,6 @@ import {
   type PermissionKey,
 } from "@/lib/permissions";
 import type { AppRole } from "@/contexts/AuthContext";
-import { atribuirPerfil } from "@/services/admin/perfis.service";
-import { supabase } from "@/integrations/supabase/client";
-import { getUserFriendlyError } from "@/utils/errorMessages";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -65,7 +63,7 @@ type PermMatrix = Record<AppRole, Set<PermissionKey>>;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function buildInitialMatrix(): PermMatrix {
+function buildMatrix(): PermMatrix {
   const matrix = {} as PermMatrix;
   for (const role of ALL_ROLES) {
     matrix[role] = new Set(getRolePermissions(role));
@@ -73,123 +71,31 @@ function buildInitialMatrix(): PermMatrix {
   return matrix;
 }
 
-type Change = { role: AppRole; key: PermissionKey; granted: boolean };
-
 // ─── Componente ───────────────────────────────────────────────────────────────
 
 export function PermissaoMatrix() {
-  const queryClient = useQueryClient();
-
-  // Estado local da matriz — copia mutável dos valores originais
-  const [matrix, setMatrix] = useState<PermMatrix>(buildInitialMatrix);
-  const [pendingChanges, setPendingChanges] = useState<Change[]>([]);
-
-  const toggle = (role: AppRole, key: PermissionKey) => {
-    if (role === "admin") return; // admin tem todas as permissões — não editável
-
-    setMatrix((prev) => {
-      const next = { ...prev, [role]: new Set(prev[role]) };
-      const granted = !next[role].has(key);
-      if (granted) next[role].add(key); else next[role].delete(key);
-      return next;
-    });
-
-    setPendingChanges((prev) => {
-      // Remove alteração anterior para esta combinação role+key (se houver)
-      const filtered = prev.filter((c) => !(c.role === role && c.key === key));
-      const originalHas = getRolePermissions(role).includes(key);
-      const newGranted = !matrix[role].has(key); // valor pós-toggle
-      if (newGranted === originalHas) {
-        // Voltou ao estado original — sem mudança pendente
-        return filtered;
-      }
-      return [...filtered, { role, key, granted: newGranted }];
-    });
-  };
-
-  const saveMutation = useMutation({
-    mutationFn: async (changes: Change[]) => {
-      await Promise.all(
-        changes.map(async (change) => {
-          const parts = change.key.split(":");
-          if (parts.length !== 2) return;
-          const [resource, action] = parts as [ErpResource, ErpAction];
-          if (change.granted) {
-            const { error } = await supabase
-              .from("user_permissions")
-              .upsert(
-                { resource, action, allowed: true } as Record<string, unknown>,
-                { onConflict: "resource,action" }
-              );
-            if (error) throw error;
-          } else {
-            const { error } = await supabase
-              .from("user_permissions")
-              .delete()
-              .eq("resource", resource)
-              .eq("action", action);
-            if (error) throw error;
-          }
-        })
-      );
-    },
-    onSuccess: () => {
-      setPendingChanges([]);
-      toast.success("Permissões atualizadas com sucesso.");
-    },
-    onError: (err: Error) => {
-      console.error("[PermissaoMatrix] Erro ao salvar:", err);
-      toast.error(getUserFriendlyError(err));
-    },
-  });
-
-  const handleSave = () => {
-    if (pendingChanges.length === 0) return;
-    saveMutation.mutate(pendingChanges);
-  };
-
-  const handleReset = () => {
-    setMatrix(buildInitialMatrix());
-    setPendingChanges([]);
-  };
+  // Read-only matrix derived from static role definitions in permissions.ts
+  const matrix = useMemo(buildMatrix, []);
 
   return (
     <div className="space-y-4">
+      {/* Banner informativo */}
+      <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 px-3 py-2.5 text-sm text-amber-800 dark:text-amber-300">
+        <Info className="h-4 w-4 mt-0.5 shrink-0" />
+        <p>
+          Esta matriz é um <strong>catálogo visual de permissões padrão por perfil</strong>.
+          As permissões globais por perfil são definidas em código ({" "}
+          <span className="font-mono text-xs">src/lib/permissions.ts</span>). Para conceder
+          permissões individuais a um usuário específico, use o cadastro de usuários.
+        </p>
+      </div>
+
       {/* Cabeçalho */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-sm font-semibold">Matriz de Permissões</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Configure as permissões por perfil de acesso. Checkboxes marcados indicam permissão concedida.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {pendingChanges.length > 0 && (
-            <Badge variant="secondary">{pendingChanges.length} alteração(ões) pendente(s)</Badge>
-          )}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleReset}
-            disabled={pendingChanges.length === 0 || saveMutation.isPending}
-            aria-label="Desfazer alterações de permissões"
-          >
-            Desfazer
-          </Button>
-          <Button
-            size="sm"
-            onClick={handleSave}
-            disabled={pendingChanges.length === 0 || saveMutation.isPending}
-            aria-label="Salvar alterações de permissões"
-          >
-            {saveMutation.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-1" />
-            ) : (
-              <Save className="h-4 w-4 mr-1" />
-            )}
-            Salvar Alterações
-          </Button>
-        </div>
+      <div>
+        <h3 className="text-sm font-semibold">Matriz de Permissões</h3>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          Permissões padrão por perfil de acesso. Checkboxes marcados indicam permissão concedida pelo perfil.
+        </p>
       </div>
 
       {/* Tabela */}
@@ -227,7 +133,7 @@ export function PermissaoMatrix() {
                   </TableCell>
                 </TableRow>
 
-                {/* Linhas por recurso × ação */}
+                {/* Linhas por recurso × perfil */}
                 {group.resources.map((resource) =>
                   ALL_ROLES.map((role, roleIdx) => {
                     const isAdmin = role === "admin";
@@ -242,14 +148,12 @@ export function PermissaoMatrix() {
                         {MATRIX_ACTIONS.map((action) => {
                           const key: PermissionKey = `${resource}:${action}`;
                           const checked = matrix[role].has(key);
-                          const changed = pendingChanges.some((c) => c.role === role && c.key === key);
                           return (
                             <TableCell key={action} className="text-center px-2 py-1">
                               <Checkbox
                                 checked={checked}
-                                disabled={isAdmin}
-                                onCheckedChange={() => toggle(role, key)}
-                                className={changed ? "ring-2 ring-primary" : undefined}
+                                disabled
+                                className={isAdmin ? "opacity-60" : undefined}
                                 aria-label={`${ROLE_LABELS[role]}: ${resource} ${action}`}
                               />
                             </TableCell>
@@ -266,7 +170,8 @@ export function PermissaoMatrix() {
       </div>
 
       <p className="text-xs text-muted-foreground">
-        * O perfil <strong>Administrador</strong> possui acesso total e não pode ser editado aqui.
+        * O perfil <strong>Administrador</strong> possui acesso total. As permissões exibidas
+        refletem as definições estáticas em <span className="font-mono">src/lib/permissions.ts</span>.
       </p>
     </div>
   );

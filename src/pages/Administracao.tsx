@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Building2, Calendar, CheckCircle2, ChevronDown, ChevronRight, Database, Globe, Image, Info, Loader2, Mail, MapPin, PenLine, Phone, Receipt, Reply, Send, Shield, Upload, Users, Wallet, XCircle } from 'lucide-react';
+import { Building2, Calendar, CheckCircle2, ChevronDown, ChevronRight, Database, Globe, Image, Info, Loader2, Mail, MapPin, PenLine, Phone, Receipt, Reply, Shield, Upload, Users, Wallet } from 'lucide-react';
 import { AppLayout } from '@/components/AppLayout';
 import { ModulePage } from '@/components/ModulePage';
 import { Button } from '@/components/ui/button';
@@ -121,6 +121,11 @@ interface UsuariosConfigRaw {
   [key: string]: unknown;
 }
 
+/** Set of section keys that render actual content here — used to guard invalid ?tab= values */
+const VALID_SECTION_KEYS = new Set([
+  'empresa', 'dashboard', 'usuarios', 'email', 'fiscal', 'financeiro', 'auditoria',
+]);
+
 const sideNavGroups: SideNavGroup[] = [
   {
     key: 'empresa',
@@ -160,7 +165,9 @@ export default function Administracao() {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const initialTab = searchParams.get('tab') || 'empresa';
+  // Fallback to 'empresa' for any unknown/invalid ?tab= value
+  const rawTab = searchParams.get('tab') || 'empresa';
+  const initialTab = VALID_SECTION_KEYS.has(rawTab) ? rawTab : 'empresa';
   const [config, setConfig] = useState(defaultConfig);
   const [activeSection, setActiveSection] = useState(initialTab);
 
@@ -180,11 +187,7 @@ export default function Administracao() {
   const logoInputRef = useRef<HTMLInputElement>(null);
 
   const [emailErrors, setEmailErrors] = useState<Record<string, string>>({});
-  const [emailTestAddress, setEmailTestAddress] = useState('');
-  const [emailTestLoading, setEmailTestLoading] = useState(false);
-  const [emailTestResult, setEmailTestResult] = useState<{ status: 'success' | 'error'; message: string } | null>(null);
   const [emailLastSaved, setEmailLastSaved] = useState<{ at: string | null; by: string | null }>({ at: null, by: null });
-  const [emailLastTest, setEmailLastTest] = useState<string | null>(null);
 
   const [fiscalErrors, setFiscalErrors] = useState<Record<string, string>>({});
   const [fiscalLastSaved, setFiscalLastSaved] = useState<{ at: string | null; by: string | null }>({ at: null, by: null });
@@ -195,7 +198,10 @@ export default function Administracao() {
 
   useEffect(() => {
     const tab = searchParams.get('tab');
-    if (tab && tab !== activeSection) setActiveSection(tab);
+    if (tab && tab !== activeSection) {
+      const validated = VALID_SECTION_KEYS.has(tab) ? tab : 'empresa';
+      setActiveSection(validated);
+    }
   }, [searchParams, activeSection]);
 
   // ── Load config ──
@@ -276,6 +282,10 @@ export default function Administracao() {
       navigate('/migracao-dados');
       return;
     }
+    if (key === 'auditoria') {
+      navigate('/auditoria');
+      return;
+    }
     setActiveSection(key);
     setOpenGroupKey(getActiveGroupKey(key));
     setSearchParams((current) => {
@@ -353,39 +363,6 @@ export default function Administracao() {
     return errors;
   };
 
-  const handleEmailTest = async () => {
-    if (!emailTestAddress.trim() || !isValidEmailFormat(emailTestAddress)) {
-      setEmailErrors((p) => ({ ...p, emailTeste: 'Informe um e-mail válido para o teste.' }));
-      return;
-    }
-    setEmailTestLoading(true);
-    setEmailTestResult(null);
-    try {
-      const { error } = await supabase.functions.invoke('send-test-email', {
-        body: {
-          to: emailTestAddress,
-          remetenteNome: config.email.remetenteNome,
-          remetenteEmail: config.email.remetenteEmail,
-          assinatura: config.email.assinatura,
-        },
-      });
-      if (error) throw error;
-      setEmailLastTest(new Date().toISOString());
-      setEmailTestResult({
-        status: 'success',
-        message: `E-mail de teste enviado com sucesso para ${emailTestAddress}.`,
-      });
-    } catch (err) {
-      console.error('[admin] Erro ao enviar e-mail de teste:', err);
-      setEmailTestResult({
-        status: 'error',
-        message: getUserFriendlyError(err),
-      });
-    } finally {
-      setEmailTestLoading(false);
-    }
-  };
-
   const handleSave = async () => {
     if (activeSection === 'email') {
       const errors = validateEmailSection();
@@ -408,44 +385,80 @@ export default function Administracao() {
     setSaving(true);
     try {
       const now = new Date().toISOString();
-      const empresaPayload = {
-        razao_social: config.geral.empresa,
-        nome_fantasia: config.geral.nomeFantasia,
-        cnpj: config.geral.cnpj || null,
-        inscricao_estadual: config.geral.inscricaoEstadual || null,
-        email: config.geral.email || null,
-        telefone: config.geral.telefone || null,
-        cep: config.geral.cep || null,
-        logradouro: config.geral.logradouro || null,
-        numero: config.geral.numero || null,
-        complemento: config.geral.complemento || null,
-        bairro: config.geral.bairro || null,
-        cidade: config.geral.cidade || null,
-        uf: config.geral.uf || null,
-        logo_url: config.geral.logoUrl || null,
-        updated_at: now,
-      };
-      if (empresaConfigId) {
-        const { error: empError } = await supabase.from('empresa_config').update(empresaPayload).eq('id', empresaConfigId);
-        if (empError) throw empError;
-      } else {
-        const { data: insertedEmpresa, error: empError } = await supabase.from('empresa_config').insert(empresaPayload).select('id').single();
-        if (empError) throw empError;
-        if (insertedEmpresa?.id) setEmpresaConfigId(insertedEmpresa.id);
+      // Use friendly name for governance metadata (never raw UUID)
+      const updatedByName = profile?.nome ?? user?.email ?? null;
+
+      if (activeSection === 'empresa') {
+        // Save empresa_config + geral app config
+        const empresaPayload = {
+          razao_social: config.geral.empresa,
+          nome_fantasia: config.geral.nomeFantasia,
+          cnpj: config.geral.cnpj || null,
+          inscricao_estadual: config.geral.inscricaoEstadual || null,
+          email: config.geral.email || null,
+          telefone: config.geral.telefone || null,
+          cep: config.geral.cep || null,
+          logradouro: config.geral.logradouro || null,
+          numero: config.geral.numero || null,
+          complemento: config.geral.complemento || null,
+          bairro: config.geral.bairro || null,
+          cidade: config.geral.cidade || null,
+          uf: config.geral.uf || null,
+          logo_url: config.geral.logoUrl || null,
+          updated_at: now,
+        };
+        if (empresaConfigId) {
+          const { error: empError } = await supabase.from('empresa_config').update(empresaPayload).eq('id', empresaConfigId);
+          if (empError) throw empError;
+        } else {
+          const { data: insertedEmpresa, error: empError } = await supabase.from('empresa_config').insert(empresaPayload).select('id').single();
+          if (empError) throw empError;
+          if (insertedEmpresa?.id) setEmpresaConfigId(insertedEmpresa.id);
+        }
+        const geralRow: AppConfigInsert = {
+          chave: 'geral',
+          valor: {
+            logoUrl: config.geral.logoUrl,
+            corPrimaria: config.geral.corPrimaria,
+            corSecundaria: config.geral.corSecundaria,
+            site: config.geral.site,
+            whatsapp: config.geral.whatsapp,
+            responsavel: config.geral.responsavel,
+            inscricaoMunicipal: config.geral.inscricaoMunicipal,
+          },
+        };
+        const { error: appError } = await supabase.from('app_configuracoes').upsert([geralRow], { onConflict: 'chave' });
+        if (appError) throw appError;
+        setEmpresaUpdatedAt(now);
+
+      } else if (activeSection === 'email') {
+        const emailRow: AppConfigInsert = {
+          chave: 'email',
+          valor: { ...config.email, _updatedAt: now, _updatedBy: updatedByName },
+        };
+        const { error } = await supabase.from('app_configuracoes').upsert([emailRow], { onConflict: 'chave' });
+        if (error) throw error;
+        setEmailLastSaved({ at: now, by: updatedByName });
+
+      } else if (activeSection === 'fiscal') {
+        const fiscalRow: AppConfigInsert = {
+          chave: 'fiscal',
+          valor: { ...config.fiscal, _updatedAt: now, _updatedByName: updatedByName },
+        };
+        const { error } = await supabase.from('app_configuracoes').upsert([fiscalRow], { onConflict: 'chave' });
+        if (error) throw error;
+        setFiscalLastSaved({ at: now, by: updatedByName });
+
+      } else if (activeSection === 'financeiro') {
+        const financeiroRow: AppConfigInsert = {
+          chave: 'financeiro',
+          valor: { ...config.financeiro, _updatedAt: now, _updatedByName: updatedByName },
+        };
+        const { error } = await supabase.from('app_configuracoes').upsert([financeiroRow], { onConflict: 'chave' });
+        if (error) throw error;
+        setFinanceiroLastSaved({ at: now, by: updatedByName });
       }
-      setEmpresaUpdatedAt(now);
-      const appRows: AppConfigInsert[] = [
-        { chave: 'geral', valor: { logoUrl: config.geral.logoUrl, corPrimaria: config.geral.corPrimaria, corSecundaria: config.geral.corSecundaria, site: config.geral.site, whatsapp: config.geral.whatsapp, responsavel: config.geral.responsavel, inscricaoMunicipal: config.geral.inscricaoMunicipal } },
-        { chave: 'usuarios', valor: { ...config.usuarios } },
-        { chave: 'email', valor: { ...config.email, _updatedAt: now, _updatedBy: user?.id ?? null } },
-        { chave: 'fiscal', valor: { ...config.fiscal, _updatedAt: now, _updatedBy: user?.id ?? null, _updatedByName: profile?.nome ?? user?.email ?? null } },
-        { chave: 'financeiro', valor: { ...config.financeiro, _updatedAt: now, _updatedBy: user?.id ?? null, _updatedByName: profile?.nome ?? user?.email ?? null } },
-      ];
-      const { error: appError } = await supabase.from('app_configuracoes').upsert(appRows, { onConflict: 'chave' });
-      if (appError) throw appError;
-      setEmailLastSaved({ at: now, by: user?.id ?? null });
-      setFiscalLastSaved({ at: now, by: profile?.nome ?? user?.email ?? null });
-      setFinanceiroLastSaved({ at: now, by: profile?.nome ?? user?.email ?? null });
+
       toast.success('Configurações salvas com sucesso.');
     } catch (error: unknown) {
       console.error('[admin] Erro ao salvar:', error);
@@ -871,59 +884,43 @@ export default function Administracao() {
         </CardContent>
       </Card>
 
-      {/* Bloco 4 — Teste de envio */}
+      {/* Bloco 4 — Pré-visualização do remetente */}
       <Card>
         <CardHeader>
           <div className="flex items-start gap-3">
-            <Send className="mt-0.5 h-5 w-5 text-muted-foreground shrink-0" />
+            <Mail className="mt-0.5 h-5 w-5 text-muted-foreground shrink-0" />
             <div>
-              <CardTitle>Teste de envio</CardTitle>
-              <CardDescription>Valide a configuração enviando uma mensagem de teste antes de usar em produção.</CardDescription>
+              <CardTitle>Pré-visualização do remetente</CardTitle>
+              <CardDescription>
+                Confira como o campo "De:" aparecerá para os destinatários dos e-mails gerados pelo sistema.
+                O envio efetivo depende da infraestrutura SMTP configurada no servidor — não é testável aqui.
+              </CardDescription>
             </div>
           </div>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-            <div className="flex-1 space-y-1.5">
-              <Label>E-mail para teste</Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  value={emailTestAddress}
-                  onChange={(e) => { setEmailTestAddress(e.target.value); setEmailErrors((p) => ({ ...p, emailTeste: '' })); }}
-                  placeholder="seu@email.com.br"
-                  className={cn('pl-9', emailErrors.emailTeste ? 'border-destructive focus-visible:ring-destructive' : '')}
-                />
-              </div>
-              {emailErrors.emailTeste && <p className="text-[11px] text-destructive">{emailErrors.emailTeste}</p>}
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={emailTestLoading}
-              onClick={handleEmailTest}
-              className="shrink-0"
-              aria-label="Enviar e-mail de teste"
-            >
-              {emailTestLoading
-                ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                : <Send className="mr-2 h-4 w-4" />}
-              Enviar teste
-            </Button>
+        <CardContent className="space-y-3">
+          <div className="rounded-md border bg-muted/30 px-4 py-3 space-y-1.5">
+            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Campo "De:" nos e-mails</p>
+            <p className="text-sm font-medium font-mono">
+              {config.email.remetenteNome
+                ? `${config.email.remetenteNome} <${config.email.remetenteEmail}>`
+                : config.email.remetenteEmail || '—'}
+            </p>
+            {config.email.responderPara && (
+              <>
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground mt-2">Campo "Reply-To:"</p>
+                <p className="text-sm font-medium font-mono">{config.email.responderPara}</p>
+              </>
+            )}
           </div>
-          {emailTestResult && (
-            <div className={cn(
-              'flex items-start gap-2 rounded-md border p-3 text-sm',
-              emailTestResult.status === 'success'
-                ? 'border-green-200 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200'
-                : 'border-destructive/30 bg-destructive/5 text-destructive',
-            )}>
-              {emailTestResult.status === 'success'
-                ? <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" />
-                : <XCircle className="h-4 w-4 mt-0.5 shrink-0" />}
-              <p>{emailTestResult.message}</p>
-            </div>
-          )}
+          <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 px-3 py-2.5 text-sm text-amber-800 dark:text-amber-300">
+            <Info className="h-4 w-4 mt-0.5 shrink-0" />
+            <p>
+              Esta seção configura apenas a <strong>identidade do remetente</strong> (nome e endereço de origem).
+              Para testar a entrega de e-mails, a configuração SMTP do servidor deve ser realizada
+              separadamente na infraestrutura do sistema.
+            </p>
+          </div>
         </CardContent>
       </Card>
 
@@ -949,12 +946,8 @@ export default function Administracao() {
               </p>
             </div>
             <div className="rounded-md border bg-muted/30 p-3 space-y-0.5">
-              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Último teste realizado</p>
-              <p className="text-sm font-medium">
-                {emailLastTest
-                  ? new Date(emailLastTest).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
-                  : '—'}
-              </p>
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Alterado por</p>
+              <p className="text-sm font-medium">{emailLastSaved.by ?? '—'}</p>
             </div>
           </div>
           <Separator />
@@ -962,10 +955,10 @@ export default function Administracao() {
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Esta configuração impacta</p>
             <ul className="grid gap-1 sm:grid-cols-2">
               {[
-                'Envio de orçamentos e pedidos',
+                'Campo "De:" em e-mails de orçamentos e pedidos',
                 'Notificações automáticas do sistema',
                 'E-mails de confirmação e cobrança',
-                'Comunicações institucionais',
+                'Assinatura de comunicações institucionais',
               ].map((item) => (
                 <li key={item} className="flex items-center gap-2 text-sm text-muted-foreground">
                   <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
@@ -975,7 +968,7 @@ export default function Administracao() {
             </ul>
           </div>
           <p className="text-xs text-muted-foreground">
-            Alterações nesta seção refletem imediatamente nos e-mails gerados pelo sistema. Valide a configuração com um teste de envio antes de aplicar em produção.
+            Alterações nesta seção refletem imediatamente na identidade do remetente dos e-mails gerados pelo sistema. Salve as configurações para aplicar as mudanças.
           </p>
         </CardContent>
       </Card>
@@ -1113,7 +1106,7 @@ export default function Administracao() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Esta configuração impacta</p>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Esta configuração serve como referência para</p>
             <ul className="grid gap-1 sm:grid-cols-2">
               {[
                 'Documentos de venda e saída fiscal',
@@ -1131,9 +1124,12 @@ export default function Administracao() {
             </ul>
           </div>
           <Separator />
-          <p className="text-xs text-muted-foreground">
-            Esses valores servem como configuração inicial e podem futuramente ser complementados por parametrizações específicas por produto, tipo de documento ou operação.
-          </p>
+          <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 px-3 py-2.5 text-sm text-amber-800 dark:text-amber-300">
+            <Info className="h-4 w-4 mt-0.5 shrink-0" />
+            <p>
+              Esses valores são <strong>parâmetros armazenados</strong> e ainda não são consumidos automaticamente por todos os módulos fiscais. Servem como referência e base para futuras integrações.
+            </p>
+          </div>
         </CardContent>
       </Card>
 
@@ -1267,7 +1263,7 @@ export default function Administracao() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Esta configuração impacta</p>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Esta configuração serve como referência para</p>
             <ul className="grid gap-1 sm:grid-cols-2">
               {[
                 'Geração de títulos a pagar e a receber',
@@ -1285,9 +1281,12 @@ export default function Administracao() {
             </ul>
           </div>
           <Separator />
-          <p className="text-xs text-muted-foreground">
-            Esses valores servem como configuração inicial e podem futuramente ser complementados por parametrizações específicas por tipo de operação, empresa ou filial.
-          </p>
+          <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 px-3 py-2.5 text-sm text-amber-800 dark:text-amber-300">
+            <Info className="h-4 w-4 mt-0.5 shrink-0" />
+            <p>
+              Esses valores são <strong>parâmetros armazenados</strong> e ainda não são consumidos automaticamente por todos os módulos financeiros. Servem como referência e base para futuras integrações.
+            </p>
+          </div>
         </CardContent>
       </Card>
 
@@ -1369,6 +1368,8 @@ export default function Administracao() {
         return renderFinanceiro();
 
       case 'auditoria':
+        // Redirect immediately — auditoria has its own full page
+        navigate('/auditoria', { replace: true });
         return (
           <Card>
             <CardHeader>
@@ -1377,9 +1378,9 @@ export default function Administracao() {
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground mb-4">
-                Acesse o módulo completo de auditoria para visualizar logs de alterações.
+                Redirecionando para o módulo de auditoria…
               </p>
-              <Button variant="outline" onClick={() => window.location.href = '/auditoria'} aria-label="Abrir auditoria completa">
+              <Button variant="outline" onClick={() => navigate('/auditoria')} aria-label="Abrir auditoria completa">
                 <Shield className="mr-2 h-4 w-4" /> Abrir Auditoria Completa
               </Button>
             </CardContent>
@@ -1387,7 +1388,8 @@ export default function Administracao() {
         );
 
       default:
-        return null;
+        // Fallback for any unknown section key — show empresa
+        return renderEmpresa();
     }
   };
 

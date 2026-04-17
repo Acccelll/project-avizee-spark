@@ -1,5 +1,10 @@
 /**
- * Serviço de usuários — operações CRUD sobre `profiles` e `user_roles`.
+ * @legacy Serviço de usuários — operações CRUD sobre `profiles` e `user_roles`.
+ *
+ * NOTA: Este serviço realiza escrita direta no banco via Supabase client.
+ * O fluxo canônico atual para gerenciar usuários é a edge function `admin-users`
+ * invocada via `invokeAdminUsers` em `UsuariosTab.tsx`. Não reutilizar este
+ * serviço como fluxo principal para criação/atualização de usuários.
  */
 
 import { supabase } from "@/integrations/supabase/client";

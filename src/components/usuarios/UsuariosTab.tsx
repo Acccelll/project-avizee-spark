@@ -22,6 +22,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { ERP_RESOURCES, getRolePermissions } from '@/lib/permissions';
+import { getUserFriendlyError } from '@/utils/errorMessages';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
@@ -352,7 +353,7 @@ function RolesCatalog({ users }: { users: UserWithRoles[] }) {
         </CardHeader>
         <CardContent className="space-y-3">
           {ALL_ROLES.map((role) => {
-            const perms = getRolePermissions(role as any);
+            const perms = getRolePermissions(role);
             const isExpanded = expandedRole === role;
             const count = userCountByRole[role] ?? 0;
 
@@ -452,7 +453,7 @@ function UserFormModal({
 
   // Inherited permissions from the selected role
   const inheritedPermissions = useMemo(
-    () => getRolePermissions(form.role_padrao as any),
+    () => getRolePermissions(form.role_padrao),
     [form.role_padrao],
   );
 
@@ -496,6 +497,14 @@ function UserFormModal({
     if (!form.email.trim()) {
       toast.error('E-mail é obrigatório.');
       return;
+    }
+    // Validate email format for new users (edit disables the field so format is already stored)
+    if (!isEdit) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(form.email.trim())) {
+        toast.error('Informe um endereço de e-mail válido.');
+        return;
+      }
     }
     // Guard: cannot deactivate self
     if (isEdit && user?.id === currentUser?.id && !form.ativo) {
@@ -548,7 +557,7 @@ function UserFormModal({
       onClose();
     } catch (err) {
       console.error('[usuarios] Erro ao salvar usuário:', err);
-      toast.error('Erro ao salvar usuário. Verifique sua conexão.');
+      toast.error(getUserFriendlyError(err));
     } finally {
       setSaving(false);
     }
