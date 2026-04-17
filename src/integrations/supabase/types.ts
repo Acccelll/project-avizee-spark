@@ -403,6 +403,7 @@ export type Database = {
           cpf_cnpj: string | null
           created_at: string
           email: string | null
+          forma_pagamento_id: string | null
           forma_pagamento_padrao: string | null
           grupo_economico_id: string | null
           id: string
@@ -435,6 +436,7 @@ export type Database = {
           cpf_cnpj?: string | null
           created_at?: string
           email?: string | null
+          forma_pagamento_id?: string | null
           forma_pagamento_padrao?: string | null
           grupo_economico_id?: string | null
           id?: string
@@ -467,6 +469,7 @@ export type Database = {
           cpf_cnpj?: string | null
           created_at?: string
           email?: string | null
+          forma_pagamento_id?: string | null
           forma_pagamento_padrao?: string | null
           grupo_economico_id?: string | null
           id?: string
@@ -487,6 +490,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "clientes_forma_pagamento_id_fkey"
+            columns: ["forma_pagamento_id"]
+            isOneToOne: false
+            referencedRelation: "formas_pagamento"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "clientes_grupo_economico_id_fkey"
             columns: ["grupo_economico_id"]
@@ -4444,6 +4454,10 @@ export type Database = {
         Args: { p_lancamento_id: string; p_motivo?: string }
         Returns: Json
       }
+      gerar_pedido_compra: {
+        Args: { p_cotacao_id: string; p_observacoes?: string }
+        Returns: Json
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -4461,6 +4475,7 @@ export type Database = {
         Returns: number
       }
       proximo_numero_cotacao_compra: { Args: never; Returns: string }
+      proximo_numero_nf: { Args: never; Returns: string }
       proximo_numero_nota_fiscal: { Args: never; Returns: string }
       proximo_numero_orcamento: { Args: never; Returns: string }
       proximo_numero_ordem_venda: { Args: never; Returns: string }
@@ -4476,6 +4491,14 @@ export type Database = {
       salvar_orcamento: {
         Args: { p_id: string; p_itens: Json; p_payload: Json }
         Returns: string
+      }
+      save_produto_composicao: {
+        Args: { p_itens: Json; p_payload?: Json; p_produto_pai_id: string }
+        Returns: undefined
+      }
+      set_principal_endereco: {
+        Args: { p_cliente_id: string; p_endereco_id: string }
+        Returns: undefined
       }
       social_alertas_periodo: {
         Args: { _data_fim: string; _data_inicio: string }

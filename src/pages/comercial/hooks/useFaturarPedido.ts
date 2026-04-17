@@ -54,13 +54,9 @@ export function useFaturarPedido() {
         .eq("id", pedido.id)
         .single();
 
-      const { count, error: countError } = await supabase
-        .from("notas_fiscais")
-        .select("*", { count: "exact", head: true });
-
-      if (countError) throw new Error(countError.message);
-
-      const nfNumero = String((count || 0) + 1).padStart(6, "0");
+      // Numeração atômica via RPC (sequence) — evita race condition com COUNT
+      const { data: nfNumero, error: numError } = await supabase.rpc("proximo_numero_nf");
+      if (numError) throw new Error(numError.message);
       const totalProdutos = (pedidoItems || []).reduce(
         (s, i) => s + Number(i.valor_total || 0),
         0,
