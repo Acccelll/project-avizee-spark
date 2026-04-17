@@ -1,3 +1,10 @@
+/**
+ * @legacy AlertCards — parallel alert card grid component.
+ *
+ * This component is NOT rendered by the main Dashboard (Index.tsx).
+ * The active alert strip is {@link AlertStrip}.
+ * Keep for reference; do not render in the main flow.
+ */
 import { useNavigate } from 'react-router-dom';
 import { useRelationalNavigation } from '@/contexts/RelationalNavigationContext';
 import { ClipboardList, Truck, AlertTriangle } from 'lucide-react';

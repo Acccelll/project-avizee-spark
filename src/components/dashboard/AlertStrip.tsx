@@ -22,8 +22,10 @@ interface AlertStripProps {
   titulosVencidos: number;
   estoqueBaixo: number;
   remessasAtrasadas: number;
-  comprasAguardando: number;
+  /** Real count of compras with overdue delivery (use the dedicated count query, not a JS filter on a capped list). */
+  comprasAtrasadas: number;
   notasPendentes: number;
+  /** Real total count of OVs awaiting faturamento (not capped by the preview list). */
   ovsPendentes: number;
 }
 
@@ -49,7 +51,7 @@ export function AlertStrip({
   titulosVencidos,
   estoqueBaixo,
   remessasAtrasadas,
-  comprasAguardando,
+  comprasAtrasadas,
   notasPendentes,
   ovsPendentes,
 }: AlertStripProps) {
@@ -62,7 +64,8 @@ export function AlertStrip({
       count: titulosVencidos,
       icon: Receipt,
       severity: 'error',
-      href: '/financeiro?status=vencido',
+      // Navigate directly to /financeiro — the page does not consume query-string filters.
+      href: '/financeiro',
     },
     {
       id: 'estoque',
@@ -82,8 +85,8 @@ export function AlertStrip({
     },
     {
       id: 'compras',
-      label: 'Compras pendentes',
-      count: comprasAguardando,
+      label: 'Compras em atraso',
+      count: comprasAtrasadas,
       icon: ClipboardList,
       severity: 'warning',
       href: '/pedidos-compra',

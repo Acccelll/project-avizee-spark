@@ -1,3 +1,10 @@
+/**
+ * @legacy EstoqueBaixoDetail — parallel low-stock detail component.
+ *
+ * This component is NOT rendered by the main Dashboard (Index.tsx).
+ * Low-stock items are shown inside {@link EstoqueBlock}.
+ * Keep for reference; do not render in the main flow.
+ */
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle } from 'lucide-react';
 import { formatNumber } from '@/lib/format';

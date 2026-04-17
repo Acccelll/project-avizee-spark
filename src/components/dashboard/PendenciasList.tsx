@@ -1,14 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, Eye, AlertTriangle, Clock } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { Eye, AlertTriangle, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import { toast } from 'sonner';
-import { getUserFriendlyError } from '@/utils/errorMessages';
 
 interface Pendencia {
   id: string;
@@ -26,12 +24,18 @@ async function fetchPendencias(): Promise<Pendencia[]> {
   const sevenDaysAhead = new Date();
   sevenDaysAhead.setDate(sevenDaysAhead.getDate() + 7);
   const ahead = sevenDaysAhead.toISOString().slice(0, 10);
+  // Include overdue items from up to 60 days ago so very stale items don't
+  // pollute the list, while still showing all items due in the next 7 days.
+  const sixtyDaysAgo = new Date();
+  sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+  const pastBound = sixtyDaysAgo.toISOString().slice(0, 10);
 
   const { data, error } = await supabase
     .from('financeiro_lancamentos')
     .select('id, tipo, descricao, valor, data_vencimento, status')
     .eq('ativo', true)
     .in('status', ['aberto', 'vencido'])
+    .gte('data_vencimento', pastBound)
     .lte('data_vencimento', ahead)
     .order('data_vencimento', { ascending: true })
     .limit(20);
@@ -48,19 +52,10 @@ async function fetchPendencias(): Promise<Pendencia[]> {
   }));
 }
 
-async function marcarComoPago(id: string): Promise<void> {
-  const { error } = await supabase
-    .from('financeiro_lancamentos')
-    .update({ status: 'pago', data_pagamento: new Date().toISOString().slice(0, 10) } satisfies { status: string; data_pagamento: string })
-    .eq('id', id);
-  if (error) throw error;
-}
-
 const INITIAL_VISIBLE = 5;
 
 export function PendenciasList() {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const [showAll, setShowAll] = useState(false);
 
   const { data: pendencias = [], isLoading } = useQuery<Pendencia[], Error>({
@@ -69,35 +64,13 @@ export function PendenciasList() {
     staleTime: 2 * 60 * 1000,
   });
 
-  const markPaidMutation = useMutation<void, Error, string>({
-    mutationFn: marcarComoPago,
-    onMutate: async (id) => {
-      await queryClient.cancelQueries({ queryKey: QUERY_KEY });
-      const previous = queryClient.getQueryData<Pendencia[]>(QUERY_KEY);
-      queryClient.setQueryData<Pendencia[]>(QUERY_KEY, (old = []) =>
-        old.filter((p) => p.id !== id),
-      );
-      return { previous };
-    },
-    onError: (_err, _id, context: { previous?: Pendencia[] } | undefined) => {
-      queryClient.setQueryData(QUERY_KEY, context?.previous);
-      toast.error(getUserFriendlyError(_err));
-    },
-    onSuccess: () => {
-      toast.success('Baixa registrada com sucesso.');
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
-    },
-  });
-
   const today = new Date().toISOString().slice(0, 10);
 
   return (
     <div className="flex flex-col h-full">
       <h3 className="mb-3 font-semibold text-foreground text-sm flex items-center gap-2">
         <AlertTriangle className="h-4 w-4 text-warning" />
-        Pendências Próximas
+        Vencimentos / Pendências
       </h3>
 
       {isLoading ? (
@@ -108,7 +81,7 @@ export function PendenciasList() {
                 <Skeleton className="h-3.5 w-32" />
                 <Skeleton className="h-3 w-20" />
               </div>
-              <Skeleton className="h-7 w-16" />
+              <Skeleton className="h-7 w-7" />
             </div>
           ))}
         </div>
@@ -153,33 +126,16 @@ export function PendenciasList() {
                 >
                   {formatCurrency(p.valor)}
                 </span>
-                <div className="flex shrink-0 gap-1">
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-6 w-6"
-                    title="Visualizar no módulo financeiro"
-                    aria-label={`Visualizar lançamento ${p.descricao}`}
-                    onClick={() =>
-                      navigate(`/financeiro?tipo=${p.tipo}`, {
-                        state: { lancamentoId: p.id },
-                      })
-                    }
-                  >
-                    <Eye className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-6 w-6 text-success hover:text-success"
-                    title="Marcar como pago"
-                    aria-label={`Marcar como pago: ${p.descricao}`}
-                    disabled={markPaidMutation.isPending}
-                    onClick={() => markPaidMutation.mutate(p.id)}
-                  >
-                    <Check className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-6 w-6 shrink-0"
+                  title="Abrir no módulo financeiro"
+                  aria-label={`Abrir lançamento ${p.descricao} no financeiro`}
+                  onClick={() => navigate(`/financeiro/${p.id}`)}
+                >
+                  <Eye className="h-3.5 w-3.5" />
+                </Button>
               </div>
             );
           })}

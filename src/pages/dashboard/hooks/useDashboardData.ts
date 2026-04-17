@@ -15,7 +15,11 @@ interface DashboardDataState {
   faturamento: FaturamentoStats;
   recentOrcamentos: RecentOrcamento[];
   backlogOVs: BacklogOv[];
+  /** Real total count of OVs awaiting faturamento (not capped by the preview list). */
+  backlogOVsCount: number;
   comprasAguardando: CompraAguardando[];
+  /** Real count of compras with an overdue delivery date. */
+  comprasAtrasadasCount: number;
   estoqueBaixo: ProdRow[];
   fiscalStats: FiscalStats;
   vencimentosHoje: { receber: number; pagar: number };
@@ -41,10 +45,12 @@ const INITIAL_STATE: DashboardDataState = {
     totalReceber: 0,
     totalPagar: 0,
   },
-  faturamento: { mesAtual: 0, mesAnterior: 0 },
+  faturamento: { mesAtual: 0, mesAnterior: 0, nfAtualCount: 0 },
   recentOrcamentos: [],
   backlogOVs: [],
+  backlogOVsCount: 0,
   comprasAguardando: [],
+  comprasAtrasadasCount: 0,
   estoqueBaixo: [],
   fiscalStats: { emitidas: 0, pendentes: 0, canceladas: 0, valorEmitidas: 0 },
   vencimentosHoje: { receber: 0, pagar: 0 },
@@ -97,7 +103,9 @@ export function useDashboardData() {
         faturamento: comercial.faturamento,
         recentOrcamentos: comercial.recentOrcamentos,
         backlogOVs: comercial.backlogOVs,
+        backlogOVsCount: comercial.backlogOVsCount,
         comprasAguardando: aux.comprasAguardando,
+        comprasAtrasadasCount: aux.comprasAtrasadasCount,
         estoqueBaixo: estoque.estoqueBaixo,
         fiscalStats: fiscal.fiscalStats,
         vencimentosHoje: financeiro.vencimentosHoje,
@@ -118,9 +126,14 @@ export function useDashboardData() {
     }
   }, [loadAuxData, loadComercialData, loadEstoqueData, loadFinanceiroData, loadFiscalData]);
 
+  /**
+   * Ticket médio = faturamento confirmado no mês ÷ número de NFs emitidas no mês.
+   * Usar a contagem de NFs (não de orçamentos) garante que numerador e denominador
+   * venham da mesma janela e da mesma fonte de dados.
+   */
   const ticketMedio = useMemo(
-    () => (state.stats.orcamentos > 0 ? state.faturamento.mesAtual / state.stats.orcamentos : 0),
-    [state.faturamento.mesAtual, state.stats.orcamentos],
+    () => (state.faturamento.nfAtualCount > 0 ? state.faturamento.mesAtual / state.faturamento.nfAtualCount : 0),
+    [state.faturamento.mesAtual, state.faturamento.nfAtualCount],
   );
 
   return {

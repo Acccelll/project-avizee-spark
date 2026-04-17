@@ -36,7 +36,10 @@ export function DashboardPeriodProvider({ children }: { children: ReactNode }) {
     }
     if (period === "week") {
       const first = new Date(now);
-      first.setDate(now.getDate() - now.getDay());
+      // Start on Monday (ISO week convention – avoids Sunday-anchor confusion).
+      const day = now.getDay();
+      const diffToMonday = day === 0 ? -6 : 1 - day;
+      first.setDate(now.getDate() + diffToMonday);
       return { dateFrom: toIso(first), dateTo: toIso(now) };
     }
     if (period === "month") {

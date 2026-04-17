@@ -60,7 +60,7 @@ const DashboardContent = () => {
   const { profile } = useAuth();
   const { metas } = useMetas();
 
-  const [metricDrawer, setMetricDrawer] = useState<null | "receber" | "estoque" | "vendas">(null);
+  const [metricDrawer, setMetricDrawer] = useState<null | "receber" | "estoque">(null);
 
   const {
     stats,
@@ -68,7 +68,9 @@ const DashboardContent = () => {
     loadedAt,
     loadData,
     backlogOVs,
+    backlogOVsCount,
     comprasAguardando,
+    comprasAtrasadasCount,
     dailyPagar,
     dailyReceber,
     dailyVendas,
@@ -140,7 +142,7 @@ const DashboardContent = () => {
                 vencimentosHoje.receber > 0 && vencimentosHoje.pagar > 0 ? " e " : ""
               }${vencimentosHoje.pagar > 0 ? `${vencimentosHoje.pagar} pagamento${vencimentosHoje.pagar > 1 ? "s" : ""}` : ""} vencendo hoje.`
             : "Sem vencimentos para hoje."}
-          {backlogOVs.length > 0 && ` · ${backlogOVs.length} pedido${backlogOVs.length > 1 ? "s" : ""} aguardando faturamento.`}
+          {backlogOVsCount > 0 && ` · ${backlogOVsCount} pedido${backlogOVsCount > 1 ? "s" : ""} aguardando faturamento.`}
         </p>
       </div>
 
@@ -155,12 +157,9 @@ const DashboardContent = () => {
           titulosVencidos={stats.contasVencidas}
           estoqueBaixo={estoqueBaixo.length}
           remessasAtrasadas={remessasAtrasadas}
-          comprasAguardando={comprasAguardando.filter((c) => {
-            if (!c.data_entrega_prevista) return false;
-            return new Date(c.data_entrega_prevista) < new Date();
-          }).length}
+          comprasAtrasadas={comprasAtrasadasCount}
           notasPendentes={fiscalStats.pendentes}
-          ovsPendentes={backlogOVs.length}
+          ovsPendentes={backlogOVsCount}
         />
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -210,7 +209,7 @@ const DashboardContent = () => {
           <BlockErrorBoundary label="Comercial">
             <ComercialBlock
               cotacoesAbertas={stats.orcamentos}
-              pedidosPendentes={backlogOVs.length}
+              pedidosPendentes={backlogOVsCount}
               ticketMedio={ticketMedio}
               recentOrcamentos={recentOrcamentos}
               loading={loading}

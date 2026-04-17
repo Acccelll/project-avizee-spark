@@ -17,15 +17,25 @@ export function useDashboardFiscalData() {
     const now = new Date();
     const inicioMes = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
 
-    const { data: nfStatsRows } = await supabase
-      .from("notas_fiscais")
-      .select("status, valor_total")
-      .eq("ativo", true)
-      .gte("data_emissao", inicioMes);
+    try {
+      const { data: nfStatsRows, error } = await supabase
+        .from("notas_fiscais")
+        .select("status, valor_total")
+        .eq("ativo", true)
+        .gte("data_emissao", inicioMes);
 
-    return {
-      fiscalStats: summarizeFiscalStats((nfStatsRows ?? []) as NfRow[]),
-    };
+      if (error) {
+        console.error("[dashboard:fiscal] erro ao carregar NFs:", error.message);
+        return { fiscalStats: { emitidas: 0, pendentes: 0, canceladas: 0, valorEmitidas: 0 } };
+      }
+
+      return {
+        fiscalStats: summarizeFiscalStats((nfStatsRows ?? []) as NfRow[]),
+      };
+    } catch (error) {
+      console.error("[dashboard:fiscal] erro inesperado:", error);
+      return { fiscalStats: { emitidas: 0, pendentes: 0, canceladas: 0, valorEmitidas: 0 } };
+    }
   }, []);
 
   return { loadFiscalData };

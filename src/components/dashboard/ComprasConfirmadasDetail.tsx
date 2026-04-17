@@ -1,3 +1,10 @@
+/**
+ * @legacy ComprasConfirmadasDetail — parallel purchase detail component.
+ *
+ * This component is NOT rendered by the main Dashboard (Index.tsx).
+ * Purchase data is shown inside {@link LogisticaBlock}.
+ * Keep for reference; do not render in the main flow.
+ */
 import { useNavigate } from 'react-router-dom';
 import { Truck, Clock, AlertTriangle } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/format';
