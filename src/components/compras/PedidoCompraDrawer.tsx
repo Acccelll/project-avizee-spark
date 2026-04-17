@@ -680,20 +680,18 @@ export function PedidoCompraDrawer({
           onRejeitar?.(selected, rejectMotivo.trim());
         }}
         title="Rejeitar pedido"
-        description={
-          <div className="space-y-2">
-            <p>Informe o motivo da rejeição do pedido {pedidoNumero(selected)}:</p>
-            <textarea
-              value={rejectMotivo}
-              onChange={(e) => setRejectMotivo(e.target.value)}
-              className="w-full min-h-20 rounded-md border border-input bg-background p-2 text-sm"
-              placeholder="Ex: valor acima do orçamento aprovado"
-            />
-          </div>
-        }
+        description={`Informe o motivo da rejeição do pedido ${pedidoNumero(selected)}:`}
         confirmLabel="Rejeitar"
         confirmVariant="destructive"
-      />
+        confirmDisabled={!rejectMotivo.trim()}
+      >
+        <textarea
+          value={rejectMotivo}
+          onChange={(e) => setRejectMotivo(e.target.value)}
+          className="w-full min-h-20 rounded-md border border-input bg-background p-2 text-sm"
+          placeholder="Ex: valor acima do orçamento aprovado"
+        />
+      </ConfirmDialog>
     </>
   );
 }
