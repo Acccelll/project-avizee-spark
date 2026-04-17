@@ -137,12 +137,11 @@ const Produtos = () => {
     Promise.all([
       supabase.from("grupos_produto").select("id, nome").eq("ativo", true).order("nome"),
       supabase.from("fornecedores").select("id, nome_razao_social").eq("ativo", true).order("nome_razao_social"),
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- unidades_medida not in generated Supabase types
-      (supabase as any).from("unidades_medida").select("id, codigo, descricao, sigla").eq("ativo", true).order("codigo"),
+      supabase.from("unidades_medida").select("id, codigo, descricao, sigla").eq("ativo", true).order("codigo"),
     ]).then(([{ data: g }, { data: f }, { data: um }]) => {
       if (g) setGrupos(g);
       if (f) setFornecedoresList(f);
-      if (um) setUnidadesMedida(um as unknown as UnidadeMedidaOption[]);
+      if (um) setUnidadesMedida(um as UnidadeMedidaOption[]);
     });
   }, []);
 
@@ -309,8 +308,7 @@ const Produtos = () => {
     if (!descricao) { toast.error("Descrição é obrigatória"); return; }
     setSavingNovaUnidade(true);
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- unidades_medida not in generated Supabase types
-      const { data: inserted, error } = await (supabase as any)
+      const { data: inserted, error } = await supabase
         .from("unidades_medida")
         .insert({ codigo, descricao, sigla: novaUnidadeForm.sigla.trim() || null, ativo: true })
         .select("id, codigo, descricao, sigla")
