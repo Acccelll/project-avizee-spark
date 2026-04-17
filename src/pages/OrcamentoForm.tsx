@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+import type { Json } from "@/integrations/supabase/types";
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -179,8 +179,10 @@ export default function OrcamentoForm() {
       const lastPurchase = [...fornecedores]
         .filter((row) => row.preco_compra && Number(row.preco_compra) > 0)
         .sort((a, b) => {
-          const dateA = (a as any).ultima_compra ? new Date((a as any).ultima_compra).getTime() : 0;
-          const dateB = (b as any).ultima_compra ? new Date((b as any).ultima_compra).getTime() : 0;
+          const ua = (a as { ultima_compra?: string | null }).ultima_compra;
+          const ub = (b as { ultima_compra?: string | null }).ultima_compra;
+          const dateA = ua ? new Date(ua).getTime() : 0;
+          const dateB = ub ? new Date(ub).getTime() : 0;
           return dateB - dateA;
         })[0];
 
@@ -272,29 +274,28 @@ export default function OrcamentoForm() {
               observacoes: orc.observacoes || '',
               observacoesInternas: orc.observacoes_internas || '',
               validade: orc.validade || '',
-              desconto: (orc as any).desconto || 0,
-              impostoSt: (orc as any).imposto_st || 0,
-              impostoIpi: (orc as any).imposto_ipi || 0,
+              desconto: orc.desconto || 0,
+              impostoSt: orc.imposto_st || 0,
+              impostoIpi: orc.imposto_ipi || 0,
               freteValor: orc.frete_valor || 0,
-              outrasDespesas: (orc as any).outras_despesas || 0,
+              outrasDespesas: orc.outras_despesas || 0,
               pagamento: orc.pagamento || '',
               prazoPagamento: orc.prazo_pagamento || '',
               prazoEntrega: orc.prazo_entrega || '',
               freteTipo: orc.frete_tipo || '',
               modalidade: orc.modalidade || '',
             });
-            if (orc.cliente_snapshot) setClienteSnapshot(orc.cliente_snapshot as any);
-            // Load frete simulator state
-            const orcAny = orc as Record<string, unknown>;
-            if (orcAny.frete_simulacao_id) setFreteSimulacaoId(orcAny.frete_simulacao_id as string);
-            if (orcAny.transportadora_id) setFreteTransportadoraId(orcAny.transportadora_id as string);
-            if (orcAny.origem_frete) setFreteOrigemFrete(orcAny.origem_frete as string);
-            if (orcAny.servico_frete) setFreteServico(orcAny.servico_frete as string);
-            if (orcAny.prazo_entrega_dias != null) setFretePrazoEntregaDias(orcAny.prazo_entrega_dias as number);
-            if (orcAny.volumes != null) setFreteVolumes(orcAny.volumes as number);
-            if (orcAny.altura_cm != null) setFreteAlturaCm(orcAny.altura_cm as number);
-            if (orcAny.largura_cm != null) setFreteLarguraCm(orcAny.largura_cm as number);
-            if (orcAny.comprimento_cm != null) setFreteComprimentoCm(orcAny.comprimento_cm as number);
+            if (orc.cliente_snapshot) setClienteSnapshot(orc.cliente_snapshot as unknown as ClienteSnapshot);
+            // Load frete simulator state (colunas tipadas)
+            if (orc.frete_simulacao_id) setFreteSimulacaoId(orc.frete_simulacao_id);
+            if (orc.transportadora_id) setFreteTransportadoraId(orc.transportadora_id);
+            if (orc.origem_frete) setFreteOrigemFrete(orc.origem_frete);
+            if (orc.servico_frete) setFreteServico(orc.servico_frete);
+            if (orc.prazo_entrega_dias != null) setFretePrazoEntregaDias(orc.prazo_entrega_dias);
+            if (orc.volumes != null) setFreteVolumes(orc.volumes);
+            if (orc.altura_cm != null) setFreteAlturaCm(orc.altura_cm);
+            if (orc.largura_cm != null) setFreteLarguraCm(orc.largura_cm);
+            if (orc.comprimento_cm != null) setFreteComprimentoCm(orc.comprimento_cm);
             const { data: itensData } = await supabase.from("orcamentos_itens").select("*").eq("orcamento_id", id);
             if (itensData) setItems(itensData);
           } else {
@@ -315,7 +316,7 @@ export default function OrcamentoForm() {
 
   const handleClienteChange = useCallback((cId: string) => {
     setValue('clienteId', cId);
-    const c = clientes.find((cl) => cl.id === cId) as unknown as Record<string, string> | undefined;
+    const c = clientes.find((cl) => cl.id === cId);
     if (c) {
       setClienteSnapshot({
         nome_razao_social: c.nome_razao_social || "", nome_fantasia: c.nome_fantasia || "",
@@ -323,7 +324,7 @@ export default function OrcamentoForm() {
         email: c.email || "", telefone: c.telefone || "", celular: c.celular || "",
         contato: c.contato || "", logradouro: c.logradouro || "", numero: c.numero || "",
         bairro: c.bairro || "", cidade: c.cidade || "", uf: c.uf || "",
-        cep: c.cep || "", codigo: (c.id as string)?.substring(0, 6) || "",
+        cep: c.cep || "", codigo: c.id?.substring(0, 6) || "",
       });
       // Auto-fill payment preferences from client
       if (c.forma_pagamento_padrao && !pagamento) setValue('pagamento', c.forma_pagamento_padrao);
@@ -442,8 +443,8 @@ export default function OrcamentoForm() {
       payload,
     };
 
-    await (supabase.from("app_configuracoes") as any).upsert(
-      { chave: key, valor: templateRecord, updated_at: new Date().toISOString() },
+    await supabase.from("app_configuracoes").upsert(
+      { chave: key, valor: templateRecord as unknown as Json, updated_at: new Date().toISOString() },
       { onConflict: "chave" },
     );
     toast.success("Template salvo");
@@ -537,8 +538,8 @@ export default function OrcamentoForm() {
 
       const { data: orcId, error } = await supabase.rpc('salvar_orcamento', {
         p_id: isEdit ? id : null,
-        p_payload: payload as any,
-        p_itens: itemsPayload as any,
+        p_payload: payload as unknown as Json,
+        p_itens: itemsPayload as unknown as Json,
       });
       if (error) throw error;
 
@@ -602,8 +603,8 @@ export default function OrcamentoForm() {
 
       const { data: orcId, error } = await supabase.rpc('salvar_orcamento', {
         p_id: null,
-        p_payload: payload as any,
-        p_itens: itemsPayload as any,
+        p_payload: payload as unknown as Json,
+        p_itens: itemsPayload as unknown as Json,
       });
       if (error) throw error;
 
@@ -698,16 +699,16 @@ export default function OrcamentoForm() {
 
   useEffect(() => {
     supabase.from('empresa_config').select('*').limit(1).single().then(({ data }) => {
-      if (data) setEmpresaConfig(data as any);
+      if (data) setEmpresaConfig(data as unknown as Record<string, string>);
     });
   }, []);
 
-  const clienteOptions = clientes.map((c: any) => ({
+  const clienteOptions = clientes.map((c) => ({
     id: c.id,
     label: c.nome_razao_social,
     sublabel: `${c.cpf_cnpj || "sem documento"} ${Number(c.limite_credito || 0) > 10000 ? "· Cliente Premium - 10% desconto" : ""}`.trim(),
     rightMeta: c.cidade ? `${c.cidade}/${c.uf || ""}` : undefined,
-    searchTerms: [c.nome_razao_social, c.nome_fantasia, c.cpf_cnpj].filter(Boolean),
+    searchTerms: [c.nome_razao_social, c.nome_fantasia, c.cpf_cnpj].filter(Boolean) as string[],
   }));
 
   return (
