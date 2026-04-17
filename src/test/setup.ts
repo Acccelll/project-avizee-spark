@@ -31,7 +31,8 @@ if (typeof globalThis.IntersectionObserver === "undefined") {
       this.callback(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         [{ isIntersecting: true, target, intersectionRatio: 1 } as any],
-        this as unknown as IntersectionObserver,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        this as any,
       );
     }
     unobserve() {}
