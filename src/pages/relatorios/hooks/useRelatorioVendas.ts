@@ -21,7 +21,7 @@ export function useRelatorioVendas(filters: VendasFilters = {}) {
   const { agrupamento, ...filtros } = filters;
 
   return useRelatorio<RelatorioVendasResult>("vendas", filtros, (data) => {
-    const rows = data.rows as VendasRow[];
+    const rows = data.rows as unknown as VendasRow[];
     return {
       ...data,
       vendasPorPeriodo: agruparVendasPorPeriodo(rows, agrupamento ?? "mes"),

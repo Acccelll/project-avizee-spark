@@ -16,7 +16,8 @@ Object.defineProperty(window, "matchMedia", {
 
 // jsdom does not implement IntersectionObserver
 if (typeof globalThis.IntersectionObserver === "undefined") {
-  globalThis.IntersectionObserver = class IntersectionObserver {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (globalThis as any).IntersectionObserver = class IntersectionObserver {
     readonly root: Element | null = null;
     readonly rootMargin: string = "0px";
     readonly thresholds: ReadonlyArray<number> = [0];
@@ -27,10 +28,11 @@ if (typeof globalThis.IntersectionObserver === "undefined") {
     }
 
     observe(target: Element) {
-      // Immediately report the element as intersecting so lazy widgets render in tests
       this.callback(
-        [{ isIntersecting: true, target, intersectionRatio: 1 } as IntersectionObserverEntry],
-        this as unknown as IntersectionObserver,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        [{ isIntersecting: true, target, intersectionRatio: 1 } as any],
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        this as any,
       );
     }
     unobserve() {}

@@ -20,7 +20,7 @@ async function fetchRecebimentos(): Promise<Recebimento[]> {
     supabase
       .from("pedidos_compra")
       .select(
-        "id,numero,fornecedor_id,data_entrega_prevista,data_entrega_real,status,usuario_id,updated_at",
+        "id,numero,fornecedor_id,data_entrega_prevista,data_entrega_real,status,usuario_id,updated_at" as never,
       )
       .eq("ativo", true),
     supabase.from("pedidos_compra_itens").select("pedido_compra_id,quantidade"),
@@ -39,10 +39,6 @@ async function fetchRecebimentos(): Promise<Recebimento[]> {
     );
   });
 
-  // Status mapping from Compras domain to Logística display status.
-  // NOTE: This view does NOT substitute the real receiving process in Compras.
-  // The status shown here is READ-ONLY from the Compras domain; changes to
-  // receiving must be performed via the Compras module.
   const comprasStatusToLogistico: Record<string, string> = {
     rascunho:              "pedido_emitido",
     aprovado:              "pedido_emitido",
@@ -53,18 +49,25 @@ async function fetchRecebimentos(): Promise<Recebimento[]> {
     cancelado:             "cancelado",
   };
 
-  return (comprasRes.data ?? []).map((compra) => {
+  type CompraRow = {
+    id: string;
+    numero: string | null;
+    fornecedor_id: string | null;
+    data_entrega_prevista: string | null;
+    data_entrega_real: string | null;
+    status: string | null;
+    usuario_id: string | null;
+  };
+  const compras = (comprasRes.data ?? []) as unknown as CompraRow[];
+
+  return compras.map((compra) => {
     const qtdPedida = qtyByCompra.get(compra.id) ?? 0;
 
-    // Derive received quantity from the Compras status domain — no binary hack.
-    // "recebido" → full quantity; "parcialmente_recebido" → approximate 50%;
-    // otherwise 0 (we cannot know the real amount without a dedicated column).
     const comprasStatus = compra.status ?? "rascunho";
     let qtdRecebida = 0;
     if (comprasStatus === "recebido") {
       qtdRecebida = qtdPedida;
     } else if (comprasStatus === "parcialmente_recebido") {
-      // Best-effort approximation until a real quantidade_recebida column is added.
       qtdRecebida = Math.round(qtdPedida / 2);
     }
     const pendencia = Math.max(0, qtdPedida - qtdRecebida);

@@ -27,7 +27,7 @@ export interface RelatorioAgingResult extends RelatorioResultado {
 export function useRelatorioAging(filters: FinanceiroFilters = {}) {
   return useRelatorio<RelatorioAgingResult>("aging", filters, (data) => ({
     ...data,
-    agingPorFaixa: agruparAgingPorFaixa(data.rows as AgingRow[]),
+    agingPorFaixa: agruparAgingPorFaixa(data.rows as unknown as AgingRow[]),
   }));
 }
 

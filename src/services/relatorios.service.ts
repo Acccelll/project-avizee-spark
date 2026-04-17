@@ -178,10 +178,10 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
         else if (min > 0 && qty <= min) criticidade = "Abaixo do mínimo";
         else criticidade = "OK";
         return {
-          codigo: item.codigo_interno || "-",
-          produto: item.nome,
-          grupo: item.grupos_produto?.nome || "-",
-          unidade: item.unidade_medida || "UN",
+          codigo: (item.codigo_interno as string | null) || "-",
+          produto: item.nome as string,
+          grupo: ((item.grupos_produto as { nome?: string } | null)?.nome) || "-",
+          unidade: (item.unidade_medida as string | null) || "UN",
           estoqueAtual: qty,
           estoqueMinimo: min,
           criticidade,
@@ -229,12 +229,12 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
 
       const rows = (data || []).map((item: Record<string, unknown>) => ({
         data: item.created_at,
-        produto: item.produtos?.nome || "-",
-        codigo: item.produtos?.codigo_interno || "-",
-        tipo: item.tipo || item.tipo_movimento || "-",
+        produto: ((item.produtos as { nome?: string } | null)?.nome) || "-",
+        codigo: ((item.produtos as { codigo_interno?: string } | null)?.codigo_interno) || "-",
+        tipo: item.tipo || (item as Record<string, unknown>).tipo_movimento || "-",
         quantidade: Number(item.quantidade || 0),
         saldoAnterior: Number(item.saldo_anterior || 0),
-        saldoAtual: Number(item.saldo_atual || item.saldo_apos || 0),
+        saldoAtual: Number(item.saldo_atual || (item as Record<string, unknown>).saldo_apos || 0),
         documento: item.documento_tipo || "-",
         motivo: item.motivo || "-",
       }));
@@ -289,13 +289,13 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
         const valorEmAberto = item.saldo_restante != null
           ? Number(item.saldo_restante)
           : item.status === 'pago' ? 0 : valor;
-        const venc = item.data_vencimento ? new Date(item.data_vencimento) : null;
+        const venc = item.data_vencimento ? new Date(item.data_vencimento as string) : null;
         const atraso = (venc && item.status !== 'pago' && venc < hoje)
           ? Math.floor((hoje.getTime() - venc.getTime()) / (1000 * 60 * 60 * 24))
           : 0;
         const parceiro = item.tipo === 'receber'
-          ? item.clientes?.nome_razao_social || '-'
-          : item.fornecedores?.nome_razao_social || '-';
+          ? ((item.clientes as { nome_razao_social?: string } | null)?.nome_razao_social) || '-'
+          : ((item.fornecedores as { nome_razao_social?: string } | null)?.nome_razao_social) || '-';
         return {
           tipo: item.tipo === 'receber' ? 'Receber' : 'Pagar',
           parceiro,
@@ -403,11 +403,11 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
 
       const rows = (data || []).map((item: Record<string, unknown>) => ({
         numero: item.numero,
-        cliente: item.clientes?.nome_razao_social || "-",
+        cliente: ((item.clientes as { nome_razao_social?: string } | null)?.nome_razao_social) || "-",
         emissao: item.data_emissao,
         valor: Number(item.valor_total || 0),
         status: item.status || "-",
-        faturamento: item.faturamento_status || item.status_faturamento || "-",
+        faturamento: (item as Record<string, unknown>).faturamento_status || item.status_faturamento || "-",
       }));
 
       const totalVendido = rows.reduce((s, r) => s + r.valor, 0);
@@ -603,12 +603,12 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
 
       // CMV: lançamentos pagar com NF vinculada OU descrição contendo "compra"
       const cmv = (pagos || []).filter((p: Record<string, unknown>) =>
-        p.nota_fiscal_id || (p.descricao || "").toLowerCase().includes("compra")
+        p.nota_fiscal_id || ((p.descricao as string | null) || "").toLowerCase().includes("compra")
       ).reduce((s: number, p: Record<string, unknown>) => s + Number(p.valor || 0), 0);
 
       // Despesas Operacionais: demais lançamentos pagar
       const despesasOp = (pagos || []).filter((p: Record<string, unknown>) =>
-        !p.nota_fiscal_id && !(p.descricao || "").toLowerCase().includes("compra")
+        !p.nota_fiscal_id && !((p.descricao as string | null) || "").toLowerCase().includes("compra")
       ).reduce((s: number, p: Record<string, unknown>) => s + Number(p.valor || 0), 0);
 
       const lucroBruto = receitaLiquida - cmv;

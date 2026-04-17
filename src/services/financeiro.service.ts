@@ -119,7 +119,8 @@ async function ensureInsertBaixa(item: BaixaPlanItem, params: BaixaLoteParams) {
     .maybeSingle();
 
   if (error) throw error;
-  if (!data?.id) {
+  const inserted = data as { id?: string } | null;
+  if (!inserted?.id) {
     throw new Error(`Falha ao inserir baixa para lançamento ${item.id}.`);
   }
 }
