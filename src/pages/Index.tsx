@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -39,6 +39,21 @@ import { useDashboardDrawerData } from "@/pages/dashboard/hooks/useDashboardDraw
 const VendasChart = lazy(() =>
   import("@/components/dashboard/VendasChart").then((m) => ({ default: m.VendasChart })),
 );
+
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Bom dia";
+  if (hour < 18) return "Boa tarde";
+  return "Boa noite";
+}
+
+function formatVencimentosHoje(receber: number, pagar: number): string {
+  if (receber === 0 && pagar === 0) return "Sem vencimentos para hoje.";
+  const partes: string[] = [];
+  if (receber > 0) partes.push(`${receber} recebimento${receber > 1 ? "s" : ""}`);
+  if (pagar > 0) partes.push(`${pagar} pagamento${pagar > 1 ? "s" : ""}`);
+  return `Você tem ${partes.join(" e ")} vencendo hoje.`;
+}
 
 function LazyInViewWidget({
   children,
@@ -89,12 +104,7 @@ const DashboardContent = () => {
     loadData();
   }, [loadData]);
 
-  const greeting = useMemo(() => {
-    const hour = new Date().getHours();
-    if (hour < 12) return "Bom dia";
-    if (hour < 18) return "Boa tarde";
-    return "Boa noite";
-  }, []);
+  const greeting = getGreeting();
 
   const { kpiCards, saldoProjetado } = useDashboardKpis({
     metas,
@@ -137,11 +147,7 @@ const DashboardContent = () => {
           {greeting}, {profile?.nome?.split(" ")[0] || "time"} 👋
         </p>
         <p className="text-xs text-muted-foreground mt-0.5">
-          {vencimentosHoje.receber > 0 || vencimentosHoje.pagar > 0
-            ? `Você tem ${vencimentosHoje.receber > 0 ? `${vencimentosHoje.receber} recebimento${vencimentosHoje.receber > 1 ? "s" : ""}` : ""}${
-                vencimentosHoje.receber > 0 && vencimentosHoje.pagar > 0 ? " e " : ""
-              }${vencimentosHoje.pagar > 0 ? `${vencimentosHoje.pagar} pagamento${vencimentosHoje.pagar > 1 ? "s" : ""}` : ""} vencendo hoje.`
-            : "Sem vencimentos para hoje."}
+          {formatVencimentosHoje(vencimentosHoje.receber, vencimentosHoje.pagar)}
           {backlogOVsCount > 0 && ` · ${backlogOVsCount} pedido${backlogOVsCount > 1 ? "s" : ""} aguardando faturamento.`}
         </p>
       </div>
@@ -217,7 +223,7 @@ const DashboardContent = () => {
           </BlockErrorBoundary>
           <BlockErrorBoundary label="Estoque">
             <EstoqueBlock
-              itensBaixoMinimo={estoqueBaixo as unknown as Parameters<typeof EstoqueBlock>[0]['itensBaixoMinimo']}
+              itensBaixoMinimo={estoqueBaixo}
               valorTotalEstoque={valorEstoque}
               totalProdutosAtivos={stats.produtos}
             />

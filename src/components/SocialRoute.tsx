@@ -19,5 +19,5 @@ export function SocialRoute({ children }: { children: ReactNode }) {
   const permissions = getSocialPermissionFlags(roles);
   if (!permissions.canViewModule) return <Navigate to="/" replace />;
 
-  return <>{children}</>;
+  return children;
 }

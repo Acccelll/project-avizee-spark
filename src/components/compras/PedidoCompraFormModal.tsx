@@ -30,8 +30,8 @@ interface PedidoCompraFormModalProps {
   onClose: () => void;
   mode: "create" | "edit";
   selected: PedidoCompra | null;
-  form: Record<string, string>;
-  setForm: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  form: PedidoCompraForm;
+  setForm: React.Dispatch<React.SetStateAction<PedidoCompraForm>>;
   items: GridItem[];
   setItems: React.Dispatch<React.SetStateAction<GridItem[]>>;
   saving: boolean;

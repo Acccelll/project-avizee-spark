@@ -645,7 +645,7 @@ export function PedidoCompraDrawer({
         }}
         title="Cancelar pedido de compra"
         description={`Cancelar o pedido ${pedidoNumero(selected)}? Esta ação não pode ser desfeita.`}
-        confirmText="Cancelar pedido"
+        confirmLabel="Cancelar pedido"
         confirmVariant="destructive"
       />
     </>

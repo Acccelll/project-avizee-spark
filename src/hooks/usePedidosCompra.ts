@@ -53,7 +53,7 @@ interface FinanceiroLancRow {
   tipo: string | null;
 }
 
-interface PedidoCompraForm {
+export interface PedidoCompraForm {
   fornecedor_id: string;
   data_pedido: string;
   data_entrega_prevista: string;
