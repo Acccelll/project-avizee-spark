@@ -143,6 +143,10 @@ export default function PedidosCompra() {
           onSend={ctx.marcarEnviado}
           onReceive={ctx.darEntrada}
           onCancel={ctx.cancelarPedido}
+          onSolicitarAprovacao={ctx.solicitarAprovacao}
+          onAprovar={ctx.aprovarPedido}
+          onRejeitar={ctx.rejeitarPedido}
+          isAdmin={isAdmin}
           statusLabels={statusLabels}
         />
       )}
