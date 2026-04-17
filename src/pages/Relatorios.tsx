@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import type React from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { AppLayout } from '@/components/AppLayout';
 import { ModulePage } from '@/components/ModulePage';
 import { SummaryCard } from '@/components/SummaryCard';
@@ -20,7 +21,7 @@ import { useRelatoriosFiltrosData } from '@/pages/relatorios/hooks/useRelatorios
 import { useRelatoriosFavoritos } from '@/hooks/useRelatoriosFavoritos';
 import { cn } from '@/lib/utils';
 import { BookmarkPlus, BookOpen, ChevronLeft, Columns, Download, RefreshCcw, Hash, FileText, Eye, FileSpreadsheet, Layers, Trash2 } from 'lucide-react';
-import { exportarParaCsv, exportarParaExcel, exportarParaPdf } from '@/services/export.service';
+import { exportarParaCsv, exportarParaExcel, exportarParaPdf, type ExportColumnDef } from '@/services/export.service';
 import { filtrarPorStatus, sortarRows } from '@/utils/relatorios';
 import { reportConfigs, reportCategoryMeta, type ReportCategory } from '@/config/relatoriosConfig';
 import { formatCurrency, formatNumber, formatDate } from '@/lib/format';
@@ -48,7 +49,6 @@ function buildDreDateRange(state: FiltrosRelatorioState, dataInicio: string, dat
 
 export default function Relatorios() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const navigate = useNavigate();
 
   // ── All filter state is derived from / synced to URL params ──────────────
   const tipo = (searchParams.get('tipo') as TipoRelatorio) || '';
@@ -170,6 +170,21 @@ export default function Relatorios() {
 
   const visibleColumns = useMemo(() => columns.filter((c) => !hiddenColumns.includes(c.key)), [columns, hiddenColumns]);
 
+  /**
+   * Column definitions for export — ordered, labeled and typed from the report config,
+   * filtered to only visible columns. This ensures CSV/Excel/PDF match exactly what
+   * the user sees on screen.
+   */
+  const exportColumnDefs = useMemo<ExportColumnDef[] | undefined>(() => {
+    if (!tipo || !selectedMeta) return undefined;
+    const cfgCols = selectedMeta.columns;
+    if (!cfgCols.length) return undefined;
+    return visibleColumns.map((vc) => {
+      const cfgCol = cfgCols.find((c) => c.key === vc.key);
+      return { key: vc.key, label: vc.label, format: cfgCol?.format };
+    });
+  }, [visibleColumns, tipo, selectedMeta]);
+
   const handleSelectTipo = (next: TipoRelatorio) => {
     setHiddenColumns([]);
     // Reset all filter params, keep only the new tipo
@@ -177,26 +192,33 @@ export default function Relatorios() {
   };
 
   const handleExportCsv = () => {
-    exportarParaCsv({ titulo: resultado?.title || String(tipo), rows });
+    if (!sortedRows.length) { toast.warning('Nenhum dado visível para exportar.'); return; }
+    exportarParaCsv({ titulo: resultado?.title || String(tipo), rows: sortedRows, columns: exportColumnDefs });
     toast.success('Exportação CSV iniciada.');
   };
   const handleExportPdf = async () => {
-    if (rows.length > 200) toast.warning(`PDF limitado a 200 de ${rows.length} registros. Use Excel para tudo.`, { duration: 8000 });
-    await exportarParaPdf({ titulo: resultado?.title || String(tipo), rows, empresa: empresaConfig, dataInicio, dataFim, resultado });
+    if (!sortedRows.length) { toast.warning('Nenhum dado visível para exportar.'); return; }
+    if (sortedRows.length > 200) toast.warning(`PDF limitado a 200 de ${sortedRows.length} registros. Use Excel para tudo.`, { duration: 8000 });
+    await exportarParaPdf({ titulo: resultado?.title || String(tipo), rows: sortedRows, columns: exportColumnDefs, empresa: empresaConfig, dataInicio, dataFim, resultado });
     toast.success('PDF gerado com sucesso!');
   };
   const handleExportXlsx = async () => {
-    await exportarParaExcel({ titulo: resultado?.title || String(tipo), rows });
+    if (!sortedRows.length) { toast.warning('Nenhum dado visível para exportar.'); return; }
+    await exportarParaExcel({ titulo: resultado?.title || String(tipo), rows: sortedRows, columns: exportColumnDefs });
     toast.success('Excel gerado com sucesso!');
   };
 
   const handleSalvarFavorito = () => {
     const name = saveName.trim();
     if (!name) return;
-    salvarFavorito(name, searchParams);
+    const saved = salvarFavorito(name, searchParams);
     setSaveName('');
     setSaveNameOpen(false);
-    toast.success(`Configuração "${name}" salva com sucesso!`);
+    if (saved) {
+      toast.success(`Configuração "${name}" salva com sucesso!`);
+    } else {
+      toast.warning(`Já existe uma configuração com o nome "${name}".`);
+    }
   };
 
   const handleCarregarFavorito = (params: string) => {
@@ -205,13 +227,12 @@ export default function Relatorios() {
   };
 
   /**
-   * Drill-down: clicking a chart segment navigates to a more specific report.
-   * For "vendas" reports, navigates to the same page with the period filtered to
-   * that bar's label (month/week/day). For other reports it shows a toast hint.
+   * Drill-down: clicking a chart segment navigates to a more specific sub-report.
+   * Uses URL search params so the new report is bookmarkable and the state is not
+   * lost on refresh. Period filters are preserved across the drill-down.
    */
   const handleChartDrillDown = (point: { name: string; value: number }) => {
     if (!tipo) return;
-    // Determine drill-down destination based on current report type
     const drillMap: Partial<Record<TipoRelatorio, TipoRelatorio>> = {
       vendas: 'vendas_cliente',
       faturamento: 'vendas_cliente',
@@ -220,9 +241,11 @@ export default function Relatorios() {
     };
     const target = drillMap[tipo as TipoRelatorio];
     if (target) {
-      navigate(`/relatorios?tipo=${target}`, {
-        state: { drillFrom: tipo, drillLabel: point.name, drillValue: point.value },
-      });
+      // Preserve the current period and navigate to the sub-report
+      const next = new URLSearchParams({ tipo: target });
+      if (dataInicio) next.set('di', dataInicio);
+      if (dataFim) next.set('df', dataFim);
+      setSearchParams(next);
     } else {
       const formattedValue = isQtyReport ? formatNumber(point.value) : formatCurrency(point.value);
       toast.info(`Detalhes: ${point.name} — ${formattedValue}`, { duration: 3000 });
@@ -243,6 +266,7 @@ export default function Relatorios() {
   const selectedMeta = tipo ? reportConfigs[tipo as TipoRelatorio] : undefined;
   const prioritized = Object.values(reportConfigs).filter((r) => r.priority);
   const showEmpty = !isLoading && !isError && sortedRows.length === 0;
+  const hasExportableData = sortedRows.length > 0;
 
   return (
     <AppLayout>
@@ -357,7 +381,7 @@ export default function Relatorios() {
                             </Popover>
                           )}
                           <Button variant="outline" size="sm" onClick={() => refetch()} className="gap-1.5" aria-label="Atualizar dados do relatório"><RefreshCcw className="h-3.5 w-3.5" />Atualizar</Button>
-                          <Button variant="outline" size="sm" onClick={() => setPreviewOpen(true)} disabled={!rows.length} className="gap-1.5" aria-label="Visualizar pré-impressão do relatório"><Eye className="h-3.5 w-3.5" />Visualizar</Button>
+                          <Button variant="outline" size="sm" onClick={() => setPreviewOpen(true)} disabled={!hasExportableData} className="gap-1.5" aria-label="Visualizar pré-impressão do relatório"><Eye className="h-3.5 w-3.5" />Visualizar</Button>
                           {columns.length > 0 && (
                             <Popover>
                               <PopoverTrigger asChild>
@@ -377,9 +401,9 @@ export default function Relatorios() {
                               </PopoverContent>
                             </Popover>
                           )}
-                          <Button variant="outline" size="sm" onClick={handleExportPdf} className="gap-1.5" aria-label="Exportar relatório em PDF"><FileText className="h-3.5 w-3.5" />PDF</Button>
-                          <Button variant="outline" size="sm" onClick={handleExportXlsx} disabled={!rows.length} className="gap-1.5" aria-label="Exportar relatório em Excel"><FileSpreadsheet className="h-3.5 w-3.5" />Excel</Button>
-                          <Button size="sm" onClick={handleExportCsv} className="gap-1.5" aria-label="Exportar relatório em CSV"><Download className="h-3.5 w-3.5" />CSV</Button>
+                          <Button variant="outline" size="sm" onClick={handleExportPdf} className="gap-1.5" disabled={!hasExportableData} aria-label="Exportar relatório em PDF"><FileText className="h-3.5 w-3.5" />PDF</Button>
+                          <Button variant="outline" size="sm" onClick={handleExportXlsx} disabled={!hasExportableData} className="gap-1.5" aria-label="Exportar relatório em Excel"><FileSpreadsheet className="h-3.5 w-3.5" />Excel</Button>
+                          <Button size="sm" onClick={handleExportCsv} disabled={!hasExportableData} className="gap-1.5" aria-label="Exportar relatório em CSV"><Download className="h-3.5 w-3.5" />CSV</Button>
                         </div>
                       </div>
                       {selectedMeta && (
@@ -423,7 +447,7 @@ export default function Relatorios() {
                             })()}
                           </>
                         )}
-                        {showEmpty && <div className="px-4 pb-4 text-xs text-muted-foreground">Nenhum dado encontrado para o filtro atual. Exportações permanecem disponíveis.</div>}
+                        {showEmpty && <div className="px-4 pb-4 text-xs text-muted-foreground">Nenhum dado encontrado para o filtro atual. Ajuste os filtros e atualize. As exportações refletirão o mesmo resultado vazio.</div>}
                       </CardContent>
                     </Card>
 
@@ -447,9 +471,9 @@ export default function Relatorios() {
         title={`${resultado?.title || 'Relatório'} — Pré-visualização`}
         actions={
           <>
-            <Button variant="outline" size="sm" onClick={handleExportPdf} className="gap-1.5" aria-label="Exportar relatório em PDF"><FileText className="h-3.5 w-3.5" />PDF</Button>
-            <Button variant="outline" size="sm" onClick={handleExportXlsx} className="gap-1.5" aria-label="Exportar relatório em Excel"><FileSpreadsheet className="h-3.5 w-3.5" />Excel</Button>
-            <Button size="sm" onClick={handleExportCsv} className="gap-1.5" aria-label="Exportar relatório em CSV"><Download className="h-3.5 w-3.5" />CSV</Button>
+            <Button variant="outline" size="sm" onClick={handleExportPdf} disabled={!hasExportableData} className="gap-1.5" aria-label="Exportar relatório em PDF"><FileText className="h-3.5 w-3.5" />PDF</Button>
+            <Button variant="outline" size="sm" onClick={handleExportXlsx} disabled={!hasExportableData} className="gap-1.5" aria-label="Exportar relatório em Excel"><FileSpreadsheet className="h-3.5 w-3.5" />Excel</Button>
+            <Button size="sm" onClick={handleExportCsv} disabled={!hasExportableData} className="gap-1.5" aria-label="Exportar relatório em CSV"><Download className="h-3.5 w-3.5" />CSV</Button>
           </>
         }
       >
@@ -459,22 +483,29 @@ export default function Relatorios() {
             <p className="text-sm text-muted-foreground">{resultado?.subtitle}</p>
             <p className="text-xs text-muted-foreground mt-1">Período: {periodoLabel}</p>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm border-collapse">
-              <thead>
-                <tr className="bg-muted/50">{visibleColumns.map((col) => <th key={col.key} className="text-left px-3 py-2 font-semibold text-xs text-muted-foreground border-b">{col.label}</th>)}</tr>
-              </thead>
-              <tbody>
-                {rows.map((row, ri) => (
-                  <tr key={ri} className={ri % 2 === 0 ? 'bg-muted/20' : ''}>
-                    {visibleColumns.map((col) => <td key={col.key} className="px-3 py-1.5 border-b border-border/40 text-xs">{formatCellValue(row[col.key], col.key, isQtyReport) as React.ReactNode}</td>)}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          {!hasExportableData ? (
+            <p className="text-sm text-muted-foreground text-center py-6">Nenhum dado disponível para o filtro atual.</p>
+          ) : isDreReport ? (
+            // DRE uses its own structured layout — consistent with what the user sees on screen
+            <DreTable rows={sortedRows as DreRow[]} />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm border-collapse">
+                <thead>
+                  <tr className="bg-muted/50">{visibleColumns.map((col) => <th key={col.key} className="text-left px-3 py-2 font-semibold text-xs text-muted-foreground border-b">{col.label}</th>)}</tr>
+                </thead>
+                <tbody>
+                  {sortedRows.map((row, ri) => (
+                    <tr key={ri} className={ri % 2 === 0 ? 'bg-muted/20' : ''}>
+                      {visibleColumns.map((col) => <td key={col.key} className="px-3 py-1.5 border-b border-border/40 text-xs">{formatCellValue(row[col.key], col.key, isQtyReport) as React.ReactNode}</td>)}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
           <div className="flex flex-wrap items-center justify-between gap-4 border-t pt-3 text-sm">
-            <span className="font-semibold text-foreground">Total de registros: {rows.length}</span>
+            <span className="font-semibold text-foreground">Total de registros: {sortedRows.length}</span>
             {resultado?.totals && (
               <div className="flex flex-wrap gap-4">
                 {resultado.totals.totalQtd != null && <span className="font-semibold">Qtd Total: {formatNumber(resultado.totals.totalQtd)}</span>}
