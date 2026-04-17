@@ -169,7 +169,7 @@ export function PedidoCompraDrawer({
 
   const tabItens = (
     <div className="space-y-3">
-      {(viewItems as Array<Record<string, unknown>>).length > 0 ? (
+      {viewItems.length > 0 ? (
         <>
           <div className="rounded-lg border overflow-hidden">
             <table className="w-full text-sm">
@@ -187,15 +187,15 @@ export function PedidoCompraDrawer({
                 </tr>
               </thead>
               <tbody>
-                {(viewItems as Array<Record<string, unknown>>).map((i, idx) => {
-                  const produtos = i.produtos as Record<string, unknown> | null | undefined;
+                {viewItems.map((i) => {
+                  const produtos = i.produtos;
                   const qtdRec = estoquePorProduto[String(i.produto_id)] || 0;
                   const qtdPend = Math.max(0, Number(i.quantidade) - qtdRec);
                   return (
-                    <tr key={idx} className="border-b last:border-b-0 hover:bg-muted/20">
-                      <td className="px-3 py-2 font-medium">{String(produtos?.nome ?? "—")}</td>
+                    <tr key={String(i.id)} className="border-b last:border-b-0 hover:bg-muted/20">
+                      <td className="px-3 py-2 font-medium">{produtos?.nome ?? "—"}</td>
                       <td className="px-3 py-2 text-xs text-muted-foreground font-mono hidden sm:table-cell">
-                        {String(produtos?.codigo_interno ?? "—")}
+                        {produtos?.codigo_interno ?? "—"}
                       </td>
                       <td className="px-3 py-2 text-right font-mono">{String(i.quantidade)}</td>
                       <td className="px-3 py-2 text-right font-mono text-muted-foreground text-xs">
@@ -220,12 +220,7 @@ export function PedidoCompraDrawer({
                     Total dos Itens
                   </td>
                   <td className="px-3 py-2 text-right font-mono font-bold text-primary">
-                    {formatCurrency(
-                      (viewItems as Array<Record<string, unknown>>).reduce(
-                        (s, i) => s + Number(i.valor_total || 0),
-                        0,
-                      ),
-                    )}
+                    {formatCurrency(viewItems.reduce((s, i) => s + Number(i.valor_total || 0), 0))}
                   </td>
                   <td colSpan={2} />
                 </tr>
