@@ -100,7 +100,7 @@ export function useFinanceiroActions({ filteredData, getLancamentoStatus, create
           try {
             const { error: parcelasError } = await supabase
               .from("financeiro_lancamentos")
-              .insert(parcelas);
+              .insert(parcelas as never);
             if (parcelasError) throw parcelasError;
           } catch (parcelaErr) {
             if (parentId) {

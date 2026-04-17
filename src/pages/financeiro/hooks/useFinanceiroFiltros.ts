@@ -6,7 +6,7 @@ import { periodToFinancialRange } from "@/lib/periodFilter";
 import type { Period } from "@/components/dashboard/periodTypes";
 import type { ContaBancaria, Lancamento } from "@/types/domain";
 
-const validPeriods: readonly Period[] = ["7d", "15d", "30d", "90d", "mes", "todos", "vencidos"];
+const validPeriods: readonly Period[] = ["7d", "15d", "30d", "90d", "year", "hoje", "todos", "vencidos"];
 
 const isPeriod = (value: string | null): value is Period =>
   value !== null && validPeriods.includes(value as Period);

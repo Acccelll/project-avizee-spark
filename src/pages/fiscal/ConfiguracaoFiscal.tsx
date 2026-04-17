@@ -110,10 +110,10 @@ export default function ConfiguracaoFiscal() {
       };
 
       if (configId) {
-        await supabase.from("empresa_config").update(payload).eq("id", configId);
+        await supabase.from("empresa_config").update(payload as never).eq("id", configId);
       } else {
-        const { data } = await supabase.from("empresa_config").insert(payload as Record<string, unknown>).select().single();
-        if (data) setConfigId(data.id);
+        const { data } = await supabase.from("empresa_config").insert(payload as never).select().single();
+        if (data) setConfigId((data as { id: string }).id);
       }
       toast.success("Configurações fiscais salvas");
     } catch (err) {

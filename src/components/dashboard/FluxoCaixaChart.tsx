@@ -43,7 +43,7 @@ export function FluxoCaixaChart({ embedded = false }: FluxoCaixaChartProps) {
           .gte('data_pagamento', dateFrom),
         supabase
           .from('financeiro_lancamentos')
-          .select('tipo, valor, saldo_restante, data_vencimento')
+          .select('tipo, valor, saldo_restante, data_vencimento, status')
           .eq('ativo', true)
           .in('status', ['aberto', 'vencido', 'parcial'])
           .gte('data_vencimento', dateFrom),

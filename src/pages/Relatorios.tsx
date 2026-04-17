@@ -152,7 +152,7 @@ export default function Relatorios() {
       label: colDef.label,
       render: (item: Record<string, unknown>): React.ReactNode => {
         const raw = item[colDef.key];
-        const fmt = colDef.format;
+        const fmt = (colDef as { format?: string }).format;
         const isBadgeKey = fmt === 'badge' || ['criticidade', 'faixa', 'classe'].includes(colDef.key)
           || colDef.key.toLowerCase().includes('status') || colDef.key.toLowerCase().includes('situacao');
         if (isBadgeKey && typeof raw === 'string' && raw !== '-') {
@@ -429,7 +429,7 @@ export default function Relatorios() {
                       <CardContent className="p-0">
                         {isLoading && <div className="p-6 text-sm text-muted-foreground animate-pulse">Carregando {selectedMeta?.title || 'relatório'}…</div>}
                         {isError && !isLoading && <div className="m-4 rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">Não foi possível carregar os dados desse relatório. Revise filtros e tente novamente.</div>}
-                        {!isLoading && !isError && isDreReport && <DreTable rows={sortedRows as DreRow[]} />}
+                        {!isLoading && !isError && isDreReport && <DreTable rows={sortedRows as unknown as DreRow[]} />}
                         {!isLoading && !isError && !isDreReport && (
                           <>
                             <DataTable columns={visibleColumns} data={sortedRows} loading={isLoading} moduleKey={`relatorios-${tipo}`} emptyTitle={`Nenhum registro em ${selectedMeta?.title || 'relatório'}`} emptyDescription="Ajuste o período e os filtros para encontrar registros relevantes." />
@@ -487,7 +487,7 @@ export default function Relatorios() {
             <p className="text-sm text-muted-foreground text-center py-6">Nenhum dado disponível para o filtro atual.</p>
           ) : isDreReport ? (
             // DRE uses its own structured layout — consistent with what the user sees on screen
-            <DreTable rows={sortedRows as DreRow[]} />
+            <DreTable rows={sortedRows as unknown as DreRow[]} />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm border-collapse">
