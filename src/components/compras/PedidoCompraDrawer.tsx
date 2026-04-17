@@ -28,14 +28,19 @@ import {
   XCircle,
 } from "lucide-react";
 import { PedidoCompra, pedidoNumero } from "./pedidoCompraTypes";
+import type {
+  PedidoItemRow,
+  EstoqueMovimentoRow,
+  FinanceiroLancRow,
+} from "@/hooks/usePedidosCompra";
 
 interface PedidoCompraDrawerProps {
   open: boolean;
   onClose: () => void;
   selected: PedidoCompra;
-  viewItems: unknown[];
-  viewEstoque: unknown[];
-  viewFinanceiro: unknown[];
+  viewItems: PedidoItemRow[];
+  viewEstoque: EstoqueMovimentoRow[];
+  viewFinanceiro: FinanceiroLancRow[];
   viewCotacao: { numero: string; status: string; data_cotacao: string } | null;
   onEdit: () => void;
   onDelete: () => void;
@@ -62,10 +67,13 @@ export function PedidoCompraDrawer({
 }: PedidoCompraDrawerProps) {
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
 
+  // Comparação por string YYYY-MM-DD evita bugs de timezone que ocorriam
+  // ao usar `new Date(prevista) < new Date()` (UTC vs local).
+  const todayIso = new Date().toISOString().slice(0, 10);
   const isOverdue =
     !["recebido", "cancelado"].includes(selected.status) &&
     !!selected.data_entrega_prevista &&
-    new Date(selected.data_entrega_prevista) < new Date();
+    String(selected.data_entrega_prevista).slice(0, 10) < todayIso;
 
   const recebimentoStatus = (() => {
     if (selected.status === "recebido") return { label: "Recebido", color: "success" };
@@ -82,8 +90,8 @@ export function PedidoCompraDrawer({
     secondary: "text-muted-foreground",
   };
 
-  const estoquePorProduto: Record<string, number> = (viewEstoque as Array<Record<string, unknown>>).reduce<Record<string, number>>(
-    (acc: Record<string, number>, m) => {
+  const estoquePorProduto: Record<string, number> = viewEstoque.reduce<Record<string, number>>(
+    (acc, m) => {
       const key = String(m.produto_id);
       acc[key] = (acc[key] || 0) + Number(m.quantidade || 0);
       return acc;
@@ -91,14 +99,8 @@ export function PedidoCompraDrawer({
     {},
   );
 
-  const totalOrdenado = (viewItems as Array<Record<string, unknown>>).reduce(
-    (s, i) => s + Number(i.quantidade || 0),
-    0,
-  );
-  const totalRecebido = (viewEstoque as Array<Record<string, unknown>>).reduce(
-    (s, m) => s + Number(m.quantidade || 0),
-    0,
-  );
+  const totalOrdenado = viewItems.reduce((s, i) => s + Number(i.quantidade || 0), 0);
+  const totalRecebido = viewEstoque.reduce((s, m) => s + Number(m.quantidade || 0), 0);
   const pctRecebimento =
     totalOrdenado > 0 ? Math.min(100, Math.round((totalRecebido / totalOrdenado) * 100)) : 0;
 
