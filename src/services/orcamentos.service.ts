@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any -- Supabase join inference limitations */
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -17,7 +16,7 @@ export async function sendForApproval(orc: OrcamentoBase): Promise<void> {
   if (orc.status !== "rascunho") return;
   const { error } = await supabase
     .from("orcamentos")
-    .update({ status: "confirmado" })
+    .update({ status: "pendente" })
     .eq("id", orc.id);
   if (error) throw error;
   toast.success(`Cotação ${orc.numero} enviada para aprovação!`);
@@ -40,90 +39,23 @@ export interface ConvertToOVOptions {
 /** @deprecated Use convertToPedido instead */
 export const convertToOV = convertToPedido;
 
+/**
+ * Converte orçamento em pedido de venda usando RPC transacional.
+ * Garante atomicidade: numera, copia itens e dados de frete, e marca o orçamento.
+ */
 export async function convertToPedido(
   orc: OrcamentoBase,
   options: ConvertToOVOptions = {}
 ): Promise<{ ovId: string; ovNumero: string }> {
-  const { data: items } = await supabase
-    .from("orcamentos_itens")
-    .select("*")
-    .eq("orcamento_id", orc.id);
-
-  // Carregar dados de frete do orçamento
-  const { data: orcFrete } = await (supabase as any)
-    .from("orcamentos")
-    .select(
-      "frete_valor, frete_tipo, modalidade, transportadora_id, frete_simulacao_id, origem_frete, servico_frete, peso_total, prazo_entrega_dias, volumes"
-    )
-    .eq("id", orc.id)
-    .maybeSingle();
-
-  // Use atomic numbering RPC to avoid race conditions
-  const { data: rpcNumero } = await supabase.rpc("proximo_numero_ordem_venda");
-  const ovNumero = rpcNumero || `PED${String(Date.now()).slice(-6)}`;
-
-  const fretePayload: Record<string, unknown> = {};
-  if (orcFrete) {
-    const f = orcFrete as Record<string, unknown>;
-    if (f.frete_valor != null) fretePayload.frete_valor = f.frete_valor;
-    if (f.frete_tipo) fretePayload.frete_tipo = f.frete_tipo;
-    if (f.modalidade) fretePayload.modalidade = f.modalidade;
-    if (f.transportadora_id) fretePayload.transportadora_id = f.transportadora_id;
-    if (f.frete_simulacao_id) fretePayload.frete_simulacao_id = f.frete_simulacao_id;
-    if (f.origem_frete) fretePayload.origem_frete = f.origem_frete;
-    if (f.servico_frete) fretePayload.servico_frete = f.servico_frete;
-    if (f.peso_total != null) fretePayload.peso_total = f.peso_total;
-    if (f.prazo_entrega_dias != null) fretePayload.prazo_entrega_dias = f.prazo_entrega_dias;
-    if (f.volumes != null) fretePayload.volumes = f.volumes;
-  }
-
-  const { data: newOV, error } = await supabase
-    .from("ordens_venda")
-    .insert({
-      numero: ovNumero,
-      data_emissao: new Date().toISOString().split("T")[0],
-      cliente_id: orc.cliente_id,
-      cotacao_id: orc.id,
-      status: "aprovada",
-      status_faturamento: "aguardando",
-      valor_total: orc.valor_total,
-      observacoes: orc.observacoes,
-      po_number: options.poNumber || null,
-      data_po_cliente: options.dataPo || null,
-      ...fretePayload,
-    } as any)
-    .select()
-    .single();
-
+  const { data, error } = await supabase.rpc("converter_orcamento_em_ov", {
+    p_orcamento_id: orc.id,
+    p_po_number: options.poNumber ?? null,
+    p_data_po: options.dataPo ?? null,
+  });
   if (error) throw error;
-
-  if (items && items.length > 0 && newOV) {
-    const ovItems = items.map((i: any) => ({
-      ordem_venda_id: newOV.id,
-      produto_id: i.produto_id,
-      codigo_snapshot: i.codigo_snapshot,
-      descricao_snapshot: i.descricao_snapshot,
-      variacao: i.variacao,
-      quantidade: i.quantidade,
-      unidade: i.unidade,
-      valor_unitario: i.valor_unitario,
-      valor_total: i.valor_total,
-      peso_unitario: i.peso_unitario,
-      peso_total: i.peso_total,
-      quantidade_faturada: 0,
-    }));
-    await supabase.from("ordens_venda_itens").insert(ovItems);
-  }
-
-  const { error: updateError } = await supabase
-    .from("orcamentos")
-    .update({ status: "convertido" })
-    .eq("id", orc.id);
-
-  if (updateError) throw updateError;
-
-  toast.success(`Pedido ${ovNumero} criado com sucesso!`);
-  return { ovId: newOV!.id, ovNumero };
+  const result = data as { ov_id: string; ov_numero: string };
+  toast.success(`Pedido ${result.ov_numero} criado com sucesso!`);
+  return { ovId: result.ov_id, ovNumero: result.ov_numero };
 }
 
 export async function enviarOrcamentoPorEmail(
@@ -135,7 +67,7 @@ export async function enviarOrcamentoPorEmail(
   const linkPublico = `${window.location.origin}/orcamento-publico?token=${token}`;
 
   try {
-    const { error } = await supabase.rpc('enqueue_email' as any, {
+    const { error } = await supabase.rpc('enqueue_email' as never, {
       queue_name: 'transactional_emails',
       payload: {
         to: emailDestino,
@@ -144,11 +76,10 @@ export async function enviarOrcamentoPorEmail(
         label: 'orcamento',
         message_id: `orcamento-${orcamentoId}-${Date.now()}`,
       },
-    });
+    } as never);
     if (error) throw error;
     toast.success('E-mail enfileirado para envio.');
   } catch {
-    // Fallback: abrir mailto
     const assunto = encodeURIComponent('Orçamento disponível para visualização');
     const corpo = encodeURIComponent(`${mensagem}\n\n${linkPublico}`);
     window.open(`mailto:${emailDestino}?subject=${assunto}&body=${corpo}`);
