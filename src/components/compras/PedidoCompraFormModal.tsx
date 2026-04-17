@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import type { PedidoCompra, ProdutoOptionRow } from "./pedidoCompraTypes";
 import { pedidoNumero } from "./pedidoCompraTypes";
-import type { PedidoCompraForm } from "@/hooks/usePedidosCompra";
+import type { PedidoCompraForm, EstoqueMovimentoRow } from "@/hooks/usePedidosCompra";
 
 interface PedidoCompraFormModalProps {
   open: boolean;
