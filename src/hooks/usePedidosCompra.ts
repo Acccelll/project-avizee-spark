@@ -53,11 +53,21 @@ interface FinanceiroLancRow {
   tipo: string | null;
 }
 
-type PedidoCompraForm = typeof emptyPedidoForm;
+interface PedidoCompraForm {
+  fornecedor_id: string;
+  data_pedido: string;
+  data_entrega_prevista: string;
+  data_entrega_real: string;
+  frete_valor: string;
+  condicao_pagamento: string;
+  status: string;
+  observacoes: string;
+}
 
 const statusLabels: Record<string, string> = Object.fromEntries(
   Object.entries(statusPedidoCompra).map(([k, v]) => [k, v.label]),
 );
+const DEFAULT_DUE_DAYS = 30;
 
 export interface UsePedidosCompraReturn {
   // Data
@@ -465,12 +475,14 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
       if (movError) throw movError;
 
       const condicaoPagamento = String(p.condicao_pagamento || "").trim();
-      const diasMatch = condicaoPagamento.match(/\d+/);
-      const parsedDias = diasMatch ? Number(diasMatch[0]) : Number.NaN;
-      const baseDate = !Number.isNaN(new Date(p.data_pedido).getTime()) ? new Date(p.data_pedido) : new Date();
+      // Business rule: prefer explicit "<n> dias", otherwise fallback to the first isolated number (e.g., "30").
+      const diasMatch = condicaoPagamento.match(/(\d+)\s*dias?/i) ?? condicaoPagamento.match(/\b(\d+)\b/);
+      const parsedDias = diasMatch ? Number(diasMatch[1]) : Number.NaN;
+      const parsedPedidoDate = new Date(p.data_pedido);
+      const baseDate = !Number.isNaN(parsedPedidoDate.getTime()) ? parsedPedidoDate : new Date();
       const dueDate = Number.isFinite(parsedDias)
         ? addDays(baseDate, parsedDias)
-        : addDays(new Date(), 30);
+        : addDays(new Date(), DEFAULT_DUE_DAYS);
 
       const vTotal = Number(p.valor_total || 0);
       if (vTotal > 0 && !financeiroDuplicado) {

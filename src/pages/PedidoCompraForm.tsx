@@ -5,7 +5,7 @@
  * Reaprovecha subcomponentes existentes e a lógica de usePedidosCompra,
  * expondo-os em rota dedicada para melhor usabilidade e rastreabilidade.
  */
-import { useEffect, useState, type SetStateAction } from "react";
+import { useCallback, useEffect, useState, type SetStateAction } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
@@ -57,15 +57,15 @@ export default function PedidoCompraForm() {
   const [viewCotacao, setViewCotacao] = useState<{ numero: string; status: string } | null>(null);
   const [isDirty, setIsDirty] = useState(false);
 
-  const updateForm = (next: SetStateAction<typeof form>) => {
+  const updateForm = useCallback((next: SetStateAction<typeof form>) => {
     setForm(next);
     setIsDirty(true);
-  };
+  }, []);
 
-  const updateItems = (next: SetStateAction<GridItem[]>) => {
+  const updateItems = useCallback((next: SetStateAction<GridItem[]>) => {
     setItems(next);
     setIsDirty(true);
-  };
+  }, []);
 
   useEffect(() => {
     async function load() {
@@ -130,7 +130,7 @@ export default function PedidoCompraForm() {
       setLoading(false);
     }
     load();
-  }, [id, navigate]);
+  }, [id, navigate, updateForm, updateItems]);
 
   const isTerminal = pedido ? ["recebido", "cancelado"].includes(pedido.status) : false;
 

@@ -5,7 +5,7 @@
  * Reaprovecha os subcomponentes existentes do drawer e do form modal,
  * expondo-os em rota dedicada para melhor usabilidade e rastreabilidade.
  */
-import { useEffect, useState, useMemo, type SetStateAction } from "react";
+import { useCallback, useEffect, useState, useMemo, type SetStateAction } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
@@ -63,15 +63,15 @@ export default function CotacaoCompraForm() {
   const [fornecedorOptions, setFornecedorOptions] = useState<{ id: string; label: string; sublabel: string }[]>([]);
   const [isDirty, setIsDirty] = useState(false);
 
-  const updateForm = (next: SetStateAction<typeof form>) => {
+  const updateForm = useCallback((next: SetStateAction<typeof form>) => {
     setForm(next);
     setIsDirty(true);
-  };
+  }, []);
 
-  const updateLocalItems = (next: SetStateAction<LocalItem[]>) => {
+  const updateLocalItems = useCallback((next: SetStateAction<LocalItem[]>) => {
     setLocalItems(next);
     setIsDirty(true);
-  };
+  }, []);
 
   useEffect(() => {
     async function load() {
@@ -125,7 +125,7 @@ export default function CotacaoCompraForm() {
       setLoading(false);
     }
     load();
-  }, [id, navigate]);
+  }, [id, navigate, updateForm, updateLocalItems]);
 
   const isTerminal = cotacao ? ["convertida", "cancelada"].includes(cotacao.status) : false;
 

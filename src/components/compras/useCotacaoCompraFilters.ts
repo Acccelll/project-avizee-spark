@@ -63,7 +63,10 @@ export function useCotacaoCompraFilters(
     return data.filter((c) => {
       if (statusFilters.length > 0 && !statusFilters.includes(c.status)) return false;
       if (fornecedorFilters.length > 0) {
-        const fornecedorId = String((c as CotacaoCompra & { fornecedor_id?: string | null }).fornecedor_id || "");
+        const fornecedorId =
+          "fornecedor_id" in c
+            ? String((c as Record<string, unknown>).fornecedor_id || "")
+            : "";
         if (!fornecedorFilters.includes(fornecedorId)) return false;
       }
       if (dataInicio && c.data_cotacao < dataInicio) return false;
@@ -78,7 +81,7 @@ export function useCotacaoCompraFilters(
       }
       return true;
     });
-  }, [data, statusFilters, searchTerm]);
+  }, [data, statusFilters, fornecedorFilters, dataInicio, dataFim, searchTerm]);
 
   const activeFilters = useMemo<FilterChip[]>(() => {
     const chips = statusFilters.map((s) => ({
