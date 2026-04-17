@@ -21,9 +21,13 @@ export const sumOpenFinanceiro = (rows: FinRow[] = []) =>
 export const sumNfValues = (rows: NfRow[] = []) =>
   rows.reduce((sum, item) => sum + Number(item.valor_total ?? 0), 0);
 
+/**
+ * Status canônicos pós-Rodada 5: rascunho | confirmada | cancelada.
+ * `pendentes` aqui agrega documentos ainda em rascunho (não confirmados).
+ */
 export const summarizeFiscalStats = (rows: NfRow[] = []): FiscalStats => {
   const emitidas = rows.filter((item) => item.status === "confirmada").length;
-  const pendentes = rows.filter((item) => item.status === "pendente" || item.status === "rascunho").length;
+  const pendentes = rows.filter((item) => item.status === "rascunho").length;
   const canceladas = rows.filter((item) => item.status === "cancelada").length;
   const valorEmitidas = rows
     .filter((item) => item.status === "confirmada")

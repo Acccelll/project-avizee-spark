@@ -270,10 +270,13 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
     }
 
     case "financeiro": {
+      // Status canônicos (Rodada 4): aberto | parcial | pago | vencido | cancelado | estornado.
+      // Para "em aberto" consideramos aberto, parcial e vencido (cancelado/estornado são excluídos).
       let query = supabase
         .from("financeiro_lancamentos")
         .select("tipo, descricao, valor, saldo_restante, valor_pago, status, data_vencimento, data_pagamento, banco, forma_pagamento, clientes(nome_razao_social), fornecedores(nome_razao_social)")
         .eq("ativo", true)
+        .not("status", "in", "(cancelado,estornado)")
         .order("data_vencimento", { ascending: true });
 
       query = withDateRange(query, "data_vencimento", filtros);
@@ -286,11 +289,16 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
 
       const rows = (data || []).map((item: Record<string, unknown>) => {
         const valor = Number(item.valor || 0);
-        const valorEmAberto = item.saldo_restante != null
-          ? Number(item.saldo_restante)
-          : item.status === 'pago' ? 0 : valor;
+        const status = (item.status as string | null) ?? '-';
+        // Saldo em aberto: usa saldo_restante quando o BD calcula (parcial); zera quando pago.
+        const valorEmAberto = status === 'pago'
+          ? 0
+          : item.saldo_restante != null
+            ? Number(item.saldo_restante)
+            : valor;
         const venc = item.data_vencimento ? new Date(item.data_vencimento as string) : null;
-        const atraso = (venc && item.status !== 'pago' && venc < hoje)
+        const isOpen = status === 'aberto' || status === 'parcial' || status === 'vencido';
+        const atraso = (venc && isOpen && venc < hoje)
           ? Math.floor((hoje.getTime() - venc.getTime()) / (1000 * 60 * 60 * 24))
           : 0;
         const parceiro = item.tipo === 'receber'
@@ -303,7 +311,7 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
           valor,
           valorEmAberto,
           atraso,
-          status: item.status || "-",
+          status,
           vencimento: item.data_vencimento,
           pagamento: item.data_pagamento,
           banco: item.banco || "-",
@@ -311,8 +319,9 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
         };
       });
 
-      const totalReceber = rows.filter((r) => r.tipo === 'Receber' && r.status !== 'pago').reduce((s, r) => s + r.valorEmAberto, 0);
-      const totalPagar = rows.filter((r) => r.tipo === 'Pagar' && r.status !== 'pago').reduce((s, r) => s + r.valorEmAberto, 0);
+      const isOpenStatus = (s: string) => s === 'aberto' || s === 'parcial' || s === 'vencido';
+      const totalReceber = rows.filter((r) => r.tipo === 'Receber' && isOpenStatus(r.status)).reduce((s, r) => s + r.valorEmAberto, 0);
+      const totalPagar = rows.filter((r) => r.tipo === 'Pagar' && isOpenStatus(r.status)).reduce((s, r) => s + r.valorEmAberto, 0);
       const totalVencido = rows.filter((r) => r.atraso > 0).reduce((s, r) => s + r.valorEmAberto, 0);
       const totalPago = rows.filter((r) => r.status === 'pago').reduce((s, r) => s + r.valor, 0);
 
@@ -331,19 +340,19 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
     }
 
     case "fluxo_caixa": {
+      // Considera valor efetivamente pago (valor_pago) quando disponível,
+      // exclui cancelados/estornados e ordena pela data de pagamento.
       let query = supabase
         .from("financeiro_lancamentos")
-        .select("tipo, descricao, valor, status, data_vencimento, data_pagamento")
-        .eq("ativo", true);
+        .select("tipo, descricao, valor, valor_pago, status, data_vencimento, data_pagamento")
+        .eq("ativo", true)
+        .not("status", "in", "(cancelado,estornado)");
 
       query = withDateRange(query, "data_vencimento", filtros);
-      // Apply tipo filter when requested (receber / pagar)
       if (filtros.tiposFinanceiros?.length) query = query.in('tipo', filtros.tiposFinanceiros);
       const { data, error } = await query;
       if (error) throw error;
 
-      // Sort by the effective date that will be displayed (pagamento when available, else vencimento)
-      // so that the accumulated saldo follows the same chronological order shown in the table.
       const sorted = (data || []).slice().sort((a: RawFluxoItem, b: RawFluxoItem) => {
         const da = a.data_pagamento || a.data_vencimento || '';
         const db = b.data_pagamento || b.data_vencimento || '';
@@ -351,17 +360,21 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
       });
 
       let saldo = 0;
-      const rows = sorted.map((item: RawFluxoItem) => {
-        const itemValor = Number(item.valor || 0);
-        const entrada = item.tipo === "receber" ? itemValor : 0;
-        const saida = item.tipo === "pagar" ? itemValor : 0;
+      const rows = sorted.map((item: RawFluxoItem & { valor_pago?: number | null }) => {
+        const status = item.status ?? '';
+        // Para itens pagos/parciais usa valor efetivamente pago; senão, valor previsto.
+        const valorEfetivo = (status === 'pago' || status === 'parcial') && item.valor_pago != null
+          ? Number(item.valor_pago)
+          : Number(item.valor || 0);
+        const entrada = item.tipo === "receber" ? valorEfetivo : 0;
+        const saida = item.tipo === "pagar" ? valorEfetivo : 0;
         saldo = saldo + entrada - saida;
 
         return {
           data: item.data_pagamento || item.data_vencimento,
           descricao: item.descricao || "-",
           tipo: item.tipo === 'receber' ? 'Entrada' : 'Saída',
-          status: item.status || "-",
+          status: status || "-",
           entrada,
           saida,
           saldo,
@@ -563,20 +576,22 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
       //   Resultado        = Receita Líquida − CMV − Despesas Operacionais
       // ─────────────────────────────────────────────────────────────────────────
 
+      // Receita Bruta = soma do valor efetivamente pago (valor_pago) em receber-pago/parcial.
       let receitaQuery = supabase
         .from("financeiro_lancamentos")
-        .select("valor")
+        .select("valor, valor_pago, status")
         .eq("ativo", true)
         .eq("tipo", "receber")
-        .eq("status", "pago");
+        .in("status", ["pago", "parcial"]);
       receitaQuery = withDateRange(receitaQuery, "data_pagamento", filtros);
 
+      // Despesas pagas: pagar com status pago/parcial (usa valor_pago para refletir caixa).
       let pagosQuery = supabase
         .from("financeiro_lancamentos")
-        .select("valor, descricao, nota_fiscal_id")
+        .select("valor, valor_pago, status, descricao, nota_fiscal_id")
         .eq("ativo", true)
         .eq("tipo", "pagar")
-        .eq("status", "pago");
+        .in("status", ["pago", "parcial"]);
       pagosQuery = withDateRange(pagosQuery, "data_pagamento", filtros);
 
       let nfSaidaQuery = supabase
@@ -592,7 +607,13 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
 
       if (!receitas && !pagos && !nfSaida) throw new Error("Erro ao carregar dados do DRE");
 
-      const receitaBruta = (receitas || []).reduce((s: number, r: Record<string, unknown>) => s + Number(r.valor || 0), 0);
+      const cashAmount = (r: Record<string, unknown>) => {
+        const status = (r.status as string | null) ?? '';
+        if (status === 'parcial' && r.valor_pago != null) return Number(r.valor_pago);
+        return Number(r.valor || 0);
+      };
+
+      const receitaBruta = (receitas || []).reduce((s: number, r: Record<string, unknown>) => s + cashAmount(r), 0);
 
       // Deduções fiscais (impostos incidentes sobre receita)
       const deducoes = (nfSaida || []).reduce((s: number, nf: Record<string, unknown>) => {
@@ -604,12 +625,12 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
       // CMV: lançamentos pagar com NF vinculada OU descrição contendo "compra"
       const cmv = (pagos || []).filter((p: Record<string, unknown>) =>
         p.nota_fiscal_id || ((p.descricao as string | null) || "").toLowerCase().includes("compra")
-      ).reduce((s: number, p: Record<string, unknown>) => s + Number(p.valor || 0), 0);
+      ).reduce((s: number, p: Record<string, unknown>) => s + cashAmount(p), 0);
 
       // Despesas Operacionais: demais lançamentos pagar
       const despesasOp = (pagos || []).filter((p: Record<string, unknown>) =>
         !p.nota_fiscal_id && !((p.descricao as string | null) || "").toLowerCase().includes("compra")
-      ).reduce((s: number, p: Record<string, unknown>) => s + Number(p.valor || 0), 0);
+      ).reduce((s: number, p: Record<string, unknown>) => s + cashAmount(p), 0);
 
       const lucroBruto = receitaLiquida - cmv;
       const resultado = lucroBruto - despesasOp;
@@ -647,11 +668,12 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
 
     case "aging":
     default: {
+      // Inclui parcial (saldo ainda em aberto) e usa saldo_restante quando disponível.
       let query = supabase
         .from("financeiro_lancamentos")
-        .select("tipo, descricao, valor, status, data_vencimento, data_pagamento, clientes(nome_razao_social), fornecedores(nome_razao_social)")
+        .select("tipo, descricao, valor, saldo_restante, status, data_vencimento, data_pagamento, clientes(nome_razao_social), fornecedores(nome_razao_social)")
         .eq("ativo", true)
-        .in("status", ["aberto", "vencido"])
+        .in("status", ["aberto", "parcial", "vencido"])
         .order("data_vencimento", { ascending: true });
       query = withDateRange(query, "data_vencimento", filtros);
       if (filtros.clienteIds) query = query.in('cliente_id', filtros.clienteIds);
@@ -663,8 +685,17 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
       const hoje = new Date();
       hoje.setHours(0, 0, 0, 0);
 
-      const rows = (data || []).map((item: RawLancamentoItem) => {
-        const venc = new Date(item.data_vencimento!);
+      const rows = (data || []).map((raw: Record<string, unknown>) => {
+        const item = raw as {
+          tipo: string;
+          descricao: string | null;
+          valor: number | null;
+          saldo_restante: number | null;
+          data_vencimento: string;
+          clientes: { nome_razao_social: string } | null;
+          fornecedores: { nome_razao_social: string } | null;
+        };
+        const venc = new Date(item.data_vencimento);
         const diffDays = Math.floor((hoje.getTime() - venc.getTime()) / (1000 * 60 * 60 * 24));
         let faixa = "A vencer";
         if (diffDays > 0 && diffDays <= 30) faixa = "1-30 dias";
@@ -672,13 +703,17 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
         else if (diffDays > 60 && diffDays <= 90) faixa = "61-90 dias";
         else if (diffDays > 90) faixa = "90+ dias";
 
+        const valorAberto = item.saldo_restante != null
+          ? Number(item.saldo_restante)
+          : Number(item.valor || 0);
+
         return {
           tipo: item.tipo === "receber" ? "Receber" : "Pagar",
           descricao: item.descricao || "-",
           parceiro: item.tipo === "receber"
             ? item.clientes?.nome_razao_social || "-"
             : item.fornecedores?.nome_razao_social || "-",
-          valor: Number(item.valor || 0),
+          valor: valorAberto,
           vencimento: item.data_vencimento,
           diasVencido: diffDays > 0 ? diffDays : 0,
           faixa,
@@ -697,7 +732,7 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
 
       return {
         title: "Aging — Vencidos por faixa",
-        subtitle: "Títulos a pagar e receber agrupados por faixa de vencimento.",
+        subtitle: "Títulos a pagar e receber agrupados por faixa de vencimento (saldo em aberto).",
         rows,
         chartData,
         totals: {

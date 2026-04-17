@@ -51,20 +51,24 @@ export function useDashboardFinanceiroData(range: DashboardDateRange) {
     ] = await Promise.all([
       buildTotalQuery("receber"),
       buildTotalQuery("pagar"),
-      supabase.from("financeiro_lancamentos").select("valor").eq("status", "vencido").eq("ativo", true),
+      supabase
+        .from("financeiro_lancamentos")
+        .select("valor, saldo_restante, status")
+        .eq("ativo", true)
+        .eq("status", "vencido"),
       supabase
         .from("financeiro_lancamentos")
         .select("id", { count: "exact", head: true })
         .eq("ativo", true)
         .eq("tipo", "receber")
-        .eq("status", "aberto")
+        .in("status", ["aberto", "parcial", "vencido"])
         .eq("data_vencimento", today),
       supabase
         .from("financeiro_lancamentos")
         .select("id", { count: "exact", head: true })
         .eq("ativo", true)
         .eq("tipo", "pagar")
-        .eq("status", "aberto")
+        .in("status", ["aberto", "parcial", "vencido"])
         .eq("data_vencimento", today),
       supabase
         .from("financeiro_lancamentos")
