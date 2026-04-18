@@ -369,8 +369,26 @@ export default function FormasPagamento() {
         />
       </ModulePage>
 
-      <FormModal open={modalOpen} onClose={closeModal} title={mode === "create" ? "Nova Forma de Pagamento" : "Editar Forma de Pagamento"} size="lg">
-        <form onSubmit={handleSubmit} className="space-y-6">
+      <FormModal
+        open={modalOpen}
+        onClose={closeModal}
+        title={mode === "create" ? "Nova Forma de Pagamento" : "Editar Forma de Pagamento"}
+        size="lg"
+        identifier={mode === "edit" && form.tipo ? form.tipo.toUpperCase() : undefined}
+        isDirty={isDirty}
+        footer={
+          <FormModalFooter
+            saving={saving}
+            isDirty={isDirty}
+            onCancel={closeModal}
+            submitAsForm
+            formId="forma-pgto-form"
+            mode={mode}
+            primaryLabel={mode === "create" ? "Criar Forma de Pagamento" : "Salvar Alterações"}
+          />
+        }
+      >
+        <form id="forma-pgto-form" onSubmit={handleSubmit} className="space-y-6">
 
           {/* ── BLOCO 1: IDENTIFICAÇÃO DA REGRA ───────────────────────── */}
           <div>
@@ -548,11 +566,6 @@ export default function FormasPagamento() {
             </div>
           </div>
 
-          {/* ── RODAPÉ ────────────────────────────────────────────────── */}
-          <div className="flex justify-end gap-2 pt-2 border-t">
-            <Button type="button" variant="outline" onClick={closeModal}>Cancelar</Button>
-            <Button type="submit" disabled={saving}>{saving ? "Salvando..." : mode === "create" ? "Criar Forma de Pagamento" : "Salvar Alterações"}</Button>
-          </div>
         </form>
       </FormModal>
 
