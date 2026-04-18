@@ -88,7 +88,7 @@ const DrawerSlot = memo(function DrawerSlot({
       {isTop && atLimit && (
         <Tooltip>
           <TooltipTrigger asChild>
-            <span className="flex items-center justify-center h-7 w-7 text-amber-500" aria-label="Limite atingido">
+            <span className="flex items-center justify-center h-7 w-7 text-warning" aria-label="Limite atingido">
               <AlertTriangle className="h-4 w-4" />
             </span>
           </TooltipTrigger>
