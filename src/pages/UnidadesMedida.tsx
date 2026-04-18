@@ -1,5 +1,8 @@
 import { useMemo, useState } from "react";
 import { useDebounce } from "@/hooks/useDebounce";
+import { useEditDirtyForm } from "@/hooks/useEditDirtyForm";
+import { useSubmitLock } from "@/hooks/useSubmitLock";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
@@ -51,14 +54,20 @@ export default function UnidadesMedida() {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [mode, setMode] = useState<"create" | "edit">("create");
-  const [form, setForm] = useState<UnidadeFormData>(emptyForm);
+  const { form, updateForm, reset, isDirty, markPristine } = useEditDirtyForm<UnidadeFormData>(emptyForm);
   const [selected, setSelected] = useState<UnidadeMedida | null>(null);
-  const [saving, setSaving] = useState(false);
+  const { saving, submit } = useSubmitLock();
+  const { confirm, dialog: confirmDialog } = useConfirmDialog();
   const [ativoFilters, setAtivoFilters] = useState<string[]>([]);
+
+  const closeModal = async () => {
+    if (isDirty && !(await confirm())) return;
+    setModalOpen(false);
+  };
 
   const openCreate = () => {
     setMode("create");
-    setForm({ ...emptyForm });
+    reset({ ...emptyForm });
     setSelected(null);
     setModalOpen(true);
   };
@@ -66,7 +75,7 @@ export default function UnidadesMedida() {
   const openEdit = (u: UnidadeMedida) => {
     setMode("edit");
     setSelected(u);
-    setForm({
+    reset({
       codigo: u.codigo,
       descricao: u.descricao,
       sigla: u.sigla || "",
@@ -80,8 +89,7 @@ export default function UnidadesMedida() {
     e.preventDefault();
     if (!form.codigo.trim()) { toast.error("Código é obrigatório"); return; }
     if (!form.descricao.trim()) { toast.error("Descrição é obrigatória"); return; }
-    setSaving(true);
-    try {
+    await submit(async () => {
       const payload = {
         ...form,
         codigo: form.codigo.trim().toUpperCase(),
@@ -93,11 +101,9 @@ export default function UnidadesMedida() {
       } else if (selected) {
         await update(selected.id, payload);
       }
+      markPristine();
       setModalOpen(false);
-    } catch (err) {
-      console.error("[unidades-medida] erro ao salvar:", err);
-    }
-    setSaving(false);
+    });
   };
 
   const filteredData = useMemo(() => {
@@ -222,7 +228,7 @@ export default function UnidadesMedida() {
 
       <FormModal
         open={modalOpen}
-        onClose={() => setModalOpen(false)}
+        onClose={closeModal}
         title={mode === "create" ? "Nova Unidade de Medida" : "Editar Unidade de Medida"}
       >
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -231,7 +237,7 @@ export default function UnidadesMedida() {
               <Label>Código <span className="text-destructive">*</span></Label>
               <Input
                 value={form.codigo}
-                onChange={(e) => setForm({ ...form, codigo: e.target.value.toUpperCase() })}
+                onChange={(e) => updateForm({ codigo: e.target.value.toUpperCase() })}
                 placeholder="Ex: UN, KG, MT"
                 className="font-mono"
                 maxLength={10}
@@ -242,7 +248,7 @@ export default function UnidadesMedida() {
               <Label>Sigla</Label>
               <Input
                 value={form.sigla || ""}
-                onChange={(e) => setForm({ ...form, sigla: e.target.value })}
+                onChange={(e) => updateForm({ sigla: e.target.value })}
                 placeholder="Ex: un, kg, m"
                 maxLength={10}
               />
@@ -253,7 +259,7 @@ export default function UnidadesMedida() {
             <Label>Descrição <span className="text-destructive">*</span></Label>
             <Input
               value={form.descricao}
-              onChange={(e) => setForm({ ...form, descricao: e.target.value })}
+              onChange={(e) => updateForm({ descricao: e.target.value })}
               placeholder="Ex: Unidade, Quilograma, Metro"
             />
           </div>
@@ -261,7 +267,7 @@ export default function UnidadesMedida() {
             <Label>Observações</Label>
             <Textarea
               value={form.observacoes || ""}
-              onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
+              onChange={(e) => updateForm({ observacoes: e.target.value })}
               placeholder="Informações adicionais sobre esta unidade..."
               rows={2}
             />
@@ -269,7 +275,7 @@ export default function UnidadesMedida() {
           <div className="flex items-center gap-3 pt-1">
             <Switch
               checked={form.ativo}
-              onCheckedChange={(v) => setForm({ ...form, ativo: v })}
+              onCheckedChange={(v) => updateForm({ ativo: v })}
               id="ativo-switch"
             />
             <Label htmlFor="ativo-switch" className="cursor-pointer">
@@ -277,7 +283,7 @@ export default function UnidadesMedida() {
             </Label>
           </div>
           <div className="flex justify-end gap-2 pt-4 border-t">
-            <Button type="button" variant="outline" onClick={() => setModalOpen(false)}>
+            <Button type="button" variant="outline" onClick={closeModal}>
               Cancelar
             </Button>
             <Button type="submit" disabled={saving} className="min-w-[100px]">
@@ -291,6 +297,7 @@ export default function UnidadesMedida() {
           </div>
         </form>
       </FormModal>
+      {confirmDialog}
     </AppLayout>
   );
 }
