@@ -40,10 +40,6 @@ import {
   Copy,
   ExternalLink,
   AlertTriangle,
-  Package,
-  Scale,
-  Layers,
-  DollarSign,
 } from "lucide-react";
 import { toast } from "sonner";
 
