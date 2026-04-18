@@ -1,181 +1,281 @@
 
 
-# Diagnóstico visual — Estados transversais
+# Diagnóstico técnico — Fluxos de Criação
 
-## Inventário visual atual
+## Inventário
 
-| Estado | Componente | Visual hoje |
-|---|---|---|
-| Loading rota | `FullPageSpinner` | spinner lg centralizado, sem mensagem |
-| Loading conteúdo | `ContentSpinner` | spinner md, sem mensagem |
-| Loading lista | `TableSkeleton` | linhas de skeleton ✓ |
-| Loading detalhe | `DetailLoading` | KPI strip + tabs skeleton ✓ |
-| Empty genérico | `EmptyState` | ícone em círculo `bg-muted`, título, descrição, ação |
-| Empty detalhe | `DetailEmpty` | mesmo padrão, menor (`py-12`) |
-| Erro detalhe | `DetailError` | ícone `bg-destructive/10`, título destrutivo, mensagem |
-| Erro global | `ErrorBoundary` | tela cheia com botões reload/dashboard |
-| Sem permissão | `AccessDenied` | usa `DetailEmpty` com `ShieldOff` |
-| Toast | `sonner` (default config) | posição padrão, sem ícone semântico explícito |
-| Skeleton | `Skeleton` | `bg-muted animate-pulse` ✓ |
+| Fluxo | Local | Numeração | Padrão dirty | Lock submit | Defaults |
+|---|---|---|---|---|---|
+| Cliente | `Clientes.tsx` (modal) | — | manual `setIsDirty` | `setSaving` manual | `emptyCliente` |
+| Cliente quick-add | `QuickAddClientModal.tsx` | — | — | `useSubmitLock` ✓ | `emptyForm` |
+| Fornecedor | `Fornecedores.tsx` | — | manual | manual | similar a cliente |
+| Funcionário | `Funcionarios.tsx` | — | `baselineForm` ad-hoc | `useSubmitLock` ✓ | `emptyForm` |
+| Produto | `Produtos.tsx` | — | `useEditDirtyForm` ✓ | `useSubmitLock` ✓ | `emptyProduto` |
+| Transportadora | `Transportadoras.tsx` | — | `useEditDirtyForm` ✓ | `useSubmitLock` ✓ | `emptyForm` |
+| Conta Bancária | `ContasBancarias.tsx` | — | `useEditDirtyForm` ✓ | `useSubmitLock` ✓ | `emptyContaForm` |
+| Forma Pagamento | `FormasPagamento.tsx` | — | `useEditDirtyForm` ✓ | `useSubmitLock` ✓ | `emptyForm` |
+| Unidade | `UnidadesMedida.tsx` | — | `useEditDirtyForm` ✓ | `useSubmitLock` ✓ | `emptyForm` |
+| Grupo Econ. | `GruposEconomicos.tsx` | — | manual | manual | `emptyForm` |
+| Orçamento | `OrcamentoForm.tsx` (página) | RPC `proximo_numero_orcamento` (na carga) | RHF `isDirty` | `setSaving` manual | RHF `defaultValues` |
+| Cotação Compra | `useCotacoesCompra` | RPC `proximo_numero_cotacao_compra` (em `openCreate`) | — | `setSaving` manual | `emptyForm` |
+| Pedido Compra | `usePedidosCompra` | RPC `proximo_numero_pedido_compra` (em `handleSubmit`) | — | `setSaving` + ref `if (saving) return` | inline |
+| Nota Fiscal | `Fiscal.tsx` | manual no input (`form.numero`) | — | `setSaving` manual | `emptyForm` |
+| Remessa página | `RemessaForm.tsx` | — | baseline manual | `isSaving` do hook | `emptyForm` |
+| Remessa modal | `Remessas.tsx` | — | — | `setSaving` manual | `emptyForm` |
+| Lançamento Financeiro | `useFinanceiroActions` | — | — | `setSaving` manual + try/finally ✓ | `emptyForm` (`FluxoCaixa`) |
+| Mov. Estoque | `Estoque.tsx` | — | — | `registrar` (mutation hook) | inline |
+| Folha Pagamento | `Funcionarios.tsx` modal aninhado | — | — | sem lock | `folhaForm` inline |
+| Baixa parcial | `BaixaParcialDialog` | — | — | manual try/finally ✓ | `dataBaixa` = hoje |
+| Baixa em lote | `BaixaLoteModal` | — | — | manual | reset on `open` |
+| Devolução | `DevolucaoDialog` | RPC dentro do service | — | `processing` manual | `dataDevolucao` = hoje |
 
 ## Problemas reais
 
-### 1. Spinners sem mensagem contextual
-`FullPageSpinner` e `ContentSpinner` mostram apenas o círculo girando. Em rotas que demoram (auth + permissões), o usuário fica 1-2s olhando spinner mudo. Sem texto "Carregando..." abaixo, parece travado.
+### A. Padronização do "abrir criar" (openCreate)
 
-### 2. Empty/Error/AccessDenied parecem o mesmo "card cinza"
-Os 3 estados usam o mesmo padrão visual: círculo com ícone + título + mensagem. Diferenciação só pela cor do ícone (`text-muted-foreground` vs `text-destructive`). Em telas onde aparecem alternadamente (ex: filtro vazio → erro de carga), o usuário não percebe a mudança de severidade.
+#### A1. Três estilos de abertura para create
+- `setMode + setForm({...empty}) + setSelected(null) + setModalOpen(true)` — 12+ telas
+- `reset({...empty})` via `useEditDirtyForm` — 7 telas
+- `RHF reset(defaultValues)` — `OrcamentoForm` (página dedicada)
 
-### 3. EmptyState sem distinção entre "nada cadastrado" e "filtro sem resultado"
-Mesma `EmptyState` usada para:
-- "Nenhum cliente cadastrado" (precisa CTA "Novo Cliente")
-- "Nenhum resultado para os filtros" (precisa CTA "Limpar filtros")
-- "Nenhuma notificação" (informativo, sem CTA)
+Resulta em comportamento divergente em rerender, isDirty, e cleanup.
 
-Cada caller decide ad-hoc qual ícone/mensagem/ação usar. Sem variant `noResults` para filtro.
+#### A2. `openCreate` síncrono vs assíncrono
+- `useCotacoesCompra.openCreate` é `async` (busca número RPC) e abre modal **depois** do RPC.
+- `usePedidosCompra` busca número **dentro** de `handleSubmit` (após validação).
+- `Fiscal.openCreate` deixa numeração para input manual.
+- `OrcamentoForm` busca em `useEffect` quando `!isEdit`.
 
-### 4. Sem helper para "limpar filtros"
-Páginas com filtros aplicados (Pedidos, Clientes, Produtos) mostram `EmptyState` genérico quando o filtro não retorna nada. Não há botão automático "Limpar filtros" — usuário tem que voltar e desmarcar manualmente. Padrão Linear/Notion: empty state de filtro mostra "X filtros ativos · Limpar".
+Inconsistência: usuário em conexão lenta espera diferente para cada documento. Em `useCotacoesCompra`, número aparece no campo desde a abertura; em `usePedidosCompra`, só "aparece" no toast pós-save (sem feedback de qual número foi atribuído).
 
-### 5. Toasts sem ícones e sem hierarquia visual consistente
-`sonner` aceita `richColors` e `icon`, mas o `<Toaster />` global não está configurado com `richColors`. Resultado: success/error/warning aparecem com mesmo background neutro, diferenciação só pelo título. Em ERPs maduros, success = verde, error = vermelho, warning = amarelo (subtle).
-
-### 6. Toast position e duration não padronizados
-Default sonner: `top-right`, 4s. Em telas com sidebar+topbar de 56px, top-right cai colado ao topo. ERPs costumam usar `bottom-right` (menos intrusivo) ou `top-right` com offset. Duration de 4s é curta para mensagens de erro com ação.
-
-### 7. `DetailError` não oferece retry
-`DetailError` aceita `action: ReactNode` (opt-in), mas a maioria dos consumidores não passa nada. Erro de rede em drawer mostra "Erro ao carregar dados" sem botão "Tentar novamente". Padrão básico de UX faltando.
-
-### 8. ErrorBoundary global muito "ruidoso"
-Tela cheia com gradient, AlertCircle 64px, dois botões grandes. Para erros de componente isolado (ex: card do dashboard quebrar), derruba a página inteira. Mas o `BlockErrorBoundary` (mais leve) só é usado no dashboard. Falta variante "card" do ErrorBoundary para conteúdos secundários.
-
-### 9. AccessDenied sem ação clara
-Hoje mostra "Você não tem permissão" + nada. Falta CTA "Voltar ao início" ou "Solicitar acesso" para o usuário sair do beco.
-
-### 10. Skeleton sem variação de "cor"
-`Skeleton` é `bg-muted` puro. Em fundo `bg-card` (drawers), o contraste é mínimo — parece que nada está acontecendo. Falta `bg-muted/60` ou tom mais escuro para skeleton sobre card.
-
-### 11. Mensagens de loading genéricas demais
-"Carregando..." em toda parte. Em ERPs maduros, mensagens contextuais ajudam:
-- "Carregando pedidos..."
-- "Verificando permissões..."
-- "Sincronizando estoque..."
-
-`FullPageSpinner` aceita `label` mas ninguém passa.
-
-### 12. Sucesso visual após ação destrutiva pouco enfatizado
-Toast de "Cliente removido" passa em 4s sem destaque. Para ações destrutivas (delete, cancel), o feedback poderia ser mais forte (ícone check verde, duração 5s).
-
-### 13. Inconsistência de ícones entre estados
-- Empty genérico: `PackageOpen` (default)
-- Empty detalhe: `FileQuestion`
-- Acesso negado: `ShieldOff`
-- Erro: `AlertTriangle`
-- Loading: spinner
-
-Sem catálogo. Páginas escolhem ícones aleatórios (`Inbox`, `SearchX`, `FilterX`).
-
-### 14. Spinner full-page bloqueia visual completamente
-`min-h-screen bg-background` cobre tudo, inclusive sidebar. Em rotas que demoram, parece que o app travou (não vê nem header). Padrão melhor: spinner dentro do `<main>`, mantendo shell visível.
-
-## Padrão-base proposto
-
-### Spinner com mensagem
-- `FullPageSpinner` e `ContentSpinner` ganham `label` opcional renderizado abaixo (`text-sm text-muted-foreground mt-3`).
-- Adotar default "Carregando..." quando não passado.
-- `FullPageSpinner` apenas para route guards (sem shell ainda); `ContentSpinner` mantém comportamento dentro do shell.
-
-### EmptyState com variants semânticos
-Adicionar prop `variant?: 'default' | 'noResults' | 'firstUse'`:
-- `default`: ícone `bg-muted` (atual)
-- `noResults`: ícone `bg-info/10 text-info` + ação default "Limpar filtros" se `onClearFilters` passado
-- `firstUse`: ícone `bg-primary/10 text-primary` + CTA primária destacada
-
-### NoResultsState helper
-Componente novo `NoResultsState` (wrapper sobre EmptyState) específico para filtros:
-```tsx
-<NoResultsState
-  activeFiltersCount={3}
-  onClearFilters={() => clearAll()}
-  searchTerm={search}
-/>
+#### A3. Lookups disparados na abertura sobrecarregam create
+`Clientes.openCreate` e `Funcionarios.openCreate` carregam dependências (transportadoras, folhas, lançamentos) **mesmo quando irrelevantes para create**:
+```ts
+setModalTransportadoras([]); setEnderecos([]); setComunicacoes([]); // create
+setFolhas([]); setLancamentos([]); // create
 ```
-Mostra: "Nenhum resultado para os filtros aplicados" + chip "3 filtros ativos · Limpar".
+São arrays vazios — ok, mas o modal renderiza tabs/seções "Endereços de Entrega", "Comunicações", "Folha", "Financeiro" no modo create que **não fazem sentido** sem id. Já há um banner "salve antes de adicionar" em `Clientes:1256`, mas a UX seria melhor escondendo/desabilitando essas seções.
 
-### Toast com richColors + posição
-Configurar `<Toaster />` global:
-```tsx
-<Toaster
-  position="bottom-right"
-  richColors
-  closeButton
-  toastOptions={{ duration: 4000 }}
-/>
+### B. Numeração atômica
+
+#### B1. Fallbacks ad-hoc espalhados
+6 lugares diferentes com fallback `Date.now().slice(-6)`:
+- `OrcamentoForm` (2x — load + duplicate)
+- `Orcamentos.tsx` duplicar
+- `useCotacoesCompra.openCreate` + gerarPedido
+- `usePedidosCompra.handleSubmit`
+
+Risco: se a RPC falhar silenciosamente, gera número **não-atômico** e duplicável (mesma data/segundo entre dois usuários). Memória do projeto (`numeracao-atomica-documentos`) define que numeração crítica deve vir **só** de SEQUENCES. O fallback é uma violação dessa diretriz.
+
+Correção: em vez de fallback, fazer `throw` se RPC falhar (toast de erro e bloquear save).
+
+#### B2. Quando buscar o número
+- `useCotacoesCompra` busca em `openCreate` → consome número mesmo se usuário cancelar (gap na sequence).
+- `usePedidosCompra` busca em `handleSubmit` → ideal: reserva apenas no save.
+- `OrcamentoForm` busca em load → mesmo gap.
+
+Recomendação: padronizar para "buscar no submit". Mas isso quebra UX (usuário não vê "Nº PC-001" antes de salvar). Alternativa: buscar em `openCreate` e aceitar o gap — comum em ERPs (Tiny/Bling fazem isso). O importante é **uniformizar**.
+
+#### B3. Editar permite alterar número manualmente em alguns fluxos
+- `Fiscal.tsx`: input `numero` editável em create + edit (até confirmar SEFAZ).
+- `useCotacoesCompra`: bloqueia? — não vejo guard.
+- `usePedidosCompra`: não tem campo numero no form (auto).
+
+Inconsistência: número manual em NF é correto (vem do XML em importação), mas em cotação/pedido jamais deveria ser editável em edit.
+
+### C. Validações frágeis
+
+#### C1. Validação inline `if (!form.x) toast.error(...)`
+Pelo menos 18 handlers seguem esse padrão (FluxoCaixa, Cotações, Pedidos, Fiscal, Remessas, Funcionarios, ContasBancarias, FormasPagamento, Estoque). Cada um valida diferente:
+- alguns `!form.descricao` (aceita whitespace)
+- outros `!form.nome.trim()` ✓
+- outros `Number(form.valor) <= 0` vs `!form.valor` (zero passa)
+
+Existe `validateForm(zodSchema, form)` em `Clientes`/`Fornecedores`/`Produtos` — adoção parcial.
+
+Padronizar: schemas Zod centralizados (já existem `clienteFornecedorSchema`, `produtoSchema`, `nfeSchema`, `orcamentoSchema`) e helper `validateForm`. Migrar handlers inline.
+
+#### C2. Defaults com side-effect oculto
+`Fiscal.emptyForm` define `data_emissao: new Date().toISOString().split("T")[0]` no escopo do módulo → **valor é congelado no momento do bundle load**. Em sessões longas, "hoje" pode ser ontem.
+
+Mesma armadilha em:
+- `FluxoCaixa.emptyForm` (data_vencimento)
+- `cotacaoCompraTypes.emptyForm` (data_cotacao)
+- `PedidoCompraForm` initial state
+
+Correção: centralizar `getEmptyXForm()` como função, ou aplicar `data_X = new Date().toISOString().split("T")[0]` no momento do `openCreate`.
+
+#### C3. Dependências entre campos sem clareza
+- `Fiscal.handleSubmit`: validação de `fornecedor_id` por `tipo === "entrada"` ✓ — boa.
+- `useFinanceiroActions`: validações condicionais para `status === "pago"` ✓ — boa.
+- `Estoque.handleSubmit`: motivo obrigatório só checado por `.trim()`, mas `quantidade <= 0` aceita float ruim.
+
+Padrão Zod com `.refine` resolveria todos no schema.
+
+### D. Salvamento inicial
+
+#### D1. Padrão `setSaving(true)` espalhado vs `useSubmitLock`
+Adoção do `useSubmitLock`: 10 telas. Manual ainda em ~12 (Fiscal, Cotações, Pedidos, Clientes, Fornecedores, GruposEconomicos, Estoque, FluxoCaixa, Remessas modal, etc.).
+
+O hook resolve:
+- ref síncrona (anti duplo-clique)
+- try/finally garantido
+- toast padronizado
+
+Custo de migração baixo. Já existe a abstração — não usá-la é dívida.
+
+#### D2. Persistência em duas etapas sem atomicidade
+- `Fiscal.handleSubmit`: insere NF → insere itens (sem RPC). Se itens falharem, NF fica órfã. Não há rollback.
+- `usePedidosCompra.handleSubmit`: tem rollback manual (linha 414: `delete pedido` em erro de itens) ✓ mas **só em create**. Em edit, deleta itens e insere novos sem rollback.
+- `useCotacoesCompra.handleSubmit`: edit faz `update + delete itens` em `Promise.all` — se update falhar, itens já foram apagados. Race condition séria.
+- `OrcamentoForm` usa RPC `salvar_orcamento` ✓ — atômica, padrão correto.
+
+Padrão alvo: RPC `salvar_X` para todo documento com itens (orçamento já tem; pedidos compra/cotações tem `replace_pedido_compra_itens` parcial; fiscal não tem). Memória `padroes-de-persistencia-transacional` confirma essa diretriz.
+
+#### D3. Catch silencioso depois das correções recentes
+Após auditoria anterior, `Fornecedores.tsx:213-214` ainda tinha catch sem toast (corrigido recentemente). Verificar `Clientes.tsx:522-524`:
+```ts
+} catch (err) {
+  console.error('[clientes] erro ao salvar:', err);
+}
 ```
-- `richColors`: success verde, error vermelho, warning amarelo, info azul
-- `closeButton`: dismissable
-- Duration 5000 para `toast.error` (mais tempo para ler)
+**Sem toast**. `useSupabaseCrud` faz toast por dentro? Sim — então duplicação aqui é benigna mas inconsistente com `Fornecedores`. Padronizar.
 
-### DetailError com retry padrão
-Adicionar prop `onRetry?: () => void`:
-```tsx
-<DetailError onRetry={() => refetch()} />
+#### D4. Navegação após criar inconsistente
+- `OrcamentoForm`: `navigate(/orcamentos/${id})` ✓ leva à edição.
+- `usePedidosCompra`: fecha modal e refaz lista (não navega).
+- `useCotacoesCompra`: fecha modal e refaz lista.
+- `Fiscal`: fecha modal e refaz lista.
+- `RemessaForm`: `navigate("/logistica")` (volta à lista).
+- `Funcionarios`: fecha modal.
+
+Sem padrão. Para documentos longos (NF, Orçamento, Pedido), a UX típica é abrir em edit pós-create para conferir. Para cadastros leves (cliente, fornecedor), fechar é ok. Definir regra: **documentos com itens** → navegar para detalhe; **cadastros simples** → fechar.
+
+### E. Diferença create vs edit
+
+#### E1. Tela única para os dois modos com flags
+Padrão dominante (`Fiscal`, `Cotações`, `Pedidos modal`, `Clientes`, `Funcionarios`) — concentra ~600 linhas mostrando seções condicionais. Resulta em:
+- props enormes
+- bugs onde modo create exibe info de edit (ex: contas vinculadas, histórico)
+- difícil de testar
+
+`OrcamentoForm`, `PedidoCompraForm`, `CotacaoCompraForm`, `RemessaForm` viraram páginas — bom padrão, mas só os "documentos pesados".
+
+#### E2. Defaults divergentes entre criar e duplicar
+`OrcamentoForm.handleDuplicate` repete o payload completo da função `onSubmit`, com pequenas diferenças (status forçado a "rascunho", validade=null). Risco: um campo novo no schema é adicionado em onSubmit e esquecido em duplicate.
+
+Padrão alvo: helper `buildOrcamentoPayload(form, override?)`.
+
+#### E3. Drawer "ver" em modal "edit" em create
+`Funcionarios`, `Clientes`: o mesmo modal serve para "criar/editar". Em create, sub-tabs (folha, financeiro, transportadoras, endereços) ficam visíveis mas vazias com banner "salve para adicionar". Pode confundir. Solução leve: `tabsVisiveis = mode === "edit" ? ["dados", "endereços", ...] : ["dados"]`.
+
+### F. Estrutura de código
+
+#### F1. Tamanho dos hooks/páginas de create
+- `Clientes.tsx` — 1633 linhas (modal create+edit no mesmo file)
+- `useCotacoesCompra.ts` — 519 linhas
+- `usePedidosCompra.ts` — 615 linhas
+- `Fiscal.tsx` — 886 linhas
+- `OrcamentoForm.tsx` — 1264 linhas
+- `Produtos.tsx` — 1226 linhas
+
+Memória `diretrizes-de-desenvolvimento` cita decomposição de god components. Esses passaram do limite. Refactor amplo é fora do escopo desta passada — anotar.
+
+#### F2. Tipos `*FormData` espalhados
+Cada tela define `interface XForm`. `cotacaoCompraTypes.ts` e `pedidoCompraTypes.ts` já existem como abstração. Estender padrão: extrair tipos `XForm` para `src/pages/<modulo>/types.ts`.
+
+#### F3. Duplicação de validação inline
+Opção: criar helper `validateRequired(form, fields, labels)` para os 18 lugares que fazem 2-5 `if (!form.x) toast.error(...)`. Mas Zod resolve melhor.
+
+## Estratégia de correção (esta passada)
+
+### Fase 1 — Datas frescas (corrige C2)
+Substituir `new Date().toISOString().split("T")[0]` em **escopo de módulo** por:
+- helper `todayISO()` em `src/lib/dateUtils.ts` (se não existir)
+- chamada **dentro** de `openCreate`/`handleSubmit`
+
+Arquivos: `Fiscal.tsx`, `FluxoCaixa.tsx`, `cotacaoCompraTypes.ts`, `PedidoCompraForm.tsx` initial state, `RemessaForm.tsx` (já dinâmico ✓).
+
+### Fase 2 — Numeração: remover fallbacks `Date.now().slice` (corrige B1)
+Em vez de `numero || \`PC-${Date.now()}...\``, fazer:
+```ts
+if (!rpcNumero) {
+  toast.error("Não foi possível gerar número. Tente novamente.");
+  setSaving(false);
+  return;
+}
 ```
-Renderiza botão "Tentar novamente" automático quando passado.
+Arquivos: `usePedidosCompra.ts`, `useCotacoesCompra.ts` (openCreate + gerarPedido), `OrcamentoForm.tsx` (load + duplicate), `Orcamentos.tsx` duplicar.
 
-### AccessDenied com ação padrão
-Adicionar botão "Voltar ao início" default (link para `/`), opcional via prop `showBackButton?: boolean = true`.
+### Fase 3 — Migrar setSaving manual para useSubmitLock (corrige D1)
+Migrar 4 hotspots críticos com problema real (não todos):
+- `useCotacoesCompra.handleSubmit` — sem ref síncrona, atomicidade fraca em edit.
+- `usePedidosCompra.handleSubmit` — tem `if (saving) return` manual mas pode usar o hook.
+- `Fiscal.handleSubmit` — `setSaving` esquecido em catch interno.
+- `Clientes.handleSubmit` — alinhar com Fornecedores (já corrigido).
 
-### Skeleton com tom contextual
-Adicionar variant `Skeleton` com prop `tone?: 'default' | 'card'`:
-- `default`: `bg-muted` (atual)
-- `card`: `bg-muted-foreground/10` (mais escuro, contrasta com `bg-card`)
+### Fase 4 — Validação Zod em handlers críticos (corrige C1, C3)
+Migrar 4 handlers para `validateForm(schema, form)`:
+- `Fiscal.handleSubmit` — usar `nfeSchema` existente.
+- `useCotacoesCompra.handleSubmit` — criar `cotacaoCompraSchema` simples (numero, data_cotacao, itens > 0, sem duplicado).
+- `usePedidosCompra.handleSubmit` — criar `pedidoCompraSchema`.
+- `RemessaForm.handleSubmit` — schema mínimo.
 
-### Diferenciação visual entre Empty/Error/AccessDenied
-- Empty: ícone neutro em círculo `bg-muted` (mantém)
-- Error: ícone em círculo `bg-destructive/10`, título `text-destructive` (mantém)
-- AccessDenied: ícone em círculo `bg-warning/10 text-warning`, título neutro (muda — hoje usa DetailEmpty)
-- NoResults: ícone em círculo `bg-info/10 text-info`
+Demais (FluxoCaixa, Estoque, ContasBancarias, FormasPagamento) ficam para próxima passada.
 
-Cada um com cor de fundo do círculo diferente → leitura instantânea.
+### Fase 5 — Helper `buildOrcamentoPayload` (corrige E2)
+Extrair construção do payload de `OrcamentoForm.onSubmit` para função reutilizada por `handleDuplicate`. Reduz risco de divergência.
 
-## Arquivos afetados
+### Fase 6 — Atomicidade em edit (corrige D2 parcial)
+Não criar RPCs novas (fora do escopo). Mas:
+- `useCotacoesCompra.handleSubmit` (edit): trocar `Promise.all([update, delete])` por `await update; await delete` sequencial; envolver itens insert em try/catch e reverter status se falhar.
+- Anotar dívida: criar RPC `salvar_cotacao_compra` e `salvar_nota_fiscal` em passada futura.
 
-### Core (componentes)
-- `src/components/ui/spinner.tsx` — `label` renderizado abaixo do spinner em `FullPageSpinner`/`ContentSpinner`
-- `src/components/ui/empty-state.tsx` — adicionar prop `variant` com cores diferenciadas
-- `src/components/ui/NoResultsState.tsx` — **novo**: wrapper para filtros vazios
-- `src/components/ui/DetailStates.tsx` — `DetailError` aceita `onRetry`; `DetailEmpty` aceita `variant`
-- `src/components/AccessDenied.tsx` — botão "Voltar ao início" default + ícone com `bg-warning/10`
-- `src/components/ui/skeleton.tsx` — prop `tone` opcional
-- `src/components/ui/sonner.tsx` — `richColors`, `closeButton`, position `bottom-right`, duration por tipo
+### Fase 7 — Catches uniformes (corrige D3)
+- `Clientes.handleSubmit` catch: adicionar `toast.error(getUserFriendlyError(err))`.
+- Verificar e padronizar `Fornecedores`, `GruposEconomicos`, `FormasPagamento` (rápida varredura).
 
-### Adopters (sample, não exaustivo)
-- `src/components/ProtectedRoute.tsx` — passar `label="Carregando sessão..."`
-- `src/components/AdminRoute.tsx` — `label="Verificando permissões..."`
-- `src/components/SocialRoute.tsx` — `label="Verificando permissões..."`
-- `src/App.tsx` (LazyPage) — `label="Carregando página..."`
+### Fase 8 — Esconder seções inválidas em create (corrige A3)
+- `Clientes` modal: `mode === "create"` esconde tabs "Endereços de Entrega", "Transportadoras", "Comunicações" (já há banner; remover seções vazias).
+- `Funcionarios` modal: mesmo para "Folha" e "Financeiro".
 
-### Documentação inline
-- Adicionar exemplos JSDoc em cada componente afetado mostrando os 4 cenários (default, noResults, firstUse, error com retry).
+Mudança visual mínima — funcional.
 
-## Fora do escopo
-- Migrar todos os ~50 callers de `EmptyState` para variants apropriados (refactor amplo).
-- Trocar todos os ícones de empty/error nas páginas (catálogo de ícones futuro).
-- Configurar i18n de mensagens de loading.
-- Refatorar `ErrorBoundary` global para variante "card" (próxima passada).
-- Migrar todos os toasts hardcoded para `toastCrud` (passada anterior já cobriu hooks).
+## Fora do escopo (anotado para passadas futuras)
+- Refatorar `Clientes.tsx`, `Fiscal.tsx`, `OrcamentoForm.tsx`, `Produtos.tsx` em sub-componentes (>1000 linhas).
+- Criar RPCs `salvar_cotacao_compra`, `salvar_pedido_compra`, `salvar_nota_fiscal` para atomicidade real.
+- Migrar `Clientes`/`Funcionarios` de modal único para páginas dedicadas como `OrcamentoForm`.
+- Extrair tipos `*Form` de todas as telas para `pages/<modulo>/types.ts`.
+- Migrar todos os handlers inline restantes para Zod.
+- Padronizar navegação pós-create (decisão de produto: documentos pesados → detalhe).
+- Mover `openCreate` async (busca de número) para padrão único.
 
 ## Critério de aceite
-- Spinner com mensagem "Carregando..." (default) e específica nos route guards.
-- Empty/Error/NoResults/AccessDenied com cores de fundo distintas no círculo do ícone.
-- `NoResultsState` disponível como helper para filtros vazios.
-- Toast com `richColors` + `closeButton` + posição bottom-right.
-- `DetailError` aceita `onRetry` com botão automático.
-- `AccessDenied` com botão "Voltar ao início".
-- `Skeleton` com tom opcional para fundos de card.
+- Datas em emptyForm convertidas para função/dinâmico.
+- Fallbacks `Date.now()` removidos da numeração; toast de erro se RPC falhar.
+- 4 handlers críticos migrados para `useSubmitLock`.
+- 4 handlers usando `validateForm(zodSchema)`.
+- `OrcamentoForm` com `buildOrcamentoPayload` compartilhado entre save e duplicate.
+- `useCotacoesCompra` edit sequencial, sem race.
+- Clientes/Funcionarios modal: tabs irrelevantes ocultas em create.
 - Build OK; zero regressão funcional.
 
+## Arquivos afetados
+- `src/lib/dateUtils.ts` — helper `todayISO()` (criar/estender)
+- `src/pages/Fiscal.tsx` — datas, numeração? (manual ok), useSubmitLock, validateForm
+- `src/pages/FluxoCaixa.tsx` — datas dinâmicas
+- `src/components/compras/cotacaoCompraTypes.ts` — datas dinâmicas
+- `src/pages/PedidoCompraForm.tsx` — datas dinâmicas no initial
+- `src/hooks/useCotacoesCompra.ts` — useSubmitLock, validateForm, edit sequencial, fallback
+- `src/hooks/usePedidosCompra.ts` — useSubmitLock, fallback removido
+- `src/pages/OrcamentoForm.tsx` — fallback removido + buildPayload helper
+- `src/pages/Orcamentos.tsx` — fallback removido
+- `src/pages/Clientes.tsx` — toast em catch + tabs hidden em create
+- `src/pages/Funcionarios.tsx` — tabs hidden em create
+- `src/lib/cotacaoCompraSchema.ts` — **novo** schema Zod
+- `src/lib/pedidoCompraSchema.ts` — **novo** schema Zod
+- `src/pages/RemessaForm.tsx` — validateForm minimal
+
 ## Entregáveis
-Resumo final por categoria: spinner/loading, empty state (default/noResults/firstUse), error (com retry), accessDenied, skeleton, toast.
+Resumo final por categoria: datas frescas, numeração atômica, lock de submit, validação Zod, atomicidade edit, navegação pós-create, modal create/edit (tabs).
 
