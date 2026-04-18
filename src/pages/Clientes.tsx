@@ -521,6 +521,7 @@ const Clientes = () => {
       setModalOpen(false);
     } catch (err) {
       console.error('[clientes] erro ao salvar:', err);
+      toast.error(getUserFriendlyError(err));
     }
     setSaving(false);
   };

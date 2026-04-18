@@ -350,8 +350,13 @@ export default function OrcamentoForm() {
             toast.error("Cotação não encontrada.", { description: `Nenhuma cotação com ID ${id}.` });
           }
         } else {
-          const { data: novoNumero } = await supabase.rpc('proximo_numero_orcamento');
-          setValue('numero', novoNumero || `COT${String(Date.now()).slice(-6)}`);
+          const { data: novoNumero, error: numErr } = await supabase.rpc('proximo_numero_orcamento');
+          if (numErr || !novoNumero) {
+            console.error('[OrcamentoForm] proximo_numero_orcamento falhou:', numErr);
+            toast.error('Não foi possível gerar o número do orçamento. Tente novamente.');
+            return;
+          }
+          setValue('numero', novoNumero);
         }
       } catch (err: unknown) {
         console.error("[OrcamentoForm] erro ao carregar dados:", err);

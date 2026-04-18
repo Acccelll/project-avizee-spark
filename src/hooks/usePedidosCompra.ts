@@ -460,7 +460,7 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
 
     let entradaOk = false;
     try {
-      const hoje = new Date().toISOString().split("T")[0];
+      const hoje = todayISO();
       const { error } = await supabase.rpc("receber_compra", {
         p_pedido_id: p.id,
         p_data_recebimento: hoje,
