@@ -116,14 +116,13 @@ export function OrcamentoView({ id }: Props) {
     fetchData();
   }, [fetchData]);
 
-  if (loading) return <div className="p-8 text-center animate-pulse">Carregando cotação...</div>;
-  if (fetchError) return (
-    <div className="p-8 text-center text-destructive space-y-1">
-      <p className="font-semibold">Erro ao carregar dados</p>
-      <p className="text-xs text-muted-foreground">{fetchError}</p>
-    </div>
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const isExpired = !!(
+    selected?.validade &&
+    selected.status !== "convertido" &&
+    new Date(selected.validade) < today
   );
-  if (!selected) return <div className="p-8 text-center text-destructive">Cotação não encontrada</div>;
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
