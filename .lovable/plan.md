@@ -1,161 +1,219 @@
 
 
-# Diagnóstico visual — Autenticação, Permissões e Administração
+# Diagnóstico técnico — Fluxos intermodulares
 
-## Inventário visual
+## Inventário dos fluxos críticos
 
-| Tela / Estado | Estado atual |
-|---|---|
-| `/login` | Card centralizado, logo, 2 inputs com ícones, botão "Entrar" + botão dev (dashed). Limpo, mas erros aparecem só como texto vermelho 12px abaixo do input + toast. |
-| `/signup` | Existe, padrão similar ao login. |
-| `/forgot-password` | Existe; feedback "verifique seu e-mail" via toast. |
-| `/reset-password` | Funcional após Fase 10; sem destaque para "sessão de recuperação ativa". |
-| Loading de sessão | `FullPageSpinner label="Carregando sessão..."` — texto genérico, sem branding. |
-| `AccessDenied` (rota) | `DetailEmpty` com `ShieldOff` warning + título + msg + botão "Voltar ao início". OK, mas mensagem técnica ("módulo (financeiro)"). |
-| `AccessDenied` (admin) | Mesma base, mas título "Área administrativa". |
-| Botões sem permissão | Padrão atual: **escondidos** (não renderizam). Usuário não sabe que existe a ação — sem tooltip "você não tem permissão". |
-| `PermissaoMatrix` (admin) | Tabela read-only com banner amarelo. Sem busca, sem highlight de overrides. |
-| Toast de logout | Sonner `info` "Sessão encerrada" — sem destaque. |
-| Toast de erro de login | Genérico "E-mail ou senha inválidos" — sem ícone, sem ação de recovery inline. |
+| Fluxo | Origem → Destino | Mecanismo de propagação |
+|---|---|---|
+| Cotação → Pedido | `Orcamentos` → `Pedidos` | RPC `converter_orcamento_em_ov` |
+| Pedido → NF saída | `Pedidos`/`OrdemVendaView` → `Fiscal` | `gerarNFParaPedido` (TS) |
+| NF → Estoque + Financeiro | `Fiscal` | `confirmarNotaFiscal` (TS) — múltiplos inserts em sequência |
+| Cotação compra → Pedido compra | `CotacoesCompra` → `PedidosCompra` | mistura: TS direto + RPCs |
+| Pedido compra → Recebimento | `PedidosCompra` | RPC `receber_compra` (cria estoque + financeiro) |
+| Pedido compra → NF entrada | redirect manual via URL | navegação (`navigate(/fiscal?…)`) |
+| Estorno NF | `Fiscal`/`FiscalDetail` | `estornarNotaFiscal` (TS) |
+| Baixa financeira | `Financeiro` | RPC `financeiro_processar_baixa_lote` com fallback TS |
 
 ## Problemas reais
 
-### 1. Login sem hierarquia de feedback
-- Erros de validação (12px texto vermelho) competem com toast (canto). Usuário recebe 2 sinalizações para o mesmo erro.
-- Sem **alert inline** persistente para erros do servidor (ex: "credenciais inválidas") — toast some em 4s.
-- "Esqueceu a senha?" como link discreto ao lado do label de senha — invisível em foco.
-- Sem indicação visual de "Caps Lock ativo" no campo senha (causa real de erro).
-- Botão dev (`Preencher como Dev`) sempre visível em dev — ok, mas em produção fica escondido sem aviso ao desenvolvedor que esqueceu de configurar `VITE_DEV_*`.
+### A. Refresh entre módulos — duas escolas convivendo
 
-### 2. Loading de sessão "morto"
-`FullPageSpinner label="Carregando sessão..."` em fundo `bg-background` plano. Nenhum branding (logo). Usuário recarrega a página e por 1-3s vê só um spinner cinza — parece app quebrado.
+**A1. `fetchData()` legado vs `queryClient.invalidateQueries()`**
+- Páginas antigas (`Pedidos`, `Orcamentos`, `Fiscal`, `ContasBancarias`, `useCotacoesCompra`, `usePedidosCompra` em parte) fazem `fetchData()` local após mutação cross-módulo. Isso atualiza só a tela atual.
+- Quem está em outra tela aberta em background (ex: Financeiro aberto em outra aba/sessão SPA) não recebe atualização porque a mutação não invalida `["financeiro_lancamentos"]`.
+- Hooks novos (`useConverterOrcamento`, `useFaturarPedido`, `useGerarPedidoCompra`, `useEstoqueMutations`) já fazem `invalidateQueries` cross-módulo. Padrão correto, mas inconsistente.
 
-### 3. AccessDenied tecnicista
-Mensagem default: *"Você não tem permissão para acessar este módulo (financeiro). Solicite acesso ao administrador."*
-- Mostra o slug interno `financeiro` em vez de "Financeiro".
-- "Solicite acesso ao administrador" sem CTA real (mailto, link, copiar contato).
-- Mesmo visual para 3 contextos (rota / admin / inline) — não diferencia "área restrita" de "ação restrita".
+**A2. `gerarNFParaPedido` não invalida nada**
+Chamado direto em `Pedidos.tsx` (handleGenerateNF) e em `OrdemVendaView` (`handleGenerateNF`). Após sucesso:
+- `Pedidos.tsx` faz `fetchData()` local apenas → `Fiscal`/`Financeiro`/`Estoque` em outra rota ficam stale.
+- `OrdemVendaView` faz `reload()` do detalhe apenas → grid de Pedidos, Fiscal, Estoque ficam stale.
+- Existe `useFaturarPedido` (mutation com invalidação) mas **não é usado pelos callers principais** — caminho duplicado.
 
-### 4. Ações bloqueadas viram fantasmas
-Padrão hoje (Fase 4): se `!can(...)`, o componente retorna `null`. Resultado:
-- Vendedor vê tela de Pedidos sem botão "Excluir". Pode achar que a feature não existe.
-- Sem distinção entre **indisponível** (estado: pedido faturado não pode ser cancelado) e **proibido** (você não tem permissão).
-- Suporte recebe ticket "como excluo pedido?" sem saber que é permissão.
+**A3. `confirmarNotaFiscal` / `estornarNotaFiscal` também não invalidam**
+Após confirmar NF: estoque, financeiro, OV faturamento mudam. Mas `Fiscal.tsx` chama `fetchData()` local, e `OrdemVendaView` que está em outro drawer/aba não enxerga.
 
-### 5. Sessão expirada sem ritual
-`onAuthStateChange` SIGNED_OUT mostra toast "Sessão encerrada" e redireciona. Se a sessão expirar enquanto o usuário escreve um formulário, ele perde tudo sem aviso prévio.
+**A4. `convertToPedido` toca: orçamento + ordem_venda + items**
+`useConverterOrcamento` invalida `["orcamentos", "ordens_venda"]`. Mas `Orcamentos.tsx` **não usa esse hook** — chama `convertToPedido` direto e faz `fetchData()`. Resultado: o hook não tem caller real; a página antiga continua com o problema.
 
-### 6. Reset password sem confirmação visual de "modo recovery"
-Após Fase 10, a página valida `getSession`. Mas visualmente é igual à tela "definir senha" comum — usuário não sabe se está num fluxo seguro de recovery.
+### B. Encadeamento Compras → Fiscal: passagem de contexto frágil
 
-### 7. PermissaoMatrix denso e sem hierarquia
-- Tabela `recursos × ações` com checkmarks. Sem busca por recurso.
-- Banner "read-only definido em código" amarelo grande no topo — ocupa espaço.
-- Não destaca overrides individuais (allow/deny) com cores distintas.
-- Não mostra **resumo** "este usuário tem X permissões a mais que o role base".
+**B1. `darEntrada` redireciona para `/fiscal?tipo=entrada&fornecedor_id=...&pedido_compra=NUMERO`**
+- Passa o **número** do pedido (`pedidoNumero(p)`), não o `id`. O destino precisa fazer lookup pelo número, ou abre sem pré-vínculo.
+- `Fiscal.tsx` não está documentado para consumir esses query params como pré-preenchimento — verificar se está implementado. Provavelmente o usuário cai em /fiscal genérico sem filtro aplicado, perdendo o contexto que o redirect prometia.
 
-### 8. Falta indicador de "sessão ativa" no header
-Avatar do usuário no header não mostra role nem status de sessão. Admin trabalhando sem perceber que está logado como tal.
+**B2. Chave estrangeira `pedido_compra_id` em `financeiro_lancamentos` existe mas não é populada por todos os caminhos**
+`receber_compra` (RPC) provavelmente preenche, mas se um financeiro for criado manualmente após confirmação de NF de entrada, perde-se o link com o pedido de compra original. Isso quebra a tab "Financeiro" do `PedidoCompraView` que faz `eq("pedido_compra_id", id)`.
 
-## Padrão-base visual proposto
+### C. Consistência transacional — TS vs RPC
 
-### A. Login com alert inline + caps lock detector
-- **Alert inline** acima do form para erros do servidor (`<Alert variant="destructive">`), persistente até nova tentativa.
-- Remover toast de erro de credencial (manter só toast de erro de rede).
-- Indicador discreto "Caps Lock ativo" abaixo do campo senha quando detectado (`onKeyDown` checa `getModifierState`).
-- "Esqueceu a senha?" como botão `link` mais visível, posicionado abaixo do botão Entrar (separação clara das ações).
-- Footer com link "Precisa de acesso? Fale com o administrador" (copiar email do `empresaConfig.email_admin` se disponível, senão mailto genérico).
+**C1. `confirmarNotaFiscal` é multi-step em TS (não atômico)**
+Sequência: update NF → insert estoque (Promise.all N+1 com select prévio) → insert financeiro (Promise.all) → update OV. Se qualquer passo falhar no meio, fica:
+- NF marcada `confirmada` mas estoque parcialmente movido.
+- Financeiro com algumas parcelas inseridas e outras não.
+- Sem rollback. Idempotência só por `if status === "confirmada" return`.
 
-### B. Loading de sessão com branding
-Substituir `FullPageSpinner` em `ProtectedRoute`/`AdminRoute`/`PermissionRoute` por `<AuthLoadingScreen>` novo:
-- Logo AviZee centralizada
-- Spinner pequeno abaixo
-- Label adaptativa: "Carregando sessão" / "Verificando permissões" / "Restaurando acesso"
-- Fade-in suave (200ms)
+Comparar com `receber_compra` que é RPC atômico. Falta paridade.
 
-### C. AccessDenied refinado em 3 variantes
-Componente único, 3 modos via prop `variant`:
-- **`route`** (full page): ícone grande, título "Acesso restrito", recurso humanizado ("Financeiro" não "financeiro"), CTA primária "Voltar ao início" + secundária "Solicitar acesso" (abre modal/mailto).
-- **`action`** (inline pequeno): ícone ShieldOff inline + texto compacto. Para uso em painéis.
-- **`feature`** (placeholder de seção): card cinza com ícone Lock, "Esta seção requer permissão X". Para áreas específicas dentro de uma página acessível.
+**C2. `gerarNFParaPedido` idem — multi-step TS**
+8 passos sequenciais (busca itens, RPC numeração, insert NF, insert itens, update faturamento item-a-item, update status faturamento OV, confirma NF). Falha no meio = NF criada sem confirmação ou OV com faturamento parcialmente atualizado.
 
-Mapa `humanizeResource(slug)` em `permissions.ts` para nomes amigáveis.
+**C3. Update item-a-item de `quantidade_faturada`**
+Em `gerarNFParaPedido` e `updateOVFaturamento` em fiscal.service: `Promise.all(nfItens.map(item => update(...)))`. N requests; sem locking. Dois faturamentos concorrentes do mesmo pedido em janelas paralelas podem dobrar `quantidade_faturada`. RPC com SELECT FOR UPDATE resolveria.
 
-### D. Botões bloqueados visíveis com tooltip
-Novo componente `<PermissionGate resource action mode="hide" | "disable">`:
-- **`hide`** (default atual): retorna null. Usar quando ação é raramente acessível.
-- **`disable`**: renderiza children desabilitado + tooltip "Você não tem permissão para [ação]. Fale com o administrador."
+**C4. `estornarNotaFiscal` — código de busca ambíguo**
+```ts
+.or(`nota_fiscal_id.eq.${nf.id},documento_fiscal_id.eq.${nf.id}`);
+```
+A coluna `documento_fiscal_id` não consta em `financeiro_lancamentos` no schema. Filtro `or` com coluna inexistente provavelmente quebra silenciosamente ou ignora. Confirmar e remover.
 
-Recomendação: usar `disable` em ações primárias (Editar, Excluir, Aprovar) e `hide` em ações administrativas raras (Configurar, Gerenciar templates).
+### D. Navegação de retorno — perda de contexto
 
-Aplicar em: Pedidos (excluir), Orçamentos (aprovar), Financeiro (editar), Estoque (movimentar), Relatórios (exportar PDF).
+**D1. `darEntrada` faz `navigate("/fiscal?...")` sem trilha de volta**
+Usuário no Pedido de Compra → recebe → vai para Fiscal → não tem botão "Voltar ao Pedido de Compra origem". Precisa lembrar e digitar URL.
 
-### E. Aviso de sessão expirando
-Hook `useSessionExpiryWarning()` que escuta `session.expires_at`:
-- 5 min antes da expiração → toast persistente com botão "Renovar sessão" (refresh token).
-- Expirou → modal bloqueante "Sessão expirada. Faça login novamente." + botão único "Ir para login".
+**D2. `OrdemVendaView.handleGenerateNF` fica no drawer, mas não navega para a NF criada**
+Faz `reload()` e o usuário precisa clicar manualmente em "NF X" nos botões do header. Aceitável, mas inconsistente com Pedidos.tsx (que também não navega) e com `convertToPedido` que navega para `/pedidos`.
 
-### F. ResetPassword com banner de contexto
-No topo da tela, banner verde discreto: "🔐 Você está em um fluxo seguro de redefinição de senha." Após sucesso, redireciona para login com toast "Senha alterada com sucesso. Faça login com a nova senha."
+**D3. `Orcamentos.handleConvertToPedido` faz `navigate('/pedidos')` mas o `OrcamentoView` no drawer faz `setConvertConfirmOpen(false)` sem navegar**
+Comportamento divergente entre grid e drawer para a mesma ação.
 
-### G. PermissaoMatrix com busca + destaques
-- Input de busca filtrando por recurso/ação no topo.
-- Banner read-only colapsável (pequeno `Info` icon + tooltip).
-- Linhas com override allow → bg verde sutil; override deny → bg vermelho sutil; herdado → sem fundo.
-- Footer com resumo: "12 permissões herdadas · 3 adicionadas · 1 revogada".
-- Legenda visual no rodapé com 3 swatches.
+**D4. Filtros perdidos ao voltar**
+`Pedidos` usa `useSearchParams` — filtros sobrevivem refresh ✓. Mas `Fiscal` aparenta usar `useState` local. Sair de Fiscal → entrar em outro módulo → voltar perde filtros aplicados. Inconsistente entre módulos (Pedidos/Orçamentos persistem; Fiscal/Estoque/Logística não — verificar).
 
-### H. Avatar do header com badge de role
-- Avatar pequeno com badge dot colorido (admin=vermelho, financeiro=azul, vendedor=verde, estoquista=amarelo).
-- Tooltip no avatar: "João Silva · Administrador · Online".
-- Dropdown de conta abre com role visível ao lado do nome.
+**D5. Drawer aberto perde-se ao navegar entre rotas**
+`/pedidos?drawer=ordem_venda:UUID` está implementado em `RelationalNavigationContext`. Mas se o usuário clica em link que muda `pathname` (ex: ir do drawer para `/fiscal/UUID`), o stack de drawers fecha. Não há "preservar drawer ao mudar de rota" — pode ser intencional, mas vale confirmar UX.
 
-## Implementação
+### E. Acoplamento e duplicação técnica
 
-### Componentes novos
-1. **`src/components/auth/AuthLoadingScreen.tsx`** — Branding + spinner + label adaptativa.
-2. **`src/components/auth/SessionExpiryWarning.tsx`** — Toast/modal de expiração; hook `useSessionExpiryWarning` interno.
-3. **`src/components/auth/CapsLockIndicator.tsx`** — Pequeno hint reativo abaixo do input senha.
-4. **`src/components/PermissionGate.tsx`** — Wrapper para ações com modo `hide`/`disable` + tooltip explicativo.
-5. **`src/components/RequestAccessDialog.tsx`** — Modal com mailto pré-preenchido para "Solicitar acesso".
+**E1. Lógica fiscal espalhada**
+- `gerarNFParaPedido` em `nf.service.ts` — caller TS direto.
+- `confirmarNotaFiscal` em `fiscal.service.ts` — chamado por `nf.service` e por `Fiscal.tsx`.
+- `gerar_nf_de_pedido` (RPC) — usada em `useFaturarPedido` mas **ninguém chama o hook**.
 
-### Componentes ajustados
-6. **`src/components/AccessDenied.tsx`** — Adicionar prop `variant: 'route' | 'action' | 'feature'`, prop `resourceLabel?` (humanizado), CTA secundária "Solicitar acesso".
-7. **`src/lib/permissions.ts`** — Adicionar `RESOURCE_LABELS: Record<ErpResource, string>` e helper `humanizeResource(slug)`.
-8. **`src/components/PermissionRoute.tsx`** — Passar `resourceLabel={humanizeResource(resource)}` ao `AccessDenied`.
-9. **`src/components/AdminRoute.tsx`** — Usar `AuthLoadingScreen` em vez de `FullPageSpinner`.
-10. **`src/components/ProtectedRoute.tsx`** — Idem.
-11. **`src/components/SocialRoute.tsx`** — Idem.
-12. **`src/pages/Login.tsx`** — Alert inline para erro de servidor, CapsLockIndicator, footer "Precisa de acesso?", reorganizar "Esqueceu a senha?".
-13. **`src/pages/ResetPassword.tsx`** — Banner verde "fluxo seguro", success toast claro.
-14. **`src/components/navigation/AppHeader.tsx`** — Badge de role no avatar + role no dropdown.
-15. **`src/contexts/AuthContext.tsx`** — Inicializar listener de expiração via `<SessionExpiryWarning />` em algum ponto top-level (App.tsx).
-16. **`src/App.tsx`** — Montar `<SessionExpiryWarning />` dentro do `AuthProvider`.
-17. **`src/pages/admin/components/PermissaoMatrix/index.tsx`** — Busca, banner colapsável, destaques de override, footer resumo, legenda.
+Decisão pendente: padronizar em RPC (preferido — atômica) e descontinuar `gerarNFParaPedido` TS. Mover `Pedidos.tsx` e `OrdemVendaView.handleGenerateNF` para `useFaturarPedido`.
 
-### Pontos de uso de `PermissionGate` (ondas)
-- Onda inicial nesta passada: Pedidos (excluir/cancelar), Orçamentos (aprovar/excluir), Financeiro (editar/excluir lançamento). Demais módulos continuam com `hide` atual e migram em passada futura.
+**E2. `useCotacoesCompra` mistura `fetchData` com mutações cross-módulo**
+- `gerarPedido` cria `pedidos_compra` + items + atualiza cotação. Faz `fetchData()` apenas das cotações. `pedidos_compra` em outra tela fica stale.
+- Já existe `useGerarPedidoCompra` (mutation com invalidação correta) mas não é integrado.
+
+**E3. `useSupabaseCrud` (legado) vs hooks de mutation novos**
+`useSupabaseCrud` faz seu próprio `useQuery` mas expõe `fetchData()` que é um `refetch()`. Quando usado lado a lado com mutations que invalidam queryKey, as duas convivem mas semanticamente confundem (qual é o caminho canônico?). `Pedidos.tsx`, `Orcamentos.tsx`, `Fiscal.tsx` usam o legado.
+
+**E4. Hooks de mutation existentes mas não integrados**
+- `useFaturarPedido` ❌ não usado em `Pedidos.tsx`/`OrdemVendaView`
+- `useGerarPedidoCompra` ❌ não usado em `useCotacoesCompra`
+- `useConverterOrcamento` ❌ não usado em `Orcamentos.tsx`/`OrcamentoView`
+
+A estrutura "correta" foi criada mas ninguém ligou. Plug-in está faltando.
+
+### F. Reflexos faltantes nos KPIs/badges
+
+**F1. KPI "Faturamento" no `OrdemVendaView` filtra `n.status === "autorizada"`**
+Mas `gerarNFParaPedido` cria NF com `status: "pendente"` e `confirmarNotaFiscal` muda para `"confirmada"`. Nunca passa por `"autorizada"` (isso é o status SEFAZ, não o status interno). Resultado: KPI de "valor faturado" fica sempre 0 a menos que alguém marque manualmente. Inconsistência conceitual entre `status` (interno) e `status_sefaz`.
+
+**F2. `status_faturamento` da OV é atualizado no service, mas a page Pedidos só refaz fetch local**
+Outras telas com mesma OV em background ficam stale. Sintoma: vendedor abre Pedidos em uma aba, faturador gera NF em outra → vendedor vê status antigo.
+
+### G. Contratos entre áreas — sem types compartilhados
+
+**G1. `gerarNFParaPedido(pedidoId, pedidoNumero, clienteId)` recebe 3 args primitivos**
+Caller precisa lembrar a ordem. Se um for `null` errado, falha silenciosa. Trocar por `{ pedidoId, pedidoNumero, clienteId }` (objeto).
+
+**G2. `confirmarNotaFiscal({ nf, parcelas })` recebe um shape duplicado de `NotaFiscal`**
+Interface inline com 13 campos picados. Se o tipo `NotaFiscal` em `@/types/domain` evoluir, esta interface fica drift. Importar do domínio.
+
+**G3. `OvItem`, `NfItemInsert` em `nf.service.ts` redefinem tipos que existem em `Database["public"]["Tables"]`**
+Replicação manual.
+
+## Estratégia de correção
+
+### Decisão 1 — RPC como caminho canônico para operações cross-módulo
+Toda operação que afeta 2+ tabelas em domínios distintos (estoque, financeiro, OV, NF) deve ser RPC com transação. Manter wrappers TS apenas como **shims** que chamam a RPC.
+
+Já existem: `converter_orcamento_em_ov`, `gerar_nf_de_pedido`, `receber_compra`, `financeiro_processar_baixa_lote`, `financeiro_processar_estorno`. Falta: `confirmar_nota_fiscal`, `estornar_nota_fiscal`. Como criar essas duas RPCs é cirurgia maior, **fora do escopo** desta passada — manter TS e tratar os sintomas (idempotência + invalidação).
+
+### Decisão 2 — `useInvalidateAfterMutation` em todo lugar
+Eliminar `fetchData()` solto após operação cross-módulo. Toda mutação cross-módulo deve listar **todas as keys afetadas**.
+
+### Fase 1 — Plugar hooks de mutation existentes
+- `Pedidos.tsx` → trocar `gerarNFParaPedido` direto por `useFaturarPedido` (que usa RPC `gerar_nf_de_pedido` + invalida).
+- `OrdemVendaView.handleGenerateNF` → idem.
+- `Orcamentos.tsx`/`OrcamentoView` → trocar `convertToPedido` direto por `useConverterOrcamento`.
+- `useCotacoesCompra.gerarPedido` → trocar TS multi-step por `useGerarPedidoCompra`.
+
+### Fase 2 — Adicionar invalidação cross-módulo aos serviços que ficam em TS
+- `confirmarNotaFiscal`/`estornarNotaFiscal`: receber opcional `queryClient` ou retornar lista de keys a invalidar; callers (`Fiscal.tsx`, `FiscalDetail`, `NotaFiscalDrawer`) chamam `useInvalidateAfterMutation(["notas_fiscais","fiscal","ordens_venda","financeiro_lancamentos","financeiro_baixas","estoque-produtos","estoque-movimentacoes","contas_bancarias"])`.
+- `gerarNFParaPedido` (mantido para callers que não puderem trocar agora): mesmo tratamento.
+
+Padrão: criar `src/services/_invalidationKeys.ts` exportando `INVALIDATION_KEYS = { fiscal: [...], compras: [...], etc }` para evitar listas mágicas espalhadas.
+
+### Fase 3 — Corrigir `estornarNotaFiscal.or(... documento_fiscal_id ...)`
+Coluna inexistente. Remover do filtro; manter só `nota_fiscal_id`.
+
+### Fase 4 — Resolver KPI "valor faturado" em `OrdemVendaView`
+Status interno após `confirmarNotaFiscal` é `"confirmada"`, não `"autorizada"`. Trocar filtro do KPI para `["confirmada","autorizada"].includes(n.status)`. Documentar que `status_sefaz` é separado.
+
+### Fase 5 — Padronizar passagem de contexto Compras → Fiscal
+- `darEntrada`: passar `pedido_compra_id` (UUID) em vez de número.
+- `Fiscal.tsx`: ler `pedido_compra_id` de query e pré-preencher form de NF de entrada (ou abrir modal pré-vinculado).
+- Adicionar `pedido_compra_id` em `notas_fiscais` (se não existir) ou usar `referencia_externa_id`.
+- Botão "Voltar ao Pedido de Compra" no header de Fiscal quando vier desse contexto (ler query, mostrar breadcrumb).
+
+### Fase 6 — Padronizar navegação pós-conversão de orçamento
+Decidir: ficar no detalhe (mostrar pedido vinculado) OU navegar para `/pedidos/<novo>`. Aplicar a mesma decisão nos dois callers (`Orcamentos.tsx` grid + `OrcamentoView` drawer). Recomendado: ficar e mostrar — é menos disruptivo no drawer; na grid também faz sentido pois a coluna "Status" passa para "convertido".
+
+### Fase 7 — Tipos compartilhados
+- Trocar `interface ConfirmarNFParams.nf` por `Pick<Tables<"notas_fiscais">, ...>` ou usar `NotaFiscal` de `@/types/domain`.
+- Trocar `gerarNFParaPedido(...)` para receber objeto `{ pedidoId, pedidoNumero, clienteId }`.
+- `OvItem`, `NfItemInsert` → derivar de `Database["public"]["Tables"]`.
+
+### Fase 8 — Persistir filtros nos módulos legados
+- `Fiscal.tsx`, `Estoque.tsx`, `Logistica.tsx` (verificar quais usam `useState` local) → migrar para `useSearchParams` igual `Pedidos`/`Orcamentos`.
+- Fora do escopo: refatorar paginação/cursor, apenas filtros + searchTerm.
+
+### Fase 9 — Documentar contratos
+Criar `src/services/CONTRACTS.md` com:
+- Tabela de mutações cross-módulo: input, side-effects, keys a invalidar.
+- Quem chama quem (caller → service → RPC).
+- Decisão: "operações multi-tabela são RPC; serviços TS são adapters."
 
 ## Fora do escopo
-- Refazer fluxo de signup (raramente usado, admin cria usuários).
-- 2FA / MFA (feature nova).
-- Onboarding wizard pós-primeiro-login.
-- Refazer visual do dropdown da conta inteiro (apenas adicionar role).
-- Trocar Sonner por sistema de notificação custom.
-- Migrar todos os botões do app para `PermissionGate disable` (apenas onda inicial).
-- Refazer `/signup` e `/forgot-password` visualmente.
+- Criar RPCs `confirmar_nota_fiscal`/`estornar_nota_fiscal` (mudança maior — pode quebrar XML/SEFAZ).
+- Implementar locking otimista (SELECT FOR UPDATE) em `quantidade_faturada`.
+- Realtime subscriptions cross-módulo (Supabase Realtime para invalidação automática).
+- Refatorar `useSupabaseCrud` para depreciar `fetchData()`.
+- Migrar `Fiscal.tsx`/`Estoque.tsx` para hooks de mutation novos (escopo grande — fica para passada própria).
+- Drawer aberto sobreviver a mudança de rota (decisão UX).
+- Auditoria de impacto em testes (`OrcamentoForm.test.tsx`, `financeiro.service.test.ts`).
 
 ## Critério de aceite
-- Login com alert inline persistente para erro de credencial (sem toast duplicado) + indicador de Caps Lock + footer de contato.
-- `AuthLoadingScreen` com logo aparece em ProtectedRoute/AdminRoute/PermissionRoute/SocialRoute.
-- `AccessDenied` em 3 variantes; rota mostra nome humanizado do recurso e botão "Solicitar acesso".
-- `PermissionGate` disponível com modos `hide`/`disable`; aplicado em Pedidos/Orçamentos/Financeiro nas ações primárias.
-- Aviso de sessão expirando 5min antes; modal ao expirar.
-- ResetPassword com banner de contexto e success toast claro.
-- PermissaoMatrix com busca, destaques de override, banner colapsável e resumo no rodapé.
-- Avatar do header com dot de role + role no dropdown.
-- Build OK; nenhum guard ou fluxo de auth quebrado.
+- `Pedidos.tsx`, `OrdemVendaView`, `Orcamentos.tsx`, `OrcamentoView`, `useCotacoesCompra.gerarPedido` consomem hooks de mutation centralizados em vez de serviços TS diretos.
+- Toda operação cross-módulo invalida o conjunto completo de keys via `useInvalidateAfterMutation` ou `queryClient` direto. Sem `fetchData()` solto.
+- `estornarNotaFiscal` não referencia coluna `documento_fiscal_id`.
+- KPI "Valor faturado" em `OrdemVendaView` reflete NFs com status interno `confirmada` ou `autorizada`.
+- `darEntrada` passa `pedido_compra_id` (UUID); `Fiscal.tsx` lê e pré-preenche; header mostra breadcrumb de retorno.
+- Conversão de orçamento → pedido tem comportamento de navegação consistente entre grid e drawer.
+- Contratos de `confirmarNotaFiscal`/`gerarNFParaPedido` usam tipos do domínio + payload-objeto.
+- `src/services/_invalidationKeys.ts` documentando keys cross-módulo.
+- `src/services/CONTRACTS.md` com mapa caller→service→RPC.
+- Build OK; sem regressão funcional.
+
+## Arquivos afetados
+- `src/pages/Pedidos.tsx` — usar `useFaturarPedido`
+- `src/components/views/OrdemVendaView.tsx` — usar `useFaturarPedido` + corrigir KPI
+- `src/pages/Orcamentos.tsx` — usar `useConverterOrcamento`
+- `src/components/views/OrcamentoView.tsx` — usar `useConverterOrcamento` + decisão de navegação
+- `src/hooks/useCotacoesCompra.ts` — `gerarPedido` via `useGerarPedidoCompra`
+- `src/services/fiscal.service.ts` — corrigir `.or(documento_fiscal_id...)`, expor lista de keys; tipos do domínio
+- `src/services/nf.service.ts` — assinatura objeto + tipos do domínio (manter lógica até RPC paridade)
+- `src/pages/Fiscal.tsx` — invalidação completa após confirmar/estornar; ler query `pedido_compra_id`
+- `src/pages/FiscalDetail.tsx` — invalidação completa nos handlers
+- `src/components/fiscal/NotaFiscalDrawer.tsx` (provável) — chamar invalidação
+- `src/hooks/usePedidosCompra.ts` — `darEntrada` passa UUID; remover `fetchData` redundante
+- `src/services/_invalidationKeys.ts` (novo)
+- `src/services/CONTRACTS.md` (novo)
 
 ## Entregáveis
-Resumo final por categoria: login com alert + capslock + contato, loading com branding, AccessDenied humanizado em 3 variantes, PermissionGate para ações bloqueadas visíveis com tooltip, aviso de sessão expirando, ResetPassword com contexto, PermissaoMatrix com busca/destaques/resumo, avatar com role.
+Resumo final por categoria: hooks de mutation cross-módulo plugados nos callers reais, invalidação completa de keys, correção de filtro inexistente em estorno, KPI faturamento alinhado a status interno, contexto Compras→Fiscal preservado por UUID, navegação pós-conversão consistente, tipos compartilhados, documentação de contratos.
 
