@@ -167,12 +167,16 @@ export default function RemessaFormPage() {
     };
     try {
       if (isNew) {
-        await create(payload);
+        const created = await create(payload);
+        baselineRef.current = form;
+        const newId = (created as { id?: string } | null)?.id;
+        if (newId) navigate(`/logistica/remessas/${newId}?created=1`, { replace: true });
+        else navigate("/logistica");
       } else {
         await update(id!, payload);
+        baselineRef.current = form;
+        navigate("/logistica");
       }
-      baselineRef.current = form;
-      navigate("/logistica");
     } catch (err: unknown) {
       toast.error(getUserFriendlyError(err));
     }

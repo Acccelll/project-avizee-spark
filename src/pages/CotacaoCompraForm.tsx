@@ -193,7 +193,9 @@ export default function CotacaoCompraForm() {
       });
       if (rpcErr) throw rpcErr;
 
-      toast.success("Cotação salva!");
+      toast.success("Cotação salva!", {
+        description: cotacao?.numero ? `Cotação ${cotacao.numero}` : undefined,
+      });
       setCotacao({ ...cotacao, ...payload } as CotacaoCompra);
 
       // Reload items to refresh viewItems with DB ids

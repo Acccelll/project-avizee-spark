@@ -613,7 +613,7 @@ export default function OrcamentoForm() {
         description: `Registro ${payload.numero} salvo.`,
         action: { label: "Visualizar", onClick: () => navigate(orcId ? `/orcamentos/${orcId}` : "/orcamentos") },
       });
-      if (!isEdit && orcId) navigate(`/orcamentos/${orcId}`, { replace: true });
+      if (!isEdit && orcId) navigate(`/orcamentos/${orcId}?created=1`, { replace: true });
     } catch (err: unknown) {
       console.error('[orcamento]', err);
       toast.error(getUserFriendlyError(err));
