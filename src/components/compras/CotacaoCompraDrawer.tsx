@@ -304,26 +304,44 @@ export function CotacaoCompraDrawer({
       }
       footer={
         selected ? (
-          <div className="flex gap-2 flex-wrap">
-            {(selected.status === "aberta" || selected.status === "em_analise") && drawerStats.allItemsHaveSelected && (
-              <Button className="flex-1 gap-2" variant="outline" onClick={onSendForApproval}><Send className="h-4 w-4" /> Enviar para Aprovação</Button>
-            )}
-            {(selected.status === "aberta" || selected.status === "em_analise") && drawerStats.allItemsHaveSelected && (
-              <Button className="flex-1 gap-2" onClick={onApprove}><ThumbsUp className="h-4 w-4" /> Aprovar</Button>
-            )}
-            {selected.status === "aguardando_aprovacao" && (
+          <DrawerStickyFooter
+            left={
+              selected.status === "aguardando_aprovacao" && (
+                <Button variant="outline" size="sm" className="gap-2 text-destructive border-destructive/30 hover:text-destructive" onClick={onReject}>
+                  <ThumbsDown className="h-4 w-4" /> Reprovar
+                </Button>
+              )
+            }
+            right={
               <>
-                <Button className="flex-1 gap-2" variant="destructive" onClick={onReject}><ThumbsDown className="h-4 w-4" /> Reprovar</Button>
-                <Button className="flex-1 gap-2" onClick={onApprove}><ThumbsUp className="h-4 w-4" /> Aprovar</Button>
+                {(selected.status === "aberta" || selected.status === "em_analise") && drawerStats.allItemsHaveSelected && (
+                  <Button variant="outline" size="sm" className="gap-2" onClick={onSendForApproval}>
+                    <Send className="h-4 w-4" /> Enviar para Aprovação
+                  </Button>
+                )}
+                {(selected.status === "aberta" || selected.status === "em_analise") && drawerStats.allItemsHaveSelected && (
+                  <Button size="sm" className="gap-2" onClick={onApprove}>
+                    <ThumbsUp className="h-4 w-4" /> Aprovar
+                  </Button>
+                )}
+                {selected.status === "aguardando_aprovacao" && (
+                  <Button size="sm" className="gap-2" onClick={onApprove}>
+                    <ThumbsUp className="h-4 w-4" /> Aprovar
+                  </Button>
+                )}
+                {(selected.status === "aprovada" || selected.status === "finalizada") && (
+                  <Button size="sm" className="gap-2" onClick={onGerarPedido}>
+                    <ClipboardList className="h-4 w-4" /> Gerar Pedido de Compra
+                  </Button>
+                )}
+                {selected.status === "convertida" && (
+                  <Button variant="outline" size="sm" className="gap-2" onClick={onNavigatePedidos}>
+                    <ChevronRight className="h-4 w-4" /> Ver Pedidos de Compra
+                  </Button>
+                )}
               </>
-            )}
-            {(selected.status === "aprovada" || selected.status === "finalizada") && (
-              <Button className="flex-1 gap-2" onClick={onGerarPedido}><ClipboardList className="h-4 w-4" /> Gerar Pedido de Compra</Button>
-            )}
-            {selected.status === "convertida" && (
-              <Button className="flex-1 gap-2" variant="outline" onClick={onNavigatePedidos}><ChevronRight className="h-4 w-4" /> Ver Pedidos de Compra</Button>
-            )}
-          </div>
+            }
+          />
         ) : undefined
       }
     />
