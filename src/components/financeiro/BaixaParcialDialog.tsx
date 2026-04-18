@@ -113,24 +113,23 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
     if (!contaBancariaId) { toast.error("Conta bancária é obrigatória"); return; }
 
     setSaving(true);
-
-    // Server-side re-check: prevent double-baixa if status changed between render and click
     try {
-      const { data: fresh } = await supabase
-        .from("financeiro_lancamentos")
-        .select("status, saldo_restante")
-        .eq("id", lancamento.id)
-        .single();
-      if (fresh?.status === "pago" || (fresh?.saldo_restante != null && Number(fresh.saldo_restante) <= 0)) {
-        toast.error("Este título já foi totalmente liquidado. Não é possível registrar nova baixa.");
-        setSaving(false);
-        onClose();
-        return;
+      // Server-side re-check: prevent double-baixa if status changed between render and click
+      try {
+        const { data: fresh } = await supabase
+          .from("financeiro_lancamentos")
+          .select("status, saldo_restante")
+          .eq("id", lancamento.id)
+          .single();
+        if (fresh?.status === "pago" || (fresh?.saldo_restante != null && Number(fresh.saldo_restante) <= 0)) {
+          toast.error("Este título já foi totalmente liquidado. Não é possível registrar nova baixa.");
+          onClose();
+          return;
+        }
+      } catch {
+        // If the check fails, proceed with the original flow
       }
-    } catch {
-      // If the check fails, proceed with the original flow
-    }
-    try {
+
       await baixarTitulo(lancamento.id, {
         valorPago,
         desconto,
@@ -150,8 +149,9 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
     } catch (err: unknown) {
       console.error("[baixa]", err);
       toast.error(getUserFriendlyError(err));
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
   const totalJaPago = baixasAnteriores.reduce((s, b) => s + Number(b.valor_pago || 0), 0);

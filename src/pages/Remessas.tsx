@@ -25,6 +25,7 @@ import { format } from "date-fns";
 import { useRemessas, trackAndPersistEventos } from "@/services/logistica/remessas.service";
 import type { Remessa, RemessaEvento } from "@/services/logistica/remessas.service";
 import { statusRemessa } from "@/lib/statusSchema";
+import { getUserFriendlyError } from "@/utils/errorMessages";
 
 type OrdemVenda = Database["public"]["Tables"]["ordens_venda"]["Row"];
 type PedidoCompra = Database["public"]["Tables"]["pedidos_compra"]["Row"];
@@ -170,9 +171,8 @@ export default function Remessas() {
       if (fetchError) throw fetchError;
       setEventos((evData ?? []) as RemessaEvento[]);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Tente novamente";
       console.error("[remessas] handleAddEvento:", err);
-      toast.error("Erro ao salvar evento: " + msg);
+      toast.error(getUserFriendlyError(err));
     } finally {
       setSavingEvento(false);
     }
@@ -185,7 +185,7 @@ export default function Remessas() {
       toast.success(`Status atualizado para ${statusMap[newStatus]?.label ?? newStatus}`);
     } catch (err: unknown) {
       console.error("[remessas] handleStatusChange:", err);
-      toast.error("Erro ao atualizar status");
+      toast.error(getUserFriendlyError(err));
     }
   };
 
@@ -218,7 +218,7 @@ export default function Remessas() {
       setEventos((updatedEvents ?? []) as RemessaEvento[]);
     } catch (err: unknown) {
       console.error("[rastrear]", err);
-      toast.error(err instanceof Error ? err.message : "Erro ao consultar rastreio");
+      toast.error(getUserFriendlyError(err));
     }
   };
 

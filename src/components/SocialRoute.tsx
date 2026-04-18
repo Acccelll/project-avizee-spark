@@ -2,22 +2,28 @@ import { ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { getSocialPermissionFlags } from '@/types/social';
+import { FullPageSpinner } from '@/components/ui/spinner';
+import { AccessDenied } from '@/components/AccessDenied';
 
 export function SocialRoute({ children }: { children: ReactNode }) {
   const { user, loading, permissionsLoaded, roles } = useAuth();
 
   if (loading || !permissionsLoaded) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
+    return <FullPageSpinner />;
   }
 
   if (!user) return <Navigate to="/login" replace />;
 
   const permissions = getSocialPermissionFlags(roles);
-  if (!permissions.canViewModule) return <Navigate to="/" replace />;
+  if (!permissions.canViewModule) {
+    return (
+      <AccessDenied
+        fullPage
+        title="Módulo Social"
+        message="Você não tem permissão para visualizar o módulo Social. Solicite acesso ao administrador."
+      />
+    );
+  }
 
   return children;
 }

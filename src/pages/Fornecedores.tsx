@@ -157,6 +157,7 @@ const Fornecedores = () => {
       });
     } catch (err) {
       console.error("[fornecedores] erro ao carregar contexto:", err);
+      toast.error(getUserFriendlyError(err));
     } finally {
       setLoadingFornContext(false);
     }
@@ -212,6 +213,7 @@ const Fornecedores = () => {
       setModalOpen(false);
     } catch (err) {
       console.error('[fornecedores] erro ao salvar:', err);
+      toast.error(getUserFriendlyError(err));
     }
     setSaving(false);
   };
