@@ -158,10 +158,10 @@ export default function Configuracoes() {
   const [corPrimaria, setCorPrimaria] = useState('#6b0d0d');
   const [corSecundaria, setCorSecundaria] = useState('#b85b2d');
   const {
-    value: menuCompacto,
-    save: saveMenuCompacto,
-    loading: loadingMenuCompacto,
-  } = useUserPreference<boolean>(user?.id, 'sidebar_collapsed', true);
+    sidebarCollapsed: menuCompacto,
+    saveSidebarCollapsed: saveMenuCompacto,
+    loadingSidebarCollapsed: loadingMenuCompacto,
+  } = useAppConfigContext();
   const { value: densidadePref, save: saveDensidadePref } = useUserPreference<string>(user?.id, 'ui_density', 'confortavel');
   const { value: fontScale, save: saveFontScale } = useUserPreference<number>(user?.id, 'ui_font_scale', 16);
   const { value: reduceMotion, save: saveReduceMotion } = useUserPreference<boolean>(user?.id, 'ui_reduce_motion', false);
