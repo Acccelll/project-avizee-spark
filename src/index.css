@@ -321,6 +321,44 @@
   }
 }
 
+/* ──────────────────────────────────────────────────────────────────────────
+   Print isolation: when window.print() is triggered from a PreviewModal
+   or any container marked with .print-area, hide everything else and
+   render only the target area.
+   ────────────────────────────────────────────────────────────────────────── */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .print-area,
+  .print-area * {
+    visibility: visible;
+  }
+  .print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 12mm;
+    background: #fff;
+    color: #000;
+  }
+  .print-area .no-print,
+  .no-print {
+    display: none !important;
+  }
+  .print-area table {
+    page-break-inside: auto;
+  }
+  .print-area tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+  .print-area thead {
+    display: table-header-group;
+  }
+}
+
 /* ── Dashboard grid layout ── */
 .react-grid-layout {
   position: relative;
