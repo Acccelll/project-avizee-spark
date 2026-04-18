@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Tables } from "@/integrations/supabase/types";
@@ -10,10 +10,12 @@ import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext"
 import { usePublishDrawerSlots } from "@/contexts/RelationalDrawerSlotsContext";
 import { PrecosEspeciaisTab } from "@/components/precos/PrecosEspeciaisTab";
 import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { Edit, Trash2, User, Mail, Phone, MapPin, FileText, CreditCard, MessageSquare, Truck, BarChart3 } from "lucide-react";
+import { Edit, Trash2, User, Mail, MapPin, FileText, CreditCard, MessageSquare, Truck, BarChart3 } from "lucide-react";
 import { toast } from "sonner";
+import { useDetailFetch } from "@/hooks/useDetailFetch";
+import { useDetailActions } from "@/hooks/useDetailActions";
+import { useInvalidateAfterMutation } from "@/hooks/useInvalidateAfterMutation";
 
 interface Props {
   id: string;
@@ -28,82 +30,79 @@ type FinanceiroRow = Tables<"financeiro_lancamentos">;
 type ComunicacaoRow = Tables<"cliente_registros_comunicacao">;
 type TransportadoraRow = Tables<"cliente_transportadoras"> & { transportadoras: { nome_razao_social: string } | null };
 
+interface ClienteDetail {
+  cliente: ClienteWithGroup;
+  vendas: VendaRow[];
+  financeiro: FinanceiroRow[];
+  comunicacao: ComunicacaoRow[];
+  transportadoras: TransportadoraRow[];
+}
+
 export function ClienteView({ id }: Props) {
   const navigate = useNavigate();
-  const [selected, setSelected] = useState<ClienteWithGroup | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [fetchError, setFetchError] = useState<string | null>(null);
-  const [vendas, setVendas] = useState<VendaRow[]>([]);
-  const [financeiro, setFinanceiro] = useState<FinanceiroRow[]>([]);
-  const [comunicacao, setComunicacao] = useState<ComunicacaoRow[]>([]);
-  const [transportadoras, setTransportadoras] = useState<TransportadoraRow[]>([]);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const { pushView, clearStack } = useRelationalNavigation();
+  const { run, locked } = useDetailActions();
+  const invalidate = useInvalidateAfterMutation();
 
-  useEffect(() => {
-    if (!supabase) {
-      setFetchError("Serviço de banco de dados não disponível.");
-      setLoading(false);
-      return;
-    }
-    const fetchData = async () => {
-      setLoading(true);
-      setFetchError(null);
-      try {
-        const { data: c, error: cError } = await supabase.from("clientes").select("*, grupos_economicos!clientes_grupo_economico_id_fkey(nome)").eq("id", id).maybeSingle();
-        if (cError) {
-          console.error("[ClienteView] erro ao buscar cliente:", cError);
-          setFetchError(`Erro ao carregar cliente: ${cError.message}`);
-          setSelected(null);
-          return;
-        }
-        if (!c) {
-          setSelected(null);
-          return;
-        }
-        setSelected(c);
+  // Fetch padronizado (race-safe + cancelável + reset entre ids).
+  const { data, loading, error } = useDetailFetch<ClienteDetail>(id, async (cId, signal) => {
+    const { data: c, error: cError } = await supabase
+      .from("clientes")
+      .select("*, grupos_economicos!clientes_grupo_economico_id_fkey(nome)")
+      .eq("id", cId)
+      .abortSignal(signal)
+      .maybeSingle();
+    if (cError) throw cError;
+    if (!c) return null;
 
-        const [vRes, fRes, commRes, transRes] = await Promise.all([
-          supabase
-          .from("ordens_venda")
-          .select("id, numero, data_emissao, valor_total, status")
-          .eq("cliente_id", c.id)
-          .order("data_emissao", { ascending: false })
-          .limit(10),
-          supabase
-          .from("financeiro_lancamentos")
-          .select("*")
-          .eq("cliente_id", c.id)
-          .order("data_vencimento", { ascending: false })
-          .limit(10),
-          supabase
-          .from("cliente_registros_comunicacao")
-          .select("*")
-          .eq("cliente_id", c.id)
-          .order("data_hora", { ascending: false }),
-          supabase
-          .from("cliente_transportadoras")
-          .select("*, transportadoras(nome_razao_social)")
-          .eq("cliente_id", c.id)
-        ]);
+    const [vRes, fRes, commRes, transRes] = await Promise.all([
+      supabase
+        .from("ordens_venda")
+        .select("id, numero, data_emissao, valor_total, status")
+        .eq("cliente_id", c.id)
+        .order("data_emissao", { ascending: false })
+        .limit(10)
+        .abortSignal(signal),
+      supabase
+        .from("financeiro_lancamentos")
+        .select("*")
+        .eq("cliente_id", c.id)
+        .order("data_vencimento", { ascending: false })
+        .limit(10)
+        .abortSignal(signal),
+      supabase
+        .from("cliente_registros_comunicacao")
+        .select("*")
+        .eq("cliente_id", c.id)
+        .order("data_hora", { ascending: false })
+        .abortSignal(signal),
+      supabase
+        .from("cliente_transportadoras")
+        .select("*, transportadoras(nome_razao_social)")
+        .eq("cliente_id", c.id)
+        .abortSignal(signal),
+    ]);
 
-        setVendas(vRes.data || []);
-        setFinanceiro(fRes.data || []);
-        setComunicacao(commRes.data || []);
-        setTransportadoras(transRes.data || []);
-      } catch (error) {
-        console.error("[ClienteView] erro inesperado:", error);
-        setFetchError(`Erro inesperado: ${error instanceof Error ? error.message : String(error)}`);
-        setSelected(null);
-      } finally {
-        setLoading(false);
-      }
+    return {
+      cliente: c as ClienteWithGroup,
+      vendas: (vRes.data as VendaRow[]) || [],
+      financeiro: (fRes.data as FinanceiroRow[]) || [],
+      comunicacao: (commRes.data as ComunicacaoRow[]) || [],
+      transportadoras: (transRes.data as TransportadoraRow[]) || [],
     };
+  });
 
-    fetchData();
-  }, [id]);
+  const selected = data?.cliente ?? null;
+  const vendas = data?.vendas ?? [];
+  const financeiro = data?.financeiro ?? [];
+  const comunicacao = data?.comunicacao ?? [];
+  const transportadoras = data?.transportadoras ?? [];
 
-  const totalAberto = (financeiro || []).filter(f => f.status === 'aberto' || f.status === 'vencido').reduce((acc, curr) => acc + (curr.saldo_restante || curr.valor), 0);
+  // B6 fix: incluir 'parcial' no saldo aberto (alinhado à memória financeiro-migracao-saldos).
+  const totalAberto = financeiro
+    .filter((f) => f.status === "aberto" || f.status === "vencido" || f.status === "parcial")
+    .reduce((acc, curr) => acc + (curr.saldo_restante || curr.valor), 0);
   const ultCompra = vendas.length > 0 ? vendas[0].data_emissao : null;
   const pmv = vendas.length > 0 ? vendas.reduce((acc, curr) => acc + (curr.valor_total || 0), 0) / Math.max(vendas.length, 1) : 0;
 
