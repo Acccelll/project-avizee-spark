@@ -967,23 +967,6 @@ const GruposEconomicos = () => {
           )}
 
           {/* ── FOOTER ── */}
-          <div className="flex items-center justify-between pt-4 border-t">
-            {isDirty ? (
-              <span className="text-xs text-amber-600 flex items-center gap-1">
-                <span className="h-1.5 w-1.5 rounded-full bg-amber-500 inline-block" />
-                Alterações não salvas
-              </span>
-            ) : <span />}
-            <div className="flex gap-2">
-              <Button type="button" variant="outline" onClick={handleCancel}>Cancelar</Button>
-              <Button
-                type="submit"
-                disabled={saving || !form.nome.trim() || form.nome.trim().length < 2}
-              >
-                {saving ? "Salvando..." : "Salvar"}
-              </Button>
-            </div>
-          </div>
         </form>
       </FormModal>
 
