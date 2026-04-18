@@ -23,6 +23,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
+import { useEditDirtyForm } from "@/hooks/useEditDirtyForm";
+import { useSubmitLock } from "@/hooks/useSubmitLock";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
@@ -83,7 +86,9 @@ export default function FormasPagamento() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selected, setSelected] = useState<FormaPagamento | null>(null);
   const [mode, setMode] = useState<"create" | "edit">("create");
-  const [form, setForm] = useState<FormaPagamentoForm>(emptyForm);
+  const { form, updateForm, reset, isDirty, markPristine } = useEditDirtyForm<FormaPagamentoForm>(emptyForm);
+  const { saving, submit } = useSubmitLock();
+  const { confirm, dialog: confirmDialog } = useConfirmDialog();
   const [searchTerm, setSearchTerm] = useState("");
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
@@ -138,11 +143,21 @@ export default function FormasPagamento() {
     return () => { cancelled = true; };
   }, [selected?.id, drawerOpen]);
 
-  const openCreate = () => { setMode("create"); setForm({ ...emptyForm }); setSelected(null); setModalOpen(true); };
+  const closeModal = async () => {
+    if (isDirty && !(await confirm())) return;
+    setModalOpen(false);
+  };
+
+  const openCreate = () => {
+    setMode("create");
+    reset({ ...emptyForm });
+    setSelected(null);
+    setModalOpen(true);
+  };
   const openEdit = (f: FormaPagamento) => {
     setMode("edit"); setSelected(f);
     const intervalos = Array.isArray(f.intervalos_dias) ? f.intervalos_dias : [];
-    setForm({ descricao: f.descricao, prazo_dias: f.prazo_dias, parcelas: f.parcelas, intervalos_dias: intervalos, gera_financeiro: f.gera_financeiro, tipo: f.tipo, observacoes: f.observacoes || "", ativo: f.ativo });
+    reset({ descricao: f.descricao, prazo_dias: f.prazo_dias, parcelas: f.parcelas, intervalos_dias: intervalos, gera_financeiro: f.gera_financeiro, tipo: f.tipo, observacoes: f.observacoes || "", ativo: f.ativo });
     setModalOpen(true);
   };
   const openView = (f: FormaPagamento) => { setSelected(f); setDrawerOpen(true); };
@@ -150,26 +165,29 @@ export default function FormasPagamento() {
   const addIntervalo = () => {
     const current = Array.isArray(form.intervalos_dias) ? form.intervalos_dias : [];
     const updated = [...current, newIntervalo].sort((a, b) => a - b);
-    setForm({ ...form, intervalos_dias: updated, parcelas: updated.length });
+    updateForm({ intervalos_dias: updated, parcelas: updated.length });
     setNewIntervalo((updated[updated.length - 1] || 0) + 30);
   };
 
   const removeIntervalo = (idx: number) => {
     const updated = form.intervalos_dias.filter((_, i) => i !== idx);
-    setForm({ ...form, intervalos_dias: updated, parcelas: Math.max(1, updated.length) });
+    updateForm({ intervalos_dias: updated, parcelas: Math.max(1, updated.length) });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.descricao) { toast.error("Descrição é obrigatória"); return; }
-    const payload = {
-      ...form,
-      intervalos_dias: form.intervalos_dias.length > 0 ? form.intervalos_dias : [],
-      parcelas: form.intervalos_dias.length > 0 ? form.intervalos_dias.length : form.parcelas,
-    };
-    if (mode === "create") await create(payload as Partial<FormaPagamento>);
-    else if (selected) await update(selected.id, payload as Partial<FormaPagamento>);
-    setModalOpen(false);
+    await submit(async () => {
+      const payload = {
+        ...form,
+        intervalos_dias: form.intervalos_dias.length > 0 ? form.intervalos_dias : [],
+        parcelas: form.intervalos_dias.length > 0 ? form.intervalos_dias.length : form.parcelas,
+      };
+      if (mode === "create") await create(payload as Partial<FormaPagamento>);
+      else if (selected) await update(selected.id, payload as Partial<FormaPagamento>);
+      markPristine();
+      setModalOpen(false);
+    });
   };
 
   const filteredData = useMemo(() => {
