@@ -333,7 +333,7 @@ const FluxoCaixa = () => {
       });
       toast.success("Lançamento registrado com sucesso");
       setModalOpen(false);
-      setForm({ ...emptyForm });
+      setForm(buildEmptyForm());
       await reload();
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Erro desconhecido";
