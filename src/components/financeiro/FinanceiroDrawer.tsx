@@ -2,10 +2,13 @@ import { useMemo } from "react";
 import { ViewDrawerV2, ViewField, ViewSection } from "@/components/ViewDrawerV2";
 import { StatusBadge } from "@/components/StatusBadge";
 import { RelationalLink } from "@/components/ui/RelationalLink";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Trash2, CreditCard, RotateCcw } from "lucide-react";
+import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSummaryCard";
+import { DrawerStatusBanner } from "@/components/ui/DrawerStatusBanner";
+import { DrawerActionBar } from "@/components/ui/DrawerActionBar";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Edit, Trash2, CreditCard, RotateCcw, AlertCircle, Receipt } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
@@ -92,31 +95,26 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
     : "Manual";
 
   const summary = (
-    <div className="grid grid-cols-2 gap-2">
-      <div className="rounded-lg border bg-muted/30 p-3 space-y-0.5">
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Valor Total</span>
-        <p className="text-sm font-bold font-mono">{formatCurrency(valorTotal)}</p>
-      </div>
-      <div className="rounded-lg border bg-muted/30 p-3 space-y-0.5">
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{isCR ? "Recebido" : "Pago"}</span>
-        <p className="text-sm font-bold font-mono text-success">{formatCurrency(valorBaixado)}</p>
-      </div>
-      <div className={cn("rounded-lg border p-3 space-y-0.5", saldoRestante > 0 ? "bg-destructive/5 border-destructive/20" : "bg-success/5 border-success/20")}>
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Saldo em Aberto</span>
-        <p className={cn("text-sm font-bold font-mono", saldoRestante > 0 ? "text-destructive" : "text-success")}>
-          {formatCurrency(saldoRestante)}
-        </p>
-      </div>
-      <div className={cn("rounded-lg border p-3 space-y-0.5", effectiveStatus === "vencido" ? "bg-destructive/5 border-destructive/20" : "bg-muted/30")}>
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Vencimento</span>
-        <p className={cn("text-sm font-semibold", effectiveStatus === "vencido" ? "text-destructive" : "")}>
-          {vencimento ? vencimento.toLocaleDateString("pt-BR") : "—"}
-        </p>
-        {diasAtraso > 0 && (
-          <p className="text-[10px] text-destructive font-medium">{diasAtraso} dia(s) em atraso</p>
-        )}
-      </div>
-    </div>
+    <DrawerSummaryGrid cols={4}>
+      <DrawerSummaryCard label="Valor Total" value={formatCurrency(valorTotal)} />
+      <DrawerSummaryCard
+        label={isCR ? "Recebido" : "Pago"}
+        value={formatCurrency(valorBaixado)}
+        tone="success"
+      />
+      <DrawerSummaryCard
+        label="Saldo em Aberto"
+        value={formatCurrency(saldoRestante)}
+        tone={saldoRestante > 0 ? "destructive" : "success"}
+      />
+      <DrawerSummaryCard
+        label="Vencimento"
+        value={vencimento ? vencimento.toLocaleDateString("pt-BR") : "—"}
+        mono={false}
+        tone={effectiveStatus === "vencido" ? "destructive" : "neutral"}
+        hint={diasAtraso > 0 ? `${diasAtraso} dia(s) em atraso` : undefined}
+      />
+    </DrawerSummaryGrid>
   );
 
   return (
@@ -133,16 +131,35 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
       badge={<StatusBadge status={effectiveStatus} />}
       summary={summary}
       actions={
-        <>
-          {canBaixa && (
-            <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:text-primary" aria-label="Registrar Baixa" disabled={actionPending} onClick={() => runAction(() => onBaixa(selected))}><CreditCard className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Registrar Baixa</TooltipContent></Tooltip>
-          )}
-          {canEstorno && (
-            <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-warning hover:text-warning" aria-label="Estornar Baixa" disabled={actionPending} onClick={() => runAction(() => { onEstorno(selected); onClose(); })}><RotateCcw className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Estornar Baixa</TooltipContent></Tooltip>
-          )}
-          <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Editar lançamento" disabled={actionPending} onClick={() => runAction(() => { onEdit(selected); onClose(); })}><Edit className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Editar</TooltipContent></Tooltip>
-          <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" aria-label="Excluir lançamento" disabled={actionPending} onClick={() => runAction(() => { onDelete(selected.id); onClose(); })}><Trash2 className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Excluir</TooltipContent></Tooltip>
-        </>
+        <DrawerActionBar
+          primary={canBaixa ? {
+            label: "Registrar Baixa",
+            icon: CreditCard,
+            onClick: () => runAction(() => onBaixa(selected)),
+            pending: actionPending,
+          } : undefined}
+          secondary={[
+            ...(canEstorno ? [{
+              icon: RotateCcw,
+              tooltip: "Estornar Baixa",
+              onClick: () => runAction(() => { onEstorno(selected); onClose(); }),
+              pending: actionPending,
+              tone: "warning" as const,
+            }] : []),
+            {
+              icon: Edit,
+              tooltip: "Editar",
+              onClick: () => runAction(() => { onEdit(selected); onClose(); }),
+              pending: actionPending,
+            },
+          ]}
+          destructive={{
+            icon: Trash2,
+            tooltip: "Excluir",
+            onClick: () => runAction(() => { onDelete(selected.id); onClose(); }),
+            pending: actionPending,
+          }}
+        />
       }
       tabs={[
         { value: "resumo", label: "Resumo", content: (
