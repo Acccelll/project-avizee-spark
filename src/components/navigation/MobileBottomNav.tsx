@@ -1,6 +1,8 @@
 import { Menu } from 'lucide-react';
+import { useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { mobileBottomTabs, getNavSectionKey } from '@/lib/navigation';
+import { mobileBottomTabs, getNavSectionKey, DASHBOARD_KEY } from '@/lib/navigation';
+import { useVisibleSectionKeys } from '@/hooks/useVisibleNavSections';
 import { cn } from '@/lib/utils';
 
 interface MobileBottomNavProps {
@@ -12,11 +14,24 @@ export function MobileBottomNav({ onOpenMenu }: MobileBottomNavProps) {
   const navigate = useNavigate();
   const currentRoute = `${location.pathname}${location.search}`;
   const activeKey = getNavSectionKey(currentRoute);
+  const visibleKeys = useVisibleSectionKeys();
+
+  // Always keep "Início" visible; for the rest, only show tabs whose section is allowed.
+  const tabs = useMemo(
+    () => mobileBottomTabs.filter((tab) => tab.key === DASHBOARD_KEY || visibleKeys.has(tab.key)),
+    [visibleKeys],
+  );
 
   return (
-    <nav aria-label="Navegação mobile" className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 px-2 pb-[calc(env(safe-area-inset-bottom)+0.35rem)] pt-2 shadow-[0_-10px_30px_rgba(0,0,0,0.08)] backdrop-blur md:hidden">
-      <div className="grid grid-cols-5 gap-1">
-        {mobileBottomTabs.map((tab) => {
+    <nav
+      aria-label="Navegação mobile"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 px-2 pb-[calc(env(safe-area-inset-bottom)+0.35rem)] pt-2 shadow-[0_-10px_30px_rgba(0,0,0,0.08)] backdrop-blur md:hidden"
+    >
+      <div
+        className="grid gap-1"
+        style={{ gridTemplateColumns: `repeat(${tabs.length + 1}, minmax(0, 1fr))` }}
+      >
+        {tabs.map((tab) => {
           const Icon = tab.icon;
           const active = activeKey === tab.key;
           return (

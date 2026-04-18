@@ -1,67 +1,42 @@
-import {
-  LayoutDashboard,
-  LucideIcon,
-} from 'lucide-react';
-import { navSections, dashboardItem } from '@/lib/navigation';
-
 /**
- * Canonical navigation item definition.
- * Used as a stable contract between sidebar, breadcrumbs and command palette.
+ * Backwards-compatible shim around `@/lib/navigation`.
+ * The single source of truth is `navSections` / `flatNavItems` in `lib/navigation`.
+ *
+ * Existing consumers may import `MenuItem` / `NAVIGATION_ITEMS` / `NAVIGATION_ITEMS_BY_PATH`
+ * from this file — they now derive directly from `flatNavItems`, eliminating the
+ * previous duplication of the menu tree.
  */
+import type { LucideIcon } from 'lucide-react';
+import { flatNavItems, type FlatNavItem } from '@/lib/navigation';
+
 export interface MenuItem {
+  /** Display label (alias of title for legacy callers). */
   label: string;
-  icon?: LucideIcon;
+  title: string;
   path: string;
+  icon?: LucideIcon;
+  section?: string;
+  subgroup?: string;
   /** Permission resource key used with `can(permission, 'visualizar')`. */
   permission?: string;
-  children?: MenuItem[];
-  /** Static badge text/count to display alongside the label. */
   badge?: string | number;
-  /**
-   * Name of the query/hook that returns a count badge for this item.
-   * The sidebar resolves this via `useSidebarAlerts` for supported keys.
-   * Supported values: 'financeiro', 'estoque', 'comercial', 'orcamentos'.
-   */
   badgeQuery?: string;
-  /** Section label (e.g. "Comercial") – populated for leaf items. */
-  section?: string;
-  /** Sub-group label (e.g. "Pipeline de vendas") – populated for leaf items. */
-  subgroup?: string;
+  children?: MenuItem[];
 }
 
-/**
- * Flat list of all navigable items derived from the nav sections.
- * Represents the single source of truth for routing-aware features
- * such as the command palette, breadcrumbs and favorites.
- */
-export const NAVIGATION_ITEMS: MenuItem[] = [
-  { label: dashboardItem.title, path: dashboardItem.path, icon: LayoutDashboard },
-  ...navSections.flatMap((section): MenuItem[] => {
-    if (section.directPath) {
-      return [
-        {
-          label: section.title,
-          icon: section.icon,
-          path: section.directPath,
-          section: section.title,
-          subgroup: '',
-        },
-      ];
-    }
-    return section.items.flatMap((group) =>
-      group.items.map((item): MenuItem => ({
-        label: item.title,
-        path: item.path,
-        section: section.title,
-        subgroup: group.title,
-      })),
-    );
-  }),
-];
+function toMenuItem(item: FlatNavItem): MenuItem {
+  return {
+    label: item.title,
+    title: item.title,
+    path: item.path,
+    icon: item.icon,
+    section: item.section,
+    subgroup: item.subgroup,
+  };
+}
 
-/**
- * Map of path → MenuItem for O(1) lookups.
- */
+export const NAVIGATION_ITEMS: MenuItem[] = flatNavItems.map(toMenuItem);
+
 export const NAVIGATION_ITEMS_BY_PATH = new Map<string, MenuItem>(
   NAVIGATION_ITEMS.map((item) => [item.path.split('?')[0], item]),
 );
