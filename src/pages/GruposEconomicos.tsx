@@ -753,6 +753,8 @@ const GruposEconomicos = () => {
             submitAsForm
             formId="grupo-economico-form"
             mode={mode}
+            disabled={!form.nome.trim() || form.nome.trim().length < 2}
+            disabledReason="Nome do grupo deve ter pelo menos 2 caracteres"
           />
         }
       >
