@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, BarChart3, FileText, RefreshCcw, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { ModulePage } from '@/components/ModulePage';
+import { AccessDenied } from '@/components/AccessDenied';
+import { getUserFriendlyError } from '@/utils/errorMessages';
 import { SummaryCard } from '@/components/SummaryCard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
@@ -80,7 +82,7 @@ export default function Social() {
       setAlertas(alertasData);
     } catch (error: unknown) {
       console.error('[social] erro ao carregar', error);
-      toast.error('Não foi possível carregar o módulo Social.');
+      toast.error(getUserFriendlyError(error));
     } finally {
       setLoading(false);
     }
@@ -113,7 +115,7 @@ export default function Social() {
       await loadData();
     } catch (error: unknown) {
       console.error('[social] sync', error);
-      toast.error('Falha na sincronização social.');
+      toast.error(getUserFriendlyError(error));
     }
   };
 
@@ -124,8 +126,8 @@ export default function Social() {
       toast.success('Conta social cadastrada com sucesso.');
       await loadData();
     } catch (error: unknown) {
-      toast.error('Não foi possível criar conta social.');
-      console.error(error);
+      console.error('[social] criar conta', error);
+      toast.error(getUserFriendlyError(error));
     }
   };
 
@@ -136,8 +138,8 @@ export default function Social() {
       toast.success('Conta social desativada com sucesso.');
       await loadData();
     } catch (error: unknown) {
-      toast.error('Não foi possível desativar conta social.');
-      console.error(error);
+      console.error('[social] desativar conta', error);
+      toast.error(getUserFriendlyError(error));
     }
   };
 
@@ -173,10 +175,12 @@ export default function Social() {
 
   if (!permissions.canViewModule) {
     return (
-      <><ModulePage title="Social" subtitle="Você não possui permissão para visualizar este módulo.">
-          <p className="text-sm text-muted-foreground">Solicite ao administrador acesso ao módulo Social.</p>
-        </ModulePage>
-      </>
+      <ModulePage title="Social" subtitle="Gestão de redes sociais">
+        <AccessDenied
+          title="Módulo Social"
+          message="Você não tem permissão para visualizar este módulo. Solicite ao administrador acesso ao módulo Social."
+        />
+      </ModulePage>
     );
   }
 
