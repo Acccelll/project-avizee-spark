@@ -91,14 +91,6 @@ export function RecebimentoDrawer({ open, onClose, recebimento: r }: Recebimento
   /* ── Tab Resumo ── */
   const tabResumo = (
     <div className="space-y-4">
-      <div className="rounded-lg border border-warning/30 bg-warning/5 p-3 flex gap-2">
-        <Truck className="h-4 w-4 text-warning shrink-0 mt-0.5" />
-        <p className="text-xs text-muted-foreground">
-          <strong className="text-warning">Visualização logística.</strong>{" "}
-          O recebimento operacional real (entrada em estoque, conferência de NF) deve ser
-          registrado no módulo de <strong>Compras</strong>.
-        </p>
-      </div>
 
       <ViewSection title="Pedido de Compra">
         <div className="grid grid-cols-2 gap-4">

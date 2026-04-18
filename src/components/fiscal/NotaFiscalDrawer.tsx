@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
-import { ViewDrawerV2, ViewField, ViewSection } from "@/components/ViewDrawerV2";
+import { ViewDrawerV2, ViewField, ViewSection, DrawerStickyFooter } from "@/components/ViewDrawerV2";
+import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSummaryCard";
 import { StatusBadge } from "@/components/StatusBadge";
 import { RelationalLink } from "@/components/ui/RelationalLink";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { TimelineList } from "@/components/ui/TimelineList";
@@ -254,34 +254,12 @@ export function NotaFiscalDrawer({
   // ── Summary strip ─────────────────────────────────────────────────────────────
 
   const summary = (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-      <div className="rounded-lg border bg-muted/30 p-3 space-y-0.5">
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Modelo
-        </span>
-        <p className="text-sm font-bold font-mono">{modelo}</p>
-      </div>
-      <div className="rounded-lg border bg-muted/30 p-3 space-y-0.5">
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Produtos
-        </span>
-        <p className="text-sm font-bold font-mono">{formatCurrency(totalProdutos)}</p>
-      </div>
-      <div className="rounded-lg border bg-muted/30 p-3 space-y-0.5">
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Impostos
-        </span>
-        <p className="text-sm font-bold font-mono">{formatCurrency(totalImpostos)}</p>
-      </div>
-      <div className="rounded-lg border bg-accent/40 p-3 space-y-0.5">
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Total NF
-        </span>
-        <p className="text-sm font-bold font-mono text-primary">
-          {formatCurrency(Number(selected.valor_total))}
-        </p>
-      </div>
-    </div>
+    <DrawerSummaryGrid cols={4}>
+      <DrawerSummaryCard label="Modelo" value={modelo} />
+      <DrawerSummaryCard label="Produtos" value={formatCurrency(totalProdutos)} />
+      <DrawerSummaryCard label="Impostos" value={formatCurrency(totalImpostos)} />
+      <DrawerSummaryCard label="Total NF" value={formatCurrency(Number(selected.valor_total))} tone="primary" />
+    </DrawerSummaryGrid>
   );
 
   // ── Tabs ──────────────────────────────────────────────────────────────────────
@@ -842,6 +820,7 @@ export function NotaFiscalDrawer({
     <ViewDrawerV2
       open={open}
       onClose={onClose}
+      variant="operational"
       title={`NF ${selected.numero} · Série ${selected.serie || "1"}`}
       subtitle={
         <span>
@@ -858,50 +837,18 @@ export function NotaFiscalDrawer({
       summary={summary}
       actions={
         <>
-          {canDevolucao && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-warning hover:text-warning"
-                  aria-label="Gerar devolução"
-                  onClick={() => { onClose(); onDevolucao(selected); }}
-                >
-                  <ArrowLeftRight className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Gerar Devolução</TooltipContent>
-            </Tooltip>
-          )}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                aria-label="Editar nota fiscal"
-                onClick={() => { onClose(); onEdit(selected); }}
-              >
-                <Edit className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Editar</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-destructive hover:text-destructive"
-                aria-label="Excluir nota fiscal"
-                onClick={() => { onClose(); onDelete(selected.id); }}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Excluir</TooltipContent>
-          </Tooltip>
+          <Button variant="outline" size="sm" className="gap-1.5" aria-label="Editar nota fiscal" onClick={() => { onClose(); onEdit(selected); }}>
+            <Edit className="h-3.5 w-3.5" /> Editar
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 text-destructive border-destructive/30 hover:text-destructive hover:bg-destructive/10"
+            aria-label="Excluir nota fiscal"
+            onClick={() => { onClose(); onDelete(selected.id); }}
+          >
+            <Trash2 className="h-3.5 w-3.5" /> Excluir
+          </Button>
         </>
       }
       tabs={[
@@ -913,41 +860,37 @@ export function NotaFiscalDrawer({
         { value: "vinculos", label: "Vínculos", content: tabVinculos },
       ]}
       footer={
-        <div className="flex flex-col gap-2">
-          <Button
-            variant="outline"
-            className="w-full gap-2"
-            onClick={() => onDanfe(selected)}
-          >
-            <FileText className="h-4 w-4" /> Visualizar DANFE
-          </Button>
-          {canConfirmar && (
-            <Button
-              className="w-full gap-2"
-              onClick={() => { onConfirmar(selected); onClose(); }}
-            >
-              <CheckCircle className="h-4 w-4" /> Confirmar Nota Fiscal
-            </Button>
-          )}
-          {canDevolucao && (
-            <Button
-              variant="outline"
-              className="w-full gap-2"
-              onClick={() => { onClose(); onDevolucao(selected); }}
-            >
-              <ArrowLeftRight className="h-4 w-4" /> Gerar Nota de Devolução
-            </Button>
-          )}
-          {canEstornar && (
-            <Button
-              variant="destructive"
-              className="w-full gap-2"
-              onClick={() => { onEstornar(selected); onClose(); }}
-            >
-              <XCircle className="h-4 w-4" /> Estornar Nota Fiscal
-            </Button>
-          )}
-        </div>
+        <DrawerStickyFooter
+          left={
+            canEstornar && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2 text-destructive border-destructive/30 hover:text-destructive"
+                onClick={() => { onEstornar(selected); onClose(); }}
+              >
+                <XCircle className="h-4 w-4" /> Estornar
+              </Button>
+            )
+          }
+          right={
+            <>
+              <Button variant="outline" size="sm" className="gap-2" onClick={() => onDanfe(selected)}>
+                <FileText className="h-4 w-4" /> DANFE
+              </Button>
+              {canDevolucao && (
+                <Button variant="outline" size="sm" className="gap-2" onClick={() => { onClose(); onDevolucao(selected); }}>
+                  <ArrowLeftRight className="h-4 w-4" /> Devolução
+                </Button>
+              )}
+              {canConfirmar && (
+                <Button size="sm" className="gap-2" onClick={() => { onConfirmar(selected); onClose(); }}>
+                  <CheckCircle className="h-4 w-4" /> Confirmar NF
+                </Button>
+              )}
+            </>
+          }
+        />
       }
     />
   );

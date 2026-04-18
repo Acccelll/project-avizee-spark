@@ -1,11 +1,12 @@
 
 import { useState } from "react";
-import { ViewDrawerV2 } from "@/components/ViewDrawerV2";
+import { ViewDrawerV2, DrawerStickyFooter } from "@/components/ViewDrawerV2";
+import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSummaryCard";
 import { ViewField, ViewSection } from "@/components/ViewDrawer";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { StatusBadge } from "@/components/StatusBadge";
 import { RelationalLink } from "@/components/ui/RelationalLink";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { LogisticaRastreioSection } from "@/components/logistica/LogisticaRastreioSection";
@@ -93,12 +94,6 @@ export function PedidoCompraDrawer({
     return { label: "Pendente", color: "secondary" };
   })();
 
-  const recebimentoColorClass: Record<string, string> = {
-    success: "text-success",
-    warning: "text-warning",
-    destructive: "text-destructive",
-    secondary: "text-muted-foreground",
-  };
 
   const estoquePorProduto: Record<string, number> = viewEstoque.reduce<Record<string, number>>(
     (acc, m) => {
@@ -535,48 +530,54 @@ export function PedidoCompraDrawer({
 
   const drawerFooter =
     canReceive || canSend || canCancel || canSolicitarAprovacao || canApproveReject ? (
-      <div className="flex gap-2 w-full">
-        {canCancel && (
-          <Button
-            variant="outline"
-            className="gap-2 text-destructive border-destructive/30 hover:bg-destructive/10"
-            onClick={() => setCancelConfirmOpen(true)}
-          >
-            <XCircle className="w-4 h-4" /> Cancelar
-          </Button>
-        )}
-        <div className="flex gap-2 flex-1 justify-end flex-wrap">
-          {canSolicitarAprovacao && (
-            <Button variant="outline" className="gap-2" onClick={() => onSolicitarAprovacao!(selected)}>
-              <Clock className="w-4 h-4" /> Solicitar aprovação
+      <DrawerStickyFooter
+        left={
+          canCancel && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2 text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => setCancelConfirmOpen(true)}
+            >
+              <XCircle className="w-4 h-4" /> Cancelar pedido
             </Button>
-          )}
-          {canApproveReject && (
-            <>
-              <Button
-                variant="outline"
-                className="gap-2 text-destructive border-destructive/30"
-                onClick={() => { setRejectMotivo(""); setRejectOpen(true); }}
-              >
-                <XCircle className="w-4 h-4" /> Rejeitar
+          )
+        }
+        right={
+          <>
+            {canSolicitarAprovacao && (
+              <Button variant="outline" size="sm" className="gap-2" onClick={() => onSolicitarAprovacao!(selected)}>
+                <Clock className="w-4 h-4" /> Solicitar aprovação
               </Button>
-              <Button className="gap-2" onClick={() => onAprovar!(selected)}>
-                <CheckCircle2 className="w-4 h-4" /> Aprovar
+            )}
+            {canApproveReject && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 text-destructive border-destructive/30 hover:text-destructive"
+                  onClick={() => { setRejectMotivo(""); setRejectOpen(true); }}
+                >
+                  <XCircle className="w-4 h-4" /> Rejeitar
+                </Button>
+                <Button size="sm" className="gap-2" onClick={() => onAprovar!(selected)}>
+                  <CheckCircle2 className="w-4 h-4" /> Aprovar
+                </Button>
+              </>
+            )}
+            {canSend && (
+              <Button variant="outline" size="sm" className="gap-2" onClick={() => onSend(selected)}>
+                <SendHorizontal className="w-4 h-4" /> Marcar como Enviado
               </Button>
-            </>
-          )}
-          {canSend && (
-            <Button variant="outline" className="gap-2" onClick={() => onSend(selected)}>
-              <SendHorizontal className="w-4 h-4" /> Marcar como Enviado
-            </Button>
-          )}
-          {canReceive && (
-            <Button className="gap-2" onClick={() => onReceive(selected)}>
-              <PackageCheck className="w-4 h-4" /> Registrar Recebimento
-            </Button>
-          )}
-        </div>
-      </div>
+            )}
+            {canReceive && (
+              <Button size="sm" className="gap-2" onClick={() => onReceive(selected)}>
+                <PackageCheck className="w-4 h-4" /> Registrar Recebimento
+              </Button>
+            )}
+          </>
+        }
+      />
     ) : undefined;
 
   return (
@@ -584,71 +585,56 @@ export function PedidoCompraDrawer({
       <ViewDrawerV2
       open={open}
       onClose={onClose}
+      variant="operational"
       title={pedidoNumero(selected)}
       subtitle={`${selected.fornecedores?.nome_razao_social || "Fornecedor não informado"} · ${formatDate(selected.data_pedido)}`}
       badge={<StatusBadge status={selected.status} label={statusLabels[selected.status] || selected.status} />}
       actions={
         <>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Editar pedido" onClick={onEdit}>
-                <Edit className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Editar</TooltipContent>
-          </Tooltip>
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-destructive hover:text-destructive"
-                aria-label="Excluir pedido"
-                onClick={onDelete}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Excluir</TooltipContent>
-          </Tooltip>
+          <Button variant="outline" size="sm" className="gap-1.5" aria-label="Editar pedido" onClick={onEdit}>
+            <Edit className="h-3.5 w-3.5" /> Editar
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 text-destructive border-destructive/30 hover:text-destructive hover:bg-destructive/10"
+            aria-label="Excluir pedido"
+            onClick={onDelete}
+          >
+            <Trash2 className="h-3.5 w-3.5" /> Excluir
+          </Button>
         </>
       }
       summary={
-        <div className="grid grid-cols-4 gap-2">
-          <div className="bg-accent/30 rounded-lg p-3 text-center">
-            <p className="text-xs text-muted-foreground">Itens</p>
-            <p className="font-semibold text-sm font-mono">{viewItems.length}</p>
-          </div>
-          <div className="bg-accent/30 rounded-lg p-3 text-center">
-            <p className="text-xs text-muted-foreground">Recebimento</p>
-            {pctRecebimento > 0 ? (
-              <p
-                className={`font-semibold text-sm font-mono mt-0.5 ${pctRecebimento === 100 ? "text-success" : "text-warning"}`}
-              >
-                {pctRecebimento}%
-              </p>
-            ) : (
-              <p
-                className={`font-semibold text-xs leading-tight mt-0.5 ${recebimentoColorClass[recebimentoStatus.color] ?? "text-muted-foreground"}`}
-              >
-                {recebimentoStatus.label}
-              </p>
-            )}
-          </div>
-          <div className="bg-accent/30 rounded-lg p-3 text-center">
-            <p className="text-xs text-muted-foreground">Total</p>
-            <p className="font-semibold text-sm font-mono">
-              {formatCurrency(Number(selected.valor_total || 0))}
-            </p>
-          </div>
-          <div className="bg-accent/30 rounded-lg p-3 text-center">
-            <p className="text-xs text-muted-foreground">Cotação</p>
-            <p className="font-semibold text-xs leading-tight mt-0.5 font-mono">
-              {viewCotacao ? viewCotacao.numero : selected.cotacao_compra_id ? "—" : "Avulso"}
-            </p>
-          </div>
-        </div>
+        <DrawerSummaryGrid cols={4}>
+          <DrawerSummaryCard
+            label="Itens"
+            value={String(viewItems.length)}
+            align="center"
+          />
+          <DrawerSummaryCard
+            label="Recebimento"
+            value={pctRecebimento > 0 ? `${pctRecebimento}%` : recebimentoStatus.label}
+            tone={
+              pctRecebimento === 100 ? "success"
+              : pctRecebimento > 0 ? "warning"
+              : recebimentoStatus.color === "destructive" ? "destructive"
+              : "neutral"
+            }
+            align="center"
+          />
+          <DrawerSummaryCard
+            label="Total"
+            value={formatCurrency(Number(selected.valor_total || 0))}
+            tone="primary"
+            align="center"
+          />
+          <DrawerSummaryCard
+            label="Cotação"
+            value={viewCotacao ? viewCotacao.numero : selected.cotacao_compra_id ? "—" : "Avulso"}
+            align="center"
+          />
+        </DrawerSummaryGrid>
       }
       tabs={[
         { value: "resumo", label: "Resumo", content: tabResumo },
