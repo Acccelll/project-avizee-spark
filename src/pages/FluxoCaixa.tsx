@@ -40,11 +40,17 @@ interface LancamentoForm {
   observacoes: string;
 }
 
-const emptyForm: LancamentoForm = {
+/**
+ * Builds a fresh empty form so `data_vencimento` reflects the current
+ * day at form-open time (avoids "stale today" in long sessions).
+ */
+const buildEmptyForm = (): LancamentoForm => ({
   tipo: "receber", descricao: "", valor: 0,
-  data_vencimento: new Date().toISOString().split("T")[0],
+  data_vencimento: new Date().toISOString().slice(0, 10),
   status: "aberto", forma_pagamento: "", conta_bancaria_id: "", observacoes: "",
-};
+});
+
+const emptyForm: LancamentoForm = buildEmptyForm();
 
 const tipoOpts: MultiSelectOption[] = [
   { value: "receber", label: "A Receber" },

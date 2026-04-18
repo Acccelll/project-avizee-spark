@@ -75,10 +75,19 @@ export function getFlowStepIndex(status: string): number {
   return FLOW_STEP_ORDER.indexOf(normalizeStatus(status));
 }
 
-export const emptyForm = {
-  numero: "",
-  data_cotacao: new Date().toISOString().split("T")[0],
-  data_validade: "",
-  observacoes: "",
-  status: "aberta",
-};
+/**
+ * Returns a fresh empty form so `data_cotacao` reflects the current
+ * day. Avoid using a module-level constant for date defaults.
+ */
+export function buildEmptyForm() {
+  return {
+    numero: "",
+    data_cotacao: new Date().toISOString().slice(0, 10),
+    data_validade: "",
+    observacoes: "",
+    status: "aberta",
+  };
+}
+
+/** @deprecated Prefer `buildEmptyForm()` to avoid stale dates. */
+export const emptyForm = buildEmptyForm();
