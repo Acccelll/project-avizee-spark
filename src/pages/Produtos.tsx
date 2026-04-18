@@ -180,6 +180,14 @@ const Produtos = () => {
     return s + c.quantidade * (prod?.preco_custo || 0);
   }, 0);
 
+  // margemLucro: derivada de preco_custo/preco_venda; override manual quando usuário edita o campo "Margem (%)"
+  const margemDerivada = (() => {
+    const custo = form.eh_composto ? custoComposto : Number(form.preco_custo) || 0;
+    const venda = Number(form.preco_venda) || 0;
+    if (custo <= 0) return 30;
+    return Math.round((venda / custo - 1) * 100);
+  })();
+  const margemLucro = margemOverride ?? margemDerivada;
   const precoSugerido = custoComposto * (1 + margemLucro / 100);
 
   const custoParaCalculo = form.eh_composto ? custoComposto : (Number(form.preco_custo) || 0);
@@ -188,15 +196,22 @@ const Produtos = () => {
   const fiscalCompleto = !!(form.ncm && form.cst && form.cfop_padrao);
 
   const openCreate = () => {
-    setMode("create");setForm({ ...emptyProduto });
-    setEditComposicao([]);setEditFornecedores([]);setEditingProduct(null);setMargemLucro(30);setModalOpen(true);
+    setMode("create");
+    resetForm({ ...emptyProduto });
+    setEditComposicao([]);
+    setEditFornecedores([]);
+    setEditingProduct(null);
+    setMargemOverride(30);
+    setFormErrors({});
+    setModalOpen(true);
   };
 
   const openEdit = async (p: Produto) => {
     setMode("edit");
     setEditingProduct(p);
+    setFormErrors({});
     const variacoesArr = Array.isArray(p.variacoes) ? p.variacoes as string[] : [];
-    setForm({
+    resetForm({
       id: p.id,
       nome: p.nome, sku: p.sku || "", codigo_interno: p.codigo_interno || "", descricao: p.descricao || "",
       unidade_medida: p.unidade_medida, preco_custo: p.preco_custo || 0, preco_venda: p.preco_venda,
@@ -221,9 +236,21 @@ const Produtos = () => {
       descricao_fornecedor: f.descricao_fornecedor || "", referencia_fornecedor: f.referencia_fornecedor || "",
       unidade_fornecedor: f.unidade_fornecedor || "", lead_time_dias: f.lead_time_dias || 0, preco_compra: f.preco_compra || 0,
     })));
-    const custo = p.preco_custo || 0;
-    setMargemLucro(custo > 0 ? Math.round((p.preco_venda / custo - 1) * 100) : 30);
+    setMargemOverride(null); // deriva automaticamente do registro carregado
     setModalOpen(true);
+  };
+
+  const handleCloseModal = async () => {
+    if (isDirty) {
+      const ok = await confirmAction({
+        title: "Descartar alterações?",
+        description: "Há alterações não salvas. Deseja fechar mesmo assim?",
+        confirmLabel: "Descartar",
+        confirmVariant: "destructive",
+      });
+      if (!ok) return;
+    }
+    setModalOpen(false);
   };
 
   const openView = (p: Produto) => {
