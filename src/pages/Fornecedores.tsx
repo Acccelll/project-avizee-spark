@@ -168,11 +168,13 @@ const Fornecedores = () => {
   };
 
   const openCreate = () => {
+    loadTokenRef.current += 1;
     setMode("create"); setForm({ ...emptyForm }); setSelected(null); setIsDirty(false);
     setModalProdutosForn([]); setModalComprasForn({ count: 0, ultima: null, total: 0 });
     setModalOpen(true);
   };
   const openEdit = (f: Fornecedor) => {
+    const token = ++loadTokenRef.current;
     setMode("edit");setSelected(f);
     setForm({
       tipo_pessoa: f.tipo_pessoa || "J", nome_razao_social: f.nome_razao_social, nome_fantasia: f.nome_fantasia || "",
@@ -184,7 +186,7 @@ const Fornecedores = () => {
     });
     setIsDirty(false);
     setModalProdutosForn([]); setModalComprasForn({ count: 0, ultima: null, total: 0 });
-    loadFornContext(f.id);
+    void loadFornContext(f.id, token);
     setModalOpen(true);
   };
 
