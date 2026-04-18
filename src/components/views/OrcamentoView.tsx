@@ -566,7 +566,7 @@ export function OrcamentoView({ id }: Props) {
         description="A cotação ficará disponível para gerar uma Pedido."
         confirmLabel="Aprovar"
         confirmVariant="default"
-        loading={actionLoading}
+        loading={locked("approve")}
       />
 
       {/* Gerar Pedido confirm */}
