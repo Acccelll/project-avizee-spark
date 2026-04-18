@@ -431,6 +431,11 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
 
       query = withDateRange(query, "data_emissao", filtros);
       if (filtros.clienteIds?.length) query = query.in('cliente_id', filtros.clienteIds);
+      const { data, error } = await query;
+      if (error) throw error;
+
+      const rows = (data || []).map((item: Record<string, unknown>) => ({
+        numero: item.numero,
         cliente: ((item.clientes as { nome_razao_social?: string } | null)?.nome_razao_social) || "-",
         emissao: item.data_emissao,
         valor: Number(item.valor_total || 0),
