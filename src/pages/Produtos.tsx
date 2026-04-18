@@ -31,6 +31,9 @@ import { useNcmLookup } from '@/hooks/useNcmLookup';
 import { Switch } from "@/components/ui/switch";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
+import { useEditDirtyForm } from "@/hooks/useEditDirtyForm";
+import { useSubmitLock } from "@/hooks/useSubmitLock";
+import { produtoSchema, validateForm } from "@/lib/validationSchemas";
 
 type TipoItem = "produto" | "insumo";
 
@@ -113,13 +116,14 @@ const Produtos = () => {
   const [unidadesMedida, setUnidadesMedida] = useState<UnidadeMedidaOption[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [mode, setMode] = useState<"create" | "edit">("create");
-  const [form, setForm] = useState<ProdutoFormData>(emptyProduto);
-  const [saving, setSaving] = useState(false);
+  const { form, setForm, updateForm, reset: resetForm, markPristine, isDirty } = useEditDirtyForm<ProdutoFormData>(emptyProduto);
+  const { saving, submit } = useSubmitLock();
   const [editComposicao, setEditComposicao] = useState<ComposicaoItem[]>([]);
   const [editFornecedores, setEditFornecedores] = useState<FornecedorLink[]>([]);
   const [fornecedoresList, setFornecedoresList] = useState<{id: string; nome_razao_social: string}[]>([]);
   const [editingProduct, setEditingProduct] = useState<Produto | null>(null);
-  const [margemLucro, setMargemLucro] = useState(0);
+  const [margemOverride, setMargemOverride] = useState<number | null>(null);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [tipoFilters, setTipoFilters] = useState<string[]>([]);
   const [tipoItemFilters, setTipoItemFilters] = useState<string[]>([]);
   const [estoqueFilters, setEstoqueFilters] = useState<string[]>([]);
@@ -176,6 +180,14 @@ const Produtos = () => {
     return s + c.quantidade * (prod?.preco_custo || 0);
   }, 0);
 
+  // margemLucro: derivada de preco_custo/preco_venda; override manual quando usuário edita o campo "Margem (%)"
+  const margemDerivada = (() => {
+    const custo = form.eh_composto ? custoComposto : Number(form.preco_custo) || 0;
+    const venda = Number(form.preco_venda) || 0;
+    if (custo <= 0) return 30;
+    return Math.round((venda / custo - 1) * 100);
+  })();
+  const margemLucro = margemOverride ?? margemDerivada;
   const precoSugerido = custoComposto * (1 + margemLucro / 100);
 
   const custoParaCalculo = form.eh_composto ? custoComposto : (Number(form.preco_custo) || 0);
@@ -184,15 +196,22 @@ const Produtos = () => {
   const fiscalCompleto = !!(form.ncm && form.cst && form.cfop_padrao);
 
   const openCreate = () => {
-    setMode("create");setForm({ ...emptyProduto });
-    setEditComposicao([]);setEditFornecedores([]);setEditingProduct(null);setMargemLucro(30);setModalOpen(true);
+    setMode("create");
+    resetForm({ ...emptyProduto });
+    setEditComposicao([]);
+    setEditFornecedores([]);
+    setEditingProduct(null);
+    setMargemOverride(30);
+    setFormErrors({});
+    setModalOpen(true);
   };
 
   const openEdit = async (p: Produto) => {
     setMode("edit");
     setEditingProduct(p);
+    setFormErrors({});
     const variacoesArr = Array.isArray(p.variacoes) ? p.variacoes as string[] : [];
-    setForm({
+    resetForm({
       id: p.id,
       nome: p.nome, sku: p.sku || "", codigo_interno: p.codigo_interno || "", descricao: p.descricao || "",
       unidade_medida: p.unidade_medida, preco_custo: p.preco_custo || 0, preco_venda: p.preco_venda,
@@ -217,9 +236,21 @@ const Produtos = () => {
       descricao_fornecedor: f.descricao_fornecedor || "", referencia_fornecedor: f.referencia_fornecedor || "",
       unidade_fornecedor: f.unidade_fornecedor || "", lead_time_dias: f.lead_time_dias || 0, preco_compra: f.preco_compra || 0,
     })));
-    const custo = p.preco_custo || 0;
-    setMargemLucro(custo > 0 ? Math.round((p.preco_venda / custo - 1) * 100) : 30);
+    setMargemOverride(null); // deriva automaticamente do registro carregado
     setModalOpen(true);
+  };
+
+  const handleCloseModal = async () => {
+    if (isDirty) {
+      const ok = await confirmAction({
+        title: "Descartar alterações?",
+        description: "Há alterações não salvas. Deseja fechar mesmo assim?",
+        confirmLabel: "Descartar",
+        confirmVariant: "destructive",
+      });
+      if (!ok) return;
+    }
+    setModalOpen(false);
   };
 
   const openView = (p: Produto) => {
@@ -247,17 +278,48 @@ const Produtos = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.nome || (form.tipo_item !== 'insumo' && !form.preco_venda)) {toast.error("Nome e preço de venda são obrigatórios");return;}
-    if (Number(form.preco_venda) < 0) {toast.error("Preço de venda não pode ser negativo");return;}
-    if (!form.eh_composto && Number(form.preco_custo) < 0) {toast.error("Preço de custo não pode ser negativo");return;}
-    if (Number(form.peso) < 0) {toast.error("Peso não pode ser negativo");return;}
-    if (form.eh_composto && editComposicao.length === 0) {toast.error("Produto composto precisa de ao menos um componente");return;}
-    if (form.eh_composto && editComposicao.some((c) => !c.produto_filho_id)) {toast.error("Selecione o produto para todos os componentes");return;}
+
+    // Validação Zod baseada em produtoSchema (nome, sku, unidade_medida, peso, ncm/cst/cfop, estoque_minimo, etc.)
+    const dataParaValidar = {
+      nome: form.nome,
+      sku: form.sku,
+      codigo_interno: form.codigo_interno,
+      descricao: form.descricao,
+      unidade_medida: form.unidade_medida,
+      preco_custo: Number(form.preco_custo) || 0,
+      preco_venda: Number(form.preco_venda) || 0,
+      estoque_minimo: Number(form.estoque_minimo) || 0,
+      ncm: form.ncm,
+      cst: form.cst,
+      cfop_padrao: form.cfop_padrao,
+      peso: Number(form.peso) || 0,
+      eh_composto: !!form.eh_composto,
+      grupo_id: form.grupo_id,
+    };
+    // Para insumos, preço de venda é opcional → relaxa schema localmente
+    const isInsumo = form.tipo_item === 'insumo';
+    const validation = validateForm(
+      isInsumo
+        ? produtoSchema.extend({ preco_venda: produtoSchema.shape.preco_venda.optional().or(undefined as never) })
+        : produtoSchema,
+      dataParaValidar,
+    );
+    if (!validation.success) {
+      setFormErrors(validation.errors);
+      const firstErr = Object.values(validation.errors)[0];
+      toast.error(firstErr || "Verifique os campos do formulário");
+      return;
+    }
+    setFormErrors({});
+
+    // Regras adicionais não cobertas pelo schema (sub-entidades)
+    if (form.eh_composto && editComposicao.length === 0) { toast.error("Produto composto precisa de ao menos um componente"); return; }
+    if (form.eh_composto && editComposicao.some((c) => !c.produto_filho_id)) { toast.error("Selecione o produto para todos os componentes"); return; }
     const fornDups = editFornecedores.map(f => f.fornecedor_id).filter(Boolean);
-    if (editFornecedores.some(f => !f.fornecedor_id)) {toast.error("Selecione o fornecedor para todos os vínculos ou remova os vazios");return;}
-    if (fornDups.length !== new Set(fornDups).size) {toast.error("Fornecedor duplicado: o mesmo fornecedor não pode ser vinculado duas vezes");return;}
-    setSaving(true);
-    try {
+    if (editFornecedores.some(f => !f.fornecedor_id)) { toast.error("Selecione o fornecedor para todos os vínculos ou remova os vazios"); return; }
+    if (fornDups.length !== new Set(fornDups).size) { toast.error("Fornecedor duplicado: o mesmo fornecedor não pode ser vinculado duas vezes"); return; }
+
+    await submit(async () => {
       const variacoesArr = form.variacoes_texto
         ? form.variacoes_texto.split(",").map(v => v.trim()).filter(Boolean)
         : null;
@@ -273,14 +335,11 @@ const Produtos = () => {
       } else {
         return;
       }
-      // Composição: usa RPC transacional (delete + insert atômico). Fornecedores seguem fluxo padrão.
+      // Composição: RPC transacional (delete + insert atômico).
       const composicaoItens = form.eh_composto
         ? editComposicao
             .filter((c) => c.produto_filho_id)
-            .map((c) => ({
-              produto_filho_id: c.produto_filho_id,
-              quantidade: c.quantidade,
-            }))
+            .map((c) => ({ produto_filho_id: c.produto_filho_id, quantidade: c.quantidade }))
         : [];
       const { error: compError } = await supabase.rpc("save_produto_composicao", {
         p_produto_pai_id: produtoId,
@@ -289,10 +348,12 @@ const Produtos = () => {
       });
       if (compError) {
         console.error("[produtos] composição:", compError);
-        toast.error("Erro ao salvar composição. Tente novamente.");
+        throw new Error("Erro ao salvar composição: " + (compError.message || "tente novamente"));
       }
 
-      await supabase.from("produtos_fornecedores").delete().eq("produto_id", produtoId);
+      // Fornecedores: replace via delete+insert. Se falhar, propaga (não fecha modal silenciosamente).
+      const { error: delErr } = await supabase.from("produtos_fornecedores").delete().eq("produto_id", produtoId);
+      if (delErr) throw new Error("Erro ao limpar fornecedores anteriores: " + delErr.message);
 
       const validForn = editFornecedores.filter(f => f.fornecedor_id);
       if (validForn.length > 0) {
@@ -303,14 +364,14 @@ const Produtos = () => {
           preco_compra: f.preco_compra || null,
         }));
         const { error } = await supabase.from("produtos_fornecedores").insert(fRows);
-        if (error) {console.error('[produtos] fornecedores:', error);toast.error("Erro ao salvar fornecedores. Tente novamente.");}
+        if (error) {
+          console.error('[produtos] fornecedores:', error);
+          throw new Error("Erro ao salvar fornecedores: " + error.message);
+        }
       }
+      markPristine();
       setModalOpen(false);
-    } catch (err) {
-      console.error('[produtos] erro ao salvar:', err);
-      toast.error(getUserFriendlyError(err));
-    }
-    setSaving(false);
+    });
   };
 
   const handleSalvarNovaUnidade = async (e: React.FormEvent) => {
@@ -333,7 +394,7 @@ const Produtos = () => {
       }
       const nova = inserted as UnidadeMedidaOption;
       setUnidadesMedida((prev) => [...prev, nova].sort((a, b) => a.codigo.localeCompare(b.codigo)));
-      setForm((f) => ({ ...f, unidade_medida: nova.codigo }));
+      updateForm({ unidade_medida: nova.codigo });
       setNovaUnidadeDialogOpen(false);
       setNovaUnidadeForm({ codigo: "", descricao: "", sigla: "" });
       toast.success(`Unidade "${nova.codigo}" criada com sucesso`);
@@ -695,7 +756,7 @@ const Produtos = () => {
       </ModulePage>
 
       {/* Form Modal */}
-      <FormModal open={modalOpen} onClose={() => setModalOpen(false)} title={mode === "create" ? "Novo Produto" : "Editar Produto"} size="xl">
+      <FormModal open={modalOpen} onClose={handleCloseModal} title={mode === "create" ? "Novo Produto" : "Editar Produto"} size="xl">
         <form onSubmit={handleSubmit} className="space-y-0">
 
           {/* Context banner — edit mode only */}
@@ -1074,7 +1135,7 @@ const Produtos = () => {
             <div className="border-t pt-3 space-y-2 bg-muted/20 rounded-lg p-3">
               <div className="flex justify-between text-sm"><span className="font-medium">Custo Total Composto</span><span className="font-mono font-semibold text-primary">{formatCurrency(custoComposto)}</span></div>
               <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1"><Label className="text-xs">Margem (%)</Label><Input type="number" step="1" value={margemLucro} onChange={(e) => setMargemLucro(Number(e.target.value))} className="h-9" /></div>
+                <div className="space-y-1"><Label className="text-xs">Margem (%)</Label><Input type="number" step="1" value={margemLucro} onChange={(e) => setMargemOverride(Number(e.target.value))} className="h-9" /></div>
                 <div className="space-y-1"><Label className="text-xs">Preço Sugerido</Label><div className="h-9 flex items-center"><span className="font-mono font-semibold text-sm">{formatCurrency(precoSugerido)}</span><Button type="button" size="sm" variant="link" className="ml-2 text-xs h-auto p-0" onClick={() => setForm({ ...form, preco_venda: Number(precoSugerido.toFixed(2)) })}>Usar</Button></div></div>
               </div>
             </div>
@@ -1101,7 +1162,7 @@ const Produtos = () => {
           </Tabs>
 
           <div className="flex justify-end gap-2 pt-4 border-t">
-            <Button type="button" variant="outline" onClick={() => setModalOpen(false)}>Cancelar</Button>
+            <Button type="button" variant="outline" onClick={handleCloseModal}>Cancelar</Button>
             <Button type="submit" disabled={saving}>{saving ? "Salvando..." : "Salvar"}</Button>
           </div>
         </form>

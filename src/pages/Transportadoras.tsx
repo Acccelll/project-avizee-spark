@@ -33,6 +33,8 @@ import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { getUserFriendlyError } from "@/utils/errorMessages";
+import { useSubmitLock } from "@/hooks/useSubmitLock";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 
 interface Transportadora {
   id: string;
@@ -118,7 +120,8 @@ export default function Transportadoras() {
     selected?.id,
     "transportadoras",
   );
-  const [saving, setSaving] = useState(false);
+  const { saving, submit } = useSubmitLock();
+  const { confirm: confirmDiscard, dialog: confirmDiscardDialog } = useConfirmDialog();
   const [clientesVinculados, setClientesVinculados] = useState<ClienteVinculado[]>([]);
   const [remessasVinculadas, setRemessasVinculadas] = useState<RemessaVinculada[]>([]);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -251,16 +254,25 @@ export default function Transportadoras() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.nome_razao_social) { toast.error("Razão Social é obrigatória"); return; }
-    setSaving(true);
-    try {
+    await submit(async () => {
       const submitData = { ...form };
       if (mode === "create") await create(submitData);
       else if (selected) await update(selected.id, submitData);
       setModalOpen(false);
-    } catch (err: unknown) {
-      console.error("[transportadoras] handleSubmit:", err);
+    });
+  };
+
+  const handleCloseModal = async () => {
+    if (hasChanges) {
+      const ok = await confirmDiscard({
+        title: "Descartar alterações?",
+        description: "Há alterações não salvas. Deseja fechar mesmo assim?",
+        confirmLabel: "Descartar",
+        confirmVariant: "destructive",
+      });
+      if (!ok) return;
     }
-    setSaving(false);
+    setModalOpen(false);
   };
 
 
@@ -454,7 +466,7 @@ export default function Transportadoras() {
         </PullToRefresh>
       </ModulePage>
 
-      <FormModal open={modalOpen} onClose={() => setModalOpen(false)} title={mode === "create" ? "Nova Transportadora" : "Editar Transportadora"} size="xl">
+      <FormModal open={modalOpen} onClose={handleCloseModal} title={mode === "create" ? "Nova Transportadora" : "Editar Transportadora"} size="xl">
         <form onSubmit={handleSubmit} className="space-y-0">
 
           {/* Context bar for edit mode */}
@@ -778,7 +790,7 @@ export default function Transportadoras() {
               )}
             </span>
             <div className="flex gap-2">
-              <Button type="button" variant="outline" onClick={() => setModalOpen(false)}>Cancelar</Button>
+              <Button type="button" variant="outline" onClick={handleCloseModal}>Cancelar</Button>
               <Button type="submit" disabled={saving}>{saving ? "Salvando..." : "Salvar"}</Button>
             </div>
           </div>
@@ -1017,6 +1029,7 @@ export default function Transportadoras() {
           </div>
         )}
       </ConfirmDialog>
+      {confirmDiscardDialog}
     </AppLayout>
   );
 }

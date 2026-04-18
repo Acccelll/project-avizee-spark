@@ -25,6 +25,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { getUserFriendlyError } from "@/utils/errorMessages";
+import { useEffect } from "react";
+import { useSubmitLock } from "@/hooks/useSubmitLock";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 
 interface Funcionario {
   id: string; nome: string; cpf: string; cargo: string; departamento: string;
@@ -101,8 +104,10 @@ export default function Funcionarios() {
   const [selected, setSelected] = useState<Funcionario | null>(null);
   const [mode, setMode] = useState<"create" | "edit">("create");
   const [form, setForm] = useState<FuncionarioForm>(emptyForm);
+  const [baselineForm, setBaselineForm] = useState<FuncionarioForm>(emptyForm);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const { saving: submitting, submit } = useSubmitLock();
+  const { confirm: confirmDiscard, dialog: confirmDiscardDialog } = useConfirmDialog();
   const [ativoFilters, setAtivoFilters] = useState<string[]>([]);
   const [tipoContratoFilters, setTipoContratoFilters] = useState<string[]>([]);
 
@@ -125,23 +130,61 @@ export default function Funcionarios() {
   // Derived values used in the edit form context section
   const lancamentosAbertos = lancamentos.filter(l => l.status === "aberto");
 
-  const openCreate = () => {  setMode("create"); setForm({ ...emptyForm }); setSelected(null); setModalOpen(true); };
+  const openCreate = () => {
+    setMode("create");
+    setForm({ ...emptyForm });
+    setBaselineForm({ ...emptyForm });
+    setSelected(null);
+    setFolhas([]);
+    setLancamentos([]);
+    setModalOpen(true);
+  };
   const openEdit = (f: Funcionario) => {
     setMode("edit"); setSelected(f);
-    setForm({ nome: f.nome, cpf: f.cpf || "", cargo: f.cargo || "", departamento: f.departamento || "", data_admissao: f.data_admissao, data_demissao: f.data_demissao || null, salario_base: f.salario_base, tipo_contrato: f.tipo_contrato, observacoes: f.observacoes || "", ativo: f.ativo });
+    const next: FuncionarioForm = { nome: f.nome, cpf: f.cpf || "", cargo: f.cargo || "", departamento: f.departamento || "", data_admissao: f.data_admissao, data_demissao: f.data_demissao || null, salario_base: f.salario_base, tipo_contrato: f.tipo_contrato, observacoes: f.observacoes || "", ativo: f.ativo };
+    setForm(next);
+    setBaselineForm(next);
+    // limpa estados de drawer-context para evitar mostrar dados de registro anterior por instante
+    setFolhas([]);
+    setLancamentos([]);
     setModalOpen(true);
   };
 
+  const isFormDirty = useMemo(
+    () => JSON.stringify(form) !== JSON.stringify(baselineForm),
+    [form, baselineForm],
+  );
+
+  const handleCloseModal = async () => {
+    if (isFormDirty) {
+      const ok = await confirmDiscard({
+        title: "Descartar alterações?",
+        description: "Há alterações não salvas. Deseja fechar mesmo assim?",
+        confirmLabel: "Descartar",
+        confirmVariant: "destructive",
+      });
+      if (!ok) return;
+    }
+    setModalOpen(false);
+  };
+
   const openView = async (f: Funcionario) => {
-    setSelected(f); setDrawerOpen(true); setLoadingFolhas(true); setLoadingLancamentos(true);
+    setSelected(f); setDrawerOpen(true);
+    setFolhas([]); setLancamentos([]);
+    setLoadingFolhas(true); setLoadingLancamentos(true);
+    const targetId = f.id;
     const [folhaResult, lancamentosResult] = await Promise.all([
       supabase.from("folha_pagamento").select("*").eq("funcionario_id", f.id).order("competencia", { ascending: false }),
-      // `funcionario_id` exists in the DB but is absent from the generated Supabase types.
-      // The cast is intentional; remove once types are regenerated.
       supabase.from("financeiro_lancamentos").select("id,descricao,valor,data_vencimento,data_pagamento,status").eq("funcionario_id", f.id).order("data_vencimento", { ascending: false }),
     ]);
-    setFolhas((folhaResult.data as unknown as FolhaPagamento[]) || []);
-    setLancamentos((lancamentosResult.data as unknown as FinanceiroLancamento[]) || []);
+    // Cancela aplicação se usuário trocou de registro durante o fetch
+    setSelected((curr) => {
+      if (curr?.id === targetId) {
+        setFolhas((folhaResult.data as unknown as FolhaPagamento[]) || []);
+        setLancamentos((lancamentosResult.data as unknown as FinanceiroLancamento[]) || []);
+      }
+      return curr;
+    });
     setLoadingFolhas(false);
     setLoadingLancamentos(false);
   };
@@ -151,8 +194,7 @@ export default function Funcionarios() {
     if (!form.nome.trim()) { toast.error("Nome é obrigatório"); return; }
     const cpfDigits = form.cpf.replace(/\D/g, "");
     if (form.cpf && !isValidCpf(cpfDigits)) { toast.error("CPF inválido"); return; }
-    setSubmitting(true);
-    try {
+    await submit(async () => {
       const payload = { ...form, data_demissao: form.data_demissao || null };
       if (mode === "create") await create(payload as Partial<Funcionario>);
       else if (selected) {
@@ -161,10 +203,9 @@ export default function Funcionarios() {
           toast.info(`${selected.nome} foi inativado. O histórico de folha foi preservado.`);
         }
       }
+      setBaselineForm(form);
       setModalOpen(false);
-    } finally {
-      setSubmitting(false);
-    }
+    });
   };
 
   const handleFolhaSubmit = async () => {
@@ -356,7 +397,7 @@ export default function Funcionarios() {
       </ModulePage>
 
       {/* Create/Edit Modal */}
-      <FormModal open={modalOpen} onClose={() => setModalOpen(false)} title={mode === "create" ? "Novo Funcionário" : "Editar Funcionário"} size="lg">
+      <FormModal open={modalOpen} onClose={handleCloseModal} title={mode === "create" ? "Novo Funcionário" : "Editar Funcionário"} size="lg">
         <form onSubmit={handleSubmit} className="space-y-6">
 
           {/* BLOCO: IDENTIFICAÇÃO */}
@@ -530,7 +571,7 @@ export default function Funcionarios() {
 
           {/* RODAPÉ */}
           <div className="flex justify-end gap-2 pt-2 border-t">
-            <Button type="button" variant="outline" onClick={() => setModalOpen(false)} disabled={submitting}>Cancelar</Button>
+            <Button type="button" variant="outline" onClick={handleCloseModal} disabled={submitting}>Cancelar</Button>
             <Button type="submit" disabled={submitting}>
               {submitting && <Loader2 className="w-4 h-4 animate-spin mr-1.5" />}
               {submitting ? "Salvando…" : "Salvar"}
@@ -936,6 +977,7 @@ export default function Funcionarios() {
           </div>
         </div>
       </FormModal>
+      {confirmDiscardDialog}
     </AppLayout>
   );
 }

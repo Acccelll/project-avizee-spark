@@ -181,10 +181,13 @@ const GruposEconomicos = () => {
     });
   }, [data, ativoFilters]);
 
-  const isDirty =
-    form.nome !== initialForm.nome ||
-    (form.observacoes || "") !== (initialForm.observacoes || "") ||
-    (form.empresa_matriz_id || "") !== (initialForm.empresa_matriz_id || "");
+  const isDirty = useMemo(
+    () =>
+      form.nome !== initialForm.nome ||
+      (form.observacoes || "") !== (initialForm.observacoes || "") ||
+      (form.empresa_matriz_id || "") !== (initialForm.empresa_matriz_id || ""),
+    [form.nome, form.observacoes, form.empresa_matriz_id, initialForm.nome, initialForm.observacoes, initialForm.empresa_matriz_id],
+  );
 
   const modalRiskInfo = getRiskInfo(modalVencidos, modalSaldo);
   const { Icon: ModalRiskIcon } = modalRiskInfo;
