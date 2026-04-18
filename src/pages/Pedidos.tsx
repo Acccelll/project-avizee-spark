@@ -1,5 +1,5 @@
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";
@@ -11,6 +11,7 @@ import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { FileOutput, AlertTriangle, Clock } from "lucide-react";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
+import { useClientesRef } from "@/hooks/useReferenceCache";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -164,22 +165,14 @@ const Pedidos = () => {
   const setDataInicio = (v: string) => updateParam("de", v || null);
   const setDataFim = (v: string) => updateParam("ate", v || null);
 
-  const [clientesList, setClientesList] = useState<{ id: string; nome_razao_social: string }[]>([]);
+  const { data: clientesList = [] } = useClientesRef();
   const [generatingNfId, setGeneratingNfId] = useState<string | null>(null);
   const [insufficientStock, setInsufficientStock] = useState<{ produto: string; falta: number }[]>([]);
   const [showStockAlert, setShowStockAlert] = useState(false);
+  const [stockCheckPending, setStockCheckPending] = useState(false);
 
-  useEffect(() => {
-    supabase.from("clientes").select("id, nome_razao_social").eq("ativo", true).then(({ data }) => setClientesList(data || []));
-  }, []);
-
-  const kpis = useMemo(() => {
-    const total = data.length;
-    const totalValue = data.reduce((s, o) => s + Number(o.valor_total || 0), 0);
-    const emAndamento = data.filter(o => ["em_separacao", "separado", "em_transporte"].includes(o.status)).length;
-    const atrasados = data.filter(o => getPrazoStatus(o.data_prometida_despacho, o.status) === "atrasado").length;
-    return { total, totalValue, emAndamento, atrasados };
-  }, [data]);
+  // KPIs computed over the filtered list so they reflect what the user sees.
+  // (filteredData is defined below; the memo deps include it.)
 
   const handleView = (pedido: Pedido) => {
     pushView("ordem_venda", pedido.id);
