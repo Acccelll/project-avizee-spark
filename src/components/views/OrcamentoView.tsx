@@ -26,9 +26,9 @@ import { EmptyState } from "@/components/ui/empty-state";
 import {
   sendForApproval,
   approveOrcamento,
-  convertToPedido,
   ensurePublicToken,
 } from "@/services/orcamentos.service";
+import { useConverterOrcamento } from "@/pages/comercial/hooks/useConverterOrcamento";
 import {
   Edit,
   Trash2,
@@ -67,6 +67,7 @@ export function OrcamentoView({ id }: Props) {
   const { isAdmin } = useIsAdmin();
   const { run, locked, isAnyLocked } = useDetailActions();
   const invalidate = useInvalidateAfterMutation();
+  const converterOrcamento = useConverterOrcamento();
 
   const { data, loading, error, reload } = useDetailFetch<OrcamentoDetail>(id, async (oId, signal) => {
     const { data: orc, error: orcError } = await supabase
@@ -132,17 +133,17 @@ export function OrcamentoView({ id }: Props) {
 
   const handleConvertToOV = () =>
     run("convert", async () => {
-      await convertToPedido(selected, {
-        poNumber: poNumberCliente,
-        dataPo: dataPoCliente,
+      // RPC transacional + invalidação cross-módulo via hook.
+      await converterOrcamento.mutateAsync({
+        orcamento: selected,
+        options: { poNumber: poNumberCliente, dataPo: dataPoCliente },
       });
       setPoNumberCliente("");
       setDataPoCliente("");
       await reload();
-      invalidate(["orcamentos", "ordens_venda", "pedidos"]);
       setConvertConfirmOpen(false);
       // Mantém o usuário na visualização para ver o pedido vinculado
-      // (em vez de navegar para fora)
+      // (em vez de navegar para fora — divergência intencional vs grid).
     }).catch(() => {});
 
   const handleGeneratePublicToken = () =>
