@@ -150,8 +150,19 @@ const Orcamentos = () => {
   const { isAdmin } = useIsAdmin();
   const sendLock = useActionLock();
   const approveLock = useActionLock();
+  const convertLock = useActionLock();
 
-  const handleDuplicate = async (orc: Orcamento) => {
+  const handleSendForApproval = useCallback(async (orc: Orcamento) => {
+    await sendLock.run(async () => {
+      try {
+        await sendForApproval(orc);
+        fetchData();
+      } catch (err: unknown) {
+        toast.error(getUserFriendlyError(err));
+      }
+    });
+  }, [fetchData, sendLock]);
+
     try {
       const { data: items } = await supabase.from("orcamentos_itens").select("*").eq("orcamento_id", orc.id);
       // Buscar metadados completos do orçamento original (frete simulador, etc.)
