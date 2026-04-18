@@ -323,11 +323,10 @@ const Pedidos = () => {
       sortValue: (p: Pedido) => p.status_faturamento ?? "",
       render: (p: Pedido) => {
         const sf = p.status_faturamento ?? "";
-        return (
-          <Badge variant="outline" className={`text-xs ${statusFaturamentoColors[sf] || ""}`}>
-            {statusFaturamentoLabels[sf] || sf || "—"}
-          </Badge>
-        );
+        if (!sf) return <span className="text-muted-foreground text-xs">—</span>;
+        // Map faturamento statuses to central StatusBadge tones.
+        const statusKey = sf === "total" ? "faturado" : sf;
+        return <StatusBadge status={statusKey} label={statusFaturamentoLabels[sf] || sf} />;
       },
     },
     {
