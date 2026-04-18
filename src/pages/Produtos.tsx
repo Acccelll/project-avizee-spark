@@ -763,7 +763,7 @@ const Produtos = () => {
         title={mode === "create" ? "Novo Produto" : "Editar Produto"}
         size="xl"
         identifier={mode === "edit" && editingProduct ? (editingProduct.sku || editingProduct.codigo_interno || undefined) : undefined}
-        status={mode === "edit" && editingProduct ? <StatusBadge status={editingProduct.ativo !== false ? "Ativo" : "Inativo"} /> : undefined}
+        status={mode === "edit" && editingProduct ? <StatusBadge status={editingProduct.ativo !== false ? "ativo" : "inativo"} /> : undefined}
         meta={mode === "edit" && editingProduct?.updated_at ? [
           { label: `Atualizado em ${formatDate(editingProduct.updated_at)}` },
         ] : undefined}

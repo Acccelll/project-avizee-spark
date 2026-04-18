@@ -375,7 +375,7 @@ export default function Transportadoras() {
         : <span className="text-muted-foreground text-xs">—</span>,
     },
     { key: "ativo",
-      mobileCard: true, label: "Status", render: (t: Transportadora) => <StatusBadge status={t.ativo ? "Ativo" : "Inativo"} /> },
+      mobileCard: true, label: "Status", render: (t: Transportadora) => <StatusBadge status={t.ativo ? "ativo" : "inativo"} /> },
   ];
 
   const ativoOptions: MultiSelectOption[] = [
@@ -473,7 +473,7 @@ export default function Transportadoras() {
         title={mode === "create" ? "Nova Transportadora" : "Editar Transportadora"}
         size="xl"
         identifier={mode === "edit" && selected?.cpf_cnpj ? selected.cpf_cnpj : undefined}
-        status={mode === "edit" && selected ? <StatusBadge status={selected.ativo ? "Ativo" : "Inativo"} /> : undefined}
+        status={mode === "edit" && selected ? <StatusBadge status={selected.ativo ? "ativo" : "inativo"} /> : undefined}
         meta={mode === "edit" && selected ? [
           ...(selected.created_at ? [{ label: `Cadastro: ${formatDate(selected.created_at)}` }] : []),
           ...(selected.updated_at ? [{ label: `Atualizado: ${formatDate(selected.updated_at)}` }] : []),
@@ -801,7 +801,7 @@ export default function Transportadoras() {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         title={selected?.nome_razao_social || "Detalhes da Transportadora"}
-        badge={selected ? <StatusBadge status={selected.ativo ? "Ativo" : "Inativo"} /> : undefined}
+        badge={selected ? <StatusBadge status={selected.ativo ? "ativo" : "inativo"} /> : undefined}
         actions={selected ? <>
           <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Editar transportadora" onClick={() => { setDrawerOpen(false); openEdit(selected); }}><Edit className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Editar</TooltipContent></Tooltip>
           <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" aria-label="Excluir transportadora" onClick={() => setDeleteConfirmOpen(true)}><Trash2 className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Excluir</TooltipContent></Tooltip>
@@ -850,7 +850,7 @@ export default function Transportadoras() {
                     <ViewField label="Razão Social"><span className="font-medium">{selected.nome_razao_social}</span></ViewField>
                     <ViewField label="Nome Fantasia">{selected.nome_fantasia || "—"}</ViewField>
                     <ViewField label="CNPJ"><span className="font-mono">{selected.cpf_cnpj || "—"}</span></ViewField>
-                    <ViewField label="Status"><StatusBadge status={selected.ativo ? "Ativo" : "Inativo"} /></ViewField>
+                    <ViewField label="Status"><StatusBadge status={selected.ativo ? "ativo" : "inativo"} /></ViewField>
                   </div>
                 </ViewSection>
                 <ViewSection title="Contato">

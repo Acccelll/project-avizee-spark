@@ -313,7 +313,7 @@ export function ContaContabilEditModal({
                 <span className="text-sm font-medium truncate">{conta.descricao}</span>
               </div>
               <div className="flex items-center gap-2 mt-1 flex-wrap">
-                <StatusBadge status={conta.ativo ? "Ativo" : "Inativo"} />
+                <StatusBadge status={conta.ativo ? "ativo" : "inativo"} />
                 <Badge
                   variant={conta.aceita_lancamento ? "default" : "secondary"}
                   className="text-[10px] gap-1 px-1.5"
@@ -550,7 +550,7 @@ export function ContaContabilEditModal({
                 {tipoLabel}
               </Badge>
               {isEdit && (
-                <StatusBadge status={ativo ? "Ativo" : "Inativo"} />
+                <StatusBadge status={ativo ? "ativo" : "inativo"} />
               )}
             </div>
             <div className="flex items-center gap-2">

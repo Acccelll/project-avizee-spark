@@ -124,7 +124,7 @@ export function ClienteView({ id }: Props) {
             )}
           </div>
           <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-            <StatusBadge status={selected.ativo ? "Ativo" : "Inativo"} />
+            <StatusBadge status={selected.ativo ? "ativo" : "inativo"} />
             {selected.grupos_economicos?.nome && (
               <span className="inline-flex items-center rounded-full border bg-muted/50 px-2 py-0.5 text-[10px] text-muted-foreground font-medium">
                 {selected.grupos_economicos.nome}

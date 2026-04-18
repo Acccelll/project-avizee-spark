@@ -332,7 +332,7 @@ export default function Funcionarios() {
 
   const columns = [
     { key: "nome", label: "Nome" },
-    { key: "ativo", label: "Status", render: (f: Funcionario) => <StatusBadge status={f.ativo ? "Ativo" : "Inativo"} /> },
+    { key: "ativo", label: "Status", render: (f: Funcionario) => <StatusBadge status={f.ativo ? "ativo" : "inativo"} /> },
     { key: "cargo", label: "Cargo", render: (f: Funcionario) => f.cargo || "—" },
     { key: "departamento", label: "Depto.", render: (f: Funcionario) => f.departamento || "—" },
     { key: "tipo_contrato", label: "Contrato", render: (f: Funcionario) => tipoContratoLabel[f.tipo_contrato] || f.tipo_contrato },
@@ -404,7 +404,7 @@ export default function Funcionarios() {
         title={mode === "create" ? "Novo Funcionário" : "Editar Funcionário"}
         size="lg"
         identifier={mode === "edit" && selected?.cpf ? selected.cpf : undefined}
-        status={mode === "edit" && selected ? <StatusBadge status={selected.ativo ? "Ativo" : "Inativo"} /> : undefined}
+        status={mode === "edit" && selected ? <StatusBadge status={selected.ativo ? "ativo" : "inativo"} /> : undefined}
         meta={mode === "edit" && selected ? [
           ...(selected.cargo ? [{ label: selected.cargo }] : []),
           ...(selected.departamento ? [{ label: selected.departamento }] : []),
@@ -657,7 +657,7 @@ export default function Funcionarios() {
             <ViewSection title="Identificação">
               <div className="grid grid-cols-2 gap-4">
                 <ViewField label="Nome">{selected.nome}</ViewField>
-                <ViewField label="Status"><StatusBadge status={selected.ativo ? "Ativo" : "Inativo"} /></ViewField>
+                <ViewField label="Status"><StatusBadge status={selected.ativo ? "ativo" : "inativo"} /></ViewField>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <ViewField label="CPF">{selected.cpf || "—"}</ViewField>
@@ -874,7 +874,7 @@ export default function Funcionarios() {
             open={drawerOpen}
             onClose={() => setDrawerOpen(false)}
             title={selected.nome}
-            badge={<StatusBadge status={selected.ativo ? "Ativo" : "Inativo"} />}
+            badge={<StatusBadge status={selected.ativo ? "ativo" : "inativo"} />}
             summary={drawerSummary}
             actions={<>
               <Tooltip>

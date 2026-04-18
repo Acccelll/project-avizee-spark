@@ -132,7 +132,7 @@ export function FornecedorView({ id }: Props) {
             )}
           </div>
           <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-            <StatusBadge status={selected.ativo ? "Ativo" : "Inativo"} />
+            <StatusBadge status={selected.ativo ? "ativo" : "inativo"} />
           </div>
         </div>
       </div>

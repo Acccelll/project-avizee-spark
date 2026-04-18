@@ -300,7 +300,7 @@ export default function FormasPagamento() {
         </Badge>
       ),
     },
-    { key: "ativo", label: "Status", render: (f: FormaPagamento) => <StatusBadge status={f.ativo ? "Ativo" : "Inativo"} /> },
+    { key: "ativo", label: "Status", render: (f: FormaPagamento) => <StatusBadge status={f.ativo ? "ativo" : "inativo"} /> },
     {
       key: "observacoes", label: "Observações", hidden: true,
       render: (f: FormaPagamento) => f.observacoes
@@ -575,7 +575,7 @@ export default function FormasPagamento() {
         title={selected?.descricao ?? "Detalhes da Forma de Pagamento"}
         badge={selected ? (
           <div className="flex items-center gap-1.5 flex-wrap">
-            <StatusBadge status={selected.ativo ? "Ativo" : "Inativo"} />
+            <StatusBadge status={selected.ativo ? "ativo" : "inativo"} />
             {selected.tipo && (
               <Badge variant="outline" className="text-xs gap-1 font-medium">
                 {(() => { const Icon = tipoIcon[selected.tipo]; return Icon ? <Icon className="w-3 h-3" /> : null; })()}
@@ -666,7 +666,7 @@ export default function FormasPagamento() {
                       {selected.gera_financeiro ? "Sim — gera lançamento financeiro" : "Não gera lançamento financeiro"}
                     </Badge>
                   </ViewField>
-                  <ViewField label="Status"><StatusBadge status={selected.ativo ? "Ativo" : "Inativo"} /></ViewField>
+                  <ViewField label="Status"><StatusBadge status={selected.ativo ? "ativo" : "inativo"} /></ViewField>
                 </ViewSection>
 
                 {Array.isArray(selected.intervalos_dias) && selected.intervalos_dias.length > 0 && (

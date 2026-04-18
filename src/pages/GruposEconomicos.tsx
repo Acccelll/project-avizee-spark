@@ -413,7 +413,7 @@ const GruposEconomicos = () => {
     {
       key: "ativo",
       label: "Status",
-      render: (g: GrupoEconomico) => <StatusBadge status={g.ativo ? "Ativo" : "Inativo"} />,
+      render: (g: GrupoEconomico) => <StatusBadge status={g.ativo ? "ativo" : "inativo"} />,
     },
     {
       key: "created_at",
@@ -455,7 +455,7 @@ const GruposEconomicos = () => {
       <ViewSection title="Identificação">
         <div className="grid grid-cols-2 gap-4">
           <ViewField label="Nome do Grupo">{selected?.nome}</ViewField>
-          <ViewField label="Status"><StatusBadge status={selected?.ativo ? "Ativo" : "Inativo"} /></ViewField>
+          <ViewField label="Status"><StatusBadge status={selected?.ativo ? "ativo" : "inativo"} /></ViewField>
         </div>
         {matrizInfo && (
           <ViewField label="Empresa Matriz">
@@ -729,7 +729,7 @@ const GruposEconomicos = () => {
         onClose={handleCancel}
         title={mode === "create" ? "Novo Grupo Econômico" : "Editar Grupo Econômico"}
         size="lg"
-        status={mode === "edit" && selected ? <StatusBadge status={selected.ativo ? "Ativo" : "Inativo"} /> : undefined}
+        status={mode === "edit" && selected ? <StatusBadge status={selected.ativo ? "ativo" : "inativo"} /> : undefined}
         meta={mode === "edit" && selected ? [
           ...(selected.created_at ? [{ icon: Calendar, label: `Cadastrado em ${formatDate(selected.created_at)}` }] : []),
           ...(!loadingSummary && modalEmpresas.length > 0 ? [{ icon: Users, label: `${modalEmpresas.length} empresa${modalEmpresas.length !== 1 ? "s" : ""}` }] : []),
@@ -979,7 +979,7 @@ const GruposEconomicos = () => {
         badge={
           selected ? (
             <div className="flex items-center gap-1.5">
-              <StatusBadge status={selected.ativo ? "Ativo" : "Inativo"} />
+              <StatusBadge status={selected.ativo ? "ativo" : "inativo"} />
               {riskBadge}
             </div>
           ) : undefined
