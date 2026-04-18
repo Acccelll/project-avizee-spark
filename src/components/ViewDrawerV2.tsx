@@ -2,9 +2,19 @@ import { ReactNode } from "react";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DrawerHeaderShell } from "@/components/ui/DrawerHeaderShell";
+import { DrawerStickyFooter } from "@/components/ui/DrawerStickyFooter";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { X } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+/**
+ * Visual variant do drawer — controla peso de tabs, footer e densidade.
+ *  - "view"        : leitura, tabs slim, footer leve.
+ *  - "operational" : transacional, tabs médias, footer sticky com sombra (use DrawerStickyFooter via prop `footer`).
+ *  - "edit"        : edição, tabs fortes, footer salvar/cancelar fixo.
+ */
+export type ViewDrawerVariant = "view" | "operational" | "edit";
 
 interface ViewDrawerV2Props {
   open: boolean;
@@ -22,7 +32,9 @@ interface ViewDrawerV2Props {
   summary?: ReactNode;
   tabs?: { value: string; label: string; content: ReactNode }[];
   defaultTab?: string;
+  /** Conteúdo do footer. Para variant "operational"/"edit" use <DrawerStickyFooter />. */
   footer?: ReactNode;
+  variant?: ViewDrawerVariant;
 }
 
 /**
@@ -31,9 +43,12 @@ interface ViewDrawerV2Props {
  *   1. HEADER GLOBAL: título + breadcrumb + botão fechar
  *   2. RESUMO: identity card / KPIs (prop `summary`)
  *   3. AÇÕES: Editar/Excluir/Mais (prop `actions`)
+ *
+ * O `variant` controla a tipologia visual (tabs/footer) sem alterar fluxos.
  */
 export function ViewDrawerV2({
   open, onClose, title, subtitle, children, badge, actions, summary, tabs, defaultTab, footer,
+  variant = "view",
 }: ViewDrawerV2Props) {
   // Quando há badge legado e não há summary, embute o badge no breadcrumb para não perder contexto.
   const breadcrumbContent = (subtitle || badge) ? (
@@ -43,9 +58,47 @@ export function ViewDrawerV2({
     </span>
   ) : undefined;
 
+  // Tabs styling per variant
+  const tabsListClass =
+    variant === "view"
+      ? "w-full justify-start mb-4 h-9"
+      : "w-full justify-start mb-4 h-10 bg-muted/60";
+  const tabsTriggerClass =
+    variant === "view"
+      ? "text-xs"
+      : "text-xs sm:text-sm font-medium data-[state=active]:shadow-sm";
+
+  // Se footer for fornecido como nó "cru" (não DrawerStickyFooter) em modo operational/edit,
+  // ainda assim aplicamos um wrapper sticky com sombra superior para consistência.
+  const renderFooter = () => {
+    if (!footer) return null;
+    // Heurística: DrawerStickyFooter já é sticky/border-t/shadow — evitar wrapper duplo.
+    // Para simplificar, se variant !== "view" envolvemos sempre com wrapper consistente
+    // a menos que o footer já seja um DrawerStickyFooter (detectado por type displayName).
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const f: any = footer;
+    const isSticky = f?.type === DrawerStickyFooter;
+    if (isSticky) return footer;
+    if (variant === "view") {
+      return (
+        <div className="sticky bottom-0 bg-card border-t px-4 sm:px-6 py-3">{footer}</div>
+      );
+    }
+    return (
+      <div className="sticky bottom-0 z-10 bg-card border-t shadow-[0_-4px_8px_-4px_rgba(0,0,0,0.06)] px-4 sm:px-6 py-3">
+        {footer}
+      </div>
+    );
+  };
+
   return (
     <Sheet open={open} onOpenChange={onClose}>
-      <SheetContent className="w-full sm:max-w-xl overflow-y-auto p-0 flex flex-col">
+      <SheetContent
+        className={cn(
+          "w-full sm:max-w-xl overflow-y-auto p-0 flex flex-col",
+          variant === "operational" && "sm:max-w-2xl",
+        )}
+      >
         <SheetHeader className="sr-only">
           <SheetTitle>{title}</SheetTitle>
           <SheetDescription>Visualização detalhada de {title}</SheetDescription>
@@ -55,7 +108,6 @@ export function ViewDrawerV2({
           title={title}
           breadcrumb={breadcrumbContent}
           recordSummary={summary ? (
-            // Quando há summary explícito, badge legado entra junto na barra de resumo
             badge ? (
               <div className="space-y-2">
                 <div className="flex items-center justify-end">{badge}</div>
@@ -85,9 +137,9 @@ export function ViewDrawerV2({
         <div className="flex-1 px-4 sm:px-6 py-4">
           {tabs && tabs.length > 0 ? (
             <Tabs defaultValue={defaultTab || tabs[0].value} className="w-full">
-              <TabsList className="w-full justify-start mb-4">
+              <TabsList className={tabsListClass}>
                 {tabs.map((t) => (
-                  <TabsTrigger key={t.value} value={t.value} className="text-xs">
+                  <TabsTrigger key={t.value} value={t.value} className={tabsTriggerClass}>
                     {t.label}
                   </TabsTrigger>
                 ))}
@@ -103,11 +155,7 @@ export function ViewDrawerV2({
           )}
         </div>
 
-        {footer && (
-          <div className="sticky bottom-0 bg-card border-t px-4 sm:px-6 py-3">
-            {footer}
-          </div>
-        )}
+        {renderFooter()}
       </SheetContent>
     </Sheet>
   );
@@ -115,3 +163,5 @@ export function ViewDrawerV2({
 
 /* Re-export ViewField and ViewSection for convenience */
 export { ViewField, ViewSection } from "@/components/ViewDrawer";
+export { DrawerStickyFooter } from "@/components/ui/DrawerStickyFooter";
+export { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSummaryCard";
