@@ -591,71 +591,56 @@ export function PedidoCompraDrawer({
       <ViewDrawerV2
       open={open}
       onClose={onClose}
+      variant="operational"
       title={pedidoNumero(selected)}
       subtitle={`${selected.fornecedores?.nome_razao_social || "Fornecedor não informado"} · ${formatDate(selected.data_pedido)}`}
       badge={<StatusBadge status={selected.status} label={statusLabels[selected.status] || selected.status} />}
       actions={
         <>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Editar pedido" onClick={onEdit}>
-                <Edit className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Editar</TooltipContent>
-          </Tooltip>
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-destructive hover:text-destructive"
-                aria-label="Excluir pedido"
-                onClick={onDelete}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Excluir</TooltipContent>
-          </Tooltip>
+          <Button variant="outline" size="sm" className="gap-1.5" aria-label="Editar pedido" onClick={onEdit}>
+            <Edit className="h-3.5 w-3.5" /> Editar
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 text-destructive border-destructive/30 hover:text-destructive hover:bg-destructive/10"
+            aria-label="Excluir pedido"
+            onClick={onDelete}
+          >
+            <Trash2 className="h-3.5 w-3.5" /> Excluir
+          </Button>
         </>
       }
       summary={
-        <div className="grid grid-cols-4 gap-2">
-          <div className="bg-accent/30 rounded-lg p-3 text-center">
-            <p className="text-xs text-muted-foreground">Itens</p>
-            <p className="font-semibold text-sm font-mono">{viewItems.length}</p>
-          </div>
-          <div className="bg-accent/30 rounded-lg p-3 text-center">
-            <p className="text-xs text-muted-foreground">Recebimento</p>
-            {pctRecebimento > 0 ? (
-              <p
-                className={`font-semibold text-sm font-mono mt-0.5 ${pctRecebimento === 100 ? "text-success" : "text-warning"}`}
-              >
-                {pctRecebimento}%
-              </p>
-            ) : (
-              <p
-                className={`font-semibold text-xs leading-tight mt-0.5 ${recebimentoColorClass[recebimentoStatus.color] ?? "text-muted-foreground"}`}
-              >
-                {recebimentoStatus.label}
-              </p>
-            )}
-          </div>
-          <div className="bg-accent/30 rounded-lg p-3 text-center">
-            <p className="text-xs text-muted-foreground">Total</p>
-            <p className="font-semibold text-sm font-mono">
-              {formatCurrency(Number(selected.valor_total || 0))}
-            </p>
-          </div>
-          <div className="bg-accent/30 rounded-lg p-3 text-center">
-            <p className="text-xs text-muted-foreground">Cotação</p>
-            <p className="font-semibold text-xs leading-tight mt-0.5 font-mono">
-              {viewCotacao ? viewCotacao.numero : selected.cotacao_compra_id ? "—" : "Avulso"}
-            </p>
-          </div>
-        </div>
+        <DrawerSummaryGrid cols={4}>
+          <DrawerSummaryCard
+            label="Itens"
+            value={String(viewItems.length)}
+            align="center"
+          />
+          <DrawerSummaryCard
+            label="Recebimento"
+            value={pctRecebimento > 0 ? `${pctRecebimento}%` : recebimentoStatus.label}
+            tone={
+              pctRecebimento === 100 ? "success"
+              : pctRecebimento > 0 ? "warning"
+              : recebimentoStatus.color === "destructive" ? "destructive"
+              : "neutral"
+            }
+            align="center"
+          />
+          <DrawerSummaryCard
+            label="Total"
+            value={formatCurrency(Number(selected.valor_total || 0))}
+            tone="primary"
+            align="center"
+          />
+          <DrawerSummaryCard
+            label="Cotação"
+            value={viewCotacao ? viewCotacao.numero : selected.cotacao_compra_id ? "—" : "Avulso"}
+            align="center"
+          />
+        </DrawerSummaryGrid>
       }
       tabs={[
         { value: "resumo", label: "Resumo", content: tabResumo },
