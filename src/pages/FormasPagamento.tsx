@@ -383,7 +383,7 @@ export default function FormasPagamento() {
                 <Input
                   id="fp-descricao"
                   value={form.descricao}
-                  onChange={(e) => setForm({ ...form, descricao: e.target.value })}
+                  onChange={(e) => updateForm({ descricao: e.target.value })}
                   required
                   aria-required="true"
                   placeholder="Ex: 30/60/90 DDL"
@@ -394,7 +394,7 @@ export default function FormasPagamento() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Tipo</Label>
-                  <Select value={form.tipo} onValueChange={(v) => setForm({ ...form, tipo: v })}>
+                  <Select value={form.tipo} onValueChange={(v) => updateForm({ tipo: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="dinheiro">Dinheiro</SelectItem>
@@ -412,7 +412,7 @@ export default function FormasPagamento() {
                     <div className="flex items-center gap-2 h-10">
                       <Switch
                         checked={form.ativo}
-                        onCheckedChange={(v) => setForm({ ...form, ativo: v })}
+                        onCheckedChange={(v) => updateForm({ ativo: v })}
                       />
                       <span className="text-sm text-muted-foreground">{form.ativo ? "Ativo" : "Inativo"}</span>
                     </div>
@@ -439,7 +439,7 @@ export default function FormasPagamento() {
                     type="number"
                     min={0}
                     value={form.prazo_dias}
-                    onChange={(e) => setForm({ ...form, prazo_dias: Number(e.target.value) })}
+                    onChange={(e) => updateForm({ prazo_dias: Number(e.target.value) })}
                     className="w-28"
                     placeholder="0"
                   />
@@ -502,7 +502,7 @@ export default function FormasPagamento() {
                 </div>
                 <Switch
                   checked={form.gera_financeiro}
-                  onCheckedChange={(v) => setForm({ ...form, gera_financeiro: v })}
+                  onCheckedChange={(v) => updateForm({ gera_financeiro: v })}
                 />
               </div>
             </div>
@@ -540,7 +540,7 @@ export default function FormasPagamento() {
               <p className="text-xs text-muted-foreground">Notas internas sobre o uso desta forma de pagamento. Instruções, restrições ou acordos comerciais específicos.</p>
               <Textarea
                 value={form.observacoes}
-                onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
+                onChange={(e) => updateForm({ observacoes: e.target.value })}
                 placeholder="Ex: Utilizada apenas para clientes com limite aprovado acima de R$ 5.000..."
                 rows={3}
               />
