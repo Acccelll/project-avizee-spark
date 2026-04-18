@@ -18,6 +18,7 @@ import { AutocompleteSearch } from "@/components/ui/AutocompleteSearch";
 import { CotacaoCompraPropostasPanel } from "@/components/compras/CotacaoCompraPropostasPanel";
 import { CotacaoCompraItensTable } from "@/components/compras/CotacaoCompraItensTable";
 import { ArrowLeft, Plus, Save, X } from "lucide-react";
+import { PageShell } from "@/components/PageShell";
 import { toast } from "sonner";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import { formatDate } from "@/lib/format";

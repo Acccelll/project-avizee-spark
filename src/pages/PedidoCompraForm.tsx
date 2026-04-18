@@ -17,6 +17,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { AutocompleteSearch } from "@/components/ui/AutocompleteSearch";
 import { ItemsGrid, type GridItem } from "@/components/ui/ItemsGrid";
 import { ArrowLeft, Save } from "lucide-react";
+import { PageShell } from "@/components/PageShell";
 import { toast } from "sonner";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import { formatCurrency, formatDate } from "@/lib/format";
