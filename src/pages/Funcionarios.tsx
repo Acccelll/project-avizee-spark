@@ -25,6 +25,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { getUserFriendlyError } from "@/utils/errorMessages";
+import { useEffect } from "react";
+import { useSubmitLock } from "@/hooks/useSubmitLock";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 
 interface Funcionario {
   id: string; nome: string; cpf: string; cargo: string; departamento: string;
@@ -101,8 +104,10 @@ export default function Funcionarios() {
   const [selected, setSelected] = useState<Funcionario | null>(null);
   const [mode, setMode] = useState<"create" | "edit">("create");
   const [form, setForm] = useState<FuncionarioForm>(emptyForm);
+  const [baselineForm, setBaselineForm] = useState<FuncionarioForm>(emptyForm);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const { saving: submitting, submit } = useSubmitLock();
+  const { confirm: confirmDiscard, dialog: confirmDiscardDialog } = useConfirmDialog();
   const [ativoFilters, setAtivoFilters] = useState<string[]>([]);
   const [tipoContratoFilters, setTipoContratoFilters] = useState<string[]>([]);
 
