@@ -12,6 +12,7 @@ import { ViewField, ViewSection } from "@/components/ViewDrawer";
 import { Button } from "@/components/ui/button";
 import { useDetailFetch } from "@/hooks/useDetailFetch";
 import { DetailLoading, DetailError, DetailEmpty } from "@/components/ui/DetailStates";
+import { RelatedRecordsStrip } from "@/components/views/RelatedRecordsStrip";
 import {
   Truck,
   CheckCircle2,
@@ -227,6 +228,26 @@ export function PedidoCompraView({ id }: Props) {
 
   return (
     <div className="space-y-4">
+      {/* Strip de registros relacionados — vínculos visíveis sem clicar em "Vínculos". */}
+      <RelatedRecordsStrip
+        chips={[
+          {
+            icon: Receipt,
+            count: viewCotacao ? 1 : 0,
+            label: "Cotação origem",
+            tone: "default",
+            title: "Cotação que originou este pedido",
+          },
+          {
+            icon: Boxes,
+            count: viewEstoque.length,
+            label: viewEstoque.length === 1 ? "Movimento estoque" : "Movimentos estoque",
+            tone: "success",
+            title: "Movimentos de estoque registrados pelo recebimento",
+          },
+        ]}
+      />
+
       <Tabs defaultValue="resumo" className="w-full">
         <TabsList className="w-full grid grid-cols-5">
           <TabsTrigger value="resumo" className="text-[11px]">Resumo</TabsTrigger>
