@@ -102,9 +102,9 @@ const prazoOptionsReceb: MultiSelectOption[] = [{ label: "Atrasados", value: "at
 
 export default function Logistica() {
   const navigate = useNavigate();
-  const { can } = useAuth();
+  const { can } = useCan();
   const { pushView } = useRelationalNavigation();
-  const canEdit = can("logistica", "editar");
+  const canEdit = can("logistica:editar");
 
   // ─── Entregas / Recebimentos via hooks ───
   const { data: entregas = [], isLoading: entregasLoading } = useEntregas();
