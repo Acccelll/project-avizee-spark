@@ -14,7 +14,10 @@ import type { Database } from "@/integrations/supabase/types";
 export type AppRole = Database["public"]["Enums"]["app_role"];
 export type UserPermission = Database["public"]["Tables"]["user_permissions"]["Row"];
 
-/** Busca os papéis de um usuário específico. */
+/**
+ * @deprecated Use a edge function `admin-users` (action `list`) — caminho canônico.
+ * Esta função grava direto via supabase client, sem auditoria em `permission_audit`.
+ */
 export async function fetchPerfisUsuario(userId: string): Promise<AppRole[]> {
   const { data, error } = await supabase
     .from("user_roles")
@@ -36,7 +39,10 @@ export async function fetchPermissoesExtras(userId: string): Promise<UserPermiss
   return data ?? [];
 }
 
-/** Atribui um novo papel a um usuário. */
+/**
+ * @deprecated Use a edge function `admin-users` (action `update_role`) — caminho canônico
+ * com auditoria em `permission_audit` e validação server-side.
+ */
 export async function atribuirPerfil(userId: string, role: AppRole): Promise<void> {
   // Upsert: evita duplicatas
   const { error } = await supabase
@@ -46,7 +52,9 @@ export async function atribuirPerfil(userId: string, role: AppRole): Promise<voi
   if (error) throw error;
 }
 
-/** Remove um papel de um usuário. */
+/**
+ * @deprecated Use a edge function `admin-users` (action `update_role`) — caminho canônico.
+ */
 export async function removerPerfil(userId: string, role: AppRole): Promise<void> {
   const { error } = await supabase
     .from("user_roles")

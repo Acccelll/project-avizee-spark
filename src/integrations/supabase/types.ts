@@ -3843,33 +3843,6 @@ export type Database = {
           },
         ]
       }
-      role_permissions: {
-        Row: {
-          action: string
-          allowed: boolean
-          created_at: string
-          id: string
-          resource: string
-          role: Database["public"]["Enums"]["app_role"]
-        }
-        Insert: {
-          action: string
-          allowed?: boolean
-          created_at?: string
-          id?: string
-          resource: string
-          role: Database["public"]["Enums"]["app_role"]
-        }
-        Update: {
-          action?: string
-          allowed?: boolean
-          created_at?: string
-          id?: string
-          resource?: string
-          role?: Database["public"]["Enums"]["app_role"]
-        }
-        Relationships: []
-      }
       social_contas: {
         Row: {
           access_token: string | null
@@ -4923,10 +4896,6 @@ export type Database = {
           lancamento_id: string
           score: number
         }[]
-      }
-      user_has_permission: {
-        Args: { _action: string; _resource: string; _user_id: string }
-        Returns: boolean
       }
     }
     Enums: {

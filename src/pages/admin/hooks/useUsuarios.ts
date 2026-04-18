@@ -12,7 +12,7 @@ import {
   updateUsuario,
   type AppRole,
   type UsuarioComPerfil,
-} from "@/services/admin/usuarios.service";
+} from "@/services/admin/_legacy/usuarios.service";
 
 const QUERY_KEY = ["admin", "usuarios"] as const;
 
