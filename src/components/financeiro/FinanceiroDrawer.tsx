@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { ViewDrawerV2, ViewField, ViewSection } from "@/components/ViewDrawerV2";
 import { StatusBadge } from "@/components/StatusBadge";
 import { RelationalLink } from "@/components/ui/RelationalLink";
@@ -10,6 +10,8 @@ import { formatCurrency } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import type { Lancamento } from "@/types/domain";
+import { useDrawerData } from "@/hooks/useDrawerData";
+import { useActionLock } from "@/hooks/useActionLock";
 
 interface Baixa {
   id: string;
@@ -32,28 +34,31 @@ interface FinanceiroDrawerProps {
 }
 
 export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onBaixa, onEstorno, onEdit, onDelete }: FinanceiroDrawerProps) {
-  const [baixas, setBaixas] = useState<Baixa[]>([]);
-  const [loadingBaixas, setLoadingBaixas] = useState(false);
+  const selectedId = selected?.id ?? null;
 
-  const selectedId = selected?.id;
-
-  useEffect(() => {
-    if (!open || !selectedId) { setBaixas([]); return; }
-    setLoadingBaixas(true);
-    supabase
-      .from("financeiro_baixas")
-      .select("*")
-      .eq("lancamento_id", selectedId)
-      .order("data_baixa", { ascending: false })
-      .then(({ data }) => {
-        setBaixas((data as Baixa[]) || []);
-        setLoadingBaixas(false);
-      });
-  }, [open, selectedId]);
+  // Cancellation-aware fetch — evita que resultado de um lançamento antigo
+  // sobrescreva o estado quando o usuário troca rapidamente de registro.
+  const { data: baixas, loading: loadingBaixas } = useDrawerData<Baixa[]>(
+    open,
+    selectedId,
+    async (id, signal) => {
+      const { data } = await supabase
+        .from("financeiro_baixas")
+        .select("*")
+        .eq("lancamento_id", id)
+        .order("data_baixa", { ascending: false })
+        .abortSignal(signal);
+      return (data as Baixa[]) || [];
+    },
+  );
+  const baixasList = baixas ?? [];
 
   const hoje = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }, []);
 
-  if (!selected) return <ViewDrawerV2 open={open} onClose={onClose} title="" />;
+  const { pending: actionPending, run: runAction } = useActionLock();
+
+  // Guard cedo: não renderiza Sheet vazio nem monta hooks com `selected` nulo.
+  if (!open || !selected) return null;
 
   const canBaixa = effectiveStatus !== "pago" && effectiveStatus !== "cancelado";
   const canEstorno = effectiveStatus === "pago" || effectiveStatus === "parcial";
