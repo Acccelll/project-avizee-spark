@@ -247,26 +247,30 @@ const Fiscal = () => {
   };
 
   const handleConfirmar = async (nf: NotaFiscal) => {
-    try {
-      await confirmarNotaFiscal({ nf, parcelas });
-      toast.success("Nota fiscal confirmada! Estoque e financeiro atualizados.");
-      fetchData();
-    } catch (err: unknown) {
-      console.error('[fiscal] confirmar NF:', err);
-      toast.error(getUserFriendlyError(err));
-    }
+    await confirmarLock.run(async () => {
+      try {
+        await confirmarNotaFiscal({ nf, parcelas });
+        toast.success("Nota fiscal confirmada! Estoque e financeiro atualizados.");
+        fetchData();
+      } catch (err: unknown) {
+        console.error('[fiscal] confirmar NF:', err);
+        toast.error(getUserFriendlyError(err));
+      }
+    });
   };
 
   const handleEstornar = async (nf: NotaFiscal) => {
     if (!window.confirm(`Deseja estornar a NF ${nf.numero}? Isso reverterá movimentos de estoque e lançamentos financeiros vinculados.`)) return;
-    try {
-      await estornarNotaFiscal(nf);
-      toast.success(`NF ${nf.numero} estornada! Estoque e financeiro revertidos.`);
-      fetchData();
-    } catch (err: unknown) {
-      console.error('[fiscal] estornar NF:', err);
-      toast.error(getUserFriendlyError(err));
-    }
+    await estornarLock.run(async () => {
+      try {
+        await estornarNotaFiscal(nf);
+        toast.success(`NF ${nf.numero} estornada! Estoque e financeiro revertidos.`);
+        fetchData();
+      } catch (err: unknown) {
+        console.error('[fiscal] estornar NF:', err);
+        toast.error(getUserFriendlyError(err));
+      }
+    });
   };
 
   const handleCancelarRascunho = async () => {
