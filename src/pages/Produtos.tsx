@@ -394,7 +394,7 @@ const Produtos = () => {
       }
       const nova = inserted as UnidadeMedidaOption;
       setUnidadesMedida((prev) => [...prev, nova].sort((a, b) => a.codigo.localeCompare(b.codigo)));
-      setForm((f) => ({ ...f, unidade_medida: nova.codigo }));
+      updateForm({ unidade_medida: nova.codigo });
       setNovaUnidadeDialogOpen(false);
       setNovaUnidadeForm({ codigo: "", descricao: "", sigla: "" });
       toast.success(`Unidade "${nova.codigo}" criada com sucesso`);
@@ -1135,7 +1135,7 @@ const Produtos = () => {
             <div className="border-t pt-3 space-y-2 bg-muted/20 rounded-lg p-3">
               <div className="flex justify-between text-sm"><span className="font-medium">Custo Total Composto</span><span className="font-mono font-semibold text-primary">{formatCurrency(custoComposto)}</span></div>
               <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1"><Label className="text-xs">Margem (%)</Label><Input type="number" step="1" value={margemLucro} onChange={(e) => setMargemLucro(Number(e.target.value))} className="h-9" /></div>
+                <div className="space-y-1"><Label className="text-xs">Margem (%)</Label><Input type="number" step="1" value={margemLucro} onChange={(e) => setMargemOverride(Number(e.target.value))} className="h-9" /></div>
                 <div className="space-y-1"><Label className="text-xs">Preço Sugerido</Label><div className="h-9 flex items-center"><span className="font-mono font-semibold text-sm">{formatCurrency(precoSugerido)}</span><Button type="button" size="sm" variant="link" className="ml-2 text-xs h-auto p-0" onClick={() => setForm({ ...form, preco_venda: Number(precoSugerido.toFixed(2)) })}>Usar</Button></div></div>
               </div>
             </div>
