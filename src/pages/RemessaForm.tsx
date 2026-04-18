@@ -333,7 +333,7 @@ export default function RemessaFormPage() {
             </Card>
 
             <div className="flex justify-end gap-3 pb-6">
-              <Button type="button" variant="outline" onClick={() => navigate("/logistica")}>
+              <Button type="button" variant="outline" onClick={handleCancel}>
                 Cancelar
               </Button>
               <Button type="submit" disabled={isSaving}>
@@ -344,6 +344,7 @@ export default function RemessaFormPage() {
           </form>
         )}
       </div>
+      {confirmDialog}
     </AppLayout>
   );
 }
