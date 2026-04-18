@@ -116,13 +116,14 @@ const Produtos = () => {
   const [unidadesMedida, setUnidadesMedida] = useState<UnidadeMedidaOption[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [mode, setMode] = useState<"create" | "edit">("create");
-  const [form, setForm] = useState<ProdutoFormData>(emptyProduto);
-  const [saving, setSaving] = useState(false);
+  const { form, setForm, updateForm, reset: resetForm, markPristine, isDirty } = useEditDirtyForm<ProdutoFormData>(emptyProduto);
+  const { saving, submit } = useSubmitLock();
   const [editComposicao, setEditComposicao] = useState<ComposicaoItem[]>([]);
   const [editFornecedores, setEditFornecedores] = useState<FornecedorLink[]>([]);
   const [fornecedoresList, setFornecedoresList] = useState<{id: string; nome_razao_social: string}[]>([]);
   const [editingProduct, setEditingProduct] = useState<Produto | null>(null);
-  const [margemLucro, setMargemLucro] = useState(0);
+  const [margemOverride, setMargemOverride] = useState<number | null>(null);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [tipoFilters, setTipoFilters] = useState<string[]>([]);
   const [tipoItemFilters, setTipoItemFilters] = useState<string[]>([]);
   const [estoqueFilters, setEstoqueFilters] = useState<string[]>([]);
