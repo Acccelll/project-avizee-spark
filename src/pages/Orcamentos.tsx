@@ -273,6 +273,7 @@ const Orcamentos = () => {
     return { total, totalValue, approved, conversionRate };
   }, [filteredData]);
 
+  const columns = [
     {
       key: "numero",
       mobileCard: true, label: "Nº Cotação", sortable: true,
