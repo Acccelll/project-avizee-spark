@@ -261,10 +261,7 @@ export function EntregaDrawer({ open, onClose, entrega }: EntregaDrawerProps) {
       {loading ? (
         <p className="text-xs text-muted-foreground text-center py-3">Carregando itens...</p>
       ) : itens.length === 0 ? (
-        <div className="rounded-lg border bg-muted/20 p-4 text-center">
-          <Package className="h-6 w-6 mx-auto text-muted-foreground/50 mb-1" />
-          <p className="text-sm text-muted-foreground">Nenhum item vinculado ao pedido.</p>
-        </div>
+        <EmptyState icon={Package} title="Nenhum item vinculado ao pedido" />
       ) : (
         <ViewSection title={`Itens do Pedido (${itens.length})`}>
           <div className="space-y-2">
