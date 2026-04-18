@@ -370,8 +370,26 @@ const Produtos = () => {
         }
       }
       markPristine();
-      setModalOpen(false);
+      if (saveAndNewRef.current && mode === "create") {
+        saveAndNewRef.current = false;
+        resetForm({ ...emptyProduto });
+        setEditComposicao([]);
+        setEditFornecedores([]);
+        setEditingProduct(null);
+        setMargemOverride(30);
+        setFormErrors({});
+      } else {
+        setModalOpen(false);
+      }
     });
+  };
+
+  const saveAndNewRef = useState({ current: false } as { current: boolean })[0];
+  const handleSaveAndNew = () => {
+    saveAndNewRef.current = true;
+    document.getElementById("produto-form")?.dispatchEvent(
+      new Event("submit", { cancelable: true, bubbles: true }),
+    );
   };
 
   const handleSalvarNovaUnidade = async (e: React.FormEvent) => {
