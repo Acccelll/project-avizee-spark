@@ -13,6 +13,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { AppLayout } from "@/components/AppLayout";
+import { ContentSpinner } from "@/components/ui/spinner";
 
 // Lazy-loaded pages
 const Index = lazy(() => import("./pages/Index"));
@@ -67,11 +68,7 @@ function CotacaoIdRedirect() {
 // Per-route Suspense wrapper — shows loading spinner only in the content area
 function LazyPage({ children }: { children: React.ReactNode }) {
   return (
-    <Suspense fallback={
-      <div className="flex items-center justify-center flex-1 min-h-[calc(100vh-4rem)]">
-        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
-      </div>
-    }>
+    <Suspense fallback={<ContentSpinner />}>
       {children}
     </Suspense>
   );

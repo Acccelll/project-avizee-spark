@@ -127,7 +127,7 @@ export function useSupabaseCrud<R = any>({
         const from = page * pageSize;
         const { data: result, error, count } = await buildQuery().range(from, from + pageSize - 1);
         if (error) {
-          if (showToasts) toast.error("Erro ao carregar dados. Tente novamente.");
+          if (showToasts) toast.error(getUserFriendlyError(error));
           throw error;
         }
         const rows = (result ?? []) as R[];
@@ -151,7 +151,7 @@ export function useSupabaseCrud<R = any>({
         const to = from + allChunkSize - 1;
         const { data: result, error, count } = await buildQuery().range(from, to);
         if (error) {
-          if (showToasts) toast.error("Erro ao carregar dados. Tente novamente.");
+          if (showToasts) toast.error(getUserFriendlyError(error));
           throw error;
         }
         const chunk = (result ?? []) as R[];
