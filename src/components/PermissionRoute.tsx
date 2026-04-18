@@ -3,22 +3,16 @@
  *
  * Substitui o uso genérico de `ProtectedRoute` em rotas que exigem mais do
  * que apenas estar logado. Bloqueia acesso direto via URL para usuários sem
- * o par (resource, action) requerido — fechando o gap de "menu esconde
- * mas rota libera".
- *
- * Estados:
- *  - Sem sessão → redireciona para `/login`
- *  - Sem permissão → renderiza `<AccessDenied fullPage />`
- *  - OK → renderiza `children`
+ * o par (resource, action) requerido.
  */
 
 import { ReactNode } from "react";
 import { Navigate } from "react-router-dom";
-import { FullPageSpinner } from "@/components/ui/spinner";
+import { AuthLoadingScreen } from "@/components/auth/AuthLoadingScreen";
 import { AccessDenied } from "@/components/AccessDenied";
 import { useAuthGate } from "@/hooks/useAuthGate";
 import { useCan } from "@/hooks/useCan";
-import type { ErpResource, ErpAction } from "@/lib/permissions";
+import { humanizeResource, type ErpResource, type ErpAction } from "@/lib/permissions";
 
 interface PermissionRouteProps {
   resource: ErpResource;
@@ -41,20 +35,24 @@ export function PermissionRoute({
   const { can } = useCan();
 
   if (gate.status === "loading") {
-    return <FullPageSpinner label="Verificando permissões..." />;
+    return <AuthLoadingScreen mode="permissions" />;
   }
   if (gate.status === "unauthenticated") {
     return <Navigate to="/login" replace />;
   }
 
   if (!can(`${resource}:${action}`)) {
+    const label = humanizeResource(resource);
     return (
       <AccessDenied
         fullPage
+        variant="route"
         title={deniedTitle ?? "Acesso restrito"}
+        resourceLabel={label}
+        permissionKey={`${resource}:${action}`}
         message={
           deniedMessage ??
-          `Você não tem permissão para acessar este módulo (${resource}). Solicite acesso ao administrador.`
+          `Você não tem permissão para acessar ${label}. Solicite acesso ao administrador.`
         }
       />
     );
