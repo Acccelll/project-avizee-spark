@@ -164,6 +164,18 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
       tabs={[
         { value: "resumo", label: "Resumo", content: (
           <div className="space-y-4">
+            {effectiveStatus === "vencido" && (
+              <DrawerStatusBanner
+                tone="destructive"
+                icon={AlertCircle}
+                title={isCR ? "Conta a receber em atraso" : "Conta a pagar em atraso"}
+                description={
+                  diasAtraso > 0
+                    ? `Vencimento em ${vencimento?.toLocaleDateString("pt-BR")} — ${diasAtraso} dia(s) de atraso.`
+                    : `Vencimento em ${vencimento?.toLocaleDateString("pt-BR")}.`
+                }
+              />
+            )}
             <ViewSection title="Identificação">
               <div className="grid grid-cols-2 gap-4">
                 <ViewField label="Tipo">
@@ -202,27 +214,23 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
         )},
         { value: "baixas", label: baixasList.length > 0 ? `Baixas (${baixasList.length})` : "Baixas", content: (
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3 rounded-lg border bg-muted/30 p-3">
-              <div>
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Total {isCR ? "Recebido" : "Pago"}</span>
-                <p className="text-sm font-bold font-mono text-success">{formatCurrency(valorBaixado)}</p>
-              </div>
-              <div>
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Saldo em Aberto</span>
-                <p className={cn("text-sm font-bold font-mono", saldoRestante > 0 ? "text-destructive" : "text-success")}>{formatCurrency(saldoRestante)}</p>
-              </div>
-            </div>
+            <DrawerSummaryGrid cols={2}>
+              <DrawerSummaryCard label={`Total ${isCR ? "Recebido" : "Pago"}`} value={formatCurrency(valorBaixado)} tone="success" />
+              <DrawerSummaryCard label="Saldo em Aberto" value={formatCurrency(saldoRestante)} tone={saldoRestante > 0 ? "destructive" : "success"} />
+            </DrawerSummaryGrid>
             {loadingBaixas ? (
               <p className="text-sm text-muted-foreground text-center py-4">Carregando baixas...</p>
             ) : baixasList.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <p className="text-sm">Nenhuma baixa registrada</p>
-                {canBaixa && (
-                  <Button size="sm" variant="outline" className="mt-3 gap-2" disabled={actionPending} onClick={() => runAction(() => onBaixa(selected))}>
+              <EmptyState
+                icon={Receipt}
+                title="Nenhuma baixa registrada"
+                description={canBaixa ? "Registre uma baixa para acompanhar o pagamento." : undefined}
+                action={canBaixa ? (
+                  <Button size="sm" variant="outline" className="gap-2" disabled={actionPending} onClick={() => runAction(() => onBaixa(selected))}>
                     <CreditCard className="h-3.5 w-3.5" /> Registrar Baixa
                   </Button>
-                )}
-              </div>
+                ) : undefined}
+              />
             ) : (
               <div className="space-y-2">
                 <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Histórico de Baixas</span>
