@@ -311,10 +311,7 @@ export default function CotacaoCompraForm() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => {
-                if (isDirty && !window.confirm("Existem alterações não salvas. Deseja sair?")) return;
-                navigate("/cotacoes-compra");
-              }}
+              onClick={handleBack}
               aria-label="Voltar"
             >
               <ArrowLeft className="h-4 w-4" />
