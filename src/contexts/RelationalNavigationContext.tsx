@@ -1,5 +1,6 @@
 import { createContext, useContext, useCallback, useEffect, useMemo, useReducer, useRef, ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
+import { RelationalDrawerSlotsProvider } from "@/contexts/RelationalDrawerSlotsContext";
 
 export const MAX_DRAWER_DEPTH = 5;
 
@@ -163,7 +164,11 @@ export function RelationalNavigationProvider({ children }: { children: ReactNode
     [state.stack, state.pendingPush, pushView, confirmPendingPush, cancelPendingPush, popView, clearStack],
   );
 
-  return <RelationalNavigationContext.Provider value={value}>{children}</RelationalNavigationContext.Provider>;
+  return (
+    <RelationalNavigationContext.Provider value={value}>
+      <RelationalDrawerSlotsProvider>{children}</RelationalDrawerSlotsProvider>
+    </RelationalNavigationContext.Provider>
+  );
 }
 
 export function useRelationalNavigation() {
