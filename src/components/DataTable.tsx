@@ -484,7 +484,7 @@ export function DataTable<T extends Record<string, any>>({
       <div className="space-y-2">
         {pagedData.map((item, idx) => (
           <div
-            key={item.id || idx}
+            key={item.id ?? `row-${idx}`}
             className={cn(
               'relative rounded-xl border bg-card px-4 py-3 transition-colors active:bg-muted/50',
               selectable && selectedIds.includes(item.id) && 'border-primary bg-primary/5',
@@ -733,13 +733,13 @@ export function DataTable<T extends Record<string, any>>({
                     maxHeight={maxHeight}
                     renderRow={(item, idx) => (
                       <>
-                        <tr key={item.id || idx} onClick={() => onRowClick?.(item)} onDoubleClick={onView ? () => onView(item) : undefined} className={cn('border-b transition-colors last:border-b-0 hover:bg-muted/30', selectable && selectedIds.includes(item.id) && 'bg-primary/5')}>
+                        <tr key={item.id ?? `row-${idx}`} onClick={() => onRowClick?.(item)} onDoubleClick={onView ? () => onView(item) : undefined} className={cn('border-b transition-colors last:border-b-0 hover:bg-muted/30', selectable && selectedIds.includes(item.id) && 'bg-primary/5')}>
                           {hasActions && <td className="px-2 py-3">{renderActions(item)}</td>}
                           {selectable && <td className="w-10 px-3 py-3"><Checkbox checked={selectedIds.includes(item.id)} onCheckedChange={() => toggleSelect(item.id)} onClick={(e) => e.stopPropagation()} /></td>}
                           {visibleColumns.map((col) => <td key={col.key} className="px-4 py-3 text-sm whitespace-nowrap">{col.render ? col.render(item) : item[col.key]}</td>)}
                         </tr>
                         {renderInlineDetails && expandedRows.has(item.id) && (
-                          <tr key={`detail-${item.id || idx}`} className="border-b bg-muted/20"><td colSpan={visibleColumns.length + (hasActions ? 1 : 0) + (selectable ? 1 : 0)} className="px-4 py-3">{renderInlineDetails(item)}</td></tr>
+                          <tr key={`detail-${item.id ?? `row-${idx}`}`} className="border-b bg-muted/20"><td colSpan={visibleColumns.length + (hasActions ? 1 : 0) + (selectable ? 1 : 0)} className="px-4 py-3">{renderInlineDetails(item)}</td></tr>
                         )}
                       </>
                     )}
