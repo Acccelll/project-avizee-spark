@@ -1,13 +1,7 @@
 import { DataTable } from "@/components/DataTable";
 import { StatusBadge } from "@/components/StatusBadge";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { RowActions } from "@/components/list/RowActions";
 import {
-  AlertCircle,
-  ArrowDownToLine,
-  CheckCircle2,
-  Clock,
-  FileText,
   PackageCheck,
   SendHorizontal,
 } from "lucide-react";
@@ -19,40 +13,25 @@ import { useActionLock } from "@/hooks/useActionLock";
 const ENTREGA_ALERTA_DIAS = 3;
 const TERMINAL_STATUS_PC = ["recebido", "cancelado"];
 
-function getEntregaStatus(
-  dataEntrega: string | null,
-  status: string,
-): "atrasado" | "proximo" | "ok" | "sem_prazo" {
-  if (!dataEntrega) return "sem_prazo";
-  if (TERMINAL_STATUS_PC.includes(status)) return "ok";
-  const daysLeft = calculateDaysBetween(new Date(), dataEntrega);
-  if (daysLeft < 0) return "atrasado";
-  if (daysLeft <= ENTREGA_ALERTA_DIAS) return "proximo";
-  return "ok";
-}
-
-function EntregaBadge({ dataEntrega, status }: { dataEntrega: string | null; status: string }) {
+function EntregaCell({ dataEntrega, status }: { dataEntrega: string | null; status: string }) {
   if (!dataEntrega) return <span className="text-muted-foreground text-xs">—</span>;
-  const es = getEntregaStatus(dataEntrega, status);
+  if (TERMINAL_STATUS_PC.includes(status)) {
+    return <span className="text-xs">{formatDate(dataEntrega)}</span>;
+  }
   const daysLeft = calculateDaysBetween(new Date(), dataEntrega);
-
-  if (es === "atrasado") {
+  if (daysLeft < 0) {
     return (
       <span className="inline-flex flex-col items-start gap-0.5">
         <span className="text-xs text-destructive font-medium">{formatDate(dataEntrega)}</span>
-        <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-destructive/10 text-destructive border-destructive/20 gap-1">
-          <AlertCircle className="h-2.5 w-2.5" />Atrasado
-        </Badge>
+        <StatusBadge status="atrasado" />
       </span>
     );
   }
-  if (es === "proximo") {
+  if (daysLeft <= ENTREGA_ALERTA_DIAS) {
     return (
       <span className="inline-flex flex-col items-start gap-0.5">
-        <span className="text-xs text-amber-600 font-medium">{formatDate(dataEntrega)}</span>
-        <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-amber-50 text-amber-600 border-amber-200 gap-1">
-          <Clock className="h-2.5 w-2.5" />{daysLeft}d restantes
-        </Badge>
+        <span className="text-xs text-warning font-medium">{formatDate(dataEntrega)}</span>
+        <StatusBadge status="proximo_vencimento" label={`${daysLeft}d restantes`} />
       </span>
     );
   }
