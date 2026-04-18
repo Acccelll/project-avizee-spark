@@ -184,7 +184,45 @@ const Fiscal = () => {
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
   const invalidate = useInvalidateAfterMutation();
 
+  // Contexto de origem vindo da URL (ex.: redirect de Pedido de Compra após receber).
+  const pedidoCompraOriginId = searchParams.get("pedido_compra_id");
+  const fornecedorOriginId = searchParams.get("fornecedor_id");
+  const tipoOriginParam = searchParams.get("tipo");
+  const [originPedidoNumero, setOriginPedidoNumero] = useState<string | null>(null);
+  const [autoOpened, setAutoOpened] = useState(false);
+
   const openCreate = () => { setMode("create"); setForm({ ...emptyForm }); setItems([]); setSelected(null); setParcelas(1); setItemContaContabil({}); setItemFiscalData({}); setModalOpen(true); };
+
+  // Auto-abre o modal de NF de entrada pré-preenchida quando vem de PC.
+  useEffect(() => {
+    if (autoOpened || !pedidoCompraOriginId || tipoOriginParam !== "entrada") return;
+    let cancelled = false;
+    (async () => {
+      const { data: pc } = await supabase
+        .from("pedidos_compra")
+        .select("numero, fornecedor_id")
+        .eq("id", pedidoCompraOriginId)
+        .maybeSingle();
+      if (cancelled) return;
+      setOriginPedidoNumero(pc?.numero ?? null);
+      setMode("create");
+      setForm({
+        ...emptyForm,
+        tipo: "entrada",
+        fornecedor_id: fornecedorOriginId || pc?.fornecedor_id || "",
+        observacoes: pc?.numero ? `Recebimento do Pedido de Compra ${pc.numero}` : "",
+      });
+      setItems([]);
+      setSelected(null);
+      setParcelas(1);
+      setItemContaContabil({});
+      setItemFiscalData({});
+      setModalOpen(true);
+      setAutoOpened(true);
+    })();
+    return () => { cancelled = true; };
+  }, [pedidoCompraOriginId, fornecedorOriginId, tipoOriginParam, autoOpened]);
+
   const openEdit = async (n: NotaFiscal) => {
     setMode("edit"); setSelected(n);
     setForm({
