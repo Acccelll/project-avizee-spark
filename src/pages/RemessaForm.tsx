@@ -8,7 +8,7 @@
  * page to allow deeper editing, direct linking, and better back-navigation.
  * Logistica.tsx remains the primary list/dispatch page.
  */
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,7 @@ import { toast } from "sonner";
 import { ArrowLeft, Save, Truck } from "lucide-react";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import type { Tables } from "@/integrations/supabase/types";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 
 type Cliente = Tables<"clientes">;
 type Transportadora = Tables<"transportadoras">;
