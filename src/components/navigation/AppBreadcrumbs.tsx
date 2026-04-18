@@ -1,4 +1,5 @@
 import { Fragment, useMemo } from 'react';
+import { ChevronRight } from 'lucide-react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import {
   Breadcrumb,
@@ -6,10 +7,9 @@ import {
   BreadcrumbLink,
   BreadcrumbList,
   BreadcrumbPage,
-  BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { getRouteLabel, navSections } from '@/lib/navigation';
+import { getRouteLabel, headerIcons, navSections } from '@/lib/navigation';
 
 /**
  * Mapping of `?tab=` values used by the Administração page to the human label
@@ -100,16 +100,25 @@ export function AppBreadcrumbs() {
           {items.map((item, index) => {
             const isLast = index === items.length - 1;
             const siblings = siblingMap[item.path.split('?')[0]] || [];
+            const Icon = headerIcons[item.path.split('?')[0]];
+            // Show icon only on the second item (the module) for visual anchoring
+            const showIcon = index === 1 && Icon;
             return (
               <Fragment key={`${item.path}-${index}`}>
                 <BreadcrumbItem>
                   {isLast ? (
-                    <BreadcrumbPage>{item.label}</BreadcrumbPage>
+                    <BreadcrumbPage className="flex items-center gap-1.5 font-medium text-foreground">
+                      {showIcon && <Icon className="h-3.5 w-3.5 text-muted-foreground" />}
+                      {item.label}
+                    </BreadcrumbPage>
                   ) : siblings.length > 1 ? (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <BreadcrumbLink asChild>
-                          <button type="button" className="hover:underline underline-offset-2">{item.label}</button>
+                          <button type="button" className="flex items-center gap-1.5 hover:underline underline-offset-2">
+                            {showIcon && <Icon className="h-3.5 w-3.5 text-muted-foreground" />}
+                            {item.label}
+                          </button>
                         </BreadcrumbLink>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="start">
@@ -122,19 +131,21 @@ export function AppBreadcrumbs() {
                     </DropdownMenu>
                   ) : (
                     <BreadcrumbLink asChild>
-                      <Link to={item.path}>{item.label}</Link>
+                      <Link to={item.path} className="flex items-center gap-1.5">
+                        {showIcon && <Icon className="h-3.5 w-3.5 text-muted-foreground" />}
+                        {item.label}
+                      </Link>
                     </BreadcrumbLink>
                   )}
                 </BreadcrumbItem>
-                {!isLast && <BreadcrumbSeparator />}
+                {!isLast && (
+                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/40" aria-hidden />
+                )}
               </Fragment>
             );
           })}
         </BreadcrumbList>
       </Breadcrumb>
-      <span className="rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-        Nível {items.length} de {Math.max(items.length, 3)}
-      </span>
     </div>
   );
 }

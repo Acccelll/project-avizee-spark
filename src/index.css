@@ -204,15 +204,36 @@
   }
 
   .sidebar-item {
-    @apply flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150;
+    @apply relative flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-150;
   }
 
+  /* Leaf-active: items folha (Dashboard, Configurações, favoritos, submenu) */
   .sidebar-item-active {
-    @apply bg-primary text-primary-foreground;
+    @apply bg-primary/10 text-primary;
+  }
+  .sidebar-item-active::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 6px;
+    bottom: 6px;
+    width: 2px;
+    background: hsl(var(--primary));
+    border-radius: 2px;
   }
 
   .sidebar-item-inactive {
     @apply text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground;
+  }
+
+  /* Section-active: header de módulo cuja rota atual está dentro */
+  .sidebar-section-active {
+    @apply bg-primary/5 text-primary;
+  }
+
+  /* Group label padronizado (Favoritos, subgrupos do submenu) */
+  .sidebar-group-label {
+    @apply px-2 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground;
   }
 
   .stat-card {

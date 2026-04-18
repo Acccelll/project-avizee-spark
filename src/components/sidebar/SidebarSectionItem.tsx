@@ -20,22 +20,34 @@ export function SidebarSectionItem({
   onToggleFavorite,
 }: SidebarSectionItemProps) {
   const hasBadge = (badge?.count ?? 0) > 0;
+  const Icon = item.icon;
   return (
-    <div className="group flex items-center gap-1">
+    <div className="group relative flex items-center">
+      {active && (
+        <span
+          aria-hidden
+          className="absolute -left-[13px] top-1.5 bottom-1.5 w-[2px] rounded-full bg-primary"
+        />
+      )}
       <button
         type="button"
         onClick={() => onNavigate(item.path)}
         aria-current={active ? 'page' : undefined}
-        className={`flex flex-1 items-center justify-between text-left rounded-md px-3 py-1.5 text-[13px] transition ${
+        className={`flex flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] transition ${
           active
             ? 'bg-primary/10 font-medium text-primary'
             : 'text-muted-foreground hover:bg-accent hover:text-foreground'
         }`}
       >
-        <span>{item.title}</span>
+        {Icon && (
+          <Icon
+            className={`h-3.5 w-3.5 shrink-0 ${active ? 'text-primary' : 'text-muted-foreground/70'}`}
+          />
+        )}
+        <span className="flex-1 truncate">{item.title}</span>
         {hasBadge && badge && (
           <span
-            className={`ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-semibold ${BADGE_TONE_CLASS[badge.tone]}`}
+            className={`ml-1 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1.5 text-[10px] font-semibold ${BADGE_TONE_CLASS[badge.tone]}`}
           >
             {badge.count}
           </span>
@@ -48,7 +60,7 @@ export function SidebarSectionItem({
           onToggleFavorite(item.path);
         }}
         className={`shrink-0 rounded p-1 transition-opacity hover:bg-accent ${
-          starred ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+          starred ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 focus:opacity-100'
         }`}
         aria-label={starred ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
         title={starred ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}

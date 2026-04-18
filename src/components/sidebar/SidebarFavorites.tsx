@@ -12,24 +12,37 @@ export function SidebarFavorites({ items, isItemActive, onNavigate }: SidebarFav
 
   return (
     <div className="mb-3">
-      <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+      <p className="sidebar-group-label flex items-center gap-1.5">
+        <Star className="h-3 w-3 fill-warning text-warning" />
         Favoritos
       </p>
       <div className="space-y-0.5">
         {items.map((item) => {
           const active = isItemActive(item.path);
+          const Icon = item.icon;
           return (
             <button
               key={item.path}
               type="button"
               onClick={() => onNavigate(item.path)}
-              className={`flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-[13px] transition ${
+              aria-current={active ? 'page' : undefined}
+              className={`relative flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-[13px] transition ${
                 active
                   ? 'bg-primary/10 font-medium text-primary'
                   : 'text-muted-foreground hover:bg-accent hover:text-foreground'
               }`}
             >
-              <Star className="h-3 w-3 shrink-0 fill-warning text-warning" />
+              {active && (
+                <span
+                  aria-hidden
+                  className="absolute left-0 top-1.5 bottom-1.5 w-[2px] rounded-full bg-primary"
+                />
+              )}
+              {Icon && (
+                <Icon
+                  className={`h-3.5 w-3.5 shrink-0 ${active ? 'text-primary' : 'text-muted-foreground/70'}`}
+                />
+              )}
               <span className="truncate">{item.title}</span>
             </button>
           );
