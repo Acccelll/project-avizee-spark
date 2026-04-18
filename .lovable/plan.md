@@ -1,219 +1,157 @@
 
 
-# Diagnóstico técnico — Fluxos intermodulares
+# Diagnóstico visual — Continuidade entre módulos
 
-## Inventário dos fluxos críticos
+## Inventário visual de transições
 
-| Fluxo | Origem → Destino | Mecanismo de propagação |
+| Transição | Sinalização atual | Problema |
 |---|---|---|
-| Cotação → Pedido | `Orcamentos` → `Pedidos` | RPC `converter_orcamento_em_ov` |
-| Pedido → NF saída | `Pedidos`/`OrdemVendaView` → `Fiscal` | `gerarNFParaPedido` (TS) |
-| NF → Estoque + Financeiro | `Fiscal` | `confirmarNotaFiscal` (TS) — múltiplos inserts em sequência |
-| Cotação compra → Pedido compra | `CotacoesCompra` → `PedidosCompra` | mistura: TS direto + RPCs |
-| Pedido compra → Recebimento | `PedidosCompra` | RPC `receber_compra` (cria estoque + financeiro) |
-| Pedido compra → NF entrada | redirect manual via URL | navegação (`navigate(/fiscal?…)`) |
-| Estorno NF | `Fiscal`/`FiscalDetail` | `estornarNotaFiscal` (TS) |
-| Baixa financeira | `Financeiro` | RPC `financeiro_processar_baixa_lote` com fallback TS |
+| Pedido Compra → /fiscal (entrada) | `navigate("/fiscal?...&pedido_compra_id=UUID")` | Usuário chega no Fiscal sem **breadcrumb de origem**, sem botão "Voltar ao PC", sem chip "vindo de PC-123" |
+| Cotação → Pedido (drawer) | Após conversão fica no drawer, status muda | Sem **toast com CTA** "Abrir Pedido X". Usuário não percebe o que aconteceu |
+| Cotação → Pedido (grid) | `navigate('/pedidos')` | Comportamento divergente entre grid e drawer (já apontado) |
+| OV → NF gerada | `reload()` no drawer; aparece botão "NF X" | Sem destaque visual de "novo". Sem toast com "Abrir NF" |
+| Drawer relacional | Stack lateral com offset/sombra | Card de "vínculos" interno bom, mas **header não mostra trilha do que abriu o drawer** (apenas "Pedido · 123") |
+| Botões "Ver pedido", "Ver fornecedor" | RelationalLink com ícone ExternalLink | Inconsistência: alguns usam `pushView` (drawer), outros `navigate` (rota). Sem padrão visual que avise "vai abrir em drawer" vs "vai sair desta tela" |
+| Dashboard → módulos | "Ver todas →" | OK, mas tela destino não filtra pelo contexto que veio |
+| Status que dependem de outro módulo | Badges (status_faturamento, % recebido) | Mostra estado mas **não explica origem** ("Faturado por NF 567", "85% recebido por NF 23+24") |
+| Dialog "Gerar Pedido" / "Gerar NF" | `ConfirmDialog` simples | Sem **preview** do que vai acontecer cross-módulo (ex: "Vai criar 1 OV + 3 itens em /pedidos") |
 
 ## Problemas reais
 
-### A. Refresh entre módulos — duas escolas convivendo
+### 1. Chegada sem contexto de origem
+Quando `darEntrada` redireciona para `/fiscal`, a página filtra por `tipo=entrada` mas:
+- Não mostra banner "Você veio do Pedido de Compra **PC-123**"
+- Não tem botão "Voltar ao Pedido de Compra"
+- Filtro `pedido_compra_id` é lido (já no plan anterior) mas **sem indicação visual** do filtro ativo
+- Modal de "Nova NF" não abre pré-preenchido
 
-**A1. `fetchData()` legado vs `queryClient.invalidateQueries()`**
-- Páginas antigas (`Pedidos`, `Orcamentos`, `Fiscal`, `ContasBancarias`, `useCotacoesCompra`, `usePedidosCompra` em parte) fazem `fetchData()` local após mutação cross-módulo. Isso atualiza só a tela atual.
-- Quem está em outra tela aberta em background (ex: Financeiro aberto em outra aba/sessão SPA) não recebe atualização porque a mutação não invalida `["financeiro_lancamentos"]`.
-- Hooks novos (`useConverterOrcamento`, `useFaturarPedido`, `useGerarPedidoCompra`, `useEstoqueMutations`) já fazem `invalidateQueries` cross-módulo. Padrão correto, mas inconsistente.
+### 2. Toast pós-ação cross-módulo é "burro"
+Após gerar NF, converter cotação, gerar pedido de compra: toast "Sucesso" sem CTA. Usuário precisa adivinhar onde foi parar o resultado. Padrão atual em `OrcamentoForm.tsx` (linha 615) já faz isso bem com action `Visualizar` — replicar.
 
-**A2. `gerarNFParaPedido` não invalida nada**
-Chamado direto em `Pedidos.tsx` (handleGenerateNF) e em `OrdemVendaView` (`handleGenerateNF`). Após sucesso:
-- `Pedidos.tsx` faz `fetchData()` local apenas → `Fiscal`/`Financeiro`/`Estoque` em outra rota ficam stale.
-- `OrdemVendaView` faz `reload()` do detalhe apenas → grid de Pedidos, Fiscal, Estoque ficam stale.
-- Existe `useFaturarPedido` (mutation com invalidação) mas **não é usado pelos callers principais** — caminho duplicado.
+### 3. RelationalLink não diferencia "drawer" vs "navegação"
+Visualmente idêntico. Usuário não sabe se vai abrir lateralmente (mantendo contexto) ou sair da tela. Causa surpresa quando sai.
 
-**A3. `confirmarNotaFiscal` / `estornarNotaFiscal` também não invalidam**
-Após confirmar NF: estoque, financeiro, OV faturamento mudam. Mas `Fiscal.tsx` chama `fetchData()` local, e `OrdemVendaView` que está em outro drawer/aba não enxerga.
+### 4. Header do drawer não mostra origem da abertura
+Drawer `nota_fiscal:UUID` aberto a partir de OV mostra só "Nota Fiscal · 567". Stack tem 2 itens (OV + NF), mas o usuário precisa olhar o badge "2 de 2" para entender. Falta breadcrumb encadeado: "OV-123 › NF-567".
 
-**A4. `convertToPedido` toca: orçamento + ordem_venda + items**
-`useConverterOrcamento` invalida `["orcamentos", "ordens_venda"]`. Mas `Orcamentos.tsx` **não usa esse hook** — chama `convertToPedido` direto e faz `fetchData()`. Resultado: o hook não tem caller real; a página antiga continua com o problema.
+### 5. Dialogs de ação cross-módulo sem preview de impacto
+"Gerar Pedido a partir desta cotação?" — sim/não. Não diz: "Cria OV-XXX em /pedidos com 5 itens, valor R$ X. Cotação fica como 'convertida'."
 
-### B. Encadeamento Compras → Fiscal: passagem de contexto frágil
+### 6. Vínculos enterrados em tab "Vínculos"
+PedidoCompraView e OrdemVendaView têm tab "Vínculos" com cards. Mas o **Resumo** (primeira tab) não mostra contadores rápidos: "3 NFs · 2 lançamentos · 1 cotação origem". Usuário precisa clicar para descobrir conexões.
 
-**B1. `darEntrada` redireciona para `/fiscal?tipo=entrada&fornecedor_id=...&pedido_compra=NUMERO`**
-- Passa o **número** do pedido (`pedidoNumero(p)`), não o `id`. O destino precisa fazer lookup pelo número, ou abre sem pré-vínculo.
-- `Fiscal.tsx` não está documentado para consumir esses query params como pré-preenchimento — verificar se está implementado. Provavelmente o usuário cai em /fiscal genérico sem filtro aplicado, perdendo o contexto que o redirect prometia.
+### 7. Filtros "vindos de outro módulo" não aparecem como chip removível
+`/fiscal?tipo=entrada` filtra mas `AdvancedFilterBar` não mostra chip "Tipo: Entrada" vindo da URL. Confunde — usuário vê grid filtrada sem entender por quê.
 
-**B2. Chave estrangeira `pedido_compra_id` em `financeiro_lancamentos` existe mas não é populada por todos os caminhos**
-`receber_compra` (RPC) provavelmente preenche, mas se um financeiro for criado manualmente após confirmação de NF de entrada, perde-se o link com o pedido de compra original. Isso quebra a tab "Financeiro" do `PedidoCompraView` que faz `eq("pedido_compra_id", id)`.
+### 8. Conversão de cotação no drawer — falta animação de status
+Status muda de "aprovado" para "convertido" mas sem destaque visual transitório. Botão "Gerar Pedido" some, aparece "Ver Pedido X" — mudança brusca.
 
-### C. Consistência transacional — TS vs RPC
+## Padrão-base visual proposto
 
-**C1. `confirmarNotaFiscal` é multi-step em TS (não atômico)**
-Sequência: update NF → insert estoque (Promise.all N+1 com select prévio) → insert financeiro (Promise.all) → update OV. Se qualquer passo falhar no meio, fica:
-- NF marcada `confirmada` mas estoque parcialmente movido.
-- Financeiro com algumas parcelas inseridas e outras não.
-- Sem rollback. Idempotência só por `if status === "confirmada" return`.
-
-Comparar com `receber_compra` que é RPC atômico. Falta paridade.
-
-**C2. `gerarNFParaPedido` idem — multi-step TS**
-8 passos sequenciais (busca itens, RPC numeração, insert NF, insert itens, update faturamento item-a-item, update status faturamento OV, confirma NF). Falha no meio = NF criada sem confirmação ou OV com faturamento parcialmente atualizado.
-
-**C3. Update item-a-item de `quantidade_faturada`**
-Em `gerarNFParaPedido` e `updateOVFaturamento` em fiscal.service: `Promise.all(nfItens.map(item => update(...)))`. N requests; sem locking. Dois faturamentos concorrentes do mesmo pedido em janelas paralelas podem dobrar `quantidade_faturada`. RPC com SELECT FOR UPDATE resolveria.
-
-**C4. `estornarNotaFiscal` — código de busca ambíguo**
-```ts
-.or(`nota_fiscal_id.eq.${nf.id},documento_fiscal_id.eq.${nf.id}`);
+### A. `OriginContextBanner` — "você veio de"
+Componente novo no topo do módulo destino quando há query params de origem:
 ```
-A coluna `documento_fiscal_id` não consta em `financeiro_lancamentos` no schema. Filtro `or` com coluna inexistente provavelmente quebra silenciosamente ou ignora. Confirmar e remover.
+[← Voltar ao Pedido de Compra PC-123]   Vinculando NF de entrada deste pedido
+```
+- Banner discreto (faixa info bg-info/5, border-info/20, h-9)
+- Esquerda: botão ghost com seta + label do origem
+- Direita: descrição da operação contextual
+- Aplicar em: `/fiscal` quando `pedido_compra_id`, `/pedidos` quando `orcamento_id`, `/pedidos-compra` quando `cotacao_id`
 
-### D. Navegação de retorno — perda de contexto
+### B. Toast com CTA contextual
+Padrão obrigatório pós-ação cross-módulo:
+```ts
+toast.success("Pedido gerado!", {
+  description: `OV ${numero} criada em /pedidos`,
+  action: { label: "Abrir pedido", onClick: () => pushView("ordem_venda", id) }
+});
+```
+Aplicar em: conversão de cotação, geração de NF, recebimento de PC, geração de pedido de compra, faturamento de OV.
 
-**D1. `darEntrada` faz `navigate("/fiscal?...")` sem trilha de volta**
-Usuário no Pedido de Compra → recebe → vai para Fiscal → não tem botão "Voltar ao Pedido de Compra origem". Precisa lembrar e digitar URL.
+### C. RelationalLink com sinalização visual
+Adicionar variante visual:
+- **Ícone PanelRightOpen** (drawer lateral) → quando abre via `pushView`
+- **Ícone ExternalLink** (existente) → quando faz `navigate` (sai da tela)
+- Tooltip já existe; reforçar com microcopy: "Abre painel lateral" vs "Abre em nova tela"
 
-**D2. `OrdemVendaView.handleGenerateNF` fica no drawer, mas não navega para a NF criada**
-Faz `reload()` e o usuário precisa clicar manualmente em "NF X" nos botões do header. Aceitável, mas inconsistente com Pedidos.tsx (que também não navega) e com `convertToPedido` que navega para `/pedidos`.
+### D. Breadcrumb encadeado no drawer
+`DrawerHeaderShell.breadcrumb` recebe o caminho do stack:
+- Stack `[OV-123, NF-567]` → header da NF mostra: `Pedido OV-123 › Nota Fiscal NF-567`
+- Cada segmento é clicável para navegar de volta naquele nível (em vez de só "voltar 1")
+- Componente novo `DrawerStackBreadcrumb` que consome `useRelationalNavigation().stack` e renderiza com chevrons.
 
-**D3. `Orcamentos.handleConvertToPedido` faz `navigate('/pedidos')` mas o `OrcamentoView` no drawer faz `setConvertConfirmOpen(false)` sem navegar**
-Comportamento divergente entre grid e drawer para a mesma ação.
+### E. Dialog de ação cross-módulo com `ImpactPreview`
+Substituir `ConfirmDialog` simples por `CrossModuleActionDialog` em conversões/gerações:
+```
+Gerar Pedido a partir da Cotação ORC-456?
 
-**D4. Filtros perdidos ao voltar**
-`Pedidos` usa `useSearchParams` — filtros sobrevivem refresh ✓. Mas `Fiscal` aparenta usar `useState` local. Sair de Fiscal → entrar em outro módulo → voltar perde filtros aplicados. Inconsistente entre módulos (Pedidos/Orçamentos persistem; Fiscal/Estoque/Logística não — verificar).
+▸ Cria 1 Pedido em /pedidos
+▸ Vincula 5 itens · R$ 12.340,00
+▸ Cotação muda para "convertido"
+▸ Atualiza estoque previsto
 
-**D5. Drawer aberto perde-se ao navegar entre rotas**
-`/pedidos?drawer=ordem_venda:UUID` está implementado em `RelationalNavigationContext`. Mas se o usuário clica em link que muda `pathname` (ex: ir do drawer para `/fiscal/UUID`), o stack de drawers fecha. Não há "preservar drawer ao mudar de rota" — pode ser intencional, mas vale confirmar UX.
+[Cancelar]  [Gerar Pedido]
+```
+Lista de impactos vinda como prop `impacts: { icon, label, target? }[]`.
 
-### E. Acoplamento e duplicação técnica
+### F. `RelatedRecordsStrip` no Resumo do drawer
+Faixa horizontal de chips contadores no topo de cada View (acima das tabs):
+```
+[3 NFs] [2 Lançamentos] [1 Cotação origem] [1 Remessa]
+```
+Cada chip é clicável: abre a tab correspondente OU pushView do registro único. Resolve "conexões enterradas".
 
-**E1. Lógica fiscal espalhada**
-- `gerarNFParaPedido` em `nf.service.ts` — caller TS direto.
-- `confirmarNotaFiscal` em `fiscal.service.ts` — chamado por `nf.service` e por `Fiscal.tsx`.
-- `gerar_nf_de_pedido` (RPC) — usada em `useFaturarPedido` mas **ninguém chama o hook**.
+### G. Chip de filtro vindo de URL
+`AdvancedFilterBar` aceita prop `urlContextChips: FilterChip[]` (read-only ou removível) que visualiza filtros vindos de query params. Variante visual: prefixo `↪ ` ou ícone Link2 indicando origem externa.
 
-Decisão pendente: padronizar em RPC (preferido — atômica) e descontinuar `gerarNFParaPedido` TS. Mover `Pedidos.tsx` e `OrdemVendaView.handleGenerateNF` para `useFaturarPedido`.
+### H. Animação de transição de status
+Quando status muda após ação cross-módulo (cotação convertida, NF gerada, PC recebido):
+- Badge antigo faz fade-out + scale
+- Badge novo faz fade-in + scale com pulse de cor
+- Hook `useStatusTransition(prevStatus, currentStatus)` controla via `framer-motion` ou Tailwind keyframe simples (200ms)
 
-**E2. `useCotacoesCompra` mistura `fetchData` com mutações cross-módulo**
-- `gerarPedido` cria `pedidos_compra` + items + atualiza cotação. Faz `fetchData()` apenas das cotações. `pedidos_compra` em outra tela fica stale.
-- Já existe `useGerarPedidoCompra` (mutation com invalidação correta) mas não é integrado.
+## Implementação
 
-**E3. `useSupabaseCrud` (legado) vs hooks de mutation novos**
-`useSupabaseCrud` faz seu próprio `useQuery` mas expõe `fetchData()` que é um `refetch()`. Quando usado lado a lado com mutations que invalidam queryKey, as duas convivem mas semanticamente confundem (qual é o caminho canônico?). `Pedidos.tsx`, `Orcamentos.tsx`, `Fiscal.tsx` usam o legado.
+### Componentes novos
+1. **`src/components/navigation/OriginContextBanner.tsx`** — banner de "você veio de", aceita `originLabel`, `originHref`, `description`.
+2. **`src/components/navigation/DrawerStackBreadcrumb.tsx`** — breadcrumb encadeado consumindo stack do RelationalNavigation.
+3. **`src/components/CrossModuleActionDialog.tsx`** — dialog com lista de impactos.
+4. **`src/components/views/RelatedRecordsStrip.tsx`** — faixa de chips de vínculos.
+5. **`src/hooks/useCrossModuleToast.ts`** — helper que padroniza toast com action contextual.
 
-**E4. Hooks de mutation existentes mas não integrados**
-- `useFaturarPedido` ❌ não usado em `Pedidos.tsx`/`OrdemVendaView`
-- `useGerarPedidoCompra` ❌ não usado em `useCotacoesCompra`
-- `useConverterOrcamento` ❌ não usado em `Orcamentos.tsx`/`OrcamentoView`
+### Componentes ajustados
+6. **`src/components/ui/RelationalLink.tsx`** — props `behavior?: 'drawer' | 'route'` define ícone e tooltip.
+7. **`src/components/ui/DrawerHeaderShell.tsx`** — slot `breadcrumb` recebe `<DrawerStackBreadcrumb />` quando stack > 1.
+8. **`src/components/views/RelationalDrawerStack.tsx`** — usar `DrawerStackBreadcrumb` no lugar do `breadcrumbContent` simples.
+9. **`src/pages/Fiscal.tsx`** — render `OriginContextBanner` quando `pedido_compra_id` na URL; pré-abrir modal NF de entrada com `fornecedor_id`/`pedido_compra_id`; mostrar chip "vindo de PC-X" em `urlContextChips`.
+10. **`src/components/views/OrcamentoView.tsx`** — substituir `ConfirmDialog convertConfirmOpen` por `CrossModuleActionDialog`; toast pós-conversão com action "Abrir Pedido X" via `pushView`.
+11. **`src/components/views/OrdemVendaView.tsx`** — substituir confirm de Gerar NF por `CrossModuleActionDialog`; toast pós-geração com action "Abrir NF X"; adicionar `RelatedRecordsStrip` antes das tabs.
+12. **`src/components/views/PedidoCompraView.tsx`** — `RelatedRecordsStrip` (cotação origem, NFs, lançamentos); toast pós-recebimento com CTA "Abrir Fiscal" e "Abrir Financeiro".
+13. **`src/hooks/usePedidosCompra.ts`** (`darEntrada`) — usar `useCrossModuleToast`.
+14. **`src/pages/Orcamentos.tsx`** — converter usa `useCrossModuleToast` com action.
 
-A estrutura "correta" foi criada mas ninguém ligou. Plug-in está faltando.
-
-### F. Reflexos faltantes nos KPIs/badges
-
-**F1. KPI "Faturamento" no `OrdemVendaView` filtra `n.status === "autorizada"`**
-Mas `gerarNFParaPedido` cria NF com `status: "pendente"` e `confirmarNotaFiscal` muda para `"confirmada"`. Nunca passa por `"autorizada"` (isso é o status SEFAZ, não o status interno). Resultado: KPI de "valor faturado" fica sempre 0 a menos que alguém marque manualmente. Inconsistência conceitual entre `status` (interno) e `status_sefaz`.
-
-**F2. `status_faturamento` da OV é atualizado no service, mas a page Pedidos só refaz fetch local**
-Outras telas com mesma OV em background ficam stale. Sintoma: vendedor abre Pedidos em uma aba, faturador gera NF em outra → vendedor vê status antigo.
-
-### G. Contratos entre áreas — sem types compartilhados
-
-**G1. `gerarNFParaPedido(pedidoId, pedidoNumero, clienteId)` recebe 3 args primitivos**
-Caller precisa lembrar a ordem. Se um for `null` errado, falha silenciosa. Trocar por `{ pedidoId, pedidoNumero, clienteId }` (objeto).
-
-**G2. `confirmarNotaFiscal({ nf, parcelas })` recebe um shape duplicado de `NotaFiscal`**
-Interface inline com 13 campos picados. Se o tipo `NotaFiscal` em `@/types/domain` evoluir, esta interface fica drift. Importar do domínio.
-
-**G3. `OvItem`, `NfItemInsert` em `nf.service.ts` redefinem tipos que existem em `Database["public"]["Tables"]`**
-Replicação manual.
-
-## Estratégia de correção
-
-### Decisão 1 — RPC como caminho canônico para operações cross-módulo
-Toda operação que afeta 2+ tabelas em domínios distintos (estoque, financeiro, OV, NF) deve ser RPC com transação. Manter wrappers TS apenas como **shims** que chamam a RPC.
-
-Já existem: `converter_orcamento_em_ov`, `gerar_nf_de_pedido`, `receber_compra`, `financeiro_processar_baixa_lote`, `financeiro_processar_estorno`. Falta: `confirmar_nota_fiscal`, `estornar_nota_fiscal`. Como criar essas duas RPCs é cirurgia maior, **fora do escopo** desta passada — manter TS e tratar os sintomas (idempotência + invalidação).
-
-### Decisão 2 — `useInvalidateAfterMutation` em todo lugar
-Eliminar `fetchData()` solto após operação cross-módulo. Toda mutação cross-módulo deve listar **todas as keys afetadas**.
-
-### Fase 1 — Plugar hooks de mutation existentes
-- `Pedidos.tsx` → trocar `gerarNFParaPedido` direto por `useFaturarPedido` (que usa RPC `gerar_nf_de_pedido` + invalida).
-- `OrdemVendaView.handleGenerateNF` → idem.
-- `Orcamentos.tsx`/`OrcamentoView` → trocar `convertToPedido` direto por `useConverterOrcamento`.
-- `useCotacoesCompra.gerarPedido` → trocar TS multi-step por `useGerarPedidoCompra`.
-
-### Fase 2 — Adicionar invalidação cross-módulo aos serviços que ficam em TS
-- `confirmarNotaFiscal`/`estornarNotaFiscal`: receber opcional `queryClient` ou retornar lista de keys a invalidar; callers (`Fiscal.tsx`, `FiscalDetail`, `NotaFiscalDrawer`) chamam `useInvalidateAfterMutation(["notas_fiscais","fiscal","ordens_venda","financeiro_lancamentos","financeiro_baixas","estoque-produtos","estoque-movimentacoes","contas_bancarias"])`.
-- `gerarNFParaPedido` (mantido para callers que não puderem trocar agora): mesmo tratamento.
-
-Padrão: criar `src/services/_invalidationKeys.ts` exportando `INVALIDATION_KEYS = { fiscal: [...], compras: [...], etc }` para evitar listas mágicas espalhadas.
-
-### Fase 3 — Corrigir `estornarNotaFiscal.or(... documento_fiscal_id ...)`
-Coluna inexistente. Remover do filtro; manter só `nota_fiscal_id`.
-
-### Fase 4 — Resolver KPI "valor faturado" em `OrdemVendaView`
-Status interno após `confirmarNotaFiscal` é `"confirmada"`, não `"autorizada"`. Trocar filtro do KPI para `["confirmada","autorizada"].includes(n.status)`. Documentar que `status_sefaz` é separado.
-
-### Fase 5 — Padronizar passagem de contexto Compras → Fiscal
-- `darEntrada`: passar `pedido_compra_id` (UUID) em vez de número.
-- `Fiscal.tsx`: ler `pedido_compra_id` de query e pré-preencher form de NF de entrada (ou abrir modal pré-vinculado).
-- Adicionar `pedido_compra_id` em `notas_fiscais` (se não existir) ou usar `referencia_externa_id`.
-- Botão "Voltar ao Pedido de Compra" no header de Fiscal quando vier desse contexto (ler query, mostrar breadcrumb).
-
-### Fase 6 — Padronizar navegação pós-conversão de orçamento
-Decidir: ficar no detalhe (mostrar pedido vinculado) OU navegar para `/pedidos/<novo>`. Aplicar a mesma decisão nos dois callers (`Orcamentos.tsx` grid + `OrcamentoView` drawer). Recomendado: ficar e mostrar — é menos disruptivo no drawer; na grid também faz sentido pois a coluna "Status" passa para "convertido".
-
-### Fase 7 — Tipos compartilhados
-- Trocar `interface ConfirmarNFParams.nf` por `Pick<Tables<"notas_fiscais">, ...>` ou usar `NotaFiscal` de `@/types/domain`.
-- Trocar `gerarNFParaPedido(...)` para receber objeto `{ pedidoId, pedidoNumero, clienteId }`.
-- `OvItem`, `NfItemInsert` → derivar de `Database["public"]["Tables"]`.
-
-### Fase 8 — Persistir filtros nos módulos legados
-- `Fiscal.tsx`, `Estoque.tsx`, `Logistica.tsx` (verificar quais usam `useState` local) → migrar para `useSearchParams` igual `Pedidos`/`Orcamentos`.
-- Fora do escopo: refatorar paginação/cursor, apenas filtros + searchTerm.
-
-### Fase 9 — Documentar contratos
-Criar `src/services/CONTRACTS.md` com:
-- Tabela de mutações cross-módulo: input, side-effects, keys a invalidar.
-- Quem chama quem (caller → service → RPC).
-- Decisão: "operações multi-tabela são RPC; serviços TS são adapters."
+### Onda de aplicação
+- Onda inicial: Cotação→Pedido, OV→NF, PC→Fiscal, PC→Recebimento. (Os 4 fluxos críticos.)
+- Demais fluxos (financeiro→baixa, conciliação→link) ficam para passada futura.
 
 ## Fora do escopo
-- Criar RPCs `confirmar_nota_fiscal`/`estornar_nota_fiscal` (mudança maior — pode quebrar XML/SEFAZ).
-- Implementar locking otimista (SELECT FOR UPDATE) em `quantidade_faturada`.
-- Realtime subscriptions cross-módulo (Supabase Realtime para invalidação automática).
-- Refatorar `useSupabaseCrud` para depreciar `fetchData()`.
-- Migrar `Fiscal.tsx`/`Estoque.tsx` para hooks de mutation novos (escopo grande — fica para passada própria).
-- Drawer aberto sobreviver a mudança de rota (decisão UX).
-- Auditoria de impacto em testes (`OrcamentoForm.test.tsx`, `financeiro.service.test.ts`).
+- Refatorar todos os `RelationalLink` do projeto (apenas atualizar componente; uso por consumer fica em onda própria).
+- Animar todos os badges de status do app (apenas pós-ação cross-módulo).
+- Reescrever `RelationalDrawerStack` (apenas plug do breadcrumb).
+- Criar mini-mapa global de fluxo entre módulos (visualização tipo grafo — feature nova).
+- Notificações persistentes pós-ação cross-módulo (sino).
+- Suporte a "desfazer" cross-módulo.
 
 ## Critério de aceite
-- `Pedidos.tsx`, `OrdemVendaView`, `Orcamentos.tsx`, `OrcamentoView`, `useCotacoesCompra.gerarPedido` consomem hooks de mutation centralizados em vez de serviços TS diretos.
-- Toda operação cross-módulo invalida o conjunto completo de keys via `useInvalidateAfterMutation` ou `queryClient` direto. Sem `fetchData()` solto.
-- `estornarNotaFiscal` não referencia coluna `documento_fiscal_id`.
-- KPI "Valor faturado" em `OrdemVendaView` reflete NFs com status interno `confirmada` ou `autorizada`.
-- `darEntrada` passa `pedido_compra_id` (UUID); `Fiscal.tsx` lê e pré-preenche; header mostra breadcrumb de retorno.
-- Conversão de orçamento → pedido tem comportamento de navegação consistente entre grid e drawer.
-- Contratos de `confirmarNotaFiscal`/`gerarNFParaPedido` usam tipos do domínio + payload-objeto.
-- `src/services/_invalidationKeys.ts` documentando keys cross-módulo.
-- `src/services/CONTRACTS.md` com mapa caller→service→RPC.
+- `OriginContextBanner` aparece em /fiscal quando vem de PC, com botão de retorno funcional e abertura automática do form de NF entrada pré-vinculada.
+- Toasts pós-ação cross-módulo (4 fluxos) têm CTA clicável que abre destino via drawer ou rota.
+- `RelationalLink` distingue visualmente drawer vs rota.
+- Drawers em stack > 1 mostram breadcrumb encadeado clicável.
+- Dialogs de "Gerar Pedido" e "Gerar NF" listam impactos antes de confirmar.
+- Resumo de OrdemVendaView, PedidoCompraView, OrcamentoView mostra `RelatedRecordsStrip` com contadores clicáveis.
+- Filtros vindos de query params aparecem como chips marcados com ícone de origem.
 - Build OK; sem regressão funcional.
 
-## Arquivos afetados
-- `src/pages/Pedidos.tsx` — usar `useFaturarPedido`
-- `src/components/views/OrdemVendaView.tsx` — usar `useFaturarPedido` + corrigir KPI
-- `src/pages/Orcamentos.tsx` — usar `useConverterOrcamento`
-- `src/components/views/OrcamentoView.tsx` — usar `useConverterOrcamento` + decisão de navegação
-- `src/hooks/useCotacoesCompra.ts` — `gerarPedido` via `useGerarPedidoCompra`
-- `src/services/fiscal.service.ts` — corrigir `.or(documento_fiscal_id...)`, expor lista de keys; tipos do domínio
-- `src/services/nf.service.ts` — assinatura objeto + tipos do domínio (manter lógica até RPC paridade)
-- `src/pages/Fiscal.tsx` — invalidação completa após confirmar/estornar; ler query `pedido_compra_id`
-- `src/pages/FiscalDetail.tsx` — invalidação completa nos handlers
-- `src/components/fiscal/NotaFiscalDrawer.tsx` (provável) — chamar invalidação
-- `src/hooks/usePedidosCompra.ts` — `darEntrada` passa UUID; remover `fetchData` redundante
-- `src/services/_invalidationKeys.ts` (novo)
-- `src/services/CONTRACTS.md` (novo)
-
 ## Entregáveis
-Resumo final por categoria: hooks de mutation cross-módulo plugados nos callers reais, invalidação completa de keys, correção de filtro inexistente em estorno, KPI faturamento alinhado a status interno, contexto Compras→Fiscal preservado por UUID, navegação pós-conversão consistente, tipos compartilhados, documentação de contratos.
+Resumo final por categoria: banner de origem para chegada contextualizada, toasts com CTA pós-ação cross-módulo, RelationalLink com semântica visual de drawer vs rota, breadcrumb encadeado nos drawers em stack, dialogs com preview de impacto cross-módulo, strip de registros relacionados no resumo, chips visuais para filtros vindos de URL.
 
