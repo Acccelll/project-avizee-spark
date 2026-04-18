@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DrawerHeaderShell } from "@/components/ui/DrawerHeaderShell";
@@ -34,6 +34,13 @@ interface ViewDrawerV2Props {
   defaultTab?: string;
   /** Conteúdo do footer. Para variant "operational"/"edit" use <DrawerStickyFooter />. */
   footer?: ReactNode;
+  /**
+   * Sinaliza explicitamente que `footer` já é um sticky/com borda própria
+   * (ex.: <DrawerStickyFooter />). Quando true, evita wrapper duplo.
+   * Detecção automática via `type === DrawerStickyFooter` ainda é tentada,
+   * mas falha com React.memo/forwardRef — prefira marcar via prop.
+   */
+  footerSticky?: boolean;
   variant?: ViewDrawerVariant;
 }
 
@@ -48,8 +55,24 @@ interface ViewDrawerV2Props {
  */
 export function ViewDrawerV2({
   open, onClose, title, subtitle, children, badge, actions, summary, tabs, defaultTab, footer,
+  footerSticky,
   variant = "view",
 }: ViewDrawerV2Props) {
+  // Tabs controladas: garantem reset quando o conjunto de abas muda
+  // (ex.: trocar de registro com aba inexistente no novo registro).
+  const tabValues = tabs?.map((t) => t.value).join("|") ?? "";
+  const initialTab = defaultTab && tabs?.some((t) => t.value === defaultTab)
+    ? defaultTab
+    : tabs?.[0]?.value;
+  const [activeTab, setActiveTab] = useState<string | undefined>(initialTab);
+  useEffect(() => {
+    // Reset sempre que muda a lista de abas OU o defaultTab dinâmico
+    if (!tabs || tabs.length === 0) { setActiveTab(undefined); return; }
+    const next = defaultTab && tabs.some((t) => t.value === defaultTab) ? defaultTab : tabs[0].value;
+    setActiveTab(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tabValues, defaultTab]);
+
   // Quando há badge legado e não há summary, embute o badge no breadcrumb para não perder contexto.
   const breadcrumbContent = (subtitle || badge) ? (
     <span className="inline-flex items-center gap-2 flex-wrap">
@@ -72,12 +95,10 @@ export function ViewDrawerV2({
   // ainda assim aplicamos um wrapper sticky com sombra superior para consistência.
   const renderFooter = () => {
     if (!footer) return null;
-    // Heurística: DrawerStickyFooter já é sticky/border-t/shadow — evitar wrapper duplo.
-    // Para simplificar, se variant !== "view" envolvemos sempre com wrapper consistente
-    // a menos que o footer já seja um DrawerStickyFooter (detectado por type displayName).
+    // Prefer the explicit prop; fallback à heurística por type para retro-compat.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const f: any = footer;
-    const isSticky = f?.type === DrawerStickyFooter;
+    const isSticky = footerSticky === true || f?.type === DrawerStickyFooter;
     if (isSticky) return footer;
     if (variant === "view") {
       return (
@@ -92,7 +113,7 @@ export function ViewDrawerV2({
   };
 
   return (
-    <Sheet open={open} onOpenChange={onClose}>
+    <Sheet open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <SheetContent
         className={cn(
           "w-full sm:max-w-xl overflow-y-auto p-0 flex flex-col",
@@ -136,7 +157,7 @@ export function ViewDrawerV2({
 
         <div className="flex-1 px-4 sm:px-6 py-4">
           {tabs && tabs.length > 0 ? (
-            <Tabs defaultValue={defaultTab || tabs[0].value} className="w-full">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className={tabsListClass}>
                 {tabs.map((t) => (
                   <TabsTrigger key={t.value} value={t.value} className={tabsTriggerClass}>
