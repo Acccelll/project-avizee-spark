@@ -582,7 +582,7 @@ export function OrcamentoView({ id }: Props) {
         description={`Isso criará o pedido e irá marcar a cotação ${selected?.numero} como convertida.`}
         confirmLabel="Gerar Pedido"
         confirmVariant="default"
-        loading={actionLoading}
+        loading={locked("convert")}
       >
         <div className="grid grid-cols-2 gap-3 mt-3">
           <div className="space-y-2">
