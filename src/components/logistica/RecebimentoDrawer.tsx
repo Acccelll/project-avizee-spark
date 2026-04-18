@@ -90,8 +90,15 @@ export function RecebimentoDrawer({ open, onClose, recebimento: r }: Recebimento
   /* ── Tab Resumo ── */
   const tabResumo = (
     <div className="space-y-4">
+      {atrasado && (
+        <DrawerStatusBanner
+          tone="destructive"
+          icon={AlertTriangle}
+          title="Recebimento em atraso"
+          description={`Previsão era ${r.previsao_entrega ? formatDate(r.previsao_entrega) : "—"} e ainda não foi concluído.`}
+        />
+      )}
 
-      <ViewSection title="Pedido de Compra">
         <div className="grid grid-cols-2 gap-4">
           <ViewField label="Número">{r.numero_compra}</ViewField>
           <ViewField label="Fornecedor">{r.fornecedor}</ViewField>
