@@ -756,6 +756,17 @@ const Fiscal = () => {
           </Button>
         </>}
       >
+        {pedidoCompraOriginId && (
+          <OriginContextBanner
+            originLabel={
+              originPedidoNumero
+                ? `Voltar ao Pedido de Compra ${originPedidoNumero}`
+                : "Voltar ao Pedido de Compra"
+            }
+            onBack={() => navigate(`/pedidos-compra?drawer=pedido_compra:${pedidoCompraOriginId}`)}
+            description="Vinculando NF de entrada deste pedido"
+          />
+        )}
         <AdvancedFilterBar
           searchValue={consultaSearch}
           onSearchChange={setConsultaSearch}
