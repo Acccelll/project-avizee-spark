@@ -372,6 +372,7 @@ export default function FormasPagamento() {
         onClose={closeModal}
         title={mode === "create" ? "Nova Forma de Pagamento" : "Editar Forma de Pagamento"}
         size="lg"
+        mode={mode}
         identifier={mode === "edit" && form.tipo ? form.tipo.toUpperCase() : undefined}
         isDirty={isDirty}
         footer={

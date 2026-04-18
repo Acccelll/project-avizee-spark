@@ -387,6 +387,8 @@ const Fornecedores = () => {
         }}
         title={mode === "create" ? "Novo Fornecedor" : "Editar Fornecedor"}
         size="xl"
+        mode={mode}
+        createHint="Preencha razão social, CPF/CNPJ e contato principal. Demais dados podem ser complementados depois."
         identifier={mode === "edit" && selected?.cpf_cnpj ? selected.cpf_cnpj : undefined}
         status={mode === "edit" && selected ? <StatusBadge status={selected.ativo ? "ativo" : "inativo"} /> : undefined}
         meta={mode === "edit" && selected ? [

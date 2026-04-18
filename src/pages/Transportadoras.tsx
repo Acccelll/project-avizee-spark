@@ -470,6 +470,8 @@ export default function Transportadoras() {
         onClose={handleCloseModal}
         title={mode === "create" ? "Nova Transportadora" : "Editar Transportadora"}
         size="xl"
+        mode={mode}
+        createHint="Informe a razão social, CNPJ e modalidade. Tabelas e endereços de coleta podem ser configurados depois."
         identifier={mode === "edit" && selected?.cpf_cnpj ? selected.cpf_cnpj : undefined}
         status={mode === "edit" && selected ? <StatusBadge status={selected.ativo ? "ativo" : "inativo"} /> : undefined}
         meta={mode === "edit" && selected ? [

@@ -401,6 +401,8 @@ export default function Funcionarios() {
         onClose={handleCloseModal}
         title={mode === "create" ? "Novo Funcionário" : "Editar Funcionário"}
         size="lg"
+        mode={mode}
+        createHint="Informe nome, CPF, cargo e admissão. Folha e financeiro ficam disponíveis após o cadastro."
         identifier={mode === "edit" && selected?.cpf ? selected.cpf : undefined}
         status={mode === "edit" && selected ? <StatusBadge status={selected.ativo ? "ativo" : "inativo"} /> : undefined}
         meta={mode === "edit" && selected ? [

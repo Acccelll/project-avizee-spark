@@ -380,6 +380,7 @@ const ContasBancarias = () => {
         onClose={closeModal}
         title={mode === "create" ? "Nova Conta Bancária" : "Editar Conta Bancária"}
         size="md"
+        mode={mode}
         identifier={mode === "edit" && selected ? `${selected.bancos?.nome ?? ""}${selected.agencia ? ` · Ag. ${selected.agencia}` : ""}${selected.conta ? ` · ${selected.conta}` : ""}` : undefined}
         status={mode === "edit" && selected ? <StatusBadge status={selected.ativo ? "ativo" : "inativo"} /> : undefined}
         meta={mode === "edit" && selected?.titular ? [{ icon: Building2, label: `Titular: ${selected.titular}` }] : undefined}

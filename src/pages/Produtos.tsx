@@ -760,6 +760,8 @@ const Produtos = () => {
         onClose={handleCloseModal}
         title={mode === "create" ? "Novo Produto" : "Editar Produto"}
         size="xl"
+        mode={mode}
+        createHint="Preencha nome, SKU, unidade e grupo. Outras seções (estoque, preços, fiscal) ficam disponíveis após salvar."
         identifier={mode === "edit" && editingProduct ? (editingProduct.sku || editingProduct.codigo_interno || undefined) : undefined}
         status={mode === "edit" && editingProduct ? <StatusBadge status={editingProduct.ativo !== false ? "ativo" : "inativo"} /> : undefined}
         meta={mode === "edit" && editingProduct?.updated_at ? [
