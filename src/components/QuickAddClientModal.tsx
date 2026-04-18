@@ -7,6 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { MaskedInput } from "@/components/ui/MaskedInput";
 import { useCnpjLookup } from "@/hooks/useCnpjLookup";
 import { useViaCep } from "@/hooks/useViaCep";
+import { useSubmitLock } from "@/hooks/useSubmitLock";
+import { closeOnly } from "@/lib/overlay";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Search } from "lucide-react";
@@ -37,7 +39,7 @@ const emptyForm = {
 };
 
 export function QuickAddClientModal({ open, onClose, onCreated }: QuickAddClientModalProps) {
-  const [saving, setSaving] = useState(false);
+  const { saving, submit } = useSubmitLock({ errorPrefix: "Erro ao cadastrar cliente" });
   const { buscarCnpj, loading: cnpjLoading } = useCnpjLookup();
   const { buscarCep, loading: cepLoading } = useViaCep();
   const [form, setForm] = useState({ ...emptyForm });
@@ -82,8 +84,7 @@ export function QuickAddClientModal({ open, onClose, onCreated }: QuickAddClient
       toast.error("Nome / Razão Social é obrigatório");
       return;
     }
-    setSaving(true);
-    try {
+    await submit(async () => {
       const { data, error } = await supabase
         .from("clientes")
         .insert({
@@ -111,15 +112,11 @@ export function QuickAddClientModal({ open, onClose, onCreated }: QuickAddClient
       onCreated(data.id);
       onClose();
       setForm({ ...emptyForm });
-    } catch (err: any) {
-      console.error("[quick-add-client]", err);
-      toast.error("Erro ao cadastrar cliente.");
-    }
-    setSaving(false);
+    });
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={closeOnly(onClose, () => !saving)}>
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Cadastro Rápido de Cliente</DialogTitle>
@@ -231,7 +228,7 @@ export function QuickAddClientModal({ open, onClose, onCreated }: QuickAddClient
           </div>
 
           <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
+            <Button type="button" variant="outline" onClick={onClose} disabled={saving}>Cancelar</Button>
             <Button type="submit" disabled={saving}>{saving ? "Salvando..." : "Cadastrar"}</Button>
           </div>
         </form>

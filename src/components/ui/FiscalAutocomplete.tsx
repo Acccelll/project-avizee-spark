@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
@@ -13,6 +13,7 @@ interface FiscalAutocompleteProps {
 export function FiscalAutocomplete({ data, value, onChange, placeholder, className }: FiscalAutocompleteProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const filtered = useMemo(() => {
     const q = (search || value).toLowerCase();
@@ -20,8 +21,20 @@ export function FiscalAutocomplete({ data, value, onChange, placeholder, classNa
     return data.filter((d) => d.code.includes(q) || d.desc.toLowerCase().includes(q)).slice(0, 10);
   }, [data, search, value]);
 
+  // Click-outside listener (substitui setTimeout no onBlur).
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
   return (
-    <div className="relative">
+    <div ref={containerRef} className="relative">
       <Input
         value={value}
         onChange={(e) => {
@@ -30,7 +43,6 @@ export function FiscalAutocomplete({ data, value, onChange, placeholder, classNa
           setOpen(true);
         }}
         onFocus={() => setOpen(true)}
-        onBlur={() => setTimeout(() => setOpen(false), 200)}
         placeholder={placeholder}
         className={cn("font-mono text-sm", className)}
       />

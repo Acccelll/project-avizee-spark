@@ -29,6 +29,7 @@ import { NotaFiscalDrawer } from "@/components/fiscal/NotaFiscalDrawer";
 import { confirmarNotaFiscal, estornarNotaFiscal, registrarEventoFiscal, verificarDuplicidadeChave } from "@/services/fiscal.service";
 import { NotaFiscalEditModal } from "@/components/fiscal/NotaFiscalEditModal";
 import { useActionLock } from "@/hooks/useActionLock";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 
 export interface NotaFiscal {
   id: string; tipo: string; numero: string; serie: string; chave_acesso: string;
@@ -176,6 +177,7 @@ const Fiscal = () => {
 
   const confirmarLock = useActionLock();
   const estornarLock = useActionLock();
+  const { confirm, dialog: confirmDialog } = useConfirmDialog();
 
   const openCreate = () => { setMode("create"); setForm({ ...emptyForm }); setItems([]); setSelected(null); setParcelas(1); setItemContaContabil({}); setItemFiscalData({}); setModalOpen(true); };
   const openEdit = async (n: NotaFiscal) => {
@@ -259,7 +261,13 @@ const Fiscal = () => {
   };
 
   const handleEstornar = async (nf: NotaFiscal) => {
-    if (!window.confirm(`Deseja estornar a NF ${nf.numero}? Isso reverterá movimentos de estoque e lançamentos financeiros vinculados.`)) return;
+    const ok = await confirm({
+      title: "Estornar nota fiscal",
+      description: `Deseja estornar a NF ${nf.numero}? Isso reverterá movimentos de estoque e lançamentos financeiros vinculados.`,
+      confirmLabel: "Estornar",
+      confirmVariant: "destructive",
+    });
+    if (!ok) return;
     await estornarLock.run(async () => {
       try {
         await estornarNotaFiscal(nf);
@@ -274,7 +282,13 @@ const Fiscal = () => {
 
   const handleCancelarRascunho = async () => {
     if (!selected) return;
-    if (!window.confirm(`Cancelar o rascunho da NF ${selected.numero}? Esta ação não pode ser desfeita.`)) return;
+    const ok = await confirm({
+      title: "Cancelar rascunho",
+      description: `Cancelar o rascunho da NF ${selected.numero}? Esta ação não pode ser desfeita.`,
+      confirmLabel: "Cancelar rascunho",
+      confirmVariant: "destructive",
+    });
+    if (!ok) return;
     try {
       await supabase.from("notas_fiscais").update({ status: "cancelada" }).eq("id", selected.id);
       await registrarEventoFiscal({
@@ -864,6 +878,7 @@ const Fiscal = () => {
       />
 
       <DanfeViewer open={danfeOpen} onClose={() => setDanfeOpen(false)} data={danfeData as never} />
+      {confirmDialog}
     </>
   );
 };

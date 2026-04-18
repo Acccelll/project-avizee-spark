@@ -171,7 +171,13 @@ export function RelationalDrawerStack() {
   return (
     <>
       <AlertDialog open={!!pendingPush}>
-        <AlertDialogContent>
+        <AlertDialogContent
+          onEscapeKeyDown={(e) => {
+            // Não fechar drawers abaixo: trata o ESC como cancelamento do push pendente.
+            e.preventDefault();
+            cancelPendingPush();
+          }}
+        >
           <AlertDialogHeader>
             <AlertDialogTitle>Limite de drawers atingido</AlertDialogTitle>
             <AlertDialogDescription>

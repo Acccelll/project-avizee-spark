@@ -8,6 +8,8 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { Circle } from "lucide-react";
+import { closeOnly } from "@/lib/overlay";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 
 export interface FormModalMetaItem {
   icon?: ComponentType<{ className?: string }>;
@@ -30,6 +32,8 @@ interface FormModalProps {
   headerActions?: ReactNode;
   /** Indica alterações não salvas — exibe pílula no meta row. */
   isDirty?: boolean;
+  /** Quando true e isDirty=true, intercepta ESC/click-outside pedindo confirmação antes de fechar. */
+  confirmOnDirty?: boolean;
   /** Footer sticky (use <FormModalFooter />). */
   footer?: ReactNode;
 }
@@ -52,12 +56,23 @@ export function FormModal({
   meta,
   headerActions,
   isDirty,
+  confirmOnDirty,
   footer,
 }: FormModalProps) {
   const hasMeta = (meta && meta.length > 0) || isDirty;
+  const { confirm, dialog: confirmDialog } = useConfirmDialog();
+
+  const handleClose = async () => {
+    if (confirmOnDirty && isDirty) {
+      const ok = await confirm();
+      if (!ok) return;
+    }
+    onClose();
+  };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <>
+    <Dialog open={open} onOpenChange={closeOnly(handleClose)}>
       <DialogContent
         className={cn(
           sizeMap[size],
@@ -115,5 +130,7 @@ export function FormModal({
         )}
       </DialogContent>
     </Dialog>
+    {confirmDialog}
+    </>
   );
 }

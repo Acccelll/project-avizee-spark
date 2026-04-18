@@ -140,6 +140,8 @@ export function DataTable<T extends Record<string, any>>({
   const { user } = useAuth();
   const [deleteItem, setDeleteItem] = useState<T | null>(null);
   const [skipDeleteConfirm, setSkipDeleteConfirm] = useState(() => localStorage.getItem('datatable:skip-delete-confirm') === '1');
+  // Estado local do checkbox dentro do dialog: só é persistido em localStorage no Confirmar.
+  const [pendingSkipPref, setPendingSkipPref] = useState(false);
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<SortDirection>(null);
   const [currentPage, setCurrentPage] = useState(0);
@@ -773,13 +775,24 @@ export function DataTable<T extends Record<string, any>>({
 
       <ConfirmDialog
         open={!!deleteItem}
-        onClose={() => setDeleteItem(null)}
+        onClose={() => { setDeleteItem(null); setPendingSkipPref(false); }}
         title="Excluir registro"
         description={`Esta ação removerá ${deleteItem?.nome || deleteItem?.numero || 'o registro selecionado'} permanentemente.`}
-        onConfirm={() => { if (deleteItem && onDelete) { onDelete(deleteItem); setDeleteItem(null); } }}
+        onConfirm={() => {
+          if (deleteItem && onDelete) {
+            // Persiste a preferência só se confirmar.
+            if (pendingSkipPref) {
+              setSkipDeleteConfirm(true);
+              localStorage.setItem('datatable:skip-delete-confirm', '1');
+            }
+            onDelete(deleteItem);
+            setDeleteItem(null);
+            setPendingSkipPref(false);
+          }
+        }}
       >
         <label className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Checkbox checked={skipDeleteConfirm} onCheckedChange={(v) => { const checked = !!v; setSkipDeleteConfirm(checked); localStorage.setItem('datatable:skip-delete-confirm', checked ? '1' : '0'); }} />
+          <Checkbox checked={pendingSkipPref} onCheckedChange={(v) => setPendingSkipPref(!!v)} />
           Não perguntar novamente
         </label>
       </ConfirmDialog>
