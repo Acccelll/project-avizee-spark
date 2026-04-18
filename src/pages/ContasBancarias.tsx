@@ -378,7 +378,7 @@ const ContasBancarias = () => {
 
       <FormModal
         open={modalOpen}
-        onClose={() => setModalOpen(false)}
+        onClose={closeModal}
         title={mode === "create" ? "Nova Conta Bancária" : "Editar Conta Bancária"}
         size="md"
       >
