@@ -19,6 +19,10 @@ import { useDetailFetch } from "@/hooks/useDetailFetch";
 import { useDetailActions } from "@/hooks/useDetailActions";
 import { useInvalidateAfterMutation } from "@/hooks/useInvalidateAfterMutation";
 import { getUserFriendlyError } from "@/utils/errorMessages";
+import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSummaryCard";
+import { RecordIdentityCard } from "@/components/ui/RecordIdentityCard";
+import { SectionTitle } from "@/components/ui/SectionTitle";
+import { DetailLoading, DetailError, DetailEmpty } from "@/components/ui/DetailStates";
 import type {
   HistoricoNfItemRow,
   ComposicaoItemRow,
