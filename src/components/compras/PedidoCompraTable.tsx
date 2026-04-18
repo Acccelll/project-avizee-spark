@@ -14,6 +14,7 @@ import {
 import { formatCurrency, formatDate, calculateDaysBetween } from "@/lib/format";
 import type { PedidoCompra } from "./pedidoCompraTypes";
 import { pedidoNumero } from "./pedidoCompraTypes";
+import { useActionLock } from "@/hooks/useActionLock";
 
 const ENTREGA_ALERTA_DIAS = 3;
 const TERMINAL_STATUS_PC = ["recebido", "cancelado"];
@@ -77,6 +78,8 @@ export function PedidoCompraTable({
   onSend,
   onReceive,
 }: PedidoCompraTableProps) {
+  const sendLock = useActionLock();
+  const receiveLock = useActionLock();
   const columns = [
     {
       key: "id",
@@ -190,7 +193,8 @@ export function PedidoCompraTable({
                 size="sm"
                 variant="outline"
                 className="h-7 text-xs gap-1"
-                onClick={(e) => { e.stopPropagation(); onSend(p); }}
+                disabled={sendLock.pending}
+                onClick={(e) => { e.stopPropagation(); sendLock.run(() => onSend(p)); }}
               >
                 <SendHorizontal className="w-3 h-3" /> Enviar
               </Button>
@@ -200,7 +204,8 @@ export function PedidoCompraTable({
                 size="sm"
                 variant="default"
                 className="h-7 text-xs gap-1"
-                onClick={(e) => { e.stopPropagation(); onReceive(p); }}
+                disabled={receiveLock.pending}
+                onClick={(e) => { e.stopPropagation(); receiveLock.run(() => onReceive(p)); }}
               >
                 <PackageCheck className="w-3 h-3" /> Receber
               </Button>
