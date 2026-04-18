@@ -614,6 +614,7 @@ export function OrdemVendaView({ id }: Props) {
         open={generateNfOpen}
         onClose={() => setGenerateNfOpen(false)}
         onConfirm={handleGenerateNF}
+        loading={locked("generate_nf")}
         title="Gerar Nota Fiscal"
         description={`Deseja gerar uma Nota Fiscal de saída para o Pedido ${selected.numero}? Todos os itens serão incluídos.`}
       />
