@@ -203,16 +203,33 @@ export function AppHeader({ onOpenMobileMenu: _onOpenMobileMenu, onOpenSearch, o
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="h-9 w-9 rounded-full p-0 ring-2 ring-transparent hover:ring-primary/20 focus-visible:ring-primary/40 transition" aria-label="Abrir menu da conta">
-                  <Avatar className="h-8 w-8">
-                    <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">{initials}</AvatarFallback>
-                  </Avatar>
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" className="h-9 w-9 rounded-full p-0 ring-2 ring-transparent hover:ring-primary/20 focus-visible:ring-primary/40 transition relative" aria-label={`Menu da conta — ${profile?.nome || 'Admin'} · ${roleLabel}`}>
+                      <Avatar className="h-8 w-8">
+                        <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">{initials}</AvatarFallback>
+                      </Avatar>
+                      <span
+                        aria-hidden="true"
+                        className={cn('absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full ring-2 ring-card', roleDot)}
+                      />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    <p className="text-xs">
+                      <span className="font-medium">{profile?.nome || 'Admin'}</span>
+                      <span className="text-muted-foreground"> · {roleLabel}</span>
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel className="space-y-0.5">
+                <DropdownMenuLabel className="space-y-1">
                   <p className="text-sm font-medium leading-none">{profile?.nome || 'Admin'}</p>
-                  <p className="text-xs text-muted-foreground font-normal">{profile?.cargo || 'Administrador'}</p>
+                  <div className="flex items-center gap-1.5">
+                    <span className={cn('inline-block h-1.5 w-1.5 rounded-full', roleDot)} aria-hidden="true" />
+                    <p className="text-xs text-muted-foreground font-normal">{roleLabel}</p>
+                  </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => navigate('/perfil')}>
