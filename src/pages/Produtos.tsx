@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useDebounce } from "@/hooks/useDebounce";
 import { DataTable } from "@/components/DataTable";
@@ -384,7 +384,7 @@ const Produtos = () => {
     });
   };
 
-  const saveAndNewRef = useState({ current: false } as { current: boolean })[0];
+  const saveAndNewRef = useRef(false);
   const handleSaveAndNew = () => {
     saveAndNewRef.current = true;
     document.getElementById("produto-form")?.dispatchEvent(
@@ -798,6 +798,7 @@ const Produtos = () => {
             submitAsForm
             formId="produto-form"
             mode={mode}
+            onSaveAndNew={mode === "create" ? handleSaveAndNew : undefined}
           />
         }
       >
