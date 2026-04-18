@@ -51,6 +51,12 @@ export interface Column<T> {
   mobilePrimary?: boolean;
   /** Mark as secondary/detail field shown in mobile card body */
   mobileCard?: boolean;
+  /**
+   * Optional accessor for sorting when the column is calculated/rendered
+   * and `item[key]` is undefined or not the value to compare.
+   * Example: `sortValue: (item) => item.cliente?.nome ?? ''`.
+   */
+  sortValue?: (item: T) => string | number | null | undefined;
 }
 
 type FilterOperator = 'contains' | 'equals' | 'gt' | 'between';
@@ -79,6 +85,12 @@ interface DataTableProps<T> {
   emptyTitle?: string;
   emptyDescription?: string;
   showColumnToggle?: boolean;
+  /**
+   * Show the legacy internal "Advanced filters" popover.
+   * Off by default — pages should use `AdvancedFilterBar` instead to keep a
+   * single source of truth for filter state.
+   */
+  showInternalFilters?: boolean;
   onBatchDelete?: (ids: string[]) => void;
   onBatchStatusChange?: (ids: string[], status: string) => void;
   renderInlineDetails?: (item: T) => React.ReactNode;
