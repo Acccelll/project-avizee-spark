@@ -2,6 +2,9 @@ import { ViewDrawerV2, ViewField, ViewSection } from "@/components/ViewDrawerV2"
 import { StatusBadge } from "@/components/StatusBadge";
 import { Badge } from "@/components/ui/badge";
 import { RelationalLink } from "@/components/ui/RelationalLink";
+import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSummaryCard";
+import { DrawerStatusBanner } from "@/components/ui/DrawerStatusBanner";
+import { EmptyState } from "@/components/ui/empty-state";
 import { formatCurrency, formatNumber } from "@/lib/format";
 import {
   Package,
@@ -141,49 +144,39 @@ export function EstoquePosicaoDrawer({
 
   const precisaReposicao = situacao === "critico" || situacao === "zerado";
 
+  const saldoTone =
+    situacao === "zerado" || situacao === "critico" ? "destructive"
+    : situacao === "atencao" ? "warning"
+    : "success";
+
   const summary = (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-      <div className="rounded-lg border bg-card p-3 text-center">
-        <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground mb-1">
-          Saldo Atual
-        </p>
-        <p className="text-xl font-bold font-mono leading-tight">
-          {formatNumber(atual)}
-        </p>
-        <p className="text-[10px] text-muted-foreground">{produto.unidade_medida || "UN"}</p>
-      </div>
-      <div className="rounded-lg border bg-card p-3 text-center">
-        <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground mb-1">
-          Mínimo
-        </p>
-        <p className="text-xl font-bold font-mono leading-tight">
-          {minimo > 0 ? formatNumber(minimo) : "—"}
-        </p>
-        <p className="text-[10px] text-muted-foreground">{produto.unidade_medida || "UN"}</p>
-      </div>
-      <div className="rounded-lg border bg-card p-3 text-center">
-        <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground mb-1">
-          Disponível
-        </p>
-        <p className="text-xl font-bold font-mono leading-tight">
-          {formatNumber(disponivel)}
-        </p>
-        <p className="text-[10px] text-muted-foreground">
-          {reservado > 0 ? `${formatNumber(reservado)} res.` : "sem reserva"}
-        </p>
-      </div>
-      <div className="rounded-lg border bg-card p-3 text-center">
-        <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground mb-1">
-          {valorLabel}
-        </p>
-        <p className="text-base font-bold font-mono leading-tight truncate">
-          {custoPorUnidade > 0 ? formatCurrency(valorEstoque) : "—"}
-        </p>
-        <p className="text-[10px] text-muted-foreground">
-          {produto.preco_custo ? "pelo custo" : produto.preco_venda ? "pelo preço venda" : "sem custo"}
-        </p>
-      </div>
-    </div>
+    <DrawerSummaryGrid cols={4}>
+      <DrawerSummaryCard
+        label="Saldo Atual"
+        value={formatNumber(atual)}
+        hint={produto.unidade_medida || "UN"}
+        tone={saldoTone}
+        align="center"
+      />
+      <DrawerSummaryCard
+        label="Mínimo"
+        value={minimo > 0 ? formatNumber(minimo) : "—"}
+        hint={produto.unidade_medida || "UN"}
+        align="center"
+      />
+      <DrawerSummaryCard
+        label="Disponível"
+        value={formatNumber(disponivel)}
+        hint={reservado > 0 ? `${formatNumber(reservado)} res.` : "sem reserva"}
+        align="center"
+      />
+      <DrawerSummaryCard
+        label={valorLabel}
+        value={custoPorUnidade > 0 ? formatCurrency(valorEstoque) : "—"}
+        hint={produto.preco_custo ? "pelo custo" : produto.preco_venda ? "pelo preço venda" : "sem custo"}
+        align="center"
+      />
+    </DrawerSummaryGrid>
   );
 
   const tabResumo = (
