@@ -23,8 +23,8 @@ import {
   Copy,
   ChevronsUpDown as ExpandIcon,
 } from 'lucide-react';
-import * as XLSX from '@/lib/xlsx-compat';
-import jsPDF from 'jspdf';
+import { buildExportFilename } from '@/lib/utils';
+import { exportarParaCsv, exportarParaExcel, exportarParaPdf, type ExportColumnDef } from '@/services/export.service';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
@@ -356,55 +356,50 @@ export function DataTable<T extends Record<string, any>>({
   };
 
   const exportData = async (format: 'csv' | 'xlsx' | 'pdf') => {
+    if (sortedData.length === 0) {
+      toast.warning('Nenhum dado para exportar.');
+      return;
+    }
     const toastId = toast.loading(`Iniciando exportação ${format.toUpperCase()}... 0%`);
 
     try {
-      const rows = await buildExportRowsChunked(toastId, format, 1000);
+      // Build rows keyed by column key (export.service uses key→value mapping)
+      const rows = await (async () => {
+        const chunks: Array<Record<string, unknown>[]> = [];
+        const startedAt = Date.now();
+        const chunkSize = 1000;
+        for (let i = 0; i < sortedData.length; i += chunkSize) {
+          const chunk = sortedData
+            .slice(i, i + chunkSize)
+            .map((row) => Object.fromEntries(visibleColumns.map((col) => [col.key, row[col.key]])));
+          chunks.push(chunk);
+          const processed = Math.min(i + chunk.length, sortedData.length);
+          const progress = Math.round((processed / sortedData.length) * 100);
+          const elapsed = Date.now() - startedAt;
+          const showEta = sortedData.length > 10000 && processed > 0;
+          const etaMs = showEta ? Math.max(0, Math.round((elapsed / processed) * (sortedData.length - processed))) : 0;
+          const etaText = showEta ? ` · ETA ~${Math.ceil(etaMs / 1000)}s` : '';
+          toast.loading(`Exportando ${format.toUpperCase()}... ${progress}%${etaText}`, { id: toastId });
+          await sleep(0);
+        }
+        return chunks.flat();
+      })();
+
+      const columnsDef: ExportColumnDef[] = visibleColumns.map((c) => ({ key: c.key, label: c.label }));
+      const titulo = moduleKey || 'dados';
 
       if (format === 'csv') {
-        const header = visibleColumns.map((c) => escapeCSV(c.label)).join(';');
-        const body = rows.map((r) => visibleColumns.map((c) => escapeCSV(r[c.label])).join(';')).join('\n');
-        const blob = new Blob([`${header}\n${body}`], { type: 'text/csv;charset=utf-8;' });
-        downloadBlob(blob, `${moduleKey || 'dados'}.csv`);
+        exportarParaCsv({ titulo, rows, columns: columnsDef });
         toast.success('Exportação CSV concluída', { id: toastId });
         return;
       }
-
       if (format === 'xlsx') {
-        const ws = XLSX.utils.json_to_sheet(rows);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Dados');
-        await XLSX.writeFile(wb, `${moduleKey || 'dados'}.xlsx`);
+        await exportarParaExcel({ titulo, rows, columns: columnsDef });
         toast.success('Exportação XLSX concluída', { id: toastId });
         return;
       }
-
-      const pdf = new jsPDF();
-      const ROWS_PER_PAGE = 50;
-      let currentRow = 0;
-      let currentPage = 1;
-
-      while (currentRow < rows.length) {
-        const pageRows = rows.slice(currentRow, currentRow + ROWS_PER_PAGE);
-
-        if (currentPage > 1) {
-          pdf.addPage();
-        }
-
-        pdf.text(`Exportação ${moduleKey || 'dados'} - Página ${currentPage}`, 14, 12);
-
-        let y = 30;
-        pageRows.forEach((row) => {
-          const line = visibleColumns.map((c) => `${c.label}: ${String(row[c.label] ?? '')}`).join(' | ');
-          pdf.text(line.slice(0, 180), 10, y);
-          y += 8;
-        });
-
-        currentRow += ROWS_PER_PAGE;
-        currentPage += 1;
-      }
-
-      pdf.save(`${moduleKey || 'dados'}.pdf`);
+      // PDF — use the centralised builder for proper tabular output
+      await exportarParaPdf({ titulo, rows, columns: columnsDef });
       toast.success('Exportação PDF concluída', { id: toastId });
     } catch (error) {
       console.error('Erro ao exportar dados', error);
@@ -412,9 +407,7 @@ export function DataTable<T extends Record<string, any>>({
         id: toastId,
         action: {
           label: 'Tentar novamente',
-          onClick: () => {
-            void exportData(format);
-          },
+          onClick: () => { void exportData(format); },
         },
       });
     }

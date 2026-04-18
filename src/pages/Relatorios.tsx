@@ -175,21 +175,43 @@ export default function Relatorios() {
     setSearchParams({ tipo: next });
   };
 
+  const [isExporting, setIsExporting] = useState(false);
+
   const handleExportCsv = () => {
     if (!sortedRows.length) { toast.warning('Nenhum dado visível para exportar.'); return; }
     exportarParaCsv({ titulo: resultado?.title || String(tipo), rows: sortedRows, columns: exportColumnDefs });
-    toast.success('Exportação CSV iniciada.');
+    toast.success('CSV exportado com sucesso.');
   };
   const handleExportPdf = async () => {
     if (!sortedRows.length) { toast.warning('Nenhum dado visível para exportar.'); return; }
+    if (isExporting) return;
     if (sortedRows.length > 200) toast.warning(`PDF limitado a 200 de ${sortedRows.length} registros. Use Excel para tudo.`, { duration: 8000 });
-    await exportarParaPdf({ titulo: resultado?.title || String(tipo), rows: sortedRows, columns: exportColumnDefs, empresa: empresaConfig, dataInicio, dataFim, resultado });
-    toast.success('PDF gerado com sucesso!');
+    const tid = toast.loading('Gerando PDF...');
+    setIsExporting(true);
+    try {
+      await exportarParaPdf({ titulo: resultado?.title || String(tipo), rows: sortedRows, columns: exportColumnDefs, empresa: empresaConfig, dataInicio, dataFim, resultado });
+      toast.success('PDF gerado com sucesso!', { id: tid });
+    } catch (e) {
+      toast.error('Falha ao gerar PDF.', { id: tid });
+      console.error(e);
+    } finally {
+      setIsExporting(false);
+    }
   };
   const handleExportXlsx = async () => {
     if (!sortedRows.length) { toast.warning('Nenhum dado visível para exportar.'); return; }
-    await exportarParaExcel({ titulo: resultado?.title || String(tipo), rows: sortedRows, columns: exportColumnDefs });
-    toast.success('Excel gerado com sucesso!');
+    if (isExporting) return;
+    const tid = toast.loading('Gerando Excel...');
+    setIsExporting(true);
+    try {
+      await exportarParaExcel({ titulo: resultado?.title || String(tipo), rows: sortedRows, columns: exportColumnDefs });
+      toast.success('Excel gerado com sucesso!', { id: tid });
+    } catch (e) {
+      toast.error('Falha ao gerar Excel.', { id: tid });
+      console.error(e);
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const handleSalvarFavorito = () => {

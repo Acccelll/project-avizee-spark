@@ -26,3 +26,16 @@ export function toSlug(value: string) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
 }
+
+/**
+ * Builds a sanitized export filename: `<slug-do-titulo>_<YYYY-MM-DD-HH-MM-SS>.<ext>`
+ *
+ * - removes accents/spaces from the title
+ * - appends an ISO-like timestamp to avoid overwrites and ease sorting
+ */
+export function buildExportFilename(title: string, ext: string): string {
+  const slug = toSlug(title) || "export";
+  const ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+  const cleanExt = ext.replace(/^\./, "");
+  return `${slug}_${ts}.${cleanExt}`;
+}

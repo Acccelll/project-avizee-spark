@@ -1,5 +1,4 @@
 import { supabase } from "@/integrations/supabase/client";
-import { downloadTextFile } from "@/lib/utils";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/format";
 import { getEffectiveFiscalId } from "@/lib/fiscalUtils";
 import { addParticipacao, computeTop5Concentracao } from "@/utils/relatorios";
@@ -163,7 +162,7 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
         .select("codigo_interno, nome, unidade_medida, estoque_atual, estoque_minimo, preco_custo, preco_venda, grupos_produto(nome)")
         .eq("ativo", true)
         .order("nome");
-      if (filtros.grupoProdutoIds) query = query.in('grupo_id', filtros.grupoProdutoIds);
+      if (filtros.grupoProdutoIds?.length) query = query.in('grupo_id', filtros.grupoProdutoIds);
       const { data, error } = await query;
 
       if (error) throw error;
@@ -220,9 +219,30 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
         .order("created_at", { ascending: false });
 
       query = withDateRange(query, "created_at", filtros);
-      if (filtros.grupoProdutoIds) query = query.in('produto_id', (
-        await supabase.from('produtos').select('id').in('grupo_id', filtros.grupoProdutoIds)
-      ).data?.map(p => p.id) || []);
+      // Resolve product IDs from selected groups before applying the IN filter.
+      // Done outside `.in()` to surface errors and limit defensively.
+      if (filtros.grupoProdutoIds?.length) {
+        const { data: prods, error: prodErr } = await supabase
+          .from('produtos')
+          .select('id')
+          .in('grupo_id', filtros.grupoProdutoIds)
+          .limit(10000);
+        if (prodErr) throw prodErr;
+        const produtoIds = (prods ?? []).map((p) => p.id);
+        // If no products match, force empty result instead of running unfiltered.
+        if (!produtoIds.length) {
+          return {
+            title: "Movimentos de estoque",
+            subtitle: "Entradas, saídas e ajustes de estoque no período.",
+            rows: [],
+            chartData: [],
+            totals: { totalEntradas: 0, totalSaidas: 0, totalAjustes: 0, saldoAtual: 0 },
+            kpis: { totalMovimentos: 0, totalEntradas: 0, totalSaidas: 0, totalAjustes: 0 },
+            _isQuantityReport: true,
+          };
+        }
+        query = query.in('produto_id', produtoIds);
+      }
 
       const { data, error } = await query;
       if (error) throw error;
@@ -280,7 +300,7 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
         .order("data_vencimento", { ascending: true });
 
       query = withDateRange(query, "data_vencimento", filtros);
-      if (filtros.tiposFinanceiros) query = query.in('tipo', filtros.tiposFinanceiros);
+      if (filtros.tiposFinanceiros?.length) query = query.in('tipo', filtros.tiposFinanceiros);
       const { data, error } = await query;
       if (error) throw error;
 
@@ -410,7 +430,7 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
         .order("data_emissao", { ascending: false });
 
       query = withDateRange(query, "data_emissao", filtros);
-      if (filtros.clienteIds) query = query.in('cliente_id', filtros.clienteIds);
+      if (filtros.clienteIds?.length) query = query.in('cliente_id', filtros.clienteIds);
       const { data, error } = await query;
       if (error) throw error;
 
@@ -518,7 +538,7 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
         .order("data_compra", { ascending: false });
 
       query = withDateRange(query, "data_compra", filtros);
-      if (filtros.fornecedorIds) query = query.in('fornecedor_id', filtros.fornecedorIds);
+      if (filtros.fornecedorIds?.length) query = query.in('fornecedor_id', filtros.fornecedorIds);
       const { data, error } = await query;
       if (error) throw error;
 
@@ -676,8 +696,8 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
         .in("status", ["aberto", "parcial", "vencido"])
         .order("data_vencimento", { ascending: true });
       query = withDateRange(query, "data_vencimento", filtros);
-      if (filtros.clienteIds) query = query.in('cliente_id', filtros.clienteIds);
-      if (filtros.tiposFinanceiros) query = query.in('tipo', filtros.tiposFinanceiros);
+      if (filtros.clienteIds?.length) query = query.in('cliente_id', filtros.clienteIds);
+      if (filtros.tiposFinanceiros?.length) query = query.in('tipo', filtros.tiposFinanceiros);
       const { data, error } = await query;
 
       if (error) throw error;
@@ -758,7 +778,7 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
         .eq("notas_fiscais.status", "confirmada");
 
       nfQuery = withDateRange(nfQuery, "notas_fiscais.data_emissao", filtros);
-      if (filtros.clienteIds) nfQuery = nfQuery.in('notas_fiscais.cliente_id', filtros.clienteIds);
+      if (filtros.clienteIds?.length) nfQuery = nfQuery.in('notas_fiscais.cliente_id', filtros.clienteIds);
 
       const { data, error } = await nfQuery;
       if (error) throw error;
@@ -818,7 +838,7 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
         .select("codigo_interno, nome, preco_custo, preco_venda, estoque_atual, unidade_medida, grupos_produto(nome)")
         .eq("ativo", true)
         .order("nome");
-      if (filtros.grupoProdutoIds) query = query.in('grupo_id', filtros.grupoProdutoIds);
+      if (filtros.grupoProdutoIds?.length) query = query.in('grupo_id', filtros.grupoProdutoIds);
       const { data, error } = await query;
 
       if (error) throw error;
@@ -866,7 +886,7 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
         .select("codigo_interno, nome, unidade_medida, estoque_atual, estoque_minimo, preco_custo, grupos_produto(nome)")
         .eq("ativo", true)
         .order("nome");
-      if (filtros.grupoProdutoIds) query = query.in('grupo_id', filtros.grupoProdutoIds);
+      if (filtros.grupoProdutoIds?.length) query = query.in('grupo_id', filtros.grupoProdutoIds);
       const { data, error } = await query;
       if (error) throw error;
 
@@ -912,7 +932,7 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
         .select("valor_total, clientes(nome_razao_social, cpf_cnpj)")
         .eq("ativo", true);
       query = withDateRange(query, "data_emissao", filtros);
-      if (filtros.clienteIds) query = query.in('cliente_id', filtros.clienteIds);
+      if (filtros.clienteIds?.length) query = query.in('cliente_id', filtros.clienteIds);
       const { data, error } = await query;
       if (error) throw error;
 
@@ -957,7 +977,7 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
         .select("valor_total, fornecedores(nome_razao_social, cpf_cnpj)")
         .eq("ativo", true);
       query = withDateRange(query, "data_compra", filtros);
-      if (filtros.fornecedorIds) query = query.in('fornecedor_id', filtros.fornecedorIds);
+      if (filtros.fornecedorIds?.length) query = query.in('fornecedor_id', filtros.fornecedorIds);
       const { data, error } = await query;
       if (error) throw error;
 
@@ -1083,66 +1103,11 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
   }
 }
 
-export function exportarCsv(title: string, rows: Record<string, unknown>[]) {
-  if (!rows.length) {
-    downloadTextFile(`${title}.csv`, "Sem dados para exportação");
-    return;
-  }
-
-  const headers = Object.keys(rows[0]);
-  const csv = [
-    headers.join(";"),
-    ...rows.map((row) => headers.map((header) => formatCsvValue(row[header])).join(";")),
-  ].join("\n");
-
-  downloadTextFile(`${title}.csv`, csv, "text/csv;charset=utf-8");
-}
-
-export async function exportarXlsx(title: string, rows: Record<string, unknown>[]) {
-  if (!rows.length) return;
-
-  const { default: ExcelJS } = await import("exceljs");
-  const workbook = new ExcelJS.Workbook();
-  const sheet = workbook.addWorksheet(title.slice(0, 31));
-  const headers = Object.keys(rows[0]);
-
-  sheet.addRow(headers);
-  sheet.getRow(1).font = { bold: true };
-  sheet.getRow(1).fill = {
-    type: "pattern",
-    pattern: "solid",
-    fgColor: { argb: "FFE8E8E8" },
-  };
-
-  rows.forEach((row) => {
-    sheet.addRow(headers.map((header) => row[header] ?? ""));
-  });
-
-  sheet.columns.forEach((col) => {
-    let maxLen = 10;
-    col.eachCell?.({ includeEmpty: true }, (cell) => {
-      maxLen = Math.max(maxLen, String(cell.value ?? "").length + 2);
-    });
-    col.width = Math.min(maxLen, 50);
-  });
-
-  const buffer = await workbook.xlsx.writeBuffer();
-  const blob = new Blob([buffer], {
-    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `${title}.xlsx`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-function formatCsvValue(value: unknown) {
-  if (typeof value === "number") return value.toString().replace(".", ",");
-  if (value == null) return "";
-  return `"${String(value).split('"').join('""')}"`;
-}
+// ─── Cell formatter for in-app rendering ────────────────────────────────────
+//
+// Note: legacy `exportarCsv` / `exportarXlsx` / `formatCsvValue` were removed —
+// callers must use `services/export.service.ts` instead, which is config-aware,
+// emits UTF-8 BOM in CSV and standardised filenames.
 
 export function formatCellValue(value: unknown, key: string, isQuantityReport = false) {
   if (typeof value === "number") {

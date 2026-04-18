@@ -1,6 +1,5 @@
-import * as XLSX from '@/lib/xlsx-compat';
 import { supabase } from '@/integrations/supabase/client';
-import { downloadTextFile } from '@/lib/utils';
+import { exportarParaCsv, exportarMultiSheetExcel } from './export.service';
 import { getSocialProvider } from './socialProviders';
 import type {
   SocialAlerta,
@@ -122,20 +121,34 @@ export function buildSocialConsolidadoRows(dashboard: SocialDashboardConsolidado
   }));
 }
 
+/**
+ * Social CSV/XLSX exports — delegate to the centralised export.service.
+ *
+ * The legacy `XLSX.writeFile` path was removed in favour of `exceljs`
+ * (no prototype-pollution risk); CSV emits UTF-8 BOM and uses the
+ * sanitized filename helper.
+ */
 export function exportSocialCsv(filename: string, rows: SocialConsolidadoReportRow[]): void {
-  const headers = ['Plataforma', 'Seguidores novos', 'Engajamento médio (%)', 'Alcance', 'Impressões', 'Posts'];
-  const body = rows.map((row) => [row.plataforma, row.seguidoresNovos, row.engajamentoMedio.toFixed(2), row.alcance, row.impressoes, row.posts].join(';'));
-  const csv = [headers.join(';'), ...body].join('\n');
-  downloadTextFile(filename, csv, 'text/csv;charset=utf-8');
+  exportarParaCsv({
+    titulo: filename.replace(/\.csv$/i, ''),
+    rows: rows as unknown as Record<string, unknown>[],
+    columns: [
+      { key: 'plataforma', label: 'Plataforma' },
+      { key: 'seguidoresNovos', label: 'Seguidores novos' },
+      { key: 'engajamentoMedio', label: 'Engajamento médio (%)', format: 'percent' },
+      { key: 'alcance', label: 'Alcance' },
+      { key: 'impressoes', label: 'Impressões' },
+      { key: 'posts', label: 'Posts' },
+    ],
+  });
 }
 
 export async function exportSocialXlsx(filename: string, data: Record<string, unknown[]>): Promise<void> {
-  const workbook = XLSX.utils.book_new();
-
-  Object.entries(data).forEach(([sheetName, rows]) => {
-    const worksheet = XLSX.utils.json_to_sheet(rows as Record<string, unknown>[]);
-    XLSX.utils.book_append_sheet(workbook, worksheet, sheetName.slice(0, 31));
-  });
-
-  await XLSX.writeFile(workbook, filename);
+  await exportarMultiSheetExcel(
+    filename.replace(/\.xlsx$/i, ''),
+    Object.entries(data).map(([sheetName, rows]) => ({
+      name: sheetName,
+      rows: rows as Record<string, unknown>[],
+    })),
+  );
 }

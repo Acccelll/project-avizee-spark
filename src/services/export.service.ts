@@ -2,7 +2,7 @@
  * Centralised export service for the Reports module.
  *
  * Provides three export formats:
- *   - CSV  (synchronous, plain text)
+ *   - CSV  (synchronous, plain text, UTF-8 with BOM)
  *   - Excel (.xlsx via exceljs)
  *   - PDF   (jsPDF, landscape A4, dynamic column widths)
  *
@@ -12,9 +12,13 @@
  * When `columns` is provided in ExportOptions, exports use the config-defined
  * order, labels and format hints — matching exactly what the user sees on screen.
  * When `columns` is omitted, raw object keys are used as a fallback.
+ *
+ * Empty data is handled centrally: a `toast.warning("Nenhum dado para
+ * exportar")` is emitted and the call returns without producing a file.
  */
 
-import { downloadTextFile } from "@/lib/utils";
+import { toast } from "sonner";
+import { buildExportFilename, downloadTextFile } from "@/lib/utils";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/format";
 import type { RelatorioResultado } from "@/services/relatorios.service";
 import type { ColumnFormat } from "@/config/relatoriosConfig";
@@ -52,41 +56,52 @@ export interface ExportOptions {
   resultado?: RelatorioResultado;
 }
 
+/** Multi-sheet payload for Excel exports. */
+export interface ExportSheetDef {
+  name: string;
+  rows: Record<string, unknown>[];
+  columns?: ExportColumnDef[];
+}
+
+const EMPTY_TOAST_MSG = "Nenhum dado para exportar.";
+
 // ─── CSV ─────────────────────────────────────────────────────────────────────
 
 /**
- * Exports `rows` as a semicolon-delimited CSV file and triggers a browser
- * download.
+ * Exports `rows` as a semicolon-delimited CSV file (UTF-8 + BOM) and triggers
+ * a browser download.
  *
- * When `columns` is provided, uses the config-defined order and labels.
+ * Empty input → emits a `toast.warning` and returns without producing a file.
  */
 export function exportarParaCsv(options: ExportOptions): void {
   const { titulo, rows, columns } = options;
 
   if (!rows.length) {
-    downloadTextFile(`${titulo}.csv`, "Sem dados para exportação");
+    toast.warning(EMPTY_TOAST_MSG);
     return;
   }
 
+  const filename = buildExportFilename(titulo, "csv");
+
+  let csv: string;
   if (columns?.length) {
-    // Config-driven: use label as header, format-aware cell rendering
     const header = columns.map((c) => `"${c.label}"`).join(";");
     const body = rows.map((row) =>
       columns.map((c) => formatCsvCellTyped(row[c.key], c.format)).join(";")
     );
-    const csv = [header, ...body].join("\n");
-    downloadTextFile(`${titulo}.csv`, csv, "text/csv;charset=utf-8");
+    csv = [header, ...body].join("\n");
   } else {
-    // Legacy fallback: raw keys as headers
     const headers = Object.keys(rows[0]);
-    const csv = [
+    csv = [
       headers.join(";"),
       ...rows.map((row) =>
         headers.map((h) => formatCsvCell(row[h])).join(";")
       ),
     ].join("\n");
-    downloadTextFile(`${titulo}.csv`, csv, "text/csv;charset=utf-8");
   }
+
+  // Prepend UTF-8 BOM so Excel desktop pt-BR opens accents correctly.
+  downloadTextFile(filename, `\uFEFF${csv}`, "text/csv;charset=utf-8");
 }
 
 function formatCsvCell(value: unknown): string {
@@ -115,17 +130,67 @@ function formatCsvCellTyped(value: unknown, format?: string): string {
  * Exports `rows` as an .xlsx file using exceljs.
  *
  * When `columns` is provided, uses the config-defined order, labels and format.
+ * Empty input → emits a `toast.warning` and returns without producing a file.
  */
 export async function exportarParaExcel(options: ExportOptions): Promise<void> {
   const { titulo, rows, columns } = options;
-  if (!rows.length) return;
+  if (!rows.length) {
+    toast.warning(EMPTY_TOAST_MSG);
+    return;
+  }
 
   const { default: ExcelJS } = await import("exceljs");
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet(titulo.slice(0, 31));
 
+  populateSheet(sheet, rows, columns);
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  downloadBlob(
+    buffer,
+    buildExportFilename(titulo, "xlsx"),
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+  );
+}
+
+/**
+ * Multi-sheet Excel export. Each entry becomes one worksheet.
+ * Empty (no sheets / no rows total) → toast.warning + return.
+ */
+export async function exportarMultiSheetExcel(
+  titulo: string,
+  sheets: ExportSheetDef[]
+): Promise<void> {
+  const totalRows = sheets.reduce((s, sh) => s + sh.rows.length, 0);
+  if (!sheets.length || totalRows === 0) {
+    toast.warning(EMPTY_TOAST_MSG);
+    return;
+  }
+
+  const { default: ExcelJS } = await import("exceljs");
+  const workbook = new ExcelJS.Workbook();
+
+  sheets.forEach((sh) => {
+    if (!sh.rows.length) return;
+    const ws = workbook.addWorksheet(sh.name.slice(0, 31));
+    populateSheet(ws, sh.rows, sh.columns);
+  });
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  downloadBlob(
+    buffer,
+    buildExportFilename(titulo, "xlsx"),
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+  );
+}
+
+function populateSheet(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  sheet: any,
+  rows: Record<string, unknown>[],
+  columns?: ExportColumnDef[]
+) {
   if (columns?.length) {
-    // Config-driven: use labels as headers and format cells by type
     const headers = columns.map((c) => c.label);
     sheet.addRow(headers);
     sheet.getRow(1).font = { bold: true };
@@ -139,7 +204,7 @@ export async function exportarParaExcel(options: ExportOptions): Promise<void> {
       const values = columns.map((c) => {
         const v = row[c.key];
         if (v == null) return "";
-        if (typeof v === "number") return v; // Excel keeps as number for native formatting
+        if (typeof v === "number") return v;
         if (typeof v === "string" && c.format === "date" && /^\d{4}-\d{2}-\d{2}/.test(v)) {
           return formatDate(v);
         }
@@ -148,7 +213,6 @@ export async function exportarParaExcel(options: ExportOptions): Promise<void> {
       sheet.addRow(values);
     });
   } else {
-    // Legacy fallback
     const headers = Object.keys(rows[0]);
     sheet.addRow(headers);
     sheet.getRow(1).font = { bold: true };
@@ -162,22 +226,23 @@ export async function exportarParaExcel(options: ExportOptions): Promise<void> {
     });
   }
 
-  sheet.columns.forEach((col) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  sheet.columns.forEach((col: any) => {
     let maxLen = 10;
-    col.eachCell?.({ includeEmpty: true }, (cell) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    col.eachCell?.({ includeEmpty: true }, (cell: any) => {
       maxLen = Math.max(maxLen, String(cell.value ?? "").length + 2);
     });
     col.width = Math.min(maxLen, 50);
   });
+}
 
-  const buffer = await workbook.xlsx.writeBuffer();
-  const blob = new Blob([buffer], {
-    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  });
+function downloadBlob(buffer: ArrayBuffer, filename: string, mime: string) {
+  const blob = new Blob([buffer], { type: mime });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `${titulo}.xlsx`;
+  a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -189,10 +254,15 @@ export const PDF_MAX_ROWS = 200;
 
 /**
  * Builds a jsPDF document from the report result and triggers a browser
- * download.
+ * download. Empty input → toast.warning + return.
  */
 export async function exportarParaPdf(options: ExportOptions): Promise<void> {
   const { titulo, rows, columns, empresa, dataInicio = "", dataFim = "", resultado } = options;
+
+  if (!rows.length) {
+    toast.warning(EMPTY_TOAST_MSG);
+    return;
+  }
 
   const doc = await buildPdfDocument({
     titulo: resultado?.title ?? titulo,
@@ -204,7 +274,7 @@ export async function exportarParaPdf(options: ExportOptions): Promise<void> {
     dataFim,
   });
 
-  doc.save(`${resultado?.title ?? titulo}.pdf`);
+  doc.save(buildExportFilename(resultado?.title ?? titulo, "pdf"));
 }
 
 interface PdfBuildParams {
