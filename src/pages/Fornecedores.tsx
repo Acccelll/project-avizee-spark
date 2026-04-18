@@ -195,6 +195,8 @@ const Fornecedores = () => {
     pushView("fornecedor", f.id);
   };
 
+  const saveAndNewRef = useRef(false);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const validation = validateForm(clienteFornecedorSchema, form);
@@ -210,12 +212,27 @@ const Fornecedores = () => {
       if (mode === "create") await create(form);else
       if (selected) await update(selected.id, form);
       setIsDirty(false);
-      setModalOpen(false);
+      if (saveAndNewRef.current && mode === "create") {
+        saveAndNewRef.current = false;
+        setForm({ ...emptyForm });
+        setSelected(null);
+        setFormErrors({});
+      } else {
+        setModalOpen(false);
+      }
     } catch (err) {
       console.error('[fornecedores] erro ao salvar:', err);
       toast.error(getUserFriendlyError(err));
     }
     setSaving(false);
+  };
+
+  const handleSaveAndNew = () => {
+    saveAndNewRef.current = true;
+    // dispara submit do form
+    document.getElementById("fornecedor-form")?.dispatchEvent(
+      new Event("submit", { cancelable: true, bubbles: true }),
+    );
   };
 
   const filteredData = useMemo(() => {
@@ -408,6 +425,7 @@ const Fornecedores = () => {
             submitAsForm
             formId="fornecedor-form"
             mode={mode}
+            onSaveAndNew={mode === "create" ? handleSaveAndNew : undefined}
           />
         }
       >
