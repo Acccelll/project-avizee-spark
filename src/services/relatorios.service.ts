@@ -163,6 +163,15 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
         .eq("ativo", true)
         .order("nome");
       if (filtros.grupoProdutoIds?.length) query = query.in('grupo_id', filtros.grupoProdutoIds);
+      const { data, error } = await query;
+
+      if (error) throw error;
+
+      const rows = (data || []).map((item: Record<string, unknown>) => {
+        const custo = Number(item.preco_custo || 0);
+        const venda = Number(item.preco_venda || 0);
+        const qty = Number(item.estoque_atual || 0);
+        const min = Number(item.estoque_minimo || 0);
         let criticidade: string;
         if (qty <= 0) criticidade = "Zerado";
         else if (min > 0 && qty <= min) criticidade = "Abaixo do mínimo";
