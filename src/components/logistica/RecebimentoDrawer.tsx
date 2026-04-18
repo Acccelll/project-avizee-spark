@@ -2,6 +2,8 @@ import { ViewDrawerV2, ViewField, ViewSection } from "@/components/ViewDrawerV2"
 import { StatusBadge } from "@/components/StatusBadge";
 import { RelationalLink } from "@/components/ui/RelationalLink";
 import { Badge } from "@/components/ui/badge";
+import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSummaryCard";
+import { DrawerStatusBanner } from "@/components/ui/DrawerStatusBanner";
 import { formatDate, formatNumber } from "@/lib/format";
 import { AlertTriangle, Package, Truck } from "lucide-react";
 import type { Recebimento } from "@/pages/logistica/hooks/useRecebimentos";
@@ -48,49 +50,54 @@ export function RecebimentoDrawer({ open, onClose, recebimento: r }: Recebimento
     ? Math.round((r.quantidade_recebida / r.quantidade_pedida) * 100)
     : 0;
 
+  const recebTone = percentRecebido >= 100 ? "success" : percentRecebido > 0 ? "warning" : "neutral";
+
   /* ── Summary strip ── */
   const summary = (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-      <div className="rounded-lg border bg-card p-3 text-center">
-        <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground mb-1">Pedido</p>
-        <p className="text-base font-bold font-mono leading-tight">{r.numero_compra}</p>
-        <p className="text-[10px] text-muted-foreground">compra</p>
-      </div>
-      <div className="rounded-lg border bg-card p-3 text-center">
-        <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground mb-1">Status</p>
-        <div className="flex justify-center">
-          <StatusBadge status={cfg.badgeStatus} label={cfg.label} />
-        </div>
-        {atrasado && (
-          <div className="flex justify-center mt-1">
-            <Badge variant="outline" className="text-[10px] border-destructive/40 text-destructive gap-1">
-              <AlertTriangle className="h-2.5 w-2.5" />Atrasado
-            </Badge>
-          </div>
-        )}
-      </div>
-      <div className="rounded-lg border bg-card p-3 text-center">
-        <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground mb-1">Prev. Entrega</p>
-        <p className="text-sm font-semibold leading-tight">
-          {r.previsao_entrega ? formatDate(r.previsao_entrega) : "—"}
-        </p>
-        <p className="text-[10px] text-muted-foreground">
-          {r.data_recebimento ? `Recebido: ${formatDate(r.data_recebimento)}` : "não recebido"}
-        </p>
-      </div>
-      <div className="rounded-lg border bg-card p-3 text-center">
-        <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground mb-1">Qtd. Recebida</p>
-        <p className="text-sm font-semibold leading-tight font-mono">
-          {formatNumber(r.quantidade_recebida)} / {formatNumber(r.quantidade_pedida)}
-        </p>
-        <p className="text-[10px] text-muted-foreground">{percentRecebido}% do pedido</p>
-      </div>
-    </div>
+    <DrawerSummaryGrid cols={4}>
+      <DrawerSummaryCard
+        label="Pedido"
+        value={r.numero_compra}
+        hint="compra"
+        align="center"
+      />
+      <DrawerSummaryCard
+        label="Status"
+        value={cfg.label}
+        mono={false}
+        align="center"
+        tone={atrasado ? "destructive" : "neutral"}
+        hint={atrasado ? "atrasado" : undefined}
+      />
+      <DrawerSummaryCard
+        label="Prev. Entrega"
+        value={r.previsao_entrega ? formatDate(r.previsao_entrega) : "—"}
+        mono={false}
+        align="center"
+        hint={r.data_recebimento ? `Recebido: ${formatDate(r.data_recebimento)}` : "não recebido"}
+        tone={atrasado ? "destructive" : "neutral"}
+      />
+      <DrawerSummaryCard
+        label="Qtd. Recebida"
+        value={`${formatNumber(r.quantidade_recebida)} / ${formatNumber(r.quantidade_pedida)}`}
+        hint={`${percentRecebido}% do pedido`}
+        align="center"
+        tone={recebTone}
+      />
+    </DrawerSummaryGrid>
   );
 
   /* ── Tab Resumo ── */
   const tabResumo = (
     <div className="space-y-4">
+      {atrasado && (
+        <DrawerStatusBanner
+          tone="destructive"
+          icon={AlertTriangle}
+          title="Recebimento em atraso"
+          description={`Previsão era ${r.previsao_entrega ? formatDate(r.previsao_entrega) : "—"} e ainda não foi concluído.`}
+        />
+      )}
 
       <ViewSection title="Pedido de Compra">
         <div className="grid grid-cols-2 gap-4">

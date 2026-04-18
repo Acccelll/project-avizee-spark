@@ -2,6 +2,9 @@ import { ViewDrawerV2, ViewField, ViewSection } from "@/components/ViewDrawerV2"
 import { StatusBadge } from "@/components/StatusBadge";
 import { Badge } from "@/components/ui/badge";
 import { RelationalLink } from "@/components/ui/RelationalLink";
+import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSummaryCard";
+import { DrawerStatusBanner } from "@/components/ui/DrawerStatusBanner";
+import { EmptyState } from "@/components/ui/empty-state";
 import { formatCurrency, formatNumber } from "@/lib/format";
 import {
   Package,
@@ -141,49 +144,39 @@ export function EstoquePosicaoDrawer({
 
   const precisaReposicao = situacao === "critico" || situacao === "zerado";
 
+  const saldoTone =
+    situacao === "zerado" || situacao === "critico" ? "destructive"
+    : situacao === "atencao" ? "warning"
+    : "success";
+
   const summary = (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-      <div className="rounded-lg border bg-card p-3 text-center">
-        <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground mb-1">
-          Saldo Atual
-        </p>
-        <p className="text-xl font-bold font-mono leading-tight">
-          {formatNumber(atual)}
-        </p>
-        <p className="text-[10px] text-muted-foreground">{produto.unidade_medida || "UN"}</p>
-      </div>
-      <div className="rounded-lg border bg-card p-3 text-center">
-        <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground mb-1">
-          Mínimo
-        </p>
-        <p className="text-xl font-bold font-mono leading-tight">
-          {minimo > 0 ? formatNumber(minimo) : "—"}
-        </p>
-        <p className="text-[10px] text-muted-foreground">{produto.unidade_medida || "UN"}</p>
-      </div>
-      <div className="rounded-lg border bg-card p-3 text-center">
-        <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground mb-1">
-          Disponível
-        </p>
-        <p className="text-xl font-bold font-mono leading-tight">
-          {formatNumber(disponivel)}
-        </p>
-        <p className="text-[10px] text-muted-foreground">
-          {reservado > 0 ? `${formatNumber(reservado)} res.` : "sem reserva"}
-        </p>
-      </div>
-      <div className="rounded-lg border bg-card p-3 text-center">
-        <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground mb-1">
-          {valorLabel}
-        </p>
-        <p className="text-base font-bold font-mono leading-tight truncate">
-          {custoPorUnidade > 0 ? formatCurrency(valorEstoque) : "—"}
-        </p>
-        <p className="text-[10px] text-muted-foreground">
-          {produto.preco_custo ? "pelo custo" : produto.preco_venda ? "pelo preço venda" : "sem custo"}
-        </p>
-      </div>
-    </div>
+    <DrawerSummaryGrid cols={4}>
+      <DrawerSummaryCard
+        label="Saldo Atual"
+        value={formatNumber(atual)}
+        hint={produto.unidade_medida || "UN"}
+        tone={saldoTone}
+        align="center"
+      />
+      <DrawerSummaryCard
+        label="Mínimo"
+        value={minimo > 0 ? formatNumber(minimo) : "—"}
+        hint={produto.unidade_medida || "UN"}
+        align="center"
+      />
+      <DrawerSummaryCard
+        label="Disponível"
+        value={formatNumber(disponivel)}
+        hint={reservado > 0 ? `${formatNumber(reservado)} res.` : "sem reserva"}
+        align="center"
+      />
+      <DrawerSummaryCard
+        label={valorLabel}
+        value={custoPorUnidade > 0 ? formatCurrency(valorEstoque) : "—"}
+        hint={produto.preco_custo ? "pelo custo" : produto.preco_venda ? "pelo preço venda" : "sem custo"}
+        align="center"
+      />
+    </DrawerSummaryGrid>
   );
 
   const tabResumo = (
@@ -274,10 +267,11 @@ export function EstoquePosicaoDrawer({
       {loadingMovimentos ? (
         <p className="text-sm text-muted-foreground">Carregando movimentações...</p>
       ) : movsProduto.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-8 text-muted-foreground gap-2">
-          <Package className="h-8 w-8 opacity-40" />
-          <p className="text-sm">Nenhuma movimentação registrada</p>
-        </div>
+        <EmptyState
+          icon={Package}
+          title="Nenhuma movimentação registrada"
+          description="As movimentações de entrada, saída e ajuste aparecerão aqui."
+        />
       ) : (
         movsProduto.map((m) => (
           <div
@@ -325,10 +319,11 @@ export function EstoquePosicaoDrawer({
   const tabVinculos = (
     <div className="space-y-4">
       {vinculos.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-8 text-muted-foreground gap-2">
-          <Package className="h-8 w-8 opacity-40" />
-          <p className="text-sm">Nenhum vínculo encontrado nas movimentações recentes</p>
-        </div>
+        <EmptyState
+          icon={Package}
+          title="Nenhum vínculo encontrado"
+          description="Movimentações recentes não estão vinculadas a documentos."
+        />
       ) : (
         <ViewSection title="Documentos vinculados">
           <div className="space-y-2">
@@ -389,40 +384,30 @@ export function EstoquePosicaoDrawer({
   const tabReposicao = (
     <div className="space-y-4">
       {precisaReposicao ? (
-        <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-4 flex gap-3">
-          <ShieldAlert className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
-          <div>
-            <p className="text-sm font-semibold text-destructive mb-1">
-              {situacao === "zerado" ? "Sem Estoque" : "Abaixo do Estoque Mínimo"}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {situacao === "zerado"
-                ? "Este item está com saldo zero. Considere acionar uma ordem de reposição."
-                : `Saldo atual (${formatNumber(atual)}) está abaixo do mínimo definido (${formatNumber(minimo)}). Avalie a necessidade de reposição.`}
-            </p>
-          </div>
-        </div>
+        <DrawerStatusBanner
+          tone="destructive"
+          icon={ShieldAlert}
+          title={situacao === "zerado" ? "Sem Estoque" : "Abaixo do Estoque Mínimo"}
+          description={
+            situacao === "zerado"
+              ? "Este item está com saldo zero. Considere acionar uma ordem de reposição."
+              : `Saldo atual (${formatNumber(atual)}) está abaixo do mínimo definido (${formatNumber(minimo)}). Avalie a necessidade de reposição.`
+          }
+        />
       ) : situacao === "atencao" ? (
-        <div className="rounded-lg border border-warning/40 bg-warning/5 p-4 flex gap-3">
-          <AlertTriangle className="h-5 w-5 text-warning shrink-0 mt-0.5" />
-          <div>
-            <p className="text-sm font-semibold text-warning mb-1">Em Atenção</p>
-            <p className="text-xs text-muted-foreground">
-              Saldo próximo ao mínimo ({formatNumber(atual)} / mín. {formatNumber(minimo)}).
-              Monitore e antecipe a reposição se necessário.
-            </p>
-          </div>
-        </div>
+        <DrawerStatusBanner
+          tone="warning"
+          icon={AlertTriangle}
+          title="Em Atenção"
+          description={`Saldo próximo ao mínimo (${formatNumber(atual)} / mín. ${formatNumber(minimo)}). Monitore e antecipe a reposição se necessário.`}
+        />
       ) : (
-        <div className="rounded-lg border border-success/40 bg-success/5 p-4 flex gap-3">
-          <CheckCircle className="h-5 w-5 text-success shrink-0 mt-0.5" />
-          <div>
-            <p className="text-sm font-semibold text-success mb-1">Estoque Normal</p>
-            <p className="text-xs text-muted-foreground">
-              Saldo dentro dos parâmetros. Nenhuma ação imediata necessária.
-            </p>
-          </div>
-        </div>
+        <DrawerStatusBanner
+          tone="success"
+          icon={CheckCircle}
+          title="Estoque Normal"
+          description="Saldo dentro dos parâmetros. Nenhuma ação imediata necessária."
+        />
       )}
 
       <ViewSection title="Parâmetros de Reposição">
