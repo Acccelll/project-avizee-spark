@@ -887,6 +887,10 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
         .eq("ativo", true)
         .order("nome");
       if (filtros.grupoProdutoIds?.length) query = query.in('grupo_id', filtros.grupoProdutoIds);
+      const { data, error } = await query;
+      if (error) throw error;
+
+      const rows = (data || [])
         .filter((p: RawEstoqueMinimoItem) => Number(p.estoque_atual || 0) <= Number(p.estoque_minimo || 0) && Number(p.estoque_minimo || 0) > 0)
         .map((p: RawEstoqueMinimoItem) => {
           const atual = Number(p.estoque_atual || 0);
