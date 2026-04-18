@@ -244,21 +244,23 @@ export function ContaContabilEditModal({
       return;
     }
 
-    setSaving(true);
-    try {
-      await onSave({
-        codigo: codigo.trim(),
-        descricao: descricao.trim(),
-        natureza,
-        aceita_lancamento: aceitaLancamento,
-        conta_pai_id: contaPaiId,
-        ativo,
-      });
-      onClose();
-    } catch (err: unknown) {
-      toast.error(getUserFriendlyError(err));
-    }
-    setSaving(false);
+    await submit(async () => {
+      try {
+        await onSave({
+          codigo: codigo.trim(),
+          descricao: descricao.trim(),
+          natureza,
+          aceita_lancamento: aceitaLancamento,
+          conta_pai_id: contaPaiId,
+          ativo,
+        });
+        baselineRef.current = snapshot();
+        onClose();
+      } catch (err: unknown) {
+        toast.error(getUserFriendlyError(err));
+        throw err;
+      }
+    });
   };
 
   // Candidate parent accounts: exclude self and own descendants
