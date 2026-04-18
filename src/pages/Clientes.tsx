@@ -7,6 +7,7 @@ import { PullToRefresh } from "@/components/ui/PullToRefresh";
 import { StatusBadge } from "@/components/StatusBadge";
 import { ModulePage } from "@/components/ModulePage";
 import { FormModal } from "@/components/FormModal";
+import { FormModalFooter } from "@/components/FormModalFooter";
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
@@ -721,42 +722,37 @@ const Clientes = () => {
         </PullToRefresh>
       </ModulePage>
 
-      <FormModal open={modalOpen} onClose={async () => {
-        if (isDirty && !(await confirmDiscard())) return;
-        setModalOpen(false);
-      }} title={mode === "create" ? "Novo Cliente" : "Editar Cliente"} size="xl">
-        <form onSubmit={handleSubmit} className="space-y-0">
-
-          {/* Edit-mode context bar */}
-          {mode === "edit" && selected && (
-            <div className="flex flex-wrap items-center gap-3 bg-muted/40 rounded-lg px-3 py-2 mb-4 text-xs text-muted-foreground border">
-              <StatusBadge status={selected.ativo ? "Ativo" : "Inativo"} />
-              {selected.created_at && (
-                <span className="flex items-center gap-1">
-                  <Calendar className="h-3 w-3" />
-                  Cadastrado em {formatDate(selected.created_at)}
-                </span>
-              )}
-              {form.forma_pagamento_padrao && (
-                <span className="flex items-center gap-1">
-                  <CreditCard className="h-3 w-3" />
-                  {form.forma_pagamento_padrao}
-                </span>
-              )}
-              {form.grupo_economico_id && (
-                <span className="flex items-center gap-1">
-                  <Building2 className="h-3 w-3" />
-                  {grupos.find(g => g.id === form.grupo_economico_id)?.nome}
-                </span>
-              )}
-              {isDirty && (
-                <span className="flex items-center gap-1 text-amber-600 ml-auto font-medium">
-                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500 inline-block" />
-                  Alterações não salvas
-                </span>
-              )}
-            </div>
-          )}
+      <FormModal
+        open={modalOpen}
+        onClose={async () => {
+          if (isDirty && !(await confirmDiscard())) return;
+          setModalOpen(false);
+        }}
+        title={mode === "create" ? "Novo Cliente" : "Editar Cliente"}
+        size="xl"
+        identifier={mode === "edit" && selected?.cpf_cnpj ? selected.cpf_cnpj : undefined}
+        status={mode === "edit" && selected ? <StatusBadge status={selected.ativo ? "Ativo" : "Inativo"} /> : undefined}
+        meta={mode === "edit" && selected ? [
+          ...(selected.created_at ? [{ icon: Calendar, label: `Cadastrado em ${formatDate(selected.created_at)}` }] : []),
+          ...(form.forma_pagamento_padrao ? [{ icon: CreditCard, label: form.forma_pagamento_padrao }] : []),
+          ...(form.grupo_economico_id ? [{ icon: Building2, label: grupos.find(g => g.id === form.grupo_economico_id)?.nome ?? "Grupo" }] : []),
+        ] : undefined}
+        isDirty={isDirty}
+        footer={
+          <FormModalFooter
+            saving={saving}
+            isDirty={isDirty}
+            onCancel={async () => {
+              if (isDirty && !(await confirmDiscard())) return;
+              setModalOpen(false);
+            }}
+            submitAsForm
+            formId="cliente-form"
+            mode={mode}
+          />
+        }
+      >
+        <form id="cliente-form" onSubmit={handleSubmit} className="space-y-0">
 
           <Tabs defaultValue="dados-gerais" className="w-full">
             <TabsList className="mb-4 w-full justify-start overflow-x-auto">
@@ -1469,27 +1465,6 @@ const Clientes = () => {
             </TabsContent>
           </Tabs>
 
-          {/* ── RODAPÉ ────────────────────────────────────────── */}
-          <div className="flex justify-end gap-2 pt-4 border-t">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={async () => {
-                if (isDirty && !(await confirmDiscard())) return;
-                setModalOpen(false);
-              }}
-            >
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={saving} className="min-w-[100px]">
-              {saving ? (
-                <span className="flex items-center gap-1.5">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Salvando...
-                </span>
-              ) : "Salvar"}
-            </Button>
-          </div>
         </form>
       </FormModal>
 
