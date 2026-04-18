@@ -27,8 +27,8 @@ function makeAuth(
     profile: null,
     roles,
     extraPermissions,
+    deniedPermissions: [],
     hasRole: (r: AppRole) => roles.includes(r),
-    can: vi.fn(),
     signOut: vi.fn(),
   };
 }
