@@ -3,6 +3,8 @@ import { useDrawerData } from "@/hooks/useDrawerData";
 import { useActionLock } from "@/hooks/useActionLock";
 import { getNotaFiscalPermissions } from "@/lib/drawerPermissions";
 import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSummaryCard";
+import { DrawerStatusBanner, type DrawerStatusTone } from "@/components/ui/DrawerStatusBanner";
+import { EmptyState } from "@/components/ui/empty-state";
 import { StatusBadge } from "@/components/StatusBadge";
 import { RelationalLink } from "@/components/ui/RelationalLink";
 import { Button } from "@/components/ui/button";
@@ -24,43 +26,43 @@ const modeloLabels: Record<string, string> = {
   "55": "NF-e", "65": "NFC-e", "57": "CT-e", "67": "CT-e OS", nfse: "NFS-e", outro: "Outro",
 };
 
-interface StatusInfo { description: string; colorClass: string }
+interface StatusInfo { description: string; tone: DrawerStatusTone }
 const statusInfoMap: Record<string, StatusInfo> = {
   pendente: {
     description: "Nota em rascunho — pendente de confirmação. Estoque e financeiro ainda não foram impactados.",
-    colorClass: "bg-warning/5 border-warning/20 text-warning",
+    tone: "warning",
   },
   rascunho: {
     description: "Nota em rascunho via subfluxo especializado. Ainda não confirmada no módulo principal.",
-    colorClass: "bg-muted/30 border-muted text-muted-foreground",
+    tone: "neutral",
   },
   confirmada: {
     description: "Nota fiscal confirmada. Estoque e lançamentos financeiros já foram registrados.",
-    colorClass: "bg-success/5 border-success/20 text-success",
+    tone: "success",
   },
   autorizada: {
     description: "Nota autorizada pela SEFAZ. Documento fiscal com validade eletrônica.",
-    colorClass: "bg-success/5 border-success/20 text-success",
+    tone: "success",
   },
   cancelada: {
     description: "Nota fiscal cancelada — sem vigência fiscal ou operacional.",
-    colorClass: "bg-destructive/5 border-destructive/20 text-destructive",
+    tone: "destructive",
   },
   cancelada_sefaz: {
     description: "Nota cancelada junto à SEFAZ. Evento de cancelamento registrado na receita.",
-    colorClass: "bg-destructive/5 border-destructive/20 text-destructive",
+    tone: "destructive",
   },
   rejeitada: {
     description: "Nota rejeitada pela SEFAZ. Verifique os dados e reprocesse.",
-    colorClass: "bg-destructive/5 border-destructive/20 text-destructive",
+    tone: "destructive",
   },
   inutilizada: {
     description: "Numeração inutilizada junto à SEFAZ. Número não poderá ser reaproveitado.",
-    colorClass: "bg-muted/30 border-muted text-muted-foreground",
+    tone: "neutral",
   },
   importada: {
     description: "Nota importada a partir de XML externo.",
-    colorClass: "bg-primary/5 border-primary/20 text-primary",
+    tone: "info",
   },
 };
 
@@ -256,10 +258,12 @@ export function NotaFiscalDrawer({
   const tabResumo = (
     <div className="space-y-5">
       {statusInfo && (
-        <div className={cn("rounded-lg border p-3 flex items-start gap-2", statusInfo.colorClass)}>
-          <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
-          <p className="text-xs">{statusInfo.description}</p>
-        </div>
+        <DrawerStatusBanner
+          tone={statusInfo.tone}
+          icon={AlertCircle}
+          title={`Status: ${selected.status}`}
+          description={statusInfo.description}
+        />
       )}
 
       <ViewSection title="Identificação">
@@ -400,7 +404,7 @@ export function NotaFiscalDrawer({
           </div>
         </>
       ) : (
-        <p className="text-sm text-muted-foreground text-center py-8">Nenhum item registrado</p>
+        <EmptyState icon={Package} title="Nenhum item registrado" />
       )}
     </div>
   );

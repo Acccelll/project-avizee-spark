@@ -4,6 +4,9 @@ import { ViewDrawerV2, ViewField, ViewSection } from "@/components/ViewDrawerV2"
 import { StatusBadge } from "@/components/StatusBadge";
 import { RelationalLink } from "@/components/ui/RelationalLink";
 import { Badge } from "@/components/ui/badge";
+import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSummaryCard";
+import { DrawerStatusBanner } from "@/components/ui/DrawerStatusBanner";
+import { EmptyState } from "@/components/ui/empty-state";
 import { formatDate, formatNumber } from "@/lib/format";
 import {
   Truck,
@@ -164,44 +167,36 @@ export function EntregaDrawer({ open, onClose, entrega }: EntregaDrawerProps) {
 
   /* ── Summary strip ── */
   const summary = (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-      <div className="rounded-lg border bg-card p-3 text-center">
-        <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground mb-1">Pedido</p>
-        <p className="text-base font-bold font-mono leading-tight">{entrega.numero_pedido}</p>
-        <p className="text-[10px] text-muted-foreground">origem</p>
-      </div>
-      <div className="rounded-lg border bg-card p-3 text-center">
-        <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground mb-1">Status</p>
-        <div className="flex justify-center">
-          <StatusBadge status={cfg.statusKey} label={cfg.label} />
-        </div>
-        {atrasado && (
-          <div className="flex justify-center mt-1">
-            <Badge variant="outline" className="text-[10px] border-destructive/40 text-destructive gap-1">
-              <AlertTriangle className="h-2.5 w-2.5" />Atrasado
-            </Badge>
-          </div>
-        )}
-      </div>
-      <div className="rounded-lg border bg-card p-3 text-center">
-        <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground mb-1">Prev. Entrega</p>
-        <p className="text-sm font-semibold leading-tight">
-          {entrega.previsao_entrega ? formatDate(entrega.previsao_entrega) : "—"}
-        </p>
-        <p className="text-[10px] text-muted-foreground">
-          {entrega.data_expedicao ? `Expedido: ${formatDate(entrega.data_expedicao)}` : "não expedido"}
-        </p>
-      </div>
-      <div className="rounded-lg border bg-card p-3 text-center">
-        <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground mb-1">Carga</p>
-        <p className="text-sm font-semibold leading-tight">
-          {entrega.volumes > 0 ? `${formatNumber(entrega.volumes)} vol.` : "—"}
-        </p>
-        <p className="text-[10px] text-muted-foreground">
-          {pesoTotal > 0 ? `${formatNumber(pesoTotal)} kg` : "sem peso"}
-        </p>
-      </div>
-    </div>
+    <DrawerSummaryGrid cols={4}>
+      <DrawerSummaryCard
+        label="Pedido"
+        value={entrega.numero_pedido}
+        hint="origem"
+        align="center"
+      />
+      <DrawerSummaryCard
+        label="Status"
+        value={cfg.label}
+        mono={false}
+        tone={atrasado ? "destructive" : entrega.status_logistico === "entregue" ? "success" : "neutral"}
+        hint={atrasado ? "atrasado" : undefined}
+        align="center"
+      />
+      <DrawerSummaryCard
+        label="Prev. Entrega"
+        value={entrega.previsao_entrega ? formatDate(entrega.previsao_entrega) : "—"}
+        hint={entrega.data_expedicao ? `Exped: ${formatDate(entrega.data_expedicao)}` : "não expedido"}
+        mono={false}
+        align="center"
+      />
+      <DrawerSummaryCard
+        label="Carga"
+        value={entrega.volumes > 0 ? `${formatNumber(entrega.volumes)} vol.` : "—"}
+        hint={pesoTotal > 0 ? `${formatNumber(pesoTotal)} kg` : "sem peso"}
+        mono={false}
+        align="center"
+      />
+    </DrawerSummaryGrid>
   );
 
   /* ── Aba Resumo ── */
@@ -266,10 +261,7 @@ export function EntregaDrawer({ open, onClose, entrega }: EntregaDrawerProps) {
       {loading ? (
         <p className="text-xs text-muted-foreground text-center py-3">Carregando itens...</p>
       ) : itens.length === 0 ? (
-        <div className="rounded-lg border bg-muted/20 p-4 text-center">
-          <Package className="h-6 w-6 mx-auto text-muted-foreground/50 mb-1" />
-          <p className="text-sm text-muted-foreground">Nenhum item vinculado ao pedido.</p>
-        </div>
+        <EmptyState icon={Package} title="Nenhum item vinculado ao pedido" />
       ) : (
         <ViewSection title={`Itens do Pedido (${itens.length})`}>
           <div className="space-y-2">
@@ -415,21 +407,24 @@ export function EntregaDrawer({ open, onClose, entrega }: EntregaDrawerProps) {
   const tabOcorrencias = (
     <div className="space-y-4">
       {temOcorrencia && (
-        <div className="rounded-lg border border-warning/40 bg-warning/5 p-4 flex gap-3">
-          <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
-          <div>
-            <p className="text-sm font-semibold text-warning mb-1">
-              {entrega.status_logistico === "ocorrencia" ? "Entrega com Ocorrência" : atrasado ? "Entrega em Atraso" : "Eventos de Atenção"}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {entrega.status_logistico === "ocorrencia"
-                ? "Esta entrega foi marcada com ocorrência. Verifique os eventos de rastreio e entre em contato com a transportadora."
-                : atrasado
-                  ? `Previsão de entrega era ${formatDate(entrega.previsao_entrega!)} e ainda não foi concluída.`
-                  : "Foram identificados eventos que podem indicar problemas na entrega."}
-            </p>
-          </div>
-        </div>
+        <DrawerStatusBanner
+          tone={entrega.status_logistico === "ocorrencia" || atrasado ? "destructive" : "warning"}
+          icon={AlertTriangle}
+          title={
+            entrega.status_logistico === "ocorrencia"
+              ? "Entrega com Ocorrência"
+              : atrasado
+                ? "Entrega em Atraso"
+                : "Eventos de Atenção"
+          }
+          description={
+            entrega.status_logistico === "ocorrencia"
+              ? "Esta entrega foi marcada com ocorrência. Verifique os eventos de rastreio e entre em contato com a transportadora."
+              : atrasado
+                ? `Previsão de entrega era ${formatDate(entrega.previsao_entrega!)} e ainda não foi concluída.`
+                : "Foram identificados eventos que podem indicar problemas na entrega."
+          }
+        />
       )}
 
       {ocorrencias.length > 0 ? (
@@ -448,13 +443,11 @@ export function EntregaDrawer({ open, onClose, entrega }: EntregaDrawerProps) {
           </div>
         </ViewSection>
       ) : (
-        <div className="rounded-lg border bg-muted/20 p-5 text-center">
-          <AlertTriangle className="h-6 w-6 mx-auto text-muted-foreground/40 mb-2" />
-          <p className="text-sm text-muted-foreground">Nenhuma ocorrência registrada.</p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Ocorrências como atraso, devolução e entrega parcial aparecerão aqui.
-          </p>
-        </div>
+        <EmptyState
+          icon={AlertTriangle}
+          title="Nenhuma ocorrência registrada"
+          description="Ocorrências como atraso, devolução e entrega parcial aparecerão aqui."
+        />
       )}
     </div>
   );
