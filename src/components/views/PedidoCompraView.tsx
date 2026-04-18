@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -9,7 +9,8 @@ import { usePublishDrawerSlots } from "@/contexts/RelationalDrawerSlotsContext";
 import { LogisticaRastreioSection } from "@/components/logistica/LogisticaRastreioSection";
 import { Progress } from "@/components/ui/progress";
 import { ViewField, ViewSection } from "@/components/ViewDrawer";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { Button } from "@/components/ui/button";
+import { useDetailFetch } from "@/hooks/useDetailFetch";
 import {
   Truck,
   CheckCircle2,
@@ -21,13 +22,13 @@ import {
   Boxes,
   Building2,
   Receipt,
+  Edit,
 } from "lucide-react";
 
 interface Props {
   id: string;
 }
 
-/** Minimal shape of a pedido_compra row with joined fornecedor */
 interface PedidoCompraRow {
   id: string;
   numero: string | null;
@@ -45,7 +46,6 @@ interface PedidoCompraRow {
   fornecedores: { id: string; nome_razao_social: string | null; cpf_cnpj: string | null } | null;
 }
 
-/** Minimal shape of a pedido_compra_item row with joined produto */
 interface PedidoItemRow {
   id: string;
   produto_id: string | null;
@@ -56,7 +56,6 @@ interface PedidoItemRow {
   produtos: { id: string; nome: string | null; sku: string | null; codigo_interno: string | null } | null;
 }
 
-/** Minimal shape of an estoque_movimento row */
 interface EstoqueMovRow {
   produto_id: string | null;
   quantidade: number | null;
@@ -65,7 +64,6 @@ interface EstoqueMovRow {
   produtos: { nome: string | null; codigo_interno: string | null } | null;
 }
 
-/** Minimal shape of a cotacao_compra row */
 interface CotacaoRow {
   id: string;
   numero: string;
@@ -73,66 +71,79 @@ interface CotacaoRow {
   data_cotacao: string;
 }
 
-/** Returns the item's total value, falling back from valor_total to subtotal. */
+interface PedidoCompraDetail {
+  pedido: PedidoCompraRow;
+  itens: PedidoItemRow[];
+  estoque: EstoqueMovRow[];
+  cotacao: CotacaoRow | null;
+}
+
 function itemValorTotal(i: PedidoItemRow): number {
   return Number(i.valor_total ?? i.subtotal ?? 0);
 }
 
+/**
+ * Returns the canonical "condição de pagamento" text from the row.
+ * The DB has historically used both `condicao_pagamento` and the legacy
+ * `condicoes_pagamento` column; we read both but ALWAYS write to the
+ * canonical singular form. Detail screens just need to display whichever
+ * is populated.
+ */
+function getCondicaoPagamento(p: PedidoCompraRow): string | null {
+  return p.condicao_pagamento ?? p.condicoes_pagamento ?? null;
+}
+
 export function PedidoCompraView({ id }: Props) {
-  const [selected, setSelected] = useState<PedidoCompraRow | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [fetchError, setFetchError] = useState<string | null>(null);
-  const [viewItems, setViewItems] = useState<PedidoItemRow[]>([]);
-  const [viewEstoque, setViewEstoque] = useState<EstoqueMovRow[]>([]);
-  const [viewCotacao, setViewCotacao] = useState<CotacaoRow | null>(null);
+  const navigate = useNavigate();
   const { pushView } = useRelationalNavigation();
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      setFetchError(null);
-      try {
-      const { data: p } = await supabase
-        .from("pedidos_compra")
-        .select("*, fornecedores(id, nome_razao_social, cpf_cnpj)")
-        .eq("id", id)
-        .single();
+  const { data, loading, error } = useDetailFetch<PedidoCompraDetail>(id, async (pId, signal) => {
+    const { data: p, error: pError } = await supabase
+      .from("pedidos_compra")
+      .select("*, fornecedores(id, nome_razao_social, cpf_cnpj)")
+      .eq("id", pId)
+      .abortSignal(signal)
+      .maybeSingle();
+    if (pError) throw pError;
+    if (!p) return null;
 
-      if (!p) { setLoading(false); return; }
-      setSelected(p as PedidoCompraRow);
+    const [itensResult, estResult] = await Promise.all([
+      supabase
+        .from("pedidos_compra_itens")
+        .select("*, produtos(id, nome, sku, codigo_interno)")
+        .eq("pedido_compra_id", p.id)
+        .abortSignal(signal),
+      supabase
+        .from("estoque_movimentos")
+        .select("*, produtos(nome, codigo_interno)")
+        .eq("documento_id", p.id)
+        .eq("documento_tipo", "pedido_compra")
+        .abortSignal(signal),
+    ]);
 
-      const [itensResult, estResult] = await Promise.all([
-        supabase
-          .from("pedidos_compra_itens")
-          .select("*, produtos(id, nome, sku, codigo_interno)")
-          .eq("pedido_compra_id", p.id),
-        supabase
-          .from("estoque_movimentos")
-          .select("*, produtos(nome, codigo_interno)")
-          .eq("documento_id", p.id)
-          .eq("documento_tipo", "pedido_compra"),
-      ]);
+    let cotacao: CotacaoRow | null = null;
+    if (p.cotacao_compra_id) {
+      const { data: cot } = await supabase
+        .from("cotacoes_compra")
+        .select("id, numero, status, data_cotacao")
+        .eq("id", p.cotacao_compra_id)
+        .abortSignal(signal)
+        .maybeSingle();
+      cotacao = (cot as CotacaoRow | null) ?? null;
+    }
 
-      setViewItems((itensResult.data || []) as PedidoItemRow[]);
-      setViewEstoque((estResult.data || []) as EstoqueMovRow[]);
-
-      if (p.cotacao_compra_id) {
-        const { data: cot } = await supabase
-          .from("cotacoes_compra")
-          .select("id, numero, status, data_cotacao")
-          .eq("id", p.cotacao_compra_id)
-          .single();
-        setViewCotacao(cot as CotacaoRow | null);
-      }
-      } catch (err: unknown) {
-        console.error("[PedidoCompraView] erro ao carregar:", err);
-        setFetchError(getUserFriendlyError(err));
-      }
-      setLoading(false);
+    return {
+      pedido: p as PedidoCompraRow,
+      itens: (itensResult.data || []) as PedidoItemRow[],
+      estoque: (estResult.data || []) as EstoqueMovRow[],
+      cotacao,
     };
+  });
 
-    fetchData();
-  }, [id]);
+  const selected = data?.pedido ?? null;
+  const viewItems = data?.itens ?? [];
+  const viewEstoque = data?.estoque ?? [];
+  const viewCotacao = data?.cotacao ?? null;
 
   const isOverdue = !!(
     selected &&
@@ -164,8 +175,8 @@ export function PedidoCompraView({ id }: Props) {
   const pctRecebimento = totalOrdenado > 0 ? Math.min(100, Math.round((totalRecebido / totalOrdenado) * 100)) : 0;
 
   const pedidoNum = selected?.numero || (selected ? `PC-${selected.id}` : "—");
+  const condicaoPagamento = selected ? getCondicaoPagamento(selected) : null;
 
-  // Publica slots no header padronizado
   usePublishDrawerSlots(`pedido_compra:${id}`, selected ? {
     breadcrumb: `Pedido de Compra · ${pedidoNum}`,
     summary: (
@@ -197,10 +208,25 @@ export function PedidoCompraView({ id }: Props) {
         </div>
       </div>
     ),
+    actions: (
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-8 gap-1.5 text-xs"
+        onClick={() => navigate(`/compras/pedidos/${selected.id}`)}
+      >
+        <Edit className="h-3.5 w-3.5" /> Editar
+      </Button>
+    ),
   } : {});
 
   if (loading) return <div className="p-8 text-center animate-pulse">Carregando pedido de compra...</div>;
-  if (fetchError) return <div className="p-8 text-center text-destructive">{fetchError}</div>;
+  if (error) return (
+    <div className="p-8 text-center text-destructive space-y-1">
+      <p className="font-semibold">Erro ao carregar dados</p>
+      <p className="text-xs text-muted-foreground">{error.message}</p>
+    </div>
+  );
   if (!selected) return <div className="p-8 text-center text-destructive">Pedido não encontrado</div>;
 
   return (
@@ -242,7 +268,7 @@ export function PedidoCompraView({ id }: Props) {
           <ViewSection title="Fornecedor">
             <ViewField label="Fornecedor">
               {selected.fornecedores?.id ? (
-                <RelationalLink onClick={() => pushView("fornecedor", selected.fornecedores.id)}>
+                <RelationalLink onClick={() => pushView("fornecedor", selected.fornecedores!.id)}>
                   {selected.fornecedores.nome_razao_social || "—"}
                 </RelationalLink>
               ) : (
@@ -299,7 +325,7 @@ export function PedidoCompraView({ id }: Props) {
                     <tr key={idx} className="border-b last:border-b-0 hover:bg-muted/20">
                       <td className="px-2 py-2">
                         <button
-                          onClick={() => pushView("produto", i.produtos?.id)}
+                          onClick={() => i.produtos?.id && pushView("produto", i.produtos.id)}
                           className="text-left hover:underline block truncate max-w-[120px]"
                         >
                           {i.produtos?.nome || "—"}
@@ -439,7 +465,7 @@ export function PedidoCompraView({ id }: Props) {
           <ViewSection title="Pagamento">
             <div className="grid grid-cols-2 gap-3">
               <ViewField label="Cond. Pagamento">
-                {selected.condicao_pagamento || selected.condicoes_pagamento || (
+                {condicaoPagamento || (
                   <span className="text-muted-foreground">Não informado</span>
                 )}
               </ViewField>
@@ -504,7 +530,7 @@ export function PedidoCompraView({ id }: Props) {
           <ViewSection title="Fornecedor">
             <ViewField label="Fornecedor">
               {selected.fornecedores?.id ? (
-                <RelationalLink onClick={() => pushView("fornecedor", selected.fornecedores.id)}>
+                <RelationalLink onClick={() => pushView("fornecedor", selected.fornecedores!.id)}>
                   <Building2 className="h-3.5 w-3.5" />
                   {selected.fornecedores.nome_razao_social || "—"}
                 </RelationalLink>
