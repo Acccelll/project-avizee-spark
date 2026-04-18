@@ -16,6 +16,7 @@ import {
   Settings2,
   LinkIcon,
 } from "lucide-react";
+import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSummaryCard";
 import { supabase } from "@/integrations/supabase/client";
 
 interface ContaContabil {
@@ -140,45 +141,37 @@ export function ContaContabilDrawer({
     : 0;
 
   const summary = (
-    <div className="grid grid-cols-4 gap-2">
-      <div className="rounded-lg border bg-card p-3 text-center space-y-1">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Nível
-        </p>
-        <p className="font-bold text-base text-foreground">{nivel}</p>
-      </div>
-      <div className="rounded-lg border bg-card p-3 text-center space-y-1">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Tipo
-        </p>
-        <Badge
-          variant={isAnalitica ? "default" : "secondary"}
-          className="text-[10px] px-1.5 gap-1"
-        >
-          {tipoIcon}
-          {tipoLabel}
-        </Badge>
-      </div>
-      <div className="rounded-lg border bg-card p-3 text-center space-y-1">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Lançamento
-        </p>
-        <Badge
-          variant={isAnalitica ? "default" : "outline"}
-          className="text-[10px] px-1.5"
-        >
-          {isAnalitica ? "Aceita" : "Não aceita"}
-        </Badge>
-      </div>
-      <div className="rounded-lg border bg-card p-3 text-center space-y-1">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Subcontas
-        </p>
-        <p className="font-bold text-base text-foreground">
-          {filhas.length > 0 ? filhas.length : "—"}
-        </p>
-      </div>
-    </div>
+    <DrawerSummaryGrid cols={4}>
+      <DrawerSummaryCard label="Nível" value={String(nivel)} mono={false} align="center" />
+      <DrawerSummaryCard
+        label="Tipo"
+        value={
+          <Badge variant={isAnalitica ? "default" : "secondary"} className="text-[10px] px-1.5 gap-1">
+            {tipoIcon}
+            {tipoLabel}
+          </Badge>
+        }
+        mono={false}
+        align="center"
+      />
+      <DrawerSummaryCard
+        label="Lançamento"
+        value={
+          <Badge variant={isAnalitica ? "default" : "outline"} className="text-[10px] px-1.5">
+            {isAnalitica ? "Aceita" : "Não aceita"}
+          </Badge>
+        }
+        mono={false}
+        align="center"
+      />
+      <DrawerSummaryCard
+        label="Subcontas"
+        value={filhas.length > 0 ? String(filhas.length) : "—"}
+        mono={false}
+        align="center"
+        tone={filhas.length > 0 ? "primary" : "neutral"}
+      />
+    </DrawerSummaryGrid>
   );
 
   const resumoTab = (
