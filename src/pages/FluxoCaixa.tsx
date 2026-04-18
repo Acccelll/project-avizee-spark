@@ -415,7 +415,7 @@ const FluxoCaixa = () => {
             }}>
               <FileDown className="w-3.5 h-3.5" /> Exportar
             </Button>
-            <Button size="sm" className="gap-2" onClick={() => setModalOpen(true)}>
+            <Button size="sm" className="gap-2" onClick={() => { setForm(buildEmptyForm()); setModalOpen(true); }}>
               <Plus className="w-3.5 h-3.5" /> Lançar
             </Button>
           </>
