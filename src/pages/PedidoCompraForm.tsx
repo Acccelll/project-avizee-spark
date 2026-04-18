@@ -208,54 +208,47 @@ export default function PedidoCompraForm() {
 
   if (loading) {
     return (
-      <><div className="flex items-center justify-center min-h-[60vh]">
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
-        </div>
-      </>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
+      </div>
     );
   }
 
   if (!pedido) return null;
 
   return (
-    <div className="max-w-5xl space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleBack}
-              aria-label="Voltar"
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold font-mono">{pedidoNumero(pedido)}</h1>
-                <StatusBadge
-                  status={pedido.status}
-                  label={statusPedidoCompra[pedido.status as keyof typeof statusPedidoCompra]?.label ?? pedido.status}
-                />
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Pedido em {formatDate(pedido.data_pedido)}
-                {pedido.fornecedores?.nome_razao_social && (
-                  <span className="ml-1">· {pedido.fornecedores.nome_razao_social}</span>
-                )}
-                {viewCotacao && (
-                  <span className="ml-1">· Cotação: <strong className="font-mono">{viewCotacao.numero}</strong></span>
-                )}
-              </p>
-            </div>
-          </div>
-          {!isTerminal && (
-            <Button onClick={handleSave} disabled={saving || !!dataEntregaError} className="gap-2">
-              <Save className="h-4 w-4" />
-              {saving ? "Salvando..." : "Salvar Alterações"}
-            </Button>
+    <PageShell
+      backTo={handleBack}
+      maxWidth="5xl"
+      title={
+        <span className="flex items-center gap-2">
+          <span className="font-mono">{pedidoNumero(pedido)}</span>
+          <StatusBadge
+            status={pedido.status}
+            label={statusPedidoCompra[pedido.status as keyof typeof statusPedidoCompra]?.label ?? pedido.status}
+          />
+        </span>
+      }
+      subtitle={
+        <>
+          Pedido em {formatDate(pedido.data_pedido)}
+          {pedido.fornecedores?.nome_razao_social && (
+            <span className="ml-1">· {pedido.fornecedores.nome_razao_social}</span>
           )}
-        </div>
+          {viewCotacao && (
+            <span className="ml-1">· Cotação: <strong className="font-mono">{viewCotacao.numero}</strong></span>
+          )}
+        </>
+      }
+      actions={
+        !isTerminal && (
+          <Button onClick={handleSave} disabled={saving || !!dataEntregaError} className="gap-2">
+            <Save className="h-4 w-4" />
+            {saving ? "Salvando..." : "Salvar Alterações"}
+          </Button>
+        )
+      }
+    >
 
         {isTerminal && (
           <div className="rounded-lg border border-warning/30 bg-warning/5 px-4 py-3 text-sm text-warning">
@@ -410,6 +403,6 @@ export default function PedidoCompraForm() {
           )}
         </div>
       {confirmDialog}
-    </div>
+    </PageShell>
   );
 }
