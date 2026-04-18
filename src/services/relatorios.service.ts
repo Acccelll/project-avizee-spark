@@ -696,8 +696,8 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
         .in("status", ["aberto", "parcial", "vencido"])
         .order("data_vencimento", { ascending: true });
       query = withDateRange(query, "data_vencimento", filtros);
-      if (filtros.clienteIds) query = query.in('cliente_id', filtros.clienteIds);
-      if (filtros.tiposFinanceiros) query = query.in('tipo', filtros.tiposFinanceiros);
+      if (filtros.clienteIds?.length) query = query.in('cliente_id', filtros.clienteIds);
+      if (filtros.tiposFinanceiros?.length) query = query.in('tipo', filtros.tiposFinanceiros);
       const { data, error } = await query;
 
       if (error) throw error;
