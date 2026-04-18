@@ -1,15 +1,21 @@
 /**
  * Página de detalhe de Nota Fiscal.
  * Rota: /fiscal/:id
+ *
+ * Shell mínimo que orquestra o NotaFiscalDrawer. O conteúdo (resumo, abas,
+ * itens, financeiro) vive dentro do drawer — esta página apenas fornece
+ * cabeçalho, navegação de volta e o ponto de entrada para reabrir o painel.
  */
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Edit, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ArrowLeft, Eye, Receipt, RefreshCw } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
+import { Button } from "@/components/ui/button";
+import { ListPageHeader } from "@/components/list/ListPageHeader";
 import { NotaFiscalDrawer } from "@/components/fiscal/NotaFiscalDrawer";
-import { toast } from "sonner";
+import { DetailLoading, DetailError, DetailEmpty } from "@/components/ui/DetailStates";
 import { getUserFriendlyError } from "@/utils/errorMessages";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useDetailFetch } from "@/hooks/useDetailFetch";
 import { useDetailActions } from "@/hooks/useDetailActions";
@@ -52,8 +58,8 @@ export default function FiscalDetail() {
   if (loading) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <div className="p-6">
+          <DetailLoading />
         </div>
       </AppLayout>
     );
@@ -62,13 +68,22 @@ export default function FiscalDetail() {
   if (error) {
     return (
       <AppLayout>
-        <div className="flex flex-col items-center justify-center h-64 gap-4">
-          <p className="text-destructive font-semibold">Erro ao carregar nota fiscal</p>
-          <p className="text-xs text-muted-foreground">{getUserFriendlyError(error)}</p>
-          <Button variant="outline" onClick={() => navigate("/fiscal")}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Voltar ao Fiscal
-          </Button>
+        <div className="p-6">
+          <DetailError
+            message={getUserFriendlyError(error)}
+            action={
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={() => navigate("/fiscal")}>
+                  <ArrowLeft className="h-4 w-4 mr-1.5" />
+                  Voltar
+                </Button>
+                <Button size="sm" onClick={() => reload()}>
+                  <RefreshCw className="h-4 w-4 mr-1.5" />
+                  Tentar novamente
+                </Button>
+              </div>
+            }
+          />
         </div>
       </AppLayout>
     );
@@ -77,86 +92,59 @@ export default function FiscalDetail() {
   if (!nf) {
     return (
       <AppLayout>
-        <div className="flex flex-col items-center justify-center h-64 gap-4">
-          <p className="text-muted-foreground">Nota fiscal não encontrada.</p>
-          <Button variant="outline" onClick={() => navigate("/fiscal")}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Voltar ao Fiscal
-          </Button>
+        <div className="p-6">
+          <DetailEmpty
+            title="Nota fiscal não encontrada"
+            message="O documento pode ter sido removido ou o link está incorreto."
+            action={
+              <Button size="sm" variant="outline" onClick={() => navigate("/fiscal")}>
+                <ArrowLeft className="h-4 w-4 mr-1.5" />
+                Voltar ao Fiscal
+              </Button>
+            }
+          />
         </div>
       </AppLayout>
     );
   }
 
+  const tipoLabel = nf.tipo === "entrada" ? "Entrada" : "Saída";
+  const contraparte =
+    nf.tipo === "entrada"
+      ? (nf as any).fornecedores?.nome_razao_social
+      : (nf as any).clientes?.nome_razao_social;
+
   return (
     <AppLayout>
-      <div className="p-6 space-y-4">
-        <div className="flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate("/fiscal")}
-            aria-label="Voltar para lista de notas fiscais"
-          >
-            <ArrowLeft className="h-4 w-4 mr-1.5" />
-            Voltar
-          </Button>
-          <span className="text-muted-foreground text-sm">/</span>
-          <span className="text-sm font-medium">NF {nf.numero}</span>
-          <div className="ml-auto">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setDrawerOpen(true)}
-              aria-label="Abrir detalhes da nota fiscal"
-              disabled={locked("delete")}
-            >
-              <Edit className="h-4 w-4 mr-1.5" />
-              Ver Detalhes
-            </Button>
-          </div>
-        </div>
-
-        <div className="rounded-lg border bg-muted/20 p-5 space-y-2 max-w-2xl">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">Nota Fiscal</p>
-              <p className="text-2xl font-bold font-mono text-primary">NF {nf.numero}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-xs text-muted-foreground">Valor Total</p>
-              <p className="text-xl font-bold font-mono">
-                {Number(nf.valor_total).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-              </p>
-            </div>
-          </div>
-          <div className="grid grid-cols-3 gap-3 text-sm pt-2 border-t">
-            <div>
-              <p className="text-xs text-muted-foreground">Tipo</p>
-              <p className="font-medium capitalize">{nf.tipo === "entrada" ? "Entrada" : "Saída"}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Status</p>
-              <p className="font-medium capitalize">{nf.status}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Emissão</p>
-              <p className="font-medium">
-                {nf.data_emissao ? new Date(nf.data_emissao).toLocaleDateString("pt-BR") : "—"}
-              </p>
-            </div>
-          </div>
-          <div className="pt-2">
-            <Button
-              className="w-full sm:w-auto"
-              onClick={() => setDrawerOpen(true)}
-              aria-label="Abrir painel de detalhes"
-              disabled={locked("delete")}
-            >
-              Abrir Detalhes Completos
-            </Button>
-          </div>
-        </div>
+      <div className="p-6">
+        <ListPageHeader
+          title={`NF ${nf.numero}`}
+          contextLine={
+            <span className="inline-flex items-center gap-1.5">
+              <Receipt className="h-3 w-3" />
+              Nota Fiscal · {tipoLabel}
+              {contraparte ? ` · ${contraparte}` : ""}
+            </span>
+          }
+          subtitle={
+            nf.data_emissao
+              ? `Emitida em ${new Date(nf.data_emissao).toLocaleDateString("pt-BR")}`
+              : undefined
+          }
+          primaryAction={{
+            label: "Abrir Detalhes",
+            icon: Eye,
+            onClick: () => setDrawerOpen(true),
+            disabled: locked("delete"),
+          }}
+          secondaryActions={[
+            {
+              label: "Voltar ao Fiscal",
+              icon: ArrowLeft,
+              onClick: () => navigate("/fiscal"),
+            },
+          ]}
+        />
       </div>
 
       <NotaFiscalDrawer
