@@ -18,6 +18,7 @@ import { usePublishDrawerSlots } from "@/contexts/RelationalDrawerSlotsContext";
 import { useDetailFetch } from "@/hooks/useDetailFetch";
 import { useDetailActions } from "@/hooks/useDetailActions";
 import { useInvalidateAfterMutation } from "@/hooks/useInvalidateAfterMutation";
+import { getUserFriendlyError } from "@/utils/errorMessages";
 import type {
   HistoricoNfItemRow,
   ComposicaoItemRow,
@@ -189,7 +190,7 @@ export function ProdutoView({ id }: Props) {
   });
 
   if (loading) return <div className="p-8 text-center animate-pulse">Carregando dados do produto...</div>;
-  if (fetchError) return <div className="p-8 text-center text-destructive space-y-1"><p className="font-semibold">Erro ao carregar dados</p><p className="text-xs text-muted-foreground">{fetchError}</p></div>;
+  if (error) return <div className="p-8 text-center text-destructive space-y-1"><p className="font-semibold">Erro ao carregar dados</p><p className="text-xs text-muted-foreground">{error.message}</p></div>;
   if (!selected) return <div className="p-8 text-center text-destructive">Produto não encontrado</div>;
 
   return (
