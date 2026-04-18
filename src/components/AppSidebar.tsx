@@ -253,7 +253,7 @@ export function AppSidebar({ collapsed, onToggleCollapsed, mobileOpen, onCloseMo
                       }`}
                     >
                       <Star className="h-3 w-3 shrink-0 fill-warning text-warning" />
-                     <span className="truncate">{item.label}</span>
+                     <span className="truncate">{item.title}</span>
                     </button>
                   );
                 })}
