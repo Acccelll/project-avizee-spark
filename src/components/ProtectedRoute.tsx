@@ -1,17 +1,16 @@
 import { ReactNode } from "react";
-import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
 import { FullPageSpinner } from "@/components/ui/spinner";
+import { useAuthGate } from "@/hooks/useAuthGate";
 
 export function ProtectedRoute({ children }: { children: ReactNode }) {
-  const { user, loading, permissionsLoaded } = useAuth();
+  const { status } = useAuthGate();
 
-  // Aguarda sessão + permissões antes de renderizar para evitar
-  // flashes de conteúdo ou redirects incorretos enquanto roles carregam.
-  if (loading || (user && !permissionsLoaded)) {
+  if (status === "loading") {
     return <FullPageSpinner label="Carregando sessão..." />;
   }
-
-  if (!user) return <Navigate to="/login" replace />;
-  return children;
+  if (status === "unauthenticated") {
+    return <Navigate to="/login" replace />;
+  }
+  return <>{children}</>;
 }

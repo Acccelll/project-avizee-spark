@@ -14,8 +14,8 @@ const DEV_PASSWORD = import.meta.env.VITE_DEV_PASSWORD as string | undefined;
 const showDevButton = Boolean(DEV_EMAIL && DEV_PASSWORD);
 
 export default function Login() {
-  const [email, setEmail] = useState("admin@avizee.com");
-  const [password, setPassword] = useState("admin123456");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});

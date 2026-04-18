@@ -2,6 +2,11 @@
  * Roles reconhecidos pela aplicação. Alinhado com o enum `app_role` do banco.
  * Definido aqui (e re-exportado em `AuthContext`) para evitar import cíclico
  * conceitual entre o contexto de auth e a matriz de permissões.
+ *
+ * **FONTE CANÔNICA**: A matriz `rolePermissionMatrix` abaixo é a única fonte
+ * de verdade para permissões padrão por papel. A tabela `role_permissions` no
+ * DB foi descontinuada (migration). Apenas `user_permissions` (overrides
+ * individuais, com suporte a allowed=false para revogação) permanece no DB.
  */
 export const APP_ROLES = ["admin", "vendedor", "financeiro", "estoquista"] as const;
 export type AppRole = (typeof APP_ROLES)[number];
@@ -23,12 +28,14 @@ export const ERP_RESOURCES = [
   "relatorios",
   "workbook",
   "apresentacao",
+  "social",
   "usuarios",
   "administracao",
 ] as const;
 
 export const ERP_ACTIONS = [
   "visualizar",
+  "visualizar_rentabilidade",
   "criar",
   "editar",
   "excluir",
@@ -44,6 +51,9 @@ export const ERP_ACTIONS = [
   "download",
   "editar_comentarios",
   "gerenciar_templates",
+  "configurar",
+  "sincronizar",
+  "gerenciar_alertas",
 ] as const;
 
 export type ErpResource = (typeof ERP_RESOURCES)[number];
@@ -81,6 +91,11 @@ const rolePermissionMatrix: Record<AppRole, PermissionKey[]> = {
     "pedidos:editar",
     "logistica:visualizar",
     "relatorios:visualizar",
+    "social:visualizar",
+    "social:configurar",
+    "social:sincronizar",
+    "social:exportar",
+    "social:gerenciar_alertas",
   ],
   financeiro: [
     "dashboard:visualizar",
@@ -96,6 +111,9 @@ const rolePermissionMatrix: Record<AppRole, PermissionKey[]> = {
     "apresentacao:editar_comentarios",
     "apresentacao:download",
     "apresentacao:aprovar",
+    "social:visualizar",
+    "social:exportar",
+    "orcamentos:visualizar_rentabilidade",
   ],
   estoquista: [
     "dashboard:visualizar",
@@ -117,10 +135,31 @@ export function getRolePermissions(role: string): PermissionKey[] {
   return rolePermissionMatrix[role as AppRole] || [];
 }
 
-export function buildPermissionSet(roles: AppRole[], extraPermissions: PermissionKey[] = []): Set<PermissionKey> {
+/**
+ * Constrói o conjunto consolidado de permissões para um usuário.
+ *
+ * Precedência:
+ *  1. Permissões do(s) papel(éis) (rolePermissionMatrix)
+ *  2. `extraPermissions.allow` (concedidas individualmente)
+ *  3. `extraPermissions.deny` (revogadas individualmente — sempre vencem)
+ *
+ * Aceita tanto a forma legada (array `PermissionKey[]` = só allow) quanto a
+ * nova `{ allow, deny }` para suportar revogação granular via `user_permissions.allowed=false`.
+ */
+export function buildPermissionSet(
+  roles: AppRole[],
+  extraPermissions: PermissionKey[] | { allow: PermissionKey[]; deny: PermissionKey[] } = []
+): Set<PermissionKey> {
   const merged = new Set<PermissionKey>();
   roles.forEach((role) => getRolePermissions(role).forEach((permission) => merged.add(permission)));
-  extraPermissions.forEach((permission) => merged.add(permission));
+
+  const isShape = Array.isArray(extraPermissions);
+  const allow = isShape ? extraPermissions : extraPermissions.allow;
+  const deny = isShape ? [] : extraPermissions.deny;
+
+  allow.forEach((permission) => merged.add(permission));
+  deny.forEach((permission) => merged.delete(permission));
+
   return merged;
 }
 
