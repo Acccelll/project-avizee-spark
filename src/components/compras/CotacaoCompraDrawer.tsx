@@ -82,6 +82,7 @@ export function CotacaoCompraDrawer({
     <ViewDrawerV2
       open={open}
       onClose={onClose}
+      variant="operational"
       title={selected?.numero ?? "Cotação de Compra"}
       badge={selected ? <StatusBadge status={selected.status} label={statusLabels[selected.status] || selected.status} /> : undefined}
       actions={
