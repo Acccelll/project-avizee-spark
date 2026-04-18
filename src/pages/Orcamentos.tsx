@@ -333,17 +333,17 @@ const Orcamentos = () => {
       render: (o: Orcamento) => (
         <div className="flex items-center gap-1">
           {o.status === "rascunho" && (
-            <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={(e) => { e.stopPropagation(); handleSendForApproval(o); }}>
+            <Button size="sm" variant="outline" className="h-7 text-xs gap-1" disabled={sendLock.pending} onClick={(e) => { e.stopPropagation(); handleSendForApproval(o); }}>
               <Send className="w-3 h-3" /> Enviar
             </Button>
           )}
           {o.status === "confirmado" && (
-            <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={(e) => { e.stopPropagation(); handleApprove(o); }} disabled={!isAdmin} title={!isAdmin ? "Somente admins podem aprovar" : ""}>
+            <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={(e) => { e.stopPropagation(); handleApprove(o); }} disabled={!isAdmin || approveLock.pending} title={!isAdmin ? "Somente admins podem aprovar" : ""}>
               <CheckCircle className="w-3 h-3" /> Aprovar
             </Button>
           )}
           {o.status === "aprovado" && (
-            <Button size="sm" variant="default" className="h-7 text-xs gap-1" onClick={(e) => { e.stopPropagation(); setConvertingId(o.id); }}>
+            <Button size="sm" variant="default" className="h-7 text-xs gap-1" disabled={convertLock.pending} onClick={(e) => { e.stopPropagation(); setConvertingId(o.id); }}>
               <ArrowRightCircle className="w-3 h-3" /> Gerar Pedido
             </Button>
           )}
@@ -409,7 +409,7 @@ const Orcamentos = () => {
           searchPlaceholder="Buscar por número da cotação ou cliente..."
           activeFilters={orcActiveFilters}
           onRemoveFilter={handleRemoveOrcFilter}
-          onClearAll={() => { setStatusFilters([]); setClienteFilters([]); setValidadeFilters([]); setDataInicio(""); setDataFim(""); }}
+          onClearAll={() => { setStatusFilters([]); setClienteFilters([]); setValidadeFilters([]); setDataInicio(""); setDataFim(""); setSearchTerm(""); }}
           count={filteredData.length}
         >
           <MultiSelect
