@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useMemo } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useUserPreference } from '@/hooks/useUserPreference';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -11,14 +11,11 @@ import {
 } from 'lucide-react';
 import logoAvizee from '@/assets/logoavizee.png';
 import { Button } from '@/components/ui/button';
-import { navSections, dashboardItem, isPathActive } from '@/lib/navigation';
-import { useIsAdmin } from '@/hooks/useIsAdmin';
+import { dashboardItem, flatNavItems, isPathActive, type NavSectionKey } from '@/lib/navigation';
 import { useSidebarAlerts } from '@/hooks/useSidebarAlerts';
 import { useAuth } from '@/contexts/AuthContext';
-import { getSocialPermissionFlags } from '@/types/social';
 import { useFavoritos } from '@/hooks/useFavoritos';
-import { NAVIGATION_ITEMS } from '@/config/navigation.config';
-import type { ErpResource } from '@/lib/permissions';
+import { useVisibleNavSections } from '@/hooks/useVisibleNavSections';
 
 interface AppSidebarProps {
   collapsed: boolean;
@@ -32,24 +29,23 @@ export function AppSidebar({ collapsed, onToggleCollapsed, mobileOpen, onCloseMo
   const location = useLocation();
   const navigate = useNavigate();
   const currentRoute = `${location.pathname}${location.search}`;
-  const { isAdmin } = useIsAdmin();
-  const { roles, can, permissionsLoaded, user } = useAuth();
-  const socialPermissions = useMemo(() => getSocialPermissionFlags(roles), [roles]);
+  const { user } = useAuth();
   const alerts = useSidebarAlerts();
   const { favoritos, toggleFavorito, isFavorito } = useFavoritos();
+  const visibleSections = useVisibleNavSections();
   const secondsSinceSync = alerts.lastUpdatedAt
     ? Math.max(0, Math.floor((Date.now() - new Date(alerts.lastUpdatedAt).getTime()) / 1000))
     : null;
 
   // Module-level badge counts (shown on the collapsed/header button of each section)
-  const badgeMap: Record<string, number> = useMemo(() => ({
+  const badgeMap: Partial<Record<NavSectionKey, number>> = useMemo(() => ({
     financeiro: alerts.financeiroVencidos + alerts.financeiroVencer,
     estoque: alerts.estoqueBaixo,
     comercial: alerts.orcamentosPendentes,
   }), [alerts]);
 
   // Module-level badge tone: danger when overdue items exist, otherwise warning/info
-  const badgeToneMap: Record<string, 'danger' | 'warning' | 'info'> = useMemo(() => ({
+  const badgeToneMap: Partial<Record<NavSectionKey, 'danger' | 'warning' | 'info'>> = useMemo(() => ({
     financeiro: alerts.financeiroVencidos > 0 ? 'danger' : 'info',
     estoque: 'danger',
     comercial: 'warning',
@@ -65,57 +61,32 @@ export function AppSidebar({ collapsed, onToggleCollapsed, mobileOpen, onCloseMo
     '/estoque': { count: alerts.estoqueBaixo, tone: 'danger' },
   }), [alerts]);
 
-  // Filter out admin-only sections for non-admin users
-  const visibleSections = useMemo(() => {
-    const withoutAdmin = isAdmin ? navSections : navSections.filter((s) => s.key !== 'administracao');
-
-    // Map each section to ALL resources it provides access to.
-    // A section is visible when the user can visualizar ANY of its resources.
-    const sectionResourcesMap: Record<string, ErpResource[]> = {
-      cadastros: ['produtos', 'clientes', 'fornecedores', 'transportadoras', 'formas_pagamento'],
-      comercial: ['orcamentos', 'pedidos'],
-      compras: ['compras'],
-      estoque: ['estoque', 'logistica'],
-      financeiro: ['financeiro'],
-      fiscal: ['faturamento_fiscal'],
-      relatorios: ['relatorios'],
-      administracao: ['administracao'],
-      social: ['dashboard'],
-    };
-
-    // Only fall back to showing all sections when permissions have been confirmed
-    // loaded for the current user and no roles exist (e.g. a genuinely role-less
-    // legacy user). While fetches are still in-flight (permissionsLoaded=false) or
-    // after a fetch error, keep the normal access check so restricted sections
-    // are not exposed during the bootstrap window.
-    // This is safe because individual pages and Supabase RLS enforce their own
-    // access controls — the sidebar only exposes navigation links, not data.
-    const hasRecognizedRoles = roles.length > 0;
-
-    return withoutAdmin
-      .filter((s) => socialPermissions.canViewModule || s.key !== 'social')
-      .filter((s) => {
-        if (permissionsLoaded && !hasRecognizedRoles) return true;
-        const resources = sectionResourcesMap[s.key];
-        if (!resources || resources.length === 0) return true;
-        return resources.some((resource) => can(resource, 'visualizar'));
-      });
-  }, [isAdmin, socialPermissions.canViewModule, can, roles, permissionsLoaded]);
-
-  const isItemActive = (targetPath: string) => {
-    const [targetBase, targetQuery] = targetPath.split('?');
-    if (targetQuery) return currentRoute === targetPath;
-    return location.pathname === targetBase || location.pathname.startsWith(`${targetBase}/`);
-  };
+  /**
+   * Active-state matcher for a leaf item.
+   *  - Items WITHOUT query (e.g. `/orcamentos`): active on the path or any nested path.
+   *  - Items WITH query (e.g. `/fiscal?tipo=entrada`): active only on exact match,
+   *    so sibling tabs don't both light up.
+   */
+  const isItemActive = useCallback(
+    (targetPath: string) => {
+      const [targetBase, targetQuery] = targetPath.split('?');
+      if (targetQuery) return currentRoute === targetPath;
+      return location.pathname === targetBase || location.pathname.startsWith(`${targetBase}/`);
+    },
+    [currentRoute, location.pathname],
+  );
 
   const { value: manualSections, save: saveManualSections } = useUserPreference<Record<string, boolean>>(
     user?.id ?? null,
     'sidebar_sections_state',
     {},
   );
-  const setManualSections = (updater: (prev: Record<string, boolean>) => Record<string, boolean>) => {
-    void saveManualSections(updater(manualSections ?? {}));
-  };
+  const setManualSections = useCallback(
+    (updater: (prev: Record<string, boolean>) => Record<string, boolean>) => {
+      void saveManualSections(updater(manualSections ?? {}));
+    },
+    [manualSections, saveManualSections],
+  );
 
   const moduleBadgeClass = {
     danger: 'bg-destructive text-destructive-foreground',
@@ -129,23 +100,50 @@ export function AppSidebar({ collapsed, onToggleCollapsed, mobileOpen, onCloseMo
     info: 'bg-primary text-primary-foreground',
   };
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  /**
+   * Section keys whose subtree contains (or directly maps to) the current route.
+   * Drives both the module-level "active" highlight and automatic expansion.
+   */
   const activeSectionKeys = useMemo(
     () =>
       visibleSections
         .filter((section) => {
-          // Direct-path sections are active when the pathname matches their directPath
           if (section.directPath) {
             return isPathActive(location.pathname, section.directPath);
           }
-          return section.items.some((group) => group.items.some((item) => isItemActive(item.path)));
+          return section.items.some((group) =>
+            group.items.some((item) => {
+              const base = item.path.split('?')[0];
+              return location.pathname === base || location.pathname.startsWith(`${base}/`);
+            }),
+          );
         })
         .map((section) => section.key),
-    [currentRoute, visibleSections],
+    [location.pathname, visibleSections],
   );
 
+  /**
+   * When the user navigates into a section they had previously collapsed manually,
+   * clear the manual override so the matching submenu re-opens. Otherwise the user
+   * lands on `/orcamentos` with "Comercial" still hidden — confusing for an ERP.
+   */
+  const lastPathnameRef = useRef(location.pathname);
+  useEffect(() => {
+    if (lastPathnameRef.current === location.pathname) return;
+    lastPathnameRef.current = location.pathname;
+    if (activeSectionKeys.length === 0) return;
+    const current = manualSections ?? {};
+    const overridesToClear = activeSectionKeys.filter((key) => current[key] === false);
+    if (overridesToClear.length === 0) return;
+    setManualSections((prev) => {
+      const next = { ...prev };
+      for (const key of overridesToClear) delete next[key];
+      return next;
+    });
+  }, [location.pathname, activeSectionKeys, manualSections, setManualSections]);
+
   const favoritedItems = useMemo(
-    () => NAVIGATION_ITEMS.filter((item) => favoritos.includes(item.path)),
+    () => flatNavItems.filter((item) => favoritos.includes(item.path)),
     [favoritos],
   );
 
@@ -163,10 +161,11 @@ export function AppSidebar({ collapsed, onToggleCollapsed, mobileOpen, onCloseMo
   const isInsideAdminModule = location.pathname === '/administracao' ||
     location.pathname.startsWith('/administracao/');
 
-  const isSectionOpen = (key: string) => {
+  const isSectionOpen = (key: NavSectionKey) => {
     if (collapsed) return false;
     if (key === 'administracao' && isInsideAdminModule) return false;
-    if (key in manualSections) return manualSections[key];
+    const overrides = manualSections ?? {};
+    if (key in overrides) return overrides[key];
     return activeSectionKeys.includes(key);
   };
 
