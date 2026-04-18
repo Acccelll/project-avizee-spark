@@ -829,6 +829,7 @@ export default function FormasPagamento() {
           </div>
         )}
       </ConfirmDialog>
+      {confirmDialog}
     </AppLayout>
   );
 }
