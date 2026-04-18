@@ -459,8 +459,13 @@ const Clientes = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname, location.search, location.state]);
 
-  const openCreate = () => {setMode("create");setForm({ ...emptyCliente });setSelected(null);setIsDirty(false);setModalTransportadoras([]);setEnderecos([]);setComunicacoes([]);setModalOpen(true);};
+  const openCreate = () => {
+    loadTokenRef.current += 1;
+    setMode("create");setForm({ ...emptyCliente });setSelected(null);setIsDirty(false);
+    setModalTransportadoras([]);setEnderecos([]);setComunicacoes([]);setModalOpen(true);
+  };
   const openEdit = (c: Cliente) => {
+    const token = ++loadTokenRef.current;
     setMode("edit");setSelected(c);
     setForm({
       tipo_pessoa: c.tipo_pessoa || "J", nome_razao_social: c.nome_razao_social, nome_fantasia: c.nome_fantasia || "",
@@ -479,10 +484,10 @@ const Clientes = () => {
     setModalTransportadoras([]);
     setEnderecos([]);
     setComunicacoes([]);
-    Promise.all([
-      loadTransportadoras(c.id),
-      loadEnderecos(c.id),
-      loadComunicacoes(c.id),
+    void Promise.all([
+      loadTransportadoras(c.id, token),
+      loadEnderecos(c.id, token),
+      loadComunicacoes(c.id, token),
     ]);
     setModalOpen(true);
   };
