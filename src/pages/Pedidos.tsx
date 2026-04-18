@@ -179,28 +179,33 @@ const Pedidos = () => {
   };
 
   const handleRequestGenerateNF = async (pedido: Pedido) => {
-    const { data: items } = await supabase
-      .from("ordens_venda_itens")
-      .select("*, produtos(nome, estoque_atual)")
-      .eq("ordem_venda_id", pedido.id);
+    if (stockCheckPending || generatingNfId) return; // prevent double-click
+    setStockCheckPending(true);
+    try {
+      const { data: items } = await supabase
+        .from("ordens_venda_itens")
+        .select("*, produtos(nome, estoque_atual)")
+        .eq("ordem_venda_id", pedido.id);
 
-    const itemsWithShortfall = (items || [])
-      .filter((i) => {
-        const estoqueAtual = Number(i.produtos?.estoque_atual ?? 0);
-        return estoqueAtual < Number(i.quantidade);
-      })
-      .map((i) => ({
-        produto: i.produtos?.nome || `Produto ${i.produto_id}`,
-        falta: Number(i.quantidade) - Number(i.produtos?.estoque_atual ?? 0),
-      }));
+      const itemsWithShortfall = (items || [])
+        .filter((i) => {
+          const estoqueAtual = Number(i.produtos?.estoque_atual ?? 0);
+          return estoqueAtual < Number(i.quantidade);
+        })
+        .map((i) => ({
+          produto: i.produtos?.nome || `Produto ${i.produto_id}`,
+          falta: Number(i.quantidade) - Number(i.produtos?.estoque_atual ?? 0),
+        }));
 
-    if (itemsWithShortfall.length > 0) {
-      setInsufficientStock(itemsWithShortfall);
-      setShowStockAlert(true);
+      if (itemsWithShortfall.length > 0) {
+        setInsufficientStock(itemsWithShortfall);
+        setShowStockAlert(true);
+      } else {
+        setInsufficientStock([]);
+      }
       setGeneratingNfId(pedido.id);
-    } else {
-      setInsufficientStock([]);
-      setGeneratingNfId(pedido.id);
+    } finally {
+      setStockCheckPending(false);
     }
   };
 
