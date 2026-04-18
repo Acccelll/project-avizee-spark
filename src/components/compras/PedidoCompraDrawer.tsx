@@ -6,6 +6,8 @@ import { ViewField, ViewSection } from "@/components/ViewDrawer";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { StatusBadge } from "@/components/StatusBadge";
 import { RelationalLink } from "@/components/ui/RelationalLink";
+import { useActionLock } from "@/hooks/useActionLock";
+import { getPedidoCompraPermissions, isVencido } from "@/lib/drawerPermissions";
 
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -78,13 +80,18 @@ export function PedidoCompraDrawer({
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectMotivo, setRejectMotivo] = useState("");
 
-  // Comparação por string YYYY-MM-DD evita bugs de timezone que ocorriam
-  // ao usar `new Date(prevista) < new Date()` (UTC vs local).
-  const todayIso = new Date().toISOString().slice(0, 10);
+  const { pending: sendPending, run: runSend } = useActionLock();
+  const { pending: receivePending, run: runReceive } = useActionLock();
+  const { pending: cancelPending, run: runCancel } = useActionLock();
+  const { pending: solicitarPending, run: runSolicitar } = useActionLock();
+  const { pending: aprovarPending, run: runAprovar } = useActionLock();
+  const { pending: rejeitarPending, run: runRejeitar } = useActionLock();
+
+  if (!open || !selected) return null;
+
   const isOverdue =
     !["recebido", "cancelado"].includes(selected.status) &&
-    !!selected.data_entrega_prevista &&
-    String(selected.data_entrega_prevista).slice(0, 10) < todayIso;
+    isVencido(selected.data_entrega_prevista);
 
   const recebimentoStatus = (() => {
     if (selected.status === "recebido") return { label: "Recebido", color: "success" };
@@ -518,15 +525,14 @@ export function PedidoCompraDrawer({
     </div>
   );
 
-  const canReceive = ["aprovado", "enviado_ao_fornecedor", "aguardando_recebimento", "parcialmente_recebido", "recebido_parcial"].includes(
-    selected.status,
-  );
+  const perms = getPedidoCompraPermissions({ status: selected.status, ativo: true }, !!isAdmin);
+  // Mantém regras locais detalhadas (status com mais variações que helper genérico)
+  const canReceive = ["aprovado", "enviado_ao_fornecedor", "aguardando_recebimento", "parcialmente_recebido", "recebido_parcial"].includes(selected.status);
   const canSend = selected.status === "aprovado";
-  const canCancel = ["rascunho", "aprovado", "enviado_ao_fornecedor", "aguardando_recebimento"].includes(
-    selected.status,
-  );
+  const canCancel = ["rascunho", "aprovado", "enviado_ao_fornecedor", "aguardando_recebimento"].includes(selected.status);
   const canSolicitarAprovacao = selected.status === "rascunho" && !!onSolicitarAprovacao;
   const canApproveReject = selected.status === "aguardando_aprovacao" && !!isAdmin;
+  void perms;
 
   const drawerFooter =
     canReceive || canSend || canCancel || canSolicitarAprovacao || canApproveReject ? (
@@ -537,6 +543,7 @@ export function PedidoCompraDrawer({
               variant="outline"
               size="sm"
               className="gap-2 text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
+              disabled={cancelPending}
               onClick={() => setCancelConfirmOpen(true)}
             >
               <XCircle className="w-4 h-4" /> Cancelar pedido
@@ -546,7 +553,7 @@ export function PedidoCompraDrawer({
         right={
           <>
             {canSolicitarAprovacao && (
-              <Button variant="outline" size="sm" className="gap-2" onClick={() => onSolicitarAprovacao!(selected)}>
+              <Button variant="outline" size="sm" className="gap-2" disabled={solicitarPending} onClick={() => runSolicitar(() => onSolicitarAprovacao!(selected))}>
                 <Clock className="w-4 h-4" /> Solicitar aprovação
               </Button>
             )}
@@ -556,22 +563,23 @@ export function PedidoCompraDrawer({
                   variant="outline"
                   size="sm"
                   className="gap-2 text-destructive border-destructive/30 hover:text-destructive"
+                  disabled={rejeitarPending}
                   onClick={() => { setRejectMotivo(""); setRejectOpen(true); }}
                 >
                   <XCircle className="w-4 h-4" /> Rejeitar
                 </Button>
-                <Button size="sm" className="gap-2" onClick={() => onAprovar!(selected)}>
+                <Button size="sm" className="gap-2" disabled={aprovarPending} onClick={() => runAprovar(() => onAprovar!(selected))}>
                   <CheckCircle2 className="w-4 h-4" /> Aprovar
                 </Button>
               </>
             )}
             {canSend && (
-              <Button variant="outline" size="sm" className="gap-2" onClick={() => onSend(selected)}>
+              <Button variant="outline" size="sm" className="gap-2" disabled={sendPending} onClick={() => runSend(() => onSend(selected))}>
                 <SendHorizontal className="w-4 h-4" /> Marcar como Enviado
               </Button>
             )}
             {canReceive && (
-              <Button size="sm" className="gap-2" onClick={() => onReceive(selected)}>
+              <Button size="sm" className="gap-2" disabled={receivePending} onClick={() => runReceive(() => onReceive(selected))}>
                 <PackageCheck className="w-4 h-4" /> Registrar Recebimento
               </Button>
             )}
@@ -650,7 +658,7 @@ export function PedidoCompraDrawer({
         onClose={() => setCancelConfirmOpen(false)}
         onConfirm={() => {
           setCancelConfirmOpen(false);
-          onCancel(selected);
+          runCancel(() => onCancel(selected));
         }}
         title="Cancelar pedido de compra"
         description={`Cancelar o pedido ${pedidoNumero(selected)}? Esta ação não pode ser desfeita.`}
@@ -663,7 +671,7 @@ export function PedidoCompraDrawer({
         onConfirm={() => {
           if (!rejectMotivo.trim()) return;
           setRejectOpen(false);
-          onRejeitar?.(selected, rejectMotivo.trim());
+          runRejeitar(() => onRejeitar?.(selected, rejectMotivo.trim()));
         }}
         title="Rejeitar pedido"
         description={`Informe o motivo da rejeição do pedido ${pedidoNumero(selected)}:`}
