@@ -1,180 +1,181 @@
 
 
-# Diagnóstico visual — Navegação (sidebar, submenus, mobile, breadcrumbs)
+# Diagnóstico técnico — Shell global do sistema
 
-## Inventário visual atual
+## Inventário do shell
 
-| Superfície | Estado |
-|---|---|
-| Sidebar desktop | Header logo + busca + Favoritos + Dashboard + 9 seções + Footer Configurações |
-| Sidebar colapsada (72px) | Apenas ícones, com badge de módulo flutuante |
-| Submenu expandido | Indentação `ml-3 + border-l`, items `text-[13px]`, ativo `bg-primary/10 text-primary` |
-| Item ativo módulo | Apenas `text-primary` (sem fundo, sem barra) |
-| Item ativo Dashboard/Footer | `bg-primary text-primary-foreground` (sólido — destoa) |
-| Mobile bottom nav | 4 tabs + Menu |
-| Mobile drawer (MobileMenu) | Cards com `border` por seção |
-| Breadcrumbs | Sempre visíveis no AppHeader desktop |
-
-## Problemas visuais reais encontrados
-
-### 1. **Hierarquia ativo confusa — 3 estilos coexistem**
-- Dashboard / Configurações usam `.sidebar-item-active` = **fundo primary sólido + texto branco** (chamativo, parece "principal").
-- Header de seção ativo usa apenas `text-primary` (sem fundo, sem barra lateral) → **subutilizado, mal sinalizado**.
-- Item de submenu ativo usa `bg-primary/10 text-primary` (suave).
-- Favorito ativo usa `bg-primary/10 text-primary`.
-
-Resultado: Dashboard sempre "grita" mesmo quando não é o foco; o header de seção (módulo atual) quase desaparece.
-
-### 2. **Sem indicador de seção ativa quando o submenu está aberto**
-Quando o usuário está em `/clientes` (Cadastros aberto), o **header "Cadastros"** muda só a cor do texto. Falta um indicador permanente (barra lateral, fundo sutil) que diga "este é o módulo atual".
-
-### 3. **Item ativo do submenu sem barra lateral**
-A border-l do container é uniforme/cinza. O item ativo só ganha pill colorido. Em ERPs maduros, a barra lateral colorida acompanha o item ativo, ancorando visualmente "você está aqui".
-
-### 4. **Densidade desbalanceada**
-- `.sidebar-item` (Dashboard/Config): `py-2.5`
-- Header de seção: `py-2`
-- Item de submenu: `py-1.5`
-- Favorito: `py-1.5`
-Diferenças visíveis. O Dashboard fica mais alto que tudo.
-
-### 5. **Ícones sem peso consistente**
-- Headers de seção: `h-[18px]`
-- Dashboard/Config (sidebar-item): `h-5 w-5`
-- Favorito: `h-3`
-- Submenu: sem ícone
-Tamanhos pulam de 12px a 20px sem padrão.
-
-### 6. **Submenu sem ícones secundários**
-Itens de submenu (Clientes, Produtos, Orçamentos…) **não têm ícone**, apenas texto. Em sidebars de ERP, ícones discretos de 14px ajudam o scan rápido. Hoje a leitura é puramente textual.
-
-### 7. **Favoritos: estrela ocupa o espaço do ícone**
-`<Star className="h-3 w-3 fill-warning">` — a estrela é tanto marcador "favorito" quanto faz papel de ícone do item. O usuário perde o vínculo visual com o módulo de origem (Cliente vs Produto vs Orçamento parecem iguais na lista de favoritos).
-
-### 8. **Star button atrapalha alinhamento**
-O botão de favoritar usa `opacity-0 group-hover:opacity-100` e fica **fora** do botão principal. Empurra o badge para a esquerda, gera reflow visual no hover.
-
-### 9. **Header da sidebar pesado**
-Logo (36px) + título "AviZee" + chip "ERP" + botão chevron — 4 elementos numa barra de 64px. Pode-se simplificar (logo + título; chevron menor).
-
-### 10. **Search button visualmente solto**
-`border bg-background` num bloco isolado entre logo e nav. Parece um input de formulário no meio da sidebar. Faltam linhas-guia (ou virar item parte do header).
-
-### 11. **Badge inconsistente entre módulo e item**
-- Módulo: `h-5 min-w-5 rounded-full text-[10px] font-bold`
-- Item: `h-5 min-w-5 rounded-full text-[10px] font-semibold`
-- Colapsado: `h-4 min-w-4 text-[9px]` flutuando no canto
-Pequenas mas notáveis. Padronizar em um único token.
-
-### 12. **Footer sem separação clara**
-Apenas `border-t`. Texto "Última sincronização" ocupa espaço sem hierarquia. Botão Configurações usa o estilo "ativo agressivo" do Dashboard.
-
-### 13. **Mobile MobileMenu — cards excessivos**
-Cada seção é um `rounded-2xl border bg-card/70 p-4`. Resultado: muitos retângulos empilhados, parece lista de cards de produto, não menu. Hierarquia visual perdida; rolagem cansativa.
-
-### 14. **MobileBottomNav — texto pequeno e ícones genéricos**
-4 tabs com label `text-[11px]` (verificar). Sem indicador de tab ativo que respire (geralmente uma pill ou underline).
-
-### 15. **Breadcrumbs no AppHeader sem ícone do módulo**
-Mostra "Dashboard / Cadastros / Clientes" puro texto. O ícone do módulo (Users) ajuda muito a ancorar. Hoje só aparece como "page icon" do header (à parte).
-
-### 16. **Tipografia tracking muito agressiva nos headers de seção**
-`tracking-[0.2em]` + `text-[10px]` uppercase em "Favoritos" e nos títulos de grupo dentro do submenu. Em sidebar densa fica ilegível, parece código.
-
-## Estratégia visual
-
-**Princípio:** Reorganizar a hierarquia ativo (sutil → forte) e padronizar densidade/ícones. Sem refazer arquitetura.
-
-### Fase 1 — Sistema de estados ativo (novo padrão)
-
-Reescala em 3 níveis bem definidos:
-
-| Nível | Onde | Visual |
+| Camada | Responsável | Observações |
 |---|---|---|
-| **Item folha ativo** | Submenu / Favorito / Dashboard / Config | Barra lateral 2px primary à esquerda + `bg-primary/10` + `text-primary font-medium` |
-| **Seção ativa (header de módulo)** | Header de uma seção que contém a rota atual | `bg-primary/5` + `text-primary` + ícone primary |
-| **Hover** | Qualquer item | `bg-accent text-foreground` |
+| Providers globais | `App.tsx` | QueryClient, Theme, Tooltip, Sonner, RelationalNav, Auth, AppConfig, ErrorBoundary |
+| Layout global | `AppLayout.tsx` | Sidebar + Header + main + RelationalDrawerStack + MobileMenu/Bottom/Quick |
+| Topbar | `AppHeader.tsx` | breadcrumbs, busca, "Novo", notificações, tema, conta + hotkeys globais |
+| Sidebar | `AppSidebar.tsx` + `sidebar/*` | refatorado em fases anteriores (ok) |
+| Breadcrumbs | `AppBreadcrumbs.tsx` | dropdown de irmãos, ícone do módulo |
+| Drawer global | `RelationalDrawerStack` | renderizado no AppLayout (ok) |
+| Banner offline | `OfflineBanner` | renderizado FORA do `<BrowserRouter>` |
+| Skip link | `SkipLink.tsx` | **não usado** — AppLayout reimplementa inline |
 
-Resultado: Dashboard e Configurações **deixam de usar fundo sólido primary** (que parecia "selecionado de menu superior"); ganham o mesmo tratamento dos demais itens-folha. Hierarquia coerente.
+## Problemas reais encontrados
 
-### Fase 2 — Densidade e tipografia padronizadas
+### 1. Cada página re-renderiza o shell inteiro (acoplamento crítico)
+**39 páginas** importam `AppLayout` e o renderizam no JSX (`<AppLayout>{...}</AppLayout>`). A consequência:
+- Sidebar, AppHeader, MobileMenu, Bottom Nav e RelationalDrawerStack **desmontam e remontam a cada troca de rota**.
+- Hotkeys globais re-registram listeners; `useUserPreference('sidebar_collapsed')` refaz o fetch ao Supabase; o estado do menu mobile (`mobileMenuOpen`, `searchRequested`) é descartado.
+- Estado da sidebar (manualSections, favoritos) é preservado só porque vem de hooks externos — frágil.
 
-- Todos os itens (header de seção, item folha, dashboard, config, favorito): `py-2 px-3`, `text-sm`
-- Tokens de label de grupo: `text-[11px] font-semibold uppercase tracking-wider` (não `0.2em`)
-- Ícones de header de seção: `h-[18px] w-[18px]`
-- **Adicionar ícones de leaf** (`h-4 w-4 text-muted-foreground`) a cada item de submenu, derivados de `headerIcons`/`item.icon`
-- Estrela do favorito: vira **botão lateral pequeno**, item mantém ícone do módulo
+**Causa raiz:** o shell deveria viver no nível das rotas via `<Route element={<AppLayout/>}>` + `<Outlet/>`, não dentro de cada página.
 
-### Fase 3 — Submenu refinado
+### 2. `useUserPreference('sidebar_collapsed', true)` é chamado em **3 lugares**
+- `AppLayout.tsx:25`
+- `AppConfigContext.tsx:58`
+- `Configuracoes.tsx:165`
+- `AppSidebar.tsx:44` (chamada "fantasma" só para namespace)
 
-- Manter `border-l` mas com cor mais suave (`border-border/50`)
-- Item ativo: **a border-l** se torna primary nesse trecho (via pseudo-elemento ou box-shadow inset). Cria a "barra de ancoragem" típica de ERP.
-- Indentação reduzida: `ml-2 pl-3` (hoje `ml-3 pl-3` deixa muito profundo)
-- Group label só aparece se a seção tem 2+ grupos (já é regra; manter)
+Cada chamada faz seu próprio fetch + cache. A `AppConfigContext` foi criada para centralizar, mas o `AppLayout` ignora-a e lê direto. Estados podem divergir.
 
-### Fase 4 — Header e footer da sidebar
+### 3. `AppConfigProvider` está dentro do `BrowserRouter` e do `AuthProvider`, mas **`OfflineBanner` está FORA**
+Ordem em `App.tsx`:
+```
+QueryClientProvider > ThemeProvider > OfflineBanner > TooltipProvider > Sonner
+  > BrowserRouter > RelationalNavigationProvider > AuthProvider > AppConfigProvider > ErrorBoundary > Routes
+```
+- `OfflineBanner` renderiza acima do `<Routes>` mas **fora** do `BrowserRouter` — ok porque não usa router, mas fica visualmente desconectado do shell (acima da sidebar).
+- `RelationalNavigationProvider` envolve `AuthProvider` — porém usa `useSearchParams`, que precisa de `BrowserRouter` (ok), mas não precisa estar acima do Auth. Inversão de ordem desnecessária.
+- `ErrorBoundary` está abaixo de `AppConfigProvider` — se o provider falhar, `ErrorBoundary` não pega.
 
-- Header: logo 32px + "AviZee" mono + chevron menor (`h-3.5`). Remover chip "ERP" (redundante).
-- Search: virar item integrado, sem borda extra; usar `bg-muted/40` para parecer "campo discreto"
-- Favoritos com label `text-[11px] uppercase tracking-wider` (mesmo do grupo de submenu)
-- Footer: separador mais sutil; "Última sincronização" como `text-[10px] text-muted-foreground/70` com ponto de status colorido (verde se < 60s)
+### 4. `SkipLink.tsx` existe mas não é usado
+`AppLayout` reimplementa o skip-link inline (linhas 36-38) com classes diferentes do componente. Duplicação morta.
 
-### Fase 5 — Sidebar colapsada (rail 72px)
+### 5. Hotkeys globais vivem dentro do `AppHeader` (componente visual)
+`AppHeader.tsx` registra ~10 hotkeys (Ctrl+N, Ctrl+1..9, Ctrl+/, ?, etc.) num `useEffect`. Acoplamento errado: hotkeys são globais, não pertencem ao header. E como o header desmonta a cada rota (problema #1), os listeners são removidos/readicionados a cada navegação.
 
-- Tooltip nativo via `title` já existe; adicionar **chip flutuante mais polido** ao hover (já há `aria-label`)
-- Indicador de seção ativa colapsada: barra vertical 3px primary à esquerda do ícone (em vez de só `text-primary`)
-- Badge de módulo: padronizar como dot 8px (sem número) quando colapsado e número grande quando expandido — reduz ruído visual
+### 6. Headers de página ad-hoc (3 padrões coexistem)
+- `ModulePage` (cadastros simples)
+- `ListPageHeader` (listagens operacionais — só `FiscalDetail` usa)
+- **Header inline** com `<ArrowLeft>` + `<h1 className="page-title">` + ações: `OrcamentoForm`, `PedidoForm`, `RemessaForm`, `CotacaoCompraForm`, `PedidoCompraForm`, `MigracaoDados` (~6 páginas)
 
-### Fase 6 — Mobile
+Todos os formulários de detalhe duplicam o mesmo padrão "voltar + título + ações", cada um com classes ligeiramente diferentes (`text-xl font-bold font-mono`, `page-title text-xl md:text-2xl`, `text-2xl font-bold tracking-tight`).
 
-**MobileMenu (drawer):**
-- Remover cards individuais; usar lista única com section headers `text-[11px] uppercase tracking-wider text-muted-foreground` + divider sutil
-- Item: `flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-accent`
-- Mantém ícone do módulo + label + chevron `→` à direita
-- Atalhos rápidos: trocar cards coloridos por lista simples em destaque (ou manter no topo, mais compacta)
+### 7. Containers internos competem com `<main>` do AppLayout
+`AppLayout` já define `mx-auto max-w-[1600px] px-3 py-4 pb-28 md:px-6 md:py-6`. Mas:
+- `CotacaoCompraForm.tsx:307` → `<div className="max-w-5xl mx-auto p-6 space-y-6">`
+- `PedidoCompraForm.tsx:223` → idem
+- `MigracaoDados.tsx:298` → `<div className="flex flex-col gap-6 p-6 max-w-[1600px] mx-auto">`
 
-**MobileBottomNav:**
-- Tab ativa: ícone preenchido + label + barra superior 2px primary OU pill background `bg-primary/10` no ícone
-- Label `text-[10px] font-medium`
-- Espaçamento vertical mais aerado
+Resultado: padding duplo em algumas larguras, max-width inconsistente entre páginas (5xl vs 1600px), shell perde controle do espaçamento.
 
-### Fase 7 — Breadcrumbs
+### 8. AppLayout vaza props de "compatibilidade" para a sidebar
+`<AppSidebar mobileOpen={false} onCloseMobile={() => undefined} ...>` — props `mobileOpen`/`onCloseMobile` existem mas o AppLayout sempre passa valores no-op (sidebar mobile está desativada porque `MobileMenu` cuida disso). Interface zumbi.
 
-- Adicionar ícone do módulo antes do nome do módulo (segundo item)
-- Separador `chevron-right` mais sutil (`text-muted-foreground/40`)
-- Último item (página atual) em `text-foreground font-medium`
+### 9. `useIsMobile` retorna `false` no primeiro render (SSR-safe pattern em SPA)
+Hook inicia com `undefined → !!undefined = false`. Em telas mobile, há **flash do layout desktop** no primeiro paint (sidebar montando + escondendo). Sem skeleton, sem hidratação inicial síncrona via `window.matchMedia`.
 
-## Componentes/arquivos afetados
+### 10. `AppHeader` e `AppLayout` divergem nos breakpoints
+- `AppLayout` decide mobile pelo hook `useIsMobile()` (768px).
+- Mas a sidebar é escondida por `hidden md:block` (Tailwind md = 768px) — convergente.
+- `AppHeader` também usa `useIsMobile()` — duplica a leitura, render condicional gigante (mobile vs desktop) num único componente. Poderiam ser dois (`AppHeaderMobile`, `AppHeaderDesktop`).
 
-- `src/index.css` — adicionar `.sidebar-item-leaf-active` e `.sidebar-section-active`, ajustar `.sidebar-item`
-- `src/components/sidebar/SidebarSection.tsx` — header com novo estado ativo, padding/typography
-- `src/components/sidebar/SidebarSectionItem.tsx` — adicionar ícone leaf, barra ativa, reorganizar star
-- `src/components/sidebar/SidebarFavorites.tsx` — usar ícone do módulo (não estrela)
-- `src/components/sidebar/SidebarFooter.tsx` — visual mais sutil + dot de status
-- `src/components/AppSidebar.tsx` — header simplificado, search refinado, Dashboard usando estilo leaf
-- `src/components/navigation/MobileMenu.tsx` — remover cards, lista unificada
-- `src/components/navigation/MobileBottomNav.tsx` — tab ativa com pill/barra
-- `src/components/navigation/AppBreadcrumbs.tsx` — ícone do módulo + separador sutil
-- `src/lib/navigation.ts` — expor `icon` por leaf (já existe `headerIcons`; passar para `flatNavItems`)
+### 11. `transition-all duration-200` na main + `collapsedLoading` causa "salto"
+```tsx
+<div className={`min-h-screen ${collapsedLoading ? '' : 'transition-all duration-200'} ${collapsed ? 'md:ml-[72px]' : 'md:ml-[240px]'}`}>
+```
+Enquanto `collapsedLoading=true`, a margem-left é definida (240px default), mas sem transição. Quando o valor real chega do Supabase, a transição é adicionada e o conteúdo "salta" visivelmente se a preferência salva era diferente do default.
+
+### 12. RelationalDrawerStack montado mesmo quando vazio
+Renderiza sempre no AppLayout. Internamente verifica `stack.length === 0`, mas mantém `useEffect` de keydown global ativo, listeners de popstate e a contexto. OK funcionalmente, mas acoplado ao layout em vez de ser pulled-in via provider.
+
+### 13. Faltam landmarks ARIA
+- `<nav>` tem `aria-label="Módulos do sistema"` ✓
+- `<main>` tem `role="main"` ✓
+- `<header>` tem `role="banner"` ✓
+- **Falta:** `<aside>` da sidebar tem `role="complementary"` mas deveria ser `role="navigation"` (é o menu primário, não conteúdo complementar). Screen-readers anunciam errado.
+
+### 14. Tipagem de `AppLayoutProps` minimalista
+Hoje só `children: ReactNode`. Páginas que querem header próprio passam `children`, mas não há slots para `pageHeader`, `breadcrumbsOverride`, `compact` etc. Páginas resolvem com containers custom (problema #7).
+
+## Estratégia de correção
+
+### Fase 1 — Layout via Outlet (corrige #1, #5, #8)
+
+1. Converter `AppLayout` em **layout de rota**:
+   ```tsx
+   // App.tsx
+   <Route element={<AppLayout />}>
+     <Route path="/" element={<Index />} />
+     <Route path="/clientes" element={<Clientes />} />
+     ...
+   </Route>
+   ```
+2. `AppLayout` passa a usar `<Outlet />` em vez de `children`.
+3. Remover `<AppLayout>` de todas as 39 páginas (substituir por fragmento ou container interno simples).
+4. Mover hotkeys globais do `AppHeader` para um hook `useGlobalHotkeys()` chamado em `AppLayout` (uma vez só).
+5. Remover props `mobileOpen`/`onCloseMobile` zumbi do `AppSidebar`.
+
+**Impacto:** menor reflow, listeners estáveis, sidebar não remonta, fim do flash em mobile.
+
+### Fase 2 — Centralizar `sidebarCollapsed` no `AppConfigContext` (corrige #2)
+
+1. `AppLayout` consome `useAppConfigContext()` em vez de chamar `useUserPreference` direto.
+2. Remover chamada duplicada em `Configuracoes.tsx` (consome do contexto).
+3. Remover chamada "fantasma" em `AppSidebar.tsx:44`.
+4. Manter assinatura pública intacta (sem breaking change para terceiros).
+
+### Fase 3 — Reordenar providers e ErrorBoundary (corrige #3)
+
+```tsx
+<QueryClientProvider>
+  <ThemeProvider>
+    <ErrorBoundary>            {/* sobe para pegar tudo */}
+      <BrowserRouter>
+        <AuthProvider>
+          <AppConfigProvider>
+            <RelationalNavigationProvider>
+              <TooltipProvider>
+                <Sonner />
+                <OfflineBanner />   {/* dentro, vira parte do shell */}
+                <Routes>...</Routes>
+              </TooltipProvider>
+            </RelationalNavigationProvider>
+          </AppConfigProvider>
+        </AuthProvider>
+      </BrowserRouter>
+    </ErrorBoundary>
+  </ThemeProvider>
+</QueryClientProvider>
+```
+
+Sem mudança de comportamento; ordem semanticamente correta.
+
+### Fase 4 — Padronizar header de página (corrige #6, #7)
+
+1. Criar `PageShell` (ou estender `ListPageHeader`) com slots: `back`, `title`, `subtitle`, `meta`, `actions`.
+2. Refatorar formulários (`OrcamentoForm`, `PedidoForm`, `RemessaForm`, `CotacaoCompraForm`, `PedidoCompraForm`, `MigracaoDados`) para usar o componente.
+3. Remover containers `max-w-5xl mx-auto p-6` redundantes — o `<main>` já faz isso. Páginas que querem largura menor usam `max-w-5xl` SEM `mx-auto p-6`.
+
+### Fase 5 — Polimento (corrige #4, #9, #10, #11, #14)
+
+- Usar `<SkipLink />` componente em vez do inline (1 linha).
+- `useIsMobile` lê `window.innerWidth` no `useState` initializer (síncrono) — fim do flash.
+- Quebrar `AppHeader` em `AppHeaderDesktop` + `AppHeaderMobile`, com switch no AppLayout.
+- Fixar `collapsedLoading`: usar valor do contexto que já tem default; transição sempre ligada após hidratação.
+- Adicionar `pageHeader?: ReactNode` opcional ao AppLayout para casos especiais (Login, Signup, Public — embora hoje esses não usem AppLayout, o que é correto).
 
 ## Fora do escopo
-- Não alterar lógica de `useNavigationState`, permissões, rotas
-- Não tocar drawers de detalhe (RelationalDrawerStack)
-- Não mexer em `Administracao.tsx` interno
-- Não alterar tokens de cor globais (`--primary`, `--secondary`, etc.) — reusa o que existe
+- Não tocar visual da sidebar/breadcrumb (recém-revisados).
+- Não mexer em RelationalDrawerStack (já refatorado).
+- Não alterar lógica de permissões nem rotas.
+- Não migrar `Administracao.tsx` interno.
 
 ## Critério de aceite
-- 3 níveis de ativo claros e consistentes em todas as superfícies
-- Dashboard e Configurações deixam de "gritar" como botões selecionados primários
-- Header de seção do módulo atual fica visualmente ancorado
-- Item folha ativo tem barra lateral primary acompanhando o `border-l`
-- Submenu ganha ícones discretos e leitura mais rápida
-- Favoritos mostram ícone do módulo (não estrela como ícone)
-- Mobile drawer parece menu, não lista de cards
-- Bottom nav com tab ativa evidente
-- Breadcrumb com ícone do módulo
-- Build OK; sem regressão funcional
+- Sidebar/Header/Drawer não remontam ao trocar de rota.
+- Hotkeys globais registradas uma única vez.
+- `sidebar_collapsed` lido em um lugar só (AppConfigContext).
+- Providers reordenados com ErrorBoundary cobrindo tudo.
+- Nenhuma página renderiza `<AppLayout>` no JSX.
+- Headers de formulário usam componente padronizado.
+- Sem flash de layout desktop em mobile.
+- Build OK (`tsc --noEmit`); zero rota quebrada; comportamento preservado.
 
 ## Entregáveis
-Resumo final por superfície (sidebar desktop, sidebar colapsada, submenu, favoritos, footer, mobile drawer, bottom nav, breadcrumbs).
+Tabela final por área: `problema → correção aplicada → arquivo(s) afetado(s)`.
 
