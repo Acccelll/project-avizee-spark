@@ -729,7 +729,7 @@ export function DataTable<T extends Record<string, any>>({
                   </thead>
                   <VirtualizedOrPlainTbody
                     data={pagedData}
-                    useVirtual={pagedData.length > virtualizeThreshold}
+                    useVirtual={pagedData.length > virtualizeThreshold && !hasScrollX}
                     maxHeight={maxHeight}
                     renderRow={(item, idx) => (
                       <>
