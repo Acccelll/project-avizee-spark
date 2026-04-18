@@ -1,16 +1,9 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { History, RotateCcw, Loader2 } from 'lucide-react';
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from '@/components/ui/sheet';
+import { ViewDrawerV2 } from '@/components/ViewDrawerV2';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { EmptyState } from '@/components/ui/empty-state';
 import { fetchAuditLogs } from '@/services/admin/audit.service';
@@ -48,107 +41,104 @@ export function ConfigHistoryDrawer({
   });
 
   return (
-    <Sheet open={open} onOpenChange={onClose}>
-      <SheetContent className="w-full sm:max-w-lg flex flex-col">
-        <SheetHeader>
-          <SheetTitle className="flex items-center gap-2">
-            <History className="h-5 w-5 text-muted-foreground" />
-            Histórico de Alterações
-          </SheetTitle>
-          <SheetDescription>
-            Registro de modificações para a configuração <strong>{chave}</strong>.
-          </SheetDescription>
-        </SheetHeader>
+    <ViewDrawerV2
+      open={open}
+      onClose={onClose}
+      variant="view"
+      title="Histórico de Alterações"
+      subtitle={
+        <span className="inline-flex items-center gap-1.5">
+          <History className="h-3.5 w-3.5" />
+          Configuração <strong className="font-mono text-foreground">{chave}</strong>
+        </span>
+      }
+    >
+      {isLoading && (
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      )}
 
-        <ScrollArea className="flex-1 mt-4 pr-1">
-          {isLoading && (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
-          )}
+      {isError && (
+        <p className="text-sm text-destructive py-4 text-center">
+          Erro ao carregar histórico.
+        </p>
+      )}
 
-          {isError && (
-            <p className="text-sm text-destructive py-4 text-center">
-              Erro ao carregar histórico.
-            </p>
-          )}
+      {!isLoading && !isError && (!data || data.length === 0) && (
+        <EmptyState
+          icon={History}
+          title="Sem histórico"
+          description="Nenhuma alteração registrada para esta configuração."
+        />
+      )}
 
-          {!isLoading && !isError && (!data || data.length === 0) && (
-            <EmptyState
-              icon={History}
-              title="Sem histórico"
-              description="Nenhuma alteração registrada para esta configuração."
-            />
-          )}
-
-          {!isLoading && data && data.length > 0 && (
-            <div className="space-y-4">
-              {data.map((log, index) => (
-                <div key={log.id} className="rounded-lg border p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <p className="text-sm font-medium">
-                        {formatDate(log.created_at)}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {log.usuario_id
-                          ? `Usuário: ${log.usuario_id.slice(0, 8)}...`
-                          : 'Sistema'}
-                      </p>
-                    </div>
-                    <Badge variant="outline" className="text-xs">
-                      {log.acao}
-                    </Badge>
-                  </div>
-
-                  {log.dados_anteriores !== null && (
-                    <div className="space-y-1">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                        Valor Anterior
-                      </p>
-                      <pre className="text-xs bg-muted rounded p-2 overflow-x-auto whitespace-pre-wrap break-all max-h-24">
-                        {formatValue(log.dados_anteriores)}
-                      </pre>
-                    </div>
-                  )}
-
-                  {log.dados_novos !== null && (
-                    <div className="space-y-1">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                        Novo Valor
-                      </p>
-                      <pre className="text-xs bg-muted rounded p-2 overflow-x-auto whitespace-pre-wrap break-all max-h-24">
-                        {formatValue(log.dados_novos)}
-                      </pre>
-                    </div>
-                  )}
-
-                  {onRestore && log.dados_anteriores !== null && (
-                    <>
-                      <Separator />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="w-full gap-2"
-                        aria-label={`Restaurar configuração do momento ${formatDate(log.created_at)}`}
-                        onClick={() =>
-                          onRestore(log.dados_anteriores as Record<string, unknown>)
-                        }
-                      >
-                        <RotateCcw className="h-3.5 w-3.5" />
-                        Restaurar este valor
-                      </Button>
-                    </>
-                  )}
-
-                  {index < data.length - 1 && <Separator />}
+      {!isLoading && data && data.length > 0 && (
+        <div className="space-y-4">
+          {data.map((log, index) => (
+            <div key={log.id} className="rounded-lg border p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <p className="text-sm font-medium">
+                    {formatDate(log.created_at)}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {log.usuario_id
+                      ? `Usuário: ${log.usuario_id.slice(0, 8)}...`
+                      : 'Sistema'}
+                  </p>
                 </div>
-              ))}
+                <Badge variant="outline" className="text-xs">
+                  {log.acao}
+                </Badge>
+              </div>
+
+              {log.dados_anteriores !== null && (
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    Valor Anterior
+                  </p>
+                  <pre className="text-xs bg-muted rounded p-2 overflow-x-auto whitespace-pre-wrap break-all max-h-24">
+                    {formatValue(log.dados_anteriores)}
+                  </pre>
+                </div>
+              )}
+
+              {log.dados_novos !== null && (
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    Novo Valor
+                  </p>
+                  <pre className="text-xs bg-muted rounded p-2 overflow-x-auto whitespace-pre-wrap break-all max-h-24">
+                    {formatValue(log.dados_novos)}
+                  </pre>
+                </div>
+              )}
+
+              {onRestore && log.dados_anteriores !== null && (
+                <>
+                  <Separator />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-full gap-2"
+                    aria-label={`Restaurar configuração do momento ${formatDate(log.created_at)}`}
+                    onClick={() =>
+                      onRestore(log.dados_anteriores as Record<string, unknown>)
+                    }
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    Restaurar este valor
+                  </Button>
+                </>
+              )}
+
+              {index < data.length - 1 && <Separator />}
             </div>
-          )}
-        </ScrollArea>
-      </SheetContent>
-    </Sheet>
+          ))}
+        </div>
+      )}
+    </ViewDrawerV2>
   );
 }
