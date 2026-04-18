@@ -1,9 +1,10 @@
 import { ViewDrawerV2, ViewField, ViewSection } from "@/components/ViewDrawerV2";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { RelationalLink } from "@/components/ui/RelationalLink";
+import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSummaryCard";
+import { DrawerActionBar } from "@/components/ui/DrawerActionBar";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Edit,
   Trash2,
@@ -161,44 +162,29 @@ export function ContaBancariaDrawer({
   const tipoLabel = getTipoLabel(selected.bancos?.tipo);
 
   const summary = (
-    <div className="grid grid-cols-2 gap-2">
-      <div
-        className={cn(
-          "rounded-lg border p-3 space-y-0.5",
-          saldo >= 0 ? "bg-success/5 border-success/20" : "bg-destructive/5 border-destructive/20"
-        )}
-      >
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Saldo Atual
-        </span>
-        <p
-          className={cn(
-            "text-sm font-bold font-mono",
-            saldo >= 0 ? "text-success" : "text-destructive"
-          )}
-        >
-          {formatCurrency(saldo)}
-        </p>
-      </div>
-      <div className="rounded-lg border bg-muted/30 p-3 space-y-0.5">
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Lançamentos (últ. 10)
-        </span>
-        <p className="text-sm font-bold font-mono">{lancamentos.length}</p>
-      </div>
-      <div className="rounded-lg border bg-muted/30 p-3 space-y-0.5">
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Total Baixado (últ. 10)
-        </span>
-        <p className="text-sm font-bold font-mono text-success">{formatCurrency(totalBaixas)}</p>
-      </div>
-      <div className="rounded-lg border bg-muted/30 p-3 space-y-0.5">
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Última Baixa
-        </span>
-        <p className="text-sm font-semibold">{ultimaBaixa ?? "—"}</p>
-      </div>
-    </div>
+    <DrawerSummaryGrid cols={4}>
+      <DrawerSummaryCard
+        label="Saldo Atual"
+        value={formatCurrency(saldo)}
+        tone={saldo >= 0 ? "success" : "destructive"}
+      />
+      <DrawerSummaryCard
+        label="Lançamentos"
+        value={String(lancamentos.length)}
+        hint="últimos 10"
+      />
+      <DrawerSummaryCard
+        label="Total Baixado"
+        value={formatCurrency(totalBaixas)}
+        tone="success"
+        hint="últimas 10"
+      />
+      <DrawerSummaryCard
+        label="Última Baixa"
+        value={ultimaBaixa ?? "—"}
+        mono={false}
+      />
+    </DrawerSummaryGrid>
   );
 
   return (
@@ -227,36 +213,22 @@ export function ContaBancariaDrawer({
       }
       summary={summary}
       actions={
-        <>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                disabled={actionPending}
-                onClick={() => runAction(() => { onEdit(selected); onClose(); })}
-              >
-                <Edit className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Editar</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-destructive hover:text-destructive"
-                disabled={actionPending}
-                onClick={() => runAction(() => { onDelete(selected); onClose(); })}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Excluir</TooltipContent>
-          </Tooltip>
-        </>
+        <DrawerActionBar
+          secondary={[
+            {
+              icon: Edit,
+              tooltip: "Editar",
+              pending: actionPending,
+              onClick: () => runAction(() => { onEdit(selected); onClose(); }),
+            },
+          ]}
+          destructive={{
+            icon: Trash2,
+            tooltip: "Excluir",
+            pending: actionPending,
+            onClick: () => runAction(() => { onDelete(selected); onClose(); }),
+          }}
+        />
       }
       tabs={[
         {
