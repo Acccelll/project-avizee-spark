@@ -778,7 +778,7 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
         .eq("notas_fiscais.status", "confirmada");
 
       nfQuery = withDateRange(nfQuery, "notas_fiscais.data_emissao", filtros);
-      if (filtros.clienteIds) nfQuery = nfQuery.in('notas_fiscais.cliente_id', filtros.clienteIds);
+      if (filtros.clienteIds?.length) nfQuery = nfQuery.in('notas_fiscais.cliente_id', filtros.clienteIds);
 
       const { data, error } = await nfQuery;
       if (error) throw error;
@@ -838,12 +838,7 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
         .select("codigo_interno, nome, preco_custo, preco_venda, estoque_atual, unidade_medida, grupos_produto(nome)")
         .eq("ativo", true)
         .order("nome");
-      if (filtros.grupoProdutoIds) query = query.in('grupo_id', filtros.grupoProdutoIds);
-      const { data, error } = await query;
-
-      if (error) throw error;
-
-      const rows = (data || []).map((item: RawMargemProdutoItem) => {
+      if (filtros.grupoProdutoIds?.length) query = query.in('grupo_id', filtros.grupoProdutoIds);
         const custo = Number(item.preco_custo || 0);
         const venda = Number(item.preco_venda || 0);
         const margem = venda > 0 ? ((venda - custo) / venda) * 100 : 0;
@@ -886,11 +881,7 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
         .select("codigo_interno, nome, unidade_medida, estoque_atual, estoque_minimo, preco_custo, grupos_produto(nome)")
         .eq("ativo", true)
         .order("nome");
-      if (filtros.grupoProdutoIds) query = query.in('grupo_id', filtros.grupoProdutoIds);
-      const { data, error } = await query;
-      if (error) throw error;
-
-      const rows = (data || [])
+      if (filtros.grupoProdutoIds?.length) query = query.in('grupo_id', filtros.grupoProdutoIds);
         .filter((p: RawEstoqueMinimoItem) => Number(p.estoque_atual || 0) <= Number(p.estoque_minimo || 0) && Number(p.estoque_minimo || 0) > 0)
         .map((p: RawEstoqueMinimoItem) => {
           const atual = Number(p.estoque_atual || 0);
@@ -932,11 +923,7 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
         .select("valor_total, clientes(nome_razao_social, cpf_cnpj)")
         .eq("ativo", true);
       query = withDateRange(query, "data_emissao", filtros);
-      if (filtros.clienteIds) query = query.in('cliente_id', filtros.clienteIds);
-      const { data, error } = await query;
-      if (error) throw error;
-
-      const map = new Map<string, { cliente: string; cnpj: string; total: number; qtd: number }>();
+      if (filtros.clienteIds?.length) query = query.in('cliente_id', filtros.clienteIds);
       for (const ov of data || []) {
         const c = ov.clientes as { nome_razao_social: string; cpf_cnpj: string | null } | null;
         const nome = c?.nome_razao_social || "Sem cliente";
@@ -1103,66 +1090,11 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
   }
 }
 
-export function exportarCsv(title: string, rows: Record<string, unknown>[]) {
-  if (!rows.length) {
-    downloadTextFile(`${title}.csv`, "Sem dados para exportação");
-    return;
-  }
-
-  const headers = Object.keys(rows[0]);
-  const csv = [
-    headers.join(";"),
-    ...rows.map((row) => headers.map((header) => formatCsvValue(row[header])).join(";")),
-  ].join("\n");
-
-  downloadTextFile(`${title}.csv`, csv, "text/csv;charset=utf-8");
-}
-
-export async function exportarXlsx(title: string, rows: Record<string, unknown>[]) {
-  if (!rows.length) return;
-
-  const { default: ExcelJS } = await import("exceljs");
-  const workbook = new ExcelJS.Workbook();
-  const sheet = workbook.addWorksheet(title.slice(0, 31));
-  const headers = Object.keys(rows[0]);
-
-  sheet.addRow(headers);
-  sheet.getRow(1).font = { bold: true };
-  sheet.getRow(1).fill = {
-    type: "pattern",
-    pattern: "solid",
-    fgColor: { argb: "FFE8E8E8" },
-  };
-
-  rows.forEach((row) => {
-    sheet.addRow(headers.map((header) => row[header] ?? ""));
-  });
-
-  sheet.columns.forEach((col) => {
-    let maxLen = 10;
-    col.eachCell?.({ includeEmpty: true }, (cell) => {
-      maxLen = Math.max(maxLen, String(cell.value ?? "").length + 2);
-    });
-    col.width = Math.min(maxLen, 50);
-  });
-
-  const buffer = await workbook.xlsx.writeBuffer();
-  const blob = new Blob([buffer], {
-    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `${title}.xlsx`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-function formatCsvValue(value: unknown) {
-  if (typeof value === "number") return value.toString().replace(".", ",");
-  if (value == null) return "";
-  return `"${String(value).split('"').join('""')}"`;
-}
+// ─── Cell formatter for in-app rendering ────────────────────────────────────
+//
+// Note: legacy `exportarCsv` / `exportarXlsx` / `formatCsvValue` were removed —
+// callers must use `services/export.service.ts` instead, which is config-aware,
+// emits UTF-8 BOM in CSV and standardised filenames.
 
 export function formatCellValue(value: unknown, key: string, isQuantityReport = false) {
   if (typeof value === "number") {
