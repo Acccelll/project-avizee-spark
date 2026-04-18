@@ -8,11 +8,13 @@
  */
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Eye, Receipt } from "lucide-react";
+import { ArrowLeft, Eye, Receipt, RefreshCw } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
+import { Button } from "@/components/ui/button";
 import { ListPageHeader } from "@/components/list/ListPageHeader";
 import { NotaFiscalDrawer } from "@/components/fiscal/NotaFiscalDrawer";
 import { DetailLoading, DetailError, DetailEmpty } from "@/components/ui/DetailStates";
+import { getUserFriendlyError } from "@/utils/errorMessages";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useDetailFetch } from "@/hooks/useDetailFetch";
