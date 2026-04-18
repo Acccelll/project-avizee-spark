@@ -83,7 +83,7 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
   const tipoLabel = isCR ? "Conta a Receber" : "Conta a Pagar";
   const tipoColor = isCR ? "text-success" : "text-destructive";
 
-  const totalBaixado = baixas.reduce((sum, b) => sum + Number(b.valor_pago || 0), 0);
+  const totalBaixado = baixasList.reduce((sum, b) => sum + Number(b.valor_pago || 0), 0);
 
   const origemLabel = selected.nota_fiscal_id
     ? "Nota Fiscal"
