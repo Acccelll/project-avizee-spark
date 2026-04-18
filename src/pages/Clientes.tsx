@@ -432,10 +432,10 @@ const Clientes = () => {
     const editId = (location.state as { editId?: string } | null)?.editId;
     if (!editId) return;
     let cancelled = false;
-    navigate(location.pathname, { replace: true, state: {} });
     supabase.from("clientes").select("*").eq("id", editId).maybeSingle().then(({ data: c }) => {
       if (cancelled) return;
       if (c) openEdit(c as Cliente);
+      navigate(location.pathname, { replace: true, state: {} });
     });
     return () => { cancelled = true; };
   // openEdit is stable (no deps change); navigate/pathname are stable refs
