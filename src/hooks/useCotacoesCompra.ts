@@ -33,7 +33,7 @@ export function useCotacoesCompra() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selected, setSelected] = useState<CotacaoCompra | null>(null);
   const [mode, setMode] = useState<"create" | "edit">("create");
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm] = useState(buildEmptyForm());
   const [localItems, setLocalItems] = useState<LocalItem[]>([]);
   const [saving, setSaving] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
