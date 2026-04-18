@@ -1,6 +1,7 @@
 
 import { useState } from "react";
-import { ViewDrawerV2 } from "@/components/ViewDrawerV2";
+import { ViewDrawerV2, DrawerStickyFooter } from "@/components/ViewDrawerV2";
+import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSummaryCard";
 import { ViewField, ViewSection } from "@/components/ViewDrawer";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { StatusBadge } from "@/components/StatusBadge";
