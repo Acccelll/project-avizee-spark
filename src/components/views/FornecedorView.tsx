@@ -87,20 +87,16 @@ export function FornecedorView({ id }: Props) {
     fetchData();
   }, [id]);
 
-  if (loading) return <div className="p-8 text-center animate-pulse">Carregando dados do fornecedor...</div>;
-  if (fetchError) return <div className="p-8 text-center text-destructive space-y-1"><p className="font-semibold">Erro ao carregar dados</p><p className="text-xs text-muted-foreground">{fetchError}</p></div>;
-  if (!selected) return <div className="p-8 text-center text-destructive">Fornecedor não encontrado</div>;
-
   const ultCompra = compras.length > 0 ? compras[0].data_pedido : null;
   const volumeTotal = compras.reduce((acc, curr) => acc + (curr.valor_total || 0), 0);
-  const vencidos = financeiro.filter(f => f.status === 'vencido');
-  const totalAberto = financeiro.filter(f => f.status === 'aberto' || f.status === 'vencido').reduce((acc, curr) => acc + (curr.saldo_restante || curr.valor), 0);
+  const vencidos = (financeiro || []).filter(f => f.status === 'vencido');
+  const totalAberto = (financeiro || []).filter(f => f.status === 'aberto' || f.status === 'vencido').reduce((acc, curr) => acc + (curr.saldo_restante || curr.valor), 0);
   const totalVencido = vencidos.reduce((acc, curr) => acc + (curr.saldo_restante || curr.valor), 0);
 
   const produtosComPrazo = produtos.filter(p => p.lead_time_dias !== null && p.lead_time_dias !== undefined);
   const prazoMedio = produtosComPrazo.length > 0
     ? Math.round(produtosComPrazo.reduce((acc, p) => acc + (p.lead_time_dias || 0), 0) / produtosComPrazo.length)
-    : selected.prazo_padrao || null;
+    : selected?.prazo_padrao || null;
 
   const deleteDescription = (() => {
     const parts: string[] = [];
@@ -114,15 +110,54 @@ export function FornecedorView({ id }: Props) {
     return `Tem certeza que deseja excluir "${selected?.nome_razao_social || ""}"${cnpj}? Esta ação não pode ser desfeita.`;
   })();
 
+  // Publica slots no header padronizado
+  usePublishDrawerSlots(`fornecedor:${id}`, {
+    breadcrumb: selected?.cpf_cnpj ? `Fornecedor · ${selected.cpf_cnpj}` : undefined,
+    summary: selected ? (
+      <div className="flex items-start gap-3">
+        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
+          <Truck className="h-5 w-5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <h3 className="font-semibold text-sm leading-tight truncate">{selected.nome_razao_social}</h3>
+          {selected.nome_fantasia && (
+            <p className="text-[11px] text-muted-foreground truncate">{selected.nome_fantasia}</p>
+          )}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5">
+            {selected.cpf_cnpj && <p className="text-[11px] text-muted-foreground font-mono">{selected.cpf_cnpj}</p>}
+            {(selected.cidade || selected.uf) && (
+              <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                <MapPin className="h-3 w-3" />{[selected.cidade, selected.uf].filter(Boolean).join("/")}
+              </p>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+            <StatusBadge status={selected.ativo ? "Ativo" : "Inativo"} />
+          </div>
+        </div>
+      </div>
+    ) : undefined,
+    actions: selected ? (
+      <>
+        <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs" aria-label="Editar fornecedor" onClick={() => {
+          navigate(`/fornecedores?editId=${id}`);
+          window.setTimeout(() => clearStack(), 0);
+        }}>
+          <Edit className="h-3.5 w-3.5" /> Editar
+        </Button>
+        <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10" aria-label="Excluir fornecedor" onClick={() => setDeleteConfirmOpen(true)}>
+          <Trash2 className="h-3.5 w-3.5" /> Excluir
+        </Button>
+      </>
+    ) : undefined,
+  });
+
+  if (loading) return <div className="p-8 text-center animate-pulse">Carregando dados do fornecedor...</div>;
+  if (fetchError) return <div className="p-8 text-center text-destructive space-y-1"><p className="font-semibold">Erro ao carregar dados</p><p className="text-xs text-muted-foreground">{fetchError}</p></div>;
+  if (!selected) return <div className="p-8 text-center text-destructive">Fornecedor não encontrado</div>;
+
   return (
     <div className="space-y-5">
-      <PublishFornecedorSlots
-        id={id}
-        selected={selected}
-        navigate={navigate}
-        clearStack={clearStack}
-        onDelete={() => setDeleteConfirmOpen(true)}
-      />
       {/* KPI strip */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="rounded-lg border bg-card p-3 text-center space-y-1">
