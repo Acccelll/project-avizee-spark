@@ -254,16 +254,25 @@ export default function Transportadoras() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.nome_razao_social) { toast.error("Razão Social é obrigatória"); return; }
-    setSaving(true);
-    try {
+    await submit(async () => {
       const submitData = { ...form };
       if (mode === "create") await create(submitData);
       else if (selected) await update(selected.id, submitData);
       setModalOpen(false);
-    } catch (err: unknown) {
-      console.error("[transportadoras] handleSubmit:", err);
+    });
+  };
+
+  const handleCloseModal = async () => {
+    if (hasChanges) {
+      const ok = await confirmDiscard({
+        title: "Descartar alterações?",
+        description: "Há alterações não salvas. Deseja fechar mesmo assim?",
+        confirmLabel: "Descartar",
+        confirmVariant: "destructive",
+      });
+      if (!ok) return;
     }
-    setSaving(false);
+    setModalOpen(false);
   };
 
 
