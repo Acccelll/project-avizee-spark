@@ -27,7 +27,7 @@ export const sumNfValues = (rows: NfRow[] = []) =>
  */
 export const summarizeFiscalStats = (rows: NfRow[] = []): FiscalStats => {
   const emitidas = rows.filter((item) => item.status === "confirmada").length;
-  const pendentes = rows.filter((item) => item.status === "rascunho").length;
+  const pendentes = rows.filter((item) => item.status === "rascunho" || item.status === "pendente").length;
   const canceladas = rows.filter((item) => item.status === "cancelada").length;
   const valorEmitidas = rows
     .filter((item) => item.status === "confirmada")
