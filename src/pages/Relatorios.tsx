@@ -496,7 +496,7 @@ export default function Relatorios() {
                     variationType="neutral"
                     variation={hasLocalFiltersApplied ? `${kpi.variation || ''} (universo total)`.trim() : kpi.variation}
                     variant={kpi.variant}
-                    density={compactDensity ? 'compact' : 'comfortable'}
+                    density={compactDensity ? 'compact' : 'default'}
                   />
                 ))}
               </div>
