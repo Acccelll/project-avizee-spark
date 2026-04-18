@@ -29,6 +29,7 @@ import { DevolucaoDialog } from "@/components/fiscal/DevolucaoDialog";
 import { NotaFiscalDrawer } from "@/components/fiscal/NotaFiscalDrawer";
 import { confirmarNotaFiscal, estornarNotaFiscal, registrarEventoFiscal, verificarDuplicidadeChave } from "@/services/fiscal.service";
 import { NotaFiscalEditModal } from "@/components/fiscal/NotaFiscalEditModal";
+import { useActionLock } from "@/hooks/useActionLock";
 
 export interface NotaFiscal {
   id: string; tipo: string; numero: string; serie: string; chave_acesso: string;
@@ -174,16 +175,17 @@ const Fiscal = () => {
     load();
   }, []);
 
-  // KPIs
+  // KPIs — sobre os dados filtrados (consistente com o que o usuário vê na grid)
   const kpis = useMemo(() => {
-    const tipoParam = searchParams.get("tipo");
-    const filtered = tipoParam ? data.filter(n => n.tipo === tipoParam) : data;
-    const total = filtered.length;
-    const pendentes = filtered.filter(n => n.status === "pendente").length;
-    const confirmadas = filtered.filter(n => n.status === "confirmada").length;
-    const valorTotal = filtered.reduce((s, n) => s + Number(n.valor_total || 0), 0);
+    const total = filteredData.length;
+    const pendentes = filteredData.filter(n => n.status === "pendente").length;
+    const confirmadas = filteredData.filter(n => n.status === "confirmada").length;
+    const valorTotal = filteredData.reduce((s, n) => s + Number(n.valor_total || 0), 0);
     return { total, pendentes, confirmadas, valorTotal };
-  }, [data, searchParams]);
+  }, [filteredData]);
+
+  const confirmarLock = useActionLock();
+  const estornarLock = useActionLock();
 
   const openCreate = () => { setMode("create"); setForm({ ...emptyForm }); setItems([]); setSelected(null); setParcelas(1); setItemContaContabil({}); setItemFiscalData({}); setModalOpen(true); };
   const openEdit = async (n: NotaFiscal) => {
