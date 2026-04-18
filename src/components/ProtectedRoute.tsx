@@ -9,7 +9,7 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
   // Aguarda sessão + permissões antes de renderizar para evitar
   // flashes de conteúdo ou redirects incorretos enquanto roles carregam.
   if (loading || (user && !permissionsLoaded)) {
-    return <FullPageSpinner />;
+    return <FullPageSpinner label="Carregando sessão..." />;
   }
 
   if (!user) return <Navigate to="/login" replace />;

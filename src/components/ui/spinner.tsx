@@ -35,25 +35,56 @@ export function Spinner({ size = "md", label = "Carregando", className }: Spinne
   );
 }
 
+interface PageSpinnerProps {
+  /** Mensagem visível abaixo do spinner. Default: "Carregando...". */
+  label?: string;
+  /** Quando true, oculta a mensagem visível (mantém apenas aria-label). */
+  hideLabel?: boolean;
+}
+
 /**
  * Spinner centralizado em viewport completo. Usado em route guards
- * (Protected/Admin/Social) e Suspense fallback de páginas.
+ * (Protected/Admin/Social) — sem shell ainda renderizado.
+ *
+ * Exibe mensagem visível abaixo do spinner para evitar sensação de "travado"
+ * em rotas que dependem de auth + permissões (1-2s).
+ *
+ * @example
+ * <FullPageSpinner label="Verificando permissões..." />
  */
-export function FullPageSpinner({ label }: { label?: string }) {
+export function FullPageSpinner({ label = "Carregando...", hideLabel = false }: PageSpinnerProps = {}) {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center">
-      <Spinner size="lg" label={label} />
+      <div className="flex flex-col items-center gap-3">
+        <Spinner size="lg" label={label} />
+        {!hideLabel && (
+          <p className="text-sm text-muted-foreground" aria-hidden="true">
+            {label}
+          </p>
+        )}
+      </div>
     </div>
   );
 }
 
 /**
- * Spinner centralizado dentro do conteúdo (fallback para LazyPage).
+ * Spinner centralizado dentro do conteúdo (fallback para LazyPage e Suspense).
+ * Mantém shell (sidebar/header) visível.
+ *
+ * @example
+ * <ContentSpinner label="Carregando página..." />
  */
-export function ContentSpinner({ label }: { label?: string }) {
+export function ContentSpinner({ label = "Carregando...", hideLabel = false }: PageSpinnerProps = {}) {
   return (
     <div className="flex items-center justify-center flex-1 min-h-[calc(100vh-4rem)]">
-      <Spinner size="md" label={label} />
+      <div className="flex flex-col items-center gap-3">
+        <Spinner size="md" label={label} />
+        {!hideLabel && (
+          <p className="text-sm text-muted-foreground" aria-hidden="true">
+            {label}
+          </p>
+        )}
+      </div>
     </div>
   );
 }

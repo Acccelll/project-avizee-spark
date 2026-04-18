@@ -68,7 +68,7 @@ function CotacaoIdRedirect() {
 // Per-route Suspense wrapper — shows loading spinner only in the content area
 function LazyPage({ children }: { children: React.ReactNode }) {
   return (
-    <Suspense fallback={<ContentSpinner />}>
+    <Suspense fallback={<ContentSpinner label="Carregando página..." />}>
       {children}
     </Suspense>
   );

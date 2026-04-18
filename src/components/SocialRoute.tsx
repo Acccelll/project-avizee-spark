@@ -9,7 +9,7 @@ export function SocialRoute({ children }: { children: ReactNode }) {
   const { user, loading, permissionsLoaded, roles } = useAuth();
 
   if (loading || !permissionsLoaded) {
-    return <FullPageSpinner />;
+    return <FullPageSpinner label="Verificando permissões..." />;
   }
 
   if (!user) return <Navigate to="/login" replace />;
