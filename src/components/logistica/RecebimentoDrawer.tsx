@@ -99,6 +99,7 @@ export function RecebimentoDrawer({ open, onClose, recebimento: r }: Recebimento
         />
       )}
 
+      <ViewSection title="Pedido de Compra">
         <div className="grid grid-cols-2 gap-4">
           <ViewField label="Número">{r.numero_compra}</ViewField>
           <ViewField label="Fornecedor">{r.fornecedor}</ViewField>
