@@ -1,177 +1,245 @@
 
+# Diagnóstico técnico — Autenticação, Permissões e Administração de Acesso
 
-# Diagnóstico visual — Relatórios, Exportações e Impressão
+## Inventário
 
-## Inventário visual
-
-| Área | Estado atual |
-|---|---|
-| Header do relatório | Card com título + objetivo. Botão "Voltar" como linha separada acima — info dispersa. |
-| KPIs | `SummaryCard` em grid 4-col. Bom, mas não tem indicação de quando reflete universo do banco vs filtros locais. |
-| Barra de filtros | Tudo achatado em 1 row: período + 9 botões de ação + filtros adicionais empilhados. ~12-15 controles na mesma faixa. |
-| Ações export/preview | 7 botões (Salvar, Carregar, Atualizar, Visualizar, Colunas, PDF, Excel, CSV) em row única, todos `variant="outline"` exceto CSV. Hierarquia rasa. |
-| Área de resultado | Tabela + chart lado-a-lado em 1fr/380px. Footer de totais inline, fonte pequena, cinza. |
-| Empty state | Texto pequeno em cinza no rodapé do card (`<div className="px-4 pb-4 text-xs ...">`) — quase invisível. |
-| Preview modal | Simples `<table>` com listras, cabeçalho/totalizadores em texto plano. Botões PDF/Excel/CSV/Imprimir todos `outline sm` — sem CTA primária. |
+| Camada | Implementação | Fonte de verdade |
+|---|---|---|
+| Sessão | `AuthContext` + `supabase.auth.onAuthStateChange` | Supabase Auth |
+| Roles do usuário | `user_roles` (enum `app_role`) | DB |
+| Permissões padrão por role | **Hard-coded** em `src/lib/permissions.ts` (`rolePermissionMatrix`) | Frontend |
+| Permissões padrão por role (DB) | Tabela `role_permissions` + RPC `user_has_permission()` | DB — **não consumido pelo frontend** |
+| Overrides por usuário | `user_permissions` (allowed=true só) | DB → AuthContext |
+| Guards de rota | `ProtectedRoute`, `AdminRoute`, `SocialRoute` | OK |
+| `can()` por ação | 2 implementações: `useAuth().can(resource, action)` (estrita) e `useCan().can(perm)` (com wildcard) | Inconsistente |
+| Matriz visual no admin | `PermissaoMatrix` lê do hard-code, **read-only**, banner amarelo | Drift potencial |
+| Edge fn `admin-users` | Cria/edita user, role, extra perms | OK |
+| Sessões | `user_sessions` listagem/revoke | OK |
+| Auditoria | `permission_audit` populada por `admin-users` | OK |
 
 ## Problemas reais
 
-### 1. Header pobre e espalhado
-Hoje: `[← Voltar]` linha solta + Card com `<title icon>Vendas` + descrição. Sem chip de categoria, sem período em destaque, sem contagem de registros visível. Usuário precisa olhar 3 áreas (botão voltar, header do card, filtros) para entender o contexto.
+### A. Autenticação & sessão
 
-### 2. Toolbar de ações sem hierarquia
-7 botões iguais (`variant="outline" size="sm"`) misturados:
-- Salvar/Carregar (gestão de favoritos)
-- Atualizar (refresh)
-- Visualizar (preview)
-- Colunas (config)
-- PDF/Excel/CSV (export)
-
-CSS unifica todos. Visualmente é "muralha de botões". Falta agrupamento por intenção (config | view | export). CSV é `variant="default"` (primária) sem motivo claro — Excel é o formato mais usado em ERPs.
-
-### 3. Filtros sem hierarquia
-- `PeriodoFilter` (data inicial/final + 4 quick periods) e `FiltrosRelatorio` (cliente/fornecedor/grupo/status/agrupamento/tipos) estão na mesma `<Card>` mas em rows separados sem separador visual.
-- Quick periods aparecem como 4 botões soltos sem indicação de qual está ativo.
-- Multi-selects todos com `w-[250px]` fixo — cliente longo trunca, grupo curto fica largo demais.
-- Filtros aplicados não viram chips removíveis (padrão Linear/Notion). Usuário precisa abrir cada multi-select pra ver o que está filtrado.
-
-### 4. Sem "resumo do filtro aplicado"
-Após escolher 5 clientes + período + status, o usuário não vê em texto "Vendas a 5 clientes • 01/01 a 31/01 • Em aberto". Não há linha-resumo, dificulta auditoria visual e screenshot.
-
-### 5. KPIs não indicam escopo
-4 cards de SummaryCard. Não tem subtítulo "do período" ou ícone informativo. Quando filtros locais aplicados (banner amarelo já implementado), KPIs continuam visualmente iguais mesmo divergindo dos totais visíveis. Sem hint visual no card.
-
-### 6. Footer de totais subaproveitado
+#### A1. Credenciais hardcoded em `Login.tsx`
 ```tsx
-<div className="border-t bg-muted/30 px-4 py-2 ... text-xs font-semibold text-muted-foreground">
+const [email, setEmail] = useState("admin@avizee.com");
+const [password, setPassword] = useState("admin123456");
 ```
-Texto cinza pequeno. Em relatório financeiro o footer é o ponto mais importante — deveria ter destaque tipográfico (bold, tabular-nums, alinhado por coluna).
+Vazamento de credencial em produção. Substituir por strings vazias e usar apenas o botão "Preencher como Dev" (`VITE_DEV_EMAIL/PASSWORD`).
 
-### 7. Empty state invisível
-```tsx
-{showEmpty && <div className="px-4 pb-4 text-xs text-muted-foreground">...</div>}
-```
-+ DataTable já tem seu próprio empty. Dois empties competindo. O do Relatorios é texto-cinza-12px no rodapé — usuário com lista vazia não percebe que precisa ajustar filtros.
+#### A2. `safetyTimeout` 5s em AuthContext pode encerrar `loading` antes do `INITIAL_SESSION` resolver em redes lentas
+Resultado: `permissionsLoaded=false` mas `loading=false` → `ProtectedRoute` ainda espera (ok), mas componentes não-guardados podem renderizar com `roles=[]`. Aceitável, porém o aviso de console "Auth initialization timed out" deveria virar telemetria.
 
-### 8. Preview modal: tabela "papel quadriculado"
-- Listras zebras simples, sem cabeçalho com logo/empresa visível, sem KPIs no topo.
-- Totalizadores em row de spans `flex flex-wrap gap-4` — alinhamento aleatório.
-- Botões na ação top: PDF/Excel/CSV/Imprimir todos pequenos outline — sem destaque para a ação principal (provavelmente Imprimir, dado que está em pré-visualização).
+#### A3. `signOut` não navega para `/login`
+Faz `supabase.auth.signOut()` e zera state, mas a navegação fica espalhada em cada caller (`MobileMenu`, etc.). Centralizar com `navigate('/login', { replace: true })` ou um `useEffect` em `ProtectedRoute` que reaja a `!user`. Hoje o redirect funciona via `<Navigate to="/login">` em `ProtectedRoute`, mas só depois do unmount.
 
-### 9. Chart "tampado" pelo lado direito
-Grid `xl:grid-cols-[1fr_380px]` força chart fixo de 380px. Em 1128px (viewport atual), tabela fica ~700px e chart 380px — chart ocupa 33% sem motivo. Prioridade de leitura é tabela, não chart.
+#### A4. `ResetPassword` aceita `type=recovery` apenas no hash inicial
+Se o usuário recarregar a página após o Supabase consumir o hash, `window.location.hash` fica vazio e o componente redireciona para `/login`, mas a sessão recovery já está ativa. Verificar via `supabase.auth.getSession()` em vez de só `window.location.hash`.
 
-### 10. Falta densidade controlável
-Tabela com `[size]="default"` (linhas altas). Em relatório de 200 linhas, usuário rola muito. Sem toggle "compact" (já existe `density` em SummaryCard, mas não aplicado).
+### B. Permissões — drift crítico entre frontend e DB
 
-### 11. Period em texto pequeno na descrição
-`periodoLabel` só aparece no preview. Na tela principal, usuário vê "Data inicial: 01/01" + "Data final: 31/01" mas não tem chip "Período: 01/01 a 31/01" no header — informação importante fica enterrada.
+#### B1. Duas matrizes de permissão paralelas
+- **Frontend**: `src/lib/permissions.ts` → `rolePermissionMatrix` (hard-coded)
+- **DB**: tabela `role_permissions` + RPC `user_has_permission(_user_id, _resource, _action)`
 
-### 12. Exportação sem confirmação visual do escopo
-Clicar PDF gera direto. Não mostra mini-resumo "Exportando 47 registros, 8 colunas, ~2 páginas". Toast loading aparece mas sem detalhe.
+`AuthContext.fetchPermissions` lê apenas `user_roles` + `user_permissions`. **Nunca consulta `role_permissions`**. Resultado:
+- Admin altera `role_permissions` no DB → frontend ignora.
+- O hard-code em `permissions.ts` é a verdade efetiva. A tabela DB é decoração.
+- `PermissaoMatrix` mostra o hard-code com banner "Esta matriz é read-only" — inconsistente com a presença real da tabela e do RPC no banco.
 
-## Padrão-base proposto
+**Decisão necessária**: ou eliminar `role_permissions` da arquitetura, ou tornar a tabela a fonte canônica e o frontend consumi-la. (Ver Estratégia.)
 
-### A. Header do relatório (`ReportHeader` novo)
-Componente único que substitui o bloco "voltar + card title". Layout:
-```
-┌─────────────────────────────────────────────────────────┐
-│ ← Voltar     Comercial · Vendas    [chip período]       │
-│                                                         │
-│ Vendas por Período          [Atualizar] [Salvar ▾]     │
-│ Análise consolidada de pedidos...                       │
-└─────────────────────────────────────────────────────────┘
-```
-- Breadcrumb leve "Categoria · Relatório"
-- Chip de período em destaque ao lado do título
-- Ações de "config/refresh" no canto superior direito (separadas das exports)
+#### B2. `useCan` (`Permission`) e `useAuth().can(resource, action)` são APIs paralelas
+- `useAuth().can("orcamentos", "criar")` — assinatura tipada estrita.
+- `useCan().can("orcamentos:criar" | "orcamentos:*")` — string com wildcard.
+- Ambas reconstroem o `permissionSet` com `buildPermissionSet`. Duplicação de cache.
+- `useAuth().can` **não trata wildcards** (`orcamentos:*`). Se um override for inserido como `orcamentos:*`, ele só funciona via `useCan`.
 
-### B. Toolbar dual: filtros (esquerda) + ações (direita)
-Separar visualmente:
-- **Linha 1 (filtros)**: Período + quick periods (com active state) + filtros do relatório.
-- **Linha 2 (chips ativos)**: Lista de filtros aplicados como `Badge` removíveis (`Cliente: ACME ×`, `Status: Em aberto ×`).
-- **Ações de export**: movidas para um grupo dedicado `[Visualizar] [Colunas ▾] [Exportar ▾]` — Exportar vira dropdown com PDF/Excel/CSV (uma CTA primária + 3 opções). Reduz de 7→3 botões visíveis.
+#### B3. `useAuth().can` retorna `false` antes de `permissionsLoaded`?
+Não — `can` consulta `mergedPermissions` direto. Se o roles ainda não carregou, retorna `false` silenciosamente. Componentes que checam `can()` em primeira render e escondem botões podem flickerar. `useCan` corrige isso (`if (!permissionsLoaded) return false`), mas a inconsistência entre as duas APIs é a raiz.
 
-### C. Quick periods com active state
-`PeriodoFilter` ganha prop `selected?: QuickPeriod` calculada via comparação de strings. Botão ativo: `variant="default"` em vez de `outline`. Adicionar opção "Personalizado" (mostra os date inputs só quando ativa) — colapsa por padrão para reduzir densidade.
+#### B4. `extraPermissions` só carrega rows com `allowed=true`
+`fetchExtraPermissions` filtra `eq("allowed", true)`. Não há mecanismo de **revogação** de permissão herdada do role no frontend (allowed=false é ignorado). Mas o RPC `user_has_permission` no DB **respeita o override** (override.allowed precede base.allowed). Mais um drift: se um admin no DB inserir `user_permissions(user_id, 'financeiro', 'editar', allowed=false)` para um financeiro, o backend bloqueia, o frontend continua mostrando o botão.
 
-### D. KPIs com badge de escopo
-Quando `rows.length !== sortedRows.length`, cada `SummaryCard` ganha uma anotação sutil "universo" (info icon + tooltip). E adicionar **um** `SummaryCard` de "Registros visíveis" como 5º card (ou substituir variation por contador).
+#### B5. `orcamentos:visualizar_rentabilidade` não está em `ERP_ACTIONS`
+`src/lib/orcamentoInternalAccess.ts` checa `extraPermissions.includes("orcamentos:visualizar_rentabilidade" as PermissionKey)` — cast forçado. A action `visualizar_rentabilidade` não consta no enum `ERP_ACTIONS`. Permissão "fantasma" que só funciona se inserida manualmente via SQL/edge fn. Ou adicionar à enum, ou criar lista separada `ORCAMENTO_GRANULAR_PERMS`.
 
-### E. Footer de totais com destaque
-Trocar `<div bg-muted/30 text-xs text-muted-foreground>` por bloco com:
-- `bg-muted/50`, padding maior (py-3)
-- Labels em `text-xs uppercase tracking-wide`
-- Valores em `text-base font-bold tabular-nums text-foreground`
-- Alinhamento por coluna (cada total alinhado abaixo da coluna correspondente quando possível)
+#### B6. Lista `ERP_ACTIONS` poluída e não auditada por recurso
+17 ações (`importar_xml`, `gerar`, `editar_comentarios`, `gerenciar_templates`, ...). Várias só fazem sentido em 1-2 recursos específicos. Sem mapeamento "que actions são válidas para que resource", o tipo `PermissionKey` permite combinações inválidas (`dashboard:importar_xml`).
 
-### F. Empty state real
-Substituir `<div ... text-xs>` por componente `EmptyState` (já existe) com `variant="noResults"`, ícone `SearchX`, título "Nenhum dado para os filtros atuais" e CTA "Limpar filtros" (reset de search params exceto `tipo`).
+#### B7. Permissão `usuarios:*` existe mas não é checada
+`ERP_RESOURCES` inclui `"usuarios"`, mas o gate de admin é via `isAdmin` em todos os lugares (`AdminRoute`, edge fn `admin-users` checa `has_role(admin)`). A permissão `usuarios:visualizar` nunca é consultada — pode ser concedida a um vendedor sem efeito. Remover do enum ou implementar gate baseado em permissão.
 
-### G. PreviewModal: layout "documento"
-- Cabeçalho com logo/empresa (de `empresaConfig`) + meta (período, data de geração, usuário).
-- KPIs em grid 4-col (mesma do main, em formato compacto).
-- Tabela com cabeçalho repetível, alinhamento numérico right, linhas com `tabular-nums`.
-- Footer de totais idêntico ao da tela principal.
-- Action bar com **Imprimir** como CTA primária (`variant="default"`) + dropdown "Exportar" (PDF/Excel/CSV) — alinhado com o padrão da tela principal.
+### C. Guards & coerência menu-rota-ação
 
-### H. Grid tabela:chart adaptativo
-Trocar `xl:grid-cols-[1fr_380px]` por `xl:grid-cols-[2fr_1fr]` com max-width no chart (300-420px range). Em viewport <1280px, chart vai pra baixo full-width.
+#### C1. Quase toda rota é `ProtectedRoute` (apenas autenticação)
+`/produtos`, `/financeiro`, `/fiscal`, `/relatorios`, etc. — qualquer usuário logado acessa via URL direta. O menu (`useVisibleNavSections`) filtra por `can(resource, 'visualizar')`, mas digitar `/financeiro` na URL como `vendedor` carrega a página inteira. **Bloqueio de menu sem bloqueio de rota = falsa proteção**.
 
-### I. Toggle de densidade (compact rows)
-Adicionar botão `[≡ Compactar]` na toolbar de ações (junto com Colunas). Quando ativo, passa `density="compact"` ao DataTable (já suportado) e `compact` ao SummaryCard. Persiste em localStorage `relatorios:density`.
+#### C2. RLS no DB é o único bloqueio real
+Vendedor abrindo `/financeiro` → RLS provavelmente retorna 0 rows e mensagem "lista vazia", sem indicar "sem permissão". UX ruim e revela existência da rota. Faltam guards baseados em `useCan`.
 
-### J. Confirmação visual de export (toast.loading)
-Já existe loading toast. Adicionar no `description`: "47 registros · 8 colunas". Usa `sortedRows.length` e `visibleColumns.length`.
+#### C3. Botões de ação inconsistentes
+Apenas `Orcamentos.tsx` (aprovar) e `Logistica.tsx` (editar) checam permissão para esconder/desabilitar ação. Demais módulos confiam no DB. Exemplos:
+- "Excluir Pedido" sempre visível, mesmo para `vendedor` sem `pedidos:excluir`.
+- "Exportar PDF" em Relatórios visível para todos.
 
-### K. Resumo do filtro aplicado (linha sticky no topo do resultado)
-Acima do DataTable, linha compacta:
-```
-📊 47 registros · Período 01/01–31/01 · Status: Em aberto · 5 clientes selecionados
-```
-Substitui o banner amarelo atual quando há filtros, e fica sutil quando não há (apenas "47 registros · Atualizado há 2 min").
+#### C4. `getSocialPermissionFlags` ignora `extraPermissions`
+Decide visibilidade do módulo Social puramente por `roles` (admin/vendedor/financeiro). Override individual `social.visualizar` em `user_permissions` não tem efeito. Inconsistente com o resto do sistema.
 
-## Implementação
+#### C5. `SocialRoute` renderiza `AccessDenied` quando flag desligada via env
+`VITE_FEATURE_SOCIAL` controla menu (em `navigation.ts`), mas a rota `/social` continua registrada em `App.tsx`. URL direta com flag off → guard checa permissão → admin vê página normalmente. OK funcionalmente, mas a flag não esconde a rota como se espera.
 
-### Componentes novos
-1. **`src/pages/relatorios/components/ReportHeader.tsx`** — Header com breadcrumb, título, descrição, chip de período, slot de ações.
-2. **`src/pages/relatorios/components/ReportToolbar.tsx`** — Toolbar dual: filtros à esquerda, ações de view/export agrupadas à direita.
-3. **`src/pages/relatorios/components/ExportMenu.tsx`** — Dropdown unificado [Exportar ▾] → PDF/Excel/CSV com badge "47 registros".
-4. **`src/pages/relatorios/components/ActiveFiltersBar.tsx`** — Linha de chips removíveis dos filtros aplicados + quick reset.
-5. **`src/pages/relatorios/components/ReportResultFooter.tsx`** — Footer de totais com destaque tipográfico.
-6. **`src/pages/relatorios/components/PreviewDocument.tsx`** — Layout "documento" do preview com cabeçalho empresa, KPIs, tabela, footer.
+#### C6. `AdminRoute` e `SocialRoute` divergem em loading
+- `AdminRoute`: `if (authLoading || roleLoading)` — usa `useIsAdmin()` que combina ambos.
+- `SocialRoute`: `if (loading || !permissionsLoaded)`.
+- `ProtectedRoute`: `if (loading || (user && !permissionsLoaded))`.
+Três jeitos de aguardar a mesma coisa.
 
-### Componentes ajustados
-7. **`src/pages/relatorios/components/Filtros/PeriodoFilter.tsx`** — Active state nos quick buttons; opção "Personalizado" colapsável.
-8. **`src/pages/Relatorios.tsx`** — Refatorar usando os componentes novos; remover blocos inline; adicionar toggle densidade; trocar empty inline por `EmptyState`; ajustar grid tabela:chart para `2fr_1fr`.
-9. **`src/components/ui/PreviewModal.tsx`** — Aceitar `primaryAction?: ReactNode` para destacar CTA principal (Imprimir) acima dos demais botões.
+### D. Estrutura de código — duplicação & acoplamento
 
-### Sem mudanças (mas validados)
-- `SummaryCard` (já tem `density="compact"`)
-- `EmptyState` (já existe e atende o caso)
-- `DataTable` (já tem virtualização e suporta densidade futura)
-- `export.service.ts`, `relatorios.service.ts` (lógica intocada)
+#### D1. 3 módulos derivam permissão da mesma fonte
+- `useAuth().can` (AuthContext)
+- `useCan().can` (hooks/useCan.ts)
+- `getOrcamentoInternalAccess(roles, extra)`, `getSocialPermissionFlags(roles)` — funções pure que ignoram a engine principal.
+
+Cada uma reimplementa "como decidir". Falta um único `evaluatePermission(resource, action, ctx)`.
+
+#### D2. `usuarios.service.ts` (legado) ainda no codebase
+O próprio comentário diz "@legacy ... não reutilizar". Confunde leitor. Mover para `_legacy/` ou remover.
+
+#### D3. `perfis.service.ts` paralelo a `admin-users` edge fn
+`atribuirPerfil`/`removerPerfil` usam supabase client direto (gravam em `user_roles`). RLS provavelmente bloqueia para não-admins, mas o caminho canônico é a edge fn. Manter as duas convida bugs (chamou client → edge fn não auditou em `permission_audit`).
+
+#### D4. `rolePermissions.service.ts` exportado mas não usado
+`fetchAllRolePermissions`, `setRolePermission`, `userHasPermission` (RPC) — não há caller no frontend (busca: zero matches). Código morto que sugere "isto está implementado" sem estar.
+
+#### D5. `LEGACY_ROLES = {moderator, user}` filtrado no AuthContext
+Defesa boa, mas o enum `app_role` no DB ainda tem `"user"` e `"viewer"` (visto em `types.ts`: `app_role: "admin" | "user" | "viewer" | ...`). Limpar enum no DB ou documentar a coexistência.
+
+#### D6. Tipos `Permission`/`PermissionKey` divergem
+- `PermissionKey` (lib/permissions): `${ErpResource}:${ErpAction}` — estrito.
+- `Permission` (utils/permissions): `PermissionKey | "${string}:*" | "*" | "admin"` — permissivo.
+- Refatorar para um único tipo, com parsing definido (`parsePermission(input) → { resource, action, isWildcard }`).
+
+#### D7. `checkPermission` aceita string `"admin"` como wildcard global
+Alias legado documentado. Mas isso permite gravar `user_permissions(resource='admin', action='??')` que ninguém saberia interpretar. Remover suporte e fazer migration.
+
+### E. Coerência sistêmica menu/rota/ação (varredura)
+
+| Item | Menu filtra? | Rota bloqueia? | Ação bloqueia? |
+|---|---|---|---|
+| `/produtos` | ✓ (can produtos:visualizar) | ✗ ProtectedRoute apenas | ✗ |
+| `/financeiro` | ✓ | ✗ | ✗ |
+| `/relatorios` | ✓ | ✗ | ✗ exporta livre |
+| `/administracao` | ✓ (isAdmin) | ✓ AdminRoute | — |
+| `/social` | ✓ (flag+role) | ✓ SocialRoute | parcial |
+| Excluir orçamento | — | ✗ | ✗ |
+| Aprovar orçamento | — | ✗ | ✓ (isAdmin) |
+| Aprovar PC | — | ✗ | ✓ (drawerPermissions) |
+
+Resumo: o **único módulo com proteção em 3 camadas é Administração**.
+
+## Estratégia de correção (escopo desta passada)
+
+### Decisão fundamental — B1
+Optar por um dos dois caminhos antes de iniciar:
+1. **Tabela canônica (recomendado)**: `role_permissions` é a verdade, `permissions.ts` vira seed/bootstrap. AuthContext lê `role_permissions` via uma view materializada ou `user_has_permission` RPC por necessidade. Permite admin alterar permissões em tempo real.
+2. **Hard-code canônico (mais simples)**: remover `role_permissions` e o RPC `user_has_permission` da arquitetura. Manter só `user_permissions` para overrides individuais.
+
+Sugestão: **(2)** para esta passada — menor risco, alinha realidade com código. Migration: `DROP TABLE role_permissions`, `DROP FUNCTION user_has_permission`, atualizar `PermissaoMatrix` para deixar claro que é definido em código.
+
+### Fase 1 — Limpar credenciais hardcoded (A1)
+`Login.tsx`: state inicial `""` para `email`/`password`.
+
+### Fase 2 — Unificar API de permissões (B2, D1, D6)
+- Remover `useAuth().can` (mantém apenas state).
+- `useCan` vira a única API: `can(perm: Permission)`.
+- Atualizar callers (`Logistica.tsx` e quaisquer outros descobertos) para `useCan`.
+- Deprecate `Permission`/`PermissionKey` separados — unificar em `Permission` com helper `toPermission(resource, action)`.
+
+### Fase 3 — Honrar `allowed=false` em overrides (B4)
+- `fetchExtraPermissions`: remover filtro `eq("allowed", true)`. Buscar tudo.
+- Estender `buildPermissionSet` para aceitar `{ allow: PermissionKey[]; deny: PermissionKey[] }`. `deny` remove do set após merge dos roles.
+- Documentar precedência: deny override > role default.
+
+### Fase 4 — Adicionar guards de rota por permissão (C1, C2, C3)
+Criar componente `PermissionRoute({ resource, action, children })` que reusa `useCan`. Aplicar em rotas-chave:
+- `/financeiro`, `/contas-bancarias`, `/fluxo-caixa`, `/conciliacao`, `/contas-contabeis-plano` → `financeiro:visualizar`
+- `/fiscal`, `/fiscal/:id` → `faturamento_fiscal:visualizar`
+- `/produtos`, `/estoque` → respectivos
+- `/relatorios/*` → `relatorios:visualizar`
+
+Sem guard → fallback `<AccessDenied fullPage />`.
+
+### Fase 5 — Unificar guards loading (C6)
+Helper `useAuthGate()` que retorna `{ status: 'loading' | 'unauthenticated' | 'authenticated', user }`. Os 3 guards consomem.
+
+### Fase 6 — Plug `getSocialPermissionFlags` na engine (C4)
+Refatorar para também consultar `extraPermissions` (`social:visualizar`, etc.) — paridade com `useCan`. Ou eliminar o helper e usar `can` direto com novas keys.
+
+### Fase 7 — Decidir sobre `role_permissions`/`user_has_permission` (B1, D4)
+Migration drop (caminho 2). Remover `rolePermissions.service.ts`. Atualizar `PermissaoMatrix` para reforçar "definido em código".
+
+### Fase 8 — Limpeza de serviços legados (D2, D3)
+- Mover `usuarios.service.ts` para `src/services/admin/_legacy/` ou deletar (callers? `useUsuarios` legado).
+- Remover `perfis.service.ts` ou marcar funções não-canônicas como `@deprecated` real (lint warning).
+
+### Fase 9 — Adicionar `usuarios` action ao gate (B7)
+Substituir `isAdmin` checks em `admin-users` edge fn por `user_has_permission` ou consolidar: `usuarios` resource passa a ser checado via `can('usuarios', 'editar')`. Reduz acoplamento "admin = tudo".
+
+### Fase 10 — `ResetPassword` valida via `getSession` (A4)
+Trocar checagem de `window.location.hash` por `supabase.auth.getSession()` no `useEffect` inicial; só redirect se não houver sessão.
+
+### Fase 11 — `signOut` centraliza navegação (A3)
+Após `signOut()`, fazer `window.location.assign('/login')` ou expor `signOutAndRedirect()` no contexto que aceita `navigate` injetado por callers.
+
+### Fase 12 — Granular `orcamentos:visualizar_rentabilidade` (B5)
+Adicionar `"visualizar_rentabilidade"` em `ERP_ACTIONS` e remover cast `as PermissionKey` em `orcamentoInternalAccess.ts`.
 
 ## Fora do escopo
-- Refazer cor/tema do PDF (já documentado em diagnóstico anterior)
-- Drill-down visual (chart click) — mantém comportamento atual
-- Comparação entre períodos lado-a-lado — feature nova
-- Salvar/agendar relatório por email — feature nova
-- Mobile/responsive deep dive (foco é desktop ERP)
-- Stepper visual nos filtros (relatórios são one-shot)
+- Refatorar enum `app_role` no DB para remover `user`/`viewer` legados (migration arriscada, requer auditoria de rows).
+- Implementar tabela `permission_audit_log` para mudanças em `user_permissions` (já existe `permission_audit` para edge fn — manter).
+- Multi-tenant / hierarquia de roles.
+- 2FA / MFA.
+- SSO/OAuth (Google, etc.) — flag separada.
+- Refazer `getOrcamentoInternalAccess` como puro `useCan` (mantém função pura por enquanto, só corrige tipo).
+- Rate-limit de login no edge.
+- Migração de todos os ~25 botões espalhados sem `can()` (Fase 4 cobre rotas; ações ficarão para passada própria).
 
 ## Critério de aceite
-- Header com breadcrumb, título, chip de período, ações secundárias separadas das de export.
-- Toolbar com filtros à esquerda, ações de view/export à direita; export agrupado em menu único.
-- Quick periods mostram qual está ativo.
-- Filtros aplicados aparecem como chips removíveis acima do resultado.
-- Footer de totais com tipografia destacada (bold, tabular, py-3).
-- Empty state usando componente `EmptyState` com CTA "Limpar filtros".
-- Preview modal com layout documento (header empresa + KPIs + tabela + footer) e botão Imprimir como CTA primária.
-- Toggle densidade na toolbar persiste em localStorage.
-- Toast de loading no export inclui "X registros · Y colunas".
-- Build OK; sem regressão funcional na lógica de export/filtros.
+- `Login.tsx` sem credenciais hardcoded.
+- Apenas uma API `useCan` no codebase, com suporte a wildcard.
+- `user_permissions.allowed=false` revoga acesso herdado do role no frontend.
+- `PermissionRoute` aplicado em todas as rotas autenticadas com mapeamento `path → resource`.
+- Guards de loading consolidados via `useAuthGate`.
+- `getSocialPermissionFlags` consulta `extraPermissions`.
+- `role_permissions` e RPC `user_has_permission` removidos OU explicitamente consumidos pelo AuthContext (escolher 1 caminho).
+- `usuarios.service.ts` legado movido/removido.
+- `orcamentos:visualizar_rentabilidade` listado em `ERP_ACTIONS`.
+- `ResetPassword` valida sessão via `getSession()`.
+- `signOut` redireciona para `/login` consistentemente.
+- Build OK, smoke tests passam.
+
+## Arquivos afetados
+- `src/pages/Login.tsx` — credenciais
+- `src/pages/ResetPassword.tsx` — checagem de sessão
+- `src/contexts/AuthContext.tsx` — fetch overrides allowed=false, signOut redirect, remover `can`
+- `src/hooks/useCan.ts` — única API
+- `src/utils/permissions.ts` — suporte a deny, simplificar tipos
+- `src/lib/permissions.ts` — adicionar `visualizar_rentabilidade`, doc "fonte canônica"
+- `src/lib/orcamentoInternalAccess.ts` — remover cast
+- `src/types/social.ts` — `getSocialPermissionFlags` plug em extra
+- `src/components/ProtectedRoute.tsx`, `AdminRoute.tsx`, `SocialRoute.tsx` — `useAuthGate`
+- `src/components/PermissionRoute.tsx` (novo)
+- `src/hooks/useAuthGate.ts` (novo)
+- `src/App.tsx` — aplicar PermissionRoute nas rotas
+- `src/services/admin/usuarios.service.ts` — mover/remover
+- `src/services/admin/perfis.service.ts` — depreciar funções
+- `src/services/admin/rolePermissions.service.ts` — remover (se Fase 7 caminho 2)
+- `supabase/migrations/<novo>.sql` — drop `role_permissions` + `user_has_permission` (se caminho 2)
+- `src/pages/admin/components/PermissaoMatrix/index.tsx` — reforçar copy
+- Componentes que usam `useAuth().can` — migrar para `useCan`
 
 ## Entregáveis
-Resumo final por categoria: header reorganizado, filtros com chips ativos, quick periods com state, ações de export agrupadas, footer com destaque, empty state padronizado, preview em formato documento, toggle de densidade.
-
+Resumo final por categoria: credenciais limpas, `useCan` unificado, deny override funcional, `PermissionRoute` + mapa rota→permissão, guards de loading consolidados, social plug-in, decisão sobre `role_permissions`, limpeza de serviços legados, granular permission tipada, reset password robusto, signOut com redirect.
