@@ -1,4 +1,3 @@
-import { useState, useEffect } from "react";
 import { ViewDrawerV2, ViewField, ViewSection } from "@/components/ViewDrawerV2";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +15,8 @@ import {
 import { formatCurrency } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { useDrawerData } from "@/hooks/useDrawerData";
+import { useActionLock } from "@/hooks/useActionLock";
 
 interface ContaBancaria {
   id: string;
@@ -86,52 +87,54 @@ export function ContaBancariaDrawer({
   onEdit,
   onDelete,
 }: ContaBancariaDrawerProps) {
-  const [lancamentos, setLancamentos] = useState<LancamentoResumo[]>([]);
-  const [baixas, setBaixas] = useState<BaixaResumo[]>([]);
-  const [caixaMovs, setCaixaMovs] = useState<CaixaMovimento[]>([]);
-  const [loading, setLoading] = useState(false);
+  const selectedId = selected?.id ?? null;
 
-  const selectedId = selected?.id;
-
-  useEffect(() => {
-    if (!open || !selectedId) {
-      setLancamentos([]);
-      setBaixas([]);
-      setCaixaMovs([]);
-      return;
-    }
-    setLoading(true);
-    Promise.all([
+  // Cancellation-aware fetch combinado evita race condition entre contas.
+  const { data, loading } = useDrawerData<{
+    lancamentos: LancamentoResumo[];
+    baixas: BaixaResumo[];
+    caixaMovs: CaixaMovimento[];
+  }>(open, selectedId, async (id, signal) => {
+    const [lanc, bx, cx] = await Promise.all([
       supabase
         .from("financeiro_lancamentos")
         .select(
           "id, tipo, descricao, valor, data_vencimento, status, forma_pagamento, clientes(nome_razao_social), fornecedores(nome_razao_social)"
         )
-        .eq("conta_bancaria_id", selectedId)
+        .eq("conta_bancaria_id", id)
         .eq("ativo", true)
         .order("data_vencimento", { ascending: false })
-        .limit(10),
+        .limit(10)
+        .abortSignal(signal),
       supabase
         .from("financeiro_baixas")
         .select("id, valor_pago, data_baixa, forma_pagamento, lancamento_id")
-        .eq("conta_bancaria_id", selectedId)
+        .eq("conta_bancaria_id", id)
         .order("data_baixa", { ascending: false })
-        .limit(10),
+        .limit(10)
+        .abortSignal(signal),
       supabase
         .from("caixa_movimentos")
         .select("id, tipo, descricao, valor, created_at")
-        .eq("conta_bancaria_id", selectedId)
+        .eq("conta_bancaria_id", id)
         .order("created_at", { ascending: false })
-        .limit(5),
-    ]).then(([lanc, bx, cx]) => {
-      setLancamentos((lanc.data as LancamentoResumo[]) || []);
-      setBaixas((bx.data as BaixaResumo[]) || []);
-      setCaixaMovs((cx.data as CaixaMovimento[]) || []);
-      setLoading(false);
-    });
-  }, [open, selectedId]);
+        .limit(5)
+        .abortSignal(signal),
+    ]);
+    return {
+      lancamentos: (lanc.data as LancamentoResumo[]) || [],
+      baixas: (bx.data as BaixaResumo[]) || [],
+      caixaMovs: (cx.data as CaixaMovimento[]) || [],
+    };
+  });
 
-  if (!selected) return <ViewDrawerV2 open={open} onClose={onClose} title="" />;
+  const lancamentos = data?.lancamentos ?? [];
+  const baixas = data?.baixas ?? [];
+  const caixaMovs = data?.caixaMovs ?? [];
+
+  const { pending: actionPending, run: runAction } = useActionLock();
+
+  if (!open || !selected) return null;
 
   const saldo = Number(selected.saldo_atual ?? 0);
   const totalReceber = lancamentos
@@ -231,7 +234,8 @@ export function ContaBancariaDrawer({
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8"
-                onClick={() => { onClose(); onEdit(selected); }}
+                disabled={actionPending}
+                onClick={() => runAction(() => { onEdit(selected); onClose(); })}
               >
                 <Edit className="h-4 w-4" />
               </Button>
@@ -244,7 +248,8 @@ export function ContaBancariaDrawer({
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8 text-destructive hover:text-destructive"
-                onClick={() => { onClose(); onDelete(selected); }}
+                disabled={actionPending}
+                onClick={() => runAction(() => { onDelete(selected); onClose(); })}
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
