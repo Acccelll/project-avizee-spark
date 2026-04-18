@@ -154,7 +154,6 @@ export function AppSidebar({
           secondsSinceSync={secondsSinceSync}
           onNavigate={handleNavClick}
         />
-      </aside>
-    </>
+    </aside>
   );
 }
