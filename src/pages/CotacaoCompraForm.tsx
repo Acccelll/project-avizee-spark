@@ -18,6 +18,7 @@ import { AutocompleteSearch } from "@/components/ui/AutocompleteSearch";
 import { CotacaoCompraPropostasPanel } from "@/components/compras/CotacaoCompraPropostasPanel";
 import { CotacaoCompraItensTable } from "@/components/compras/CotacaoCompraItensTable";
 import { ArrowLeft, Plus, Save, X } from "lucide-react";
+import { PageShell } from "@/components/PageShell";
 import { toast } from "sonner";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import { formatDate } from "@/lib/format";
@@ -291,43 +292,34 @@ export default function CotacaoCompraForm() {
 
   if (loading) {
     return (
-      <><div className="flex items-center justify-center min-h-[60vh]">
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
-        </div>
-      </>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
+      </div>
     );
   }
 
   if (!cotacao) return null;
 
   return (
-    <div className="max-w-5xl space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleBack}
-              aria-label="Voltar"
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold font-mono">{cotacao.numero}</h1>
-                <StatusBadge status={cotacao.status} label={statusLabels[cotacao.status] || cotacao.status} />
-              </div>
-              <p className="text-sm text-muted-foreground">Criada em {formatDate(cotacao.data_cotacao)}</p>
-            </div>
-          </div>
-          {!isTerminal && (
-            <Button onClick={handleSave} disabled={saving} className="gap-2">
-              <Save className="h-4 w-4" />
-              {saving ? "Salvando..." : "Salvar Alterações"}
-            </Button>
-          )}
-        </div>
+    <PageShell
+      backTo={handleBack}
+      maxWidth="5xl"
+      title={
+        <span className="flex items-center gap-2">
+          <span className="font-mono">{cotacao.numero}</span>
+          <StatusBadge status={cotacao.status} label={statusLabels[cotacao.status] || cotacao.status} />
+        </span>
+      }
+      subtitle={`Criada em ${formatDate(cotacao.data_cotacao)}`}
+      actions={
+        !isTerminal && (
+          <Button onClick={handleSave} disabled={saving} className="gap-2">
+            <Save className="h-4 w-4" />
+            {saving ? "Salvando..." : "Salvar Alterações"}
+          </Button>
+        )
+      }
+    >
 
         {isTerminal && (
           <div className="rounded-lg border border-warning/30 bg-warning/5 px-4 py-3 text-sm text-warning">
@@ -459,6 +451,6 @@ export default function CotacaoCompraForm() {
           )}
         </div>
       {confirmDialog}
-    </div>
+    </PageShell>
   );
 }

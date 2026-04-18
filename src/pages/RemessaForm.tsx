@@ -21,10 +21,11 @@ import { useRemessas } from "@/services/logistica/remessas.service";
 import type { Remessa } from "@/services/logistica/remessas.service";
 import { statusRemessa } from "@/lib/statusSchema";
 import { toast } from "sonner";
-import { ArrowLeft, Save, Truck } from "lucide-react";
+import { Save, Truck } from "lucide-react";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import type { Tables } from "@/integrations/supabase/types";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
+import { PageShell } from "@/components/PageShell";
 
 type Cliente = Tables<"clientes">;
 type Transportadora = Tables<"transportadoras">;
@@ -178,17 +179,16 @@ export default function RemessaFormPage() {
   };
 
   return (
-    <><div className="container max-w-3xl py-6 space-y-6">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={handleCancel}>
-            <ArrowLeft className="h-4 w-4 mr-1" />
-            Voltar
-          </Button>
-          <div className="flex items-center gap-2">
-            <Truck className="h-5 w-5 text-primary" />
-            <h1 className="text-xl font-bold">{isNew ? "Nova Remessa" : "Editar Remessa"}</h1>
-          </div>
-        </div>
+    <PageShell
+      backTo={handleCancel}
+      maxWidth="3xl"
+      title={
+        <span className="flex items-center gap-2">
+          <Truck className="h-5 w-5 text-primary" />
+          {isNew ? "Nova Remessa" : "Editar Remessa"}
+        </span>
+      }
+    >
 
         {loading ? (
           <div className="text-center py-12 text-muted-foreground">Carregando...</div>
@@ -342,8 +342,7 @@ export default function RemessaFormPage() {
             </div>
           </form>
         )}
-      </div>
       {confirmDialog}
-    </>
+    </PageShell>
   );
 }

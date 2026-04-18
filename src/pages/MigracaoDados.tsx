@@ -38,6 +38,7 @@ import { useImportacaoEstoque } from "@/hooks/importacao/useImportacaoEstoque";
 import { useImportacaoXml } from "@/hooks/importacao/useImportacaoXml";
 import { useImportacaoFaturamento } from "@/hooks/importacao/useImportacaoFaturamento";
 import { useImportacaoFinanceiro } from "@/hooks/importacao/useImportacaoFinanceiro";
+import { PageShell } from "@/components/PageShell";
 import { useImportacaoEnriquecimento, type EnrichmentType } from "@/hooks/importacao/useImportacaoEnriquecimento";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
@@ -293,27 +294,24 @@ export default function MigracaoDados() {
   };
 
   return (
-    <div className="flex flex-col gap-6">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-primary/10 rounded-lg">
-              <Database className="h-6 w-6 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight">Migração de Dados</h1>
-              <p className="text-sm text-muted-foreground">
-                Central de importação, saneamento e carga de dados legados.
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={handleRefresh} className="gap-2">
-              <RefreshCw className={`h-4 w-4 ${loadingLotes ? 'animate-spin' : ''}`} />
-              Atualizar
-            </Button>
-          </div>
-        </div>
+    <PageShell
+      title={
+        <span className="flex items-center gap-3">
+          <span className="p-2 bg-primary/10 rounded-lg">
+            <Database className="h-6 w-6 text-primary" />
+          </span>
+          Migração de Dados
+        </span>
+      }
+      subtitle="Central de importação, saneamento e carga de dados legados."
+      actions={
+        <Button variant="outline" size="sm" onClick={handleRefresh} className="gap-2">
+          <RefreshCw className={`h-4 w-4 ${loadingLotes ? 'animate-spin' : ''}`} />
+          Atualizar
+        </Button>
+      }
+    >
+      <div className="flex flex-col gap-6">
 
         {/* Aviso de Segurança */}
         <Alert className="bg-amber-50 border-amber-200">
@@ -834,5 +832,6 @@ export default function MigracaoDados() {
           </AlertDialogContent>
         </AlertDialog>
       </div>
+    </PageShell>
   );
 }

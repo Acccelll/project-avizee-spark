@@ -7,10 +7,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { StatusBadge } from "@/components/StatusBadge";
-import { ArrowLeft, Save } from "lucide-react";
+import { Save } from "lucide-react";
 import { toast } from "sonner";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import { formatDate } from "@/lib/format";
+import { PageShell } from "@/components/PageShell";
 
 const statusOptions = [
   { value: "pendente", label: "Pendente" },
@@ -127,39 +128,31 @@ const PedidoForm = () => {
     setForm((prev) => ({ ...prev, [field]: value }));
 
   if (loading) {
-    return (
-      <><div className="p-8 text-center animate-pulse">Carregando pedido...</div>
-      </>
-    );
+    return <div className="p-8 text-center animate-pulse">Carregando pedido...</div>;
   }
 
   if (!pedido) return null;
 
   return (
-    <><div className="mb-6 space-y-3">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/pedidos")}>
-            <ArrowLeft className="w-5 h-5" />
+    <PageShell
+      backTo="/pedidos"
+      title={`Editando Pedido — ${pedido.numero}`}
+      subtitle={
+        <>
+          {pedido.clientes?.nome_razao_social || "—"}
+          {pedido.orcamentos?.numero ? ` · Cotação ${pedido.orcamentos.numero}` : ""}
+        </>
+      }
+      actions={
+        <>
+          <StatusBadge status={pedido.status} />
+          <Button onClick={handleSave} disabled={saving} className="gap-2">
+            <Save className="w-4 h-4" />
+            {saving ? "Salvando..." : "Salvar Alterações"}
           </Button>
-          <div className="min-w-0">
-            <h1 className="page-title text-xl md:text-2xl">
-              Editando Pedido — {pedido.numero}
-            </h1>
-            <p className="text-muted-foreground text-sm mt-0.5">
-              {pedido.clientes?.nome_razao_social || "—"}
-              {pedido.orcamentos?.numero ? ` · Cotação ${pedido.orcamentos.numero}` : ""}
-            </p>
-          </div>
-          <div className="ml-auto flex items-center gap-2">
-            <StatusBadge status={pedido.status} />
-            <Button onClick={handleSave} disabled={saving} className="gap-2">
-              <Save className="w-4 h-4" />
-              {saving ? "Salvando..." : "Salvar Alterações"}
-            </Button>
-          </div>
-        </div>
-
-        {/* Context banner */}
+        </>
+      }
+      meta={
         <div className="flex items-center flex-wrap gap-x-6 gap-y-2 rounded-xl border bg-card/60 px-5 py-3 text-sm shadow-soft">
           <div className="flex items-center gap-2">
             <span className="text-xs uppercase tracking-wider text-muted-foreground font-medium">Pedido</span>
@@ -178,8 +171,8 @@ const PedidoForm = () => {
             </div>
           )}
         </div>
-      </div>
-
+      }
+    >
       <div className="max-w-2xl space-y-5">
         {/* Status + Datas */}
         <div className="bg-card rounded-xl border shadow-soft p-5 space-y-4">
@@ -261,7 +254,7 @@ const PedidoForm = () => {
           </Button>
         </div>
       </div>
-    </>
+    </PageShell>
   );
 };
 
