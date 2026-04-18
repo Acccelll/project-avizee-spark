@@ -470,7 +470,12 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
       if (error) throw error;
 
       entradaOk = true;
-      toast.success("Recebimento registrado! Estoque atualizado e financeiro gerado.");
+      // Toast simples — usuário já será redirecionado para /fiscal logo abaixo,
+      // onde o OriginContextBanner mostra o caminho de volta.
+      toast.success("Recebimento registrado!", {
+        description: "Estoque atualizado e financeiro gerado. Vinculando NF de entrada...",
+        duration: 5000,
+      });
       setDrawerOpen(false);
       // Invalidação cross-módulo: estoque, financeiro, NFs, pedidos.
       await Promise.all(

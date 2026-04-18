@@ -29,6 +29,8 @@ import {
   ensurePublicToken,
 } from "@/services/orcamentos.service";
 import { useConverterOrcamento } from "@/pages/comercial/hooks/useConverterOrcamento";
+import { useCrossModuleToast } from "@/hooks/useCrossModuleToast";
+import { CrossModuleActionDialog, type ImpactItem } from "@/components/CrossModuleActionDialog";
 import {
   Edit,
   Trash2,
@@ -68,6 +70,7 @@ export function OrcamentoView({ id }: Props) {
   const { run, locked, isAnyLocked } = useDetailActions();
   const invalidate = useInvalidateAfterMutation();
   const converterOrcamento = useConverterOrcamento();
+  const crossToast = useCrossModuleToast();
 
   const { data, loading, error, reload } = useDetailFetch<OrcamentoDetail>(id, async (oId, signal) => {
     const { data: orc, error: orcError } = await supabase
@@ -134,7 +137,7 @@ export function OrcamentoView({ id }: Props) {
   const handleConvertToOV = () =>
     run("convert", async () => {
       // RPC transacional + invalidação cross-módulo via hook.
-      await converterOrcamento.mutateAsync({
+      const result = await converterOrcamento.mutateAsync({
         orcamento: selected,
         options: { poNumber: poNumberCliente, dataPo: dataPoCliente },
       });
@@ -142,6 +145,13 @@ export function OrcamentoView({ id }: Props) {
       setDataPoCliente("");
       await reload();
       setConvertConfirmOpen(false);
+      // Toast com CTA contextual: usuário abre o pedido recém-criado em 1 clique.
+      crossToast.success({
+        title: "Pedido gerado!",
+        description: `OV ${result.ovNumero} criada a partir da cotação ${selected.numero}.`,
+        actionLabel: "Abrir pedido",
+        action: { drawer: { type: "ordem_venda", id: result.ovId } },
+      });
       // Mantém o usuário na visualização para ver o pedido vinculado
       // (em vez de navegar para fora — divergência intencional vs grid).
     }).catch(() => {});
@@ -545,8 +555,8 @@ export function OrcamentoView({ id }: Props) {
         loading={locked("approve")}
       />
 
-      {/* Gerar Pedido confirm */}
-      <ConfirmDialog
+      {/* Gerar Pedido — preview de impacto cross-módulo */}
+      <CrossModuleActionDialog
         open={convertConfirmOpen}
         onClose={() => {
           setConvertConfirmOpen(false);
@@ -555,12 +565,27 @@ export function OrcamentoView({ id }: Props) {
         }}
         onConfirm={handleConvertToOV}
         title="Gerar Pedido"
-        description={`Isso criará o pedido e irá marcar a cotação ${selected?.numero} como convertida.`}
+        description={`Confirma a conversão da cotação ${selected?.numero} em Pedido?`}
         confirmLabel="Gerar Pedido"
-        confirmVariant="default"
         loading={locked("convert")}
+        impacts={[
+          {
+            label: "Cria 1 Pedido em /pedidos",
+            detail: `${items.length} ${items.length === 1 ? "item" : "itens"} · ${formatCurrency(kpiValor)}`,
+            tone: "primary",
+          },
+          {
+            label: "Cotação muda para “convertido”",
+            detail: `Nº ${selected?.numero}`,
+            tone: "info",
+          },
+          {
+            label: "Pedido fica disponível para faturamento",
+            tone: "success",
+          },
+        ] satisfies ImpactItem[]}
       >
-        <div className="grid grid-cols-2 gap-3 mt-3">
+        <div className="grid grid-cols-2 gap-3">
           <div className="space-y-2">
             <Label className="text-xs">Nº Pedido do Cliente (PO)</Label>
             <Input
@@ -580,7 +605,7 @@ export function OrcamentoView({ id }: Props) {
             />
           </div>
         </div>
-      </ConfirmDialog>
+      </CrossModuleActionDialog>
     </div>
   );
 }

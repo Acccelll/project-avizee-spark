@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, PanelRightOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRelationalNavigation, type EntityType, MAX_DRAWER_DEPTH } from "@/contexts/RelationalNavigationContext";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -19,13 +19,35 @@ interface RelationalLinkProps {
   onClick?: () => void;
   className?: string;
   mono?: boolean;
+  /**
+   * Comportamento explícito:
+   * - "drawer" → ícone PanelRightOpen + tooltip "Abre painel lateral".
+   * - "route"  → ícone ExternalLink + tooltip "Abre em nova tela".
+   *
+   * Quando omitido, é inferido: `type+id` ou `onClick` → drawer; `to` → route.
+   * Útil para forçar o ícone correto quando `onClick` na verdade navega.
+   */
+  behavior?: "drawer" | "route";
 }
 
 /**
  * Clickable relational link that navigates to a related entity.
  * Use inside ViewDrawer / ViewDrawerV2 to make FK references interactive.
+ *
+ * Diferencia visualmente "abrir drawer" (PanelRightOpen) de "ir para outra
+ * tela" (ExternalLink) para evitar surpresas de navegação ao usuário.
  */
-export function RelationalLink({ label, children, to, type, id, onClick, className, mono }: RelationalLinkProps) {
+export function RelationalLink({
+  label,
+  children,
+  to,
+  type,
+  id,
+  onClick,
+  className,
+  mono,
+  behavior,
+}: RelationalLinkProps) {
   const navigate = useNavigate();
   const { pushView, canPush } = useRelationalNavigation();
 
@@ -48,6 +70,13 @@ export function RelationalLink({ label, children, to, type, id, onClick, classNa
     return <span className={cn(mono && "font-mono", className)}>{children}</span>;
   }
 
+  // Inferência de comportamento quando não explicitado.
+  const inferredBehavior: "drawer" | "route" =
+    behavior ?? (to && !type && !onClick ? "route" : "drawer");
+  const Icon = inferredBehavior === "drawer" ? PanelRightOpen : ExternalLink;
+  const tooltipText =
+    inferredBehavior === "drawer" ? "Abre painel lateral" : "Abre em nova tela";
+
   const button = (
     <button
       type="button"
@@ -57,9 +86,10 @@ export function RelationalLink({ label, children, to, type, id, onClick, classNa
         mono && "font-mono",
         className,
       )}
+      aria-label={typeof children === "string" ? `${children} — ${tooltipText}` : tooltipText}
     >
       {children}
-      <ExternalLink className="h-3 w-3 shrink-0 opacity-60" />
+      <Icon className="h-3 w-3 shrink-0 opacity-60" aria-hidden="true" />
     </button>
   );
 
@@ -76,5 +106,11 @@ export function RelationalLink({ label, children, to, type, id, onClick, classNa
     );
   }
 
-  return button;
+  // Tooltip leve só para distinguir drawer vs rota (não é redundante: ícone é sutil).
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{button}</TooltipTrigger>
+      <TooltipContent side="top">{tooltipText}</TooltipContent>
+    </Tooltip>
+  );
 }

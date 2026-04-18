@@ -7,6 +7,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { ArrowLeft, X, AlertTriangle, Layers } from "lucide-react";
 import { DrawerHeaderShell } from "@/components/ui/DrawerHeaderShell";
+import { DrawerStackBreadcrumb } from "@/components/navigation/DrawerStackBreadcrumb";
 import { ProdutoView } from "./ProdutoView";
 import { ClienteView } from "./ClienteView";
 import { FornecedorView } from "./FornecedorView";
@@ -71,7 +72,12 @@ const DrawerSlot = memo(function DrawerSlot({
   const slots = useDrawerSlots(`${view.type}:${view.id}`);
 
   const breadcrumbBase = TYPE_BREADCRUMB[view.type] || "";
-  const breadcrumbContent = (
+  // Quando há mais de 1 drawer no stack, mostra a trilha encadeada
+  // (Ex.: "Pedido OV-123 › Nota Fiscal NF-567"). Para stacks de 1 drawer,
+  // mantém o formato simples ("Comercial › Pedidos · Pedido OV-123").
+  const breadcrumbContent = total > 1 ? (
+    <DrawerStackBreadcrumb />
+  ) : (
     <span className="inline-flex items-center gap-1.5 truncate">
       <span className="truncate">{breadcrumbBase}</span>
       {slots?.breadcrumb && (
