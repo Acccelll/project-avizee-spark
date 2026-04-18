@@ -284,16 +284,12 @@ export function EstoqueMovimentacaoDrawer({
   const tabRastreabilidade = (
     <div className="space-y-4">
       {isAjusteManual(m) && (
-        <div className="rounded-lg border border-warning/40 bg-warning/5 p-4 flex gap-3">
-          <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
-          <div>
-            <p className="text-sm font-semibold text-warning mb-1">Ajuste Manual</p>
-            <p className="text-xs text-muted-foreground">
-              Esta movimentação é um ajuste realizado manualmente. Verifique o responsável,
-              a data e o motivo registrado abaixo.
-            </p>
-          </div>
-        </div>
+        <DrawerStatusBanner
+          tone="warning"
+          icon={AlertTriangle}
+          title="Ajuste Manual"
+          description="Esta movimentação é um ajuste realizado manualmente. Verifique o responsável, a data e o motivo registrado abaixo."
+        />
       )}
 
       <ViewSection title="Registro">
