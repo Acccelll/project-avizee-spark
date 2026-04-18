@@ -8,6 +8,12 @@ interface Props {
   onClose: () => void;
   title?: string;
   children: ReactNode;
+  /**
+   * Ação primária da modal (ex: dropdown "Exportar"). Renderizada à esquerda do
+   * Imprimir/Fechar, com destaque visual.
+   */
+  primaryAction?: ReactNode;
+  /** Ações secundárias renderizadas entre primaryAction e o botão Imprimir. */
   actions?: ReactNode;
   /**
    * Show the built-in "Print" button. When clicked, triggers `window.print()`
@@ -24,6 +30,7 @@ export function PreviewModal({
   onClose,
   title = "Visualização",
   children,
+  primaryAction,
   actions,
   showPrint = true,
   onPrint,
@@ -48,9 +55,10 @@ export function PreviewModal({
           <h3 className="font-semibold text-foreground">{title}</h3>
           <div className="flex items-center gap-2">
             {actions}
+            {primaryAction}
             {showPrint && (
               <Button
-                variant="outline"
+                variant="default"
                 size="sm"
                 onClick={handlePrint}
                 className="gap-1.5"
