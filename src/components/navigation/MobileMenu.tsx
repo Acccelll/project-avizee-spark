@@ -1,12 +1,13 @@
 import { Moon, Search, Settings, Sun, User, X } from 'lucide-react';
+import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from 'next-themes';
 import { Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { mobileMenuSections, quickActions } from '@/lib/navigation';
+import { quickActions } from '@/lib/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { useIsAdmin } from '@/hooks/useIsAdmin';
+import { useVisibleNavSections } from '@/hooks/useVisibleNavSections';
 
 interface MobileMenuProps {
   open: boolean;
@@ -14,15 +15,20 @@ interface MobileMenuProps {
   onOpenSearch: () => void;
 }
 
+// Section keys already exposed via the bottom navigation — hide from the drawer
+// to avoid duplication. Mirror of BOTTOM_TAB_SECTION_KEYS in lib/navigation.
+const BOTTOM_TAB_KEYS = new Set(['comercial', 'cadastros', 'financeiro']);
+
 export function MobileMenu({ open, onOpenChange, onOpenSearch }: MobileMenuProps) {
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
   const { profile, signOut } = useAuth();
-  const { isAdmin } = useIsAdmin();
+  const visibleSections = useVisibleNavSections();
 
-  const filteredSections = isAdmin ?
-  mobileMenuSections :
-  mobileMenuSections.filter((s) => s.key !== 'administracao');
+  const filteredSections = useMemo(
+    () => visibleSections.filter((section) => !BOTTOM_TAB_KEYS.has(section.key)),
+    [visibleSections],
+  );
 
   const handleNavigate = (path: string) => {
     onOpenChange(false);
@@ -55,58 +61,69 @@ export function MobileMenu({ open, onOpenChange, onOpenSearch }: MobileMenuProps
             onClick={() => {
               onOpenChange(false);
               onOpenSearch();
-            }}>
-            
+            }}
+          >
             <Search className="h-4 w-4" /> Buscar módulos, cadastros e páginas
           </Button>
 
           <section className="mb-5">
             <p className="mb-2 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">Atalhos rápidos</p>
             <div className="grid gap-2">
-              {quickActions.slice(0, 3).map((action) =>
-              <Button
-                key={action.id}
-                variant="secondary"
-                className="h-auto justify-start rounded-xl px-4 py-3 text-left"
-                onClick={() => handleNavigate(action.path)}>
-                
+              {quickActions.slice(0, 3).map((action) => (
+                <Button
+                  key={action.id}
+                  variant="secondary"
+                  className="h-auto justify-start rounded-xl px-4 py-3 text-left"
+                  onClick={() => handleNavigate(action.path)}
+                >
                   <div>
                     <p className="text-sm font-bold text-destructive-foreground">{action.title}</p>
                     <p className="text-xs text-accent-foreground">{action.description}</p>
                   </div>
                 </Button>
-              )}
+              ))}
             </div>
           </section>
 
-          {filteredSections.map((section) =>
-          <section key={section.key} className="mb-5 rounded-2xl border bg-card/70 p-4">
+          {filteredSections.map((section) => (
+            <section key={section.key} className="mb-5 rounded-2xl border bg-card/70 p-4">
               <div className="mb-3 flex items-center gap-2">
                 <section.icon className="h-4 w-4 text-primary" />
                 <p className="text-sm font-semibold">{section.title}</p>
               </div>
-              <div className="space-y-3">
-                {section.items.map((group) =>
-              <div key={group.title}>
-                    <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">{group.title}</p>
-                    <div className="space-y-1">
-                      {group.items.map((item) =>
-                  <button
-                    key={item.path}
-                    type="button"
-                    onClick={() => handleNavigate(item.path)}
-                    className="flex w-full items-center justify-between rounded-xl px-3 py-3 text-left text-sm transition hover:bg-accent">
-                    
-                          <span>{item.title}</span>
-                          <span className="text-muted-foreground">→</span>
-                        </button>
-                  )}
+              {section.directPath ? (
+                <button
+                  type="button"
+                  onClick={() => handleNavigate(section.directPath!)}
+                  className="flex w-full items-center justify-between rounded-xl px-3 py-3 text-left text-sm transition hover:bg-accent"
+                >
+                  <span>Abrir {section.title}</span>
+                  <span className="text-muted-foreground">→</span>
+                </button>
+              ) : (
+                <div className="space-y-3">
+                  {section.items.map((group) => (
+                    <div key={group.title}>
+                      <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">{group.title}</p>
+                      <div className="space-y-1">
+                        {group.items.map((item) => (
+                          <button
+                            key={item.path}
+                            type="button"
+                            onClick={() => handleNavigate(item.path)}
+                            className="flex w-full items-center justify-between rounded-xl px-3 py-3 text-left text-sm transition hover:bg-accent"
+                          >
+                            <span>{item.title}</span>
+                            <span className="text-muted-foreground">→</span>
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  ))}
+                </div>
               )}
-              </div>
             </section>
-          )}
+          ))}
 
           <section className="rounded-2xl border bg-card/70 p-4">
             <p className="mb-3 text-sm font-semibold">Perfil</p>
@@ -124,8 +141,8 @@ export function MobileMenu({ open, onOpenChange, onOpenSearch }: MobileMenuProps
               <Button
                 variant="ghost"
                 className="h-11 w-full justify-start rounded-xl"
-                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
-                
+                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              >
                 {theme === 'dark' ? <Sun className="mr-2 h-4 w-4" /> : <Moon className="mr-2 h-4 w-4" />}
                 Tema {theme === 'dark' ? 'claro' : 'escuro'}
               </Button>
@@ -137,14 +154,14 @@ export function MobileMenu({ open, onOpenChange, onOpenSearch }: MobileMenuProps
                   onOpenChange(false);
                   await signOut();
                   navigate('/login');
-                }}>
-                
+                }}
+              >
                 Sair
               </Button>
             </div>
           </section>
         </div>
       </DrawerContent>
-    </Drawer>);
-
+    </Drawer>
+  );
 }

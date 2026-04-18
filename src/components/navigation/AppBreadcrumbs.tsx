@@ -11,13 +11,20 @@ import {
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { getRouteLabel, navSections } from '@/lib/navigation';
 
-const configTabs: Record<string, string> = {
-  geral: 'Empresa',
-  usuarios: 'Usuários',
+/**
+ * Mapping of `?tab=` values used by the Administração page to the human label
+ * shown in the breadcrumb. Keep in sync with the keys defined in
+ * `src/pages/Administracao.tsx` (`VALID_SECTION_KEYS`).
+ */
+const adminTabs: Record<string, string> = {
+  empresa: 'Empresa',
+  dashboard: 'Visão Geral',
+  usuarios: 'Usuários e Permissões',
   email: 'E-mails',
-  fiscal: 'Fiscal',
-  financeiro: 'Financeiro',
-  aparencia: 'Aparência',
+  fiscal: 'Parâmetros Fiscais',
+  financeiro: 'Parâmetros Financeiros',
+  auditoria: 'Auditoria',
+  migracao: 'Migração de Dados',
 };
 
 const reportTabs: Record<string, string> = {
@@ -29,9 +36,9 @@ const reportTabs: Record<string, string> = {
 };
 
 export function resolvePageTitle(pathname: string, searchParams: URLSearchParams) {
-  if (pathname === '/configuracoes') {
+  if (pathname === '/administracao') {
     const tab = searchParams.get('tab');
-    if (tab && configTabs[tab]) return configTabs[tab];
+    if (tab && adminTabs[tab]) return adminTabs[tab];
   }
 
   if (pathname === '/relatorios') {
