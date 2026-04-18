@@ -9,6 +9,7 @@ import { getUserFriendlyError } from "@/utils/errorMessages";
 import { validateForm } from "@/lib/validationSchemas";
 import { cotacaoCompraSchema, validateCotacaoItems } from "@/lib/cotacaoCompraSchema";
 import { todayISO } from "@/lib/dateUtils";
+import { useGerarPedidoCompra } from "@/pages/comercial/hooks/useGerarPedidoCompra";
 import type { Database } from "@/integrations/supabase/types";
 import {
   type CotacaoCompra,
@@ -21,6 +22,7 @@ import {
 
 export function useCotacoesCompra() {
   const navigate = useNavigate();
+  const gerarPedidoCompra = useGerarPedidoCompra();
   const { data, loading, fetchData, remove } = useSupabaseCrud({
     table: "cotacoes_compra",
     orderBy: "created_at",
@@ -393,82 +395,19 @@ export function useCotacoesCompra() {
       return;
     }
 
-    const fornecedorId = fornecedoresDistintos[0];
-
-    const itensParaPedido = viewItems
-      .map((item) => {
-        const proposta = propostasSelecionadas.find(
-          (p) => p.item_id === item.id && p.fornecedor_id === fornecedorId
-        );
-        if (!proposta) return null;
-        return {
-          produto_id: item.produto_id,
-          quantidade: item.quantidade,
-          preco_unitario: Number(proposta.preco_unitario || 0),
-          subtotal: item.quantidade * Number(proposta.preco_unitario || 0),
-        };
-      })
-      .filter((i): i is NonNullable<typeof i> => i !== null);
-
-    if (itensParaPedido.length === 0) {
-      toast.error("Nenhum item com proposta válida para gerar pedido.");
-      return;
-    }
-
-    const valorTotal = itensParaPedido.reduce((s, i) => s + (i.subtotal || 0), 0);
-    const { data: rpcNumero, error: rpcErr } = await supabase.rpc('proximo_numero_pedido_compra');
-    if (rpcErr || !rpcNumero) {
-      console.error("[gerarPedido] proximo_numero_pedido_compra falhou:", rpcErr);
-      toast.error("Não foi possível gerar o número do pedido. Tente novamente.");
-      return;
-    }
-    const numeroPedido = rpcNumero;
-
-    let pedidoId: string | null = null;
+    // Delega para a RPC transacional `gerar_pedido_compra` via mutation hook.
+    // O hook já invalida `cotacoes_compra` + `pedidos_compra` cross-módulo.
     try {
-      const { data: novoPedido, error: erroCabecalho } = await supabase
-        .from("pedidos_compra")
-        .insert({
-          numero: numeroPedido,
-          fornecedor_id: fornecedorId,
-          cotacao_compra_id: selected.id,
-          data_pedido: todayISO(),
-          valor_total: valorTotal,
-          status: "aprovado",
-          observacoes: `Gerado a partir da cotação ${selected.numero}`,
-        })
-        .select()
-        .single();
-
-      if (erroCabecalho) throw erroCabecalho;
-
-      pedidoId = (novoPedido as { id: string }).id;
-
-      const itemsPayload = itensParaPedido.map((i) => ({ pedido_compra_id: pedidoId!, ...i }));
-      const { error: erroItens } = await supabase
-        .from("pedidos_compra_itens")
-        .insert(itemsPayload);
-
-      if (erroItens) {
-        const { error: erroRollback } = await supabase
-          .from("pedidos_compra")
-          .delete()
-          .eq("id", pedidoId);
-        if (erroRollback) {
-          console.error("[gerarPedido] rollback failed:", erroRollback?.message);
-        }
-        throw erroItens;
-      }
-
-      await supabase.from("cotacoes_compra").update({ status: "convertida" }).eq("id", selected.id);
-
-      toast.success(`Pedido ${numeroPedido} gerado com sucesso!`);
+      await gerarPedidoCompra.mutateAsync({
+        id: selected.id,
+        observacoes: `Gerado a partir da cotação ${selected.numero}`,
+      });
       setDrawerOpen(false);
       fetchData();
       navigate("/pedidos-compra");
     } catch (err: unknown) {
       console.error("[gerarPedido]", err);
-      toast.error(getUserFriendlyError(err), { duration: 8000 });
+      // toast já emitido pelo hook
     }
   };
 

@@ -21,7 +21,8 @@ import { formatCurrency, formatDate, calculateDaysBetween } from "@/lib/format";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { Send } from "lucide-react";
-import { sendForApproval, approveOrcamento, convertToPedido } from "@/services/orcamentos.service";
+import { sendForApproval, approveOrcamento } from "@/services/orcamentos.service";
+import { useConverterOrcamento } from "@/pages/comercial/hooks/useConverterOrcamento";
 import { statusOrcamento } from "@/lib/statusSchema";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import { useClientesRef } from "@/hooks/useReferenceCache";
@@ -150,6 +151,7 @@ const Orcamentos = () => {
   const sendLock = useActionLock();
   const approveLock = useActionLock();
   const convertLock = useActionLock();
+  const converterOrcamento = useConverterOrcamento();
 
   const handleSendForApproval = useCallback(async (orc: Orcamento) => {
     await sendLock.run(async () => {
@@ -229,13 +231,17 @@ const Orcamentos = () => {
   const handleConvertToPedido = async (orc: Orcamento) => {
     await convertLock.run(async () => {
       try {
-        await convertToPedido(orc, { poNumber: poNumberCliente, dataPo: dataPoCliente });
+        // RPC transacional + invalidação cross-módulo (orcamentos + ordens_venda + pedidos).
+        await converterOrcamento.mutateAsync({
+          orcamento: orc,
+          options: { poNumber: poNumberCliente, dataPo: dataPoCliente },
+        });
         setPoNumberCliente("");
         setDataPoCliente("");
         fetchData();
         navigate(`/pedidos`);
-      } catch (err: unknown) {
-        toast.error(getUserFriendlyError(err));
+      } catch {
+        // toast já emitido pelo hook
       } finally {
         setConvertingId(null);
       }

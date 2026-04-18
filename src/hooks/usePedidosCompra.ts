@@ -12,13 +12,13 @@ import {
   type FornecedorOptionRow,
   type ProdutoOptionRow,
   buildEmptyPedidoForm,
-  pedidoNumero,
 } from "@/components/compras/pedidoCompraTypes";
 import { statusPedidoCompra } from "@/lib/statusSchema";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { validateForm } from "@/lib/validationSchemas";
 import { pedidoCompraSchema, validatePedidoItems } from "@/lib/pedidoCompraSchema";
 import { todayISO } from "@/lib/dateUtils";
+import { INVALIDATION_KEYS } from "@/services/_invalidationKeys";
 
 /** Shape of a row from pedidos_compra_itens joined with produtos */
 export interface PedidoItemRow {
@@ -472,6 +472,12 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
       entradaOk = true;
       toast.success("Recebimento registrado! Estoque atualizado e financeiro gerado.");
       setDrawerOpen(false);
+      // Invalidação cross-módulo: estoque, financeiro, NFs, pedidos.
+      await Promise.all(
+        INVALIDATION_KEYS.recebimentoCompra.map((key) =>
+          queryClient.invalidateQueries({ queryKey: [key] }),
+        ),
+      );
       await refreshAll();
     } catch (err: unknown) {
       console.error("[darEntrada]", err);
@@ -479,7 +485,14 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
     }
 
     if (entradaOk) {
-      navigate(`/fiscal?tipo=entrada&fornecedor_id=${p.fornecedor_id || ""}&pedido_compra=${pedidoNumero(p)}`);
+      // Passa UUID do pedido (não número) para que /fiscal possa pré-vincular
+      // com segurança e mostrar breadcrumb de retorno. Ver CONTRACTS.md.
+      const params = new URLSearchParams({
+        tipo: "entrada",
+        pedido_compra_id: String(p.id),
+      });
+      if (p.fornecedor_id) params.set("fornecedor_id", String(p.fornecedor_id));
+      navigate(`/fiscal?${params.toString()}`);
     }
   };
 

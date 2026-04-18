@@ -227,11 +227,14 @@ export async function estornarNotaFiscal(nf: {
   }
 
   // 2. Cancel financial entries
+  // NOTE: a coluna `documento_fiscal_id` NÃO existe em `financeiro_lancamentos`
+  // (apenas `nota_fiscal_id`). O filtro `or(... documento_fiscal_id ...)` antigo
+  // gerava erro silencioso ou era ignorado pelo PostgREST.
   if (nf.gera_financeiro !== false) {
     await supabase
       .from("financeiro_lancamentos")
       .update({ status: "cancelado" })
-      .or(`nota_fiscal_id.eq.${nf.id},documento_fiscal_id.eq.${nf.id}`);
+      .eq("nota_fiscal_id", nf.id);
   }
 
   // 3. Reverse OV billing

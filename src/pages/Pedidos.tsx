@@ -22,7 +22,7 @@ import { formatCurrency, formatDate, daysSince, formatNumber, calculateDaysBetwe
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import { FileText, DollarSign, Truck } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { gerarNFParaPedido } from "@/services/nf.service";
+import { useFaturarPedido } from "@/pages/comercial/hooks/useFaturarPedido";
 
 interface Pedido {
   id: string;
@@ -112,6 +112,7 @@ const prazoFilterOptions: MultiSelectOption[] = [
 const Pedidos = () => {
   const { pushView } = useRelationalNavigation();
   const navigate = useNavigate();
+  const faturarPedido = useFaturarPedido();
   const { data: rawData, loading, fetchData } = useSupabaseCrud({
     table: "ordens_venda", select: "*, clientes(nome_razao_social), orcamentos(numero)",
   });
@@ -207,16 +208,19 @@ const Pedidos = () => {
 
   const handleGenerateNF = async (pedido: Pedido) => {
     try {
-      const { nfNumero } = await gerarNFParaPedido(
-        pedido.id,
-        pedido.numero,
-        pedido.cliente_id,
-      );
-      toast.success(`NF ${nfNumero} gerada, estoque e financeiro atualizados.`);
+      // Usa RPC transacional via mutation hook (invalida fiscal/financeiro/estoque
+      // em background — substitui a lógica TS multi-step + fetchData local).
+      await faturarPedido.mutateAsync({
+        id: pedido.id,
+        numero: pedido.numero,
+        cliente_id: pedido.cliente_id,
+        status_faturamento: pedido.status_faturamento,
+      });
+      // Refetch da grid local também (legado useSupabaseCrud não escuta queryKey).
       fetchData();
     } catch (err: unknown) {
       console.error('[pedidos] gerar NF:', err);
-      toast.error(getUserFriendlyError(err));
+      // toast já emitido pelo hook
     } finally {
       setGeneratingNfId(null);
     }

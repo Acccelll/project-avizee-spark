@@ -16,7 +16,7 @@ import { useDetailFetch } from "@/hooks/useDetailFetch";
 import { useDetailActions } from "@/hooks/useDetailActions";
 import { DetailLoading, DetailEmpty } from "@/components/ui/DetailStates";
 import { pagamentoLabels, freteTipoLabels } from "@/utils/comercial";
-import { gerarNFParaPedido } from "@/services/nf.service";
+import { useFaturarPedido } from "@/pages/comercial/hooks/useFaturarPedido";
 import {
   FileOutput,
   DollarSign,
@@ -86,6 +86,7 @@ export function OrdemVendaView({ id }: Props) {
   const { pushView } = useRelationalNavigation();
   const navigate = useNavigate();
   const { run, locked } = useDetailActions();
+  const faturarPedido = useFaturarPedido();
 
   const { data, loading, reload } = useDetailFetch<OVDetail>(id, async (ovId, signal) => {
     const { data: ov, error: ovErr } = await supabase
@@ -144,16 +145,17 @@ export function OrdemVendaView({ id }: Props) {
   const handleGenerateNF = async () => {
     if (!selected) return;
     await run("generate_nf", async () => {
-      const { nfNumero } = await gerarNFParaPedido(
-        selected.id,
-        selected.numero,
-        selected.cliente_id,
-      );
-      toast.success(`NF ${nfNumero} gerada a partir do Pedido ${selected.numero}!`);
+      // RPC transacional + invalidação cross-módulo via hook.
+      await faturarPedido.mutateAsync({
+        id: selected.id,
+        numero: selected.numero,
+        cliente_id: selected.cliente_id,
+        status_faturamento: selected.status_faturamento,
+      });
       await reload();
       setGenerateNfOpen(false);
     }).catch(() => {
-      // erro já reportado via toast pelo useDetailActions
+      // erro já reportado via toast
     });
   };
 
@@ -165,11 +167,12 @@ export function OrdemVendaView({ id }: Props) {
     selected.status_faturamento !== "total"
   );
 
-  // KPI Faturado: apenas NFs com status `autorizada` contam.
+  // KPI Faturado: NFs com status interno `confirmada` (após confirmarNotaFiscal)
+  // ou `autorizada` (status SEFAZ, aplicável quando integração emite NFe oficial).
   // Canceladas/denegadas continuam listadas mas não somam para faturamento.
   const valorFaturado = notasFiscais
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .filter((n: any) => n.status === "autorizada")
+    .filter((n: any) => ["confirmada", "autorizada"].includes(n.status))
     .reduce((s: number, n: Record<string, unknown>) => s + Number(n.valor_total || 0), 0);
   const valorPendente = Math.max(0, Number(selected?.valor_total || 0) - valorFaturado);
 
