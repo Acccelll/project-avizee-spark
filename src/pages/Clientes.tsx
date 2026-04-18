@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useNavigate, useLocation } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
@@ -232,7 +232,11 @@ const Clientes = () => {
   const [comunicacaoForm, setComunicacaoForm] = useState<ComunicacaoFormData>({ ...emptyComunicacaoForm });
   const [savingComunicacao, setSavingComunicacao] = useState(false);
 
-  const loadTransportadoras = async (clienteId: string) => {
+  // Token incrementa a cada openEdit; loads paralelos comparam contra o token vigente
+  // antes de aplicar resultados. Evita contaminação ao trocar registro rápido.
+  const loadTokenRef = useRef(0);
+
+  const loadTransportadoras = async (clienteId: string, token?: number) => {
     setLoadingTransportadoras(true);
     try {
       const { data, error } = await supabase
@@ -242,6 +246,7 @@ const Clientes = () => {
         .eq("ativo", true)
         .order("prioridade");
       if (error) throw error;
+      if (token !== undefined && token !== loadTokenRef.current) return;
       setModalTransportadoras(((data || []) as ClienteTransportadoraRow[]).map((ct) => ({
         id: ct.id,
         transportadora_id: ct.transportadora_id,
@@ -257,7 +262,7 @@ const Clientes = () => {
     }
   };
 
-  const loadEnderecos = async (clienteId: string) => {
+  const loadEnderecos = async (clienteId: string, token?: number) => {
     setLoadingEnderecos(true);
     try {
       const { data, error } = await supabase
@@ -267,6 +272,7 @@ const Clientes = () => {
         .eq("ativo", true)
         .order("principal", { ascending: false });
       if (error) throw error;
+      if (token !== undefined && token !== loadTokenRef.current) return;
       setEnderecos((data || []) as EnderecoEntrega[]);
     } catch (err) {
       console.error("[clientes] erro ao carregar endereços:", err);
@@ -275,7 +281,7 @@ const Clientes = () => {
     }
   };
 
-  const loadComunicacoes = async (clienteId: string) => {
+  const loadComunicacoes = async (clienteId: string, token?: number) => {
     setLoadingComunicacoes(true);
     try {
       const { data, error } = await supabase
@@ -285,6 +291,7 @@ const Clientes = () => {
         .order("data_registro", { ascending: false })
         .limit(50);
       if (error) throw error;
+      if (token !== undefined && token !== loadTokenRef.current) return;
       setComunicacoes((data || []) as unknown as ComunicacaoCliente[]);
     } catch (err) {
       console.error("[clientes] erro ao carregar comunicações:", err);
@@ -452,8 +459,13 @@ const Clientes = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname, location.search, location.state]);
 
-  const openCreate = () => {setMode("create");setForm({ ...emptyCliente });setSelected(null);setIsDirty(false);setModalTransportadoras([]);setEnderecos([]);setComunicacoes([]);setModalOpen(true);};
+  const openCreate = () => {
+    loadTokenRef.current += 1;
+    setMode("create");setForm({ ...emptyCliente });setSelected(null);setIsDirty(false);
+    setModalTransportadoras([]);setEnderecos([]);setComunicacoes([]);setModalOpen(true);
+  };
   const openEdit = (c: Cliente) => {
+    const token = ++loadTokenRef.current;
     setMode("edit");setSelected(c);
     setForm({
       tipo_pessoa: c.tipo_pessoa || "J", nome_razao_social: c.nome_razao_social, nome_fantasia: c.nome_fantasia || "",
@@ -472,10 +484,10 @@ const Clientes = () => {
     setModalTransportadoras([]);
     setEnderecos([]);
     setComunicacoes([]);
-    Promise.all([
-      loadTransportadoras(c.id),
-      loadEnderecos(c.id),
-      loadComunicacoes(c.id),
+    void Promise.all([
+      loadTransportadoras(c.id, token),
+      loadEnderecos(c.id, token),
+      loadComunicacoes(c.id, token),
     ]);
     setModalOpen(true);
   };

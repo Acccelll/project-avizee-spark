@@ -8,7 +8,7 @@
  * page to allow deeper editing, direct linking, and better back-navigation.
  * Logistica.tsx remains the primary list/dispatch page.
  */
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,7 @@ import { toast } from "sonner";
 import { ArrowLeft, Save, Truck } from "lucide-react";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import type { Tables } from "@/integrations/supabase/types";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 
 type Cliente = Tables<"clientes">;
 type Transportadora = Tables<"transportadoras">;
@@ -81,6 +82,11 @@ export default function RemessaFormPage() {
 
   const [form, setForm] = useState<RemessaForm>(emptyForm);
   const [loading, setLoading] = useState(!isNew);
+  // Snapshot do baseline para detecção de dirty (deep-compare via JSON).
+  const baselineRef = useRef<RemessaForm>(emptyForm);
+  const [, forceRerender] = useState(0);
+  const isDirty = JSON.stringify(form) !== JSON.stringify(baselineRef.current);
+  const { confirm, dialog: confirmDialog } = useConfirmDialog();
 
   // Lookup data
   const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -108,7 +114,11 @@ export default function RemessaFormPage() {
   }, []);
 
   useEffect(() => {
-    if (isNew) return;
+    if (isNew) {
+      baselineRef.current = emptyForm;
+      forceRerender((n) => n + 1);
+      return;
+    }
     const load = async () => {
       setLoading(true);
       const { data, error } = await supabase.from("remessas").select("*").eq("id", id).single();
@@ -117,13 +127,23 @@ export default function RemessaFormPage() {
         navigate("/logistica");
         return;
       }
-      setForm(remessaToForm(data as Remessa));
+      const next = remessaToForm(data as Remessa);
+      baselineRef.current = next;
+      setForm(next);
       setLoading(false);
     };
     load();
   }, [id, isNew, navigate]);
 
   const setF = (patch: Partial<RemessaForm>) => setForm((prev) => ({ ...prev, ...patch }));
+
+  const handleCancel = async () => {
+    if (isDirty) {
+      const ok = await confirm();
+      if (!ok) return;
+    }
+    navigate("/logistica");
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -151,6 +171,7 @@ export default function RemessaFormPage() {
       } else {
         await update(id!, payload);
       }
+      baselineRef.current = form;
       navigate("/logistica");
     } catch (err: unknown) {
       toast.error(getUserFriendlyError(err));
@@ -161,7 +182,7 @@ export default function RemessaFormPage() {
     <AppLayout>
       <div className="container max-w-3xl py-6 space-y-6">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={() => navigate("/logistica")}>
+          <Button variant="ghost" size="sm" onClick={handleCancel}>
             <ArrowLeft className="h-4 w-4 mr-1" />
             Voltar
           </Button>
@@ -313,7 +334,7 @@ export default function RemessaFormPage() {
             </Card>
 
             <div className="flex justify-end gap-3 pb-6">
-              <Button type="button" variant="outline" onClick={() => navigate("/logistica")}>
+              <Button type="button" variant="outline" onClick={handleCancel}>
                 Cancelar
               </Button>
               <Button type="submit" disabled={isSaving}>
@@ -324,6 +345,7 @@ export default function RemessaFormPage() {
           </form>
         )}
       </div>
+      {confirmDialog}
     </AppLayout>
   );
 }

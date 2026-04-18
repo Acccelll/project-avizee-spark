@@ -25,6 +25,8 @@ import { statusPedidoCompra } from "@/lib/statusSchema";
 import type { PedidoCompra } from "@/components/compras/pedidoCompraTypes";
 import { pedidoNumero } from "@/components/compras/pedidoCompraTypes";
 import type { Database } from "@/integrations/supabase/types";
+import { useSubmitLock } from "@/hooks/useSubmitLock";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 
 type ProdutoRow = Database["public"]["Tables"]["produtos"]["Row"] & { preco_custo?: number | null };
 type FornecedorRow = Database["public"]["Tables"]["fornecedores"]["Row"];
@@ -38,7 +40,8 @@ export default function PedidoCompraForm() {
   const { id } = useParams<{ id: string }>();
 
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const { saving, submit } = useSubmitLock({ errorPrefix: "Erro ao salvar pedido" });
+  const { confirm, dialog: confirmDialog } = useConfirmDialog();
   const [pedido, setPedido] = useState<PedidoCompra | null>(null);
   const [form, setForm] = useState({
     fornecedor_id: "",
@@ -143,7 +146,7 @@ export default function PedidoCompraForm() {
   const valorTotal = valorProdutos + Number(form.frete_valor || 0);
 
   const handleSave = async () => {
-    if (!pedido || saving) return;
+    if (!pedido) return;
 
     if (!form.fornecedor_id) { toast.error("Fornecedor é obrigatório."); return; }
     const validItems = items.filter((i) => i.produto_id);
@@ -160,8 +163,7 @@ export default function PedidoCompraForm() {
       return;
     }
 
-    setSaving(true);
-    try {
+    await submit(async () => {
       const payload = {
         fornecedor_id: form.fornecedor_id,
         data_pedido: form.data_pedido,
@@ -177,27 +179,31 @@ export default function PedidoCompraForm() {
       const { error: updErr } = await supabase.from("pedidos_compra").update(payload).eq("id", pedido.id);
       if (updErr) throw updErr;
 
-      // Replace items
-      await supabase.from("pedidos_compra_itens").delete().eq("pedido_compra_id", pedido.id);
-      if (validItems.length > 0) {
-        const itemsPayload = validItems.map((i) => ({
-          pedido_compra_id: pedido.id,
-          produto_id: String(i.produto_id),
-          quantidade: Number(i.quantidade || 0),
-          preco_unitario: Number(i.valor_unitario || 0),
-          subtotal: Number(i.valor_total || 0),
-        }));
-        const { error: itemsErr } = await supabase.from("pedidos_compra_itens").insert(itemsPayload);
-        if (itemsErr) throw itemsErr;
-      }
+      // Substituição atômica dos itens via RPC (delete+insert em uma única transação no servidor).
+      const itensPayload = validItems.map((i) => ({
+        produto_id: String(i.produto_id),
+        quantidade: Number(i.quantidade || 0),
+        preco_unitario: Number(i.valor_unitario || 0),
+        subtotal: Number(i.valor_total || 0),
+      }));
+      const { error: rpcErr } = await supabase.rpc("replace_pedido_compra_itens", {
+        p_pedido_id: pedido.id,
+        p_itens: itensPayload as unknown as never,
+      });
+      if (rpcErr) throw rpcErr;
 
       toast.success("Pedido de compra salvo!");
       setPedido({ ...pedido, ...payload } as PedidoCompra);
       setIsDirty(false);
-    } catch (err: unknown) {
-      toast.error(getUserFriendlyError(err));
+    });
+  };
+
+  const handleBack = async () => {
+    if (isDirty) {
+      const ok = await confirm();
+      if (!ok) return;
     }
-    setSaving(false);
+    navigate("/pedidos-compra");
   };
 
   if (loading) {
@@ -221,10 +227,7 @@ export default function PedidoCompraForm() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => {
-                if (isDirty && !window.confirm("Existem alterações não salvas. Deseja sair?")) return;
-                navigate("/pedidos-compra");
-              }}
+              onClick={handleBack}
               aria-label="Voltar"
             >
               <ArrowLeft className="h-4 w-4" />
@@ -398,14 +401,7 @@ export default function PedidoCompraForm() {
         </div>
 
         <div className="flex justify-between">
-          <Button
-            variant="outline"
-            onClick={() => {
-              if (isDirty && !window.confirm("Existem alterações não salvas. Deseja sair?")) return;
-              navigate("/pedidos-compra");
-            }}
-            className="gap-2"
-          >
+          <Button variant="outline" onClick={handleBack} className="gap-2">
             <ArrowLeft className="h-4 w-4" /> Voltar para Pedidos
           </Button>
           {!isTerminal && (
@@ -416,6 +412,7 @@ export default function PedidoCompraForm() {
           )}
         </div>
       </div>
+      {confirmDialog}
     </AppLayout>
   );
 }

@@ -4853,6 +4853,14 @@ export type Database = {
         Args: { p_motivo: string; p_pedido_id: string }
         Returns: Json
       }
+      replace_cotacao_compra_itens: {
+        Args: { p_cotacao_id: string; p_itens: Json }
+        Returns: undefined
+      }
+      replace_pedido_compra_itens: {
+        Args: { p_itens: Json; p_pedido_id: string }
+        Returns: undefined
+      }
       salvar_orcamento: {
         Args: { p_id: string; p_itens: Json; p_payload: Json }
         Returns: string
