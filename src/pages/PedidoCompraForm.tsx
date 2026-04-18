@@ -412,6 +412,7 @@ export default function PedidoCompraForm() {
           )}
         </div>
       </div>
+      {confirmDialog}
     </AppLayout>
   );
 }
