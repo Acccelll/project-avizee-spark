@@ -23,6 +23,8 @@ import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { Send } from "lucide-react";
 import { sendForApproval, approveOrcamento } from "@/services/orcamentos.service";
 import { useConverterOrcamento } from "@/pages/comercial/hooks/useConverterOrcamento";
+import { useCrossModuleToast } from "@/hooks/useCrossModuleToast";
+import { CrossModuleActionDialog, type ImpactItem } from "@/components/CrossModuleActionDialog";
 import { statusOrcamento } from "@/lib/statusSchema";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import { useClientesRef } from "@/hooks/useReferenceCache";
@@ -152,6 +154,7 @@ const Orcamentos = () => {
   const approveLock = useActionLock();
   const convertLock = useActionLock();
   const converterOrcamento = useConverterOrcamento();
+  const crossToast = useCrossModuleToast();
 
   const handleSendForApproval = useCallback(async (orc: Orcamento) => {
     await sendLock.run(async () => {
@@ -232,14 +235,20 @@ const Orcamentos = () => {
     await convertLock.run(async () => {
       try {
         // RPC transacional + invalidação cross-módulo (orcamentos + ordens_venda + pedidos).
-        await converterOrcamento.mutateAsync({
+        const result = await converterOrcamento.mutateAsync({
           orcamento: orc,
           options: { poNumber: poNumberCliente, dataPo: dataPoCliente },
         });
         setPoNumberCliente("");
         setDataPoCliente("");
         fetchData();
-        navigate(`/pedidos`);
+        // Toast com CTA: abre o pedido criado em drawer (sem sair da grid de cotações).
+        crossToast.success({
+          title: "Pedido gerado!",
+          description: `OV ${result.ovNumero} criada a partir da cotação ${orc.numero}.`,
+          actionLabel: "Abrir pedido",
+          action: { drawer: { type: "ordem_venda", id: result.ovId } },
+        });
       } catch {
         // toast já emitido pelo hook
       } finally {
@@ -469,7 +478,7 @@ const Orcamentos = () => {
         />
       </ModulePage>
 
-      <ConfirmDialog
+      <CrossModuleActionDialog
         open={!!convertingId}
         onClose={() => {
           setConvertingId(null);
@@ -478,11 +487,20 @@ const Orcamentos = () => {
         }}
         onConfirm={() => convertingOrc && handleConvertToPedido(convertingOrc)}
         title="Gerar Pedido"
-        description={`Deseja converter a cotação ${convertingOrc?.numero} em um Pedido? Isso irá marcar a cotação como convertida.`}
+        description={`Confirma a conversão da cotação ${convertingOrc?.numero} em Pedido?`}
         confirmLabel="Gerar Pedido"
-        confirmVariant="default"
+        loading={convertLock.pending}
+        impacts={[
+          {
+            label: "Cria 1 Pedido em /pedidos",
+            detail: convertingOrc ? formatCurrency(Number(convertingOrc.valor_total || 0)) : undefined,
+            tone: "primary",
+          },
+          { label: "Cotação muda para “convertido”", tone: "info" },
+          { label: "Pedido fica disponível para faturamento", tone: "success" },
+        ] satisfies ImpactItem[]}
       >
-        <div className="grid grid-cols-2 gap-3 mt-3">
+        <div className="grid grid-cols-2 gap-3">
           <div className="space-y-2">
             <Label className="text-xs">Nº Pedido do Cliente (PO)</Label>
             <Input
@@ -503,7 +521,7 @@ const Orcamentos = () => {
             />
           </div>
         </div>
-      </ConfirmDialog>
+      </CrossModuleActionDialog>
     </>
   );
 };
