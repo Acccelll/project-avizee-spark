@@ -3,6 +3,8 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { Badge } from "@/components/ui/badge";
 import { RelationalLink } from "@/components/ui/RelationalLink";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSummaryCard";
+import { DrawerStatusBanner } from "@/components/ui/DrawerStatusBanner";
 import { formatNumber } from "@/lib/format";
 import {
   ArrowUpCircle,
@@ -135,62 +137,50 @@ export function EstoqueMovimentacaoDrawer({
 
   const temDocumento = Boolean(m.documento_id && m.documento_tipo && m.documento_tipo !== "manual");
 
+  const movTone = m.tipo === "saida" || m.tipo === "perda_avaria" ? "destructive"
+    : m.tipo === "entrada" || m.tipo === "liberacao_reserva" ? "success"
+    : "warning";
+
   /* ── Summary strip ── */
   const summary = (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-      <div className="rounded-lg border bg-card p-3 text-center">
-        <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground mb-1">
-          Quantidade
-        </p>
-        <p className={`text-xl font-bold font-mono leading-tight ${cfg.color}`}>
-          {qtdFormatada}
-        </p>
-        <p className="text-[10px] text-muted-foreground">movimentada</p>
-      </div>
-
-      <div className="rounded-lg border bg-card p-3 text-center">
-        <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground mb-1">
-          Saldo Após
-        </p>
-        <p className="text-xl font-bold font-mono leading-tight">
-          {formatNumber(m.saldo_atual)}
-        </p>
-        <p className="text-[10px] text-muted-foreground">
-          antes: {formatNumber(m.saldo_anterior)}
-        </p>
-      </div>
-
-      <div className="rounded-lg border bg-card p-3 text-center">
-        <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground mb-1">
-          Origem
-        </p>
-        <p className="text-sm font-semibold leading-tight truncate">
-          {origemLabel(m.documento_tipo)}
-        </p>
-        <p className="text-[10px] text-muted-foreground">
-          {temDocumento ? "doc. vinculado" : "sem documento"}
-        </p>
-      </div>
-
-      <div className="rounded-lg border bg-card p-3 text-center">
-        <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground mb-1">
-          Responsável
-        </p>
-        <p className="text-sm font-semibold leading-tight truncate">
-          {m.usuario_id ? (
+    <DrawerSummaryGrid cols={4}>
+      <DrawerSummaryCard
+        label="Quantidade"
+        value={qtdFormatada}
+        hint="movimentada"
+        tone={movTone}
+        align="center"
+      />
+      <DrawerSummaryCard
+        label="Saldo Após"
+        value={formatNumber(m.saldo_atual)}
+        hint={`antes: ${formatNumber(m.saldo_anterior)}`}
+        align="center"
+      />
+      <DrawerSummaryCard
+        label="Origem"
+        value={origemLabel(m.documento_tipo)}
+        hint={temDocumento ? "doc. vinculado" : "sem documento"}
+        mono={false}
+        align="center"
+      />
+      <DrawerSummaryCard
+        label="Responsável"
+        value={
+          m.usuario_id ? (
             <Tooltip>
               <TooltipTrigger asChild>
                 <span className="font-mono text-xs cursor-default">{m.usuario_id.slice(0, 8)}…</span>
               </TooltipTrigger>
               <TooltipContent side="top" className="font-mono text-xs">{m.usuario_id}</TooltipContent>
             </Tooltip>
-          ) : (
-            "—"
-          )}
-        </p>
-        <p className="text-[10px] text-muted-foreground">usuário</p>
-      </div>
-    </div>
+          ) : "—"
+        }
+        hint="usuário"
+        mono={false}
+        align="center"
+      />
+    </DrawerSummaryGrid>
   );
 
   /* ── Aba Resumo ── */
