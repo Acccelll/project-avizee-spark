@@ -70,7 +70,7 @@ export function ProdutoView({ id }: Props) {
       p.eh_composto ? supabase.from("produto_composicoes")
         .select("quantidade, ordem, produtos:produto_filho_id(id, nome, sku, preco_custo)")
         .eq("produto_pai_id", p.id).abortSignal(signal).order("ordem")
-        : Promise.resolve({ data: [] as ComposicaoQueryRow[] }),
+        : Promise.resolve({ data: [] }),
       supabase.from("estoque_movimentos")
         .select("tipo, quantidade, motivo, created_at, saldo_anterior, saldo_atual")
         .eq("produto_id", p.id).abortSignal(signal).order("created_at", { ascending: false }).limit(20),
@@ -82,13 +82,16 @@ export function ProdutoView({ id }: Props) {
         : Promise.resolve({ data: null }),
     ]);
 
-    const pickData = <T,>(r: PromiseSettledResult<{ data: T | null }>, fallback: T): T =>
-      r.status === "fulfilled" ? (r.value.data ?? fallback) : fallback;
+    const pickData = <T,>(r: PromiseSettledResult<unknown>, fallback: T): T => {
+      if (r.status !== "fulfilled") return fallback;
+      const v = r.value as { data?: T | null } | null;
+      return (v?.data ?? fallback) as T;
+    };
 
-    const nfData = pickData(nfRes, [] as HistoricoNfItemRow[]);
-    const compData = pickData(compRes, [] as ComposicaoQueryRow[]);
-    const movData = pickData(movRes, [] as MovimentoEstoqueRow[]);
-    const fornData = pickData(fornRes, [] as ProdutoFornecedorViewRow[]);
+    const nfData = pickData(nfRes, [] as unknown[]);
+    const compData = pickData(compRes, [] as unknown[]);
+    const movData = pickData(movRes, [] as unknown[]);
+    const fornData = pickData(fornRes, [] as unknown[]);
     const grupoData = pickData(grupoRes, null as Record<string, unknown> | null);
 
     return {
