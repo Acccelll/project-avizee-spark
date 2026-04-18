@@ -270,6 +270,39 @@ export function OrdemVendaView({ id }: Props) {
         </div>
       </div>
 
+      {/* Strip de registros relacionados — visibilidade imediata dos vínculos cross-módulo. */}
+      <RelatedRecordsStrip
+        chips={[
+          {
+            icon: FileText,
+            count: notasFiscais.length,
+            label: notasFiscais.length === 1 ? "NF" : "NFs",
+            tone: "primary",
+            onClick: notasFiscais.length === 1
+              ? () => pushView("nota_fiscal", notasFiscais[0].id)
+              : undefined,
+            title: "Notas Fiscais vinculadas a este pedido",
+          },
+          {
+            icon: DollarSign,
+            count: lancamentos.length,
+            label: "Lançamentos",
+            tone: "info",
+            title: "Lançamentos financeiros decorrentes deste pedido",
+          },
+          {
+            icon: Receipt,
+            count: selected.cotacao_id ? 1 : 0,
+            label: "Cotação origem",
+            tone: "default",
+            onClick: selected.cotacao_id
+              ? () => pushView("orcamento", selected.cotacao_id)
+              : undefined,
+            title: "Cotação que originou este pedido",
+          },
+        ] satisfies RelatedRecordChip[]}
+      />
+
       {/* Tabs */}
       <Tabs defaultValue="resumo" className="w-full">
         <TabsList className="w-full justify-start mb-1">
