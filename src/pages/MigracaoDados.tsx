@@ -293,7 +293,7 @@ export default function MigracaoDados() {
   };
 
   return (
-    <><div className="flex flex-col gap-6 p-6 max-w-[1600px] mx-auto">
+    <div className="flex flex-col gap-6">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-4">
           <div className="flex items-center gap-3">
