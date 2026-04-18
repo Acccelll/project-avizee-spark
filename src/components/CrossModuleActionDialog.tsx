@@ -21,7 +21,7 @@ export interface ImpactItem {
   /** Detalhe secundário opcional (ex.: "5 itens · R$ 12.340,00"). */
   detail?: ReactNode;
   /** Tom visual do item. */
-  tone?: "default" | "info" | "success" | "warning";
+  tone?: "default" | "info" | "success" | "warning" | "primary";
 }
 
 interface CrossModuleActionDialogProps {
@@ -45,6 +45,7 @@ const toneClasses: Record<NonNullable<ImpactItem["tone"]>, string> = {
   info: "text-info bg-info/10",
   success: "text-success bg-success/10",
   warning: "text-warning bg-warning/10",
+  primary: "text-primary bg-primary/10",
 };
 
 /**
