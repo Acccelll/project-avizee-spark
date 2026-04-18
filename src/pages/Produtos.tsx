@@ -756,7 +756,7 @@ const Produtos = () => {
       </ModulePage>
 
       {/* Form Modal */}
-      <FormModal open={modalOpen} onClose={() => setModalOpen(false)} title={mode === "create" ? "Novo Produto" : "Editar Produto"} size="xl">
+      <FormModal open={modalOpen} onClose={handleCloseModal} title={mode === "create" ? "Novo Produto" : "Editar Produto"} size="xl">
         <form onSubmit={handleSubmit} className="space-y-0">
 
           {/* Context banner — edit mode only */}
@@ -1162,7 +1162,7 @@ const Produtos = () => {
           </Tabs>
 
           <div className="flex justify-end gap-2 pt-4 border-t">
-            <Button type="button" variant="outline" onClick={() => setModalOpen(false)}>Cancelar</Button>
+            <Button type="button" variant="outline" onClick={handleCloseModal}>Cancelar</Button>
             <Button type="submit" disabled={saving}>{saving ? "Salvando..." : "Salvar"}</Button>
           </div>
         </form>
