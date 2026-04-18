@@ -397,7 +397,7 @@ export default function Funcionarios() {
       </ModulePage>
 
       {/* Create/Edit Modal */}
-      <FormModal open={modalOpen} onClose={() => setModalOpen(false)} title={mode === "create" ? "Novo Funcionário" : "Editar Funcionário"} size="lg">
+      <FormModal open={modalOpen} onClose={handleCloseModal} title={mode === "create" ? "Novo Funcionário" : "Editar Funcionário"} size="lg">
         <form onSubmit={handleSubmit} className="space-y-6">
 
           {/* BLOCO: IDENTIFICAÇÃO */}
@@ -571,7 +571,7 @@ export default function Funcionarios() {
 
           {/* RODAPÉ */}
           <div className="flex justify-end gap-2 pt-2 border-t">
-            <Button type="button" variant="outline" onClick={() => setModalOpen(false)} disabled={submitting}>Cancelar</Button>
+            <Button type="button" variant="outline" onClick={handleCloseModal} disabled={submitting}>Cancelar</Button>
             <Button type="submit" disabled={submitting}>
               {submitting && <Loader2 className="w-4 h-4 animate-spin mr-1.5" />}
               {submitting ? "Salvando…" : "Salvar"}
@@ -977,6 +977,7 @@ export default function Funcionarios() {
           </div>
         </div>
       </FormModal>
+      {confirmDiscardDialog}
     </AppLayout>
   );
 }
