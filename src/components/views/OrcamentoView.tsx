@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { RelationalLink } from "@/components/ui/RelationalLink";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
+import { usePublishDrawerSlots } from "@/contexts/RelationalDrawerSlotsContext";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
@@ -115,23 +116,15 @@ export function OrcamentoView({ id }: Props) {
     fetchData();
   }, [fetchData]);
 
-  if (loading) return <div className="p-8 text-center animate-pulse">Carregando cotação...</div>;
-  if (fetchError) return (
-    <div className="p-8 text-center text-destructive space-y-1">
-      <p className="font-semibold">Erro ao carregar dados</p>
-      <p className="text-xs text-muted-foreground">{fetchError}</p>
-    </div>
-  );
-  if (!selected) return <div className="p-8 text-center text-destructive">Cotação não encontrada</div>;
-
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const isExpired =
-    selected.validade &&
+  const isExpired = !!(
+    selected?.validade &&
     selected.status !== "convertido" &&
-    new Date(selected.validade) < today;
+    new Date(selected.validade) < today
+  );
 
-  const publicLink = selected.public_token
+  const publicLink = selected?.public_token
     ? `${window.location.origin}/orcamento-publico?token=${selected.public_token}`
     : null;
 
@@ -209,136 +202,99 @@ export function OrcamentoView({ id }: Props) {
   const itemsSubtotal = items.reduce((s, i) => s + Number(i.valor_total || 0), 0);
   const kpiItens = items.length;
   const kpiQtd = items.reduce((s, i) => s + Number(i.quantidade || 0), 0);
-  const kpiPeso = Number(selected.peso_total || 0);
-  const kpiValor = Number(selected.valor_total || 0);
+  const kpiPeso = Number(selected?.peso_total || 0);
+  const kpiValor = Number(selected?.valor_total || 0);
 
-  return (
-    <div className="space-y-4">
-      {/* Action bar */}
-      <div className="flex items-center justify-between gap-1 border-b pb-3">
-        <div className="flex items-center gap-1 flex-wrap">
-          {selected.status === "rascunho" && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-8 gap-1.5 text-xs"
-              onClick={handleSendForApproval}
-              disabled={actionLoading}
-            >
-              <Send className="h-3.5 w-3.5" /> Enviar p/ Aprovação
-            </Button>
-          )}
-          {selected.status === "confirmado" && isAdmin && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-8 gap-1.5 text-xs"
-              onClick={() => setApproveConfirmOpen(true)}
-              disabled={actionLoading}
-            >
-              <CheckCircle className="h-3.5 w-3.5" /> Aprovar
-            </Button>
-          )}
-          {selected.status === "aprovado" && (
-            <Button
-              size="sm"
-              variant="default"
-              className="h-8 gap-1.5 text-xs"
-              onClick={() => setConvertConfirmOpen(true)}
-              disabled={actionLoading}
-            >
-              <ArrowRightCircle className="h-3.5 w-3.5" /> Gerar Pedido
-            </Button>
-          )}
-          {selected.status === "convertido" && linkedOV && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-8 gap-1.5 text-xs"
-              onClick={() => pushView("ordem_venda", linkedOV.id)}
-            >
-              <ExternalLink className="h-3.5 w-3.5" /> Ver Pedido {linkedOV.numero}
-            </Button>
-          )}
+  // Publica slots do header padronizado (sempre — hook deve rodar incondicionalmente)
+  usePublishDrawerSlots(`orcamento:${id}`, selected ? {
+    breadcrumb: `Cotação · ${selected.numero}`,
+    summary: (
+      <div className="flex items-start gap-3">
+        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
+          <FileText className="h-5 w-5" />
         </div>
-
-        <div className="flex items-center gap-1">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 gap-1.5 text-xs"
-                onClick={() => { clearStack(); navigate(`/orcamentos/${id}?preview=1`); }}
-              >
-                <FileText className="h-3.5 w-3.5" /> PDF
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Abrir visualização do PDF</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                aria-label="Editar cotação"
-                onClick={() => { clearStack(); navigate(`/orcamentos/${id}`); }}
-              >
-                <Edit className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Editar</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-destructive hover:text-destructive"
-                aria-label="Excluir cotação"
-                onClick={() => {
-                  if (linkedOV) {
-                    toast.error("Não é possível excluir uma cotação com pedido vinculado.", {
-                      description: `Pedido ${linkedOV.numero} está vinculado a esta cotação.`,
-                    });
-                    return;
-                  }
-                  setDeleteConfirmOpen(true);
-                }}
-                disabled={Boolean(linkedOV)}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{linkedOV ? `Excluir bloqueado — pedido ${linkedOV.numero} vinculado` : "Excluir"}</TooltipContent>
-          </Tooltip>
-        </div>
-      </div>
-
-      {/* Identity header */}
-      <div className="bg-muted/30 rounded-lg p-4 text-sm">
-        <div className="flex justify-between items-start mb-2">
-          <div>
-            <h3 className="font-semibold text-lg font-mono text-primary">{selected.numero}</h3>
-            <p className="text-xs text-muted-foreground">{formatDate(selected.data_orcamento)}</p>
-          </div>
-          <div className="flex flex-col items-end gap-1">
+        <div className="min-w-0 flex-1">
+          <h3 className="font-semibold text-sm leading-tight truncate font-mono">
+            {selected.numero}
+          </h3>
+          <p className="text-[11px] text-muted-foreground">
+            {formatDate(selected.data_orcamento)}
+            {selected.clientes?.nome_razao_social && ` · ${selected.clientes.nome_razao_social}`}
+          </p>
+          <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
             <StatusBadge status={selected.status} />
             {isExpired && (
-              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 bg-amber-100 dark:bg-amber-950/40 dark:text-amber-400 px-1.5 py-0.5 rounded-full">
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-warning bg-warning/10 px-1.5 py-0.5 rounded-full">
                 <AlertTriangle className="h-3 w-3" /> Expirada
               </span>
             )}
+            <span className="inline-flex items-center rounded-full border bg-muted/50 px-2 py-0.5 text-[10px] font-mono text-muted-foreground">
+              {formatCurrency(Number(selected.valor_total || 0))}
+            </span>
           </div>
         </div>
-        <div className="border-t pt-2 text-xs text-muted-foreground">
-          <RelationalLink onClick={() => pushView("cliente", selected.clientes?.id)}>
-            {selected.clientes?.nome_razao_social || "—"}
-          </RelationalLink>
-        </div>
       </div>
+    ),
+    actions: (
+      <>
+        {selected.status === "rascunho" && (
+          <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs" onClick={handleSendForApproval} disabled={actionLoading}>
+            <Send className="h-3.5 w-3.5" /> Enviar p/ Aprovação
+          </Button>
+        )}
+        {selected.status === "confirmado" && isAdmin && (
+          <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs" onClick={() => setApproveConfirmOpen(true)} disabled={actionLoading}>
+            <CheckCircle className="h-3.5 w-3.5" /> Aprovar
+          </Button>
+        )}
+        {selected.status === "aprovado" && (
+          <Button size="sm" variant="default" className="h-8 gap-1.5 text-xs" onClick={() => setConvertConfirmOpen(true)} disabled={actionLoading}>
+            <ArrowRightCircle className="h-3.5 w-3.5" /> Gerar Pedido
+          </Button>
+        )}
+        {selected.status === "convertido" && linkedOV && (
+          <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs" onClick={() => pushView("ordem_venda", linkedOV.id)}>
+            <ExternalLink className="h-3.5 w-3.5" /> Ver Pedido {linkedOV.numero}
+          </Button>
+        )}
+        <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => { clearStack(); navigate(`/orcamentos/${id}?preview=1`); }}>
+          <FileText className="h-3.5 w-3.5" /> PDF
+        </Button>
+        <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs" aria-label="Editar cotação" onClick={() => { clearStack(); navigate(`/orcamentos/${id}`); }}>
+          <Edit className="h-3.5 w-3.5" /> Editar
+        </Button>
+        <Button
+          variant="ghost" size="sm"
+          className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+          aria-label="Excluir cotação"
+          onClick={() => {
+            if (linkedOV) {
+              toast.error("Não é possível excluir uma cotação com pedido vinculado.", {
+                description: `Pedido ${linkedOV.numero} está vinculado a esta cotação.`,
+              });
+              return;
+            }
+            setDeleteConfirmOpen(true);
+          }}
+          disabled={Boolean(linkedOV)}
+        >
+          <Trash2 className="h-3.5 w-3.5" /> Excluir
+        </Button>
+      </>
+    ),
+  } : {});
 
+  if (loading) return <div className="p-8 text-center animate-pulse">Carregando cotação...</div>;
+  if (fetchError) return (
+    <div className="p-8 text-center text-destructive space-y-1">
+      <p className="font-semibold">Erro ao carregar dados</p>
+      <p className="text-xs text-muted-foreground">{fetchError}</p>
+    </div>
+  );
+  if (!selected) return <div className="p-8 text-center text-destructive">Cotação não encontrada</div>;
+
+  return (
+    <div className="space-y-4">
       {/* KPI strip */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         <div className="rounded-lg border bg-card p-2.5 text-center space-y-0.5">

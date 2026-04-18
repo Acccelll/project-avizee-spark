@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { RelationalLink } from "@/components/ui/RelationalLink";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
+import { usePublishDrawerSlots } from "@/contexts/RelationalDrawerSlotsContext";
 import { LogisticaRastreioSection } from "@/components/logistica/LogisticaRastreioSection";
 import { Progress } from "@/components/ui/progress";
 import { ViewField, ViewSection } from "@/components/ViewDrawer";
@@ -133,16 +134,15 @@ export function PedidoCompraView({ id }: Props) {
     fetchData();
   }, [id]);
 
-  if (loading) return <div className="p-8 text-center animate-pulse">Carregando pedido de compra...</div>;
-  if (fetchError) return <div className="p-8 text-center text-destructive">{fetchError}</div>;
-  if (!selected) return <div className="p-8 text-center text-destructive">Pedido não encontrado</div>;
-
-  const isOverdue =
+  const isOverdue = !!(
+    selected &&
     !["recebido", "cancelado"].includes(selected.status) &&
     !!selected.data_entrega_prevista &&
-    new Date(selected.data_entrega_prevista) < new Date();
+    new Date(selected.data_entrega_prevista) < new Date()
+  );
 
   const recebimentoStatus = (() => {
+    if (!selected) return { label: "—", color: "text-muted-foreground", Icon: FileText };
     if (selected.status === "recebido") return { label: "Recebido", color: "text-success", Icon: CheckCircle2 };
     if (selected.status === "parcialmente_recebido") return { label: "Parcial", color: "text-warning", Icon: ArrowDownToLine };
     if (["aguardando_recebimento", "enviado_ao_fornecedor", "aprovado"].includes(selected.status))
@@ -163,44 +163,48 @@ export function PedidoCompraView({ id }: Props) {
   const totalRecebido = viewEstoque.reduce((s, m) => s + Number(m.quantidade || 0), 0);
   const pctRecebimento = totalOrdenado > 0 ? Math.min(100, Math.round((totalRecebido / totalOrdenado) * 100)) : 0;
 
-  const pedidoNum = selected.numero || `PC-${selected.id}`;
+  const pedidoNum = selected?.numero || (selected ? `PC-${selected.id}` : "—");
 
-  return (
-    <div className="space-y-4">
-      <div className="bg-muted/30 rounded-lg p-4">
-        <div className="flex justify-between items-start mb-2">
-          <div>
-            <h3 className="font-semibold text-lg font-mono text-primary">{pedidoNum}</h3>
-            <p className="text-xs text-muted-foreground">
-              {selected.fornecedores?.nome_razao_social || "—"} · {formatDate(selected.data_pedido)}
-            </p>
-          </div>
-          <StatusBadge status={selected.status} />
+  // Publica slots no header padronizado
+  usePublishDrawerSlots(`pedido_compra:${id}`, selected ? {
+    breadcrumb: `Pedido de Compra · ${pedidoNum}`,
+    summary: (
+      <div className="flex items-start gap-3">
+        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
+          <Boxes className="h-5 w-5" />
         </div>
-        <div className="grid grid-cols-3 gap-2 border-t pt-3 mt-1">
-          <div className="text-center">
-            <p className="text-[10px] text-muted-foreground">Itens</p>
-            <p className="font-semibold text-sm font-mono">{viewItems.length}</p>
-          </div>
-          <div className="text-center">
-            <p className="text-[10px] text-muted-foreground">Recebimento</p>
-            {pctRecebimento > 0 ? (
-              <p className={`font-semibold text-sm font-mono ${pctRecebimento === 100 ? "text-success" : "text-warning"}`}>
-                {pctRecebimento}%
-              </p>
-            ) : (
-              <p className={`font-semibold text-xs leading-tight mt-0.5 ${recebimentoStatus.color}`}>
-                {recebimentoStatus.label}
-              </p>
+        <div className="min-w-0 flex-1">
+          <h3 className="font-semibold text-sm leading-tight truncate font-mono">{pedidoNum}</h3>
+          <p className="text-[11px] text-muted-foreground">
+            {selected.fornecedores?.nome_razao_social || "—"} · {formatDate(selected.data_pedido)}
+          </p>
+          <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+            <StatusBadge status={selected.status} />
+            {pctRecebimento > 0 && (
+              <span className={`inline-flex items-center rounded-full border bg-muted/50 px-2 py-0.5 text-[10px] font-mono ${pctRecebimento === 100 ? "text-success" : "text-warning"}`}>
+                {pctRecebimento}% recebido
+              </span>
             )}
-          </div>
-          <div className="text-center">
-            <p className="text-[10px] text-muted-foreground">Total</p>
-            <p className="font-semibold text-sm font-mono text-primary">{formatCurrency(selected.valor_total || 0)}</p>
+            <span className="inline-flex items-center rounded-full border bg-muted/50 px-2 py-0.5 text-[10px] font-mono text-muted-foreground">
+              {formatCurrency(Number(selected.valor_total || 0))}
+            </span>
+            {isOverdue && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-destructive bg-destructive/10 px-1.5 py-0.5 rounded-full">
+                <AlertCircle className="h-3 w-3" /> Em atraso
+              </span>
+            )}
           </div>
         </div>
       </div>
+    ),
+  } : {});
 
+  if (loading) return <div className="p-8 text-center animate-pulse">Carregando pedido de compra...</div>;
+  if (fetchError) return <div className="p-8 text-center text-destructive">{fetchError}</div>;
+  if (!selected) return <div className="p-8 text-center text-destructive">Pedido não encontrado</div>;
+
+  return (
+    <div className="space-y-4">
       <Tabs defaultValue="resumo" className="w-full">
         <TabsList className="w-full grid grid-cols-5">
           <TabsTrigger value="resumo" className="text-[11px]">Resumo</TabsTrigger>

@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { RelationalLink } from "@/components/ui/RelationalLink";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
+import { usePublishDrawerSlots } from "@/contexts/RelationalDrawerSlotsContext";
 import { LogisticaRastreioSection } from "@/components/logistica/LogisticaRastreioSection";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -157,56 +158,68 @@ export function OrdemVendaView({ id }: Props) {
     }
   };
 
-  if (loading) return <div className="p-8 text-center animate-pulse">Carregando pedido...</div>;
-  if (!selected) return <div className="p-8 text-center text-destructive">Pedido não encontrado</div>;
-
   const pesoTotal = items.reduce((s: number, i: Record<string, unknown>) => s + Number(i.peso_total || 0), 0);
   const qtdTotal = items.reduce((s: number, i: Record<string, unknown>) => s + Number(i.quantidade || 0), 0);
-  const canGenerateNF =
+  const canGenerateNF = !!(
+    selected &&
     ["aprovada", "em_separacao", "separado"].includes(selected.status) &&
-    selected.status_faturamento !== "total";
+    selected.status_faturamento !== "total"
+  );
 
   const valorFaturado = notasFiscais.reduce((s: number, n: Record<string, unknown>) => s + Number(n.valor_total || 0), 0);
-  const valorPendente = Math.max(0, Number(selected.valor_total || 0) - valorFaturado);
+  const valorPendente = Math.max(0, Number(selected?.valor_total || 0) - valorFaturado);
 
-  return (
-    <div className="space-y-4">
-      {/* Action bar */}
-      <div className="flex items-center gap-1.5 flex-wrap border-b pb-3">
-        <Button
-          size="sm"
-          variant="outline"
-          className="h-8 gap-1.5 text-xs"
-          onClick={() => navigate(`/pedidos/${selected.id}`)}
-        >
+  // Publica slots no header padronizado
+  usePublishDrawerSlots(`ordem_venda:${id}`, selected ? {
+    breadcrumb: `Pedido · ${selected.numero}`,
+    summary: (
+      <div className="flex items-start gap-3">
+        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
+          <Receipt className="h-5 w-5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <h3 className="font-semibold text-sm leading-tight truncate font-mono">{selected.numero}</h3>
+          <p className="text-[11px] text-muted-foreground">
+            {formatDate(selected.data_emissao)}
+            {selected.clientes?.nome_razao_social && ` · ${selected.clientes.nome_razao_social}`}
+          </p>
+          <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+            <StatusBadge status={selected.status} />
+            <Badge variant="outline" className={`text-[10px] px-1.5 py-0.5 ${statusFaturamentoColors[selected.status_faturamento] || ""}`}>
+              {statusFaturamentoLabels[selected.status_faturamento] || selected.status_faturamento}
+            </Badge>
+            <span className="inline-flex items-center rounded-full border bg-muted/50 px-2 py-0.5 text-[10px] font-mono text-muted-foreground">
+              {formatCurrency(Number(selected.valor_total || 0))}
+            </span>
+          </div>
+        </div>
+      </div>
+    ),
+    actions: (
+      <>
+        <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs" onClick={() => navigate(`/pedidos/${selected.id}`)}>
           <Edit className="h-3.5 w-3.5" /> Editar Pedido
         </Button>
         {canGenerateNF && (
-          <Button
-            size="sm"
-            variant="default"
-            className="h-8 gap-1.5 text-xs"
-            onClick={() => setGenerateNfOpen(true)}
-            disabled={generatingNf}
-          >
+          <Button size="sm" variant="default" className="h-8 gap-1.5 text-xs" onClick={() => setGenerateNfOpen(true)} disabled={generatingNf}>
             <FileOutput className="h-3.5 w-3.5" /> Gerar NF
           </Button>
         )}
-        {/* Mostrar acesso a todas as NFs vinculadas, não apenas a primeira */}
         {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
         {notasFiscais.map((nf: any) => (
-          <Button
-            key={nf.id}
-            size="sm"
-            variant="outline"
-            className="h-8 gap-1.5 text-xs"
-            onClick={() => pushView("nota_fiscal", nf.id)}
-          >
+          <Button key={nf.id} size="sm" variant="outline" className="h-8 gap-1.5 text-xs" onClick={() => pushView("nota_fiscal", nf.id)}>
             <FileText className="h-3.5 w-3.5" /> NF {nf.numero}
           </Button>
         ))}
-      </div>
+      </>
+    ),
+  } : {});
 
+  if (loading) return <div className="p-8 text-center animate-pulse">Carregando pedido...</div>;
+  if (!selected) return <div className="p-8 text-center text-destructive">Pedido não encontrado</div>;
+
+  return (
+    <div className="space-y-4">
       {/* KPI strip */}
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <div className="bg-muted/30 rounded-lg p-3 text-center">

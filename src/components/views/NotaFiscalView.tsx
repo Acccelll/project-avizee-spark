@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { RelationalLink } from "@/components/ui/RelationalLink";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
+import { usePublishDrawerSlots } from "@/contexts/RelationalDrawerSlotsContext";
 import { LogisticaRastreioSection } from "@/components/logistica/LogisticaRastreioSection";
 import { Truck, FileText, User, ShoppingCart } from "lucide-react";
 import type { NotaFiscal } from "@/types/domain";
@@ -53,39 +54,41 @@ export function NotaFiscalView({ id }: Props) {
     fetchData();
   }, [id]);
 
+  // Publica slots no header padronizado
+  usePublishDrawerSlots(`nota_fiscal:${id}`, selected ? {
+    breadcrumb: `Nota Fiscal · NF ${selected.numero}`,
+    summary: (
+      <div className="flex items-start gap-3">
+        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
+          <FileText className="h-5 w-5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <h3 className="font-semibold text-sm leading-tight truncate font-mono">NF {selected.numero}</h3>
+          <p className="text-[11px] text-muted-foreground">
+            {formatDate(selected.data_emissao)}
+            {selected.tipo === 'entrada'
+              ? selected.fornecedores?.nome_razao_social && ` · ${selected.fornecedores.nome_razao_social}`
+              : selected.clientes?.nome_razao_social && ` · ${selected.clientes.nome_razao_social}`}
+          </p>
+          <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+            <StatusBadge status={selected.status} />
+            <span className="inline-flex items-center rounded-full border bg-muted/50 px-2 py-0.5 text-[10px] font-medium text-muted-foreground capitalize">
+              {selected.tipo}
+            </span>
+            <span className="inline-flex items-center rounded-full border bg-muted/50 px-2 py-0.5 text-[10px] font-mono text-muted-foreground">
+              {formatCurrency(Number(selected.valor_total || 0))}
+            </span>
+          </div>
+        </div>
+      </div>
+    ),
+  } : {});
+
   if (loading) return <div className="p-8 text-center animate-pulse">Carregando nota fiscal...</div>;
   if (!selected) return <div className="p-8 text-center text-destructive">Nota fiscal não encontrada</div>;
 
   return (
     <div className="space-y-4">
-      <div className="bg-muted/30 rounded-lg p-4 text-sm">
-        <div className="flex justify-between items-start mb-3">
-          <div>
-            <h3 className="font-semibold text-lg font-mono text-primary">NF {selected.numero}</h3>
-            <p className="text-xs text-muted-foreground">{formatDate(selected.data_emissao)}</p>
-          </div>
-          <StatusBadge status={selected.status} />
-        </div>
-        <div className="space-y-1 border-t pt-3">
-           <div className="flex justify-between">
-             <span className="text-muted-foreground">{selected.tipo === 'entrada' ? 'Fornecedor' : 'Cliente'}:</span>
-             {selected.tipo === 'entrada' ? (
-                <RelationalLink onClick={() => pushView("fornecedor", (selected.fornecedores as { id?: string } | undefined)?.id)}>
-                  {selected.fornecedores?.nome_razao_social || "—"}
-                </RelationalLink>
-             ) : (
-                <RelationalLink onClick={() => pushView("cliente", (selected.clientes as { id?: string } | undefined)?.id)}>
-                  {selected.clientes?.nome_razao_social || "—"}
-                </RelationalLink>
-             )}
-           </div>
-           <div className="flex justify-between font-bold mt-2">
-             <span>Total:</span>
-             <span className="font-mono text-primary">{formatCurrency(selected.valor_total || 0)}</span>
-           </div>
-        </div>
-      </div>
-
       <Tabs defaultValue="itens" className="w-full">
         <TabsList className="w-full grid grid-cols-3">
           <TabsTrigger value="itens">Itens</TabsTrigger>
