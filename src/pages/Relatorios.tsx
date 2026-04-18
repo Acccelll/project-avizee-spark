@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import type React from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ModulePage } from '@/components/ModulePage';
@@ -9,17 +9,23 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Input } from '@/components/ui/input';
+import { EmptyState } from '@/components/ui/empty-state';
 import { DataTable } from '@/components/DataTable';
 import { PreviewModal } from '@/components/ui/PreviewModal';
 import { PeriodoFilter } from '@/pages/relatorios/components/Filtros/PeriodoFilter';
 import { FiltrosRelatorio, type FiltrosRelatorioState } from '@/pages/relatorios/components/Filtros/FiltrosRelatorio';
 import { RelatorioChart } from '@/pages/relatorios/components/Graficos/RelatorioChart';
 import { DreTable } from '@/pages/relatorios/components/Tabelas/DreTable';
+import { ReportHeader } from '@/pages/relatorios/components/ReportHeader';
+import { ExportMenu } from '@/pages/relatorios/components/ExportMenu';
+import { ActiveFiltersBar, type ActiveFilterChip } from '@/pages/relatorios/components/ActiveFiltersBar';
+import { ReportResultFooter } from '@/pages/relatorios/components/ReportResultFooter';
+import { PreviewDocument } from '@/pages/relatorios/components/PreviewDocument';
 import { useRelatorio } from '@/pages/relatorios/hooks/useRelatorio';
 import { useRelatoriosFiltrosData } from '@/pages/relatorios/hooks/useRelatoriosFiltrosData';
 import { useRelatoriosFavoritos } from '@/hooks/useRelatoriosFavoritos';
 import { cn } from '@/lib/utils';
-import { BookmarkPlus, BookOpen, ChevronLeft, Columns, Download, RefreshCcw, Hash, FileText, Eye, FileSpreadsheet, Layers, Trash2 } from 'lucide-react';
+import { BookmarkPlus, BookOpen, Columns, Hash, Eye, Layers, Trash2, RefreshCcw, Rows3, SearchX } from 'lucide-react';
 import { exportarParaCsv, exportarParaExcel, exportarParaPdf, type ExportColumnDef } from '@/services/export.service';
 import { filtrarPorStatus, sortarRows } from '@/utils/relatorios';
 import { reportConfigs, reportCategoryMeta, type ReportCategory } from '@/config/relatoriosConfig';
@@ -31,6 +37,8 @@ import { toast } from 'sonner';
 // ─── Badge classification constants ──────────────────────────────────────────
 const BADGE_CRITICAL = ['vencido', 'abaixo do mínimo', 'zerado', 'pendente', 'nf s/ financeiro', 'pedido s/ nf', 'c', 'alta'];
 const BADGE_OK = ['ok', 'entregue', 'confirmado', 'pago', 'faturado', 'a'];
+
+const DENSITY_KEY = 'relatorios:density';
 
 function buildDreDateRange(state: FiltrosRelatorioState, dataInicio: string, dataFim: string) {
   if (state.dreCompetencia === 'personalizado') return { dataInicio, dataFim };
@@ -49,7 +57,6 @@ function buildDreDateRange(state: FiltrosRelatorioState, dataInicio: string, dat
 export default function Relatorios() {
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // ── All filter state is derived from / synced to URL params ──────────────
   const tipo = (searchParams.get('tipo') as TipoRelatorio) || '';
   const dataInicio = searchParams.get('di') || '';
   const dataFim = searchParams.get('df') || '';
@@ -70,10 +77,19 @@ export default function Relatorios() {
   const [saveNameOpen, setSaveNameOpen] = useState(false);
   const [saveName, setSaveName] = useState('');
 
-  // Favoritos (saved filter configurations)
+  // ── Density toggle (compact rows) — persisted in localStorage ────────────
+  const [compactDensity, setCompactDensity] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem(DENSITY_KEY) === '1';
+  });
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(DENSITY_KEY, compactDensity ? '1' : '0');
+    }
+  }, [compactDensity]);
+
   const { favoritos, salvar: salvarFavorito, remover: removerFavorito } = useRelatoriosFavoritos();
 
-  /** Merges changes into the current URL search params. */
   const updateParams = (patch: Record<string, string | string[] | undefined>) => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
@@ -103,10 +119,8 @@ export default function Relatorios() {
     updateParams(patch);
   };
 
-  // Reference data (cached 30 min)
   const { clientes, fornecedores, grupos, empresaConfig } = useRelatoriosFiltrosData();
 
-  // Assemble query filtros
   const filtros = useMemo(() => {
     if (tipo === 'dre') return buildDreDateRange(filtrosState, dataInicio, dataFim);
     return {
@@ -119,7 +133,6 @@ export default function Relatorios() {
     };
   }, [tipo, dataInicio, dataFim, filtrosState]);
 
-  // Main React Query fetch — replaces loadData/useState/useEffect
   const { data: resultado, isLoading, isError, refetch } = useRelatorio(tipo, filtros);
 
   const isQtyReport = resultado?._isQuantityReport === true;
@@ -171,26 +184,27 @@ export default function Relatorios() {
 
   const handleSelectTipo = (next: TipoRelatorio) => {
     setHiddenColumns([]);
-    // Reset all filter params, keep only the new tipo
     setSearchParams({ tipo: next });
   };
 
   const [isExporting, setIsExporting] = useState(false);
 
+  const exportScopeDescription = `${sortedRows.length} ${sortedRows.length === 1 ? 'registro' : 'registros'} · ${visibleColumns.length} ${visibleColumns.length === 1 ? 'coluna' : 'colunas'}`;
+
   const handleExportCsv = () => {
     if (!sortedRows.length) { toast.warning('Nenhum dado visível para exportar.'); return; }
     exportarParaCsv({ titulo: resultado?.title || String(tipo), rows: sortedRows, columns: exportColumnDefs });
-    toast.success('CSV exportado com sucesso.');
+    toast.success('CSV exportado com sucesso.', { description: exportScopeDescription });
   };
   const handleExportPdf = async () => {
     if (!sortedRows.length) { toast.warning('Nenhum dado visível para exportar.'); return; }
     if (isExporting) return;
     if (sortedRows.length > 200) toast.warning(`PDF limitado a 200 de ${sortedRows.length} registros. Use Excel para tudo.`, { duration: 8000 });
-    const tid = toast.loading('Gerando PDF...');
+    const tid = toast.loading('Gerando PDF...', { description: exportScopeDescription });
     setIsExporting(true);
     try {
       await exportarParaPdf({ titulo: resultado?.title || String(tipo), rows: sortedRows, columns: exportColumnDefs, empresa: empresaConfig, dataInicio, dataFim, resultado });
-      toast.success('PDF gerado com sucesso!', { id: tid });
+      toast.success('PDF gerado com sucesso!', { id: tid, description: exportScopeDescription });
     } catch (e) {
       toast.error('Falha ao gerar PDF.', { id: tid });
       console.error(e);
@@ -201,11 +215,11 @@ export default function Relatorios() {
   const handleExportXlsx = async () => {
     if (!sortedRows.length) { toast.warning('Nenhum dado visível para exportar.'); return; }
     if (isExporting) return;
-    const tid = toast.loading('Gerando Excel...');
+    const tid = toast.loading('Gerando Excel...', { description: exportScopeDescription });
     setIsExporting(true);
     try {
       await exportarParaExcel({ titulo: resultado?.title || String(tipo), rows: sortedRows, columns: exportColumnDefs });
-      toast.success('Excel gerado com sucesso!', { id: tid });
+      toast.success('Excel gerado com sucesso!', { id: tid, description: exportScopeDescription });
     } catch (e) {
       toast.error('Falha ao gerar Excel.', { id: tid });
       console.error(e);
@@ -220,11 +234,8 @@ export default function Relatorios() {
     const saved = salvarFavorito(name, searchParams);
     setSaveName('');
     setSaveNameOpen(false);
-    if (saved) {
-      toast.success(`Configuração "${name}" salva com sucesso!`);
-    } else {
-      toast.warning(`Já existe uma configuração com o nome "${name}".`);
-    }
+    if (saved) toast.success(`Configuração "${name}" salva com sucesso!`);
+    else toast.warning(`Já existe uma configuração com o nome "${name}".`);
   };
 
   const handleCarregarFavorito = (params: string) => {
@@ -232,11 +243,6 @@ export default function Relatorios() {
     setHiddenColumns([]);
   };
 
-  /**
-   * Drill-down: clicking a chart segment navigates to a more specific sub-report.
-   * Uses URL search params so the new report is bookmarkable and the state is not
-   * lost on refresh. Period filters are preserved across the drill-down.
-   */
   const handleChartDrillDown = (point: { name: string; value: number }) => {
     if (!tipo) return;
     const drillMap: Partial<Record<TipoRelatorio, TipoRelatorio>> = {
@@ -247,7 +253,6 @@ export default function Relatorios() {
     };
     const target = drillMap[tipo as TipoRelatorio];
     if (target) {
-      // Preserve the current period and navigate to the sub-report
       const next = new URLSearchParams({ tipo: target });
       if (dataInicio) next.set('di', dataInicio);
       if (dataFim) next.set('df', dataFim);
@@ -270,15 +275,12 @@ export default function Relatorios() {
   }, []);
 
   const selectedMeta = tipo ? reportConfigs[tipo as TipoRelatorio] : undefined;
+  const categoryMeta = selectedMeta ? reportCategoryMeta[selectedMeta.category] : undefined;
   const prioritized = Object.values(reportConfigs).filter((r) => r.priority);
   const showEmpty = !isLoading && !isError && sortedRows.length === 0;
   const hasExportableData = sortedRows.length > 0;
+  const hasLocalFiltersApplied = rows.length !== sortedRows.length;
 
-  /**
-   * Column definitions for export — ordered, labeled and typed from the report config,
-   * filtered to only visible columns. This ensures CSV/Excel/PDF match exactly what
-   * the user sees on screen.
-   */
   const exportColumnDefs = useMemo<ExportColumnDef[] | undefined>(() => {
     if (!tipo || !selectedMeta) return undefined;
     const cfgCols = selectedMeta.columns;
@@ -289,8 +291,147 @@ export default function Relatorios() {
     });
   }, [visibleColumns, tipo, selectedMeta]);
 
+  // ── Active filter chips ──────────────────────────────────────────────────
+  const activeFilterChips = useMemo<ActiveFilterChip[]>(() => {
+    const out: ActiveFilterChip[] = [];
+    if (filtrosState.clienteIds.length) {
+      const names = filtrosState.clienteIds
+        .map((id) => clientes.find((c) => c.id === id)?.nome_razao_social)
+        .filter(Boolean) as string[];
+      out.push({
+        id: 'cli',
+        label: 'Clientes',
+        value: names.length === 1 ? names[0] : `${names.length} selecionados`,
+        onRemove: () => setFiltrosState({ clienteIds: [] }),
+      });
+    }
+    if (filtrosState.fornecedorIds.length) {
+      const names = filtrosState.fornecedorIds
+        .map((id) => fornecedores.find((f) => f.id === id)?.nome_razao_social)
+        .filter(Boolean) as string[];
+      out.push({
+        id: 'for',
+        label: 'Fornecedores',
+        value: names.length === 1 ? names[0] : `${names.length} selecionados`,
+        onRemove: () => setFiltrosState({ fornecedorIds: [] }),
+      });
+    }
+    if (filtrosState.grupoIds.length) {
+      const names = filtrosState.grupoIds
+        .map((id) => grupos.find((g) => g.id === id)?.nome)
+        .filter(Boolean) as string[];
+      out.push({
+        id: 'grp',
+        label: 'Grupos',
+        value: names.length === 1 ? names[0] : `${names.length} selecionados`,
+        onRemove: () => setFiltrosState({ grupoIds: [] }),
+      });
+    }
+    if (filtrosState.statusFiltro && filtrosState.statusFiltro !== 'todos') {
+      const opt = (selectedMeta?.filters.statusOptions ?? []).find((o) => o.value === filtrosState.statusFiltro);
+      out.push({
+        id: 'st',
+        label: 'Status',
+        value: opt?.label ?? filtrosState.statusFiltro,
+        onRemove: () => setFiltrosState({ statusFiltro: 'todos' }),
+      });
+    }
+    if (filtrosState.tipos.length) {
+      out.push({
+        id: 'tp',
+        label: 'Tipos',
+        value: filtrosState.tipos.join(', '),
+        onRemove: () => setFiltrosState({ tipos: [] }),
+      });
+    }
+    if (filtrosState.agrupamento && filtrosState.agrupamento !== 'padrao') {
+      const labels: Record<string, string> = {
+        valor_desc: 'Maior valor',
+        status: 'Status',
+        vencimento: 'Vencimento',
+      };
+      out.push({
+        id: 'ag',
+        label: 'Ordenação',
+        value: labels[filtrosState.agrupamento] ?? filtrosState.agrupamento,
+        onRemove: () => setFiltrosState({ agrupamento: 'padrao' }),
+      });
+    }
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtrosState, clientes, fornecedores, grupos, selectedMeta]);
+
+  const handleClearAllFilters = () => {
+    // Mantém o tipo de relatório, limpa o restante.
+    setSearchParams({ tipo });
+    setHiddenColumns([]);
+  };
+
+  const footerCols = (selectedMeta?.columns ?? []).filter((c) => c.footerTotal);
+
+  // ── Header secondary actions (Atualizar + Salvar/Carregar favoritos) ─────
+  const headerActions = (
+    <>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => refetch()}
+        className="gap-1.5"
+        disabled={isLoading}
+        aria-label="Atualizar dados do relatório"
+      >
+        <RefreshCcw className={cn('h-3.5 w-3.5', isLoading && 'animate-spin')} />
+        Atualizar
+      </Button>
+      <Popover open={saveNameOpen} onOpenChange={setSaveNameOpen}>
+        <PopoverTrigger asChild>
+          <Button variant="outline" size="sm" className="gap-1.5" aria-label="Salvar configuração de filtros">
+            <BookmarkPlus className="h-3.5 w-3.5" />
+            Salvar
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent align="end" className="w-64 p-3 space-y-2">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Salvar configuração atual</p>
+          <Input
+            placeholder="Nome da configuração"
+            value={saveName}
+            onChange={(e) => setSaveName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleSalvarFavorito(); }}
+            className="h-8 text-sm"
+            autoFocus
+          />
+          <Button size="sm" className="w-full" onClick={handleSalvarFavorito} disabled={!saveName.trim()}>Salvar</Button>
+        </PopoverContent>
+      </Popover>
+      {favoritos.length > 0 && (
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className="gap-1.5" aria-label="Carregar configuração favorita">
+              <BookOpen className="h-3.5 w-3.5" />
+              Carregar
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-72 p-3">
+            <p className="text-xs font-semibold mb-2 text-muted-foreground uppercase tracking-wide">Configurações salvas</p>
+            <div className="space-y-1 max-h-60 overflow-y-auto">
+              {favoritos.map((fav) => (
+                <div key={fav.id} className="flex items-center justify-between rounded-md hover:bg-muted/50 px-2 py-1.5 gap-2">
+                  <button className="flex-1 text-left text-sm truncate" onClick={() => handleCarregarFavorito(fav.params)}>{fav.nome}</button>
+                  <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" aria-label={`Remover favorito "${fav.nome}"`} onClick={() => { removerFavorito(fav.id); toast.success(`"${fav.nome}" removido.`); }}>
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
+      )}
+    </>
+  );
+
   return (
-    <><ModulePage title="Relatórios" subtitle="Análises gerenciais, exportações e visão consolidada por módulo.">
+    <>
+      <ModulePage title="Relatórios" subtitle="Análises gerenciais, exportações e visão consolidada por módulo.">
         <div className="space-y-6">
 
           {/* ── Report selector ── */}
@@ -331,161 +472,191 @@ export default function Relatorios() {
           )}
 
           {/* ── Active report ── */}
-          {!!tipo && (
+          {!!tipo && selectedMeta && (
             <>
-              <div className="flex items-center gap-3">
-                <Button variant="outline" size="sm" onClick={() => { setSearchParams({}); }} className="gap-2" aria-label="Voltar para lista de relatórios">
-                  <ChevronLeft className="h-4 w-4" />Voltar para Relatórios
-                </Button>
-                {selectedMeta && <span className="text-sm text-muted-foreground"><selectedMeta.icon className="inline h-3.5 w-3.5 mr-1 text-primary" />{selectedMeta.title}</span>}
+              <ReportHeader
+                categoryLabel={categoryMeta?.title}
+                categoryIcon={categoryMeta?.icon}
+                title={selectedMeta.title}
+                description={selectedMeta.objective}
+                periodLabel={periodoLabel}
+                recordCount={sortedRows.length}
+                onBack={() => setSearchParams({})}
+                actions={headerActions}
+              />
+
+              {/* KPIs */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                {kpiCards.map((kpi) => (
+                  <SummaryCard
+                    key={kpi.title}
+                    title={kpi.title}
+                    value={kpi.value}
+                    icon={kpi.icon}
+                    variationType="neutral"
+                    variation={hasLocalFiltersApplied ? `${kpi.variation || ''} (universo total)`.trim() : kpi.variation}
+                    variant={kpi.variant}
+                    density={compactDensity ? 'compact' : 'comfortable'}
+                  />
+                ))}
               </div>
 
+              {/* ── Filtros + ações de view/export ── */}
               <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    {selectedMeta && <selectedMeta.icon className="h-4 w-4 text-primary" />}{selectedMeta?.title || 'Relatório'}
-                  </CardTitle>
-                  <CardDescription>{selectedMeta?.objective || 'Ajuste filtros, analise KPIs, veja o gráfico e exporte os dados.'}</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-
-                  {/* KPIs */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-                    {kpiCards.map((kpi) => (
-                      <SummaryCard key={kpi.title} title={kpi.title} value={kpi.value} icon={kpi.icon} variationType="neutral" variation={kpi.variation} variant={kpi.variant} />
-                    ))}
-                  </div>
-
-                  {/* Filter + action bar */}
-                  <Card>
-                    <CardContent className="pt-5 pb-4 space-y-4">
-                      <div className="flex flex-wrap items-end gap-4">
-                        {selectedMeta?.filters.showDateRange && (
-                          <PeriodoFilter dataInicio={dataInicio} dataFim={dataFim} onChange={({ dataInicio: di, dataFim: df }) => { setDataInicio(di); setDataFim(df); }} />
-                        )}
-                        <div className="flex flex-wrap gap-2 ml-auto">
-                          {/* ── Favoritos ── */}
-                          <Popover open={saveNameOpen} onOpenChange={setSaveNameOpen}>
-                            <PopoverTrigger asChild>
-                              <Button variant="outline" size="sm" className="gap-1.5" aria-label="Salvar configuração de filtros como favorito"><BookmarkPlus className="h-3.5 w-3.5" />Salvar</Button>
-                            </PopoverTrigger>
-                            <PopoverContent align="end" className="w-64 p-3 space-y-2">
-                              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Salvar configuração atual</p>
-                              <Input
-                                placeholder="Nome da configuração"
-                                value={saveName}
-                                onChange={(e) => setSaveName(e.target.value)}
-                                onKeyDown={(e) => { if (e.key === 'Enter') handleSalvarFavorito(); }}
-                                className="h-8 text-sm"
-                                autoFocus
-                              />
-                              <Button size="sm" className="w-full" onClick={handleSalvarFavorito} disabled={!saveName.trim()} aria-label="Confirmar salvamento do favorito">Salvar</Button>
-                            </PopoverContent>
-                          </Popover>
-                          {favoritos.length > 0 && (
-                            <Popover>
-                              <PopoverTrigger asChild>
-                                <Button variant="outline" size="sm" className="gap-1.5" aria-label="Carregar configuração de filtros favorita"><BookOpen className="h-3.5 w-3.5" />Carregar</Button>
-                              </PopoverTrigger>
-                              <PopoverContent align="end" className="w-72 p-3">
-                                <p className="text-xs font-semibold mb-2 text-muted-foreground uppercase tracking-wide">Configurações salvas</p>
-                                <div className="space-y-1 max-h-60 overflow-y-auto">
-                                  {favoritos.map((fav) => (
-                                    <div key={fav.id} className="flex items-center justify-between rounded-md hover:bg-muted/50 px-2 py-1.5 gap-2">
-                                      <button className="flex-1 text-left text-sm truncate" onClick={() => handleCarregarFavorito(fav.params)}>{fav.nome}</button>
-                                      <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" aria-label={`Remover favorito "${fav.nome}"`} onClick={() => { removerFavorito(fav.id); toast.success(`"${fav.nome}" removido.`); }}><Trash2 className="h-3.5 w-3.5" /></Button>
-                                    </div>
-                                  ))}
-                                </div>
-                              </PopoverContent>
-                            </Popover>
-                          )}
-                          <Button variant="outline" size="sm" onClick={() => refetch()} className="gap-1.5" aria-label="Atualizar dados do relatório"><RefreshCcw className="h-3.5 w-3.5" />Atualizar</Button>
-                          <Button variant="outline" size="sm" onClick={() => setPreviewOpen(true)} disabled={!hasExportableData} className="gap-1.5" aria-label="Visualizar pré-impressão do relatório"><Eye className="h-3.5 w-3.5" />Visualizar</Button>
-                          {columns.length > 0 && (
-                            <Popover>
-                              <PopoverTrigger asChild>
-                                <Button variant="outline" size="sm" className="gap-1.5" aria-label="Personalizar colunas visíveis"><Columns className="h-3.5 w-3.5" />Colunas</Button>
-                              </PopoverTrigger>
-                              <PopoverContent align="end" className="w-64 p-3">
-                                <p className="text-xs font-semibold mb-2 text-muted-foreground uppercase tracking-wide">Personalizar colunas</p>
-                                <div className="space-y-1.5 max-h-60 overflow-y-auto">
-                                  {columns.map((col) => (
-                                    <label key={col.key} className="flex items-center gap-2 text-sm cursor-pointer">
-                                      <Checkbox checked={!hiddenColumns.includes(col.key)} onCheckedChange={(checked) => setHiddenColumns((prev) => checked ? prev.filter((k) => k !== col.key) : [...prev, col.key])} />
-                                      {col.label}
-                                    </label>
-                                  ))}
-                                </div>
-                                {hiddenColumns.length > 0 && <Button variant="ghost" size="sm" className="mt-2 w-full text-xs" onClick={() => setHiddenColumns([])}>Restaurar padrão</Button>}
-                              </PopoverContent>
-                            </Popover>
-                          )}
-                          <Button variant="outline" size="sm" onClick={handleExportPdf} className="gap-1.5" disabled={!hasExportableData} aria-label="Exportar relatório em PDF"><FileText className="h-3.5 w-3.5" />PDF</Button>
-                          <Button variant="outline" size="sm" onClick={handleExportXlsx} disabled={!hasExportableData} className="gap-1.5" aria-label="Exportar relatório em Excel"><FileSpreadsheet className="h-3.5 w-3.5" />Excel</Button>
-                          <Button size="sm" onClick={handleExportCsv} disabled={!hasExportableData} className="gap-1.5" aria-label="Exportar relatório em CSV"><Download className="h-3.5 w-3.5" />CSV</Button>
-                        </div>
-                      </div>
-                      {selectedMeta && (
-                        <FiltrosRelatorio
-                          filters={selectedMeta.filters}
-                          state={filtrosState}
-                          clientes={clientes}
-                          fornecedores={fornecedores}
-                          grupos={grupos}
-                          onChange={(partial) => setFiltrosState(partial)}
+                <CardContent className="pt-5 pb-4 space-y-4">
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0 space-y-3">
+                      {selectedMeta.filters.showDateRange && (
+                        <PeriodoFilter
+                          dataInicio={dataInicio}
+                          dataFim={dataFim}
+                          onChange={({ dataInicio: di, dataFim: df }) => { setDataInicio(di); setDataFim(df); }}
                         />
                       )}
-                    </CardContent>
-                  </Card>
+                      <FiltrosRelatorio
+                        filters={selectedMeta.filters}
+                        state={filtrosState}
+                        clientes={clientes}
+                        fornecedores={fornecedores}
+                        grupos={grupos}
+                        onChange={(partial) => setFiltrosState(partial)}
+                      />
+                    </div>
 
-                  {/* Data + chart */}
-                  <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
-                    <Card>
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-base">{resultado?.title || 'Relatório'}</CardTitle>
-                        <CardDescription>{resultado?.subtitle}</CardDescription>
-                      </CardHeader>
-                      <CardContent className="p-0">
-                        {isLoading && <div className="p-6 text-sm text-muted-foreground animate-pulse">Carregando {selectedMeta?.title || 'relatório'}…</div>}
-                        {isError && !isLoading && <div className="m-4 rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">Não foi possível carregar os dados desse relatório. Revise filtros e tente novamente.</div>}
-                        {!isLoading && !isError && isDreReport && <DreTable rows={sortedRows as unknown as DreRow[]} />}
-                        {!isLoading && !isError && !isDreReport && (
-                          <>
-                            {rows.length !== sortedRows.length && (
-                              <div className="border-b bg-warning/5 px-4 py-2 text-xs text-muted-foreground">
-                                <span className="font-medium text-foreground">Filtros locais aplicados:</span>{' '}
-                                exibindo {sortedRows.length} de {rows.length} registros. Os KPIs refletem o universo do banco; os totais abaixo refletem apenas os registros visíveis.
-                              </div>
-                            )}
-                            <DataTable columns={visibleColumns} data={sortedRows} loading={isLoading} moduleKey={`relatorios-${tipo}`} emptyTitle={`Nenhum registro em ${selectedMeta?.title || 'relatório'}`} emptyDescription="Ajuste o período e os filtros para encontrar registros relevantes." />
-                            {sortedRows.length > 0 && (() => {
-                              const footerCols = (selectedMeta?.columns ?? []).filter((c) => c.footerTotal);
-                              if (!footerCols.length) return null;
-                              return (
-                                <div className="border-t bg-muted/30 px-4 py-2 flex flex-wrap gap-x-6 gap-y-1 text-xs font-semibold text-muted-foreground">
-                                  {footerCols.map((col) => {
-                                    const total = sortedRows.reduce((s, r) => s + Number(r[col.key] || 0), 0);
-                                    return <span key={col.key}>{col.label}: <span className="text-foreground">{col.format === 'currency' ? formatCurrency(total) : formatNumber(total)}</span></span>;
-                                  })}
-                                </div>
-                              );
-                            })()}
-                          </>
-                        )}
-                        {showEmpty && <div className="px-4 pb-4 text-xs text-muted-foreground">Nenhum dado encontrado para o filtro atual. Ajuste os filtros e atualize. As exportações refletirão o mesmo resultado vazio.</div>}
-                      </CardContent>
-                    </Card>
-
-                    <RelatorioChart
-                      chartData={resultado?.chartData ?? []}
-                      chartType={selectedMeta?.chartType ?? 'bar'}
-                      isQuantityReport={isQtyReport}
-                      onDataPointClick={handleChartDrillDown}
-                    />
+                    {/* Ações: View / Colunas / Densidade / Exportar */}
+                    <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPreviewOpen(true)}
+                        disabled={!hasExportableData}
+                        className="gap-1.5"
+                        aria-label="Visualizar pré-impressão do relatório"
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        Visualizar
+                      </Button>
+                      {columns.length > 0 && (
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant="outline" size="sm" className="gap-1.5" aria-label="Personalizar colunas">
+                              <Columns className="h-3.5 w-3.5" />
+                              Colunas
+                              {hiddenColumns.length > 0 && (
+                                <Badge variant="secondary" className="ml-0.5 h-4 px-1 text-[10px]">
+                                  {columns.length - hiddenColumns.length}/{columns.length}
+                                </Badge>
+                              )}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent align="end" className="w-64 p-3">
+                            <p className="text-xs font-semibold mb-2 text-muted-foreground uppercase tracking-wide">Personalizar colunas</p>
+                            <div className="space-y-1.5 max-h-60 overflow-y-auto">
+                              {columns.map((col) => (
+                                <label key={col.key} className="flex items-center gap-2 text-sm cursor-pointer">
+                                  <Checkbox checked={!hiddenColumns.includes(col.key)} onCheckedChange={(checked) => setHiddenColumns((prev) => checked ? prev.filter((k) => k !== col.key) : [...prev, col.key])} />
+                                  {col.label}
+                                </label>
+                              ))}
+                            </div>
+                            {hiddenColumns.length > 0 && <Button variant="ghost" size="sm" className="mt-2 w-full text-xs" onClick={() => setHiddenColumns([])}>Restaurar padrão</Button>}
+                          </PopoverContent>
+                        </Popover>
+                      )}
+                      <Button
+                        variant={compactDensity ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setCompactDensity((v) => !v)}
+                        className="gap-1.5"
+                        aria-label="Alternar densidade compacta"
+                        aria-pressed={compactDensity}
+                      >
+                        <Rows3 className="h-3.5 w-3.5" />
+                        Compacto
+                      </Button>
+                      <ExportMenu
+                        recordCount={sortedRows.length}
+                        columnCount={visibleColumns.length}
+                        disabled={!hasExportableData}
+                        loading={isExporting}
+                        onExportPdf={handleExportPdf}
+                        onExportExcel={handleExportXlsx}
+                        onExportCsv={handleExportCsv}
+                      />
+                    </div>
                   </div>
                 </CardContent>
               </Card>
+
+              {/* ── Resultado: tabela + chart ── */}
+              <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base">{resultado?.title || 'Relatório'}</CardTitle>
+                    <CardDescription>{resultado?.subtitle}</CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    {/* Active filters bar */}
+                    {(activeFilterChips.length > 0 || hasExportableData) && (
+                      <ActiveFiltersBar
+                        chips={activeFilterChips}
+                        recordCount={hasExportableData ? sortedRows.length : undefined}
+                        onClearAll={activeFilterChips.length > 0 ? handleClearAllFilters : undefined}
+                      />
+                    )}
+
+                    {isLoading && <div className="p-6 text-sm text-muted-foreground animate-pulse">Carregando {selectedMeta.title}…</div>}
+                    {isError && !isLoading && (
+                      <div className="m-4 rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">
+                        Não foi possível carregar os dados desse relatório. Revise filtros e tente novamente.
+                      </div>
+                    )}
+                    {!isLoading && !isError && isDreReport && <DreTable rows={sortedRows as unknown as DreRow[]} />}
+                    {!isLoading && !isError && !isDreReport && (
+                      <>
+                        {hasLocalFiltersApplied && (
+                          <div className="border-b bg-warning/5 px-4 py-2 text-xs text-muted-foreground">
+                            <span className="font-medium text-foreground">Escopo divergente:</span>{' '}
+                            tabela mostra {sortedRows.length} de {rows.length} registros.
+                            KPIs refletem o universo total do banco; totais abaixo refletem apenas registros visíveis.
+                          </div>
+                        )}
+                        <DataTable
+                          columns={visibleColumns}
+                          data={sortedRows}
+                          loading={isLoading}
+                          moduleKey={`relatorios-${tipo}`}
+                          emptyTitle={`Nenhum registro em ${selectedMeta.title}`}
+                          emptyDescription="Ajuste o período e os filtros para encontrar registros relevantes."
+                        />
+                        <ReportResultFooter rows={sortedRows} cols={footerCols} />
+                      </>
+                    )}
+                    {showEmpty && (
+                      <EmptyState
+                        variant="noResults"
+                        icon={SearchX}
+                        title="Nenhum dado para os filtros atuais"
+                        description="Ajuste o período ou remova filtros para encontrar registros. As exportações refletirão o mesmo resultado vazio."
+                        action={
+                          activeFilterChips.length > 0 ? (
+                            <Button variant="outline" size="sm" onClick={handleClearAllFilters} className="gap-1.5">
+                              Limpar filtros
+                            </Button>
+                          ) : undefined
+                        }
+                      />
+                    )}
+                  </CardContent>
+                </Card>
+
+                <RelatorioChart
+                  chartData={resultado?.chartData ?? []}
+                  chartType={selectedMeta.chartType ?? 'bar'}
+                  isQuantityReport={isQtyReport}
+                  onDataPointClick={handleChartDrillDown}
+                />
+              </div>
             </>
           )}
         </div>
@@ -495,60 +666,30 @@ export default function Relatorios() {
         open={previewOpen}
         onClose={() => setPreviewOpen(false)}
         title={`${resultado?.title || 'Relatório'} — Pré-visualização`}
-        actions={
-          <>
-            <Button variant="outline" size="sm" onClick={handleExportPdf} disabled={!hasExportableData} className="gap-1.5" aria-label="Exportar relatório em PDF"><FileText className="h-3.5 w-3.5" />PDF</Button>
-            <Button variant="outline" size="sm" onClick={handleExportXlsx} disabled={!hasExportableData} className="gap-1.5" aria-label="Exportar relatório em Excel"><FileSpreadsheet className="h-3.5 w-3.5" />Excel</Button>
-            <Button size="sm" onClick={handleExportCsv} disabled={!hasExportableData} className="gap-1.5" aria-label="Exportar relatório em CSV"><Download className="h-3.5 w-3.5" />CSV</Button>
-          </>
+        primaryAction={
+          <ExportMenu
+            recordCount={sortedRows.length}
+            columnCount={visibleColumns.length}
+            disabled={!hasExportableData}
+            loading={isExporting}
+            onExportPdf={handleExportPdf}
+            onExportExcel={handleExportXlsx}
+            onExportCsv={handleExportCsv}
+          />
         }
       >
-        <div className="space-y-6 print:space-y-4">
-          <div className="border-b pb-4">
-            <h2 className="text-lg font-bold text-foreground">{resultado?.title}</h2>
-            <p className="text-sm text-muted-foreground">{resultado?.subtitle}</p>
-            <p className="text-xs text-muted-foreground mt-1">Período: {periodoLabel}</p>
-          </div>
-          {!hasExportableData ? (
-            <p className="text-sm text-muted-foreground text-center py-6">Nenhum dado disponível para o filtro atual.</p>
-          ) : isDreReport ? (
-            // DRE uses its own structured layout — consistent with what the user sees on screen
-            <DreTable rows={sortedRows as unknown as DreRow[]} />
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm border-collapse">
-                <thead>
-                  <tr className="bg-muted/50">{visibleColumns.map((col) => <th key={col.key} className="text-left px-3 py-2 font-semibold text-xs text-muted-foreground border-b">{col.label}</th>)}</tr>
-                </thead>
-                <tbody>
-                  {sortedRows.map((row, ri) => (
-                    <tr key={ri} className={ri % 2 === 0 ? 'bg-muted/20' : ''}>
-                      {visibleColumns.map((col) => <td key={col.key} className="px-3 py-1.5 border-b border-border/40 text-xs">{formatCellValue(row[col.key], col.key, isQtyReport) as React.ReactNode}</td>)}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-          <div className="flex flex-wrap items-center justify-between gap-4 border-t pt-3 text-sm">
-            <span className="font-semibold text-foreground">Total de registros: {sortedRows.length}</span>
-            {resultado?.totals && (
-              <div className="flex flex-wrap gap-4">
-                {resultado.totals.totalQtd != null && <span className="font-semibold">Qtd Total: {formatNumber(resultado.totals.totalQtd)}</span>}
-                {resultado.totals.totalCusto != null && <span className="font-semibold">Total Custo: {formatCurrency(resultado.totals.totalCusto)}</span>}
-                {resultado.totals.totalVenda != null && <span className="font-semibold">Total Venda: {formatCurrency(resultado.totals.totalVenda)}</span>}
-                {resultado.totals.totalEntradas != null && <span className="font-semibold">Entradas: {isQtyReport ? formatNumber(resultado.totals.totalEntradas) : formatCurrency(resultado.totals.totalEntradas)}</span>}
-                {resultado.totals.totalSaidas != null && <span className="font-semibold">Saídas: {isQtyReport ? formatNumber(resultado.totals.totalSaidas) : formatCurrency(resultado.totals.totalSaidas)}</span>}
-                {resultado.totals.totalAjustes != null && <span className="font-semibold">Ajustes: {formatNumber(resultado.totals.totalAjustes)}</span>}
-                {resultado.totals.saldoAtual != null && <span className="font-semibold">Saldo Atual: {formatNumber(resultado.totals.saldoAtual)}</span>}
-                {resultado.totals.saldoFinal != null && <span className="font-semibold text-primary">Saldo Final: {formatCurrency(resultado.totals.saldoFinal)}</span>}
-                {resultado.totals.receitaBruta != null && <span className="font-semibold">Receita Bruta: {formatCurrency(resultado.totals.receitaBruta)}</span>}
-                {resultado.totals.receitaLiquida != null && <span className="font-semibold">Receita Líquida: {formatCurrency(resultado.totals.receitaLiquida)}</span>}
-                {resultado.totals.resultado != null && <span className={`font-semibold ${resultado.totals.resultado >= 0 ? 'text-success' : 'text-destructive'}`}>Resultado: {formatCurrency(resultado.totals.resultado)}</span>}
-              </div>
-            )}
-          </div>
-        </div>
+        <PreviewDocument
+          empresa={empresaConfig}
+          reportTitle={resultado?.title || 'Relatório'}
+          reportSubtitle={resultado?.subtitle}
+          periodLabel={periodoLabel}
+          kpis={kpiCards.map((k) => ({ title: k.title, value: k.value }))}
+          columns={visibleColumns.map((c) => ({ key: c.key, label: c.label }))}
+          rows={sortedRows}
+          isQuantityReport={isQtyReport}
+          footerCols={footerCols}
+          customBody={isDreReport ? <DreTable rows={sortedRows as unknown as DreRow[]} /> : undefined}
+        />
       </PreviewModal>
     </>
   );
