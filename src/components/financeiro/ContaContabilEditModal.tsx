@@ -291,7 +291,7 @@ export function ContaContabilEditModal({
   );
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader className="pb-2">
           <DialogTitle className="text-base">
@@ -554,7 +554,7 @@ export function ContaContabilEditModal({
               )}
             </div>
             <div className="flex items-center gap-2">
-              <Button type="button" variant="outline" onClick={onClose} disabled={saving}>
+              <Button type="button" variant="outline" onClick={handleClose} disabled={saving}>
                 Cancelar
               </Button>
               <Button
