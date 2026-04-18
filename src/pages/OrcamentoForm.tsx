@@ -1259,6 +1259,6 @@ export default function OrcamentoForm() {
         }}
       />
       {confirmActionDialog}
-    </>
+    </PageShell>
   );
 }
