@@ -429,18 +429,28 @@ const Clientes = () => {
   }, []);
 
   useEffect(() => {
-    const editId = (location.state as { editId?: string } | null)?.editId;
+    const stateEditId = (location.state as { editId?: string } | null)?.editId;
+    const searchEditId = new URLSearchParams(location.search).get("editId");
+    const editId = stateEditId || searchEditId;
     if (!editId) return;
     let cancelled = false;
     supabase.from("clientes").select("*").eq("id", editId).maybeSingle().then(({ data: c }) => {
       if (cancelled) return;
       if (c) openEdit(c as Cliente);
-      navigate(location.pathname, { replace: true, state: {} });
+      const nextSearch = new URLSearchParams(location.search);
+      nextSearch.delete("editId");
+      navigate(
+        {
+          pathname: location.pathname,
+          search: nextSearch.toString() ? `?${nextSearch.toString()}` : "",
+        },
+        { replace: true, state: {} }
+      );
     });
     return () => { cancelled = true; };
   // openEdit is stable (no deps change); navigate/pathname are stable refs
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.state]);
+  }, [location.pathname, location.search, location.state]);
 
   const openCreate = () => {setMode("create");setForm({ ...emptyCliente });setSelected(null);setIsDirty(false);setModalTransportadoras([]);setEnderecos([]);setComunicacoes([]);setModalOpen(true);};
   const openEdit = (c: Cliente) => {
