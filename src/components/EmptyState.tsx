@@ -1,7 +1,16 @@
-import { LucideIcon, PackageOpen, FileText, Users, DollarSign, Warehouse } from "lucide-react";
+/**
+ * Adaptador de compatibilidade para `EmptyState`.
+ *
+ * Mantém a API legada `actionLabel` + `onAction` traduzindo para o
+ * componente canônico em `@/components/ui/empty-state`, que aceita
+ * `action: ReactNode`. Novos consumidores devem importar diretamente de
+ * `@/components/ui/empty-state`.
+ */
+import { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { EmptyState as BaseEmptyState } from "@/components/ui/empty-state";
 
-interface EmptyStateProps {
+interface LegacyEmptyStateProps {
   icon?: LucideIcon;
   title: string;
   description?: string;
@@ -9,19 +18,26 @@ interface EmptyStateProps {
   onAction?: () => void;
 }
 
-export function EmptyState({ icon: Icon = PackageOpen, title, description, actionLabel, onAction }: EmptyStateProps) {
+export function EmptyState({
+  icon,
+  title,
+  description,
+  actionLabel,
+  onAction,
+}: LegacyEmptyStateProps) {
+  const action =
+    actionLabel && onAction ? (
+      <Button onClick={onAction} className="gap-2">
+        {actionLabel}
+      </Button>
+    ) : undefined;
+
   return (
-    <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
-      <div className="rounded-full bg-muted p-4 mb-4">
-        <Icon className="h-8 w-8 text-muted-foreground" />
-      </div>
-      <h3 className="text-base font-semibold text-foreground mb-1">{title}</h3>
-      {description && <p className="text-sm text-muted-foreground max-w-sm mb-4">{description}</p>}
-      {actionLabel && onAction && (
-        <Button onClick={onAction} className="gap-2">
-          {actionLabel}
-        </Button>
-      )}
-    </div>
+    <BaseEmptyState
+      icon={icon}
+      title={title}
+      description={description}
+      action={action}
+    />
   );
 }
