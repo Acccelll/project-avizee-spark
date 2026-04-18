@@ -11,6 +11,7 @@ import { SummaryCard } from "@/components/SummaryCard";
 import { PeriodFilter } from "@/components/dashboard/PeriodFilter";
 import { financialPeriods } from "@/components/dashboard/periodTypes";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
