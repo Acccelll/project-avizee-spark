@@ -24,6 +24,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Save, Eye, FileText, Copy, Plus, Search, Wand2, RefreshCw, CheckCircle2, AlertTriangle, CalendarDays, Clock } from "lucide-react";
 import { PageShell } from "@/components/PageShell";
+import { JustCreatedBanner } from "@/components/JustCreatedBanner";
 import { QuickAddClientModal } from "@/components/QuickAddClientModal";
 import { ClientSelector, type ProductWithForn } from "@/components/ui/DataSelector";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -820,6 +821,13 @@ export default function OrcamentoForm() {
       }
       meta={
         <>
+          {isEdit && numero && (
+            <JustCreatedBanner
+              message={`Orçamento ${numero} criado. Adicione itens para concluir a proposta.`}
+              ctaLabel="Ir para itens"
+              onCta={() => document.getElementById("orcamento-itens")?.scrollIntoView({ behavior: "smooth" })}
+            />
+          )}
           {/* Edit-mode context banner — desktop */}
           {isEdit && (
             <div className="hidden md:flex items-center flex-wrap gap-x-6 gap-y-2 rounded-xl border bg-card/60 px-5 py-3 text-sm shadow-soft">
