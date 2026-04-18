@@ -189,35 +189,18 @@ export function useCotacoesCompra() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.numero) { toast.error("Número é obrigatório"); return; }
-    if (localItems.length === 0) { toast.error("Adicione ao menos um item"); return; }
 
-    // Validate items
-    const itemSemProduto = localItems.findIndex((i) => !i.produto_id);
-    if (itemSemProduto !== -1) {
-      toast.error(`Item ${itemSemProduto + 1}: selecione um produto.`);
+    // Schema-driven validation (centraliza obrigatórios + status terminal).
+    const result = validateForm(cotacaoCompraSchema, form);
+    if (!result.success) {
+      const firstError = Object.values(result.errors)[0];
+      toast.error(firstError || "Corrija os erros do formulário");
       return;
     }
-    const itemSemQtd = localItems.findIndex((i) => Number(i.quantidade || 0) <= 0);
-    if (itemSemQtd !== -1) {
-      toast.error(`Item ${itemSemQtd + 1}: quantidade deve ser maior que zero.`);
-      return;
-    }
-    const prodIds = localItems.map((i) => i.produto_id);
-    const hasDuplicado = prodIds.some((id, idx) => prodIds.indexOf(id) !== idx);
-    if (hasDuplicado) {
-      toast.error("Produto duplicado na cotação. Cada produto deve aparecer apenas uma vez.");
-      return;
-    }
+    const itemError = validateCotacaoItems(localItems);
+    if (itemError) { toast.error(itemError); return; }
 
-    // Block saving with terminal status via form
-    if (["convertida", "cancelada"].includes(form.status)) {
-      toast.error("O status selecionado só pode ser definido por ações do sistema.");
-      return;
-    }
-
-    setSaving(true);
-    try {
+    await submit(async () => {
       const payload = {
         numero: form.numero,
         data_cotacao: form.data_cotacao,
@@ -227,32 +210,45 @@ export function useCotacoesCompra() {
       };
       let cotacaoId = selected?.id;
       if (mode === "create") {
-        const { data: newC, error } = await supabase.from("cotacoes_compra").insert(payload).select().single();
+        const { data: newC, error } = await supabase
+          .from("cotacoes_compra")
+          .insert(payload)
+          .select()
+          .single();
         if (error) throw error;
         cotacaoId = (newC as CotacaoCompra).id;
       } else if (selected) {
-        await Promise.all([
-          supabase.from("cotacoes_compra").update(payload).eq("id", selected.id).then(({ error }) => { if (error) throw error; }),
-          supabase.from("cotacoes_compra_itens").delete().eq("cotacao_compra_id", selected.id),
-        ]);
+        // Sequential update -> delete: evita race onde Promise.all
+        // apaga itens mesmo se o update do cabeçalho falhar.
+        const { error: updErr } = await supabase
+          .from("cotacoes_compra")
+          .update(payload)
+          .eq("id", selected.id);
+        if (updErr) throw updErr;
+        const { error: delErr } = await supabase
+          .from("cotacoes_compra_itens")
+          .delete()
+          .eq("cotacao_compra_id", selected.id);
+        if (delErr) throw delErr;
       }
       if (cotacaoId && localItems.length > 0) {
-        const itemsPayload = localItems.filter((i) => i.produto_id).map((i) => ({
-          cotacao_compra_id: cotacaoId,
-          produto_id: i.produto_id,
-          quantidade: i.quantidade,
-          unidade: i.unidade,
-        }));
-        await supabase.from("cotacoes_compra_itens").insert(itemsPayload);
+        const itemsPayload = localItems
+          .filter((i) => i.produto_id)
+          .map((i) => ({
+            cotacao_compra_id: cotacaoId,
+            produto_id: i.produto_id,
+            quantidade: i.quantidade,
+            unidade: i.unidade,
+          }));
+        const { error: insErr } = await supabase
+          .from("cotacoes_compra_itens")
+          .insert(itemsPayload);
+        if (insErr) throw insErr;
       }
       toast.success("Cotação de compra salva!");
       setModalOpen(false);
       fetchData();
-    } catch (err: unknown) {
-      console.error("[cotacoes_compra]", err);
-      toast.error(getUserFriendlyError(err));
-    }
-    setSaving(false);
+    });
   };
 
   const addLocalItem = () => {
