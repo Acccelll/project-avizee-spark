@@ -7,10 +7,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { StatusBadge } from "@/components/StatusBadge";
-import { ArrowLeft, Save } from "lucide-react";
+import { Save } from "lucide-react";
 import { toast } from "sonner";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import { formatDate } from "@/lib/format";
+import { PageShell } from "@/components/PageShell";
 
 const statusOptions = [
   { value: "pendente", label: "Pendente" },
