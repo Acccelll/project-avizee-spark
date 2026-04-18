@@ -51,6 +51,12 @@ export interface Column<T> {
   mobilePrimary?: boolean;
   /** Mark as secondary/detail field shown in mobile card body */
   mobileCard?: boolean;
+  /**
+   * Optional accessor for sorting when the column is calculated/rendered
+   * and `item[key]` is undefined or not the value to compare.
+   * Example: `sortValue: (item) => item.cliente?.nome ?? ''`.
+   */
+  sortValue?: (item: T) => string | number | null | undefined;
 }
 
 type FilterOperator = 'contains' | 'equals' | 'gt' | 'between';
@@ -79,6 +85,12 @@ interface DataTableProps<T> {
   emptyTitle?: string;
   emptyDescription?: string;
   showColumnToggle?: boolean;
+  /**
+   * Show the legacy internal "Advanced filters" popover.
+   * Off by default — pages should use `AdvancedFilterBar` instead to keep a
+   * single source of truth for filter state.
+   */
+  showInternalFilters?: boolean;
   onBatchDelete?: (ids: string[]) => void;
   onBatchStatusChange?: (ids: string[], status: string) => void;
   renderInlineDetails?: (item: T) => React.ReactNode;
@@ -117,6 +129,7 @@ export function DataTable<T extends Record<string, any>>({
   emptyTitle = 'Nenhum registro encontrado',
   emptyDescription = 'Tente ajustar os filtros ou adicione um novo registro.',
   showColumnToggle = false,
+  showInternalFilters = false,
   onBatchDelete,
   onBatchStatusChange,
   renderInlineDetails,
@@ -244,18 +257,33 @@ export function DataTable<T extends Record<string, any>>({
 
   const sortedData = useMemo(() => {
     if (!sortKey || !sortDir) return filteredData;
+    const col = columns.find((c) => c.key === sortKey);
+    const accessor = (item: T): string | number | null | undefined => {
+      if (col?.sortValue) return col.sortValue(item);
+      return item[sortKey];
+    };
     return [...filteredData].sort((a, b) => {
-      const aVal = a[sortKey];
-      const bVal = b[sortKey];
+      const aVal = accessor(a);
+      const bVal = accessor(b);
       if (aVal == null && bVal == null) return 0;
       if (aVal == null) return 1;
       if (bVal == null) return -1;
-      const cmp = typeof aVal === 'number' ? aVal - bVal : String(aVal).localeCompare(String(bVal), 'pt-BR');
+      const cmp = typeof aVal === 'number' && typeof bVal === 'number'
+        ? aVal - bVal
+        : String(aVal).localeCompare(String(bVal), 'pt-BR');
       return sortDir === 'asc' ? cmp : -cmp;
     });
-  }, [filteredData, sortKey, sortDir]);
+  }, [filteredData, sortKey, sortDir, columns]);
 
   const totalPages = Math.max(1, Math.ceil(sortedData.length / pageSize));
+
+  // Reset page when filters/data shrink the list past the current page.
+  useEffect(() => {
+    if (currentPage > 0 && currentPage > totalPages - 1) {
+      setCurrentPage(0);
+    }
+  }, [totalPages, currentPage]);
+
   const pageData = sortedData.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
   const pagedData = viewMode === 'infinite' ? sortedData.slice(0, visibleCount) : pageData;
 
@@ -456,7 +484,7 @@ export function DataTable<T extends Record<string, any>>({
       <div className="space-y-2">
         {pagedData.map((item, idx) => (
           <div
-            key={item.id || idx}
+            key={item.id ?? `row-${idx}`}
             className={cn(
               'relative rounded-xl border bg-card px-4 py-3 transition-colors active:bg-muted/50',
               selectable && selectedIds.includes(item.id) && 'border-primary bg-primary/5',
@@ -520,58 +548,60 @@ export function DataTable<T extends Record<string, any>>({
       {/* Toolbar — desktop only */}
       <div className="mb-2 hidden flex-wrap items-center gap-2 justify-between md:flex">
         <div className="flex flex-wrap items-center gap-2">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs"><Filter className="h-3.5 w-3.5" />Filtros</Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-[420px] p-3" align="start">
-              <div className="space-y-2">
-                <p className="text-xs font-semibold text-muted-foreground">Filtros avançados</p>
-                {rules.map((rule) => (
-                  <div key={rule.id} className="grid grid-cols-12 gap-1">
-                    <Select value={rule.field} onValueChange={(v) => updateRule(rule.id, { field: v })}>
-                      <SelectTrigger className="col-span-4 h-8"><SelectValue /></SelectTrigger>
-                      <SelectContent>{columns.map((c) => <SelectItem key={c.key} value={c.key}>{c.label}</SelectItem>)}</SelectContent>
-                    </Select>
-                    <Select value={rule.operator} onValueChange={(v: FilterOperator) => updateRule(rule.id, { operator: v })}>
-                      <SelectTrigger className="col-span-3 h-8"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="contains">Contém</SelectItem>
-                        <SelectItem value="equals">É</SelectItem>
-                        <SelectItem value="gt">Maior que</SelectItem>
-                        <SelectItem value="between">Entre</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Input className="col-span-3 h-8" value={rule.value} onChange={(e) => updateRule(rule.id, { value: e.target.value })} placeholder="valor" />
-                    <Button variant="ghost" size="icon" className="col-span-2 h-8" onClick={() => deleteRule(rule.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+          {showInternalFilters && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs"><Filter className="h-3.5 w-3.5" />Filtros</Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[420px] p-3" align="start">
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground">Filtros avançados</p>
+                  {rules.map((rule) => (
+                    <div key={rule.id} className="grid grid-cols-12 gap-1">
+                      <Select value={rule.field} onValueChange={(v) => updateRule(rule.id, { field: v })}>
+                        <SelectTrigger className="col-span-4 h-8"><SelectValue /></SelectTrigger>
+                        <SelectContent>{columns.map((c) => <SelectItem key={c.key} value={c.key}>{c.label}</SelectItem>)}</SelectContent>
+                      </Select>
+                      <Select value={rule.operator} onValueChange={(v: FilterOperator) => updateRule(rule.id, { operator: v })}>
+                        <SelectTrigger className="col-span-3 h-8"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="contains">Contém</SelectItem>
+                          <SelectItem value="equals">É</SelectItem>
+                          <SelectItem value="gt">Maior que</SelectItem>
+                          <SelectItem value="between">Entre</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Input className="col-span-3 h-8" value={rule.value} onChange={(e) => updateRule(rule.id, { value: e.target.value })} placeholder="valor" />
+                      <Button variant="ghost" size="icon" className="col-span-2 h-8" onClick={() => deleteRule(rule.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                    </div>
+                  ))}
+                  <div className="flex gap-2">
+                    <Button variant="secondary" size="sm" onClick={addRule}><ListFilter className="h-3.5 w-3.5 mr-1" />Adicionar regra</Button>
+                    <Button variant="ghost" size="sm" onClick={() => setRules([])}><RotateCcw className="h-3.5 w-3.5 mr-1" />Limpar</Button>
                   </div>
-                ))}
-                <div className="flex gap-2">
-                  <Button variant="secondary" size="sm" onClick={addRule}><ListFilter className="h-3.5 w-3.5 mr-1" />Adicionar regra</Button>
-                  <Button variant="ghost" size="sm" onClick={() => setRules([])}><RotateCcw className="h-3.5 w-3.5 mr-1" />Limpar</Button>
-                </div>
-                <div className="flex gap-2 pt-2 border-t">
-                  <Input value={filterName} onChange={(e) => setFilterName(e.target.value)} placeholder="Salvar este filtro" className="h-8" />
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      if (!filterName.trim() || !rules.length) return;
-                      setSavedFilters((prev) => [...prev, { name: filterName.trim(), rules }]);
-                      setFilterName('');
-                      toast.success('Filtro salvo com sucesso');
-                    }}
-                  >Salvar</Button>
-                </div>
-                {savedFilters.length > 0 && (
-                  <div className="space-y-1">
-                    {savedFilters.map((f) => (
-                      <button key={f.name} className="w-full text-left text-xs rounded px-2 py-1 hover:bg-accent" onClick={() => setRules(f.rules)}>{f.name}</button>
-                    ))}
+                  <div className="flex gap-2 pt-2 border-t">
+                    <Input value={filterName} onChange={(e) => setFilterName(e.target.value)} placeholder="Salvar este filtro" className="h-8" />
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        if (!filterName.trim() || !rules.length) return;
+                        setSavedFilters((prev) => [...prev, { name: filterName.trim(), rules }]);
+                        setFilterName('');
+                        toast.success('Filtro salvo com sucesso');
+                      }}
+                    >Salvar</Button>
                   </div>
-                )}
-              </div>
-            </PopoverContent>
-          </Popover>
+                  {savedFilters.length > 0 && (
+                    <div className="space-y-1">
+                      {savedFilters.map((f) => (
+                        <button key={f.name} className="w-full text-left text-xs rounded px-2 py-1 hover:bg-accent" onClick={() => setRules(f.rules)}>{f.name}</button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
+          )}
 
           <Select value={viewMode} onValueChange={(v: 'pagination' | 'infinite') => { setViewMode(v); if (moduleKey) localStorage.setItem(getStorageKey(moduleKey, 'list-mode'), v); }}>
             <SelectTrigger className="h-8 w-[170px] text-xs"><SelectValue /></SelectTrigger>
@@ -699,17 +729,17 @@ export function DataTable<T extends Record<string, any>>({
                   </thead>
                   <VirtualizedOrPlainTbody
                     data={pagedData}
-                    useVirtual={pagedData.length > virtualizeThreshold}
+                    useVirtual={pagedData.length > virtualizeThreshold && !hasScrollX}
                     maxHeight={maxHeight}
                     renderRow={(item, idx) => (
                       <>
-                        <tr key={item.id || idx} onClick={() => onRowClick?.(item)} onDoubleClick={onView ? () => onView(item) : undefined} className={cn('border-b transition-colors last:border-b-0 hover:bg-muted/30', selectable && selectedIds.includes(item.id) && 'bg-primary/5')}>
+                        <tr key={item.id ?? `row-${idx}`} onClick={() => onRowClick?.(item)} onDoubleClick={onView ? () => onView(item) : undefined} className={cn('border-b transition-colors last:border-b-0 hover:bg-muted/30', selectable && selectedIds.includes(item.id) && 'bg-primary/5')}>
                           {hasActions && <td className="px-2 py-3">{renderActions(item)}</td>}
                           {selectable && <td className="w-10 px-3 py-3"><Checkbox checked={selectedIds.includes(item.id)} onCheckedChange={() => toggleSelect(item.id)} onClick={(e) => e.stopPropagation()} /></td>}
                           {visibleColumns.map((col) => <td key={col.key} className="px-4 py-3 text-sm whitespace-nowrap">{col.render ? col.render(item) : item[col.key]}</td>)}
                         </tr>
                         {renderInlineDetails && expandedRows.has(item.id) && (
-                          <tr key={`detail-${item.id || idx}`} className="border-b bg-muted/20"><td colSpan={visibleColumns.length + (hasActions ? 1 : 0) + (selectable ? 1 : 0)} className="px-4 py-3">{renderInlineDetails(item)}</td></tr>
+                          <tr key={`detail-${item.id ?? `row-${idx}`}`} className="border-b bg-muted/20"><td colSpan={visibleColumns.length + (hasActions ? 1 : 0) + (selectable ? 1 : 0)} className="px-4 py-3">{renderInlineDetails(item)}</td></tr>
                         )}
                       </>
                     )}

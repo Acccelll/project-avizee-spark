@@ -26,7 +26,18 @@ interface UseCrudOptions {
   duplicateTransform?: (item: Record<string, unknown>) => Record<string, unknown>;
   /** Enable optimistic updates for update/remove mutations. Default: true */
   optimistic?: boolean;
+  /**
+   * Pagination strategy:
+   *  - 'paged' (default when `pageSize` is set): single ranged request, exposes `hasMore`/`page`.
+   *  - 'all' (default when `pageSize` is omitted): fetches everything in chunks of 1000 and concatenates,
+   *    bypassing the Supabase 1000-row default limit. Use when the page renders the full dataset locally.
+   */
+  paginationMode?: "paged" | "all";
+  /** Chunk size for `paginationMode: 'all'`. Default 1000 (Supabase max per request). */
+  allChunkSize?: number;
 }
+
+const CHUNK_FETCH_HARD_CAP = 50000; // safety net to avoid runaway loops
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function applyFilters(query: any, filters: CrudFilter[]): any {
@@ -71,15 +82,18 @@ export function useSupabaseCrud<R = any>({
   searchColumns = [],
   duplicateTransform,
   optimistic = true,
+  paginationMode,
+  allChunkSize = 1000,
 }: UseCrudOptions) {
   const queryClient = useQueryClient();
   const [page, setPage] = useState(0);
 
   const filterKey = JSON.stringify(filter);
+  const effectiveMode: "paged" | "all" = paginationMode ?? (pageSize ? "paged" : "all");
 
   const queryKey = useMemo(
-    () => [table, select, orderBy, ascending, filterKey, searchTerm, page],
-    [table, select, orderBy, ascending, filterKey, searchTerm, page],
+    () => [table, select, orderBy, ascending, filterKey, searchTerm, effectiveMode, page],
+    [table, select, orderBy, ascending, filterKey, searchTerm, effectiveMode, page],
   );
 
   type QueryResult = { rows: R[]; totalCount: number | null; hasMore: boolean; truncated: boolean };
@@ -91,40 +105,76 @@ export function useSupabaseCrud<R = any>({
         return { rows: [] as R[], totalCount: null, hasMore: false, truncated: false };
       }
 
+      // Helper to assemble a fresh query — needed because we reuse it per chunk in 'all' mode.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let query: any = (supabase as any).from(table)
-        .select(select, { count: "exact" })
-        .order(orderBy, { ascending });
+      const buildQuery = (): any => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let query: any = (supabase as any).from(table)
+          .select(select, { count: "exact" })
+          .order(orderBy, { ascending });
+        query = applyFilters(query, filter);
+        const trimmedSearch = searchTerm.trim();
+        if (trimmedSearch && searchColumns.length > 0) {
+          const orFilter = searchColumns.map((col) => `${col}.ilike.%${trimmedSearch}%`).join(",");
+          query = query.or(orFilter);
+        }
+        if (hasAtivo) query = query.eq("ativo", true);
+        return query;
+      };
 
-      query = applyFilters(query, filter);
-
-      const trimmedSearch = searchTerm.trim();
-      if (trimmedSearch && searchColumns.length > 0) {
-        const orFilter = searchColumns.map((col) => `${col}.ilike.%${trimmedSearch}%`).join(",");
-        query = query.or(orFilter);
-      }
-
-      if (hasAtivo) {
-        query = query.eq("ativo", true);
-      }
-
-      if (pageSize) {
+      // ── Paged mode ────────────────────────────────────────────────────────
+      if (effectiveMode === "paged" && pageSize) {
         const from = page * pageSize;
-        query = query.range(from, from + pageSize - 1);
+        const { data: result, error, count } = await buildQuery().range(from, from + pageSize - 1);
+        if (error) {
+          if (showToasts) toast.error("Erro ao carregar dados. Tente novamente.");
+          throw error;
+        }
+        const rows = (result ?? []) as R[];
+        return {
+          rows,
+          totalCount: count ?? null,
+          hasMore: rows.length === pageSize,
+          truncated: false,
+        };
       }
 
-      const { data: result, error, count } = await query;
+      // ── All mode: chunked fetch until count is exhausted ──────────────────
+      const all: R[] = [];
+      let total: number | null = null;
+      let from = 0;
+      let truncated = false;
 
-      if (error) {
-        if (showToasts) toast.error("Erro ao carregar dados. Tente novamente.");
-        throw error;
+      // Loop until we've fetched everything (or hit the safety cap).
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const to = from + allChunkSize - 1;
+        const { data: result, error, count } = await buildQuery().range(from, to);
+        if (error) {
+          if (showToasts) toast.error("Erro ao carregar dados. Tente novamente.");
+          throw error;
+        }
+        const chunk = (result ?? []) as R[];
+        if (total === null) total = count ?? null;
+        all.push(...chunk);
+
+        // Stop when we've hit either the end of data or the known count.
+        if (chunk.length < allChunkSize) break;
+        if (total !== null && all.length >= total) break;
+
+        if (all.length >= CHUNK_FETCH_HARD_CAP) {
+          truncated = true;
+          if (showToasts) {
+            toast.warning(
+              `Lista limitada a ${CHUNK_FETCH_HARD_CAP.toLocaleString()} registros. Aplique filtros para refinar.`,
+            );
+          }
+          break;
+        }
+        from += allChunkSize;
       }
 
-      const rows = (result ?? []) as R[];
-      const truncated = count !== null && rows.length < count && !pageSize;
-      const hasMore = pageSize ? rows.length === pageSize : false;
-
-      return { rows, totalCount: count, hasMore, truncated };
+      return { rows: all, totalCount: total, hasMore: false, truncated };
     },
   });
 

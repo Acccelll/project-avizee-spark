@@ -1,5 +1,5 @@
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";
@@ -11,6 +11,7 @@ import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { FileOutput, AlertTriangle, Clock } from "lucide-react";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
+import { useClientesRef } from "@/hooks/useReferenceCache";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -164,50 +165,47 @@ const Pedidos = () => {
   const setDataInicio = (v: string) => updateParam("de", v || null);
   const setDataFim = (v: string) => updateParam("ate", v || null);
 
-  const [clientesList, setClientesList] = useState<{ id: string; nome_razao_social: string }[]>([]);
+  const { data: clientesList = [] } = useClientesRef();
   const [generatingNfId, setGeneratingNfId] = useState<string | null>(null);
   const [insufficientStock, setInsufficientStock] = useState<{ produto: string; falta: number }[]>([]);
   const [showStockAlert, setShowStockAlert] = useState(false);
+  const [stockCheckPending, setStockCheckPending] = useState(false);
 
-  useEffect(() => {
-    supabase.from("clientes").select("id, nome_razao_social").eq("ativo", true).then(({ data }) => setClientesList(data || []));
-  }, []);
-
-  const kpis = useMemo(() => {
-    const total = data.length;
-    const totalValue = data.reduce((s, o) => s + Number(o.valor_total || 0), 0);
-    const emAndamento = data.filter(o => ["em_separacao", "separado", "em_transporte"].includes(o.status)).length;
-    const atrasados = data.filter(o => getPrazoStatus(o.data_prometida_despacho, o.status) === "atrasado").length;
-    return { total, totalValue, emAndamento, atrasados };
-  }, [data]);
+  // KPIs computed over the filtered list so they reflect what the user sees.
+  // (filteredData is defined below; the memo deps include it.)
 
   const handleView = (pedido: Pedido) => {
     pushView("ordem_venda", pedido.id);
   };
 
   const handleRequestGenerateNF = async (pedido: Pedido) => {
-    const { data: items } = await supabase
-      .from("ordens_venda_itens")
-      .select("*, produtos(nome, estoque_atual)")
-      .eq("ordem_venda_id", pedido.id);
+    if (stockCheckPending || generatingNfId) return; // prevent double-click
+    setStockCheckPending(true);
+    try {
+      const { data: items } = await supabase
+        .from("ordens_venda_itens")
+        .select("*, produtos(nome, estoque_atual)")
+        .eq("ordem_venda_id", pedido.id);
 
-    const itemsWithShortfall = (items || [])
-      .filter((i) => {
-        const estoqueAtual = Number(i.produtos?.estoque_atual ?? 0);
-        return estoqueAtual < Number(i.quantidade);
-      })
-      .map((i) => ({
-        produto: i.produtos?.nome || `Produto ${i.produto_id}`,
-        falta: Number(i.quantidade) - Number(i.produtos?.estoque_atual ?? 0),
-      }));
+      const itemsWithShortfall = (items || [])
+        .filter((i) => {
+          const estoqueAtual = Number(i.produtos?.estoque_atual ?? 0);
+          return estoqueAtual < Number(i.quantidade);
+        })
+        .map((i) => ({
+          produto: i.produtos?.nome || `Produto ${i.produto_id}`,
+          falta: Number(i.quantidade) - Number(i.produtos?.estoque_atual ?? 0),
+        }));
 
-    if (itemsWithShortfall.length > 0) {
-      setInsufficientStock(itemsWithShortfall);
-      setShowStockAlert(true);
+      if (itemsWithShortfall.length > 0) {
+        setInsufficientStock(itemsWithShortfall);
+        setShowStockAlert(true);
+      } else {
+        setInsufficientStock([]);
+      }
       setGeneratingNfId(pedido.id);
-    } else {
-      setInsufficientStock([]);
-      setGeneratingNfId(pedido.id);
+    } finally {
+      setStockCheckPending(false);
     }
   };
 
@@ -255,6 +253,15 @@ const Pedidos = () => {
     });
   }, [data, faturamentoFilters, searchTerm, statusFilters, clienteFilters, prazoFilters, dataInicio, dataFim]);
 
+  // KPIs over filteredData so they reflect the user's current filter selection.
+  const kpis = useMemo(() => {
+    const total = filteredData.length;
+    const totalValue = filteredData.reduce((s, o) => s + Number(o.valor_total || 0), 0);
+    const emAndamento = filteredData.filter(o => ["em_separacao", "separado", "em_transporte"].includes(o.status)).length;
+    const atrasados = filteredData.filter(o => getPrazoStatus(o.data_prometida_despacho, o.status) === "atrasado").length;
+    return { total, totalValue, emAndamento, atrasados };
+  }, [filteredData]);
+
   const activeFilters = useMemo(() => {
     const chips: FilterChip[] = [];
     statusFilters.forEach(f => {
@@ -299,6 +306,7 @@ const Pedidos = () => {
     },
     {
       key: "cliente", label: "Cliente",
+      sortValue: (p: Pedido) => p.clientes?.nome_razao_social ?? "",
       render: (p: Pedido) => <span className="font-medium text-sm">{p.clientes?.nome_razao_social || "—"}</span>,
     },
     {
@@ -307,6 +315,7 @@ const Pedidos = () => {
     },
     {
       key: "prazo", label: "Prazo Despacho",
+      sortValue: (p: Pedido) => p.data_prometida_despacho ?? "",
       render: (p: Pedido) => <PrazoBadge dataPrazo={p.data_prometida_despacho} status={p.status} />,
     },
     {
@@ -315,6 +324,7 @@ const Pedidos = () => {
     },
     {
       key: "faturamento", label: "Faturamento",
+      sortValue: (p: Pedido) => p.status_faturamento ?? "",
       render: (p: Pedido) => {
         const sf = p.status_faturamento ?? "";
         return (
@@ -349,7 +359,13 @@ const Pedidos = () => {
       render: (p: Pedido) => (
         <div className="flex gap-1">
           {(p.status === "aprovada" || p.status === "em_separacao") && p.status_faturamento !== "total" && (
-            <Button size="sm" variant="default" className="h-7 text-xs gap-1" onClick={(e) => { e.stopPropagation(); handleRequestGenerateNF(p); }}>
+            <Button
+              size="sm"
+              variant="default"
+              className="h-7 text-xs gap-1"
+              disabled={stockCheckPending || generatingNfId === p.id}
+              onClick={(e) => { e.stopPropagation(); handleRequestGenerateNF(p); }}
+            >
               <FileOutput className="w-3 h-3" /> Gerar NF
             </Button>
           )}
@@ -385,7 +401,7 @@ const Pedidos = () => {
           searchPlaceholder="Buscar por número, PO, cliente ou cotação..."
           activeFilters={activeFilters}
           onRemoveFilter={handleRemoveFilter}
-          onClearAll={() => { setStatusFilters([]); setFaturamentoFilters([]); setClienteFilters([]); setPrazoFilters([]); setDataInicio(""); setDataFim(""); }}
+          onClearAll={() => { setSearchTerm(""); setStatusFilters([]); setFaturamentoFilters([]); setClienteFilters([]); setPrazoFilters([]); setDataInicio(""); setDataFim(""); }}
           count={filteredData.length}
         >
           <MultiSelect
