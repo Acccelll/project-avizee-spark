@@ -89,24 +89,20 @@ export function CotacaoCompraDrawer({
           <>
             {/* Block edit/delete once the quotation is in a terminal state */}
             {!["convertida", "cancelada"].includes(selected.status) && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Editar cotação" onClick={() => { onClose(); onEdit(selected); }}>
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Editar</TooltipContent>
-              </Tooltip>
+              <Button variant="outline" size="sm" className="gap-1.5" aria-label="Editar cotação" onClick={() => { onClose(); onEdit(selected); }}>
+                <Edit className="h-3.5 w-3.5" /> Editar
+              </Button>
             )}
             {!["convertida", "cancelada"].includes(selected.status) && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" aria-label="Excluir cotação" onClick={onDeleteOpen}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Excluir</TooltipContent>
-              </Tooltip>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-destructive border-destructive/30 hover:text-destructive hover:bg-destructive/10"
+                aria-label="Excluir cotação"
+                onClick={onDeleteOpen}
+              >
+                <Trash2 className="h-3.5 w-3.5" /> Excluir
+              </Button>
             )}
           </>
         ) : undefined
