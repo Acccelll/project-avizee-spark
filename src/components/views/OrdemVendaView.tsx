@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -12,7 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { toast } from "sonner";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { useDetailFetch } from "@/hooks/useDetailFetch";
+import { useDetailActions } from "@/hooks/useDetailActions";
 import { pagamentoLabels, freteTipoLabels } from "@/utils/comercial";
 import { gerarNFParaPedido } from "@/services/nf.service";
 import {
