@@ -264,7 +264,15 @@ const Orcamentos = () => {
     });
   }, [data, searchTerm, statusFilters, clienteFilters, validadeFilters, dataInicio, dataFim]);
 
-  const columns = [
+  const kpis = useMemo(() => {
+    const total = filteredData.length;
+    const totalValue = filteredData.reduce((s, o) => s + Number(o.valor_total || 0), 0);
+    const approved = filteredData.filter(o => o.status === "aprovado").length;
+    const converted = filteredData.filter(o => o.status === "convertido").length;
+    const conversionRate = total > 0 ? ((converted / total) * 100).toFixed(1) : "0";
+    return { total, totalValue, approved, conversionRate };
+  }, [filteredData]);
+
     {
       key: "numero",
       mobileCard: true, label: "Nº Cotação", sortable: true,
