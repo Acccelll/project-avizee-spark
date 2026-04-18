@@ -46,6 +46,7 @@ import { emptyLancamentoForm, type LancamentoForm } from "@/pages/financeiro/typ
 
 const Financeiro = () => {
   const { id: paramId } = useParams<{ id?: string }>();
+  const queryClient = useQueryClient();
   const autoOpenedRef = useRef(false);
   const {
     data,
