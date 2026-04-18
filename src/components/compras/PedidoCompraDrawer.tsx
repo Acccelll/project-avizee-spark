@@ -536,48 +536,54 @@ export function PedidoCompraDrawer({
 
   const drawerFooter =
     canReceive || canSend || canCancel || canSolicitarAprovacao || canApproveReject ? (
-      <div className="flex gap-2 w-full">
-        {canCancel && (
-          <Button
-            variant="outline"
-            className="gap-2 text-destructive border-destructive/30 hover:bg-destructive/10"
-            onClick={() => setCancelConfirmOpen(true)}
-          >
-            <XCircle className="w-4 h-4" /> Cancelar
-          </Button>
-        )}
-        <div className="flex gap-2 flex-1 justify-end flex-wrap">
-          {canSolicitarAprovacao && (
-            <Button variant="outline" className="gap-2" onClick={() => onSolicitarAprovacao!(selected)}>
-              <Clock className="w-4 h-4" /> Solicitar aprovação
+      <DrawerStickyFooter
+        left={
+          canCancel && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2 text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => setCancelConfirmOpen(true)}
+            >
+              <XCircle className="w-4 h-4" /> Cancelar pedido
             </Button>
-          )}
-          {canApproveReject && (
-            <>
-              <Button
-                variant="outline"
-                className="gap-2 text-destructive border-destructive/30"
-                onClick={() => { setRejectMotivo(""); setRejectOpen(true); }}
-              >
-                <XCircle className="w-4 h-4" /> Rejeitar
+          )
+        }
+        right={
+          <>
+            {canSolicitarAprovacao && (
+              <Button variant="outline" size="sm" className="gap-2" onClick={() => onSolicitarAprovacao!(selected)}>
+                <Clock className="w-4 h-4" /> Solicitar aprovação
               </Button>
-              <Button className="gap-2" onClick={() => onAprovar!(selected)}>
-                <CheckCircle2 className="w-4 h-4" /> Aprovar
+            )}
+            {canApproveReject && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 text-destructive border-destructive/30 hover:text-destructive"
+                  onClick={() => { setRejectMotivo(""); setRejectOpen(true); }}
+                >
+                  <XCircle className="w-4 h-4" /> Rejeitar
+                </Button>
+                <Button size="sm" className="gap-2" onClick={() => onAprovar!(selected)}>
+                  <CheckCircle2 className="w-4 h-4" /> Aprovar
+                </Button>
+              </>
+            )}
+            {canSend && (
+              <Button variant="outline" size="sm" className="gap-2" onClick={() => onSend(selected)}>
+                <SendHorizontal className="w-4 h-4" /> Marcar como Enviado
               </Button>
-            </>
-          )}
-          {canSend && (
-            <Button variant="outline" className="gap-2" onClick={() => onSend(selected)}>
-              <SendHorizontal className="w-4 h-4" /> Marcar como Enviado
-            </Button>
-          )}
-          {canReceive && (
-            <Button className="gap-2" onClick={() => onReceive(selected)}>
-              <PackageCheck className="w-4 h-4" /> Registrar Recebimento
-            </Button>
-          )}
-        </div>
-      </div>
+            )}
+            {canReceive && (
+              <Button size="sm" className="gap-2" onClick={() => onReceive(selected)}>
+                <PackageCheck className="w-4 h-4" /> Registrar Recebimento
+              </Button>
+            )}
+          </>
+        }
+      />
     ) : undefined;
 
   return (
