@@ -254,34 +254,12 @@ export function NotaFiscalDrawer({
   // ── Summary strip ─────────────────────────────────────────────────────────────
 
   const summary = (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-      <div className="rounded-lg border bg-muted/30 p-3 space-y-0.5">
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Modelo
-        </span>
-        <p className="text-sm font-bold font-mono">{modelo}</p>
-      </div>
-      <div className="rounded-lg border bg-muted/30 p-3 space-y-0.5">
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Produtos
-        </span>
-        <p className="text-sm font-bold font-mono">{formatCurrency(totalProdutos)}</p>
-      </div>
-      <div className="rounded-lg border bg-muted/30 p-3 space-y-0.5">
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Impostos
-        </span>
-        <p className="text-sm font-bold font-mono">{formatCurrency(totalImpostos)}</p>
-      </div>
-      <div className="rounded-lg border bg-accent/40 p-3 space-y-0.5">
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Total NF
-        </span>
-        <p className="text-sm font-bold font-mono text-primary">
-          {formatCurrency(Number(selected.valor_total))}
-        </p>
-      </div>
-    </div>
+    <DrawerSummaryGrid cols={4}>
+      <DrawerSummaryCard label="Modelo" value={modelo} />
+      <DrawerSummaryCard label="Produtos" value={formatCurrency(totalProdutos)} />
+      <DrawerSummaryCard label="Impostos" value={formatCurrency(totalImpostos)} />
+      <DrawerSummaryCard label="Total NF" value={formatCurrency(Number(selected.valor_total))} tone="primary" />
+    </DrawerSummaryGrid>
   );
 
   // ── Tabs ──────────────────────────────────────────────────────────────────────
