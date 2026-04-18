@@ -201,17 +201,17 @@ export function OrcamentoView({ id }: Props) {
     actions: (
       <>
         {selected.status === "rascunho" && (
-          <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs" onClick={handleSendForApproval} disabled={actionLoading}>
+          <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs" onClick={handleSendForApproval} disabled={isAnyLocked}>
             <Send className="h-3.5 w-3.5" /> Enviar p/ Aprovação
           </Button>
         )}
         {selected.status === "confirmado" && isAdmin && (
-          <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs" onClick={() => setApproveConfirmOpen(true)} disabled={actionLoading}>
+          <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs" onClick={() => setApproveConfirmOpen(true)} disabled={isAnyLocked}>
             <CheckCircle className="h-3.5 w-3.5" /> Aprovar
           </Button>
         )}
         {selected.status === "aprovado" && (
-          <Button size="sm" variant="default" className="h-8 gap-1.5 text-xs" onClick={() => setConvertConfirmOpen(true)} disabled={actionLoading}>
+          <Button size="sm" variant="default" className="h-8 gap-1.5 text-xs" onClick={() => setConvertConfirmOpen(true)} disabled={isAnyLocked}>
             <ArrowRightCircle className="h-3.5 w-3.5" /> Gerar Pedido
           </Button>
         )}
