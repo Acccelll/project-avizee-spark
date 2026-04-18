@@ -41,7 +41,8 @@ export default function CotacaoCompraForm() {
   const { id } = useParams<{ id: string }>();
 
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const { saving, submit } = useSubmitLock({ errorPrefix: "Erro ao salvar cotação" });
+  const { confirm, dialog: confirmDialog } = useConfirmDialog();
   const [cotacao, setCotacao] = useState<CotacaoCompra | null>(null);
   const [form, setForm] = useState({
     numero: "",
@@ -151,7 +152,7 @@ export default function CotacaoCompraForm() {
   };
 
   const handleSave = async () => {
-    if (!cotacao || saving) return;
+    if (!cotacao) return;
 
     if (!form.numero) { toast.error("Número é obrigatório."); return; }
     if (localItems.length === 0) { toast.error("Adicione ao menos um item."); return; }
@@ -169,8 +170,7 @@ export default function CotacaoCompraForm() {
       return;
     }
 
-    setSaving(true);
-    try {
+    await submit(async () => {
       const payload = {
         numero: form.numero,
         data_cotacao: form.data_cotacao,
@@ -181,18 +181,17 @@ export default function CotacaoCompraForm() {
       const { error: updErr } = await supabase.from("cotacoes_compra").update(payload).eq("id", cotacao.id);
       if (updErr) throw updErr;
 
-      // Replace items
-      await supabase.from("cotacoes_compra_itens").delete().eq("cotacao_compra_id", cotacao.id);
+      // Substituição atômica via RPC (evita ficar sem itens em caso de falha)
       const itemsPayload = localItems.filter((i) => i.produto_id).map((i) => ({
-        cotacao_compra_id: cotacao.id,
         produto_id: i.produto_id,
         quantidade: i.quantidade,
         unidade: i.unidade,
       }));
-      if (itemsPayload.length > 0) {
-        const { error: itemsErr } = await supabase.from("cotacoes_compra_itens").insert(itemsPayload);
-        if (itemsErr) throw itemsErr;
-      }
+      const { error: rpcErr } = await supabase.rpc("replace_cotacao_compra_itens", {
+        p_cotacao_id: cotacao.id,
+        p_itens: itemsPayload as unknown as never,
+      });
+      if (rpcErr) throw rpcErr;
 
       toast.success("Cotação salva!");
       setCotacao({ ...cotacao, ...payload } as CotacaoCompra);
@@ -213,10 +212,15 @@ export default function CotacaoCompraForm() {
         }))
       );
       setIsDirty(false);
-    } catch (err: unknown) {
-      toast.error(getUserFriendlyError(err));
+    });
+  };
+
+  const handleBack = async () => {
+    if (isDirty) {
+      const ok = await confirm();
+      if (!ok) return;
     }
-    setSaving(false);
+    navigate("/cotacoes-compra");
   };
 
   const handleAddProposal = async (itemId: string) => {
