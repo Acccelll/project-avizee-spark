@@ -149,7 +149,7 @@ export function ClienteView({ id }: Props) {
   });
 
   if (loading) return <div className="p-8 text-center animate-pulse">Carregando dados do cliente...</div>;
-  if (fetchError) return <div className="p-8 text-center text-destructive space-y-1"><p className="font-semibold">Erro ao carregar dados</p><p className="text-xs text-muted-foreground">{fetchError}</p></div>;
+  if (error) return <div className="p-8 text-center text-destructive space-y-1"><p className="font-semibold">Erro ao carregar dados</p><p className="text-xs text-muted-foreground">{error.message}</p></div>;
   if (!selected) return <div className="p-8 text-center text-destructive">Cliente não encontrado</div>;
 
   return (
@@ -344,19 +344,18 @@ export function ClienteView({ id }: Props) {
       <ConfirmDialog
         open={deleteConfirmOpen}
         onClose={() => setDeleteConfirmOpen(false)}
-        onConfirm={async () => {
-          try {
-            const { error } = await supabase.from("clientes").delete().eq("id", id);
-            if (error) throw error;
+        loading={locked("delete")}
+        onConfirm={() =>
+          run("delete", async () => {
+            const { error: delErr } = await supabase.from("clientes").delete().eq("id", id);
+            if (delErr) throw delErr;
             toast.success("Cliente excluído com sucesso.");
-            clearStack();
-          } catch (err) {
-            console.error("[ClienteView] erro ao excluir:", err);
-            toast.error("Erro ao excluir cliente.");
-          } finally {
+            // Invalida cache da grid (D2) — evita exibir registro morto.
+            await invalidate(["clientes", "ordens_venda", "financeiro_lancamentos"]);
             setDeleteConfirmOpen(false);
-          }
-        }}
+            clearStack();
+          })
+        }
         title="Excluir cliente"
         description={`Tem certeza que deseja excluir "${selected?.nome_razao_social || ""}"? Esta ação não pode ser desfeita.`}
       />
