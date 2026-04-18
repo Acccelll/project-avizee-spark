@@ -11,6 +11,8 @@ export interface PageShellProps {
   subtitle?: ReactNode;
   /** Caminho ou função para o botão "voltar". Se omitido, esconde o botão. */
   backTo?: string | (() => void);
+  /** Badge/chip exibido ao lado do título (status, "Novo", número do documento). */
+  badge?: ReactNode;
   /** Ações principais alinhadas à direita do header. */
   actions?: ReactNode;
   /** Conteúdo adicional logo abaixo do header (banners, contexto, badges). */
@@ -39,6 +41,7 @@ export function PageShell({
   title,
   subtitle,
   backTo,
+  badge,
   actions,
   meta,
   children,
@@ -73,7 +76,10 @@ export function PageShell({
             </Button>
           )}
           <div className="min-w-0">
-            <h1 className="page-title text-lg md:text-xl truncate">{title}</h1>
+            <div className="flex items-center gap-2 min-w-0">
+              <h1 className="page-title text-lg md:text-xl truncate">{title}</h1>
+              {badge && <span className="shrink-0 inline-flex">{badge}</span>}
+            </div>
             {subtitle && (
               <p className="mt-0.5 text-sm text-muted-foreground truncate">{subtitle}</p>
             )}

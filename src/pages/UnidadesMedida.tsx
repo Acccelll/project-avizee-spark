@@ -229,6 +229,7 @@ export default function UnidadesMedida() {
         open={modalOpen}
         onClose={closeModal}
         title={mode === "create" ? "Nova Unidade de Medida" : "Editar Unidade de Medida"}
+        mode={mode}
         identifier={mode === "edit" && selected?.codigo ? selected.codigo : undefined}
         status={mode === "edit" && selected ? <StatusBadge status={selected.ativo ? "ativo" : "inativo"} /> : undefined}
         isDirty={isDirty}

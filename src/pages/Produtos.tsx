@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useDebounce } from "@/hooks/useDebounce";
 import { DataTable } from "@/components/DataTable";
@@ -370,8 +370,26 @@ const Produtos = () => {
         }
       }
       markPristine();
-      setModalOpen(false);
+      if (saveAndNewRef.current && mode === "create") {
+        saveAndNewRef.current = false;
+        resetForm({ ...emptyProduto });
+        setEditComposicao([]);
+        setEditFornecedores([]);
+        setEditingProduct(null);
+        setMargemOverride(30);
+        setFormErrors({});
+      } else {
+        setModalOpen(false);
+      }
     });
+  };
+
+  const saveAndNewRef = useRef(false);
+  const handleSaveAndNew = () => {
+    saveAndNewRef.current = true;
+    document.getElementById("produto-form")?.dispatchEvent(
+      new Event("submit", { cancelable: true, bubbles: true }),
+    );
   };
 
   const handleSalvarNovaUnidade = async (e: React.FormEvent) => {
@@ -760,6 +778,8 @@ const Produtos = () => {
         onClose={handleCloseModal}
         title={mode === "create" ? "Novo Produto" : "Editar Produto"}
         size="xl"
+        mode={mode}
+        createHint="Preencha nome, SKU, unidade e grupo. Outras seções (estoque, preços, fiscal) ficam disponíveis após salvar."
         identifier={mode === "edit" && editingProduct ? (editingProduct.sku || editingProduct.codigo_interno || undefined) : undefined}
         status={mode === "edit" && editingProduct ? <StatusBadge status={editingProduct.ativo !== false ? "ativo" : "inativo"} /> : undefined}
         meta={mode === "edit" && editingProduct?.updated_at ? [
@@ -778,6 +798,7 @@ const Produtos = () => {
             submitAsForm
             formId="produto-form"
             mode={mode}
+            onSaveAndNew={mode === "create" ? handleSaveAndNew : undefined}
           />
         }
       >

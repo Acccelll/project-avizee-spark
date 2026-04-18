@@ -299,7 +299,14 @@ export default function Remessas() {
       </ModulePage>
 
       {/* Form Modal */}
-      <FormModal open={modalOpen} onClose={() => setModalOpen(false)} title={mode === "create" ? "Nova Remessa" : "Editar Remessa"} size="lg">
+      <FormModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title={mode === "create" ? "Nova Remessa" : "Editar Remessa"}
+        size="lg"
+        mode={mode}
+        createHint="Informe transportadora, data e dados de entrega para criar a remessa."
+      >
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             <div className="space-y-2">

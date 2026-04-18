@@ -194,7 +194,9 @@ export default function PedidoCompraForm() {
       });
       if (rpcErr) throw rpcErr;
 
-      toast.success("Pedido de compra salvo!");
+      toast.success("Pedido de compra salvo!", {
+        description: pedido?.numero ? `Pedido ${pedido.numero}` : undefined,
+      });
       setPedido({ ...pedido, ...payload } as PedidoCompra);
       setIsDirty(false);
     });

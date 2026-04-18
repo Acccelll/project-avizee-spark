@@ -84,7 +84,14 @@ export default function CotacoesCompra() {
       </ModulePage>
 
       {/* Create/Edit Modal */}
-      <FormModal open={modalOpen} onClose={() => setModalOpen(false)} title={mode === "create" ? "Nova Cotação de Compra" : "Editar Cotação de Compra"} size="xl">
+      <FormModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title={mode === "create" ? "Nova Cotação de Compra" : "Editar Cotação de Compra"}
+        size="xl"
+        mode={mode}
+        createHint="Defina o número, fornecedores e itens a cotar. Você poderá registrar propostas após criar."
+      >
         <form onSubmit={handleSubmit} className="space-y-5">
           {mode === "edit" && selected && (
             <div className="flex items-start gap-3 rounded-lg border bg-muted/30 px-4 py-3">

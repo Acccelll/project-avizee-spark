@@ -729,6 +729,8 @@ const Clientes = () => {
         }}
         title={mode === "create" ? "Novo Cliente" : "Editar Cliente"}
         size="xl"
+        mode={mode}
+        createHint="Preencha os dados básicos para criar o cliente. Endereços, transportadoras e comunicações ficam disponíveis após salvar."
         identifier={mode === "edit" && selected?.cpf_cnpj ? selected.cpf_cnpj : undefined}
         status={mode === "edit" && selected ? <StatusBadge status={selected.ativo ? "ativo" : "inativo"} /> : undefined}
         meta={mode === "edit" && selected ? [

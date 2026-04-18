@@ -727,6 +727,7 @@ const GruposEconomicos = () => {
         onClose={handleCancel}
         title={mode === "create" ? "Novo Grupo Econômico" : "Editar Grupo Econômico"}
         size="lg"
+        mode={mode}
         status={mode === "edit" && selected ? <StatusBadge status={selected.ativo ? "ativo" : "inativo"} /> : undefined}
         meta={mode === "edit" && selected ? [
           ...(selected.created_at ? [{ icon: Calendar, label: `Cadastrado em ${formatDate(selected.created_at)}` }] : []),
