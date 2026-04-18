@@ -23,6 +23,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
+import { useEditDirtyForm } from "@/hooks/useEditDirtyForm";
+import { useSubmitLock } from "@/hooks/useSubmitLock";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
@@ -83,7 +86,9 @@ export default function FormasPagamento() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selected, setSelected] = useState<FormaPagamento | null>(null);
   const [mode, setMode] = useState<"create" | "edit">("create");
-  const [form, setForm] = useState<FormaPagamentoForm>(emptyForm);
+  const { form, updateForm, reset, isDirty, markPristine } = useEditDirtyForm<FormaPagamentoForm>(emptyForm);
+  const { saving, submit } = useSubmitLock();
+  const { confirm, dialog: confirmDialog } = useConfirmDialog();
   const [searchTerm, setSearchTerm] = useState("");
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
@@ -138,11 +143,21 @@ export default function FormasPagamento() {
     return () => { cancelled = true; };
   }, [selected?.id, drawerOpen]);
 
-  const openCreate = () => { setMode("create"); setForm({ ...emptyForm }); setSelected(null); setModalOpen(true); };
+  const closeModal = async () => {
+    if (isDirty && !(await confirm())) return;
+    setModalOpen(false);
+  };
+
+  const openCreate = () => {
+    setMode("create");
+    reset({ ...emptyForm });
+    setSelected(null);
+    setModalOpen(true);
+  };
   const openEdit = (f: FormaPagamento) => {
     setMode("edit"); setSelected(f);
     const intervalos = Array.isArray(f.intervalos_dias) ? f.intervalos_dias : [];
-    setForm({ descricao: f.descricao, prazo_dias: f.prazo_dias, parcelas: f.parcelas, intervalos_dias: intervalos, gera_financeiro: f.gera_financeiro, tipo: f.tipo, observacoes: f.observacoes || "", ativo: f.ativo });
+    reset({ descricao: f.descricao, prazo_dias: f.prazo_dias, parcelas: f.parcelas, intervalos_dias: intervalos, gera_financeiro: f.gera_financeiro, tipo: f.tipo, observacoes: f.observacoes || "", ativo: f.ativo });
     setModalOpen(true);
   };
   const openView = (f: FormaPagamento) => { setSelected(f); setDrawerOpen(true); };
@@ -150,26 +165,29 @@ export default function FormasPagamento() {
   const addIntervalo = () => {
     const current = Array.isArray(form.intervalos_dias) ? form.intervalos_dias : [];
     const updated = [...current, newIntervalo].sort((a, b) => a - b);
-    setForm({ ...form, intervalos_dias: updated, parcelas: updated.length });
+    updateForm({ intervalos_dias: updated, parcelas: updated.length });
     setNewIntervalo((updated[updated.length - 1] || 0) + 30);
   };
 
   const removeIntervalo = (idx: number) => {
     const updated = form.intervalos_dias.filter((_, i) => i !== idx);
-    setForm({ ...form, intervalos_dias: updated, parcelas: Math.max(1, updated.length) });
+    updateForm({ intervalos_dias: updated, parcelas: Math.max(1, updated.length) });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.descricao) { toast.error("Descrição é obrigatória"); return; }
-    const payload = {
-      ...form,
-      intervalos_dias: form.intervalos_dias.length > 0 ? form.intervalos_dias : [],
-      parcelas: form.intervalos_dias.length > 0 ? form.intervalos_dias.length : form.parcelas,
-    };
-    if (mode === "create") await create(payload as Partial<FormaPagamento>);
-    else if (selected) await update(selected.id, payload as Partial<FormaPagamento>);
-    setModalOpen(false);
+    await submit(async () => {
+      const payload = {
+        ...form,
+        intervalos_dias: form.intervalos_dias.length > 0 ? form.intervalos_dias : [],
+        parcelas: form.intervalos_dias.length > 0 ? form.intervalos_dias.length : form.parcelas,
+      };
+      if (mode === "create") await create(payload as Partial<FormaPagamento>);
+      else if (selected) await update(selected.id, payload as Partial<FormaPagamento>);
+      markPristine();
+      setModalOpen(false);
+    });
   };
 
   const filteredData = useMemo(() => {
@@ -350,7 +368,7 @@ export default function FormasPagamento() {
         />
       </ModulePage>
 
-      <FormModal open={modalOpen} onClose={() => setModalOpen(false)} title={mode === "create" ? "Nova Forma de Pagamento" : "Editar Forma de Pagamento"} size="lg">
+      <FormModal open={modalOpen} onClose={closeModal} title={mode === "create" ? "Nova Forma de Pagamento" : "Editar Forma de Pagamento"} size="lg">
         <form onSubmit={handleSubmit} className="space-y-6">
 
           {/* ── BLOCO 1: IDENTIFICAÇÃO DA REGRA ───────────────────────── */}
@@ -365,7 +383,7 @@ export default function FormasPagamento() {
                 <Input
                   id="fp-descricao"
                   value={form.descricao}
-                  onChange={(e) => setForm({ ...form, descricao: e.target.value })}
+                  onChange={(e) => updateForm({ descricao: e.target.value })}
                   required
                   aria-required="true"
                   placeholder="Ex: 30/60/90 DDL"
@@ -376,7 +394,7 @@ export default function FormasPagamento() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Tipo</Label>
-                  <Select value={form.tipo} onValueChange={(v) => setForm({ ...form, tipo: v })}>
+                  <Select value={form.tipo} onValueChange={(v) => updateForm({ tipo: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="dinheiro">Dinheiro</SelectItem>
@@ -394,7 +412,7 @@ export default function FormasPagamento() {
                     <div className="flex items-center gap-2 h-10">
                       <Switch
                         checked={form.ativo}
-                        onCheckedChange={(v) => setForm({ ...form, ativo: v })}
+                        onCheckedChange={(v) => updateForm({ ativo: v })}
                       />
                       <span className="text-sm text-muted-foreground">{form.ativo ? "Ativo" : "Inativo"}</span>
                     </div>
@@ -421,7 +439,7 @@ export default function FormasPagamento() {
                     type="number"
                     min={0}
                     value={form.prazo_dias}
-                    onChange={(e) => setForm({ ...form, prazo_dias: Number(e.target.value) })}
+                    onChange={(e) => updateForm({ prazo_dias: Number(e.target.value) })}
                     className="w-28"
                     placeholder="0"
                   />
@@ -484,7 +502,7 @@ export default function FormasPagamento() {
                 </div>
                 <Switch
                   checked={form.gera_financeiro}
-                  onCheckedChange={(v) => setForm({ ...form, gera_financeiro: v })}
+                  onCheckedChange={(v) => updateForm({ gera_financeiro: v })}
                 />
               </div>
             </div>
@@ -522,7 +540,7 @@ export default function FormasPagamento() {
               <p className="text-xs text-muted-foreground">Notas internas sobre o uso desta forma de pagamento. Instruções, restrições ou acordos comerciais específicos.</p>
               <Textarea
                 value={form.observacoes}
-                onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
+                onChange={(e) => updateForm({ observacoes: e.target.value })}
                 placeholder="Ex: Utilizada apenas para clientes com limite aprovado acima de R$ 5.000..."
                 rows={3}
               />
@@ -531,8 +549,8 @@ export default function FormasPagamento() {
 
           {/* ── RODAPÉ ────────────────────────────────────────────────── */}
           <div className="flex justify-end gap-2 pt-2 border-t">
-            <Button type="button" variant="outline" onClick={() => setModalOpen(false)}>Cancelar</Button>
-            <Button type="submit">{mode === "create" ? "Criar Forma de Pagamento" : "Salvar Alterações"}</Button>
+            <Button type="button" variant="outline" onClick={closeModal}>Cancelar</Button>
+            <Button type="submit" disabled={saving}>{saving ? "Salvando..." : mode === "create" ? "Criar Forma de Pagamento" : "Salvar Alterações"}</Button>
           </div>
         </form>
       </FormModal>
@@ -811,6 +829,7 @@ export default function FormasPagamento() {
           </div>
         )}
       </ConfirmDialog>
+      {confirmDialog}
     </AppLayout>
   );
 }

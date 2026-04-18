@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -24,6 +24,8 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { getUserFriendlyError } from "@/utils/errorMessages";
+import { useSubmitLock } from "@/hooks/useSubmitLock";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import {
   AlertTriangle,
   FileText,
@@ -110,11 +112,17 @@ export function ContaContabilEditModal({
   const [aceitaLancamento, setAceitaLancamento] = useState(true);
   const [contaPaiId, setContaPaiId] = useState<string | null>(null);
   const [ativo, setAtivo] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const { saving, submit } = useSubmitLock();
+  const { confirm, dialog: confirmDialog } = useConfirmDialog();
 
   const [vinculos, setVinculos] = useState<VinculoContagem | null>(null);
   const [loadingVinculos, setLoadingVinculos] = useState(false);
   const [codigoExistente, setCodigoExistente] = useState(false);
+
+  // Baseline para dirty-state
+  const baselineRef = useRef<string>("");
+  const snapshot = () => JSON.stringify({ codigo, descricao, natureza, aceitaLancamento, contaPaiId, ativo });
+  const isDirty = baselineRef.current !== "" && baselineRef.current !== snapshot();
 
   // Populate form when opening
   useEffect(() => {
@@ -136,6 +144,21 @@ export function ContaContabilEditModal({
     }
     setVinculos(null);
     setCodigoExistente(false);
+    // baseline será setado no próximo tick após o estado aplicar
+    queueMicrotask(() => {
+      baselineRef.current = JSON.stringify(
+        conta
+          ? {
+              codigo: conta.codigo,
+              descricao: conta.descricao,
+              natureza: conta.natureza ?? "devedora",
+              aceitaLancamento: conta.aceita_lancamento,
+              contaPaiId: conta.conta_pai_id,
+              ativo: conta.ativo,
+            }
+          : { codigo: "", descricao: "", natureza: "devedora", aceitaLancamento: true, contaPaiId: null, ativo: true },
+      );
+    });
   }, [open, conta]);
 
   const contaId = conta?.id;
@@ -143,6 +166,7 @@ export function ContaContabilEditModal({
   // Load vinculos in edit mode
   useEffect(() => {
     if (!open || !contaId) return;
+    let cancelled = false;
     setLoadingVinculos(true);
     Promise.all([
       supabase
@@ -160,6 +184,7 @@ export function ContaContabilEditModal({
         .select("id", { count: "exact", head: true })
         .eq("conta_contabil_id", contaId),
     ]).then(([lanc, nf, gp]) => {
+      if (cancelled) return;
       setVinculos({
         lancamentos: lanc.count ?? 0,
         notas_fiscais: nf.count ?? 0,
@@ -167,7 +192,13 @@ export function ContaContabilEditModal({
       });
       setLoadingVinculos(false);
     });
+    return () => { cancelled = true; };
   }, [open, contaId]);
+
+  const handleClose = async () => {
+    if (isDirty && !(await confirm())) return;
+    onClose();
+  };
 
   // Check code uniqueness on blur
   const checkCodigoDuplicado = async (value: string) => {
@@ -213,21 +244,23 @@ export function ContaContabilEditModal({
       return;
     }
 
-    setSaving(true);
-    try {
-      await onSave({
-        codigo: codigo.trim(),
-        descricao: descricao.trim(),
-        natureza,
-        aceita_lancamento: aceitaLancamento,
-        conta_pai_id: contaPaiId,
-        ativo,
-      });
-      onClose();
-    } catch (err: unknown) {
-      toast.error(getUserFriendlyError(err));
-    }
-    setSaving(false);
+    await submit(async () => {
+      try {
+        await onSave({
+          codigo: codigo.trim(),
+          descricao: descricao.trim(),
+          natureza,
+          aceita_lancamento: aceitaLancamento,
+          conta_pai_id: contaPaiId,
+          ativo,
+        });
+        baselineRef.current = snapshot();
+        onClose();
+      } catch (err: unknown) {
+        toast.error(getUserFriendlyError(err));
+        throw err;
+      }
+    });
   };
 
   // Candidate parent accounts: exclude self and own descendants
@@ -258,7 +291,7 @@ export function ContaContabilEditModal({
   );
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader className="pb-2">
           <DialogTitle className="text-base">
@@ -521,7 +554,7 @@ export function ContaContabilEditModal({
               )}
             </div>
             <div className="flex items-center gap-2">
-              <Button type="button" variant="outline" onClick={onClose} disabled={saving}>
+              <Button type="button" variant="outline" onClick={handleClose} disabled={saving}>
                 Cancelar
               </Button>
               <Button
@@ -534,6 +567,7 @@ export function ContaContabilEditModal({
           </div>
         </form>
       </DialogContent>
+      {confirmDialog}
     </Dialog>
   );
 }
