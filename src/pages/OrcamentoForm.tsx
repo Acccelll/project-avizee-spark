@@ -610,7 +610,7 @@ export default function OrcamentoForm() {
         } catch {/* ignore */}
       }
       toast.success(isEdit ? "Orçamento atualizado com sucesso" : "Orçamento criado com sucesso", {
-        description: `Registro ${formValues.numero} salvo.`,
+        description: `Registro ${payload.numero} salvo.`,
         action: { label: "Visualizar", onClick: () => navigate(orcId ? `/orcamentos/${orcId}` : "/orcamentos") },
       });
       if (!isEdit && orcId) navigate(`/orcamentos/${orcId}`, { replace: true });
