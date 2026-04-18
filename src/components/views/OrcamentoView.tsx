@@ -248,10 +248,10 @@ export function OrcamentoView({ id }: Props) {
   } : {});
 
   if (loading) return <div className="p-8 text-center animate-pulse">Carregando cotação...</div>;
-  if (fetchError) return (
+  if (error) return (
     <div className="p-8 text-center text-destructive space-y-1">
       <p className="font-semibold">Erro ao carregar dados</p>
-      <p className="text-xs text-muted-foreground">{fetchError}</p>
+      <p className="text-xs text-muted-foreground">{error.message}</p>
     </div>
   );
   if (!selected) return <div className="p-8 text-center text-destructive">Cotação não encontrada</div>;
