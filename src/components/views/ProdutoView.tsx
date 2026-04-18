@@ -15,6 +15,7 @@ import { getUserFriendlyError } from "@/utils/errorMessages";
 import { PrecosEspeciaisTab } from "@/components/precos/PrecosEspeciaisTab";
 import { RelationalLink } from "@/components/ui/RelationalLink";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
+import { usePublishDrawerSlots } from "@/contexts/RelationalDrawerSlotsContext";
 import type {
   HistoricoNfItemRow,
   ComposicaoItemRow,
@@ -58,7 +59,6 @@ export function ProdutoView({ id }: Props) {
       try {
         const { data: p, error: pError } = await supabase.from("produtos").select("*").eq("id", id).maybeSingle();
         if (pError) {
-          console.error("[ProdutoView] erro ao buscar produto:", pError);
           setFetchError(`Erro ao carregar produto: ${pError.message}`);
           setLoading(false);
           return;
@@ -100,7 +100,6 @@ export function ProdutoView({ id }: Props) {
         setFornecedoresProd((fornRes.data || []) as ProdutoFornecedorViewRow[]);
         setGrupoNome((grupoRes.data as Record<string, unknown>)?.nome as string || null);
       } catch (error) {
-        console.error("[ProdutoView] erro inesperado:", error);
         setFetchError(getUserFriendlyError(error));
       } finally {
         setLoading(false);
@@ -110,57 +109,31 @@ export function ProdutoView({ id }: Props) {
     fetchData();
   }, [id]);
 
-  if (loading) return <div className="p-8 text-center animate-pulse">Carregando dados do produto...</div>;
-  if (fetchError) return <div className="p-8 text-center text-destructive space-y-1"><p className="font-semibold">Erro ao carregar dados</p><p className="text-xs text-muted-foreground">{fetchError}</p></div>;
-  if (!selected) return <div className="p-8 text-center text-destructive">Produto não encontrado</div>;
-
-  const selectedMargem = (selected.preco_custo || 0) > 0 ? (selected.preco_venda / (selected.preco_custo || 1) - 1) * 100 : 0;
-  const lucroBruto = selected.preco_venda - (selected.preco_custo || 0);
+  const selectedMargem = selected && (selected.preco_custo || 0) > 0 ? (selected.preco_venda / (selected.preco_custo || 1) - 1) * 100 : 0;
+  const lucroBruto = selected ? selected.preco_venda - (selected.preco_custo || 0) : 0;
   const custoCompostoView = composicao.reduce((s, c) => s + c.quantidade * (c.preco_custo || 0), 0);
-  const estoqueValor = (selected.estoque_atual || 0) * (selected.preco_custo || 0);
-  const estoqueBaixo = Number(selected.estoque_atual) <= Number(selected.estoque_minimo) && Number(selected.estoque_minimo) > 0;
-  const fiscalCompleto = !!(selected.ncm && selected.cst && selected.cfop_padrao);
+  const estoqueValor = selected ? (selected.estoque_atual || 0) * (selected.preco_custo || 0) : 0;
+  const estoqueBaixo = selected ? Number(selected.estoque_atual) <= Number(selected.estoque_minimo) && Number(selected.estoque_minimo) > 0 : false;
+  const fiscalCompleto = !!(selected?.ncm && selected?.cst && selected?.cfop_padrao);
   const fornecedorPrincipal = fornecedoresProd.find((f) => f.eh_principal);
   const ultimaEntrada = movimentos.find((m) => m.tipo === 'entrada');
   const ultimaSaida = movimentos.find((m) => m.tipo === 'saida');
 
-  return (
-    <div className="space-y-5">
-      {/* Action bar */}
-      <div className="flex items-center justify-end gap-1 border-b pb-3">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Editar produto" onClick={() => {
-              navigate(`/produtos?editId=${id}`);
-              window.setTimeout(() => clearStack(), 0);
-            }}>
-              <Edit className="h-4 w-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Editar</TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" aria-label="Excluir produto" onClick={() => setDeleteConfirmOpen(true)}>
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Excluir</TooltipContent>
-        </Tooltip>
-      </div>
-
-      {/* Product identity header */}
-      <div className="flex items-start gap-4 bg-muted/30 p-4 rounded-lg">
-        <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
-          <Package className="h-6 w-6" />
+  // ── PUBLISH DRAWER SLOTS (header padronizado via DrawerHeaderShell) ──
+  usePublishDrawerSlots(`produto:${id}`, {
+    breadcrumb: selected?.sku ? `Produto · ${selected.sku}` : undefined,
+    summary: selected ? (
+      <div className="flex items-start gap-3">
+        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
+          <Package className="h-5 w-5" />
         </div>
         <div className="min-w-0 flex-1">
-          <h3 className="font-semibold text-lg leading-tight truncate">{selected.nome}</h3>
+          <h3 className="font-semibold text-sm leading-tight truncate">{selected.nome}</h3>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5">
-            {selected.sku && <p className="text-xs text-muted-foreground font-mono">SKU: {selected.sku}</p>}
-            {selected.codigo_interno && <p className="text-xs text-muted-foreground font-mono">Cód: {selected.codigo_interno}</p>}
+            {selected.sku && <p className="text-[11px] text-muted-foreground font-mono">SKU: {selected.sku}</p>}
+            {selected.codigo_interno && <p className="text-[11px] text-muted-foreground font-mono">Cód: {selected.codigo_interno}</p>}
           </div>
-          <div className="flex flex-wrap items-center gap-2 mt-2">
+          <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
             <StatusBadge status={selected.ativo ? "ativo" : "inativo"} />
             <StatusBadge status={selected.eh_composto ? "composto" : "simples"} />
             <StatusBadge status={selected.tipo_item || "produto"} />
@@ -173,7 +146,45 @@ export function ProdutoView({ id }: Props) {
           </div>
         </div>
       </div>
+    ) : undefined,
+    actions: selected ? (
+      <>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 gap-1.5 text-xs"
+          aria-label="Editar produto"
+          onClick={() => {
+            navigate(`/produtos?editId=${id}`);
+            window.setTimeout(() => clearStack(), 0);
+          }}
+        >
+          <Edit className="h-3.5 w-3.5" /> Editar
+        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+              aria-label="Excluir produto"
+              onClick={() => setDeleteConfirmOpen(true)}
+            >
+              <Trash2 className="h-3.5 w-3.5" /> Excluir
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Excluir produto</TooltipContent>
+        </Tooltip>
+      </>
+    ) : undefined,
+  });
 
+  if (loading) return <div className="p-8 text-center animate-pulse">Carregando dados do produto...</div>;
+  if (fetchError) return <div className="p-8 text-center text-destructive space-y-1"><p className="font-semibold">Erro ao carregar dados</p><p className="text-xs text-muted-foreground">{fetchError}</p></div>;
+  if (!selected) return <div className="p-8 text-center text-destructive">Produto não encontrado</div>;
+
+  return (
+    <div className="space-y-5">
       {/* KPI cards */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         <div className="rounded-lg border bg-card p-4 text-center space-y-1">
@@ -190,7 +201,7 @@ export function ProdutoView({ id }: Props) {
         </div>
         <div className="rounded-lg border bg-card p-4 text-center space-y-1">
           <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Margem</p>
-          <p className={`font-mono font-bold text-sm ${selectedMargem > 0 ? "text-emerald-600 dark:text-emerald-400" : selectedMargem < 0 ? "text-destructive" : "text-foreground"}`}>{(selected.preco_custo || 0) > 0 ? `${selectedMargem.toFixed(1)}%` : "—"}</p>
+          <p className={`font-mono font-bold text-sm ${selectedMargem > 0 ? "text-success" : selectedMargem < 0 ? "text-destructive" : "text-foreground"}`}>{(selected.preco_custo || 0) > 0 ? `${selectedMargem.toFixed(1)}%` : "—"}</p>
         </div>
         <div className={`rounded-lg border p-4 text-center space-y-1 ${estoqueBaixo ? "border-destructive/40 bg-destructive/5" : "bg-card"}`}>
           <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Estoque</p>
@@ -361,7 +372,7 @@ export function ProdutoView({ id }: Props) {
               </div>
               <div>
                 <span className="text-[10px] text-muted-foreground uppercase tracking-wider block">Margem</span>
-                <p className={`font-mono font-semibold text-lg ${selectedMargem > 0 ? "text-emerald-600 dark:text-emerald-400" : selectedMargem < 0 ? "text-destructive" : ""}`}>
+                <p className={`font-mono font-semibold text-lg ${selectedMargem > 0 ? "text-success" : selectedMargem < 0 ? "text-destructive" : ""}`}>
                   {(selected.preco_custo || 0) > 0 ? `${selectedMargem.toFixed(1)}%` : "—"}
                 </p>
               </div>
@@ -419,7 +430,7 @@ export function ProdutoView({ id }: Props) {
               {ultimaEntrada && (
                 <div className="rounded-lg border p-3 space-y-0.5">
                   <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Última Entrada</p>
-                  <p className="font-mono font-semibold text-sm text-emerald-600 dark:text-emerald-400">+{ultimaEntrada.quantidade}</p>
+                  <p className="font-mono font-semibold text-sm text-success">+{ultimaEntrada.quantidade}</p>
                   <p className="text-[10px] text-muted-foreground">{formatDate(ultimaEntrada.created_at)}</p>
                   {ultimaEntrada.motivo && <p className="text-[9px] text-muted-foreground truncate">{ultimaEntrada.motivo}</p>}
                 </div>
@@ -464,8 +475,8 @@ export function ProdutoView({ id }: Props) {
           <div className="flex items-center justify-between">
             <h4 className="font-semibold text-xs text-muted-foreground uppercase tracking-wider">Dados Fiscais</h4>
             {fiscalCompleto ? (
-              <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 bg-success/10 border border-success/20 px-2 py-0.5 rounded-full font-medium">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 inline-block" /> Cadastro Completo
+              <span className="inline-flex items-center gap-1 text-[10px] text-success bg-success/10 border border-success/20 px-2 py-0.5 rounded-full font-medium">
+                <span className="h-1.5 w-1.5 rounded-full bg-success inline-block" /> Cadastro Completo
               </span>
             ) : (
               <span className="inline-flex items-center gap-1 text-[10px] text-warning bg-warning/10 border border-warning/20 px-2 py-0.5 rounded-full font-medium">
@@ -530,7 +541,6 @@ export function ProdutoView({ id }: Props) {
             toast.success("Produto excluído com sucesso.");
             clearStack();
           } catch (err) {
-            console.error("[ProdutoView] erro ao excluir:", err);
             toast.error(getUserFriendlyError(err));
           } finally {
             setDeleteConfirmOpen(false);
