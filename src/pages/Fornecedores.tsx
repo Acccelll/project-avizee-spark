@@ -118,7 +118,10 @@ const Fornecedores = () => {
   const [modalComprasForn, setModalComprasForn] = useState<{ count: number; ultima: string | null; total: number }>({ count: 0, ultima: null, total: 0 });
   const [loadingFornContext, setLoadingFornContext] = useState(false);
 
-  const loadFornContext = async (fornecedorId: string) => {
+  // Token para descartar resultados de loads obsoletos quando o usuário troca de registro.
+  const loadTokenRef = useRef(0);
+
+  const loadFornContext = async (fornecedorId: string, token?: number) => {
     setLoadingFornContext(true);
     try {
       const [{ data: pf, error: pfErr }, { data: compras, error: comprasErr }] = await Promise.all([
@@ -138,6 +141,7 @@ const Fornecedores = () => {
       ]);
       if (pfErr) throw pfErr;
       if (comprasErr) throw comprasErr;
+      if (token !== undefined && token !== loadTokenRef.current) return;
       setModalProdutosForn(((pf || []) as Array<{id: string; lead_time_dias: number | null; preco_compra: number | null; eh_principal: boolean | null; produtos: {nome: string} | null}>).map((p) => ({
         id: p.id,
         produto_nome: p.produtos?.nome || "—",
