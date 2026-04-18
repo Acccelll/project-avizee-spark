@@ -11,6 +11,7 @@ import { SummaryCard } from "@/components/SummaryCard";
 import { PeriodFilter } from "@/components/dashboard/PeriodFilter";
 import { financialPeriods } from "@/components/dashboard/periodTypes";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -45,6 +46,7 @@ import { emptyLancamentoForm, type LancamentoForm } from "@/pages/financeiro/typ
 
 const Financeiro = () => {
   const { id: paramId } = useParams<{ id?: string }>();
+  const queryClient = useQueryClient();
   const autoOpenedRef = useRef(false);
   const {
     data,
@@ -57,6 +59,14 @@ const Financeiro = () => {
     table: "financeiro_lancamentos" as const,
     select: "*, clientes(nome_razao_social), fornecedores(nome_razao_social), contas_bancarias(descricao, bancos(nome)), contas_contabeis(descricao, codigo)",
   });
+
+  // Após uma baixa/estorno, o saldo de `contas_bancarias` pode mudar — invalidar caches relacionados.
+  const invalidateAfterBaixa = useCallback(() => {
+    fetchData();
+    queryClient.invalidateQueries({ queryKey: ["contas_bancarias"] });
+    queryClient.invalidateQueries({ queryKey: ["ref", "contas_bancarias"] });
+  }, [fetchData, queryClient]);
+
   const clientesCrud = useSupabaseCrud<Cliente>({ table: "clientes" });
   const fornecedoresCrud = useSupabaseCrud<Fornecedor>({ table: "fornecedores" });
 
@@ -304,7 +314,7 @@ const Financeiro = () => {
         contasBancarias={contasBancarias}
         onSuccess={() => {
           setSelectedIds([]);
-          fetchData();
+          invalidateAfterBaixa();
         }}
       />
 
@@ -333,7 +343,7 @@ const Financeiro = () => {
         lancamento={baixaParcialTarget}
         contasBancarias={contasBancarias}
         onSuccess={() => {
-          fetchData();
+          invalidateAfterBaixa();
         }}
       />
     </AppLayout>

@@ -29,6 +29,7 @@ import { DevolucaoDialog } from "@/components/fiscal/DevolucaoDialog";
 import { NotaFiscalDrawer } from "@/components/fiscal/NotaFiscalDrawer";
 import { confirmarNotaFiscal, estornarNotaFiscal, registrarEventoFiscal, verificarDuplicidadeChave } from "@/services/fiscal.service";
 import { NotaFiscalEditModal } from "@/components/fiscal/NotaFiscalEditModal";
+import { useActionLock } from "@/hooks/useActionLock";
 
 export interface NotaFiscal {
   id: string; tipo: string; numero: string; serie: string; chave_acesso: string;
@@ -174,16 +175,8 @@ const Fiscal = () => {
     load();
   }, []);
 
-  // KPIs
-  const kpis = useMemo(() => {
-    const tipoParam = searchParams.get("tipo");
-    const filtered = tipoParam ? data.filter(n => n.tipo === tipoParam) : data;
-    const total = filtered.length;
-    const pendentes = filtered.filter(n => n.status === "pendente").length;
-    const confirmadas = filtered.filter(n => n.status === "confirmada").length;
-    const valorTotal = filtered.reduce((s, n) => s + Number(n.valor_total || 0), 0);
-    return { total, pendentes, confirmadas, valorTotal };
-  }, [data, searchParams]);
+  const confirmarLock = useActionLock();
+  const estornarLock = useActionLock();
 
   const openCreate = () => { setMode("create"); setForm({ ...emptyForm }); setItems([]); setSelected(null); setParcelas(1); setItemContaContabil({}); setItemFiscalData({}); setModalOpen(true); };
   const openEdit = async (n: NotaFiscal) => {
@@ -254,26 +247,30 @@ const Fiscal = () => {
   };
 
   const handleConfirmar = async (nf: NotaFiscal) => {
-    try {
-      await confirmarNotaFiscal({ nf, parcelas });
-      toast.success("Nota fiscal confirmada! Estoque e financeiro atualizados.");
-      fetchData();
-    } catch (err: unknown) {
-      console.error('[fiscal] confirmar NF:', err);
-      toast.error(getUserFriendlyError(err));
-    }
+    await confirmarLock.run(async () => {
+      try {
+        await confirmarNotaFiscal({ nf, parcelas });
+        toast.success("Nota fiscal confirmada! Estoque e financeiro atualizados.");
+        fetchData();
+      } catch (err: unknown) {
+        console.error('[fiscal] confirmar NF:', err);
+        toast.error(getUserFriendlyError(err));
+      }
+    });
   };
 
   const handleEstornar = async (nf: NotaFiscal) => {
     if (!window.confirm(`Deseja estornar a NF ${nf.numero}? Isso reverterá movimentos de estoque e lançamentos financeiros vinculados.`)) return;
-    try {
-      await estornarNotaFiscal(nf);
-      toast.success(`NF ${nf.numero} estornada! Estoque e financeiro revertidos.`);
-      fetchData();
-    } catch (err: unknown) {
-      console.error('[fiscal] estornar NF:', err);
-      toast.error(getUserFriendlyError(err));
-    }
+    await estornarLock.run(async () => {
+      try {
+        await estornarNotaFiscal(nf);
+        toast.success(`NF ${nf.numero} estornada! Estoque e financeiro revertidos.`);
+        fetchData();
+      } catch (err: unknown) {
+        console.error('[fiscal] estornar NF:', err);
+        toast.error(getUserFriendlyError(err));
+      }
+    });
   };
 
   const handleCancelarRascunho = async () => {
@@ -503,6 +500,15 @@ const Fiscal = () => {
       return haystack.includes(query);
     });
   }, [consultaSearch, data, tipoParam, modeloFilters, statusFilters, tipoFilters, origemFilters, statusSefazFilters]);
+
+  // KPIs — sobre os dados filtrados (consistente com a grid)
+  const kpis = useMemo(() => {
+    const total = filteredData.length;
+    const pendentes = filteredData.filter(n => n.status === "pendente").length;
+    const confirmadas = filteredData.filter(n => n.status === "confirmada").length;
+    const valorTotal = filteredData.reduce((s, n) => s + Number(n.valor_total || 0), 0);
+    return { total, pendentes, confirmadas, valorTotal };
+  }, [filteredData]);
 
   const fiscalActiveFilters = useMemo(() => {
     const chips: FilterChip[] = [];

@@ -25,6 +25,8 @@ import { Send } from "lucide-react";
 import { sendForApproval, approveOrcamento, convertToPedido } from "@/services/orcamentos.service";
 import { statusOrcamento } from "@/lib/statusSchema";
 import { getUserFriendlyError } from "@/utils/errorMessages";
+import { useClientesRef } from "@/hooks/useReferenceCache";
+import { useActionLock } from "@/hooks/useActionLock";
 
 interface Orcamento {
   id: string;
@@ -144,31 +146,22 @@ const Orcamentos = () => {
   };
   const setDataInicio = (v: string) => updateParam("de", v || null);
   const setDataFim = (v: string) => updateParam("ate", v || null);
-  const [clientesList, setClientesList] = useState<{ id: string; nome_razao_social: string }[]>([]);
+  const { data: clientesList = [] } = useClientesRef();
   const { isAdmin } = useIsAdmin();
-
-  useEffect(() => {
-    if (!supabase) return;
-    supabase.from("clientes").select("id, nome_razao_social").eq("ativo", true).then(({ data }) => setClientesList(data || []));
-  }, []);
+  const sendLock = useActionLock();
+  const approveLock = useActionLock();
+  const convertLock = useActionLock();
 
   const handleSendForApproval = useCallback(async (orc: Orcamento) => {
-    try {
-      await sendForApproval(orc);
-      fetchData();
-    } catch (err: unknown) {
-      toast.error(getUserFriendlyError(err));
-    }
-  }, [fetchData]);
-
-  const kpis = useMemo(() => {
-    const total = data.length;
-    const totalValue = data.reduce((s, o) => s + Number(o.valor_total || 0), 0);
-    const approved = data.filter(o => o.status === "aprovado").length;
-    const converted = data.filter(o => o.status === "convertido").length;
-    const conversionRate = total > 0 ? ((converted / total) * 100).toFixed(1) : "0";
-    return { total, totalValue, approved, conversionRate };
-  }, [data]);
+    await sendLock.run(async () => {
+      try {
+        await sendForApproval(orc);
+        fetchData();
+      } catch (err: unknown) {
+        toast.error(getUserFriendlyError(err));
+      }
+    });
+  }, [fetchData, sendLock]);
 
   const handleDuplicate = async (orc: Orcamento) => {
     try {
@@ -224,27 +217,32 @@ const Orcamentos = () => {
       toast.error("Somente administradores podem aprovar cotações.");
       return;
     }
-    try {
-      await approveOrcamento(orc);
-      fetchData();
-    } catch (err: unknown) {
-      toast.error(getUserFriendlyError(err));
-    }
+    await approveLock.run(async () => {
+      try {
+        await approveOrcamento(orc);
+        fetchData();
+      } catch (err: unknown) {
+        toast.error(getUserFriendlyError(err));
+      }
+    });
   };
 
   const handleConvertToPedido = async (orc: Orcamento) => {
-    try {
-      await convertToPedido(orc, { poNumber: poNumberCliente, dataPo: dataPoCliente });
-      setPoNumberCliente("");
-      setDataPoCliente("");
-      fetchData();
-      navigate(`/pedidos`);
-    } catch (err: unknown) {
-      toast.error(getUserFriendlyError(err));
-    } finally {
-      setConvertingId(null);
-    }
+    await convertLock.run(async () => {
+      try {
+        await convertToPedido(orc, { poNumber: poNumberCliente, dataPo: dataPoCliente });
+        setPoNumberCliente("");
+        setDataPoCliente("");
+        fetchData();
+        navigate(`/pedidos`);
+      } catch (err: unknown) {
+        toast.error(getUserFriendlyError(err));
+      } finally {
+        setConvertingId(null);
+      }
+    });
   };
+
 
   const filteredData = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
@@ -270,6 +268,15 @@ const Orcamentos = () => {
       return [orc.numero, orc.clientes?.nome_razao_social, orc.observacoes].filter(Boolean).join(" ").toLowerCase().includes(query);
     });
   }, [data, searchTerm, statusFilters, clienteFilters, validadeFilters, dataInicio, dataFim]);
+
+  const kpis = useMemo(() => {
+    const total = filteredData.length;
+    const totalValue = filteredData.reduce((s, o) => s + Number(o.valor_total || 0), 0);
+    const approved = filteredData.filter(o => o.status === "aprovado").length;
+    const converted = filteredData.filter(o => o.status === "convertido").length;
+    const conversionRate = total > 0 ? ((converted / total) * 100).toFixed(1) : "0";
+    return { total, totalValue, approved, conversionRate };
+  }, [filteredData]);
 
   const columns = [
     {
@@ -326,17 +333,17 @@ const Orcamentos = () => {
       render: (o: Orcamento) => (
         <div className="flex items-center gap-1">
           {o.status === "rascunho" && (
-            <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={(e) => { e.stopPropagation(); handleSendForApproval(o); }}>
+            <Button size="sm" variant="outline" className="h-7 text-xs gap-1" disabled={sendLock.pending} onClick={(e) => { e.stopPropagation(); handleSendForApproval(o); }}>
               <Send className="w-3 h-3" /> Enviar
             </Button>
           )}
           {o.status === "confirmado" && (
-            <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={(e) => { e.stopPropagation(); handleApprove(o); }} disabled={!isAdmin} title={!isAdmin ? "Somente admins podem aprovar" : ""}>
+            <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={(e) => { e.stopPropagation(); handleApprove(o); }} disabled={!isAdmin || approveLock.pending} title={!isAdmin ? "Somente admins podem aprovar" : ""}>
               <CheckCircle className="w-3 h-3" /> Aprovar
             </Button>
           )}
           {o.status === "aprovado" && (
-            <Button size="sm" variant="default" className="h-7 text-xs gap-1" onClick={(e) => { e.stopPropagation(); setConvertingId(o.id); }}>
+            <Button size="sm" variant="default" className="h-7 text-xs gap-1" disabled={convertLock.pending} onClick={(e) => { e.stopPropagation(); setConvertingId(o.id); }}>
               <ArrowRightCircle className="w-3 h-3" /> Gerar Pedido
             </Button>
           )}
@@ -402,7 +409,7 @@ const Orcamentos = () => {
           searchPlaceholder="Buscar por número da cotação ou cliente..."
           activeFilters={orcActiveFilters}
           onRemoveFilter={handleRemoveOrcFilter}
-          onClearAll={() => { setStatusFilters([]); setClienteFilters([]); setValidadeFilters([]); setDataInicio(""); setDataFim(""); }}
+          onClearAll={() => { setStatusFilters([]); setClienteFilters([]); setValidadeFilters([]); setDataInicio(""); setDataFim(""); setSearchTerm(""); }}
           count={filteredData.length}
         >
           <MultiSelect
