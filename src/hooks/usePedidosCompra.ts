@@ -336,33 +336,18 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (saving) return;
 
-    if (!form.fornecedor_id) {
-      toast.error("Fornecedor é obrigatório");
+    // Schema-driven validation (centraliza obrigatórios do cabeçalho).
+    const headerResult = validateForm(pedidoCompraSchema, form);
+    if (!headerResult.success) {
+      const firstError = Object.values(headerResult.errors)[0];
+      toast.error(firstError || "Corrija os erros do formulário");
       return;
     }
-
-    // Validate items
-    const validItems = items.filter((i) => i.produto_id);
-    if (validItems.length === 0) {
-      toast.error("Adicione ao menos um item com produto selecionado.");
-      return;
-    }
-    const invalidQty = validItems.findIndex((i) => Number(i.quantidade || 0) <= 0);
-    if (invalidQty !== -1) {
-      toast.error(`Item ${invalidQty + 1}: quantidade deve ser maior que zero.`);
-      return;
-    }
-    const invalidPrice = validItems.findIndex((i) => Number(i.valor_unitario ?? 0) < 0);
-    if (invalidPrice !== -1) {
-      toast.error(`Item ${invalidPrice + 1}: preço unitário inválido.`);
-      return;
-    }
+    const itemError = validatePedidoItems(items);
+    if (itemError) { toast.error(itemError); return; }
 
     const fornecedorId = String(form.fornecedor_id);
-    setSaving(true);
-
     const valorProdutos = items.reduce((s, i) => s + Number(i.valor_total || 0), 0);
     const valorTotal = valorProdutos + Number(form.frete_valor || 0);
 
@@ -378,27 +363,34 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
       valor_total: valorTotal,
     };
 
-    let pedidoId: string | number | undefined = selected?.id;
+    await submit(async () => {
+      let pedidoId: string | number | undefined = selected?.id;
 
-    try {
       if (mode === "create") {
-        const { data: rpcNumero } = await supabase.rpc("proximo_numero_pedido_compra");
-        const numero = rpcNumero || `PC-${String(Date.now()).slice(-6)}`;
+        // Numeração crítica: sem fallback Date.now (violaria atomicidade
+        // do SEQUENCE — risco de duplicidade entre usuários).
+        const { data: rpcNumero, error: rpcErr } = await supabase.rpc("proximo_numero_pedido_compra");
+        if (rpcErr || !rpcNumero) {
+          throw new Error("Não foi possível gerar o número do pedido. Tente novamente.");
+        }
         const { data: newP, error } = await supabase.from("pedidos_compra")
-          .insert({ numero, ...payload })
+          .insert({ numero: rpcNumero, ...payload })
           .select()
           .single();
-        if (error) {
-          toast.error(getUserFriendlyError(error));
-          setSaving(false);
-          return;
-        }
+        if (error) throw error;
         pedidoId = newP.id;
       } else if (selected) {
-        await Promise.all([
-          supabase.from("pedidos_compra").update(payload).eq("id", selected.id),
-          supabase.from("pedidos_compra_itens").delete().eq("pedido_compra_id", selected.id),
-        ]);
+        // Sequential: evita apagar itens caso o update do cabeçalho falhe.
+        const { error: updErr } = await supabase
+          .from("pedidos_compra")
+          .update(payload)
+          .eq("id", selected.id);
+        if (updErr) throw updErr;
+        const { error: delErr } = await supabase
+          .from("pedidos_compra_itens")
+          .delete()
+          .eq("pedido_compra_id", selected.id);
+        if (delErr) throw delErr;
       }
 
       if (items.length > 0 && pedidoId) {
@@ -416,11 +408,10 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
           const { error: itemsError } = await supabase.from("pedidos_compra_itens").insert(itemsPayload);
           if (itemsError) {
             if (mode === "create" && pedidoId) {
+              // rollback manual do cabeçalho criado neste submit.
               await supabase.from("pedidos_compra").delete().eq("id", pedidoId);
             }
-            toast.error(getUserFriendlyError(itemsError));
-            setSaving(false);
-            return;
+            throw itemsError;
           }
         }
       }
@@ -428,14 +419,9 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
       toast.success("Pedido de compra salvo!");
       setModalOpen(false);
       setItems([]);
-      setForm({ ...emptyPedidoForm });
+      setForm(buildEmptyPedidoForm());
       await refreshAll();
-    } catch (err: unknown) {
-      console.error("[pedidos_compra] unexpected error", err);
-      toast.error(getUserFriendlyError(err));
-    }
-
-    setSaving(false);
+    });
   };
 
   const darEntrada = async (p: PedidoCompra) => {
