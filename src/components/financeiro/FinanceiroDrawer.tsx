@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { ViewDrawerV2, ViewField, ViewSection } from "@/components/ViewDrawerV2";
 import { StatusBadge } from "@/components/StatusBadge";
 import { RelationalLink } from "@/components/ui/RelationalLink";
@@ -10,6 +10,8 @@ import { formatCurrency } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import type { Lancamento } from "@/types/domain";
+import { useDrawerData } from "@/hooks/useDrawerData";
+import { useActionLock } from "@/hooks/useActionLock";
 
 interface Baixa {
   id: string;
@@ -32,28 +34,31 @@ interface FinanceiroDrawerProps {
 }
 
 export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onBaixa, onEstorno, onEdit, onDelete }: FinanceiroDrawerProps) {
-  const [baixas, setBaixas] = useState<Baixa[]>([]);
-  const [loadingBaixas, setLoadingBaixas] = useState(false);
+  const selectedId = selected?.id ?? null;
 
-  const selectedId = selected?.id;
-
-  useEffect(() => {
-    if (!open || !selectedId) { setBaixas([]); return; }
-    setLoadingBaixas(true);
-    supabase
-      .from("financeiro_baixas")
-      .select("*")
-      .eq("lancamento_id", selectedId)
-      .order("data_baixa", { ascending: false })
-      .then(({ data }) => {
-        setBaixas((data as Baixa[]) || []);
-        setLoadingBaixas(false);
-      });
-  }, [open, selectedId]);
+  // Cancellation-aware fetch — evita que resultado de um lançamento antigo
+  // sobrescreva o estado quando o usuário troca rapidamente de registro.
+  const { data: baixas, loading: loadingBaixas } = useDrawerData<Baixa[]>(
+    open,
+    selectedId,
+    async (id, signal) => {
+      const { data } = await supabase
+        .from("financeiro_baixas")
+        .select("*")
+        .eq("lancamento_id", id)
+        .order("data_baixa", { ascending: false })
+        .abortSignal(signal);
+      return (data as Baixa[]) || [];
+    },
+  );
+  const baixasList = baixas ?? [];
 
   const hoje = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }, []);
 
-  if (!selected) return <ViewDrawerV2 open={open} onClose={onClose} title="" />;
+  const { pending: actionPending, run: runAction } = useActionLock();
+
+  // Guard cedo: não renderiza Sheet vazio nem monta hooks com `selected` nulo.
+  if (!open || !selected) return null;
 
   const canBaixa = effectiveStatus !== "pago" && effectiveStatus !== "cancelado";
   const canEstorno = effectiveStatus === "pago" || effectiveStatus === "parcial";
@@ -78,7 +83,7 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
   const tipoLabel = isCR ? "Conta a Receber" : "Conta a Pagar";
   const tipoColor = isCR ? "text-success" : "text-destructive";
 
-  const totalBaixado = baixas.reduce((sum, b) => sum + Number(b.valor_pago || 0), 0);
+  const totalBaixado = baixasList.reduce((sum, b) => sum + Number(b.valor_pago || 0), 0);
 
   const origemLabel = selected.nota_fiscal_id
     ? "Nota Fiscal"
@@ -130,13 +135,13 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
       actions={
         <>
           {canBaixa && (
-            <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:text-primary" aria-label="Registrar Baixa" onClick={() => onBaixa(selected)}><CreditCard className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Registrar Baixa</TooltipContent></Tooltip>
+            <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:text-primary" aria-label="Registrar Baixa" disabled={actionPending} onClick={() => runAction(() => onBaixa(selected))}><CreditCard className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Registrar Baixa</TooltipContent></Tooltip>
           )}
           {canEstorno && (
-            <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-warning hover:text-warning" aria-label="Estornar Baixa" onClick={() => { onClose(); onEstorno(selected); }}><RotateCcw className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Estornar Baixa</TooltipContent></Tooltip>
+            <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-warning hover:text-warning" aria-label="Estornar Baixa" disabled={actionPending} onClick={() => runAction(() => { onEstorno(selected); onClose(); })}><RotateCcw className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Estornar Baixa</TooltipContent></Tooltip>
           )}
-          <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Editar lançamento" onClick={() => { onClose(); onEdit(selected); }}><Edit className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Editar</TooltipContent></Tooltip>
-          <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" aria-label="Excluir lançamento" onClick={() => { onClose(); onDelete(selected.id); }}><Trash2 className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Excluir</TooltipContent></Tooltip>
+          <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Editar lançamento" disabled={actionPending} onClick={() => runAction(() => { onEdit(selected); onClose(); })}><Edit className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Editar</TooltipContent></Tooltip>
+          <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" aria-label="Excluir lançamento" disabled={actionPending} onClick={() => runAction(() => { onDelete(selected.id); onClose(); })}><Trash2 className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Excluir</TooltipContent></Tooltip>
         </>
       }
       tabs={[
@@ -178,7 +183,7 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
             )}
           </div>
         )},
-        { value: "baixas", label: baixas.length > 0 ? `Baixas (${baixas.length})` : "Baixas", content: (
+        { value: "baixas", label: baixasList.length > 0 ? `Baixas (${baixasList.length})` : "Baixas", content: (
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3 rounded-lg border bg-muted/30 p-3">
               <div>
@@ -192,11 +197,11 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
             </div>
             {loadingBaixas ? (
               <p className="text-sm text-muted-foreground text-center py-4">Carregando baixas...</p>
-            ) : baixas.length === 0 ? (
+            ) : baixasList.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <p className="text-sm">Nenhuma baixa registrada</p>
                 {canBaixa && (
-                  <Button size="sm" variant="outline" className="mt-3 gap-2" onClick={() => onBaixa(selected)}>
+                  <Button size="sm" variant="outline" className="mt-3 gap-2" disabled={actionPending} onClick={() => runAction(() => onBaixa(selected))}>
                     <CreditCard className="h-3.5 w-3.5" /> Registrar Baixa
                   </Button>
                 )}
@@ -215,8 +220,8 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
                       </tr>
                     </thead>
                     <tbody>
-                      {baixas.map((b, i) => (
-                        <tr key={b.id} className={cn("border-b last:border-0", i % 2 !== 0 && "bg-muted/20")}>
+                      {baixasList.map((b, i) => (
+                        <tr key={b.id ?? `tmp-${i}`} className={cn("border-b last:border-0", i % 2 !== 0 && "bg-muted/20")}>
                           <td className="px-3 py-2">{new Date(b.data_baixa).toLocaleDateString("pt-BR")}</td>
                           <td className="px-3 py-2 text-right font-mono font-semibold text-success">{formatCurrency(Number(b.valor_pago))}</td>
                           <td className="px-3 py-2">{b.forma_pagamento || "—"}</td>
@@ -226,9 +231,9 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
                     </tbody>
                   </table>
                 </div>
-                {baixas.length > 1 && (
+                {baixasList.length > 1 && (
                   <p className="text-xs text-muted-foreground text-right">
-                    {baixas.length} baixas · total {isCR ? "recebido" : "pago"}: <span className="font-mono font-semibold text-success">{formatCurrency(totalBaixado)}</span>
+                    {baixasList.length} baixas · total {isCR ? "recebido" : "pago"}: <span className="font-mono font-semibold text-success">{formatCurrency(totalBaixado)}</span>
                   </p>
                 )}
               </div>

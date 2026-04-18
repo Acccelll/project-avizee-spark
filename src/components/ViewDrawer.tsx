@@ -14,7 +14,7 @@ interface ViewDrawerProps {
 
 export function ViewDrawer({ open, onClose, title, children, badge, actions }: ViewDrawerProps) {
   return (
-    <Sheet open={open} onOpenChange={onClose}>
+    <Sheet open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <SheetContent className="w-full sm:max-w-xl overflow-y-auto p-0">
         <SheetHeader className="sticky top-0 z-10 bg-card border-b px-6 py-4">
           <div className="flex items-center justify-between gap-3">
