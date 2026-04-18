@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Tables } from "@/integrations/supabase/types";
@@ -11,11 +11,13 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { toast } from "sonner";
-import { getUserFriendlyError } from "@/utils/errorMessages";
 import { PrecosEspeciaisTab } from "@/components/precos/PrecosEspeciaisTab";
 import { RelationalLink } from "@/components/ui/RelationalLink";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { usePublishDrawerSlots } from "@/contexts/RelationalDrawerSlotsContext";
+import { useDetailFetch } from "@/hooks/useDetailFetch";
+import { useDetailActions } from "@/hooks/useDetailActions";
+import { useInvalidateAfterMutation } from "@/hooks/useInvalidateAfterMutation";
 import type {
   HistoricoNfItemRow,
   ComposicaoItemRow,
@@ -34,80 +36,87 @@ interface Props {
   id: string;
 }
 
+interface ProdutoDetail {
+  produto: Tables<"produtos">;
+  grupoNome: string | null;
+  historico: HistoricoNfItemRow[];
+  composicao: ComposicaoItemRow[];
+  movimentos: MovimentoEstoqueRow[];
+  fornecedoresProd: ProdutoFornecedorViewRow[];
+}
+
 export function ProdutoView({ id }: Props) {
   const navigate = useNavigate();
-  const [selected, setSelected] = useState<Tables<"produtos"> | null>(null);
-  const [grupoNome, setGrupoNome] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [fetchError, setFetchError] = useState<string | null>(null);
-  const [historico, setHistorico] = useState<HistoricoNfItemRow[]>([]);
-  const [composicao, setComposicao] = useState<ComposicaoItemRow[]>([]);
-  const [movimentos, setMovimentos] = useState<MovimentoEstoqueRow[]>([]);
-  const [fornecedoresProd, setFornecedoresProd] = useState<ProdutoFornecedorViewRow[]>([]);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const { pushView, clearStack } = useRelationalNavigation();
+  const { run, locked } = useDetailActions();
+  const invalidate = useInvalidateAfterMutation();
 
-  useEffect(() => {
-    if (!supabase) {
-      setFetchError("Serviço de banco de dados não disponível.");
-      setLoading(false);
-      return;
-    }
-    const fetchData = async () => {
-      setLoading(true);
-      setFetchError(null);
-      try {
-        const { data: p, error: pError } = await supabase.from("produtos").select("*").eq("id", id).maybeSingle();
-        if (pError) {
-          setFetchError(`Erro ao carregar produto: ${pError.message}`);
-          setLoading(false);
-          return;
-        }
-        if (!p) {
-          setLoading(false);
-          return;
-        }
-        setSelected(p);
+  const { data, loading, error } = useDetailFetch<ProdutoDetail>(id, async (pId, signal) => {
+    const { data: p, error: pError } = await supabase
+      .from("produtos")
+      .select("*")
+      .eq("id", pId)
+      .abortSignal(signal)
+      .maybeSingle();
+    if (pError) throw pError;
+    if (!p) return null;
 
-        const [nfRes, compRes, movRes, fornRes, grupoRes] = await Promise.all([
-          supabase.from("notas_fiscais_itens").
-            select("quantidade, valor_unitario, notas_fiscais(id, numero, tipo, data_emissao, fornecedores(id, nome_razao_social))").
-            eq("produto_id", p.id).limit(20),
-          p.eh_composto ? supabase.from("produto_composicoes").
-            select("quantidade, ordem, produtos:produto_filho_id(id, nome, sku, preco_custo)").
-            eq("produto_pai_id", p.id).order("ordem") : Promise.resolve({ data: [] }),
-          supabase.from("estoque_movimentos").
-            select("tipo, quantidade, motivo, created_at, saldo_anterior, saldo_atual").
-            eq("produto_id", p.id).order("created_at", { ascending: false }).limit(20),
-          supabase.from("produtos_fornecedores").
-            select("preco_compra, lead_time_dias, referencia_fornecedor, eh_principal, unidade_fornecedor, fornecedores:fornecedor_id(id, nome_razao_social)").
-            eq("produto_id", p.id),
-          p.grupo_id
-            ? supabase.from("grupos_produto").select("nome").eq("id", p.grupo_id).maybeSingle()
-            : Promise.resolve({ data: null }),
-        ]);
+    // A4 fix: settled em vez de all — falha em uma query não silencia as outras.
+    const [nfRes, compRes, movRes, fornRes, grupoRes] = await Promise.allSettled([
+      supabase.from("notas_fiscais_itens")
+        .select("quantidade, valor_unitario, notas_fiscais(id, numero, tipo, data_emissao, fornecedores(id, nome_razao_social))")
+        .eq("produto_id", p.id).abortSignal(signal).limit(20),
+      p.eh_composto ? supabase.from("produto_composicoes")
+        .select("quantidade, ordem, produtos:produto_filho_id(id, nome, sku, preco_custo)")
+        .eq("produto_pai_id", p.id).abortSignal(signal).order("ordem")
+        : Promise.resolve({ data: [] }),
+      supabase.from("estoque_movimentos")
+        .select("tipo, quantidade, motivo, created_at, saldo_anterior, saldo_atual")
+        .eq("produto_id", p.id).abortSignal(signal).order("created_at", { ascending: false }).limit(20),
+      supabase.from("produtos_fornecedores")
+        .select("preco_compra, lead_time_dias, referencia_fornecedor, eh_principal, unidade_fornecedor, fornecedores:fornecedor_id(id, nome_razao_social)")
+        .eq("produto_id", p.id).abortSignal(signal),
+      p.grupo_id
+        ? supabase.from("grupos_produto").select("nome").eq("id", p.grupo_id).abortSignal(signal).maybeSingle()
+        : Promise.resolve({ data: null }),
+    ]);
 
-        setHistorico((nfRes.data || []) as HistoricoNfItemRow[]);
-        setComposicao((compRes.data || []).map((c: ComposicaoQueryRow) => ({
-          id: c.produtos?.id ?? null,
-          nome: c.produtos?.nome ?? null,
-          sku: c.produtos?.sku ?? null,
-          preco_custo: c.produtos?.preco_custo ?? null,
-          quantidade: c.quantidade,
-          ordem: c.ordem,
-        })));
-        setMovimentos((movRes.data || []) as MovimentoEstoqueRow[]);
-        setFornecedoresProd((fornRes.data || []) as ProdutoFornecedorViewRow[]);
-        setGrupoNome((grupoRes.data as Record<string, unknown>)?.nome as string || null);
-      } catch (error) {
-        setFetchError(getUserFriendlyError(error));
-      } finally {
-        setLoading(false);
-      }
+    const pickData = <T,>(r: PromiseSettledResult<unknown>, fallback: T): T => {
+      if (r.status !== "fulfilled") return fallback;
+      const v = r.value as { data?: T | null } | null;
+      return (v?.data ?? fallback) as T;
     };
 
-    fetchData();
-  }, [id]);
+    const nfData = pickData(nfRes, [] as unknown[]);
+    const compData = pickData(compRes, [] as unknown[]);
+    const movData = pickData(movRes, [] as unknown[]);
+    const fornData = pickData(fornRes, [] as unknown[]);
+    const grupoData = pickData(grupoRes, null as Record<string, unknown> | null);
+
+    return {
+      produto: p,
+      grupoNome: (grupoData as Record<string, unknown> | null)?.nome as string ?? null,
+      historico: nfData as HistoricoNfItemRow[],
+      composicao: (compData as ComposicaoQueryRow[]).map((c) => ({
+        id: c.produtos?.id ?? null,
+        nome: c.produtos?.nome ?? null,
+        sku: c.produtos?.sku ?? null,
+        preco_custo: c.produtos?.preco_custo ?? null,
+        quantidade: c.quantidade,
+        ordem: c.ordem,
+      })),
+      movimentos: movData as MovimentoEstoqueRow[],
+      fornecedoresProd: fornData as ProdutoFornecedorViewRow[],
+    };
+  });
+
+  const selected = data?.produto ?? null;
+  const grupoNome = data?.grupoNome ?? null;
+  const historico = data?.historico ?? [];
+  const composicao = data?.composicao ?? [];
+  const movimentos = data?.movimentos ?? [];
+  const fornecedoresProd = data?.fornecedoresProd ?? [];
 
   const selectedMargem = selected && (selected.preco_custo || 0) > 0 ? (selected.preco_venda / (selected.preco_custo || 1) - 1) * 100 : 0;
   const lucroBruto = selected ? selected.preco_venda - (selected.preco_custo || 0) : 0;

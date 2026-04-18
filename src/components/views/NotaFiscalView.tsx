@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -7,10 +6,12 @@ import { RelationalLink } from "@/components/ui/RelationalLink";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { usePublishDrawerSlots } from "@/contexts/RelationalDrawerSlotsContext";
 import { LogisticaRastreioSection } from "@/components/logistica/LogisticaRastreioSection";
-import { Truck, FileText, User, ShoppingCart } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
+import { Truck, FileText, Edit } from "lucide-react";
+import { useDetailFetch } from "@/hooks/useDetailFetch";
 import type { NotaFiscal } from "@/types/domain";
 
-/** Extended item type matching the select query with products join */
 interface NfViewItem {
   id: string;
   produto_id: string | null;
@@ -20,41 +21,44 @@ interface NfViewItem {
   produtos?: { id: string; nome: string; sku: string | null } | null;
 }
 
+interface NfDetail {
+  nf: NotaFiscal;
+  items: NfViewItem[];
+}
+
 interface Props {
   id: string;
 }
 
 export function NotaFiscalView({ id }: Props) {
-  const [selected, setSelected] = useState<NotaFiscal | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [items, setItems] = useState<NfViewItem[]>([]);
-  const { pushView } = useRelationalNavigation();
+  const { pushView, clearStack } = useRelationalNavigation();
+  const navigate = useNavigate();
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      const { data: nf } = await supabase
-        .from("notas_fiscais")
-        .select("*, fornecedores(id, nome_razao_social), clientes(id, nome_razao_social), ordens_venda(id, numero)")
-        .eq("id", id)
-        .single();
+  // Fetch padronizado via useDetailFetch — corrige loading eterno (A2) e race (A1).
+  const { data, loading, error } = useDetailFetch<NfDetail>(id, async (nfId, signal) => {
+    const { data: nf, error: nfErr } = await supabase
+      .from("notas_fiscais")
+      .select("*, fornecedores(id, nome_razao_social), clientes(id, nome_razao_social), ordens_venda(id, numero)")
+      .eq("id", nfId)
+      .abortSignal(signal)
+      .maybeSingle();
+    if (nfErr) throw nfErr;
+    if (!nf) return null;
 
-      if (!nf) return;
-      setSelected(nf as NotaFiscal);
+    const { data: it, error: itErr } = await supabase
+      .from("notas_fiscais_itens")
+      .select("*, produtos(id, nome, sku)")
+      .eq("nota_fiscal_id", nfId)
+      .abortSignal(signal);
+    if (itErr) throw itErr;
 
-      const { data: it } = await supabase
-        .from("notas_fiscais_itens")
-        .select("*, produtos(id, nome, sku)")
-        .eq("nota_fiscal_id", nf.id);
+    return { nf: nf as NotaFiscal, items: (it as NfViewItem[]) || [] };
+  });
 
-      setItems((it as NfViewItem[]) || []);
-      setLoading(false);
-    };
+  const selected = data?.nf ?? null;
+  const items = data?.items ?? [];
 
-    fetchData();
-  }, [id]);
-
-  // Publica slots no header padronizado
+  // Slots no header padronizado — `actions` agora inclui Editar (D3).
   usePublishDrawerSlots(`nota_fiscal:${id}`, selected ? {
     breadcrumb: `Nota Fiscal · NF ${selected.numero}`,
     summary: (
@@ -82,9 +86,26 @@ export function NotaFiscalView({ id }: Props) {
         </div>
       </div>
     ),
+    actions: (
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-8 gap-1.5 text-xs"
+        aria-label="Abrir nota fiscal completa"
+        onClick={() => { clearStack(); navigate(`/fiscal/${id}`); }}
+      >
+        <Edit className="h-3.5 w-3.5" /> Abrir Detalhes
+      </Button>
+    ),
   } : {});
 
   if (loading) return <div className="p-8 text-center animate-pulse">Carregando nota fiscal...</div>;
+  if (error) return (
+    <div className="p-8 text-center text-destructive space-y-1">
+      <p className="font-semibold">Erro ao carregar dados</p>
+      <p className="text-xs text-muted-foreground">{error.message}</p>
+    </div>
+  );
   if (!selected) return <div className="p-8 text-center text-destructive">Nota fiscal não encontrada</div>;
 
   return (

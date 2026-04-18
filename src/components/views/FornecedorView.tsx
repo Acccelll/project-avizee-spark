@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -8,95 +8,94 @@ import { RelationalLink } from "@/components/ui/RelationalLink";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { usePublishDrawerSlots } from "@/contexts/RelationalDrawerSlotsContext";
 import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Truck, Mail, MapPin, ShoppingBag, CreditCard, Package, FileText, Edit, Trash2, Building2, Clock, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { useDetailFetch } from "@/hooks/useDetailFetch";
+import { useDetailActions } from "@/hooks/useDetailActions";
+import { useInvalidateAfterMutation } from "@/hooks/useInvalidateAfterMutation";
 import type { FornecedorRow, CompraRow, FinanceiroLancamentoRow, ProdutoFornecedorRow } from "@/types/cadastros";
 
 interface Props {
   id: string;
 }
 
+interface FornecedorDetail {
+  fornecedor: FornecedorRow;
+  compras: CompraRow[];
+  financeiro: FinanceiroLancamentoRow[];
+  produtos: ProdutoFornecedorRow[];
+}
+
 export function FornecedorView({ id }: Props) {
   const navigate = useNavigate();
-  const [selected, setSelected] = useState<FornecedorRow | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [fetchError, setFetchError] = useState<string | null>(null);
-  const [compras, setCompras] = useState<CompraRow[]>([]);
-  const [financeiro, setFinanceiro] = useState<FinanceiroLancamentoRow[]>([]);
-  const [produtos, setProdutos] = useState<ProdutoFornecedorRow[]>([]);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const { pushView, clearStack } = useRelationalNavigation();
+  const { run, locked } = useDetailActions();
+  const invalidate = useInvalidateAfterMutation();
 
-  useEffect(() => {
-    if (!supabase) {
-      setFetchError("Serviço de banco de dados não disponível.");
-      setLoading(false);
-      return;
-    }
-    const fetchData = async () => {
-      setLoading(true);
-      setFetchError(null);
-      try {
-        const { data: f, error: fError } = await supabase.from("fornecedores").select("*").eq("id", id).maybeSingle();
-        if (fError) {
-          console.error("[FornecedorView] erro ao buscar fornecedor:", fError);
-          setFetchError(`Erro ao carregar fornecedor: ${fError.message}`);
-          setLoading(false);
-          return;
-        }
-        if (!f) {
-          setLoading(false);
-          return;
-        }
-        setSelected(f);
+  const { data, loading, error } = useDetailFetch<FornecedorDetail>(id, async (fId, signal) => {
+    const { data: f, error: fError } = await supabase
+      .from("fornecedores")
+      .select("*")
+      .eq("id", fId)
+      .abortSignal(signal)
+      .maybeSingle();
+    if (fError) throw fError;
+    if (!f) return null;
 
-        const [cRes, fRes, pRes] = await Promise.all([
-          supabase
-          .from("pedidos_compra")
-          .select("id, numero, data_pedido, valor_total, status")
-          .eq("fornecedor_id", f.id)
-          .order("data_pedido", { ascending: false })
-          .limit(10),
-          supabase
-          .from("financeiro_lancamentos")
-          .select("*")
-          .eq("fornecedor_id", f.id)
-          .order("data_vencimento", { ascending: false })
-          .limit(10),
-          supabase
-          .from("produtos_fornecedores")
-          .select("*, produtos(id, nome, sku)")
-          .eq("fornecedor_id", f.id)
-        ]);
+    const [cRes, finRes, pRes] = await Promise.all([
+      supabase
+        .from("pedidos_compra")
+        .select("id, numero, data_pedido, valor_total, status")
+        .eq("fornecedor_id", f.id)
+        .order("data_pedido", { ascending: false })
+        .limit(10)
+        .abortSignal(signal),
+      supabase
+        .from("financeiro_lancamentos")
+        .select("*")
+        .eq("fornecedor_id", f.id)
+        .order("data_vencimento", { ascending: false })
+        .limit(10)
+        .abortSignal(signal),
+      supabase
+        .from("produtos_fornecedores")
+        .select("*, produtos(id, nome, sku)")
+        .eq("fornecedor_id", f.id)
+        .abortSignal(signal),
+    ]);
 
-        setCompras((cRes.data || []) as CompraRow[]);
-        setFinanceiro((fRes.data || []) as FinanceiroLancamentoRow[]);
-        setProdutos((pRes.data || []) as ProdutoFornecedorRow[]);
-      } catch (error) {
-        console.error("[FornecedorView] erro inesperado:", error);
-        setFetchError(getUserFriendlyError(error));
-      } finally {
-        setLoading(false);
-      }
+    return {
+      fornecedor: f as FornecedorRow,
+      compras: (cRes.data as CompraRow[]) || [],
+      financeiro: (finRes.data as FinanceiroLancamentoRow[]) || [],
+      produtos: (pRes.data as ProdutoFornecedorRow[]) || [],
     };
+  });
 
-    fetchData();
-  }, [id]);
+  const selected = data?.fornecedor ?? null;
+  const compras = data?.compras ?? [];
+  const financeiro = data?.financeiro ?? [];
+  const produtos = data?.produtos ?? [];
 
   const ultCompra = compras.length > 0 ? compras[0].data_pedido : null;
   const volumeTotal = compras.reduce((acc, curr) => acc + (curr.valor_total || 0), 0);
-  const vencidos = (financeiro || []).filter(f => f.status === 'vencido');
-  const totalAberto = (financeiro || []).filter(f => f.status === 'aberto' || f.status === 'vencido').reduce((acc, curr) => acc + (curr.saldo_restante || curr.valor), 0);
+  const vencidos = financeiro.filter((f) => f.status === "vencido");
+  // B6 fix: incluir 'parcial' (alinhado a financeiro-migracao-saldos).
+  const totalAberto = financeiro
+    .filter((f) => f.status === "aberto" || f.status === "vencido" || f.status === "parcial")
+    .reduce((acc, curr) => acc + (curr.saldo_restante || curr.valor), 0);
   const totalVencido = vencidos.reduce((acc, curr) => acc + (curr.saldo_restante || curr.valor), 0);
 
-  const produtosComPrazo = produtos.filter(p => p.lead_time_dias !== null && p.lead_time_dias !== undefined);
-  const prazoMedio = produtosComPrazo.length > 0
+  // B7: distinguir lead time observado de prazo cadastral (renomeado para clareza).
+  const produtosComPrazo = produtos.filter((p) => p.lead_time_dias !== null && p.lead_time_dias !== undefined);
+  const leadTimeMedio = produtosComPrazo.length > 0
     ? Math.round(produtosComPrazo.reduce((acc, p) => acc + (p.lead_time_dias || 0), 0) / produtosComPrazo.length)
-    : selected?.prazo_padrao || null;
+    : null;
+  const prazoMedio = leadTimeMedio ?? selected?.prazo_padrao ?? null;
+  const prazoMedioFonte = leadTimeMedio !== null ? "lead time" : selected?.prazo_padrao ? "prazo padrão" : null;
 
   const deleteDescription = (() => {
     const parts: string[] = [];
@@ -153,7 +152,7 @@ export function FornecedorView({ id }: Props) {
   });
 
   if (loading) return <div className="p-8 text-center animate-pulse">Carregando dados do fornecedor...</div>;
-  if (fetchError) return <div className="p-8 text-center text-destructive space-y-1"><p className="font-semibold">Erro ao carregar dados</p><p className="text-xs text-muted-foreground">{fetchError}</p></div>;
+  if (error) return <div className="p-8 text-center text-destructive space-y-1"><p className="font-semibold">Erro ao carregar dados</p><p className="text-xs text-muted-foreground">{error.message}</p></div>;
   if (!selected) return <div className="p-8 text-center text-destructive">Fornecedor não encontrado</div>;
 
   return (
@@ -163,6 +162,7 @@ export function FornecedorView({ id }: Props) {
         <div className="rounded-lg border bg-card p-3 text-center space-y-1">
           <p className="text-[10px] font-medium text-muted-foreground uppercase">Prazo Médio</p>
           <p className="font-mono font-bold text-xs">{prazoMedio ? `${prazoMedio} dias` : "—"}</p>
+          {prazoMedioFonte && <p className="text-[8px] text-muted-foreground/70 uppercase">{prazoMedioFonte}</p>}
         </div>
         <div className={`rounded-lg border bg-card p-3 text-center space-y-1 ${totalAberto > 0 ? 'border-destructive/40' : ''}`}>
           <p className="text-[10px] font-medium text-muted-foreground uppercase">Saldo Aberto</p>
@@ -369,19 +369,17 @@ export function FornecedorView({ id }: Props) {
       <ConfirmDialog
         open={deleteConfirmOpen}
         onClose={() => setDeleteConfirmOpen(false)}
-        onConfirm={async () => {
-          try {
-            const { error } = await supabase.from("fornecedores").delete().eq("id", id);
-            if (error) throw error;
+        loading={locked("delete")}
+        onConfirm={() =>
+          run("delete", async () => {
+            const { error: delErr } = await supabase.from("fornecedores").delete().eq("id", id);
+            if (delErr) throw delErr;
             toast.success("Fornecedor excluído com sucesso.");
-            clearStack();
-          } catch (err) {
-            console.error("[FornecedorView] erro ao excluir:", err);
-            toast.error(getUserFriendlyError(err));
-          } finally {
+            await invalidate(["fornecedores", "pedidos_compra", "financeiro_lancamentos"]);
             setDeleteConfirmOpen(false);
-          }
-        }}
+            clearStack();
+          })
+        }
         title="Excluir fornecedor"
         description={deleteDescription}
       />
