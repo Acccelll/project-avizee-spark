@@ -933,6 +933,10 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
         .eq("ativo", true);
       query = withDateRange(query, "data_emissao", filtros);
       if (filtros.clienteIds?.length) query = query.in('cliente_id', filtros.clienteIds);
+      const { data, error } = await query;
+      if (error) throw error;
+
+      const map = new Map<string, { cliente: string; cnpj: string; total: number; qtd: number }>();
       for (const ov of data || []) {
         const c = ov.clientes as { nome_razao_social: string; cpf_cnpj: string | null } | null;
         const nome = c?.nome_razao_social || "Sem cliente";
