@@ -130,5 +130,7 @@ export function FormModal({
         )}
       </DialogContent>
     </Dialog>
+    {confirmDialog}
+    </>
   );
 }
