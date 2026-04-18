@@ -69,6 +69,61 @@ export const ROLE_LABELS: Record<AppRole, string> = {
   estoquista: "Estoquista",
 };
 
+/** Rótulos humanizados para recursos ERP — uso em UI (AccessDenied, tooltips, modais). */
+export const RESOURCE_LABELS: Record<ErpResource, string> = {
+  dashboard: "Dashboard",
+  produtos: "Produtos",
+  clientes: "Clientes",
+  fornecedores: "Fornecedores",
+  transportadoras: "Transportadoras",
+  formas_pagamento: "Formas de pagamento",
+  orcamentos: "Orçamentos",
+  pedidos: "Pedidos",
+  compras: "Compras",
+  estoque: "Estoque",
+  logistica: "Logística",
+  financeiro: "Financeiro",
+  faturamento_fiscal: "Faturamento fiscal",
+  relatorios: "Relatórios",
+  workbook: "Workbook gerencial",
+  apresentacao: "Apresentação gerencial",
+  social: "Social",
+  usuarios: "Usuários",
+  administracao: "Administração",
+};
+
+/** Rótulos humanizados para ações ERP — uso em tooltips de botões bloqueados. */
+export const ACTION_LABELS: Record<ErpAction, string> = {
+  visualizar: "Visualizar",
+  visualizar_rentabilidade: "Visualizar rentabilidade",
+  criar: "Criar",
+  editar: "Editar",
+  excluir: "Excluir",
+  aprovar: "Aprovar",
+  cancelar: "Cancelar",
+  baixar: "Baixar",
+  exportar: "Exportar",
+  confirmar: "Confirmar",
+  importar_xml: "Importar XML",
+  reenviar_email: "Reenviar e-mail",
+  admin_fiscal: "Administrar fiscal",
+  gerar: "Gerar",
+  download: "Download",
+  editar_comentarios: "Editar comentários",
+  gerenciar_templates: "Gerenciar templates",
+  configurar: "Configurar",
+  sincronizar: "Sincronizar",
+  gerenciar_alertas: "Gerenciar alertas",
+};
+
+export function humanizeResource(resource: ErpResource | string): string {
+  return RESOURCE_LABELS[resource as ErpResource] ?? resource;
+}
+
+export function humanizeAction(action: ErpAction | string): string {
+  return ACTION_LABELS[action as ErpAction] ?? action;
+}
+
 /** Centralised role descriptions. Use this instead of defining locally in each component. */
 export const ROLE_DESCRIPTIONS: Record<AppRole, string> = {
   admin: "Acesso total ao sistema. Gerencia usuários, configurações e todos os módulos.",

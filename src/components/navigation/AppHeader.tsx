@@ -17,6 +17,21 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/AuthContext';
 import { headerIcons, quickActions } from '@/lib/navigation';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { ROLE_LABELS, type AppRole } from '@/lib/permissions';
+import { cn } from '@/lib/utils';
+
+const ROLE_DOT_COLORS: Record<AppRole, string> = {
+  admin: 'bg-destructive',
+  financeiro: 'bg-info',
+  vendedor: 'bg-success',
+  estoquista: 'bg-warning',
+};
+
+function primaryRole(roles: AppRole[]): AppRole | null {
+  if (roles.includes('admin')) return 'admin';
+  return roles[0] ?? null;
+}
 
 interface AppHeaderProps {
   onOpenMobileMenu: () => void;
@@ -34,7 +49,7 @@ export function AppHeader({ onOpenMobileMenu: _onOpenMobileMenu, onOpenSearch, o
   const [searchParams] = useSearchParams();
   const isMobile = useIsMobile();
   const { theme, setTheme } = useTheme();
-  const { profile, signOut } = useAuth();
+  const { profile, signOut, roles } = useAuth();
 
   const initials = (profile?.nome || 'Admin')
     .split(' ')
@@ -42,6 +57,10 @@ export function AppHeader({ onOpenMobileMenu: _onOpenMobileMenu, onOpenSearch, o
     .map((name) => name[0])
     .join('')
     .toUpperCase();
+
+  const role = primaryRole(roles);
+  const roleLabel = role ? ROLE_LABELS[role] : 'Sem perfil';
+  const roleDot = role ? ROLE_DOT_COLORS[role] : 'bg-muted-foreground';
 
   const pageTitle = useMemo(
     () => resolvePageTitle(location.pathname, searchParams),
@@ -89,14 +108,24 @@ export function AppHeader({ onOpenMobileMenu: _onOpenMobileMenu, onOpenSearch, o
               <NotificationsPanel />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="h-9 w-9 rounded-full p-0 ring-2 ring-transparent hover:ring-primary/20 focus-visible:ring-primary/40 transition" aria-label="Abrir menu da conta">
+                  <Button variant="ghost" className="h-9 w-9 rounded-full p-0 ring-2 ring-transparent hover:ring-primary/20 focus-visible:ring-primary/40 transition relative" aria-label={`Menu da conta — ${roleLabel}`}>
                     <Avatar className="h-8 w-8">
                       <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">{initials}</AvatarFallback>
                     </Avatar>
+                    <span
+                      aria-hidden="true"
+                      className={cn('absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full ring-2 ring-card', roleDot)}
+                    />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel>Minha conta</DropdownMenuLabel>
+                  <DropdownMenuLabel className="space-y-0.5">
+                    <p className="text-sm font-medium leading-none">{profile?.nome || 'Admin'}</p>
+                    <div className="flex items-center gap-1.5">
+                      <span className={cn('inline-block h-1.5 w-1.5 rounded-full', roleDot)} aria-hidden="true" />
+                      <p className="text-xs text-muted-foreground font-normal">{roleLabel}</p>
+                    </div>
+                  </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => navigate('/perfil')}>
                     <User className="mr-2 h-4 w-4" /> Meu perfil
@@ -174,16 +203,33 @@ export function AppHeader({ onOpenMobileMenu: _onOpenMobileMenu, onOpenSearch, o
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="h-9 w-9 rounded-full p-0 ring-2 ring-transparent hover:ring-primary/20 focus-visible:ring-primary/40 transition" aria-label="Abrir menu da conta">
-                  <Avatar className="h-8 w-8">
-                    <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">{initials}</AvatarFallback>
-                  </Avatar>
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" className="h-9 w-9 rounded-full p-0 ring-2 ring-transparent hover:ring-primary/20 focus-visible:ring-primary/40 transition relative" aria-label={`Menu da conta — ${profile?.nome || 'Admin'} · ${roleLabel}`}>
+                      <Avatar className="h-8 w-8">
+                        <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">{initials}</AvatarFallback>
+                      </Avatar>
+                      <span
+                        aria-hidden="true"
+                        className={cn('absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full ring-2 ring-card', roleDot)}
+                      />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    <p className="text-xs">
+                      <span className="font-medium">{profile?.nome || 'Admin'}</span>
+                      <span className="text-muted-foreground"> · {roleLabel}</span>
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel className="space-y-0.5">
+                <DropdownMenuLabel className="space-y-1">
                   <p className="text-sm font-medium leading-none">{profile?.nome || 'Admin'}</p>
-                  <p className="text-xs text-muted-foreground font-normal">{profile?.cargo || 'Administrador'}</p>
+                  <div className="flex items-center gap-1.5">
+                    <span className={cn('inline-block h-1.5 w-1.5 rounded-full', roleDot)} aria-hidden="true" />
+                    <p className="text-xs text-muted-foreground font-normal">{roleLabel}</p>
+                  </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => navigate('/perfil')}>
