@@ -248,6 +248,15 @@ const Pedidos = () => {
     });
   }, [data, faturamentoFilters, searchTerm, statusFilters, clienteFilters, prazoFilters, dataInicio, dataFim]);
 
+  // KPIs over filteredData so they reflect the user's current filter selection.
+  const kpis = useMemo(() => {
+    const total = filteredData.length;
+    const totalValue = filteredData.reduce((s, o) => s + Number(o.valor_total || 0), 0);
+    const emAndamento = filteredData.filter(o => ["em_separacao", "separado", "em_transporte"].includes(o.status)).length;
+    const atrasados = filteredData.filter(o => getPrazoStatus(o.data_prometida_despacho, o.status) === "atrasado").length;
+    return { total, totalValue, emAndamento, atrasados };
+  }, [filteredData]);
+
   const activeFilters = useMemo(() => {
     const chips: FilterChip[] = [];
     statusFilters.forEach(f => {
