@@ -14,6 +14,7 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { toast } from "sonner";
 import { useDetailFetch } from "@/hooks/useDetailFetch";
 import { useDetailActions } from "@/hooks/useDetailActions";
+import { DetailLoading, DetailEmpty } from "@/components/ui/DetailStates";
 import { pagamentoLabels, freteTipoLabels } from "@/utils/comercial";
 import { gerarNFParaPedido } from "@/services/nf.service";
 import {
@@ -218,8 +219,8 @@ export function OrdemVendaView({ id }: Props) {
     ),
   } : {});
 
-  if (loading) return <div className="p-8 text-center animate-pulse">Carregando pedido...</div>;
-  if (!selected) return <div className="p-8 text-center text-destructive">Pedido não encontrado</div>;
+  if (loading) return <DetailLoading />;
+  if (!selected) return <DetailEmpty title="Pedido não encontrado" icon={Receipt} />;
 
   return (
     <div className="space-y-4">

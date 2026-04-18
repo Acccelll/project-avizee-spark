@@ -7,6 +7,7 @@ import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext"
 import { useDetailFetch } from "@/hooks/useDetailFetch";
 import { Tables } from "@/integrations/supabase/types";
 import { Button } from "@/components/ui/button";
+import { DetailLoading, DetailError, DetailEmpty } from "@/components/ui/DetailStates";
 import { Truck, MapPin, Package, Calendar, Edit } from "lucide-react";
 
 interface Props {
@@ -74,14 +75,9 @@ export function RemessaView({ id }: Props) {
     ),
   } : {});
 
-  if (loading) return <div className="p-8 text-center animate-pulse">Carregando detalhes da remessa...</div>;
-  if (error) return (
-    <div className="p-8 text-center text-destructive space-y-1">
-      <p className="font-semibold">Erro ao carregar remessa</p>
-      <p className="text-xs text-muted-foreground">{error.message}</p>
-    </div>
-  );
-  if (!selected) return <div className="p-8 text-center text-destructive">Remessa não encontrada</div>;
+  if (loading) return <DetailLoading />;
+  if (error) return <DetailError title="Erro ao carregar remessa" message={error.message} />;
+  if (!selected) return <DetailEmpty title="Remessa não encontrada" icon={Truck} />;
 
   return (
     <div className="space-y-5">

@@ -18,6 +18,11 @@ import { useDetailActions } from "@/hooks/useDetailActions";
 import { useInvalidateAfterMutation } from "@/hooks/useInvalidateAfterMutation";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import { pagamentoLabels, freteTipoLabels } from "@/utils/comercial";
+import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSummaryCard";
+import { RecordIdentityCard } from "@/components/ui/RecordIdentityCard";
+import { SectionTitle } from "@/components/ui/SectionTitle";
+import { DetailLoading, DetailError, DetailEmpty } from "@/components/ui/DetailStates";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   sendForApproval,
   approveOrcamento,
@@ -35,10 +40,6 @@ import {
   Copy,
   ExternalLink,
   AlertTriangle,
-  Package,
-  Scale,
-  Layers,
-  DollarSign,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -172,19 +173,13 @@ export function OrcamentoView({ id }: Props) {
   usePublishDrawerSlots(`orcamento:${id}`, selected ? {
     breadcrumb: `Cotação · ${selected.numero}`,
     summary: (
-      <div className="flex items-start gap-3">
-        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
-          <FileText className="h-5 w-5" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <h3 className="font-semibold text-sm leading-tight truncate font-mono">
-            {selected.numero}
-          </h3>
-          <p className="text-[11px] text-muted-foreground">
-            {formatDate(selected.data_orcamento)}
-            {selected.clientes?.nome_razao_social && ` · ${selected.clientes.nome_razao_social}`}
-          </p>
-          <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+      <RecordIdentityCard
+        icon={FileText}
+        title={selected.numero}
+        titleMono
+        subtitle={`${formatDate(selected.data_orcamento)}${selected.clientes?.nome_razao_social ? ` · ${selected.clientes.nome_razao_social}` : ""}`}
+        badges={
+          <>
             <StatusBadge status={selected.status} />
             {isExpired && (
               <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-warning bg-warning/10 px-1.5 py-0.5 rounded-full">
@@ -194,9 +189,9 @@ export function OrcamentoView({ id }: Props) {
             <span className="inline-flex items-center rounded-full border bg-muted/50 px-2 py-0.5 text-[10px] font-mono text-muted-foreground">
               {formatCurrency(Number(selected.valor_total || 0))}
             </span>
-          </div>
-        </div>
-      </div>
+          </>
+        }
+      />
     ),
     actions: (
       <>
@@ -247,40 +242,19 @@ export function OrcamentoView({ id }: Props) {
     ),
   } : {});
 
-  if (loading) return <div className="p-8 text-center animate-pulse">Carregando cotação...</div>;
-  if (error) return (
-    <div className="p-8 text-center text-destructive space-y-1">
-      <p className="font-semibold">Erro ao carregar dados</p>
-      <p className="text-xs text-muted-foreground">{error.message}</p>
-    </div>
-  );
-  if (!selected) return <div className="p-8 text-center text-destructive">Cotação não encontrada</div>;
+  if (loading) return <DetailLoading />;
+  if (error) return <DetailError message={error.message} />;
+  if (!selected) return <DetailEmpty title="Cotação não encontrada" icon={FileText} />;
 
   return (
     <div className="space-y-4">
       {/* KPI strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        <div className="rounded-lg border bg-card p-2.5 text-center space-y-0.5">
-          <div className="flex justify-center text-muted-foreground"><Layers className="h-3.5 w-3.5" /></div>
-          <p className="text-[10px] font-medium text-muted-foreground uppercase">Itens</p>
-          <p className="font-mono font-bold text-sm">{kpiItens}</p>
-        </div>
-        <div className="rounded-lg border bg-card p-2.5 text-center space-y-0.5">
-          <div className="flex justify-center text-muted-foreground"><Package className="h-3.5 w-3.5" /></div>
-          <p className="text-[10px] font-medium text-muted-foreground uppercase">Qtd Total</p>
-          <p className="font-mono font-bold text-sm">{kpiQtd}</p>
-        </div>
-        <div className="rounded-lg border bg-card p-2.5 text-center space-y-0.5">
-          <div className="flex justify-center text-muted-foreground"><Scale className="h-3.5 w-3.5" /></div>
-          <p className="text-[10px] font-medium text-muted-foreground uppercase">Peso (kg)</p>
-          <p className="font-mono font-bold text-sm">{kpiPeso.toFixed(2)}</p>
-        </div>
-        <div className="rounded-lg border bg-card p-2.5 text-center space-y-0.5">
-          <div className="flex justify-center text-muted-foreground"><DollarSign className="h-3.5 w-3.5" /></div>
-          <p className="text-[10px] font-medium text-muted-foreground uppercase">Total</p>
-          <p className="font-mono font-bold text-sm text-primary">{formatCurrency(kpiValor)}</p>
-        </div>
-      </div>
+      <DrawerSummaryGrid cols={4}>
+        <DrawerSummaryCard label="Itens" value={String(kpiItens)} align="center" />
+        <DrawerSummaryCard label="Qtd Total" value={String(kpiQtd)} align="center" />
+        <DrawerSummaryCard label="Peso (kg)" value={kpiPeso.toFixed(2)} align="center" />
+        <DrawerSummaryCard label="Total" value={formatCurrency(kpiValor)} tone="primary" align="center" />
+      </DrawerSummaryGrid>
 
       {/* Tabs */}
       <Tabs defaultValue="resumo" className="w-full">

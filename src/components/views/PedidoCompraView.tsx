@@ -11,6 +11,7 @@ import { Progress } from "@/components/ui/progress";
 import { ViewField, ViewSection } from "@/components/ViewDrawer";
 import { Button } from "@/components/ui/button";
 import { useDetailFetch } from "@/hooks/useDetailFetch";
+import { DetailLoading, DetailError, DetailEmpty } from "@/components/ui/DetailStates";
 import {
   Truck,
   CheckCircle2,
@@ -220,14 +221,9 @@ export function PedidoCompraView({ id }: Props) {
     ),
   } : {});
 
-  if (loading) return <div className="p-8 text-center animate-pulse">Carregando pedido de compra...</div>;
-  if (error) return (
-    <div className="p-8 text-center text-destructive space-y-1">
-      <p className="font-semibold">Erro ao carregar dados</p>
-      <p className="text-xs text-muted-foreground">{error.message}</p>
-    </div>
-  );
-  if (!selected) return <div className="p-8 text-center text-destructive">Pedido não encontrado</div>;
+  if (loading) return <DetailLoading />;
+  if (error) return <DetailError message={error.message} />;
+  if (!selected) return <DetailEmpty title="Pedido de compra não encontrado" icon={Boxes} />;
 
   return (
     <div className="space-y-4">

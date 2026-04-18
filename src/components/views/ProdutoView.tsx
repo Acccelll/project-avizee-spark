@@ -19,6 +19,10 @@ import { useDetailFetch } from "@/hooks/useDetailFetch";
 import { useDetailActions } from "@/hooks/useDetailActions";
 import { useInvalidateAfterMutation } from "@/hooks/useInvalidateAfterMutation";
 import { getUserFriendlyError } from "@/utils/errorMessages";
+import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSummaryCard";
+import { RecordIdentityCard } from "@/components/ui/RecordIdentityCard";
+import { SectionTitle } from "@/components/ui/SectionTitle";
+import { DetailLoading, DetailError, DetailEmpty } from "@/components/ui/DetailStates";
 import type {
   HistoricoNfItemRow,
   ComposicaoItemRow,
@@ -133,17 +137,17 @@ export function ProdutoView({ id }: Props) {
   usePublishDrawerSlots(`produto:${id}`, {
     breadcrumb: selected?.sku ? `Produto · ${selected.sku}` : undefined,
     summary: selected ? (
-      <div className="flex items-start gap-3">
-        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
-          <Package className="h-5 w-5" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <h3 className="font-semibold text-sm leading-tight truncate">{selected.nome}</h3>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5">
-            {selected.sku && <p className="text-[11px] text-muted-foreground font-mono">SKU: {selected.sku}</p>}
-            {selected.codigo_interno && <p className="text-[11px] text-muted-foreground font-mono">Cód: {selected.codigo_interno}</p>}
-          </div>
-          <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+      <RecordIdentityCard
+        icon={Package}
+        title={selected.nome}
+        meta={
+          <>
+            {selected.sku && <span className="font-mono">SKU: {selected.sku}</span>}
+            {selected.codigo_interno && <span className="font-mono">Cód: {selected.codigo_interno}</span>}
+          </>
+        }
+        badges={
+          <>
             <StatusBadge status={selected.ativo ? "ativo" : "inativo"} />
             <StatusBadge status={selected.eh_composto ? "composto" : "simples"} />
             <StatusBadge status={selected.tipo_item || "produto"} />
@@ -153,9 +157,9 @@ export function ProdutoView({ id }: Props) {
                 {grupoNome}
               </span>
             )}
-          </div>
-        </div>
-      </div>
+          </>
+        }
+      />
     ) : undefined,
     actions: selected ? (
       <>
@@ -189,46 +193,46 @@ export function ProdutoView({ id }: Props) {
     ) : undefined,
   });
 
-  if (loading) return <div className="p-8 text-center animate-pulse">Carregando dados do produto...</div>;
-  if (error) return <div className="p-8 text-center text-destructive space-y-1"><p className="font-semibold">Erro ao carregar dados</p><p className="text-xs text-muted-foreground">{error.message}</p></div>;
-  if (!selected) return <div className="p-8 text-center text-destructive">Produto não encontrado</div>;
+  if (loading) return <DetailLoading />;
+  if (error) return <DetailError message={error.message} />;
+  if (!selected) return <DetailEmpty title="Produto não encontrado" icon={Package} />;
 
   return (
     <div className="space-y-5">
       {/* KPI cards */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-        <div className="rounded-lg border bg-card p-4 text-center space-y-1">
-          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Venda</p>
-          <p className="font-mono font-bold text-sm text-foreground">{formatCurrency(selected.preco_venda)}</p>
-        </div>
-        <div className="rounded-lg border bg-card p-4 text-center space-y-1">
-          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Custo</p>
-          <p className="font-mono font-bold text-sm text-foreground">{formatCurrency(selected.preco_custo || 0)}</p>
-        </div>
-        <div className="rounded-lg border bg-card p-4 text-center space-y-1">
-          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Lucro Bruto</p>
-          <p className="font-mono font-bold text-sm text-primary">{formatCurrency(lucroBruto)}</p>
-        </div>
-        <div className="rounded-lg border bg-card p-4 text-center space-y-1">
-          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Margem</p>
-          <p className={`font-mono font-bold text-sm ${selectedMargem > 0 ? "text-success" : selectedMargem < 0 ? "text-destructive" : "text-foreground"}`}>{(selected.preco_custo || 0) > 0 ? `${selectedMargem.toFixed(1)}%` : "—"}</p>
-        </div>
-        <div className={`rounded-lg border p-4 text-center space-y-1 ${estoqueBaixo ? "border-destructive/40 bg-destructive/5" : "bg-card"}`}>
-          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Estoque</p>
-          <p className={`font-mono font-bold text-sm ${estoqueBaixo ? "text-destructive" : "text-foreground"}`}>{selected.estoque_atual ?? 0} {selected.unidade_medida}</p>
-          {estoqueBaixo && <p className="text-[9px] text-destructive font-medium leading-none">Abaixo do mín.</p>}
-        </div>
+        <DrawerSummaryCard label="Venda" value={formatCurrency(selected.preco_venda)} align="center" />
+        <DrawerSummaryCard label="Custo" value={formatCurrency(selected.preco_custo || 0)} align="center" />
+        <DrawerSummaryCard
+          label="Lucro Bruto"
+          value={formatCurrency(lucroBruto)}
+          tone={lucroBruto > 0 ? "success" : lucroBruto < 0 ? "destructive" : "neutral"}
+          align="center"
+        />
+        <DrawerSummaryCard
+          label="Margem"
+          value={(selected.preco_custo || 0) > 0 ? `${selectedMargem.toFixed(1)}%` : "—"}
+          tone={selectedMargem > 0 ? "success" : selectedMargem < 0 ? "destructive" : "neutral"}
+          align="center"
+        />
+        <DrawerSummaryCard
+          label="Estoque"
+          value={`${selected.estoque_atual ?? 0} ${selected.unidade_medida}`}
+          tone={estoqueBaixo ? "destructive" : "neutral"}
+          hint={estoqueBaixo ? "Abaixo do mínimo" : undefined}
+          align="center"
+        />
       </div>
 
       <Tabs defaultValue="geral" className="w-full">
         <TabsList className="w-full grid grid-cols-7">
-          <TabsTrigger value="geral" className="text-[9px] px-0.5">Geral</TabsTrigger>
-          <TabsTrigger value="compras" className="text-[9px] px-0.5">Compras</TabsTrigger>
-          <TabsTrigger value="preco" className="text-[9px] px-0.5">Preço</TabsTrigger>
-          <TabsTrigger value="estoque" className="text-[9px] px-0.5">Estoque</TabsTrigger>
-          <TabsTrigger value="fiscal" className="text-[9px] px-0.5">Fiscal</TabsTrigger>
-          <TabsTrigger value="precos" className="text-[9px] px-0.5">Espec.</TabsTrigger>
-          <TabsTrigger value="historico" className="text-[9px] px-0.5">Histórico</TabsTrigger>
+          <TabsTrigger value="geral" className="text-xs px-0.5">Geral</TabsTrigger>
+          <TabsTrigger value="compras" className="text-xs px-0.5">Compras</TabsTrigger>
+          <TabsTrigger value="preco" className="text-xs px-0.5">Preço</TabsTrigger>
+          <TabsTrigger value="estoque" className="text-xs px-0.5">Estoque</TabsTrigger>
+          <TabsTrigger value="fiscal" className="text-xs px-0.5">Fiscal</TabsTrigger>
+          <TabsTrigger value="precos" className="text-xs px-0.5">Espec.</TabsTrigger>
+          <TabsTrigger value="historico" className="text-xs px-0.5">Hist.</TabsTrigger>
         </TabsList>
 
         {/* Tab: Geral */}

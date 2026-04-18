@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { Truck, FileText, Edit } from "lucide-react";
 import { useDetailFetch } from "@/hooks/useDetailFetch";
+import { DetailLoading, DetailError, DetailEmpty } from "@/components/ui/DetailStates";
 import type { NotaFiscal } from "@/types/domain";
 
 interface NfViewItem {
@@ -99,14 +100,9 @@ export function NotaFiscalView({ id }: Props) {
     ),
   } : {});
 
-  if (loading) return <div className="p-8 text-center animate-pulse">Carregando nota fiscal...</div>;
-  if (error) return (
-    <div className="p-8 text-center text-destructive space-y-1">
-      <p className="font-semibold">Erro ao carregar dados</p>
-      <p className="text-xs text-muted-foreground">{error.message}</p>
-    </div>
-  );
-  if (!selected) return <div className="p-8 text-center text-destructive">Nota fiscal não encontrada</div>;
+  if (loading) return <DetailLoading />;
+  if (error) return <DetailError message={error.message} />;
+  if (!selected) return <DetailEmpty title="Nota fiscal não encontrada" icon={FileText} />;
 
   return (
     <div className="space-y-4">

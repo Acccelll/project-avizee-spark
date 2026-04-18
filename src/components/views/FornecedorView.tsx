@@ -15,6 +15,10 @@ import { toast } from "sonner";
 import { useDetailFetch } from "@/hooks/useDetailFetch";
 import { useDetailActions } from "@/hooks/useDetailActions";
 import { useInvalidateAfterMutation } from "@/hooks/useInvalidateAfterMutation";
+import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSummaryCard";
+import { RecordIdentityCard } from "@/components/ui/RecordIdentityCard";
+import { SectionTitle } from "@/components/ui/SectionTitle";
+import { DetailLoading, DetailError, DetailEmpty } from "@/components/ui/DetailStates";
 import type { FornecedorRow, CompraRow, FinanceiroLancamentoRow, ProdutoFornecedorRow } from "@/types/cadastros";
 
 interface Props {
@@ -113,28 +117,20 @@ export function FornecedorView({ id }: Props) {
   usePublishDrawerSlots(`fornecedor:${id}`, {
     breadcrumb: selected?.cpf_cnpj ? `Fornecedor · ${selected.cpf_cnpj}` : undefined,
     summary: selected ? (
-      <div className="flex items-start gap-3">
-        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
-          <Truck className="h-5 w-5" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <h3 className="font-semibold text-sm leading-tight truncate">{selected.nome_razao_social}</h3>
-          {selected.nome_fantasia && (
-            <p className="text-[11px] text-muted-foreground truncate">{selected.nome_fantasia}</p>
-          )}
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5">
-            {selected.cpf_cnpj && <p className="text-[11px] text-muted-foreground font-mono">{selected.cpf_cnpj}</p>}
+      <RecordIdentityCard
+        icon={Truck}
+        title={selected.nome_razao_social}
+        subtitle={selected.nome_fantasia || undefined}
+        meta={
+          <>
+            {selected.cpf_cnpj && <span className="font-mono">{selected.cpf_cnpj}</span>}
             {(selected.cidade || selected.uf) && (
-              <p className="text-[11px] text-muted-foreground flex items-center gap-1">
-                <MapPin className="h-3 w-3" />{[selected.cidade, selected.uf].filter(Boolean).join("/")}
-              </p>
+              <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{[selected.cidade, selected.uf].filter(Boolean).join("/")}</span>
             )}
-          </div>
-          <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-            <StatusBadge status={selected.ativo ? "ativo" : "inativo"} />
-          </div>
-        </div>
-      </div>
+          </>
+        }
+        badges={<StatusBadge status={selected.ativo ? "ativo" : "inativo"} />}
+      />
     ) : undefined,
     actions: selected ? (
       <>
@@ -151,40 +147,35 @@ export function FornecedorView({ id }: Props) {
     ) : undefined,
   });
 
-  if (loading) return <div className="p-8 text-center animate-pulse">Carregando dados do fornecedor...</div>;
-  if (error) return <div className="p-8 text-center text-destructive space-y-1"><p className="font-semibold">Erro ao carregar dados</p><p className="text-xs text-muted-foreground">{error.message}</p></div>;
-  if (!selected) return <div className="p-8 text-center text-destructive">Fornecedor não encontrado</div>;
+  if (loading) return <DetailLoading />;
+  if (error) return <DetailError message={error.message} />;
+  if (!selected) return <DetailEmpty title="Fornecedor não encontrado" icon={Truck} />;
 
   return (
     <div className="space-y-5">
       {/* KPI strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="rounded-lg border bg-card p-3 text-center space-y-1">
-          <p className="text-[10px] font-medium text-muted-foreground uppercase">Prazo Médio</p>
-          <p className="font-mono font-bold text-xs">{prazoMedio ? `${prazoMedio} dias` : "—"}</p>
-          {prazoMedioFonte && <p className="text-[8px] text-muted-foreground/70 uppercase">{prazoMedioFonte}</p>}
-        </div>
-        <div className={`rounded-lg border bg-card p-3 text-center space-y-1 ${totalAberto > 0 ? 'border-destructive/40' : ''}`}>
-          <p className="text-[10px] font-medium text-muted-foreground uppercase">Saldo Aberto</p>
-          <p className={`font-mono font-bold text-xs ${totalAberto > 0 ? 'text-destructive' : ''}`}>{formatCurrency(totalAberto)}</p>
-        </div>
-        <div className="rounded-lg border bg-card p-3 text-center space-y-1">
-          <p className="text-[10px] font-medium text-muted-foreground uppercase">Vol. Compras</p>
-          <p className="font-mono font-bold text-xs">{formatCurrency(volumeTotal)}</p>
-        </div>
-        <div className="rounded-lg border bg-card p-3 text-center space-y-1">
-          <p className="text-[10px] font-medium text-muted-foreground uppercase">Ult. Compra</p>
-          <p className="font-mono font-bold text-xs">{ultCompra ? formatDate(ultCompra) : "—"}</p>
-        </div>
-      </div>
+      <DrawerSummaryGrid cols={4}>
+        <DrawerSummaryCard
+          label="Prazo Médio"
+          value={prazoMedio ? `${prazoMedio} dias` : "—"}
+          hint={prazoMedioFonte || undefined}
+        />
+        <DrawerSummaryCard
+          label="Saldo Aberto"
+          value={formatCurrency(totalAberto)}
+          tone={totalAberto > 0 ? "destructive" : "neutral"}
+        />
+        <DrawerSummaryCard label="Vol. Compras" value={formatCurrency(volumeTotal)} />
+        <DrawerSummaryCard label="Última Compra" value={ultCompra ? formatDate(ultCompra) : "—"} mono={false} />
+      </DrawerSummaryGrid>
 
       <Tabs defaultValue="geral" className="w-full">
         <TabsList className="w-full grid grid-cols-5">
-          <TabsTrigger value="geral" className="text-[10px] px-1">Geral</TabsTrigger>
-          <TabsTrigger value="compras" className="text-[10px] px-1">Compras</TabsTrigger>
-          <TabsTrigger value="financeiro" className="text-[10px] px-1">Financ.</TabsTrigger>
-          <TabsTrigger value="produtos" className="text-[10px] px-1">Produtos</TabsTrigger>
-          <TabsTrigger value="relacionamento" className="text-[10px] px-1">Relac.</TabsTrigger>
+          <TabsTrigger value="geral" className="text-xs px-1">Geral</TabsTrigger>
+          <TabsTrigger value="compras" className="text-xs px-1">Compras</TabsTrigger>
+          <TabsTrigger value="financeiro" className="text-xs px-1">Financ.</TabsTrigger>
+          <TabsTrigger value="produtos" className="text-xs px-1">Produtos</TabsTrigger>
+          <TabsTrigger value="relacionamento" className="text-xs px-1">Relac.</TabsTrigger>
         </TabsList>
 
         {/* TAB: GERAL */}

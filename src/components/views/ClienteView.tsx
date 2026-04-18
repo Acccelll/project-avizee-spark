@@ -16,6 +16,11 @@ import { toast } from "sonner";
 import { useDetailFetch } from "@/hooks/useDetailFetch";
 import { useDetailActions } from "@/hooks/useDetailActions";
 import { useInvalidateAfterMutation } from "@/hooks/useInvalidateAfterMutation";
+import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSummaryCard";
+import { RecordIdentityCard } from "@/components/ui/RecordIdentityCard";
+import { SectionTitle } from "@/components/ui/SectionTitle";
+import { DetailLoading, DetailError, DetailEmpty } from "@/components/ui/DetailStates";
+import { EmptyState } from "@/components/ui/empty-state";
 
 interface Props {
   id: string;
@@ -110,28 +115,26 @@ export function ClienteView({ id }: Props) {
   usePublishDrawerSlots(`cliente:${id}`, {
     breadcrumb: selected?.cpf_cnpj ? `Cliente · ${selected.cpf_cnpj}` : undefined,
     summary: selected ? (
-      <div className="flex items-start gap-3">
-        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
-          <User className="h-5 w-5" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <h3 className="font-semibold text-sm leading-tight truncate">{selected.nome_razao_social}</h3>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5">
-            {selected.cpf_cnpj && <p className="text-[11px] text-muted-foreground font-mono">{selected.cpf_cnpj}</p>}
-            {(selected.cidade || selected.uf) && (
-              <p className="text-[11px] text-muted-foreground">{[selected.cidade, selected.uf].filter(Boolean).join("/")}</p>
-            )}
-          </div>
-          <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+      <RecordIdentityCard
+        icon={User}
+        title={selected.nome_razao_social}
+        meta={
+          <>
+            {selected.cpf_cnpj && <span className="font-mono">{selected.cpf_cnpj}</span>}
+            {(selected.cidade || selected.uf) && <span>{[selected.cidade, selected.uf].filter(Boolean).join("/")}</span>}
+          </>
+        }
+        badges={
+          <>
             <StatusBadge status={selected.ativo ? "ativo" : "inativo"} />
             {selected.grupos_economicos?.nome && (
               <span className="inline-flex items-center rounded-full border bg-muted/50 px-2 py-0.5 text-[10px] text-muted-foreground font-medium">
                 {selected.grupos_economicos.nome}
               </span>
             )}
-          </div>
-        </div>
-      </div>
+          </>
+        }
+      />
     ) : undefined,
     actions: selected ? (
       <>
@@ -148,39 +151,27 @@ export function ClienteView({ id }: Props) {
     ) : undefined,
   });
 
-  if (loading) return <div className="p-8 text-center animate-pulse">Carregando dados do cliente...</div>;
-  if (error) return <div className="p-8 text-center text-destructive space-y-1"><p className="font-semibold">Erro ao carregar dados</p><p className="text-xs text-muted-foreground">{error.message}</p></div>;
-  if (!selected) return <div className="p-8 text-center text-destructive">Cliente não encontrado</div>;
+  if (loading) return <DetailLoading />;
+  if (error) return <DetailError message={error.message} />;
+  if (!selected) return <DetailEmpty title="Cliente não encontrado" icon={User} />;
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="rounded-lg border bg-card p-3 text-center space-y-1">
-          <p className="text-[10px] font-medium text-muted-foreground uppercase">Saldo Devedor</p>
-          <p className="font-mono font-bold text-xs text-destructive">{formatCurrency(totalAberto)}</p>
-        </div>
-        <div className="rounded-lg border bg-card p-3 text-center space-y-1">
-          <p className="text-[10px] font-medium text-muted-foreground uppercase">PMV (Médio)</p>
-          <p className="font-mono font-bold text-xs">{formatCurrency(pmv)}</p>
-        </div>
-        <div className="rounded-lg border bg-card p-3 text-center space-y-1">
-          <p className="text-[10px] font-medium text-muted-foreground uppercase">Lmt. Crédito</p>
-          <p className="font-mono font-bold text-xs text-emerald-600">{formatCurrency(selected.limite_credito || 0)}</p>
-        </div>
-        <div className="rounded-lg border bg-card p-3 text-center space-y-1">
-          <p className="text-[10px] font-medium text-muted-foreground uppercase">Ult. Compra</p>
-          <p className="font-mono font-bold text-xs">{ultCompra ? formatDate(ultCompra) : "—"}</p>
-        </div>
-      </div>
+      <DrawerSummaryGrid cols={4}>
+        <DrawerSummaryCard label="Saldo Devedor" value={formatCurrency(totalAberto)} tone={totalAberto > 0 ? "destructive" : "neutral"} />
+        <DrawerSummaryCard label="PMV (Médio)" value={formatCurrency(pmv)} />
+        <DrawerSummaryCard label="Lmt. Crédito" value={formatCurrency(selected.limite_credito || 0)} tone={selected.limite_credito && selected.limite_credito > 0 ? "success" : "neutral"} />
+        <DrawerSummaryCard label="Última Compra" value={ultCompra ? formatDate(ultCompra) : "—"} mono={false} />
+      </DrawerSummaryGrid>
 
       <Tabs defaultValue="geral" className="w-full">
         <TabsList className="w-full grid grid-cols-6">
-          <TabsTrigger value="geral" className="text-[10px] px-1">Geral</TabsTrigger>
-          <TabsTrigger value="vendas" className="text-[10px] px-1">Vendas</TabsTrigger>
-          <TabsTrigger value="financeiro" className="text-[10px] px-1">Financ.</TabsTrigger>
-          <TabsTrigger value="contatos" className="text-[10px] px-1">Contatos</TabsTrigger>
-          <TabsTrigger value="logistica" className="text-[10px] px-1">Logist.</TabsTrigger>
-          <TabsTrigger value="precos" className="text-[10px] px-1">Preços</TabsTrigger>
+          <TabsTrigger value="geral" className="text-xs px-1">Geral</TabsTrigger>
+          <TabsTrigger value="vendas" className="text-xs px-1">Vendas</TabsTrigger>
+          <TabsTrigger value="financeiro" className="text-xs px-1">Financ.</TabsTrigger>
+          <TabsTrigger value="contatos" className="text-xs px-1">Contatos</TabsTrigger>
+          <TabsTrigger value="logistica" className="text-xs px-1">Logíst.</TabsTrigger>
+          <TabsTrigger value="precos" className="text-xs px-1">Preços</TabsTrigger>
         </TabsList>
 
         <TabsContent value="geral" className="space-y-4 mt-3">
@@ -219,9 +210,9 @@ export function ClienteView({ id }: Props) {
         </TabsContent>
 
         <TabsContent value="vendas" className="space-y-3 mt-3">
-          <h4 className="font-semibold text-sm flex items-center gap-2"><FileText className="h-4 w-4" /> Últimos Pedidos</h4>
+          <SectionTitle icon={FileText}>Últimos Pedidos</SectionTitle>
           {vendas.length === 0 ? (
-            <p className="text-xs text-muted-foreground text-center py-6">Nenhum pedido encontrado</p>
+            <EmptyState icon={FileText} title="Nenhum pedido encontrado" description="Este cliente ainda não possui pedidos de venda." />
           ) : (
             <div className="space-y-2">
               {vendas.map((v) => (
@@ -260,9 +251,9 @@ export function ClienteView({ id }: Props) {
            </div>
 
            <div className="space-y-3">
-             <h4 className="font-semibold text-sm flex items-center gap-2 px-1 text-muted-foreground uppercase text-[10px]">Lançamentos Recentes</h4>
+             <SectionTitle>Lançamentos Recentes</SectionTitle>
              {financeiro.length === 0 ? (
-               <p className="text-xs text-muted-foreground text-center py-4 border rounded-lg border-dashed">Nenhum lançamento financeiro</p>
+               <EmptyState icon={CreditCard} title="Nenhum lançamento" description="Sem lançamentos financeiros vinculados a este cliente." />
              ) : (
                <div className="space-y-2">
                  {financeiro.map((f) => (
@@ -285,11 +276,9 @@ export function ClienteView({ id }: Props) {
         </TabsContent>
 
         <TabsContent value="contatos" className="space-y-3 mt-3">
-           <div className="flex items-center justify-between px-1">
-             <h4 className="font-semibold text-sm flex items-center gap-2 text-muted-foreground uppercase text-[10px]"><MessageSquare className="h-3.5 w-3.5" /> Histórico de Contatos</h4>
-           </div>
+           <SectionTitle icon={MessageSquare}>Histórico de Contatos</SectionTitle>
            {comunicacao.length === 0 ? (
-             <p className="text-xs text-muted-foreground text-center py-8 border rounded-xl border-dashed">Nenhum registro de contato</p>
+             <EmptyState icon={MessageSquare} title="Nenhum contato registrado" description="Registros de comunicação aparecerão aqui." />
            ) : (
              <div className="space-y-4">
                {comunicacao.map((c) => (
@@ -308,9 +297,9 @@ export function ClienteView({ id }: Props) {
         </TabsContent>
 
         <TabsContent value="logistica" className="space-y-3 mt-3">
-           <h4 className="font-semibold text-sm flex items-center gap-2 text-muted-foreground uppercase text-[10px]"><Truck className="h-3.5 w-3.5" /> Transportadoras de Preferência</h4>
+           <SectionTitle icon={Truck}>Transportadoras de Preferência</SectionTitle>
            {transportadoras.length === 0 ? (
-             <p className="text-xs text-muted-foreground text-center py-8 border rounded-xl border-dashed">Nenhuma transportadora vinculada</p>
+             <EmptyState icon={Truck} title="Nenhuma transportadora vinculada" description="Defina transportadoras preferenciais para este cliente." />
            ) : (
              <div className="space-y-3">
                {transportadoras.map((t) => (
