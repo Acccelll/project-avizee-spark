@@ -1,4 +1,4 @@
-import { createContext, ReactNode, useCallback, useContext, useMemo, useRef, useSyncExternalStore } from "react";
+import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 
 /**
  * Slots que cada *View relacional pode publicar para o cabeçalho do drawer no qual está renderizada.
@@ -88,9 +88,12 @@ export function usePublishDrawerSlots(key: string, slots: RelationalDrawerSlots)
   if (ctx) {
     ctx.setSlots(key, slots);
   }
-  // Cleanup ao desmontar.
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  useMemo(() => () => ctx?.setSlots(key, null), [ctx, key]);
+  // Cleanup ao desmontar (ou ao mudar a key).
+  useEffect(() => {
+    return () => {
+      ctx?.setSlots(key, null);
+    };
+  }, [ctx, key]);
 }
 
 /**
