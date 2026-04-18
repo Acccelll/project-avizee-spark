@@ -1,167 +1,194 @@
 
 
-# Diagnóstico técnico — telas de listagem/grid
+# Diagnóstico visual — telas de listagem/grid
 
-Mapeei **~26 listagens** + 2 wrappers compartilhados (`DataTable`, `AdvancedFilterBar`) + hook base (`useSupabaseCrud`). Tudo roda com React Query + Supabase. A infraestrutura existe, mas a aplicação é desigual.
+Mapeei **~26 listagens** + 4 wrappers compartilhados (`ModulePage`, `AdvancedFilterBar`, `DataTable`, `StatusBadge`) + 2 cards KPI (`StatCard` antigo + `SummaryCard` novo). Infraestrutura visual existe; aplicação está fragmentada.
 
 ## Categorias
 
-**A. Operacional com URL state (mais maduro)**
-`Pedidos`, `Orcamentos`, `PedidosCompra`, `CotacoesCompra`, `Fiscal`
+**A. Cadastrais** — Clientes, Fornecedores, Produtos, GruposEconomicos, Transportadoras, Funcionarios, UnidadesMedida, FormasPagamento
+**B. Operacionais** — Pedidos, Orcamentos, PedidosCompra, CotacoesCompra, Fiscal, Remessas, Logistica
+**C. Financeiras/contábeis** — Financeiro, ContasBancarias, ContasContabeis, FluxoCaixa, Conciliacao
+**D. Operacional misto com tabs** — Estoque, Logistica, Auditoria, MigracaoDados
 
-**B. Cadastros com debounce server-side**
-`Produtos`, `Clientes`, `Fornecedores`, `GruposEconomicos`, `Transportadoras`, `Funcionarios`, `UnidadesMedida`, `FormasPagamento`
+## Inconsistências visuais reais
 
-**C. Financeiro/contábil (filtros locais complexos)**
-`Financeiro`, `ContasBancarias`, `ContasContabeis`, `FluxoCaixa`, `Conciliacao`
+### 1. **Dois componentes de KPI coexistem** — quebra mais visível do sistema
+- Cadastrais (Clientes/Fornecedores/Produtos/Transportadoras/Funcionarios/UnidadesMedida/FormasPagamento/GruposEconomicos/ContasBancarias/ContasContabeis) usam `StatCard` (antigo, simples, sem `variant`/sparkline/meta)
+- Operacionais (Pedidos/Orcamentos/Estoque/Social/Auditoria/Logs/Produtos novo) usam `SummaryCard` (rico, com `variant`, ícone colorido, sparkline)
 
-**D. Operacional misto**
-`Estoque` (3 abas: saldos/movimentações/ajuste), `Logistica` (3 abas), `Remessas`, `Fiscal`, `Auditoria`, `Logs`
+Resultado: troca entre módulos parece troca de produto. Mesmas KPIs renderizam fontes/paddings/cores diferentes.
 
-**E. Outras**
-`Relatorios`, `MigracaoDados`, `ApresentacaoGerencial`, `Social`
+### 2. **Toolbar duplicada** — `ModulePage` tem search built-in **e** páginas usam `AdvancedFilterBar` separado
+`ModulePage` aceita `searchValue`/`onSearchChange`/`filters`/`count` — mas Pedidos/Orcamentos/Fiscal/Financeiro **não passam** isso e renderizam `<AdvancedFilterBar>` como filho. Resultado: dois layouts de toolbar, espaçamentos diferentes, contagem aparece em lugares diferentes (uma vez no header da `ModulePage`, outra no rodapé do `AdvancedFilterBar`).
 
-## Problemas concretos encontrados
+### 3. **Header da página sem contexto operacional**
+`ModulePage` mostra só `title` + `subtitle` + botão "Novo X". Nas operacionais (Pedidos/Fiscal/Financeiro) **falta** indicador de contexto (período ativo, filtros aplicados, escopo). Subtítulos são genéricos ("Gerencie seus pedidos de venda") em vez de contextual ("142 pedidos · 12 atrasados").
 
-### 1. `useSupabaseCrud` faz busca **sem `pageSize`** mas retorna no máximo 1000 linhas (limite Supabase)
-Em `Pedidos`, `Orcamentos`, `Fiscal`, `Financeiro`, etc., o hook é chamado sem `pageSize`. RQ traz tudo via `select("*", { count: "exact" })`, mas a Supabase tem **limite default 1000**. Para clientes com >1000 registros, a grid silenciosamente perde dados — só fica o sinal `truncated: true`, mas **nenhuma listagem o consome**. Risco real de bug em produção.
+### 4. **Filtros sem hierarquia visual**
+`AdvancedFilterBar` empilha todos os `MultiSelect` lado a lado com `w-[180px]` hardcoded. Sem distinção entre filtro primário (status) e secundários (cliente/data). Em Pedidos: 4 multiselects + 2 date inputs em linha — virou parede de controles indistinguíveis.
 
-### 2. Duas camadas de filtro/sort — local vs server — concorrendo
-`useSupabaseCrud` recebe `searchTerm` (server-side ilike) em `Produtos`/`Clientes`/`Fornecedores`/`GruposEconomicos`. As demais (`Pedidos`/`Orcamentos`/`Fiscal`/`Financeiro`) fazem **busca textual local em `useMemo`**. Sem padrão. Combinado com #1 produz inconsistência: Pedidos com 1500 linhas filtra só sobre as 1000 trazidas.
+### 5. **Datas em filtros inconsistentes**
+- Pedidos/PedidosCompra usam `<Input type="date">` cru com `<span>até</span>` no meio
+- Fiscal usa o mesmo padrão mas com larguras diferentes
+- Financeiro usa preset chips ("Hoje", "7 dias", "Mês")
 
-### 3. `DataTable` tem **filtros avançados próprios** (popover) duplicando `AdvancedFilterBar`
-O `DataTable` mantém `rules` com filtros próprios (`contains/equals/gt/between`) persistidos em `localStorage`, **completamente desconectados** do `AdvancedFilterBar` da página. Resultado: dois lugares onde aplicar filtro, sem sincronização. Confunde usuário e duplica lógica. Nenhuma página parece estar usando esses filtros internos.
+Sem `DateRangePicker` compartilhado. Cada tela parece feita por equipes diferentes.
 
-### 4. Ordenação por coluna **calculada/render** quebra
-`DataTable.sortedData` faz `String(item[sortKey]).localeCompare`. Mas várias colunas são render-only (`acoes`, `prazo`, `recebimento`, `faturamento`) — clicar para ordenar tenta acessar `item['prazo']` (`undefined`) → tudo vai pro fim. Ainda pior em `Pedidos.faturamento` (acessa `status_faturamento`, mas a key da coluna é `faturamento`) — sort não funciona como esperado. Afetadas: Pedidos, PedidosCompra, Orcamentos, Fiscal, CotacoesCompra.
+### 6. **Coluna de ações inconsistente**
+- DataTable só renderiza `Eye/Copy` (visualizar/duplicar) automaticamente
+- Operacionais (Pedidos/Orcamentos/Fiscal) renderizam **botões inline na própria coluna `acoes`** com texto + ícone ("Gerar NF", "Aprovar", "Enviar") — visualmente pesado, polui a linha
+- Cadastrais ficam só com 2 ícones — coluna Ações fica vazia/desproporcional
 
-### 5. Paginação não reseta com mudança de filtros externos
-`DataTable` reseta `currentPage` só em `handleSort`. Se o usuário está na página 5 e remove um filtro reduzindo dados a 20 linhas, fica numa página vazia. Acontece em todas as listagens.
+Sem padrão de "ação primária visível + secundárias em overflow menu".
 
-### 6. `key={item.id || idx}` em loops cria colisões quando `id` está ausente
-`DataTable` (linhas 459, 706, 712) usa `item.id || idx`. Se 2 itens vierem sem id, mesmo `idx` produz key duplicada. Risco baixo mas incorreto.
+### 7. **Densidade de linha desigual**
+- DataTable usa padding default `p-4` em `<TableCell>`
+- Cadastros com poucas colunas ficam **muito vazios** (linhas altas com pouco conteúdo)
+- Operacionais com muitas colunas + badges + 2 linhas (PrazoBadge tem `flex-col`) ficam **densos demais**
 
-### 7. KPIs calculados sobre `data` vs `filteredData` — inconsistente
-- `Pedidos.kpis` usa `data` (todos) — mostra totais globais
-- `Orcamentos.kpis` usa `data` (todos)
-- `Fiscal.kpis` usa `data` filtrado por `tipo` URL param
-- `Financeiro.kpis` usa `filteredData`
-- `CotacoesCompra.kpis` usa `data`
+### 8. **Status badges com hierarquia diferente em colunas**
+- `StatusBadge` (operacionais) usa cor pastel de fundo + ícone — coerente
+- Pedidos.faturamento usa **outro Badge** com `statusFaturamentoColors` próprio (não passa pelo `StatusBadge`) — escala de cores diferente
+- ContasBancarias/Produtos usam Badge cru `<Badge variant="outline">Ativo</Badge>` para boolean — sem ícone, sem coerência com StatusBadge
 
-Sem padrão. Usuário aplica filtro e KPI não reflete — ou reflete só em algumas telas.
+### 9. **Booleano "Ativo/Inativo" tratado de 4 formas**
+- StatusBadge `status="ativo"` (Pedidos)
+- `<Badge variant={ativo ? "default" : "secondary"}>` (Clientes/Produtos)
+- `<Switch>` na linha (raro)
+- Coluna oculta (alguns)
 
-### 8. Carregamento auxiliar duplicado em todas as páginas
-Cada listagem com filtro por cliente/fornecedor faz seu próprio `supabase.from("clientes").select(...)` em `useEffect`. `Pedidos`, `Orcamentos`, `Conciliacao`, `Fiscal` repetem. Sem cache, sem invalidação, sem cancellation token (somente `Fornecedores`/`Produtos` têm `loadTokenRef`).
+### 10. **Empty state já padronizado mas mensagens fracas**
+DataTable usa `EmptyState` shared, mas `emptyTitle`/`emptyDescription` quase nunca são customizados. Resultado: "Nenhum registro encontrado / Tente ajustar os filtros" em todas as telas — sem orientação contextual ("Cadastre seu primeiro pedido", "Importe via XML").
 
-### 9. Race condition no auto-open via URL param
-`Financeiro` abre drawer quando `?id=` corresponde a item carregado. Usa `autoOpenedRef` para não reabrir, **mas** se o usuário trocar `?id=` na URL sem F5, o ref bloqueia. Em outras (`Produtos`, `Fornecedores`) há `cancelled` flag — bom, mas inconsistente.
+### 11. **KPI cards: número de cards e variação inconsistente**
+- Pedidos: 4 cards (Total/Valor/Em andamento/Atrasados)
+- Orcamentos: 4 cards
+- Fiscal: 4 cards
+- Estoque: 4 cards bons
+- Cadastros: 1 card só ("Total de Clientes") — desperdício de espaço, KPI sem informação útil
 
-### 10. Ações por linha sem prevenção de duplo clique
-`Pedidos.handleGenerateNF`, `PedidoCompraTable.onSend/onReceive`, `Orcamentos.handleSendForApproval/handleApprove/handleConvertToPedido` não desabilitam botão durante request (exceto pelo state `generatingNfId` em Pedidos — bom, mas não aplicado a outras ações). Risco de gerar NF duplicada/PC duplicado.
+Cadastros não exploram KPIs derivados (ex.: "Ativos / Inativos / Sem CPF / Com pendência").
 
-### 11. URL params: padronização inconsistente
-- `Pedidos`/`Orcamentos`: `q`, `status`, `cliente`, `de`, `ate`
-- `PedidosCompra`: `q`, `status`, `fornecedor`, `dataInicio`/`data_inicio` (aceita ambos por compatibilidade — boa intenção, mas indica que houve refactor incompleto)
-- `Fiscal`: usa `searchParams` só pra `tipo`; resto é state local
-- `Financeiro`: hook próprio `useFinanceiroFiltros` com URL state
-- `Estoque`/`ContasBancarias`/`Produtos`: sem URL state — perde-se ao recarregar
+### 12. **Action button no header desproporcional**
+`ModulePage` força botão "Novo X" `h-11 sm:h-9` sempre. Em telas com ações múltiplas (importar/exportar/novo) cada página resolve do seu jeito via `headerActions`. Sem padrão para "ação primária + dropdown de ações secundárias".
 
-### 12. Limpar filtros incompleto
-`Orcamentos.onClearAll` em `AdvancedFilterBar` recebe handler que zera filtros, mas **não limpa `searchTerm`**. Idem em `Pedidos`. O usuário precisa apagar a busca manualmente.
+### 13. **Largura de filtros hardcoded**
+`className="w-[180px]"` se repete ~50× no projeto. Mesma `MultiSelect` com larguras diferentes em telas diferentes (180/200/220 px sem critério).
 
-### 13. `selected*` state vaza entre operações
-`Fiscal` mantém `selected: NotaFiscal | null` que serve tanto para abrir drawer quanto modal de edição quanto devolução. Trocar entre modos pode arrastar o registro errado. `Estoque` tem `selected` (mov) e `selectedPosicao` separados — melhor.
+### 14. **Tabs internos quebram fluxo da página**
+Estoque/Logistica/Auditoria têm tabs **dentro** da `ModulePage`. As tabs ficam soltas após KPIs e antes do toolbar — usuário não percebe que cada tab tem seus próprios filtros (alguns reusam, outros não).
 
-### 14. Optimistic updates do `useSupabaseCrud` não invalidam queries derivadas
-`update` faz cache patch otimista no `queryKey` do próprio hook, mas não em queries com `select` diferente da mesma tabela. Fiscal cria 4 instâncias (`useSupabaseCrud<NotaFiscal>`, `<FornecedorRef>`, `<ClienteRef>`, `<ProdutoRef>`) sobre tabelas distintas — ok. Mas `Financeiro` + `ContasBancarias` operam ambos `contas_bancarias` (saldo) e `financeiro_lancamentos`. Atualizar baixa em Financeiro **não invalida** `contas_bancarias` cache no outro módulo, risco de saldo desatualizado.
+### 15. **Sticky behavior ausente**
+Em listagens longas, `<thead>` não é sticky. Toolbar também rola. Em listas de 100+ linhas perde-se o cabeçalho.
 
-### 15. `DataTable` virtualization quebra layout sob certas condições
-`VirtualizedOrPlainTbody` faz `display: 'block'` no `<tbody>` e usa `<td style={{display: 'contents'}}>` dentro do `<tr>` virtualizado. Em algumas combinações (colspan, scroll-x simultâneo), as colunas perdem alinhamento porque o container virtual é separado do `<thead>` rígido. Threshold default 50 — afeta listagens médias.
+### 16. **Coluna `acoes` sempre na última posição mas nem sempre necessária**
+DataTable injeta coluna de ações sozinho. Algumas páginas adicionam **outra** coluna `acoes` manualmente (Pedidos line 358) — duas colunas de ação na mesma tabela.
 
-### 16. Export usa `pdf` muito básico
-`exportData('pdf')` faz `pdf.text(line.slice(0, 180))` cortando linhas longas. Sem cabeçalho de colunas, sem tabela. Funciona, mas deselegante. Baixa prioridade.
+### 17. **PrazoBadge / SituacaoBadge / FaturamentoBadge — 3 badges customizados que poderiam usar `StatusBadge` com tone**
+Cada um reimplementa cor/ícone/layout `flex-col`. Sem usar o sistema central.
 
-### 17. `EstoqueMovimentacao` filtra por data sem normalização
-`m.created_at < dataInicio` compara ISO timestamp completo com `YYYY-MM-DD`. `'2025-01-15T10:30:00' < '2025-01-15'` é `false` (string compare) → ok, mas fim do dia: `m.created_at > dataFim + "T23:59:59"` ignora milissegundos. Edge case mas existe.
-
-### 18. `Pedidos.handleRequestGenerateNF` chama Supabase **sem await/cancel**
-Função `async` que dispara fetch ao clicar; se usuário clica 2 vezes rapidamente, abre 2 dialogs. Usa `generatingNfId` mas só é setado depois do fetch, não antes.
-
-### 19. `MultiSelect` repetido em todas as páginas com placeholder e width hardcoded
-Padrão `className="w-[180px]"` se repete. Não é bug, mas inconsistência — mesmo filtro em telas diferentes pode ter larguras divergentes.
-
-### 20. `Logs` (Auditoria deprecated) coexiste com `Auditoria.tsx`
-Já documentado no próprio arquivo. Confirmar que sidebar não aponta pra `/admin/logs`.
+### 18. **Contagem de registros aparece 2× em algumas telas**
+`ModulePage` mostra "X registros" no header da toolbar quando `count` é passado, **e** `AdvancedFilterBar` mostra "X registros" no canto direito. Em Pedidos, ambos são populados — duplicação.
 
 ## Estratégia de correção
 
-Foco: padronização e robustez sem reescrever fluxos.
+Foco: **harmonizar reusando o que existe** + criar 3 helpers pequenos. Sem reescrever páginas.
 
-### Fase 1 — Infraestrutura compartilhada
+### Fase 1 — Infraestrutura visual nova/consolidada
 
-**1.1 `useSupabaseCrud` — paginação real opt-in**
-- Aceitar `paginationMode: 'all' | 'paged'`. Quando `'all'`, fazer fetch em chunks de 1000 e concatenar até esgotar `count` (similar ao chunked export já existente).
-- Expor `truncated` com aviso visual padronizado (toast.warning) quando ocorrer e o caller não migrar para paged.
+**1.1 Migrar `StatCard` → `SummaryCard`**
+Tornar `StatCard` um wrapper deprecation-shim que repassa para `SummaryCard` com defaults (`density="default"`). Migrar imports nos 9 cadastros.
+Resultado: KPI visual unificado em todo sistema.
 
-**1.2 `useUrlListState` (hook novo)**
-- Encapsula `useSearchParams` + serialização: `q`, `status[]`, `cliente[]`, `de`, `ate`, etc.
-- API: `const { value, set, clear } = useUrlListState({ schema })`. Substitui ~80 linhas duplicadas em `Pedidos`/`Orcamentos`/`PedidosCompra`/Fiscal.
-- Padroniza nomes (`dataInicio`/`dataFim`, removendo aliases legados gradualmente).
+**1.2 `ListPageHeader` (novo, opcional)**
+Substitui o header da `ModulePage` em telas operacionais quando faz sentido:
+```tsx
+<ListPageHeader
+  title="Pedidos de Venda"
+  contextLine={`${count} pedidos · ${atrasados} atrasados · ${formatCurrency(totalValue)}`}
+  primaryAction={{ label: "Novo Pedido", icon: Plus, onClick }}
+  secondaryActions={[{ label: "Importar XML", onClick }, { label: "Exportar", onClick }]}
+/>
+```
+- Linha de contexto vira **resumo escaneável** acima do título
+- `secondaryActions` vão para dropdown overflow consistente
+- Mantém `ModulePage` simples para cadastros que não precisam disso
 
-**1.3 `useReferenceCache` (hook novo)**
-- Wrapper sobre React Query para `clientes`/`fornecedores`/`contas_bancarias`/`grupos_produto` — uma query global compartilhada com `staleTime: 5min`.
-- Substitui os ~12 `useEffect(()=>supabase.from("clientes")...)` espalhados.
+**1.3 `FilterToolbar` (refactor de `AdvancedFilterBar`)**
+- Adiciona zona de **filtros primários** (sempre visíveis, ex.: status) vs **secundários** (collapse atrás de "Mais filtros")
+- Aceita `dateRange={{ from, to, onChange }}` com componente unificado (em vez de 2 `<Input type="date">` soltos)
+- Larguras via tokens `FILTER_W_SM` (140) `FILTER_W_MD` (180) `FILTER_W_LG` (220)
+- Remove duplicação de "X registros" (só mostra se `ModulePage` não mostrou)
 
-**1.4 `DataTable` correções**
-- Remover (ou esconder por flag) o popover de "Filtros avançados" interno — está duplicando `AdvancedFilterBar` e ninguém usa.
-- Resetar `currentPage` quando `data.length` mudar e `currentPage > totalPages - 1`.
-- `key={item.id ?? \`row-${idx}\`}` em vez de `item.id || idx`.
-- Sort-safe: ignorar (ou tornar não-sortable por default) colunas sem `key` mapeada no item; aceitar `sortValue?: (item) => string|number` para colunas calculadas.
-- Não virtualizar com scroll-x simultâneo (fallback para plain tbody).
+**1.4 `RowActions` (componente)**
+Substitui as colunas `acoes` manuais nas operacionais:
+```tsx
+<RowActions
+  primary={{ label: "Gerar NF", icon: FileOutput, onClick, disabled }}
+  secondary={[
+    { label: "Editar", icon: Edit, onClick },
+    { label: "Duplicar", icon: Copy, onClick },
+  ]}
+  destructive={{ label: "Excluir", onClick }}
+/>
+```
+- Primária visível como ícone+label compacto
+- Secundárias em `DropdownMenu` (overflow `MoreVertical`)
+- Destrutiva sempre por último, vermelha
+- Reaproveitável em Pedidos/PedidosCompra/Orcamentos/Fiscal/Financeiro/Recebimentos
 
-**1.5 `useActionLock` aplicado a ações de linha**
-Já existe (criado para drawers). Aplicar nos botões "Gerar NF", "Aprovar", "Enviar", "Receber", "Converter".
+**1.5 Padronização do `StatusBadge`**
+- Mover `statusFaturamentoColors` (Pedidos) para `statusConfig` central do `StatusBadge`
+- Adicionar tones para todos os status faturamento/devolução
+- Substituir 4 padrões de "Ativo/Inativo" por `<StatusBadge status={ativo ? 'ativo' : 'inativo'} />`
+
+**1.6 Sticky `<thead>` no `DataTable`**
+- `position: sticky; top: 0` no `<thead>` quando `maxHeight` definido OU `data.length > 25`
+- Não muda layout para listas curtas
 
 ### Fase 2 — Aplicação cirúrgica por listagem
 
-| Listagem | Ajuste técnico |
+| Listagem | Ajuste visual |
 |---|---|
-| `Pedidos` | KPIs sobre `filteredData`; lock em "Gerar NF"; clearAll também limpa `q`; usar `useUrlListState`; sort-safe nas colunas calculadas |
-| `Orcamentos` | KPIs sobre `filteredData`; lock em send/approve/convert; clearAll inclui `q` |
-| `PedidosCompra` | Lock em onSend/onReceive; padronizar `dataInicio`/`dataFim` (remover alias) |
-| `CotacoesCompra` | Lock em ações de drawer já tratado; verificar KPIs sobre `data` está correto pelo contexto (manter) |
-| `Fiscal` | Mover `selected` ambíguo para estados separados (`selectedDrawer`, `selectedEdit`, `selectedDevolucao`); KPIs sobre `filteredData` |
-| `Financeiro` | Validar invalidação cruzada `contas_bancarias` ↔ `financeiro_lancamentos` (queryClient.invalidateQueries em ambos após baixa) |
-| `Produtos`/`Clientes`/`Fornecedores`/`GruposEconomicos` | Remover `useEffect` de cargas auxiliares duplicadas → `useReferenceCache` |
-| `ContasBancarias`/`ContasContabeis` | Adicionar URL state mínimo (`q`, filtros) |
-| `Estoque` | URL state para aba ativa (`?tab=`); date-range normalizar para ISO completo na comparação |
-| `Conciliacao` | Cancellation token nos fetches por período |
-| `MigracaoDados` | `onDelete` placeholder retorna toast — ok manter, só remover do `DataTable` se não há intenção |
-| `Logs` (deprecated) | Confirmar inacessível por sidebar/rotas; marcar removível em ronda futura |
+| **Cadastros** (Clientes/Fornecedores/Produtos/Transportadoras/Funcionarios/GruposEconomicos/UnidadesMedida/FormasPagamento) | Migrar `StatCard` → `SummaryCard`; expandir KPIs (Total/Ativos/Inativos/Específico do módulo); padronizar Ativo/Inativo via `StatusBadge` |
+| **Pedidos** | Adotar `ListPageHeader` com contextLine; `RowActions` substitui coluna acoes manual; mover `PrazoBadge` para usar `StatusBadge` com tones; date range unificado |
+| **Orcamentos** | Mesmo de Pedidos; remover duplicação de count; agrupar status+faturamento via `StatusBadge` |
+| **PedidosCompra** | `RowActions` para Enviar/Receber/Editar; date range unificado; KPIs sobre `filteredData` (já feito tecnicamente, só revisar visual) |
+| **CotacoesCompra** | `RowActions`; KPIs com `variant` semântico |
+| **Fiscal** | `ListPageHeader` com contextLine ("X notas · Y pendentes · Z confirmadas"); `RowActions` para Confirmar/Estornar; status uniformizado |
+| **Financeiro** | Date range unificado (manter chips de preset que funcionam bem); `RowActions` para Baixar/Estornar; KPIs com `variant` por tipo (success=receber, danger=pagar/vencido) |
+| **ContasBancarias/ContasContabeis** | Migrar `StatCard` → `SummaryCard`; sticky thead em ContasContabeis (lista longa) |
+| **FluxoCaixa/Conciliacao** | Sticky thead; padronizar status badges |
+| **Estoque** | Tabs já estão ok; só padronizar empty states de cada tab; `RowActions` no histórico |
+| **Logistica** | Mesmo Estoque; harmonizar com Remessas |
+| **Auditoria/Logs** | Sticky thead obrigatório (lista grande); empty state contextual |
+| **MigracaoDados** | Empty state com CTA para próxima fase |
+| **DataTable** (componente) | Sticky thead; remover popover "Filtros avançados" interno (já desabilitado por flag, agora remover dead code) |
 
-### Fase 3 — Padronização final
-- Largura de filtros via constante `FILTER_WIDTH_DEFAULT = 'w-[180px]'`.
-- `EmptyState` já usado pelo `DataTable` — só revisar `emptyTitle`/`emptyDescription` faltantes em `Estoque`/`Conciliacao`.
-- Documentar contrato `Column<T>` com `sortValue`.
+### Fase 3 — Polimento final
+- Padronizar `gap-3` no grid de KPIs e `gap-2` em filtros
+- Densidade de linha do DataTable: passar para `py-3 px-4` (vs `p-4`) — economia vertical sem aperto
+- Subtítulos contextuais em todas as ListPageHeader operacionais
+- Empty states com `actionLabel` quando faz sentido (ex.: "Adicionar primeiro cliente")
 
 ### Fora do escopo
-- Não tocar em `Relatorios.tsx` (page de leitura, comportamento diferente)
-- Não migrar React Query para v5 nem mexer em `queryClient` config
-- Não redesenhar visualmente
-- Não mudar regras de negócio (KPI redefinido só onde for inconsistência clara — Fiscal/Pedidos/Orcamentos)
-- Não mexer em `ApresentacaoGerencial`/`Social` (módulos opt-in)
+- Não tocar lógica de negócio
+- Não mexer em formulários (modais/drawers de edição)
+- Não redesenhar tema/cores base
+- Não migrar React Query nem hooks técnicos
+- Relatorios/ApresentacaoGerencial/Social mantidos como estão
 
 ## Critério de aceite
-- `useSupabaseCrud` não trunca silenciosamente >1000 registros (avisa OU pagina)
-- Sort não quebra em colunas calculadas
-- Paginação não trava em página vazia ao mudar filtros
-- Dupla camada de filtros do `DataTable` removida (ou explicitamente desativada por default)
-- Ações por linha previnem duplo clique
-- KPIs consistentes (sobre `filteredData`) em Fiscal/Pedidos/Orcamentos
-- Cargas auxiliares duplicadas centralizadas em `useReferenceCache` para clientes/fornecedores
-- URL state padronizado via `useUrlListState`
+- KPIs unificados via `SummaryCard` (sem `StatCard` legado em uso direto)
+- Toolbar sem duplicação de count/search
+- Filtros com hierarquia primária/secundária + date range unificado
+- Coluna de ações em operacionais via `RowActions` (primária + overflow)
+- Status booleano "Ativo/Inativo" sempre via `StatusBadge`
+- Sticky `<thead>` em listas longas
+- Empty states contextuais por módulo
 - Build OK (`tsc --noEmit`); sem regressão funcional
 
 ## Entregáveis
-Tabela final por listagem: `problema → ajuste aplicado → pendência (se houver)`.
+Tabela final por listagem: `problema visual → ajuste aplicado`.
 
