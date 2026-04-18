@@ -38,6 +38,7 @@ import { useImportacaoEstoque } from "@/hooks/importacao/useImportacaoEstoque";
 import { useImportacaoXml } from "@/hooks/importacao/useImportacaoXml";
 import { useImportacaoFaturamento } from "@/hooks/importacao/useImportacaoFaturamento";
 import { useImportacaoFinanceiro } from "@/hooks/importacao/useImportacaoFinanceiro";
+import { PageShell } from "@/components/PageShell";
 import { useImportacaoEnriquecimento, type EnrichmentType } from "@/hooks/importacao/useImportacaoEnriquecimento";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
