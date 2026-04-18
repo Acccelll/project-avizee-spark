@@ -170,7 +170,7 @@ export default function RemessaFormPage() {
         const created = await create(payload);
         baselineRef.current = form;
         const newId = (created as { id?: string } | null)?.id;
-        if (newId) navigate(`/logistica/remessas/${newId}?created=1`, { replace: true });
+        if (newId) navigate(`/remessas/${newId}?created=1`, { replace: true });
         else navigate("/logistica");
       } else {
         await update(id!, payload);
