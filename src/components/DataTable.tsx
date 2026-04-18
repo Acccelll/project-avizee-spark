@@ -257,18 +257,33 @@ export function DataTable<T extends Record<string, any>>({
 
   const sortedData = useMemo(() => {
     if (!sortKey || !sortDir) return filteredData;
+    const col = columns.find((c) => c.key === sortKey);
+    const accessor = (item: T): string | number | null | undefined => {
+      if (col?.sortValue) return col.sortValue(item);
+      return item[sortKey];
+    };
     return [...filteredData].sort((a, b) => {
-      const aVal = a[sortKey];
-      const bVal = b[sortKey];
+      const aVal = accessor(a);
+      const bVal = accessor(b);
       if (aVal == null && bVal == null) return 0;
       if (aVal == null) return 1;
       if (bVal == null) return -1;
-      const cmp = typeof aVal === 'number' ? aVal - bVal : String(aVal).localeCompare(String(bVal), 'pt-BR');
+      const cmp = typeof aVal === 'number' && typeof bVal === 'number'
+        ? aVal - bVal
+        : String(aVal).localeCompare(String(bVal), 'pt-BR');
       return sortDir === 'asc' ? cmp : -cmp;
     });
-  }, [filteredData, sortKey, sortDir]);
+  }, [filteredData, sortKey, sortDir, columns]);
 
   const totalPages = Math.max(1, Math.ceil(sortedData.length / pageSize));
+
+  // Reset page when filters/data shrink the list past the current page.
+  useEffect(() => {
+    if (currentPage > 0 && currentPage > totalPages - 1) {
+      setCurrentPage(0);
+    }
+  }, [totalPages, currentPage]);
+
   const pageData = sortedData.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
   const pagedData = viewMode === 'infinite' ? sortedData.slice(0, visibleCount) : pageData;
 
