@@ -516,6 +516,42 @@ export default function OrcamentoForm() {
     toast.success(`Template '${tpl.nome}' aplicado`);
   };
 
+  const buildOrcamentoPayload = (override?: Partial<{ numero: string; status: string; validade: string | null }>) => {
+    const formValues = getValues();
+    return {
+      numero: override?.numero ?? formValues.numero,
+      data_orcamento: formValues.dataOrcamento,
+      status: override?.status ?? formValues.status,
+      cliente_id: formValues.clienteId || null,
+      validade: override?.validade !== undefined ? override.validade : (formValues.validade || null),
+      observacoes: formValues.observacoes,
+      observacoes_internas: formValues.observacoesInternas || null,
+      desconto: formValues.desconto,
+      imposto_st: formValues.impostoSt,
+      imposto_ipi: formValues.impostoIpi,
+      frete_valor: formValues.freteValor,
+      outras_despesas: formValues.outrasDespesas,
+      valor_total: valorTotal,
+      quantidade_total: quantidadeTotal,
+      peso_total: pesoTotal,
+      pagamento: formValues.pagamento,
+      prazo_pagamento: formValues.prazoPagamento,
+      prazo_entrega: formValues.prazoEntrega,
+      frete_tipo: formValues.freteTipo,
+      modalidade: formValues.modalidade,
+      cliente_snapshot: clienteSnapshot,
+      transportadora_id: freteTransportadoraId || null,
+      frete_simulacao_id: freteSimulacaoId || null,
+      origem_frete: freteOrigemFrete || null,
+      servico_frete: freteServico || null,
+      prazo_entrega_dias: fretePrazoEntregaDias || null,
+      volumes: freteVolumes || null,
+      altura_cm: freteAlturaCm || null,
+      largura_cm: freteLarguraCm || null,
+      comprimento_cm: freteComprimentoCm || null,
+    };
+  };
+
   const handleSave = async () => {
     // Validar formulário via react-hook-form
     const valid = await trigger(['numero', 'clienteId']);
@@ -548,39 +584,7 @@ export default function OrcamentoForm() {
 
     setSaving(true);
     try {
-      const formValues = getValues();
-      const payload = {
-        numero: formValues.numero,
-        data_orcamento: formValues.dataOrcamento,
-        status: formValues.status,
-        cliente_id: formValues.clienteId || null,
-        validade: formValues.validade || null,
-        observacoes: formValues.observacoes,
-        observacoes_internas: formValues.observacoesInternas || null,
-        desconto: formValues.desconto,
-        imposto_st: formValues.impostoSt,
-        imposto_ipi: formValues.impostoIpi,
-        frete_valor: formValues.freteValor,
-        outras_despesas: formValues.outrasDespesas,
-        valor_total: valorTotal,
-        quantidade_total: quantidadeTotal,
-        peso_total: pesoTotal,
-        pagamento: formValues.pagamento,
-        prazo_pagamento: formValues.prazoPagamento,
-        prazo_entrega: formValues.prazoEntrega,
-        frete_tipo: formValues.freteTipo,
-        modalidade: formValues.modalidade,
-        cliente_snapshot: clienteSnapshot,
-        transportadora_id: freteTransportadoraId || null,
-        frete_simulacao_id: freteSimulacaoId || null,
-        origem_frete: freteOrigemFrete || null,
-        servico_frete: freteServico || null,
-        prazo_entrega_dias: fretePrazoEntregaDias || null,
-        volumes: freteVolumes || null,
-        altura_cm: freteAlturaCm || null,
-        largura_cm: freteLarguraCm || null,
-        comprimento_cm: freteComprimentoCm || null,
-      };
+      const payload = buildOrcamentoPayload();
 
       const itemsPayload = validItems.map(i => ({
         produto_id: i.produto_id, codigo_snapshot: i.codigo_snapshot,
@@ -606,7 +610,7 @@ export default function OrcamentoForm() {
         } catch {/* ignore */}
       }
       toast.success(isEdit ? "Orçamento atualizado com sucesso" : "Orçamento criado com sucesso", {
-        description: `Registro ${formValues.numero} salvo.`,
+        description: `Registro ${payload.numero} salvo.`,
         action: { label: "Visualizar", onClick: () => navigate(orcId ? `/orcamentos/${orcId}` : "/orcamentos") },
       });
       if (!isEdit && orcId) navigate(`/orcamentos/${orcId}`, { replace: true });
