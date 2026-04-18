@@ -62,7 +62,7 @@ export function AppLayout() {
         <main
           id="main-content"
           role="main"
-          className="mx-auto max-w-[1600px] px-3 py-4 pb-28 md:px-6 md:py-6 md:pb-6"
+          className="mx-auto max-w-[1600px] px-3 py-4 pb-28 md:px-6 md:py-5 md:pb-5"
         >
           <Outlet />
         </main>
