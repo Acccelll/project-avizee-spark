@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -13,6 +13,9 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { useDetailFetch } from "@/hooks/useDetailFetch";
+import { useDetailActions } from "@/hooks/useDetailActions";
+import { useInvalidateAfterMutation } from "@/hooks/useInvalidateAfterMutation";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import { pagamentoLabels, freteTipoLabels } from "@/utils/comercial";
 import {
@@ -43,78 +46,61 @@ interface Props {
   id: string;
 }
 
+interface OrcamentoDetail {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  orcamento: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  items: any[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  linkedOV: any | null;
+}
+
 export function OrcamentoView({ id }: Props) {
   const navigate = useNavigate();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [selected, setSelected] = useState<any | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [fetchError, setFetchError] = useState<string | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [items, setItems] = useState<any[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [linkedOV, setLinkedOV] = useState<any | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [convertConfirmOpen, setConvertConfirmOpen] = useState(false);
   const [approveConfirmOpen, setApproveConfirmOpen] = useState(false);
   const [poNumberCliente, setPoNumberCliente] = useState("");
   const [dataPoCliente, setDataPoCliente] = useState("");
-  const [actionLoading, setActionLoading] = useState(false);
-  const [generatingToken, setGeneratingToken] = useState(false);
   const { pushView, clearStack } = useRelationalNavigation();
   const { isAdmin } = useIsAdmin();
+  const { run, locked, isAnyLocked } = useDetailActions();
+  const invalidate = useInvalidateAfterMutation();
 
-  const fetchData = useCallback(async () => {
-    if (!supabase) {
-      setFetchError("Serviço de banco de dados não disponível.");
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    setFetchError(null);
-    try {
-      const { data: orc, error: orcError } = await supabase
-        .from("orcamentos")
-        .select("*, clientes(id, nome_razao_social)")
-        .eq("id", id)
-        .maybeSingle();
+  const { data, loading, error, reload } = useDetailFetch<OrcamentoDetail>(id, async (oId, signal) => {
+    const { data: orc, error: orcError } = await supabase
+      .from("orcamentos")
+      .select("*, clientes(id, nome_razao_social)")
+      .eq("id", oId)
+      .abortSignal(signal)
+      .maybeSingle();
+    if (orcError) throw orcError;
+    if (!orc) return null;
 
-      if (orcError) {
-        setFetchError(`Erro ao carregar cotação: ${orcError.message}`);
-        setSelected(null);
-        return;
-      }
-      if (!orc) {
-        setSelected(null);
-        setItems([]);
-        return;
-      }
-      setSelected(orc);
+    const [{ data: it }, { data: ov }] = await Promise.all([
+      supabase
+        .from("orcamentos_itens")
+        .select("*, produtos(id, nome, sku)")
+        .eq("orcamento_id", orc.id)
+        .abortSignal(signal),
+      supabase
+        .from("ordens_venda")
+        .select("id, numero")
+        .eq("cotacao_id", orc.id)
+        .abortSignal(signal)
+        .maybeSingle(),
+    ]);
 
-      const [{ data: it }, { data: ov }] = await Promise.all([
-        supabase
-          .from("orcamentos_itens")
-          .select("*, produtos(id, nome, sku)")
-          .eq("orcamento_id", orc.id),
-        supabase
-          .from("ordens_venda")
-          .select("id, numero")
-          .eq("cotacao_id", orc.id)
-          .maybeSingle(),
-      ]);
+    return {
+      orcamento: orc,
+      items: it || [],
+      linkedOV: ov || null,
+    };
+  });
 
-      setItems(it || []);
-      setLinkedOV(ov || null);
-    } catch (error) {
-      setFetchError(`Erro inesperado: ${error instanceof Error ? error.message : String(error)}`);
-      setSelected(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [id]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  const selected = data?.orcamento ?? null;
+  const items = data?.items ?? [];
+  const linkedOV = data?.linkedOV ?? null;
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -128,64 +114,42 @@ export function OrcamentoView({ id }: Props) {
     ? `${window.location.origin}/orcamento-publico?token=${selected.public_token}`
     : null;
 
-  const handleSendForApproval = async () => {
-    setActionLoading(true);
-    try {
+  const handleSendForApproval = () =>
+    run("send_approval", async () => {
       await sendForApproval(selected);
-      await fetchData();
-    } catch (err: unknown) {
-      toast.error(getUserFriendlyError(err));
-    } finally {
-      setActionLoading(false);
-    }
-  };
+      await reload();
+      invalidate(["orcamentos"]);
+    }).catch(() => {});
 
-  const handleApprove = async () => {
-    setActionLoading(true);
-    try {
+  const handleApprove = () =>
+    run("approve", async () => {
       await approveOrcamento(selected);
-      await fetchData();
-    } catch (err: unknown) {
-      toast.error(getUserFriendlyError(err));
-    } finally {
-      setActionLoading(false);
+      await reload();
+      invalidate(["orcamentos"]);
       setApproveConfirmOpen(false);
-    }
-  };
+    }).catch(() => {});
 
-  const handleConvertToOV = async () => {
-    setActionLoading(true);
-    try {
+  const handleConvertToOV = () =>
+    run("convert", async () => {
       await convertToPedido(selected, {
         poNumber: poNumberCliente,
         dataPo: dataPoCliente,
       });
       setPoNumberCliente("");
       setDataPoCliente("");
-      await fetchData();
-      clearStack();
-      navigate(`/pedidos`);
-    } catch (err: unknown) {
-      toast.error(getUserFriendlyError(err));
-    } finally {
-      setActionLoading(false);
+      await reload();
+      invalidate(["orcamentos", "ordens_venda", "pedidos"]);
       setConvertConfirmOpen(false);
-    }
-  };
+      // Mantém o usuário na visualização para ver o pedido vinculado
+      // (em vez de navegar para fora)
+    }).catch(() => {});
 
-  const handleGeneratePublicToken = async () => {
-    setGeneratingToken(true);
-    try {
-      const token = await ensurePublicToken(selected.id);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      setSelected((prev: any) => ({ ...prev, public_token: token }));
+  const handleGeneratePublicToken = () =>
+    run("token", async () => {
+      await ensurePublicToken(selected.id);
+      await reload(); // refetch para pegar token + side-effects do DB
       toast.success("Link público gerado!");
-    } catch (err: unknown) {
-      toast.error(getUserFriendlyError(err));
-    } finally {
-      setGeneratingToken(false);
-    }
-  };
+    }).catch(() => {});
 
   const handleCopyLink = async () => {
     if (publicLink) {
@@ -193,7 +157,6 @@ export function OrcamentoView({ id }: Props) {
         await navigator.clipboard.writeText(publicLink);
         toast.success("Link copiado!");
       } catch {
-        // Fallback para ambientes sem permissão de clipboard
         toast.error("Não foi possível copiar o link. Copie manualmente.", { description: publicLink });
       }
     }
