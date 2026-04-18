@@ -33,6 +33,8 @@ import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { getUserFriendlyError } from "@/utils/errorMessages";
+import { useSubmitLock } from "@/hooks/useSubmitLock";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 
 interface Transportadora {
   id: string;
@@ -118,7 +120,8 @@ export default function Transportadoras() {
     selected?.id,
     "transportadoras",
   );
-  const [saving, setSaving] = useState(false);
+  const { saving, submit } = useSubmitLock();
+  const { confirm: confirmDiscard, dialog: confirmDiscardDialog } = useConfirmDialog();
   const [clientesVinculados, setClientesVinculados] = useState<ClienteVinculado[]>([]);
   const [remessasVinculadas, setRemessasVinculadas] = useState<RemessaVinculada[]>([]);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
