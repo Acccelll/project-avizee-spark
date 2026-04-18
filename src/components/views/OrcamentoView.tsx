@@ -540,9 +540,10 @@ export function OrcamentoView({ id }: Props) {
         onClose={() => setDeleteConfirmOpen(false)}
         onConfirm={async () => {
           try {
-            const { error } = await supabase.from("orcamentos").delete().eq("id", id);
-            if (error) throw error;
+            const { error: delErr } = await supabase.from("orcamentos").delete().eq("id", id);
+            if (delErr) throw delErr;
             toast.success("Cotação excluída com sucesso.");
+            invalidate(["orcamentos"]);
             clearStack();
           } catch (err: unknown) {
             console.error("[OrcamentoView] erro ao excluir:", err);
