@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
@@ -13,6 +13,7 @@ interface ProductAutocompleteProps {
 export function ProductAutocomplete({ products, value, onChange, placeholder, className }: ProductAutocompleteProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const selectedProduct = products.find((p) => p.id === value);
   const displayValue = selectedProduct ? `${selectedProduct.sku ? `[${selectedProduct.sku}] ` : ""}${selectedProduct.nome}` : "";
@@ -27,8 +28,20 @@ export function ProductAutocomplete({ products, value, onChange, placeholder, cl
     ).slice(0, 15);
   }, [products, search]);
 
+  // Click-outside (substitui setTimeout no onBlur).
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
   return (
-    <div className="relative">
+    <div ref={containerRef} className="relative">
       <Input
         value={open ? search : displayValue}
         onChange={(e) => {
@@ -39,7 +52,6 @@ export function ProductAutocomplete({ products, value, onChange, placeholder, cl
           setSearch("");
           setOpen(true);
         }}
-        onBlur={() => setTimeout(() => setOpen(false), 200)}
         placeholder={placeholder || "Buscar produto..."}
         className={cn("h-9", className)}
       />
