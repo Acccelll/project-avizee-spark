@@ -129,6 +129,7 @@ export function DataTable<T extends Record<string, any>>({
   emptyTitle = 'Nenhum registro encontrado',
   emptyDescription = 'Tente ajustar os filtros ou adicione um novo registro.',
   showColumnToggle = false,
+  showInternalFilters = false,
   onBatchDelete,
   onBatchStatusChange,
   renderInlineDetails,
