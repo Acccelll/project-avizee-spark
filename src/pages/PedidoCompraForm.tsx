@@ -227,10 +227,7 @@ export default function PedidoCompraForm() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => {
-                if (isDirty && !window.confirm("Existem alterações não salvas. Deseja sair?")) return;
-                navigate("/pedidos-compra");
-              }}
+              onClick={handleBack}
               aria-label="Voltar"
             >
               <ArrowLeft className="h-4 w-4" />
@@ -404,14 +401,7 @@ export default function PedidoCompraForm() {
         </div>
 
         <div className="flex justify-between">
-          <Button
-            variant="outline"
-            onClick={() => {
-              if (isDirty && !window.confirm("Existem alterações não salvas. Deseja sair?")) return;
-              navigate("/pedidos-compra");
-            }}
-            className="gap-2"
-          >
+          <Button variant="outline" onClick={handleBack} className="gap-2">
             <ArrowLeft className="h-4 w-4" /> Voltar para Pedidos
           </Button>
           {!isTerminal && (
