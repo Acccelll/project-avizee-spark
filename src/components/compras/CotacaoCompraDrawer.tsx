@@ -7,9 +7,8 @@
  * - CotacaoCompraPropostasPanel (comparativo + propostas por item)
  */
 import { useMemo } from "react";
-import { ViewDrawerV2 } from "@/components/ViewDrawerV2";
+import { ViewDrawerV2, DrawerStickyFooter } from "@/components/ViewDrawerV2";
 import { StatusBadge } from "@/components/StatusBadge";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/format";
 import {
