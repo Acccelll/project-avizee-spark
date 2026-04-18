@@ -430,7 +430,7 @@ const ContasBancarias = () => {
             </div>
           )}
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => setModalOpen(false)}>Cancelar</Button>
+            <Button type="button" variant="outline" onClick={closeModal}>Cancelar</Button>
             <Button type="submit" disabled={saving}>{saving ? "Salvando..." : "Salvar"}</Button>
           </div>
         </form>
@@ -476,6 +476,7 @@ const ContasBancarias = () => {
         onEdit={(c) => openEdit(c)}
         onDelete={(c) => handleDelete(c)}
       />
+      {confirmDialog}
     </AppLayout>
   );
 };
