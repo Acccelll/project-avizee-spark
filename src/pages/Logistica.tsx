@@ -16,7 +16,7 @@ import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
 import { ViewDrawerV2 } from "@/components/ViewDrawerV2";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { useAuth } from "@/contexts/AuthContext";
+import { useCan } from "@/hooks/useCan";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { toast } from "sonner";

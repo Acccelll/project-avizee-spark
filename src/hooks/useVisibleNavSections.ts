@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { navSections, type NavSection, type NavSectionKey } from '@/lib/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCan } from '@/hooks/useCan';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { getSocialPermissionFlags } from '@/types/social';
 import type { ErpResource } from '@/lib/permissions';
@@ -29,8 +30,12 @@ const sectionResourcesMap: Partial<Record<NavSectionKey, ErpResource[]>> = {
  */
 export function useVisibleNavSections(): NavSection[] {
   const { isAdmin } = useIsAdmin();
-  const { roles, can, permissionsLoaded } = useAuth();
-  const socialPermissions = useMemo(() => getSocialPermissionFlags(roles), [roles]);
+  const { roles, extraPermissions, permissionsLoaded } = useAuth();
+  const { can } = useCan();
+  const socialPermissions = useMemo(
+    () => getSocialPermissionFlags(roles, extraPermissions),
+    [roles, extraPermissions]
+  );
 
   return useMemo(() => {
     const withoutAdmin = isAdmin ? navSections : navSections.filter((s) => s.key !== 'administracao');
@@ -44,7 +49,7 @@ export function useVisibleNavSections(): NavSection[] {
         if (permissionsLoaded && !hasRecognizedRoles) return true;
         const resources = sectionResourcesMap[s.key];
         if (!resources || resources.length === 0) return true;
-        return resources.some((resource) => can(resource, 'visualizar'));
+        return resources.some((resource) => can(`${resource}:visualizar`));
       });
   }, [isAdmin, socialPermissions.canViewModule, can, roles, permissionsLoaded]);
 }
