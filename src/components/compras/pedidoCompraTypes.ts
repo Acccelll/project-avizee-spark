@@ -37,16 +37,26 @@ export interface ProdutoOptionRow {
   ativo?: boolean | null;
 }
 
-export const emptyPedidoForm = {
-  fornecedor_id: "",
-  data_pedido: new Date().toISOString().split("T")[0],
-  data_entrega_prevista: "",
-  data_entrega_real: "",
-  frete_valor: "",
-  condicao_pagamento: "",
-  status: "rascunho",
-  observacoes: "",
-};
+/**
+ * Returns a fresh empty form. Use this (not a constant) so the
+ * `data_pedido` reflects the current day at the moment the form is
+ * opened, not when the module was loaded.
+ */
+export function buildEmptyPedidoForm() {
+  return {
+    fornecedor_id: "",
+    data_pedido: new Date().toISOString().slice(0, 10),
+    data_entrega_prevista: "",
+    data_entrega_real: "",
+    frete_valor: "",
+    condicao_pagamento: "",
+    status: "rascunho",
+    observacoes: "",
+  };
+}
+
+/** @deprecated Prefer `buildEmptyPedidoForm()` to avoid stale dates. */
+export const emptyPedidoForm = buildEmptyPedidoForm();
 
 export const pedidoNumero = (p: Pick<PedidoCompra, "id" | "numero">) =>
   p.numero || `PC-${p.id}`;

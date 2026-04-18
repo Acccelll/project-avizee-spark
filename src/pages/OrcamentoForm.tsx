@@ -350,8 +350,13 @@ export default function OrcamentoForm() {
             toast.error("Cotação não encontrada.", { description: `Nenhuma cotação com ID ${id}.` });
           }
         } else {
-          const { data: novoNumero } = await supabase.rpc('proximo_numero_orcamento');
-          setValue('numero', novoNumero || `COT${String(Date.now()).slice(-6)}`);
+          const { data: novoNumero, error: numErr } = await supabase.rpc('proximo_numero_orcamento');
+          if (numErr || !novoNumero) {
+            console.error('[OrcamentoForm] proximo_numero_orcamento falhou:', numErr);
+            toast.error('Não foi possível gerar o número do orçamento. Tente novamente.');
+            return;
+          }
+          setValue('numero', novoNumero);
         }
       } catch (err: unknown) {
         console.error("[OrcamentoForm] erro ao carregar dados:", err);
@@ -628,27 +633,18 @@ export default function OrcamentoForm() {
       return;
     }
     try {
-      const { data: newNumero } = await supabase.rpc('proximo_numero_orcamento');
-      const payload = {
-        numero: newNumero || `COT${String(Date.now()).slice(-6)}`,
-        data_orcamento: new Date().toISOString().split("T")[0], status: "rascunho",
-        cliente_id: clienteId || null, validade: null, observacoes, observacoes_internas: observacoesInternas || null,
-        desconto, imposto_st: impostoSt,
-        imposto_ipi: impostoIpi, frete_valor: freteValor, outras_despesas: outrasDespesas,
-        valor_total: valorTotal, quantidade_total: quantidadeTotal, peso_total: pesoTotal,
-        pagamento, prazo_pagamento: prazoPagamento, prazo_entrega: prazoEntrega,
-        frete_tipo: freteTipo, modalidade, cliente_snapshot: clienteSnapshot,
-        // Preservar todos os metadados de frete do simulador
-        transportadora_id: freteTransportadoraId || null,
-        frete_simulacao_id: freteSimulacaoId || null,
-        origem_frete: freteOrigemFrete || null,
-        servico_frete: freteServico || null,
-        prazo_entrega_dias: fretePrazoEntregaDias || null,
-        volumes: freteVolumes || null,
-        altura_cm: freteAlturaCm || null,
-        largura_cm: freteLarguraCm || null,
-        comprimento_cm: freteComprimentoCm || null,
-      };
+      const { data: newNumero, error: numErr } = await supabase.rpc('proximo_numero_orcamento');
+      if (numErr || !newNumero) {
+        console.error('[orcamento] duplicar — proximo_numero_orcamento falhou:', numErr);
+        toast.error('Não foi possível gerar o número do orçamento. Tente novamente.');
+        return;
+      }
+      // Compartilha a forma do payload com `handleSave` via override.
+      const payload = buildOrcamentoPayload({
+        numero: newNumero,
+        status: "rascunho",
+        validade: null,
+      });
 
       const itemsPayload = validItems.map(i => ({
         produto_id: i.produto_id, codigo_snapshot: i.codigo_snapshot,

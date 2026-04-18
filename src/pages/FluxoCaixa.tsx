@@ -40,11 +40,17 @@ interface LancamentoForm {
   observacoes: string;
 }
 
-const emptyForm: LancamentoForm = {
+/**
+ * Builds a fresh empty form so `data_vencimento` reflects the current
+ * day at form-open time (avoids "stale today" in long sessions).
+ */
+const buildEmptyForm = (): LancamentoForm => ({
   tipo: "receber", descricao: "", valor: 0,
-  data_vencimento: new Date().toISOString().split("T")[0],
+  data_vencimento: new Date().toISOString().slice(0, 10),
   status: "aberto", forma_pagamento: "", conta_bancaria_id: "", observacoes: "",
-};
+});
+
+const emptyForm: LancamentoForm = buildEmptyForm();
 
 const tipoOpts: MultiSelectOption[] = [
   { value: "receber", label: "A Receber" },
@@ -327,7 +333,7 @@ const FluxoCaixa = () => {
       });
       toast.success("Lançamento registrado com sucesso");
       setModalOpen(false);
-      setForm({ ...emptyForm });
+      setForm(buildEmptyForm());
       await reload();
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Erro desconhecido";
@@ -409,7 +415,7 @@ const FluxoCaixa = () => {
             }}>
               <FileDown className="w-3.5 h-3.5" /> Exportar
             </Button>
-            <Button size="sm" className="gap-2" onClick={() => setModalOpen(true)}>
+            <Button size="sm" className="gap-2" onClick={() => { setForm(buildEmptyForm()); setModalOpen(true); }}>
               <Plus className="w-3.5 h-3.5" /> Lançar
             </Button>
           </>

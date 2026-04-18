@@ -43,9 +43,11 @@ export default function PedidoCompraForm() {
   const { saving, submit } = useSubmitLock({ errorPrefix: "Erro ao salvar pedido" });
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
   const [pedido, setPedido] = useState<PedidoCompra | null>(null);
+  // Use a fresh date when initialising the form (avoid module-level
+  // constant that would freeze "today" at bundle load time).
   const [form, setForm] = useState({
     fornecedor_id: "",
-    data_pedido: new Date().toISOString().split("T")[0],
+    data_pedido: new Date().toISOString().slice(0, 10),
     data_entrega_prevista: "",
     data_entrega_real: "",
     frete_valor: "",
