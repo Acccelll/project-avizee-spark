@@ -237,7 +237,8 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
 
   const openCreate = () => {
     setMode("create");
-    setForm({ ...emptyPedidoForm });
+    // Use a fresh form so `data_pedido` reflects today's date.
+    setForm(buildEmptyPedidoForm());
     setItems([]);
     setSelected(null);
     setModalOpen(true);
@@ -250,7 +251,7 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
     setViewCotacao(null);
     setForm({
       fornecedor_id: p.fornecedor_id ? String(p.fornecedor_id) : "",
-      data_pedido: p.data_pedido || new Date().toISOString().split("T")[0],
+      data_pedido: p.data_pedido || todayISO(),
       data_entrega_prevista: p.data_entrega_prevista || "",
       data_entrega_real: p.data_entrega_real || "",
       frete_valor: String(p.frete_valor ?? ""),
