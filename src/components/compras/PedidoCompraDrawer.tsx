@@ -6,7 +6,7 @@ import { ViewField, ViewSection } from "@/components/ViewDrawer";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { StatusBadge } from "@/components/StatusBadge";
 import { RelationalLink } from "@/components/ui/RelationalLink";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { LogisticaRastreioSection } from "@/components/logistica/LogisticaRastreioSection";
@@ -94,12 +94,6 @@ export function PedidoCompraDrawer({
     return { label: "Pendente", color: "secondary" };
   })();
 
-  const recebimentoColorClass: Record<string, string> = {
-    success: "text-success",
-    warning: "text-warning",
-    destructive: "text-destructive",
-    secondary: "text-muted-foreground",
-  };
 
   const estoquePorProduto: Record<string, number> = viewEstoque.reduce<Record<string, number>>(
     (acc, m) => {
