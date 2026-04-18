@@ -130,7 +130,10 @@ export function ProdutoView({ id }: Props) {
       <div className="flex items-center justify-end gap-1 border-b pb-3">
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Editar produto" onClick={() => { clearStack(); navigate('/produtos', { state: { editId: id } }); }}>
+            <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Editar produto" onClick={() => {
+              navigate(`/produtos?editId=${id}`);
+              window.setTimeout(() => clearStack(), 0);
+            }}>
               <Edit className="h-4 w-4" />
             </Button>
           </TooltipTrigger>

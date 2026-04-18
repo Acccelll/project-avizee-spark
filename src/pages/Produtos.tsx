@@ -146,18 +146,28 @@ const Produtos = () => {
   }, []);
 
   useEffect(() => {
-    const editId = (location.state as { editId?: string } | null)?.editId;
+    const stateEditId = (location.state as { editId?: string } | null)?.editId;
+    const searchEditId = new URLSearchParams(location.search).get("editId");
+    const editId = stateEditId || searchEditId;
     if (!editId) return;
     let cancelled = false;
     supabase.from("produtos").select("*").eq("id", editId).maybeSingle().then(({ data: p }) => {
       if (cancelled) return;
       if (p) openEdit(p as unknown as Produto);
-      navigate(location.pathname, { replace: true, state: {} });
+      const nextSearch = new URLSearchParams(location.search);
+      nextSearch.delete("editId");
+      navigate(
+        {
+          pathname: location.pathname,
+          search: nextSearch.toString() ? `?${nextSearch.toString()}` : "",
+        },
+        { replace: true, state: {} }
+      );
     });
     return () => { cancelled = true; };
   // openEdit is stable; navigate/pathname are stable refs
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.state]);
+  }, [location.pathname, location.search, location.state]);
 
   const produtosDisponiveis = data;
 
