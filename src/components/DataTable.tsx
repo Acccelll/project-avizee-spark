@@ -716,12 +716,14 @@ export function DataTable<T extends Record<string, any>>({
                 )}
               >
                 <table className="w-full">
-                  <thead>
-                    <tr className="border-b bg-muted/50">
-                      {hasActions && <th className="px-2 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Ações</th>}
-                      {selectable && <th className="w-10 px-3 py-3"><Checkbox checked={pagedData.length > 0 && pagedData.every((item) => selectedIds.includes(item.id))} onCheckedChange={toggleSelectAll} /></th>}
+                  <thead className={cn(
+                    (maxHeight || pagedData.length > 25) && 'sticky top-0 z-10',
+                  )}>
+                    <tr className="border-b bg-muted/70 backdrop-blur">
+                      {hasActions && <th className="px-2 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Ações</th>}
+                      {selectable && <th className="w-10 px-3 py-2.5"><Checkbox checked={pagedData.length > 0 && pagedData.every((item) => selectedIds.includes(item.id))} onCheckedChange={toggleSelectAll} /></th>}
                       {visibleColumns.map((col) => (
-                        <th key={col.key} className={cn('px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground', col.sortable !== false && 'cursor-pointer')} onClick={() => col.sortable !== false && handleSort(col.key)}>
+                        <th key={col.key} className={cn('px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground', col.sortable !== false && 'cursor-pointer hover:text-foreground transition-colors')} onClick={() => col.sortable !== false && handleSort(col.key)}>
                           <div className="flex items-center gap-1.5">{col.label}{col.sortable !== false && <SortIcon colKey={col.key} />}</div>
                         </th>
                       ))}
