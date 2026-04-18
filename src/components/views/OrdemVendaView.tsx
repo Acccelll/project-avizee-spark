@@ -204,7 +204,7 @@ export function OrdemVendaView({ id }: Props) {
           <Edit className="h-3.5 w-3.5" /> Editar Pedido
         </Button>
         {canGenerateNF && (
-          <Button size="sm" variant="default" className="h-8 gap-1.5 text-xs" onClick={() => setGenerateNfOpen(true)} disabled={generatingNf}>
+          <Button size="sm" variant="default" className="h-8 gap-1.5 text-xs" onClick={() => setGenerateNfOpen(true)} disabled={locked("generate_nf")}>
             <FileOutput className="h-3.5 w-3.5" /> Gerar NF
           </Button>
         )}
