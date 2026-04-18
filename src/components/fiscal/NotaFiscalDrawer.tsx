@@ -1,5 +1,7 @@
-import { useState, useEffect } from "react";
 import { ViewDrawerV2, ViewField, ViewSection, DrawerStickyFooter } from "@/components/ViewDrawerV2";
+import { useDrawerData } from "@/hooks/useDrawerData";
+import { useActionLock } from "@/hooks/useActionLock";
+import { getNotaFiscalPermissions } from "@/lib/drawerPermissions";
 import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSummaryCard";
 import { StatusBadge } from "@/components/StatusBadge";
 import { RelationalLink } from "@/components/ui/RelationalLink";
@@ -147,60 +149,44 @@ export function NotaFiscalDrawer({
   open, onClose, selected,
   onEdit, onDelete, onConfirmar, onEstornar, onDevolucao, onDanfe,
 }: NotaFiscalDrawerProps) {
-  const [items, setItems] = useState<NFItem[]>([]);
-  const [lancamentos, setLancamentos] = useState<LancamentoFiscal[]>([]);
-  const [movimentos, setMovimentos] = useState<MovimentoEstoque[]>([]);
-  const [eventos, setEventos] = useState<EventoFiscal[]>([]);
-  const [anexos, setAnexos] = useState<AnexoFiscal[]>([]);
-  const [loadingExtra, setLoadingExtra] = useState(false);
+  const selectedId = selected?.id ?? null;
 
-  useEffect(() => {
-    if (!open || !selected) {
-      setItems([]);
-      setLancamentos([]);
-      setMovimentos([]);
-      setEventos([]);
-      setAnexos([]);
-      return;
-    }
-    setLoadingExtra(true);
-    Promise.all([
-      supabase
-        .from("notas_fiscais_itens")
-        .select("*, produtos(id, nome, sku), contas_contabeis(codigo, descricao)")
-        .eq("nota_fiscal_id", selected.id),
-      supabase
-        .from("financeiro_lancamentos")
-        .select("id, tipo, descricao, valor, data_vencimento, status, forma_pagamento, parcela_numero, parcela_total")
-        .or(`nota_fiscal_id.eq.${selected.id},documento_fiscal_id.eq.${selected.id}`)
-        .order("parcela_numero", { ascending: true }),
-      supabase
-        .from("estoque_movimentos")
-        .select("*, produtos(id, nome, sku)")
-        .eq("documento_id", selected.id)
-        .eq("documento_tipo", "fiscal")
-        .order("created_at", { ascending: true }),
-      supabase
-        .from("nota_fiscal_eventos")
-        .select("*")
-        .eq("nota_fiscal_id", selected.id)
-        .order("data_evento", { ascending: false }),
-      supabase
-        .from("nota_fiscal_anexos")
-        .select("*")
-        .eq("nota_fiscal_id", selected.id)
-        .order("created_at", { ascending: false }),
-    ]).then(([{ data: it }, { data: lanc }, { data: mov }, { data: ev }, { data: anx }]) => {
-      setItems((it || []) as unknown as NFItem[]);
-      setLancamentos(lanc || []);
-      setMovimentos((mov || []) as unknown as MovimentoEstoque[]);
-      setEventos(ev || []);
-      setAnexos(anx || []);
-      setLoadingExtra(false);
-    });
-  }, [open, selected]);
+  const { data: extraData, loading: loadingExtra } = useDrawerData<{
+    items: NFItem[];
+    lancamentos: LancamentoFiscal[];
+    movimentos: MovimentoEstoque[];
+    eventos: EventoFiscal[];
+    anexos: AnexoFiscal[];
+  }>(open, selectedId, async (id) => {
+    const [{ data: it }, { data: lanc }, { data: mov }, { data: ev }, { data: anx }] = await Promise.all([
+      supabase.from("notas_fiscais_itens").select("*, produtos(id, nome, sku), contas_contabeis(codigo, descricao)").eq("nota_fiscal_id", id),
+      supabase.from("financeiro_lancamentos").select("id, tipo, descricao, valor, data_vencimento, status, forma_pagamento, parcela_numero, parcela_total").or(`nota_fiscal_id.eq.${id},documento_fiscal_id.eq.${id}`).order("parcela_numero", { ascending: true }),
+      supabase.from("estoque_movimentos").select("*, produtos(id, nome, sku)").eq("documento_id", id).eq("documento_tipo", "fiscal").order("created_at", { ascending: true }),
+      supabase.from("nota_fiscal_eventos").select("*").eq("nota_fiscal_id", id).order("data_evento", { ascending: false }),
+      supabase.from("nota_fiscal_anexos").select("*").eq("nota_fiscal_id", id).order("created_at", { ascending: false }),
+    ]);
+    return {
+      items: (it || []) as unknown as NFItem[],
+      lancamentos: lanc || [],
+      movimentos: (mov || []) as unknown as MovimentoEstoque[],
+      eventos: ev || [],
+      anexos: anx || [],
+    };
+  });
 
-  if (!selected) return <ViewDrawerV2 open={open} onClose={onClose} title="" />;
+  const items = extraData?.items ?? [];
+  const lancamentos = extraData?.lancamentos ?? [];
+  const movimentos = extraData?.movimentos ?? [];
+  const eventos = extraData?.eventos ?? [];
+  const anexos = extraData?.anexos ?? [];
+
+  const { pending: editPending, run: runEdit } = useActionLock();
+  const { pending: deletePending, run: runDelete } = useActionLock();
+  const { pending: confirmarPending, run: runConfirmar } = useActionLock();
+  const { pending: estornarPending, run: runEstornar } = useActionLock();
+  const { pending: devolucaoPending, run: runDevolucao } = useActionLock();
+
+  if (!open || !selected) return null;
 
   // ── Derived values ───────────────────────────────────────────────────────────
 
@@ -239,12 +225,15 @@ export function NotaFiscalDrawer({
 
   const statusInfo = statusInfoMap[selected.status] ?? null;
 
+  const perms = getNotaFiscalPermissions(selected);
+  // Override fiscal-specific rules (devolução só p/ saída normal)
   const canConfirmar = selected.status === "pendente";
   const canEstornar = selected.status === "confirmada";
   const canDevolucao =
     selected.status === "confirmada" &&
     selected.tipo === "saida" &&
     (selected.tipo_operacao || "normal") === "normal";
+  void perms;
 
   const copyChave = () => {
     navigator.clipboard.writeText(selected.chave_acesso);
@@ -707,7 +696,7 @@ export function NotaFiscalDrawer({
                 </thead>
                 <tbody>
                   {lancamentos.map((l, idx) => (
-                    <tr key={l.id || idx} className="border-b last:border-b-0 hover:bg-muted/20">
+                    <tr key={l.id ?? `lanc-${idx}`} className="border-b last:border-b-0 hover:bg-muted/20">
                       <td className="px-3 py-2 truncate max-w-[140px]">{l.descricao || "—"}</td>
                       <td className="px-3 py-2 text-right font-mono font-medium">
                         {formatCurrency(Number(l.valor))}
@@ -757,7 +746,7 @@ export function NotaFiscalDrawer({
                 </thead>
                 <tbody>
                   {movimentos.map((m, idx) => (
-                    <tr key={m.id || idx} className="border-b last:border-b-0 hover:bg-muted/20">
+                    <tr key={m.id ?? `mov-${idx}`} className="border-b last:border-b-0 hover:bg-muted/20">
                       <td className="px-3 py-2 truncate max-w-[120px]">
                         {m.produtos?.id ? (
                           <RelationalLink type="produto" id={m.produtos.id}>
@@ -837,7 +826,7 @@ export function NotaFiscalDrawer({
       summary={summary}
       actions={
         <>
-          <Button variant="outline" size="sm" className="gap-1.5" aria-label="Editar nota fiscal" onClick={() => { onClose(); onEdit(selected); }}>
+          <Button variant="outline" size="sm" className="gap-1.5" aria-label="Editar nota fiscal" disabled={editPending} onClick={() => runEdit(() => { onEdit(selected); onClose(); })}>
             <Edit className="h-3.5 w-3.5" /> Editar
           </Button>
           <Button
@@ -845,7 +834,8 @@ export function NotaFiscalDrawer({
             size="sm"
             className="gap-1.5 text-destructive border-destructive/30 hover:text-destructive hover:bg-destructive/10"
             aria-label="Excluir nota fiscal"
-            onClick={() => { onClose(); onDelete(selected.id); }}
+            disabled={deletePending}
+            onClick={() => runDelete(() => { onDelete(selected.id); onClose(); })}
           >
             <Trash2 className="h-3.5 w-3.5" /> Excluir
           </Button>
@@ -867,7 +857,8 @@ export function NotaFiscalDrawer({
                 variant="outline"
                 size="sm"
                 className="gap-2 text-destructive border-destructive/30 hover:text-destructive"
-                onClick={() => { onEstornar(selected); onClose(); }}
+                disabled={estornarPending}
+                onClick={() => runEstornar(() => { onEstornar(selected); onClose(); })}
               >
                 <XCircle className="h-4 w-4" /> Estornar
               </Button>
@@ -879,12 +870,12 @@ export function NotaFiscalDrawer({
                 <FileText className="h-4 w-4" /> DANFE
               </Button>
               {canDevolucao && (
-                <Button variant="outline" size="sm" className="gap-2" onClick={() => { onClose(); onDevolucao(selected); }}>
+                <Button variant="outline" size="sm" className="gap-2" disabled={devolucaoPending} onClick={() => runDevolucao(() => { onDevolucao(selected); onClose(); })}>
                   <ArrowLeftRight className="h-4 w-4" /> Devolução
                 </Button>
               )}
               {canConfirmar && (
-                <Button size="sm" className="gap-2" onClick={() => { onConfirmar(selected); onClose(); }}>
+                <Button size="sm" className="gap-2" disabled={confirmarPending} onClick={() => runConfirmar(() => { onConfirmar(selected); onClose(); })}>
                   <CheckCircle className="h-4 w-4" /> Confirmar NF
                 </Button>
               )}
