@@ -1,160 +1,180 @@
 
 
-# Diagnóstico técnico — Navegação (menus, submenus, rotas, estados)
+# Diagnóstico visual — Navegação (sidebar, submenus, mobile, breadcrumbs)
 
-## Inventário
-- **Fonte de verdade**: `src/lib/navigation.ts` (navSections, quickActions, mobileBottomTabs, mobileMenuSections, headerIcons, baseRouteLabels, flatNavItems, isPathActive, getRouteLabel, getNavSectionKey)
-- **Index derivado**: `src/config/navigation.config.ts` (NAVIGATION_ITEMS / NAVIGATION_ITEMS_BY_PATH)
-- **Consumidores**: `AppSidebar`, `MobileBottomNav`, `MobileMenu`, `AppBreadcrumbs`, `AppHeader` (hotkeys), `GlobalSearch`, `Favoritos`, `QuickActions` (dashboard, lista própria), `Administracao` (sub-nav local)
-- **Roteamento**: `src/App.tsx` (45 rotas + 9 redirects)
+## Inventário visual atual
 
-## Problemas encontrados
+| Superfície | Estado |
+|---|---|
+| Sidebar desktop | Header logo + busca + Favoritos + Dashboard + 9 seções + Footer Configurações |
+| Sidebar colapsada (72px) | Apenas ícones, com badge de módulo flutuante |
+| Submenu expandido | Indentação `ml-3 + border-l`, items `text-[13px]`, ativo `bg-primary/10 text-primary` |
+| Item ativo módulo | Apenas `text-primary` (sem fundo, sem barra) |
+| Item ativo Dashboard/Footer | `bg-primary text-primary-foreground` (sólido — destoa) |
+| Mobile bottom nav | 4 tabs + Menu |
+| Mobile drawer (MobileMenu) | Cards com `border` por seção |
+| Breadcrumbs | Sempre visíveis no AppHeader desktop |
 
-### A. Rotas vs Menu — divergências reais
+## Problemas visuais reais encontrados
 
-**A1. `/administracao?tab=*` quebrado** — submenus apontam para `tab=empresa|usuarios|email|fiscal|financeiro` (linhas 195-199), mas `AppBreadcrumbs.configTabs` mapeia chaves `geral|usuarios|email|fiscal|financeiro|aparencia` para `/configuracoes`. Isso significa: **(a)** os links do menu vão para `/administracao?tab=empresa`, mas o breadcrumb leitor está pensado para `/configuracoes`; **(b)** se `Administracao.tsx` não lê `?tab=`, todos os 5 links abrem a mesma aba inicial. Precisa verificar `Administracao.tsx`.
+### 1. **Hierarquia ativo confusa — 3 estilos coexistem**
+- Dashboard / Configurações usam `.sidebar-item-active` = **fundo primary sólido + texto branco** (chamativo, parece "principal").
+- Header de seção ativo usa apenas `text-primary` (sem fundo, sem barra lateral) → **subutilizado, mal sinalizado**.
+- Item de submenu ativo usa `bg-primary/10 text-primary` (suave).
+- Favorito ativo usa `bg-primary/10 text-primary`.
 
-**A2. `Migração de Dados` e `Auditoria` listados sob "Administração"** — porém são rotas `/migracao-dados` e `/auditoria`, que são `AdminRoute` independentes. Os submenus 1 (Empresa/Usuários/...) e 2 (Migração/Auditoria) misturam navegação por aba interna com navegação por rota. Inconsistência estrutural — usuário não distingue.
+Resultado: Dashboard sempre "grita" mesmo quando não é o foco; o header de seção (módulo atual) quase desaparece.
 
-**A3. Cadastros faltando** — `formas-pagamento` está no menu mas não tem entrada em `headerIcons`/`baseRouteLabels` consistente; `unidades-medida` aparece em `headerIcons` e `baseRouteLabels` mas a rota é `<Navigate to="/produtos">` (deprecada) e **não está no menu** — ok, mas o label/ícone órfão deveria ser removido.
+### 2. **Sem indicador de seção ativa quando o submenu está aberto**
+Quando o usuário está em `/clientes` (Cadastros aberto), o **header "Cadastros"** muda só a cor do texto. Falta um indicador permanente (barra lateral, fundo sutil) que diga "este é o módulo atual".
 
-**A4. Aliases ainda referenciados em headerIcons/baseRouteLabels**: `/cotacoes`, `/ordens-venda`, `/remessas`, `/caixa` — todos são `<Navigate>` redirects. Manter labels é defensivo, mas duplica manutenção. `/cotacoes` ainda exibe "Cotações" no breadcrumb durante o redirect transient.
+### 3. **Item ativo do submenu sem barra lateral**
+A border-l do container é uniforme/cinza. O item ativo só ganha pill colorido. Em ERPs maduros, a barra lateral colorida acompanha o item ativo, ancorando visualmente "você está aqui".
 
-**A5. `Workbook Gerencial` (`/relatorios/workbook-gerencial`) e `Apresentação Gerencial` (`/relatorios/apresentacao-gerencial`) estão sob "Financeiro"** no `navSections`, não sob "Relatórios". Mas a rota tem prefixo `/relatorios/` — incoerência semântica entre agrupamento do menu e estrutura de URL. Quando o usuário navega para essas rotas, `getNavSectionKey` retorna **`relatorios`** (porque match por `directPath` `/relatorios`), mas o submenu expandido fica em "Financeiro". Estado ativo bagunçado.
+### 4. **Densidade desbalanceada**
+- `.sidebar-item` (Dashboard/Config): `py-2.5`
+- Header de seção: `py-2`
+- Item de submenu: `py-1.5`
+- Favorito: `py-1.5`
+Diferenças visíveis. O Dashboard fica mais alto que tudo.
 
-**A6. `Social` como `directPath`** — ok, mas filtro em `visibleSections` usa `socialPermissions.canViewModule` enquanto `sectionResourcesMap.social = ['dashboard']` (linha 83). Resource `dashboard` não representa Social — efeito: filtro roda 2× com lógicas diferentes. Confuso.
+### 5. **Ícones sem peso consistente**
+- Headers de seção: `h-[18px]`
+- Dashboard/Config (sidebar-item): `h-5 w-5`
+- Favorito: `h-3`
+- Submenu: sem ícone
+Tamanhos pulam de 12px a 20px sem padrão.
 
-### B. Estado ativo / expansão
+### 6. **Submenu sem ícones secundários**
+Itens de submenu (Clientes, Produtos, Orçamentos…) **não têm ícone**, apenas texto. Em sidebars de ERP, ícones discretos de 14px ajudam o scan rápido. Hoje a leitura é puramente textual.
 
-**B1. `getNavSectionKey` falha em rotas nested**
-Para `/orcamentos/123` (formulário), itera `entry.items.some(...)` checando `pathname.startsWith(item.path + '/')`. Funciona para `/orcamentos`, mas **`/orcamentos/novo`** e **`/orcamentos/123`** retornam `comercial` ✓. Porém **`/relatorios/workbook-gerencial`** começa com `/relatorios` (directPath de Relatórios) → retorna `relatorios`, mas o item está sob `financeiro` (A5).
+### 7. **Favoritos: estrela ocupa o espaço do ícone**
+`<Star className="h-3 w-3 fill-warning">` — a estrela é tanto marcador "favorito" quanto faz papel de ícone do item. O usuário perde o vínculo visual com o módulo de origem (Cliente vs Produto vs Orçamento parecem iguais na lista de favoritos).
 
-**B2. `isItemActive` na sidebar usa `currentRoute === targetPath` para itens com `?query`** (linha 107). Significa que `/fiscal?tipo=entrada` só fica ativo no match exato; navegando para `/fiscal/123` o item "Notas de Entrada" perde o ativo. Ok? Sim, mas o **submenu Fiscal não expande** porque `isItemActive` não considera nested + query. Resultado: ao abrir uma NF detalhe, o grupo Fiscal colapsa mesmo estando "dentro" do módulo.
+### 8. **Star button atrapalha alinhamento**
+O botão de favoritar usa `opacity-0 group-hover:opacity-100` e fica **fora** do botão principal. Empurra o badge para a esquerda, gera reflow visual no hover.
 
-**B3. Manual override vs derivado** — `manualSections[key]` sobrepõe estado derivado. Se o usuário fechar manualmente "Comercial" e depois clicar em `/orcamentos`, o submenu **não reabre** (linhas 166-171). Comportamento ambíguo: em ERPs maduros o clique em rota força expansão.
+### 9. **Header da sidebar pesado**
+Logo (36px) + título "AviZee" + chip "ERP" + botão chevron — 4 elementos numa barra de 64px. Pode-se simplificar (logo + título; chevron menor).
 
-**B4. `activeSectionKeys` deps incompletas** — `useMemo([currentRoute, visibleSections])` mas `isItemActive` (closure) depende de `location.pathname`. Há um eslint-disable na linha 132 mascarando. Em prática `currentRoute` cobre, mas vale anotar.
+### 10. **Search button visualmente solto**
+`border bg-background` num bloco isolado entre logo e nav. Parece um input de formulário no meio da sidebar. Faltam linhas-guia (ou virar item parte do header).
 
-### C. Permissões
+### 11. **Badge inconsistente entre módulo e item**
+- Módulo: `h-5 min-w-5 rounded-full text-[10px] font-bold`
+- Item: `h-5 min-w-5 rounded-full text-[10px] font-semibold`
+- Colapsado: `h-4 min-w-4 text-[9px]` flutuando no canto
+Pequenas mas notáveis. Padronizar em um único token.
 
-**C1. `sectionResourcesMap` não casa com `permissions.ts`** — vou abrir para validar; provável que recursos como `'compras'`, `'logistica'`, `'faturamento_fiscal'` não existam todos no enum `ErpResource`. Cast implícito esconderia erros se houvesse `as`.
+### 12. **Footer sem separação clara**
+Apenas `border-t`. Texto "Última sincronização" ocupa espaço sem hierarquia. Botão Configurações usa o estilo "ativo agressivo" do Dashboard.
 
-**C2. Filtro de Admin é binário** — `isAdmin ? all : remove(administracao)`. Mas `Migração de Dados` e `Auditoria` (dentro de "Administração") são `AdminRoute`. Para um não-admin, a seção inteira somem ✓. Mas **se um dia houver não-admin com acesso a Auditoria**, eles não verão. Acoplamento rígido.
+### 13. **Mobile MobileMenu — cards excessivos**
+Cada seção é um `rounded-2xl border bg-card/70 p-4`. Resultado: muitos retângulos empilhados, parece lista de cards de produto, não menu. Hierarquia visual perdida; rolagem cansativa.
 
-**C3. Mobile `MobileMenu` filtra apenas por `isAdmin`**, ignora `can(resource, 'visualizar')`. Desktop usa permissões; mobile não. **Vazamento de itens visíveis no mobile** que não deveriam aparecer.
+### 14. **MobileBottomNav — texto pequeno e ícones genéricos**
+4 tabs com label `text-[11px]` (verificar). Sem indicador de tab ativo que respire (geralmente uma pill ou underline).
 
-**C4. `MobileBottomNav` não filtra nada** — sempre mostra "Comercial", "Cadastros", "Financeiro" mesmo para usuários sem permissão.
+### 15. **Breadcrumbs no AppHeader sem ícone do módulo**
+Mostra "Dashboard / Cadastros / Clientes" puro texto. O ícone do módulo (Users) ajuda muito a ancorar. Hoje só aparece como "page icon" do header (à parte).
 
-### D. Estrutura de código
+### 16. **Tipografia tracking muito agressiva nos headers de seção**
+`tracking-[0.2em]` + `text-[10px]` uppercase em "Favoritos" e nos títulos de grupo dentro do submenu. Em sidebar densa fica ilegível, parece código.
 
-**D1. Duas fontes de verdade quase iguais**
-- `flatNavItems` (em `lib/navigation.ts`)
-- `NAVIGATION_ITEMS` (em `config/navigation.config.ts`)
-Ambas derivam de `navSections` com lógica idêntica. **Duplicação literal**. `NAVIGATION_ITEMS` adiciona `icon` no Dashboard e tipa como `MenuItem`. `flatNavItems` tipa como `FlatNavItem`. Consolidar em uma só.
+## Estratégia visual
 
-**D2. `headerIcons` + `baseRouteLabels` separados de `navSections`** — para adicionar uma rota nova, precisa atualizar 3 lugares (navSections + headerIcons + baseRouteLabels). Tipagem não enforça. **Fonte única deveria ser `navSections` com ícone por leaf**.
+**Princípio:** Reorganizar a hierarquia ativo (sutil → forte) e padronizar densidade/ícones. Sem refazer arquitetura.
 
-**D3. `mobileMenuSections` é hardcoded** (linhas 215-217) — lista as keys `['compras', 'estoque', 'fiscal', 'relatorios', 'administracao']`. Se adicionar uma seção nova, esquecer aqui é fácil. E **omite** `cadastros`, `comercial`, `financeiro`, `social` do menu mobile (porque já estão em quickActions/bottom tabs?), mas sem documentação.
+### Fase 1 — Sistema de estados ativo (novo padrão)
 
-**D4. `mobileBottomTabs` keys (`inicio`, `comercial`, `cadastros`, `financeiro`)** não correspondem a `navSections.key` (`comercial` ✓, `cadastros` ✓, `financeiro` ✓, mas `inicio` não existe — `getNavSectionKey('/')` retorna `'inicio'` ad-hoc). Funciona por sorte; deveria ter uma constante compartilhada.
+Reescala em 3 níveis bem definidos:
 
-**D5. AppSidebar com 433 linhas** — múltiplas responsabilidades: render de Dashboard, Favoritos, Sections, Footer; lógica de expansion (manual+derivado), badges (3 fontes), filtro de permissões, tooltips. Candidato a quebrar em `<SidebarFavorites>`, `<SidebarSection>`, `<SidebarSectionItem>`, `<SidebarFooter>`.
+| Nível | Onde | Visual |
+|---|---|---|
+| **Item folha ativo** | Submenu / Favorito / Dashboard / Config | Barra lateral 2px primary à esquerda + `bg-primary/10` + `text-primary font-medium` |
+| **Seção ativa (header de módulo)** | Header de uma seção que contém a rota atual | `bg-primary/5` + `text-primary` + ícone primary |
+| **Hover** | Qualquer item | `bg-accent text-foreground` |
 
-### E. Performance e tipagem
+Resultado: Dashboard e Configurações **deixam de usar fundo sólido primary** (que parecia "selecionado de menu superior"); ganham o mesmo tratamento dos demais itens-folha. Hierarquia coerente.
 
-**E1. `useSidebarAlerts` re-renderiza a sidebar inteira** a cada update de alerta — ok porque está no topo, mas seria melhor consumir só onde os badges são renderizados.
+### Fase 2 — Densidade e tipografia padronizadas
 
-**E2. `as const` ausente em `navSections`** — dificulta autocomplete de keys (`section.key`).
+- Todos os itens (header de seção, item folha, dashboard, config, favorito): `py-2 px-3`, `text-sm`
+- Tokens de label de grupo: `text-[11px] font-semibold uppercase tracking-wider` (não `0.2em`)
+- Ícones de header de seção: `h-[18px] w-[18px]`
+- **Adicionar ícones de leaf** (`h-4 w-4 text-muted-foreground`) a cada item de submenu, derivados de `headerIcons`/`item.icon`
+- Estrela do favorito: vira **botão lateral pequeno**, item mantém ícone do módulo
 
-**E3. Tipagem de `MenuItem.children`** existe mas nunca é usada (todas as Views são 1 nível).
+### Fase 3 — Submenu refinado
 
-### F. Acessibilidade
+- Manter `border-l` mas com cor mais suave (`border-border/50`)
+- Item ativo: **a border-l** se torna primary nesse trecho (via pseudo-elemento ou box-shadow inset). Cria a "barra de ancoragem" típica de ERP.
+- Indentação reduzida: `ml-2 pl-3` (hoje `ml-3 pl-3` deixa muito profundo)
+- Group label só aparece se a seção tem 2+ grupos (já é regra; manter)
 
-**F1. `aria-current="page"` correto na sidebar para itens ativos** ✓
-**F2. `aria-expanded` nas seções** ✓
-**F3. Botão favoritar dentro de botão de nav** — `<button>` aninhado dentro de `<div>` ao lado de outro `<button>`. Estrutura ok (não aninhado), mas screen-reader anuncia ambos ao tabular.
-**F4. Foco visível** ok via Tailwind defaults.
+### Fase 4 — Header e footer da sidebar
 
-### G. Breadcrumbs
+- Header: logo 32px + "AviZee" mono + chevron menor (`h-3.5`). Remover chip "ERP" (redundante).
+- Search: virar item integrado, sem borda extra; usar `bg-muted/40` para parecer "campo discreto"
+- Favoritos com label `text-[11px] uppercase tracking-wider` (mesmo do grupo de submenu)
+- Footer: separador mais sutil; "Última sincronização" como `text-[10px] text-muted-foreground/70` com ponto de status colorido (verde se < 60s)
 
-**G1. Duplica resolução de label** — `resolvePageTitle` tem casos especiais para `/configuracoes`, `/relatorios`, `/financeiro`, mas `configTabs` usa **`geral`** (não `empresa`!) — divergente do menu Administração que usa `?tab=empresa`. Bug latente.
+### Fase 5 — Sidebar colapsada (rail 72px)
 
-**G2. Builder do path** — quebra `pathname.split('/')` cumulativamente, então `/relatorios/workbook-gerencial` produz items `Dashboard / Relatórios / Workbook Gerencial`. Funciona. Para `/orcamentos/123/edit` (não existe hoje) seria `Dashboard / Orçamentos / 123`. Sem caso especial.
+- Tooltip nativo via `title` já existe; adicionar **chip flutuante mais polido** ao hover (já há `aria-label`)
+- Indicador de seção ativa colapsada: barra vertical 3px primary à esquerda do ícone (em vez de só `text-primary`)
+- Badge de módulo: padronizar como dot 8px (sem número) quando colapsado e número grande quando expandido — reduz ruído visual
 
-## Estratégia de correção
+### Fase 6 — Mobile
 
-### Fase 1 — Fonte única de navegação
+**MobileMenu (drawer):**
+- Remover cards individuais; usar lista única com section headers `text-[11px] uppercase tracking-wider text-muted-foreground` + divider sutil
+- Item: `flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-accent`
+- Mantém ícone do módulo + label + chevron `→` à direita
+- Atalhos rápidos: trocar cards coloridos por lista simples em destaque (ou manter no topo, mais compacta)
 
-**1.1 Consolidar `flatNavItems` e `NAVIGATION_ITEMS`**
-- Eliminar `src/config/navigation.config.ts` ou torná-lo apenas um re-export.
-- `NavLeafItem` ganha campo opcional `icon?: LucideIcon`.
-- `flatNavItems` passa a expor `icon` derivado da seção pai (para favoritos).
+**MobileBottomNav:**
+- Tab ativa: ícone preenchido + label + barra superior 2px primary OU pill background `bg-primary/10` no ícone
+- Label `text-[10px] font-medium`
+- Espaçamento vertical mais aerado
 
-**1.2 Mover `headerIcons` e `baseRouteLabels` para dentro de `navSections`**
-- Cada `NavLeafItem` ganha `icon?` opcional (default = ícone da seção).
-- `getRouteLabel` e `headerIcons` passam a derivar de `flatNavItems`.
-- Remove a triplicação de manutenção.
+### Fase 7 — Breadcrumbs
 
-**1.3 Tipar keys de seção com `as const`**
-- `export const NAV_SECTION_KEYS = ['cadastros', 'comercial', ...] as const`.
-- `mobileBottomTabs.key` e `mobileMenuSections` referenciam o tipo.
+- Adicionar ícone do módulo antes do nome do módulo (segundo item)
+- Separador `chevron-right` mais sutil (`text-muted-foreground/40`)
+- Último item (página atual) em `text-foreground font-medium`
 
-### Fase 2 — Correções funcionais
+## Componentes/arquivos afetados
 
-**2.1 Mover Workbook/Apresentação para "Relatórios"** (ou converter Relatórios em seção expansível)
-- Opção A: criar `relatorios` como seção expansível com sub-itens [Workbook, Apresentação, Relatórios Operacionais (`/relatorios`)].
-- Opção B: manter Relatórios como direct + criar uma seção "Gerencial" dentro de Financeiro.
-- **Decisão recomendada: A** — alinha URL e agrupamento, conserta `getNavSectionKey`.
+- `src/index.css` — adicionar `.sidebar-item-leaf-active` e `.sidebar-section-active`, ajustar `.sidebar-item`
+- `src/components/sidebar/SidebarSection.tsx` — header com novo estado ativo, padding/typography
+- `src/components/sidebar/SidebarSectionItem.tsx` — adicionar ícone leaf, barra ativa, reorganizar star
+- `src/components/sidebar/SidebarFavorites.tsx` — usar ícone do módulo (não estrela)
+- `src/components/sidebar/SidebarFooter.tsx` — visual mais sutil + dot de status
+- `src/components/AppSidebar.tsx` — header simplificado, search refinado, Dashboard usando estilo leaf
+- `src/components/navigation/MobileMenu.tsx` — remover cards, lista unificada
+- `src/components/navigation/MobileBottomNav.tsx` — tab ativa com pill/barra
+- `src/components/navigation/AppBreadcrumbs.tsx` — ícone do módulo + separador sutil
+- `src/lib/navigation.ts` — expor `icon` por leaf (já existe `headerIcons`; passar para `flatNavItems`)
 
-**2.2 Reorganizar Administração**
-- Remover sub-itens `?tab=` do submenu lateral (Administração tem sua própria sidebar interna em `/administracao`).
-- Manter no menu lateral apenas: Administração (rota direta `/administracao`), Migração de Dados, Auditoria.
-- Corrigir `configTabs` em `AppBreadcrumbs` (`geral` → `empresa`, ou ler de constante única).
-
-**2.3 Remover labels/ícones órfãos** — `/unidades-medida`, `/cotacoes`, `/ordens-venda`, `/remessas`, `/caixa` (manter no router como redirect, **remover** do `headerIcons`/`baseRouteLabels`).
-
-**2.4 Estado ativo robusto**
-- `isItemActive` com query: aceitar match base+query exato OU pathname-only quando query do target é "tipo de view".
-- `getNavSectionKey`: priorizar match em `items` específico antes de match em `directPath` (corrige A5/B1).
-- Forçar expansão da seção quando rota muda para item dentro dela (limpa `manualSections[key]` no navigate).
-
-**2.5 Permissões coerentes em mobile**
-- `MobileMenu` aplicar mesma lógica de `visibleSections` da sidebar.
-- `MobileBottomNav` filtrar tabs por permissão.
-- Extrair função `useVisibleNavSections()` reutilizável.
-
-**2.6 Validar `sectionResourcesMap` contra `ErpResource`**
-- Trocar `Record<string, ErpResource[]>` por mapa tipado.
-- Corrigir `social` (não usar `'dashboard'`; usar a flag dedicada).
-
-### Fase 3 — Componentização
-
-**3.1 Quebrar `AppSidebar`** (433 → ~150 linhas):
-- `SidebarFavorites`
-- `SidebarSection` (recebe section, renderiza header + items)
-- `SidebarSectionItem` (item + badge + favorito)
-- `SidebarFooter`
-- `useSidebarBadges()` (extrai mapa de badges)
-
-**3.2 Hook `useNavigationState()`**
-- Centraliza `activeSectionKeys`, `isItemActive`, `isSectionOpen`, manual sections.
-- Reaproveitável por mobile menu se quisermos.
-
-### Fora do escopo
-- Não mudar visual da sidebar (foco técnico).
-- Não tocar `RelationalDrawerStack` nem rotas de detalhe.
-- Não migrar `Administracao.tsx` interno.
+## Fora do escopo
+- Não alterar lógica de `useNavigationState`, permissões, rotas
+- Não tocar drawers de detalhe (RelationalDrawerStack)
+- Não mexer em `Administracao.tsx` interno
+- Não alterar tokens de cor globais (`--primary`, `--secondary`, etc.) — reusa o que existe
 
 ## Critério de aceite
-- Uma só fonte de verdade para itens, ícones e labels (nav/header/breadcrumb).
-- `getNavSectionKey` retorna a seção correta para todas as rotas (incluindo `/relatorios/*`).
-- Item ativo + submenu expandido funcionando para rotas com query e nested.
-- Mobile respeita permissões (paridade com desktop).
-- Submenu de Administração coerente (sem `?tab=` quebrados).
-- `sectionResourcesMap` 100% tipado contra `ErpResource`.
-- AppSidebar < 200 linhas, dividido em sub-componentes.
-- Build OK (`tsc --noEmit`); zero rota quebrada.
+- 3 níveis de ativo claros e consistentes em todas as superfícies
+- Dashboard e Configurações deixam de "gritar" como botões selecionados primários
+- Header de seção do módulo atual fica visualmente ancorado
+- Item folha ativo tem barra lateral primary acompanhando o `border-l`
+- Submenu ganha ícones discretos e leitura mais rápida
+- Favoritos mostram ícone do módulo (não estrela como ícone)
+- Mobile drawer parece menu, não lista de cards
+- Bottom nav com tab ativa evidente
+- Breadcrumb com ícone do módulo
+- Build OK; sem regressão funcional
 
 ## Entregáveis
-Tabela final por área: `problema → correção aplicada → pendência (se houver)`.
+Resumo final por superfície (sidebar desktop, sidebar colapsada, submenu, favoritos, footer, mobile drawer, bottom nav, breadcrumbs).
 
