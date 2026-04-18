@@ -133,17 +133,17 @@ export function ProdutoView({ id }: Props) {
   usePublishDrawerSlots(`produto:${id}`, {
     breadcrumb: selected?.sku ? `Produto · ${selected.sku}` : undefined,
     summary: selected ? (
-      <div className="flex items-start gap-3">
-        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
-          <Package className="h-5 w-5" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <h3 className="font-semibold text-sm leading-tight truncate">{selected.nome}</h3>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5">
-            {selected.sku && <p className="text-[11px] text-muted-foreground font-mono">SKU: {selected.sku}</p>}
-            {selected.codigo_interno && <p className="text-[11px] text-muted-foreground font-mono">Cód: {selected.codigo_interno}</p>}
-          </div>
-          <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+      <RecordIdentityCard
+        icon={Package}
+        title={selected.nome}
+        meta={
+          <>
+            {selected.sku && <span className="font-mono">SKU: {selected.sku}</span>}
+            {selected.codigo_interno && <span className="font-mono">Cód: {selected.codigo_interno}</span>}
+          </>
+        }
+        badges={
+          <>
             <StatusBadge status={selected.ativo ? "ativo" : "inativo"} />
             <StatusBadge status={selected.eh_composto ? "composto" : "simples"} />
             <StatusBadge status={selected.tipo_item || "produto"} />
@@ -153,9 +153,9 @@ export function ProdutoView({ id }: Props) {
                 {grupoNome}
               </span>
             )}
-          </div>
-        </div>
-      </div>
+          </>
+        }
+      />
     ) : undefined,
     actions: selected ? (
       <>
