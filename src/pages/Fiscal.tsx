@@ -878,6 +878,7 @@ const Fiscal = () => {
       />
 
       <DanfeViewer open={danfeOpen} onClose={() => setDanfeOpen(false)} data={danfeData as never} />
+      {confirmDialog}
     </>
   );
 };
