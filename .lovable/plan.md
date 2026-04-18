@@ -1,119 +1,129 @@
 
 
-# Diagnóstico visual — Shell global
+# Diagnóstico técnico — Overlays do sistema
 
-## Inventário visual atual
+## Inventário
 
-| Camada | Altura/largura | Observação |
+| Tipo | Wrapper/Componente | Uso |
 |---|---|---|
-| Sidebar expandida | 240 px | logo + busca + favoritos + 9 seções + footer |
-| Sidebar colapsada | 72 px | só ícones |
-| Topbar | **64 px** (h-16) | breadcrumbs + busca (220px) + Novo + atalhos + tema + notif + conta com nome+cargo |
-| `<main>` | `max-w-[1600px] px-6 py-6` | conteúdo da página |
-| Headers de página | `PageShell` / `ListPageHeader` / `ModulePage` | três padrões |
-| Breadcrumbs | dentro da topbar à esquerda | sempre visível |
+| Modal de formulário | `FormModal` (sobre `Dialog`) | cadastros (Funcionarios, Unidades, etc.) |
+| Modal genérico | `Dialog` direto | ~30 lugares (ad-hoc) |
+| Quick add | `QuickAddClientModal` | orçamento |
+| Confirm | `ConfirmDialog` (sobre `AlertDialog`) | DataTable, ProdutoView, etc. |
+| Confirm Promise-based | `useConfirmDialog` | 12+ páginas (descartar dirty) |
+| Drawer detalhe | `ViewDrawerV2` (sobre `Sheet`) + `RelationalDrawerStack` | views de registro |
+| Bottom-sheet mobile | `Drawer` (vaul) | MobileMenu, Notifications |
+| Popover | `MultiSelect`, calendário, `Relatorios.saveNameOpen` | filtros, datas |
+| Dropdown | `RowActions`, AppHeader, sidebar | menus de ação |
+| Autocomplete inline | `AutocompleteSearch`, `ProductAutocomplete`, `FiscalAutocomplete` | seletores |
+| Command Palette | `GlobalSearch` (CommandDialog) | busca global |
 
-## Problemas visuais reais
+## Problemas reais encontrados
 
-### 1. Topbar pesada demais (64 px)
-A topbar tem 7 elementos competindo por atenção (breadcrumbs + busca grande de 220 px + botão "Novo" + atalhos + tema + notificações + bloco conta com nome e cargo). Em 1128 px de viewport (atual do usuário) sobra pouquíssimo espaço útil. Padrão de ERP maduro: topbar **52–56 px**, com elementos secundários compactados.
+### 1. `window.confirm()` ainda em produção — bloqueia o thread
+`Fiscal.tsx:262, 277` — duas chamadas nativas. UX inconsistente, ignora tema, não acessível, bloqueia o event loop. Resto do sistema migrou para `useConfirmDialog`.
 
-### 2. Bloco "conta" desbalanceado
-`Avatar 36px + nome + cargo` ocupa ~180 px na direita só para mostrar info que o usuário já sabe. Notion/Linear/Odoo modernos mostram **só o avatar**; nome aparece no dropdown. Ganha-se ~140 px para o conteúdo central.
+### 2. `useConfirmDialog` perde a Promise se desmontado
+Se a página desmontar enquanto o dialog está aberto, `resolverRef.current` nunca é chamado → Promise pendurada para sempre. Falta cleanup no unmount que rejeite/resolva como `false`.
 
-### 3. Busca de 220 px no header desnecessária
-Já existe busca dedicada na sidebar com mesmo atalho ⌘K. Manter as duas é redundante. No header bastava um botão-ícone (igual aos demais), pois a ação primária de busca vive no rail lateral.
+### 3. `useConfirmDialog` não suporta loading async
+A API resolve `boolean` imediatamente no clique; quem chamou faz a operação **depois**. Não há como manter o dialog aberto com spinner enquanto roda. `ConfirmDialog` aceita `loading`, mas o hook nunca expõe. Resultado: dialog fecha → ação roda em background → se falhar, usuário já navegou.
 
-### 4. Breadcrumb subutilizado verticalmente
-A topbar tem 64 px e o breadcrumb é uma única linha de texto pequeno. Sobra bastante "ar" vertical não usado — mas a topbar continua alta. Falta uma **segunda linha opcional** com título da página + ações rápidas, OU reduzir a altura.
+### 4. `ConfirmDialog` não trava ESC/click-outside durante loading
+`onOpenChange={onClose}` (linha 39) chama `onClose` mesmo com `loading=true`. AlertDialog do Radix permite fechar por ESC, e `onClose` dispara abort sem cancelar a promessa real.
 
-### 5. Falta separação visual entre topbar e conteúdo
-Topbar usa `border-b border-border bg-background/95 backdrop-blur`. O fundo `<main>` é o mesmo `bg-background`. Sem contraste, a página parece "flutuar". Falta o efeito típico de ERP: topbar levemente diferenciada (bg-card ou shadow-sm) que ancora visualmente.
+### 5. `FormModal.onClose` é chamado em qualquer mudança (incluindo abrir)
+`<Dialog open={open} onOpenChange={onClose}>` — `onOpenChange` recebe boolean. Hoje o handler ignora o valor e sempre chama `onClose()`. Funciona por sorte (Radix só dispara em fechar), mas é frágil — basta o pai re-renderizar com prop nova para acionar fechamento espúrio. Padrão correto: `onOpenChange={(o) => { if (!o) onClose(); }}` (já usado em ContaContabilEditModal, ViewDrawerV2, etc — inconsistência).
 
-### 6. PageShell repete o título da topbar
-O breadcrumb já mostra "Cadastros / Clientes / **Novo Cliente**", e o `PageShell` repete `<h1>Novo Cliente</h1>` logo abaixo. Duplicação visual. ERPs maduros usam **um ou outro**: ou breadcrumb forte + título compacto, ou breadcrumb sutil + título grande. Hoje os dois competem.
+### 6. FormModal não checa `isDirty` ao fechar
+A pílula "Alterações não salvas" aparece, mas ESC/click-outside fecha sem confirmação. Cada página re-implementa isso manualmente (`useConfirmDialog` + handler customizado). Lógica de "guard dirty" deveria viver no FormModal via prop opcional `confirmOnDirty`.
 
-### 7. PageShell sem hairline divisor
-O header do PageShell (título + ações) e o conteúdo abaixo ficam num mesmo bloco `space-y-6`. Sem `border-b` ou shadow, falta ancoragem do "header da página" como zona distinta.
+### 7. Autocompletes inline com `setTimeout(setOpen(false), 200)` — race condition clássica
+`ProductAutocomplete.tsx:42`, `FiscalAutocomplete.tsx:33`. Padrão antigo para "esperar o click acontecer antes do blur fechar". Quebra quando: (a) o usuário clica fora rápido (200ms é arbitrário), (b) o componente desmonta no meio (timer pendente vaza), (c) há scroll com touch (blur dispara mais cedo). Solução: usar `onMouseDown={e.preventDefault()}` no item da lista (já feito em ProductAutocomplete, mas não em FiscalAutocomplete) + click-outside listener (como `AutocompleteSearch` faz corretamente).
 
-### 8. Padding do `<main>` defasado para o shell
-`px-6 py-6` no main + `px-6` na topbar — quando a sidebar está colapsada, o conteúdo ganha 168 px extras, mas o `max-w-[1600px]` raramente é atingido em notebooks (1366–1440 px). Resultado: em larguras intermediárias o conteúdo respira bem; em telas muito largas há mar de vazio nas laterais sem que ninguém olhe pra isso.
+### 8. Dropdowns de overlay dentro de Dialog/Drawer perdem foco
+Casos como `RowActions` dentro de drawer + popover de filtros aninhados: cada Radix root cria seu próprio focus-trap. Quando o nested fecha, o foco volta para o `body` (não para o trigger). Sem `restoreFocus` explícito, a navegação por teclado quebra.
 
-### 9. Sidebar sem hairline interno entre zonas
-Header (logo) → busca → favoritos → dashboard → seções → footer. Apenas o header e o footer têm `border-b/-t`. Favoritos, busca e seções fluem sem separação. Em ERPs maduros, há **divisores extra-sutis** entre busca/nav e entre nav/footer.
+### 9. Conflito Z-index / Portal entre overlays empilhados
+`FormModal` usa `z-50` no overlay, `Dialog` aninhado também usa `z-50`. Quando há 3+ camadas (drawer → modal → confirm → toast), a ordem visual é determinada pela ordem de portal — frágil se um modal abre antes do outro. Não há sistema de stack-order centralizado.
 
-### 10. Avatar bordered competindo com primary
-`Avatar` tem `border border-border` + `bg-primary text-primary-foreground` no fallback. A combinação cria um halo desnecessário. Em produtos modernos o avatar é flat ou tem ring sutil só no hover/focus.
+### 10. `RelationalDrawerStack` mistura AlertDialog e Sheets sem coordenação
+O `pendingPush` AlertDialog renderiza sempre que `pendingPush !== null`. Se o usuário já está com 2 drawers abertos e dispara um terceiro, o AlertDialog aparece **acima** de tudo (bom), mas ESC nele fecha o AlertDialog **e** o drawer top simultaneamente (Radix propaga keydown). Falta `onEscapeKeyDown={e.preventDefault()}` no AlertDialog enquanto ele está aberto.
 
-### 11. "Novo" como pílula primary chama mais que tudo
-`<Button className="gap-2 rounded-full px-4">` com fundo primary fica visualmente igual ou maior que o logo. Em ERPs profissionais a ação "Novo" é importante mas não deveria competir com o módulo atual. Padrão melhor: outline ou ghost com ícone destacado.
+### 11. Quick-add modal não usa `useSubmitLock`
+`QuickAddClientModal` usa `useState(saving)` manual. Sem ref síncrona → duplo clique no submit cria 2 clientes. Padrão já existe (`useSubmitLock`) mas não foi adotado.
 
-### 12. Notificações, atalhos e tema sem agrupamento
-3 botões circulares outline em sequência (atalhos, notif, tema) parecem soltos. Falta separador visual ou agrupamento (ex: divider vertical entre "ações da página" e "ações do usuário").
+### 12. ConfirmDialog do DataTable mistura confirm + checkbox como children
+`DataTable.tsx:780-784` injeta o checkbox "não perguntar novamente" como children do ConfirmDialog. Funciona, mas mistura responsabilidades. O checkbox grava no localStorage no momento do toggle, não no momento do confirmar — se usuário marcar e depois cancelar, a pref já foi salva.
 
-### 13. Sidebar header com tipografia genérica
-"AviZee" em `text-sm font-semibold` — sem peso de marca. Em ERPs modernos o header da sidebar usa logo + nome do produto com tipografia mais distintiva (ou só logo, sem texto).
+### 13. Múltiplos padrões de `onOpenChange` para o mesmo objetivo
+Coexistem 4 padrões para "fechar quando o boolean for false":
+- `onOpenChange={onClose}` (FormModal, ConfirmDialog) — ignora valor
+- `onOpenChange={(o) => !o && onClose()}` (ViewDrawerV2, SefazRetornoModal)
+- `onOpenChange={(v) => { if (!v) { setOpen(false); ... } }}` (Clientes, Produtos)
+- `onOpenChange={setOpen}` (MultiSelect, CommandDialog) — controlado direto
 
-### 14. Footer da sidebar perdido
-"Configurações" + sync status + status dot — três informações soltas no rodapé sem hierarquia. Funciona, mas parece "puxadinho".
+Falta padrão único + utilitário `closeOnly(onClose)` ou similar.
 
-## Proposta visual — Padrão-base
+### 14. Selects/Calendars dentro de modais perdem scroll lock
+`Popover` aberto dentro de `Dialog` faz Radix instalar dois `body { overflow: hidden }` simultaneamente. Quando o Popover fecha, ele restaura o scroll **antes** do Dialog fechar — o background scrolla brevemente. Visível em formulários longos com Calendar.
 
-### Topbar — reduzir e equilibrar
-- Altura `h-14` (56 px) em vez de `h-16`
-- Remover bloco nome+cargo do header — só avatar (com ring no focus)
-- Substituir botão de busca de 220 px por **botão-ícone** circular (mesma família dos demais)
-- Reordenar: `[ Breadcrumbs … flex-1 ] [ Novo ] | divider | [ Buscar ] [ Atalhos ] [ Notif ] [ Tema ] [ Avatar ]`
-- "Novo": variant outline com ícone primary, não pílula sólida
-- Adicionar divider vertical sutil entre "ações da página" e "ações do usuário"
-- Topbar com `bg-card/50` (levemente diferente do background) para criar ancoragem
+### 15. Notificações Drawer (vaul) renderiza mesmo desmontado
+`NotificationsPanel.tsx:182-183` envolve `<div onClick=…>{trigger}</div>` + Drawer. Toda re-render do pai re-monta o Drawer. Vaul guarda animation state internamente — pode ficar travado em "closing".
 
-### Breadcrumb — refinar leitura
-- Ícone do módulo permanece no segundo item (já implementado)
-- Último item (página atual) ganha mais peso (`font-semibold`, já é `font-medium`)
-- Separador `chevron-right` `h-3 w-3` (em vez de 3.5)
+### 16. Falta tipagem central para handlers de overlay
+Cada overlay define seu próprio `{ open, onClose }` ou `{ open, onOpenChange }`. Sem tipo `OverlayProps` compartilhado → impossível fazer wrappers genéricos.
 
-### PageShell — eliminar duplicação com breadcrumb
-- Quando o título do PageShell é o **mesmo** do último breadcrumb, renderizar apenas subtítulo/contexto, escondendo o `<h1>` redundante (via prop opcional `hideTitleWhenSameAsBreadcrumb` ou simplesmente reduzindo o `<h1>` para `text-lg` quando há breadcrumb visível)
-- Adicionar `border-b border-border/50 pb-4` no `<header>` interno para ancorar a zona "cabeçalho da página"
-- Botão "voltar" como `variant="ghost"` em `size="sm"` (não icon) — fica mais discreto e o título ganha protagonismo
+## Estratégia de correção
 
-### Sidebar — pequenos ajustes de polimento
-- Adicionar separador `border-b border-border/40` após o bloco busca e antes do footer
-- Header: aumentar peso do "AviZee" para `font-bold` + tracking mais apertado (`tracking-tight`)
-- Footer: agrupar "Configurações" + sync em um bloco com `bg-muted/30 rounded-lg` discreto, melhorando hierarquia
+### Fase 1 — `useConfirmDialog` v2 (corrige #1, #2, #3, #4)
+1. Adicionar suporte a Promise async no confirm: `confirm(opts, asyncAction?)` — se `asyncAction` for passada, mantém dialog aberto com `loading=true` até resolver, fecha no sucesso, mantém aberto + toast no erro.
+2. Cleanup no `useEffect` de unmount que rejeita resolver pendente.
+3. Bloquear ESC/click-outside enquanto `loading=true` (passar `loading` para `ConfirmDialog` + `onOpenChange={(o) => { if (!o && !loading) onClose(); }}`).
+4. Substituir os 2 `window.confirm` em `Fiscal.tsx`.
 
-### `<main>` — densidade ajustada
-- Reduzir `py-6` para `py-5` (compatibiliza com a topbar mais baixa, dá mais tela útil)
-- Manter `max-w-[1600px]` e padding lateral
+### Fase 2 — `FormModal` com guard de dirty (corrige #5, #6)
+1. Padronizar `onOpenChange={(o) => { if (!o) handleClose(); }}` no FormModal.
+2. Aceitar prop opcional `confirmOnDirty?: boolean` (default false). Quando true e `isDirty`, intercepta o close e dispara `useConfirmDialog` interno antes de chamar `onClose`.
+3. Remover guards manuais redundantes nos consumidores (próxima fase, fora deste escopo).
 
-### Avatar — polimento
-- Remover `border border-border`; usar `ring-2 ring-transparent hover:ring-primary/20 focus-visible:ring-primary/40 transition`
-- Mantém aspecto flat e ganha feedback de interação
+### Fase 3 — Padronizar autocompletes inline (corrige #7)
+1. Migrar `ProductAutocomplete` e `FiscalAutocomplete` para o padrão de `AutocompleteSearch`: click-outside listener + `onMouseDown` preventDefault no item, sem setTimeout.
+2. Não unificar componentes (escopos diferentes), apenas remover o anti-pattern.
 
-## Arquivos afetados
+### Fase 4 — Helper `closeOnly` + tipagem (corrige #5, #13, #16)
+1. Criar `src/lib/overlay.ts` exportando:
+   ```ts
+   export type OverlayProps = { open: boolean; onClose: () => void };
+   export const closeOnly = (onClose: () => void) => (open: boolean) => { if (!open) onClose(); };
+   ```
+2. Aplicar em FormModal, ConfirmDialog, ViewDrawerV2 (mantém compat).
 
-- `src/components/navigation/AppHeader.tsx` — altura, ordem, busca como ícone, divider, avatar simplificado
-- `src/components/navigation/AppBreadcrumbs.tsx` — peso do último item, separador menor
-- `src/components/AppLayout.tsx` — `py-5`, `bg-card/50` na topbar (via classe no header)
-- `src/components/PageShell.tsx` — `border-b` no header, "voltar" ghost+sm, lógica de duplicação opcional
-- `src/components/AppSidebar.tsx` — divisores adicionais, header com tipografia ajustada, footer agrupado
-- `src/index.css` — opcional: ajuste sutil em `.page-title` para variação compacta
+### Fase 5 — `useSubmitLock` no QuickAddClientModal (corrige #11)
+
+### Fase 6 — DataTable: corrigir momento de salvar pref (corrige #12)
+Mover `localStorage.setItem('datatable:skip-delete-confirm', ...)` para dentro do `onConfirm`, não no toggle.
+
+### Fase 7 — Fix RelationalDrawerStack ESC (corrige #10)
+Adicionar `onEscapeKeyDown={(e) => { e.preventDefault(); cancelPendingPush(); }}` no AlertDialogContent.
 
 ## Fora do escopo
-- Não tocar lógica de hotkeys, providers, rotas (já refatorados)
-- Não alterar tokens de cor (`--primary`, `--background`)
-- Não mexer em RelationalDrawerStack
-- Não migrar `ModulePage` ou `ListPageHeader` (vivem com PageShell)
+- Não unificar Dialog vs Drawer vs Sheet — propósitos distintos.
+- Não migrar todos os consumidores de FormModal para `confirmOnDirty` (refactor amplo, próxima requisição).
+- Não tocar em GlobalSearch (CommandDialog) e MobileMenu (vaul) — comportamento OK.
+- Z-index global / stack manager: complexo demais para esta passada (item #9 fica como nota técnica).
 
 ## Critério de aceite
-- Topbar 56 px, equilibrada e com agrupamento visual
-- Sem duplicação de "Buscar" (rail + topbar)
-- PageShell + breadcrumb não competem pelo mesmo título
-- Sidebar com hairlines internos sutis e footer agrupado
-- Avatar e ações de usuário discretos
-- Build OK; sem regressão funcional
+- Zero `window.confirm` no código.
+- `useConfirmDialog` aceita ação async com loading anti-fechamento.
+- Cleanup no unmount evita Promise pendurada.
+- Autocompletes sem `setTimeout` arbitrário.
+- FormModal expõe `confirmOnDirty` (opt-in).
+- Quick-add cliente protegido contra duplo clique.
+- DataTable salva pref "não perguntar" só após confirmar.
+- ESC no AlertDialog do drawer-stack não fecha drawer abaixo.
+- Build OK (`tsc --noEmit`); zero regressão funcional.
 
 ## Entregáveis
-Resumo final por superfície: topbar, sidebar, breadcrumb, PageShell.
+Resumo final por tipo: confirm dialogs, form modals, autocompletes inline, quick-add, drawer-stack, DataTable.
 
