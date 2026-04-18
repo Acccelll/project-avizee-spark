@@ -306,6 +306,7 @@ const Pedidos = () => {
     },
     {
       key: "cliente", label: "Cliente",
+      sortValue: (p: Pedido) => p.clientes?.nome_razao_social ?? "",
       render: (p: Pedido) => <span className="font-medium text-sm">{p.clientes?.nome_razao_social || "—"}</span>,
     },
     {
@@ -314,6 +315,7 @@ const Pedidos = () => {
     },
     {
       key: "prazo", label: "Prazo Despacho",
+      sortValue: (p: Pedido) => p.data_prometida_despacho ?? "",
       render: (p: Pedido) => <PrazoBadge dataPrazo={p.data_prometida_despacho} status={p.status} />,
     },
     {
@@ -322,6 +324,7 @@ const Pedidos = () => {
     },
     {
       key: "faturamento", label: "Faturamento",
+      sortValue: (p: Pedido) => p.status_faturamento ?? "",
       render: (p: Pedido) => {
         const sf = p.status_faturamento ?? "";
         return (
@@ -356,7 +359,13 @@ const Pedidos = () => {
       render: (p: Pedido) => (
         <div className="flex gap-1">
           {(p.status === "aprovada" || p.status === "em_separacao") && p.status_faturamento !== "total" && (
-            <Button size="sm" variant="default" className="h-7 text-xs gap-1" onClick={(e) => { e.stopPropagation(); handleRequestGenerateNF(p); }}>
+            <Button
+              size="sm"
+              variant="default"
+              className="h-7 text-xs gap-1"
+              disabled={stockCheckPending || generatingNfId === p.id}
+              onClick={(e) => { e.stopPropagation(); handleRequestGenerateNF(p); }}
+            >
               <FileOutput className="w-3 h-3" /> Gerar NF
             </Button>
           )}
@@ -392,7 +401,7 @@ const Pedidos = () => {
           searchPlaceholder="Buscar por número, PO, cliente ou cotação..."
           activeFilters={activeFilters}
           onRemoveFilter={handleRemoveFilter}
-          onClearAll={() => { setStatusFilters([]); setFaturamentoFilters([]); setClienteFilters([]); setPrazoFilters([]); setDataInicio(""); setDataFim(""); }}
+          onClearAll={() => { setSearchTerm(""); setStatusFilters([]); setFaturamentoFilters([]); setClienteFilters([]); setPrazoFilters([]); setDataInicio(""); setDataFim(""); }}
           count={filteredData.length}
         >
           <MultiSelect
