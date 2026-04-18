@@ -567,6 +567,7 @@ export function ContaContabilEditModal({
           </div>
         </form>
       </DialogContent>
+      {confirmDialog}
     </Dialog>
   );
 }
