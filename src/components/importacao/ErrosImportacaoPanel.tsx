@@ -2,7 +2,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, AlertTriangle, CheckCircle2, FileText, ListChecks } from "lucide-react";
 
 interface ErrosImportacaoPanelProps {
-  data: any[];
+  data: Record<string, unknown>[];
   importType?: string;
 }
 

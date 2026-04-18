@@ -28,6 +28,7 @@ export function ReconciliacaoDetalhe({ lote, isOpen, onClose }: ReconciliacaoDet
     orderBy: "created_at",
     ascending: true,
     hasAtivo: false
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   }) as any;
 
   if (!lote) return null;

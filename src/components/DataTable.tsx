@@ -99,6 +99,18 @@ type SortDirection = 'asc' | 'desc' | null;
 
 const getStorageKey = (moduleKey: string, suffix: string) => `datatable:${moduleKey}:${suffix}`;
 
+function applyRule<T extends Record<string, unknown>>(item: T, rule: FilterRule): boolean {
+  const raw = item[rule.field];
+  if (raw === undefined || raw === null) return false;
+  const text = String(raw).toLowerCase();
+  const value = rule.value.toLowerCase();
+  if (rule.operator === 'contains') return text.includes(value);
+  if (rule.operator === 'equals') return text === value;
+  if (rule.operator === 'gt') return Number(raw) > Number(rule.value);
+  if (rule.operator === 'between') return Number(raw) >= Number(rule.value) && Number(raw) <= Number(rule.valueTo || rule.value);
+  return true;
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function DataTable<T extends Record<string, any>>({
   columns,
@@ -190,6 +202,7 @@ export function DataTable<T extends Record<string, any>>({
   useEffect(() => {
     if (!moduleKey || !user?.id) return;
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       supabase.from('user_preferences' as any).upsert({
         user_id: user.id,
         module_key: moduleKey,
@@ -212,18 +225,6 @@ export function DataTable<T extends Record<string, any>>({
       else next.add(key);
       return next;
     });
-  };
-
-  const applyRule = (item: T, rule: FilterRule) => {
-    const raw = item[rule.field];
-    if (raw === undefined || raw === null) return false;
-    const text = String(raw).toLowerCase();
-    const value = rule.value.toLowerCase();
-    if (rule.operator === 'contains') return text.includes(value);
-    if (rule.operator === 'equals') return text === value;
-    if (rule.operator === 'gt') return Number(raw) > Number(rule.value);
-    if (rule.operator === 'between') return Number(raw) >= Number(rule.value) && Number(raw) <= Number(rule.valueTo || rule.value);
-    return true;
   };
 
   const filteredData = useMemo(() => {

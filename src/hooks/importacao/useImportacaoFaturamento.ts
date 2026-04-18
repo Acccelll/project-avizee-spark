@@ -64,6 +64,7 @@ export function useImportacaoFaturamento() {
       }
     };
     reader.readAsBinaryString(selectedFile);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const onSheetChange = useCallback((sheetName: string, wb: XLSX.WorkBook | null = null) => {
@@ -97,21 +98,23 @@ export function useImportacaoFaturamento() {
       const { data: clientes } = await supabase
         .from("clientes")
         .select("id, nome_razao_social, cpf_cnpj");
+      type ClienteFat = { id: string; nome_razao_social: string; cpf_cnpj: string | null };
       const clienteByCpf = new Map(
-        clientes?.filter((c: any) => c.cpf_cnpj).map((c: any) => [String(c.cpf_cnpj).replace(/\D/g, ""), c.id]) || []
+        clientes?.filter((c: ClienteFat) => c.cpf_cnpj).map((c: ClienteFat) => [String(c.cpf_cnpj).replace(/\D/g, ""), c.id]) || []
       );
       const clienteByName = new Map(
-        clientes?.map((c: any) => [String(c.nome_razao_social).toUpperCase(), c.id]) || []
+        clientes?.map((c: ClienteFat) => [String(c.nome_razao_social).toUpperCase(), c.id]) || []
       );
 
       const { data: produtosBanco } = await supabase
         .from("produtos")
         .select("id, codigo_interno, codigo_legado, nome");
+      type ProdutoFat = { id: string; codigo_interno: string | null; codigo_legado: string | null; nome: string };
       const prodByLegado = new Map(
-        produtosBanco?.filter((p: any) => p.codigo_legado).map((p: any) => [p.codigo_legado, p.id]) || []
+        produtosBanco?.filter((p: ProdutoFat) => p.codigo_legado).map((p: ProdutoFat) => [p.codigo_legado, p.id]) || []
       );
       const prodByInterno = new Map(
-        produtosBanco?.filter((p: any) => p.codigo_interno).map((p: any) => [p.codigo_interno, p.id]) || []
+        produtosBanco?.filter((p: ProdutoFat) => p.codigo_interno).map((p: ProdutoFat) => [p.codigo_interno, p.id]) || []
       );
 
       const grouped = new Map<string, GroupedNF>();

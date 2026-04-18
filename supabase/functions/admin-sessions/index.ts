@@ -1,4 +1,5 @@
 // deno-lint-ignore-file no-explicit-any
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Edge Function: admin-sessions
  * Lista e revoga sessões de usuários (somente para administradores).

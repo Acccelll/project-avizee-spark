@@ -48,6 +48,7 @@ export function useImportacaoFinanceiro() {
       }
     };
     reader.readAsBinaryString(selectedFile);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const onSheetChange = useCallback((sheetName: string, wb: XLSX.WorkBook | null = null) => {
@@ -88,11 +89,13 @@ export function useImportacaoFinanceiro() {
       const entityByLegado = new Map<string, { id: string; type: "cliente" | "fornecedor" }>();
       const entityByCpf = new Map<string, { id: string; type: "cliente" | "fornecedor" }>();
 
-      clientes?.forEach((c: any) => {
+      type EntityRow = { id: string; nome_razao_social: string; cpf_cnpj: string | null; codigo_legado: string | null };
+
+      clientes?.forEach((c: EntityRow) => {
         if (c.codigo_legado) entityByLegado.set(c.codigo_legado, { id: c.id, type: "cliente" });
         if (c.cpf_cnpj) entityByCpf.set(String(c.cpf_cnpj).replace(/\D/g, ""), { id: c.id, type: "cliente" });
       });
-      fornecedores?.forEach((f: any) => {
+      fornecedores?.forEach((f: EntityRow) => {
         if (f.codigo_legado) entityByLegado.set(f.codigo_legado, { id: f.id, type: "fornecedor" });
         if (f.cpf_cnpj) entityByCpf.set(String(f.cpf_cnpj).replace(/\D/g, ""), { id: f.id, type: "fornecedor" });
       });

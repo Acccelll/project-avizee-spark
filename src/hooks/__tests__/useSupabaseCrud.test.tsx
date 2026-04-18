@@ -27,12 +27,13 @@ type Row = { id: string; nome: string; ativo: boolean };
 function createQueryMock(initialData: Row[] = []) {
   let rows = [...initialData];
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const query: any = {
     __selectedId: null as string | null,
     __payload: null as Partial<Row> | null,
     __inserted: null as Row | null,
     __operation: null as "update" | "delete" | null,
-    __eqCalls: [] as { column: string; value: any }[],
+    __eqCalls: [] as { column: string; value: unknown }[],
     __orFilter: null as string | null,
   };
 
@@ -57,7 +58,7 @@ function createQueryMock(initialData: Row[] = []) {
       query.__orFilter = filter;
       return query;
     }),
-    eq: vi.fn((column: string, value: any) => {
+    eq: vi.fn((column: string, value: unknown) => {
       query.__eqCalls.push({ column, value });
       if (column === "id") {
         query.__selectedId = value;
@@ -70,8 +71,8 @@ function createQueryMock(initialData: Row[] = []) {
       query.__operation = "update";
       return query;
     }),
-    insert: vi.fn((payload: any) => {
-      const newItem = { id: "novo-id", nome: payload.nome ?? "", ativo: payload.ativo ?? true };
+    insert: vi.fn((payload: Record<string, unknown>) => {
+      const newItem = { id: "novo-id", nome: String(payload.nome ?? ""), ativo: Boolean(payload.ativo ?? true) };
       rows = [...rows, newItem];
       query.__inserted = newItem;
       return query;
@@ -107,7 +108,7 @@ describe("useSupabaseCrud", () => {
     expect(result.current.data).toHaveLength(1);
 
     await act(async () => {
-      await result.current.create({ nome: "Produto B", ativo: true } as any);
+      await result.current.create({ nome: "Produto B", ativo: true } as Parameters<typeof result.current.create>[0]);
     });
 
     await waitFor(() => expect(getRows()).toHaveLength(2));
@@ -141,8 +142,8 @@ describe("useSupabaseCrud", () => {
 
     await waitFor(() => expect(result.current.loading).toBe(false));
 
-    const eqCalls = query.__eqCalls as { column: string; value: any }[];
-    expect(eqCalls.some((c: any) => c.column === "ativo" && c.value === true)).toBe(true);
+    const eqCalls = query.__eqCalls as { column: string; value: unknown }[];
+    expect(eqCalls.some((c: { column: string; value: unknown }) => c.column === "ativo" && c.value === true)).toBe(true);
   });
 
   it("não aplica filtro ativo quando hasAtivo = false", async () => {
@@ -156,8 +157,8 @@ describe("useSupabaseCrud", () => {
 
     await waitFor(() => expect(result.current.loading).toBe(false));
 
-    const eqCalls = query.__eqCalls as { column: string; value: any }[];
-    expect(eqCalls.some((c: any) => c.column === "ativo")).toBe(false);
+    const eqCalls = query.__eqCalls as { column: string; value: unknown }[];
+    expect(eqCalls.some((c: { column: string; value: unknown }) => c.column === "ativo")).toBe(false);
   });
 
   it("aplica searchTerm com ilike nas colunas corretas", async () => {
@@ -191,7 +192,7 @@ describe("useSupabaseCrud", () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     await act(async () => {
-      await result.current.create({ nome: "Novo Produto", ativo: true } as any);
+      await result.current.create({ nome: "Novo Produto", ativo: true } as Parameters<typeof result.current.create>[0]);
     });
 
     expect(query.insert).toHaveBeenCalledWith({ nome: "Novo Produto", ativo: true });

@@ -1137,7 +1137,7 @@ export default function OrcamentoForm() {
           <div className="p-4 border-b flex justify-between items-center sticky top-0 bg-card z-10">
             <h3 className="font-semibold">Pré-visualização do Orçamento</h3>
             <div className="flex gap-2">
-              <Select value={layoutTemplate} onValueChange={(v: any) => setLayoutTemplate(v)}>
+              <Select value={layoutTemplate} onValueChange={(v: string) => setLayoutTemplate(v as typeof layoutTemplate)}>
                 <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="simples">Simples</SelectItem>

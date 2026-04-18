@@ -76,6 +76,7 @@ export function AppConfigProvider({ children }: { children: ReactNode }) {
  * Retorna o valor do `AppConfigContext`.
  * Lança um erro se usado fora de `AppConfigProvider`.
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAppConfigContext(): AppConfigContextValue {
   const ctx = useContext(AppConfigContext);
   if (!ctx) {

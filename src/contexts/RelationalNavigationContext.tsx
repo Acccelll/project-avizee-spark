@@ -171,6 +171,7 @@ export function RelationalNavigationProvider({ children }: { children: ReactNode
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useRelationalNavigation() {
   const context = useContext(RelationalNavigationContext);
   if (context === undefined) throw new Error("useRelationalNavigation must be used within a RelationalNavigationProvider");

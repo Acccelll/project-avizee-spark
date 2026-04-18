@@ -1,4 +1,5 @@
 // deno-lint-ignore-file no-explicit-any
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // IMPORTANT: This function uses service role key and MUST NOT be accessed from arbitrary origins.
 // The ALLOWED_ORIGIN env var MUST be set in production with the real application domain.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";

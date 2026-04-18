@@ -102,11 +102,11 @@ export function AppSidebar({ collapsed, onToggleCollapsed, mobileOpen, onCloseMo
       });
   }, [isAdmin, socialPermissions.canViewModule, can, roles, permissionsLoaded]);
 
-  const isItemActive = (targetPath: string) => {
+  const isItemActive = useCallback((targetPath: string) => {
     const [targetBase, targetQuery] = targetPath.split('?');
     if (targetQuery) return currentRoute === targetPath;
     return location.pathname === targetBase || location.pathname.startsWith(`${targetBase}/`);
-  };
+  }, [currentRoute, location.pathname]);
 
   const { value: manualSections, save: saveManualSections } = useUserPreference<Record<string, boolean>>(
     user?.id ?? null,
@@ -140,7 +140,7 @@ export function AppSidebar({ collapsed, onToggleCollapsed, mobileOpen, onCloseMo
           return section.items.some((group) => group.items.some((item) => isItemActive(item.path)));
         })
         .map((section) => section.key),
-    [currentRoute, visibleSections],
+    [visibleSections, isItemActive, location.pathname],
   );
 
   const favoritedItems = useMemo(

@@ -22,6 +22,7 @@ vi.mock("react-router-dom", async () => {
 });
 
 function createQueryResult() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const query: any = {
     select: vi.fn((_: string, options?: { head?: boolean }) => {
       if (options?.head) {

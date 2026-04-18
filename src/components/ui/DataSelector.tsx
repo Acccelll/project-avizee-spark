@@ -34,7 +34,7 @@ export function ProductSelector({ produtos, onSelect, trigger }: ProductSelector
     );
   }, [produtos, search]);
 
-  const handleSelect = (p: any) => {
+  const handleSelect = (p: ProductWithForn) => {
     onSelect(p);
     setOpen(false);
     setSearch("");
@@ -86,7 +86,7 @@ export function ProductSelector({ produtos, onSelect, trigger }: ProductSelector
                 </TableRow>
               ) : (
                 filtered.map((p) => {
-                  const principalForn = p.produtos_fornecedores?.find((f: any) => f.eh_principal)?.fornecedores?.nome_razao_social;
+                  const principalForn = p.produtos_fornecedores?.find((f: { eh_principal?: boolean; fornecedores?: { nome_razao_social: string } | null }) => f.eh_principal)?.fornecedores?.nome_razao_social;
                   return (
                     <TableRow
                       key={p.id}
@@ -130,7 +130,7 @@ export function ClientSelector({ clientes, onSelect, trigger }: ClientSelectorPr
     );
   }, [clientes, search]);
 
-  const handleSelect = (c: any) => {
+  const handleSelect = (c: Tables<"clientes">) => {
     onSelect(c);
     setOpen(false);
     setSearch("");

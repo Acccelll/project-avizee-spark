@@ -52,6 +52,7 @@ export function RelationalDrawerSlotsProvider({ children }: { children: ReactNod
  *
  * IMPORTANTE: a key deve ser estável e única para cada drawer (ex: "produto:abc-123").
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function usePublishDrawerSlots(key: string, slots: RelationalDrawerSlots) {
   const ctx = useContext(SlotsContext);
   // Serialize via JSON para detectar mudança real de conteúdo (slots são ReactNode — referência muda a cada render)
@@ -69,6 +70,7 @@ export function usePublishDrawerSlots(key: string, slots: RelationalDrawerSlots)
 /**
  * Hook usado pelo RelationalDrawerStack para consumir os slots publicados.
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function useDrawerSlots(key: string): RelationalDrawerSlots | undefined {
   const ctx = useContext(SlotsContext);
   // Subscribe to version → re-render quando qualquer slot mudar

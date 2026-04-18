@@ -1,4 +1,5 @@
 // deno-lint-ignore-file no-explicit-any
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Edge Function: sefaz-proxy
  * Proxy para comunicação com a SEFAZ, incluindo assinatura digital XML (xmldsig)

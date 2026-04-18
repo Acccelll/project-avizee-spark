@@ -16,7 +16,7 @@ interface OrcamentoPublicoData {
   prazo_entrega: string | null;
   prazo_pagamento: string | null;
   frete_tipo: string | null;
-  cliente_snapshot: any;
+  cliente_snapshot: Record<string, unknown>;
   itens: Array<{
     descricao_snapshot: string;
     codigo_snapshot: string;
@@ -58,6 +58,7 @@ export default function OrcamentoPublico() {
       setLoading(true);
 
       const { data: orc, error: orcError } = await (supabase
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .from('orcamentos_public_view' as any) as any)
         .select('id, numero, data_orcamento, validade, valor_total, observacoes, status, prazo_entrega, prazo_pagamento, frete_tipo, cliente_snapshot, public_token')
         .eq('public_token', token)
@@ -70,6 +71,7 @@ export default function OrcamentoPublico() {
       }
 
       const { data: itens } = await (supabase
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .from('orcamentos_itens_public_view' as any) as any)
         .select('descricao_snapshot, codigo_snapshot, quantidade, unidade, valor_unitario, valor_total, variacao')
         .eq('orcamento_id', orc.id);
@@ -87,10 +89,10 @@ export default function OrcamentoPublico() {
         valor_total: Number(orc.valor_total || 0),
         observacoes: orc.observacoes,
         status: orc.status,
-        prazo_entrega: (orc as any).prazo_entrega,
-        prazo_pagamento: (orc as any).prazo_pagamento,
-        frete_tipo: (orc as any).frete_tipo,
-        cliente_snapshot: (orc as any).cliente_snapshot,
+        prazo_entrega: (orc as Record<string, unknown>).prazo_entrega as string | null,
+        prazo_pagamento: (orc as Record<string, unknown>).prazo_pagamento as string | null,
+        frete_tipo: (orc as Record<string, unknown>).frete_tipo as string | null,
+        cliente_snapshot: (orc as Record<string, unknown>).cliente_snapshot as Record<string, unknown>,
         itens: itens || [],
         empresa: empresa || null,
       });
@@ -117,11 +119,12 @@ export default function OrcamentoPublico() {
     );
   }
 
-  const cliente = data.cliente_snapshot as any;
+  const cliente = data.cliente_snapshot as Record<string, unknown>;
   const isExpired = data.validade && new Date(data.validade) < new Date();
   const handleAction = async (acao: 'aprovado' | 'rejeitado') => {
     if (!data || !token) return;
     setActionLoading(true);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error } = await (supabase.from('orcamentos') as any)
       .update({ status: acao })
       .eq('public_token', token)
@@ -130,7 +133,7 @@ export default function OrcamentoPublico() {
       toast.error('Erro ao registrar sua resposta. Tente novamente.');
     } else {
       setActionDone(acao);
-      setData((prev: any) => prev ? { ...prev, status: acao } : prev);
+      setData((prev) => prev ? { ...prev, status: acao } : prev);
     }
     setActionLoading(false);
   };

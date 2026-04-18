@@ -330,7 +330,7 @@ export function ClienteView({ id }: Props) {
                        <p>{t.prazo_medio || "—"}</p>
                      </div>
                    </div>
-                   {(t as any).observacoes && <p className="text-[10px] text-muted-foreground italic border-t pt-1">"{(t as any).observacoes}"</p>}
+                   {(t as { observacoes?: string }).observacoes && <p className="text-[10px] text-muted-foreground italic border-t pt-1">"{(t as { observacoes?: string }).observacoes}"</p>}
                  </div>
                ))}
              </div>

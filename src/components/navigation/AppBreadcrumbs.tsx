@@ -28,6 +28,7 @@ const reportTabs: Record<string, string> = {
   compras: 'Compras por Fornecedor',
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function resolvePageTitle(pathname: string, searchParams: URLSearchParams) {
   if (pathname === '/configuracoes') {
     const tab = searchParams.get('tab');

@@ -44,7 +44,7 @@ export default function ApresentacaoGerencial() {
   const { data: comentarios = [] } = useQuery({ queryKey: ['apresentacao-comentarios', selectedGeracaoId], queryFn: () => listarComentarios(selectedGeracaoId!), enabled: !!selectedGeracaoId });
 
   const selectedGeracao = useMemo<ApresentacaoGeracao | null>(() => geracoes.find((g) => g.id === selectedGeracaoId) ?? null, [geracoes, selectedGeracaoId]);
-  const selectedSlides = useMemo<SlideCodigo[]>(() => (selectedGeracao?.slides_json as any)?.ativos ?? [], [selectedGeracao]);
+  const selectedSlides = useMemo<SlideCodigo[]>(() => (selectedGeracao?.slides_json as { ativos?: SlideCodigo[] })?.ativos ?? [], [selectedGeracao]);
 
   const gerarMutation = useMutation({
     mutationFn: gerarApresentacao,
@@ -125,7 +125,7 @@ export default function ApresentacaoGerencial() {
 
           <ApresentacaoSlidesPreview
             activeSlides={selectedSlides.length ? selectedSlides : undefined}
-            dataAvailability={Object.fromEntries(comentarios.map((c) => [c.slide_codigo, !c.comentario_automatico?.includes('indisponíveis')])) as any}
+            dataAvailability={Object.fromEntries(comentarios.map((c) => [c.slide_codigo, !c.comentario_automatico?.includes('indisponíveis')])) as Record<string, boolean>}
           />
 
           {canEditarComentarios && !!selectedGeracaoId && (

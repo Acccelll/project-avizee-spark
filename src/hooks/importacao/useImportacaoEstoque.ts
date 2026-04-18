@@ -83,8 +83,9 @@ export function useImportacaoEstoque() {
         .from("produtos")
         .select("id, codigo_interno, codigo_legado, nome, preco_custo, preco_venda, estoque_atual");
 
-      const prodByLegado = new Map(produtosBanco?.filter((p: any) => p.codigo_legado).map((p: any) => [p.codigo_legado, p]));
-      const prodByInterno = new Map(produtosBanco?.filter((p: any) => p.codigo_interno).map((p: any) => [p.codigo_interno, p]));
+      type ProdutoBanco = { id: string; codigo_interno: string | null; codigo_legado: string | null; nome: string; preco_custo: number | null; preco_venda: number | null; estoque_atual: number | null };
+      const prodByLegado = new Map(produtosBanco?.filter((p: ProdutoBanco) => p.codigo_legado).map((p: ProdutoBanco) => [p.codigo_legado, p]));
+      const prodByInterno = new Map(produtosBanco?.filter((p: ProdutoBanco) => p.codigo_interno).map((p: ProdutoBanco) => [p.codigo_interno, p]));
 
       const preview = rawRows.map((row, index) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -104,11 +105,11 @@ export function useImportacaoEstoque() {
           const chave = nd.codigo_legado || nd.codigo_produto || '(sem código)';
           validation.errors.push(`Produto não encontrado: ${chave}`);
         } else {
-          nd.produto_id = (produtoInfo as any).id;
-          nd.nome_produto = (produtoInfo as any).nome;
-          nd.estoque_atual_sistema = (produtoInfo as any).estoque_atual || 0;
-          nd.diferenca = Number(nd.quantidade) - ((produtoInfo as any).estoque_atual || 0);
-          nd.custo_unitario = nd.custo_unitario ?? (produtoInfo as any).preco_custo ?? 0;
+          nd.produto_id = (produtoInfo as ProdutoBanco).id;
+          nd.nome_produto = (produtoInfo as ProdutoBanco).nome;
+          nd.estoque_atual_sistema = (produtoInfo as ProdutoBanco).estoque_atual || 0;
+          nd.diferenca = Number(nd.quantidade) - ((produtoInfo as ProdutoBanco).estoque_atual || 0);
+          nd.custo_unitario = nd.custo_unitario ?? (produtoInfo as ProdutoBanco).preco_custo ?? 0;
         }
 
         return {
