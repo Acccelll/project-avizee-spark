@@ -25,6 +25,7 @@ import { format } from "date-fns";
 import { useRemessas, trackAndPersistEventos } from "@/services/logistica/remessas.service";
 import type { Remessa, RemessaEvento } from "@/services/logistica/remessas.service";
 import { statusRemessa } from "@/lib/statusSchema";
+import { getUserFriendlyError } from "@/utils/errorMessages";
 
 type OrdemVenda = Database["public"]["Tables"]["ordens_venda"]["Row"];
 type PedidoCompra = Database["public"]["Tables"]["pedidos_compra"]["Row"];
