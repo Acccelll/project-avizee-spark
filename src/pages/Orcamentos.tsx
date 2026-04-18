@@ -217,27 +217,32 @@ const Orcamentos = () => {
       toast.error("Somente administradores podem aprovar cotações.");
       return;
     }
-    try {
-      await approveOrcamento(orc);
-      fetchData();
-    } catch (err: unknown) {
-      toast.error(getUserFriendlyError(err));
-    }
+    await approveLock.run(async () => {
+      try {
+        await approveOrcamento(orc);
+        fetchData();
+      } catch (err: unknown) {
+        toast.error(getUserFriendlyError(err));
+      }
+    });
   };
 
   const handleConvertToPedido = async (orc: Orcamento) => {
-    try {
-      await convertToPedido(orc, { poNumber: poNumberCliente, dataPo: dataPoCliente });
-      setPoNumberCliente("");
-      setDataPoCliente("");
-      fetchData();
-      navigate(`/pedidos`);
-    } catch (err: unknown) {
-      toast.error(getUserFriendlyError(err));
-    } finally {
-      setConvertingId(null);
-    }
+    await convertLock.run(async () => {
+      try {
+        await convertToPedido(orc, { poNumber: poNumberCliente, dataPo: dataPoCliente });
+        setPoNumberCliente("");
+        setDataPoCliente("");
+        fetchData();
+        navigate(`/pedidos`);
+      } catch (err: unknown) {
+        toast.error(getUserFriendlyError(err));
+      } finally {
+        setConvertingId(null);
+      }
+    });
   };
+
 
   const filteredData = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
