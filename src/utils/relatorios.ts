@@ -135,18 +135,27 @@ export function filtrarPorStatus<T extends Record<string, unknown>>(
   });
 }
 
-/** Sorts rows by a common sort key. */
+/**
+ * Sorts rows by a common sort key.
+ *
+ * For "valor_desc": prefers `valor` / `valorTotal`. When neither exists (e.g.
+ * fluxo de caixa rows have `entrada` / `saida` / `saldo` instead), falls back
+ * to `entrada + saida` so the user gets a meaningful order instead of a no-op.
+ */
 export function sortarRows<T extends Record<string, unknown>>(
   rows: T[],
   agrupamento: "padrao" | "valor_desc" | "status" | "vencimento"
 ): T[] {
   const copy = [...rows];
   if (agrupamento === "valor_desc") {
-    return copy.sort(
-      (a, b) =>
-        Number(b["valor"] ?? b["valorTotal"] ?? 0) -
-        Number(a["valor"] ?? a["valorTotal"] ?? 0)
-    );
+    const valueOf = (r: T): number => {
+      const direct = r["valor"] ?? r["valorTotal"];
+      if (direct != null) return Number(direct);
+      const entrada = Number(r["entrada"] ?? 0);
+      const saida = Number(r["saida"] ?? 0);
+      return entrada + saida;
+    };
+    return copy.sort((a, b) => valueOf(b) - valueOf(a));
   }
   if (agrupamento === "vencimento") {
     return copy.sort((a, b) =>

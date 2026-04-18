@@ -48,10 +48,12 @@ export function ReconciliacaoDetalhe({ lote, isOpen, onClose }: ReconciliacaoDet
       ].join(","))
     ].join("\n");
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    // UTF-8 BOM so Excel desktop pt-BR opens accented chars correctly.
+    const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = `erros_lote_${lote.id.slice(0, 8)}.csv`;
+    const ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+    link.download = `erros_lote_${lote.id.slice(0, 8)}_${ts}.csv`;
     link.click();
     toast.success("CSV exportado com sucesso.");
   };
