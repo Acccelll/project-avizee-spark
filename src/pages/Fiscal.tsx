@@ -744,7 +744,14 @@ const Fiscal = () => {
       </ModulePage>
 
       {/* Form Modal - Create */}
-      <FormModal open={modalOpen && mode === "create"} onClose={() => setModalOpen(false)} title="Nova Nota Fiscal" size="xl">
+      <FormModal
+        open={modalOpen && mode === "create"}
+        onClose={() => setModalOpen(false)}
+        title="Nova Nota Fiscal"
+        size="xl"
+        mode="create"
+        createHint="Importe um XML para preencher automaticamente, ou comece definindo o tipo (entrada/saída) e o emitente."
+      >
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             <div className="space-y-2"><Label>Tipo</Label>
