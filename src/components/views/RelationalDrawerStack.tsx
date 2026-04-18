@@ -1,10 +1,12 @@
 import { memo } from "react";
 import { useRelationalNavigation, EntityType, ViewState, MAX_DRAWER_DEPTH } from "@/contexts/RelationalNavigationContext";
+import { useDrawerSlots } from "@/contexts/RelationalDrawerSlotsContext";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { ArrowLeft, X, AlertTriangle } from "lucide-react";
+import { ArrowLeft, X, AlertTriangle, Layers } from "lucide-react";
+import { DrawerHeaderShell } from "@/components/ui/DrawerHeaderShell";
 import { ProdutoView } from "./ProdutoView";
 import { ClienteView } from "./ClienteView";
 import { FornecedorView } from "./FornecedorView";
@@ -14,7 +16,7 @@ import { NotaFiscalView } from "./NotaFiscalView";
 import { RemessaView } from "./RemessaView";
 import { OrdemVendaView } from "./OrdemVendaView";
 
-const DrawerContent = memo(function DrawerContent({ view }: { view: ViewState }) {
+const ViewBody = memo(function ViewBody({ view }: { view: ViewState }) {
   switch (view.type) {
     case "produto": return <ProdutoView id={view.id} />;
     case "cliente": return <ClienteView id={view.id} />;
@@ -28,7 +30,7 @@ const DrawerContent = memo(function DrawerContent({ view }: { view: ViewState })
   }
 });
 
-const getTitle = (type: EntityType) => ({
+const TYPE_LABELS: Record<EntityType, string> = {
   produto: "Detalhes do Produto",
   cliente: "Detalhes do Cliente",
   fornecedor: "Detalhes do Fornecedor",
@@ -37,7 +39,130 @@ const getTitle = (type: EntityType) => ({
   nota_fiscal: "Nota Fiscal",
   remessa: "Remessa / Rastreio",
   ordem_venda: "Pedido",
-}[type] || "Detalhes");
+};
+
+const TYPE_BREADCRUMB: Record<EntityType, string> = {
+  produto: "Cadastros › Produtos",
+  cliente: "Cadastros › Clientes",
+  fornecedor: "Cadastros › Fornecedores",
+  orcamento: "Comercial › Cotações",
+  pedido_compra: "Compras › Pedidos",
+  nota_fiscal: "Fiscal › Notas",
+  remessa: "Logística › Remessas",
+  ordem_venda: "Comercial › Pedidos",
+};
+
+const getTitle = (type: EntityType) => TYPE_LABELS[type] || "Detalhes";
+
+interface DrawerSlotProps {
+  view: ViewState;
+  index: number;
+  total: number;
+  isTop: boolean;
+  atLimit: boolean;
+  onPop: () => void;
+  onClear: () => void;
+  prevTitle?: string;
+}
+
+const DrawerSlot = memo(function DrawerSlot({
+  view, index, total, isTop, atLimit, onPop, onClear, prevTitle,
+}: DrawerSlotProps) {
+  const slots = useDrawerSlots(`${view.type}:${view.id}`);
+
+  const breadcrumbBase = TYPE_BREADCRUMB[view.type] || "";
+  const breadcrumbContent = (
+    <span className="inline-flex items-center gap-1.5 truncate">
+      <span className="truncate">{breadcrumbBase}</span>
+      {slots?.breadcrumb && (
+        <>
+          <span className="text-muted-foreground/50">·</span>
+          <span className="truncate">{slots.breadcrumb}</span>
+        </>
+      )}
+    </span>
+  );
+
+  const globalControls = (
+    <>
+      {isTop && atLimit && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="flex items-center justify-center h-7 w-7 text-warning" aria-label="Limite atingido">
+              <AlertTriangle className="h-4 w-4" />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">Limite de drawers atingido: novas aberturas pedem confirmação.</TooltipContent>
+        </Tooltip>
+      )}
+      {total > 1 && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="sm" className="h-7 px-2 text-[11px] gap-1" onClick={onClear}>
+              <Layers className="h-3.5 w-3.5" />
+              Fechar todos
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">Fechar todos os drawers</TooltipContent>
+        </Tooltip>
+      )}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onPop} aria-label="Fechar drawer">
+            <X className="h-4 w-4" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="bottom">Fechar drawer</TooltipContent>
+      </Tooltip>
+    </>
+  );
+
+  const navigationBar = index > 0 ? (
+    <Button
+      variant="ghost"
+      size="sm"
+      className="h-7 gap-1 px-2 -ml-1 text-xs text-muted-foreground hover:text-foreground"
+      onClick={onPop}
+    >
+      <ArrowLeft className="h-3.5 w-3.5" />
+      <span className="truncate">Voltar para {prevTitle || "anterior"}</span>
+    </Button>
+  ) : undefined;
+
+  return (
+    <Sheet open onOpenChange={(open) => !open && onPop()}>
+      <SheetContent
+        side="right"
+        className="w-full sm:max-w-xl overflow-y-auto p-0 flex flex-col focus-visible:outline-none transition-all duration-300 ease-out border-l"
+        style={{
+          zIndex: 50 + index,
+          transform: `translateX(${Math.max(0, (total - 1 - index) * -8)}px)`,
+          boxShadow: `${(index + 1) * -6}px 0 ${(index + 1) * 16}px rgba(15, 23, 42, 0.12)`,
+          borderLeftColor: `hsl(var(--primary) / ${Math.min(0.18 + index * 0.06, 0.45)})`,
+        }}
+      >
+        <SheetHeader className="sr-only">
+          <SheetTitle>{getTitle(view.type)}</SheetTitle>
+          <SheetDescription>Visualização de {getTitle(view.type)}</SheetDescription>
+        </SheetHeader>
+
+        <DrawerHeaderShell
+          title={getTitle(view.type)}
+          breadcrumb={breadcrumbContent}
+          counter={{ index, total }}
+          globalControls={globalControls}
+          navigationBar={navigationBar}
+          recordSummary={slots?.summary}
+          recordActions={slots?.actions}
+        />
+
+        <div className="flex-1 px-4 sm:px-6 py-4">
+          <ViewBody view={view} />
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+});
 
 export function RelationalDrawerStack() {
   const { stack, pendingPush, confirmPendingPush, cancelPendingPush, popView, clearStack } = useRelationalNavigation();
@@ -60,67 +185,19 @@ export function RelationalDrawerStack() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {stack.map((view, index) => {
-        const isTop = index === stack.length - 1;
-        return (
-          <Sheet key={`${view.type}-${view.id}-${index}`} open onOpenChange={(open) => !open && popView()}>
-            <SheetContent
-              side="right"
-              className="w-full sm:max-w-xl overflow-y-auto p-0 flex flex-col focus-visible:outline-none transition-all duration-300 ease-out border-l"
-              style={{
-                zIndex: 50 + index,
-                transform: `translateX(${Math.max(0, (stack.length - 1 - index) * -8)}px)`,
-                boxShadow: `${(index + 1) * -6}px 0 ${(index + 1) * 16}px rgba(15, 23, 42, 0.12)`,
-                borderLeftColor: `hsl(var(--primary) / ${Math.min(0.18 + index * 0.06, 0.45)})`,
-              }}
-            >
-              <SheetHeader className="sticky top-0 z-10 bg-card border-b px-6 py-3 flex flex-col gap-1 space-y-0">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <SheetTitle className="text-base truncate">{getTitle(view.type)}</SheetTitle>
-                    <SheetDescription className="sr-only">Visualização de {getTitle(view.type)}</SheetDescription>
-                  </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    {isTop && atLimit && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span className="flex items-center justify-center h-7 w-7 text-amber-500"><AlertTriangle className="h-4 w-4" /></span>
-                        </TooltipTrigger>
-                        <TooltipContent side="bottom">Limite de drawers atingido: novas aberturas pedem confirmação.</TooltipContent>
-                      </Tooltip>
-                    )}
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={popView}><X className="h-4 w-4" /></Button>
-                      </TooltipTrigger>
-                      <TooltipContent side="bottom">Fechar drawer</TooltipContent>
-                    </Tooltip>
-                  </div>
-                </div>
-              </SheetHeader>
-
-              <div className="border-b bg-muted/20 px-6 py-2.5 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3 text-xs text-muted-foreground min-w-0">
-                  <span className="shrink-0">Drawers: {stack.length}/{MAX_DRAWER_DEPTH}</span>
-                  {index > 0 && (
-                    <Button variant="ghost" size="sm" className="h-7 gap-1 px-2.5 -ml-1" onClick={popView}>
-                      <ArrowLeft className="h-4 w-4" />
-                      <span className="text-xs truncate">Voltar para {getTitle(stack[index - 1].type)}</span>
-                    </Button>
-                  )}
-                </div>
-                <Button variant="ghost" size="sm" className="h-7 px-2.5 text-xs shrink-0" onClick={clearStack}>
-                  Fechar todos
-                </Button>
-              </div>
-
-              <div className="flex-1 px-6 pt-3 pb-4">
-                <DrawerContent view={view} />
-              </div>
-            </SheetContent>
-          </Sheet>
-        );
-      })}
+      {stack.map((view, index) => (
+        <DrawerSlot
+          key={`${view.type}-${view.id}-${index}`}
+          view={view}
+          index={index}
+          total={stack.length}
+          isTop={index === stack.length - 1}
+          atLimit={atLimit}
+          onPop={popView}
+          onClear={clearStack}
+          prevTitle={index > 0 ? getTitle(stack[index - 1].type) : undefined}
+        />
+      ))}
     </>
   );
 }
