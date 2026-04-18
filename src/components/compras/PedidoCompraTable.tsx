@@ -1,13 +1,7 @@
 import { DataTable } from "@/components/DataTable";
 import { StatusBadge } from "@/components/StatusBadge";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { RowActions } from "@/components/list/RowActions";
 import {
-  AlertCircle,
-  ArrowDownToLine,
-  CheckCircle2,
-  Clock,
-  FileText,
   PackageCheck,
   SendHorizontal,
 } from "lucide-react";
@@ -19,40 +13,25 @@ import { useActionLock } from "@/hooks/useActionLock";
 const ENTREGA_ALERTA_DIAS = 3;
 const TERMINAL_STATUS_PC = ["recebido", "cancelado"];
 
-function getEntregaStatus(
-  dataEntrega: string | null,
-  status: string,
-): "atrasado" | "proximo" | "ok" | "sem_prazo" {
-  if (!dataEntrega) return "sem_prazo";
-  if (TERMINAL_STATUS_PC.includes(status)) return "ok";
-  const daysLeft = calculateDaysBetween(new Date(), dataEntrega);
-  if (daysLeft < 0) return "atrasado";
-  if (daysLeft <= ENTREGA_ALERTA_DIAS) return "proximo";
-  return "ok";
-}
-
-function EntregaBadge({ dataEntrega, status }: { dataEntrega: string | null; status: string }) {
+function EntregaCell({ dataEntrega, status }: { dataEntrega: string | null; status: string }) {
   if (!dataEntrega) return <span className="text-muted-foreground text-xs">—</span>;
-  const es = getEntregaStatus(dataEntrega, status);
+  if (TERMINAL_STATUS_PC.includes(status)) {
+    return <span className="text-xs">{formatDate(dataEntrega)}</span>;
+  }
   const daysLeft = calculateDaysBetween(new Date(), dataEntrega);
-
-  if (es === "atrasado") {
+  if (daysLeft < 0) {
     return (
       <span className="inline-flex flex-col items-start gap-0.5">
         <span className="text-xs text-destructive font-medium">{formatDate(dataEntrega)}</span>
-        <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-destructive/10 text-destructive border-destructive/20 gap-1">
-          <AlertCircle className="h-2.5 w-2.5" />Atrasado
-        </Badge>
+        <StatusBadge status="atrasado" />
       </span>
     );
   }
-  if (es === "proximo") {
+  if (daysLeft <= ENTREGA_ALERTA_DIAS) {
     return (
       <span className="inline-flex flex-col items-start gap-0.5">
-        <span className="text-xs text-amber-600 font-medium">{formatDate(dataEntrega)}</span>
-        <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-amber-50 text-amber-600 border-amber-200 gap-1">
-          <Clock className="h-2.5 w-2.5" />{daysLeft}d restantes
-        </Badge>
+        <span className="text-xs text-warning font-medium">{formatDate(dataEntrega)}</span>
+        <StatusBadge status="proximo_vencimento" label={`${daysLeft}d restantes`} />
       </span>
     );
   }
@@ -106,7 +85,7 @@ export function PedidoCompraTable({
       key: "data_entrega_prevista",
       label: "Entrega Prevista",
       render: (p: PedidoCompra) => (
-        <EntregaBadge dataEntrega={p.data_entrega_prevista} status={p.status} />
+        <EntregaCell dataEntrega={p.data_entrega_prevista} status={p.status} />
       ),
     },
     {
@@ -137,35 +116,13 @@ export function PedidoCompraTable({
       key: "recebimento",
       label: "Recebimento",
       render: (p: PedidoCompra) => {
-        if (p.status === "recebido") {
-          return (
-            <Badge variant="outline" className="text-[11px] bg-success/10 text-success border-success/30 gap-1">
-              <CheckCircle2 className="h-3 w-3" />Recebido
-            </Badge>
-          );
-        }
-        if (p.status === "parcialmente_recebido") {
-          return (
-            <Badge variant="outline" className="text-[11px] bg-warning/10 text-warning border-warning/30 gap-1">
-              <ArrowDownToLine className="h-3 w-3" />Parcial
-            </Badge>
-          );
-        }
+        if (p.status === "recebido") return <StatusBadge status="recebido" />;
+        if (p.status === "parcialmente_recebido") return <StatusBadge status="recebido_parcial" />;
         if (["aguardando_recebimento", "enviado_ao_fornecedor", "aprovado"].includes(p.status)) {
-          return (
-            <Badge variant="outline" className="text-[11px] bg-warning/10 text-warning border-warning/30 gap-1">
-              <Clock className="h-3 w-3" />Aguardando
-            </Badge>
-          );
+          return <StatusBadge status="aguardando" />;
         }
-        if (p.status === "cancelado") {
-          return <span className="text-xs text-muted-foreground">—</span>;
-        }
-        return (
-          <Badge variant="outline" className="text-[11px] gap-1">
-            <FileText className="h-3 w-3" />Rascunho
-          </Badge>
-        );
+        if (p.status === "cancelado") return <span className="text-xs text-muted-foreground">—</span>;
+        return <StatusBadge status="rascunho" />;
       },
     },
     {
@@ -186,32 +143,14 @@ export function PedidoCompraTable({
       render: (p: PedidoCompra) => {
         const canSend = p.status === "aprovado";
         const canReceive = ["aprovado", "enviado_ao_fornecedor", "aguardando_recebimento", "parcialmente_recebido"].includes(p.status);
-        return (
-          <div className="flex items-center gap-1">
-            {canSend && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-7 text-xs gap-1"
-                disabled={sendLock.pending}
-                onClick={(e) => { e.stopPropagation(); sendLock.run(() => onSend(p)); }}
-              >
-                <SendHorizontal className="w-3 h-3" /> Enviar
-              </Button>
-            )}
-            {canReceive && !canSend && (
-              <Button
-                size="sm"
-                variant="default"
-                className="h-7 text-xs gap-1"
-                disabled={receiveLock.pending}
-                onClick={(e) => { e.stopPropagation(); receiveLock.run(() => onReceive(p)); }}
-              >
-                <PackageCheck className="w-3 h-3" /> Receber
-              </Button>
-            )}
-          </div>
-        );
+        if (!canSend && !canReceive) return null;
+        const primary = canSend
+          ? { label: "Enviar ao fornecedor", icon: SendHorizontal, onClick: () => sendLock.run(() => onSend(p)), disabled: sendLock.pending }
+          : { label: "Receber", icon: PackageCheck, onClick: () => receiveLock.run(() => onReceive(p)), disabled: receiveLock.pending };
+        const secondary = canSend && canReceive
+          ? [{ label: "Receber", icon: PackageCheck, onClick: () => receiveLock.run(() => onReceive(p)), disabled: receiveLock.pending }]
+          : [];
+        return <RowActions primary={primary} secondary={secondary} />;
       },
     },
   ];

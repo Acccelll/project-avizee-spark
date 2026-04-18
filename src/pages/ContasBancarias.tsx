@@ -383,7 +383,7 @@ const ContasBancarias = () => {
         title={mode === "create" ? "Nova Conta Bancária" : "Editar Conta Bancária"}
         size="md"
         identifier={mode === "edit" && selected ? `${selected.bancos?.nome ?? ""}${selected.agencia ? ` · Ag. ${selected.agencia}` : ""}${selected.conta ? ` · ${selected.conta}` : ""}` : undefined}
-        status={mode === "edit" && selected ? <StatusBadge status={selected.ativo ? "Ativo" : "Inativo"} /> : undefined}
+        status={mode === "edit" && selected ? <StatusBadge status={selected.ativo ? "ativo" : "inativo"} /> : undefined}
         meta={mode === "edit" && selected?.titular ? [{ icon: Building2, label: `Titular: ${selected.titular}` }] : undefined}
         isDirty={isDirty}
         footer={

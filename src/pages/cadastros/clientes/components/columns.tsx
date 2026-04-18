@@ -120,7 +120,7 @@ export function buildClienteColumns(
       mobileCard: true,
       label: "Status",
       render: (c: Cliente) => (
-        <StatusBadge status={c.ativo ? "Ativo" : "Inativo"} />
+        <StatusBadge status={c.ativo ? "ativo" : "inativo"} />
       ),
     },
   ];

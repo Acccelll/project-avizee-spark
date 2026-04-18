@@ -32,6 +32,8 @@ interface AdvancedFilterBarProps {
   onRemoveFilter?: (key: string, value?: string) => void;
   onClearAll?: () => void;
   count?: number;
+  /** Hide the inline count chip (e.g. when ModulePage already shows it). */
+  hideCount?: boolean;
   extra?: ReactNode;
 }
 
@@ -44,8 +46,10 @@ export function AdvancedFilterBar({
   onRemoveFilter,
   onClearAll,
   count,
+  hideCount = false,
   extra,
 }: AdvancedFilterBarProps) {
+  const showCount = !hideCount && count !== undefined;
   const isMobile = useIsMobile();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const hasSearch = typeof onSearchChange === "function";
@@ -125,7 +129,7 @@ export function AdvancedFilterBar({
 
         {hasActiveFilters && filterChips}
 
-        {count !== undefined && (
+        {showCount && (
           <p className="text-xs text-muted-foreground">
             {count} {count === 1 ? "registro" : "registros"}
           </p>
@@ -203,7 +207,7 @@ export function AdvancedFilterBar({
 
         <div className="flex items-center justify-between gap-3 lg:justify-end">
           {extra}
-          {count !== undefined && (
+          {showCount && (
             <span className="whitespace-nowrap text-sm text-muted-foreground">
               {count} {count === 1 ? "registro" : "registros"}
             </span>

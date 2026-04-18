@@ -153,7 +153,7 @@ export default function UnidadesMedida() {
       key: "ativo",
       mobileCard: true,
       label: "Status",
-      render: (u: UnidadeMedida) => <StatusBadge status={u.ativo ? "Ativo" : "Inativo"} />,
+      render: (u: UnidadeMedida) => <StatusBadge status={u.ativo ? "ativo" : "inativo"} />,
     },
     {
       key: "updated_at",
@@ -232,7 +232,7 @@ export default function UnidadesMedida() {
         onClose={closeModal}
         title={mode === "create" ? "Nova Unidade de Medida" : "Editar Unidade de Medida"}
         identifier={mode === "edit" && selected?.codigo ? selected.codigo : undefined}
-        status={mode === "edit" && selected ? <StatusBadge status={selected.ativo ? "Ativo" : "Inativo"} /> : undefined}
+        status={mode === "edit" && selected ? <StatusBadge status={selected.ativo ? "ativo" : "inativo"} /> : undefined}
         isDirty={isDirty}
         footer={
           <FormModalFooter

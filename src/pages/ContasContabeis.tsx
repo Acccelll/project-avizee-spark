@@ -213,7 +213,7 @@ function ContasTreeView({ data, loading, onView, onEdit }: TreeViewProps) {
           )}
 
           {/* status */}
-          <StatusBadge status={conta.ativo ? "Ativo" : "Inativo"} />
+          <StatusBadge status={conta.ativo ? "ativo" : "inativo"} />
 
           {/* actions (hidden until hover) */}
           <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
@@ -508,7 +508,7 @@ const ContasContabeis = () => {
     {
       key: "ativo",
       label: "Status",
-      render: (c: ContaContabil) => <StatusBadge status={c.ativo ? "Ativo" : "Inativo"} />,
+      render: (c: ContaContabil) => <StatusBadge status={c.ativo ? "ativo" : "inativo"} />,
     },
   ];
 

@@ -1,6 +1,7 @@
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
+import { FILTER_W_MD } from "@/components/list/filterTokens";
 
 interface CotacaoCompraFiltersProps {
   searchTerm: string;
@@ -34,13 +35,14 @@ export function CotacaoCompraFilters({
       onRemoveFilter={onRemoveFilter}
       onClearAll={onClearAll}
       count={count}
+      hideCount
     >
       <MultiSelect
         options={statusOptions}
         selected={statusFilters}
         onChange={onStatusChange}
         placeholder="Status"
-        className="w-[180px]"
+        className={FILTER_W_MD}
       />
     </AdvancedFilterBar>
   );

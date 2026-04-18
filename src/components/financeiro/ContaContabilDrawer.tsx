@@ -209,7 +209,7 @@ export function ContaContabilDrawer({
             </Badge>
           </ViewField>
           <ViewField label="Situação">
-            <StatusBadge status={selected.ativo ? "Ativo" : "Inativo"} />
+            <StatusBadge status={selected.ativo ? "ativo" : "inativo"} />
           </ViewField>
           <ViewField label="Nível Hierárquico">
             <span className="font-mono font-semibold">{nivel}</span>
@@ -315,7 +315,7 @@ export function ContaContabilDrawer({
                   >
                     {f.aceita_lancamento ? "Analítica" : "Sintética"}
                   </Badge>
-                  <StatusBadge status={f.ativo ? "Ativo" : "Inativo"} />
+                  <StatusBadge status={f.ativo ? "ativo" : "inativo"} />
                 </div>
               </div>
             ))}
@@ -422,7 +422,7 @@ export function ContaContabilDrawer({
             </div>
           </ViewField>
           <ViewField label="Situação">
-            <StatusBadge status={selected.ativo ? "Ativo" : "Inativo"} />
+            <StatusBadge status={selected.ativo ? "ativo" : "inativo"} />
           </ViewField>
         </div>
       </ViewSection>
@@ -449,7 +449,7 @@ export function ContaContabilDrawer({
       }
       badge={
         <div className="flex items-center gap-1.5">
-          <StatusBadge status={selected.ativo ? "Ativo" : "Inativo"} />
+          <StatusBadge status={selected.ativo ? "ativo" : "inativo"} />
           <Badge
             variant={isAnalitica ? "default" : "secondary"}
             className="gap-1 text-xs"

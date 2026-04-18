@@ -597,7 +597,7 @@ const Clientes = () => {
     render: (c: Cliente) => grupoNome(c.grupo_economico_id),
   },
   { key: "ativo",
-      mobileCard: true, label: "Status", render: (c: Cliente) => <StatusBadge status={c.ativo ? "Ativo" : "Inativo"} /> },
+      mobileCard: true, label: "Status", render: (c: Cliente) => <StatusBadge status={c.ativo ? "ativo" : "inativo"} /> },
   ];
 
 
@@ -731,7 +731,7 @@ const Clientes = () => {
         title={mode === "create" ? "Novo Cliente" : "Editar Cliente"}
         size="xl"
         identifier={mode === "edit" && selected?.cpf_cnpj ? selected.cpf_cnpj : undefined}
-        status={mode === "edit" && selected ? <StatusBadge status={selected.ativo ? "Ativo" : "Inativo"} /> : undefined}
+        status={mode === "edit" && selected ? <StatusBadge status={selected.ativo ? "ativo" : "inativo"} /> : undefined}
         meta={mode === "edit" && selected ? [
           ...(selected.created_at ? [{ icon: Calendar, label: `Cadastrado em ${formatDate(selected.created_at)}` }] : []),
           ...(form.forma_pagamento_padrao ? [{ icon: CreditCard, label: form.forma_pagamento_padrao }] : []),
