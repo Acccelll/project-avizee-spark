@@ -175,15 +175,6 @@ const Fiscal = () => {
     load();
   }, []);
 
-  // KPIs — sobre os dados filtrados (consistente com o que o usuário vê na grid)
-  const kpis = useMemo(() => {
-    const total = filteredData.length;
-    const pendentes = filteredData.filter(n => n.status === "pendente").length;
-    const confirmadas = filteredData.filter(n => n.status === "confirmada").length;
-    const valorTotal = filteredData.reduce((s, n) => s + Number(n.valor_total || 0), 0);
-    return { total, pendentes, confirmadas, valorTotal };
-  }, [filteredData]);
-
   const confirmarLock = useActionLock();
   const estornarLock = useActionLock();
 
@@ -505,6 +496,15 @@ const Fiscal = () => {
       return haystack.includes(query);
     });
   }, [consultaSearch, data, tipoParam, modeloFilters, statusFilters, tipoFilters, origemFilters, statusSefazFilters]);
+
+  // KPIs — sobre os dados filtrados (consistente com a grid)
+  const kpis = useMemo(() => {
+    const total = filteredData.length;
+    const pendentes = filteredData.filter(n => n.status === "pendente").length;
+    const confirmadas = filteredData.filter(n => n.status === "confirmada").length;
+    const valorTotal = filteredData.reduce((s, n) => s + Number(n.valor_total || 0), 0);
+    return { total, pendentes, confirmadas, valorTotal };
+  }, [filteredData]);
 
   const fiscalActiveFilters = useMemo(() => {
     const chips: FilterChip[] = [];
