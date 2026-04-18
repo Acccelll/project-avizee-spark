@@ -282,7 +282,7 @@ const Fornecedores = () => {
       : <span className="text-muted-foreground text-xs">—</span>,
   },
   { key: "ativo",
-      mobileCard: true, label: "Status", render: (f: Fornecedor) => <StatusBadge status={f.ativo ? "Ativo" : "Inativo"} /> },
+      mobileCard: true, label: "Status", render: (f: Fornecedor) => <StatusBadge status={f.ativo ? "ativo" : "inativo"} /> },
   ];
 
 
@@ -346,7 +346,7 @@ const Fornecedores = () => {
           searchPlaceholder="Buscar por razão social, CNPJ, e-mail ou cidade..."
           activeFilters={fornActiveFilters}
           onRemoveFilter={handleRemoveFornFilter}
-          onClearAll={() => { setTipoFilters([]); setAtivoFilters([]); }}
+          onClearAll={() => { setSearchTerm(""); setTipoFilters([]); setAtivoFilters([]); }}
           count={filteredData.length}
         >
           <MultiSelect
@@ -354,14 +354,14 @@ const Fornecedores = () => {
             selected={ativoFilters}
             onChange={setAtivoFilters}
             placeholder="Status"
-            className="w-[130px]"
+            className="w-full sm:w-[140px]"
           />
           <MultiSelect
             options={tipoOptions}
             selected={tipoFilters}
             onChange={setTipoFilters}
             placeholder="Tipos"
-            className="w-[150px]"
+            className="w-full sm:w-[150px]"
           />
         </AdvancedFilterBar>
 
@@ -388,7 +388,7 @@ const Fornecedores = () => {
         title={mode === "create" ? "Novo Fornecedor" : "Editar Fornecedor"}
         size="xl"
         identifier={mode === "edit" && selected?.cpf_cnpj ? selected.cpf_cnpj : undefined}
-        status={mode === "edit" && selected ? <StatusBadge status={selected.ativo ? "Ativo" : "Inativo"} /> : undefined}
+        status={mode === "edit" && selected ? <StatusBadge status={selected.ativo ? "ativo" : "inativo"} /> : undefined}
         meta={mode === "edit" && selected ? [
           ...(selected.created_at ? [{ icon: Calendar, label: `Cadastrado em ${formatDate(selected.created_at)}` }] : []),
           ...(selected.updated_at && selected.updated_at !== selected.created_at ? [{ icon: BadgeCheck, label: `Atualizado em ${formatDate(selected.updated_at)}` }] : []),
