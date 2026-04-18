@@ -152,7 +152,7 @@ export function FornecedorView({ id }: Props) {
   });
 
   if (loading) return <div className="p-8 text-center animate-pulse">Carregando dados do fornecedor...</div>;
-  if (fetchError) return <div className="p-8 text-center text-destructive space-y-1"><p className="font-semibold">Erro ao carregar dados</p><p className="text-xs text-muted-foreground">{fetchError}</p></div>;
+  if (error) return <div className="p-8 text-center text-destructive space-y-1"><p className="font-semibold">Erro ao carregar dados</p><p className="text-xs text-muted-foreground">{error.message}</p></div>;
   if (!selected) return <div className="p-8 text-center text-destructive">Fornecedor não encontrado</div>;
 
   return (
@@ -162,6 +162,7 @@ export function FornecedorView({ id }: Props) {
         <div className="rounded-lg border bg-card p-3 text-center space-y-1">
           <p className="text-[10px] font-medium text-muted-foreground uppercase">Prazo Médio</p>
           <p className="font-mono font-bold text-xs">{prazoMedio ? `${prazoMedio} dias` : "—"}</p>
+          {prazoMedioFonte && <p className="text-[8px] text-muted-foreground/70 uppercase">{prazoMedioFonte}</p>}
         </div>
         <div className={`rounded-lg border bg-card p-3 text-center space-y-1 ${totalAberto > 0 ? 'border-destructive/40' : ''}`}>
           <p className="text-[10px] font-medium text-muted-foreground uppercase">Saldo Aberto</p>
@@ -368,19 +369,17 @@ export function FornecedorView({ id }: Props) {
       <ConfirmDialog
         open={deleteConfirmOpen}
         onClose={() => setDeleteConfirmOpen(false)}
-        onConfirm={async () => {
-          try {
-            const { error } = await supabase.from("fornecedores").delete().eq("id", id);
-            if (error) throw error;
+        loading={locked("delete")}
+        onConfirm={() =>
+          run("delete", async () => {
+            const { error: delErr } = await supabase.from("fornecedores").delete().eq("id", id);
+            if (delErr) throw delErr;
             toast.success("Fornecedor excluído com sucesso.");
-            clearStack();
-          } catch (err) {
-            console.error("[FornecedorView] erro ao excluir:", err);
-            toast.error(getUserFriendlyError(err));
-          } finally {
+            await invalidate(["fornecedores", "pedidos_compra", "financeiro_lancamentos"]);
             setDeleteConfirmOpen(false);
-          }
-        }}
+            clearStack();
+          })
+        }
         title="Excluir fornecedor"
         description={deleteDescription}
       />
