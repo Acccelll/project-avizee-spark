@@ -53,12 +53,15 @@ export function SidebarSection({
         }}
         aria-current={isActive ? 'page' : undefined}
         className={`relative flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium transition ${
-          isActive ? 'bg-primary/10 text-primary' : 'text-foreground hover:bg-accent'
+          isActive ? 'sidebar-item-active' : 'text-foreground hover:bg-accent'
         } ${collapsed ? 'justify-center px-0' : ''}`}
         title={collapsed ? section.title : undefined}
         aria-label={collapsed ? `Abrir ${section.title}` : undefined}
       >
-        <section.icon className="h-[18px] w-[18px] shrink-0" />
+        {collapsed && isActive && (
+          <span aria-hidden className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r bg-primary" />
+        )}
+        <section.icon className={`h-[18px] w-[18px] shrink-0 ${isActive ? 'text-primary' : ''}`} />
         {!collapsed && <span className="flex-1">{section.title}</span>}
       </button>
     );
@@ -80,18 +83,21 @@ export function SidebarSection({
         aria-expanded={!collapsed && isOpen}
         aria-controls={`sidebar-section-${section.key}`}
         className={`relative flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium transition ${
-          isActive ? 'text-primary' : 'text-foreground hover:bg-accent'
+          isActive ? 'sidebar-section-active' : 'text-foreground hover:bg-accent'
         } ${collapsed ? 'justify-center px-0' : ''}`}
         title={collapsed ? section.title : undefined}
         aria-label={collapsed ? `Abrir seção ${section.title}` : undefined}
       >
-        <section.icon className="h-[18px] w-[18px] shrink-0" />
+        {collapsed && isActive && (
+          <span aria-hidden className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r bg-primary" />
+        )}
+        <section.icon className={`h-[18px] w-[18px] shrink-0 ${isActive ? 'text-primary' : ''}`} />
         {!collapsed && (
           <>
             <span className="flex-1">{section.title}</span>
             {moduleBadgeCount > 0 && (
               <span
-                className={`ml-auto mr-1 flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold ${BADGE_TONE_CLASS[moduleBadgeTone]}`}
+                className={`ml-auto mr-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1.5 text-[10px] font-semibold ${BADGE_TONE_CLASS[moduleBadgeTone]}`}
               >
                 {moduleBadgeCount}
               </span>
@@ -104,26 +110,24 @@ export function SidebarSection({
               ))}
           </>
         )}
+        {/* Colapsado: dot discreto em vez de número grande */}
         {collapsed && moduleBadgeCount > 0 && (
           <span
-            className={`absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-bold ${BADGE_TONE_CLASS[moduleBadgeTone]}`}
-          >
-            {moduleBadgeCount}
-          </span>
+            aria-hidden
+            className={`absolute top-1 right-1 h-2 w-2 rounded-full ${BADGE_TONE_CLASS[moduleBadgeTone]}`}
+          />
         )}
       </button>
 
       {!collapsed && isOpen && (
         <div
           id={`sidebar-section-${section.key}`}
-          className="ml-3 space-y-0.5 border-l border-border pl-3 py-1"
+          className="ml-2 space-y-0.5 border-l border-border/50 pl-3 py-1"
         >
           {section.items.map((group) => (
             <Fragment key={group.title}>
               {section.items.length > 1 && (
-                <p className="px-2 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                  {group.title}
-                </p>
+                <p className="sidebar-group-label">{group.title}</p>
               )}
               {group.items.map((item) => (
                 <SidebarSectionItem

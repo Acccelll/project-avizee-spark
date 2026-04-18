@@ -41,11 +41,24 @@ export function MobileBottomNav({ onOpenMenu }: MobileBottomNavProps) {
               onClick={() => tab.path && navigate(tab.path)}
               aria-current={active ? 'page' : undefined}
               className={cn(
-                'flex min-h-[52px] flex-col items-center justify-center gap-1 rounded-xl px-2 py-2 text-[11px] font-medium transition-colors',
-                active ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+                'relative flex min-h-[56px] flex-col items-center justify-center gap-1 rounded-xl px-2 py-1.5 text-[10px] font-medium transition-colors',
+                active ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
               )}
             >
-              <Icon className="h-5 w-5" />
+              {active && (
+                <span
+                  aria-hidden
+                  className="absolute top-0 left-1/2 h-[2px] w-8 -translate-x-1/2 rounded-full bg-primary"
+                />
+              )}
+              <span
+                className={cn(
+                  'flex h-7 w-12 items-center justify-center rounded-full transition-colors',
+                  active && 'bg-primary/10',
+                )}
+              >
+                <Icon className="h-5 w-5" />
+              </span>
               <span>{tab.title}</span>
             </button>
           );
@@ -55,11 +68,24 @@ export function MobileBottomNav({ onOpenMenu }: MobileBottomNavProps) {
           type="button"
           onClick={onOpenMenu}
           className={cn(
-            'flex min-h-[52px] flex-col items-center justify-center gap-1 rounded-xl px-2 py-2 text-[11px] font-medium transition-colors',
-            activeKey === 'menu' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+            'relative flex min-h-[56px] flex-col items-center justify-center gap-1 rounded-xl px-2 py-1.5 text-[10px] font-medium transition-colors',
+            activeKey === 'menu' ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
           )}
         >
-          <Menu className="h-5 w-5" />
+          {activeKey === 'menu' && (
+            <span
+              aria-hidden
+              className="absolute top-0 left-1/2 h-[2px] w-8 -translate-x-1/2 rounded-full bg-primary"
+            />
+          )}
+          <span
+            className={cn(
+              'flex h-7 w-12 items-center justify-center rounded-full transition-colors',
+              activeKey === 'menu' && 'bg-primary/10',
+            )}
+          >
+            <Menu className="h-5 w-5" />
+          </span>
           <span>Menu</span>
         </button>
       </div>
