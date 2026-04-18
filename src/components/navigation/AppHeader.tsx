@@ -55,8 +55,8 @@ export function AppHeader({ onOpenMobileMenu: _onOpenMobileMenu, onOpenSearch, o
   }, [location.pathname]);
 
   return (
-    <header role="banner" className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-      <div className="mx-auto flex h-16 max-w-[1600px] items-center gap-3 px-3 md:px-6">
+    <header role="banner" className="sticky top-0 z-40 border-b border-border bg-card/60 backdrop-blur supports-[backdrop-filter]:bg-card/50 shadow-[0_1px_0_0_hsl(var(--border)/0.4)]">
+      <div className="mx-auto flex h-14 max-w-[1600px] items-center gap-2 px-3 md:px-6">
         {isMobile ? (
           <>
             <div className="flex min-w-0 flex-1 items-center gap-2">
@@ -78,20 +78,20 @@ export function AppHeader({ onOpenMobileMenu: _onOpenMobileMenu, onOpenSearch, o
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="icon" className="h-10 w-10 rounded-full" onClick={onOpenSearch} aria-label="Abrir busca global" title="Buscar">
+            <div className="flex items-center gap-1.5">
+              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full" onClick={onOpenSearch} aria-label="Abrir busca global" title="Buscar">
                 <Search className="h-4 w-4" />
               </Button>
-              <Button variant="outline" size="icon" className="rounded-full" onClick={onOpenShortcuts} aria-label="Abrir atalhos">
+              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full" onClick={onOpenShortcuts} aria-label="Abrir atalhos">
                 <Keyboard className="h-4 w-4" />
               </Button>
 
               <NotificationsPanel />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="h-10 w-10 rounded-full p-0" aria-label="Abrir menu da conta">
-                    <Avatar className="h-9 w-9 border border-border">
-                      <AvatarFallback className="bg-primary text-primary-foreground">{initials}</AvatarFallback>
+                  <Button variant="ghost" className="h-9 w-9 rounded-full p-0 ring-2 ring-transparent hover:ring-primary/20 focus-visible:ring-primary/40 transition" aria-label="Abrir menu da conta">
+                    <Avatar className="h-8 w-8">
+                      <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">{initials}</AvatarFallback>
                     </Avatar>
                   </Button>
                 </DropdownMenuTrigger>
@@ -124,21 +124,15 @@ export function AppHeader({ onOpenMobileMenu: _onOpenMobileMenu, onOpenSearch, o
           </>
         ) : (
           <>
-            <div className="min-w-0 flex-1 space-y-1">
+            <div className="min-w-0 flex-1">
               <AppBreadcrumbs />
             </div>
 
-            <Button variant="outline" className="hidden min-w-[220px] items-center justify-start gap-2 md:flex" onClick={onOpenSearch}>
-              <Search className="h-4 w-4" />
-              <span className="text-muted-foreground">Buscar módulos...</span>
-              <span className="ml-auto rounded border px-1.5 py-0.5 text-[10px] text-muted-foreground">⌘K</span>
-            </Button>
-
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button className="gap-2 rounded-full px-4">
+                <Button variant="outline" size="sm" className="h-9 gap-1.5 rounded-md border-primary/30 text-primary hover:bg-primary/5 hover:text-primary">
                   <Plus className="h-4 w-4" />
-                  <span className="hidden sm:inline">Novo</span>
+                  <span className="hidden sm:inline font-medium">Novo</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-64">
@@ -156,16 +150,22 @@ export function AppHeader({ onOpenMobileMenu: _onOpenMobileMenu, onOpenSearch, o
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <Button variant="outline" size="icon" className="rounded-full" onClick={onOpenShortcuts} aria-label="Abrir atalhos">
+            <div className="mx-1 h-6 w-px bg-border/60" aria-hidden />
+
+            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground" onClick={onOpenSearch} aria-label="Abrir busca global" title="Buscar (⌘K)">
+              <Search className="h-4 w-4" />
+            </Button>
+
+            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground" onClick={onOpenShortcuts} aria-label="Abrir atalhos" title="Atalhos (?)">
               <Keyboard className="h-4 w-4" />
             </Button>
 
             <NotificationsPanel />
 
             <Button
-              variant="outline"
+              variant="ghost"
               size="icon"
-              className="rounded-full"
+              className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
               aria-label={theme === 'dark' ? 'Ativar tema claro' : 'Ativar tema escuro'}
               title={theme === 'dark' ? 'Tema claro' : 'Tema escuro'}
@@ -175,18 +175,17 @@ export function AppHeader({ onOpenMobileMenu: _onOpenMobileMenu, onOpenSearch, o
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="h-10 gap-2 rounded-full px-2" aria-label="Abrir menu da conta">
-                  <Avatar className="h-9 w-9 border border-border">
-                    <AvatarFallback className="bg-primary text-primary-foreground">{initials}</AvatarFallback>
+                <Button variant="ghost" className="h-9 w-9 rounded-full p-0 ring-2 ring-transparent hover:ring-primary/20 focus-visible:ring-primary/40 transition" aria-label="Abrir menu da conta">
+                  <Avatar className="h-8 w-8">
+                    <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">{initials}</AvatarFallback>
                   </Avatar>
-                  <div className="hidden text-left md:block">
-                    <p className="text-sm font-medium leading-none">{profile?.nome || 'Admin'}</p>
-                    <p className="text-xs text-muted-foreground">{profile?.cargo || 'Administrador'}</p>
-                  </div>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>Minha conta</DropdownMenuLabel>
+                <DropdownMenuLabel className="space-y-0.5">
+                  <p className="text-sm font-medium leading-none">{profile?.nome || 'Admin'}</p>
+                  <p className="text-xs text-muted-foreground font-normal">{profile?.cargo || 'Administrador'}</p>
+                </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => navigate('/perfil')}>
                   <User className="mr-2 h-4 w-4" />

@@ -57,22 +57,23 @@ export function PageShell({
     maxWidth === '5xl' ? 'max-w-5xl' : maxWidth === '3xl' ? 'max-w-3xl' : '';
 
   return (
-    <div className={cn('space-y-6', widthClass, className)}>
-      <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex min-w-0 items-center gap-3">
+    <div className={cn('space-y-5', widthClass, className)}>
+      <header className="flex flex-col gap-3 border-b border-border/50 pb-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 items-center gap-2">
           {backTo !== undefined && (
             <Button
               variant="ghost"
-              size="icon"
+              size="sm"
               onClick={handleBack}
               aria-label="Voltar"
-              className="shrink-0"
+              className="h-8 shrink-0 gap-1 px-2 text-muted-foreground hover:text-foreground"
             >
               <ArrowLeft className="h-4 w-4" />
+              <span className="hidden sm:inline text-xs">Voltar</span>
             </Button>
           )}
           <div className="min-w-0">
-            <h1 className="page-title text-xl md:text-2xl truncate">{title}</h1>
+            <h1 className="page-title text-lg md:text-xl truncate">{title}</h1>
             {subtitle && (
               <p className="mt-0.5 text-sm text-muted-foreground truncate">{subtitle}</p>
             )}

@@ -61,7 +61,7 @@ export function AppSidebar({
           <div className="flex items-center gap-2.5 overflow-hidden">
             <img src={logoAvizee} alt="AviZee" className="h-8 w-8 rounded object-contain" />
             {!collapsed && (
-              <p className="text-sm font-semibold tracking-tight">AviZee</p>
+              <p className="text-[15px] font-bold tracking-tight">AviZee</p>
             )}
           </div>
           <Button
@@ -79,7 +79,7 @@ export function AppSidebar({
         </div>
 
         {/* Search */}
-        <div className="px-2 py-2.5">
+        <div className="border-b border-border/40 px-2 py-2.5">
           <button
             type="button"
             onClick={onOpenSearch}

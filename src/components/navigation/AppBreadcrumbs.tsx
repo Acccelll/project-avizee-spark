@@ -107,8 +107,8 @@ export function AppBreadcrumbs() {
               <Fragment key={`${item.path}-${index}`}>
                 <BreadcrumbItem>
                   {isLast ? (
-                    <BreadcrumbPage className="flex items-center gap-1.5 font-medium text-foreground">
-                      {showIcon && <Icon className="h-3.5 w-3.5 text-muted-foreground" />}
+                    <BreadcrumbPage className="flex items-center gap-1.5 font-semibold text-foreground">
+                      {showIcon && <Icon className="h-3.5 w-3.5 text-primary" />}
                       {item.label}
                     </BreadcrumbPage>
                   ) : siblings.length > 1 ? (
@@ -139,7 +139,7 @@ export function AppBreadcrumbs() {
                   )}
                 </BreadcrumbItem>
                 {!isLast && (
-                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/40" aria-hidden />
+                  <ChevronRight className="h-3 w-3 text-muted-foreground/40" aria-hidden />
                 )}
               </Fragment>
             );
