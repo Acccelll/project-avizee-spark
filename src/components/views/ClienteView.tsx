@@ -210,9 +210,9 @@ export function ClienteView({ id }: Props) {
         </TabsContent>
 
         <TabsContent value="vendas" className="space-y-3 mt-3">
-          <h4 className="font-semibold text-sm flex items-center gap-2"><FileText className="h-4 w-4" /> Últimos Pedidos</h4>
+          <SectionTitle icon={FileText}>Últimos Pedidos</SectionTitle>
           {vendas.length === 0 ? (
-            <p className="text-xs text-muted-foreground text-center py-6">Nenhum pedido encontrado</p>
+            <EmptyState icon={FileText} title="Nenhum pedido encontrado" description="Este cliente ainda não possui pedidos de venda." />
           ) : (
             <div className="space-y-2">
               {vendas.map((v) => (
@@ -251,9 +251,9 @@ export function ClienteView({ id }: Props) {
            </div>
 
            <div className="space-y-3">
-             <h4 className="font-semibold text-sm flex items-center gap-2 px-1 text-muted-foreground uppercase text-[10px]">Lançamentos Recentes</h4>
+             <SectionTitle>Lançamentos Recentes</SectionTitle>
              {financeiro.length === 0 ? (
-               <p className="text-xs text-muted-foreground text-center py-4 border rounded-lg border-dashed">Nenhum lançamento financeiro</p>
+               <EmptyState icon={CreditCard} title="Nenhum lançamento" description="Sem lançamentos financeiros vinculados a este cliente." />
              ) : (
                <div className="space-y-2">
                  {financeiro.map((f) => (
@@ -276,11 +276,9 @@ export function ClienteView({ id }: Props) {
         </TabsContent>
 
         <TabsContent value="contatos" className="space-y-3 mt-3">
-           <div className="flex items-center justify-between px-1">
-             <h4 className="font-semibold text-sm flex items-center gap-2 text-muted-foreground uppercase text-[10px]"><MessageSquare className="h-3.5 w-3.5" /> Histórico de Contatos</h4>
-           </div>
+           <SectionTitle icon={MessageSquare}>Histórico de Contatos</SectionTitle>
            {comunicacao.length === 0 ? (
-             <p className="text-xs text-muted-foreground text-center py-8 border rounded-xl border-dashed">Nenhum registro de contato</p>
+             <EmptyState icon={MessageSquare} title="Nenhum contato registrado" description="Registros de comunicação aparecerão aqui." />
            ) : (
              <div className="space-y-4">
                {comunicacao.map((c) => (
@@ -299,9 +297,9 @@ export function ClienteView({ id }: Props) {
         </TabsContent>
 
         <TabsContent value="logistica" className="space-y-3 mt-3">
-           <h4 className="font-semibold text-sm flex items-center gap-2 text-muted-foreground uppercase text-[10px]"><Truck className="h-3.5 w-3.5" /> Transportadoras de Preferência</h4>
+           <SectionTitle icon={Truck}>Transportadoras de Preferência</SectionTitle>
            {transportadoras.length === 0 ? (
-             <p className="text-xs text-muted-foreground text-center py-8 border rounded-xl border-dashed">Nenhuma transportadora vinculada</p>
+             <EmptyState icon={Truck} title="Nenhuma transportadora vinculada" description="Defina transportadoras preferenciais para este cliente." />
            ) : (
              <div className="space-y-3">
                {transportadoras.map((t) => (
