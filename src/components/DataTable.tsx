@@ -548,58 +548,60 @@ export function DataTable<T extends Record<string, any>>({
       {/* Toolbar — desktop only */}
       <div className="mb-2 hidden flex-wrap items-center gap-2 justify-between md:flex">
         <div className="flex flex-wrap items-center gap-2">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs"><Filter className="h-3.5 w-3.5" />Filtros</Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-[420px] p-3" align="start">
-              <div className="space-y-2">
-                <p className="text-xs font-semibold text-muted-foreground">Filtros avançados</p>
-                {rules.map((rule) => (
-                  <div key={rule.id} className="grid grid-cols-12 gap-1">
-                    <Select value={rule.field} onValueChange={(v) => updateRule(rule.id, { field: v })}>
-                      <SelectTrigger className="col-span-4 h-8"><SelectValue /></SelectTrigger>
-                      <SelectContent>{columns.map((c) => <SelectItem key={c.key} value={c.key}>{c.label}</SelectItem>)}</SelectContent>
-                    </Select>
-                    <Select value={rule.operator} onValueChange={(v: FilterOperator) => updateRule(rule.id, { operator: v })}>
-                      <SelectTrigger className="col-span-3 h-8"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="contains">Contém</SelectItem>
-                        <SelectItem value="equals">É</SelectItem>
-                        <SelectItem value="gt">Maior que</SelectItem>
-                        <SelectItem value="between">Entre</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Input className="col-span-3 h-8" value={rule.value} onChange={(e) => updateRule(rule.id, { value: e.target.value })} placeholder="valor" />
-                    <Button variant="ghost" size="icon" className="col-span-2 h-8" onClick={() => deleteRule(rule.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+          {showInternalFilters && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs"><Filter className="h-3.5 w-3.5" />Filtros</Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[420px] p-3" align="start">
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground">Filtros avançados</p>
+                  {rules.map((rule) => (
+                    <div key={rule.id} className="grid grid-cols-12 gap-1">
+                      <Select value={rule.field} onValueChange={(v) => updateRule(rule.id, { field: v })}>
+                        <SelectTrigger className="col-span-4 h-8"><SelectValue /></SelectTrigger>
+                        <SelectContent>{columns.map((c) => <SelectItem key={c.key} value={c.key}>{c.label}</SelectItem>)}</SelectContent>
+                      </Select>
+                      <Select value={rule.operator} onValueChange={(v: FilterOperator) => updateRule(rule.id, { operator: v })}>
+                        <SelectTrigger className="col-span-3 h-8"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="contains">Contém</SelectItem>
+                          <SelectItem value="equals">É</SelectItem>
+                          <SelectItem value="gt">Maior que</SelectItem>
+                          <SelectItem value="between">Entre</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Input className="col-span-3 h-8" value={rule.value} onChange={(e) => updateRule(rule.id, { value: e.target.value })} placeholder="valor" />
+                      <Button variant="ghost" size="icon" className="col-span-2 h-8" onClick={() => deleteRule(rule.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                    </div>
+                  ))}
+                  <div className="flex gap-2">
+                    <Button variant="secondary" size="sm" onClick={addRule}><ListFilter className="h-3.5 w-3.5 mr-1" />Adicionar regra</Button>
+                    <Button variant="ghost" size="sm" onClick={() => setRules([])}><RotateCcw className="h-3.5 w-3.5 mr-1" />Limpar</Button>
                   </div>
-                ))}
-                <div className="flex gap-2">
-                  <Button variant="secondary" size="sm" onClick={addRule}><ListFilter className="h-3.5 w-3.5 mr-1" />Adicionar regra</Button>
-                  <Button variant="ghost" size="sm" onClick={() => setRules([])}><RotateCcw className="h-3.5 w-3.5 mr-1" />Limpar</Button>
-                </div>
-                <div className="flex gap-2 pt-2 border-t">
-                  <Input value={filterName} onChange={(e) => setFilterName(e.target.value)} placeholder="Salvar este filtro" className="h-8" />
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      if (!filterName.trim() || !rules.length) return;
-                      setSavedFilters((prev) => [...prev, { name: filterName.trim(), rules }]);
-                      setFilterName('');
-                      toast.success('Filtro salvo com sucesso');
-                    }}
-                  >Salvar</Button>
-                </div>
-                {savedFilters.length > 0 && (
-                  <div className="space-y-1">
-                    {savedFilters.map((f) => (
-                      <button key={f.name} className="w-full text-left text-xs rounded px-2 py-1 hover:bg-accent" onClick={() => setRules(f.rules)}>{f.name}</button>
-                    ))}
+                  <div className="flex gap-2 pt-2 border-t">
+                    <Input value={filterName} onChange={(e) => setFilterName(e.target.value)} placeholder="Salvar este filtro" className="h-8" />
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        if (!filterName.trim() || !rules.length) return;
+                        setSavedFilters((prev) => [...prev, { name: filterName.trim(), rules }]);
+                        setFilterName('');
+                        toast.success('Filtro salvo com sucesso');
+                      }}
+                    >Salvar</Button>
                   </div>
-                )}
-              </div>
-            </PopoverContent>
-          </Popover>
+                  {savedFilters.length > 0 && (
+                    <div className="space-y-1">
+                      {savedFilters.map((f) => (
+                        <button key={f.name} className="w-full text-left text-xs rounded px-2 py-1 hover:bg-accent" onClick={() => setRules(f.rules)}>{f.name}</button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
+          )}
 
           <Select value={viewMode} onValueChange={(v: 'pagination' | 'infinite') => { setViewMode(v); if (moduleKey) localStorage.setItem(getStorageKey(moduleKey, 'list-mode'), v); }}>
             <SelectTrigger className="h-8 w-[170px] text-xs"><SelectValue /></SelectTrigger>
