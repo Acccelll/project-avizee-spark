@@ -231,8 +231,21 @@ export default function UnidadesMedida() {
         open={modalOpen}
         onClose={closeModal}
         title={mode === "create" ? "Nova Unidade de Medida" : "Editar Unidade de Medida"}
+        identifier={mode === "edit" && selected?.codigo ? selected.codigo : undefined}
+        status={mode === "edit" && selected ? <StatusBadge status={selected.ativo ? "Ativo" : "Inativo"} /> : undefined}
+        isDirty={isDirty}
+        footer={
+          <FormModalFooter
+            saving={saving}
+            isDirty={isDirty}
+            onCancel={closeModal}
+            submitAsForm
+            formId="unidade-form"
+            mode={mode}
+          />
+        }
       >
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form id="unidade-form" onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Código <span className="text-destructive">*</span></Label>
@@ -282,19 +295,6 @@ export default function UnidadesMedida() {
             <Label htmlFor="ativo-switch" className="cursor-pointer">
               {form.ativo ? "Ativo — disponível para seleção nos produtos" : "Inativo — não aparece nas seleções"}
             </Label>
-          </div>
-          <div className="flex justify-end gap-2 pt-4 border-t">
-            <Button type="button" variant="outline" onClick={closeModal}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={saving} className="min-w-[100px]">
-              {saving ? (
-                <span className="flex items-center gap-1.5">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Salvando...
-                </span>
-              ) : "Salvar"}
-            </Button>
           </div>
         </form>
       </FormModal>
