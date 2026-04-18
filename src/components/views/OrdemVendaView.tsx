@@ -10,7 +10,9 @@ import { usePublishDrawerSlots } from "@/contexts/RelationalDrawerSlotsContext";
 import { LogisticaRastreioSection } from "@/components/logistica/LogisticaRastreioSection";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { CrossModuleActionDialog, type ImpactItem } from "@/components/CrossModuleActionDialog";
+import { RelatedRecordsStrip, type RelatedRecordChip } from "@/components/views/RelatedRecordsStrip";
+import { useCrossModuleToast } from "@/hooks/useCrossModuleToast";
 import { toast } from "sonner";
 import { useDetailFetch } from "@/hooks/useDetailFetch";
 import { useDetailActions } from "@/hooks/useDetailActions";
@@ -87,6 +89,7 @@ export function OrdemVendaView({ id }: Props) {
   const navigate = useNavigate();
   const { run, locked } = useDetailActions();
   const faturarPedido = useFaturarPedido();
+  const crossToast = useCrossModuleToast();
 
   const { data, loading, reload } = useDetailFetch<OVDetail>(id, async (ovId, signal) => {
     const { data: ov, error: ovErr } = await supabase
@@ -146,7 +149,7 @@ export function OrdemVendaView({ id }: Props) {
     if (!selected) return;
     await run("generate_nf", async () => {
       // RPC transacional + invalidação cross-módulo via hook.
-      await faturarPedido.mutateAsync({
+      const result = await faturarPedido.mutateAsync({
         id: selected.id,
         numero: selected.numero,
         cliente_id: selected.cliente_id,
@@ -154,6 +157,13 @@ export function OrdemVendaView({ id }: Props) {
       });
       await reload();
       setGenerateNfOpen(false);
+      // Toast com CTA: usuário abre a NF gerada em 1 clique (drawer).
+      crossToast.success({
+        title: "Nota Fiscal gerada!",
+        description: `NF ${result.nfNumero} emitida para o pedido ${selected.numero}.`,
+        actionLabel: "Abrir NF",
+        action: { drawer: { type: "nota_fiscal", id: result.nfId } },
+      });
     }).catch(() => {
       // erro já reportado via toast
     });
@@ -614,13 +624,33 @@ export function OrdemVendaView({ id }: Props) {
         </TabsContent>
       </Tabs>
 
-      <ConfirmDialog
+      <CrossModuleActionDialog
         open={generateNfOpen}
         onClose={() => setGenerateNfOpen(false)}
         onConfirm={handleGenerateNF}
         loading={locked("generate_nf")}
         title="Gerar Nota Fiscal"
-        description={`Deseja gerar uma Nota Fiscal de saída para o Pedido ${selected.numero}? Todos os itens serão incluídos.`}
+        description={`Confirma a geração de uma NF de saída para o pedido ${selected.numero}?`}
+        confirmLabel="Gerar NF"
+        impacts={[
+          {
+            label: "Cria NF de saída em /fiscal",
+            detail: `${items.length} ${items.length === 1 ? "item" : "itens"} · ${formatCurrency(selected.valor_total || 0)}`,
+            tone: "primary",
+          },
+          {
+            label: "Atualiza estoque (saída)",
+            tone: "warning",
+          },
+          {
+            label: "Gera lançamentos a receber em /financeiro",
+            tone: "info",
+          },
+          {
+            label: `Pedido ${selected.numero} muda status de faturamento`,
+            tone: "success",
+          },
+        ] satisfies ImpactItem[]}
       />
     </div>
   );
