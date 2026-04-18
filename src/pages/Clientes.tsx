@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useNavigate, useLocation } from "react-router-dom";
-import { AppLayout } from "@/components/AppLayout";
 import { DataTable } from "@/components/DataTable";
 import { PullToRefresh } from "@/components/ui/PullToRefresh";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -660,8 +659,7 @@ const Clientes = () => {
   const summaryComGrupo = useMemo(() => data.filter(c => c.grupo_economico_id).length, [data]);
 
   return (
-    <AppLayout>
-      <ModulePage
+    <><ModulePage
         title="Clientes"
         subtitle="Consulta comercial e cadastro de clientes"
         addLabel="Novo Cliente"
@@ -1628,7 +1626,7 @@ const Clientes = () => {
       </Dialog>
 
       {discardDialog}
-    </AppLayout>);
+    </>);
 
 };
 

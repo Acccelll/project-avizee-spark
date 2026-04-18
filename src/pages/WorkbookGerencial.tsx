@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, RefreshCcw } from 'lucide-react';
 import { toast } from 'sonner';
-import { AppLayout } from '@/components/AppLayout';
 import { ModulePage } from '@/components/ModulePage';
 import { Button } from '@/components/ui/button';
 import { WorkbookGeracaoDialog } from '@/components/financeiro/WorkbookGeracaoDialog';
@@ -78,8 +77,7 @@ export default function WorkbookGerencial() {
   };
 
   return (
-    <AppLayout>
-      <ModulePage
+    <><ModulePage
         title="Workbook Gerencial"
         headerActions={
           <div className="flex gap-2">
@@ -118,6 +116,6 @@ export default function WorkbookGerencial() {
           isGenerating={gerarMutation.isPending}
         />
       )}
-    </AppLayout>
+    </>
   );
 }

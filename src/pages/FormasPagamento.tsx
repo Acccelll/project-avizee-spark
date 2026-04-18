@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -310,8 +309,7 @@ export default function FormasPagamento() {
   ];
 
   return (
-    <AppLayout>
-      <ModulePage
+    <><ModulePage
         title="Formas de Pagamento"
         subtitle="Central de consulta e parametrização de condições de pagamento"
         addLabel="Nova Forma"
@@ -844,6 +842,6 @@ export default function FormasPagamento() {
         )}
       </ConfirmDialog>
       {confirmDialog}
-    </AppLayout>
+    </>
   );
 }

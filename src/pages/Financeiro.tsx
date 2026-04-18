@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import { AppLayout } from "@/components/AppLayout";
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
@@ -188,8 +187,7 @@ const Financeiro = () => {
   );
 
   return (
-    <AppLayout>
-      <ModulePage title="Contas a Pagar/Receber" subtitle="Gestão unificada de contas a pagar e receber" addLabel="Novo Lançamento" onAdd={openCreate}>
+    <><ModulePage title="Contas a Pagar/Receber" subtitle="Gestão unificada de contas a pagar e receber" addLabel="Novo Lançamento" onAdd={openCreate}>
         <div className="mb-4 flex items-center gap-3 flex-wrap">
           <PeriodFilter value={period} onChange={setPeriod} options={financialPeriods} />
           <div className="flex gap-1 ml-auto rounded-lg border p-0.5">
@@ -346,7 +344,7 @@ const Financeiro = () => {
           invalidateAfterBaixa();
         }}
       />
-    </AppLayout>
+    </>
   );
 };
 

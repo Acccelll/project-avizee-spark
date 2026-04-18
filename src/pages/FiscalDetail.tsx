@@ -9,7 +9,6 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Eye, Receipt, RefreshCw } from "lucide-react";
-import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { ListPageHeader } from "@/components/list/ListPageHeader";
 import { NotaFiscalDrawer } from "@/components/fiscal/NotaFiscalDrawer";
@@ -57,18 +56,16 @@ export default function FiscalDetail() {
 
   if (loading) {
     return (
-      <AppLayout>
-        <div className="p-6">
+      <><div className="p-6">
           <DetailLoading />
         </div>
-      </AppLayout>
+      </>
     );
   }
 
   if (error) {
     return (
-      <AppLayout>
-        <div className="p-6">
+      <><div className="p-6">
           <DetailError
             message={getUserFriendlyError(error)}
             action={
@@ -85,14 +82,13 @@ export default function FiscalDetail() {
             }
           />
         </div>
-      </AppLayout>
+      </>
     );
   }
 
   if (!nf) {
     return (
-      <AppLayout>
-        <div className="p-6">
+      <><div className="p-6">
           <DetailEmpty
             title="Nota fiscal não encontrada"
             message="O documento pode ter sido removido ou o link está incorreto."
@@ -104,7 +100,7 @@ export default function FiscalDetail() {
             }
           />
         </div>
-      </AppLayout>
+      </>
     );
   }
 
@@ -115,8 +111,7 @@ export default function FiscalDetail() {
       : (nf as any).clientes?.nome_razao_social;
 
   return (
-    <AppLayout>
-      <div className="p-6">
+    <><div className="p-6">
         <ListPageHeader
           title={`NF ${nf.numero}`}
           contextLine={
@@ -158,6 +153,6 @@ export default function FiscalDetail() {
         onDevolucao={() => reload()}
         onDanfe={() => { /* DANFE PDF generation handled inside drawer */ }}
       />
-    </AppLayout>
+    </>
   );
 }

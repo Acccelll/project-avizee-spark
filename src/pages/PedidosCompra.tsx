@@ -1,5 +1,4 @@
 import { useMemo } from "react";
-import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";
 import { SummaryCard } from "@/components/SummaryCard";
 import { CheckCircle2, Clock, ShoppingCart } from "lucide-react";
@@ -38,8 +37,7 @@ export default function PedidosCompra() {
   );
 
   return (
-    <AppLayout>
-      <ModulePage
+    <><ModulePage
         title="Pedidos de Compra"
         subtitle="Central de consulta e acompanhamento operacional de pedidos de compra"
         addLabel="Novo Pedido"
@@ -152,6 +150,6 @@ export default function PedidosCompra() {
           statusLabels={statusLabels}
         />
       )}
-    </AppLayout>
+    </>
   );
 }

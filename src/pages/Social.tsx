@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, BarChart3, FileText, RefreshCcw, Users } from 'lucide-react';
 import { toast } from 'sonner';
-import { AppLayout } from '@/components/AppLayout';
 import { ModulePage } from '@/components/ModulePage';
 import { SummaryCard } from '@/components/SummaryCard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -174,11 +173,10 @@ export default function Social() {
 
   if (!permissions.canViewModule) {
     return (
-      <AppLayout>
-        <ModulePage title="Social" subtitle="Você não possui permissão para visualizar este módulo.">
+      <><ModulePage title="Social" subtitle="Você não possui permissão para visualizar este módulo.">
           <p className="text-sm text-muted-foreground">Solicite ao administrador acesso ao módulo Social.</p>
         </ModulePage>
-      </AppLayout>
+      </>
     );
   }
 
@@ -193,8 +191,7 @@ export default function Social() {
   const trendLabel = dashboard ? calculateTrend(dashboard) : 'estavel';
 
   return (
-    <AppLayout>
-      <ModulePage
+    <><ModulePage
         title="Social"
         subtitle="Gestão de Instagram Business e LinkedIn com histórico de métricas e alertas operacionais"
         headerActions={
@@ -291,6 +288,6 @@ export default function Social() {
       </ModulePage>
 
       <SocialContaModal open={contaModalOpen} onOpenChange={setContaModalOpen} onSubmit={handleNovaConta} />
-    </AppLayout>
+    </>
   );
 }

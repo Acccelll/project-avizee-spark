@@ -3,7 +3,6 @@
 // entregas and recebimentos.  Do NOT expand functionality here.
 // New features should be implemented in src/pages/Logistica.tsx.
 import { useMemo, useState, useEffect } from "react";
-import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -271,8 +270,7 @@ export default function Remessas() {
   ] : [];
 
   return (
-    <AppLayout>
-      <ModulePage title="Remessas" subtitle="Gestão de remessas e rastreamento logístico" addLabel="Nova Remessa" onAdd={openCreate}>
+    <><ModulePage title="Remessas" subtitle="Gestão de remessas e rastreamento logístico" addLabel="Nova Remessa" onAdd={openCreate}>
         <AdvancedFilterBar
           searchValue={searchTerm}
           onSearchChange={setSearchTerm}
@@ -508,6 +506,6 @@ export default function Remessas() {
           </div>
         ) : undefined}
       />
-    </AppLayout>
+    </>
   );
 }

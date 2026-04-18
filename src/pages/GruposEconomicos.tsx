@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
 import { useDebounce } from "@/hooks/useDebounce";
-import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
 import { PullToRefresh } from "@/components/ui/PullToRefresh";
@@ -674,8 +673,7 @@ const GruposEconomicos = () => {
     .join(" ");
 
   return (
-    <AppLayout>
-      <ModulePage
+    <><ModulePage
         title="Grupos Econômicos"
         subtitle="Central de consulta e gestão de grupos econômicos"
         addLabel="Novo Grupo"
@@ -1023,7 +1021,7 @@ const GruposEconomicos = () => {
         description={deleteDescription}
       />
       {discardDialog}
-    </AppLayout>
+    </>
   );
 };
 

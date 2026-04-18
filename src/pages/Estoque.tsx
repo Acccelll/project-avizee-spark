@@ -1,5 +1,4 @@
 import { useState, useMemo } from "react";
-import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -323,8 +322,7 @@ const Estoque = () => {
     : saldoAtualPreview + qty;
 
   return (
-    <AppLayout>
-      <ModulePage
+    <><ModulePage
         title="Estoque"
         subtitle="Central de saúde do estoque — saldos, rastreabilidade e ajustes controlados"
         headerActions={
@@ -679,7 +677,7 @@ const Estoque = () => {
         confirmVariant="default"
         loading={saving}
       />
-    </AppLayout>
+    </>
   );
 };
 

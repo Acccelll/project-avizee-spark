@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useNavigate, useLocation } from "react-router-dom";
-import { AppLayout } from "@/components/AppLayout";
 import { DataTable } from "@/components/DataTable";
 import { PullToRefresh } from "@/components/ui/PullToRefresh";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -325,8 +324,7 @@ const Fornecedores = () => {
   const summaryAtivos = useMemo(() => data.filter(f => f.ativo).length, [data]);
 
   return (
-    <AppLayout>
-      <ModulePage
+    <><ModulePage
         title="Fornecedores"
         subtitle="Consulta e gestão de fornecedores"
         addLabel="Novo Fornecedor"
@@ -798,7 +796,7 @@ const Fornecedores = () => {
       </FormModal>
 
       {discardDialog}
-    </AppLayout>);
+    </>);
 
 };
 

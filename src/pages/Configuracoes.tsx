@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useTheme } from 'next-themes';
 import { AlertCircle, CalendarDays, Check, CheckCircle2, Clock, Eye, EyeOff, Info, Loader2, Lock, Mail, Moon, Palette, RotateCcw, Save, Settings, Shield, ShieldCheck, Sun, User } from 'lucide-react';
 import { useUserPreference } from '@/hooks/useUserPreference';
-import { AppLayout } from '@/components/AppLayout';
+import { useAppConfigContext } from '@/contexts/AppConfigContext';
 import { ModulePage } from '@/components/ModulePage';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -159,10 +159,10 @@ export default function Configuracoes() {
   const [corPrimaria, setCorPrimaria] = useState('#6b0d0d');
   const [corSecundaria, setCorSecundaria] = useState('#b85b2d');
   const {
-    value: menuCompacto,
-    save: saveMenuCompacto,
-    loading: loadingMenuCompacto,
-  } = useUserPreference<boolean>(user?.id, 'sidebar_collapsed', true);
+    sidebarCollapsed: menuCompacto,
+    saveSidebarCollapsed: saveMenuCompacto,
+    loadingSidebarCollapsed: loadingMenuCompacto,
+  } = useAppConfigContext();
   const { value: densidadePref, save: saveDensidadePref } = useUserPreference<string>(user?.id, 'ui_density', 'confortavel');
   const { value: fontScale, save: saveFontScale } = useUserPreference<number>(user?.id, 'ui_font_scale', 16);
   const { value: reduceMotion, save: saveReduceMotion } = useUserPreference<boolean>(user?.id, 'ui_reduce_motion', false);
@@ -951,8 +951,7 @@ export default function Configuracoes() {
   };
 
   return (
-    <AppLayout>
-      <ModulePage title="Configurações" subtitle="Preferências pessoais da sua conta.">
+    <><ModulePage title="Configurações" subtitle="Preferências pessoais da sua conta.">
         {/* Horizontal tab navigation */}
         <div role="tablist" aria-label="Seções de Configurações" className="flex gap-0 border-b overflow-x-auto mb-6 -mt-1">
           {tabNavItems.map((item) => {
@@ -981,6 +980,6 @@ export default function Configuracoes() {
         {/* Section content */}
         <div>{renderContent()}</div>
       </ModulePage>
-    </AppLayout>
+    </>
   );
 }

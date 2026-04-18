@@ -1,11 +1,9 @@
 import { useCallback, useMemo } from 'react';
-import { useUserPreference } from '@/hooks/useUserPreference';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ChevronRight, LayoutDashboard, Search } from 'lucide-react';
 import logoAvizee from '@/assets/logoavizee.png';
 import { Button } from '@/components/ui/button';
 import { dashboardItem, flatNavItems } from '@/lib/navigation';
-import { useAuth } from '@/contexts/AuthContext';
 import { useFavoritos } from '@/hooks/useFavoritos';
 import { useVisibleNavSections } from '@/hooks/useVisibleNavSections';
 import { useNavigationState } from '@/hooks/useNavigationState';
@@ -17,31 +15,22 @@ import { SidebarFooter } from '@/components/sidebar/SidebarFooter';
 interface AppSidebarProps {
   collapsed: boolean;
   onToggleCollapsed: () => void;
-  mobileOpen: boolean;
-  onCloseMobile: () => void;
   onOpenSearch: () => void;
 }
 
 export function AppSidebar({
   collapsed,
   onToggleCollapsed,
-  mobileOpen,
-  onCloseMobile,
   onOpenSearch,
 }: AppSidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user } = useAuth();
   const { favoritos, toggleFavorito, isFavorito } = useFavoritos();
 
   const visibleSections = useVisibleNavSections();
   const { activeSectionKeys, isItemActive, isSectionOpen, toggleSection, isInsideAdminModule } =
     useNavigationState(visibleSections);
   const { moduleBadges, itemBadges, secondsSinceSync } = useSidebarBadges();
-
-  // Sidebar collapse preference is owned by AppLayout, but we still consume the
-  // user-scoped key here for the sake of any other client that needs it.
-  useUserPreference<Record<string, boolean>>(user?.id ?? null, 'sidebar_sections_state', {});
 
   const favoritedItems = useMemo(
     () => flatNavItems.filter((item) => favoritos.includes(item.path)),
@@ -50,29 +39,23 @@ export function AppSidebar({
 
   const handleNavClick = useCallback(
     (path: string) => {
-      onCloseMobile();
       navigate(path);
     },
-    [navigate, onCloseMobile],
+    [navigate],
   );
 
-  const containerClasses = collapsed ? 'w-[240px] md:w-[72px]' : 'w-[240px]';
+  const containerClasses = collapsed ? 'w-[72px]' : 'w-[240px]';
   const dashboardActive = location.pathname === dashboardItem.path;
 
   return (
-    <>
-      {mobileOpen && (
-        <div className="fixed inset-0 z-40 bg-black/40 md:hidden" onClick={onCloseMobile} />
-      )}
-      <aside
-        role="complementary"
-        aria-label="Barra lateral principal"
-        className={[
-          'fixed inset-y-0 left-0 z-50 flex h-screen flex-col border-r border-border bg-card transition-all duration-200',
-          containerClasses,
-          mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0',
-        ].join(' ')}
-      >
+    <aside
+      role="navigation"
+      aria-label="Barra lateral principal"
+      className={[
+        'fixed inset-y-0 left-0 z-50 flex h-screen flex-col border-r border-border bg-card transition-all duration-200',
+        containerClasses,
+      ].join(' ')}
+    >
         {/* Logo */}
         <div className="flex h-14 items-center justify-between border-b border-border/60 px-3">
           <div className="flex items-center gap-2.5 overflow-hidden">
@@ -131,7 +114,6 @@ export function AppSidebar({
           {/* Dashboard */}
           <Link
             to={dashboardItem.path}
-            onClick={onCloseMobile}
             aria-current={dashboardActive ? 'page' : undefined}
             className={`sidebar-item mb-2 ${dashboardActive ? 'sidebar-item-active' : 'sidebar-item-inactive'} ${collapsed ? 'justify-center' : ''}`}
             title={collapsed ? dashboardItem.title : undefined}
@@ -171,7 +153,6 @@ export function AppSidebar({
           secondsSinceSync={secondsSinceSync}
           onNavigate={handleNavClick}
         />
-      </aside>
-    </>
+    </aside>
   );
 }

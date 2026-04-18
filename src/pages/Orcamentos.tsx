@@ -1,7 +1,6 @@
 
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -389,8 +388,7 @@ const Orcamentos = () => {
   }));
 
   return (
-    <AppLayout>
-      <ModulePage
+    <><ModulePage
         title="Cotações"
         subtitle="Central de consulta e acompanhamento do funil comercial"
         addLabel="Novo Orçamento"
@@ -500,7 +498,7 @@ const Orcamentos = () => {
           </div>
         </div>
       </ConfirmDialog>
-    </AppLayout>
+    </>
   );
 };
 

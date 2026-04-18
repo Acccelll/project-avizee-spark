@@ -1,6 +1,5 @@
 
 import { useNavigate } from "react-router-dom";
-import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";
 import { SummaryCard } from "@/components/SummaryCard";
 import { FormModal } from "@/components/FormModal";
@@ -49,8 +48,7 @@ export default function CotacoesCompra() {
   } = useCotacaoCompraFilters(data, statusLabels);
 
   return (
-    <AppLayout>
-      <ModulePage
+    <><ModulePage
         title="Cotações de Compra"
         subtitle="Central de consulta e negociação de compra — propostas, comparação e aprovação."
         addLabel="Nova Cotação de Compra"
@@ -226,6 +224,6 @@ export default function CotacoesCompra() {
         title="Excluir cotação"
         description={`Tem certeza que deseja excluir a cotação ${selected?.numero || ""}? Esta ação não pode ser desfeita.`}
       />
-    </AppLayout>
+    </>
   );
 }

@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -535,8 +534,7 @@ export default function Logistica() {
   ] : [];
 
   return (
-    <AppLayout>
-      <ModulePage
+    <><ModulePage
         title="Logística"
         subtitle="Central de acompanhamento logístico, entregas, recebimentos e remessas."
         addLabel={canEdit ? "Nova Remessa" : undefined}
@@ -769,6 +767,6 @@ export default function Logistica() {
           </div>
         ) : undefined}
       />
-    </AppLayout>
+    </>
   );
 }

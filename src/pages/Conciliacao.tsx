@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
-import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -536,8 +535,7 @@ export default function Conciliacao() {
   };
 
   return (
-    <AppLayout>
-      <ModulePage
+    <><ModulePage
         title="Conciliação Bancária"
         subtitle="Central de conferência financeira entre ERP e movimentação real"
       >
@@ -899,6 +897,6 @@ export default function Conciliacao() {
           </div>
         )}
       </ModulePage>
-    </AppLayout>
+    </>
   );
 }

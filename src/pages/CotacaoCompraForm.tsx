@@ -8,7 +8,6 @@
 import { useCallback, useEffect, useState, useMemo, type SetStateAction } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -292,19 +291,17 @@ export default function CotacaoCompraForm() {
 
   if (loading) {
     return (
-      <AppLayout>
-        <div className="flex items-center justify-center min-h-[60vh]">
+      <><div className="flex items-center justify-center min-h-[60vh]">
           <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
         </div>
-      </AppLayout>
+      </>
     );
   }
 
   if (!cotacao) return null;
 
   return (
-    <AppLayout>
-      <div className="max-w-5xl mx-auto p-6 space-y-6">
+    <div className="max-w-5xl space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -461,8 +458,7 @@ export default function CotacaoCompraForm() {
             </Button>
           )}
         </div>
-      </div>
       {confirmDialog}
-    </AppLayout>
+    </div>
   );
 }

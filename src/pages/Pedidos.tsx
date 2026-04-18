@@ -1,7 +1,6 @@
 
 import { useMemo, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
 import { PullToRefresh } from "@/components/ui/PullToRefresh";
@@ -378,8 +377,7 @@ const Pedidos = () => {
   ];
 
   return (
-    <AppLayout>
-      <ModulePage
+    <><ModulePage
         title="Pedidos"
         subtitle="Central de consulta e acompanhamento operacional do ciclo de venda"
       >
@@ -493,7 +491,7 @@ const Pedidos = () => {
         title="Gerar Nota Fiscal"
         description={`Deseja gerar uma Nota Fiscal de saída para o Pedido ${data.find(o => o.id === generatingNfId)?.numero || ""}? Todos os itens serão incluídos.`}
       />
-    </AppLayout>
+    </>
   );
 };
 

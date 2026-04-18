@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import { useDebounce } from "@/hooks/useDebounce";
-import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
 import { PullToRefresh } from "@/components/ui/PullToRefresh";
@@ -345,8 +344,7 @@ export default function Funcionarios() {
   const currentMonth = new Date().toISOString().slice(0, 7);
 
   return (
-    <AppLayout>
-      <ModulePage
+    <><ModulePage
         title="Funcionários"
         subtitle="Central de consulta e gestão de funcionários"
         addLabel="Novo Funcionário"
@@ -994,6 +992,6 @@ export default function Funcionarios() {
         </div>
       </FormModal>
       {confirmDiscardDialog}
-    </AppLayout>
+    </>
   );
 }

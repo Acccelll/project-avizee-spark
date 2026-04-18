@@ -1,5 +1,4 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
-import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -537,8 +536,7 @@ const ContasContabeis = () => {
   );
 
   return (
-    <AppLayout>
-      <ModulePage
+    <><ModulePage
         title="Plano de Contas"
         subtitle="Estrutura hierárquica e operacional de contas contábeis"
         addLabel="Nova Conta"
@@ -648,7 +646,7 @@ const ContasContabeis = () => {
         onEdit={(c) => { setDrawerOpen(false); openEdit(c); }}
         onDelete={(c) => handleDelete(c)}
       />
-    </AppLayout>
+    </>
   );
 };
 
