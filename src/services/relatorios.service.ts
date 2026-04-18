@@ -839,6 +839,11 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
         .eq("ativo", true)
         .order("nome");
       if (filtros.grupoProdutoIds?.length) query = query.in('grupo_id', filtros.grupoProdutoIds);
+      const { data, error } = await query;
+
+      if (error) throw error;
+
+      const rows = (data || []).map((item: RawMargemProdutoItem) => {
         const custo = Number(item.preco_custo || 0);
         const venda = Number(item.preco_venda || 0);
         const margem = venda > 0 ? ((venda - custo) / venda) * 100 : 0;
