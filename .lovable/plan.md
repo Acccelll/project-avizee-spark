@@ -1,245 +1,161 @@
 
-# Diagnóstico técnico — Autenticação, Permissões e Administração de Acesso
 
-## Inventário
+# Diagnóstico visual — Autenticação, Permissões e Administração
 
-| Camada | Implementação | Fonte de verdade |
-|---|---|---|
-| Sessão | `AuthContext` + `supabase.auth.onAuthStateChange` | Supabase Auth |
-| Roles do usuário | `user_roles` (enum `app_role`) | DB |
-| Permissões padrão por role | **Hard-coded** em `src/lib/permissions.ts` (`rolePermissionMatrix`) | Frontend |
-| Permissões padrão por role (DB) | Tabela `role_permissions` + RPC `user_has_permission()` | DB — **não consumido pelo frontend** |
-| Overrides por usuário | `user_permissions` (allowed=true só) | DB → AuthContext |
-| Guards de rota | `ProtectedRoute`, `AdminRoute`, `SocialRoute` | OK |
-| `can()` por ação | 2 implementações: `useAuth().can(resource, action)` (estrita) e `useCan().can(perm)` (com wildcard) | Inconsistente |
-| Matriz visual no admin | `PermissaoMatrix` lê do hard-code, **read-only**, banner amarelo | Drift potencial |
-| Edge fn `admin-users` | Cria/edita user, role, extra perms | OK |
-| Sessões | `user_sessions` listagem/revoke | OK |
-| Auditoria | `permission_audit` populada por `admin-users` | OK |
+## Inventário visual
+
+| Tela / Estado | Estado atual |
+|---|---|
+| `/login` | Card centralizado, logo, 2 inputs com ícones, botão "Entrar" + botão dev (dashed). Limpo, mas erros aparecem só como texto vermelho 12px abaixo do input + toast. |
+| `/signup` | Existe, padrão similar ao login. |
+| `/forgot-password` | Existe; feedback "verifique seu e-mail" via toast. |
+| `/reset-password` | Funcional após Fase 10; sem destaque para "sessão de recuperação ativa". |
+| Loading de sessão | `FullPageSpinner label="Carregando sessão..."` — texto genérico, sem branding. |
+| `AccessDenied` (rota) | `DetailEmpty` com `ShieldOff` warning + título + msg + botão "Voltar ao início". OK, mas mensagem técnica ("módulo (financeiro)"). |
+| `AccessDenied` (admin) | Mesma base, mas título "Área administrativa". |
+| Botões sem permissão | Padrão atual: **escondidos** (não renderizam). Usuário não sabe que existe a ação — sem tooltip "você não tem permissão". |
+| `PermissaoMatrix` (admin) | Tabela read-only com banner amarelo. Sem busca, sem highlight de overrides. |
+| Toast de logout | Sonner `info` "Sessão encerrada" — sem destaque. |
+| Toast de erro de login | Genérico "E-mail ou senha inválidos" — sem ícone, sem ação de recovery inline. |
 
 ## Problemas reais
 
-### A. Autenticação & sessão
+### 1. Login sem hierarquia de feedback
+- Erros de validação (12px texto vermelho) competem com toast (canto). Usuário recebe 2 sinalizações para o mesmo erro.
+- Sem **alert inline** persistente para erros do servidor (ex: "credenciais inválidas") — toast some em 4s.
+- "Esqueceu a senha?" como link discreto ao lado do label de senha — invisível em foco.
+- Sem indicação visual de "Caps Lock ativo" no campo senha (causa real de erro).
+- Botão dev (`Preencher como Dev`) sempre visível em dev — ok, mas em produção fica escondido sem aviso ao desenvolvedor que esqueceu de configurar `VITE_DEV_*`.
 
-#### A1. Credenciais hardcoded em `Login.tsx`
-```tsx
-const [email, setEmail] = useState("admin@avizee.com");
-const [password, setPassword] = useState("admin123456");
-```
-Vazamento de credencial em produção. Substituir por strings vazias e usar apenas o botão "Preencher como Dev" (`VITE_DEV_EMAIL/PASSWORD`).
+### 2. Loading de sessão "morto"
+`FullPageSpinner label="Carregando sessão..."` em fundo `bg-background` plano. Nenhum branding (logo). Usuário recarrega a página e por 1-3s vê só um spinner cinza — parece app quebrado.
 
-#### A2. `safetyTimeout` 5s em AuthContext pode encerrar `loading` antes do `INITIAL_SESSION` resolver em redes lentas
-Resultado: `permissionsLoaded=false` mas `loading=false` → `ProtectedRoute` ainda espera (ok), mas componentes não-guardados podem renderizar com `roles=[]`. Aceitável, porém o aviso de console "Auth initialization timed out" deveria virar telemetria.
+### 3. AccessDenied tecnicista
+Mensagem default: *"Você não tem permissão para acessar este módulo (financeiro). Solicite acesso ao administrador."*
+- Mostra o slug interno `financeiro` em vez de "Financeiro".
+- "Solicite acesso ao administrador" sem CTA real (mailto, link, copiar contato).
+- Mesmo visual para 3 contextos (rota / admin / inline) — não diferencia "área restrita" de "ação restrita".
 
-#### A3. `signOut` não navega para `/login`
-Faz `supabase.auth.signOut()` e zera state, mas a navegação fica espalhada em cada caller (`MobileMenu`, etc.). Centralizar com `navigate('/login', { replace: true })` ou um `useEffect` em `ProtectedRoute` que reaja a `!user`. Hoje o redirect funciona via `<Navigate to="/login">` em `ProtectedRoute`, mas só depois do unmount.
+### 4. Ações bloqueadas viram fantasmas
+Padrão hoje (Fase 4): se `!can(...)`, o componente retorna `null`. Resultado:
+- Vendedor vê tela de Pedidos sem botão "Excluir". Pode achar que a feature não existe.
+- Sem distinção entre **indisponível** (estado: pedido faturado não pode ser cancelado) e **proibido** (você não tem permissão).
+- Suporte recebe ticket "como excluo pedido?" sem saber que é permissão.
 
-#### A4. `ResetPassword` aceita `type=recovery` apenas no hash inicial
-Se o usuário recarregar a página após o Supabase consumir o hash, `window.location.hash` fica vazio e o componente redireciona para `/login`, mas a sessão recovery já está ativa. Verificar via `supabase.auth.getSession()` em vez de só `window.location.hash`.
+### 5. Sessão expirada sem ritual
+`onAuthStateChange` SIGNED_OUT mostra toast "Sessão encerrada" e redireciona. Se a sessão expirar enquanto o usuário escreve um formulário, ele perde tudo sem aviso prévio.
 
-### B. Permissões — drift crítico entre frontend e DB
+### 6. Reset password sem confirmação visual de "modo recovery"
+Após Fase 10, a página valida `getSession`. Mas visualmente é igual à tela "definir senha" comum — usuário não sabe se está num fluxo seguro de recovery.
 
-#### B1. Duas matrizes de permissão paralelas
-- **Frontend**: `src/lib/permissions.ts` → `rolePermissionMatrix` (hard-coded)
-- **DB**: tabela `role_permissions` + RPC `user_has_permission(_user_id, _resource, _action)`
+### 7. PermissaoMatrix denso e sem hierarquia
+- Tabela `recursos × ações` com checkmarks. Sem busca por recurso.
+- Banner "read-only definido em código" amarelo grande no topo — ocupa espaço.
+- Não destaca overrides individuais (allow/deny) com cores distintas.
+- Não mostra **resumo** "este usuário tem X permissões a mais que o role base".
 
-`AuthContext.fetchPermissions` lê apenas `user_roles` + `user_permissions`. **Nunca consulta `role_permissions`**. Resultado:
-- Admin altera `role_permissions` no DB → frontend ignora.
-- O hard-code em `permissions.ts` é a verdade efetiva. A tabela DB é decoração.
-- `PermissaoMatrix` mostra o hard-code com banner "Esta matriz é read-only" — inconsistente com a presença real da tabela e do RPC no banco.
+### 8. Falta indicador de "sessão ativa" no header
+Avatar do usuário no header não mostra role nem status de sessão. Admin trabalhando sem perceber que está logado como tal.
 
-**Decisão necessária**: ou eliminar `role_permissions` da arquitetura, ou tornar a tabela a fonte canônica e o frontend consumi-la. (Ver Estratégia.)
+## Padrão-base visual proposto
 
-#### B2. `useCan` (`Permission`) e `useAuth().can(resource, action)` são APIs paralelas
-- `useAuth().can("orcamentos", "criar")` — assinatura tipada estrita.
-- `useCan().can("orcamentos:criar" | "orcamentos:*")` — string com wildcard.
-- Ambas reconstroem o `permissionSet` com `buildPermissionSet`. Duplicação de cache.
-- `useAuth().can` **não trata wildcards** (`orcamentos:*`). Se um override for inserido como `orcamentos:*`, ele só funciona via `useCan`.
+### A. Login com alert inline + caps lock detector
+- **Alert inline** acima do form para erros do servidor (`<Alert variant="destructive">`), persistente até nova tentativa.
+- Remover toast de erro de credencial (manter só toast de erro de rede).
+- Indicador discreto "Caps Lock ativo" abaixo do campo senha quando detectado (`onKeyDown` checa `getModifierState`).
+- "Esqueceu a senha?" como botão `link` mais visível, posicionado abaixo do botão Entrar (separação clara das ações).
+- Footer com link "Precisa de acesso? Fale com o administrador" (copiar email do `empresaConfig.email_admin` se disponível, senão mailto genérico).
 
-#### B3. `useAuth().can` retorna `false` antes de `permissionsLoaded`?
-Não — `can` consulta `mergedPermissions` direto. Se o roles ainda não carregou, retorna `false` silenciosamente. Componentes que checam `can()` em primeira render e escondem botões podem flickerar. `useCan` corrige isso (`if (!permissionsLoaded) return false`), mas a inconsistência entre as duas APIs é a raiz.
+### B. Loading de sessão com branding
+Substituir `FullPageSpinner` em `ProtectedRoute`/`AdminRoute`/`PermissionRoute` por `<AuthLoadingScreen>` novo:
+- Logo AviZee centralizada
+- Spinner pequeno abaixo
+- Label adaptativa: "Carregando sessão" / "Verificando permissões" / "Restaurando acesso"
+- Fade-in suave (200ms)
 
-#### B4. `extraPermissions` só carrega rows com `allowed=true`
-`fetchExtraPermissions` filtra `eq("allowed", true)`. Não há mecanismo de **revogação** de permissão herdada do role no frontend (allowed=false é ignorado). Mas o RPC `user_has_permission` no DB **respeita o override** (override.allowed precede base.allowed). Mais um drift: se um admin no DB inserir `user_permissions(user_id, 'financeiro', 'editar', allowed=false)` para um financeiro, o backend bloqueia, o frontend continua mostrando o botão.
+### C. AccessDenied refinado em 3 variantes
+Componente único, 3 modos via prop `variant`:
+- **`route`** (full page): ícone grande, título "Acesso restrito", recurso humanizado ("Financeiro" não "financeiro"), CTA primária "Voltar ao início" + secundária "Solicitar acesso" (abre modal/mailto).
+- **`action`** (inline pequeno): ícone ShieldOff inline + texto compacto. Para uso em painéis.
+- **`feature`** (placeholder de seção): card cinza com ícone Lock, "Esta seção requer permissão X". Para áreas específicas dentro de uma página acessível.
 
-#### B5. `orcamentos:visualizar_rentabilidade` não está em `ERP_ACTIONS`
-`src/lib/orcamentoInternalAccess.ts` checa `extraPermissions.includes("orcamentos:visualizar_rentabilidade" as PermissionKey)` — cast forçado. A action `visualizar_rentabilidade` não consta no enum `ERP_ACTIONS`. Permissão "fantasma" que só funciona se inserida manualmente via SQL/edge fn. Ou adicionar à enum, ou criar lista separada `ORCAMENTO_GRANULAR_PERMS`.
+Mapa `humanizeResource(slug)` em `permissions.ts` para nomes amigáveis.
 
-#### B6. Lista `ERP_ACTIONS` poluída e não auditada por recurso
-17 ações (`importar_xml`, `gerar`, `editar_comentarios`, `gerenciar_templates`, ...). Várias só fazem sentido em 1-2 recursos específicos. Sem mapeamento "que actions são válidas para que resource", o tipo `PermissionKey` permite combinações inválidas (`dashboard:importar_xml`).
+### D. Botões bloqueados visíveis com tooltip
+Novo componente `<PermissionGate resource action mode="hide" | "disable">`:
+- **`hide`** (default atual): retorna null. Usar quando ação é raramente acessível.
+- **`disable`**: renderiza children desabilitado + tooltip "Você não tem permissão para [ação]. Fale com o administrador."
 
-#### B7. Permissão `usuarios:*` existe mas não é checada
-`ERP_RESOURCES` inclui `"usuarios"`, mas o gate de admin é via `isAdmin` em todos os lugares (`AdminRoute`, edge fn `admin-users` checa `has_role(admin)`). A permissão `usuarios:visualizar` nunca é consultada — pode ser concedida a um vendedor sem efeito. Remover do enum ou implementar gate baseado em permissão.
+Recomendação: usar `disable` em ações primárias (Editar, Excluir, Aprovar) e `hide` em ações administrativas raras (Configurar, Gerenciar templates).
 
-### C. Guards & coerência menu-rota-ação
+Aplicar em: Pedidos (excluir), Orçamentos (aprovar), Financeiro (editar), Estoque (movimentar), Relatórios (exportar PDF).
 
-#### C1. Quase toda rota é `ProtectedRoute` (apenas autenticação)
-`/produtos`, `/financeiro`, `/fiscal`, `/relatorios`, etc. — qualquer usuário logado acessa via URL direta. O menu (`useVisibleNavSections`) filtra por `can(resource, 'visualizar')`, mas digitar `/financeiro` na URL como `vendedor` carrega a página inteira. **Bloqueio de menu sem bloqueio de rota = falsa proteção**.
+### E. Aviso de sessão expirando
+Hook `useSessionExpiryWarning()` que escuta `session.expires_at`:
+- 5 min antes da expiração → toast persistente com botão "Renovar sessão" (refresh token).
+- Expirou → modal bloqueante "Sessão expirada. Faça login novamente." + botão único "Ir para login".
 
-#### C2. RLS no DB é o único bloqueio real
-Vendedor abrindo `/financeiro` → RLS provavelmente retorna 0 rows e mensagem "lista vazia", sem indicar "sem permissão". UX ruim e revela existência da rota. Faltam guards baseados em `useCan`.
+### F. ResetPassword com banner de contexto
+No topo da tela, banner verde discreto: "🔐 Você está em um fluxo seguro de redefinição de senha." Após sucesso, redireciona para login com toast "Senha alterada com sucesso. Faça login com a nova senha."
 
-#### C3. Botões de ação inconsistentes
-Apenas `Orcamentos.tsx` (aprovar) e `Logistica.tsx` (editar) checam permissão para esconder/desabilitar ação. Demais módulos confiam no DB. Exemplos:
-- "Excluir Pedido" sempre visível, mesmo para `vendedor` sem `pedidos:excluir`.
-- "Exportar PDF" em Relatórios visível para todos.
+### G. PermissaoMatrix com busca + destaques
+- Input de busca filtrando por recurso/ação no topo.
+- Banner read-only colapsável (pequeno `Info` icon + tooltip).
+- Linhas com override allow → bg verde sutil; override deny → bg vermelho sutil; herdado → sem fundo.
+- Footer com resumo: "12 permissões herdadas · 3 adicionadas · 1 revogada".
+- Legenda visual no rodapé com 3 swatches.
 
-#### C4. `getSocialPermissionFlags` ignora `extraPermissions`
-Decide visibilidade do módulo Social puramente por `roles` (admin/vendedor/financeiro). Override individual `social.visualizar` em `user_permissions` não tem efeito. Inconsistente com o resto do sistema.
+### H. Avatar do header com badge de role
+- Avatar pequeno com badge dot colorido (admin=vermelho, financeiro=azul, vendedor=verde, estoquista=amarelo).
+- Tooltip no avatar: "João Silva · Administrador · Online".
+- Dropdown de conta abre com role visível ao lado do nome.
 
-#### C5. `SocialRoute` renderiza `AccessDenied` quando flag desligada via env
-`VITE_FEATURE_SOCIAL` controla menu (em `navigation.ts`), mas a rota `/social` continua registrada em `App.tsx`. URL direta com flag off → guard checa permissão → admin vê página normalmente. OK funcionalmente, mas a flag não esconde a rota como se espera.
+## Implementação
 
-#### C6. `AdminRoute` e `SocialRoute` divergem em loading
-- `AdminRoute`: `if (authLoading || roleLoading)` — usa `useIsAdmin()` que combina ambos.
-- `SocialRoute`: `if (loading || !permissionsLoaded)`.
-- `ProtectedRoute`: `if (loading || (user && !permissionsLoaded))`.
-Três jeitos de aguardar a mesma coisa.
+### Componentes novos
+1. **`src/components/auth/AuthLoadingScreen.tsx`** — Branding + spinner + label adaptativa.
+2. **`src/components/auth/SessionExpiryWarning.tsx`** — Toast/modal de expiração; hook `useSessionExpiryWarning` interno.
+3. **`src/components/auth/CapsLockIndicator.tsx`** — Pequeno hint reativo abaixo do input senha.
+4. **`src/components/PermissionGate.tsx`** — Wrapper para ações com modo `hide`/`disable` + tooltip explicativo.
+5. **`src/components/RequestAccessDialog.tsx`** — Modal com mailto pré-preenchido para "Solicitar acesso".
 
-### D. Estrutura de código — duplicação & acoplamento
+### Componentes ajustados
+6. **`src/components/AccessDenied.tsx`** — Adicionar prop `variant: 'route' | 'action' | 'feature'`, prop `resourceLabel?` (humanizado), CTA secundária "Solicitar acesso".
+7. **`src/lib/permissions.ts`** — Adicionar `RESOURCE_LABELS: Record<ErpResource, string>` e helper `humanizeResource(slug)`.
+8. **`src/components/PermissionRoute.tsx`** — Passar `resourceLabel={humanizeResource(resource)}` ao `AccessDenied`.
+9. **`src/components/AdminRoute.tsx`** — Usar `AuthLoadingScreen` em vez de `FullPageSpinner`.
+10. **`src/components/ProtectedRoute.tsx`** — Idem.
+11. **`src/components/SocialRoute.tsx`** — Idem.
+12. **`src/pages/Login.tsx`** — Alert inline para erro de servidor, CapsLockIndicator, footer "Precisa de acesso?", reorganizar "Esqueceu a senha?".
+13. **`src/pages/ResetPassword.tsx`** — Banner verde "fluxo seguro", success toast claro.
+14. **`src/components/navigation/AppHeader.tsx`** — Badge de role no avatar + role no dropdown.
+15. **`src/contexts/AuthContext.tsx`** — Inicializar listener de expiração via `<SessionExpiryWarning />` em algum ponto top-level (App.tsx).
+16. **`src/App.tsx`** — Montar `<SessionExpiryWarning />` dentro do `AuthProvider`.
+17. **`src/pages/admin/components/PermissaoMatrix/index.tsx`** — Busca, banner colapsável, destaques de override, footer resumo, legenda.
 
-#### D1. 3 módulos derivam permissão da mesma fonte
-- `useAuth().can` (AuthContext)
-- `useCan().can` (hooks/useCan.ts)
-- `getOrcamentoInternalAccess(roles, extra)`, `getSocialPermissionFlags(roles)` — funções pure que ignoram a engine principal.
-
-Cada uma reimplementa "como decidir". Falta um único `evaluatePermission(resource, action, ctx)`.
-
-#### D2. `usuarios.service.ts` (legado) ainda no codebase
-O próprio comentário diz "@legacy ... não reutilizar". Confunde leitor. Mover para `_legacy/` ou remover.
-
-#### D3. `perfis.service.ts` paralelo a `admin-users` edge fn
-`atribuirPerfil`/`removerPerfil` usam supabase client direto (gravam em `user_roles`). RLS provavelmente bloqueia para não-admins, mas o caminho canônico é a edge fn. Manter as duas convida bugs (chamou client → edge fn não auditou em `permission_audit`).
-
-#### D4. `rolePermissions.service.ts` exportado mas não usado
-`fetchAllRolePermissions`, `setRolePermission`, `userHasPermission` (RPC) — não há caller no frontend (busca: zero matches). Código morto que sugere "isto está implementado" sem estar.
-
-#### D5. `LEGACY_ROLES = {moderator, user}` filtrado no AuthContext
-Defesa boa, mas o enum `app_role` no DB ainda tem `"user"` e `"viewer"` (visto em `types.ts`: `app_role: "admin" | "user" | "viewer" | ...`). Limpar enum no DB ou documentar a coexistência.
-
-#### D6. Tipos `Permission`/`PermissionKey` divergem
-- `PermissionKey` (lib/permissions): `${ErpResource}:${ErpAction}` — estrito.
-- `Permission` (utils/permissions): `PermissionKey | "${string}:*" | "*" | "admin"` — permissivo.
-- Refatorar para um único tipo, com parsing definido (`parsePermission(input) → { resource, action, isWildcard }`).
-
-#### D7. `checkPermission` aceita string `"admin"` como wildcard global
-Alias legado documentado. Mas isso permite gravar `user_permissions(resource='admin', action='??')` que ninguém saberia interpretar. Remover suporte e fazer migration.
-
-### E. Coerência sistêmica menu/rota/ação (varredura)
-
-| Item | Menu filtra? | Rota bloqueia? | Ação bloqueia? |
-|---|---|---|---|
-| `/produtos` | ✓ (can produtos:visualizar) | ✗ ProtectedRoute apenas | ✗ |
-| `/financeiro` | ✓ | ✗ | ✗ |
-| `/relatorios` | ✓ | ✗ | ✗ exporta livre |
-| `/administracao` | ✓ (isAdmin) | ✓ AdminRoute | — |
-| `/social` | ✓ (flag+role) | ✓ SocialRoute | parcial |
-| Excluir orçamento | — | ✗ | ✗ |
-| Aprovar orçamento | — | ✗ | ✓ (isAdmin) |
-| Aprovar PC | — | ✗ | ✓ (drawerPermissions) |
-
-Resumo: o **único módulo com proteção em 3 camadas é Administração**.
-
-## Estratégia de correção (escopo desta passada)
-
-### Decisão fundamental — B1
-Optar por um dos dois caminhos antes de iniciar:
-1. **Tabela canônica (recomendado)**: `role_permissions` é a verdade, `permissions.ts` vira seed/bootstrap. AuthContext lê `role_permissions` via uma view materializada ou `user_has_permission` RPC por necessidade. Permite admin alterar permissões em tempo real.
-2. **Hard-code canônico (mais simples)**: remover `role_permissions` e o RPC `user_has_permission` da arquitetura. Manter só `user_permissions` para overrides individuais.
-
-Sugestão: **(2)** para esta passada — menor risco, alinha realidade com código. Migration: `DROP TABLE role_permissions`, `DROP FUNCTION user_has_permission`, atualizar `PermissaoMatrix` para deixar claro que é definido em código.
-
-### Fase 1 — Limpar credenciais hardcoded (A1)
-`Login.tsx`: state inicial `""` para `email`/`password`.
-
-### Fase 2 — Unificar API de permissões (B2, D1, D6)
-- Remover `useAuth().can` (mantém apenas state).
-- `useCan` vira a única API: `can(perm: Permission)`.
-- Atualizar callers (`Logistica.tsx` e quaisquer outros descobertos) para `useCan`.
-- Deprecate `Permission`/`PermissionKey` separados — unificar em `Permission` com helper `toPermission(resource, action)`.
-
-### Fase 3 — Honrar `allowed=false` em overrides (B4)
-- `fetchExtraPermissions`: remover filtro `eq("allowed", true)`. Buscar tudo.
-- Estender `buildPermissionSet` para aceitar `{ allow: PermissionKey[]; deny: PermissionKey[] }`. `deny` remove do set após merge dos roles.
-- Documentar precedência: deny override > role default.
-
-### Fase 4 — Adicionar guards de rota por permissão (C1, C2, C3)
-Criar componente `PermissionRoute({ resource, action, children })` que reusa `useCan`. Aplicar em rotas-chave:
-- `/financeiro`, `/contas-bancarias`, `/fluxo-caixa`, `/conciliacao`, `/contas-contabeis-plano` → `financeiro:visualizar`
-- `/fiscal`, `/fiscal/:id` → `faturamento_fiscal:visualizar`
-- `/produtos`, `/estoque` → respectivos
-- `/relatorios/*` → `relatorios:visualizar`
-
-Sem guard → fallback `<AccessDenied fullPage />`.
-
-### Fase 5 — Unificar guards loading (C6)
-Helper `useAuthGate()` que retorna `{ status: 'loading' | 'unauthenticated' | 'authenticated', user }`. Os 3 guards consomem.
-
-### Fase 6 — Plug `getSocialPermissionFlags` na engine (C4)
-Refatorar para também consultar `extraPermissions` (`social:visualizar`, etc.) — paridade com `useCan`. Ou eliminar o helper e usar `can` direto com novas keys.
-
-### Fase 7 — Decidir sobre `role_permissions`/`user_has_permission` (B1, D4)
-Migration drop (caminho 2). Remover `rolePermissions.service.ts`. Atualizar `PermissaoMatrix` para reforçar "definido em código".
-
-### Fase 8 — Limpeza de serviços legados (D2, D3)
-- Mover `usuarios.service.ts` para `src/services/admin/_legacy/` ou deletar (callers? `useUsuarios` legado).
-- Remover `perfis.service.ts` ou marcar funções não-canônicas como `@deprecated` real (lint warning).
-
-### Fase 9 — Adicionar `usuarios` action ao gate (B7)
-Substituir `isAdmin` checks em `admin-users` edge fn por `user_has_permission` ou consolidar: `usuarios` resource passa a ser checado via `can('usuarios', 'editar')`. Reduz acoplamento "admin = tudo".
-
-### Fase 10 — `ResetPassword` valida via `getSession` (A4)
-Trocar checagem de `window.location.hash` por `supabase.auth.getSession()` no `useEffect` inicial; só redirect se não houver sessão.
-
-### Fase 11 — `signOut` centraliza navegação (A3)
-Após `signOut()`, fazer `window.location.assign('/login')` ou expor `signOutAndRedirect()` no contexto que aceita `navigate` injetado por callers.
-
-### Fase 12 — Granular `orcamentos:visualizar_rentabilidade` (B5)
-Adicionar `"visualizar_rentabilidade"` em `ERP_ACTIONS` e remover cast `as PermissionKey` em `orcamentoInternalAccess.ts`.
+### Pontos de uso de `PermissionGate` (ondas)
+- Onda inicial nesta passada: Pedidos (excluir/cancelar), Orçamentos (aprovar/excluir), Financeiro (editar/excluir lançamento). Demais módulos continuam com `hide` atual e migram em passada futura.
 
 ## Fora do escopo
-- Refatorar enum `app_role` no DB para remover `user`/`viewer` legados (migration arriscada, requer auditoria de rows).
-- Implementar tabela `permission_audit_log` para mudanças em `user_permissions` (já existe `permission_audit` para edge fn — manter).
-- Multi-tenant / hierarquia de roles.
-- 2FA / MFA.
-- SSO/OAuth (Google, etc.) — flag separada.
-- Refazer `getOrcamentoInternalAccess` como puro `useCan` (mantém função pura por enquanto, só corrige tipo).
-- Rate-limit de login no edge.
-- Migração de todos os ~25 botões espalhados sem `can()` (Fase 4 cobre rotas; ações ficarão para passada própria).
+- Refazer fluxo de signup (raramente usado, admin cria usuários).
+- 2FA / MFA (feature nova).
+- Onboarding wizard pós-primeiro-login.
+- Refazer visual do dropdown da conta inteiro (apenas adicionar role).
+- Trocar Sonner por sistema de notificação custom.
+- Migrar todos os botões do app para `PermissionGate disable` (apenas onda inicial).
+- Refazer `/signup` e `/forgot-password` visualmente.
 
 ## Critério de aceite
-- `Login.tsx` sem credenciais hardcoded.
-- Apenas uma API `useCan` no codebase, com suporte a wildcard.
-- `user_permissions.allowed=false` revoga acesso herdado do role no frontend.
-- `PermissionRoute` aplicado em todas as rotas autenticadas com mapeamento `path → resource`.
-- Guards de loading consolidados via `useAuthGate`.
-- `getSocialPermissionFlags` consulta `extraPermissions`.
-- `role_permissions` e RPC `user_has_permission` removidos OU explicitamente consumidos pelo AuthContext (escolher 1 caminho).
-- `usuarios.service.ts` legado movido/removido.
-- `orcamentos:visualizar_rentabilidade` listado em `ERP_ACTIONS`.
-- `ResetPassword` valida sessão via `getSession()`.
-- `signOut` redireciona para `/login` consistentemente.
-- Build OK, smoke tests passam.
-
-## Arquivos afetados
-- `src/pages/Login.tsx` — credenciais
-- `src/pages/ResetPassword.tsx` — checagem de sessão
-- `src/contexts/AuthContext.tsx` — fetch overrides allowed=false, signOut redirect, remover `can`
-- `src/hooks/useCan.ts` — única API
-- `src/utils/permissions.ts` — suporte a deny, simplificar tipos
-- `src/lib/permissions.ts` — adicionar `visualizar_rentabilidade`, doc "fonte canônica"
-- `src/lib/orcamentoInternalAccess.ts` — remover cast
-- `src/types/social.ts` — `getSocialPermissionFlags` plug em extra
-- `src/components/ProtectedRoute.tsx`, `AdminRoute.tsx`, `SocialRoute.tsx` — `useAuthGate`
-- `src/components/PermissionRoute.tsx` (novo)
-- `src/hooks/useAuthGate.ts` (novo)
-- `src/App.tsx` — aplicar PermissionRoute nas rotas
-- `src/services/admin/usuarios.service.ts` — mover/remover
-- `src/services/admin/perfis.service.ts` — depreciar funções
-- `src/services/admin/rolePermissions.service.ts` — remover (se Fase 7 caminho 2)
-- `supabase/migrations/<novo>.sql` — drop `role_permissions` + `user_has_permission` (se caminho 2)
-- `src/pages/admin/components/PermissaoMatrix/index.tsx` — reforçar copy
-- Componentes que usam `useAuth().can` — migrar para `useCan`
+- Login com alert inline persistente para erro de credencial (sem toast duplicado) + indicador de Caps Lock + footer de contato.
+- `AuthLoadingScreen` com logo aparece em ProtectedRoute/AdminRoute/PermissionRoute/SocialRoute.
+- `AccessDenied` em 3 variantes; rota mostra nome humanizado do recurso e botão "Solicitar acesso".
+- `PermissionGate` disponível com modos `hide`/`disable`; aplicado em Pedidos/Orçamentos/Financeiro nas ações primárias.
+- Aviso de sessão expirando 5min antes; modal ao expirar.
+- ResetPassword com banner de contexto e success toast claro.
+- PermissaoMatrix com busca, destaques de override, banner colapsável e resumo no rodapé.
+- Avatar do header com dot de role + role no dropdown.
+- Build OK; nenhum guard ou fluxo de auth quebrado.
 
 ## Entregáveis
-Resumo final por categoria: credenciais limpas, `useCan` unificado, deny override funcional, `PermissionRoute` + mapa rota→permissão, guards de loading consolidados, social plug-in, decisão sobre `role_permissions`, limpeza de serviços legados, granular permission tipada, reset password robusto, signOut com redirect.
+Resumo final por categoria: login com alert + capslock + contato, loading com branding, AccessDenied humanizado em 3 variantes, PermissionGate para ações bloqueadas visíveis com tooltip, aviso de sessão expirando, ResetPassword com contexto, PermissaoMatrix com busca/destaques/resumo, avatar com role.
+
