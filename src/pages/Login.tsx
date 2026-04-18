@@ -5,13 +5,16 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
-import { Eye, EyeOff, Mail, Lock, Zap, Loader2, LogIn } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, Zap, Loader2, LogIn, AlertCircle, HelpCircle } from "lucide-react";
 import logoAvizee from "@/assets/logoavizee.png";
+import { CapsLockIndicator } from "@/components/auth/CapsLockIndicator";
 
 const DEV_EMAIL = import.meta.env.VITE_DEV_EMAIL as string | undefined;
 const DEV_PASSWORD = import.meta.env.VITE_DEV_PASSWORD as string | undefined;
 const showDevButton = Boolean(DEV_EMAIL && DEV_PASSWORD);
+const ADMIN_EMAIL = "admin@avizee.com.br";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -19,6 +22,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [serverError, setServerError] = useState<string | null>(null);
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
@@ -40,10 +44,11 @@ export default function Login() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setServerError(null);
     if (!validate()) return;
 
     if (!supabase) {
-      toast.error("Serviço de autenticação não disponível. Contate o administrador do sistema.");
+      setServerError("Serviço de autenticação não disponível. Contate o administrador do sistema.");
       return;
     }
 
@@ -51,18 +56,19 @@ export default function Login() {
     try {
       const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
       if (error) {
-        const msg = error.message === "Invalid login credentials"
-          ? "E-mail ou senha inválidos. Verifique suas credenciais."
-          : error.message === "Email not confirmed"
-          ? "Confirme seu e-mail antes de fazer login. Verifique sua caixa de entrada."
-          : error.message;
-        toast.error(msg);
+        const msg =
+          error.message === "Invalid login credentials"
+            ? "E-mail ou senha inválidos. Verifique suas credenciais e tente novamente."
+            : error.message === "Email not confirmed"
+            ? "Confirme seu e-mail antes de fazer login. Verifique sua caixa de entrada."
+            : error.message;
+        setServerError(msg);
       } else {
         toast.success("Login realizado com sucesso!");
         navigate("/", { replace: true });
       }
     } catch {
-      toast.error("Erro de conexão com o servidor. Tente novamente.");
+      setServerError("Erro de conexão com o servidor. Verifique sua internet e tente novamente.");
     }
     setLoading(false);
   };
@@ -81,7 +87,6 @@ export default function Login() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/40 flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-sm animate-fade-in">
-
         {/* Header */}
         <div className="text-center mb-10">
           <img src={logoAvizee} alt="AviZee ERP" className="h-16 mx-auto mb-5 drop-shadow-sm" />
@@ -97,6 +102,14 @@ export default function Login() {
           className="bg-card border border-border/70 rounded-2xl p-8 space-y-5 shadow-[0_4px_24px_rgba(0,0,0,0.07)] border-t-2 border-t-primary/80"
           noValidate
         >
+          {/* Server error — alert inline persistente */}
+          {serverError && (
+            <Alert variant="destructive" className="py-2.5">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription className="text-xs leading-snug ml-1">{serverError}</AlertDescription>
+            </Alert>
+          )}
+
           {/* E-mail */}
           <div className="space-y-1.5">
             <Label htmlFor="email" className="text-sm font-medium">E-mail</Label>
@@ -107,7 +120,7 @@ export default function Login() {
                 type="email"
                 placeholder="seu@empresa.com"
                 value={email}
-                onChange={(e) => { setEmail(e.target.value); setErrors((prev) => ({ ...prev, email: undefined })); }}
+                onChange={(e) => { setEmail(e.target.value); setErrors((prev) => ({ ...prev, email: undefined })); setServerError(null); }}
                 className={`pl-9 h-11 ${errors.email ? "border-destructive focus-visible:ring-destructive/40" : ""}`}
                 autoComplete="email"
                 autoFocus
@@ -124,16 +137,7 @@ export default function Login() {
 
           {/* Senha */}
           <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="password" className="text-sm font-medium">Senha</Label>
-              <Link
-                to="/forgot-password"
-                className="text-xs text-primary hover:underline underline-offset-4 font-medium transition-colors"
-                tabIndex={0}
-              >
-                Esqueceu a senha?
-              </Link>
-            </div>
+            <Label htmlFor="password" className="text-sm font-medium">Senha</Label>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
               <Input
@@ -141,7 +145,7 @@ export default function Login() {
                 type={showPassword ? "text" : "password"}
                 placeholder="••••••••"
                 value={password}
-                onChange={(e) => { setPassword(e.target.value); setErrors((prev) => ({ ...prev, password: undefined })); }}
+                onChange={(e) => { setPassword(e.target.value); setErrors((prev) => ({ ...prev, password: undefined })); setServerError(null); }}
                 className={`pl-9 pr-11 h-11 ${errors.password ? "border-destructive focus-visible:ring-destructive/40" : ""}`}
                 autoComplete="current-password"
                 aria-invalid={!!errors.password}
@@ -162,6 +166,7 @@ export default function Login() {
                 {errors.password}
               </p>
             )}
+            <CapsLockIndicator />
           </div>
 
           {/* Submit */}
@@ -185,29 +190,43 @@ export default function Login() {
             )}
           </Button>
 
+          {/* Esqueceu a senha — abaixo do CTA principal, mais visível */}
+          <div className="text-center">
+            <Link
+              to="/forgot-password"
+              className="text-sm text-primary hover:underline underline-offset-4 font-medium transition-colors inline-flex items-center gap-1"
+            >
+              Esqueceu sua senha?
+            </Link>
+          </div>
+
           {showDevButton && (
             <Button
               type="button"
               variant="outline"
               size="sm"
               className="w-full gap-2 border-dashed text-muted-foreground hover:text-foreground"
-              onClick={() => { setEmail(DEV_EMAIL!); setPassword(DEV_PASSWORD!); setErrors({}); }}
+              onClick={() => { setEmail(DEV_EMAIL!); setPassword(DEV_PASSWORD!); setErrors({}); setServerError(null); }}
             >
               <Zap className="w-3.5 h-3.5" />
               Preencher como Dev
             </Button>
           )}
-
-          {/* ERP access note */}
-          <p className="text-center text-xs text-muted-foreground pt-1 leading-relaxed">
-            Acesso mediante autorização do administrador do sistema.
-          </p>
         </form>
 
-        {/* Footer */}
-        <p className="text-center text-xs text-muted-foreground/60 mt-8 select-none">
-          © {new Date().getFullYear()} AviZee ERP — Todos os direitos reservados
-        </p>
+        {/* Footer — contato com administrador */}
+        <div className="mt-6 text-center space-y-2">
+          <a
+            href={`mailto:${ADMIN_EMAIL}?subject=${encodeURIComponent("Solicitação de acesso ao AviZee ERP")}`}
+            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <HelpCircle className="h-3.5 w-3.5" />
+            Precisa de acesso? Fale com o administrador
+          </a>
+          <p className="text-xs text-muted-foreground/60 select-none">
+            © {new Date().getFullYear()} AviZee ERP — Todos os direitos reservados
+          </p>
+        </div>
       </div>
     </div>
   );
