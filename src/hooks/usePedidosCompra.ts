@@ -11,10 +11,14 @@ import {
   type PedidoCompra,
   type FornecedorOptionRow,
   type ProdutoOptionRow,
-  emptyPedidoForm,
+  buildEmptyPedidoForm,
   pedidoNumero,
 } from "@/components/compras/pedidoCompraTypes";
 import { statusPedidoCompra } from "@/lib/statusSchema";
+import { useSubmitLock } from "@/hooks/useSubmitLock";
+import { validateForm } from "@/lib/validationSchemas";
+import { pedidoCompraSchema, validatePedidoItems } from "@/lib/pedidoCompraSchema";
+import { todayISO } from "@/lib/dateUtils";
 
 /** Shape of a row from pedidos_compra_itens joined with produtos */
 export interface PedidoItemRow {
