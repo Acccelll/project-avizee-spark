@@ -416,8 +416,13 @@ export function useCotacoesCompra() {
     }
 
     const valorTotal = itensParaPedido.reduce((s, i) => s + (i.subtotal || 0), 0);
-    const { data: rpcNumero } = await supabase.rpc('proximo_numero_pedido_compra');
-    const numeroPedido = rpcNumero || `PC-${String(Date.now()).slice(-6)}`;
+    const { data: rpcNumero, error: rpcErr } = await supabase.rpc('proximo_numero_pedido_compra');
+    if (rpcErr || !rpcNumero) {
+      console.error("[gerarPedido] proximo_numero_pedido_compra falhou:", rpcErr);
+      toast.error("Não foi possível gerar o número do pedido. Tente novamente.");
+      return;
+    }
+    const numeroPedido = rpcNumero;
 
     let pedidoId: string | null = null;
     try {
@@ -427,7 +432,7 @@ export function useCotacoesCompra() {
           numero: numeroPedido,
           fornecedor_id: fornecedorId,
           cotacao_compra_id: selected.id,
-          data_pedido: new Date().toISOString().split("T")[0],
+          data_pedido: todayISO(),
           valor_total: valorTotal,
           status: "aprovado",
           observacoes: `Gerado a partir da cotação ${selected.numero}`,
