@@ -1,150 +1,161 @@
 
 
-## Diagnóstico visual — telas de edição
+# Diagnóstico técnico — drawers do projeto
 
-Mapeei **12 telas/modais de edição** (todas via `FormModal`). A base é a mesma (Dialog do shadcn, `max-w-*` + `max-h-[90dvh]`), mas cada tela inventou seu cabeçalho, contexto, abas, footer e densidade. Resultado: parece sistema montado por equipes diferentes.
+Mapeei **17 arquivos**: 2 wrappers base (`ViewDrawerV2`, `ViewDrawer`), 1 stack relacional (`RelationalDrawerStack` + `RelationalDrawerSlotsContext`), 4 helpers UI (`DrawerHeaderShell`, `DrawerStickyFooter`, `DrawerSummaryCard`, `Sheet`/`Drawer` shadcn), 11 drawers concretos.
 
-### Inconsistências concretas
+## Categorias
 
-**1. Cabeçalho do modal**
-`FormModal` só renderiza `<DialogTitle>{title}</DialogTitle>` — texto puro. Nenhum suporte a:
-- código/identificador (SKU, CNPJ, código)
-- StatusBadge
-- ações rápidas no topo
-- linha de metadados (atualizado em, classificação)
+**A. Visualização leve (read-only, sem ações transacionais)**
+`EstoquePosicaoDrawer` (478L), `EstoqueMovimentacaoDrawer` (435L), `RecebimentoDrawer` (244L), `ConfigHistoryDrawer` (144L)
 
-Telas tentam compensar com "barras de contexto" inventadas por baixo do título — cada uma com layout diferente.
+**B. Visualização com ações administrativas (edit/delete)**
+`ContaContabilDrawer` (542L), `ContaBancariaDrawer` (600L), `FinanceiroDrawer` (306L)
 
-**2. Barras de contexto (4 estilos diferentes)**
-| Tela | Container | Conteúdo |
-|---|---|---|
-| Clientes | `bg-muted/40 rounded-lg px-3 py-2 mb-4 border` | Status + data + forma pgto + grupo + dirty |
-| GruposEconomicos | mesma classe | Status + data + empresas + risk badge + dirty + botão "Ver painel" |
-| Produtos | `p-3 bg-muted/40 rounded-lg border mb-4` + emoji `●/○` | Status (texto colorido) + atualização + link "Ver resumo" |
-| Transportadoras | `gap-x-3 gap-y-1 px-3 py-2 mb-5 bg-muted/30` | Status + duas datas + modalidade + cidade |
-| Fornecedores/Funcionarios/FormasPagamento/ContasBancarias/UnidadesMedida | **nenhuma** | — |
+**C. Operacional/transacional (fluxo de status)**
+`PedidoCompraDrawer` (683L), `CotacaoCompraDrawer` (351L), `NotaFiscalDrawer` (897L), `EntregaDrawer` (556L)
 
-**3. Tabs inconsistentes**
-- Clientes/Produtos/Transportadoras usam Tabs com ícones `h-3.5 w-3.5` + `text-xs` + badge contador
-- Funcionarios/FormasPagamento/GruposEconomicos usam **divisores horizontais** (`<div className="h-px bg-border" />`) ao invés de Tabs — mistura abordagem
-- ContasBancarias/UnidadesMedida sem Tabs nem divisores
+**D. Stack relacional (drawers empilháveis)**
+`RelationalDrawerStack` + 8 *Views (`ProdutoView`, `ClienteView`, `FornecedorView`, `OrcamentoView`, `PedidoCompraView`, `NotaFiscalView`, `RemessaView`, `OrdemVendaView`)
 
-**4. Section headers (3 padrões)**
-- Produtos: `<h3 className="font-semibold text-sm flex items-center gap-2 border-t pt-3"><Icon />Título</h3>`
-- GruposEconomicos: `pb-3 border-b mb-3` com ícone `text-primary/70`
-- FormasPagamento: `pb-2 border-b mb-4` com ícone `text-primary/70`
-- Funcionarios: chip uppercase `text-xs font-semibold uppercase tracking-wider text-muted-foreground` + linha
-- Clientes: misto (sem header em Dados Gerais)
+## Problemas concretos
 
-**5. Footer (sem sticky, repetido 12×)**
-Todas usam variações de `<div className="flex justify-end gap-2 pt-4 border-t">` inline. Não é sticky → em formulário longo, usuário precisa rolar pra achar Salvar. Texto do botão varia: "Salvar" vs "Salvar Alterações" vs "Salvando..." vs spinner com `<Loader2>`.
+### 1. Race condition em troca rápida de registro
+`ContaBancariaDrawer`, `ContaContabilDrawer`, `FinanceiroDrawer`, `NotaFiscalDrawer` usam `useEffect(()=>{ Promise.all([...]).then(...) }, [open, selectedId])` **sem cancellation flag**. Trocar de registro rapidamente ⇒ resultado de fetch antigo sobrescreve estado do registro novo.
 
-**6. Outros**
-- Indicador "Alterações não salvas" só existe em Clientes/Fornecedores/GruposEconomicos
-- Cores hardcoded `text-amber-600` / `text-emerald-600` em vez de tokens semânticos
-- "Cancelar" sem confirmação visual de descarte — só Clientes/Fornecedores fazem o `confirmDiscard`
-- Tooltip no botão Salvar inexistente quando desabilitado
+`EntregaDrawer` é o único que usa `let cancelled = false; ... return ()=>{cancelled=true}` corretamente. Vamos padronizar via hook compartilhado.
 
-## Estratégia
-
-Padronizar **a casca** sem reescrever conteúdo. O conteúdo de cada tela (campos, tabs, regras) fica como está — só ganha um shell consistente.
-
-### Fase 1 — Infraestrutura visual compartilhada
-
-**1. Evoluir `FormModal`** (mantém API atual + adiciona props opcionais)
+### 2. `onClose()` antes de handler quebra o fluxo
+Padrão repetido em `FinanceiroDrawer`, `ContaBancariaDrawer`, `CotacaoCompraDrawer`, `NotaFiscalDrawer`, `PedidoCompraDrawer`:
 ```tsx
-<FormModal
-  open onClose title="Editar Cliente"
-  // novos opcionais:
-  identifier="CNPJ 12.345.678/0001-90"   // mono, ao lado do título
-  status={<StatusBadge .../>}             // badge ao lado do título  
-  meta={[                                 // linha de metadados
-    { icon: Calendar, label: "Atualizado em 17/04/2026" },
-    { icon: User, label: "Grupo ABC" }
-  ]}
-  headerActions={<Button>Ver painel</Button>}  // ações rápidas top-right
-  isDirty={isDirty}                        // mostra indicador "não salvas"
-  footer={<FormModalFooter ... />}         // sticky bottom
-  size="xl"
-/>
+onClick={() => { onClose(); onEdit(selected); }}
 ```
+Problema: `onClose()` desmonta o drawer (libera `selected`) **antes** do handler executar. Em `NotaFiscalDrawer.onConfirmar/onEstornar` há ainda pior: `onConfirmar(selected); onClose()` — ok, mas a maioria inverte. Resultado: handler pode receber referência inválida se houver microtask intermediária.
 
-Layout interno do header novo:
-```
-┌─────────────────────────────────────────────────────────┐
-│ Editar Cliente   [CNPJ 12.345...] [● Ativo]  [⋯] [Ver]│ ← title row
-│ 📅 Cadastrado 12/03  ·  💳 30/60/90  ·  ● Não salvas  │ ← meta row
-├─────────────────────────────────────────────────────────┤
-│ ... conteúdo ...                                        │
-```
+Solução: ordem deve ser `handler(); onClose()` ou (melhor) deixar o parent decidir se fecha — handlers já chamam toast e refetch.
 
-**2. Novo `FormModalFooter`** (sticky bottom, padronizado)
+### 3. Sem prevenção de duplo clique em ações destrutivas
+`onCancel`, `onAprovar`, `onRejeitar`, `onConfirmar`, `onEstornar` em `PedidoCompraDrawer`/`NotaFiscalDrawer` não têm `disabled` enquanto pendente. Usuário clica 2× → 2 chamadas. Os parents (`Compras.tsx`, `Fiscal.tsx`) usam mutations sem lock visível no botão.
+
+### 4. `usePublishDrawerSlots` re-publica em **todo render** sem deps
+```ts
+useEffect(() => { ctx.setSlots(key, slots); return () => ctx.setSlots(key, null); });
+```
+Sem dependency array → roda em todo render. Cada `setSlots` chama `setVersion(v=>v+1)` no provider → re-render do `RelationalDrawerStack` → re-render dos slots → loop. Hoje funciona porque React batcha, mas é frágil e custa renders extras a cada keystroke em qualquer view aninhada.
+
+Fix: comparar referências do conteúdo via `useEffect` com deps `[key]` + `useMemo` para slots; ou comparar JSON-stringify de chave estável; ou apenas ignorar re-publish quando ref igual.
+
+### 5. `RelationalDrawerStack` — "Voltar" e "Fechar drawer" fazem a mesma coisa
+Ambos chamam `onPop`. `onPop` apenas remove o topo; isso não permite que o usuário use `Esc` para fechar **só** o atual quando há sub-drawers (já funciona via `Sheet onOpenChange={() => onPop()}`, mas conflita com clique fora ⇒ pode fechar drawer empilhado sem confirmação).
+
+### 6. `ViewDrawerV2.renderFooter` heurística frágil
+```ts
+const isSticky = f?.type === DrawerStickyFooter;
+```
+Não detecta `React.memo(DrawerStickyFooter)` ou wrappers; em alguns casos aplica wrapper sticky duplo. Melhor: detectar via `displayName` ou prop explícita `footerSticky?: boolean`.
+
+### 7. `defaultTab` é estático — troca de registro não reseta aba
+`ViewDrawerV2` usa `<Tabs defaultValue={...}>` (uncontrolled). Ao trocar de pedido enquanto drawer está aberto, a aba ativa do registro anterior é mantida — **inclusive quando ela não existe ou faz menos sentido para o novo registro** (ex: aba "Recebimento" vazia). Isso é especialmente ruim em `CotacaoCompraDrawer`, cujo `defaultTab` é dinâmico (`viewPropostas.length > 0 ? "propostas" : "resumo"`) mas é ignorado após o primeiro mount.
+
+### 8. Render condicional inconsistente quando `selected = null`
+`FinanceiroDrawer`, `ContaBancariaDrawer`, `ContaContabilDrawer`, `NotaFiscalDrawer`, `EstoquePosicaoDrawer`, `EstoqueMovimentacaoDrawer`, `EntregaDrawer`, `RecebimentoDrawer` retornam:
 ```tsx
-<FormModalFooter
-  saving={saving}
-  isDirty={isDirty}
-  onCancel={handleCancel}
-  primaryLabel="Salvar"        // ou "Salvar Alterações" auto via mode
-  // opcional:
-  secondaryActions={<Button>Salvar e novo</Button>}
-/>
+if (!selected) return <ViewDrawerV2 open={open} onClose={onClose} title="" />;
 ```
-- Sticky `bottom-0` com `bg-background/95 backdrop-blur`, sombra superior
-- Esquerda: indicador "alterações não salvas" (se `isDirty`)
-- Direita: Cancelar (outline) + Primária (default, com `Loader2` quando saving)
-- Trava double-click via `disabled={saving}`
+Renderiza um `Sheet` vazio quando o parent abre o drawer sem ter o registro carregado. Pior: monta/desmonta hooks desnecessariamente quando `selected` muda de `null` ⇒ objeto. Melhor: `if (!open || !selected) return null;` e parent garante `open` apenas com registro válido.
 
-**3. Novo `FormSection` + `FormSectionHeader`** (substitui as 4 variações)
-```tsx
-<FormSection icon={Package} title="Identificação" 
-             description="Como o produto será identificado no sistema">
-  <div className="grid grid-cols-2 gap-4">...</div>
-</FormSection>
+### 9. `PedidoCompraDrawer` recebe `selected: PedidoCompra` (não-nullable) mas é renderizado com `selected={null}` em alguns lugares
+Pelo tipo o `selected` é obrigatório, mas o parent pode passar undefined; sem guard interno ⇒ TypeError potencial em `selected.fornecedores?...`. Confirmar via `Compras.tsx` e blindar.
+
+### 10. Tabelas internas re-renderizadas a cada update
+`NotaFiscalDrawer`/`ContaBancariaDrawer` mapeiam `lancamentos`/`movimentos`/`baixas` em JSX inline sem memo; em listas grandes e drawer com muitos `useState`, todo digitação em filtro externo re-renderiza tudo. Apenas `CotacaoCompraDrawer` memoiza (`totalAprovado`).
+
+### 11. `key={l.id || idx}` mescla id+index
+Vários drawers usam `key={x.id || idx}` em listas. Se 2 itens vierem sem id, mesmo `idx` = key duplicada. Trocar por `key={x.id ?? \`tmp-${idx}\`}`.
+
+### 12. Acessibilidade: foco inicial e `aria-label`
+Drawers usam `<SheetHeader className="sr-only"><SheetTitle>` para evitar duplicar título visível, mas perdem foco trap inicial bom. Alguns botões de ícone sem `aria-label` (vários botões em `EntregaDrawer`, `EstoquePosicaoDrawer`).
+
+### 13. Lógica de negócio espalhada na UI
+- `PedidoCompraDrawer.canReceive/canSend/canCancel/canSolicitarAprovacao/canApproveReject` — duplicado entre drawer e ações no parent. Deveria vir de helper `getPedidoCompraPermissions(p, isAdmin)`.
+- `NotaFiscalDrawer.canConfirmar/canEstornar/canDevolucao` — mesmo padrão.
+- `FinanceiroDrawer.canBaixa/canEstorno` — mesmo padrão.
+- Cálculos de overdue/atraso replicados em 4 drawers (`isAtrasado`, comparação com `today`).
+
+### 14. `onClose` propagation ambígua
+`<Sheet onOpenChange={onClose}>` é chamado tanto para abrir quanto fechar. Hoje `onClose` é tratado como "fechar"; quando o `Sheet` interno do shadcn dispara `onOpenChange(true)` durante mount em alguns casos (foco), pode causar fechamento espúrio. Padrão correto: `onOpenChange={(o) => !o && onClose()}` — já presente em `RelationalDrawerStack`, ausente em `ViewDrawerV2` e `ViewDrawer`.
+
+### 15. `ViewDrawer` legado coexiste com `ViewDrawerV2`
+`src/components/ViewDrawer.tsx` ainda é importado para `ViewField`/`ViewSection` (re-exportados pelo V2). Manter, mas declarar V1 deprecated apenas como container de helpers.
+
+## Estratégia de correção
+
+Foco: estabilidade e padronização **sem reescrever fluxos**.
+
+### Fase 1 — Infraestrutura compartilhada
+
+**1. `useDrawerData<T>(open, selectedId, loader)`** (`src/hooks/useDrawerData.ts`)
+Encapsula:
+- cancellation token (corrige #1)
+- reset de estado quando `selectedId` muda
+- `loading`/`error`
+- não dispara fetch quando `!open || !selectedId`
+
+```ts
+const { data, loading, error } = useDrawerData(
+  open, selectedId,
+  async (id, signal) => Promise.all([...])
+);
 ```
-Visual único: chip-label uppercase + linha sutil + ícone primary/70 + descrição opcional.
 
-**4. Novo `FormTabsList` wrapper leve**
-Encapsula o padrão Clientes/Produtos: ícones `h-3.5 w-3.5`, badge contador, sticky abaixo do header quando o modal tiver scroll alto.
+**2. Corrigir `usePublishDrawerSlots`** (#4)
+Adicionar comparação por chave estável + deps explícitas. Os consumidores `*View.tsx` já passam objetos novos a cada render — vou aceitar e otimizar comparação shallow no provider (compara `breadcrumb/summary/actions` por `===`; só dispara `setVersion` se mudou). Acaba o re-render loop.
 
-### Fase 2 — Aplicação cirúrgica (12 telas)
+**3. `useActionLock()`** (já existe `useSubmitLock` — reusar)
+Aplicar nos handlers internos de `PedidoCompraDrawer`/`NotaFiscalDrawer`/`FinanceiroDrawer` para travar duplo clique (#3). Como handlers vêm via prop, vou criar um wrapper interno `useDeferredAction` que disable o botão por ~600ms ou até a prop `selected` mudar.
 
-| Tela | Mudança visual |
+**4. `getDrawerActionPermissions`** helpers (#13)
+Extrair regras de status para `src/lib/drawerPermissions.ts`:
+- `canPedidoCompraAction(p, isAdmin)` → `{canSend, canReceive, canCancel, canApprove, canReject}`
+- `canNotaFiscalAction(nf)` → `{canConfirmar, canEstornar, canDevolucao, canEditar}`
+- `canFinanceiroAction(l, status)` → `{canBaixa, canEstorno}`
+Drawer importa só pra UI; parents continuam usando livremente (sem regressão lógica).
+
+### Fase 2 — Aplicação cirúrgica
+
+| Drawer | Ajustes |
 |---|---|
-| **Clientes** | Header novo com CNPJ identifier + StatusBadge; meta row consolidada; FormModalFooter sticky; tabs via FormTabsList |
-| **Fornecedores** | Mesmo padrão de Clientes (já é forma similar) |
-| **Produtos** | Header com SKU/Código identifier + StatusBadge + último update; FormSection nas 5 seções existentes; footer sticky |
-| **Transportadoras** | Header com CNPJ + modalidade + cidade no meta; FormTabsList; footer sticky |
-| **Funcionarios** | Header com CPF + cargo no meta; converter divisores em FormSection; footer sticky |
-| **FormasPagamento** | Header com tipo (chip) no meta; FormSection nos 3 blocos; footer sticky |
-| **ContasBancarias** | Adicionar header context (banco + agência); FormSection; footer sticky |
-| **GruposEconomicos** | Mover botão "Ver painel" para `headerActions`; FormSection nos blocos atuais; footer sticky |
-| **UnidadesMedida** | Pequeno: footer sticky padrão; Switch de status mais discreto |
-| **Remessas** | FormSection; footer sticky |
-| **CotacoesCompra (modal)** | FormSection; footer sticky |
-| **Fiscal/NotaFiscal create** | Footer sticky (modal já usa estrutura própria — só mexer no shell) |
-
-### Fase 3 — Tokens e consistência fina
-- Substituir `text-amber-600`/`text-emerald-600` hardcoded por tokens semânticos do design system
-- Padronizar texto: "Salvar" (create) vs "Salvar Alterações" (edit) auto via prop `mode`
-- Padronizar `disabled` + `Loader2` no botão primário
-- `confirmDiscard` automático quando `isDirty=true` no `onClose` do modal
+| `ViewDrawerV2` | `onOpenChange={(o)=>!o && onClose()}`; `Tabs` controlado com reset quando `tabs[0].value` mudar; `footerSticky` prop explícita ao invés de heurística por `type` |
+| `ViewDrawer` (V1) | Mesma correção de `onOpenChange` |
+| `RelationalDrawerStack` | Diferenciar "Fechar drawer atual" vs "Voltar" (semântica idêntica hoje, ok manter, mas nomear melhor); evitar fechamento espúrio em sub-drawer |
+| `RelationalDrawerSlotsContext` | Comparação shallow para evitar re-render loop |
+| `FinanceiroDrawer` | Adotar `useDrawerData`; inverter ordem `handler()→onClose()`; lock duplo clique; `if (!open||!selected) return null` |
+| `ContaBancariaDrawer` | Mesmo conjunto |
+| `ContaContabilDrawer` | Mesmo conjunto |
+| `NotaFiscalDrawer` | `useDrawerData` (5 fetches); `getNotaFiscalPermissions`; locks de ação; `key` corrigido em tabelas |
+| `PedidoCompraDrawer` | Guard `if (!selected) return null`; `getPedidoCompraPermissions`; locks |
+| `CotacaoCompraDrawer` | Locks em `onApprove/onReject/onSendForApproval/onGerarPedido` |
+| `EntregaDrawer` | Já tem cancel; só lock no `handleRastrear` (já existe `trackingLoading`); cleanup `if(!open) return null` |
+| `RecebimentoDrawer` | Read-only puro; manter; só padronizar guard |
+| `EstoquePosicaoDrawer`/`EstoqueMovimentacaoDrawer` | Read-only; só padronizar guard e `aria-label` |
+| `ConfigHistoryDrawer` | Já usa `useQuery` (cancela bem); ok |
 
 ### Fora do escopo
-- Não vou tocar lógica de validação, regra de negócio, hooks de submit
-- Não vou redesenhar campos individuais (Inputs, Selects mantêm visual atual)
-- Não vou mexer em `OrcamentoForm`/`PedidoCompraForm`/`CotacaoCompraForm`/`RemessaForm` (são páginas dedicadas, não modais — já têm header próprio na rota; ficam para próxima rodada)
-- `NotaFiscalEditModal` já é modal próprio gigante — só ganha footer sticky, sem redesenho
+- Não vou redesenhar visual (drawer headers/summaries continuam como estão)
+- Não vou refatorar o conteúdo de cada `*View.tsx` (são páginas grandes; só corrijo o slots-provider)
+- `Drawer` (vaul) primitivo não tem uso significativo — sem mudanças
+- Não vou tocar em `useFinanceiroActions`/`useNotasFiscais` (são hooks de página, fora do escopo de drawer)
 
 ## Critério de aceite
-
-- Todos os 12 modais usam `FormModal` com header padronizado (title + identifier + status + meta + actions)
-- Todos têm `FormModalFooter` sticky com hierarquia clara
-- Section headers unificados via `FormSection`
-- Indicador "alterações não salvas" consistente em todas as telas com `isDirty`
-- Cores semânticas (sem amber/emerald hardcoded para status)
-- Sem regressão funcional (campos, validações, fluxos intactos)
-- Build OK (`tsc --noEmit`)
+- Trocar registro com drawer aberto **não** mistura dados (cancellation token aplicado em 4 drawers).
+- Botões de ação travam contra duplo clique.
+- `usePublishDrawerSlots` não causa re-render loop (comparação shallow).
+- Helpers de permissão centralizados; drawers e páginas usam a mesma fonte.
+- Guards `if (!open||!selected) return null` aplicados; drawer não monta hooks com registro nulo.
+- `onOpenChange` corrigido em `ViewDrawer`/`ViewDrawerV2`.
+- `Tabs` reseta corretamente ao trocar conjunto de tabs.
+- Build OK (`tsc --noEmit`); sem regressão funcional.
 
 ## Entregáveis
-Tabela final por tela: `problema visual → ajuste aplicado`.
+Tabela final por drawer: `problema → ajuste aplicado → pendência (se houver)`.
 
