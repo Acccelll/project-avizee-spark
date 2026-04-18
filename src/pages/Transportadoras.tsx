@@ -466,7 +466,7 @@ export default function Transportadoras() {
         </PullToRefresh>
       </ModulePage>
 
-      <FormModal open={modalOpen} onClose={() => setModalOpen(false)} title={mode === "create" ? "Nova Transportadora" : "Editar Transportadora"} size="xl">
+      <FormModal open={modalOpen} onClose={handleCloseModal} title={mode === "create" ? "Nova Transportadora" : "Editar Transportadora"} size="xl">
         <form onSubmit={handleSubmit} className="space-y-0">
 
           {/* Context bar for edit mode */}
@@ -790,7 +790,7 @@ export default function Transportadoras() {
               )}
             </span>
             <div className="flex gap-2">
-              <Button type="button" variant="outline" onClick={() => setModalOpen(false)}>Cancelar</Button>
+              <Button type="button" variant="outline" onClick={handleCloseModal}>Cancelar</Button>
               <Button type="submit" disabled={saving}>{saving ? "Salvando..." : "Salvar"}</Button>
             </div>
           </div>
