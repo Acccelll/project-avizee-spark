@@ -16,7 +16,7 @@ import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
 import { ViewDrawerV2 } from "@/components/ViewDrawerV2";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { useAuth } from "@/contexts/AuthContext";
+import { useCan } from "@/hooks/useCan";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { toast } from "sonner";
@@ -102,9 +102,9 @@ const prazoOptionsReceb: MultiSelectOption[] = [{ label: "Atrasados", value: "at
 
 export default function Logistica() {
   const navigate = useNavigate();
-  const { can } = useAuth();
+  const { can } = useCan();
   const { pushView } = useRelationalNavigation();
-  const canEdit = can("logistica", "editar");
+  const canEdit = can("logistica:editar");
 
   // ─── Entregas / Recebimentos via hooks ───
   const { data: entregas = [], isLoading: entregasLoading } = useEntregas();

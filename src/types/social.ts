@@ -1,4 +1,5 @@
 import type { AppRole } from '@/contexts/AuthContext';
+import type { PermissionKey } from '@/lib/permissions';
 
 export type SocialPlatform = 'instagram_business' | 'linkedin_page';
 export type SocialConnectionStatus = 'conectado' | 'expirado' | 'erro' | 'desconectado';
@@ -140,13 +141,27 @@ export const socialPermissions = [
   'social.gerenciar_alertas',
 ] as const;
 
-export function getSocialPermissionFlags(roles: AppRole[]): SocialPermissionFlags {
+/**
+ * Decide flags de visibilidade do módulo Social combinando:
+ *  - papéis do usuário (admin/vendedor/financeiro liberam por padrão)
+ *  - overrides individuais em `user_permissions` (extraPermissions)
+ *
+ * Permite, por exemplo, conceder `social:visualizar` a um estoquista, ou
+ * revogar `social:configurar` de um vendedor (via deny no AuthContext).
+ */
+export function getSocialPermissionFlags(
+  roles: AppRole[],
+  extraPermissions: PermissionKey[] = [],
+): SocialPermissionFlags {
   const has = (role: AppRole) => roles.includes(role);
-  const canViewModule = has('admin') || has('vendedor') || has('financeiro');
-  const canManageAccounts = has('admin') || has('vendedor');
-  const canSync = has('admin') || has('vendedor');
-  const canExportReports = has('admin') || has('vendedor') || has('financeiro');
-  const canManageAlerts = has('admin') || has('vendedor');
+  const hasPerm = (perm: PermissionKey) => extraPermissions.includes(perm);
+
+  const canViewModule = has('admin') || has('vendedor') || has('financeiro') || hasPerm('social:visualizar');
+  const canManageAccounts = has('admin') || has('vendedor') || hasPerm('social:configurar');
+  const canSync = has('admin') || has('vendedor') || hasPerm('social:sincronizar');
+  const canExportReports =
+    has('admin') || has('vendedor') || has('financeiro') || hasPerm('social:exportar');
+  const canManageAlerts = has('admin') || has('vendedor') || hasPerm('social:gerenciar_alertas');
 
   return { canViewModule, canManageAccounts, canSync, canExportReports, canManageAlerts };
 }

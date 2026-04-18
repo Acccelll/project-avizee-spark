@@ -32,7 +32,7 @@ export function getOrcamentoInternalAccess(
   }
 
   // For non-admin roles, check the specific rentabilidade permission from user_permissions
-  const hasRentabilidade = extraPermissions.includes("orcamentos:visualizar_rentabilidade" as PermissionKey);
+  const hasRentabilidade = extraPermissions.includes("orcamentos:visualizar_rentabilidade");
 
   // Financeiro inherently sees costs; others need the explicit permission
   const canView = hasRole("financeiro") || hasRentabilidade;

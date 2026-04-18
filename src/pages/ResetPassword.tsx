@@ -14,15 +14,30 @@ export default function ResetPassword() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
   const [errors, setErrors] = useState<{ password?: string; confirm?: string }>({});
   const navigate = useNavigate();
 
   useEffect(() => {
-    const hash = window.location.hash;
-    if (!hash.includes("type=recovery")) {
-      toast.error("Link de recuperação inválido ou expirado");
-      navigate("/login");
-    }
+    // Valida via getSession(): o Supabase consome o hash automaticamente,
+    // então a presença de `window.location.hash` não é confiável após reload.
+    // Aceita tanto sessão de recovery quanto qualquer sessão ativa (fluxo de
+    // troca voluntária de senha).
+    let mounted = true;
+    (async () => {
+      const { data } = await supabase.auth.getSession();
+      if (!mounted) return;
+      const hashHasRecovery = window.location.hash.includes("type=recovery");
+      if (!data.session && !hashHasRecovery) {
+        toast.error("Link de recuperação inválido ou expirado");
+        navigate("/login");
+        return;
+      }
+      setCheckingSession(false);
+    })();
+    return () => {
+      mounted = false;
+    };
   }, [navigate]);
 
   const validate = () => {
@@ -48,6 +63,14 @@ export default function ResetPassword() {
     }
     setLoading(false);
   };
+
+  if (checkingSession) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p className="text-sm text-muted-foreground">Validando link...</p>
+      </div>
+    );
+  }
 
   if (success) {
     return (

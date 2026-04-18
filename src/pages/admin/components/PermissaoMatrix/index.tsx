@@ -83,10 +83,11 @@ export function PermissaoMatrix() {
       <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 px-3 py-2.5 text-sm text-amber-800 dark:text-amber-300">
         <Info className="h-4 w-4 mt-0.5 shrink-0" />
         <p>
-          Esta matriz é um <strong>catálogo visual de permissões padrão por perfil</strong>.
-          As permissões globais por perfil são definidas em código ({" "}
-          <span className="font-mono text-xs">src/lib/permissions.ts</span>). Para conceder
-          permissões individuais a um usuário específico, use o cadastro de usuários.
+          Esta matriz é a <strong>fonte canônica</strong> de permissões padrão por perfil — definida em código (
+          <span className="font-mono text-xs">src/lib/permissions.ts</span>). Para conceder ou{" "}
+          <strong>revogar</strong> permissões a um usuário específico (override individual), use o cadastro de
+          usuários — o sistema honra <span className="font-mono text-xs">user_permissions.allowed=false</span>{" "}
+          para remover permissões herdadas do papel.
         </p>
       </div>
 

@@ -24,8 +24,8 @@ export function makeAuthState(overrides: Partial<MockAuthState> = {}) {
     profile: { nome: "Usuário Teste", email: "user@empresa.com", cargo: "Operador", avatar_url: "" },
     roles,
     extraPermissions: [],
+    deniedPermissions: [],
     hasRole: (role: AppRole) => roles.includes(role),
-    can: () => true,
     signOut: async () => {},
   };
 }

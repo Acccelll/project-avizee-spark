@@ -4,17 +4,20 @@ import { useAuth } from '@/contexts/AuthContext';
 import { getSocialPermissionFlags } from '@/types/social';
 import { FullPageSpinner } from '@/components/ui/spinner';
 import { AccessDenied } from '@/components/AccessDenied';
+import { useAuthGate } from '@/hooks/useAuthGate';
 
 export function SocialRoute({ children }: { children: ReactNode }) {
-  const { user, loading, permissionsLoaded, roles } = useAuth();
+  const gate = useAuthGate();
+  const { roles, extraPermissions } = useAuth();
 
-  if (loading || !permissionsLoaded) {
+  if (gate.status === 'loading') {
     return <FullPageSpinner label="Verificando permissões..." />;
   }
+  if (gate.status === 'unauthenticated') {
+    return <Navigate to="/login" replace />;
+  }
 
-  if (!user) return <Navigate to="/login" replace />;
-
-  const permissions = getSocialPermissionFlags(roles);
+  const permissions = getSocialPermissionFlags(roles, extraPermissions);
   if (!permissions.canViewModule) {
     return (
       <AccessDenied
@@ -25,5 +28,5 @@ export function SocialRoute({ children }: { children: ReactNode }) {
     );
   }
 
-  return children;
+  return <>{children}</>;
 }
