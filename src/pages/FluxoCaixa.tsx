@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
-import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";
 import { SummaryCard } from "@/components/SummaryCard";
 import { DataTable } from "@/components/DataTable";
@@ -388,8 +387,7 @@ const FluxoCaixa = () => {
 
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
-    <AppLayout>
-      <ModulePage
+    <><ModulePage
         title="Fluxo de Caixa"
         subtitle={`Comportamento do caixa de ${new Date(dataInicio + "T00:00:00").toLocaleDateString("pt-BR")} a ${new Date(dataFim + "T00:00:00").toLocaleDateString("pt-BR")}`}
         headerActions={
@@ -798,7 +796,7 @@ const FluxoCaixa = () => {
           </div>
         </div>
       </FormModal>
-    </AppLayout>
+    </>
   );
 };
 

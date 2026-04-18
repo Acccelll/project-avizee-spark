@@ -4,7 +4,6 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { orcamentoSchema, type OrcamentoFormValues } from "@/lib/orcamentoSchema";
-import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -799,8 +798,7 @@ export default function OrcamentoForm() {
   }));
 
   return (
-    <AppLayout>
-      <div className="mb-6 space-y-3">
+    <><div className="mb-6 space-y-3">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => navigate("/orcamentos")}>
             <ArrowLeft className="w-5 h-5" />
@@ -1266,6 +1264,6 @@ export default function OrcamentoForm() {
         }}
       />
       {confirmActionDialog}
-    </AppLayout>
+    </>
   );
 }

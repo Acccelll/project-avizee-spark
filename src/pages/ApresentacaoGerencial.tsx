@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, RefreshCcw } from 'lucide-react';
 import { toast } from 'sonner';
-import { AppLayout } from '@/components/AppLayout';
 import { ModulePage } from '@/components/ModulePage';
 import { Button } from '@/components/ui/button';
 import { useCan } from '@/hooks/useCan';
@@ -81,12 +80,11 @@ export default function ApresentacaoGerencial() {
   });
 
   if (!canVisualizar) {
-    return <AppLayout><ModulePage title="Apresentação Gerencial">Sem permissão para visualizar.</ModulePage></AppLayout>;
+    return <><ModulePage title="Apresentação Gerencial">Sem permissão para visualizar.</ModulePage></>;
   }
 
   return (
-    <AppLayout>
-      <ModulePage
+    <><ModulePage
         title="Apresentação Gerencial"
         headerActions={
           <div className="flex gap-2">
@@ -163,6 +161,6 @@ export default function ApresentacaoGerencial() {
           }}
         />
       )}
-    </AppLayout>
+    </>
   );
 }

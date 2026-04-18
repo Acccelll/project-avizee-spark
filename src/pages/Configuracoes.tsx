@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react';
 import { useTheme } from 'next-themes';
 import { AlertCircle, CalendarDays, Check, CheckCircle2, Clock, Eye, EyeOff, Info, Loader2, Lock, Mail, Moon, Palette, RotateCcw, Save, Settings, Shield, ShieldCheck, Sun, User } from 'lucide-react';
 import { useUserPreference } from '@/hooks/useUserPreference';
-import { AppLayout } from '@/components/AppLayout';
 import { ModulePage } from '@/components/ModulePage';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -951,8 +950,7 @@ export default function Configuracoes() {
   };
 
   return (
-    <AppLayout>
-      <ModulePage title="Configurações" subtitle="Preferências pessoais da sua conta.">
+    <><ModulePage title="Configurações" subtitle="Preferências pessoais da sua conta.">
         {/* Horizontal tab navigation */}
         <div role="tablist" aria-label="Seções de Configurações" className="flex gap-0 border-b overflow-x-auto mb-6 -mt-1">
           {tabNavItems.map((item) => {
@@ -981,6 +979,6 @@ export default function Configuracoes() {
         {/* Section content */}
         <div>{renderContent()}</div>
       </ModulePage>
-    </AppLayout>
+    </>
   );
 }

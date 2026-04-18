@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import type React from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { AppLayout } from '@/components/AppLayout';
 import { ModulePage } from '@/components/ModulePage';
 import { SummaryCard } from '@/components/SummaryCard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -269,8 +268,7 @@ export default function Relatorios() {
   }, [visibleColumns, tipo, selectedMeta]);
 
   return (
-    <AppLayout>
-      <ModulePage title="Relatórios" subtitle="Análises gerenciais, exportações e visão consolidada por módulo.">
+    <><ModulePage title="Relatórios" subtitle="Análises gerenciais, exportações e visão consolidada por módulo.">
         <div className="space-y-6">
 
           {/* ── Report selector ── */}
@@ -524,6 +522,6 @@ export default function Relatorios() {
           </div>
         </div>
       </PreviewModal>
-    </AppLayout>
+    </>
   );
 }

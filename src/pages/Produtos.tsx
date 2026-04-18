@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useDebounce } from "@/hooks/useDebounce";
-import { AppLayout } from "@/components/AppLayout";
 import { DataTable } from "@/components/DataTable";
 import { PullToRefresh } from "@/components/ui/PullToRefresh";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -654,8 +653,7 @@ const Produtos = () => {
   ];
 
   return (
-    <AppLayout>
-      <ModulePage
+    <><ModulePage
         title="Produtos"
         subtitle="Consulta e gestão de produtos"
         addLabel="Novo Produto"
@@ -1221,7 +1219,7 @@ const Produtos = () => {
       </Dialog>
 
       {confirmActionDialog}
-    </AppLayout>);
+    </>);
 
 };
 

@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -129,17 +128,15 @@ const PedidoForm = () => {
 
   if (loading) {
     return (
-      <AppLayout>
-        <div className="p-8 text-center animate-pulse">Carregando pedido...</div>
-      </AppLayout>
+      <><div className="p-8 text-center animate-pulse">Carregando pedido...</div>
+      </>
     );
   }
 
   if (!pedido) return null;
 
   return (
-    <AppLayout>
-      <div className="mb-6 space-y-3">
+    <><div className="mb-6 space-y-3">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => navigate("/pedidos")}>
             <ArrowLeft className="w-5 h-5" />
@@ -264,7 +261,7 @@ const PedidoForm = () => {
           </Button>
         </div>
       </div>
-    </AppLayout>
+    </>
   );
 };
 

@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
-import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
 import { FormModal } from "@/components/FormModal";
@@ -688,8 +687,7 @@ const Fiscal = () => {
   ];
 
   return (
-    <AppLayout>
-      <ModulePage title={tipoConfig.title} subtitle={tipoConfig.subtitle} addLabel={tipoConfig.addLabel} onAdd={openCreate}
+    <><ModulePage title={tipoConfig.title} subtitle={tipoConfig.subtitle} addLabel={tipoConfig.addLabel} onAdd={openCreate}
         headerActions={<>
           <input ref={xmlInputRef} type="file" accept=".xml" className="hidden" onChange={handleXmlImport} />
           <Button variant="outline" size="sm" className="gap-1.5" onClick={() => xmlInputRef.current?.click()}>
@@ -866,7 +864,7 @@ const Fiscal = () => {
       />
 
       <DanfeViewer open={danfeOpen} onClose={() => setDanfeOpen(false)} data={danfeData as never} />
-    </AppLayout>
+    </>
   );
 };
 

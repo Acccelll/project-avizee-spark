@@ -10,7 +10,6 @@
  */
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -179,8 +178,7 @@ export default function RemessaFormPage() {
   };
 
   return (
-    <AppLayout>
-      <div className="container max-w-3xl py-6 space-y-6">
+    <><div className="container max-w-3xl py-6 space-y-6">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" onClick={handleCancel}>
             <ArrowLeft className="h-4 w-4 mr-1" />
@@ -346,6 +344,6 @@ export default function RemessaFormPage() {
         )}
       </div>
       {confirmDialog}
-    </AppLayout>
+    </>
   );
 }

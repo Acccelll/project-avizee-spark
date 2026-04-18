@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { useDebounce } from "@/hooks/useDebounce";
-import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
 import { PullToRefresh } from "@/components/ui/PullToRefresh";
@@ -412,8 +411,7 @@ export default function Transportadoras() {
   const summaryAtivos = useMemo(() => data.filter(t => t.ativo).length, [data]);
 
   return (
-    <AppLayout>
-      <ModulePage
+    <><ModulePage
         title="Transportadoras"
         subtitle="Central de consulta de transportadoras e logística"
         addLabel="Nova Transportadora"
@@ -1030,6 +1028,6 @@ export default function Transportadoras() {
         )}
       </ConfirmDialog>
       {confirmDiscardDialog}
-    </AppLayout>
+    </>
   );
 }

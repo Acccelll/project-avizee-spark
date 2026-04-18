@@ -114,7 +114,6 @@ export function AppSidebar({
           {/* Dashboard */}
           <Link
             to={dashboardItem.path}
-            onClick={onCloseMobile}
             aria-current={dashboardActive ? 'page' : undefined}
             className={`sidebar-item mb-2 ${dashboardActive ? 'sidebar-item-active' : 'sidebar-item-inactive'} ${collapsed ? 'justify-center' : ''}`}
             title={collapsed ? dashboardItem.title : undefined}

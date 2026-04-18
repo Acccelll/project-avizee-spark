@@ -3,7 +3,6 @@ import { useDebounce } from "@/hooks/useDebounce";
 import { useEditDirtyForm } from "@/hooks/useEditDirtyForm";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
-import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -173,8 +172,7 @@ export default function UnidadesMedida() {
   ];
 
   return (
-    <AppLayout>
-      <ModulePage
+    <><ModulePage
         title="Unidades de Medida"
         subtitle="Cadastro mestre de unidades utilizadas em produtos"
         addLabel="Nova Unidade"
@@ -299,6 +297,6 @@ export default function UnidadesMedida() {
         </form>
       </FormModal>
       {confirmDialog}
-    </AppLayout>
+    </>
   );
 }

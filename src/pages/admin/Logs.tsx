@@ -16,7 +16,6 @@
 
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
 import { ViewDrawer, ViewField, ViewSection } from "@/components/ViewDrawer";
@@ -303,8 +302,7 @@ export default function Logs() {
   const selectedMeta = selected ? getTableMeta(selected.tabela) : null;
 
   return (
-    <AppLayout>
-      <ModulePage
+    <><ModulePage
         title="Logs de Auditoria"
         subtitle="Histórico de operações realizadas no sistema"
         summaryCards={
@@ -442,6 +440,6 @@ export default function Logs() {
           </div>
         )}
       </ViewDrawer>
-    </AppLayout>
+    </>
   );
 }

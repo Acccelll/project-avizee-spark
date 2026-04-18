@@ -1,7 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Building2, Calendar, CheckCircle2, ChevronDown, ChevronRight, Database, Globe, Image, Info, Loader2, Mail, MapPin, PenLine, Phone, Receipt, Reply, Shield, Upload, Users, Wallet } from 'lucide-react';
-import { AppLayout } from '@/components/AppLayout';
 import { ModulePage } from '@/components/ModulePage';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -470,13 +469,12 @@ export default function Administracao() {
 
   if (loading) {
     return (
-      <AppLayout>
-        <ModulePage title="Administração" subtitle="Carregando parâmetros do sistema...">
+      <><ModulePage title="Administração" subtitle="Carregando parâmetros do sistema...">
           <div className="flex items-center justify-center rounded-xl border border-dashed py-20 text-muted-foreground">
             <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Carregando...
           </div>
         </ModulePage>
-      </AppLayout>
+      </>
     );
   }
 
@@ -1396,8 +1394,7 @@ export default function Administracao() {
   const showSaveButton = activeSection !== 'auditoria' && activeSection !== 'usuarios' && activeSection !== 'migracao' && activeSection !== 'dashboard';
 
   return (
-    <AppLayout>
-      <ModulePage title="Administração" subtitle="Governança, parâmetros globais e gestão do sistema.">
+    <><ModulePage title="Administração" subtitle="Governança, parâmetros globais e gestão do sistema.">
         <div className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
           <nav className="space-y-0.5" aria-label="Navegação administrativa">
             {sideNavGroups.map((group) => {
@@ -1463,6 +1460,6 @@ export default function Administracao() {
           </div>
         </div>
       </ModulePage>
-    </AppLayout>
+    </>
   );
 }

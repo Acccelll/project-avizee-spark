@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import { AppLayout } from "@/components/AppLayout";
 import { ImportacaoResumoCards } from "@/components/importacao/ImportacaoResumoCards";
 import { ImportacaoTipoCard, CardImportStatus } from "@/components/importacao/ImportacaoTipoCard";
 import { ImportacaoGrupoSection } from "@/components/importacao/ImportacaoGrupoSection";
@@ -294,8 +293,7 @@ export default function MigracaoDados() {
   };
 
   return (
-    <AppLayout>
-      <div className="flex flex-col gap-6 p-6 max-w-[1600px] mx-auto">
+    <><div className="flex flex-col gap-6 p-6 max-w-[1600px] mx-auto">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-4">
           <div className="flex items-center gap-3">
@@ -836,6 +834,6 @@ export default function MigracaoDados() {
           </AlertDialogContent>
         </AlertDialog>
       </div>
-    </AppLayout>
+    </>
   );
 }

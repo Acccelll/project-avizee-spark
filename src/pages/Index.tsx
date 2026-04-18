@@ -10,7 +10,6 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { AppLayout } from "@/components/AppLayout";
 import { SummaryCard } from "@/components/SummaryCard";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { AlertStrip } from "@/components/dashboard/AlertStrip";
@@ -130,17 +129,15 @@ const DashboardContent = () => {
 
   if (loading) {
     return (
-      <AppLayout>
-        <DashboardSkeleton />
-      </AppLayout>
+      <><DashboardSkeleton />
+      </>
     );
   }
 
   const openMetric = metricDrawer ? detailData[metricDrawer] : null;
 
   return (
-    <AppLayout>
-      <DashboardHeader lastUpdated={loadedAt} onRefresh={loadData} />
+    <><DashboardHeader lastUpdated={loadedAt} onRefresh={loadData} />
 
       <div className="mb-4 rounded-lg border border-border/60 bg-muted/10 px-4 py-3">
         <p className="text-sm font-medium text-foreground">
@@ -336,7 +333,7 @@ const DashboardContent = () => {
             : []
         }
       />
-    </AppLayout>
+    </>
   );
 };
 

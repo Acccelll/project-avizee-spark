@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
 import { ViewDrawer, ViewField, ViewSection } from "@/components/ViewDrawer";
@@ -504,8 +503,7 @@ export default function Auditoria() {
   const selectedCrit = selected ? getCriticality(selected) : null;
 
   return (
-    <AppLayout>
-      <ModulePage
+    <><ModulePage
         title="Trilha de Auditoria"
         subtitle="Rastreamento de operações, investigação de alterações e governança operacional"
         count={filteredLogs.length}
@@ -731,6 +729,6 @@ export default function Auditoria() {
           </div>
         )}
       </ViewDrawer>
-    </AppLayout>
+    </>
   );
 }

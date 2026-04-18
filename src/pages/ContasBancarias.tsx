@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo } from "react";
-import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
 import { FormModal } from "@/components/FormModal";
@@ -316,8 +315,7 @@ const ContasBancarias = () => {
   ];
 
   return (
-    <AppLayout>
-      <ModulePage
+    <><ModulePage
         title="Contas Bancárias"
         subtitle="Central de consulta e gestão das contas financeiras da empresa"
         addLabel="Nova Conta"
@@ -488,7 +486,7 @@ const ContasBancarias = () => {
         onDelete={(c) => handleDelete(c)}
       />
       {confirmDialog}
-    </AppLayout>
+    </>
   );
 };
 
