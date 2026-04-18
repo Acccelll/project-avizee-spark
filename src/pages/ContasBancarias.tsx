@@ -444,10 +444,6 @@ const ContasBancarias = () => {
               )}
             </div>
           )}
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={closeModal}>Cancelar</Button>
-            <Button type="submit" disabled={saving}>{saving ? "Salvando..." : "Salvar"}</Button>
-          </div>
         </form>
       </FormModal>
 
