@@ -29,6 +29,7 @@ import { NotaFiscalDrawer } from "@/components/fiscal/NotaFiscalDrawer";
 import { confirmarNotaFiscal, estornarNotaFiscal, registrarEventoFiscal, verificarDuplicidadeChave } from "@/services/fiscal.service";
 import { NotaFiscalEditModal } from "@/components/fiscal/NotaFiscalEditModal";
 import { useActionLock } from "@/hooks/useActionLock";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 
 export interface NotaFiscal {
   id: string; tipo: string; numero: string; serie: string; chave_acesso: string;
