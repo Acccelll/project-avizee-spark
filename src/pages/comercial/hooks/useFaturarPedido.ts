@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import { supabase } from "@/integrations/supabase/client";
+import { INVALIDATION_KEYS } from "@/services/_invalidationKeys";
 
 interface PedidoBase {
   id: string;
@@ -19,6 +20,9 @@ interface FaturarPedidoResult {
  * Hook para faturar um pedido de venda usando RPC transacional `gerar_nf_de_pedido`.
  * A RPC numera a NF, copia os itens com dados fiscais do produto, atualiza o status
  * de faturamento e registra o evento fiscal — tudo em uma única transação.
+ *
+ * Invalida todo o conjunto cross-módulo (`faturamentoPedido`) para que telas em
+ * background (Fiscal, Estoque, Financeiro) reflitam imediatamente.
  */
 export function useFaturarPedido() {
   const queryClient = useQueryClient();
@@ -33,8 +37,9 @@ export function useFaturarPedido() {
       return { nfId: result.nf_id, nfNumero: result.nf_numero };
     },
     onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ["notas_fiscais"] });
-      queryClient.invalidateQueries({ queryKey: ["ordens_venda"] });
+      INVALIDATION_KEYS.faturamentoPedido.forEach((key) => {
+        queryClient.invalidateQueries({ queryKey: [key] });
+      });
       toast.success(`NF ${result.nfNumero} gerada com sucesso!`);
     },
     onError: (err: Error) => {

@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import { convertToPedido, type ConvertToOVOptions } from "@/services/orcamentos.service";
+import { INVALIDATION_KEYS } from "@/services/_invalidationKeys";
 
 interface OrcamentoBase {
   id: string;
@@ -21,17 +22,18 @@ interface ConverterOrcamentoInput {
 
 /**
  * Hook for converting a quotation (orçamento) into a sales order (pedido).
- * Invalidates queries for orcamentos and ordens_venda on success.
+ * Invalida `conversaoOrcamento` (orçamentos + ordens_venda + pedidos).
+ * O toast de sucesso é emitido pelo service `convertToPedido`.
  */
 export function useConverterOrcamento() {
   const queryClient = useQueryClient();
 
   return useMutation<{ ovId: string; ovNumero: string }, Error, ConverterOrcamentoInput>({
     mutationFn: ({ orcamento, options = {} }) => convertToPedido(orcamento, options),
-    onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ["orcamentos"] });
-      queryClient.invalidateQueries({ queryKey: ["ordens_venda"] });
-      toast.success(`Pedido ${result.ovNumero} criado com sucesso!`);
+    onSuccess: () => {
+      INVALIDATION_KEYS.conversaoOrcamento.forEach((key) => {
+        queryClient.invalidateQueries({ queryKey: [key] });
+      });
     },
     onError: (err: Error) => {
       toast.error(getUserFriendlyError(err));
