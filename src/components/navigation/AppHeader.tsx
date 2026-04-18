@@ -113,7 +113,6 @@ export function AppHeader({ onOpenMobileMenu: _onOpenMobileMenu, onOpenSearch, o
                     className="text-destructive focus:text-destructive"
                     onClick={async () => {
                       await signOut();
-                      navigate('/login');
                     }}
                   >
                     Sair
@@ -204,7 +203,6 @@ export function AppHeader({ onOpenMobileMenu: _onOpenMobileMenu, onOpenSearch, o
                   className="text-destructive focus:text-destructive"
                   onClick={async () => {
                     await signOut();
-                    navigate('/login');
                   }}
                 >
                   Sair

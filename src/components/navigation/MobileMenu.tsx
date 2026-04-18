@@ -163,7 +163,6 @@ export function MobileMenu({ open, onOpenChange, onOpenSearch }: MobileMenuProps
               onClick={async () => {
                 onOpenChange(false);
                 await signOut();
-                navigate('/login');
               }}
             >
               Sair
