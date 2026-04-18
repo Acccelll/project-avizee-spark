@@ -171,6 +171,7 @@ export default function RemessaFormPage() {
       } else {
         await update(id!, payload);
       }
+      baselineRef.current = form;
       navigate("/logistica");
     } catch (err: unknown) {
       toast.error(getUserFriendlyError(err));
