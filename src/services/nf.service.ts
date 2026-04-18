@@ -30,16 +30,30 @@ export interface GerarNFResult {
   nfNumero: string;
 }
 
+export interface GerarNFParams {
+  pedidoId: string;
+  pedidoNumero: string;
+  clienteId: string | null;
+}
+
 /**
  * Gera uma Nota Fiscal de saída para uma Ordem de Venda.
  * Insere a NF, os itens, atualiza quantidade_faturada e status_faturamento do pedido,
  * e chama confirmarNotaFiscal para movimentar estoque e financeiro.
+ *
+ * @deprecated Prefira `useFaturarPedido` (mutation com invalidação cross-módulo
+ * + RPC transacional `gerar_nf_de_pedido`). Mantido apenas para callers que
+ * ainda não migraram. Aceita assinatura legada (3 args) ou objeto.
  */
 export async function gerarNFParaPedido(
-  pedidoId: string,
-  pedidoNumero: string,
-  clienteId: string | null,
+  params: GerarNFParams | string,
+  pedidoNumeroLegacy?: string,
+  clienteIdLegacy?: string | null,
 ): Promise<GerarNFResult> {
+  const { pedidoId, pedidoNumero, clienteId } =
+    typeof params === "string"
+      ? { pedidoId: params, pedidoNumero: pedidoNumeroLegacy ?? "", clienteId: clienteIdLegacy ?? null }
+      : params;
   // 1. Buscar itens do pedido
   const { data: pedidoItems, error: itemsError } = await supabase
     .from("ordens_venda_itens")
