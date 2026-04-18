@@ -10,6 +10,7 @@ import { useMemo } from "react";
 import { ViewDrawerV2, DrawerStickyFooter } from "@/components/ViewDrawerV2";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
+import { useActionLock } from "@/hooks/useActionLock";
 import { formatCurrency } from "@/lib/format";
 import {
   ShoppingCart, Edit, Trash2, CheckCircle2, Clock,
@@ -71,6 +72,12 @@ export function CotacaoCompraDrawer({
   onEdit, onDeleteOpen, onSelectProposal, onDeleteProposal, onAddProposal,
   onSendForApproval, onApprove, onReject, onGerarPedido, onNavigatePedidos,
 }: CotacaoCompraDrawerProps) {
+  const { pending: editPending, run: runEdit } = useActionLock();
+  const { pending: sendPending, run: runSend } = useActionLock();
+  const { pending: approvePending, run: runApprove } = useActionLock();
+  const { pending: rejectPending, run: runReject } = useActionLock();
+  const { pending: gerarPending, run: runGerar } = useActionLock();
+
   // Memoize the approved-total to avoid recomputing the reduce on every render of the Decisão tab.
   const totalAprovado = useMemo(() => {
     return drawerStats.selectedPropostas.reduce((sum, p) => {
@@ -90,7 +97,7 @@ export function CotacaoCompraDrawer({
           <>
             {/* Block edit/delete once the quotation is in a terminal state */}
             {!["convertida", "cancelada"].includes(selected.status) && (
-              <Button variant="outline" size="sm" className="gap-1.5" aria-label="Editar cotação" onClick={() => { onClose(); onEdit(selected); }}>
+              <Button variant="outline" size="sm" className="gap-1.5" aria-label="Editar cotação" disabled={editPending} onClick={() => runEdit(() => { onEdit(selected); onClose(); })}>
                 <Edit className="h-3.5 w-3.5" /> Editar
               </Button>
             )}
@@ -307,7 +314,7 @@ export function CotacaoCompraDrawer({
           <DrawerStickyFooter
             left={
               selected.status === "aguardando_aprovacao" && (
-                <Button variant="outline" size="sm" className="gap-2 text-destructive border-destructive/30 hover:text-destructive" onClick={onReject}>
+                <Button variant="outline" size="sm" className="gap-2 text-destructive border-destructive/30 hover:text-destructive" disabled={rejectPending} onClick={() => runReject(() => onReject())}>
                   <ThumbsDown className="h-4 w-4" /> Reprovar
                 </Button>
               )
@@ -315,22 +322,22 @@ export function CotacaoCompraDrawer({
             right={
               <>
                 {(selected.status === "aberta" || selected.status === "em_analise") && drawerStats.allItemsHaveSelected && (
-                  <Button variant="outline" size="sm" className="gap-2" onClick={onSendForApproval}>
+                  <Button variant="outline" size="sm" className="gap-2" disabled={sendPending} onClick={() => runSend(() => onSendForApproval())}>
                     <Send className="h-4 w-4" /> Enviar para Aprovação
                   </Button>
                 )}
                 {(selected.status === "aberta" || selected.status === "em_analise") && drawerStats.allItemsHaveSelected && (
-                  <Button size="sm" className="gap-2" onClick={onApprove}>
+                  <Button size="sm" className="gap-2" disabled={approvePending} onClick={() => runApprove(() => onApprove())}>
                     <ThumbsUp className="h-4 w-4" /> Aprovar
                   </Button>
                 )}
                 {selected.status === "aguardando_aprovacao" && (
-                  <Button size="sm" className="gap-2" onClick={onApprove}>
+                  <Button size="sm" className="gap-2" disabled={approvePending} onClick={() => runApprove(() => onApprove())}>
                     <ThumbsUp className="h-4 w-4" /> Aprovar
                   </Button>
                 )}
                 {(selected.status === "aprovada" || selected.status === "finalizada") && (
-                  <Button size="sm" className="gap-2" onClick={onGerarPedido}>
+                  <Button size="sm" className="gap-2" disabled={gerarPending} onClick={() => runGerar(() => onGerarPedido())}>
                     <ClipboardList className="h-4 w-4" /> Gerar Pedido de Compra
                   </Button>
                 )}
