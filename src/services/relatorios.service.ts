@@ -1,5 +1,4 @@
 import { supabase } from "@/integrations/supabase/client";
-import { downloadTextFile } from "@/lib/utils";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/format";
 import { getEffectiveFiscalId } from "@/lib/fiscalUtils";
 import { addParticipacao, computeTop5Concentracao } from "@/utils/relatorios";
@@ -163,16 +162,7 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
         .select("codigo_interno, nome, unidade_medida, estoque_atual, estoque_minimo, preco_custo, preco_venda, grupos_produto(nome)")
         .eq("ativo", true)
         .order("nome");
-      if (filtros.grupoProdutoIds) query = query.in('grupo_id', filtros.grupoProdutoIds);
-      const { data, error } = await query;
-
-      if (error) throw error;
-
-      const rows = (data || []).map((item: Record<string, unknown>) => {
-        const custo = Number(item.preco_custo || 0);
-        const venda = Number(item.preco_venda || 0);
-        const qty = Number(item.estoque_atual || 0);
-        const min = Number(item.estoque_minimo || 0);
+      if (filtros.grupoProdutoIds?.length) query = query.in('grupo_id', filtros.grupoProdutoIds);
         let criticidade: string;
         if (qty <= 0) criticidade = "Zerado";
         else if (min > 0 && qty <= min) criticidade = "Abaixo do mínimo";
@@ -220,9 +210,30 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
         .order("created_at", { ascending: false });
 
       query = withDateRange(query, "created_at", filtros);
-      if (filtros.grupoProdutoIds) query = query.in('produto_id', (
-        await supabase.from('produtos').select('id').in('grupo_id', filtros.grupoProdutoIds)
-      ).data?.map(p => p.id) || []);
+      // Resolve product IDs from selected groups before applying the IN filter.
+      // Done outside `.in()` to surface errors and limit defensively.
+      if (filtros.grupoProdutoIds?.length) {
+        const { data: prods, error: prodErr } = await supabase
+          .from('produtos')
+          .select('id')
+          .in('grupo_id', filtros.grupoProdutoIds)
+          .limit(10000);
+        if (prodErr) throw prodErr;
+        const produtoIds = (prods ?? []).map((p) => p.id);
+        // If no products match, force empty result instead of running unfiltered.
+        if (!produtoIds.length) {
+          return {
+            title: "Movimentos de estoque",
+            subtitle: "Entradas, saídas e ajustes de estoque no período.",
+            rows: [],
+            chartData: [],
+            totals: { totalEntradas: 0, totalSaidas: 0, totalAjustes: 0, saldoAtual: 0 },
+            kpis: { totalMovimentos: 0, totalEntradas: 0, totalSaidas: 0, totalAjustes: 0 },
+            _isQuantityReport: true,
+          };
+        }
+        query = query.in('produto_id', produtoIds);
+      }
 
       const { data, error } = await query;
       if (error) throw error;
@@ -280,7 +291,7 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
         .order("data_vencimento", { ascending: true });
 
       query = withDateRange(query, "data_vencimento", filtros);
-      if (filtros.tiposFinanceiros) query = query.in('tipo', filtros.tiposFinanceiros);
+      if (filtros.tiposFinanceiros?.length) query = query.in('tipo', filtros.tiposFinanceiros);
       const { data, error } = await query;
       if (error) throw error;
 
@@ -410,12 +421,7 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
         .order("data_emissao", { ascending: false });
 
       query = withDateRange(query, "data_emissao", filtros);
-      if (filtros.clienteIds) query = query.in('cliente_id', filtros.clienteIds);
-      const { data, error } = await query;
-      if (error) throw error;
-
-      const rows = (data || []).map((item: Record<string, unknown>) => ({
-        numero: item.numero,
+      if (filtros.clienteIds?.length) query = query.in('cliente_id', filtros.clienteIds);
         cliente: ((item.clientes as { nome_razao_social?: string } | null)?.nome_razao_social) || "-",
         emissao: item.data_emissao,
         valor: Number(item.valor_total || 0),
