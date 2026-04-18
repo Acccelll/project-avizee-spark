@@ -10,7 +10,7 @@ export function AdminRoute({ children }: { children: ReactNode }) {
   const { isAdmin, loading: roleLoading } = useIsAdmin();
 
   if (authLoading || roleLoading) {
-    return <FullPageSpinner />;
+    return <FullPageSpinner label="Verificando permissões..." />;
   }
 
   if (!user) return <Navigate to="/login" replace />;
