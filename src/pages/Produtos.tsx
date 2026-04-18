@@ -8,6 +8,8 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { ModulePage } from "@/components/ModulePage";
 import { SummaryCard } from "@/components/SummaryCard";
 import { FormModal } from "@/components/FormModal";
+import { FormModalFooter } from "@/components/FormModalFooter";
+import { StatusBadge } from "@/components/StatusBadge";
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
@@ -756,25 +758,33 @@ const Produtos = () => {
       </ModulePage>
 
       {/* Form Modal */}
-      <FormModal open={modalOpen} onClose={handleCloseModal} title={mode === "create" ? "Novo Produto" : "Editar Produto"} size="xl">
-        <form onSubmit={handleSubmit} className="space-y-0">
-
-          {/* Context banner — edit mode only */}
-          {mode === "edit" && editingProduct && (
-            <div className="flex flex-wrap items-center gap-3 p-3 bg-muted/40 rounded-lg border mb-4 text-xs text-muted-foreground">
-              <span className={`font-medium ${editingProduct.ativo !== false ? "text-emerald-600" : "text-muted-foreground"}`}>
-                {editingProduct.ativo !== false ? "● Ativo" : "○ Inativo"}
-              </span>
-              {editingProduct.updated_at && <>
-                <span>·</span>
-                <span>Última atualização: {formatDate(editingProduct.updated_at)}</span>
-              </>}
-              <span>·</span>
-              <button type="button" className="text-primary underline hover:opacity-80" onClick={() => { setModalOpen(false); openView(editingProduct); }}>
-                Ver resumo completo
-              </button>
-            </div>
-          )}
+      <FormModal
+        open={modalOpen}
+        onClose={handleCloseModal}
+        title={mode === "create" ? "Novo Produto" : "Editar Produto"}
+        size="xl"
+        identifier={mode === "edit" && editingProduct ? (editingProduct.sku || editingProduct.codigo_interno || undefined) : undefined}
+        status={mode === "edit" && editingProduct ? <StatusBadge status={editingProduct.ativo !== false ? "Ativo" : "Inativo"} /> : undefined}
+        meta={mode === "edit" && editingProduct?.updated_at ? [
+          { label: `Atualizado em ${formatDate(editingProduct.updated_at)}` },
+        ] : undefined}
+        headerActions={mode === "edit" && editingProduct ? (
+          <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs"
+            onClick={() => { setModalOpen(false); openView(editingProduct); }}>
+            Ver resumo
+          </Button>
+        ) : undefined}
+        footer={
+          <FormModalFooter
+            saving={saving}
+            onCancel={handleCloseModal}
+            submitAsForm
+            formId="produto-form"
+            mode={mode}
+          />
+        }
+      >
+        <form id="produto-form" onSubmit={handleSubmit} className="space-y-0">
 
           <Tabs defaultValue="dados-gerais" className="w-full">
             <TabsList className="mb-4 w-full justify-start overflow-x-auto">
@@ -1161,10 +1171,6 @@ const Produtos = () => {
             </TabsContent>
           </Tabs>
 
-          <div className="flex justify-end gap-2 pt-4 border-t">
-            <Button type="button" variant="outline" onClick={handleCloseModal}>Cancelar</Button>
-            <Button type="submit" disabled={saving}>{saving ? "Salvando..." : "Salvar"}</Button>
-          </div>
         </form>
       </FormModal>
 

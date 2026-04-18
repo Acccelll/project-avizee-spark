@@ -6,6 +6,7 @@ import { DataTable } from "@/components/DataTable";
 import { PullToRefresh } from "@/components/ui/PullToRefresh";
 import { StatusBadge } from "@/components/StatusBadge";
 import { FormModal } from "@/components/FormModal";
+import { FormModalFooter } from "@/components/FormModalFooter";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { ViewDrawerV2, ViewField, ViewSection } from "@/components/ViewDrawerV2";
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
@@ -397,8 +398,31 @@ export default function Funcionarios() {
       </ModulePage>
 
       {/* Create/Edit Modal */}
-      <FormModal open={modalOpen} onClose={handleCloseModal} title={mode === "create" ? "Novo Funcionário" : "Editar Funcionário"} size="lg">
-        <form onSubmit={handleSubmit} className="space-y-6">
+      <FormModal
+        open={modalOpen}
+        onClose={handleCloseModal}
+        title={mode === "create" ? "Novo Funcionário" : "Editar Funcionário"}
+        size="lg"
+        identifier={mode === "edit" && selected?.cpf ? selected.cpf : undefined}
+        status={mode === "edit" && selected ? <StatusBadge status={selected.ativo ? "Ativo" : "Inativo"} /> : undefined}
+        meta={mode === "edit" && selected ? [
+          ...(selected.cargo ? [{ label: selected.cargo }] : []),
+          ...(selected.departamento ? [{ label: selected.departamento }] : []),
+          ...(selected.data_admissao ? [{ label: `Admissão: ${formatDate(selected.data_admissao)}` }] : []),
+        ] : undefined}
+        isDirty={isFormDirty}
+        footer={
+          <FormModalFooter
+            saving={submitting}
+            isDirty={isFormDirty}
+            onCancel={handleCloseModal}
+            submitAsForm
+            formId="funcionario-form"
+            mode={mode}
+          />
+        }
+      >
+        <form id="funcionario-form" onSubmit={handleSubmit} className="space-y-6">
 
           {/* BLOCO: IDENTIFICAÇÃO */}
           <div className="space-y-3">
@@ -569,14 +593,6 @@ export default function Funcionarios() {
             </div>
           </div>
 
-          {/* RODAPÉ */}
-          <div className="flex justify-end gap-2 pt-2 border-t">
-            <Button type="button" variant="outline" onClick={handleCloseModal} disabled={submitting}>Cancelar</Button>
-            <Button type="submit" disabled={submitting}>
-              {submitting && <Loader2 className="w-4 h-4 animate-spin mr-1.5" />}
-              {submitting ? "Salvando…" : "Salvar"}
-            </Button>
-          </div>
         </form>
       </FormModal>
 

@@ -7,6 +7,7 @@ import { PullToRefresh } from "@/components/ui/PullToRefresh";
 import { StatusBadge } from "@/components/StatusBadge";
 import { ModulePage } from "@/components/ModulePage";
 import { FormModal } from "@/components/FormModal";
+import { FormModalFooter } from "@/components/FormModalFooter";
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
@@ -378,42 +379,37 @@ const Fornecedores = () => {
         </PullToRefresh>
       </ModulePage>
 
-      <FormModal open={modalOpen} onClose={async () => {
-        if (isDirty && !(await confirmDiscard())) return;
-        setModalOpen(false);
-      }} title={mode === "create" ? "Novo Fornecedor" : "Editar Fornecedor"} size="xl">
-        <form onSubmit={handleSubmit} className="space-y-0">
-
-          {/* Edit-mode context bar */}
-          {mode === "edit" && selected && (
-            <div className="flex flex-wrap items-center gap-3 bg-muted/40 rounded-lg px-3 py-2 mb-4 text-xs text-muted-foreground border">
-              <StatusBadge status={selected.ativo ? "Ativo" : "Inativo"} />
-              {selected.created_at && (
-                <span className="flex items-center gap-1">
-                  <Calendar className="h-3 w-3" />
-                  Cadastrado em {formatDate(selected.created_at)}
-                </span>
-              )}
-              {selected.updated_at && selected.updated_at !== selected.created_at && (
-                <span className="flex items-center gap-1">
-                  <BadgeCheck className="h-3 w-3" />
-                  Atualizado em {formatDate(selected.updated_at)}
-                </span>
-              )}
-              {form.prazo_padrao ? (
-                <span className="flex items-center gap-1">
-                  <ShoppingCart className="h-3 w-3" />
-                  Prazo padrão: {form.prazo_padrao} dias
-                </span>
-              ) : null}
-              {isDirty && (
-                <span className="flex items-center gap-1 text-amber-600 ml-auto font-medium">
-                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500 inline-block" />
-                  Alterações não salvas
-                </span>
-              )}
-            </div>
-          )}
+      <FormModal
+        open={modalOpen}
+        onClose={async () => {
+          if (isDirty && !(await confirmDiscard())) return;
+          setModalOpen(false);
+        }}
+        title={mode === "create" ? "Novo Fornecedor" : "Editar Fornecedor"}
+        size="xl"
+        identifier={mode === "edit" && selected?.cpf_cnpj ? selected.cpf_cnpj : undefined}
+        status={mode === "edit" && selected ? <StatusBadge status={selected.ativo ? "Ativo" : "Inativo"} /> : undefined}
+        meta={mode === "edit" && selected ? [
+          ...(selected.created_at ? [{ icon: Calendar, label: `Cadastrado em ${formatDate(selected.created_at)}` }] : []),
+          ...(selected.updated_at && selected.updated_at !== selected.created_at ? [{ icon: BadgeCheck, label: `Atualizado em ${formatDate(selected.updated_at)}` }] : []),
+          ...(form.prazo_padrao ? [{ icon: ShoppingCart, label: `Prazo padrão: ${form.prazo_padrao} dias` }] : []),
+        ] : undefined}
+        isDirty={isDirty}
+        footer={
+          <FormModalFooter
+            saving={saving}
+            isDirty={isDirty}
+            onCancel={async () => {
+              if (isDirty && !(await confirmDiscard())) return;
+              setModalOpen(false);
+            }}
+            submitAsForm
+            formId="fornecedor-form"
+            mode={mode}
+          />
+        }
+      >
+        <form id="fornecedor-form" onSubmit={handleSubmit} className="space-y-0">
 
           <Tabs defaultValue="dados-gerais" className="w-full">
             <TabsList className="mb-4 w-full justify-start overflow-x-auto">
@@ -798,33 +794,6 @@ const Fornecedores = () => {
             </TabsContent>
           </Tabs>
 
-          {/* ── RODAPÉ ────────────────────────────────────────── */}
-          <div className="flex items-center justify-end gap-2 pt-4 border-t">
-            {isDirty && (
-              <span className="mr-auto text-xs text-amber-600 flex items-center gap-1">
-                <span className="h-1.5 w-1.5 rounded-full bg-amber-500 inline-block" />
-                Há alterações não salvas
-              </span>
-            )}
-            <Button
-              type="button"
-              variant="outline"
-              onClick={async () => {
-                if (isDirty && !(await confirmDiscard())) return;
-                setModalOpen(false);
-              }}
-            >
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={saving} className="min-w-[100px]">
-              {saving ? (
-                <span className="flex items-center gap-1.5">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Salvando...
-                </span>
-              ) : "Salvar"}
-            </Button>
-          </div>
         </form>
       </FormModal>
 
