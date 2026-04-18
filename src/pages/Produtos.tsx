@@ -278,17 +278,48 @@ const Produtos = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.nome || (form.tipo_item !== 'insumo' && !form.preco_venda)) {toast.error("Nome e preço de venda são obrigatórios");return;}
-    if (Number(form.preco_venda) < 0) {toast.error("Preço de venda não pode ser negativo");return;}
-    if (!form.eh_composto && Number(form.preco_custo) < 0) {toast.error("Preço de custo não pode ser negativo");return;}
-    if (Number(form.peso) < 0) {toast.error("Peso não pode ser negativo");return;}
-    if (form.eh_composto && editComposicao.length === 0) {toast.error("Produto composto precisa de ao menos um componente");return;}
-    if (form.eh_composto && editComposicao.some((c) => !c.produto_filho_id)) {toast.error("Selecione o produto para todos os componentes");return;}
+
+    // Validação Zod baseada em produtoSchema (nome, sku, unidade_medida, peso, ncm/cst/cfop, estoque_minimo, etc.)
+    const dataParaValidar = {
+      nome: form.nome,
+      sku: form.sku,
+      codigo_interno: form.codigo_interno,
+      descricao: form.descricao,
+      unidade_medida: form.unidade_medida,
+      preco_custo: Number(form.preco_custo) || 0,
+      preco_venda: Number(form.preco_venda) || 0,
+      estoque_minimo: Number(form.estoque_minimo) || 0,
+      ncm: form.ncm,
+      cst: form.cst,
+      cfop_padrao: form.cfop_padrao,
+      peso: Number(form.peso) || 0,
+      eh_composto: !!form.eh_composto,
+      grupo_id: form.grupo_id,
+    };
+    // Para insumos, preço de venda é opcional → relaxa schema localmente
+    const isInsumo = form.tipo_item === 'insumo';
+    const validation = validateForm(
+      isInsumo
+        ? produtoSchema.extend({ preco_venda: produtoSchema.shape.preco_venda.optional().or(undefined as never) })
+        : produtoSchema,
+      dataParaValidar,
+    );
+    if (!validation.success) {
+      setFormErrors(validation.errors);
+      const firstErr = Object.values(validation.errors)[0];
+      toast.error(firstErr || "Verifique os campos do formulário");
+      return;
+    }
+    setFormErrors({});
+
+    // Regras adicionais não cobertas pelo schema (sub-entidades)
+    if (form.eh_composto && editComposicao.length === 0) { toast.error("Produto composto precisa de ao menos um componente"); return; }
+    if (form.eh_composto && editComposicao.some((c) => !c.produto_filho_id)) { toast.error("Selecione o produto para todos os componentes"); return; }
     const fornDups = editFornecedores.map(f => f.fornecedor_id).filter(Boolean);
-    if (editFornecedores.some(f => !f.fornecedor_id)) {toast.error("Selecione o fornecedor para todos os vínculos ou remova os vazios");return;}
-    if (fornDups.length !== new Set(fornDups).size) {toast.error("Fornecedor duplicado: o mesmo fornecedor não pode ser vinculado duas vezes");return;}
-    setSaving(true);
-    try {
+    if (editFornecedores.some(f => !f.fornecedor_id)) { toast.error("Selecione o fornecedor para todos os vínculos ou remova os vazios"); return; }
+    if (fornDups.length !== new Set(fornDups).size) { toast.error("Fornecedor duplicado: o mesmo fornecedor não pode ser vinculado duas vezes"); return; }
+
+    await submit(async () => {
       const variacoesArr = form.variacoes_texto
         ? form.variacoes_texto.split(",").map(v => v.trim()).filter(Boolean)
         : null;
@@ -304,14 +335,11 @@ const Produtos = () => {
       } else {
         return;
       }
-      // Composição: usa RPC transacional (delete + insert atômico). Fornecedores seguem fluxo padrão.
+      // Composição: RPC transacional (delete + insert atômico).
       const composicaoItens = form.eh_composto
         ? editComposicao
             .filter((c) => c.produto_filho_id)
-            .map((c) => ({
-              produto_filho_id: c.produto_filho_id,
-              quantidade: c.quantidade,
-            }))
+            .map((c) => ({ produto_filho_id: c.produto_filho_id, quantidade: c.quantidade }))
         : [];
       const { error: compError } = await supabase.rpc("save_produto_composicao", {
         p_produto_pai_id: produtoId,
@@ -320,10 +348,12 @@ const Produtos = () => {
       });
       if (compError) {
         console.error("[produtos] composição:", compError);
-        toast.error("Erro ao salvar composição. Tente novamente.");
+        throw new Error("Erro ao salvar composição: " + (compError.message || "tente novamente"));
       }
 
-      await supabase.from("produtos_fornecedores").delete().eq("produto_id", produtoId);
+      // Fornecedores: replace via delete+insert. Se falhar, propaga (não fecha modal silenciosamente).
+      const { error: delErr } = await supabase.from("produtos_fornecedores").delete().eq("produto_id", produtoId);
+      if (delErr) throw new Error("Erro ao limpar fornecedores anteriores: " + delErr.message);
 
       const validForn = editFornecedores.filter(f => f.fornecedor_id);
       if (validForn.length > 0) {
@@ -334,14 +364,14 @@ const Produtos = () => {
           preco_compra: f.preco_compra || null,
         }));
         const { error } = await supabase.from("produtos_fornecedores").insert(fRows);
-        if (error) {console.error('[produtos] fornecedores:', error);toast.error("Erro ao salvar fornecedores. Tente novamente.");}
+        if (error) {
+          console.error('[produtos] fornecedores:', error);
+          throw new Error("Erro ao salvar fornecedores: " + error.message);
+        }
       }
+      markPristine();
       setModalOpen(false);
-    } catch (err) {
-      console.error('[produtos] erro ao salvar:', err);
-      toast.error(getUserFriendlyError(err));
-    }
-    setSaving(false);
+    });
   };
 
   const handleSalvarNovaUnidade = async (e: React.FormEvent) => {
