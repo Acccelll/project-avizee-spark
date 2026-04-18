@@ -18,6 +18,7 @@ import { usePublishDrawerSlots } from "@/contexts/RelationalDrawerSlotsContext";
 import { useDetailFetch } from "@/hooks/useDetailFetch";
 import { useDetailActions } from "@/hooks/useDetailActions";
 import { useInvalidateAfterMutation } from "@/hooks/useInvalidateAfterMutation";
+import { getUserFriendlyError } from "@/utils/errorMessages";
 import type {
   HistoricoNfItemRow,
   ComposicaoItemRow,
