@@ -42,24 +42,34 @@ export function FormModalFooter({
   const label = primaryLabel ?? (mode === "create" ? "Salvar" : "Salvar Alterações");
   const primaryDisabled = saving || disabled;
 
-  return (
-    <div className={cn("flex items-center justify-between gap-3", className)}>
-      <div className="flex items-center gap-2 text-xs text-muted-foreground min-w-0">
-        {isDirty && !saving && (
-          <span className="inline-flex items-center gap-1.5">
-            <Circle className="h-2 w-2 fill-warning text-warning" />
-            <span className="font-medium">Alterações não salvas</span>
-          </span>
-        )}
-        {saving && (
-          <span className="inline-flex items-center gap-1.5">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            <span>Salvando...</span>
-          </span>
-        )}
-      </div>
+  const hasStatus = (isDirty && !saving) || saving;
 
-      <div className="flex items-center gap-2">
+  return (
+    <div
+      className={cn(
+        "flex items-center gap-3",
+        hasStatus ? "justify-between" : "justify-end",
+        className,
+      )}
+    >
+      {hasStatus && (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground min-w-0">
+          {isDirty && !saving && (
+            <span className="inline-flex items-center gap-1.5">
+              <Circle className="h-2 w-2 fill-warning text-warning" />
+              <span className="font-medium">Alterações não salvas</span>
+            </span>
+          )}
+          {saving && (
+            <span className="inline-flex items-center gap-1.5">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              <span>Salvando...</span>
+            </span>
+          )}
+        </div>
+      )}
+
+      <div className="flex items-center gap-3">
         {secondaryActions}
         <Button type="button" variant="outline" onClick={onCancel} disabled={saving}>
           {cancelLabel}

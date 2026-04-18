@@ -89,7 +89,7 @@ export function RowActions({
               <MoreVertical className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48" onClick={stop}>
+          <DropdownMenuContent align="end" className="min-w-[12rem]" onClick={stop}>
             {visibleSecondary.map((action) => {
               const Icon = action.icon;
               return (
@@ -98,8 +98,8 @@ export function RowActions({
                   onClick={action.onClick}
                   disabled={action.disabled}
                 >
-                  {Icon && <Icon className="mr-2 h-4 w-4" />}
-                  {action.label}
+                  {Icon && <Icon />}
+                  <span>{action.label}</span>
                 </DropdownMenuItem>
               );
             })}
@@ -109,12 +109,10 @@ export function RowActions({
                 <DropdownMenuItem
                   onClick={destructive.onClick}
                   disabled={destructive.disabled}
-                  className="text-destructive focus:text-destructive"
+                  className="text-destructive focus:text-destructive [&>svg]:text-destructive/80"
                 >
-                  {destructive.icon && (
-                    <destructive.icon className="mr-2 h-4 w-4" />
-                  )}
-                  {destructive.label}
+                  {destructive.icon && <destructive.icon />}
+                  <span>{destructive.label}</span>
                 </DropdownMenuItem>
               </>
             )}

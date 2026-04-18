@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { closeOnly } from "@/lib/overlay";
-import { Loader2 } from "lucide-react";
+import { AlertTriangle, HelpCircle, Loader2 } from "lucide-react";
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -37,6 +37,12 @@ export function ConfirmDialog({
   confirmDisabled,
   children,
 }: ConfirmDialogProps) {
+  const isDestructive = confirmVariant === "destructive";
+  const Icon = isDestructive ? AlertTriangle : HelpCircle;
+  const iconWrapClass = isDestructive
+    ? "bg-destructive/10 text-destructive"
+    : "bg-primary/10 text-primary";
+
   return (
     <AlertDialog open={open} onOpenChange={closeOnly(onClose, () => !loading)}>
       <AlertDialogContent
@@ -45,8 +51,21 @@ export function ConfirmDialog({
         }}
       >
         <AlertDialogHeader>
-          <AlertDialogTitle>{title}</AlertDialogTitle>
-          <AlertDialogDescription>{description}</AlertDialogDescription>
+          <div className="flex items-start gap-3.5">
+            <div
+              className={cn(
+                "flex h-10 w-10 shrink-0 items-center justify-center rounded-full",
+                iconWrapClass,
+              )}
+              aria-hidden="true"
+            >
+              <Icon className="h-5 w-5" />
+            </div>
+            <div className="flex-1 min-w-0 space-y-1.5">
+              <AlertDialogTitle>{title}</AlertDialogTitle>
+              <AlertDialogDescription>{description}</AlertDialogDescription>
+            </div>
+          </div>
         </AlertDialogHeader>
         {children}
         <AlertDialogFooter>
@@ -59,9 +78,9 @@ export function ConfirmDialog({
             }}
             disabled={loading || confirmDisabled}
             className={cn(
-              confirmVariant === "destructive"
+              isDestructive
                 ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                : "bg-primary text-primary-foreground hover:bg-primary/90"
+                : "bg-primary text-primary-foreground hover:bg-primary/90",
             )}
           >
             {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}

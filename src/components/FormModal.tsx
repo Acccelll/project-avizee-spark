@@ -80,7 +80,7 @@ export function FormModal({
           "max-sm:inset-x-0 max-sm:bottom-0 max-sm:top-0 max-sm:m-0 max-sm:max-h-none max-sm:max-w-none max-sm:translate-x-0 max-sm:translate-y-0 max-sm:rounded-none max-sm:border-x-0",
         )}
       >
-        <DialogHeader className="shrink-0 border-b bg-background px-6 pt-5 pb-3 space-y-2">
+        <DialogHeader className="shrink-0 bg-background px-6 pt-5 pb-3.5 pr-12 space-y-2">
           <div className="flex items-start justify-between gap-3">
             <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 min-w-0 flex-1">
               <DialogTitle className="text-lg font-semibold leading-tight truncate">
