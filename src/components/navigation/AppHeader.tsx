@@ -17,6 +17,21 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/AuthContext';
 import { headerIcons, quickActions } from '@/lib/navigation';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { ROLE_LABELS, type AppRole } from '@/lib/permissions';
+import { cn } from '@/lib/utils';
+
+const ROLE_DOT_COLORS: Record<AppRole, string> = {
+  admin: 'bg-destructive',
+  financeiro: 'bg-info',
+  vendedor: 'bg-success',
+  estoquista: 'bg-warning',
+};
+
+function primaryRole(roles: AppRole[]): AppRole | null {
+  if (roles.includes('admin')) return 'admin';
+  return roles[0] ?? null;
+}
 
 interface AppHeaderProps {
   onOpenMobileMenu: () => void;
@@ -34,7 +49,7 @@ export function AppHeader({ onOpenMobileMenu: _onOpenMobileMenu, onOpenSearch, o
   const [searchParams] = useSearchParams();
   const isMobile = useIsMobile();
   const { theme, setTheme } = useTheme();
-  const { profile, signOut } = useAuth();
+  const { profile, signOut, roles } = useAuth();
 
   const initials = (profile?.nome || 'Admin')
     .split(' ')
@@ -42,6 +57,10 @@ export function AppHeader({ onOpenMobileMenu: _onOpenMobileMenu, onOpenSearch, o
     .map((name) => name[0])
     .join('')
     .toUpperCase();
+
+  const role = primaryRole(roles);
+  const roleLabel = role ? ROLE_LABELS[role] : 'Sem perfil';
+  const roleDot = role ? ROLE_DOT_COLORS[role] : 'bg-muted-foreground';
 
   const pageTitle = useMemo(
     () => resolvePageTitle(location.pathname, searchParams),
