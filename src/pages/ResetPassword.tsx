@@ -59,7 +59,7 @@ export default function ResetPassword() {
       toast.error("Erro ao atualizar senha. Tente novamente.");
     } else {
       setSuccess(true);
-      toast.success("Senha atualizada com sucesso!");
+      toast.success("Senha alterada com sucesso. Faça login com a nova senha.");
     }
     setLoading(false);
   };
@@ -94,10 +94,18 @@ export default function ResetPassword() {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        <div className="text-center mb-8">
+        <div className="text-center mb-6">
           <img src={logoAvizee} alt="AviZee ERP" className="h-14 mx-auto mb-4" />
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Nova Senha</h1>
           <p className="text-muted-foreground text-sm mt-1">Defina sua nova senha de acesso</p>
+        </div>
+
+        {/* Banner de contexto — fluxo seguro */}
+        <div className="mb-4 flex items-start gap-2 rounded-md border border-success/30 bg-success/10 px-3 py-2.5 text-xs text-success-foreground">
+          <ShieldCheck className="h-4 w-4 mt-0.5 shrink-0 text-success" />
+          <p className="leading-snug">
+            <span className="font-semibold">Fluxo seguro:</span> você está em uma sessão temporária de redefinição de senha autorizada por e-mail.
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="bg-card border rounded-xl p-6 space-y-4 shadow-sm">

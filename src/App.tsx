@@ -15,6 +15,7 @@ import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { AppLayout } from "@/components/AppLayout";
 import { ContentSpinner } from "@/components/ui/spinner";
+import { SessionExpiryWarning } from "@/components/auth/SessionExpiryWarning";
 
 // Lazy-loaded pages
 const Index = lazy(() => import("./pages/Index"));
@@ -97,6 +98,7 @@ const App = () => (
                 <TooltipProvider>
                   <Sonner />
                   <OfflineBanner />
+                  <SessionExpiryWarning />
                   <Routes>
                     {/* Public / unauthenticated */}
                     <Route path="/orcamento-publico" element={<LazyPage><OrcamentoPublico /></LazyPage>} />
