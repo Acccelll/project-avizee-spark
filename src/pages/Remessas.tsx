@@ -170,9 +170,8 @@ export default function Remessas() {
       if (fetchError) throw fetchError;
       setEventos((evData ?? []) as RemessaEvento[]);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Tente novamente";
       console.error("[remessas] handleAddEvento:", err);
-      toast.error("Erro ao salvar evento: " + msg);
+      toast.error(getUserFriendlyError(err));
     } finally {
       setSavingEvento(false);
     }
@@ -185,7 +184,7 @@ export default function Remessas() {
       toast.success(`Status atualizado para ${statusMap[newStatus]?.label ?? newStatus}`);
     } catch (err: unknown) {
       console.error("[remessas] handleStatusChange:", err);
-      toast.error("Erro ao atualizar status");
+      toast.error(getUserFriendlyError(err));
     }
   };
 
@@ -218,7 +217,7 @@ export default function Remessas() {
       setEventos((updatedEvents ?? []) as RemessaEvento[]);
     } catch (err: unknown) {
       console.error("[rastrear]", err);
-      toast.error(err instanceof Error ? err.message : "Erro ao consultar rastreio");
+      toast.error(getUserFriendlyError(err));
     }
   };
 
