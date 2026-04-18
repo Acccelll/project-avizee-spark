@@ -834,6 +834,5 @@ export default function MigracaoDados() {
           </AlertDialogContent>
         </AlertDialog>
       </div>
-    </>
   );
 }

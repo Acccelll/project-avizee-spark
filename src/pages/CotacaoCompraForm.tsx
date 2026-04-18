@@ -458,8 +458,7 @@ export default function CotacaoCompraForm() {
             </Button>
           )}
         </div>
-      </div>
       {confirmDialog}
-    </>
+    </div>
   );
 }

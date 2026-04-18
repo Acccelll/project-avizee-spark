@@ -408,8 +408,7 @@ export default function PedidoCompraForm() {
             </Button>
           )}
         </div>
-      </div>
       {confirmDialog}
-    </>
+    </div>
   );
 }
