@@ -4,12 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
   APP_ROLES,
-  buildPermissionSet,
   type AppRole,
-  type ErpAction,
-  type ErpResource,
   type PermissionKey,
-  toPermissionKey,
 } from "@/lib/permissions";
 
 /** Re-export para preservar imports existentes (`import type { AppRole } from "@/contexts/AuthContext"`). */
@@ -27,9 +23,11 @@ interface AuthContextType {
   permissionsLoaded: boolean;
   profile: { nome: string; email: string; cargo: string; avatar_url: string } | null;
   roles: AppRole[];
+  /** Permissões individuais concedidas (allowed=true). */
   extraPermissions: PermissionKey[];
+  /** Permissões individuais explicitamente revogadas (allowed=false) — vencem permissões herdadas do papel. */
+  deniedPermissions: PermissionKey[];
   hasRole: (role: AppRole) => boolean;
-  can: (resource: ErpResource, action: ErpAction) => boolean;
   signOut: () => Promise<void>;
 }
 
@@ -41,8 +39,8 @@ const AuthContext = createContext<AuthContextType>({
   profile: null,
   roles: [],
   extraPermissions: [],
+  deniedPermissions: [],
   hasRole: () => false,
-  can: () => false,
   signOut: async () => {},
 });
 
@@ -56,6 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<{ nome: string; email: string; cargo: string; avatar_url: string } | null>(null);
   const [roles, setRoles] = useState<AppRole[]>([]);
   const [extraPermissions, setExtraPermissions] = useState<PermissionKey[]>([]);
+  const [deniedPermissions, setDeniedPermissions] = useState<PermissionKey[]>([]);
   const manualSignOut = useRef(false);
   const permissionsFetchId = useRef(0);
   const userRef = useRef<User | null>(null);
@@ -98,16 +97,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data, error } = await supabase
         .from("user_permissions")
         .select("resource, action, allowed")
-        .eq("user_id", userId)
-        .eq("allowed", true);
+        .eq("user_id", userId);
       if (error) throw error;
-      const keys = ((data || []) as Array<{ resource: string; action: string }>).map(
-        (item) => `${item.resource}:${item.action}` as PermissionKey
-      );
-      setExtraPermissions(keys);
+      const allow: PermissionKey[] = [];
+      const deny: PermissionKey[] = [];
+      for (const row of (data || []) as Array<{ resource: string; action: string; allowed: boolean }>) {
+        const key = `${row.resource}:${row.action}` as PermissionKey;
+        if (row.allowed) allow.push(key);
+        else deny.push(key);
+      }
+      setExtraPermissions(allow);
+      setDeniedPermissions(deny);
     } catch (err) {
       console.error("[auth] Failed to fetch extra permissions", err);
       setExtraPermissions([]);
+      setDeniedPermissions([]);
     }
   };
 
@@ -196,6 +200,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setProfile(null);
       setRoles([]);
       setExtraPermissions([]);
+      setDeniedPermissions([]);
       setPermissionsLoaded(false);
       clearTimeout(safetyTimeout);
       setLoading(false);
@@ -209,15 +214,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const hasRole = useCallback((role: AppRole) => roles.includes(role), [roles]);
-  const mergedPermissions = useMemo(() => buildPermissionSet(roles, extraPermissions), [roles, extraPermissions]);
-
-  const can = useCallback(
-    (resource: ErpResource, action: ErpAction) => {
-      const key = toPermissionKey(resource, action);
-      return mergedPermissions.has(key);
-    },
-    [mergedPermissions]
-  );
 
   const signOut = useCallback(async () => {
     if (!supabase) return;
@@ -228,12 +224,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(null);
     setRoles([]);
     setExtraPermissions([]);
+    setDeniedPermissions([]);
     setPermissionsLoaded(false);
+    // Centraliza o redirect — qualquer caller (header, mobile menu, expiração)
+    // garante o mesmo destino e evita estados intermediários onde a UI antiga
+    // continua montada após o logout.
+    if (typeof window !== "undefined") {
+      window.location.assign("/login");
+    }
   }, []);
 
   const contextValue = useMemo(
-    () => ({ user, session, loading, permissionsLoaded, profile, roles, extraPermissions, hasRole, can, signOut }),
-    [user, session, loading, permissionsLoaded, profile, roles, extraPermissions, hasRole, can, signOut]
+    () => ({ user, session, loading, permissionsLoaded, profile, roles, extraPermissions, deniedPermissions, hasRole, signOut }),
+    [user, session, loading, permissionsLoaded, profile, roles, extraPermissions, deniedPermissions, hasRole, signOut]
   );
 
   return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;

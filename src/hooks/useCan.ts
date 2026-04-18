@@ -3,8 +3,11 @@
  * no frontend.
  *
  * Expõe a função `can(permission)` memoizada que consulta as permissões do
- * usuário autenticado (via AuthContext) e suporta wildcards e pseudo-permissão
- * `admin`.
+ * usuário autenticado (via AuthContext) e suporta wildcards.
+ *
+ * Honra revogações individuais (`user_permissions.allowed=false`) — uma
+ * permissão herdada do papel pode ser explicitamente removida para um
+ * usuário específico.
  *
  * @example
  * const { can } = useCan();
@@ -25,12 +28,13 @@ export interface UseCan {
 }
 
 export function useCan(): UseCan {
-  const { roles, extraPermissions, loading, permissionsLoaded } = useAuth();
+  const { roles, extraPermissions, deniedPermissions, loading, permissionsLoaded } = useAuth();
 
-  // Reconstrói o conjunto somente quando roles/extraPermissions mudam
+  // Reconstrói o conjunto somente quando roles/extraPermissions/deniedPermissions mudam.
+  // `deny` vence sempre — permite revogar permissão herdada do papel via user_permissions.allowed=false.
   const permissionSet = useMemo(
-    () => buildPermissionSet(roles, extraPermissions),
-    [roles, extraPermissions]
+    () => buildPermissionSet(roles, { allow: extraPermissions, deny: deniedPermissions }),
+    [roles, extraPermissions, deniedPermissions]
   );
 
   const can = useCallback(
