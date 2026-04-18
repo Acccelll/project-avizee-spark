@@ -21,10 +21,11 @@ import { useRemessas } from "@/services/logistica/remessas.service";
 import type { Remessa } from "@/services/logistica/remessas.service";
 import { statusRemessa } from "@/lib/statusSchema";
 import { toast } from "sonner";
-import { ArrowLeft, Save, Truck } from "lucide-react";
+import { Save, Truck } from "lucide-react";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import type { Tables } from "@/integrations/supabase/types";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
+import { PageShell } from "@/components/PageShell";
 
 type Cliente = Tables<"clientes">;
 type Transportadora = Tables<"transportadoras">;
