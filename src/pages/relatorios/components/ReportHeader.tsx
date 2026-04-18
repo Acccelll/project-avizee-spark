@@ -11,7 +11,8 @@
  * e ações de gestão do próprio relatório.
  */
 
-import type { LucideIcon, ReactNode } from "react";
+import type { ReactNode } from "react";
+import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ChevronLeft, Calendar } from "lucide-react";
