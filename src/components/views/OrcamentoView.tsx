@@ -124,14 +124,7 @@ export function OrcamentoView({ id }: Props) {
     new Date(selected.validade) < today
   );
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const isExpired =
-    selected.validade &&
-    selected.status !== "convertido" &&
-    new Date(selected.validade) < today;
-
-  const publicLink = selected.public_token
+  const publicLink = selected?.public_token
     ? `${window.location.origin}/orcamento-publico?token=${selected.public_token}`
     : null;
 
