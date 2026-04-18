@@ -181,7 +181,7 @@ export default function RemessaFormPage() {
     <AppLayout>
       <div className="container max-w-3xl py-6 space-y-6">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={() => navigate("/logistica")}>
+          <Button variant="ghost" size="sm" onClick={handleCancel}>
             <ArrowLeft className="h-4 w-4 mr-1" />
             Voltar
           </Button>
