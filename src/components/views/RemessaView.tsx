@@ -1,37 +1,39 @@
-import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDate } from "@/lib/format";
 import { LogisticaRastreioSection } from "@/components/logistica/LogisticaRastreioSection";
 import { usePublishDrawerSlots } from "@/contexts/RelationalDrawerSlotsContext";
-import { Truck, MapPin, Package, Calendar } from "lucide-react";
+import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
+import { useDetailFetch } from "@/hooks/useDetailFetch";
+import { Tables } from "@/integrations/supabase/types";
+import { Button } from "@/components/ui/button";
+import { Truck, MapPin, Package, Calendar, Edit } from "lucide-react";
 
 interface Props {
   id: string;
 }
 
+type RemessaWithTransp = Tables<"remessas"> & {
+  transportadoras: { nome_razao_social: string } | null;
+};
+
 export function RemessaView({ id }: Props) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [selected, setSelected] = useState<any | null>(null);
-  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+  const { clearStack } = useRelationalNavigation();
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      const { data: r } = await supabase
-        .from("remessas")
-        .select("*, transportadoras(nome_razao_social)")
-        .eq("id", id)
-        .single();
+  // Fetch padronizado — corrige loading eterno (A2) e race (A1).
+  const { data: selected, loading, error } = useDetailFetch<RemessaWithTransp>(id, async (rid, signal) => {
+    const { data, error: err } = await supabase
+      .from("remessas")
+      .select("*, transportadoras(nome_razao_social)")
+      .eq("id", rid)
+      .abortSignal(signal)
+      .maybeSingle();
+    if (err) throw err;
+    return (data as RemessaWithTransp | null) ?? null;
+  });
 
-      if (!r) return;
-      setSelected(r);
-      setLoading(false);
-    };
-
-    fetchData();
-  }, [id]);
-
-  // Publica slots no header padronizado
+  // Slots padronizados — agora publica `actions` (D3) com atalho para Logística.
   usePublishDrawerSlots(`remessa:${id}`, selected ? {
     breadcrumb: selected.codigo_rastreio ? `Remessa · ${selected.codigo_rastreio}` : "Remessa",
     summary: (
@@ -59,9 +61,26 @@ export function RemessaView({ id }: Props) {
         </div>
       </div>
     ),
+    actions: (
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-8 gap-1.5 text-xs"
+        aria-label="Abrir tela de logística"
+        onClick={() => { clearStack(); navigate("/logistica"); }}
+      >
+        <Edit className="h-3.5 w-3.5" /> Abrir em Logística
+      </Button>
+    ),
   } : {});
 
   if (loading) return <div className="p-8 text-center animate-pulse">Carregando detalhes da remessa...</div>;
+  if (error) return (
+    <div className="p-8 text-center text-destructive space-y-1">
+      <p className="font-semibold">Erro ao carregar remessa</p>
+      <p className="text-xs text-muted-foreground">{error.message}</p>
+    </div>
+  );
   if (!selected) return <div className="p-8 text-center text-destructive">Remessa não encontrada</div>;
 
   return (
