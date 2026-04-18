@@ -2,6 +2,7 @@ import { Badge } from '@/components/ui/badge';
 import {
   FileEdit, Clock, CheckCircle, Cog, CheckCheck,
   AlertTriangle, XCircle, AlarmClock, Ban, Send, FileSearch, GitMerge, FileDown,
+  Hourglass, PackageCheck, Receipt,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -48,6 +49,18 @@ const statusConfig: Record<string, { classes: string; icon: typeof Clock; label:
   composto:        { classes: 'bg-primary/10 text-primary border-primary/20', icon: Cog, label: 'Composto' },
   produto:         { classes: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-800', icon: FileEdit, label: 'Produto' },
   insumo:          { classes: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800', icon: Cog, label: 'Insumo' },
+  // Faturamento (status_faturamento)
+  nao_faturado:    { classes: 'bg-muted text-muted-foreground border-muted', icon: FileEdit, label: 'Não faturado' },
+  // Prazo / despacho
+  no_prazo:        { classes: 'bg-success/10 text-success border-success/20', icon: CheckCircle, label: 'No prazo' },
+  proximo_vencimento: { classes: 'bg-warning/10 text-warning border-warning/20', icon: Hourglass, label: 'Próximo do prazo' },
+  atrasado:        { classes: 'bg-destructive/10 text-destructive border-destructive/20', icon: AlarmClock, label: 'Atrasado' },
+  despachado:      { classes: 'bg-success/10 text-success border-success/20', icon: PackageCheck, label: 'Despachado' },
+  // Recebimento de compra
+  recebido:        { classes: 'bg-success/10 text-success border-success/20', icon: PackageCheck, label: 'Recebido' },
+  recebido_parcial: { classes: 'bg-warning/10 text-warning border-warning/20', icon: AlertTriangle, label: 'Receb. parcial' },
+  // Nota de serviço / cobrança
+  emitida:         { classes: 'bg-success/10 text-success border-success/20', icon: Receipt, label: 'Emitida' },
 };
 
 const defaultConfig = { classes: 'bg-muted text-muted-foreground border-muted', icon: Clock, label: '' };
