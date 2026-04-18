@@ -6,6 +6,7 @@ import { DataTable } from "@/components/DataTable";
 import { PullToRefresh } from "@/components/ui/PullToRefresh";
 import { StatusBadge } from "@/components/StatusBadge";
 import { FormModal } from "@/components/FormModal";
+import { FormModalFooter } from "@/components/FormModalFooter";
 import { ViewDrawerV2, ViewField, ViewSection } from "@/components/ViewDrawerV2";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
@@ -723,54 +724,41 @@ const GruposEconomicos = () => {
         </PullToRefresh>
       </ModulePage>
 
-      <FormModal open={modalOpen} onClose={handleCancel} title={mode === "create" ? "Novo Grupo Econômico" : "Editar Grupo Econômico"} size="lg">
-        {/* Edit mode context bar */}
-        {mode === "edit" && selected && (
-          <div className="flex flex-wrap items-center gap-3 bg-muted/40 rounded-lg px-3 py-2 mb-4 text-xs text-muted-foreground border">
-            <StatusBadge status={selected.ativo ? "Ativo" : "Inativo"} />
-            {selected.created_at && (
-              <span className="flex items-center gap-1">
-                <Calendar className="h-3 w-3" />
-                Cadastrado em {formatDate(selected.created_at)}
-              </span>
-            )}
-            {!loadingSummary && modalEmpresas.length > 0 && (
-              <span className="flex items-center gap-1">
-                <Users className="h-3 w-3" />
-                {modalEmpresas.length} empresa{modalEmpresas.length !== 1 ? "s" : ""}
-              </span>
-            )}
-            {!loadingSummary && (modalEmpresas.length > 0 || modalSaldo > 0 || modalVencidos > 0) && (
-              <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${modalRiskInfo.badgeClass}`}>
-                <ModalRiskIcon className="w-2.5 h-2.5 mr-1" />
-                {modalRiskInfo.label}
-              </Badge>
-            )}
-            {isDirty && (
-              <span className="flex items-center gap-1 text-amber-600 font-medium">
-                <span className="h-1.5 w-1.5 rounded-full bg-amber-500 inline-block" />
-                Alterações não salvas
-              </span>
-            )}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="ml-auto h-6 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground"
-                  onClick={handleViewFromEdit}
-                >
-                  <ExternalLink className="h-3 w-3" />
-                  Ver painel
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent className="text-xs">Fechar edição e abrir o painel completo do grupo</TooltipContent>
-            </Tooltip>
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-0">
+      <FormModal
+        open={modalOpen}
+        onClose={handleCancel}
+        title={mode === "create" ? "Novo Grupo Econômico" : "Editar Grupo Econômico"}
+        size="lg"
+        status={mode === "edit" && selected ? <StatusBadge status={selected.ativo ? "Ativo" : "Inativo"} /> : undefined}
+        meta={mode === "edit" && selected ? [
+          ...(selected.created_at ? [{ icon: Calendar, label: `Cadastrado em ${formatDate(selected.created_at)}` }] : []),
+          ...(!loadingSummary && modalEmpresas.length > 0 ? [{ icon: Users, label: `${modalEmpresas.length} empresa${modalEmpresas.length !== 1 ? "s" : ""}` }] : []),
+        ] : undefined}
+        headerActions={mode === "edit" && selected ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1" onClick={handleViewFromEdit}>
+                <ExternalLink className="h-3 w-3" />Ver painel
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent className="text-xs">Fechar edição e abrir o painel completo</TooltipContent>
+          </Tooltip>
+        ) : undefined}
+        isDirty={isDirty}
+        footer={
+          <FormModalFooter
+            saving={saving}
+            isDirty={isDirty}
+            onCancel={handleCancel}
+            submitAsForm
+            formId="grupo-economico-form"
+            mode={mode}
+            disabled={!form.nome.trim() || form.nome.trim().length < 2}
+            disabledReason="Nome do grupo deve ter pelo menos 2 caracteres"
+          />
+        }
+      >
+        <form id="grupo-economico-form" onSubmit={handleSubmit} className="space-y-0">
           {/* ── BLOCO 1: IDENTIFICAÇÃO DO GRUPO ── */}
           <div className="flex items-center gap-2 pb-3 border-b mb-3">
             <Building2 className="w-4 h-4 text-primary/70" />
@@ -981,23 +969,6 @@ const GruposEconomicos = () => {
           )}
 
           {/* ── FOOTER ── */}
-          <div className="flex items-center justify-between pt-4 border-t">
-            {isDirty ? (
-              <span className="text-xs text-amber-600 flex items-center gap-1">
-                <span className="h-1.5 w-1.5 rounded-full bg-amber-500 inline-block" />
-                Alterações não salvas
-              </span>
-            ) : <span />}
-            <div className="flex gap-2">
-              <Button type="button" variant="outline" onClick={handleCancel}>Cancelar</Button>
-              <Button
-                type="submit"
-                disabled={saving || !form.nome.trim() || form.nome.trim().length < 2}
-              >
-                {saving ? "Salvando..." : "Salvar"}
-              </Button>
-            </div>
-          </div>
         </form>
       </FormModal>
 

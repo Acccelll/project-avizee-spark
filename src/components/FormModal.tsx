@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, type ComponentType } from "react";
 import {
   Dialog,
   DialogContent,
@@ -7,6 +7,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { Circle } from "lucide-react";
+
+export interface FormModalMetaItem {
+  icon?: ComponentType<{ className?: string }>;
+  label: ReactNode;
+}
 
 interface FormModalProps {
   open: boolean;
@@ -14,6 +20,18 @@ interface FormModalProps {
   title: string;
   children: ReactNode;
   size?: "sm" | "md" | "lg" | "xl";
+  /** Identificador secundário (CNPJ, SKU, código). Renderizado em fonte mono ao lado do título. */
+  identifier?: ReactNode;
+  /** Badge de status (use <StatusBadge />) renderizado ao lado do título. */
+  status?: ReactNode;
+  /** Linha de metadados abaixo do título (datas, classificação, etc). */
+  meta?: FormModalMetaItem[];
+  /** Ações rápidas no canto superior direito do header (antes do botão fechar). */
+  headerActions?: ReactNode;
+  /** Indica alterações não salvas — exibe pílula no meta row. */
+  isDirty?: boolean;
+  /** Footer sticky (use <FormModalFooter />). */
+  footer?: ReactNode;
 }
 
 const sizeMap = {
@@ -23,25 +41,78 @@ const sizeMap = {
   xl: "sm:max-w-5xl",
 };
 
-export function FormModal({ open, onClose, title, children, size = "md" }: FormModalProps) {
+export function FormModal({
+  open,
+  onClose,
+  title,
+  children,
+  size = "md",
+  identifier,
+  status,
+  meta,
+  headerActions,
+  isDirty,
+  footer,
+}: FormModalProps) {
+  const hasMeta = (meta && meta.length > 0) || isDirty;
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent
         className={cn(
-          // Desktop: centered modal with max-height
           sizeMap[size],
-          "max-h-[90dvh] overflow-y-auto",
-          // Mobile: full-screen sheet
+          "max-h-[90dvh] overflow-hidden p-0 flex flex-col",
           "max-sm:inset-x-0 max-sm:bottom-0 max-sm:top-0 max-sm:m-0 max-sm:max-h-none max-sm:max-w-none max-sm:translate-x-0 max-sm:translate-y-0 max-sm:rounded-none max-sm:border-x-0",
         )}
       >
-        <DialogHeader className="sticky top-0 z-10 bg-background pb-2 pt-1">
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription className="sr-only">
-            Formulário para {title}
-          </DialogDescription>
+        <DialogHeader className="shrink-0 border-b bg-background px-6 pt-5 pb-3 space-y-2">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 min-w-0 flex-1">
+              <DialogTitle className="text-lg font-semibold leading-tight truncate">
+                {title}
+              </DialogTitle>
+              {identifier && (
+                <span className="text-xs font-mono text-muted-foreground bg-muted/60 border border-border/60 rounded px-1.5 py-0.5">
+                  {identifier}
+                </span>
+              )}
+              {status && <span className="inline-flex">{status}</span>}
+            </div>
+            {headerActions && (
+              <div className="flex items-center gap-1.5 shrink-0 mr-7">{headerActions}</div>
+            )}
+          </div>
+          <DialogDescription className="sr-only">Formulário para {title}</DialogDescription>
+          {hasMeta && (
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+              {meta?.map((item, idx) => {
+                const Icon = item.icon;
+                return (
+                  <span key={idx} className="inline-flex items-center gap-1.5">
+                    {Icon && <Icon className="h-3.5 w-3.5 opacity-70" />}
+                    <span>{item.label}</span>
+                    {idx < (meta?.length ?? 0) - 1 && <span className="opacity-40">·</span>}
+                  </span>
+                );
+              })}
+              {isDirty && (
+                <span className="inline-flex items-center gap-1.5 text-warning-foreground">
+                  {meta && meta.length > 0 && <span className="opacity-40">·</span>}
+                  <Circle className="h-2 w-2 fill-warning text-warning" />
+                  <span className="font-medium">Alterações não salvas</span>
+                </span>
+              )}
+            </div>
+          )}
         </DialogHeader>
-        {children}
+
+        <div className="flex-1 overflow-y-auto px-6 py-4">{children}</div>
+
+        {footer && (
+          <div className="shrink-0 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 px-6 py-3">
+            {footer}
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
