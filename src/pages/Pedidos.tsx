@@ -66,19 +66,15 @@ function PrazoBadge({ dataPrazo, status }: { dataPrazo: string | null; status: s
     return (
       <span className="inline-flex flex-col items-start gap-0.5">
         <span className="text-xs text-destructive font-medium">{formatDate(dataPrazo)}</span>
-        <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-destructive/10 text-destructive border-destructive/20 gap-1">
-          <AlertTriangle className="h-2.5 w-2.5" />Atrasado
-        </Badge>
+        <StatusBadge status="atrasado" className="text-[10px] px-1.5 py-0 h-4" />
       </span>
     );
   }
   if (ps === "proximo") {
     return (
       <span className="inline-flex flex-col items-start gap-0.5">
-        <span className="text-xs text-amber-600 font-medium">{formatDate(dataPrazo)}</span>
-        <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-amber-50 text-amber-600 border-amber-200 gap-1">
-          <Clock className="h-2.5 w-2.5" />{daysLeft}d restantes
-        </Badge>
+        <span className="text-xs text-warning font-medium">{formatDate(dataPrazo)}</span>
+        <StatusBadge status="proximo_vencimento" label={`${daysLeft}d restantes`} className="text-[10px] px-1.5 py-0 h-4" />
       </span>
     );
   }
@@ -327,11 +323,10 @@ const Pedidos = () => {
       sortValue: (p: Pedido) => p.status_faturamento ?? "",
       render: (p: Pedido) => {
         const sf = p.status_faturamento ?? "";
-        return (
-          <Badge variant="outline" className={`text-xs ${statusFaturamentoColors[sf] || ""}`}>
-            {statusFaturamentoLabels[sf] || sf || "—"}
-          </Badge>
-        );
+        if (!sf) return <span className="text-muted-foreground text-xs">—</span>;
+        // Map faturamento statuses to central StatusBadge tones.
+        const statusKey = sf === "total" ? "faturado" : sf;
+        return <StatusBadge status={statusKey} label={statusFaturamentoLabels[sf] || sf} />;
       },
     },
     {
