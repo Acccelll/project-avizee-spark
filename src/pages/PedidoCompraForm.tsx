@@ -40,7 +40,8 @@ export default function PedidoCompraForm() {
   const { id } = useParams<{ id: string }>();
 
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const { saving, submit } = useSubmitLock({ errorPrefix: "Erro ao salvar pedido" });
+  const { confirm, dialog: confirmDialog } = useConfirmDialog();
   const [pedido, setPedido] = useState<PedidoCompra | null>(null);
   const [form, setForm] = useState({
     fornecedor_id: "",
