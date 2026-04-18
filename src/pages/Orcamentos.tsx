@@ -25,6 +25,8 @@ import { Send } from "lucide-react";
 import { sendForApproval, approveOrcamento, convertToPedido } from "@/services/orcamentos.service";
 import { statusOrcamento } from "@/lib/statusSchema";
 import { getUserFriendlyError } from "@/utils/errorMessages";
+import { useClientesRef } from "@/hooks/useReferenceCache";
+import { useActionLock } from "@/hooks/useActionLock";
 
 interface Orcamento {
   id: string;
@@ -144,31 +146,10 @@ const Orcamentos = () => {
   };
   const setDataInicio = (v: string) => updateParam("de", v || null);
   const setDataFim = (v: string) => updateParam("ate", v || null);
-  const [clientesList, setClientesList] = useState<{ id: string; nome_razao_social: string }[]>([]);
+  const { data: clientesList = [] } = useClientesRef();
   const { isAdmin } = useIsAdmin();
-
-  useEffect(() => {
-    if (!supabase) return;
-    supabase.from("clientes").select("id, nome_razao_social").eq("ativo", true).then(({ data }) => setClientesList(data || []));
-  }, []);
-
-  const handleSendForApproval = useCallback(async (orc: Orcamento) => {
-    try {
-      await sendForApproval(orc);
-      fetchData();
-    } catch (err: unknown) {
-      toast.error(getUserFriendlyError(err));
-    }
-  }, [fetchData]);
-
-  const kpis = useMemo(() => {
-    const total = data.length;
-    const totalValue = data.reduce((s, o) => s + Number(o.valor_total || 0), 0);
-    const approved = data.filter(o => o.status === "aprovado").length;
-    const converted = data.filter(o => o.status === "convertido").length;
-    const conversionRate = total > 0 ? ((converted / total) * 100).toFixed(1) : "0";
-    return { total, totalValue, approved, conversionRate };
-  }, [data]);
+  const sendLock = useActionLock();
+  const approveLock = useActionLock();
 
   const handleDuplicate = async (orc: Orcamento) => {
     try {
