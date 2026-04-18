@@ -163,6 +163,7 @@ const Orcamentos = () => {
     });
   }, [fetchData, sendLock]);
 
+  const handleDuplicate = async (orc: Orcamento) => {
     try {
       const { data: items } = await supabase.from("orcamentos_itens").select("*").eq("orcamento_id", orc.id);
       // Buscar metadados completos do orçamento original (frete simulador, etc.)
