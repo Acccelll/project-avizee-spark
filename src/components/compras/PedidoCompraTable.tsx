@@ -85,7 +85,7 @@ export function PedidoCompraTable({
       key: "data_entrega_prevista",
       label: "Entrega Prevista",
       render: (p: PedidoCompra) => (
-        <EntregaBadge dataEntrega={p.data_entrega_prevista} status={p.status} />
+        <EntregaCell dataEntrega={p.data_entrega_prevista} status={p.status} />
       ),
     },
     {
@@ -116,35 +116,13 @@ export function PedidoCompraTable({
       key: "recebimento",
       label: "Recebimento",
       render: (p: PedidoCompra) => {
-        if (p.status === "recebido") {
-          return (
-            <Badge variant="outline" className="text-[11px] bg-success/10 text-success border-success/30 gap-1">
-              <CheckCircle2 className="h-3 w-3" />Recebido
-            </Badge>
-          );
-        }
-        if (p.status === "parcialmente_recebido") {
-          return (
-            <Badge variant="outline" className="text-[11px] bg-warning/10 text-warning border-warning/30 gap-1">
-              <ArrowDownToLine className="h-3 w-3" />Parcial
-            </Badge>
-          );
-        }
+        if (p.status === "recebido") return <StatusBadge status="recebido" />;
+        if (p.status === "parcialmente_recebido") return <StatusBadge status="recebido_parcial" />;
         if (["aguardando_recebimento", "enviado_ao_fornecedor", "aprovado"].includes(p.status)) {
-          return (
-            <Badge variant="outline" className="text-[11px] bg-warning/10 text-warning border-warning/30 gap-1">
-              <Clock className="h-3 w-3" />Aguardando
-            </Badge>
-          );
+          return <StatusBadge status="aguardando" />;
         }
-        if (p.status === "cancelado") {
-          return <span className="text-xs text-muted-foreground">—</span>;
-        }
-        return (
-          <Badge variant="outline" className="text-[11px] gap-1">
-            <FileText className="h-3 w-3" />Rascunho
-          </Badge>
-        );
+        if (p.status === "cancelado") return <span className="text-xs text-muted-foreground">—</span>;
+        return <StatusBadge status="rascunho" />;
       },
     },
     {
@@ -165,32 +143,14 @@ export function PedidoCompraTable({
       render: (p: PedidoCompra) => {
         const canSend = p.status === "aprovado";
         const canReceive = ["aprovado", "enviado_ao_fornecedor", "aguardando_recebimento", "parcialmente_recebido"].includes(p.status);
-        return (
-          <div className="flex items-center gap-1">
-            {canSend && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-7 text-xs gap-1"
-                disabled={sendLock.pending}
-                onClick={(e) => { e.stopPropagation(); sendLock.run(() => onSend(p)); }}
-              >
-                <SendHorizontal className="w-3 h-3" /> Enviar
-              </Button>
-            )}
-            {canReceive && !canSend && (
-              <Button
-                size="sm"
-                variant="default"
-                className="h-7 text-xs gap-1"
-                disabled={receiveLock.pending}
-                onClick={(e) => { e.stopPropagation(); receiveLock.run(() => onReceive(p)); }}
-              >
-                <PackageCheck className="w-3 h-3" /> Receber
-              </Button>
-            )}
-          </div>
-        );
+        if (!canSend && !canReceive) return null;
+        const primary = canSend
+          ? { label: "Enviar ao fornecedor", icon: SendHorizontal, onClick: () => sendLock.run(() => onSend(p)), disabled: sendLock.pending }
+          : { label: "Receber", icon: PackageCheck, onClick: () => receiveLock.run(() => onReceive(p)), disabled: receiveLock.pending };
+        const secondary = canSend && canReceive
+          ? [{ label: "Receber", icon: PackageCheck, onClick: () => receiveLock.run(() => onReceive(p)), disabled: receiveLock.pending }]
+          : [];
+        return <RowActions primary={primary} secondary={secondary} />;
       },
     },
   ];
