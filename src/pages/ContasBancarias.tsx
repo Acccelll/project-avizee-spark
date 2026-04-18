@@ -385,19 +385,19 @@ const ContasBancarias = () => {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2"><Label>Banco *</Label>
-              <Select value={form.banco_id} onValueChange={(v) => setForm({ ...form, banco_id: v })}>
+              <Select value={form.banco_id} onValueChange={(v) => updateForm({ banco_id: v })}>
                 <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
                 <SelectContent>
                   {bancos.map(b => <SelectItem key={b.id} value={b.id}>{b.nome}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2"><Label>Descrição *</Label><Input value={form.descricao} onChange={e => setForm({ ...form, descricao: e.target.value })} placeholder="Ex: Conta Corrente Principal" required /></div>
-            <div className="space-y-2"><Label>Agência</Label><Input value={form.agencia} onChange={e => setForm({ ...form, agencia: e.target.value })} /></div>
-            <div className="space-y-2"><Label>Conta</Label><Input value={form.conta} onChange={e => setForm({ ...form, conta: e.target.value })} /></div>
-            <div className="space-y-2"><Label>Titular</Label><Input value={form.titular} onChange={e => setForm({ ...form, titular: e.target.value })} /></div>
+            <div className="space-y-2"><Label>Descrição *</Label><Input value={form.descricao} onChange={e => updateForm({ descricao: e.target.value })} placeholder="Ex: Conta Corrente Principal" required /></div>
+            <div className="space-y-2"><Label>Agência</Label><Input value={form.agencia} onChange={e => updateForm({ agencia: e.target.value })} /></div>
+            <div className="space-y-2"><Label>Conta</Label><Input value={form.conta} onChange={e => updateForm({ conta: e.target.value })} /></div>
+            <div className="space-y-2"><Label>Titular</Label><Input value={form.titular} onChange={e => updateForm({ titular: e.target.value })} /></div>
             {mode === "create" && (
-              <div className="space-y-2"><Label>Saldo Inicial</Label><Input type="number" step="0.01" value={form.saldo_atual} onChange={e => setForm({ ...form, saldo_atual: Number(e.target.value) })} /></div>
+              <div className="space-y-2"><Label>Saldo Inicial</Label><Input type="number" step="0.01" value={form.saldo_atual} onChange={e => updateForm({ saldo_atual: Number(e.target.value) })} /></div>
             )}
           </div>
           {mode === "edit" && (
@@ -407,7 +407,7 @@ const ContasBancarias = () => {
                   <Label htmlFor="edit-ativo" className="text-sm font-medium cursor-pointer">Conta ativa</Label>
                   <p className="text-xs text-muted-foreground">Contas inativas não aparecem para seleção em lançamentos</p>
                 </div>
-                <Switch id="edit-ativo" checked={form.ativo} onCheckedChange={(checked) => setForm({ ...form, ativo: checked })} />
+                <Switch id="edit-ativo" checked={form.ativo} onCheckedChange={(checked) => updateForm({ ativo: checked })} />
               </div>
               {willDeactivate && inUse && (
                 <Alert className="border-amber-500/40 bg-amber-500/5 text-amber-800 dark:text-amber-300 [&>svg]:text-amber-600">
