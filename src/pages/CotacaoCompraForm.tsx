@@ -451,14 +451,7 @@ export default function CotacaoCompraForm() {
         )}
 
         <div className="flex justify-between">
-          <Button
-            variant="outline"
-            onClick={() => {
-              if (isDirty && !window.confirm("Existem alterações não salvas. Deseja sair?")) return;
-              navigate("/cotacoes-compra");
-            }}
-            className="gap-2"
-          >
+          <Button variant="outline" onClick={handleBack} className="gap-2">
             <ArrowLeft className="h-4 w-4" /> Voltar para Cotações
           </Button>
           {!isTerminal && (
@@ -469,6 +462,7 @@ export default function CotacaoCompraForm() {
           )}
         </div>
       </div>
+      {confirmDialog}
     </AppLayout>
   );
 }
