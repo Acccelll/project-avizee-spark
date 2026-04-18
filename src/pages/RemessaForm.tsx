@@ -82,6 +82,11 @@ export default function RemessaFormPage() {
 
   const [form, setForm] = useState<RemessaForm>(emptyForm);
   const [loading, setLoading] = useState(!isNew);
+  // Snapshot do baseline para detecção de dirty (deep-compare via JSON).
+  const baselineRef = useRef<RemessaForm>(emptyForm);
+  const [, forceRerender] = useState(0);
+  const isDirty = JSON.stringify(form) !== JSON.stringify(baselineRef.current);
+  const { confirm, dialog: confirmDialog } = useConfirmDialog();
 
   // Lookup data
   const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -109,7 +114,11 @@ export default function RemessaFormPage() {
   }, []);
 
   useEffect(() => {
-    if (isNew) return;
+    if (isNew) {
+      baselineRef.current = emptyForm;
+      forceRerender((n) => n + 1);
+      return;
+    }
     const load = async () => {
       setLoading(true);
       const { data, error } = await supabase.from("remessas").select("*").eq("id", id).single();
@@ -118,13 +127,23 @@ export default function RemessaFormPage() {
         navigate("/logistica");
         return;
       }
-      setForm(remessaToForm(data as Remessa));
+      const next = remessaToForm(data as Remessa);
+      baselineRef.current = next;
+      setForm(next);
       setLoading(false);
     };
     load();
   }, [id, isNew, navigate]);
 
   const setF = (patch: Partial<RemessaForm>) => setForm((prev) => ({ ...prev, ...patch }));
+
+  const handleCancel = async () => {
+    if (isDirty) {
+      const ok = await confirm();
+      if (!ok) return;
+    }
+    navigate("/logistica");
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
