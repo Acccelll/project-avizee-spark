@@ -1,60 +1,52 @@
 /**
  * Página de detalhe de Nota Fiscal.
  * Rota: /fiscal/:id
- *
- * Carrega a NF pelo ID, exibindo o drawer de detalhes e permitindo
- * abertura do modal de edição diretamente via rota — sem depender da lista.
  */
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Edit } from "lucide-react";
+import { ArrowLeft, Edit, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AppLayout } from "@/components/AppLayout";
 import { NotaFiscalDrawer } from "@/components/fiscal/NotaFiscalDrawer";
 import { toast } from "sonner";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2 } from "lucide-react";
+import { useDetailFetch } from "@/hooks/useDetailFetch";
+import { useDetailActions } from "@/hooks/useDetailActions";
+import { useInvalidateAfterMutation } from "@/hooks/useInvalidateAfterMutation";
 import type { NotaFiscal } from "@/pages/Fiscal";
 
 export default function FiscalDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [drawerOpen, setDrawerOpen] = useState(true);
+  const { run, locked } = useDetailActions();
+  const invalidate = useInvalidateAfterMutation();
 
-  const [nf, setNf] = useState<NotaFiscal | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-
-  async function fetchNF() {
-    if (!id) return;
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from("notas_fiscais")
-        .select("*, fornecedores(nome_razao_social, cpf_cnpj), clientes(nome_razao_social), ordens_venda(numero)")
-        .eq("id", id)
-        .single();
-      if (error) throw error;
-      setNf(data as unknown as NotaFiscal);
-      setDrawerOpen(true);
-    } catch (err) {
-      toast.error(getUserFriendlyError(err));
-    }
-    setLoading(false);
-  }
-
-  useEffect(() => { fetchNF(); }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const { data: nf, loading, error, reload } = useDetailFetch<NotaFiscal>(id, async (nfId, signal) => {
+    const { data, error: fetchErr } = await supabase
+      .from("notas_fiscais")
+      .select("*, fornecedores(nome_razao_social, cpf_cnpj), clientes(nome_razao_social), ordens_venda(numero)")
+      .eq("id", nfId)
+      .abortSignal(signal)
+      .maybeSingle();
+    if (fetchErr) throw fetchErr;
+    return (data as unknown as NotaFiscal) ?? null;
+  });
 
   function handleDelete(nfId: string) {
-    supabase
-      .from("notas_fiscais")
-      .update({ ativo: false })
-      .eq("id", nfId)
-      .then(({ error }) => {
-        if (error) { toast.error(getUserFriendlyError(error)); return; }
-        toast.success("Nota fiscal removida.");
-        navigate("/fiscal");
-      });
+    run("delete", async () => {
+      const { error: delErr } = await supabase
+        .from("notas_fiscais")
+        .update({ ativo: false })
+        .eq("id", nfId);
+      if (delErr) throw delErr;
+      toast.success("Nota fiscal removida.");
+      invalidate(["notas_fiscais", "fiscal"]);
+      navigate("/fiscal");
+    }).catch(() => {
+      // erro já reportado via toast
+    });
   }
 
   if (loading) {
@@ -62,6 +54,21 @@ export default function FiscalDetail() {
       <AppLayout>
         <div className="flex items-center justify-center h-64">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <AppLayout>
+        <div className="flex flex-col items-center justify-center h-64 gap-4">
+          <p className="text-destructive font-semibold">Erro ao carregar nota fiscal</p>
+          <p className="text-xs text-muted-foreground">{getUserFriendlyError(error)}</p>
+          <Button variant="outline" onClick={() => navigate("/fiscal")}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Voltar ao Fiscal
+          </Button>
         </div>
       </AppLayout>
     );
@@ -84,7 +91,6 @@ export default function FiscalDetail() {
   return (
     <AppLayout>
       <div className="p-6 space-y-4">
-        {/* Header nav */}
         <div className="flex items-center gap-3">
           <Button
             variant="ghost"
@@ -103,6 +109,7 @@ export default function FiscalDetail() {
               variant="outline"
               onClick={() => setDrawerOpen(true)}
               aria-label="Abrir detalhes da nota fiscal"
+              disabled={locked("delete")}
             >
               <Edit className="h-4 w-4 mr-1.5" />
               Ver Detalhes
@@ -110,7 +117,6 @@ export default function FiscalDetail() {
           </div>
         </div>
 
-        {/* Minimal summary card */}
         <div className="rounded-lg border bg-muted/20 p-5 space-y-2 max-w-2xl">
           <div className="flex items-center justify-between">
             <div>
@@ -145,6 +151,7 @@ export default function FiscalDetail() {
               className="w-full sm:w-auto"
               onClick={() => setDrawerOpen(true)}
               aria-label="Abrir painel de detalhes"
+              disabled={locked("delete")}
             >
               Abrir Detalhes Completos
             </Button>
@@ -152,16 +159,15 @@ export default function FiscalDetail() {
         </div>
       </div>
 
-      {/* The drawer provides the full detail/edit experience */}
       <NotaFiscalDrawer
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         selected={nf}
         onEdit={() => navigate("/fiscal")}
         onDelete={handleDelete}
-        onConfirmar={() => fetchNF()}
-        onEstornar={() => fetchNF()}
-        onDevolucao={() => fetchNF()}
+        onConfirmar={() => reload()}
+        onEstornar={() => reload()}
+        onDevolucao={() => reload()}
         onDanfe={() => { /* DANFE PDF generation handled inside drawer */ }}
       />
     </AppLayout>

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -12,7 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { toast } from "sonner";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { useDetailFetch } from "@/hooks/useDetailFetch";
+import { useDetailActions } from "@/hooks/useDetailActions";
 import { pagamentoLabels, freteTipoLabels } from "@/utils/comercial";
 import { gerarNFParaPedido } from "@/services/nf.service";
 import {
@@ -68,56 +69,51 @@ const statusNFLabels: Record<string, string> = {
   denegada: "Denegada",
 };
 
+interface OVDetail {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ov: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  items: any[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  notasFiscais: any[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  lancamentos: any[];
+}
+
 export function OrdemVendaView({ id }: Props) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [selected, setSelected] = useState<any | null>(null);
-  const [loading, setLoading] = useState(true);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [items, setItems] = useState<any[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [notasFiscais, setNotasFiscais] = useState<any[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [lancamentos, setLancamentos] = useState<any[]>([]);
   const [generateNfOpen, setGenerateNfOpen] = useState(false);
-  const [generatingNf, setGeneratingNf] = useState(false);
   const { pushView } = useRelationalNavigation();
   const navigate = useNavigate();
+  const { run, locked } = useDetailActions();
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-
-    const { data: ov } = await supabase
+  const { data, loading, reload } = useDetailFetch<OVDetail>(id, async (ovId, signal) => {
+    const { data: ov, error: ovErr } = await supabase
       .from("ordens_venda")
       .select(
         "*, clientes(id, nome_razao_social), orcamentos(id, numero, pagamento, prazo_pagamento, prazo_entrega, frete_tipo, observacoes)"
       )
-      .eq("id", id)
+      .eq("id", ovId)
+      .abortSignal(signal)
       .maybeSingle();
-
-    if (!ov) {
-      setSelected(null);
-      setItems([]);
-      setLoading(false);
-      return;
-    }
-    setSelected(ov);
+    if (ovErr) throw ovErr;
+    if (!ov) return null;
 
     const [{ data: itens }, { data: nfs }] = await Promise.all([
       supabase
         .from("ordens_venda_itens")
         .select("*, produtos(id, nome, sku)")
-        .eq("ordem_venda_id", ov.id),
+        .eq("ordem_venda_id", ov.id)
+        .abortSignal(signal),
       supabase
         .from("notas_fiscais")
         .select("id, numero, status, valor_total, data_emissao")
         .eq("ordem_venda_id", ov.id)
-        .eq("ativo", true),
+        .eq("ativo", true)
+        .abortSignal(signal),
     ]);
 
-    setItems(itens || []);
     const nfList = nfs || [];
-    setNotasFiscais(nfList);
-
+    let lancamentos: unknown[] = [];
     if (nfList.length > 0) {
       const nfIds = nfList.map((n: Record<string, unknown>) => n.id as string);
       const { data: lanc } = await supabase
@@ -125,37 +121,39 @@ export function OrdemVendaView({ id }: Props) {
         .select("id, descricao, valor, status, data_vencimento, data_pagamento, forma_pagamento, parcela_numero, parcela_total")
         .in("nota_fiscal_id", nfIds)
         .eq("ativo", true)
-        .order("data_vencimento", { ascending: true });
-      setLancamentos(lanc || []);
-    } else {
-      setLancamentos([]);
+        .order("data_vencimento", { ascending: true })
+        .abortSignal(signal);
+      lancamentos = lanc || [];
     }
 
-    setLoading(false);
-  }, [id]);
+    return {
+      ov,
+      items: itens || [],
+      notasFiscais: nfList,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      lancamentos: lancamentos as any[],
+    };
+  });
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  const selected = data?.ov ?? null;
+  const items = data?.items ?? [];
+  const notasFiscais = data?.notasFiscais ?? [];
+  const lancamentos = data?.lancamentos ?? [];
 
   const handleGenerateNF = async () => {
     if (!selected) return;
-    setGeneratingNf(true);
-    try {
+    await run("generate_nf", async () => {
       const { nfNumero } = await gerarNFParaPedido(
         selected.id,
         selected.numero,
         selected.cliente_id,
       );
       toast.success(`NF ${nfNumero} gerada a partir do Pedido ${selected.numero}!`);
-      await fetchData();
-    } catch (err: unknown) {
-      console.error("[OrdemVendaView] gerar NF:", err);
-      toast.error(getUserFriendlyError(err));
-    } finally {
-      setGeneratingNf(false);
+      await reload();
       setGenerateNfOpen(false);
-    }
+    }).catch(() => {
+      // erro já reportado via toast pelo useDetailActions
+    });
   };
 
   const pesoTotal = items.reduce((s: number, i: Record<string, unknown>) => s + Number(i.peso_total || 0), 0);
@@ -166,7 +164,12 @@ export function OrdemVendaView({ id }: Props) {
     selected.status_faturamento !== "total"
   );
 
-  const valorFaturado = notasFiscais.reduce((s: number, n: Record<string, unknown>) => s + Number(n.valor_total || 0), 0);
+  // KPI Faturado: apenas NFs com status `autorizada` contam.
+  // Canceladas/denegadas continuam listadas mas não somam para faturamento.
+  const valorFaturado = notasFiscais
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .filter((n: any) => n.status === "autorizada")
+    .reduce((s: number, n: Record<string, unknown>) => s + Number(n.valor_total || 0), 0);
   const valorPendente = Math.max(0, Number(selected?.valor_total || 0) - valorFaturado);
 
   // Publica slots no header padronizado
@@ -201,7 +204,7 @@ export function OrdemVendaView({ id }: Props) {
           <Edit className="h-3.5 w-3.5" /> Editar Pedido
         </Button>
         {canGenerateNF && (
-          <Button size="sm" variant="default" className="h-8 gap-1.5 text-xs" onClick={() => setGenerateNfOpen(true)} disabled={generatingNf}>
+          <Button size="sm" variant="default" className="h-8 gap-1.5 text-xs" onClick={() => setGenerateNfOpen(true)} disabled={locked("generate_nf")}>
             <FileOutput className="h-3.5 w-3.5" /> Gerar NF
           </Button>
         )}
@@ -611,6 +614,7 @@ export function OrdemVendaView({ id }: Props) {
         open={generateNfOpen}
         onClose={() => setGenerateNfOpen(false)}
         onConfirm={handleGenerateNF}
+        loading={locked("generate_nf")}
         title="Gerar Nota Fiscal"
         description={`Deseja gerar uma Nota Fiscal de saída para o Pedido ${selected.numero}? Todos os itens serão incluídos.`}
       />
