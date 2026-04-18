@@ -30,6 +30,9 @@ import { toast } from "sonner";
 import { formatCurrency } from "@/lib/format";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import { supabase } from "@/integrations/supabase/client";
+import { useEditDirtyForm } from "@/hooks/useEditDirtyForm";
+import { useSubmitLock } from "@/hooks/useSubmitLock";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import {
   Wallet, Landmark, AlertTriangle, ShieldAlert,
   CheckCircle, Ban, Building2,
@@ -60,6 +63,9 @@ function getTipoLabel(tipo: string | undefined) {
   return tipoContaLabel[tipo.toLowerCase()] ?? tipo;
 }
 
+type ContaBancariaForm = { banco_id: string; descricao: string; agencia: string; conta: string; titular: string; saldo_atual: number; ativo: boolean };
+const emptyContaForm: ContaBancariaForm = { banco_id: "", descricao: "", agencia: "", conta: "", titular: "", saldo_atual: 0, ativo: true };
+
 const ContasBancarias = () => {
   const [bancos, setBancos] = useState<Banco[]>([]);
   const [contas, setContas] = useState<ContaBancaria[]>([]);
@@ -68,8 +74,9 @@ const ContasBancarias = () => {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selected, setSelected] = useState<ContaBancaria | null>(null);
   const [mode, setMode] = useState<"create" | "edit">("create");
-  const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ banco_id: "", descricao: "", agencia: "", conta: "", titular: "", saldo_atual: 0, ativo: true });
+  const { saving, submit } = useSubmitLock();
+  const { form, updateForm, reset, isDirty, markPristine } = useEditDirtyForm<ContaBancariaForm>(emptyContaForm);
+  const { confirm, dialog: confirmDialog } = useConfirmDialog();
   const [inUseCounts, setInUseCounts] = useState<InUseCounts>({ lancamentos: 0, baixas: 0, caixaMovs: 0 });
   const [confirmInactivate, setConfirmInactivate] = useState(false);
 
@@ -150,9 +157,14 @@ const ContasBancarias = () => {
     if (key === "tipo") setTipoFilters((prev) => prev.filter((v) => v !== value));
   };
 
+  const closeModal = async () => {
+    if (isDirty && !(await confirm())) return;
+    setModalOpen(false);
+  };
+
   const openCreate = () => {
     setMode("create");
-    setForm({ banco_id: "", descricao: "", agencia: "", conta: "", titular: "", saldo_atual: 0, ativo: true });
+    reset({ ...emptyContaForm });
     setInUseCounts({ lancamentos: 0, baixas: 0, caixaMovs: 0 });
     setModalOpen(true);
   };
@@ -160,7 +172,7 @@ const ContasBancarias = () => {
   const openEdit = async (c: ContaBancaria) => {
     setMode("edit");
     setSelected(c);
-    setForm({
+    reset({
       banco_id: c.banco_id,
       descricao: c.descricao,
       agencia: c.agencia || "",
@@ -169,18 +181,19 @@ const ContasBancarias = () => {
       saldo_atual: c.saldo_atual || 0,
       ativo: c.ativo,
     });
+    setModalOpen(true);
+    let cancelled = false;
     const [{ count: lCount }, { count: bCount }, { count: cCount }] = await Promise.all([
       supabase.from("financeiro_lancamentos").select("id", { count: "exact", head: true }).eq("conta_bancaria_id", c.id).eq("ativo", true),
       supabase.from("financeiro_baixas").select("id", { count: "exact", head: true }).eq("conta_bancaria_id", c.id),
       supabase.from("caixa_movimentos").select("id", { count: "exact", head: true }).eq("conta_bancaria_id", c.id),
     ]);
+    if (cancelled) return;
     setInUseCounts({ lancamentos: lCount ?? 0, baixas: bCount ?? 0, caixaMovs: cCount ?? 0 });
-    setModalOpen(true);
   };
 
   const persistCreate = async () => {
-    setSaving(true);
-    try {
+    await submit(async () => {
       const { error } = await supabase.from("contas_bancarias").insert({
         banco_id: form.banco_id,
         descricao: form.descricao,
@@ -191,16 +204,15 @@ const ContasBancarias = () => {
       });
       if (error) throw error;
       toast.success("Conta criada com sucesso!");
+      markPristine();
       setModalOpen(false);
       fetchData();
-    } catch (err: unknown) { console.error('[contas-bancarias]', err); toast.error(getUserFriendlyError(err)); }
-    setSaving(false);
+    });
   };
 
   const persistUpdate = async () => {
     if (!selected) return;
-    setSaving(true);
-    try {
+    await submit(async () => {
       const { error } = await supabase.from("contas_bancarias").update({
         descricao: form.descricao.trim(),
         banco_id: form.banco_id,
@@ -211,10 +223,10 @@ const ContasBancarias = () => {
       }).eq("id", selected.id);
       if (error) throw error;
       toast.success("Conta bancária atualizada com sucesso!");
+      markPristine();
       setModalOpen(false);
       fetchData();
-    } catch (err: unknown) { console.error('[contas-bancarias]', err); toast.error(getUserFriendlyError(err)); }
-    setSaving(false);
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
