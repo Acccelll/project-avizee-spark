@@ -452,6 +452,12 @@ export default function Relatorios() {
                         {!isLoading && !isError && isDreReport && <DreTable rows={sortedRows as unknown as DreRow[]} />}
                         {!isLoading && !isError && !isDreReport && (
                           <>
+                            {rows.length !== sortedRows.length && (
+                              <div className="border-b bg-warning/5 px-4 py-2 text-xs text-muted-foreground">
+                                <span className="font-medium text-foreground">Filtros locais aplicados:</span>{' '}
+                                exibindo {sortedRows.length} de {rows.length} registros. Os KPIs refletem o universo do banco; os totais abaixo refletem apenas os registros visíveis.
+                              </div>
+                            )}
                             <DataTable columns={visibleColumns} data={sortedRows} loading={isLoading} moduleKey={`relatorios-${tipo}`} emptyTitle={`Nenhum registro em ${selectedMeta?.title || 'relatório'}`} emptyDescription="Ajuste o período e os filtros para encontrar registros relevantes." />
                             {sortedRows.length > 0 && (() => {
                               const footerCols = (selectedMeta?.columns ?? []).filter((c) => c.footerTotal);
