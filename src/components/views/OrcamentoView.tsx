@@ -501,10 +501,10 @@ export function OrcamentoView({ id }: Props) {
                   variant="outline"
                   className="h-7 text-xs gap-1.5"
                   onClick={handleGeneratePublicToken}
-                  disabled={generatingToken}
+                  disabled={locked("token")}
                 >
                   <Link2 className="h-3 w-3" />
-                  {generatingToken ? "Gerando..." : "Gerar link público"}
+                  {locked("token") ? "Gerando..." : "Gerar link público"}
                 </Button>
               )}
             </div>
