@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { RelationalLink } from "@/components/ui/RelationalLink";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
+import { usePublishDrawerSlots } from "@/contexts/RelationalDrawerSlotsContext";
 import { PrecosEspeciaisTab } from "@/components/precos/PrecosEspeciaisTab";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -102,51 +103,58 @@ export function ClienteView({ id }: Props) {
     fetchData();
   }, [id]);
 
+  const totalAberto = (financeiro || []).filter(f => f.status === 'aberto' || f.status === 'vencido').reduce((acc, curr) => acc + (curr.saldo_restante || curr.valor), 0);
+  const ultCompra = vendas.length > 0 ? vendas[0].data_emissao : null;
+  const pmv = vendas.length > 0 ? vendas.reduce((acc, curr) => acc + (curr.valor_total || 0), 0) / Math.max(vendas.length, 1) : 0;
+
+  // Publica slots no header padronizado
+  usePublishDrawerSlots(`cliente:${id}`, {
+    breadcrumb: selected?.cpf_cnpj ? `Cliente · ${selected.cpf_cnpj}` : undefined,
+    summary: selected ? (
+      <div className="flex items-start gap-3">
+        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
+          <User className="h-5 w-5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <h3 className="font-semibold text-sm leading-tight truncate">{selected.nome_razao_social}</h3>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5">
+            {selected.cpf_cnpj && <p className="text-[11px] text-muted-foreground font-mono">{selected.cpf_cnpj}</p>}
+            {(selected.cidade || selected.uf) && (
+              <p className="text-[11px] text-muted-foreground">{[selected.cidade, selected.uf].filter(Boolean).join("/")}</p>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+            <StatusBadge status={selected.ativo ? "Ativo" : "Inativo"} />
+            {selected.grupos_economicos?.nome && (
+              <span className="inline-flex items-center rounded-full border bg-muted/50 px-2 py-0.5 text-[10px] text-muted-foreground font-medium">
+                {selected.grupos_economicos.nome}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    ) : undefined,
+    actions: selected ? (
+      <>
+        <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs" aria-label="Editar cliente" onClick={() => {
+          navigate(`/clientes?editId=${id}`);
+          window.setTimeout(() => clearStack(), 0);
+        }}>
+          <Edit className="h-3.5 w-3.5" /> Editar
+        </Button>
+        <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10" aria-label="Excluir cliente" onClick={() => setDeleteConfirmOpen(true)}>
+          <Trash2 className="h-3.5 w-3.5" /> Excluir
+        </Button>
+      </>
+    ) : undefined,
+  });
+
   if (loading) return <div className="p-8 text-center animate-pulse">Carregando dados do cliente...</div>;
   if (fetchError) return <div className="p-8 text-center text-destructive space-y-1"><p className="font-semibold">Erro ao carregar dados</p><p className="text-xs text-muted-foreground">{fetchError}</p></div>;
   if (!selected) return <div className="p-8 text-center text-destructive">Cliente não encontrado</div>;
 
-  const totalAberto = financeiro.filter(f => f.status === 'aberto' || f.status === 'vencido').reduce((acc, curr) => acc + (curr.saldo_restante || curr.valor), 0);
-  const ultCompra = vendas.length > 0 ? vendas[0].data_emissao : null;
-  const pmv = vendas.length > 0 ? vendas.reduce((acc, curr) => acc + (curr.valor_total || 0), 0) / Math.max(vendas.length, 1) : 0;
-
   return (
     <div className="space-y-5">
-      {/* Action bar */}
-      <div className="flex items-center justify-end gap-1 border-b pb-3">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {
-              navigate(`/clientes?editId=${id}`);
-              window.setTimeout(() => clearStack(), 0);
-            }}>
-              <Edit className="h-4 w-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Editar</TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteConfirmOpen(true)}>
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Excluir</TooltipContent>
-        </Tooltip>
-      </div>
-      <div className="flex items-center gap-4 bg-muted/30 p-4 rounded-lg">
-        <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
-          <User className="h-6 w-6" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <h3 className="font-semibold text-lg truncate">{selected.nome_razao_social}</h3>
-          <p className="text-xs text-muted-foreground font-mono">{selected.cpf_cnpj}</p>
-        </div>
-        <div className="ml-auto">
-          <StatusBadge status={selected.ativo ? "Ativo" : "Inativo"} />
-        </div>
-      </div>
-
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="rounded-lg border bg-card p-3 text-center space-y-1">
           <p className="text-[10px] font-medium text-muted-foreground uppercase">Saldo Devedor</p>

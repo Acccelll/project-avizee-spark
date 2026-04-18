@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { RelationalLink } from "@/components/ui/RelationalLink";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
+import { usePublishDrawerSlots } from "@/contexts/RelationalDrawerSlotsContext";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
@@ -115,55 +116,13 @@ export function FornecedorView({ id }: Props) {
 
   return (
     <div className="space-y-5">
-      {/* Action bar */}
-      <div className="flex items-center justify-end gap-1 border-b pb-3">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Editar fornecedor" onClick={() => {
-              navigate(`/fornecedores?editId=${id}`);
-              window.setTimeout(() => clearStack(), 0);
-            }}>
-              <Edit className="h-4 w-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Editar</TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" aria-label="Excluir fornecedor" onClick={() => setDeleteConfirmOpen(true)}>
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Excluir</TooltipContent>
-        </Tooltip>
-      </div>
-
-      {/* Header identity card */}
-      <div className="flex items-start gap-4 bg-muted/30 p-4 rounded-lg">
-        <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0 mt-0.5">
-          <Truck className="h-6 w-6" />
-        </div>
-        <div className="min-w-0 flex-1 space-y-0.5">
-          <h3 className="font-semibold text-lg truncate leading-tight">{selected.nome_razao_social}</h3>
-          {selected.nome_fantasia && (
-            <p className="text-sm text-muted-foreground truncate">{selected.nome_fantasia}</p>
-          )}
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1">
-            {selected.cpf_cnpj && (
-              <p className="text-xs text-muted-foreground font-mono">{selected.cpf_cnpj}</p>
-            )}
-            {(selected.cidade || selected.uf) && (
-              <p className="text-xs text-muted-foreground flex items-center gap-1">
-                <MapPin className="h-3 w-3" />{[selected.cidade, selected.uf].filter(Boolean).join("/")}
-              </p>
-            )}
-          </div>
-        </div>
-        <div className="ml-auto shrink-0">
-          <StatusBadge status={selected.ativo ? "Ativo" : "Inativo"} />
-        </div>
-      </div>
-
+      <PublishFornecedorSlots
+        id={id}
+        selected={selected}
+        navigate={navigate}
+        clearStack={clearStack}
+        onDelete={() => setDeleteConfirmOpen(true)}
+      />
       {/* KPI strip */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="rounded-lg border bg-card p-3 text-center space-y-1">
