@@ -35,7 +35,7 @@ export function useCotacoesCompra() {
   const [mode, setMode] = useState<"create" | "edit">("create");
   const [form, setForm] = useState(buildEmptyForm());
   const [localItems, setLocalItems] = useState<LocalItem[]>([]);
-  const [saving, setSaving] = useState(false);
+  const { saving, submit } = useSubmitLock({ errorPrefix: "Erro ao salvar cotação" });
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   const [viewItems, setViewItems] = useState<CotacaoItem[]>([]);
@@ -130,8 +130,15 @@ export function useCotacoesCompra() {
 
   const openCreate = async () => {
     setMode("create");
-    const { data: rpcNumero } = await supabase.rpc("proximo_numero_cotacao_compra");
-    setForm({ ...emptyForm, numero: rpcNumero || `COT-C-${String(Date.now()).slice(-6)}` });
+    const { data: rpcNumero, error: rpcErr } = await supabase.rpc("proximo_numero_cotacao_compra");
+    // Numeração crítica deve sempre vir do PostgreSQL SEQUENCE.
+    // Se falhar, abortamos a criação para não gerar números duplicáveis.
+    if (rpcErr || !rpcNumero) {
+      console.error("[cotacoes_compra] proximo_numero_cotacao_compra falhou:", rpcErr);
+      toast.error("Não foi possível gerar o número da cotação. Tente novamente.");
+      return;
+    }
+    setForm({ ...buildEmptyForm(), numero: rpcNumero });
     setLocalItems([]);
     setSelected(null);
     setModalOpen(true);
