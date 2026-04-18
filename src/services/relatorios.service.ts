@@ -538,7 +538,7 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
         .order("data_compra", { ascending: false });
 
       query = withDateRange(query, "data_compra", filtros);
-      if (filtros.fornecedorIds) query = query.in('fornecedor_id', filtros.fornecedorIds);
+      if (filtros.fornecedorIds?.length) query = query.in('fornecedor_id', filtros.fornecedorIds);
       const { data, error } = await query;
       if (error) throw error;
 
