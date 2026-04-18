@@ -407,21 +407,24 @@ export function EntregaDrawer({ open, onClose, entrega }: EntregaDrawerProps) {
   const tabOcorrencias = (
     <div className="space-y-4">
       {temOcorrencia && (
-        <div className="rounded-lg border border-warning/40 bg-warning/5 p-4 flex gap-3">
-          <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
-          <div>
-            <p className="text-sm font-semibold text-warning mb-1">
-              {entrega.status_logistico === "ocorrencia" ? "Entrega com Ocorrência" : atrasado ? "Entrega em Atraso" : "Eventos de Atenção"}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {entrega.status_logistico === "ocorrencia"
-                ? "Esta entrega foi marcada com ocorrência. Verifique os eventos de rastreio e entre em contato com a transportadora."
-                : atrasado
-                  ? `Previsão de entrega era ${formatDate(entrega.previsao_entrega!)} e ainda não foi concluída.`
-                  : "Foram identificados eventos que podem indicar problemas na entrega."}
-            </p>
-          </div>
-        </div>
+        <DrawerStatusBanner
+          tone={entrega.status_logistico === "ocorrencia" || atrasado ? "destructive" : "warning"}
+          icon={AlertTriangle}
+          title={
+            entrega.status_logistico === "ocorrencia"
+              ? "Entrega com Ocorrência"
+              : atrasado
+                ? "Entrega em Atraso"
+                : "Eventos de Atenção"
+          }
+          description={
+            entrega.status_logistico === "ocorrencia"
+              ? "Esta entrega foi marcada com ocorrência. Verifique os eventos de rastreio e entre em contato com a transportadora."
+              : atrasado
+                ? `Previsão de entrega era ${formatDate(entrega.previsao_entrega!)} e ainda não foi concluída.`
+                : "Foram identificados eventos que podem indicar problemas na entrega."
+          }
+        />
       )}
 
       {ocorrencias.length > 0 ? (
@@ -440,13 +443,11 @@ export function EntregaDrawer({ open, onClose, entrega }: EntregaDrawerProps) {
           </div>
         </ViewSection>
       ) : (
-        <div className="rounded-lg border bg-muted/20 p-5 text-center">
-          <AlertTriangle className="h-6 w-6 mx-auto text-muted-foreground/40 mb-2" />
-          <p className="text-sm text-muted-foreground">Nenhuma ocorrência registrada.</p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Ocorrências como atraso, devolução e entrega parcial aparecerão aqui.
-          </p>
-        </div>
+        <EmptyState
+          icon={AlertTriangle}
+          title="Nenhuma ocorrência registrada"
+          description="Ocorrências como atraso, devolução e entrega parcial aparecerão aqui."
+        />
       )}
     </div>
   );
