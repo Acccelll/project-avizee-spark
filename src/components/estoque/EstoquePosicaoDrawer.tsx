@@ -267,10 +267,11 @@ export function EstoquePosicaoDrawer({
       {loadingMovimentos ? (
         <p className="text-sm text-muted-foreground">Carregando movimentações...</p>
       ) : movsProduto.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-8 text-muted-foreground gap-2">
-          <Package className="h-8 w-8 opacity-40" />
-          <p className="text-sm">Nenhuma movimentação registrada</p>
-        </div>
+        <EmptyState
+          icon={Package}
+          title="Nenhuma movimentação registrada"
+          description="As movimentações de entrada, saída e ajuste aparecerão aqui."
+        />
       ) : (
         movsProduto.map((m) => (
           <div
@@ -318,10 +319,11 @@ export function EstoquePosicaoDrawer({
   const tabVinculos = (
     <div className="space-y-4">
       {vinculos.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-8 text-muted-foreground gap-2">
-          <Package className="h-8 w-8 opacity-40" />
-          <p className="text-sm">Nenhum vínculo encontrado nas movimentações recentes</p>
-        </div>
+        <EmptyState
+          icon={Package}
+          title="Nenhum vínculo encontrado"
+          description="Movimentações recentes não estão vinculadas a documentos."
+        />
       ) : (
         <ViewSection title="Documentos vinculados">
           <div className="space-y-2">
