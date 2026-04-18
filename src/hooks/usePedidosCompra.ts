@@ -133,9 +133,9 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
   const [modalOpen, setModalOpen] = useState(false);
   const [selected, setSelected] = useState<PedidoCompra | null>(null);
   const [mode, setMode] = useState<"create" | "edit">("create");
-  const [form, setForm] = useState<PedidoCompraForm>(emptyPedidoForm);
+  const [form, setForm] = useState<PedidoCompraForm>(buildEmptyPedidoForm());
   const [items, setItems] = useState<GridItem[]>([]);
-  const [saving, setSaving] = useState(false);
+  const { saving, submit } = useSubmitLock({ errorPrefix: "Erro ao salvar pedido" });
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [viewItems, setViewItems] = useState<PedidoItemRow[]>([]);
   const [viewEstoque, setViewEstoque] = useState<EstoqueMovimentoRow[]>([]);
