@@ -977,7 +977,7 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
         .select("valor_total, fornecedores(nome_razao_social, cpf_cnpj)")
         .eq("ativo", true);
       query = withDateRange(query, "data_compra", filtros);
-      if (filtros.fornecedorIds) query = query.in('fornecedor_id', filtros.fornecedorIds);
+      if (filtros.fornecedorIds?.length) query = query.in('fornecedor_id', filtros.fornecedorIds);
       const { data, error } = await query;
       if (error) throw error;
 
