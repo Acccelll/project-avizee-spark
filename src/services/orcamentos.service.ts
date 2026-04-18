@@ -36,9 +36,6 @@ export interface ConvertToOVOptions {
   dataPo?: string;
 }
 
-/** @deprecated Use convertToPedido instead */
-export const convertToOV = convertToPedido;
-
 /**
  * Converte orçamento em pedido de venda usando RPC transacional.
  * Garante atomicidade: numera, copia itens e dados de frete, e marca o orçamento.

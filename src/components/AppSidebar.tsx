@@ -129,7 +129,6 @@ export function AppSidebar({ collapsed, onToggleCollapsed, mobileOpen, onCloseMo
     info: 'bg-primary text-primary-foreground',
   };
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   const activeSectionKeys = useMemo(
     () =>
       visibleSections

@@ -90,15 +90,6 @@ export async function trackAndPersistEventos(
   return { novos: novosEventos.length, isMock: false, eventos: eventosNormalizados };
 }
 
-/** @deprecated Use trackAndPersistEventos instead */
-export async function trackCorreios(
-  codigo: string,
-  remessaId: string,
-): Promise<Array<CorreiosEventoNormalizado & { remessa_id: string }>> {
-  const tracking = await fetchTracking(codigo);
-  return normalizarEventos(tracking, remessaId);
-}
-
 // ── Hooks ──────────────────────────────────────────────────────────────────────
 
 export function useRemessas() {

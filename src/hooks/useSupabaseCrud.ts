@@ -163,7 +163,6 @@ export function useSupabaseCrud<R = any>({
           if (snapshot) {
             queryClient.setQueryData<QueryResult>(queryKey, {
               ...snapshot,
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               rows: snapshot.rows.map((row) =>
                 (row as Record<string, unknown>).id === id ? { ...row, ...record } as R : row,
               ),

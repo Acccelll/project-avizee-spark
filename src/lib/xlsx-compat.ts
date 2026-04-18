@@ -22,7 +22,6 @@ function worksheetToRows(ws: ExcelJS.Worksheet): unknown[][] {
 
 /* ---------- Public types ---------- */
 
-// eslint-disable-next-line @typescript-eslint/no-empty-interface
 export interface WorkSheet {
   /** @internal */
   _ws: ExcelJS.Worksheet;

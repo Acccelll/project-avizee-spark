@@ -31,9 +31,6 @@ export const statusPedido: Record<string, { label: string; color: string }> = {
   cancelada: { label: "Cancelado", color: "destructive" },
 };
 
-/** @deprecated Use statusPedido instead */
-export const statusOrdemVenda = statusPedido;
-
 export const statusNotaFiscal: Record<string, { label: string; color: string }> = {
   pendente: { label: "Pendente", color: "warning" },
   autorizada: { label: "Autorizada", color: "success" },

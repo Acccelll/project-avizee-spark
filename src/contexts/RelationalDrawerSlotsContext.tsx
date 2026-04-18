@@ -63,7 +63,6 @@ export function usePublishDrawerSlots(key: string, slots: RelationalDrawerSlots)
       ctx.setSlots(key, null);
     };
     // Re-publicar a cada render do consumidor
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   });
 }
 
@@ -73,6 +72,6 @@ export function usePublishDrawerSlots(key: string, slots: RelationalDrawerSlots)
 export function useDrawerSlots(key: string): RelationalDrawerSlots | undefined {
   const ctx = useContext(SlotsContext);
   // Subscribe to version → re-render quando qualquer slot mudar
-  ctx?.version;
+  void ctx?.version;
   return ctx?.getSlots(key);
 }

@@ -121,7 +121,6 @@ export function useFreteSimulador({
         console.error('[FreteSimulador] falha ao carregar simulação salva:', err);
         toast.warning('Não foi possível carregar a simulação de frete salva.');
       });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orcamentoId]);
 
   // Detect stale simulation
