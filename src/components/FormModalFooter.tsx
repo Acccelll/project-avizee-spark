@@ -20,6 +20,10 @@ interface FormModalFooterProps {
   disabled?: boolean;
   /** Tooltip / título nativo quando primário desabilitado. */
   disabledReason?: string;
+  /** Quando passado e mode="create", renderiza botão "Salvar e criar outro". */
+  onSaveAndNew?: () => void;
+  /** Label do botão "Salvar e criar outro". */
+  saveAndNewLabel?: string;
   secondaryActions?: ReactNode;
   className?: string;
 }
@@ -36,11 +40,14 @@ export function FormModalFooter({
   mode = "edit",
   disabled = false,
   disabledReason,
+  onSaveAndNew,
+  saveAndNewLabel = "Salvar e criar outro",
   secondaryActions,
   className,
 }: FormModalFooterProps) {
   const label = primaryLabel ?? (mode === "create" ? "Salvar" : "Salvar Alterações");
   const primaryDisabled = saving || disabled;
+  const showSaveAndNew = mode === "create" && !!onSaveAndNew;
 
   const hasStatus = (isDirty && !saving) || saving;
 
@@ -69,11 +76,22 @@ export function FormModalFooter({
         </div>
       )}
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 sm:gap-3 flex-wrap justify-end">
         {secondaryActions}
         <Button type="button" variant="outline" onClick={onCancel} disabled={saving}>
           {cancelLabel}
         </Button>
+        {showSaveAndNew && (
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={onSaveAndNew}
+            disabled={primaryDisabled}
+            title={primaryDisabled && disabledReason ? disabledReason : undefined}
+          >
+            {saveAndNewLabel}
+          </Button>
+        )}
         <Button
           type={submitAsForm ? "submit" : "button"}
           form={formId}

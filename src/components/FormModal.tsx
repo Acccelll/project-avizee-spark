@@ -22,6 +22,10 @@ interface FormModalProps {
   title: string;
   children: ReactNode;
   size?: "sm" | "md" | "lg" | "xl";
+  /** Modo do formulário — controla chip "Novo" e hint inicial. */
+  mode?: "create" | "edit";
+  /** Hint exibido no topo do conteúdo apenas no modo create. ReactNode ou string. */
+  createHint?: ReactNode;
   /** Identificador secundário (CNPJ, SKU, código). Renderizado em fonte mono ao lado do título. */
   identifier?: ReactNode;
   /** Badge de status (use <StatusBadge />) renderizado ao lado do título. */
@@ -51,6 +55,8 @@ export function FormModal({
   title,
   children,
   size = "md",
+  mode,
+  createHint,
   identifier,
   status,
   meta,
@@ -59,6 +65,7 @@ export function FormModal({
   confirmOnDirty,
   footer,
 }: FormModalProps) {
+  const isCreate = mode === "create";
   const hasMeta = (meta && meta.length > 0) || isDirty;
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
 
@@ -86,6 +93,11 @@ export function FormModal({
               <DialogTitle className="text-lg font-semibold leading-tight truncate">
                 {title}
               </DialogTitle>
+              {isCreate && (
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-success bg-success/10 border border-success/30 rounded px-1.5 py-0.5">
+                  Novo
+                </span>
+              )}
               {identifier && (
                 <span className="text-xs font-mono text-muted-foreground bg-muted/60 border border-border/60 rounded px-1.5 py-0.5">
                   {identifier}
@@ -121,7 +133,15 @@ export function FormModal({
           )}
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto px-6 py-4">{children}</div>
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+          {isCreate && createHint && (
+            <div className="rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-foreground/80 flex items-start gap-2">
+              <span aria-hidden="true">💡</span>
+              <span className="flex-1">{createHint}</span>
+            </div>
+          )}
+          {children}
+        </div>
 
         {footer && (
           <div className="shrink-0 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 px-6 py-3">
