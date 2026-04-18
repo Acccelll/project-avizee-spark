@@ -30,6 +30,8 @@ import { confirmarNotaFiscal, estornarNotaFiscal, registrarEventoFiscal, verific
 import { NotaFiscalEditModal } from "@/components/fiscal/NotaFiscalEditModal";
 import { useActionLock } from "@/hooks/useActionLock";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
+import { useInvalidateAfterMutation } from "@/hooks/useInvalidateAfterMutation";
+import { INVALIDATION_KEYS } from "@/services/_invalidationKeys";
 
 export interface NotaFiscal {
   id: string; tipo: string; numero: string; serie: string; chave_acesso: string;
@@ -178,6 +180,7 @@ const Fiscal = () => {
   const confirmarLock = useActionLock();
   const estornarLock = useActionLock();
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
+  const invalidate = useInvalidateAfterMutation();
 
   const openCreate = () => { setMode("create"); setForm({ ...emptyForm }); setItems([]); setSelected(null); setParcelas(1); setItemContaContabil({}); setItemFiscalData({}); setModalOpen(true); };
   const openEdit = async (n: NotaFiscal) => {
@@ -253,6 +256,9 @@ const Fiscal = () => {
         await confirmarNotaFiscal({ nf, parcelas });
         toast.success("Nota fiscal confirmada! Estoque e financeiro atualizados.");
         fetchData();
+        // Invalidação cross-módulo: outros módulos abertos em background
+        // (Estoque, Financeiro, Pedidos) refletem a mudança imediatamente.
+        await invalidate(INVALIDATION_KEYS.fiscalLifecycle);
       } catch (err: unknown) {
         console.error('[fiscal] confirmar NF:', err);
         toast.error(getUserFriendlyError(err));
@@ -273,6 +279,7 @@ const Fiscal = () => {
         await estornarNotaFiscal(nf);
         toast.success(`NF ${nf.numero} estornada! Estoque e financeiro revertidos.`);
         fetchData();
+        await invalidate(INVALIDATION_KEYS.fiscalLifecycle);
       } catch (err: unknown) {
         console.error('[fiscal] estornar NF:', err);
         toast.error(getUserFriendlyError(err));
