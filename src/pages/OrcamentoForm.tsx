@@ -22,7 +22,8 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ArrowLeft, Save, Eye, FileText, Copy, Plus, Search, Wand2, RefreshCw, CheckCircle2, AlertTriangle, CalendarDays, Clock } from "lucide-react";
+import { Save, Eye, FileText, Copy, Plus, Search, Wand2, RefreshCw, CheckCircle2, AlertTriangle, CalendarDays, Clock } from "lucide-react";
+import { PageShell } from "@/components/PageShell";
 import { QuickAddClientModal } from "@/components/QuickAddClientModal";
 import { ClientSelector, type ProductWithForn } from "@/components/ui/DataSelector";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -798,21 +799,12 @@ export default function OrcamentoForm() {
   }));
 
   return (
-    <><div className="mb-6 space-y-3">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/orcamentos")}>
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <div className="min-w-0">
-            <h1 className="page-title text-xl md:text-2xl">
-              {isEdit ? `Editando Orçamento${numero ? ` — ${numero}` : ""}` : "Novo Orçamento"}
-            </h1>
-            <p className="text-muted-foreground text-sm mt-0.5">
-              {isEdit ? "Revisão e ajuste de proposta comercial" : "Criação e emissão de proposta comercial"}
-            </p>
-          </div>
-        </div>
-        <div className="hidden items-center gap-2 md:ml-12 md:flex md:flex-wrap">
+    <PageShell
+      backTo="/orcamentos"
+      title={isEdit ? `Editando Orçamento${numero ? ` — ${numero}` : ""}` : "Novo Orçamento"}
+      subtitle={isEdit ? "Revisão e ajuste de proposta comercial" : "Criação e emissão de proposta comercial"}
+      actions={
+        <div className="hidden items-center gap-2 md:flex md:flex-wrap">
           <Button onClick={handleSave} disabled={saving} className="gap-2">
             <Save className="w-4 h-4" />
             {saving ? "Salvando..." : isEdit && status !== "rascunho" ? "Salvar Alterações" : "Salvar Rascunho"}
@@ -825,63 +817,66 @@ export default function OrcamentoForm() {
           <Button variant="outline" onClick={() => saveTemplate("usuario")} className="gap-2"><Wand2 className="w-4 h-4" />Salvar Meu</Button>
           <Button variant="outline" onClick={() => saveTemplate("equipe")} className="gap-2"><Wand2 className="w-4 h-4" />Compartilhar</Button>
         </div>
-
-        {/* Edit-mode context banner — desktop */}
-        {isEdit && (
-          <div className="hidden md:flex md:ml-12 items-center flex-wrap gap-x-6 gap-y-2 rounded-xl border bg-card/60 px-5 py-3 text-sm shadow-soft">
-            <div className="flex items-center gap-2">
-              <span className="text-xs uppercase tracking-wider text-muted-foreground font-medium">Orçamento</span>
-              <span className="font-mono font-bold text-primary">{numero || "—"}</span>
-            </div>
-            {clienteSnapshot.nome_razao_social && (
+      }
+      meta={
+        <>
+          {/* Edit-mode context banner — desktop */}
+          {isEdit && (
+            <div className="hidden md:flex items-center flex-wrap gap-x-6 gap-y-2 rounded-xl border bg-card/60 px-5 py-3 text-sm shadow-soft">
               <div className="flex items-center gap-2">
-                <span className="text-xs uppercase tracking-wider text-muted-foreground font-medium">Cliente</span>
-                <span className="font-medium truncate max-w-[200px]">{clienteSnapshot.nome_razao_social}</span>
+                <span className="text-xs uppercase tracking-wider text-muted-foreground font-medium">Orçamento</span>
+                <span className="font-mono font-bold text-primary">{numero || "—"}</span>
               </div>
-            )}
-            <StatusBadge status={status} />
-            <div className="flex items-center gap-1.5 text-muted-foreground">
-              <CalendarDays className="h-3.5 w-3.5" />
-              <span>Emissão: <span className="text-foreground font-medium">{formatDate(dataOrcamento)}</span></span>
-            </div>
-            {validade && (
+              {clienteSnapshot.nome_razao_social && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs uppercase tracking-wider text-muted-foreground font-medium">Cliente</span>
+                  <span className="font-medium truncate max-w-[200px]">{clienteSnapshot.nome_razao_social}</span>
+                </div>
+              )}
+              <StatusBadge status={status} />
               <div className="flex items-center gap-1.5 text-muted-foreground">
-                <Clock className="h-3.5 w-3.5" />
-                <span>Validade: <span className={`font-medium ${new Date(validade) < new Date(new Date().toDateString()) ? "text-destructive" : "text-foreground"}`}>{formatDate(validade)}</span></span>
+                <CalendarDays className="h-3.5 w-3.5" />
+                <span>Emissão: <span className="text-foreground font-medium">{formatDate(dataOrcamento)}</span></span>
               </div>
-            )}
-            <div className="ml-auto font-bold text-base text-primary font-mono">{formatCurrency(valorTotal)}</div>
-          </div>
-        )}
+              {validade && (
+                <div className="flex items-center gap-1.5 text-muted-foreground">
+                  <Clock className="h-3.5 w-3.5" />
+                  <span>Validade: <span className={`font-medium ${new Date(validade) < new Date(new Date().toDateString()) ? "text-destructive" : "text-foreground"}`}>{formatDate(validade)}</span></span>
+                </div>
+              )}
+              <div className="ml-auto font-bold text-base text-primary font-mono">{formatCurrency(valorTotal)}</div>
+            </div>
+          )}
 
-        {isMobile && (
-          <div className="grid grid-cols-2 gap-3 rounded-2xl border bg-card p-4 shadow-sm">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Cotação</p>
-              <p className="mt-1 font-mono text-sm font-semibold">{numero || '—'}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Total</p>
-              <p className="mt-1 text-base font-semibold">{formatCurrency(valorTotal)}</p>
-            </div>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Cliente</p>
-              <p className="mt-1 truncate text-sm">{clienteSnapshot.nome_razao_social || 'Selecione um cliente'}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Itens</p>
-              <p className="mt-1 text-sm">{items.filter(i => i.produto_id).length} item(ns)</p>
-            </div>
-            {isEdit && (
-              <div className="col-span-2 flex items-center gap-2 pt-1 border-t">
-                <StatusBadge status={status} />
-                {validade && <span className="text-xs text-muted-foreground">Válido até {formatDate(validade)}</span>}
+          {isMobile && (
+            <div className="grid grid-cols-2 gap-3 rounded-2xl border bg-card p-4 shadow-sm">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Cotação</p>
+                <p className="mt-1 font-mono text-sm font-semibold">{numero || '—'}</p>
               </div>
-            )}
-          </div>
-        )}
-      </div>
-
+              <div className="text-right">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Total</p>
+                <p className="mt-1 text-base font-semibold">{formatCurrency(valorTotal)}</p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Cliente</p>
+                <p className="mt-1 truncate text-sm">{clienteSnapshot.nome_razao_social || 'Selecione um cliente'}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Itens</p>
+                <p className="mt-1 text-sm">{items.filter(i => i.produto_id).length} item(ns)</p>
+              </div>
+              {isEdit && (
+                <div className="col-span-2 flex items-center gap-2 pt-1 border-t">
+                  <StatusBadge status={status} />
+                  {validade && <span className="text-xs text-muted-foreground">Válido até {formatDate(validade)}</span>}
+                </div>
+              )}
+            </div>
+          )}
+        </>
+      }
+    >
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
         <div className="lg:col-span-8 space-y-5">
           {/* Identificação do Orçamento */}
