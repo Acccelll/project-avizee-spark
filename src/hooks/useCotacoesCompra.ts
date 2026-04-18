@@ -2,9 +2,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
+import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { getUserFriendlyError } from "@/utils/errorMessages";
+import { validateForm } from "@/lib/validationSchemas";
+import { cotacaoCompraSchema, validateCotacaoItems } from "@/lib/cotacaoCompraSchema";
+import { todayISO } from "@/lib/dateUtils";
 import type { Database } from "@/integrations/supabase/types";
 import {
   type CotacaoCompra,
@@ -12,7 +16,7 @@ import {
   type CotacaoSummary,
   type Proposta,
   type LocalItem,
-  emptyForm,
+  buildEmptyForm,
 } from "@/components/compras/cotacaoCompraTypes";
 
 export function useCotacoesCompra() {
