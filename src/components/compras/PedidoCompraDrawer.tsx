@@ -2,6 +2,8 @@
 import { useState } from "react";
 import { ViewDrawerV2, DrawerStickyFooter } from "@/components/ViewDrawerV2";
 import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSummaryCard";
+import { DrawerStatusBanner } from "@/components/ui/DrawerStatusBanner";
+import { EmptyState } from "@/components/ui/empty-state";
 import { ViewField, ViewSection } from "@/components/ViewDrawer";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -119,10 +121,12 @@ export function PedidoCompraDrawer({
   const tabResumo = (
     <div className="space-y-5">
       {isOverdue && (
-        <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          <AlertCircle className="h-4 w-4 shrink-0" />
-          Entrega prevista em {formatDate(selected.data_entrega_prevista)} — pedido em atraso.
-        </div>
+        <DrawerStatusBanner
+          tone="destructive"
+          icon={AlertCircle}
+          title="Pedido em atraso"
+          description={`Entrega prevista em ${formatDate(selected.data_entrega_prevista)} — recebimento pendente.`}
+        />
       )}
 
       <ViewSection title="Pedido">
@@ -250,7 +254,7 @@ export function PedidoCompraDrawer({
           )}
         </>
       ) : (
-        <p className="text-sm text-muted-foreground text-center py-4">Nenhum item cadastrado</p>
+        <EmptyState icon={FileText} title="Nenhum item cadastrado" />
       )}
     </div>
   );
