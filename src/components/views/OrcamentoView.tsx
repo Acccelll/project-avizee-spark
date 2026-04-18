@@ -202,11 +202,11 @@ export function OrcamentoView({ id }: Props) {
   const itemsSubtotal = items.reduce((s, i) => s + Number(i.valor_total || 0), 0);
   const kpiItens = items.length;
   const kpiQtd = items.reduce((s, i) => s + Number(i.quantidade || 0), 0);
-  const kpiPeso = Number(selected.peso_total || 0);
-  const kpiValor = Number(selected.valor_total || 0);
+  const kpiPeso = Number(selected?.peso_total || 0);
+  const kpiValor = Number(selected?.valor_total || 0);
 
-  // Publica slots do header padronizado
-  usePublishDrawerSlots(`orcamento:${id}`, {
+  // Publica slots do header padronizado (sempre — hook deve rodar incondicionalmente)
+  usePublishDrawerSlots(`orcamento:${id}`, selected ? {
     breadcrumb: `Cotação · ${selected.numero}`,
     summary: (
       <div className="flex items-start gap-3">
@@ -224,7 +224,7 @@ export function OrcamentoView({ id }: Props) {
           <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
             <StatusBadge status={selected.status} />
             {isExpired && (
-              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 bg-amber-100 dark:bg-amber-950/40 dark:text-amber-400 px-1.5 py-0.5 rounded-full">
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-warning bg-warning/10 px-1.5 py-0.5 rounded-full">
                 <AlertTriangle className="h-3 w-3" /> Expirada
               </span>
             )}
@@ -282,7 +282,16 @@ export function OrcamentoView({ id }: Props) {
         </Button>
       </>
     ),
-  });
+  } : {});
+
+  if (loading) return <div className="p-8 text-center animate-pulse">Carregando cotação...</div>;
+  if (fetchError) return (
+    <div className="p-8 text-center text-destructive space-y-1">
+      <p className="font-semibold">Erro ao carregar dados</p>
+      <p className="text-xs text-muted-foreground">{fetchError}</p>
+    </div>
+  );
+  if (!selected) return <div className="p-8 text-center text-destructive">Cotação não encontrada</div>;
 
   return (
     <div className="space-y-4">
