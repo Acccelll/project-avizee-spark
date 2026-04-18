@@ -69,7 +69,21 @@ export default function FiscalDetail() {
     return (
       <AppLayout>
         <div className="p-6">
-          <DetailError error={error} onRetry={reload} onBack={() => navigate("/fiscal")} backLabel="Voltar ao Fiscal" />
+          <DetailError
+            message={getUserFriendlyError(error)}
+            action={
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={() => navigate("/fiscal")}>
+                  <ArrowLeft className="h-4 w-4 mr-1.5" />
+                  Voltar
+                </Button>
+                <Button size="sm" onClick={() => reload()}>
+                  <RefreshCw className="h-4 w-4 mr-1.5" />
+                  Tentar novamente
+                </Button>
+              </div>
+            }
+          />
         </div>
       </AppLayout>
     );
@@ -81,9 +95,13 @@ export default function FiscalDetail() {
         <div className="p-6">
           <DetailEmpty
             title="Nota fiscal não encontrada"
-            description="O documento pode ter sido removido ou o link está incorreto."
-            onBack={() => navigate("/fiscal")}
-            backLabel="Voltar ao Fiscal"
+            message="O documento pode ter sido removido ou o link está incorreto."
+            action={
+              <Button size="sm" variant="outline" onClick={() => navigate("/fiscal")}>
+                <ArrowLeft className="h-4 w-4 mr-1.5" />
+                Voltar ao Fiscal
+              </Button>
+            }
           />
         </div>
       </AppLayout>
