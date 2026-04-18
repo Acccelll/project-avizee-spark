@@ -1,219 +1,181 @@
 
 
-# Diagnóstico técnico — Estados transversais
+# Diagnóstico visual — Estados transversais
 
-## Inventário de mecanismos atuais
+## Inventário visual atual
 
-| Estado | Mecanismo | Cobertura |
+| Estado | Componente | Visual hoje |
 |---|---|---|
-| Loading lista | `TableSkeleton`, `DataTable.loading` | ~90% das listas |
-| Loading detalhe | `DetailLoading` (KPI strip + tabs) | Views relacionais ✓ |
-| Loading página | `LazyPage` (Suspense spinner) | Rotas ✓ |
-| Loading rota auth | `ProtectedRoute`/`AdminRoute`/`SocialRoute` (3 spinners idênticos) | duplicado |
-| Loading inline | `Loader2 animate-spin`, `border-b-2 border-primary` | inconsistente (3 visuais) |
-| Loading textual | `"Carregando..."`, `"Salvando..."`, `"Processando..."` | em ~22 arquivos, ad-hoc |
-| Empty | `EmptyState` (2 versões!), `DetailEmpty` | duplicado: `src/components/EmptyState.tsx` vs `src/components/ui/empty-state.tsx` |
-| Error | `ErrorBoundary` (global), `DetailError`, `getUserFriendlyError` | ✓, mas erros silenciosos em vários `catch` |
-| Toast | `sonner` (`toast.success/error/info/warning`) | ✓ padronizado, mas mensagens divergentes |
-| Sem permissão | `useCan`, `Navigate to "/"`, `Social.tsx` mostra ModulePage texto-livre | inconsistente |
-| Lock submit | `useSubmitLock`, `useActionLock`, `useDetailActions` | bom, mas ~30 lugares ainda usam `setSaving` manual |
-| Refetch | `useInvalidateAfterMutation`, `useSupabaseCrud` (auto), TanStack auto | ✓ |
+| Loading rota | `FullPageSpinner` | spinner lg centralizado, sem mensagem |
+| Loading conteúdo | `ContentSpinner` | spinner md, sem mensagem |
+| Loading lista | `TableSkeleton` | linhas de skeleton ✓ |
+| Loading detalhe | `DetailLoading` | KPI strip + tabs skeleton ✓ |
+| Empty genérico | `EmptyState` | ícone em círculo `bg-muted`, título, descrição, ação |
+| Empty detalhe | `DetailEmpty` | mesmo padrão, menor (`py-12`) |
+| Erro detalhe | `DetailError` | ícone `bg-destructive/10`, título destrutivo, mensagem |
+| Erro global | `ErrorBoundary` | tela cheia com botões reload/dashboard |
+| Sem permissão | `AccessDenied` | usa `DetailEmpty` com `ShieldOff` |
+| Toast | `sonner` (default config) | posição padrão, sem ícone semântico explícito |
+| Skeleton | `Skeleton` | `bg-muted animate-pulse` ✓ |
 
 ## Problemas reais
 
-### 1. Dois componentes `EmptyState` coexistem
-- `src/components/EmptyState.tsx` (API: `actionLabel`+`onAction`)
-- `src/components/ui/empty-state.tsx` (API: `action: ReactNode`)
+### 1. Spinners sem mensagem contextual
+`FullPageSpinner` e `ContentSpinner` mostram apenas o círculo girando. Em rotas que demoram (auth + permissões), o usuário fica 1-2s olhando spinner mudo. Sem texto "Carregando..." abaixo, parece travado.
 
-Mesma estética, APIs diferentes. ~50 imports espalhados, alguns importam um, outros outro. Fonte clássica de bug "callback ignorado".
+### 2. Empty/Error/AccessDenied parecem o mesmo "card cinza"
+Os 3 estados usam o mesmo padrão visual: círculo com ícone + título + mensagem. Diferenciação só pela cor do ícone (`text-muted-foreground` vs `text-destructive`). Em telas onde aparecem alternadamente (ex: filtro vazio → erro de carga), o usuário não percebe a mudança de severidade.
 
-### 2. Spinners duplicados em 3 visuais
-- `<Loader2 className="animate-spin" />` (lucide) — ~30 lugares
-- `<div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />` — Recent*, AdminRoute, ProtectedRoute, SocialRoute, App.tsx (LazyPage)
-- `<div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />` — CotacaoCompraForm, ImportacaoLotesTable
+### 3. EmptyState sem distinção entre "nada cadastrado" e "filtro sem resultado"
+Mesma `EmptyState` usada para:
+- "Nenhum cliente cadastrado" (precisa CTA "Novo Cliente")
+- "Nenhum resultado para os filtros" (precisa CTA "Limpar filtros")
+- "Nenhuma notificação" (informativo, sem CTA)
 
-Sem `<Spinner />` componente único. Sem aria-label. Acessibilidade comprometida.
+Cada caller decide ad-hoc qual ícone/mensagem/ação usar. Sem variant `noResults` para filtro.
 
-### 3. Texto "Carregando..." solto em 22 arquivos
-`<div className="p-8 text-center animate-pulse">Carregando...</div>` — `PedidoForm`, `Cte`, `EntregaDrawer`, `ContaBancariaDrawer`, `EstoquePosicaoDrawer`, etc. Inconsistente com `DetailLoading`/`TableSkeleton`. Perde feedback estrutural.
+### 4. Sem helper para "limpar filtros"
+Páginas com filtros aplicados (Pedidos, Clientes, Produtos) mostram `EmptyState` genérico quando o filtro não retorna nada. Não há botão automático "Limpar filtros" — usuário tem que voltar e desmarcar manualmente. Padrão Linear/Notion: empty state de filtro mostra "X filtros ativos · Limpar".
 
-### 4. `setSaving` manual em ~30 lugares (não usa `useSubmitLock`)
-`Fornecedores.tsx`, `Fiscal.tsx`, `BaixaParcialDialog`, `OrcamentoForm`, `PedidoForm`, `RemessaForm`, `ContasBancarias`, `Configuracoes`, `Funcionarios`, etc. Cada um:
-- declara `setSaving(true)` e `setSaving(false)` em vários return paths;
-- alguns esquecem `setSaving(false)` no catch (vaza loading);
-- não tem ref síncrona → duplo clique cria duplicata.
+### 5. Toasts sem ícones e sem hierarquia visual consistente
+`sonner` aceita `richColors` e `icon`, mas o `<Toaster />` global não está configurado com `richColors`. Resultado: success/error/warning aparecem com mesmo background neutro, diferenciação só pelo título. Em ERPs maduros, success = verde, error = vermelho, warning = amarelo (subtle).
 
-`useSubmitLock` resolve tudo isso, mas adoção parou em ~10 lugares.
+### 6. Toast position e duration não padronizados
+Default sonner: `top-right`, 4s. Em telas com sidebar+topbar de 56px, top-right cai colado ao topo. ERPs costumam usar `bottom-right` (menos intrusivo) ou `top-right` com offset. Duration de 4s é curta para mensagens de erro com ação.
 
-### 5. Erros silenciosos: `catch` apenas com `console.error`
-- `Fornecedores.tsx:213-214` — `catch (err) { console.error(...); }` sem toast → usuário acha que salvou.
-- `Fornecedores.tsx:158-162` — `loadFornContext` falha silenciosamente.
-- `OrcamentoForm.tsx:617-619` — log + nada visível.
-- 8 outros pontos identificados.
+### 7. `DetailError` não oferece retry
+`DetailError` aceita `action: ReactNode` (opt-in), mas a maioria dos consumidores não passa nada. Erro de rede em drawer mostra "Erro ao carregar dados" sem botão "Tentar novamente". Padrão básico de UX faltando.
 
-### 6. Mensagens de toast divergentes para o mesmo evento
-- `toast.success("Registro criado com sucesso!")` (useSupabaseCrud)
-- `toast.success("Transportadora criada!")` (useTransportadoras)
-- `toast.success("Folha registrada!")` (Funcionarios)
-- `toast.success("Vínculo removido")`, `"Lote cancelado."`, `"Caixa "X" cadastrada."`
+### 8. ErrorBoundary global muito "ruidoso"
+Tela cheia com gradient, AlertCircle 64px, dois botões grandes. Para erros de componente isolado (ex: card do dashboard quebrar), derruba a página inteira. Mas o `BlockErrorBoundary` (mais leve) só é usado no dashboard. Falta variante "card" do ErrorBoundary para conteúdos secundários.
 
-Sem padrão. Falta um helper `toastCrud.created("Cliente")` que gere `"Cliente criado com sucesso"`.
+### 9. AccessDenied sem ação clara
+Hoje mostra "Você não tem permissão" + nada. Falta CTA "Voltar ao início" ou "Solicitar acesso" para o usuário sair do beco.
 
-### 7. Mensagens de erro genéricas convivendo com `getUserFriendlyError`
-~17 arquivos ainda usam strings hardcoded:
-- `"Erro ao salvar regra de preço"` (PrecosEspeciaisTab — ignora `err`)
-- `"Erro ao carregar usuários."` (UsuariosTab)
-- `"Erro ao consultar CEP"`
-- `"Erro ao salvar evento: " + msg` (concat manual de mensagem técnica)
+### 10. Skeleton sem variação de "cor"
+`Skeleton` é `bg-muted` puro. Em fundo `bg-card` (drawers), o contraste é mínimo — parece que nada está acontecendo. Falta `bg-muted/60` ou tom mais escuro para skeleton sobre card.
 
-Resultado: o usuário às vezes recebe traduzido, às vezes genérico, às vezes raw.
+### 11. Mensagens de loading genéricas demais
+"Carregando..." em toda parte. Em ERPs maduros, mensagens contextuais ajudam:
+- "Carregando pedidos..."
+- "Verificando permissões..."
+- "Sincronizando estoque..."
 
-### 8. `useSupabaseCrud` aciona toast com mensagem hardcoded em loading
-`"Erro ao carregar dados. Tente novamente."` — ignora `getUserFriendlyError(error)`. Inconsistente com o resto do hook.
+`FullPageSpinner` aceita `label` mas ninguém passa.
 
-### 9. Toast duplo: hook + caller
-`useSubmitLock` já dispara toast no erro (default), mas `OrcamentoForm`, `PedidoForm`, etc. fazem `try { await submit(...) } catch { toast.error(getUserFriendlyError(err)) }` — mostra **dois toasts** quando ambos disparam. Caller não percebe que `submit` já tratou.
+### 12. Sucesso visual após ação destrutiva pouco enfatizado
+Toast de "Cliente removido" passa em 4s sem destaque. Para ações destrutivas (delete, cancel), o feedback poderia ser mais forte (ícone check verde, duração 5s).
 
-### 10. `disabled` durante saving aplicado só ao botão primary
-Botão "Cancelar" geralmente fica clicável enquanto salva (`BaixaParcialDialog` é exceção). Usuário pode cancelar no meio do submit → race com o resultado.
+### 13. Inconsistência de ícones entre estados
+- Empty genérico: `PackageOpen` (default)
+- Empty detalhe: `FileQuestion`
+- Acesso negado: `ShieldOff`
+- Erro: `AlertTriangle`
+- Loading: spinner
 
-### 11. Sem permissão tratado de 3 formas
-- `ProtectedRoute`: `Navigate to "/login"`
-- `AdminRoute`: `Navigate to "/"` (silencioso, sem toast)
-- `SocialRoute`: `Navigate to "/"` silencioso
-- `Social.tsx`: renderiza `<ModulePage>` com texto livre "Você não possui permissão..."
-- Botões dentro de páginas: simplesmente escondidos via `can(...)` sem feedback
+Sem catálogo. Páginas escolhem ícones aleatórios (`Inbox`, `SearchX`, `FilterX`).
 
-Falta padrão. Quando o usuário entra em `/admin` sem ser admin, é redirecionado sem saber por quê.
+### 14. Spinner full-page bloqueia visual completamente
+`min-h-screen bg-background` cobre tudo, inclusive sidebar. Em rotas que demoram, parece que o app travou (não vê nem header). Padrão melhor: spinner dentro do `<main>`, mantendo shell visível.
 
-### 12. `LazyPage`, `ProtectedRoute`, `AdminRoute`, `SocialRoute` repetem o mesmo spinner
-4 implementações idênticas do mesmo `<div className="...border-4 border-primary border-t-transparent rounded-full animate-spin"/>`. Mudança visual exige editar 4 arquivos.
+## Padrão-base proposto
 
-### 13. Loading não consistente: spinner vs skeleton
-- Listas grandes: `TableSkeleton` ✓
-- Drawers: às vezes skeleton, às vezes `<p>Carregando...</p>` (`FinanceiroDrawer`, `ContaBancariaDrawer`, `ContaContabilDrawer`, `EstoquePosicaoDrawer`, `EntregaDrawer`)
-- Cards do dashboard: cada um tem spinner próprio (`RecentOrcamentos`, `RecentCompras`, `VencimentosProximosCard`)
-- Forms: às vezes `FormSkeleton`, às vezes texto cinza
+### Spinner com mensagem
+- `FullPageSpinner` e `ContentSpinner` ganham `label` opcional renderizado abaixo (`text-sm text-muted-foreground mt-3`).
+- Adotar default "Carregando..." quando não passado.
+- `FullPageSpinner` apenas para route guards (sem shell ainda); `ContentSpinner` mantém comportamento dentro do shell.
 
-### 14. `useSupabaseCrud` mostra toast de truncamento como aviso, mas só em `paginationMode: "all"`
-Hard-cap silencioso de 50000 — ok. Mas em `paged` mode, o usuário não sabe que está paginado server-side. Inconsistência semântica.
+### EmptyState com variants semânticos
+Adicionar prop `variant?: 'default' | 'noResults' | 'firstUse'`:
+- `default`: ícone `bg-muted` (atual)
+- `noResults`: ícone `bg-info/10 text-info` + ação default "Limpar filtros" se `onClearFilters` passado
+- `firstUse`: ícone `bg-primary/10 text-primary` + CTA primária destacada
 
-### 15. Não há helper único para "ação sem permissão tentada"
-Quando o usuário clica em algo que ele teoricamente nem deveria ver (race entre carregar permissão e renderizar), a ação cai num `permission denied` do RLS → vira toast genérico via `getUserFriendlyError`. Falta:
-```ts
-if (!can('x:y')) { toast.error("Você não tem permissão"); return; }
-```
-sistematizado.
-
-### 16. `useDetailFetch` não dispara toast em erro
-Decisão consciente ("quem chama decide"), mas nenhuma View hoje chama. Resultado: `error` é mostrado via `<DetailError>` ✓, mas sem toast — usuário pode não notar se o estado de erro está fora da viewport.
-
-## Estratégia de correção
-
-### Fase 1 — Unificar `EmptyState` (corrige #1)
-Manter `src/components/ui/empty-state.tsx` (API mais flexível: `action: ReactNode`).
-Substituir `src/components/EmptyState.tsx` por re-export que mantém compat:
-```ts
-export { EmptyState } from "@/components/ui/empty-state";
-```
-Adaptador interno traduz `actionLabel`+`onAction` → `action={<Button>...}` para consumidores legados, OU migrar todos os imports. Plano: re-export + adaptador para zero quebra.
-
-### Fase 2 — Componente `Spinner` único (corrige #2, #12)
-Criar `src/components/ui/spinner.tsx`:
+### NoResultsState helper
+Componente novo `NoResultsState` (wrapper sobre EmptyState) específico para filtros:
 ```tsx
-export function Spinner({ size="md", label="Carregando", className }) {
-  // size: sm (h-4) | md (h-6) | lg (h-8)
-  return <div role="status" aria-label={label}
-    className={cn("animate-spin rounded-full border-2 border-primary border-t-transparent", sizeMap[size], className)} />;
-}
-export function FullPageSpinner() { /* min-h-screen + Spinner lg */ }
+<NoResultsState
+  activeFiltersCount={3}
+  onClearFilters={() => clearAll()}
+  searchTerm={search}
+/>
 ```
-Substituir nos 4 route guards + LazyPage. Demais usos podem migrar gradualmente — fora do escopo agora.
+Mostra: "Nenhum resultado para os filtros aplicados" + chip "3 filtros ativos · Limpar".
 
-### Fase 3 — Helper `toastCrud` para mensagens consistentes (corrige #6)
-`src/lib/toastMessages.ts`:
-```ts
-export const toastCrud = {
-  created: (entity: string) => toast.success(`${entity} criado com sucesso`),
-  updated: (entity: string) => toast.success(`${entity} atualizado com sucesso`),
-  removed: (entity: string) => toast.success(`${entity} removido`),
-  saved:   (entity: string) => toast.success(`${entity} salvo`),
-};
-```
-Não força adoção em massa — disponibiliza. Migrar `useSupabaseCrud` (que tem toast genérico) para usar quando o caller passar `entityName`.
-
-### Fase 4 — Eliminar erros silenciosos (corrige #5)
-Auditar e corrigir os 11 pontos identificados:
-- adicionar `toast.error(getUserFriendlyError(err))` no catch;
-- ou re-throw para que o caller (com `useSubmitLock`) trate.
-
-Lista alvo: `Fornecedores.tsx`, `OrcamentoForm.tsx`, `ContasContabeis.tsx`, `PrecosEspeciaisTab`, `Remessas.tsx`, `Social.tsx` (mensagens genéricas → usar `getUserFriendlyError`).
-
-### Fase 5 — Padronizar `useSupabaseCrud` mensagens (corrige #7, #8)
-Trocar `toast.error("Erro ao carregar dados. Tente novamente.")` por `toast.error(getUserFriendlyError(error))`. Remove duplicação semântica.
-
-### Fase 6 — Padronizar "sem permissão" (corrige #11, #15)
-Criar `src/components/AccessDenied.tsx`:
+### Toast com richColors + posição
+Configurar `<Toaster />` global:
 ```tsx
-export function AccessDenied({ title="Acesso restrito", message }) {
-  return <DetailEmpty icon={ShieldOff} title={title}
-    message={message ?? "Você não tem permissão para visualizar este conteúdo."} />;
-}
+<Toaster
+  position="bottom-right"
+  richColors
+  closeButton
+  toastOptions={{ duration: 4000 }}
+/>
 ```
-Aplicar em `AdminRoute` e `SocialRoute`: em vez de `Navigate to "/"` silencioso, mostrar `<AccessDenied />` (rota `/sem-permissao` ou inline). Atualmente `Social.tsx` já faz isso ad-hoc — extrair.
+- `richColors`: success verde, error vermelho, warning amarelo, info azul
+- `closeButton`: dismissable
+- Duration 5000 para `toast.error` (mais tempo para ler)
 
-Adicionar helper `useGuardedAction(perm, fn)` que mostra toast "Sem permissão" se `!can(perm)`. Não obriga uso, mas disponível para grids onde botões podem aparecer brevemente antes do `can`.
+### DetailError com retry padrão
+Adicionar prop `onRetry?: () => void`:
+```tsx
+<DetailError onRetry={() => refetch()} />
+```
+Renderiza botão "Tentar novamente" automático quando passado.
 
-### Fase 7 — Auditar `setSaving` manual (corrige #4)
-NÃO migrar todos os 30 lugares (refactor amplo). Migrar 4 críticos com problema real:
-- `Fornecedores.handleSubmit` — esquece toast de erro;
-- `Fiscal.handleSubmit` (linha 489) — catch incompleto;
-- `OrcamentoForm.onSubmit` — toast duplo possível;
-- `BaixaParcialDialog.handleSubmit` — race com onClose.
+### AccessDenied com ação padrão
+Adicionar botão "Voltar ao início" default (link para `/`), opcional via prop `showBackButton?: boolean = true`.
 
-Demais ficam como nota técnica para próxima passada.
+### Skeleton com tom contextual
+Adicionar variant `Skeleton` com prop `tone?: 'default' | 'card'`:
+- `default`: `bg-muted` (atual)
+- `card`: `bg-muted-foreground/10` (mais escuro, contrasta com `bg-card`)
 
-### Fase 8 — Corrigir disable de "Cancelar" durante saving (corrige #10)
-Não pelo wrapper FormModal (já tem `confirmOnDirty`), mas regra: `<Button onClick={onCancel} disabled={saving}>` em todos os modais ad-hoc identificados. Aplicar nos 4 do escopo da Fase 7.
+### Diferenciação visual entre Empty/Error/AccessDenied
+- Empty: ícone neutro em círculo `bg-muted` (mantém)
+- Error: ícone em círculo `bg-destructive/10`, título `text-destructive` (mantém)
+- AccessDenied: ícone em círculo `bg-warning/10 text-warning`, título neutro (muda — hoje usa DetailEmpty)
+- NoResults: ícone em círculo `bg-info/10 text-info`
 
-### Fase 9 — `useSupabaseCrud` chama `getUserFriendlyError` em loading
-Já listado em #5/#8 — pequena edição focada.
-
-## Fora do escopo
-- Migrar todos os 22 arquivos com `<div>Carregando...</div>` para skeletons (refactor visual).
-- Substituir todos os spinners ad-hoc por `<Spinner>` (gradual).
-- Refatorar todos os 30 `setSaving` para `useSubmitLock` (próxima passada).
-- Não criar novos hooks de permissão — apenas componentizar resultado visual.
-- Não tocar em `ErrorBoundary` (já refatorado anteriormente).
-
-## Critério de aceite
-- `EmptyState` único (sem duplicação de arquivo).
-- Spinner padronizado em route guards + LazyPage.
-- `toastCrud` disponível e usado em pelo menos `useSupabaseCrud`.
-- Zero erro silencioso nos 11 pontos identificados.
-- `useSupabaseCrud` usa `getUserFriendlyError`.
-- `AccessDenied` componente único; `AdminRoute`/`SocialRoute` consistentes.
-- 4 hotspots de `setSaving` migrados para `useSubmitLock` ou catch corrigido.
-- Build OK; zero regressão funcional.
+Cada um com cor de fundo do círculo diferente → leitura instantânea.
 
 ## Arquivos afetados
-- `src/components/EmptyState.tsx` — re-export adaptador
-- `src/components/ui/empty-state.tsx` — manter como fonte
-- `src/components/ui/spinner.tsx` — criar
-- `src/lib/toastMessages.ts` — criar
-- `src/components/AccessDenied.tsx` — criar
-- `src/components/AdminRoute.tsx` — usar `Spinner` + `AccessDenied`
-- `src/components/ProtectedRoute.tsx` — usar `Spinner`
-- `src/components/SocialRoute.tsx` — usar `Spinner` + `AccessDenied`
-- `src/App.tsx` (LazyPage) — usar `Spinner`
-- `src/hooks/useSupabaseCrud.ts` — `getUserFriendlyError` + `toastCrud` opcional
-- `src/pages/Fornecedores.tsx` — toast no catch + cancel disabled
-- `src/pages/Fiscal.tsx` — limpar catch incompleto
-- `src/pages/OrcamentoForm.tsx` — evitar toast duplo
-- `src/components/financeiro/BaixaParcialDialog.tsx` — cancel disabled durante saving
-- `src/pages/ContasContabeis.tsx`, `src/pages/Remessas.tsx`, `src/components/precos/PrecosEspeciaisTab.tsx`, `src/pages/Social.tsx` — `getUserFriendlyError` em vez de string fixa
-- `src/pages/Social.tsx` — usar `<AccessDenied>` no lugar do bloco ad-hoc
+
+### Core (componentes)
+- `src/components/ui/spinner.tsx` — `label` renderizado abaixo do spinner em `FullPageSpinner`/`ContentSpinner`
+- `src/components/ui/empty-state.tsx` — adicionar prop `variant` com cores diferenciadas
+- `src/components/ui/NoResultsState.tsx` — **novo**: wrapper para filtros vazios
+- `src/components/ui/DetailStates.tsx` — `DetailError` aceita `onRetry`; `DetailEmpty` aceita `variant`
+- `src/components/AccessDenied.tsx` — botão "Voltar ao início" default + ícone com `bg-warning/10`
+- `src/components/ui/skeleton.tsx` — prop `tone` opcional
+- `src/components/ui/sonner.tsx` — `richColors`, `closeButton`, position `bottom-right`, duration por tipo
+
+### Adopters (sample, não exaustivo)
+- `src/components/ProtectedRoute.tsx` — passar `label="Carregando sessão..."`
+- `src/components/AdminRoute.tsx` — `label="Verificando permissões..."`
+- `src/components/SocialRoute.tsx` — `label="Verificando permissões..."`
+- `src/App.tsx` (LazyPage) — `label="Carregando página..."`
+
+### Documentação inline
+- Adicionar exemplos JSDoc em cada componente afetado mostrando os 4 cenários (default, noResults, firstUse, error com retry).
+
+## Fora do escopo
+- Migrar todos os ~50 callers de `EmptyState` para variants apropriados (refactor amplo).
+- Trocar todos os ícones de empty/error nas páginas (catálogo de ícones futuro).
+- Configurar i18n de mensagens de loading.
+- Refatorar `ErrorBoundary` global para variante "card" (próxima passada).
+- Migrar todos os toasts hardcoded para `toastCrud` (passada anterior já cobriu hooks).
+
+## Critério de aceite
+- Spinner com mensagem "Carregando..." (default) e específica nos route guards.
+- Empty/Error/NoResults/AccessDenied com cores de fundo distintas no círculo do ícone.
+- `NoResultsState` disponível como helper para filtros vazios.
+- Toast com `richColors` + `closeButton` + posição bottom-right.
+- `DetailError` aceita `onRetry` com botão automático.
+- `AccessDenied` com botão "Voltar ao início".
+- `Skeleton` com tom opcional para fundos de card.
+- Build OK; zero regressão funcional.
 
 ## Entregáveis
-Resumo final por categoria: empty/loading/error/toast/permissão/saving lock.
+Resumo final por categoria: spinner/loading, empty state (default/noResults/firstUse), error (com retry), accessDenied, skeleton, toast.
 
