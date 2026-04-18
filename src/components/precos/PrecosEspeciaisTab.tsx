@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { AutocompleteSearch } from "@/components/ui/AutocompleteSearch";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { getUserFriendlyError } from "@/utils/errorMessages";
 
 interface Props {
   clienteId?: string;
@@ -98,7 +99,8 @@ export function PrecosEspeciaisTab({ clienteId, produtoId }: Props) {
       });
       fetchData();
     } catch (err) {
-      toast.error("Erro ao salvar regra de preço");
+      console.error('[precos-especiais] erro ao salvar:', err);
+      toast.error(getUserFriendlyError(err));
     }
   };
 
