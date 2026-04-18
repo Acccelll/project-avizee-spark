@@ -1,149 +1,278 @@
 
 
-# Diagnóstico visual — Fluxos de Criação
+# Diagnóstico técnico — Relatórios, Exportações e Impressão
 
-## Inventário visual
+## Inventário dos pontos de exportação
 
-| Fluxo | Container | Topo do form | "Criar e continuar"? | Feedback pós-create |
+| Local | CSV | Excel | PDF | Service usado |
 |---|---|---|---|---|
-| Cliente, Fornecedor, Funcionário, Transportadora, Produto, Conta, Forma Pgto, Unidade, Grupo Econ. | `FormModal` | Título "Novo X" / "Editar X" sem hint extra | ❌ | toast simples, modal fecha |
-| Remessa modal | `FormModal` | idem | ❌ | toast |
-| Cotação Compra, Pedido Compra (modal) | `FormModal` | título + número (em edit) | ❌ | toast |
-| NF | `FormModal` | título sem orientação | ❌ | toast |
-| Orçamento | `PageShell` (página) | título + nº gerado, sem chip "Rascunho" | ❌ | toast + navigate |
-| Pedido Compra/Cotação/Remessa Page | `PageShell` | similar a orçamento | ❌ | toast + navigate |
+| `Relatorios.tsx` (módulo central) | ✓ | ✓ | ✓ | `services/export.service.ts` (config-aware) |
+| `DataTable.tsx` (toolbar genérica) | ✓ | ✓ | ✓ | inline (XLSX direto + jsPDF cru) |
+| `Conciliacao.tsx` | — | ✓ | — | `export.service` |
+| `FluxoCaixa.tsx` | — | ✓ | — | `export.service` |
+| `useFinanceiroActions` | — | ✓ | ✓ | `export.service` |
+| `admin/Logs.tsx` | — | ✓ | ✓ | `export.service` |
+| `Social.tsx` | ✓ | ✓ | — | `social.service.ts` (paralelo) |
+| `OrcamentoForm.tsx` | — | — | ✓ | `html2canvas + jsPDF` (PDF visual) |
+| `WorkbookGerencial.tsx` | — | ✓ | — | `workbookService` (template-first) |
+| `relatorios.service.ts` linhas 1086-1138 | ✓ | ✓ | — | **dead code** (sem callers) |
+
+Coexistem **3 implementações distintas de exportação** (export.service, DataTable inline, social.service) + 2 helpers mortos. Sem norma única.
 
 ## Problemas reais
 
-### 1. Topo do formulário não comunica que é criação
-Hoje todos usam apenas "Novo Cliente" / "Editar Cliente" como título. Sem chip visual diferenciando o modo, sem orientação inicial ("preencha os dados básicos para criar..."), sem indicação do que é obrigatório vs opcional. Em telas de página (`PageShell`), o título "Novo Orçamento" aparece sozinho ao lado do número RPC — visualmente igual a edit.
+### A. Filtros & parâmetros
 
-### 2. Sem distinção visual entre criar e editar
-- Mesmo botão "Salvar" em ambos (FormModalFooter já tenta com "Salvar" vs "Salvar Alterações" — mas a maioria das telas passa `primaryLabel` custom e quebra o padrão).
-- Mesma cor de header.
-- Em edit, `identifier` (CPF/CNPJ) aparece ao lado do título; em create, fica "vazio" — falta um chip "Novo registro" para preencher o espaço e criar simetria.
+#### A1. `tiposFinanceiros` ignora arrays vazios diferente entre relatórios
+- `case "financeiro"`: `if (filtros.tiposFinanceiros)` — array vazio entra no `.in()` e quebra (Supabase retorna 0 linhas).
+- `case "fluxo_caixa"`: `if (filtros.tiposFinanceiros?.length)` — correto.
+- Em `Relatorios.tsx:118`, o estado já normaliza para `undefined` quando vazio, então hoje não dá bug. Mas a inconsistência fica no service e quebra qualquer caller futuro.
 
-### 3. Sem orientação inicial em create
-Modais de cliente/fornecedor/funcionário abrem com 6+ tabs visíveis, todas vazias. Nada diz "comece pelos dados básicos". Usuário olha 80 campos sem hierarquia mental. Falta:
-- mensagem curta no topo do modo create ("Preencha os campos essenciais; complementares ficam disponíveis após salvar.")
-- destaque visual nos campos obrigatórios da primeira dobra
+#### A2. `clienteIds`/`fornecedorIds`/`grupoProdutoIds` mesma armadilha
+Em `relatorios.service.ts` várias branches usam `if (filtros.X)` em vez de `if (filtros.X?.length)`. Ex.: linhas 166, 223, 283, 413, 461. Se o caller passar `[]`, retorna 0 linhas silenciosamente.
 
-### 4. Primeira dobra não prioriza essencial
-- Em `Clientes`, o modal abre direto na tab "Dados" — ok, mas mistura "tipo pessoa", "razão social", "fantasia", "CPF/CNPJ", "IE", "RG", "data nasc.", "regime tributário" em uma grid igual. Sem "campos obrigatórios primeiro".
-- Em `Fiscal`, primeiros campos visíveis são `numero`, `serie`, `modelo` — ok — mas `tipo` (entrada/saída) que **decide tudo** vem no meio.
-- Em `OrcamentoForm`, primeiro campo visível costuma ser o número (auto-gerado) seguido de status — info de baixa prioridade na criação.
+#### A3. Subquery N+1 em `movimentos_estoque` (linha 223-225)
+```ts
+if (filtros.grupoProdutoIds) query = query.in('produto_id', (
+  await supabase.from('produtos').select('id').in('grupo_id', filtros.grupoProdutoIds)
+).data?.map(p => p.id) || []);
+```
+- Roda **antes** do query principal (`await` no meio do `.in()`).
+- Se a lista de produtos for >1000, o filtro retorna parcial (limite default Supabase). Sem `.limit(10000)`.
+- Quando dá erro, devolve `[]` → query principal vira `produto_id IN ()` → 0 resultados sem aviso.
 
-### 5. Falta "criar e continuar" / "criar outro"
-Cadastros leves (cliente, fornecedor, produto, transportadora, conta, forma pgto, unidade) frequentemente são criados em sequência (ex.: cadastrar 5 fornecedores). Hoje cada save fecha o modal e força click no botão "Novo" de novo. Padrão Linear/Notion: secondary action "Salvar e criar outro".
+#### A4. `tiposFinanceiros` falha silenciosa pós-filter
+Em `case "financeiro"` (linha 283), quando `filtros.tiposFinanceiros = []`, `.in('tipo', [])` retorna sempre 0. O caller atual evita, mas não há defesa no service.
 
-### 6. Feedback pós-create muito apagado
-- Toast genérico "Registro criado com sucesso" some em 4s.
-- Em página (`OrcamentoForm`), navega para edit sem destaque do "que mudou" (número novo, status rascunho).
-- Sem estado "acabou de criar" (banner sutil "Orçamento PV-0123 criado. Adicione itens abaixo.").
+#### A5. DRE com cálculo de período local-time
+Em `buildDreDateRange` (linha 35-47), o cálculo do último dia do mês usa `new Date(y, m, 0)` no fuso local. Em servidor UTC seria ok; no browser pt-BR resulta correto, mas concatenar `.toISOString().slice(0, 10)` em horário próximo da meia-noite pode dar dia anterior. Risco baixo mas presente.
 
-### 7. Encerramento do fluxo sem CTA contextual
-Após create:
-- No modal, o usuário fica olhando lista atualizada — sem "ver registro" no toast, sem highlight do row novo.
-- Em página, navega para edit mas sem "próximo passo" claro (ex.: "Adicione itens" → CTA visível).
+#### A6. Filtros de cliente/fornecedor não chegam em todos os relatórios
+- `vendas` filtra por `cliente_id` ✓
+- `vendas_cliente`, `compras_fornecedor` (rankings) — verificar (provavelmente recebem o filtro mas o ranking ignora se o cliente não tem vendas no período)
+- `aging`, `dre` — `clienteIds`/`fornecedorIds` chegam mas alguns case do switch não os aplicam. Inconsistência por relatório.
 
-### 8. Cancelar visualmente igual a Salvar em alguns pontos
-- `FormModalFooter` ✓ separa bem (outline vs primary).
-- Mas em `OrcamentoForm` e outros pages, botões "Cancelar"/"Salvar" no header às vezes ficam pequenos/iguais.
-- Em `BaixaParcialDialog` e modais legacy, botões na mesma linha sem hierarquia.
+### B. Geração & consistência
 
-### 9. Sem indicador de progresso em forms longos
-`Clientes`, `Funcionarios`, `Produtos` têm 5-7 tabs com 8-15 campos cada. Já existe `FormProgress` (component) — mas só `Produtos` usa. Cliente/Fornecedor/Funcionário se beneficiariam: usuário vê "3 de 5 seções preenchidas".
+#### B1. KPIs ≠ totais ≠ rodapé
+3 caminhos de cálculo:
+- `kpis` no service (`totalReceber`, `totalPagar` etc.)
+- `totals` no service (campos arbitrários)
+- `footer` na UI (`Relatorios.tsx:434-444`) recalcula `Number(r[col.key] || 0)` por coluna marcada `footerTotal`
 
-### 10. Footer sticky inconsistente
-`FormModal` ✓ tem footer sticky via `footer` prop. Mas várias telas ainda inserem botões dentro do `<form>` no fim, sem sticky → em modal scroll, usuário precisa rolar até o fim para salvar. Telas afetadas: `ContasBancarias`, `FormasPagamento`, `UnidadesMedida`, `GruposEconomicos`, `Remessas` modal.
+Em `vendas`, o KPI `totalVendido` é a soma de **todos** os pedidos, mas o rodapé soma a coluna `valor` da `sortedRows` (já filtrada por status). Filtros aplicados no client → discrepância KPI vs rodapé. Usuário vê KPI = R$ 100k e rodapé = R$ 60k sem explicação.
 
-### 11. Campos obrigatórios sem marcação visual consistente
-- Alguns labels têm `*` (Funcionários: "Nome *", "CPF *").
-- Outros não (Clientes, Fornecedores, Produtos).
-- Sem padrão. `Label` component não suporta `required` prop.
+#### B2. Reconstrução do filter no client
+`filtrarPorStatus` e `sortarRows` (em `utils/relatorios.ts`) rodam **depois** do fetch. Ou seja:
+- KPIs do `resultado.kpis` refletem o universo do banco.
+- Rows visíveis (`sortedRows`) refletem filtro client.
+- Export usa `sortedRows` → exporta o que o usuário vê ✓ correto.
+- Mas o **PDF inclui o rodapé "Total de registros: N"** baseado em `rows.length` no service (`export.service.ts:349`), não no `sortedRows.length`. Wait — passamos `sortedRows` como `rows`, então `rows.length` é o filtrado. ✓ ok.
 
-### 12. Steppers ausentes em fluxos multi-etapa
-Orçamento e Pedido Compra são naturalmente sequenciais (cliente → itens → condições → frete), mas renderizados como uma página plana com cards empilhados. Sem stepper, sem "salvar rascunho a cada etapa". Não é problema crítico (ERPs costumam usar form único), mas falta um indicador visual de "onde estou no fluxo".
+Real bug: o **rodapé visual** (`Relatorios.tsx:438`) usa `sortedRows.reduce(...)`, mas o KPI usa `kpis` do service. Inconsistência declarada.
 
-## Padrão-base proposto
+#### B3. Agrupamento "valor_desc" quebra ordem temporal sem aviso
+`sortarRows` em `utils/relatorios.ts:144` ordena por `valor`/`valorTotal`. Em `fluxo_caixa`, `valor` não existe na linha (campos são `entrada`/`saida`/`saldo`). Resultado: ordenação no-op silenciosa. Usuário escolhe "Maior valor" e nada muda.
 
-### A. Chip "Novo registro" no topo (FormModal + PageShell)
-- `FormModal`: quando `mode === "create"` (nova prop `mode?: "create" | "edit"`), renderiza chip verde sutil "Novo" ao lado do título. Em edit, mantém comportamento atual com `identifier`.
-- `PageShell`: nova prop `badge?: ReactNode` para chip ao lado do título (opcional).
+#### B4. `_isQuantityReport` flag espalha condicional na UI
+- `formatCellValue(value, key, isQuantityReport)` decide se trata número como moeda ou quantidade.
+- Heurística: `["valor", "custo", "venda", "entrada", "saida"].some(f => key.includes(f))` → moeda.
+- Em `movimentos_estoque`, `quantidade` é número e `entrada`/`saida` são labels (não keys). OK.
+- Mas em `fluxo_caixa.entrada`/`saida`, são valores monetários e o flag `_isQuantityReport=false` faz funcionar. Frágil — depende de string matching de chave.
 
-### B. `Label` com `required` prop
-- Adicionar prop opcional `required?: boolean` ao `Label` que renderiza asterisco vermelho com tooltip "Obrigatório".
-- Não migrar todos os labels nesta passada — fornecer e adotar nos 4 forms críticos (Cliente, Fornecedor, Funcionário, Produto).
+#### B5. Datas string vs Date no service
+- `data_emissao`, `data_vencimento` chegam como `"YYYY-MM-DD"` strings.
+- O service converte com `new Date(data)` (linha 299) sem o helper `normalizeDate` de `lib/format.ts`. Em fuso negativo, `new Date("2024-01-15")` dá dia 14 às 21h local. Cálculo de `atraso` pode errar 1 dia.
 
-### C. Hint inicial em create (FormModal)
-- Nova prop `createHint?: ReactNode` no `FormModal`. Quando passada e `mode === "create"`, renderiza banner sutil acima do conteúdo:
-  ```
-  💡 Preencha os campos essenciais; informações complementares ficam disponíveis após salvar.
-  ```
+### C. Exportação (CSV/Excel/PDF)
 
-### D. "Salvar e criar outro" em FormModalFooter
-- Nova prop `onSaveAndNew?: () => void` no `FormModalFooter`. Quando passada e `mode === "create"`, adiciona botão secundário "Salvar e criar outro" entre cancelar e salvar.
-- Implementação: ao clicar, chama submit e mantém modal aberto com form resetado.
-- Adotar em 4 cadastros leves de alta cardinalidade: Produto, Cliente, Fornecedor, Forma Pgto.
+#### C1. **CSV sem BOM UTF-8**
+Todos os 4 emissores de CSV (`export.service`, `DataTable`, `social.service`, `ReconciliacaoDetalhe`) gravam apenas `text/csv;charset=utf-8` sem `\uFEFF`. Excel pt-BR abre como Windows-1252 → "São Paulo" vira "São Paulo". **Bug real e visível** em qualquer cliente Excel desktop.
 
-### E. Toast pós-create com identificador
-- Helper novo `toastCrud.createdWithId(entity, id)` — toast com título "X criado" + sublabel "ID: PV-0123" + duração 5s.
-- Adotar em hooks que têm número/código (Orçamento, Pedido, Cotação, NF).
+#### C2. Nome de arquivo sem sanitização nem timestamp
+`exportarParaCsv({ titulo: "Contas a Pagar e Receber" })` → arquivo `Contas a Pagar e Receber.csv` com espaços e acentos. Em alguns sistemas o `a.download` quebra. Sem uso de `toSlug` (que existe em `lib/utils.ts`) nem timestamp para evitar overwrite.
 
-### F. Banner "acabou de criar" em pages
-- Em `OrcamentoForm` (e similares), quando navegar `?created=1` na URL, mostra banner verde sutil por ~10s "Orçamento PV-0123 criado. Adicione itens abaixo." com CTA scroll-to-itens.
-- Implementação: query param `?created=1` na navegação pós-save; banner desmonta no primeiro click ou após timeout.
+#### C3. Três caminhos de XLSX divergentes
+- `export.service.ts` usa `exceljs` (correto, sem prototype pollution — alinhado com memória `relatorios`).
+- `DataTable.tsx:373-377` e `social.service.ts:132-140` usam `XLSX` (`xlsx-compat`). 
+- Memória `features/relatorios` define **exceljs como padrão**. `DataTable` e `social` violam.
 
-### G. Footer sticky padronizado
-- Padronizar uso de `footer={<FormModalFooter ... />}` em todos os modais. Migrar 5 telas que ainda têm botões inline no fim.
+#### C4. PDF jsPDF "cru" no DataTable (linha 382-407)
+- Renderiza `pdf.text(line.slice(0, 180), ...)` numa linha só, sem tabela. Resultado ilegível.
+- 50 rows fixos por página, sem paginação dinâmica nem cabeçalho de tabela. Existe `export.service.buildPdfDocument` muito melhor — DataTable não usa.
+- Toolbar global do DataTable oferece "Exportar PDF" para qualquer tela; usuário aciona e recebe lixo.
 
-### H. Hierarquia create vs edit no header (FormModal)
-- Em create: chip "Novo" (verde sutil) + título.
-- Em edit: identifier (CPF/SKU/número) + status badge + meta (atualmente já existe).
-- Diferenciação visual instantânea.
+#### C5. Validação `if (!rows.length) return` divergente
+- `exportarParaCsv` baixa arquivo "Sem dados para exportação" (texto na cara).
+- `exportarParaExcel` retorna sem fazer nada (sem aviso).
+- `exportarParaPdf` segue o fluxo e faz PDF vazio.
 
-## Implementação (escopo)
+Inconsistência: usuário pede Excel sem dados → nada acontece, ele clica de novo.
 
-### Componentes core
-1. `src/components/ui/label.tsx` — adicionar `required?: boolean` com asterisco.
-2. `src/components/FormModal.tsx` — adicionar `mode?: "create" | "edit"`, renderizar chip "Novo" quando create, suportar `createHint`.
-3. `src/components/FormModalFooter.tsx` — adicionar `onSaveAndNew` opcional + botão.
-4. `src/components/PageShell.tsx` — adicionar `badge?: ReactNode` ao lado do título.
-5. `src/lib/toastMessages.ts` — adicionar `toastCrud.createdWithId(entity, id)`.
+#### C6. Sem loading durante geração no `Relatorios.tsx`
+`handleExportXlsx`/`handleExportPdf` são `async` (chamam `exceljs` + `jsPDF` dinamicamente, ~200ms+). Mas o handler chama `toast.success(...)` antes mesmo do `await` resolver de fato (na verdade após — ok), e **não tem `toast.loading`/lock de botão**. Usuário em conexão lenta clica 3x → 3 PDFs. `DataTable` ✓ tem loading com `toast.loading + id`. Inconsistência.
 
-### Adopters (sample, não exaustivo)
-6. `src/pages/Clientes.tsx` — `mode="create"` no FormModal, `createHint`, marcar required em "Nome", "CPF/CNPJ", "Tipo pessoa".
-7. `src/pages/Fornecedores.tsx` — mesmo padrão + `onSaveAndNew`.
-8. `src/pages/Funcionarios.tsx` — `mode`, `createHint`, required já marcados (validar consistência).
-9. `src/pages/Produtos.tsx` — `mode`, `createHint`, `onSaveAndNew`.
-10. `src/pages/Fiscal.tsx` — `mode`, `createHint` específico ("Importe XML para preenchimento automático").
-11. `src/pages/CotacoesCompra.tsx` — `mode`, `createHint`.
-12. `src/pages/Remessas.tsx` — `mode`.
-13. `src/pages/ContasBancarias.tsx`, `FormasPagamento.tsx`, `UnidadesMedida.tsx`, `GruposEconomicos.tsx`, `Transportadoras.tsx` — `mode` + footer sticky se faltar.
-14. `src/pages/OrcamentoForm.tsx` — `badge` "Novo" ou nº gerado; banner pós-create via `?created=1`.
+#### C7. Limite arbitrário de 200 rows no PDF
+`PDF_MAX_ROWS = 200` em `export.service.ts:188`. Hardcode global. Não é por relatório (DRE tem ~30 linhas, vendas pode ter 5000). Sem opção de "exportar paginado" — só Excel resolve. Aviso impresso no próprio PDF (linha 317), mas o usuário só vê depois de gerar. UX ruim.
 
-### Banner pós-create
-15. `src/components/JustCreatedBanner.tsx` — **novo**: banner dismissable que lê `?created=1` da URL.
-16. Adotar em `OrcamentoForm`, `PedidoCompraForm`, `CotacaoCompraForm`, `RemessaForm`.
+#### C8. PDF não inclui linha de totais nem KPIs
+`buildPdfDocument` imprime "Total de registros: N" mas **não imprime os KPIs** (`totalReceber`, `totalPagar` etc.) nem o rodapé de totais por coluna que aparece na UI. Pré-visualização e exportação divergem.
+
+#### C9. Cabeçalho PDF hardcoded vermelho `(105,5,0)`
+`doc.setFillColor(105, 5, 0)` (linha 288). Sem relação com o tema/paleta da empresa. Empresa branca-azul recebe PDF com header vinho-escuro. Não é design (fora do escopo) mas é técnico — cor mágica sem constante nomeada.
+
+#### C10. Empresa info parcialmente carregada no PDF
+`empresaConfig` vem de `useRelatoriosFiltrosData`. Se a query falhar/estiver carregando, PDF gera **sem cabeçalho da empresa**. Sem fallback nem aviso.
+
+### D. Impressão
+
+#### D1. Sem suporte real a impressão
+- Único `print:` no projeto: `Relatorios.tsx:478` (`print:space-y-4`) — define spacing para print mas **não há botão "Imprimir"** em parte alguma.
+- `PreviewModal` é usado como pré-visualização, mas seu `Dialog` por padrão tem `print` styles que escondem overlay, então `Ctrl+P` no dialog imprime a página de fundo, não o modal.
+- `OrcamentoPdfTemplate` é otimizado para html2canvas, não para impressão direta.
+
+Alternativas:
+- Adicionar botão "Imprimir" no `PreviewModal` que dispara `window.print()` com CSS `@media print` que esconde tudo exceto o modal.
+- Para orçamento/NF, expor PDF como impressão real.
+
+#### D2. Quebra de página inexistente
+Sem `page-break-before/after/avoid` nas tabelas. Imprimir uma lista de 200 linhas → tabela cortada no meio sem cabeçalho repetido na próxima página.
+
+### E. Estrutura de código
+
+#### E1. `relatorios.service.ts` com 1164 linhas (god module)
+- 15 cases de relatório no mesmo `switch`.
+- Lógica de raw shape + map + agregação + KPI + chartData inline em cada case (~60 linhas cada).
+- Funções `exportarCsv`/`exportarXlsx`/`formatCellValue` no fim — **`exportarCsv` e `exportarXlsx` não têm caller** (replaced por `export.service.ts`).
+- `formatCellValue` duplicado: usado pelo `Relatorios.tsx` (linha 165) e mais elaborado em `formatCellValuePdf` (no `export.service`).
+
+#### E2. Helpers de export espalhados
+- `services/export.service.ts` (CSV/Excel/PDF config-aware) — bom, deve ser o único.
+- `services/relatorios.service.ts` linhas 1086-1138 — duplicata morta.
+- `services/social.service.ts:125-141` — versão própria (sem BOM, sem column config).
+- `components/DataTable.tsx:358-421` — versão própria inline.
+- `components/importacao/ReconciliacaoDetalhe.tsx:49-51` — outro CSV inline.
+
+#### E3. Formatação repetida
+`new Date(x).toLocaleDateString("pt-BR")` aparece em 217 ocorrências em 24 arquivos. Existe `formatDate` em `lib/format.ts`. Adoção parcial.
+
+#### E4. Sem tipo único para "linha de relatório exportável"
+`ExportColumnDef` existe (`export.service`), mas cada caller monta o array de rows com tipo `Record<string, unknown>`. Não há tipagem por relatório. Em `Logs.tsx`/`Conciliacao.tsx`/`FluxoCaixa.tsx`/`useFinanceiroActions.ts`, cada um redefine os labels manualmente em 4 lugares — risco de divergência (Excel vs PDF vs UI).
+
+## Estratégia de correção (escopo desta passada)
+
+### Fase 1 — CSV BOM (crítico, 1 linha por emissor)
+Adicionar `\uFEFF` no início do conteúdo CSV em:
+- `services/export.service.ts:78,88` — `exportarParaCsv`
+- `services/social.service.ts:128` — `exportSocialCsv`
+- `components/DataTable.tsx:367` — inline CSV
+- `components/importacao/ReconciliacaoDetalhe.tsx:49` — inline CSV
+
+Resultado: Excel desktop pt-BR abre acentuado correto.
+
+### Fase 2 — Sanitizar nome de arquivo + timestamp
+Criar helper em `lib/utils.ts`:
+```ts
+export function buildExportFilename(title: string, ext: string): string {
+  const slug = toSlug(title) || 'export';
+  const ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+  return `${slug}_${ts}.${ext}`;
+}
+```
+Adotar em `export.service.ts` (CSV/Excel/PDF) e nos 3 callers inline (DataTable, social, reconciliação).
+
+### Fase 3 — Defesa contra arrays vazios em filtros
+Em `relatorios.service.ts`, normalizar todas as branches:
+```ts
+if (filtros.clienteIds?.length) query = query.in('cliente_id', filtros.clienteIds);
+```
+Aplicar em linhas 166, 223, 283, 352, 413, 461 e demais ocorrências.
+
+### Fase 4 — Subquery `movimentos_estoque` com limite
+Em `relatorios.service.ts:223-225`, mover a busca pra fora do `.in()`, adicionar `.limit(10000)` defensivo, e logar/avisar se `error`:
+```ts
+let produtoIds: string[] | null = null;
+if (filtros.grupoProdutoIds?.length) {
+  const { data: prods, error: prodErr } = await supabase
+    .from('produtos').select('id')
+    .in('grupo_id', filtros.grupoProdutoIds).limit(10000);
+  if (prodErr) throw prodErr;
+  produtoIds = prods?.map(p => p.id) ?? [];
+}
+if (produtoIds) query = query.in('produto_id', produtoIds);
+```
+
+### Fase 5 — Loading + lock em export do Relatorios.tsx
+Migrar `handleExportXlsx`/`handleExportPdf` para o padrão `toast.loading + id` que `DataTable` já usa, e adicionar `useState isExporting` para desabilitar botões durante o `await`.
+
+### Fase 6 — Validação consistente "sem dados"
+Em `export.service.ts`:
+- `exportarParaExcel`: emitir `toast.warning("Nenhum dado para exportar")` (importar `sonner`) e retornar.
+- `exportarParaPdf`: idem.
+- `exportarParaCsv`: trocar arquivo "Sem dados…" por `toast.warning` + return.
+
+(O caller `Relatorios.tsx` já valida `sortedRows.length`, mas outros — `Conciliacao`, `Logs`, `useFinanceiroActions` — não. Defesa em service.)
+
+### Fase 7 — Remover código morto
+Em `services/relatorios.service.ts`, deletar `exportarCsv`, `exportarXlsx`, `formatCsvValue` (linhas 1086-1145). `formatCellValue` mantém — é usado.
+
+### Fase 8 — DataTable PDF: usar export.service
+Em `components/DataTable.tsx`, substituir o bloco PDF inline (linhas 382-407) por chamada a `buildPdfDocument`/`exportarParaPdf` do `export.service`. Mesma para Excel — usar `exportarParaExcel` em vez de `XLSX.writeFile` direto. Remove duplicação e padroniza saída.
+
+### Fase 9 — Padronizar `social.service` em `export.service`
+Refatorar `exportSocialCsv`/`exportSocialXlsx` para delegar a `exportarParaCsv`/`exportarParaExcel`, passando `columns` definidas. Mantém API pública para o caller, muda implementação. (O multi-sheet do social precisa de extensão em `exportarParaExcel` aceitando `sheets?: { name: string; rows: ...; columns?: ... }[]` — adicionar suporte.)
+
+### Fase 10 — `agrupamento` defensivo
+Em `utils/relatorios.ts:sortarRows`, quando `valor`/`valorTotal` ausentes, tentar `entrada + saida` (fluxo de caixa). Documentar via JSDoc qual chave é considerada.
+
+### Fase 11 — Botão "Imprimir" no PreviewModal
+Adicionar prop `onPrint` opcional ou botão fixo "Imprimir" no `PreviewModal` que chama `window.print()`, com CSS global mínimo:
+```css
+@media print {
+  body * { visibility: hidden; }
+  .print-area, .print-area * { visibility: visible; }
+  .print-area { position: absolute; inset: 0; }
+}
+```
+Aplicar classe `print-area` no conteúdo do modal. Em `Relatorios.tsx`, adicionar `onPrint` ao `PreviewModal`.
+
+### Fase 12 — Coerência KPI ↔ rodapé ↔ export
+Documentar (JSDoc) e enforce: KPIs do `resultado.kpis` são do **universo do banco** (filtros server-side); o rodapé visual e o export usam **rows visíveis** (após filtros client). Adicionar nota visual sutil quando os dois divergem (`hiddenColumns + filtrarPorStatus + sortarRows` aplicados): "Filtros locais aplicados — totais refletem visíveis." Implementação: comparar `rows.length` vs `sortedRows.length` em `Relatorios.tsx` e exibir hint.
 
 ## Fora do escopo
-- Stepper visual em orçamento/pedido (mudança de paradigma; fica para passada futura).
-- Migrar todos os labels do projeto para `required`.
-- Highlight do row novo na lista pós-create (mudança em DataTable).
-- Refatorar modais grandes (Clientes 1633 linhas) em sub-componentes — refactor amplo.
-- Trocar `FormProgress` (já existe e é opt-in) — adoção em todos os forms grandes fica para outra passada.
+- Quebrar `relatorios.service.ts` em arquivos por relatório (refactor amplo, ~15 modules).
+- `@react-pdf/renderer` para PDFs visualmente fiéis (mudança de stack).
+- Repetição de cabeçalho de tabela em impressão multi-página.
+- Substituir `xlsx-compat` por `exceljs` em todos os hooks de importação (eles leem, não escrevem — risco baixo).
+- Migrar todas as 217 ocorrências de `toLocaleDateString` para `formatDate`.
+- Alinhar cor do PDF com tema da empresa (depende de design tokens).
+- Tipagem por relatório das `ExportRow` (precisa schema por tipo).
 
 ## Critério de aceite
-- `FormModal` com chip "Novo" visível em create, distinto de edit.
-- `Label` aceita `required` e renderiza asterisco vermelho.
-- `FormModalFooter` aceita `onSaveAndNew` e renderiza botão secundário em create.
-- Pelo menos 4 cadastros leves usam "Salvar e criar outro".
-- 4 cadastros pesados (Cliente, Fornecedor, Funcionário, Produto) marcam campos obrigatórios visualmente.
-- Banner pós-create aparece nos 4 documentos pesados (Orçamento, Pedido, Cotação, Remessa) via `?created=1`.
-- `toastCrud.createdWithId` disponível e usado em hooks que geram número.
-- Footer sticky em todos os modais (5 telas migradas).
-- Build OK; zero regressão funcional.
+- CSV gerado abre com acentos corretos no Excel desktop pt-BR (BOM presente).
+- Nomes de arquivo sanitizados + timestamp (`vendas-por-periodo_2026-04-18-14-30-00.xlsx`).
+- Filtros multi-select com array vazio não derrubam o resultado para 0.
+- `movimentos_estoque` com filtro de grupo: erro de subquery sobe (não silencia).
+- Botões de export do Relatorios mostram loading e ficam desabilitados durante o `await`.
+- "Nenhum dado" → toast warning único em todos os formatos.
+- `relatorios.service.ts` sem código morto (`exportarCsv`/`exportarXlsx` removidos).
+- `DataTable` PDF usa `buildPdfDocument` (saída tabular profissional).
+- `social.service` exports delegam para `export.service`.
+- `PreviewModal` aceita `onPrint` e dispara `window.print()` com CSS print isolado.
+- Build OK, testes passam.
+
+## Arquivos afetados
+- `src/services/export.service.ts` — BOM, filename helper, validação `toast.warning`, suporte multi-sheet
+- `src/services/relatorios.service.ts` — defesa `?.length`, subquery limit, remover código morto, normalizar datas
+- `src/services/social.service.ts` — delegar a `export.service`
+- `src/components/DataTable.tsx` — BOM, filename helper, usar `export.service` para PDF/Excel
+- `src/components/importacao/ReconciliacaoDetalhe.tsx` — BOM CSV
+- `src/components/ui/PreviewModal.tsx` — botão imprimir + classe `print-area`
+- `src/pages/Relatorios.tsx` — loading nos exports, hint KPI vs visíveis, `onPrint`
+- `src/utils/relatorios.ts` — `sortarRows` defensivo para fluxo de caixa
+- `src/lib/utils.ts` — adicionar `buildExportFilename`
+- `src/index.css` — regras `@media print` para `.print-area`
 
 ## Entregáveis
-Resumo final por categoria: chip create, hint inicial, required nos labels, salvar-e-criar-outro, banner pós-create, toast com identificador, footer sticky.
+Resumo final por categoria: CSV BOM, filenames sanitizados, defesa de filtros, subquery segura, loading/lock de export, validação "sem dados", remoção de código morto, padronização DataTable/Social via export.service, suporte a impressão no PreviewModal.
 
