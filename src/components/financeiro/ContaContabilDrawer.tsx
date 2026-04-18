@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { ViewDrawerV2, ViewField, ViewSection } from "@/components/ViewDrawerV2";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useDrawerData } from "@/hooks/useDrawerData";
+import { useActionLock } from "@/hooks/useActionLock";
 import {
   Edit,
   Trash2,
@@ -92,45 +94,31 @@ export function ContaContabilDrawer({
   onEdit,
   onDelete,
 }: ContaContabilDrawerProps) {
-  const [vinculos, setVinculos] = useState<VinculoContagem | null>(null);
-  const [loadingVinculos, setLoadingVinculos] = useState(false);
-
   const parentMap = useMemo(() => buildParentMap(allContas), [allContas]);
 
-  const selectedId = selected?.id;
+  const selectedId = selected?.id ?? null;
 
-  useEffect(() => {
-    if (!open || !selectedId) {
-      setVinculos(null);
-      return;
-    }
-    setLoadingVinculos(true);
-    Promise.all([
-      supabase
-        .from("financeiro_lancamentos")
-        .select("id", { count: "exact", head: true })
-        .eq("conta_contabil_id", selectedId)
-        .eq("ativo", true),
-      supabase
-        .from("notas_fiscais")
-        .select("id", { count: "exact", head: true })
-        .eq("conta_contabil_id", selectedId)
-        .eq("ativo", true),
-      supabase
-        .from("grupos_produto")
-        .select("id", { count: "exact", head: true })
-        .eq("conta_contabil_id", selectedId),
-    ]).then(([lanc, nf, gp]) => {
-      setVinculos({
+  const { data: vinculos, loading: loadingVinculos } = useDrawerData<VinculoContagem>(
+    open,
+    selectedId,
+    async (id) => {
+      const [lanc, nf, gp] = await Promise.all([
+        supabase.from("financeiro_lancamentos").select("id", { count: "exact", head: true }).eq("conta_contabil_id", id).eq("ativo", true),
+        supabase.from("notas_fiscais").select("id", { count: "exact", head: true }).eq("conta_contabil_id", id).eq("ativo", true),
+        supabase.from("grupos_produto").select("id", { count: "exact", head: true }).eq("conta_contabil_id", id),
+      ]);
+      return {
         lancamentos: lanc.count ?? 0,
         notas_fiscais: nf.count ?? 0,
         grupos_produto: gp.count ?? 0,
-      });
-      setLoadingVinculos(false);
-    });
-  }, [open, selectedId]);
+      };
+    },
+  );
 
-  if (!selected) return <ViewDrawerV2 open={open} onClose={onClose} title="" />;
+  const { pending: editPending, run: runEdit } = useActionLock();
+  const { pending: deletePending, run: runDelete } = useActionLock();
+
+  if (!open || !selected) return null;
 
   const isAnalitica = selected.aceita_lancamento;
   const nivel = getDepth(selected, parentMap);
@@ -486,10 +474,9 @@ export function ContaContabilDrawer({
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8"
-                onClick={() => {
-                  onClose();
-                  onEdit(selected);
-                }}
+                disabled={editPending}
+                aria-label="Editar conta contábil"
+                onClick={() => runEdit(() => { onEdit(selected); onClose(); })}
               >
                 <Edit className="h-4 w-4" />
               </Button>
@@ -502,10 +489,9 @@ export function ContaContabilDrawer({
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8 text-destructive hover:text-destructive"
-                onClick={() => {
-                  onClose();
-                  onDelete(selected);
-                }}
+                disabled={deletePending}
+                aria-label="Excluir conta contábil"
+                onClick={() => runDelete(() => { onDelete(selected); onClose(); })}
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
