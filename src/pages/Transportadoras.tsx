@@ -6,6 +6,7 @@ import { DataTable } from "@/components/DataTable";
 import { PullToRefresh } from "@/components/ui/PullToRefresh";
 import { StatusBadge } from "@/components/StatusBadge";
 import { FormModal } from "@/components/FormModal";
+import { FormModalFooter } from "@/components/FormModalFooter";
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { ViewDrawerV2, ViewField, ViewSection } from "@/components/ViewDrawerV2";
@@ -466,19 +467,32 @@ export default function Transportadoras() {
         </PullToRefresh>
       </ModulePage>
 
-      <FormModal open={modalOpen} onClose={handleCloseModal} title={mode === "create" ? "Nova Transportadora" : "Editar Transportadora"} size="xl">
-        <form onSubmit={handleSubmit} className="space-y-0">
-
-          {/* Context bar for edit mode */}
-          {mode === "edit" && selected && (
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 mb-5 text-xs text-muted-foreground rounded-md border bg-muted/30">
-              <StatusBadge status={selected.ativo ? "Ativo" : "Inativo"} />
-              {selected.created_at && <span>Cadastro: {formatDate(selected.created_at)}</span>}
-              {selected.updated_at && <span>Atualizado: {formatDate(selected.updated_at)}</span>}
-              <span className="flex items-center gap-1"><Truck className="h-3 w-3" />{MODALIDADE_LABEL[selected.modalidade] || "—"}</span>
-              {selected.cidade && <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{selected.cidade}{selected.uf ? `/${selected.uf}` : ""}</span>}
-            </div>
-          )}
+      <FormModal
+        open={modalOpen}
+        onClose={handleCloseModal}
+        title={mode === "create" ? "Nova Transportadora" : "Editar Transportadora"}
+        size="xl"
+        identifier={mode === "edit" && selected?.cpf_cnpj ? selected.cpf_cnpj : undefined}
+        status={mode === "edit" && selected ? <StatusBadge status={selected.ativo ? "Ativo" : "Inativo"} /> : undefined}
+        meta={mode === "edit" && selected ? [
+          ...(selected.created_at ? [{ label: `Cadastro: ${formatDate(selected.created_at)}` }] : []),
+          ...(selected.updated_at ? [{ label: `Atualizado: ${formatDate(selected.updated_at)}` }] : []),
+          { icon: Truck, label: MODALIDADE_LABEL[selected.modalidade] || "—" },
+          ...(selected.cidade ? [{ icon: MapPin, label: `${selected.cidade}${selected.uf ? `/${selected.uf}` : ""}` }] : []),
+        ] : undefined}
+        isDirty={hasChanges}
+        footer={
+          <FormModalFooter
+            saving={saving}
+            isDirty={hasChanges}
+            onCancel={handleCloseModal}
+            submitAsForm
+            formId="transportadora-form"
+            mode={mode}
+          />
+        }
+      >
+        <form id="transportadora-form" onSubmit={handleSubmit} className="space-y-0">
 
           <Tabs defaultValue="dados-gerais" className="w-full">
             <TabsList className="mb-4 w-full justify-start overflow-x-auto">
@@ -780,20 +794,6 @@ export default function Transportadoras() {
             </TabsContent>
           </Tabs>
 
-          {/* Rodapé */}
-          <div className="flex items-center justify-between pt-3 border-t">
-            <span className="text-xs">
-              {hasChanges && (
-                <span className="text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                  <AlertTriangle className="h-3 w-3" />Há alterações não salvas
-                </span>
-              )}
-            </span>
-            <div className="flex gap-2">
-              <Button type="button" variant="outline" onClick={handleCloseModal}>Cancelar</Button>
-              <Button type="submit" disabled={saving}>{saving ? "Salvando..." : "Salvar"}</Button>
-            </div>
-          </div>
         </form>
       </FormModal>
 

@@ -3,6 +3,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
 import { FormModal } from "@/components/FormModal";
+import { FormModalFooter } from "@/components/FormModalFooter";
 import { ContaBancariaDrawer } from "@/components/financeiro/ContaBancariaDrawer";
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
@@ -381,8 +382,22 @@ const ContasBancarias = () => {
         onClose={closeModal}
         title={mode === "create" ? "Nova Conta Bancária" : "Editar Conta Bancária"}
         size="md"
+        identifier={mode === "edit" && selected ? `${selected.bancos?.nome ?? ""}${selected.agencia ? ` · Ag. ${selected.agencia}` : ""}${selected.conta ? ` · ${selected.conta}` : ""}` : undefined}
+        status={mode === "edit" && selected ? <StatusBadge status={selected.ativo ? "Ativo" : "Inativo"} /> : undefined}
+        meta={mode === "edit" && selected?.titular ? [{ icon: Building2, label: `Titular: ${selected.titular}` }] : undefined}
+        isDirty={isDirty}
+        footer={
+          <FormModalFooter
+            saving={saving}
+            isDirty={isDirty}
+            onCancel={closeModal}
+            submitAsForm
+            formId="conta-bancaria-form"
+            mode={mode}
+          />
+        }
       >
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form id="conta-bancaria-form" onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2"><Label>Banco *</Label>
               <Select value={form.banco_id} onValueChange={(v) => updateForm({ banco_id: v })}>
