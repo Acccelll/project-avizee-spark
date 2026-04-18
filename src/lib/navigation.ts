@@ -9,7 +9,6 @@ import {
   LucideIcon,
   Package,
   Receipt,
-  Ruler,
   Settings,
   Shield,
   Database,
@@ -22,11 +21,32 @@ import {
   FileSearch,
   UserCog,
   Share2,
+  FileSpreadsheet,
+  Presentation,
 } from 'lucide-react';
+
+/** Canonical list of navSection keys. Add here first when introducing a new section. */
+export const NAV_SECTION_KEYS = [
+  'cadastros',
+  'comercial',
+  'compras',
+  'estoque',
+  'financeiro',
+  'fiscal',
+  'social',
+  'relatorios',
+  'administracao',
+] as const;
+export type NavSectionKey = (typeof NAV_SECTION_KEYS)[number];
+
+/** Synthetic key used by mobile bottom nav and breadcrumbs for the dashboard. */
+export const DASHBOARD_KEY = 'inicio' as const;
 
 export interface NavLeafItem {
   title: string;
   path: string;
+  /** Optional per-leaf icon. Falls back to the parent section icon when omitted. */
+  icon?: LucideIcon;
   keywords?: string[];
 }
 
@@ -36,7 +56,7 @@ export interface NavSubgroup {
 }
 
 export interface NavSection {
-  key: string;
+  key: NavSectionKey;
   title: string;
   icon: LucideIcon;
   /** When set, the section behaves as a direct link (no expand/collapse). */
@@ -54,7 +74,7 @@ export interface QuickAction {
 }
 
 export interface MobileBottomTab {
-  key: string;
+  key: NavSectionKey | typeof DASHBOARD_KEY;
   title: string;
   icon: LucideIcon;
   path?: string;
@@ -63,6 +83,7 @@ export interface MobileBottomTab {
 export const dashboardItem: NavLeafItem = {
   title: 'Dashboard',
   path: '/',
+  icon: LayoutDashboard,
   keywords: ['inicio', 'painel', 'visao geral'],
 };
 
@@ -82,13 +103,13 @@ export const navSections: NavSection[] = [
       {
         title: 'Base cadastral',
         items: [
-          { title: 'Produtos', path: '/produtos', keywords: ['sku', 'catalogo'] },
-          { title: 'Clientes', path: '/clientes' },
-          { title: 'Fornecedores', path: '/fornecedores' },
-          { title: 'Transportadoras', path: '/transportadoras', keywords: ['frete', 'logistica'] },
-          { title: 'Formas de Pagamento', path: '/formas-pagamento', keywords: ['prazo', 'parcelamento'] },
-          { title: 'Grupos Econômicos', path: '/grupos-economicos', keywords: ['matriz', 'filiais'] },
-          { title: 'Funcionários', path: '/funcionarios', keywords: ['fopag', 'folha', 'salario', 'rh'] },
+          { title: 'Produtos', path: '/produtos', icon: Package, keywords: ['sku', 'catalogo'] },
+          { title: 'Clientes', path: '/clientes', icon: Users },
+          { title: 'Fornecedores', path: '/fornecedores', icon: Truck },
+          { title: 'Transportadoras', path: '/transportadoras', icon: Truck, keywords: ['frete', 'logistica'] },
+          { title: 'Formas de Pagamento', path: '/formas-pagamento', icon: CreditCard, keywords: ['prazo', 'parcelamento'] },
+          { title: 'Grupos Econômicos', path: '/grupos-economicos', icon: Building2, keywords: ['matriz', 'filiais'] },
+          { title: 'Funcionários', path: '/funcionarios', icon: UserCog, keywords: ['fopag', 'folha', 'salario', 'rh'] },
         ],
       },
     ],
@@ -101,8 +122,8 @@ export const navSections: NavSection[] = [
       {
         title: 'Pipeline de vendas',
         items: [
-          { title: 'Orçamentos', path: '/orcamentos', keywords: ['orcamentos', 'propostas', 'cotacoes', 'cotações'] },
-          { title: 'Pedidos', path: '/pedidos', keywords: ['pedidos', 'backlog', 'operacional', 'ordens', 'ov'] },
+          { title: 'Orçamentos', path: '/orcamentos', icon: FileText, keywords: ['orcamentos', 'propostas', 'cotacoes', 'cotações'] },
+          { title: 'Pedidos', path: '/pedidos', icon: ClipboardList, keywords: ['pedidos', 'backlog', 'operacional', 'ordens', 'ov'] },
         ],
       },
     ],
@@ -115,8 +136,8 @@ export const navSections: NavSection[] = [
       {
         title: 'Gestão de compras',
         items: [
-          { title: 'Cotações de Compra', path: '/cotacoes-compra', keywords: ['comparacao', 'fornecedores', 'cotacao'] },
-          { title: 'Pedidos de Compra', path: '/pedidos-compra', keywords: ['pre-nota', 'pedido fornecedor', 'recebimento'] },
+          { title: 'Cotações de Compra', path: '/cotacoes-compra', icon: ShoppingCart, keywords: ['comparacao', 'fornecedores', 'cotacao'] },
+          { title: 'Pedidos de Compra', path: '/pedidos-compra', icon: ShoppingCart, keywords: ['pre-nota', 'pedido fornecedor', 'recebimento'] },
         ],
       },
     ],
@@ -129,8 +150,8 @@ export const navSections: NavSection[] = [
       {
         title: 'Controle',
         items: [
-          { title: 'Posição Atual', path: '/estoque', keywords: ['saldo', 'inventario'] },
-          { title: 'Logística', path: '/logistica', keywords: ['rastreio', 'entrega', 'logistica', 'correios', 'remessas'] },
+          { title: 'Posição Atual', path: '/estoque', icon: Warehouse, keywords: ['saldo', 'inventario'] },
+          { title: 'Logística', path: '/logistica', icon: Truck, keywords: ['rastreio', 'entrega', 'logistica', 'correios', 'remessas'] },
         ],
       },
     ],
@@ -143,13 +164,11 @@ export const navSections: NavSection[] = [
       {
         title: 'Execução financeira',
         items: [
-          { title: 'Contas a Pagar/Receber', path: '/financeiro', keywords: ['cp', 'cr', 'despesas', 'recebimentos'] },
-          { title: 'Fluxo de Caixa', path: '/fluxo-caixa' },
-          { title: 'Contas Bancárias', path: '/contas-bancarias', keywords: ['bancos'] },
-          { title: 'Plano de Contas', path: '/contas-contabeis-plano', keywords: ['contabil'] },
-          { title: 'Conciliação', path: '/conciliacao', keywords: ['ofx', 'extrato', 'banco', 'conciliar'] },
-          { title: 'Workbook Gerencial', path: '/relatorios/workbook-gerencial', keywords: ['excel', 'relatorio', 'gerencial', 'workbook'] },
-          { title: 'Apresentação Gerencial', path: '/relatorios/apresentacao-gerencial', keywords: ['pptx', 'powerpoint', 'fechamento', 'gerencial'] },
+          { title: 'Contas a Pagar/Receber', path: '/financeiro', icon: Wallet, keywords: ['cp', 'cr', 'despesas', 'recebimentos'] },
+          { title: 'Fluxo de Caixa', path: '/fluxo-caixa', icon: DollarSign },
+          { title: 'Contas Bancárias', path: '/contas-bancarias', icon: DollarSign, keywords: ['bancos'] },
+          { title: 'Plano de Contas', path: '/contas-contabeis-plano', icon: FileSearch, keywords: ['contabil'] },
+          { title: 'Conciliação', path: '/conciliacao', icon: DollarSign, keywords: ['ofx', 'extrato', 'banco', 'conciliar'] },
         ],
       },
     ],
@@ -162,15 +181,15 @@ export const navSections: NavSection[] = [
       {
         title: 'Documentos fiscais',
         items: [
-          { title: 'Notas de Entrada', path: '/fiscal?tipo=entrada', keywords: ['recebimento', 'fornecedor', 'compra', 'xml', 'chave', 'nfe'] },
-          { title: 'Notas de Saída', path: '/fiscal?tipo=saida', keywords: ['faturamento', 'cliente', 'pedido', 'emissao', 'sefaz', 'nfe'] },
+          { title: 'Notas de Entrada', path: '/fiscal?tipo=entrada', icon: Receipt, keywords: ['recebimento', 'fornecedor', 'compra', 'xml', 'chave', 'nfe'] },
+          { title: 'Notas de Saída', path: '/fiscal?tipo=saida', icon: Receipt, keywords: ['faturamento', 'cliente', 'pedido', 'emissao', 'sefaz', 'nfe'] },
         ],
       },
     ],
   },
 
   ...(import.meta.env.VITE_FEATURE_SOCIAL === 'true' ? [{
-    key: 'social' as const,
+    key: 'social' as NavSectionKey,
     title: 'Social',
     icon: Share2,
     directPath: '/social',
@@ -181,8 +200,16 @@ export const navSections: NavSection[] = [
     key: 'relatorios',
     title: 'Relatórios',
     icon: BarChart3,
-    directPath: '/relatorios',
-    items: [],
+    items: [
+      {
+        title: 'Análises e exportações',
+        items: [
+          { title: 'Relatórios Operacionais', path: '/relatorios', icon: BarChart3, keywords: ['estoque', 'vendas', 'compras', 'financeiro'] },
+          { title: 'Workbook Gerencial', path: '/relatorios/workbook-gerencial', icon: FileSpreadsheet, keywords: ['excel', 'relatorio', 'gerencial', 'workbook'] },
+          { title: 'Apresentação Gerencial', path: '/relatorios/apresentacao-gerencial', icon: Presentation, keywords: ['pptx', 'powerpoint', 'fechamento', 'gerencial'] },
+        ],
+      },
+    ],
   },
   {
     key: 'administracao',
@@ -192,13 +219,9 @@ export const navSections: NavSection[] = [
       {
         title: 'Gestão do sistema',
         items: [
-          { title: 'Empresa', path: '/administracao?tab=empresa' },
-          { title: 'Usuários e Permissões', path: '/administracao?tab=usuarios' },
-          { title: 'E-mail', path: '/administracao?tab=email' },
-          { title: 'Parâmetros Fiscais', path: '/administracao?tab=fiscal' },
-          { title: 'Parâmetros Financeiros', path: '/administracao?tab=financeiro' },
-          { title: 'Migração de Dados', path: '/migracao-dados', keywords: ['importacao', 'excel', 'csv', 'carga'] },
-          { title: 'Auditoria', path: '/auditoria', keywords: ['logs', 'historico', 'rastreabilidade'] },
+          { title: 'Configurações', path: '/administracao', icon: Settings, keywords: ['empresa', 'usuarios', 'email', 'fiscal', 'financeiro', 'parametros'] },
+          { title: 'Migração de Dados', path: '/migracao-dados', icon: Database, keywords: ['importacao', 'excel', 'csv', 'carga'] },
+          { title: 'Auditoria', path: '/auditoria', icon: Shield, keywords: ['logs', 'historico', 'rastreabilidade'] },
         ],
       },
     ],
@@ -206,106 +229,69 @@ export const navSections: NavSection[] = [
 ];
 
 export const mobileBottomTabs: MobileBottomTab[] = [
-  { key: 'inicio', title: 'Início', icon: LayoutDashboard, path: '/' },
+  { key: DASHBOARD_KEY, title: 'Início', icon: LayoutDashboard, path: '/' },
   { key: 'comercial', title: 'Comercial', icon: FileText, path: '/orcamentos' },
   { key: 'cadastros', title: 'Cadastros', icon: Users, path: '/clientes' },
   { key: 'financeiro', title: 'Financeiro', icon: DollarSign, path: '/financeiro?tipo=receber' },
 ];
 
-export const mobileMenuSections = navSections.filter((section) =>
-  ['compras', 'estoque', 'fiscal', 'relatorios', 'administracao'].includes(section.key),
-);
+/** Sections shown in the mobile drawer menu (excludes those already in bottom tabs). */
+const BOTTOM_TAB_SECTION_KEYS = new Set<NavSectionKey>(['comercial', 'cadastros', 'financeiro']);
+export const mobileMenuSections = navSections.filter((section) => !BOTTOM_TAB_SECTION_KEYS.has(section.key));
 
-export const headerIcons: Record<string, LucideIcon> = {
-  '/': LayoutDashboard,
-  '/cotacoes': FileText,
-  '/orcamentos': FileText,
-  '/pedidos': ClipboardList,
-  '/ordens-venda': ShoppingCart,
-  '/cotacoes-compra': ShoppingCart,
-  '/pedidos-compra': ShoppingCart,
-  '/produtos': Package,
-  '/estoque': Warehouse,
-  '/logistica': Truck,
-  '/remessas': Truck,
-  '/clientes': Users,
-  '/fornecedores': Truck,
-  '/transportadoras': Truck,
-  '/unidades-medida': Ruler,
-  '/formas-pagamento': CreditCard,
-  '/grupos-economicos': Building2,
-  '/funcionarios': UserCog,
-  '/financeiro': Wallet,
-  '/contas-bancarias': DollarSign,
-  '/fluxo-caixa': DollarSign,
-  '/caixa': DollarSign,
-  '/contas-contabeis-plano': FileSearch,
-  '/conciliacao': DollarSign,
-  '/relatorios/apresentacao-gerencial': BarChart3,
-  '/social': Share2,
-  '/fiscal': Receipt,
-  '/relatorios': BarChart3,
-  '/configuracoes': Settings,
-  '/administracao': Shield,
-  '/migracao-dados': Database,
-  '/auditoria': Shield,
-  '/perfil': User,
-};
-
-const baseRouteLabels: Record<string, string> = {
-  '/': 'Dashboard',
-  '/cotacoes': 'Cotações',
-  '/orcamentos': 'Orçamentos',
-  '/pedidos': 'Pedidos',
-  '/ordens-venda': 'Pedidos',
-  '/cotacoes-compra': 'Cotações de Compra',
-  '/pedidos-compra': 'Pedidos de Compra',
-  '/produtos': 'Produtos',
-  '/estoque': 'Estoque',
-  '/logistica': 'Logística',
-  '/remessas': 'Logística',
-  '/clientes': 'Clientes',
-  '/fornecedores': 'Fornecedores',
-  '/transportadoras': 'Transportadoras',
-  '/unidades-medida': 'Unidades de Medida',
-  '/formas-pagamento': 'Formas de Pagamento',
-  '/grupos-economicos': 'Grupos Econômicos',
-  '/funcionarios': 'Funcionários',
-  '/financeiro': 'Financeiro',
-  '/contas-bancarias': 'Contas Bancárias',
-  '/fluxo-caixa': 'Fluxo de Caixa',
-  '/caixa': 'Caixa',
-  '/contas-contabeis-plano': 'Plano de Contas',
-  '/conciliacao': 'Conciliação',
-  '/relatorios/apresentacao-gerencial': 'Apresentação Gerencial',
-  '/social': 'Social',
-  '/fiscal': 'Fiscal',
-  '/relatorios': 'Relatórios',
-  '/configuracoes': 'Configurações',
-  '/administracao': 'Administração',
-  '/migracao-dados': 'Migração de Dados',
-  '/auditoria': 'Auditoria',
-  '/perfil': 'Meu Perfil',
-};
-
-export type FlatNavItem = NavLeafItem & { section: string; subgroup: string };
+export type FlatNavItem = NavLeafItem & { section: string; subgroup: string; sectionKey?: NavSectionKey };
 
 export const flatNavItems: FlatNavItem[] = [
   { ...dashboardItem, section: '', subgroup: '' },
-  ...navSections.flatMap((section) => {
+  ...navSections.flatMap((section): FlatNavItem[] => {
     // Direct-path sections contribute a single synthetic leaf item
     if (section.directPath) {
-      return [{ title: section.title, path: section.directPath, section: section.title, subgroup: '' }];
+      return [{
+        title: section.title,
+        path: section.directPath,
+        icon: section.icon,
+        section: section.title,
+        subgroup: '',
+        sectionKey: section.key,
+      }];
     }
     return section.items.flatMap((group) =>
       group.items.map((item) => ({
         ...item,
+        icon: item.icon ?? section.icon,
         section: section.title,
         subgroup: group.title,
+        sectionKey: section.key,
       })),
     );
   }),
 ];
+
+/** O(1) lookup: pathname (without query) → flat nav item. */
+const flatItemByPath = new Map<string, FlatNavItem>(
+  flatNavItems.map((item) => [item.path.split('?')[0], item]),
+);
+
+/**
+ * Icons indexed by route. Derived from the nav tree — the single source of truth.
+ * Includes a fallback for `/perfil` and `/configuracoes` which are not in the menu.
+ */
+export const headerIcons: Record<string, LucideIcon> = {
+  ...Object.fromEntries(
+    flatNavItems
+      .filter((item) => item.icon)
+      .map((item) => [item.path.split('?')[0], item.icon as LucideIcon]),
+  ),
+  '/configuracoes': Settings,
+  '/perfil': User,
+  '/fiscal': Receipt,
+};
+
+const extraRouteLabels: Record<string, string> = {
+  '/configuracoes': 'Configurações',
+  '/perfil': 'Meu Perfil',
+  '/fiscal': 'Fiscal',
+};
 
 export function isPathActive(currentPath: string, targetPath: string) {
   const cleanTarget = targetPath.split('?')[0];
@@ -314,11 +300,9 @@ export function isPathActive(currentPath: string, targetPath: string) {
 }
 
 export function getRouteLabel(pathname: string) {
-  if (baseRouteLabels[pathname]) return baseRouteLabels[pathname];
-  const exactMatch = flatNavItems.find((item) => item.path === pathname);
-  if (exactMatch) return exactMatch.title;
-  const match = flatNavItems.find((item) => item.path.split('?')[0] === pathname);
-  if (match) return match.title;
+  if (extraRouteLabels[pathname]) return extraRouteLabels[pathname];
+  const exact = flatItemByPath.get(pathname);
+  if (exact) return exact.title;
   if (pathname.startsWith('/orcamentos/')) return 'Orçamento';
   if (pathname.startsWith('/cotacoes/')) return 'Orçamento';
   if (pathname.startsWith('/clientes/')) return 'Cliente';
@@ -327,18 +311,32 @@ export function getRouteLabel(pathname: string) {
   return 'ERP AviZee';
 }
 
-export function getNavSectionKey(currentRoute: string) {
-  if (currentRoute === '/' || currentRoute.startsWith('/?')) return 'inicio';
+/**
+ * Returns the nav-section key for a given route.
+ * Priority: leaf-item match (most specific) > directPath match > 'menu' fallback.
+ * This ordering corrects /relatorios/workbook-gerencial returning 'relatorios'
+ * even though it lives under the (formerly) Financeiro section.
+ */
+export function getNavSectionKey(currentRoute: string): NavSectionKey | typeof DASHBOARD_KEY | 'menu' {
+  if (currentRoute === '/' || currentRoute.startsWith('/?')) return DASHBOARD_KEY;
   const pathname = currentRoute.split('?')[0];
-  // Check direct-path sections first
+
+  // 1. Match a specific leaf item first (handles nested routes like /orcamentos/123)
+  const leafSection = navSections.find((entry) =>
+    entry.items.some((group) =>
+      group.items.some((item) => {
+        const base = item.path.split('?')[0];
+        return pathname === base || pathname.startsWith(`${base}/`);
+      }),
+    ),
+  );
+  if (leafSection) return leafSection.key;
+
+  // 2. Fall back to direct-path sections
   const directSection = navSections.find(
     (entry) => entry.directPath && (pathname === entry.directPath || pathname.startsWith(`${entry.directPath}/`)),
   );
   if (directSection) return directSection.key;
-  const section = navSections.find((entry) =>
-    entry.items.some((group) =>
-      group.items.some((item) => pathname === item.path.split('?')[0] || pathname.startsWith(`${item.path.split('?')[0]}/`)),
-    ),
-  );
-  return section?.key ?? 'menu';
+
+  return 'menu';
 }
