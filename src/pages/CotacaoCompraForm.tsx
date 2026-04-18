@@ -30,6 +30,8 @@ import {
   statusLabels,
 } from "@/components/compras/cotacaoCompraTypes";
 import type { Database } from "@/integrations/supabase/types";
+import { useSubmitLock } from "@/hooks/useSubmitLock";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 
 type ProdutoRow = Database["public"]["Tables"]["produtos"]["Row"];
 type FornecedorRow = Database["public"]["Tables"]["fornecedores"]["Row"];
