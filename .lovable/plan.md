@@ -1,129 +1,119 @@
 
 
-# Diagnóstico técnico — Overlays do sistema
+# Diagnóstico visual — Overlays
 
-## Inventário
+## Inventário visual
 
-| Tipo | Wrapper/Componente | Uso |
-|---|---|---|
-| Modal de formulário | `FormModal` (sobre `Dialog`) | cadastros (Funcionarios, Unidades, etc.) |
-| Modal genérico | `Dialog` direto | ~30 lugares (ad-hoc) |
-| Quick add | `QuickAddClientModal` | orçamento |
-| Confirm | `ConfirmDialog` (sobre `AlertDialog`) | DataTable, ProdutoView, etc. |
-| Confirm Promise-based | `useConfirmDialog` | 12+ páginas (descartar dirty) |
-| Drawer detalhe | `ViewDrawerV2` (sobre `Sheet`) + `RelationalDrawerStack` | views de registro |
-| Bottom-sheet mobile | `Drawer` (vaul) | MobileMenu, Notifications |
-| Popover | `MultiSelect`, calendário, `Relatorios.saveNameOpen` | filtros, datas |
-| Dropdown | `RowActions`, AppHeader, sidebar | menus de ação |
-| Autocomplete inline | `AutocompleteSearch`, `ProductAutocomplete`, `FiscalAutocomplete` | seletores |
-| Command Palette | `GlobalSearch` (CommandDialog) | busca global |
+| Tipo | Largura | Padding | Header | Footer |
+|---|---|---|---|---|
+| `Dialog` (shadcn) | `max-w-lg` | `p-6` uniforme | título sem divisor | sem divisor |
+| `AlertDialog` | `max-w-lg` | `p-6` | sem ícone, sem divisor | botões espaçados c/ `space-x-2` |
+| `FormModal` | `sm/md/lg/xl` | header `px-6 pt-5 pb-3`, body `px-6 py-4`, footer `px-6 py-3` | divisor border-b ✓, dirty pill | divisor border-t ✓ |
+| `Popover` | `w-72` fixo | `p-4` | — | — |
+| `DropdownMenu` | `min-w-[8rem]` | `p-1` | — | — |
+| `RowActions` Dropdown | `w-48` | `p-1` | — | — |
 
-## Problemas reais encontrados
+## Problemas reais
 
-### 1. `window.confirm()` ainda em produção — bloqueia o thread
-`Fiscal.tsx:262, 277` — duas chamadas nativas. UX inconsistente, ignora tema, não acessível, bloqueia o event loop. Resto do sistema migrou para `useConfirmDialog`.
+### 1. `DialogContent` sem zonas (header/body/footer fluidos)
+~30 dialogs ad-hoc usam `Dialog` direto + `gap-4` + `p-6` em todo o bloco. Header, conteúdo e footer ficam visualmente colados (sem hairlines), e quando há scroll interno (`max-h-[85vh] overflow-y-auto`), header e footer **scrollam junto** — perdendo contexto e ações fora da viewport.
 
-### 2. `useConfirmDialog` perde a Promise se desmontado
-Se a página desmontar enquanto o dialog está aberto, `resolverRef.current` nunca é chamado → Promise pendurada para sempre. Falta cleanup no unmount que rejeite/resolva como `false`.
+### 2. `AlertDialog` não tem ícone semântico
+Confirms destrutivos (excluir, descartar) e neutros (avisos) usam o mesmo visual: título sólido + texto cinza. Falta um ícone de alerta (warning/destructive) ao lado do título para acelerar leitura. Padrão Linear/Notion: ícone colorido `h-5 w-5` + título.
 
-### 3. `useConfirmDialog` não suporta loading async
-A API resolve `boolean` imediatamente no clique; quem chamou faz a operação **depois**. Não há como manter o dialog aberto com spinner enquanto roda. `ConfirmDialog` aceita `loading`, mas o hook nunca expõe. Resultado: dialog fecha → ação roda em background → se falhar, usuário já navegou.
+### 3. `AlertDialogFooter` separa botões com `space-x-2` (8 px) — pouco peso
+Cancelar (outline) e Confirmar (destructive) ficam grudados. Em decisões irreversíveis, a separação visual deveria ser maior (`gap-3`) e a ação destrutiva deveria ter prioridade visual clara (já tem `bg-destructive`, mas o cancel outline desaparece ao lado).
 
-### 4. `ConfirmDialog` não trava ESC/click-outside durante loading
-`onOpenChange={onClose}` (linha 39) chama `onClose` mesmo com `loading=true`. AlertDialog do Radix permite fechar por ESC, e `onClose` dispara abort sem cancelar a promessa real.
+### 4. `DialogFooter` justifica à direita em desktop, mas ações destrutivas no canto
+Quando há ação destrutiva + cancelar + confirmar no mesmo modal (ex: BaixaParcialDialog), tudo encosta à direita. Falta padrão "destrutiva à esquerda, primária à direita" (já implementado no `DrawerStickyFooter`, mas não no `DialogFooter`).
 
-### 5. `FormModal.onClose` é chamado em qualquer mudança (incluindo abrir)
-`<Dialog open={open} onOpenChange={onClose}>` — `onOpenChange` recebe boolean. Hoje o handler ignora o valor e sempre chama `onClose()`. Funciona por sorte (Radix só dispara em fechar), mas é frágil — basta o pai re-renderizar com prop nova para acionar fechamento espúrio. Padrão correto: `onOpenChange={(o) => { if (!o) onClose(); }}` (já usado em ContaContabilEditModal, ViewDrawerV2, etc — inconsistência).
+### 5. `Popover` largura fixa `w-72` (288 px)
+Conteúdo curto sobra ar; conteúdo longo (filtros multi-select) é apertado. Falta variação por uso. Usado em `MultiSelect`, calendário, `Relatorios.saveNameOpen`.
 
-### 6. FormModal não checa `isDirty` ao fechar
-A pílula "Alterações não salvas" aparece, mas ESC/click-outside fecha sem confirmação. Cada página re-implementa isso manualmente (`useConfirmDialog` + handler customizado). Lógica de "guard dirty" deveria viver no FormModal via prop opcional `confirmOnDirty`.
+### 6. `Popover` padding `p-4` muito generoso para listas
+Quando o popover contém uma lista (calendar, MultiSelect), o `p-4` cria margem interna que compete com o padding dos itens. Padrão melhor: `p-0` quando há lista interna; `p-4` apenas para forms/info.
 
-### 7. Autocompletes inline com `setTimeout(setOpen(false), 200)` — race condition clássica
-`ProductAutocomplete.tsx:42`, `FiscalAutocomplete.tsx:33`. Padrão antigo para "esperar o click acontecer antes do blur fechar". Quebra quando: (a) o usuário clica fora rápido (200ms é arbitrário), (b) o componente desmonta no meio (timer pendente vaza), (c) há scroll com touch (blur dispara mais cedo). Solução: usar `onMouseDown={e.preventDefault()}` no item da lista (já feito em ProductAutocomplete, mas não em FiscalAutocomplete) + click-outside listener (como `AutocompleteSearch` faz corretamente).
+### 7. `DropdownMenuItem` com altura inconsistente
+`px-2 py-1.5` (24 px de altura útil) — itens com ícone parecem apertados. Padrão Notion/Linear: `py-2` (32 px) com `gap-2` entre ícone e texto. Em `RowActions`, ícone usa `mr-2` (margin) em vez de `gap` — irregular quando item não tem ícone.
 
-### 8. Dropdowns de overlay dentro de Dialog/Drawer perdem foco
-Casos como `RowActions` dentro de drawer + popover de filtros aninhados: cada Radix root cria seu próprio focus-trap. Quando o nested fecha, o foco volta para o `body` (não para o trigger). Sem `restoreFocus` explícito, a navegação por teclado quebra.
+### 8. `RowActions` dropdown `w-48` arbitrário
+Largura fixa quebra labels longos ("Duplicar para outro mês"). Deveria ser `min-w-[12rem]` + auto.
 
-### 9. Conflito Z-index / Portal entre overlays empilhados
-`FormModal` usa `z-50` no overlay, `Dialog` aninhado também usa `z-50`. Quando há 3+ camadas (drawer → modal → confirm → toast), a ordem visual é determinada pela ordem de portal — frágil se um modal abre antes do outro. Não há sistema de stack-order centralizado.
+### 9. Botão fechar do `DialogContent` ocupa o canto direito (`right-4 top-4`) e colide com título
+Em modais com título longo, o `<X>` fica em cima da última palavra. Falta `pr-10` no header ou recuo do botão.
 
-### 10. `RelationalDrawerStack` mistura AlertDialog e Sheets sem coordenação
-O `pendingPush` AlertDialog renderiza sempre que `pendingPush !== null`. Se o usuário já está com 2 drawers abertos e dispara um terceiro, o AlertDialog aparece **acima** de tudo (bom), mas ESC nele fecha o AlertDialog **e** o drawer top simultaneamente (Radix propaga keydown). Falta `onEscapeKeyDown={e.preventDefault()}` no AlertDialog enquanto ele está aberto.
+### 10. `FormModalFooter` usa `justify-between` mesmo sem dirty/saving
+Quando não há status, o lado esquerdo fica vazio e os botões ficam comprimidos no canto direito. Em telas md+, dá impressão de footer desbalanceado.
 
-### 11. Quick-add modal não usa `useSubmitLock`
-`QuickAddClientModal` usa `useState(saving)` manual. Sem ref síncrona → duplo clique no submit cria 2 clientes. Padrão já existe (`useSubmitLock`) mas não foi adotado.
+### 11. `AlertDialogTitle` é `text-lg` (igual ao body do modal)
+Sem hierarquia visual entre título e descrição em alguns temas. Padrão: título `text-base font-semibold` + descrição `text-sm text-muted-foreground` com `mt-1.5` apertado, ou aumentar título para `text-[17px]`.
 
-### 12. ConfirmDialog do DataTable mistura confirm + checkbox como children
-`DataTable.tsx:780-784` injeta o checkbox "não perguntar novamente" como children do ConfirmDialog. Funciona, mas mistura responsabilidades. O checkbox grava no localStorage no momento do toggle, não no momento do confirmar — se usuário marcar e depois cancelar, a pref já foi salva.
+### 12. `DialogContent` sem `max-h` por padrão
+Modais ad-hoc precisam declarar `max-h-[85vh] overflow-y-auto` manualmente. Quem esquece quebra em laptops 720p. Default deveria proteger.
 
-### 13. Múltiplos padrões de `onOpenChange` para o mesmo objetivo
-Coexistem 4 padrões para "fechar quando o boolean for false":
-- `onOpenChange={onClose}` (FormModal, ConfirmDialog) — ignora valor
-- `onOpenChange={(o) => !o && onClose()}` (ViewDrawerV2, SefazRetornoModal)
-- `onOpenChange={(v) => { if (!v) { setOpen(false); ... } }}` (Clientes, Produtos)
-- `onOpenChange={setOpen}` (MultiSelect, CommandDialog) — controlado direto
+### 13. Ícones de ações no DropdownMenu sem opacidade
+Em `RowActions`, ícones ficam com mesmo peso visual do texto. Padrão melhor: ícone `text-muted-foreground` (ou `opacity-70`), texto sólido — guia o olho para o label.
 
-Falta padrão único + utilitário `closeOnly(onClose)` ou similar.
+### 14. Animação `zoom-in-95` + `slide-from-top-[48%]` exagerada
+Modais entram com salto perceptível. ERPs maduros usam `zoom-in-[0.98]` + `fade` apenas. O slide vertical de 48% causa flash no laptop.
 
-### 14. Selects/Calendars dentro de modais perdem scroll lock
-`Popover` aberto dentro de `Dialog` faz Radix instalar dois `body { overflow: hidden }` simultaneamente. Quando o Popover fecha, ele restaura o scroll **antes** do Dialog fechar — o background scrolla brevemente. Visível em formulários longos com Calendar.
+## Padrão-base proposto
 
-### 15. Notificações Drawer (vaul) renderiza mesmo desmontado
-`NotificationsPanel.tsx:182-183` envolve `<div onClick=…>{trigger}</div>` + Drawer. Toda re-render do pai re-monta o Drawer. Vaul guarda animation state internamente — pode ficar travado em "closing".
+### Dialog (modal genérico)
+- `gap-0` no Content (zonas próprias controlam espaçamento)
+- `p-0` no Content; header `px-6 pt-5 pb-4 border-b`, body `px-6 py-5 overflow-y-auto`, footer `px-6 py-3.5 border-t bg-muted/20`
+- `max-h-[85dvh]` por padrão; corpo flex-1 com scroll
+- Header com `pr-10` para reservar espaço do `<X>`
+- Animação: `zoom-in-[0.98] fade-in` (sem slide vertical)
 
-### 16. Falta tipagem central para handlers de overlay
-Cada overlay define seu próprio `{ open, onClose }` ou `{ open, onOpenChange }`. Sem tipo `OverlayProps` compartilhado → impossível fazer wrappers genéricos.
+### AlertDialog (confirm)
+- Header com slot de ícone opcional: `<Icon className="h-5 w-5 text-destructive">` para destructive, `text-warning` para warn, `text-primary` para neutro
+- Título `text-[17px] font-semibold tracking-tight`
+- Descrição `text-sm text-muted-foreground mt-1.5 leading-relaxed`
+- Footer com `gap-3` (não `space-x-2`); destructive ganha sombra leve `shadow-sm`
+- Animação suave (igual Dialog)
 
-## Estratégia de correção
+### Popover
+- Default `w-72 p-4` mantido
+- Adicionar variant implícita: quando filho é `<Command>` ou lista, autor passa `p-0` (já é prática, só documentar)
+- Sombra `shadow-lg` (em vez de `shadow-md`) para destacar do conteúdo
 
-### Fase 1 — `useConfirmDialog` v2 (corrige #1, #2, #3, #4)
-1. Adicionar suporte a Promise async no confirm: `confirm(opts, asyncAction?)` — se `asyncAction` for passada, mantém dialog aberto com `loading=true` até resolver, fecha no sucesso, mantém aberto + toast no erro.
-2. Cleanup no `useEffect` de unmount que rejeita resolver pendente.
-3. Bloquear ESC/click-outside enquanto `loading=true` (passar `loading` para `ConfirmDialog` + `onOpenChange={(o) => { if (!o && !loading) onClose(); }}`).
-4. Substituir os 2 `window.confirm` em `Fiscal.tsx`.
+### DropdownMenu
+- Item: `px-2.5 py-2 gap-2.5` (em vez de `py-1.5 mr-2`)
+- Ícone `h-4 w-4 text-muted-foreground`
+- Separador `bg-border/60` (mais sutil)
+- Min-width `min-w-[12rem]` em vez de `w-48` fixo
 
-### Fase 2 — `FormModal` com guard de dirty (corrige #5, #6)
-1. Padronizar `onOpenChange={(o) => { if (!o) handleClose(); }}` no FormModal.
-2. Aceitar prop opcional `confirmOnDirty?: boolean` (default false). Quando true e `isDirty`, intercepta o close e dispara `useConfirmDialog` interno antes de chamar `onClose`.
-3. Remover guards manuais redundantes nos consumidores (próxima fase, fora deste escopo).
+### FormModalFooter
+- `justify-end` quando não há dirty/saving; `justify-between` apenas quando há status
+- Mantém pílula de dirty atual
 
-### Fase 3 — Padronizar autocompletes inline (corrige #7)
-1. Migrar `ProductAutocomplete` e `FiscalAutocomplete` para o padrão de `AutocompleteSearch`: click-outside listener + `onMouseDown` preventDefault no item, sem setTimeout.
-2. Não unificar componentes (escopos diferentes), apenas remover o anti-pattern.
+## Arquivos afetados
 
-### Fase 4 — Helper `closeOnly` + tipagem (corrige #5, #13, #16)
-1. Criar `src/lib/overlay.ts` exportando:
-   ```ts
-   export type OverlayProps = { open: boolean; onClose: () => void };
-   export const closeOnly = (onClose: () => void) => (open: boolean) => { if (!open) onClose(); };
-   ```
-2. Aplicar em FormModal, ConfirmDialog, ViewDrawerV2 (mantém compat).
-
-### Fase 5 — `useSubmitLock` no QuickAddClientModal (corrige #11)
-
-### Fase 6 — DataTable: corrigir momento de salvar pref (corrige #12)
-Mover `localStorage.setItem('datatable:skip-delete-confirm', ...)` para dentro do `onConfirm`, não no toggle.
-
-### Fase 7 — Fix RelationalDrawerStack ESC (corrige #10)
-Adicionar `onEscapeKeyDown={(e) => { e.preventDefault(); cancelPendingPush(); }}` no AlertDialogContent.
+- `src/components/ui/dialog.tsx` — content: `p-0 gap-0 max-h-[85dvh] flex-col`; X com `top-3.5`; animação suave
+- `src/components/ui/alert-dialog.tsx` — content idem; novo prop `tone?: 'destructive'|'warning'|'info'` no AlertDialogHeader (ou aceitar `icon` slot); footer `gap-3`
+- `src/components/ui/popover.tsx` — `shadow-lg`
+- `src/components/ui/dropdown-menu.tsx` — item `py-2 gap-2.5`, ícone com `text-muted-foreground` via class auto (ou no consumidor)
+- `src/components/ConfirmDialog.tsx` — usar ícone semântico baseado em `confirmVariant`
+- `src/components/FormModal.tsx` — ajustar paddings ao novo padrão (header já tem border-b ✓; alinhar valores)
+- `src/components/FormModalFooter.tsx` — `justify-end` quando não há status; `gap-3` entre cancel e primary
+- `src/components/list/RowActions.tsx` — `min-w-[12rem]`, `gap-2.5` (ou ajustar via item)
 
 ## Fora do escopo
-- Não unificar Dialog vs Drawer vs Sheet — propósitos distintos.
-- Não migrar todos os consumidores de FormModal para `confirmOnDirty` (refactor amplo, próxima requisição).
-- Não tocar em GlobalSearch (CommandDialog) e MobileMenu (vaul) — comportamento OK.
-- Z-index global / stack manager: complexo demais para esta passada (item #9 fica como nota técnica).
+- Não tocar em `Sheet`/`Drawer` (vaul) — recém-revisados.
+- Não migrar 30 dialogs ad-hoc para `FormModal` (refactor amplo).
+- Não criar componente "ConfirmDialog tipado por tom" novo — apenas estender o existente.
+- Não mexer em `CommandDialog` (GlobalSearch) — tem padrão próprio OK.
 
 ## Critério de aceite
-- Zero `window.confirm` no código.
-- `useConfirmDialog` aceita ação async com loading anti-fechamento.
-- Cleanup no unmount evita Promise pendurada.
-- Autocompletes sem `setTimeout` arbitrário.
-- FormModal expõe `confirmOnDirty` (opt-in).
-- Quick-add cliente protegido contra duplo clique.
-- DataTable salva pref "não perguntar" só após confirmar.
-- ESC no AlertDialog do drawer-stack não fecha drawer abaixo.
-- Build OK (`tsc --noEmit`); zero regressão funcional.
+- Header/footer de Dialog e AlertDialog com hairlines e padding consistente.
+- Body com scroll isolado (header/footer ficam fixos quando o conteúdo é longo).
+- AlertDialog destrutivo com ícone + cor.
+- Botões do AlertDialog com `gap-3` e ação destrutiva com peso visual claro.
+- DropdownMenu com altura confortável e ícones em `text-muted-foreground`.
+- Animação de entrada mais sóbria.
+- Build OK; zero regressão funcional.
 
 ## Entregáveis
-Resumo final por tipo: confirm dialogs, form modals, autocompletes inline, quick-add, drawer-stack, DataTable.
+Resumo final por categoria: Dialog, AlertDialog/ConfirmDialog, Popover, DropdownMenu/RowActions, FormModalFooter.
 
