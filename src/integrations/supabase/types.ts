@@ -4713,6 +4713,7 @@ export type Database = {
         }
         Returns: Json
       }
+      count_estoque_baixo: { Args: never; Returns: number }
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
