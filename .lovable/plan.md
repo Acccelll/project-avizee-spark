@@ -1,157 +1,78 @@
 
+Vou organizar tudo em um plano único de hardening, mas preciso esclarecer alguns pontos críticos antes de executar — especialmente sobre `.env` (que no Lovable é gerenciado automaticamente) e build secrets (que não posso adicionar).
 
-# Diagnóstico visual — Continuidade entre módulos
+## Plano — Hardening de segurança, tipos e DX
 
-## Inventário visual de transições
+### Bloco 1 — Segurança (ajustado à realidade Lovable)
 
-| Transição | Sinalização atual | Problema |
-|---|---|---|
-| Pedido Compra → /fiscal (entrada) | `navigate("/fiscal?...&pedido_compra_id=UUID")` | Usuário chega no Fiscal sem **breadcrumb de origem**, sem botão "Voltar ao PC", sem chip "vindo de PC-123" |
-| Cotação → Pedido (drawer) | Após conversão fica no drawer, status muda | Sem **toast com CTA** "Abrir Pedido X". Usuário não percebe o que aconteceu |
-| Cotação → Pedido (grid) | `navigate('/pedidos')` | Comportamento divergente entre grid e drawer (já apontado) |
-| OV → NF gerada | `reload()` no drawer; aparece botão "NF X" | Sem destaque visual de "novo". Sem toast com "Abrir NF" |
-| Drawer relacional | Stack lateral com offset/sombra | Card de "vínculos" interno bom, mas **header não mostra trilha do que abriu o drawer** (apenas "Pedido · 123") |
-| Botões "Ver pedido", "Ver fornecedor" | RelationalLink com ícone ExternalLink | Inconsistência: alguns usam `pushView` (drawer), outros `navigate` (rota). Sem padrão visual que avise "vai abrir em drawer" vs "vai sair desta tela" |
-| Dashboard → módulos | "Ver todas →" | OK, mas tela destino não filtra pelo contexto que veio |
-| Status que dependem de outro módulo | Badges (status_faturamento, % recebido) | Mostra estado mas **não explica origem** ("Faturado por NF 567", "85% recebido por NF 23+24") |
-| Dialog "Gerar Pedido" / "Gerar NF" | `ConfirmDialog` simples | Sem **preview** do que vai acontecer cross-módulo (ex: "Vai criar 1 OV + 3 itens em /pedidos") |
+**P1 — `.env` exposto:** No Lovable, `.env` é **auto-gerado** (linha 1 do arquivo: "automatically updated"). Não é versionado por mim e os valores são `VITE_SUPABASE_*` (anon key + URL públicos por design — protegidos por RLS, não por segredo). Vou:
+- Confirmar `.env` no `.gitignore` (já está).
+- Documentar no README que rotacionar a anon key se feita por engano deve ser via painel Lovable Cloud.
+- **Não posso** rotacionar a chave por você — é ação no painel.
 
-## Problemas reais
+**P2/P8A — `ADMIN_EMAIL` hardcoded:** Centralizar em `src/constants/app.ts` lendo `import.meta.env.VITE_ADMIN_EMAIL` com fallback `"admin@avizee.com.br"`. Atualizar `.env.example`. Importar em `Login.tsx` e `RequestAccessDialog.tsx`. (Variáveis `VITE_*` ficam no bundle público de qualquer forma — isso é cosmético/configurável, não secreto.)
 
-### 1. Chegada sem contexto de origem
-Quando `darEntrada` redireciona para `/fiscal`, a página filtra por `tipo=entrada` mas:
-- Não mostra banner "Você veio do Pedido de Compra **PC-123**"
-- Não tem botão "Voltar ao Pedido de Compra"
-- Filtro `pedido_compra_id` é lido (já no plan anterior) mas **sem indicação visual** do filtro ativo
-- Modal de "Nova NF" não abre pré-preenchido
+**P8B — Signup por convite:** Gate em `Signup.tsx` baseado em `VITE_INVITE_ONLY` + `?invite=<token>`. Validação simples client-side (token não-vazio). Tokens reais via Supabase invitations ficam fora de escopo — se quiser fluxo completo, é uma passada própria.
 
-### 2. Toast pós-ação cross-módulo é "burro"
-Após gerar NF, converter cotação, gerar pedido de compra: toast "Sucesso" sem CTA. Usuário precisa adivinhar onde foi parar o resultado. Padrão atual em `OrcamentoForm.tsx` (linha 615) já faz isso bem com action `Visualizar` — replicar.
+**P9 — Dev button guard:** Trocar `showDevButton` por `import.meta.env.DEV && ...` em `Login.tsx`.
 
-### 3. RelationalLink não diferencia "drawer" vs "navegação"
-Visualmente idêntico. Usuário não sabe se vai abrir lateralmente (mantendo contexto) ou sair da tela. Causa surpresa quando sai.
+### Bloco 2 — Type safety (escopo realista)
 
-### 4. Header do drawer não mostra origem da abertura
-Drawer `nota_fiscal:UUID` aberto a partir de OV mostra só "Nota Fiscal · 567". Stack tem 2 itens (OV + NF), mas o usuário precisa olhar o badge "2 de 2" para entender. Falta breadcrumb encadeado: "OV-123 › NF-567".
+**P3A — ESLint `no-unused-vars`:** Trocar `"off"` por `"warn"` com pattern `^_`. Vai gerar muitos warnings — aceitável (não quebra build).
 
-### 5. Dialogs de ação cross-módulo sem preview de impacto
-"Gerar Pedido a partir desta cotação?" — sim/não. Não diz: "Cria OV-XXX em /pedidos com 5 itens, valor R$ X. Cotação fica como 'convertida'."
+**P3B — `useSupabaseCrud` genérico:** Adicionar generic `T extends keyof Database["public"]["Tables"]`. Risco de quebrar callers existentes que passam strings arbitrárias — vou manter assinatura retrocompatível com overload/default.
 
-### 6. Vínculos enterrados em tab "Vínculos"
-PedidoCompraView e OrdemVendaView têm tab "Vínculos" com cards. Mas o **Resumo** (primeira tab) não mostra contadores rápidos: "3 NFs · 2 lançamentos · 1 cotação origem". Usuário precisa clicar para descobrir conexões.
+**P3C — Expandir `tsconfig.strict-core.json`:** Adicionar `src/services/**/*`, `src/hooks/**/*`, `src/lib/**/*`, `src/contexts/**/*`. **Risco real:** vai gerar centenas de erros. Estratégia: adicionar e listar os erros, mas **não corrigir todos** nesta passada (escopo aberto demais). Documentar no `docs/typescript-hardening-plan.md`.
 
-### 7. Filtros "vindos de outro módulo" não aparecem como chip removível
-`/fiscal?tipo=entrada` filtra mas `AdvancedFilterBar` não mostra chip "Tipo: Entrada" vindo da URL. Confunde — usuário vê grid filtrada sem entender por quê.
+**P4 — `social.service.ts`:** Remover `function table()` e `socialRpc` wrappers, usar `supabase.from('social_contas')` direto. Os tipos já existem em `Database`. Risco: se algum método chamar coluna que não existe nos tipos gerados, erro de compilação — corrigir caso a caso.
 
-### 8. Conversão de cotação no drawer — falta animação de status
-Status muda de "aprovado" para "convertido" mas sem destaque visual transitório. Botão "Gerar Pedido" some, aparece "Ver Pedido X" — mudança brusca.
+### Bloco 3 — Bugs
 
-## Padrão-base visual proposto
+**P5 — Workbook template path:** Mover `src/assets/templates/workbook_gerencial_v1.xlsx` para `public/templates/workbook_gerencial_v1.xlsx` e usar path absoluto. Remover fallback silencioso, lançar erro claro. **Preciso confirmar:** o arquivo existe hoje em `src/assets/templates/`? Se não existir, o fallback é o único caminho — manter mas com warning visível.
 
-### A. `OriginContextBanner` — "você veio de"
-Componente novo no topo do módulo destino quando há query params de origem:
-```
-[← Voltar ao Pedido de Compra PC-123]   Vinculando NF de entrada deste pedido
-```
-- Banner discreto (faixa info bg-info/5, border-info/20, h-9)
-- Esquerda: botão ghost com seta + label do origem
-- Direita: descrição da operação contextual
-- Aplicar em: `/fiscal` quando `pedido_compra_id`, `/pedidos` quando `orcamento_id`, `/pedidos-compra` quando `cotacao_id`
+**P6 — `useAutoSave` expiração:** Adicionar `maxAgeMs` (default 7 dias) no hook + check em `restore()` + retornar `savedAt` para o caller exibir data. Atualizar `OrcamentoForm` para mostrar data no banner de restauração.
 
-### B. Toast com CTA contextual
-Padrão obrigatório pós-ação cross-módulo:
-```ts
-toast.success("Pedido gerado!", {
-  description: `OV ${numero} criada em /pedidos`,
-  action: { label: "Abrir pedido", onClick: () => pushView("ordem_venda", id) }
-});
-```
-Aplicar em: conversão de cotação, geração de NF, recebimento de PC, geração de pedido de compra, faturamento de OV.
+### Bloco 4 — Performance
 
-### C. RelationalLink com sinalização visual
-Adicionar variante visual:
-- **Ícone PanelRightOpen** (drawer lateral) → quando abre via `pushView`
-- **Ícone ExternalLink** (existente) → quando faz `navigate` (sai da tela)
-- Tooltip já existe; reforçar com microcopy: "Abre painel lateral" vs "Abre em nova tela"
+**P7 — `AuthContext` bootstrap RPC:** Criar migration com função `get_user_bootstrap(uuid)` retornando profile+roles+permissions em uma chamada. Refatorar `AuthContext` para usar a RPC com fallback nas funções atuais (caso a RPC falhe). **Decisão de migration** — preciso confirmar.
 
-### D. Breadcrumb encadeado no drawer
-`DrawerHeaderShell.breadcrumb` recebe o caminho do stack:
-- Stack `[OV-123, NF-567]` → header da NF mostra: `Pedido OV-123 › Nota Fiscal NF-567`
-- Cada segmento é clicável para navegar de volta naquele nível (em vez de só "voltar 1")
-- Componente novo `DrawerStackBreadcrumb` que consome `useRelationalNavigation().stack` e renderiza com chevrons.
+### Perguntas antes de executar
+<questions:perguntas>
+- Aplicar P3C (expandir `strict-core` para services/hooks/lib/contexts) sabendo que vai expor centenas de erros de tipo que **não serão corrigidos nesta passada** (apenas listados)? Ou manter escopo atual e adicionar apenas alguns arquivos selecionados?
+- Aplicar P7 (criar RPC `get_user_bootstrap` via migration)? Isso requer migration de DB.
+- Para P8B (signup por convite), validação simples client-side só checando se `?invite=` está presente é suficiente, ou quer um fluxo real com tabela `invitations` no banco (escopo maior)?
+- P5 — confirmar se quer que eu **mova** o template de `src/assets/` para `public/` (precisa ler/copiar o arquivo binário), ou apenas usar a Opção B (`?url` import do Vite) que mantém o arquivo onde está?
+</questions:perguntas>
 
-### E. Dialog de ação cross-módulo com `ImpactPreview`
-Substituir `ConfirmDialog` simples por `CrossModuleActionDialog` em conversões/gerações:
-```
-Gerar Pedido a partir da Cotação ORC-456?
+### Fora de escopo
+- Rotação manual da anon key (ação no painel).
+- Corrigir os ~301 `as any` (apenas habilitar lint para visibilidade).
+- Fluxo real de invitations em DB.
+- Refatorar todos os arquivos que quebrem após `useSupabaseCrud` ficar genérico (vai com fallback retrocompatível).
 
-▸ Cria 1 Pedido em /pedidos
-▸ Vincula 5 itens · R$ 12.340,00
-▸ Cotação muda para "convertido"
-▸ Atualiza estoque previsto
+### Critério de aceite
+- `ADMIN_EMAIL` centralizado em `src/constants/app.ts`.
+- Dev button só aparece em `import.meta.env.DEV`.
+- Signup gated por `VITE_INVITE_ONLY` + `?invite=`.
+- `useAutoSave` expira rascunhos > 7 dias e expõe `savedAt`.
+- `social.service.ts` sem `as never`/`as unknown as`.
+- Workbook template carrega de path estável; falha lança erro visível.
+- ESLint avisa sobre unused vars (não silencia mais).
+- Build OK.
 
-[Cancelar]  [Gerar Pedido]
-```
-Lista de impactos vinda como prop `impacts: { icon, label, target? }[]`.
-
-### F. `RelatedRecordsStrip` no Resumo do drawer
-Faixa horizontal de chips contadores no topo de cada View (acima das tabs):
-```
-[3 NFs] [2 Lançamentos] [1 Cotação origem] [1 Remessa]
-```
-Cada chip é clicável: abre a tab correspondente OU pushView do registro único. Resolve "conexões enterradas".
-
-### G. Chip de filtro vindo de URL
-`AdvancedFilterBar` aceita prop `urlContextChips: FilterChip[]` (read-only ou removível) que visualiza filtros vindos de query params. Variante visual: prefixo `↪ ` ou ícone Link2 indicando origem externa.
-
-### H. Animação de transição de status
-Quando status muda após ação cross-módulo (cotação convertida, NF gerada, PC recebido):
-- Badge antigo faz fade-out + scale
-- Badge novo faz fade-in + scale com pulse de cor
-- Hook `useStatusTransition(prevStatus, currentStatus)` controla via `framer-motion` ou Tailwind keyframe simples (200ms)
-
-## Implementação
-
-### Componentes novos
-1. **`src/components/navigation/OriginContextBanner.tsx`** — banner de "você veio de", aceita `originLabel`, `originHref`, `description`.
-2. **`src/components/navigation/DrawerStackBreadcrumb.tsx`** — breadcrumb encadeado consumindo stack do RelationalNavigation.
-3. **`src/components/CrossModuleActionDialog.tsx`** — dialog com lista de impactos.
-4. **`src/components/views/RelatedRecordsStrip.tsx`** — faixa de chips de vínculos.
-5. **`src/hooks/useCrossModuleToast.ts`** — helper que padroniza toast com action contextual.
-
-### Componentes ajustados
-6. **`src/components/ui/RelationalLink.tsx`** — props `behavior?: 'drawer' | 'route'` define ícone e tooltip.
-7. **`src/components/ui/DrawerHeaderShell.tsx`** — slot `breadcrumb` recebe `<DrawerStackBreadcrumb />` quando stack > 1.
-8. **`src/components/views/RelationalDrawerStack.tsx`** — usar `DrawerStackBreadcrumb` no lugar do `breadcrumbContent` simples.
-9. **`src/pages/Fiscal.tsx`** — render `OriginContextBanner` quando `pedido_compra_id` na URL; pré-abrir modal NF de entrada com `fornecedor_id`/`pedido_compra_id`; mostrar chip "vindo de PC-X" em `urlContextChips`.
-10. **`src/components/views/OrcamentoView.tsx`** — substituir `ConfirmDialog convertConfirmOpen` por `CrossModuleActionDialog`; toast pós-conversão com action "Abrir Pedido X" via `pushView`.
-11. **`src/components/views/OrdemVendaView.tsx`** — substituir confirm de Gerar NF por `CrossModuleActionDialog`; toast pós-geração com action "Abrir NF X"; adicionar `RelatedRecordsStrip` antes das tabs.
-12. **`src/components/views/PedidoCompraView.tsx`** — `RelatedRecordsStrip` (cotação origem, NFs, lançamentos); toast pós-recebimento com CTA "Abrir Fiscal" e "Abrir Financeiro".
-13. **`src/hooks/usePedidosCompra.ts`** (`darEntrada`) — usar `useCrossModuleToast`.
-14. **`src/pages/Orcamentos.tsx`** — converter usa `useCrossModuleToast` com action.
-
-### Onda de aplicação
-- Onda inicial: Cotação→Pedido, OV→NF, PC→Fiscal, PC→Recebimento. (Os 4 fluxos críticos.)
-- Demais fluxos (financeiro→baixa, conciliação→link) ficam para passada futura.
-
-## Fora do escopo
-- Refatorar todos os `RelationalLink` do projeto (apenas atualizar componente; uso por consumer fica em onda própria).
-- Animar todos os badges de status do app (apenas pós-ação cross-módulo).
-- Reescrever `RelationalDrawerStack` (apenas plug do breadcrumb).
-- Criar mini-mapa global de fluxo entre módulos (visualização tipo grafo — feature nova).
-- Notificações persistentes pós-ação cross-módulo (sino).
-- Suporte a "desfazer" cross-módulo.
-
-## Critério de aceite
-- `OriginContextBanner` aparece em /fiscal quando vem de PC, com botão de retorno funcional e abertura automática do form de NF entrada pré-vinculada.
-- Toasts pós-ação cross-módulo (4 fluxos) têm CTA clicável que abre destino via drawer ou rota.
-- `RelationalLink` distingue visualmente drawer vs rota.
-- Drawers em stack > 1 mostram breadcrumb encadeado clicável.
-- Dialogs de "Gerar Pedido" e "Gerar NF" listam impactos antes de confirmar.
-- Resumo de OrdemVendaView, PedidoCompraView, OrcamentoView mostra `RelatedRecordsStrip` com contadores clicáveis.
-- Filtros vindos de query params aparecem como chips marcados com ícone de origem.
-- Build OK; sem regressão funcional.
-
-## Entregáveis
-Resumo final por categoria: banner de origem para chegada contextualizada, toasts com CTA pós-ação cross-módulo, RelationalLink com semântica visual de drawer vs rota, breadcrumb encadeado nos drawers em stack, dialogs com preview de impacto cross-módulo, strip de registros relacionados no resumo, chips visuais para filtros vindos de URL.
-
+### Arquivos afetados
+- `src/constants/app.ts` (novo)
+- `src/pages/Login.tsx`
+- `src/components/RequestAccessDialog.tsx`
+- `src/pages/Signup.tsx`
+- `src/hooks/useAutoSave.ts`
+- `src/pages/OrcamentoForm.tsx` (banner com data)
+- `src/services/social.service.ts`
+- `src/lib/workbook/generateWorkbook.ts` (+ possível mover asset)
+- `src/hooks/useSupabaseCrud.ts`
+- `tsconfig.strict-core.json`
+- `eslint.config.js`
+- `.env.example`
+- `README.md`
+- `src/contexts/AuthContext.tsx` (se P7 aprovado)
+- migration nova (se P7 aprovado)
