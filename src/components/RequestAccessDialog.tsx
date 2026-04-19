@@ -17,8 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-
-const ADMIN_EMAIL = "admin@avizee.com.br";
+import { ADMIN_EMAIL } from "@/constants/app";
 
 export interface RequestAccessDialogProps {
   open: boolean;

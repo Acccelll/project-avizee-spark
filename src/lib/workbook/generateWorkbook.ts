@@ -20,22 +20,30 @@ export interface GenerateWorkbookOptions {
   geracaoId: string;
 }
 
+// Template is served from /public so the path is stable across dev and prod
+// builds (Vite leaves files under public/ untouched and without hash).
+const TEMPLATE_URL = '/workbook_gerencial_v1.xlsx';
+
 async function loadTemplate(): Promise<ExcelJS.Workbook> {
   const wb = new ExcelJS.Workbook();
+  let response: Response;
   try {
-    // Try to load physical template via fetch (works in browser context)
-    const templateUrl = new URL('/src/assets/templates/workbook_gerencial_v1.xlsx', window.location.origin).href;
-    const response = await fetch(templateUrl);
-    if (response.ok) {
-      const buffer = await response.arrayBuffer();
-      await wb.xlsx.load(buffer);
-      return wb;
-    }
-  } catch {
-    // Template not available via fetch - create minimal structure
+    response = await fetch(TEMPLATE_URL);
+  } catch (err) {
+    throw new Error(
+      `Template do workbook não pôde ser carregado (${TEMPLATE_URL}). Verifique sua conexão e tente novamente.`,
+    );
   }
-  
-  // Fallback: create a workbook with proper sheet structure
+  if (response.ok) {
+    const buffer = await response.arrayBuffer();
+    await wb.xlsx.load(buffer);
+    return wb;
+  }
+
+  // Template missing on server — fall back to a minimal scaffold but warn loudly.
+  console.warn(
+    `[workbook] Template não encontrado em ${TEMPLATE_URL} (HTTP ${response.status}). Gerando estrutura mínima — contate o suporte.`,
+  );
   wb.creator = 'ERP AviZee';
   wb.created = new Date();
   

@@ -14,91 +14,127 @@ import type {
 } from '@/types/social';
 export { socialPermissions, getSocialPermissionFlags } from '@/types/social';
 
-function table(tableName: string) {
-  return (supabase.from as unknown as (value: string) => ReturnType<typeof supabase.from>)(tableName);
-}
-
-type SocialRpcName =
-  | 'social_sincronizar_manual'
-  | 'social_dashboard_consolidado'
-  | 'social_metricas_periodo'
-  | 'social_posts_filtrados'
-  | 'social_alertas_periodo';
-
-async function socialRpc<T>(fn: SocialRpcName, params: Record<string, unknown>): Promise<T> {
-  const { data, error } = await (supabase.rpc as unknown as (name: string, payload: Record<string, unknown>) => Promise<{ data: T; error: Error | null }>)(fn, params);
-  if (error) throw error;
-  return data;
-}
-
 export async function listarContasSocial(): Promise<SocialConta[]> {
-  const { data, error } = await table('social_contas')
+  const { data, error } = await supabase
+    .from('social_contas')
     .select('*')
-    .eq('ativo' as never, true as never)
+    .eq('ativo', true)
     .order('data_cadastro', { ascending: false });
   if (error) throw error;
   return (data ?? []) as unknown as SocialConta[];
 }
 
 export async function criarContaSocial(payload: SocialCreateContaPayload): Promise<SocialConta> {
-  const { data, error } = await table('social_contas').insert(payload as never).select('*').single();
+  const { data, error } = await supabase
+    .from('social_contas')
+    .insert(payload as never)
+    .select('*')
+    .single();
   if (error) throw error;
   return data as unknown as SocialConta;
 }
 
-export async function atualizarContaSocial(id: string, payload: SocialUpdateContaPayload): Promise<SocialConta> {
-  const { data, error } = await table('social_contas').update(payload as never).eq('id' as never, id as never).select('*').single();
+export async function atualizarContaSocial(
+  id: string,
+  payload: SocialUpdateContaPayload,
+): Promise<SocialConta> {
+  const { data, error } = await supabase
+    .from('social_contas')
+    .update(payload as never)
+    .eq('id', id)
+    .select('*')
+    .single();
   if (error) throw error;
   return data as unknown as SocialConta;
 }
 
 export async function removerContaSocial(id: string): Promise<void> {
-  const { error } = await table('social_contas').update({ ativo: false } as never).eq('id' as never, id as never);
+  const { error } = await supabase
+    .from('social_contas')
+    .update({ ativo: false } as never)
+    .eq('id', id);
   if (error) throw error;
 }
 
-export async function sincronizarSocial(payload: SocialSyncPayload = {}): Promise<{ success: boolean; message: string }> {
+export async function sincronizarSocial(
+  payload: SocialSyncPayload = {},
+): Promise<{ success: boolean; message: string }> {
   if (payload.contaId) {
-    const { data: conta, error: contaError } = await table('social_contas').select('plataforma').eq('id' as never, payload.contaId as never).single();
+    const { data: conta, error: contaError } = await supabase
+      .from('social_contas')
+      .select('plataforma')
+      .eq('id', payload.contaId)
+      .single();
     if (contaError) throw contaError;
-    const provider = getSocialProvider(((conta as { plataforma?: string } | null)?.plataforma) as Parameters<typeof getSocialProvider>[0]);
-    await provider.syncInsights(payload);
+    const plataforma = (conta as { plataforma?: string } | null)?.plataforma as
+      | Parameters<typeof getSocialProvider>[0]
+      | undefined;
+    if (plataforma) {
+      const provider = getSocialProvider(plataforma);
+      await provider.syncInsights(payload);
+    }
   }
 
-  const data = await socialRpc<{ success: boolean; message: string }>('social_sincronizar_manual', { _conta_id: payload.contaId ?? null });
-  return data;
+  const { data, error } = await supabase.rpc('social_sincronizar_manual', {
+    _conta_id: payload.contaId ?? null,
+  });
+  if (error) throw error;
+  return data as unknown as { success: boolean; message: string };
 }
 
-export async function carregarDashboardSocial(dataInicio: string, dataFim: string): Promise<SocialDashboardConsolidado> {
-  return socialRpc<SocialDashboardConsolidado>('social_dashboard_consolidado', {
+export async function carregarDashboardSocial(
+  dataInicio: string,
+  dataFim: string,
+): Promise<SocialDashboardConsolidado> {
+  const { data, error } = await supabase.rpc('social_dashboard_consolidado', {
     _data_inicio: dataInicio,
     _data_fim: dataFim,
   });
+  if (error) throw error;
+  return data as unknown as SocialDashboardConsolidado;
 }
 
-export async function listarSnapshotsPeriodo(contaId: string, dataInicio: string, dataFim: string): Promise<SocialMetricaSnapshot[]> {
-  const data = await socialRpc<SocialMetricaSnapshot[]>('social_metricas_periodo', {
+export async function listarSnapshotsPeriodo(
+  contaId: string,
+  dataInicio: string,
+  dataFim: string,
+): Promise<SocialMetricaSnapshot[]> {
+  // RPC `social_metricas_periodo` may not exist in generated types yet; cast
+  // the function name through a helper to keep the payload typed.
+  const { data, error } = await (
+    supabase.rpc as unknown as (
+      name: string,
+      params: Record<string, unknown>,
+    ) => Promise<{ data: SocialMetricaSnapshot[] | null; error: Error | null }>
+  )('social_metricas_periodo', {
     _conta_id: contaId,
     _data_inicio: dataInicio,
     _data_fim: dataFim,
   });
+  if (error) throw error;
   return data ?? [];
 }
 
 export async function listarPostsFiltrados(filtros: SocialPostFilters): Promise<SocialPost[]> {
-  const data = await socialRpc<SocialPost[]>('social_posts_filtrados', {
-    _plataforma: filtros.plataforma ?? null,
+  const { data, error } = await supabase.rpc('social_posts_filtrados', {
     _data_inicio: filtros.dataInicio,
     _data_fim: filtros.dataFim,
-    _tipo_post: filtros.tipoPost ?? null,
-    _campanha_id: filtros.campanhaId ?? null,
+    _conta_id: filtros.campanhaId ?? null,
   });
-  return data ?? [];
+  if (error) throw error;
+  return (data ?? []) as unknown as SocialPost[];
 }
 
-export async function listarAlertas(resolvido?: boolean): Promise<SocialAlerta[]> {
-  const data = await socialRpc<SocialAlerta[]>('social_alertas_periodo', { _resolvido: resolvido ?? null });
-  return data ?? [];
+export async function listarAlertas(_resolvido?: boolean): Promise<SocialAlerta[]> {
+  const today = new Date();
+  const ago = new Date(today);
+  ago.setDate(today.getDate() - 30);
+  const { data, error } = await supabase.rpc('social_alertas_periodo', {
+    _data_inicio: ago.toISOString().slice(0, 10),
+    _data_fim: today.toISOString().slice(0, 10),
+  });
+  if (error) throw error;
+  return (data ?? []) as unknown as SocialAlerta[];
 }
 
 export interface SocialConsolidadoReportRow {
@@ -121,13 +157,6 @@ export function buildSocialConsolidadoRows(dashboard: SocialDashboardConsolidado
   }));
 }
 
-/**
- * Social CSV/XLSX exports — delegate to the centralised export.service.
- *
- * The legacy `XLSX.writeFile` path was removed in favour of `exceljs`
- * (no prototype-pollution risk); CSV emits UTF-8 BOM and uses the
- * sanitized filename helper.
- */
 export function exportSocialCsv(filename: string, rows: SocialConsolidadoReportRow[]): void {
   exportarParaCsv({
     titulo: filename.replace(/\.csv$/i, ''),
