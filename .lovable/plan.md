@@ -1,75 +1,64 @@
 
 
-## Plano — Correções fiscais críticas + refactors estruturais
+## Plano — Auditoria estrutural (P17–P23)
 
-Vou priorizar por risco: P10/P11 são bloqueadores de produção fiscal; P14 é bug puro; P13/P15/P16 são qualidade; P12 é refactor grande que precisa escopo controlado.
+Risco priorizado: P20 (segurança), P18+P19 (perf realtime), P22 (a11y), P21 (DX), P17 (refactor enorme), P23 (limpeza).
 
-### Bloco 1 — Fiscal crítico (P10, P11, P14)
+### Bloco 1 — Segurança (P20)
+**`useImportacaoXml.ts`:** validar antes de processar:
+- `MAX_FILE_SIZE_MB = 50` por arquivo.
+- `MAX_XML_FILES = 200` por ZIP.
+- `MAX_ZIP_EXPANDED_MB = 200` (somar `_data.uncompressedSize` durante iteração; abortar ao estourar).
+- Se `selectedFiles.length > 10`, sugerir uso de ZIP.
+- Toasts de erro claros e early return.
 
-**P10 — `<CRT>`/`<tpAmb>` hardcoded:**
-- Migration: adicionar `ambiente_sefaz TEXT DEFAULT '2' CHECK IN ('1','2')` em `empresa_config` (campo `crt` já existe? — vou verificar; se não, adicionar `crt TEXT DEFAULT '1' CHECK IN ('1','2','3')`).
-- `xmlBuilder.service.ts`: adicionar `crt` e `ambiente` em `NFeData`; trocar literais nos 3 builders (NFe, cancelamento, inutilização).
-- `autorizacao.service.ts` + `cancelamento.service.ts` + `inutilizacao.service.ts`: ler `empresa_config` e injetar.
-- `ConfiguracaoFiscal.tsx`: toggle Homologação/Produção com `ConfirmDialog` ao ativar produção.
+### Bloco 2 — Performance & Realtime (P18, P19)
+**P18 — query estoque baixo:** Supabase PostgREST não suporta comparação coluna×coluna direto. Solução: criar **migration** com RPC `count_estoque_baixo()` (`SECURITY DEFINER`, `search_path = public`) que retorna `bigint`. Substituir o filtro client-side por `supabase.rpc('count_estoque_baixo')`. Payload vira 1 inteiro.
 
-**P11 — `<indIEDest>` hardcoded:**
-- `NFeData.destinatario`: adicionar `indIEDest`.
-- Builder usa `${dados.destinatario.indIEDest}`.
-- Helper `calcularIndIEDest(ie, tipoPessoa)` em `xmlBuilder.service.ts` + aplicar onde `NFeData` é montado (verificar `gerarNFParaPedido` / hooks fiscais).
+**P19 — unificar alertas:**
+- Migrar `useSidebarAlerts` para `useQuery` (`queryKey: ['sidebar-alerts']`, `staleTime: 60_000`).
+- Criar singleton `src/lib/realtime/alertsChannel.ts` com `getAlertsChannel(onUpdate)` para evitar canais duplicados em re-renders/StrictMode.
+- `NotificationsPanel.tsx`: remover queries próprias e canal duplicado; consumir `useSidebarAlerts` + dados já carregados. Manter o cálculo de itens críticos de estoque via uma segunda query enxuta no mesmo hook (lista enxuta com `limit(20)` apenas quando o painel abrir — via hook secundário `useNotificationDetails(open)`).
 
-**P14 — IPI sempre 0:**
-- Substituir ternário quebrado em `tributacao.service.ts` por tabela `sugerirAliquotaIpi(ncm)` com comentário de "sugestão — confirmar com contador".
+### Bloco 3 — Acessibilidade (P22)
+Adicionar `aria-label` em botões só-ícone nos 4 componentes prioritários:
+- `DataTable.tsx` (editar/excluir/visualizar por linha — usar nome da entidade no label).
+- `OrcamentoItemsGrid.tsx` (remover item).
+- `FormModalFooter.tsx` (fechar/cancelar).
+- `ViewDrawerV2.tsx` (fechar drawer).
+Escopo limitado — não vou varrer 306 botões nesta passada.
 
-### Bloco 2 — Conciliação + Autosave + Mocks (P13, P15, P16)
+### Bloco 4 — Dashboard com React Query (P21)
+- Refatorar `useDashboardData.ts` para `useQuery({ queryKey: ['dashboard', range], queryFn, staleTime: 2*60_000, gcTime: 5*60_000, retry: 1 })`.
+- Manter shape de retorno retrocompatível: expor `data`, `isLoading`, `refetch`, `dataUpdatedAt` mas também os campos achatados (`stats`, `faturamento`, etc.) com defaults de `INITIAL_STATE` quando `data` indefinido — para não quebrar `Index.tsx` e widgets.
+- `Index.tsx`: trocar `loadData()` no `useEffect` por nada (React Query cuida); botão "Atualizar" chama `refetch()`; `loadedAt` vira `new Date(dataUpdatedAt)`.
 
-**P13 — Similaridade bancária:**
-- Reescrever `calcularSimilaridade` em `conciliacao.service.ts` com normalização (remove refs ≥5 dígitos) + bigramas (Sørensen-Dice).
-- Adicionar `confidence: "alta"|"media"|"baixa"` no retorno de `sugerirConciliacao` (alta ≥0.7, media ≥0.5, baixa ≥0.35). Threshold mínimo 0.35.
-- Atualizar tipo de retorno e callers (`useConciliacaoBancaria`) para repassar `confidence`. UI fica para passada futura — só o tipo já fica disponível.
-
-**P15 — Autosave keys únicas:**
-- Auditar usos de `useAutoSave` no projeto.
-- Garantir storageKey com ID (`form:${id}`) ou sessionKey ref para "novo".
-- Expiração 7 dias **já está aplicada** no hook (P6).
-
-**P16 — Mock global Supabase:**
-- Adicionar `vi.mock('@/integrations/supabase/client', ...)` no fim de `src/test/setup.ts` com chainable mocks padrão. Mocks por arquivo continuam podendo fazer override.
-
-### Bloco 3 — God components (P12) — escopo controlado
-
-Refactors grandes e arriscados. Vou fazer **apenas Clientes.tsx** nesta passada, em 4 extrações sequenciais, mantendo contrato externo igual:
-- `src/pages/clientes/hooks/useClienteForm.ts` (estado do form principal)
-- `src/pages/clientes/components/ClienteEnderecosTab.tsx`
-- `src/pages/clientes/components/ClienteComunicacoesTab.tsx`
-- `src/pages/clientes/components/ClienteTransportadorasTab.tsx`
-- `Clientes.tsx` reduzido a listagem + montagem de tabs.
-
-`OrcamentoForm.tsx` (P12B) **fica para passada própria** — 1.272 linhas com lógica de PDF/email/conversão tem risco alto demais para combinar com fiscal crítico no mesmo lote.
-
-### Migrations
-1. `ALTER TABLE empresa_config ADD COLUMN ambiente_sefaz TEXT DEFAULT '2' CHECK (ambiente_sefaz IN ('1','2'));`
-2. Se `crt` não existir: `ADD COLUMN crt TEXT DEFAULT '1' CHECK (crt IN ('1','2','3'));`
+### Bloco 5 — Limpeza (P23)
+- Verificar usos de `ViewDrawer` (v1). Se só `Auditoria.tsx`, migrar para `ViewDrawerV2` e deletar `ViewDrawer.tsx`. Se tiver outros usos, marcar como `@deprecated`.
 
 ### Fora de escopo
-- Refactor de `OrcamentoForm.tsx` (passada própria).
-- UI de exibição do `confidence` na conciliação (apenas dado disponível).
-- Tabela completa de IPI por NCM (apenas capítulos comuns como sugestão).
-- Validação cruzada `crt` × CSTs gerados (P10 só corrige o campo; regras de CST por regime ficam em `tributacao.service.ts`).
+- **P17 (mover 20 páginas para camada de serviços):** refactor gigantesco e arriscado. Vou criar `src/services/clientes.service.ts` com as queries de endereços/comunicações/transportadoras (extraídas dos novos sub-componentes do refactor anterior) como **prova de padrão**, e documentar em `docs/services-migration-plan.md` o roteiro para Fiscal/Orçamento/FluxoCaixa em passadas futuras. Mover Fiscal.tsx e OrcamentoForm.tsx (14 chamadas cada) num único lote junto com tudo isso seria irresponsável.
+- Auditoria completa de `aria-label` em todos os 306 botões.
+- View materializada para estoque baixo (RPC simples já resolve sem o custo de manutenção de MV).
 
 ### Critério de aceite
-- XML NF-e usa `crt` e `tpAmb` da `empresa_config`; toggle de ambiente na UI fiscal com confirmação.
-- `<indIEDest>` calculado a partir do cliente (PF=9, PJ sem IE/ISENTO=9, PJ com IE=1).
-- IPI sugerido > 0 para NCMs com capítulo conhecido.
-- Similaridade bancária com bigramas + normalização; retorno expõe `confidence`.
-- `useAutoSave` com keys únicas por registro.
-- Mock global Supabase em `src/test/setup.ts`.
-- `Clientes.tsx` < 400 linhas, dividido em hook + 3 sub-componentes.
+- Imports XML rejeitam arquivos >50MB, ZIPs com >200 XMLs ou expansão >200MB.
+- Sidebar alerts via React Query + RPC `count_estoque_baixo` (1 inteiro de payload).
+- Apenas 1 canal realtime de alertas no app (singleton).
+- 4 componentes prioritários com `aria-label` em botões só-ícone.
+- Dashboard com cache entre navegações; botão "Atualizar" usa `refetch()`.
+- `ViewDrawer` v1 deletado ou marcado deprecated.
+- `clientes.service.ts` criado como template + plano de migração documentado.
 - Build OK.
 
+### Migrations
+1. `CREATE FUNCTION public.count_estoque_baixo() RETURNS bigint LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$ SELECT count(*) FROM produtos WHERE ativo = true AND estoque_minimo > 0 AND estoque_atual <= estoque_minimo; $$;` + GRANT EXECUTE para `authenticated`.
+
 ### Arquivos afetados
-**Fiscal:** `xmlBuilder.service.ts`, `autorizacao.service.ts`, `cancelamento.service.ts`, `inutilizacao.service.ts`, `tributacao.service.ts`, `ConfiguracaoFiscal.tsx`, hooks que montam `NFeData`, migration nova.
-**Conciliação:** `conciliacao.service.ts`, `useConciliacaoBancaria.ts` (tipos).
-**Autosave:** auditoria + ajuste de callers.
-**Testes:** `src/test/setup.ts`.
-**Clientes refactor:** `Clientes.tsx` + 1 hook + 3 componentes novos em `src/pages/clientes/`.
+**Segurança:** `src/hooks/importacao/useImportacaoXml.ts`.
+**Perf:** `src/hooks/useSidebarAlerts.ts`, `src/components/navigation/NotificationsPanel.tsx`, `src/lib/realtime/alertsChannel.ts` (novo), migration nova.
+**A11y:** `src/components/DataTable.tsx`, `src/components/OrcamentoItemsGrid.tsx`, `src/components/FormModalFooter.tsx`, `src/components/ViewDrawerV2.tsx`.
+**Dashboard:** `src/pages/dashboard/hooks/useDashboardData.ts`, `src/pages/Index.tsx`.
+**Limpeza:** `src/pages/Auditoria.tsx`, `src/components/ViewDrawer.tsx` (delete ou deprecate).
+**Serviços (template):** `src/services/clientes.service.ts` (novo), `docs/services-migration-plan.md` (novo), atualizar 3 sub-componentes de cliente para consumir o serviço.
 
