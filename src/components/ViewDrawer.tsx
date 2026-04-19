@@ -1,3 +1,16 @@
+/**
+ * @deprecated Use `ViewDrawerV2` from `@/components/ViewDrawerV2` for new code.
+ *
+ * This legacy drawer is kept only for backwards compatibility with pages that
+ * still depend on it (currently `Auditoria.tsx` and `admin/Logs.tsx`). It exposes
+ * the original `ViewField` and `ViewSection` helpers, which `ViewDrawerV2`
+ * re-exports for convenience.
+ *
+ * Migration guide:
+ *  - Replace `<ViewDrawer ...>` with `<ViewDrawerV2 ...>` (same props plus
+ *    optional `tabs`, `subtitle`, `summary`, `footer`, `variant`).
+ *  - Update imports of `ViewField`/`ViewSection` to come from `@/components/ViewDrawerV2`.
+ */
 import { ReactNode } from "react";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";

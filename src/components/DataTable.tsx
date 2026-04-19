@@ -567,7 +567,7 @@ export function DataTable<T extends Record<string, any>>({
                         </SelectContent>
                       </Select>
                       <Input className="col-span-3 h-8" value={rule.value} onChange={(e) => updateRule(rule.id, { value: e.target.value })} placeholder="valor" />
-                      <Button variant="ghost" size="icon" className="col-span-2 h-8" onClick={() => deleteRule(rule.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                      <Button variant="ghost" size="icon" className="col-span-2 h-8" aria-label="Remover regra de filtro" onClick={() => deleteRule(rule.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
                     </div>
                   ))}
                   <div className="flex gap-2">
@@ -679,9 +679,9 @@ export function DataTable<T extends Record<string, any>>({
                 </Button>
               ) : (
                 <div className="flex gap-1">
-                  <Button variant="ghost" size="icon" className="h-9 w-9" disabled={currentPage === 0} onClick={() => setCurrentPage((p) => p - 1)}><ChevronLeft className="h-4 w-4" /></Button>
-                  <Button variant="ghost" size="icon" className="h-9 w-9" disabled={currentPage >= totalPages - 1} onClick={() => setCurrentPage((p) => p + 1)}><ChevronRight className="h-4 w-4" /></Button>
-                </div>
+                    <Button variant="ghost" size="icon" className="h-9 w-9" aria-label="Página anterior" disabled={currentPage === 0} onClick={() => setCurrentPage((p) => p - 1)}><ChevronLeft className="h-4 w-4" /></Button>
+                    <Button variant="ghost" size="icon" className="h-9 w-9" aria-label="Próxima página" disabled={currentPage >= totalPages - 1} onClick={() => setCurrentPage((p) => p + 1)}><ChevronRight className="h-4 w-4" /></Button>
+                  </div>
               )}
             </div>
           </>
@@ -756,8 +756,8 @@ export function DataTable<T extends Record<string, any>>({
                   </div>
                 ) : (
                   <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" className="h-8 w-8" disabled={currentPage === 0} onClick={() => setCurrentPage((p) => p - 1)}><ChevronLeft className="h-4 w-4" /></Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" disabled={currentPage >= totalPages - 1} onClick={() => setCurrentPage((p) => p + 1)}><ChevronRight className="h-4 w-4" /></Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Página anterior" disabled={currentPage === 0} onClick={() => setCurrentPage((p) => p - 1)}><ChevronLeft className="h-4 w-4" /></Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Próxima página" disabled={currentPage >= totalPages - 1} onClick={() => setCurrentPage((p) => p + 1)}><ChevronRight className="h-4 w-4" /></Button>
                   </div>
                 )}
               </div>

@@ -78,7 +78,13 @@ export function FormModalFooter({
 
       <div className="flex items-center gap-2 sm:gap-3 flex-wrap justify-end">
         {secondaryActions}
-        <Button type="button" variant="outline" onClick={onCancel} disabled={saving}>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onCancel}
+          disabled={saving}
+          aria-label={cancelLabel}
+        >
           {cancelLabel}
         </Button>
         {showSaveAndNew && (
