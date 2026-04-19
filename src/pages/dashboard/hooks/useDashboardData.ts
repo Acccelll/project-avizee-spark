@@ -1,4 +1,5 @@
-import { useCallback, useMemo, useState } from "react";
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useDashboardPeriod } from "@/contexts/DashboardPeriodContext";
 import { useDashboardAuxData } from "./useDashboardAuxData";
@@ -65,9 +66,6 @@ const INITIAL_STATE: DashboardDataState = {
 
 export function useDashboardData() {
   const { range } = useDashboardPeriod();
-  const [loading, setLoading] = useState(true);
-  const [loadedAt, setLoadedAt] = useState<Date>(new Date());
-  const [state, setState] = useState<DashboardDataState>(INITIAL_STATE);
 
   const { loadFinanceiroData } = useDashboardFinanceiroData(range);
   const { loadComercialData } = useDashboardComercialData(range);
@@ -75,56 +73,61 @@ export function useDashboardData() {
   const { loadFiscalData } = useDashboardFiscalData();
   const { loadAuxData } = useDashboardAuxData(range);
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
+  const query = useQuery<DashboardDataState>({
+    queryKey: ["dashboard", range.de, range.ate],
+    queryFn: async () => {
+      try {
+        const [financeiro, comercial, estoque, fiscal, aux] = await Promise.all([
+          loadFinanceiroData(),
+          loadComercialData(),
+          loadEstoqueData(),
+          loadFiscalData(),
+          loadAuxData(),
+        ]);
 
-    try {
-      const [financeiro, comercial, estoque, fiscal, aux] = await Promise.all([
-        loadFinanceiroData(),
-        loadComercialData(),
-        loadEstoqueData(),
-        loadFiscalData(),
-        loadAuxData(),
-      ]);
+        return {
+          stats: {
+            produtos: estoque.produtos,
+            clientes: aux.clientes,
+            fornecedores: aux.fornecedores,
+            orcamentos: comercial.orcamentos,
+            compras: aux.compras,
+            contasReceber: financeiro.contasReceber,
+            contasPagar: financeiro.contasPagar,
+            contasVencidas: financeiro.contasVencidas,
+            totalReceber: financeiro.totalReceber,
+            totalPagar: financeiro.totalPagar,
+          },
+          faturamento: comercial.faturamento,
+          recentOrcamentos: comercial.recentOrcamentos,
+          backlogOVs: comercial.backlogOVs,
+          backlogOVsCount: comercial.backlogOVsCount,
+          comprasAguardando: aux.comprasAguardando,
+          comprasAtrasadasCount: aux.comprasAtrasadasCount,
+          estoqueBaixo: estoque.estoqueBaixo,
+          fiscalStats: fiscal.fiscalStats,
+          vencimentosHoje: financeiro.vencimentosHoje,
+          topClientes: financeiro.topClientes,
+          topProdutos: comercial.topProdutos,
+          dailyReceber: financeiro.dailyReceber,
+          dailyPagar: financeiro.dailyPagar,
+          dailyVendas: comercial.dailyVendas,
+          valorEstoque: estoque.valorEstoque,
+          remessasAtrasadas: aux.remessasAtrasadas,
+        };
+      } catch (error) {
+        console.error("[dashboard] erro ao carregar dados:", error);
+        toast.error(getUserFriendlyError(error));
+        throw error;
+      }
+    },
+    staleTime: 2 * 60 * 1000,
+    gcTime: 5 * 60 * 1000,
+    retry: 1,
+    refetchOnWindowFocus: false,
+  });
 
-      setState({
-        stats: {
-          produtos: estoque.produtos,
-          clientes: aux.clientes,
-          fornecedores: aux.fornecedores,
-          orcamentos: comercial.orcamentos,
-          compras: aux.compras,
-          contasReceber: financeiro.contasReceber,
-          contasPagar: financeiro.contasPagar,
-          contasVencidas: financeiro.contasVencidas,
-          totalReceber: financeiro.totalReceber,
-          totalPagar: financeiro.totalPagar,
-        },
-        faturamento: comercial.faturamento,
-        recentOrcamentos: comercial.recentOrcamentos,
-        backlogOVs: comercial.backlogOVs,
-        backlogOVsCount: comercial.backlogOVsCount,
-        comprasAguardando: aux.comprasAguardando,
-        comprasAtrasadasCount: aux.comprasAtrasadasCount,
-        estoqueBaixo: estoque.estoqueBaixo,
-        fiscalStats: fiscal.fiscalStats,
-        vencimentosHoje: financeiro.vencimentosHoje,
-        topClientes: financeiro.topClientes,
-        topProdutos: comercial.topProdutos,
-        dailyReceber: financeiro.dailyReceber,
-        dailyPagar: financeiro.dailyPagar,
-        dailyVendas: comercial.dailyVendas,
-        valorEstoque: estoque.valorEstoque,
-        remessasAtrasadas: aux.remessasAtrasadas,
-      });
-      setLoadedAt(new Date());
-    } catch (error) {
-      console.error("[dashboard] erro ao carregar dados:", error);
-      toast.error(getUserFriendlyError(error));
-    } finally {
-      setLoading(false);
-    }
-  }, [loadAuxData, loadComercialData, loadEstoqueData, loadFinanceiroData, loadFiscalData]);
+  const state = query.data ?? INITIAL_STATE;
 
   /**
    * Ticket médio = faturamento confirmado no mês ÷ número de NFs emitidas no mês.
@@ -136,11 +139,17 @@ export function useDashboardData() {
     [state.faturamento.mesAtual, state.faturamento.nfAtualCount],
   );
 
+  const loadedAt = useMemo(
+    () => (query.dataUpdatedAt ? new Date(query.dataUpdatedAt) : new Date()),
+    [query.dataUpdatedAt],
+  );
+
   return {
     ...state,
-    loading,
+    loading: query.isLoading,
     loadedAt,
     ticketMedio,
-    loadData,
+    /** Triggers a manual refetch — use for the dashboard's "Atualizar" button. */
+    loadData: () => query.refetch(),
   };
 }

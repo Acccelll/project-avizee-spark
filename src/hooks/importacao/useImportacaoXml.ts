@@ -22,8 +22,31 @@ export function useImportacaoXml() {
   const onFilesChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(e.target.files || []);
     if (selectedFiles.length === 0) return;
-    setFiles(selectedFiles);
 
+    // ── Security guards: reject pathological inputs early ──────────────────
+    const MAX_FILE_SIZE_MB = 50;
+    const MAX_XML_FILES = 200;
+    const MAX_ZIP_EXPANDED_MB = 200;
+    const MAX_PARALLEL_FILES = 10;
+
+    if (selectedFiles.length > MAX_PARALLEL_FILES) {
+      toast.error(
+        `Máximo de ${MAX_PARALLEL_FILES} arquivos por vez. ` +
+          `Para enviar mais notas, agrupe-as em um único arquivo .zip.`,
+      );
+      return;
+    }
+
+    for (const file of selectedFiles) {
+      if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+        toast.error(
+          `Arquivo "${file.name}" excede ${MAX_FILE_SIZE_MB}MB. Reduza o tamanho e tente novamente.`,
+        );
+        return;
+      }
+    }
+
+    setFiles(selectedFiles);
     setIsProcessing(true);
     const results: XmlImportItem[] = [];
 
@@ -33,7 +56,35 @@ export function useImportacaoXml() {
           const zip = await JSZip.loadAsync(file);
           const zipFiles = Object.values(zip.files).filter(f => f.name.endsWith(".xml") && !f.dir);
 
+          if (zipFiles.length > MAX_XML_FILES) {
+            toast.error(
+              `O arquivo "${file.name}" contém ${zipFiles.length} XMLs. ` +
+                `Máximo permitido: ${MAX_XML_FILES} por importação.`,
+            );
+            setIsProcessing(false);
+            return;
+          }
+
+          // Guard against ZIP-bomb: sum uncompressed sizes during iteration
+          let expandedBytes = 0;
+          const expandedLimit = MAX_ZIP_EXPANDED_MB * 1024 * 1024;
+          let aborted = false;
+
           for (const zipFile of zipFiles) {
+            // JSZip exposes uncompressed size via internal _data; fall back to 0 if unavailable
+            const fileSize =
+              (zipFile as unknown as { _data?: { uncompressedSize?: number } })._data
+                ?.uncompressedSize ?? 0;
+            expandedBytes += fileSize;
+            if (expandedBytes > expandedLimit) {
+              toast.error(
+                `Conteúdo do arquivo "${file.name}" excede ${MAX_ZIP_EXPANDED_MB}MB após extração. ` +
+                  `Divida o pacote em ZIPs menores.`,
+              );
+              aborted = true;
+              break;
+            }
+
             const content = await zipFile.async("string");
             try {
               const parsed = parseNFeXml(content);
@@ -41,6 +92,11 @@ export function useImportacaoXml() {
             } catch (err: unknown) {
               results.push({ fileName: zipFile.name, data: null, status: "erro", error: err instanceof Error ? err.message : String(err) });
             }
+          }
+
+          if (aborted) {
+            setIsProcessing(false);
+            return;
           }
         } else if (file.name.endsWith(".xml")) {
           const content = await file.text();

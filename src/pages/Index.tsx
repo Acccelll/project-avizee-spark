@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -99,10 +99,7 @@ const DashboardContent = () => {
     vencimentosHoje,
   } = useDashboardData();
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
-
+  // React Query handles fetching/caching automatically — no useEffect needed.
   const greeting = getGreeting();
 
   const { kpiCards, saldoProjetado } = useDashboardKpis({

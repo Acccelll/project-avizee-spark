@@ -344,8 +344,22 @@ export function OrcamentoItemsGrid({ items, onChange, produtos, precosEspeciais 
                   <td className="px-3 py-2 text-right font-semibold">{formatCurrency(item.valor_total || 0)}</td>
                   <td className="px-3 py-2">
                     <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => duplicateItem(idx)}><Copy className="h-3.5 w-3.5" /></Button>
-                      <Button variant="ghost" size="icon" onClick={() => removeItem(idx)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label={`Duplicar item ${item.descricao_snapshot || idx + 1}`}
+                        onClick={() => duplicateItem(idx)}
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label={`Remover item ${item.descricao_snapshot || idx + 1}`}
+                        onClick={() => removeItem(idx)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                      </Button>
                     </div>
                     {isUnlinked ? (<span className="inline-flex mt-1 items-center gap-1 text-[11px] text-destructive font-semibold"><AlertTriangle className="h-3.5 w-3.5" />Produto não vinculado</span>) : lowStock ? (<span className="inline-flex mt-1 items-center gap-1 text-[11px] text-warning"><AlertTriangle className="h-3.5 w-3.5" />Estoque baixo</span>) : (<span className="inline-flex mt-1 items-center gap-1 text-[11px] text-success"><CheckCircle2 className="h-3.5 w-3.5" />OK</span>)}
                   </td>
