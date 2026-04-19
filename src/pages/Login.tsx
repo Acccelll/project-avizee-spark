@@ -10,11 +10,12 @@ import { toast } from "sonner";
 import { Eye, EyeOff, Mail, Lock, Zap, Loader2, LogIn, AlertCircle, HelpCircle } from "lucide-react";
 import logoAvizee from "@/assets/logoavizee.png";
 import { CapsLockIndicator } from "@/components/auth/CapsLockIndicator";
+import { ADMIN_EMAIL } from "@/constants/app";
 
 const DEV_EMAIL = import.meta.env.VITE_DEV_EMAIL as string | undefined;
 const DEV_PASSWORD = import.meta.env.VITE_DEV_PASSWORD as string | undefined;
-const showDevButton = Boolean(DEV_EMAIL && DEV_PASSWORD);
-const ADMIN_EMAIL = "admin@avizee.com.br";
+// Dev-only quick-login button: tree-shaken out of production builds via import.meta.env.DEV.
+const showDevButton = import.meta.env.DEV && Boolean(DEV_EMAIL && DEV_PASSWORD);
 
 export default function Login() {
   const [email, setEmail] = useState("");

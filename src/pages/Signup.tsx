@@ -1,14 +1,19 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useMemo, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
-import { UserPlus, Eye, EyeOff, Mail, Lock, User, CheckCircle2 } from "lucide-react";
+import { UserPlus, Eye, EyeOff, Mail, Lock, User, CheckCircle2, ShieldAlert } from "lucide-react";
 import logoAvizee from "@/assets/logoavizee.png";
+import { ADMIN_EMAIL, INVITE_ONLY } from "@/constants/app";
 
 export default function Signup() {
+  const [searchParams] = useSearchParams();
+  const inviteToken = searchParams.get("invite")?.trim() ?? "";
+
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -16,6 +21,11 @@ export default function Signup() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [errors, setErrors] = useState<{ nome?: string; email?: string; password?: string }>({});
+
+  const blockedByInvite = useMemo(
+    () => INVITE_ONLY && inviteToken.length === 0,
+    [inviteToken],
+  );
 
   const validate = () => {
     const e: typeof errors = {};
@@ -30,12 +40,19 @@ export default function Signup() {
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (blockedByInvite) {
+      toast.error("Cadastro disponível apenas por convite.");
+      return;
+    }
     if (!validate()) return;
     setLoading(true);
     const { error } = await supabase.auth.signUp({
       email: email.trim(),
       password,
-      options: { data: { nome: nome.trim() }, emailRedirectTo: window.location.origin },
+      options: {
+        data: { nome: nome.trim(), invite_token: inviteToken || undefined },
+        emailRedirectTo: window.location.origin,
+      },
     });
     if (error) {
       console.error('[signup]', error);
@@ -67,6 +84,34 @@ export default function Signup() {
     );
   }
 
+  if (blockedByInvite) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="bg-card border rounded-xl p-8 max-w-md text-center shadow-sm">
+          <div className="w-14 h-14 rounded-full bg-warning/10 flex items-center justify-center mx-auto mb-4">
+            <ShieldAlert className="h-7 w-7 text-warning" />
+          </div>
+          <h2 className="text-xl font-bold mb-2">Cadastro restrito</h2>
+          <p className="text-muted-foreground text-sm mb-6">
+            O cadastro está disponível apenas por convite. Entre em contato com o administrador
+            do sistema para solicitar acesso.
+          </p>
+          <div className="flex flex-col gap-2">
+            <a
+              href={`mailto:${ADMIN_EMAIL}?subject=${encodeURIComponent("Solicitação de convite — AviZee ERP")}`}
+              className="text-sm text-primary hover:underline"
+            >
+              {ADMIN_EMAIL}
+            </a>
+            <Link to="/login">
+              <Button variant="outline" className="gap-2 w-full">Voltar ao Login</Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-md">
@@ -75,6 +120,14 @@ export default function Signup() {
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Criar Conta</h1>
           <p className="text-muted-foreground text-sm mt-1">Cadastre-se no AviZee ERP</p>
         </div>
+
+        {INVITE_ONLY && inviteToken && (
+          <Alert className="mb-4">
+            <AlertDescription className="text-xs">
+              Convite reconhecido. Continue para criar sua conta.
+            </AlertDescription>
+          </Alert>
+        )}
 
         <form onSubmit={handleSignup} className="bg-card border rounded-xl p-6 space-y-4 shadow-sm">
           <div className="space-y-2">
