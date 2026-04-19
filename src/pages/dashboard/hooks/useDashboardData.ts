@@ -74,7 +74,7 @@ export function useDashboardData() {
   const { loadAuxData } = useDashboardAuxData(range);
 
   const query = useQuery<DashboardDataState>({
-    queryKey: ["dashboard", range.de, range.ate],
+    queryKey: ["dashboard", range.dateFrom, range.dateTo],
     queryFn: async () => {
       try {
         const [financeiro, comercial, estoque, fiscal, aux] = await Promise.all([
