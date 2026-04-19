@@ -34,6 +34,28 @@ function isSaida(cfop: string): boolean {
 }
 
 /**
+ * Sugere alíquota de IPI com base no capítulo NCM.
+ *
+ * IMPORTANTE: estes valores são apenas SUGESTÕES típicas baseadas no
+ * capítulo (2 primeiros dígitos do NCM). A TIPI completa tem milhares
+ * de exceções por código específico — o usuário/contador deve sempre
+ * confirmar a alíquota correta para cada produto.
+ */
+function sugerirAliquotaIpi(ncm: string): number {
+  const cap = (ncm ?? "").slice(0, 2);
+  const tabelaIpi: Record<string, number> = {
+    "22": 20, // Bebidas
+    "24": 300, // Tabaco e derivados
+    "33": 7,  // Cosméticos e perfumaria
+    "84": 5,  // Máquinas e aparelhos mecânicos
+    "85": 10, // Máquinas e aparelhos elétricos
+    "87": 25, // Veículos automotores
+    "90": 5,  // Instrumentos de precisão
+  };
+  return tabelaIpi[cap] ?? 0;
+}
+
+/**
  * Retorna alíquotas sugeridas de tributação com base nos parâmetros fornecidos.
  * Regras simplificadas — em produção devem ser complementadas por tabela de NCM/CFOP.
  */
@@ -73,9 +95,9 @@ export function sugerirTributacao(params: SugestaoTributacaoParams): SugestaoTri
   }
   // Simples Nacional: PIS/COFINS incluídos no DAS, alíquota 0 na NF-e
 
-  // IPI: aplica-se apenas para produtos industrializados (NCM com alíquota > 0)
-  // Regra simplificada: 5% para saídas de produtos industrializados (NCM não iniciando em 22xx/24xx)
-  const ipiAliquota = saida && !["22", "24"].some((p) => params.ncm.startsWith(p)) ? 0 : 0;
+  // IPI: sugestão por capítulo NCM (apenas para operações de saída).
+  // Valores são aproximações típicas — o contador deve confirmar.
+  const ipiAliquota = saida ? sugerirAliquotaIpi(params.ncm) : 0;
 
   return {
     icmsAliquota,

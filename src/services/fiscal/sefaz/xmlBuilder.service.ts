@@ -57,6 +57,18 @@ export interface NFePagamentoData {
   valor: number;
 }
 
+/** Código de Regime Tributário do emitente (NF-e 4.00). */
+export type CRT = "1" | "2" | "3";
+/** Tipo de ambiente SEFAZ: "1" = Produção, "2" = Homologação. */
+export type AmbienteSefaz = "1" | "2";
+/**
+ * Indicador de IE do destinatário (NF-e 4.00):
+ * - "1" = Contribuinte ICMS
+ * - "2" = Contribuinte isento de IE
+ * - "9" = Não contribuinte
+ */
+export type IndIEDest = "1" | "2" | "9";
+
 export interface NFeData {
   chave: string;
   numero: string;
@@ -65,6 +77,10 @@ export interface NFeData {
   naturezaOperacao: string;
   tipoDocumento: "0" | "1";
   finalidade: "1" | "2" | "3" | "4";
+  /** Código de Regime Tributário do emitente. Vem da configuração da empresa. */
+  crt: CRT;
+  /** Ambiente SEFAZ. "1" = Produção, "2" = Homologação. Vem da configuração. */
+  ambiente: AmbienteSefaz;
   emitente: {
     cnpj: string;
     razaoSocial: string;
@@ -80,6 +96,8 @@ export interface NFeData {
     cpfCnpj: string;
     razaoSocial: string;
     ie?: string;
+    /** Indicador de IE do destinatário. Calcule com `calcularIndIEDest`. */
+    indIEDest: IndIEDest;
     uf: string;
     cep: string;
     logradouro: string;
@@ -91,6 +109,27 @@ export interface NFeData {
   totais: NFeTotaisData;
   pagamentos: NFePagamentoData[];
   cfop: string;
+}
+
+/**
+ * Calcula o `indIEDest` correto para o destinatário a partir de IE e tipo de pessoa.
+ *
+ * Regras:
+ * - Pessoa Física → "9" (não contribuinte).
+ * - PJ sem IE ou com IE "ISENTO" → "9" (não contribuinte) ou "2" (isento).
+ *   Por simplicidade, retornamos "9" quando vazio e "2" quando explicitamente "ISENTO".
+ * - PJ com IE válida → "1" (contribuinte).
+ */
+export function calcularIndIEDest(
+  inscricaoEstadual: string | null | undefined,
+  tipoPessoa: string,
+): IndIEDest {
+  const tipo = (tipoPessoa || "").toUpperCase();
+  if (tipo === "PF" || tipo === "F") return "9";
+  const ie = (inscricaoEstadual ?? "").trim();
+  if (!ie) return "9";
+  if (ie.toUpperCase() === "ISENTO") return "2";
+  return "1";
 }
 
 function fmt2(n: number): string {
@@ -180,6 +219,10 @@ function buildItem(item: NFeItemData): string {
 
 /**
  * Constrói o XML de uma NF-e conforme schema 4.00.
+ *
+ * Os campos `crt`, `ambiente` e `destinatario.indIEDest` são lidos de
+ * `dados` em vez de hardcoded — garante que a NF reflita a configuração
+ * fiscal real do emitente e o status do destinatário.
  */
 export function construirXMLNFe(dados: NFeData): string {
   const destDoc = dados.destinatario.cpfCnpj.replace(/\D/g, "").length === 14
@@ -193,6 +236,11 @@ export function construirXMLNFe(dados: NFeData): string {
   const pagamentosXml = dados.pagamentos
     .map((p) => `<detPag><tPag>${p.forma}</tPag><vPag>${fmt2(p.valor)}</vPag></detPag>`)
     .join("\n");
+
+  const ieDestXml =
+    dados.destinatario.indIEDest === "1" && dados.destinatario.ie
+      ? `<IE>${dados.destinatario.ie}</IE>`
+      : "";
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <nfeProc versao="4.00" xmlns="http://www.portalfiscal.inf.br/nfe">
@@ -212,7 +260,7 @@ export function construirXMLNFe(dados: NFeData): string {
         <tpImp>1</tpImp>
         <tpEmis>1</tpEmis>
         <cDV>${dados.chave.slice(43)}</cDV>
-        <tpAmb>2</tpAmb>
+        <tpAmb>${dados.ambiente}</tpAmb>
         <finNFe>${dados.finalidade}</finNFe>
         <indFinal>1</indFinal>
         <indPres>1</indPres>
@@ -233,7 +281,7 @@ export function construirXMLNFe(dados: NFeData): string {
           <xPais>Brasil</xPais>
         </enderEmit>
         <IE>${dados.emitente.ie}</IE>
-        <CRT>1</CRT>
+        <CRT>${dados.crt}</CRT>
       </emit>
       <dest>
         ${destDoc}
@@ -248,7 +296,8 @@ export function construirXMLNFe(dados: NFeData): string {
           <cPais>1058</cPais>
           <xPais>Brasil</xPais>
         </enderDest>
-        <indIEDest>9</indIEDest>
+        <indIEDest>${dados.destinatario.indIEDest}</indIEDest>
+        ${ieDestXml}
       </dest>
       ${itensXml}
       <total>
@@ -290,6 +339,9 @@ export function construirXMLNFe(dados: NFeData): string {
 
 /**
  * Constrói o XML de evento de cancelamento de NF-e.
+ *
+ * @param ambiente "1" = Produção, "2" = Homologação. Deve refletir o ambiente
+ * em que a NF-e foi originalmente autorizada.
  */
 export function construirXMLCancelamento(
   chave: string,
@@ -297,6 +349,7 @@ export function construirXMLCancelamento(
   justificativa: string,
   cnpjEmitente: string,
   dataHora: string,
+  ambiente: AmbienteSefaz = "2",
 ): string {
   const cnpj = cnpjEmitente.replace(/\D/g, "");
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -305,7 +358,7 @@ export function construirXMLCancelamento(
   <evento versao="1.00">
     <infEvento Id="ID110111${chave}01">
       <cOrgao>91</cOrgao>
-      <tpAmb>2</tpAmb>
+      <tpAmb>${ambiente}</tpAmb>
       <CNPJ>${cnpj}</CNPJ>
       <chNFe>${chave}</chNFe>
       <dhEvento>${dataHora}</dhEvento>
@@ -324,6 +377,8 @@ export function construirXMLCancelamento(
 
 /**
  * Constrói o XML de inutilização de numeração de NF-e.
+ *
+ * @param ambiente "1" = Produção, "2" = Homologação.
  */
 export function construirXMLInutilizacao(
   cnpj: string,
@@ -333,6 +388,7 @@ export function construirXMLInutilizacao(
   numFinal: number,
   justificativa: string,
   uf: string,
+  ambiente: AmbienteSefaz = "2",
 ): string {
   const cnpjLimpo = cnpj.replace(/\D/g, "");
   const anoStr = String(ano).slice(-2);
@@ -340,7 +396,7 @@ export function construirXMLInutilizacao(
   return `<?xml version="1.0" encoding="UTF-8"?>
 <inutNFe versao="4.00" xmlns="http://www.portalfiscal.inf.br/nfe">
   <infInut Id="${id}">
-    <tpAmb>2</tpAmb>
+    <tpAmb>${ambiente}</tpAmb>
     <xServ>INUTILIZAR</xServ>
     <cUF>${uf}</cUF>
     <ano>${anoStr}</ano>
