@@ -3,7 +3,7 @@
  * A assinatura digital é realizada server-side na Edge Function sefaz-proxy.
  */
 
-import { construirXMLInutilizacao } from "./xmlBuilder.service";
+import { construirXMLInutilizacao, type AmbienteSefaz } from "./xmlBuilder.service";
 import type { CertificadoDigital } from "./assinaturaDigital.service";
 import { enviarParaSefaz } from "./httpClient.service";
 
@@ -15,6 +15,8 @@ export interface InutilizacaoParams {
   numFinal: number;
   justificativa: string;
   uf: string;
+  /** "1" = Produção, "2" = Homologação. Default: "2". */
+  ambiente?: AmbienteSefaz;
 }
 
 export interface InutilizacaoResult {
@@ -44,6 +46,7 @@ export async function inutilizarNumeracao(
     params.numFinal,
     params.justificativa,
     params.uf,
+    params.ambiente ?? "2",
   );
 
   const resposta = await enviarParaSefaz(

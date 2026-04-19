@@ -18,26 +18,83 @@ export interface TituloParaConciliacao {
   status: string | null;
 }
 
+/** Nível de confiança de uma sugestão automática de conciliação. */
+export type NivelConfianca = "alta" | "media" | "baixa";
+
+/** Resultado da sugestão automática de conciliação para uma transação. */
+export interface SugestaoConciliacao {
+  titulo: TituloParaConciliacao;
+  score: number;
+  confidence: NivelConfianca;
+}
+
+/** Score mínimo para considerar uma sugestão aceitável. */
+const SCORE_THRESHOLD_BAIXA = 0.35;
+/** Score mínimo para classificar a sugestão como confiança média. */
+const SCORE_THRESHOLD_MEDIA = 0.5;
+/** Score mínimo para classificar a sugestão como alta confiança. */
+const SCORE_THRESHOLD_ALTA = 0.7;
+
+/** Classifica um score numérico em nível de confiança qualitativo. */
+function classificarConfianca(score: number): NivelConfianca {
+  if (score >= SCORE_THRESHOLD_ALTA) return "alta";
+  if (score >= SCORE_THRESHOLD_MEDIA) return "media";
+  return "baixa";
+}
+
 /**
- * Calcula a similaridade entre duas strings usando distância de Jaro-Winkler
- * simplificada (coeficiente de caracteres em comum).
+ * Normaliza uma string para comparação de descrições bancárias.
+ *
+ * Remove números longos (referências/IDs com 5+ dígitos), pontuação,
+ * acentos e múltiplos espaços. Resultado é minúsculo, alfanumérico,
+ * adequado para comparação por bigramas.
+ */
+function normalizar(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize("NFD")
+    // eslint-disable-next-line no-misleading-character-class
+    .replace(/[\u0300-\u036f]/g, "") // remove diacríticos
+    .replace(/\d{5,}/g, "")           // remove referências numéricas longas
+    .replace(/[^\w\s]/g, " ")        // pontuação → espaço
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** Extrai o conjunto de bigramas (pares de caracteres) de uma string. */
+function bigrams(s: string): Set<string> {
+  const set = new Set<string>();
+  for (let i = 0; i < s.length - 1; i++) {
+    set.add(s.slice(i, i + 2));
+  }
+  return set;
+}
+
+/**
+ * Calcula a similaridade entre duas descrições bancárias usando o
+ * coeficiente de Sørensen-Dice sobre bigramas, com normalização prévia.
+ *
+ * Mais robusto que bag-of-words para strings curtas e abreviadas
+ * típicas de extratos bancários (ex.: "TED CRED 12345", "PIX RECEB").
  *
  * @returns Valor entre 0 (sem similaridade) e 1 (idênticas).
  */
-function calcularSimilaridade(a: string, b: string): number {
-  const na = a.toLowerCase().trim();
-  const nb = b.toLowerCase().trim();
-  if (na === nb) return 1;
+export function calcularSimilaridade(a: string, b: string): number {
+  const na = normalizar(a);
+  const nb = normalizar(b);
   if (!na || !nb) return 0;
+  if (na === nb) return 1;
 
-  const setA = new Set(na.split(" ").filter(Boolean));
-  const setB = new Set(nb.split(" ").filter(Boolean));
-  if (setA.size === 0 || setB.size === 0) return 0;
+  const ba = bigrams(na);
+  const bb = bigrams(nb);
+  if (ba.size === 0 || bb.size === 0) return 0;
 
-  let comuns = 0;
-  setA.forEach((w) => { if (setB.has(w)) comuns++; });
+  let intersect = 0;
+  ba.forEach((bg) => {
+    if (bb.has(bg)) intersect++;
+  });
 
-  return (2 * comuns) / (setA.size + setB.size);
+  return (2 * intersect) / (ba.size + bb.size);
 }
 
 /**
@@ -76,46 +133,35 @@ export function calcularScoreConciliacao(
 /**
  * Sugere o melhor lançamento para conciliar com uma transação do extrato.
  *
- * Heurística de matching (em ordem de prioridade):
- * 1. Valor idêntico (diferença < R$ 0,01).
- * 2. Data próxima (até 3 dias de diferença).
- * 3. Similaridade de descrição (coeficiente ≥ 0,3 como bônus de desempate).
+ * Heurística: maximiza o score combinado (valor, data, similaridade de
+ * descrição). Sugestões com score abaixo de `SCORE_THRESHOLD_BAIXA` são
+ * descartadas como ruído.
  *
  * @param transacao   Transação do extrato bancário.
  * @param titulos     Lista de lançamentos pendentes do ERP.
- * @returns           Melhor candidato ou `null` se não houver match aceitável.
+ * @returns           Sugestão com `titulo`, `score` e `confidence`,
+ *                    ou `null` se nenhum candidato atingir o threshold.
  */
 export function sugerirConciliacao(
   transacao: TransacaoExtrato,
   titulos: TituloParaConciliacao[],
-): TituloParaConciliacao | null {
-  const candidatos = titulos.filter((t) => {
-    const valorMatch =
-      Math.abs(Math.abs(t.valor) - transacao.valor) < 0.01;
-    if (!valorMatch) return false;
+): SugestaoConciliacao | null {
+  let melhor: { titulo: TituloParaConciliacao; score: number } | null = null;
 
-    const dataExtrato = new Date(transacao.data);
-    const dataLanc = new Date(t.data_vencimento);
-    const diffDias = Math.abs(
-      (dataExtrato.getTime() - dataLanc.getTime()) / (1000 * 60 * 60 * 24),
-    );
-    return diffDias <= 3;
-  });
+  for (const titulo of titulos) {
+    const score = calcularScoreConciliacao(transacao, titulo);
+    if (score < SCORE_THRESHOLD_BAIXA) continue;
+    if (!melhor || score > melhor.score) {
+      melhor = { titulo, score };
+    }
+  }
 
-  if (candidatos.length === 0) return null;
-  if (candidatos.length === 1) return candidatos[0];
-
-  // Desempate por similaridade de descrição
-  return candidatos.reduce<TituloParaConciliacao | null>((melhor, candidato) => {
-    const simAtual = calcularSimilaridade(
-      transacao.descricao,
-      candidato.descricao ?? "",
-    );
-    const simMelhor = melhor
-      ? calcularSimilaridade(transacao.descricao, melhor.descricao ?? "")
-      : -1;
-    return simAtual >= simMelhor ? candidato : melhor;
-  }, null);
+  if (!melhor) return null;
+  return {
+    titulo: melhor.titulo,
+    score: melhor.score,
+    confidence: classificarConfianca(melhor.score),
+  };
 }
 
 /**

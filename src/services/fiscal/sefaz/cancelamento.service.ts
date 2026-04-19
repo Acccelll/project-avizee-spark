@@ -3,7 +3,7 @@
  * A assinatura digital é realizada server-side na Edge Function sefaz-proxy.
  */
 
-import { construirXMLCancelamento } from "./xmlBuilder.service";
+import { construirXMLCancelamento, type AmbienteSefaz } from "./xmlBuilder.service";
 import type { CertificadoDigital } from "./assinaturaDigital.service";
 import { enviarParaSefaz } from "./httpClient.service";
 
@@ -17,6 +17,8 @@ export interface CancelamentoResult {
 /**
  * Cancela uma NF-e autorizada na SEFAZ.
  * @param justificativa - Mínimo 15 caracteres conforme regra SEFAZ.
+ * @param ambiente - "1" = Produção, "2" = Homologação. Deve corresponder ao
+ *                   ambiente em que a NF-e foi autorizada. Default: "2".
  */
 export async function cancelarNFe(
   chave: string,
@@ -25,6 +27,7 @@ export async function cancelarNFe(
   certificado: CertificadoDigital,
   urlSefaz: string,
   dadosEmitente: { cnpj: string },
+  ambiente: AmbienteSefaz = "2",
 ): Promise<CancelamentoResult> {
   if (!certificado.conteudo || !certificado.senha) {
     return { sucesso: false, motivo: "Conteúdo e senha do certificado são obrigatórios." };
@@ -37,6 +40,7 @@ export async function cancelarNFe(
     justificativa,
     dadosEmitente.cnpj,
     dataHora,
+    ambiente,
   );
 
   const resposta = await enviarParaSefaz(

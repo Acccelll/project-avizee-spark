@@ -35,13 +35,13 @@ describe("sugerirConciliacao", () => {
     const titulo = makeTitulo();
     const resultado = sugerirConciliacao(extrato, [titulo]);
     expect(resultado).not.toBeNull();
-    expect(resultado?.id).toBe("titulo-1");
+    expect(resultado?.titulo.id).toBe("titulo-1");
   });
 
   it("realiza matching com data até 3 dias de diferença", () => {
     const extrato = makeExtrato({ data: "2026-03-12" }); // 2 dias depois
     const titulo = makeTitulo({ data_vencimento: "2026-03-10" });
-    expect(sugerirConciliacao(extrato, [titulo])?.id).toBe("titulo-1");
+    expect(sugerirConciliacao(extrato, [titulo])?.titulo.id).toBe("titulo-1");
   });
 
   it("não faz matching quando a diferença de datas é maior que 3 dias", () => {
@@ -61,7 +61,7 @@ describe("sugerirConciliacao", () => {
     const titulo = makeTitulo({ valor: 1000.005 });
     // diff < 0.01 → deve fazer match
     const resultado = sugerirConciliacao(extrato, [titulo]);
-    expect(resultado?.id).toBe("titulo-1");
+    expect(resultado?.titulo.id).toBe("titulo-1");
   });
 
   it("desempata entre candidatos usando similaridade de descrição", () => {
@@ -70,13 +70,13 @@ describe("sugerirConciliacao", () => {
     const titulo2 = makeTitulo({ id: "titulo-2", descricao: "Pagamento empresa XYZ" });
     const resultado = sugerirConciliacao(extrato, [titulo1, titulo2]);
     // titulo1 tem maior similaridade com a descrição do extrato
-    expect(resultado?.id).toBe("titulo-1");
+    expect(resultado?.titulo.id).toBe("titulo-1");
   });
 
   it("retorna o único candidato mesmo com descrição sem correspondência", () => {
     const extrato = makeExtrato({ descricao: "TRANSF 12345" });
     const titulo = makeTitulo({ descricao: "Aluguel escritório" });
-    expect(sugerirConciliacao(extrato, [titulo])?.id).toBe("titulo-1");
+    expect(sugerirConciliacao(extrato, [titulo])?.titulo.id).toBe("titulo-1");
   });
 
   it("não faz matching quando nenhum título bate em valor e data", () => {

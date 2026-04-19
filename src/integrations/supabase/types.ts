@@ -1156,6 +1156,7 @@ export type Database = {
       empresa_config: {
         Row: {
           ambiente_padrao: string | null
+          ambiente_sefaz: string | null
           bairro: string | null
           cep: string | null
           cidade: string | null
@@ -1183,6 +1184,7 @@ export type Database = {
         }
         Insert: {
           ambiente_padrao?: string | null
+          ambiente_sefaz?: string | null
           bairro?: string | null
           cep?: string | null
           cidade?: string | null
@@ -1210,6 +1212,7 @@ export type Database = {
         }
         Update: {
           ambiente_padrao?: string | null
+          ambiente_sefaz?: string | null
           bairro?: string | null
           cep?: string | null
           cidade?: string | null
