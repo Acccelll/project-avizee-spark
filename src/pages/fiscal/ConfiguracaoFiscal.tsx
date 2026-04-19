@@ -25,6 +25,7 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import { supabase } from "@/integrations/supabase/client";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 
 const configuracaoSchema = z.object({
   crt: z.string().min(1, "CRT obrigatório"),
@@ -47,6 +48,8 @@ export default function ConfiguracaoFiscal() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [configId, setConfigId] = useState<string | null>(null);
+  const [ambienteAtual, setAmbienteAtual] = useState<"homologacao" | "producao">("homologacao");
+  const { confirm, dialog: confirmDialog } = useConfirmDialog();
 
   const form = useForm<FormData>({
     resolver: zodResolver(configuracaoSchema),
@@ -71,6 +74,7 @@ export default function ConfiguracaoFiscal() {
       const { data } = await supabase.from("empresa_config").select("*").limit(1).single();
       if (data) {
         setConfigId(data.id);
+        setAmbienteAtual((data.ambiente_padrao as "homologacao" | "producao") || "homologacao");
         form.reset({
           crt: data.crt || "1",
           cnae: data.cnae || "",
@@ -91,8 +95,22 @@ export default function ConfiguracaoFiscal() {
   }, [form]);
 
   async function handleSalvar(values: FormData) {
+    // Confirmação extra ao migrar para Produção (emissão fiscal real).
+    if (values.ambiente_padrao === "producao" && ambienteAtual !== "producao") {
+      const ok = await confirm({
+        title: "Ativar ambiente de Produção?",
+        description:
+          "Você está prestes a ativar a emissão real de NF-e na SEFAZ. As notas emitidas terão valor fiscal e contábil, e poderão gerar obrigações tributárias. Confirme apenas se o certificado digital e a configuração fiscal estiverem corretos.",
+        confirmLabel: "Sim, ativar Produção",
+        confirmVariant: "destructive",
+      });
+      if (!ok) return;
+    }
     setSaving(true);
     try {
+      // Mapeia o ambiente legível ("homologacao"/"producao") para o formato
+      // SEFAZ ("2"/"1") usado pelos serviços de emissão de XML.
+      const ambienteSefaz = values.ambiente_padrao === "producao" ? "1" : "2";
       const payload = {
         crt: values.crt,
         cnae: values.cnae || null,
@@ -103,6 +121,7 @@ export default function ConfiguracaoFiscal() {
         serie_padrao_nfe: values.serie_padrao_nfe,
         proximo_numero_nfe: values.proximo_numero_nfe,
         ambiente_padrao: values.ambiente_padrao,
+        ambiente_sefaz: ambienteSefaz,
         // NOTE: sefazUrlNFe, certificadoTipo, and certificadoSenha are collected
         // in this form but are NOT persisted yet (empresa_config does not have those
         // columns). They are kept in the schema so the UI can be wired up when the
@@ -115,6 +134,7 @@ export default function ConfiguracaoFiscal() {
         const { data } = await supabase.from("empresa_config").insert(payload as never).select().single();
         if (data) setConfigId((data as { id: string }).id);
       }
+      setAmbienteAtual(values.ambiente_padrao);
       toast.success("Configurações fiscais salvas");
     } catch (err) {
       console.error(err);
@@ -133,6 +153,7 @@ export default function ConfiguracaoFiscal() {
 
   return (
     <div className="space-y-6 p-6">
+      {confirmDialog}
       <h1 className="text-2xl font-bold">Configuração Fiscal</h1>
 
       <div className="max-w-2xl">

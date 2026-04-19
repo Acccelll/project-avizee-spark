@@ -155,8 +155,8 @@ export function useConciliacaoBancaria(
         const disponiveis = lancamentos.filter((l) => !usados.has(l.id));
         const sugestao = sugerirConciliacao(extrato, disponiveis);
         if (sugestao) {
-          novosPares.push({ extratoId: extrato.id, lancamentoId: sugestao.id });
-          usados.add(sugestao.id);
+          novosPares.push({ extratoId: extrato.id, lancamentoId: sugestao.titulo.id });
+          usados.add(sugestao.titulo.id);
         }
       }
     }

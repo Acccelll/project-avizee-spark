@@ -25,9 +25,12 @@ const DADOS_NFE_MINIMOS: NFeData = {
     municipio: "São Paulo",
     codigoMunicipio: "3550308",
   },
+  crt: "1",
+  ambiente: "2",
   destinatario: {
     cpfCnpj: "98765432000111",
     razaoSocial: "Cliente Teste SA",
+    indIEDest: "9",
     uf: "SP",
     cep: "20040030",
     logradouro: "Rua do Comércio",

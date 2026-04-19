@@ -24,10 +24,13 @@ const mockNFeData: NFeData = {
     municipio: 'São Paulo',
     codigoMunicipio: '3550308',
   },
+  crt: '3',
+  ambiente: '2',
   destinatario: {
     cpfCnpj: '44555666000199',
     razaoSocial: 'Cliente Teste SA',
     ie: '9876543210',
+    indIEDest: '1',
     uf: 'RJ',
     cep: '20040020',
     logradouro: 'Av Teste',
