@@ -947,7 +947,7 @@ export function NotaFiscalEditModal({
                       <p className="text-sm font-medium">Gera Financeiro</p>
                       <p className="text-xs text-muted-foreground mt-0.5">
                         {form.gera_financeiro
-                          ? "Ao confirmar, gerará lançamentos em Contas a Pagar/Receber."
+                          ? "Ao confirmar, gerará lançamentos em Lançamentos."
                           : "Não gerará lançamentos financeiros ao ser confirmada."}
                       </p>
                     </div>

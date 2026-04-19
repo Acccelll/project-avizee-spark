@@ -134,7 +134,7 @@ describe("smoke: financeiro abertura, filtros e baixa mínima", () => {
   it("abre financeiro, aplica busca principal e permite iniciar baixa", async () => {
     renderWithSmokeProviders(<FinanceiroPage />, "/financeiro");
 
-    expect(await screen.findByText("Contas a Pagar/Receber")).toBeInTheDocument();
+    expect(await screen.findByText("Lançamentos")).toBeInTheDocument();
     expect(await screen.findByText("Rows: 2")).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("search"), { target: { value: "Projeto" } });

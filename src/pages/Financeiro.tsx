@@ -187,7 +187,7 @@ const Financeiro = () => {
   );
 
   return (
-    <><ModulePage title="Contas a Pagar/Receber" subtitle="Gestão unificada de contas a pagar e receber" addLabel="Novo Lançamento" onAdd={openCreate}>
+    <><ModulePage title="Lançamentos" subtitle="Gestão unificada de contas a pagar e receber" addLabel="Novo Lançamento" onAdd={openCreate}>
         <div className="mb-4 flex items-center gap-3 flex-wrap">
           <PeriodFilter value={period} onChange={setPeriod} options={financialPeriods} />
           <div className="flex gap-1 ml-auto rounded-lg border p-0.5">
