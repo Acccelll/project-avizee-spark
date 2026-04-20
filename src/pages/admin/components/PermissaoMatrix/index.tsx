@@ -182,7 +182,7 @@ export function PermissaoMatrix() {
           <TableHeader>
             <TableRow>
               <TableHead className="min-w-[200px] sticky left-0 bg-background z-10">Permissão</TableHead>
-              {MATRIX_ACTIONS.map((action) => (
+              {visibleActions.map((action) => (
                 <TableHead key={action} className="text-center text-xs whitespace-nowrap px-2">
                   {humanizeAction(action)}
                 </TableHead>
@@ -193,7 +193,7 @@ export function PermissaoMatrix() {
           <TableBody>
             {filteredGroups.length === 0 && (
               <TableRow>
-                <TableCell colSpan={1 + MATRIX_ACTIONS.length} className="text-center text-xs text-muted-foreground py-8">
+                <TableCell colSpan={1 + visibleActions.length} className="text-center text-xs text-muted-foreground py-8">
                   Nenhum recurso encontrado para "{search}".
                 </TableCell>
               </TableRow>
@@ -202,7 +202,7 @@ export function PermissaoMatrix() {
               <>
                 <TableRow key={`group-${group.label}`} className="bg-muted/30">
                   <TableCell
-                    colSpan={1 + MATRIX_ACTIONS.length}
+                    colSpan={1 + visibleActions.length}
                     className="py-1.5 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide sticky left-0"
                   >
                     {group.label}
@@ -220,8 +220,8 @@ export function PermissaoMatrix() {
                           ) : null}
                           <span className="text-xs text-muted-foreground block">{ROLE_LABELS[role]}</span>
                         </TableCell>
-                        {MATRIX_ACTIONS.map((action) => {
-                          const key: PermissionKey = `${resource}:${action}`;
+                        {visibleActions.map((action) => {
+                          const key = `${resource}:${action}` as PermissionKey;
                           const checked = matrix[role].has(key);
                           return (
                             <TableCell key={action} className="text-center px-2 py-1">
