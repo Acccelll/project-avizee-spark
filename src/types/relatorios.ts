@@ -3,6 +3,41 @@
  * Each interface corresponds to one TipoRelatorio case.
  */
 
+// ─── Report meta (semantic contract) ────────────────────────────────────────
+
+export type ReportKind = 'list' | 'ranking' | 'aging' | 'dre' | 'divergencias';
+export type ValueNature = 'monetario' | 'quantidade' | 'percentual' | 'misto';
+
+export interface ReportTimeAxis {
+  /** Semantic name of the temporal axis (e.g. emissao, vencimento). */
+  field: 'emissao' | 'vencimento' | 'pagamento' | 'criacao' | 'competencia';
+  /** Human label shown in the UI (e.g. "vencimento"). */
+  label: string;
+  /** Whether the period is mandatory for this report. */
+  required: boolean;
+}
+
+export interface ReportMeta {
+  kind: ReportKind;
+  valueNature: ValueNature;
+  timeAxis?: ReportTimeAxis;
+  /** Whether rows carry IDs ready for drill-down navigation. */
+  drillDownReady: boolean;
+}
+
+/**
+ * Optional row-level structured metadata. When present, the UI prefers these
+ * over substring heuristics on display labels.
+ */
+export interface RowStatusMeta {
+  statusKey?: string;
+  statusKind?: 'critical' | 'warning' | 'success' | 'info' | 'neutral';
+  criticidadeKind?: 'critical' | 'warning' | 'success' | 'info' | 'neutral';
+  faixaKind?: 'critical' | 'warning' | 'success' | 'info' | 'neutral';
+  classeKind?: 'critical' | 'warning' | 'success' | 'info' | 'neutral';
+  tipoKind?: 'critical' | 'warning' | 'success' | 'info' | 'neutral';
+}
+
 // ─── Estoque ────────────────────────────────────────────────────────────────
 
 export interface EstoqueRow {
