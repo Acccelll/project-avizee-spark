@@ -33,6 +33,44 @@ function primaryRole(roles: AppRole[]): AppRole | null {
   return roles[0] ?? null;
 }
 
+/**
+ * Itens compartilhados pelo menu da conta — usado nos contextos mobile e desktop
+ * para evitar duplicação visual e funcional.
+ */
+function AccountMenuItems({
+  navigate,
+  theme,
+  setTheme,
+  signOut,
+}: {
+  navigate: (path: string) => void;
+  theme: string | undefined;
+  setTheme: (t: string) => void;
+  signOut: () => Promise<void>;
+}) {
+  return (
+    <>
+      <DropdownMenuItem onClick={() => navigate('/perfil')}>
+        <User className="mr-2 h-4 w-4" /> Meu perfil
+      </DropdownMenuItem>
+      <DropdownMenuItem onClick={() => navigate('/configuracoes')}>
+        <Settings className="mr-2 h-4 w-4" /> Configurações
+      </DropdownMenuItem>
+      <DropdownMenuItem onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
+        {theme === 'dark' ? <Sun className="mr-2 h-4 w-4" /> : <Moon className="mr-2 h-4 w-4" />}
+        Tema {theme === 'dark' ? 'claro' : 'escuro'}
+      </DropdownMenuItem>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem
+        className="text-destructive focus:text-destructive"
+        onClick={async () => { await signOut(); }}
+      >
+        Sair
+      </DropdownMenuItem>
+    </>
+  );
+}
+
 interface AppHeaderProps {
   onOpenMobileMenu: () => void;
   onOpenSearch: () => void;
