@@ -237,6 +237,36 @@ export type Database = {
         }
         Relationships: []
       }
+      cadastros_pendencias_migracao: {
+        Row: {
+          campo: string | null
+          created_at: string
+          entidade: string
+          entidade_id: string | null
+          id: string
+          motivo: string
+          valor_origem: string | null
+        }
+        Insert: {
+          campo?: string | null
+          created_at?: string
+          entidade: string
+          entidade_id?: string | null
+          id?: string
+          motivo: string
+          valor_origem?: string | null
+        }
+        Update: {
+          campo?: string | null
+          created_at?: string
+          entidade?: string
+          entidade_id?: string | null
+          id?: string
+          motivo?: string
+          valor_origem?: string | null
+        }
+        Relationships: []
+      }
       caixa_movimentos: {
         Row: {
           conta_bancaria_id: string | null
@@ -402,6 +432,8 @@ export type Database = {
           contato: string | null
           cpf_cnpj: string | null
           created_at: string
+          deleted_at: string | null
+          deleted_by: string | null
           email: string | null
           forma_pagamento_id: string | null
           forma_pagamento_padrao: string | null
@@ -410,6 +442,7 @@ export type Database = {
           inscricao_estadual: string | null
           limite_credito: number | null
           logradouro: string | null
+          motivo_inativacao: string | null
           nome_fantasia: string | null
           nome_razao_social: string
           numero: string | null
@@ -435,6 +468,8 @@ export type Database = {
           contato?: string | null
           cpf_cnpj?: string | null
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
           email?: string | null
           forma_pagamento_id?: string | null
           forma_pagamento_padrao?: string | null
@@ -443,6 +478,7 @@ export type Database = {
           inscricao_estadual?: string | null
           limite_credito?: number | null
           logradouro?: string | null
+          motivo_inativacao?: string | null
           nome_fantasia?: string | null
           nome_razao_social: string
           numero?: string | null
@@ -468,6 +504,8 @@ export type Database = {
           contato?: string | null
           cpf_cnpj?: string | null
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
           email?: string | null
           forma_pagamento_id?: string | null
           forma_pagamento_padrao?: string | null
@@ -476,6 +514,7 @@ export type Database = {
           inscricao_estadual?: string | null
           limite_credito?: number | null
           logradouro?: string | null
+          motivo_inativacao?: string | null
           nome_fantasia?: string | null
           nome_razao_social?: string
           numero?: string | null
@@ -1611,6 +1650,7 @@ export type Database = {
           descricao: string | null
           documento_pai_id: string | null
           forma_pagamento: string | null
+          forma_pagamento_id: string | null
           fornecedor_id: string | null
           funcionario_id: string | null
           id: string
@@ -1645,6 +1685,7 @@ export type Database = {
           descricao?: string | null
           documento_pai_id?: string | null
           forma_pagamento?: string | null
+          forma_pagamento_id?: string | null
           fornecedor_id?: string | null
           funcionario_id?: string | null
           id?: string
@@ -1679,6 +1720,7 @@ export type Database = {
           descricao?: string | null
           documento_pai_id?: string | null
           forma_pagamento?: string | null
+          forma_pagamento_id?: string | null
           fornecedor_id?: string | null
           funcionario_id?: string | null
           id?: string
@@ -1746,6 +1788,13 @@ export type Database = {
             columns: ["documento_pai_id"]
             isOneToOne: false
             referencedRelation: "vw_workbook_aging_cr"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_lancamentos_forma_pagamento_id_fkey"
+            columns: ["forma_pagamento_id"]
+            isOneToOne: false
+            referencedRelation: "formas_pagamento"
             referencedColumns: ["id"]
           },
           {
@@ -1872,10 +1921,13 @@ export type Database = {
           contato: string | null
           cpf_cnpj: string | null
           created_at: string
+          deleted_at: string | null
+          deleted_by: string | null
           email: string | null
           id: string
           inscricao_estadual: string | null
           logradouro: string | null
+          motivo_inativacao: string | null
           nome_fantasia: string | null
           nome_razao_social: string
           numero: string | null
@@ -1898,10 +1950,13 @@ export type Database = {
           contato?: string | null
           cpf_cnpj?: string | null
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
           email?: string | null
           id?: string
           inscricao_estadual?: string | null
           logradouro?: string | null
+          motivo_inativacao?: string | null
           nome_fantasia?: string | null
           nome_razao_social: string
           numero?: string | null
@@ -1924,10 +1979,13 @@ export type Database = {
           contato?: string | null
           cpf_cnpj?: string | null
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
           email?: string | null
           id?: string
           inscricao_estadual?: string | null
           logradouro?: string | null
+          motivo_inativacao?: string | null
           nome_fantasia?: string | null
           nome_razao_social?: string
           numero?: string | null
@@ -2074,8 +2132,11 @@ export type Database = {
           created_at: string
           data_admissao: string | null
           data_demissao: string | null
+          deleted_at: string | null
+          deleted_by: string | null
           departamento: string | null
           id: string
+          motivo_inativacao: string | null
           nome: string
           observacoes: string | null
           salario_base: number | null
@@ -2089,8 +2150,11 @@ export type Database = {
           created_at?: string
           data_admissao?: string | null
           data_demissao?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
           departamento?: string | null
           id?: string
+          motivo_inativacao?: string | null
           nome: string
           observacoes?: string | null
           salario_base?: number | null
@@ -2104,8 +2168,11 @@ export type Database = {
           created_at?: string
           data_admissao?: string | null
           data_demissao?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
           departamento?: string | null
           id?: string
+          motivo_inativacao?: string | null
           nome?: string
           observacoes?: string | null
           salario_base?: number | null
@@ -2139,7 +2206,15 @@ export type Database = {
           nome?: string
           observacoes?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "grupos_economicos_matriz_fkey"
+            columns: ["empresa_matriz_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       grupos_produto: {
         Row: {
@@ -3461,6 +3536,8 @@ export type Database = {
           codigo_legado: string | null
           created_at: string
           cst: string | null
+          deleted_at: string | null
+          deleted_by: string | null
           descricao: string | null
           eh_composto: boolean
           estoque_atual: number | null
@@ -3470,6 +3547,7 @@ export type Database = {
           grupo_id: string | null
           gtin: string | null
           id: string
+          motivo_inativacao: string | null
           ncm: string | null
           nome: string
           origem_mercadoria: string | null
@@ -3494,6 +3572,8 @@ export type Database = {
           codigo_legado?: string | null
           created_at?: string
           cst?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
           descricao?: string | null
           eh_composto?: boolean
           estoque_atual?: number | null
@@ -3503,6 +3583,7 @@ export type Database = {
           grupo_id?: string | null
           gtin?: string | null
           id?: string
+          motivo_inativacao?: string | null
           ncm?: string | null
           nome: string
           origem_mercadoria?: string | null
@@ -3527,6 +3608,8 @@ export type Database = {
           codigo_legado?: string | null
           created_at?: string
           cst?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
           descricao?: string | null
           eh_composto?: boolean
           estoque_atual?: number | null
@@ -3536,6 +3619,7 @@ export type Database = {
           grupo_id?: string | null
           gtin?: string | null
           id?: string
+          motivo_inativacao?: string | null
           ncm?: string | null
           nome?: string
           origem_mercadoria?: string | null
@@ -4209,10 +4293,13 @@ export type Database = {
           contato: string | null
           cpf_cnpj: string | null
           created_at: string
+          deleted_at: string | null
+          deleted_by: string | null
           email: string | null
           id: string
           logradouro: string | null
           modalidade: string | null
+          motivo_inativacao: string | null
           nome_fantasia: string | null
           nome_razao_social: string
           numero: string | null
@@ -4231,10 +4318,13 @@ export type Database = {
           contato?: string | null
           cpf_cnpj?: string | null
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
           email?: string | null
           id?: string
           logradouro?: string | null
           modalidade?: string | null
+          motivo_inativacao?: string | null
           nome_fantasia?: string | null
           nome_razao_social: string
           numero?: string | null
@@ -4253,10 +4343,13 @@ export type Database = {
           contato?: string | null
           cpf_cnpj?: string | null
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
           email?: string | null
           id?: string
           logradouro?: string | null
           modalidade?: string | null
+          motivo_inativacao?: string | null
           nome_fantasia?: string | null
           nome_razao_social?: string
           numero?: string | null

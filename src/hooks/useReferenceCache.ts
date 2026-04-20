@@ -31,6 +31,13 @@ export interface GrupoProdutoRef {
   id: string;
   nome: string;
 }
+export interface FormaPagamentoRef {
+  id: string;
+  descricao: string;
+  tipo: string | null;
+  parcelas: number | null;
+  prazo_dias: number | null;
+}
 
 export function useClientesRef(opts?: { ativosOnly?: boolean; limit?: number }) {
   const ativosOnly = opts?.ativosOnly ?? true;
@@ -100,6 +107,25 @@ export function useGruposProdutoRef(opts?: { ativosOnly?: boolean }) {
       const { data, error } = await q;
       if (error) throw error;
       return (data ?? []) as GrupoProdutoRef[];
+    },
+    staleTime: STALE,
+    refetchOnWindowFocus: false,
+  });
+}
+
+export function useFormasPagamentoRef(opts?: { ativasOnly?: boolean }) {
+  const ativasOnly = opts?.ativasOnly ?? true;
+  return useQuery<FormaPagamentoRef[]>({
+    queryKey: ["ref", "formas_pagamento", { ativasOnly }],
+    queryFn: async () => {
+      let q = supabase
+        .from("formas_pagamento")
+        .select("id, descricao, tipo, parcelas, prazo_dias")
+        .order("descricao");
+      if (ativasOnly) q = q.eq("ativo", true);
+      const { data, error } = await q;
+      if (error) throw error;
+      return (data ?? []) as FormaPagamentoRef[];
     },
     staleTime: STALE,
     refetchOnWindowFocus: false,

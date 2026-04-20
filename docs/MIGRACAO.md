@@ -98,3 +98,24 @@ NFs importadas via faturamento histórico são criadas com:
 - `origem = 'importacao_historica'`
 
 Isso garante que o histórico não impacta estoque nem financeiro.
+
+## Revisão Estrutural do Módulo de Cadastros (2026-04)
+
+Consolidação realizada em migration única e idempotente. Decisões-chave:
+
+- **Clientes × Formas de Pagamento**: `forma_pagamento_id` é a fonte oficial. `forma_pagamento_padrao` (texto) preservado e marcado `DEPRECATED`.
+- **Formas de Pagamento**: `tipo` formalizado via `CHECK chk_forma_pagamento_tipo` com valores `pix | boleto | cartao | dinheiro | transferencia | outro`. `descricao` é a condição comercial.
+- **Financeiro**: nova coluna `financeiro_lancamentos.forma_pagamento_id` com FK; texto legado mantido como fallback visual.
+- **Grupos Econômicos**: FK real `grupos_economicos.empresa_matriz_id → clientes(id)` com `ON DELETE SET NULL`. Idem `clientes.grupo_economico_id → grupos_economicos(id)`.
+- **Documentos únicos**: trigger `trg_normaliza_documento` (strip não-dígitos) + índice único parcial `WHERE ativo = true` permitindo reutilização de documento inativo. Duplicatas ativas registradas em `cadastros_pendencias_migracao` sem apagar dados; o índice único só é criado se nenhuma duplicata ativa persistir.
+- **Soft delete oficial**: `deleted_at`, `deleted_by`, `motivo_inativacao` em `clientes`, `fornecedores`, `transportadoras`, `produtos`, `funcionarios`. Trigger `trg_registrar_inativacao` espelha mudanças de `ativo`.
+- **FKs faltantes** adicionadas em `cliente_transportadoras`, `clientes_enderecos_entrega`, `cliente_registros_comunicacao` e `financeiro_lancamentos` (cliente/fornecedor/conta_contabil/conta_bancaria, todas `RESTRICT`).
+
+Pendências de consolidação ficam em `public.cadastros_pendencias_migracao` (somente admin pode ler). Consulta de auditoria:
+
+```sql
+SELECT entidade, motivo, count(*)
+  FROM cadastros_pendencias_migracao
+ GROUP BY entidade, motivo
+ ORDER BY entidade, motivo;
+```
