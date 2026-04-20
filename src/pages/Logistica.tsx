@@ -560,7 +560,7 @@ export default function Logistica() {
           </div>
         )}
 
-        <Tabs defaultValue="entregas" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="mb-4">
             <TabsTrigger value="entregas">Entregas</TabsTrigger>
             <TabsTrigger value="recebimentos">Recebimentos</TabsTrigger>

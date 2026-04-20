@@ -24,11 +24,13 @@ export default function PedidosCompra() {
 
   const filters = usePedidoCompraFilters(ctx.pedidos, ctx.fornecedoresAtivos, statusLabels);
 
-  // Drill-down from Dashboard: ?atrasadas=1 → applies "atrasada" recebimento filter.
+  // Drill-down from Dashboard: ?atrasadas=1 → narrows to pedidos that are still
+  // awaiting receipt (the closest semantic match — "atrasado" is not a real
+  // status, just a temporal interpretation).
   const [searchParams] = useSearchParams();
   useEffect(() => {
     if (searchParams.get("atrasadas") === "1") {
-      filters.setRecebimentoFilters((prev) => (prev.includes("atrasada") ? prev : ["atrasada"]));
+      filters.setRecebimentoFilters((prev) => (prev.includes("aguardando") ? prev : ["aguardando", "parcial"]));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
