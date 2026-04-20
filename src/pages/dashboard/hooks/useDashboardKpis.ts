@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { BarChart2, DollarSign, Package, TrendingUp } from "lucide-react";
+import { AlertTriangle, BarChart2, ClipboardList, DollarSign, Package, TrendingUp, Truck } from "lucide-react";
 import { formatCurrency, formatNumber } from "@/lib/format";
 
 interface KpiParams {
@@ -16,6 +16,9 @@ interface KpiParams {
     contasVencidas: number;
   };
   estoqueBaixoCount: number;
+  backlogOVsCount: number;
+  comprasAtrasadasCount: number;
+  remessasAtrasadasCount: number;
   dailyReceber: Array<{ dia: string; valor: number }>;
   dailyPagar: Array<{ dia: string; valor: number }>;
   onOpenReceber: () => void;
@@ -24,6 +27,9 @@ interface KpiParams {
   onOpenEstoque: () => void;
   onReceberDetail: () => void;
   onEstoqueDetail: () => void;
+  onOpenBacklog: () => void;
+  onOpenCompras: () => void;
+  onOpenRemessas: () => void;
 }
 
 export function useDashboardKpis(params: KpiParams) {
@@ -31,6 +37,9 @@ export function useDashboardKpis(params: KpiParams) {
     metas,
     stats,
     estoqueBaixoCount,
+    backlogOVsCount,
+    comprasAtrasadasCount,
+    remessasAtrasadasCount,
     dailyReceber,
     dailyPagar,
     onOpenReceber,
@@ -39,6 +48,9 @@ export function useDashboardKpis(params: KpiParams) {
     onOpenEstoque,
     onReceberDetail,
     onEstoqueDetail,
+    onOpenBacklog,
+    onOpenCompras,
+    onOpenRemessas,
   } = params;
 
   const saldoProjetado = stats.totalReceber - stats.totalPagar;
@@ -97,30 +109,13 @@ export function useDashboardKpis(params: KpiParams) {
         meta: metas.saldo,
         realizado: saldoProjetado,
       },
-      {
-        id: "estoque",
-        title: "Estoque Crítico",
-        value: formatNumber(estoqueBaixoCount),
-        subtitle: estoqueBaixoCount > 0 ? "produto(s) abaixo do mínimo" : "Estoque dentro do normal",
-        icon: Package,
-        variation: estoqueBaixoCount > 0 ? "Reposição necessária" : "Sem itens críticos",
-        variationType: estoqueBaixoCount > 0 ? ("negative" as const) : ("positive" as const),
-        variant: estoqueBaixoCount > 0 ? ("danger" as const) : ("success" as const),
-        sparklineData: undefined,
-        onClick: onOpenEstoque,
-        onDetail: onEstoqueDetail,
-        "aria-label": "Ver produtos com estoque crítico",
-      },
     ],
     [
       dailyPagar,
       dailyReceber,
-      estoqueBaixoCount,
       metas.pagar,
       metas.receber,
       metas.saldo,
-      onEstoqueDetail,
-      onOpenEstoque,
       onOpenPagar,
       onOpenReceber,
       onOpenSaldo,
@@ -134,5 +129,66 @@ export function useDashboardKpis(params: KpiParams) {
     ],
   );
 
-  return { kpiCards, saldoProjetado };
+  /**
+   * Operational exception indicators — semantically distinct from value KPIs.
+   * They count exceptions (units), not money, and never have meta/sparkline.
+   */
+  const operationalCards = useMemo(
+    () => [
+      {
+        id: "estoque-critico",
+        title: "Estoque Crítico",
+        value: formatNumber(estoqueBaixoCount),
+        subtitle: estoqueBaixoCount > 0 ? "abaixo do mínimo" : "saudável",
+        icon: Package,
+        variant: estoqueBaixoCount > 0 ? ("danger" as const) : ("success" as const),
+        onClick: onOpenEstoque,
+        onDetail: onEstoqueDetail,
+        "aria-label": "Ver produtos com estoque crítico",
+      },
+      {
+        id: "ovs-aguardando",
+        title: "Pedidos a Faturar",
+        value: formatNumber(backlogOVsCount),
+        subtitle: backlogOVsCount > 0 ? "aguardando NF" : "tudo faturado",
+        icon: ClipboardList,
+        variant: backlogOVsCount > 0 ? ("warning" as const) : ("success" as const),
+        onClick: onOpenBacklog,
+        "aria-label": "Ver pedidos aguardando faturamento",
+      },
+      {
+        id: "compras-atrasadas",
+        title: "Compras em Atraso",
+        value: formatNumber(comprasAtrasadasCount),
+        subtitle: comprasAtrasadasCount > 0 ? "entrega vencida" : "no prazo",
+        icon: AlertTriangle,
+        variant: comprasAtrasadasCount > 0 ? ("danger" as const) : ("success" as const),
+        onClick: onOpenCompras,
+        "aria-label": "Ver pedidos de compra atrasados",
+      },
+      {
+        id: "remessas-atrasadas",
+        title: "Remessas Atrasadas",
+        value: formatNumber(remessasAtrasadasCount),
+        subtitle: remessasAtrasadasCount > 0 ? "envios sem confirmação" : "no prazo",
+        icon: Truck,
+        variant: remessasAtrasadasCount > 0 ? ("warning" as const) : ("success" as const),
+        onClick: onOpenRemessas,
+        "aria-label": "Ver remessas atrasadas",
+      },
+    ],
+    [
+      backlogOVsCount,
+      comprasAtrasadasCount,
+      estoqueBaixoCount,
+      onEstoqueDetail,
+      onOpenBacklog,
+      onOpenCompras,
+      onOpenEstoque,
+      onOpenRemessas,
+      remessasAtrasadasCount,
+    ],
+  );
+
+  return { kpiCards, operationalCards, saldoProjetado };
 }
