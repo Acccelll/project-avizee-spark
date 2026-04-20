@@ -245,8 +245,8 @@ export default function Administracao() {
             cidade: empresa?.cidade || defaultConfig.geral.cidade,
             uf: empresa?.uf || defaultConfig.geral.uf,
             logoUrl: empresa?.logo_url || geralRaw.logoUrl || defaultConfig.geral.logoUrl,
-            corPrimaria: geralRaw.corPrimaria || defaultConfig.geral.corPrimaria,
-            corSecundaria: geralRaw.corSecundaria || defaultConfig.geral.corSecundaria,
+            corPrimaria: empresa?.cor_primaria || geralRaw.corPrimaria || defaultConfig.geral.corPrimaria,
+            corSecundaria: empresa?.cor_secundaria || geralRaw.corSecundaria || defaultConfig.geral.corSecundaria,
           },
           usuarios: { ...defaultConfig.usuarios, ...((appConfig.usuarios as UsuariosConfigRaw) || {}) },
           email: { ...defaultConfig.email, ...emailData },
@@ -421,7 +421,8 @@ export default function Administracao() {
       const updatedByName = profile?.nome ?? user?.email ?? null;
 
       if (activeSection === 'empresa') {
-        // Save empresa_config + geral app config
+        // Branding (logo + cores) e identidade institucional vivem em empresa_config.
+        // Cores primária/secundária ganharam colunas dedicadas (cor_primaria/cor_secundaria).
         const empresaPayload = {
           razao_social: config.geral.empresa,
           nome_fantasia: config.geral.nomeFantasia,
@@ -437,6 +438,8 @@ export default function Administracao() {
           cidade: config.geral.cidade || null,
           uf: config.geral.uf || null,
           logo_url: config.geral.logoUrl || null,
+          cor_primaria: config.geral.corPrimaria || null,
+          cor_secundaria: config.geral.corSecundaria || null,
           updated_at: now,
         };
         if (empresaConfigId) {
@@ -447,17 +450,18 @@ export default function Administracao() {
           if (empError) throw empError;
           if (insertedEmpresa?.id) setEmpresaConfigId(insertedEmpresa.id);
         }
+        // app_configuracoes['geral'] mantém apenas campos auxiliares que ainda não
+        // têm coluna dedicada em empresa_config (site, whatsapp, responsável, IM).
         const geralRow: AppConfigInsert = {
           chave: 'geral',
           valor: {
-            logoUrl: config.geral.logoUrl,
-            corPrimaria: config.geral.corPrimaria,
-            corSecundaria: config.geral.corSecundaria,
             site: config.geral.site,
             whatsapp: config.geral.whatsapp,
             responsavel: config.geral.responsavel,
             inscricaoMunicipal: config.geral.inscricaoMunicipal,
           },
+          categoria: 'geral',
+          sensibilidade: 'interno',
         };
         const { error: appError } = await supabase.from('app_configuracoes').upsert([geralRow], { onConflict: 'chave' });
         if (appError) throw appError;

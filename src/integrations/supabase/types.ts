@@ -16,24 +16,33 @@ export type Database = {
     Tables: {
       app_configuracoes: {
         Row: {
+          categoria: string | null
           chave: string
           created_at: string
           id: string
+          sensibilidade: string
           updated_at: string
+          updated_by: string | null
           valor: Json | null
         }
         Insert: {
+          categoria?: string | null
           chave: string
           created_at?: string
           id?: string
+          sensibilidade?: string
           updated_at?: string
+          updated_by?: string | null
           valor?: Json | null
         }
         Update: {
+          categoria?: string | null
           chave?: string
           created_at?: string
           id?: string
+          sensibilidade?: string
           updated_at?: string
+          updated_by?: string | null
           valor?: Json | null
         }
         Relationships: []
@@ -5684,6 +5693,10 @@ export type Database = {
       }
     }
     Functions: {
+      _set_vault_secret: {
+        Args: { p_name: string; p_secret: string }
+        Returns: string
+      }
       ajustar_estoque_manual:
         | {
             Args: {
@@ -5839,6 +5852,9 @@ export type Database = {
         }
         Returns: string
       }
+      get_secret_gateway_key: { Args: never; Returns: string }
+      get_secret_sefaz_password: { Args: never; Returns: string }
+      get_secret_smtp_password: { Args: never; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -5938,6 +5954,15 @@ export type Database = {
       set_principal_endereco: {
         Args: { p_cliente_id: string; p_endereco_id: string }
         Returns: undefined
+      }
+      set_secret_gateway_key: { Args: { p_secret: string }; Returns: string }
+      set_secret_sefaz_password: {
+        Args: { p_password: string }
+        Returns: string
+      }
+      set_secret_smtp_password: {
+        Args: { p_password: string }
+        Returns: string
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }

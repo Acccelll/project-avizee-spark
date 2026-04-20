@@ -172,15 +172,17 @@ export default function Configuracoes() {
   }, [densidadePref]);
 
   useEffect(() => {
+    // Branding institucional vive em empresa_config (admin-only via Administracao.tsx).
+    // Aqui apenas exibimos as cores correntes para contexto visual do usuário.
     supabase
-      .from('app_configuracoes')
-      .select('chave, valor')
-      .in('chave', ['theme_primary_color', 'theme_secondary_color'])
+      .from('empresa_config')
+      .select('cor_primaria, cor_secundaria')
+      .limit(1)
+      .maybeSingle()
       .then(({ data }) => {
-        const primary = data?.find((d) => d.chave === 'theme_primary_color')?.valor as string | undefined;
-        const secondary = data?.find((d) => d.chave === 'theme_secondary_color')?.valor as string | undefined;
-        if (primary) setCorPrimaria(primary);
-        if (secondary) setCorSecundaria(secondary);
+        const row = data as { cor_primaria?: string | null; cor_secundaria?: string | null } | null;
+        if (row?.cor_primaria) setCorPrimaria(row.cor_primaria);
+        if (row?.cor_secundaria) setCorSecundaria(row.cor_secundaria);
       });
   }, []);
 
@@ -254,28 +256,9 @@ export default function Configuracoes() {
     document.documentElement.dataset.density = APPEARANCE_DEFAULTS.densidade === 'compacta' ? 'compact' : 'comfortable';
     document.documentElement.style.setProperty('--base-font-size', `${APPEARANCE_DEFAULTS.fontScale}px`);
     document.documentElement.classList.remove('reduce-motion');
-    // Only reset global colors if the user is an admin.
-    if (isAdmin) {
-      setCorPrimaria(APPEARANCE_DEFAULTS.corPrimaria);
-      setCorSecundaria(APPEARANCE_DEFAULTS.corSecundaria);
-      const { error } = await supabase.from('app_configuracoes').upsert(
-        [
-          { chave: 'theme_primary_color', valor: APPEARANCE_DEFAULTS.corPrimaria, updated_at: new Date().toISOString() },
-          { chave: 'theme_secondary_color', valor: APPEARANCE_DEFAULTS.corSecundaria, updated_at: new Date().toISOString() },
-        ] satisfies AppConfigInsert[],
-        { onConflict: 'chave' }
-      );
-      if (error) {
-        console.error('[configuracoes] reset colors:', error);
-        toast.error(getUserFriendlyError(error));
-        return;
-      }
-      const primaryHsl = hexToHslString(APPEARANCE_DEFAULTS.corPrimaria);
-      const secondaryHsl = hexToHslString(APPEARANCE_DEFAULTS.corSecundaria);
-      if (primaryHsl) document.documentElement.style.setProperty('--primary', primaryHsl);
-      if (secondaryHsl) document.documentElement.style.setProperty('--secondary', secondaryHsl);
-    }
-    toast.success('Aparência restaurada ao padrão.');
+    // Branding global (cores institucionais) NÃO é mais resetado a partir daqui —
+    // pertence à Administração (empresa_config). Esta tela cuida apenas de prefs pessoais.
+    toast.success('Preferências de aparência restauradas ao padrão.');
   };
 
   const renderContent = () => {
@@ -549,62 +532,26 @@ export default function Configuracoes() {
 
               <Separator />
 
-              {/* ── Bloco 4: Cores da interface (global — apenas admins) ─────── */}
-              {isAdmin ? (
-                <div className="space-y-4">
-                  <div>
-                    <h3 className="text-sm font-semibold text-foreground">Cores da interface</h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Cor primária e secundária são configurações <strong>globais</strong> — afetam todos os usuários do sistema. Editável apenas por administradores.
+              {/* ── Bloco 4: Branding institucional (somente leitura) ────────── */}
+              {/*
+                Branding (cores e logo) pertence a `empresa_config` e é gerenciado
+                exclusivamente em Administração → Empresa. Aqui exibimos apenas o
+                estado atual para contexto visual.
+              */}
+              <div className="rounded-lg border bg-muted/30 p-4 text-sm text-muted-foreground space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="space-y-1">
+                    <p className="text-foreground font-medium">Cores institucionais (branding global)</p>
+                    <p className="text-xs">
+                      Definidas pelo administrador em <strong>Administração → Empresa</strong>. Refletem em todos os usuários.
                     </p>
                   </div>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label>Cor primária</Label>
-                      <div className="flex items-center gap-3">
-                        <Input
-                          type="color"
-                          value={corPrimaria}
-                          onChange={(e) => setCorPrimaria(e.target.value)}
-                          className="h-10 w-16 p-1 cursor-pointer"
-                          aria-label="Selecionar cor primária da interface"
-                        />
-                        <span className="text-sm text-muted-foreground font-mono">{corPrimaria}</span>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Cor secundária</Label>
-                      <div className="flex items-center gap-3">
-                        <Input
-                          type="color"
-                          value={corSecundaria}
-                          onChange={(e) => setCorSecundaria(e.target.value)}
-                          className="h-10 w-16 p-1 cursor-pointer"
-                          aria-label="Selecionar cor secundária da interface"
-                        />
-                        <span className="text-sm text-muted-foreground font-mono">{corSecundaria}</span>
-                      </div>
-                    </div>
-                  </div>
-                  {/* Preview */}
-                  <div className="rounded-lg border p-4 space-y-2">
-                    <p className="text-xs text-muted-foreground font-medium">Pré-visualização</p>
-                    <div className="flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-md border" style={{ backgroundColor: corPrimaria }} />
-                      <div className="h-8 w-8 rounded-md border" style={{ backgroundColor: corSecundaria }} />
-                      <div className="flex flex-col gap-1 flex-1">
-                        <div className="h-2 rounded-full w-3/4" style={{ backgroundColor: corPrimaria, opacity: 0.85 }} />
-                        <div className="h-2 rounded-full w-1/2" style={{ backgroundColor: corSecundaria, opacity: 0.65 }} />
-                      </div>
-                      <span className="text-xs text-muted-foreground">Primária · Secundária</span>
-                    </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <div className="h-7 w-7 rounded-md border" style={{ backgroundColor: corPrimaria }} aria-label="Cor primária atual" />
+                    <div className="h-7 w-7 rounded-md border" style={{ backgroundColor: corSecundaria }} aria-label="Cor secundária atual" />
                   </div>
                 </div>
-              ) : (
-                <div className="rounded-lg border bg-muted/30 p-4 text-sm text-muted-foreground">
-                  As cores globais da interface (primária e secundária) são gerenciadas pelo administrador do sistema.
-                </div>
-              )}
+              </div>
 
               <Separator />
 
@@ -621,7 +568,7 @@ export default function Configuracoes() {
                     <AlertDialogHeader>
                       <AlertDialogTitle>Restaurar aparência padrão?</AlertDialogTitle>
                       <AlertDialogDescription>
-                        Isso vai redefinir tema, densidade, tamanho da fonte, menu compacto e animações para os valores originais do sistema (preferências pessoais).{isAdmin && ' As cores globais da interface também serão restauradas ao padrão.'}
+                        Isso vai redefinir tema, densidade, tamanho da fonte, menu compacto e animações para os valores originais do sistema. As cores institucionais não são alteradas — pertencem à Administração.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -632,33 +579,6 @@ export default function Configuracoes() {
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
-                {isAdmin && (
-                  <Button
-                    className="gap-2"
-                    onClick={async () => {
-                      const { error } = await supabase.from('app_configuracoes').upsert(
-                        [
-                          { chave: 'theme_primary_color', valor: corPrimaria, updated_at: new Date().toISOString() },
-                          { chave: 'theme_secondary_color', valor: corSecundaria, updated_at: new Date().toISOString() },
-                        ] satisfies AppConfigInsert[],
-                        { onConflict: 'chave' }
-                      );
-                      if (error) {
-                        console.error('[configuracoes] save colors:', error);
-                        toast.error(getUserFriendlyError(error));
-                        return;
-                      }
-                      const primary = hexToHslString(corPrimaria);
-                      const secondary = hexToHslString(corSecundaria);
-                      if (primary) document.documentElement.style.setProperty('--primary', primary);
-                      if (secondary) document.documentElement.style.setProperty('--secondary', secondary);
-                      toast.success('Cores globais da interface salvas.');
-                    }}
-                  >
-                    <Save className="h-4 w-4" />
-                    Salvar cores
-                  </Button>
-                )}
               </div>
             </CardContent>
           </Card>
