@@ -570,7 +570,7 @@ const Fiscal = () => {
   const handleInativar = async (nfId: string) => {
     const nf = data.find((item) => item.id === nfId);
     if (!nf) return;
-    if (!["pendente", "rascunho"].includes(nf.status)) {
+    if (!canConfirmFiscal(nf.status)) {
       toast.error("Inativação permitida apenas para notas em preparação (rascunho/pendente).");
       return;
     }

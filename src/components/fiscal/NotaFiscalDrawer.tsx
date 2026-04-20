@@ -195,13 +195,11 @@ export function NotaFiscalDrawer({
 
   const internalStatus = getFiscalInternalStatus(selected.status);
   const sefazStatus = getFiscalSefazStatus(selected.status_sefaz || "nao_enviada");
-  const statusToneByClass: Record<string, DrawerStatusTone> = {
-    success: "success",
-    warning: "warning",
-    destructive: "destructive",
-    primary: "info",
-  };
-  const statusTone = Object.entries(statusToneByClass).find(([key]) => internalStatus.classes.includes(key))?.[1] ?? "neutral";
+  const statusTone: DrawerStatusTone =
+    selected.status === "confirmada" ? "info" :
+    selected.status === "pendente" ? "warning" :
+    ["cancelada", "cancelada_sefaz", "rejeitada"].includes(selected.status) ? "destructive" :
+    selected.status === "autorizada" ? "success" : "neutral";
 
   const perms = getNotaFiscalPermissions(selected);
   // Override fiscal-specific rules (devolução só p/ saída normal)
@@ -237,7 +235,7 @@ export function NotaFiscalDrawer({
         description={internalStatus.description}
       />
       <DrawerStatusBanner
-        tone={sefazStatus.label === "Rejeitada" ? "destructive" : sefazStatus.label === "Autorizada" ? "success" : "neutral"}
+        tone={selected.status_sefaz === "rejeitada" ? "destructive" : selected.status_sefaz === "autorizada" ? "success" : "neutral"}
         icon={AlertCircle}
         title={`Status SEFAZ: ${sefazStatus.label}`}
         description={sefazStatus.description}
