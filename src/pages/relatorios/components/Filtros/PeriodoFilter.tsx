@@ -20,11 +20,10 @@ export interface PeriodoFilterValue {
 export interface PeriodoFilterProps {
   dataInicio: string;
   dataFim: string;
+  /** Optional human label of the temporal axis applied (e.g. "vencimento"). */
   axisLabel?: string;
   highlighted?: boolean;
   onChange: (value: PeriodoFilterValue) => void;
-  /** Optional human label of the temporal axis applied (e.g. "vencimento"). */
-  axisLabel?: string;
 }
 
 type QuickPeriod = "hoje" | "7d" | "30d" | "mes";
@@ -63,7 +62,7 @@ function detectActive(dataInicio: string, dataFim: string): QuickPeriod | null {
   return null;
 }
 
-export function PeriodoFilter({ dataInicio, dataFim, onChange, axisLabel }: PeriodoFilterProps) {
+export function PeriodoFilter({ dataInicio, dataFim, onChange, axisLabel, highlighted }: PeriodoFilterProps) {
   const today = fmt(new Date());
   const active = detectActive(dataInicio, dataFim);
   const hasCustom = !!(dataInicio || dataFim);
