@@ -8,21 +8,20 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { SummaryCard } from "@/components/SummaryCard";
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
-import { FileOutput, AlertTriangle, Clock } from "lucide-react";
+import { FileOutput, AlertTriangle } from "lucide-react";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { useClientesRef } from "@/hooks/useReferenceCache";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 import { formatCurrency, formatDate, daysSince, formatNumber, calculateDaysBetween } from "@/lib/format";
-import { getUserFriendlyError } from "@/utils/errorMessages";
 import { FileText, DollarSign, Truck } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useFaturarPedido } from "@/pages/comercial/hooks/useFaturarPedido";
+import { getPedidoStatusLabel, statusFaturamentoLabels } from "@/lib/comercialWorkflow";
+import { statusPedido } from "@/lib/statusSchema";
 
 interface Pedido {
   id: string;
@@ -79,28 +78,6 @@ function PrazoBadge({ dataPrazo, status }: { dataPrazo: string | null; status: s
   }
   return <span className="text-xs">{formatDate(dataPrazo)}</span>;
 }
-
-const statusOperacionalLabels: Record<string, string> = {
-  pendente: "Aguardando",
-  aprovada: "Aprovado",
-  em_separacao: "Em Separação",
-  separado: "Separado",
-  em_transporte: "Em Transporte",
-  entregue: "Entregue",
-  faturado: "Faturado",
-  cancelada: "Cancelado",
-};
-
-const statusFaturamentoLabels: Record<string, string> = {
-  aguardando: "Aguardando",
-  parcial: "Parcial",
-  total: "Faturado",
-};
-const statusFaturamentoColors: Record<string, string> = {
-  aguardando: "bg-warning/10 text-warning border-warning/30",
-  parcial: "bg-info/10 text-info border-info/30",
-  total: "bg-success/10 text-success border-success/30",
-};
 
 const prazoFilterOptions: MultiSelectOption[] = [
   { label: "Atrasados", value: "atrasado" },
@@ -164,7 +141,6 @@ const Pedidos = () => {
   const { data: clientesList = [] } = useClientesRef();
   const [generatingNfId, setGeneratingNfId] = useState<string | null>(null);
   const [insufficientStock, setInsufficientStock] = useState<{ produto: string; falta: number }[]>([]);
-  const [showStockAlert, setShowStockAlert] = useState(false);
   const [stockCheckPending, setStockCheckPending] = useState(false);
 
   // KPIs computed over the filtered list so they reflect what the user sees.
@@ -193,12 +169,7 @@ const Pedidos = () => {
           falta: Number(i.quantidade) - Number(i.produtos?.estoque_atual ?? 0),
         }));
 
-      if (itemsWithShortfall.length > 0) {
-        setInsufficientStock(itemsWithShortfall);
-        setShowStockAlert(true);
-      } else {
-        setInsufficientStock([]);
-      }
+      setInsufficientStock(itemsWithShortfall);
       setGeneratingNfId(pedido.id);
     } finally {
       setStockCheckPending(false);
@@ -265,7 +236,7 @@ const Pedidos = () => {
     const chips: FilterChip[] = [];
     statusFilters.forEach(f => {
       chips.push({ key: "status",
-      mobileCard: true, label: "Status", value: [f], displayValue: statusOperacionalLabels[f] || f });
+      mobileCard: true, label: "Status", value: [f], displayValue: getPedidoStatusLabel(f) });
     });
     faturamentoFilters.forEach(f => {
       chips.push({ key: "faturamento", label: "Faturamento", value: [f], displayValue: statusFaturamentoLabels[f] || f });
@@ -293,7 +264,7 @@ const Pedidos = () => {
     if (key === "dataFim") setDataFim("");
   };
 
-  const statusOptions: MultiSelectOption[] = Object.entries(statusOperacionalLabels).map(([k, v]) => ({ label: v, value: k }));
+  const statusOptions: MultiSelectOption[] = Object.entries(statusPedido).map(([k, v]) => ({ label: v.label, value: k }));
   const faturamentoOptions: MultiSelectOption[] = Object.entries(statusFaturamentoLabels).map(([k, v]) => ({ label: v, value: k }));
   const clienteOptions: MultiSelectOption[] = clientesList.map(c => ({ label: c.nome_razao_social, value: c.id }));
 
@@ -319,7 +290,7 @@ const Pedidos = () => {
     },
     {
       key: "status", label: "Status", sortable: true,
-      render: (p: Pedido) => <StatusBadge status={p.status} label={statusOperacionalLabels[p.status]} />,
+      render: (p: Pedido) => <StatusBadge status={p.status} label={getPedidoStatusLabel(p.status)} />,
     },
     {
       key: "faturamento", label: "Faturamento",
@@ -369,7 +340,7 @@ const Pedidos = () => {
           )}
           <Button
             size="sm"
-            variant="outline"
+            variant="ghost"
             className="h-7 text-xs"
             onClick={(e) => { e.stopPropagation(); navigate(`/pedidos/${p.id}`); }}
           >
@@ -462,39 +433,31 @@ const Pedidos = () => {
         </PullToRefresh>
       </ModulePage>
 
-      {/* Stock alert: shown when some items have insufficient stock */}
       <ConfirmDialog
-        open={showStockAlert}
-        onClose={() => { setShowStockAlert(false); setGeneratingNfId(null); }}
-        onConfirm={() => {
-          setShowStockAlert(false);
-          // proceed anyway: the existing confirmation dialog will open
-        }}
-        title="Estoque Insuficiente"
-        description="Alguns itens do pedido possuem estoque abaixo da quantidade solicitada. Deseja continuar mesmo assim?"
-        confirmLabel="Continuar"
-        confirmVariant="destructive"
-      >
-        <ul className="mt-2 space-y-1 text-sm">
-          {insufficientStock.map((item, idx) => (
-            <li key={idx} className="flex items-center gap-2 text-destructive">
-              <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-              <span><span className="font-medium">{item.produto}</span> — faltam <span className="font-mono font-semibold">{item.falta}</span> unidades</span>
-            </li>
-          ))}
-        </ul>
-      </ConfirmDialog>
-
-      <ConfirmDialog
-        open={!!generatingNfId && !showStockAlert}
+        open={!!generatingNfId}
         onClose={() => setGeneratingNfId(null)}
         onConfirm={() => {
           const pedido = data.find(o => o.id === generatingNfId);
           if (pedido) handleGenerateNF(pedido);
         }}
         title="Gerar Nota Fiscal"
-        description={`Deseja gerar uma Nota Fiscal de saída para o Pedido ${data.find(o => o.id === generatingNfId)?.numero || ""}? Todos os itens serão incluídos.`}
-      />
+        description={insufficientStock.length > 0
+          ? `O pedido ${data.find(o => o.id === generatingNfId)?.numero || ""} possui itens com estoque insuficiente. A NF pode gerar saldo negativo no estoque. Deseja continuar?`
+          : `Deseja gerar uma Nota Fiscal de saída para o Pedido ${data.find(o => o.id === generatingNfId)?.numero || ""}? Todos os itens serão incluídos.`}
+        confirmLabel={insufficientStock.length > 0 ? "Gerar NF mesmo assim" : "Gerar NF"}
+        confirmVariant={insufficientStock.length > 0 ? "destructive" : "default"}
+      >
+        {insufficientStock.length > 0 && (
+          <ul className="mt-2 space-y-1 text-sm">
+            {insufficientStock.map((item, idx) => (
+              <li key={idx} className="flex items-center gap-2 text-destructive">
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                <span><span className="font-medium">{item.produto}</span> — faltam <span className="font-mono font-semibold">{item.falta}</span> unidades</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </ConfirmDialog>
     </>
   );
 };

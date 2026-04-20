@@ -189,6 +189,7 @@ export default function OrcamentoForm() {
   const [mailModalOpen, setMailModalOpen] = useState(false);
   const [emailTemplate, setEmailTemplate] = useState('Olá, segue orçamento atualizado para sua análise.');
   const [empresaConfig, setEmpresaConfig] = useState<Record<string, string> | null>(null);
+  const [lastAutoSaveAt, setLastAutoSaveAt] = useState<string | null>(null);
 
   // Dados de frete do simulador
   const [freteSimulacaoId, setFreteSimulacaoId] = useState<string | null>(null);
@@ -767,6 +768,7 @@ export default function OrcamentoForm() {
       if (!serverOk) {
         try { localStorage.setItem(draftKey, serialized); } catch {/* quota */}
       }
+      setLastAutoSaveAt(new Date().toISOString());
     }, 30000);
     return () => clearInterval(timer);
   }, [buildDraftPayload, draftKey, getValues, items.length, user?.id]);
@@ -802,8 +804,8 @@ export default function OrcamentoForm() {
   return (
     <PageShell
       backTo="/orcamentos"
-      title={isEdit ? `Editando Orçamento${numero ? ` — ${numero}` : ""}` : "Novo Orçamento"}
-      subtitle={isEdit ? "Revisão e ajuste de proposta comercial" : "Criação e emissão de proposta comercial"}
+      title={isEdit ? `Editando Cotação${numero ? ` — ${numero}` : ""}` : "Nova Cotação"}
+      subtitle={isEdit ? "Revisão e ajuste da proposta comercial" : "Criação e emissão da proposta comercial"}
       actions={
         <div className="hidden items-center gap-2 md:flex md:flex-wrap">
           <Button onClick={handleSave} disabled={saving} className="gap-2">
@@ -852,6 +854,11 @@ export default function OrcamentoForm() {
                   <span>Validade: <span className={`font-medium ${new Date(validade) < new Date(new Date().toDateString()) ? "text-destructive" : "text-foreground"}`}>{formatDate(validade)}</span></span>
                 </div>
               )}
+              {lastAutoSaveAt && (
+                <div className="text-xs text-muted-foreground">
+                  Autosave às {new Date(lastAutoSaveAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                </div>
+              )}
               <div className="ml-auto font-bold text-base text-primary font-mono">{formatCurrency(valorTotal)}</div>
             </div>
           )}
@@ -887,12 +894,12 @@ export default function OrcamentoForm() {
     >
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
         <div className="lg:col-span-8 space-y-5">
-          {/* Identificação do Orçamento */}
+          {/* Identificação da Cotação */}
           <div className="bg-card rounded-xl border shadow-soft p-5">
-            <h3 className="font-semibold text-foreground mb-4">Identificação do Orçamento</h3>
+            <h3 className="font-semibold text-foreground mb-4">Identificação da Cotação</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="space-y-1.5">
-                <Label className="text-xs">Nº Orçamento</Label>
+                <Label className="text-xs">Nº Cotação</Label>
                 <div className="relative">
                   <Input
                     {...register('numero')}
@@ -914,7 +921,6 @@ export default function OrcamentoForm() {
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="rascunho">Rascunho</SelectItem>
-                        <SelectItem value="enviado">Enviado ao Cliente</SelectItem>
                         <SelectItem value="confirmado">Aguardando Aprovação</SelectItem>
                         <SelectItem value="aprovado">Aprovado</SelectItem>
                         <SelectItem value="convertido">Convertido em Pedido</SelectItem>
@@ -925,7 +931,7 @@ export default function OrcamentoForm() {
                     </Select>
                   )}
                 />
-                <p className="text-[11px] text-muted-foreground">Fluxo: Rascunho → Enviado → Aprovado → Convertido</p>
+                <p className="text-[11px] text-muted-foreground">Fluxo: Rascunho → Aguardando aprovação → Aprovado → Convertido em pedido</p>
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Validade</Label>
@@ -1138,7 +1144,7 @@ export default function OrcamentoForm() {
           <div className="p-4 border-b flex justify-between items-center sticky top-0 bg-card z-10">
             <h3 className="font-semibold">Pré-visualização do Orçamento</h3>
             <div className="flex gap-2">
-              <Select value={layoutTemplate} onValueChange={(v: any) => setLayoutTemplate(v)}>
+              <Select value={layoutTemplate} onValueChange={(v: 'simples' | 'completo' | 'logo') => setLayoutTemplate(v)}>
                 <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="simples">Simples</SelectItem>

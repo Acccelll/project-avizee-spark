@@ -13,12 +13,12 @@ import { Badge } from "@/components/ui/badge";
 import { CrossModuleActionDialog, type ImpactItem } from "@/components/CrossModuleActionDialog";
 import { RelatedRecordsStrip, type RelatedRecordChip } from "@/components/views/RelatedRecordsStrip";
 import { useCrossModuleToast } from "@/hooks/useCrossModuleToast";
-import { toast } from "sonner";
 import { useDetailFetch } from "@/hooks/useDetailFetch";
 import { useDetailActions } from "@/hooks/useDetailActions";
 import { DetailLoading, DetailEmpty } from "@/components/ui/DetailStates";
 import { pagamentoLabels, freteTipoLabels } from "@/utils/comercial";
 import { useFaturarPedido } from "@/pages/comercial/hooks/useFaturarPedido";
+import { getPedidoStatusLabel, statusFaturamentoLabels } from "@/lib/comercialWorkflow";
 import {
   FileOutput,
   DollarSign,
@@ -36,12 +36,6 @@ import {
 interface Props {
   id: string;
 }
-
-const statusFaturamentoLabels: Record<string, string> = {
-  aguardando: "Aguardando Faturamento",
-  parcial: "Faturamento Parcial",
-  total: "Faturado",
-};
 
 const statusFaturamentoColors: Record<string, string> = {
   aguardando: "bg-warning/10 text-warning border-warning/30",
@@ -201,7 +195,7 @@ export function OrdemVendaView({ id }: Props) {
             {selected.clientes?.nome_razao_social && ` · ${selected.clientes.nome_razao_social}`}
           </p>
           <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-            <StatusBadge status={selected.status} />
+            <StatusBadge status={selected.status} label={getPedidoStatusLabel(selected.status)} />
             <Badge variant="outline" className={`text-[10px] px-1.5 py-0.5 ${statusFaturamentoColors[selected.status_faturamento] || ""}`}>
               {statusFaturamentoLabels[selected.status_faturamento] || selected.status_faturamento}
             </Badge>
@@ -319,8 +313,14 @@ export function OrdemVendaView({ id }: Props) {
             <div>
               <p className="text-[10px] text-muted-foreground uppercase font-semibold">Status Operacional</p>
               <div className="mt-0.5">
-                <StatusBadge status={selected.status} />
+                <StatusBadge status={selected.status} label={getPedidoStatusLabel(selected.status)} />
               </div>
+            </div>
+            <div className="rounded-md border bg-muted/20 px-3 py-2">
+              <p className="text-[10px] uppercase font-semibold text-muted-foreground">Escopo de edição do pedido</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                A edição do pedido altera apenas dados operacionais (status, prazos, PO e observações). Itens, valores e vínculos com cotação/NF permanecem no fluxo original.
+              </p>
             </div>
             <div>
               <p className="text-[10px] text-muted-foreground uppercase font-semibold">Cliente</p>
