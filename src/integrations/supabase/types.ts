@@ -1241,12 +1241,16 @@ export type Database = {
           cnpj: string | null
           codigo_ibge_municipio: string | null
           complemento: string | null
+          cor_primaria: string | null
+          cor_secundaria: string | null
           created_at: string
           crt: string | null
           email: string | null
           email_fiscal: string | null
+          geral_legacy: Json | null
           id: string
           inscricao_estadual: string | null
+          inscricao_municipal: string | null
           logo_url: string | null
           logradouro: string | null
           nome_fantasia: string | null
@@ -1254,10 +1258,13 @@ export type Database = {
           proximo_numero_nfe: number | null
           razao_social: string | null
           regime_tributario: string | null
+          responsavel: string | null
           serie_padrao_nfe: string | null
+          site: string | null
           telefone: string | null
           uf: string | null
           updated_at: string
+          whatsapp: string | null
         }
         Insert: {
           ambiente_padrao?: string | null
@@ -1269,12 +1276,16 @@ export type Database = {
           cnpj?: string | null
           codigo_ibge_municipio?: string | null
           complemento?: string | null
+          cor_primaria?: string | null
+          cor_secundaria?: string | null
           created_at?: string
           crt?: string | null
           email?: string | null
           email_fiscal?: string | null
+          geral_legacy?: Json | null
           id?: string
           inscricao_estadual?: string | null
+          inscricao_municipal?: string | null
           logo_url?: string | null
           logradouro?: string | null
           nome_fantasia?: string | null
@@ -1282,10 +1293,13 @@ export type Database = {
           proximo_numero_nfe?: number | null
           razao_social?: string | null
           regime_tributario?: string | null
+          responsavel?: string | null
           serie_padrao_nfe?: string | null
+          site?: string | null
           telefone?: string | null
           uf?: string | null
           updated_at?: string
+          whatsapp?: string | null
         }
         Update: {
           ambiente_padrao?: string | null
@@ -1297,12 +1311,16 @@ export type Database = {
           cnpj?: string | null
           codigo_ibge_municipio?: string | null
           complemento?: string | null
+          cor_primaria?: string | null
+          cor_secundaria?: string | null
           created_at?: string
           crt?: string | null
           email?: string | null
           email_fiscal?: string | null
+          geral_legacy?: Json | null
           id?: string
           inscricao_estadual?: string | null
+          inscricao_municipal?: string | null
           logo_url?: string | null
           logradouro?: string | null
           nome_fantasia?: string | null
@@ -1310,10 +1328,13 @@ export type Database = {
           proximo_numero_nfe?: number | null
           razao_social?: string | null
           regime_tributario?: string | null
+          responsavel?: string | null
           serie_padrao_nfe?: string | null
+          site?: string | null
           telefone?: string | null
           uf?: string | null
           updated_at?: string
+          whatsapp?: string | null
         }
         Relationships: []
       }
@@ -3667,25 +3688,43 @@ export type Database = {
         Row: {
           alteracao: Json | null
           created_at: string
+          entidade: string | null
+          entidade_id: string | null
           id: string
+          ip_address: string | null
+          motivo: string | null
           role_padrao: string | null
           target_user_id: string | null
+          tipo_acao: string
+          user_agent: string | null
           user_id: string | null
         }
         Insert: {
           alteracao?: Json | null
           created_at?: string
+          entidade?: string | null
+          entidade_id?: string | null
           id?: string
+          ip_address?: string | null
+          motivo?: string | null
           role_padrao?: string | null
           target_user_id?: string | null
+          tipo_acao?: string
+          user_agent?: string | null
           user_id?: string | null
         }
         Update: {
           alteracao?: Json | null
           created_at?: string
+          entidade?: string | null
+          entidade_id?: string | null
           id?: string
+          ip_address?: string | null
+          motivo?: string | null
           role_padrao?: string | null
           target_user_id?: string | null
+          tipo_acao?: string
+          user_agent?: string | null
           user_id?: string | null
         }
         Relationships: []
@@ -3989,6 +4028,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          ativo: boolean
           avatar_url: string | null
           cargo: string | null
           created_at: string
@@ -3998,6 +4038,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          ativo?: boolean
           avatar_url?: string | null
           cargo?: string | null
           created_at?: string
@@ -4007,6 +4048,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          ativo?: boolean
           avatar_url?: string | null
           cargo?: string | null
           created_at?: string
@@ -4891,24 +4933,42 @@ export type Database = {
           action: string
           allowed: boolean
           created_at: string
+          expires_at: string | null
+          granted_at: string
+          granted_by: string | null
           id: string
+          motivo: string | null
           resource: string
+          updated_at: string
+          updated_by: string | null
           user_id: string
         }
         Insert: {
           action: string
           allowed?: boolean
           created_at?: string
+          expires_at?: string | null
+          granted_at?: string
+          granted_by?: string | null
           id?: string
+          motivo?: string | null
           resource: string
+          updated_at?: string
+          updated_by?: string | null
           user_id: string
         }
         Update: {
           action?: string
           allowed?: boolean
           created_at?: string
+          expires_at?: string | null
+          granted_at?: string
+          granted_by?: string | null
           id?: string
+          motivo?: string | null
           resource?: string
+          updated_at?: string
+          updated_by?: string | null
           user_id?: string
         }
         Relationships: []
@@ -5144,6 +5204,23 @@ export type Database = {
           status?: string | null
           validade?: string | null
           valor_total?: number | null
+        }
+        Relationships: []
+      }
+      v_admin_audit_unified: {
+        Row: {
+          ator_id: string | null
+          created_at: string | null
+          entidade: string | null
+          entidade_id: string | null
+          id: string | null
+          ip_address: string | null
+          motivo: string | null
+          origem: string | null
+          payload: Json | null
+          target_user_id: string | null
+          tipo_acao: string | null
+          user_agent: string | null
         }
         Relationships: []
       }

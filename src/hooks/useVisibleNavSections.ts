@@ -38,7 +38,11 @@ export function useVisibleNavSections(): NavSection[] {
   );
 
   return useMemo(() => {
-    const withoutAdmin = isAdmin ? navSections : navSections.filter((s) => s.key !== 'administracao');
+    // Admin section is visible for admins OR for users with explicit `administracao:visualizar` override.
+    // Hoje só admin tem essa permissão na matriz canônica, então comportamento é equivalente para o caso comum;
+    // overrides individuais via user_permissions agora também funcionam.
+    const canSeeAdmin = isAdmin || can('administracao:visualizar');
+    const withoutAdmin = canSeeAdmin ? navSections : navSections.filter((s) => s.key !== 'administracao');
     const hasRecognizedRoles = roles.length > 0;
 
     return withoutAdmin
