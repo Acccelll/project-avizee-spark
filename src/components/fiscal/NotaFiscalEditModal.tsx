@@ -1,6 +1,5 @@
 import { type FormEvent, type ReactNode } from "react";
 import { FormModal } from "@/components/FormModal";
-import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,6 +26,8 @@ import {
   Package,
   Truck,
 } from "lucide-react";
+import { isFiscalReadOnly, isFiscalStructurallyLocked, canConfirmFiscal, getFiscalInternalStatus, getFiscalSefazStatus } from "@/lib/fiscalStatus";
+import { FiscalInternalStatusBadge, FiscalSefazStatusBadge } from "@/components/fiscal/FiscalStatusBadges";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -105,12 +106,11 @@ const modeloLabels: Record<string, string> = {
 function getStatusRules(status: string) {
   return {
     // Fully locked: no changes at all
-    isFullyLocked: status === "cancelada" || status === "cancelada_sefaz" || status === "inutilizada",
+    isFullyLocked: isFiscalReadOnly(status),
     // Structurally locked: only observações can be changed
-    isStructurallyLocked:
-      status === "confirmada" || status === "importada" || status === "autorizada",
+    isStructurallyLocked: isFiscalStructurallyLocked(status),
     // Rejeitada: editable again (SEFAZ rejected, needs correction)
-    canConfirmar: status === "pendente" || status === "rascunho",
+    canConfirmar: canConfirmFiscal(status),
   };
 }
 
@@ -252,11 +252,25 @@ export function NotaFiscalEditModal({
               </div>
             </div>
             <div className="flex flex-col items-end gap-1.5 shrink-0">
-              <StatusBadge status={selected.status} />
+              <FiscalInternalStatusBadge status={selected.status} />
+              <FiscalSefazStatusBadge status={(selected as { status_sefaz?: string }).status_sefaz || "nao_enviada"} />
               <span className="text-lg font-bold font-mono text-primary">
                 {formatCurrency(selected.valor_total)}
               </span>
             </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+          <div className="rounded-md border bg-muted/20 p-2">
+            <p className="text-[11px] font-semibold uppercase text-muted-foreground">Situação ERP</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{getFiscalInternalStatus(selected.status).description}</p>
+          </div>
+          <div className="rounded-md border bg-muted/20 p-2">
+            <p className="text-[11px] font-semibold uppercase text-muted-foreground">Situação SEFAZ</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {getFiscalSefazStatus((selected as { status_sefaz?: string }).status_sefaz || "nao_enviada").description}
+            </p>
           </div>
         </div>
 

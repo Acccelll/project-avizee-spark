@@ -19,6 +19,7 @@ export interface AutorizacaoParams {
  */
 export function useSefazAutorizacao(options?: UseSefazAutorizacaoOptions) {
   return useMutation({
+    mutationKey: ["sefaz-autorizacao"],
     mutationFn: ({ dadosNFe, certificado, urlSefaz }: AutorizacaoParams) =>
       autorizarNFe(dadosNFe, certificado, urlSefaz),
     onSuccess: (result) => {

@@ -19,7 +19,7 @@ export function useConfirmarNotaFiscal() {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Nota fiscal confirmada");
+      toast.success("Nota fiscal confirmada com impacto em estoque/financeiro.");
       qc.invalidateQueries({ queryKey: ["notas_fiscais"] });
       qc.invalidateQueries({ queryKey: ["estoque"] });
       qc.invalidateQueries({ queryKey: ["financeiro"] });
@@ -39,7 +39,7 @@ export function useEstornarNotaFiscal() {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Nota fiscal estornada");
+      toast.success("Estorno concluído com reversão operacional.");
       qc.invalidateQueries({ queryKey: ["notas_fiscais"] });
       qc.invalidateQueries({ queryKey: ["estoque"] });
       qc.invalidateQueries({ queryKey: ["financeiro"] });
@@ -72,7 +72,7 @@ export function useGerarDevolucaoNF() {
       return data as string;
     },
     onSuccess: () => {
-      toast.success("NF de devolução gerada");
+      toast.success("NF de devolução gerada e vinculada à origem.");
       qc.invalidateQueries({ queryKey: ["notas_fiscais"] });
     },
     onError: (e) => toast.error(getUserFriendlyError(e)),
