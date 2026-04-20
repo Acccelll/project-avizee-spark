@@ -16,7 +16,7 @@ export async function sendForApproval(orc: OrcamentoBase): Promise<void> {
   if (orc.status !== "rascunho") return;
   const { error } = await supabase
     .from("orcamentos")
-    .update({ status: "confirmado" })
+    .update({ status: "pendente" })
     .eq("id", orc.id);
   if (error) throw new Error(`Erro ao enviar orçamento para aprovação: ${error.message}`);
   toast.success(`Cotação ${orc.numero} enviada para aprovação!`);
@@ -29,6 +29,19 @@ export async function approveOrcamento(orc: OrcamentoBase): Promise<void> {
     .eq("id", orc.id);
   if (error) throw new Error(`Erro ao aprovar orçamento: ${error.message}`);
   toast.success(`Cotação ${orc.numero} aprovada!`);
+}
+
+/**
+ * Cancelamento lógico de orçamento (preserva rastreabilidade).
+ * Usa a RPC `cancelar_orcamento` que valida status e registra auditoria.
+ */
+export async function cancelarOrcamento(orcId: string, motivo?: string): Promise<void> {
+  const { error } = await supabase.rpc("cancelar_orcamento" as never, {
+    p_id: orcId,
+    p_motivo: motivo ?? null,
+  } as never);
+  if (error) throw new Error(`Erro ao cancelar orçamento: ${error.message}`);
+  toast.success("Orçamento cancelado.");
 }
 
 export interface ConvertToOVOptions {
