@@ -103,16 +103,7 @@ export function RecebimentoDrawer({ open, onClose, recebimento: r }: Recebimento
             <div className="flex items-center gap-1.5 flex-wrap">
               <StatusBadge status={cfg.badgeStatus} label={cfg.label} />
               <Badge variant="outline" className={`text-[10px] ${sourceMeta.className}`}>{sourceMeta.label}</Badge>
-              {!r.recebimento_real && (
-        <DrawerStatusBanner
-          tone="warning"
-          icon={sourceMeta.icon}
-          title={sourceMeta.label}
-          description={sourceMeta.description}
-        />
-      )}
-
-      {atrasado && (
+              {atrasado && (
                 <Badge variant="outline" className="text-xs border-destructive/40 text-destructive gap-1">
                   <AlertTriangle className="h-3 w-3" />Atrasado
                 </Badge>
@@ -238,16 +229,8 @@ export function RecebimentoDrawer({ open, onClose, recebimento: r }: Recebimento
       badge={
         <div className="flex items-center gap-1.5 flex-wrap">
           <StatusBadge status={cfg.badgeStatus} label={cfg.label} />
-          {!r.recebimento_real && (
-        <DrawerStatusBanner
-          tone="warning"
-          icon={sourceMeta.icon}
-          title={sourceMeta.label}
-          description={sourceMeta.description}
-        />
-      )}
-
-      {atrasado && (
+          {!r.recebimento_real && <Badge variant="outline" className={`text-[10px] ${sourceMeta.className}`}>{sourceMeta.label}</Badge>}
+          {atrasado && (
             <Badge variant="outline" className="text-xs border-destructive/40 text-destructive gap-1">
               <AlertTriangle className="h-3 w-3" />Atrasado
             </Badge>

@@ -67,13 +67,18 @@ async function fetchRecebimentos(): Promise<Recebimento[]> {
 
   return compras.map((compra) => {
     const tot = qtyByCompra.get(compra.id) ?? { pedida: 0, recebida: 0 };
-    const comprasStatus = compra.status ?? "rascunho";
+    const comprasStatusRaw = compra.status ?? "rascunho";
+    const comprasStatus = comprasStatusRaw === "recebido_parcial"
+      ? "parcialmente_recebido"
+      : comprasStatusRaw;
     const qtdPedida = tot.pedida;
     const qtdRecebida = tot.recebida;
     const pendencia = Math.max(0, qtdPedida - qtdRecebida);
     const recebimentoReal = qtdRecebida > 0;
 
-    const statusLogistico = normalizeRecebimentoStatus(comprasStatusToLogistico[comprasStatus] ?? "pedido_emitido");
+    const statusLogistico = normalizeRecebimentoStatus(
+      comprasStatusToLogistico[comprasStatus] ?? "pedido_emitido",
+    );
 
     return {
       id: compra.id,
