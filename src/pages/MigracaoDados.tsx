@@ -41,6 +41,7 @@ import { useImportacaoFinanceiro } from "@/hooks/importacao/useImportacaoFinance
 import { useImportacaoConciliacao } from "@/hooks/importacao/useImportacaoConciliacao";
 import { PreviewConciliacaoTabs } from "@/components/importacao/PreviewConciliacaoTabs";
 import { LimparDadosMigracaoButton } from "@/components/importacao/LimparDadosMigracaoButton";
+import { CargaInicialDialog } from "@/components/importacao/CargaInicialDialog";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { PageShell } from "@/components/PageShell";
 import { useImportacaoEnriquecimento, type EnrichmentType } from "@/hooks/importacao/useImportacaoEnriquecimento";
