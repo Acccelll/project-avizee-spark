@@ -180,7 +180,7 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
     case "estoque": {
       let query = supabase
         .from("produtos")
-        .select("codigo_interno, nome, unidade_medida, estoque_atual, estoque_minimo, preco_custo, preco_venda, grupos_produto(nome)")
+        .select("id, codigo_interno, nome, unidade_medida, estoque_atual, estoque_minimo, preco_custo, preco_venda, grupos_produto(nome)")
         .eq("ativo", true)
         .order("nome");
       if (filtros.grupoProdutoIds?.length) query = query.in('grupo_id', filtros.grupoProdutoIds);
@@ -198,6 +198,7 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
         else if (min > 0 && qty <= min) criticidade = "Abaixo do mínimo";
         else criticidade = "OK";
         return {
+          produtoId: item.id as string,
           codigo: (item.codigo_interno as string | null) || "-",
           produto: item.nome as string,
           grupo: ((item.grupos_produto as { nome?: string } | null)?.nome) || "-",
@@ -205,6 +206,9 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
           estoqueAtual: qty,
           estoqueMinimo: min,
           criticidade,
+          criticidadeKind: estoqueCriticidadeKind(criticidade),
+          statusKey: criticidade === 'Zerado' ? 'zerado' : criticidade === 'Abaixo do mínimo' ? 'abaixo_minimo' : 'ok',
+          statusKind: estoqueCriticidadeKind(criticidade),
           custoUnit: custo,
           vendaUnit: venda,
           totalCusto: qty * custo,
@@ -230,13 +234,14 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
         ],
         totals: { totalQtd, totalCusto, totalVenda },
         kpis: { totalItens, totalQtd, totalCusto, itensCriticos, itensZerados },
+        meta: { kind: 'list', valueNature: 'misto', drillDownReady: true },
       };
     }
 
     case "movimentos_estoque": {
       let query = supabase
         .from("estoque_movimentos")
-        .select("tipo, quantidade, saldo_anterior, saldo_atual, documento_tipo, motivo, created_at, produtos(nome, codigo_interno)")
+        .select("produto_id, tipo, quantidade, saldo_anterior, saldo_atual, documento_tipo, motivo, created_at, produtos(nome, codigo_interno)")
         .order("created_at", { ascending: false });
 
       query = withDateRange(query, "created_at", filtros);
@@ -260,6 +265,12 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
             totals: { totalEntradas: 0, totalSaidas: 0, totalAjustes: 0, saldoAtual: 0 },
             kpis: { totalMovimentos: 0, totalEntradas: 0, totalSaidas: 0, totalAjustes: 0 },
             _isQuantityReport: true,
+            meta: {
+              kind: 'list',
+              valueNature: 'quantidade',
+              timeAxis: { field: 'criacao', label: 'criação', required: false },
+              drillDownReady: true,
+            },
           };
         }
         query = query.in('produto_id', produtoIds);
@@ -268,17 +279,24 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
       const { data, error } = await query;
       if (error) throw error;
 
-      const rows = (data || []).map((item: Record<string, unknown>) => ({
-        data: item.created_at,
-        produto: ((item.produtos as { nome?: string } | null)?.nome) || "-",
-        codigo: ((item.produtos as { codigo_interno?: string } | null)?.codigo_interno) || "-",
-        tipo: item.tipo || (item as Record<string, unknown>).tipo_movimento || "-",
-        quantidade: Number(item.quantidade || 0),
-        saldoAnterior: Number(item.saldo_anterior || 0),
-        saldoAtual: Number(item.saldo_atual || (item as Record<string, unknown>).saldo_apos || 0),
-        documento: item.documento_tipo || "-",
-        motivo: item.motivo || "-",
-      }));
+      const rows = (data || []).map((item: Record<string, unknown>) => {
+        const tipo = (item.tipo || (item as Record<string, unknown>).tipo_movimento || '-') as string;
+        const meta = resolveStatus(movimentoEstoqueStatusMap, tipo);
+        return {
+          produtoId: item.produto_id as string | null,
+          data: item.created_at,
+          produto: ((item.produtos as { nome?: string } | null)?.nome) || "-",
+          codigo: ((item.produtos as { codigo_interno?: string } | null)?.codigo_interno) || "-",
+          tipo,
+          statusKey: meta.key,
+          statusKind: meta.kind,
+          quantidade: Number(item.quantidade || 0),
+          saldoAnterior: Number(item.saldo_anterior || 0),
+          saldoAtual: Number(item.saldo_atual || (item as Record<string, unknown>).saldo_apos || 0),
+          documento: item.documento_tipo || "-",
+          motivo: item.motivo || "-",
+        };
+      });
 
       const entradas = rows.filter((r) => r.tipo === "entrada").reduce((s, r) => s + r.quantidade, 0);
       const saidas = rows.filter((r) => r.tipo === "saida").reduce((s, r) => s + r.quantidade, 0);
@@ -307,6 +325,12 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
           totalAjustes: Math.abs(ajustes),
         },
         _isQuantityReport: true,
+        meta: {
+          kind: 'list',
+          valueNature: 'quantidade',
+          timeAxis: { field: 'criacao', label: 'criação', required: false },
+          drillDownReady: true,
+        },
       };
     }
 
@@ -315,7 +339,7 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
       // Para "em aberto" consideramos aberto, parcial e vencido (cancelado/estornado são excluídos).
       let query = supabase
         .from("financeiro_lancamentos")
-        .select("tipo, descricao, valor, saldo_restante, valor_pago, status, data_vencimento, data_pagamento, banco, forma_pagamento, clientes(nome_razao_social), fornecedores(nome_razao_social)")
+        .select("id, cliente_id, fornecedor_id, tipo, descricao, valor, saldo_restante, valor_pago, status, data_vencimento, data_pagamento, banco, forma_pagamento, clientes(nome_razao_social), fornecedores(nome_razao_social)")
         .eq("ativo", true)
         .not("status", "in", "(cancelado,estornado)")
         .order("data_vencimento", { ascending: true });
@@ -345,7 +369,11 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
         const parceiro = item.tipo === 'receber'
           ? ((item.clientes as { nome_razao_social?: string } | null)?.nome_razao_social) || '-'
           : ((item.fornecedores as { nome_razao_social?: string } | null)?.nome_razao_social) || '-';
+        const stMeta = resolveStatus(financeiroStatusMap, status);
         return {
+          lancamentoId: item.id as string,
+          clienteId: (item.cliente_id as string | null) ?? undefined,
+          fornecedorId: (item.fornecedor_id as string | null) ?? undefined,
           tipo: item.tipo === 'receber' ? 'Receber' : 'Pagar',
           parceiro,
           descricao: item.descricao || "-",
@@ -353,6 +381,8 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
           valorEmAberto,
           atraso,
           status,
+          statusKey: stMeta.key,
+          statusKind: stMeta.kind,
           vencimento: item.data_vencimento,
           pagamento: item.data_pagamento,
           banco: item.banco || "-",
@@ -377,6 +407,12 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
           { name: "Pago", value: totalPago },
         ],
         kpis: { totalReceber, totalPagar, totalVencido, totalPago },
+        meta: {
+          kind: 'list',
+          valueNature: 'monetario',
+          timeAxis: { field: 'vencimento', label: 'vencimento', required: false },
+          drillDownReady: true,
+        },
       };
     }
 
