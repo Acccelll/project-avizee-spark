@@ -31,7 +31,8 @@ import {
   Info, Loader2, Calendar, Mail, Users, UserCheck,
   MessageSquare, Home,
 } from "lucide-react";
-import { StatCard } from "@/components/StatCard";
+import { SummaryCard } from "@/components/SummaryCard";
+import { UF_OPTIONS } from "@/constants/brasil";
 import { clienteFornecedorSchema, validateForm } from "@/lib/validationSchemas";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
@@ -339,10 +340,10 @@ const Clientes = () => {
         onAdd={openCreate}
         summaryCards={
           <>
-            <StatCard title="Total de Clientes" value={String(data.length)} icon={Users} />
-            <StatCard title="Ativos" value={String(summaryAtivos)} icon={UserCheck} iconColor="text-success" />
-            <StatCard title="Inativos" value={String(data.length - summaryAtivos)} icon={User2} />
-            <StatCard title="Com Grupo Econômico" value={String(summaryComGrupo)} icon={Building2} />
+            <SummaryCard title="Total de Clientes" value={data.length} icon={Users} />
+            <SummaryCard title="Ativos" value={summaryAtivos} icon={UserCheck} variant="success" />
+            <SummaryCard title="Inativos" value={data.length - summaryAtivos} icon={User2} />
+            <SummaryCard title="Com Grupo Econômico" value={summaryComGrupo} icon={Building2} />
           </>
         }
       >
@@ -389,7 +390,13 @@ const Clientes = () => {
         status={mode === "edit" && selected ? <StatusBadge status={selected.ativo ? "ativo" : "inativo"} /> : undefined}
         meta={mode === "edit" && selected ? [
           ...(selected.created_at ? [{ icon: Calendar, label: `Cadastrado em ${formatDate(selected.created_at)}` }] : []),
-          ...(form.forma_pagamento_padrao ? [{ icon: CreditCard, label: form.forma_pagamento_padrao }] : []),
+          ...(form.forma_pagamento_padrao
+            ? [{
+                icon: CreditCard,
+                label: formasPagamento.find((fp) => fp.id === form.forma_pagamento_padrao)?.descricao
+                  ?? form.forma_pagamento_padrao,
+              }]
+            : []),
           ...(form.grupo_economico_id ? [{ icon: Building2, label: grupos.find(g => g.id === form.grupo_economico_id)?.nome ?? "Grupo" }] : []),
         ] : undefined}
         isDirty={isDirty}
@@ -625,9 +632,16 @@ const Clientes = () => {
                 <div className="space-y-1.5"><Label>Cidade</Label><Input value={form.cidade} onChange={(e) => updateForm({ cidade: e.target.value })} /></div>
                 <div className="space-y-1.5">
                   <Label>UF</Label>
-                  <Input maxLength={2} placeholder="SP" value={form.uf}
-                    onChange={(e) => updateForm({ uf: e.target.value.toUpperCase() })}
-                    className={formErrors.uf ? "border-destructive" : ""} />
+                  <Select value={form.uf || undefined} onValueChange={(v) => updateForm({ uf: v })}>
+                    <SelectTrigger className={formErrors.uf ? "border-destructive" : ""}>
+                      <SelectValue placeholder="UF" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {UF_OPTIONS.map((uf) => (
+                        <SelectItem key={uf} value={uf}>{uf}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   {formErrors.uf && <p className="text-xs text-destructive">{formErrors.uf}</p>}
                 </div>
                 <div className="space-y-1.5"><Label>País</Label><Input value={form.pais} onChange={(e) => updateForm({ pais: e.target.value })} /></div>
@@ -673,7 +687,7 @@ const Clientes = () => {
                     <SelectTrigger><SelectValue placeholder="Não definida" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="nenhuma">Não definida</SelectItem>
-                      {formasPagamento.map((fp) => <SelectItem key={fp.id} value={fp.descricao}>{fp.descricao}</SelectItem>)}
+                      {formasPagamento.map((fp) => <SelectItem key={fp.id} value={fp.id}>{fp.descricao}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
