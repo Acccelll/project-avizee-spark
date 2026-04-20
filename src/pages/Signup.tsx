@@ -169,9 +169,15 @@ export default function Signup() {
                 onChange={(e) => { setEmail(e.target.value); setErrors((p) => ({ ...p, email: undefined })); }}
                 className={`pl-9 ${errors.email ? "border-destructive" : ""}`}
                 autoComplete="email"
+                aria-invalid={!!errors.email}
+                aria-describedby={errors.email ? "email-error" : undefined}
               />
             </div>
-            {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
+            {errors.email && (
+              <p id="email-error" role="alert" className="text-xs text-destructive">
+                {errors.email}
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
