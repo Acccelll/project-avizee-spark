@@ -1,167 +1,153 @@
 
 
-## Revisão estrutural — Suprimentos & Logística
+## Revisão estrutural — Módulo Fiscal
 
-Plano enxuto que (A) consolida Recebimentos como domínio próprio, (B) padroniza vocabulário logístico canônico em remessas/entregas/recebimentos/movimentos de estoque, (C) reforça governança de ajustes manuais e (D) garante rastreabilidade ponta a ponta — preservando todas as tabelas, RPCs e fluxos atuais.
+Banco hoje: 0 NFs, CHECK em `notas_fiscais.status` aceita só **3 valores** (`rascunho`, `confirmada`, `cancelada`), enquanto o front (`fiscalStatus.ts`) trabalha com **9** (`pendente, rascunho, confirmada, autorizada, importada, rejeitada, cancelada, cancelada_sefaz, inutilizada`). A RPC `gerar_nf_de_pedido` insere `status='pendente'` — viola o CHECK atual. RPC `confirmar_nota_fiscal` aceita "qualquer status ≠ confirmada/cancelada" sem máquina de estados. `estornar_nota_fiscal` faz `DELETE` em `financeiro_lancamentos` (perde rastreabilidade — deveria usar `cancelar_lancamento`). Não há trigger anti-DELETE em `notas_fiscais`. Não há gate impedindo edição de NF confirmada/autorizada. Sem `unique` em `(modelo,serie,numero)` ou `chave_acesso`.
 
----
-
-### B1. Recebimentos como domínio próprio (não mais derivado)
-
-A "view" atual em `useRecebimentos` deriva tudo de `pedidos_compra` + somatório de itens. Sem persistência de data, NF, divergência ou observação. A RPC `receber_compra` já cria registros em `compras`/`compras_itens` mas o front logístico não usa.
-
-**Migration `recebimentos_compra_dominio`:**
-
-Nova tabela `recebimentos_compra` (cabeçalho consolidado por evento de recebimento — 1:N por pedido):
-- `id uuid pk`, `pedido_compra_id uuid NOT NULL FK→pedidos_compra(id) ON DELETE RESTRICT`
-- `compra_id uuid FK→compras(id) ON DELETE SET NULL` (vínculo com o cabeçalho fiscal/financeiro já gerado por `receber_compra`)
-- `numero text` (gerado, ex.: `REC-yyyymmddHHMMSS`)
-- `data_recebimento date NOT NULL`, `responsavel_id uuid FK→auth.users(id)`
-- `nota_fiscal_id uuid FK→notas_fiscais(id) ON DELETE SET NULL` (entrada futura)
-- `tem_divergencia boolean DEFAULT false`, `motivo_divergencia text`
-- `observacoes text`, `status_logistico text NOT NULL DEFAULT 'recebido'` (vide §B2)
-- `created_at`, `updated_at`, `usuario_id`
-
-Tabela `recebimentos_compra_itens` (detalha quanto/qual produto entrou em CADA evento — não desloca `pedidos_compra_itens.quantidade_recebida`, complementa-o):
-- `id`, `recebimento_id FK CASCADE`, `pedido_compra_item_id FK→pedidos_compra_itens(id) ON DELETE RESTRICT`
-- `produto_id`, `quantidade_recebida numeric`, `quantidade_pedida_snapshot numeric`, `tem_divergencia boolean`, `motivo_divergencia text`
-
-**RPC `receber_compra` v3** — refatora a atual para também inserir em `recebimentos_compra(_itens)` na mesma transação, mantendo o que já faz (compras, estoque, status do pedido). Nada quebra; apenas passa a popular o novo domínio. Não há backfill retroativo automático: os 17 movimentos atuais permanecem como histórico, sem cabeçalho de recebimento.
-
-**View `vw_recebimentos_consolidado`** — substitui a derivação client-side de `useRecebimentos`: junta `pedidos_compra` + agregação de `recebimentos_compra` (qtd recebida, última data, divergências, NF) e devolve uma linha por pedido, com flag `tem_consolidacao_real`.
-
-#### B2. Status canônico de recebimento (logístico)
-
-Conjunto único, alinhado entre banco e front:
-
-`pedido_emitido · aguardando_envio_fornecedor · em_transito · recebimento_parcial · recebido · recebido_com_divergencia · atrasado · cancelado`
-
-- Elimina o duplo `recebido_parcial` / `parcialmente_recebido`. **No banco** (recebimentos e mapeamento a partir de `pedidos_compra.status`) usa-se **`recebimento_parcial`**; o status `parcialmente_recebido` continua existindo apenas em `pedidos_compra` (compra) — são domínios distintos: `pedidos_compra.status` = compra, `recebimentos_compra.status_logistico` = logística.
-- CHECK `chk_recebimentos_compra_status_logistico` no novo CHECK.
-- `atrasado` é **derivado** (não persistido): `previsao_entrega < CURRENT_DATE AND status NOT IN ('recebido','cancelado')`. A função `get_recebimento_status_efetivo(...)` (SQL helper) devolve o status com derivação aplicada — a view `vw_recebimentos_consolidado` já o usa.
-- `normalizeRecebimentoStatus` no front é simplificado (mantém apenas como leitura defensiva para dados antigos).
-
-#### B3. Entrega × Remessa (múltiplas remessas)
-
-Hoje `useEntregas` mostra "última remessa por updated_at" como se fosse a entrega. Isso é ambíguo quando `remessas_count > 1`.
-
-**Decisão estrutural:** manter a aba "Entregas" como visão **agregada por pedido**, mas com regras claras e materializadas no banco — não no front.
-
-**Migration `vw_entregas_consolidadas`:**
-- View `vw_entregas_consolidadas` (security_invoker) por `ordem_venda_id` retornando:
-  - `total_remessas`, `total_volumes` (SUM), `peso_total` (SUM), `previsao_entrega_min`, `data_postagem_min`, `data_entrega_max` (das remessas);
-  - `status_consolidado` calculado por regra: `entregue` se TODAS remessas entregues; `entrega_parcial` se ALGUMAS; `em_transporte` se ALGUMA em trânsito; `aguardando_expedicao` se nenhuma postada; etc. — tabela de regras documentada em `docs/logistica-modelo.md`.
-  - `transportadora_principal` = transportadora da remessa de maior peso (regra explícita, não "última atualizada");
-  - `tem_divergencia_quantidade boolean` (volumes/peso somados das remessas vs itens do pedido).
-- Front `useEntregas` passa a `select` desta view; remove ordenação por `updated_at`.
-
-#### B4. Status oficial de remessa & entrega
-
-Atualmente `remessas.status_transporte` (default `'pendente'`) sem CHECK. ENTREGA_STATUS_ORDER no front lista 9 valores. Padronização:
-
-**Remessa** (status físico): `pendente · coletado · postado · em_transito · ocorrencia · entregue · devolvido · cancelado` — adicionar `chk_remessa_status_transporte`.
-
-**Entrega consolidada** (derivada — não persiste): `aguardando_separacao · em_separacao · separado · aguardando_expedicao · em_transporte · entrega_parcial · entregue · ocorrencia · cancelado` — definida pela view de B3.
-
-Trigger `trg_remessa_status_transicao` valida transições válidas (mapa em `docs/logistica-modelo.md`), bloqueia saída de `entregue/devolvido/cancelado`.
-
-#### B5. Governança de ajustes manuais de estoque
-
-`estoque_movimentos` hoje tem só `tipo`, `motivo`, `documento_tipo`. Sem CHECK de tipo, sem aprovação, sem categoria.
-
-**Migration `estoque_movimentos_governanca`:**
-- CHECK `chk_estoque_mov_tipo` com o conjunto canônico: `entrada · saida · ajuste · reserva · liberacao_reserva · estorno · inventario · perda_avaria · transferencia` (já é o vocabulário do front em `tipoMovConfig`).
-- Adicionar colunas:
-  - `categoria_ajuste text` (NULL exceto quando `tipo IN ('ajuste','perda_avaria','inventario')`) com CHECK em `('correcao_inventario','perda','avaria','vencimento','furto_extravio','divergencia_recebimento','outro')`.
-  - `requer_aprovacao boolean DEFAULT false` (true quando `tipo IN ('ajuste','perda_avaria')` E `quantidade > limite_app_config`).
-  - `aprovado_por uuid FK auth.users`, `aprovado_em timestamptz`, `motivo_estruturado text` (≥10 chars quando crítico).
-- Trigger `trg_estoque_mov_validacao_manual`: quando `documento_tipo='manual'` exige `motivo` não-nulo e `categoria_ajuste` quando aplicável.
-- RPC `ajustar_estoque_manual` v2 — gate de permissão: tipos críticos (`ajuste`, `perda_avaria`) só permitidos com role `admin` ou `estoquista` (consulta `has_role`); registra em `auditoria_logs`.
-
-Front:
-- `useAjustarEstoque` aceita `categoria_ajuste`; modal de ajuste (Estoque.tsx) ganha campo "Categoria" quando tipo é crítico.
-
-#### B6. Tipos de movimentação — separar de status visual
-
-Já existe `tipoMovConfig` (visual). Decisão: **adicionar enum de DOMÍNIO** via CHECK (B5) — o front continua usando `tipoMovConfig` para renderizar, mas o domínio é o CHECK do banco. Sem nova tabela.
-
-Adicionar também CHECK em `documento_tipo` com valores `('manual','compra','pedido_compra','venda','pedido_venda','nota_fiscal','inventario','transferencia','carga_inicial','estorno_fiscal')` — alinha com `origemConfig`.
-
-#### B7. Rastreabilidade — FKs e índices faltantes
-
-**Migration `logistica_integridade_relacional`:**
-- `remessas.ordem_venda_id` — confirmar FK e adicionar índice `idx_remessas_ordem_venda_id`.
-- `remessa_eventos.remessa_id` — FK CASCADE (já existe?) + índice `idx_remessa_eventos_remessa_id_data`.
-- `estoque_movimentos.documento_id` é polimórfico (sem FK física por design) — manter, mas adicionar índice `idx_estoque_mov_documento (documento_tipo, documento_id)`.
-- `recebimentos_compra.pedido_compra_id` — índice + view de trilha.
-- View `v_trilha_logistica`: `ordem_venda_id → remessas → eventos`, e `pedido_compra_id → recebimentos_compra → compras → estoque_movimentos` (espelha `v_trilha_comercial`/`v_trilha_compras`).
-
-#### B8. Atraso, pendência e divergência
-
-Decisão final:
-- **Atraso**: continua **derivado** por data, agora dentro da view (`vw_recebimentos_consolidado`, `vw_entregas_consolidadas`) — front não calcula mais.
-- **Pendência**: `quantidade_pedida - quantidade_recebida` continua como soma SQL na view (não persistida).
-- **Divergência**: passa a ser **persistida** em `recebimentos_compra.tem_divergencia` + `recebimentos_compra_itens.tem_divergencia` (B1). A trigger `trg_recebimento_marca_divergencia` setá automaticamente quando `quantidade_recebida <> quantidade_pedida_snapshot`.
+Plano executa apenas o necessário para alinhar banco+RPCs+front, preservando arquitetura.
 
 ---
 
-### Migrations entregues (idempotentes, `SET search_path=public`)
+### Máquina de estados oficial
 
-1. `recebimentos_compra_dominio` — tabelas `recebimentos_compra`, `recebimentos_compra_itens`, índices, FKs, CHECK, trigger de divergência.
-2. `recebimentos_status_canonico` — CHECK do `status_logistico` + função `get_recebimento_status_efetivo`.
-3. `receber_compra_v3` — `CREATE OR REPLACE` populando o novo domínio.
-4. `vw_recebimentos_consolidado` — view com agregação + status derivado (atrasado).
-5. `vw_entregas_consolidadas` — view por OV consolidando múltiplas remessas com regras determinísticas.
-6. `remessa_status_canonico` — CHECK `chk_remessa_status_transporte` + trigger de transição.
-7. `estoque_movimentos_governanca` — CHECK `tipo`, CHECK `documento_tipo`, novas colunas, trigger de validação manual; RPC `ajustar_estoque_manual` v2 com gate por role + auditoria.
-8. `logistica_integridade_relacional` — índices, view `v_trilha_logistica`.
+**Status interno do ERP** (`notas_fiscais.status`) — ciclo operacional:
 
-### Código afetado
+```text
+rascunho → pendente → confirmada → cancelada
+                  └→ cancelada (cancelamento antes de confirmar)
+importada (terminal alternativo, para NFs externas via XML)
+```
 
-- `src/pages/logistica/hooks/useRecebimentos.ts` — passa a ler de `vw_recebimentos_consolidado`; remove o mapa client-side de status.
-- `src/pages/logistica/hooks/useEntregas.ts` — passa a ler de `vw_entregas_consolidadas`; remove ordenação por `updated_at`.
-- `src/pages/logistica/logisticaStatus.ts` — `RECEBIMENTO_STATUS_ORDER` mantém os 8 valores canônicos; `normalizeRecebimentoStatus` simplificado; novo `ENTREGA_TRANSICOES_VALIDAS` derivado das regras da view.
-- `src/components/logistica/RecebimentoDrawer.tsx` — passa a mostrar lista de eventos de recebimento (`recebimentos_compra` linha-a-linha) com data, NF, responsável, divergência.
-- `src/components/logistica/EntregaDrawer.tsx` — exibe `total_remessas`, com link para todas as remessas; remove ambiguidade de "última remessa".
-- `src/pages/Estoque.tsx` + `src/pages/estoque/components/AjusteEstoqueModal.tsx` (já existente) — adiciona seleção de `categoria_ajuste` quando tipo crítico; mostra badge "Requer aprovação" quando aplicável.
-- `src/pages/estoque/hooks/useAjustarEstoque.ts` — assinatura recebe `categoria_ajuste?: string`.
-- `src/components/estoque/estoqueMovimentacaoConfig.ts` — sem mudanças (já alinhado ao novo CHECK).
-- `src/services/logistica/recebimentos.service.ts` (novo) — CRUD de `recebimentos_compra`, função `registrarRecebimento` (chama RPC `receber_compra` v3) e `marcarDivergencia(recebimento_id, motivo)`.
-- `docs/logistica-modelo.md` (novo) — domínios separados (estoque/entrega/remessa/recebimento), status canônicos, máquina de transição da remessa, regra de consolidação de entregas multi-remessas, política de ajuste manual.
-- `docs/MIGRACAO.md` — apêndice com as 8 migrations.
+- `rascunho`: edição livre, nenhum efeito.
+- `pendente`: criada por automação (ex.: `gerar_nf_de_pedido`); dados estruturais prontos, ainda não impacta estoque/financeiro. Editável.
+- `confirmada`: efeitos operacionais aplicados (estoque + financeiro + faturamento OV). Estruturalmente travada.
+- `importada`: NF de fornecedor importada via XML; somente leitura, pode movimentar estoque/financeiro de entrada conforme flags.
+- `cancelada`: terminal local. Sem efeitos vigentes.
 
-### Política final — ajustes manuais de estoque
+**Status fiscal SEFAZ** (`notas_fiscais.status_sefaz`) — ciclo eletrônico, ortogonal:
 
-- Tipos `entrada`/`saida` simples: qualquer usuário com permissão `estoque:editar`.
-- Tipos críticos (`ajuste`, `perda_avaria`, `inventario`): exigem `categoria_ajuste`, `motivo_estruturado` ≥ 10 chars, role `admin` ou `estoquista`. Registrados em `auditoria_logs` automaticamente.
-- Quantidade ≥ limite (config em `app_configuracoes.estoque.limite_aprovacao_unidades`, default 100): `requer_aprovacao=true` e bloqueia atualização de saldo até aprovação por admin.
+```text
+nao_enviada → em_processamento → autorizada
+                              └→ rejeitada (volta a nao_enviada após correção)
+                              └→ denegada (terminal)
+autorizada → cancelada_sefaz (terminal)
+nao_enviada → inutilizada (terminal, faixa numérica não usada)
+importada_externa (terminal, NF de terceiro)
+```
 
-### Múltiplas remessas — estratégia adotada
+**Relação oficial**:
+- Confirmação interna **sempre** antecede envio à SEFAZ. CHECK estrutural: `status_sefaz IN ('autorizada','em_processamento','cancelada_sefaz') ⇒ status='confirmada'`.
+- `inutilizada` só permitida quando `status='rascunho'` ou `status='cancelada'`.
+- NF `importada` (XML externo) entra com `status='importada'` + `status_sefaz='importada_externa'` (novo valor).
 
-Visão "Entregas" continua agregada por pedido, mas calculada na view `vw_entregas_consolidadas` com regras determinísticas (status consolidado por máximo, transportadora por maior peso, datas por min/max). Front nunca mais resolve ambiguidade — o banco resolve.
+---
+
+### Migrations (ordem, idempotentes, `SET search_path=public`)
+
+**1. `fiscal_status_canonico`**
+- DROP `chk_notas_fiscais_status` antigo; CREATE com `('rascunho','pendente','confirmada','importada','cancelada')`.
+- DROP `chk_notas_fiscais_status_sefaz` antigo; CREATE com `('nao_enviada','em_processamento','autorizada','rejeitada','denegada','cancelada_sefaz','inutilizada','importada_externa')`.
+- CHECK composto `chk_nf_coerencia_sefaz`: `(status_sefaz IN ('autorizada','em_processamento','cancelada_sefaz') AND status='confirmada') OR status_sefaz NOT IN ('autorizada','em_processamento','cancelada_sefaz')`.
+- CHECK `chk_nf_inutilizacao`: `status_sefaz='inutilizada' ⇒ status IN ('rascunho','cancelada')`.
+- CHECK `chk_nf_importada`: `status='importada' ⇒ status_sefaz='importada_externa'`.
+- Trigger `trg_nf_status_transicao BEFORE UPDATE OF status`: bloqueia transições inválidas (sai de `confirmada` só via `estornar_nota_fiscal`; sai de `cancelada`/`importada` proibido).
+
+**2. `fiscal_origem_canonica`**
+- CHECK `chk_nf_origem` em `notas_fiscais.origem`: `('manual','xml_importado','pedido','devolucao','importacao_historica','sefaz_externa')`.
+- Reforço de FK `nf_referenciada_id` (já existe) + CHECK `chk_nf_devolucao_referencia`: `tipo_operacao='devolucao' ⇒ nf_referenciada_id IS NOT NULL`.
+- Backfill: notas com `origem IS NULL` → `'manual'`.
+
+**3. `fiscal_protege_delete_edicao`**
+- Trigger `trg_nf_protege_delete BEFORE DELETE`: permite DELETE apenas em `status='rascunho' AND status_sefaz='nao_enviada'`. Para demais casos, exige `cancelar_nota_fiscal` ou `inutilizar_nota_fiscal`.
+- Trigger `trg_nf_itens_protege_edicao BEFORE INSERT/UPDATE/DELETE` em `notas_fiscais_itens`: bloqueia mutações quando NF.status ∈ (`confirmada`,`importada`,`cancelada`) E não está em fluxo de devolução/estorno (verifica via flag `current_setting('app.nf_internal_op',true)='1'` setado pelas RPCs).
+- Trigger análogo em `notas_fiscais` para colunas estruturais (`valor_total`, `chave_acesso`, partner ids) — bloqueia UPDATE quando confirmada/importada/cancelada.
+
+**4. `fiscal_unicidade`**
+- UNIQUE INDEX `ux_nf_chave_acesso (chave_acesso) WHERE chave_acesso IS NOT NULL` (idempotência fiscal).
+- UNIQUE INDEX `ux_nf_modelo_serie_numero_tipo (modelo_documento, serie, numero, tipo) WHERE numero IS NOT NULL AND ativo` (impede duplicidade de numeração).
+
+**5. `fiscal_rpcs_v2`** — `CREATE OR REPLACE`:
+- `confirmar_nota_fiscal`:
+  - Gate explícito: aceita só `status IN ('rascunho','pendente')`.
+  - `pg_advisory_xact_lock(hashtext('nf:'||p_nf_id::text))` para idempotência sob concorrência.
+  - Mantém idempotência por `NOT EXISTS` em `estoque_movimentos` e `financeiro_lancamentos`.
+  - Seta `app.nf_internal_op='1'` para liberar inserts de itens nos triggers (não aplicável aqui, mas padroniza).
+  - Insere em `auditoria_logs` (já existe a tabela) com `acao='confirmar_nf'`.
+- `estornar_nota_fiscal`:
+  - Substitui `DELETE FROM financeiro_lancamentos` por `PERFORM financeiro_cancelar_lancamento(id, 'Estorno NF '||numero)` para cada lançamento em aberto da NF (preserva trilha financeira).
+  - Mantém movimentos opostos em estoque com `documento_tipo='fiscal_estorno'` (já faz).
+  - Reverte `quantidade_faturada` na OV vinculada e recalcula `status_faturamento` (hoje não faz — bug).
+  - Insere `nota_fiscal_eventos` + `auditoria_logs`.
+- `gerar_devolucao_nota_fiscal`:
+  - Adiciona validação: somatório de quantidade já devolvida + nova ≤ quantidade da NF origem (consulta NFs filhas com `nf_referenciada_id=p_nf_origem_id` e `tipo_operacao='devolucao'` não canceladas).
+  - Insere em `auditoria_logs`.
+- Nova RPC `cancelar_nota_fiscal(p_nf_id, p_motivo)`: cancela NF não confirmada (status `rascunho`/`pendente`) ou NF confirmada **sem** SEFAZ autorizada; bloqueia cancelamento se `status_sefaz='autorizada'` (deve ir por `cancelar_nota_fiscal_sefaz`). Estorna efeitos via `estornar_nota_fiscal` quando `status='confirmada'`.
+- Nova RPC `cancelar_nota_fiscal_sefaz(p_nf_id, p_protocolo, p_motivo)`: aceita só `status_sefaz='autorizada'`; seta `status_sefaz='cancelada_sefaz'`, mantém `status='confirmada'` (por integridade contábil; estorno separado se desejado), grava evento + auditoria.
+- Nova RPC `inutilizar_nota_fiscal(p_nf_id, p_protocolo, p_motivo)`: aceita só `status IN ('rascunho','cancelada') AND status_sefaz='nao_enviada'`; seta `status_sefaz='inutilizada'`, evento, auditoria.
+
+**6. `fiscal_evento_canonico`**
+- CHECK `chk_nf_eventos_tipo` em `nota_fiscal_eventos.tipo_evento`: `('criacao','edicao','confirmacao','estorno','autorizacao_sefaz','rejeicao_sefaz','cancelamento','cancelamento_sefaz','inutilizacao','criacao_devolucao','importacao_xml','anexo_adicionado')`.
+- Triggers `AFTER UPDATE OF status,status_sefaz ON notas_fiscais` gravando `nota_fiscal_eventos` automaticamente quando muda — substitui inserts ad-hoc dispersos em RPCs (mantidos como complemento descritivo).
+
+**7. `fiscal_integridade_relacional`**
+- Confirmar/adicionar FK `notas_fiscais.transportadora_id → transportadoras(id) ON DELETE SET NULL`.
+- Confirmar/adicionar FK `notas_fiscais.conta_contabil_id → contas_contabeis(id) ON DELETE SET NULL`.
+- Confirmar `notas_fiscais.ordem_venda_id → ordens_venda(id) ON DELETE SET NULL`.
+- View `v_trilha_fiscal` (security_invoker): `nf_id, numero, status, status_sefaz, ordem_venda_id, financeiro_lancamento_ids, estoque_movimento_ids, devolucoes_ids, eventos_count`.
+
+Sem migration de dados (banco vazio); apenas defaults futuros.
+
+---
+
+### Política oficial — exclusão / cancelamento / inutilização / estorno
+
+| Operação | Quando aplicar | Como |
+|---|---|---|
+| **DELETE físico** | Só `status='rascunho' AND status_sefaz='nao_enviada'` | DELETE direto (trigger libera) |
+| **Cancelamento interno** | NF não enviada à SEFAZ ou rejeitada/denegada | `cancelar_nota_fiscal()` — estorna efeitos se confirmada |
+| **Cancelamento SEFAZ** | NF `status_sefaz='autorizada'` dentro do prazo legal | `cancelar_nota_fiscal_sefaz()` — comunica SEFAZ via edge function, atualiza `status_sefaz='cancelada_sefaz'` |
+| **Inutilização** | Faixa numérica nunca usada/cancelada | `inutilizar_nota_fiscal()` — só com `status_sefaz='nao_enviada'` |
+| **Estorno operacional** | Reverter efeitos sem cancelar (correção interna) | `estornar_nota_fiscal()` — só para `status='confirmada' AND status_sefaz NOT IN ('autorizada','em_processamento')` |
+| **Devolução** | Documento derivado da NF origem | `gerar_devolucao_nota_fiscal()` — origem deve estar `confirmada`, soma de devoluções ≤ qtd origem |
+
+---
+
+### Código afetado (front)
+
+- `src/lib/fiscalStatus.ts` — adicionar `importada_externa` ao `fiscalSefazStatusOptions`. Já está alinhado no resto.
+- `src/services/fiscal.service.ts` — `processarEstorno` continua válido. Adicionar `cancelarNotaFiscal(id, motivo)`, `cancelarNFSefaz(id, protocolo, motivo)`, `inutilizarNF(id, protocolo, motivo)`.
+- `src/components/fiscal/NotaFiscalDrawer.tsx` — botão "Cancelar" condicional pelo `status` real (não só `selected.status`); adicionar ações "Cancelar SEFAZ" e "Inutilizar" quando aplicável (gates já documentados em `fiscalStatus.ts`).
+- `src/components/fiscal/NotaFiscalEditModal.tsx` — passar a respeitar `isFiscalStructurallyLocked` (já existe) bloqueando edição de cabeçalho/itens em `confirmada`/`importada`.
+- `src/services/fiscal/sefaz/autorizacao.service.ts` e `cancelamento.service.ts` — após retorno da SEFAZ, gravar via novas RPCs (`cancelar_nota_fiscal_sefaz`) em vez de UPDATE direto.
+- `src/pages/fiscal/hooks/useNotaFiscalLifecycle.ts` — adicionar `useCancelarNF`, `useCancelarNFSefaz`, `useInutilizarNF`.
+
+### Documentação
+
+- `docs/fiscal-modelo-estrutural.md` (novo): máquina de estados (interna + SEFAZ), tabela de transições válidas, política de exclusão/cancelamento/inutilização, política de devolução, política de estorno, regras de coerência (CHECKs documentados).
+- `docs/MIGRACAO.md` — apêndice com as 7 migrations.
 
 ### Backfills
 
-- Nenhum dado retroativo é movido para `recebimentos_compra` (movimentos antigos têm `documento_tipo='carga_inicial'`); a tabela passa a registrar a partir do próximo `receber_compra`.
-- Nenhuma normalização de status em `pedidos_compra` (já realizada no módulo Compras).
-- `estoque_movimentos` existentes: se houver `tipo` fora do CHECK, relatório lista para revisão manual antes de aplicar a constraint (provavelmente nenhum: hoje só existe `entrada`).
+- Nenhum dado de NF a migrar (banco vazio).
+- `origem IS NULL` → `'manual'` (precaução para inserts antigos não verificados).
 
 ### Pontos para revisão manual
 
-- Remessas com `status_transporte=NULL` ou valor fora do conjunto canônico — relatório listará.
-- Pedidos de compra com `quantidade_recebida > 0` mas sem `recebimentos_compra` — operação histórica permanece como está (não retroage).
-- Limite de unidades para aprovação de ajuste manual — admin precisa setar em `app_configuracoes`.
+- Quando começarem a entrar NFs reais, conferir se há fluxos legados criando `status='pendente'` em direção à SEFAZ sem passar por `confirmar_nota_fiscal` (CHECK de coerência irá rejeitar).
+- Edge function `sefaz-proxy` deve ser atualizada para chamar `cancelar_nota_fiscal_sefaz` em vez de UPDATE direto (próxima rodada se ainda houver UPDATE direto).
 
 ### Impacto no front
 
-- Aba **Recebimentos**: passa a mostrar dados reais persistidos (data, NF, responsável, divergência) em vez de derivação visual; o badge "Visão derivada de Compra" só aparece para pedidos sem nenhum recebimento registrado.
-- Aba **Entregas**: badge "Múltiplas remessas" continua, mas o `status_logistico` agora é o consolidado real (não a última remessa).
-- Aba **Remessas**: sem mudança visual; ganha trigger de transição que rejeita updates inválidos com toast de erro amigável.
-- Página **Estoque**: modal de ajuste ganha "Categoria" e validação obrigatória de motivo para tipos críticos.
+- Botão "Excluir" só aparece em rascunho não enviado; demais casos viram "Cancelar"/"Cancelar SEFAZ"/"Inutilizar" conforme contexto.
+- Modal de edição respeita lock estrutural — campos de cabeçalho/itens ficam read-only após confirmar/importar.
+- Drawer ganha duas ações novas (Cancelar SEFAZ, Inutilizar) quando o estado permite.
+- Estorno passa a preservar lançamentos financeiros (cancelados em vez de deletados); drawer financeiro vinculado mostrará histórico completo.
+- Devolução rejeita quantidade que excede saldo devolvível.
 
 ### Fora de escopo
 
-- Sem novas telas (drawer/modal são incrementos sobre os existentes).
-- Sem mudança em RLS, fiscal ou financeiro além do gate de role no ajuste manual.
-- Sem DROP de colunas ou tabelas; `documento_tipo='carga_inicial'` permanece válido.
+- DROP de colunas legadas em `notas_fiscais` (nenhuma identificada como morta).
+- Reescrita do XML builder ou assinatura digital (já server-side em `sefaz-proxy`).
+- Mudança em RLS (já adequada).
+- Reenvio retroativo à SEFAZ (não há NFs).
 
