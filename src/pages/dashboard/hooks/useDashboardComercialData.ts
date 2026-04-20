@@ -33,6 +33,11 @@ export function useDashboardComercialData(range: DashboardDateRange) {
     const lastDays = buildIsoDayRange(-6, 7);
 
     try {
+      // For top produtos: respect global range when explicit; fallback to mês atual.
+      const usingGlobalRange = !!(dateFrom && dateTo);
+      const itensFrom = usingGlobalRange ? dateFrom : inicioMesAtual;
+      const itensTo = usingGlobalRange ? dateTo : undefined;
+
       const [
         orcamentosResult,
         orcRecentResult,
@@ -97,12 +102,16 @@ export function useDashboardComercialData(range: DashboardDateRange) {
           .eq("tipo", "saida")
           .eq("status", "confirmada")
           .in("data_emissao", lastDays),
-        supabase
-          .from("notas_fiscais_itens")
-          .select("quantidade, valor_unitario, produtos(nome), notas_fiscais!inner(status, tipo, data_emissao)")
-          .eq("notas_fiscais.status", "confirmada")
-          .eq("notas_fiscais.tipo", "saida")
-          .gte("notas_fiscais.data_emissao", inicioMesAtual),
+        (() => {
+          let q = supabase
+            .from("notas_fiscais_itens")
+            .select("quantidade, valor_unitario, produtos(nome), notas_fiscais!inner(status, tipo, data_emissao)")
+            .eq("notas_fiscais.status", "confirmada")
+            .eq("notas_fiscais.tipo", "saida")
+            .gte("notas_fiscais.data_emissao", itensFrom);
+          if (itensTo) q = q.lte("notas_fiscais.data_emissao", itensTo);
+          return q;
+        })(),
       ]);
 
       if (orcamentosResult.error) console.error("[dashboard:comercial] orcamentos:", orcamentosResult.error.message);
