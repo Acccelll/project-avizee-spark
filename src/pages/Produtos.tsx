@@ -110,7 +110,7 @@ const Produtos = () => {
   const { data, loading, create, update, remove, duplicate, fetchData } = useSupabaseCrud<Produto>({
     table: "produtos",
     searchTerm: debouncedSearch,
-    hasAtivo: false,
+    filterAtivo: false,
     searchColumns: ["nome", "sku", "codigo_interno", "ncm"],
   });
   const { pushView } = useRelationalNavigation();
@@ -769,6 +769,7 @@ const Produtos = () => {
           onView={openView}
           onEdit={openEdit}
           onDelete={(p) => remove(p.id)}
+          deleteBehavior="soft"
         />
         </PullToRefresh>
       </ModulePage>

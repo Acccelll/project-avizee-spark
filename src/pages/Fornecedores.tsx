@@ -91,7 +91,7 @@ const Fornecedores = () => {
   const { data, loading, create, update, remove, fetchData } = useSupabaseCrud<Fornecedor>({
     table: "fornecedores",
     searchTerm: debouncedSearch,
-    hasAtivo: false,
+    filterAtivo: false,
     searchColumns: ["nome_razao_social", "nome_fantasia", "cpf_cnpj", "email", "cidade"],
   });
   const { pushView } = useRelationalNavigation();
@@ -398,6 +398,7 @@ const Fornecedores = () => {
             onView={openView}
             onEdit={openEdit}
             onDelete={(f) => remove(f.id)}
+            deleteBehavior="soft"
           />
         </PullToRefresh>
       </ModulePage>

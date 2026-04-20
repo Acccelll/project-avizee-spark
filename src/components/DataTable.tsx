@@ -2,7 +2,6 @@ import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import {
   Eye,
-  CheckCircle2,
   ChevronUp,
   ChevronDown,
   ChevronsUpDown,
@@ -22,7 +21,6 @@ import {
   MoreVertical,
   Pencil,
   Copy,
-  Ban,
   ChevronsUpDown as ExpandIcon,
 } from 'lucide-react';
 import { buildExportFilename } from '@/lib/utils';
@@ -95,7 +93,9 @@ interface DataTableProps<T> {
   showInternalFilters?: boolean;
   onBatchDelete?: (ids: string[]) => void;
   onBatchStatusChange?: (ids: string[], status: string) => void;
+  batchStatusActions?: Array<{ label: string; value: string; icon?: React.ComponentType<{ className?: string }> }>;
   renderInlineDetails?: (item: T) => React.ReactNode;
+  deleteBehavior?: 'soft' | 'hard';
   /**
    * Row count threshold above which virtualization is enabled.
    * Below this threshold, rows render normally without virtualization.
@@ -134,7 +134,9 @@ export function DataTable<T extends Record<string, any>>({
   showInternalFilters = false,
   onBatchDelete,
   onBatchStatusChange,
+  batchStatusActions,
   renderInlineDetails,
+  deleteBehavior = 'hard',
   virtualizeThreshold = 50,
   maxHeight = 600,
 }: DataTableProps<T>) {
@@ -207,7 +209,7 @@ export function DataTable<T extends Record<string, any>>({
   useEffect(() => {
     if (!moduleKey || !user?.id) return;
     try {
-      supabase.from('user_preferences' as any).upsert({
+      supabase.from('user_preferences' as never).upsert({
         user_id: user.id,
         module_key: moduleKey,
         columns_config: [...hiddenKeys],
@@ -415,6 +417,12 @@ export function DataTable<T extends Record<string, any>>({
     }
   };
 
+  const deleteActionLabel = deleteBehavior === 'soft' ? 'Inativar' : 'Excluir permanentemente';
+  const deleteDialogTitle = deleteBehavior === 'soft' ? 'Inativar registro' : 'Excluir registro';
+  const deleteDialogDescription = deleteBehavior === 'soft'
+    ? `Esta ação inativará ${deleteItem?.nome || deleteItem?.numero || 'o registro selecionado'}.`
+    : `Esta ação removerá ${deleteItem?.nome || deleteItem?.numero || 'o registro selecionado'} permanentemente.`;
+
   const renderActions = (item: T) => (
     <div className="flex items-center gap-1 flex-nowrap">
       {renderInlineDetails && (
@@ -451,7 +459,7 @@ export function DataTable<T extends Record<string, any>>({
             variant="ghost"
             size="icon"
             className="h-8 w-8 text-destructive hover:text-destructive"
-            aria-label="Inativar ou excluir registro"
+            aria-label={deleteActionLabel}
             onClick={(e) => {
               e.stopPropagation();
               if (skipDeleteConfirm) {
@@ -463,7 +471,7 @@ export function DataTable<T extends Record<string, any>>({
           >
             <Trash2 className="h-4 w-4" />
           </Button>
-        </TooltipTrigger><TooltipContent>Inativar / Excluir</TooltipContent></Tooltip>
+        </TooltipTrigger><TooltipContent>{deleteActionLabel}</TooltipContent></Tooltip>
       )}
     </div>
   );
@@ -509,7 +517,7 @@ export function DataTable<T extends Record<string, any>>({
                   setDeleteItem(item);
                 }}
               >
-                <Trash2 className="mr-2 h-4 w-4" /> Inativar / Excluir
+                <Trash2 className="mr-2 h-4 w-4" /> {deleteActionLabel}
               </DropdownMenuItem>
             </>
           )}
@@ -701,16 +709,19 @@ export function DataTable<T extends Record<string, any>>({
           <div className="flex gap-2">
             {onBatchStatusChange && (
               <>
-                <Button size="sm" variant="outline" onClick={() => onBatchStatusChange(selectedIds, 'ativo')}>
-                  <CheckCircle2 className="mr-1 h-4 w-4" />Reativar
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => onBatchStatusChange(selectedIds, 'inativo')}>
-                  <Ban className="mr-1 h-4 w-4" />Inativar
-                </Button>
+                {(batchStatusActions?.length ? batchStatusActions : [{ label: 'Alterar status', value: 'confirmado' }]).map((action) => {
+                  const Icon = action.icon;
+                  return (
+                    <Button key={action.value} size="sm" variant="outline" onClick={() => onBatchStatusChange(selectedIds, action.value)}>
+                      {Icon ? <Icon className="mr-1 h-4 w-4" /> : null}
+                      {action.label}
+                    </Button>
+                  );
+                })}
               </>
             )}
             <Button size="sm" variant="outline" onClick={() => exportData('csv')}>Exportar</Button>
-            {(onBatchDelete || onDelete) && <Button size="sm" variant="destructive" onClick={() => { if (onBatchDelete) onBatchDelete(selectedIds); else toast.info('Implemente onBatchDelete para exclusão em lote.'); }}>Inativar / Excluir</Button>}
+            {(onBatchDelete || onDelete) && <Button size="sm" variant="destructive" onClick={() => { if (onBatchDelete) onBatchDelete(selectedIds); else toast.info('Implemente onBatchDelete para exclusão em lote.'); }}>{deleteActionLabel}</Button>}
           </div>
         </div>
       )}
@@ -830,8 +841,8 @@ export function DataTable<T extends Record<string, any>>({
       <ConfirmDialog
         open={!!deleteItem}
         onClose={() => { setDeleteItem(null); setPendingSkipPref(false); }}
-        title="Excluir registro"
-        description={`Esta ação removerá ${deleteItem?.nome || deleteItem?.numero || 'o registro selecionado'} permanentemente.`}
+        title={deleteDialogTitle}
+        description={deleteDialogDescription}
         onConfirm={() => {
           if (deleteItem && onDelete) {
             // Persiste a preferência só se confirmar.

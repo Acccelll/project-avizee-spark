@@ -104,7 +104,7 @@ export default function Transportadoras() {
   const { data, loading, create, update, remove, fetchData } = useSupabaseCrud<Transportadora>({
     table: "transportadoras",
     searchTerm: debouncedSearch,
-    hasAtivo: false,
+    filterAtivo: false,
     searchColumns: ["nome_razao_social", "nome_fantasia", "cpf_cnpj", "cidade"],
   });
   const { pushView } = useRelationalNavigation();
@@ -464,6 +464,7 @@ export default function Transportadoras() {
             onView={openView}
             onEdit={openEdit}
             onDelete={(t) => { setSelected(t); setDeleteConfirmOpen(true); }}
+            deleteBehavior="soft"
             emptyTitle="Nenhuma transportadora encontrada"
             emptyDescription="Tente ajustar os filtros ou cadastre uma nova transportadora."
           />

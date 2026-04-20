@@ -19,6 +19,16 @@ interface UseCrudOptions {
   ascending?: boolean;
   filter?: CrudFilter[];
   hasAtivo?: boolean;
+  /**
+   * Controls whether list queries apply `eq("ativo", true)`.
+   * Defaults to `hasAtivo` for backwards compatibility.
+   */
+  filterAtivo?: boolean;
+  /**
+   * Controls whether `remove` performs soft-delete (`ativo=false`) when possible.
+   * Defaults to `hasAtivo` for backwards compatibility.
+   */
+  softDelete?: boolean;
   pageSize?: number;
   showToasts?: boolean;
   searchTerm?: string;
@@ -76,6 +86,8 @@ export function useSupabaseCrud<R = any>({
   ascending = false,
   filter = [],
   hasAtivo = true,
+  filterAtivo,
+  softDelete,
   pageSize,
   showToasts = true,
   searchTerm = "",
@@ -87,13 +99,15 @@ export function useSupabaseCrud<R = any>({
 }: UseCrudOptions) {
   const queryClient = useQueryClient();
   const [page, setPage] = useState(0);
+  const shouldFilterAtivo = filterAtivo ?? hasAtivo;
+  const shouldSoftDelete = softDelete ?? hasAtivo;
 
   const filterKey = JSON.stringify(filter);
   const effectiveMode: "paged" | "all" = paginationMode ?? (pageSize ? "paged" : "all");
 
   const queryKey = useMemo(
-    () => [table, select, orderBy, ascending, filterKey, searchTerm, effectiveMode, page],
-    [table, select, orderBy, ascending, filterKey, searchTerm, effectiveMode, page],
+    () => [table, select, orderBy, ascending, filterKey, searchTerm, effectiveMode, page, shouldFilterAtivo],
+    [table, select, orderBy, ascending, filterKey, searchTerm, effectiveMode, page, shouldFilterAtivo],
   );
 
   type QueryResult = { rows: R[]; totalCount: number | null; hasMore: boolean; truncated: boolean };
@@ -118,7 +132,7 @@ export function useSupabaseCrud<R = any>({
           const orFilter = searchColumns.map((col) => `${col}.ilike.%${trimmedSearch}%`).join(",");
           query = query.or(orFilter);
         }
-        if (hasAtivo) query = query.eq("ativo", true);
+        if (shouldFilterAtivo) query = query.eq("ativo", true);
         return query;
       };
 
@@ -240,7 +254,7 @@ export function useSupabaseCrud<R = any>({
   const removeMutation = useMutation({
     mutationFn: async ({ id, soft = true }: { id: string; soft?: boolean }) => {
       if (!supabase) throw new Error("Supabase não configurado");
-      if (soft && hasAtivo) {
+      if (soft && shouldSoftDelete) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { error } = await (supabase as any).from(table).update({ ativo: false }).eq("id", id);
         if (error) throw error;

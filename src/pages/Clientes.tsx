@@ -109,7 +109,7 @@ const Clientes = () => {
   const { data, loading, create, update, remove, fetchData } = useSupabaseCrud<Cliente>({
     table: "clientes",
     searchTerm: debouncedSearch,
-    hasAtivo: false,
+    filterAtivo: false,
     searchColumns: ["nome_razao_social", "nome_fantasia", "cpf_cnpj", "email", "cidade"],
   });
   const { pushView } = useRelationalNavigation();
@@ -370,6 +370,7 @@ const Clientes = () => {
             onView={openView}
             onEdit={openEdit}
             onDelete={(c) => remove(c.id)}
+            deleteBehavior="soft"
           />
         </PullToRefresh>
       </ModulePage>

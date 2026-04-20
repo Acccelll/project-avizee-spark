@@ -99,7 +99,7 @@ const GruposEconomicos = () => {
   const { data, loading, create, update, remove, fetchData } = useSupabaseCrud<GrupoEconomico>({
     table: "grupos_economicos",
     searchTerm: debouncedSearch,
-    hasAtivo: false,
+    filterAtivo: false,
     searchColumns: ["nome"],
   });
 
@@ -719,6 +719,7 @@ const GruposEconomicos = () => {
             onView={openView}
             onEdit={openEdit}
             onDelete={(g) => remove(g.id)}
+            deleteBehavior="soft"
           />
         </PullToRefresh>
       </ModulePage>

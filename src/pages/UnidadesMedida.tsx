@@ -49,7 +49,7 @@ export default function UnidadesMedida() {
   const { data, loading, create, update, remove, fetchData } = useSupabaseCrud<UnidadeMedida>({
     table: "unidades_medida",
     searchTerm: debouncedSearch,
-    hasAtivo: false,
+    filterAtivo: false,
     searchColumns: ["codigo", "descricao"],
   });
 
@@ -220,6 +220,7 @@ export default function UnidadesMedida() {
           
           onEdit={openEdit}
           onDelete={(u) => remove(u.id)}
+          deleteBehavior="soft"
           moduleKey="unidades-medida"
           emptyTitle="Nenhuma unidade de medida encontrada"
           emptyDescription="Cadastre as unidades utilizadas nos seus produtos."
