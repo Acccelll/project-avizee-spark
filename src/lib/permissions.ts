@@ -132,6 +132,20 @@ export const ROLE_DESCRIPTIONS: Record<AppRole, string> = {
   estoquista: "Acesso a produtos, estoque, compras e logística.",
 };
 
+/** Textos de apoio padronizados para telas de governança/acesso. */
+export const PERMISSION_HELP_TEXT = {
+  rolePadrao:
+    "Role padrão é obrigatório e define as permissões herdadas automaticamente.",
+  permissaoComplementar:
+    "Permissões complementares são exceções individuais adicionadas ao role padrão.",
+  permissaoRevogada:
+    "Permissão revogada (deny) remove acesso herdado do role padrão para um usuário específico.",
+  matrizCatalogo:
+    "A matriz mostra apenas o catálogo padrão por role. Overrides por usuário são gerenciados no cadastro de usuários.",
+  solicitarAcesso:
+    "Quando não houver acesso, solicite liberação para um administrador do sistema.",
+} as const;
+
 const rolePermissionMatrix: Record<AppRole, PermissionKey[]> = {
   admin: ERP_RESOURCES.flatMap((resource) =>
     ERP_ACTIONS.map((action) => `${resource}:${action}` as PermissionKey)

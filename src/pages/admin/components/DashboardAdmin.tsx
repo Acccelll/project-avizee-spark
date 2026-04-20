@@ -13,9 +13,11 @@
  */
 
 import { useQuery } from "@tanstack/react-query";
-import { Activity, ShieldAlert, UserMinus, Users } from "lucide-react";
+import { Activity, ArrowRight, ShieldAlert, UserMinus, Users } from "lucide-react";
+import { Link } from "react-router-dom";
 import { SummaryCard } from "@/components/SummaryCard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useSessoesMetricas } from "@/pages/admin/hooks/useSessoesMetricas";
 
@@ -69,7 +71,7 @@ export function DashboardAdmin() {
             Monitoramento de Segurança
           </CardTitle>
           <CardDescription>
-            Sessões reais, governança administrativa e papéis privilegiados.
+            Indicadores operacionais de acesso e governança, baseados apenas nos dados efetivamente disponíveis hoje.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -113,6 +115,20 @@ export function DashboardAdmin() {
               variationType="neutral"
               loading={eventos24h.isLoading}
             />
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button asChild size="sm" variant="outline" className="gap-2">
+              <Link to="/administracao?tab=usuarios">
+                Revisar usuários e permissões
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </Button>
+            <Button asChild size="sm" variant="outline" className="gap-2">
+              <Link to="/auditoria">
+                Abrir auditoria administrativa
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </Button>
           </div>
         </CardContent>
       </Card>
