@@ -73,12 +73,57 @@ async function replaceUserRole(serviceClient: any, userId: string, role: AppRole
 }
 
 async function replaceUserPermissions(serviceClient: any, userId: string, permissionKeys: unknown) {
-  const { error: deleteError } = await serviceClient.from("user_permissions").delete().eq("user_id", userId);
-  if (deleteError) throw deleteError;
-  const permissions = normalizePermissions(permissionKeys);
-  if (permissions.length === 0) return;
-  const { error: insertError } = await serviceClient.from("user_permissions").insert(permissions.map((p: any) => ({ user_id: userId, ...p })));
-  if (insertError) throw insertError;
+  // Estratégia não-destrutiva (preserva granted_by/granted_at/motivo originais):
+  //   INSERT  → permissões novas que não existiam.
+  //   UPDATE  → permissões hoje removidas (allowed=false em vez de DELETE).
+  //   UPDATE  → permissões re-adicionadas (allowed=true se estava false).
+  // Histórico é capturado pelo trigger trg_user_permissions_audit.
+  const desired = normalizePermissions(permissionKeys);
+  const desiredKeys = new Set(desired.map((p) => `${p.resource}:${p.action}`));
+
+  const { data: current, error: fetchError } = await serviceClient
+    .from("user_permissions")
+    .select("resource, action, allowed")
+    .eq("user_id", userId);
+  if (fetchError) throw fetchError;
+
+  const currentMap = new Map<string, { allowed: boolean }>(
+    (current ?? []).map((r: any) => [`${r.resource}:${r.action}`, { allowed: r.allowed !== false }])
+  );
+
+  // INSERTS
+  const toInsert = desired
+    .filter((p) => !currentMap.has(`${p.resource}:${p.action}`))
+    .map((p) => ({ user_id: userId, ...p }));
+  if (toInsert.length > 0) {
+    const { error } = await serviceClient.from("user_permissions").insert(toInsert);
+    if (error) throw error;
+  }
+
+  // RE-ENABLE: estava allowed=false e agora deve ser true
+  const toReenable = desired.filter((p) => {
+    const cur = currentMap.get(`${p.resource}:${p.action}`);
+    return cur && !cur.allowed;
+  });
+  for (const p of toReenable) {
+    const { error } = await serviceClient
+      .from("user_permissions")
+      .update({ allowed: true, updated_at: new Date().toISOString() })
+      .eq("user_id", userId).eq("resource", p.resource).eq("action", p.action);
+    if (error) throw error;
+  }
+
+  // REVOKE: estava na tabela e não está mais no desired → marcar allowed=false
+  for (const [key, val] of currentMap) {
+    if (!desiredKeys.has(key) && val.allowed) {
+      const [resource, action] = key.split(":");
+      const { error } = await serviceClient
+        .from("user_permissions")
+        .update({ allowed: false, updated_at: new Date().toISOString() })
+        .eq("user_id", userId).eq("resource", resource).eq("action", action);
+      if (error) throw error;
+    }
+  }
 }
 
 async function setUserActiveStatus(serviceClient: any, userId: string, ativo: boolean) {
@@ -86,14 +131,27 @@ async function setUserActiveStatus(serviceClient: any, userId: string, ativo: bo
     ban_duration: ativo ? "none" : INACTIVE_BAN_DURATION,
   });
   if (error) throw error;
+  // Replica em profiles.ativo para queries client-side simples
+  await serviceClient.from("profiles").update({ ativo, updated_at: new Date().toISOString() }).eq("id", userId);
 }
 
-async function insertAudit(serviceClient: any, actorId: string, targetUserId: string, rolePadrao: string | null, alteracao: Record<string, unknown>) {
+async function insertAudit(
+  serviceClient: any,
+  actorId: string,
+  targetUserId: string,
+  rolePadrao: string | null,
+  alteracao: Record<string, unknown>,
+  opts: { tipoAcao?: string; entidade?: string; entidadeId?: string; motivo?: string } = {},
+) {
   const { error } = await serviceClient.from("permission_audit").insert({
     user_id: actorId,
     target_user_id: targetUserId,
     role_padrao: rolePadrao,
     alteracao,
+    tipo_acao: opts.tipoAcao ?? (alteracao.tipo as string | undefined) ?? "legacy",
+    entidade: opts.entidade ?? "user",
+    entidade_id: opts.entidadeId ?? targetUserId,
+    motivo: opts.motivo ?? null,
   });
   if (error) throw error;
 }

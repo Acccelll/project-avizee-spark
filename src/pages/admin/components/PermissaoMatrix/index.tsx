@@ -11,6 +11,8 @@ import { Info, Search, X } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -50,7 +52,14 @@ const MODULE_GROUPS: { label: string; resources: ErpResource[] }[] = [
   { label: "Administração", resources: ["usuarios", "administracao"] },
 ];
 
-const MATRIX_ACTIONS: ErpAction[] = ["visualizar", "criar", "editar", "excluir", "exportar", "aprovar"];
+/** Ações nucleares — sempre exibidas. */
+const CORE_ACTIONS: ErpAction[] = ["visualizar", "criar", "editar", "excluir", "exportar", "aprovar", "cancelar"];
+/** Ações avançadas — exibidas via toggle. */
+const ADVANCED_ACTIONS: ErpAction[] = [
+  "confirmar", "importar_xml", "admin_fiscal", "gerar", "download",
+  "editar_comentarios", "gerenciar_templates", "configurar", "sincronizar",
+  "gerenciar_alertas", "baixar", "reenviar_email", "visualizar_rentabilidade",
+];
 
 type PermMatrix = Record<AppRole, Set<PermissionKey>>;
 
@@ -65,6 +74,21 @@ function buildMatrix(): PermMatrix {
 export function PermissaoMatrix() {
   const matrix = useMemo(buildMatrix, []);
   const [search, setSearch] = useState("");
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
+  const matrixActions = useMemo<ErpAction[]>(
+    () => (showAdvanced ? [...CORE_ACTIONS, ...ADVANCED_ACTIONS] : CORE_ACTIONS),
+    [showAdvanced]
+  );
+
+  /** Para cada ação, verifica se algum role/recurso a usa — esconde colunas vazias. */
+  const visibleActions = useMemo<ErpAction[]>(() => {
+    return matrixActions.filter((action) =>
+      ALL_ROLES.some((role) =>
+        ERP_RESOURCES.some((res) => matrix[role].has(`${res}:${action}` as PermissionKey))
+      )
+    );
+  }, [matrix, matrixActions]);
 
   const filteredGroups = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -86,7 +110,8 @@ export function PermissaoMatrix() {
   }, [matrix]);
 
   const allResources = ERP_RESOURCES.length;
-  const totalCells = allResources * MATRIX_ACTIONS.length;
+  const totalCells = allResources * visibleActions.length;
+  const totalActionsCount = CORE_ACTIONS.length + ADVANCED_ACTIONS.length;
 
   return (
     <div className="space-y-4">
@@ -109,15 +134,26 @@ export function PermissaoMatrix() {
         </CollapsibleContent>
       </Collapsible>
 
-      {/* Header + busca */}
+      {/* Header + busca + toggle avançado */}
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
         <div>
           <h3 className="text-sm font-semibold">Matriz de Permissões</h3>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Permissões padrão por perfil de acesso.
+            Permissões padrão por perfil. Exibindo {visibleActions.length} de {totalActionsCount} ações disponíveis.
           </p>
         </div>
-        <div className="relative w-full sm:w-64">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="flex items-center gap-2">
+            <Switch
+              id="matrix-advanced"
+              checked={showAdvanced}
+              onCheckedChange={setShowAdvanced}
+            />
+            <Label htmlFor="matrix-advanced" className="text-xs cursor-pointer">
+              Ações avançadas
+            </Label>
+          </div>
+          <div className="relative w-full sm:w-64">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
           <Input
             placeholder="Buscar recurso ou módulo…"
@@ -136,6 +172,7 @@ export function PermissaoMatrix() {
               <X className="h-3.5 w-3.5" />
             </Button>
           )}
+          </div>
         </div>
       </div>
 

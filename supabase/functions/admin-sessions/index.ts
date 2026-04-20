@@ -80,6 +80,27 @@ Deno.serve(async (req) => {
 
     const { action, userId } = await req.json();
 
+    if (action === "metrics") {
+      const { data: usersData, error: usersError } =
+        await serviceClient.auth.admin.listUsers({ page: 1, perPage: 1000 });
+      if (usersError) throw usersError;
+
+      const now = Date.now();
+      const ACTIVE_WINDOW_MS = 30 * 60 * 1000; // 30 min
+      const INACTIVE_THRESHOLD_MS = 30 * 24 * 60 * 60 * 1000; // 30 d
+
+      let ativas = 0;
+      let inativasMais30d = 0;
+      const users = usersData.users ?? [];
+      for (const u of users as any[]) {
+        const last = u.last_sign_in_at ? Date.parse(u.last_sign_in_at) : null;
+        if (last && now - last <= ACTIVE_WINDOW_MS) ativas += 1;
+        if (!last || now - last > INACTIVE_THRESHOLD_MS) inativasMais30d += 1;
+      }
+
+      return json({ ativas, inativasMais30d, totalUsuarios: users.length });
+    }
+
     if (action === "list") {
       const { data: usersData, error: usersError } =
         await serviceClient.auth.admin.listUsers({ page: 1, perPage: 1000 });
