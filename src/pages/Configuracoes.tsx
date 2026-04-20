@@ -532,62 +532,26 @@ export default function Configuracoes() {
 
               <Separator />
 
-              {/* ── Bloco 4: Cores da interface (global — apenas admins) ─────── */}
-              {isAdmin ? (
-                <div className="space-y-4">
-                  <div>
-                    <h3 className="text-sm font-semibold text-foreground">Cores da interface</h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Cor primária e secundária são configurações <strong>globais</strong> — afetam todos os usuários do sistema. Editável apenas por administradores.
+              {/* ── Bloco 4: Branding institucional (somente leitura) ────────── */}
+              {/*
+                Branding (cores e logo) pertence a `empresa_config` e é gerenciado
+                exclusivamente em Administração → Empresa. Aqui exibimos apenas o
+                estado atual para contexto visual.
+              */}
+              <div className="rounded-lg border bg-muted/30 p-4 text-sm text-muted-foreground space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="space-y-1">
+                    <p className="text-foreground font-medium">Cores institucionais (branding global)</p>
+                    <p className="text-xs">
+                      Definidas pelo administrador em <strong>Administração → Empresa</strong>. Refletem em todos os usuários.
                     </p>
                   </div>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label>Cor primária</Label>
-                      <div className="flex items-center gap-3">
-                        <Input
-                          type="color"
-                          value={corPrimaria}
-                          onChange={(e) => setCorPrimaria(e.target.value)}
-                          className="h-10 w-16 p-1 cursor-pointer"
-                          aria-label="Selecionar cor primária da interface"
-                        />
-                        <span className="text-sm text-muted-foreground font-mono">{corPrimaria}</span>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Cor secundária</Label>
-                      <div className="flex items-center gap-3">
-                        <Input
-                          type="color"
-                          value={corSecundaria}
-                          onChange={(e) => setCorSecundaria(e.target.value)}
-                          className="h-10 w-16 p-1 cursor-pointer"
-                          aria-label="Selecionar cor secundária da interface"
-                        />
-                        <span className="text-sm text-muted-foreground font-mono">{corSecundaria}</span>
-                      </div>
-                    </div>
-                  </div>
-                  {/* Preview */}
-                  <div className="rounded-lg border p-4 space-y-2">
-                    <p className="text-xs text-muted-foreground font-medium">Pré-visualização</p>
-                    <div className="flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-md border" style={{ backgroundColor: corPrimaria }} />
-                      <div className="h-8 w-8 rounded-md border" style={{ backgroundColor: corSecundaria }} />
-                      <div className="flex flex-col gap-1 flex-1">
-                        <div className="h-2 rounded-full w-3/4" style={{ backgroundColor: corPrimaria, opacity: 0.85 }} />
-                        <div className="h-2 rounded-full w-1/2" style={{ backgroundColor: corSecundaria, opacity: 0.65 }} />
-                      </div>
-                      <span className="text-xs text-muted-foreground">Primária · Secundária</span>
-                    </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <div className="h-7 w-7 rounded-md border" style={{ backgroundColor: corPrimaria }} aria-label="Cor primária atual" />
+                    <div className="h-7 w-7 rounded-md border" style={{ backgroundColor: corSecundaria }} aria-label="Cor secundária atual" />
                   </div>
                 </div>
-              ) : (
-                <div className="rounded-lg border bg-muted/30 p-4 text-sm text-muted-foreground">
-                  As cores globais da interface (primária e secundária) são gerenciadas pelo administrador do sistema.
-                </div>
-              )}
+              </div>
 
               <Separator />
 
