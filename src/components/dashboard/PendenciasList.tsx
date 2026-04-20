@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { useDashboardPeriod } from '@/contexts/DashboardPeriodContext';
 
 interface Pendencia {
   id: string;
@@ -19,25 +20,34 @@ interface Pendencia {
   plano_contas: string;
 }
 
-const QUERY_KEY = ['dashboard', 'pendencias'] as const;
+/**
+ * Date window:
+ * - Lower bound: max(range.dateFrom, today-60d) — never show stale items beyond 60 days.
+ * - Upper bound: min(range.dateTo, today+7d)   — never inundate with far-future items.
+ * This keeps the list operationally focused while honoring the global period.
+ */
+function resolveBounds(rangeFrom?: string, rangeTo?: string) {
+  const today = new Date();
+  const sixtyAgo = new Date(today); sixtyAgo.setDate(today.getDate() - 60);
+  const sevenAhead = new Date(today); sevenAhead.setDate(today.getDate() + 7);
+  const iso = (d: Date) => d.toISOString().slice(0, 10);
+  const lowerCap = iso(sixtyAgo);
+  const upperCap = iso(sevenAhead);
+  const lower = rangeFrom && rangeFrom > lowerCap ? rangeFrom : lowerCap;
+  const upper = rangeTo && rangeTo < upperCap ? rangeTo : upperCap;
+  return { lower, upper };
+}
 
-async function fetchPendencias(): Promise<Pendencia[]> {
-  const sevenDaysAhead = new Date();
-  sevenDaysAhead.setDate(sevenDaysAhead.getDate() + 7);
-  const ahead = sevenDaysAhead.toISOString().slice(0, 10);
-  // Include overdue items from up to 60 days ago so very stale items don't
-  // pollute the list, while still showing all items due in the next 7 days.
-  const sixtyDaysAgo = new Date();
-  sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
-  const pastBound = sixtyDaysAgo.toISOString().slice(0, 10);
+async function fetchPendencias(rangeFrom?: string, rangeTo?: string): Promise<Pendencia[]> {
+  const { lower, upper } = resolveBounds(rangeFrom, rangeTo);
 
   const { data, error } = await supabase
     .from('financeiro_lancamentos')
     .select('id, tipo, descricao, valor, data_vencimento, status, clientes(nome_razao_social), fornecedores(nome_razao_social), contas_contabeis(codigo, descricao)')
     .eq('ativo', true)
     .in('status', ['aberto', 'vencido'])
-    .gte('data_vencimento', pastBound)
-    .lte('data_vencimento', ahead)
+    .gte('data_vencimento', lower)
+    .lte('data_vencimento', upper)
     .order('data_vencimento', { ascending: true })
     .limit(20);
 
@@ -80,10 +90,11 @@ const INITIAL_VISIBLE = 5;
 export function PendenciasList() {
   const navigate = useNavigate();
   const [showAll, setShowAll] = useState(false);
+  const { range } = useDashboardPeriod();
 
   const { data: pendencias = [], isLoading } = useQuery<Pendencia[], Error>({
-    queryKey: QUERY_KEY,
-    queryFn: fetchPendencias,
+    queryKey: ['dashboard', 'pendencias', range.dateFrom, range.dateTo] as const,
+    queryFn: () => fetchPendencias(range.dateFrom, range.dateTo),
     staleTime: 2 * 60 * 1000,
   });
 

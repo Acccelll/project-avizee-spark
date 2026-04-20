@@ -1,4 +1,6 @@
 import { useState, useMemo } from "react";
+import { useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
 import { SummaryCard } from "@/components/SummaryCard";
