@@ -421,7 +421,7 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
       // exclui cancelados/estornados e ordena pela data de pagamento.
       let query = supabase
         .from("financeiro_lancamentos")
-        .select("tipo, descricao, valor, valor_pago, status, data_vencimento, data_pagamento")
+        .select("id, tipo, descricao, valor, valor_pago, status, data_vencimento, data_pagamento")
         .eq("ativo", true)
         .not("status", "in", "(cancelado,estornado)");
 
@@ -437,7 +437,7 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
       });
 
       let saldo = 0;
-      const rows = sorted.map((item: RawFluxoItem & { valor_pago?: number | null }) => {
+      const rows = sorted.map((item: RawFluxoItem & { valor_pago?: number | null; id?: string }) => {
         const status = item.status ?? '';
         // Para itens pagos/parciais usa valor efetivamente pago; senão, valor previsto.
         const valorEfetivo = (status === 'pago' || status === 'parcial') && item.valor_pago != null
@@ -446,12 +446,16 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
         const entrada = item.tipo === "receber" ? valorEfetivo : 0;
         const saida = item.tipo === "pagar" ? valorEfetivo : 0;
         saldo = saldo + entrada - saida;
+        const stMeta = resolveStatus(financeiroStatusMap, status);
 
         return {
+          lancamentoId: item.id,
           data: item.data_pagamento || item.data_vencimento,
           descricao: item.descricao || "-",
           tipo: item.tipo === 'receber' ? 'Entrada' : 'Saída',
           status: status || "-",
+          statusKey: stMeta.key,
+          statusKind: stMeta.kind,
           entrada,
           saida,
           saldo,
@@ -476,13 +480,19 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
           saldoFinal,
         },
         kpis: { totalEntradas, totalSaidas, saldoFinal },
+        meta: {
+          kind: 'list',
+          valueNature: 'monetario',
+          timeAxis: { field: 'pagamento', label: 'pagamento', required: false },
+          drillDownReady: true,
+        },
       };
     }
 
     case "vendas": {
       let query = supabase
         .from("ordens_venda")
-        .select("numero, data_emissao, valor_total, status, status_faturamento, clientes(nome_razao_social)")
+        .select("id, cliente_id, numero, data_emissao, valor_total, status, status_faturamento, clientes(nome_razao_social)")
         .eq("ativo", true)
         .order("data_emissao", { ascending: false });
 
@@ -491,14 +501,26 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
       const { data, error } = await query;
       if (error) throw error;
 
-      const rows = (data || []).map((item: Record<string, unknown>) => ({
-        numero: item.numero,
-        cliente: ((item.clientes as { nome_razao_social?: string } | null)?.nome_razao_social) || "-",
-        emissao: item.data_emissao,
-        valor: Number(item.valor_total || 0),
-        status: item.status || "-",
-        faturamento: (item as Record<string, unknown>).faturamento_status || item.status_faturamento || "-",
-      }));
+      const rows = (data || []).map((item: Record<string, unknown>) => {
+        const status = (item.status as string | null) ?? '-';
+        const fatRaw = ((item as Record<string, unknown>).faturamento_status || item.status_faturamento || '-') as string;
+        const stMeta = resolveStatus(ordemVendaStatusMap, status);
+        const fatMeta = resolveStatus(faturamentoStatusMap, fatRaw);
+        return {
+          ordemVendaId: item.id as string,
+          clienteId: (item.cliente_id as string | null) ?? undefined,
+          numero: item.numero,
+          cliente: ((item.clientes as { nome_razao_social?: string } | null)?.nome_razao_social) || "-",
+          emissao: item.data_emissao,
+          valor: Number(item.valor_total || 0),
+          status,
+          statusKey: stMeta.key,
+          statusKind: stMeta.kind,
+          faturamento: fatRaw,
+          faturamentoKey: fatMeta.key,
+          faturamentoKind: fatMeta.kind,
+        };
+      });
 
       const totalVendido = rows.reduce((s, r) => s + r.valor, 0);
       const qtdPedidos = rows.length;
@@ -515,6 +537,12 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
           { name: "Total", value: rows.filter((row) => row.faturamento === "total").reduce((sum, row) => sum + row.valor, 0) },
         ],
         kpis: { totalVendido, qtdPedidos, ticketMedio, aguardandoFaturamento },
+        meta: {
+          kind: 'list',
+          valueNature: 'monetario',
+          timeAxis: { field: 'emissao', label: 'emissão', required: false },
+          drillDownReady: true,
+        },
       };
     }
 
@@ -522,7 +550,7 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
       let query = supabase
         .from("notas_fiscais")
         .select(`
-          numero, serie, data_emissao, valor_total, modelo_documento,
+          id, cliente_id, ordem_venda_id, numero, serie, data_emissao, valor_total, modelo_documento,
           frete_valor, icms_valor, ipi_valor, pis_valor, cofins_valor,
           icms_st_valor, desconto_valor, outras_despesas,
           forma_pagamento, status,
@@ -549,6 +577,9 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
         const ov = nf.ordens_venda as { numero: string } | null;
 
         return {
+          notaFiscalId: (nf as Record<string, unknown>).id as string,
+          clienteId: ((nf as Record<string, unknown>).cliente_id as string | null) ?? undefined,
+          ordemVendaId: ((nf as Record<string, unknown>).ordem_venda_id as string | null) ?? undefined,
           data: nf.data_emissao,
           nf: `${nf.numero}/${nf.serie || '1'}`,
           modelo: modeloLabels[nf.modelo_documento || '55'] || nf.modelo_documento || 'NF-e',
@@ -584,6 +615,12 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
           })),
         totals: { totalBruto, totalImpostos, totalLiquido },
         kpis: { totalNotas: rows.length, totalBruto, totalImpostos, totalLiquido },
+        meta: {
+          kind: 'list',
+          valueNature: 'monetario',
+          timeAxis: { field: 'emissao', label: 'emissão', required: false },
+          drillDownReady: true,
+        },
       };
     }
 
