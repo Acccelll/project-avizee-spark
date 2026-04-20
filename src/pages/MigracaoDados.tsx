@@ -38,6 +38,10 @@ import { useImportacaoEstoque } from "@/hooks/importacao/useImportacaoEstoque";
 import { useImportacaoXml } from "@/hooks/importacao/useImportacaoXml";
 import { useImportacaoFaturamento } from "@/hooks/importacao/useImportacaoFaturamento";
 import { useImportacaoFinanceiro } from "@/hooks/importacao/useImportacaoFinanceiro";
+import { useImportacaoConciliacao } from "@/hooks/importacao/useImportacaoConciliacao";
+import { PreviewConciliacaoTabs } from "@/components/importacao/PreviewConciliacaoTabs";
+import { LimparDadosMigracaoButton } from "@/components/importacao/LimparDadosMigracaoButton";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { PageShell } from "@/components/PageShell";
 import { useImportacaoEnriquecimento, type EnrichmentType } from "@/hooks/importacao/useImportacaoEnriquecimento";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -69,7 +73,8 @@ export default function MigracaoDados() {
     orderBy: "created_at"
   });
 
-  const [activeImportSource, setActiveImportSource] = useState<ImportSource | "enriquecimento">("cadastros");
+  const [activeImportSource, setActiveImportSource] = useState<ImportSource | "enriquecimento" | "conciliacao">("cadastros");
+  const { isAdmin } = useIsAdmin();
 
   const hookCadastros = useImportacaoCadastros();
   const hookEstoque = useImportacaoEstoque();
@@ -77,12 +82,14 @@ export default function MigracaoDados() {
   const hookFaturamento = useImportacaoFaturamento();
   const hookFinanceiro = useImportacaoFinanceiro();
   const hookEnriquecimento = useImportacaoEnriquecimento();
+  const hookConciliacao = useImportacaoConciliacao();
 
   const activeHook = activeImportSource === "cadastros" ? hookCadastros :
                     activeImportSource === "estoque" ? hookEstoque :
                     activeImportSource === "xml" ? hookXml :
                     activeImportSource === "faturamento" ? hookFaturamento :
-                    activeImportSource === "enriquecimento" ? hookEnriquecimento : hookFinanceiro;
+                    activeImportSource === "enriquecimento" ? hookEnriquecimento :
+                    activeImportSource === "conciliacao" ? hookConciliacao : hookFinanceiro;
 
   const {
     file,
@@ -217,6 +224,8 @@ export default function MigracaoDados() {
     } else if (type === "financeiro") {
       setActiveImportSource("financeiro");
       setImportType("produtos" as ImportType);
+    } else if (type === "conciliacao") {
+      setActiveImportSource("conciliacao");
     } else if (["produtos_fornecedores", "formas_pagamento", "contas_contabeis", "contas_bancarias"].includes(type)) {
       setActiveImportSource("enriquecimento");
       hookEnriquecimento.setEnrichmentType(type as EnrichmentType);
@@ -231,6 +240,23 @@ export default function MigracaoDados() {
   const handleNextStep = async () => {
     if (activeImportSource !== 'xml' && step === 1 && !file) {
       toast.error("Selecione um arquivo primeiro.");
+      return;
+    }
+
+    if (activeImportSource === 'xml' && step === 1 && hookXml.files.length === 0) {
+      toast.error("Selecione os arquivos XML primeiro.");
+      return;
+    }
+
+    if (step === 1 && activeImportSource === 'xml') {
+      setStep(3);
+      return;
+    }
+
+    // Conciliação: pula mapeamento (layout fixo) — vai do upload direto para preview
+    if (step === 1 && activeImportSource === 'conciliacao') {
+      await hookConciliacao.generatePreview();
+      setStep(3);
       return;
     }
 
@@ -305,10 +331,13 @@ export default function MigracaoDados() {
       }
       subtitle="Central de importação, saneamento e carga de dados legados."
       actions={
-        <Button variant="outline" size="sm" onClick={handleRefresh} className="gap-2">
-          <RefreshCw className={`h-4 w-4 ${loadingLotes ? 'animate-spin' : ''}`} />
-          Atualizar
-        </Button>
+        <div className="flex items-center gap-2">
+          {isAdmin && <LimparDadosMigracaoButton onCleaned={refreshLotes} />}
+          <Button variant="outline" size="sm" onClick={handleRefresh} className="gap-2">
+            <RefreshCw className={`h-4 w-4 ${loadingLotes ? 'animate-spin' : ''}`} />
+            Atualizar
+          </Button>
+        </div>
       }
     >
       <div className="flex flex-col gap-6">
@@ -429,14 +458,14 @@ export default function MigracaoDados() {
               />
               <ImportacaoTipoCard
                 type="financeiro"
-                title="Financeiro em Aberto"
-                description="Carga de contas a pagar e receber pendentes."
+                title="Conciliação / Financeiro"
+                description="Carga oficial: planilha Conciliação_FluxoCaixa (CR + CP + FOPAG + Plano de Contas + reconciliação FC). Substitui a importação financeira simples."
                 criticidade="financeiro"
                 dependencies={["Clientes", "Fornecedores"]}
                 cardStatus={cardInfoMap.financeiro.cardStatus}
                 summary={cardInfoMap.financeiro.summary}
-                onImport={() => handleOpenImport("financeiro")}
-                onViewBatches={() => { setTypeFilter("financeiro_aberto"); setActiveTab("lotes"); }}
+                onImport={() => handleOpenImport("conciliacao")}
+                onViewBatches={() => { setTypeFilter("conciliacao_financeiro"); setActiveTab("lotes"); }}
               />
             </ImportacaoGrupoSection>
 
@@ -748,6 +777,10 @@ export default function MigracaoDados() {
                     <PreviewFaturamentoTable data={hookFaturamento.previewData} />
                   ) : activeImportSource === 'financeiro' ? (
                     <PreviewFinanceiroTable data={hookFinanceiro.previewData} />
+                  ) : activeImportSource === 'conciliacao' ? (
+                    hookConciliacao.previewData
+                      ? <PreviewConciliacaoTabs preview={hookConciliacao.previewData} />
+                      : <p className="text-sm text-muted-foreground py-8 text-center">Carregando prévia da conciliação…</p>
                   ) : (
                     <>
                       <ErrosImportacaoPanel data={previewData} />
