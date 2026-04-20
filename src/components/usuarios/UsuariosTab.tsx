@@ -21,7 +21,7 @@ import {
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { ERP_RESOURCES, getRolePermissions } from '@/lib/permissions';
+import { ERP_RESOURCES, getRolePermissions, ROLE_DESCRIPTIONS, ROLE_LABELS, PERMISSION_HELP_TEXT } from '@/lib/permissions';
 import { getUserFriendlyError } from '@/utils/errorMessages';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -67,24 +67,6 @@ import type { Database } from '@/integrations/supabase/types';
 type AppRole = Database['public']['Enums']['app_role'];
 
 const ALL_ROLES: AppRole[] = ['admin', 'vendedor', 'financeiro', 'estoquista'];
-
-const ROLE_LABELS: Record<AppRole, string> = {
-  admin: 'Administrador',
-  vendedor: 'Vendedor',
-  financeiro: 'Financeiro',
-  estoquista: 'Estoquista',
-  user: 'Usuário',
-  viewer: 'Visualizador',
-};
-
-const ROLE_DESCRIPTIONS: Record<AppRole, string> = {
-  admin: 'Acesso total ao sistema. Gerencia usuários, configurações e todos os módulos.',
-  vendedor: 'Acesso a clientes, orçamentos, pedidos e logística.',
-  financeiro: 'Acesso ao módulo financeiro, compras, faturamento e relatórios.',
-  estoquista: 'Acesso a produtos, estoque, compras e logística.',
-  user: 'Acesso básico ao sistema.',
-  viewer: 'Acesso somente leitura ao sistema.',
-};
 
 const ROLE_COLORS: Record<AppRole, string> = {
   admin: 'bg-destructive/10 text-destructive border-destructive/30',
@@ -315,7 +297,7 @@ function PermissionMatrix({
         <p className="text-[11px] text-muted-foreground flex items-center gap-1">
           <Info className="h-3 w-3" />
           Células acinzentadas são herdadas do role padrão e não podem ser removidas aqui.
-          Permissões complementares são adicionais e excepcionais.
+          {` ${PERMISSION_HELP_TEXT.permissaoComplementar}`}
         </p>
       )}
     </div>
@@ -343,10 +325,10 @@ function RolesCatalog({ users }: { users: UserWithRoles[] }) {
             <Shield className="mt-0.5 h-5 w-5 text-muted-foreground shrink-0" />
             <div>
               <CardTitle>Perfis padrão do sistema</CardTitle>
-              <CardDescription>
-                Cada usuário possui exatamente um role padrão obrigatório.
-                O role define as permissões base. Permissões complementares são exceções
-                concedidas individualmente pelo administrador.
+          <CardDescription>
+            Cada usuário possui exatamente um role padrão obrigatório.
+            O role define as permissões base. Permissões complementares são exceções
+            concedidas individualmente pelo administrador.
               </CardDescription>
             </div>
           </div>
@@ -683,8 +665,7 @@ function UserFormModal({
               </Select>
               <p className="text-[11px] text-muted-foreground flex items-center gap-1">
                 <Info className="h-3 w-3" />
-                O role padrão é obrigatório e define as permissões base do usuário. Permissões
-                complementares são exceções concedidas pelo administrador.
+                {PERMISSION_HELP_TEXT.rolePadrao} {PERMISSION_HELP_TEXT.permissaoComplementar}
               </p>
             </div>
 
@@ -1054,6 +1035,25 @@ export function UsuariosTab() {
 
   return (
     <div className="space-y-6">
+      <Card className="border-primary/20 bg-primary/5">
+        <CardContent className="pt-6">
+          <div className="grid gap-3 md:grid-cols-3">
+            <div className="rounded-md border bg-background/70 p-3">
+              <p className="text-xs font-semibold text-foreground">Role padrão (herdado)</p>
+              <p className="mt-1 text-xs text-muted-foreground">{PERMISSION_HELP_TEXT.rolePadrao}</p>
+            </div>
+            <div className="rounded-md border bg-background/70 p-3">
+              <p className="text-xs font-semibold text-foreground">Permissão complementar</p>
+              <p className="mt-1 text-xs text-muted-foreground">{PERMISSION_HELP_TEXT.permissaoComplementar}</p>
+            </div>
+            <div className="rounded-md border bg-background/70 p-3">
+              <p className="text-xs font-semibold text-foreground">Permissão revogada (deny)</p>
+              <p className="mt-1 text-xs text-muted-foreground">{PERMISSION_HELP_TEXT.permissaoRevogada}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Summary stats */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:gap-4">
         <StatCard
@@ -1255,8 +1255,8 @@ export function UsuariosTab() {
         }
         description={
           toggleTarget?.ativo
-            ? `Inativar "${toggleTarget?.nome}" impedirá que este usuário acesse o sistema. O cadastro será mantido e pode ser reativado a qualquer momento.`
-            : `Reativar "${toggleTarget?.nome}" permitirá que este usuário volte a acessar o sistema com o role e permissões anteriores.`
+            ? `Inativar "${toggleTarget?.nome}" impedirá acesso imediato ao sistema. O role padrão, permissões complementares e revogações serão preservados para futura reativação.`
+            : `Reativar "${toggleTarget?.nome}" restabelecerá o acesso com o role padrão e todas as permissões já configuradas.`
         }
         confirmLabel={toggleTarget?.ativo ? 'Inativar' : 'Reativar'}
         confirmVariant={toggleTarget?.ativo ? 'destructive' : 'default'}

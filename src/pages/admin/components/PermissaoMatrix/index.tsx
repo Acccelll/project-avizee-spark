@@ -6,8 +6,8 @@
  * gerenciados via `admin-users` no cadastro de usuários.
  */
 
-import { useMemo, useState } from "react";
-import { Info, Search, X } from "lucide-react";
+import { Fragment, useMemo, useState } from "react";
+import { ExternalLink, Info, Search, X } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,7 @@ import {
   humanizeResource,
   humanizeAction,
   ROLE_LABELS,
+  PERMISSION_HELP_TEXT,
   type ErpResource,
   type ErpAction,
   type PermissionKey,
@@ -112,11 +113,12 @@ export function PermissaoMatrix() {
   const allResources = ERP_RESOURCES.length;
   const totalCells = allResources * visibleActions.length;
   const totalActionsCount = CORE_ACTIONS.length + ADVANCED_ACTIONS.length;
+  const matrixCoverage = Math.round((visibleActions.length / totalActionsCount) * 100);
 
   return (
     <div className="space-y-4">
       {/* Banner colapsável */}
-      <Collapsible>
+      <Collapsible defaultOpen>
         <CollapsibleTrigger asChild>
           <button className="w-full flex items-center gap-2 rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground hover:bg-muted/50 transition-colors">
             <Info className="h-3.5 w-3.5" />
@@ -141,6 +143,9 @@ export function PermissaoMatrix() {
           <p className="text-xs text-muted-foreground mt-0.5">
             Permissões padrão por perfil. Exibindo {visibleActions.length} de {totalActionsCount} ações disponíveis.
           </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Cobertura desta visualização: <strong>{matrixCoverage}%</strong>. {PERMISSION_HELP_TEXT.matrizCatalogo}
+          </p>
         </div>
         <div className="flex flex-col sm:flex-row sm:items-center gap-3">
           <div className="flex items-center gap-2">
@@ -162,7 +167,7 @@ export function PermissaoMatrix() {
             className="h-9 pl-8 pr-8 text-sm"
           />
           {search && (
-            <Button
+                <Button
               variant="ghost"
               size="icon"
               className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
@@ -170,8 +175,8 @@ export function PermissaoMatrix() {
               aria-label="Limpar busca"
             >
               <X className="h-3.5 w-3.5" />
-            </Button>
-          )}
+                </Button>
+              )}
           </div>
         </div>
       </div>
@@ -199,7 +204,7 @@ export function PermissaoMatrix() {
               </TableRow>
             )}
             {filteredGroups.map((group) => (
-              <>
+              <Fragment key={`fragment-${group.label}`}>
                 <TableRow key={`group-${group.label}`} className="bg-muted/30">
                   <TableCell
                     colSpan={1 + visibleActions.length}
@@ -238,7 +243,7 @@ export function PermissaoMatrix() {
                     );
                   })
                 )}
-              </>
+              </Fragment>
             ))}
           </TableBody>
         </Table>
@@ -257,6 +262,14 @@ export function PermissaoMatrix() {
         <p className="italic">
           Visualização do catálogo padrão. Overrides individuais são geridos no cadastro de usuários.
         </p>
+      </div>
+      <div className="flex justify-end">
+        <Button asChild variant="outline" size="sm" className="gap-2">
+          <a href="/administracao?tab=usuarios">
+            Abrir gestão de usuários e overrides
+            <ExternalLink className="h-3.5 w-3.5" />
+          </a>
+        </Button>
       </div>
     </div>
   );

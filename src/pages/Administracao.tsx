@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Building2, Calendar, CheckCircle2, ChevronDown, ChevronRight, Database, Globe, Image, Info, Loader2, Mail, MapPin, PenLine, Phone, Receipt, Reply, Shield, Upload, Users, Wallet } from 'lucide-react';
+import { ArrowUpRight, Building2, Calendar, CheckCircle2, ChevronDown, ChevronRight, Database, Globe, Image, Info, Loader2, Mail, MapPin, PenLine, Phone, Receipt, Reply, Shield, Upload, Users, Wallet } from 'lucide-react';
 import { ModulePage } from '@/components/ModulePage';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -75,6 +75,7 @@ interface SideNavItem {
   key: string;
   label: string;
   icon: typeof Building2;
+  behavior?: 'internal' | 'external';
 }
 
 interface SideNavGroup {
@@ -155,7 +156,7 @@ const sideNavGroups: SideNavGroup[] = [
     label: 'Dados & Auditoria',
     items: [
       { key: 'migracao', label: 'Migração de Dados', icon: Database },
-      { key: 'auditoria', label: 'Auditoria', icon: Shield },
+      { key: 'auditoria', label: 'Auditoria', icon: Shield, behavior: 'external' },
     ],
   },
 ];
@@ -292,6 +293,38 @@ export default function Administracao() {
       next.set('tab', key);
       return next;
     });
+  };
+
+  const getSectionMeta = (section: string) => {
+    switch (section) {
+      case 'empresa':
+        return { title: 'Dados institucionais', description: 'Cadastro institucional, marca e endereço legal da empresa.' };
+      case 'dashboard':
+        return { title: 'Segurança e acesso', description: 'Leitura operacional de sessões e governança administrativa.' };
+      case 'usuarios':
+        return { title: 'Usuários e permissões', description: 'Gestão de papéis, permissões complementares e revogações individuais.' };
+      case 'email':
+        return { title: 'Parâmetros de comunicação', description: 'Identidade do remetente e assinatura institucional de e-mails.' };
+      case 'fiscal':
+        return { title: 'Parâmetros fiscais', description: 'Padrões fiscais globais usados como base no sistema.' };
+      case 'financeiro':
+        return { title: 'Parâmetros financeiros', description: 'Regras e defaults financeiros globais da operação.' };
+      default:
+        return { title: 'Administração', description: 'Governança, segurança e configurações globais do sistema.' };
+    }
+  };
+
+  const getSaveMeta = () => {
+    if (activeSection === 'empresa') {
+      return { cta: 'Salvar dados institucionais', lastSaved: empresaUpdatedAt, message: 'Dados institucionais e branding atualizados.' };
+    }
+    if (activeSection === 'email') {
+      return { cta: 'Salvar parâmetros de e-mail', lastSaved: emailLastSaved.at, message: 'Parâmetros de e-mail atualizados.' };
+    }
+    if (activeSection === 'fiscal') {
+      return { cta: 'Salvar parâmetros fiscais', lastSaved: fiscalLastSaved.at, message: 'Parâmetros fiscais atualizados.' };
+    }
+    return { cta: 'Salvar parâmetros financeiros', lastSaved: financeiroLastSaved.at, message: 'Parâmetros financeiros atualizados.' };
   };
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -458,7 +491,7 @@ export default function Administracao() {
         setFinanceiroLastSaved({ at: now, by: updatedByName });
       }
 
-      toast.success('Configurações salvas com sucesso.');
+      toast.success(getSaveMeta().message);
     } catch (error: unknown) {
       console.error('[admin] Erro ao salvar:', error);
       toast.error(getUserFriendlyError(error));
@@ -1392,11 +1425,17 @@ export default function Administracao() {
   };
 
   const showSaveButton = activeSection !== 'auditoria' && activeSection !== 'usuarios' && activeSection !== 'migracao' && activeSection !== 'dashboard';
+  const sectionMeta = getSectionMeta(activeSection);
+  const saveMeta = getSaveMeta();
 
   return (
     <><ModulePage title="Administração" subtitle="Governança, parâmetros globais e gestão do sistema.">
         <div className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
-          <nav className="space-y-0.5" aria-label="Navegação administrativa">
+          <nav className="space-y-2" aria-label="Navegação administrativa">
+            <div className="rounded-lg border bg-muted/30 px-3 py-2">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Escopo desta tela</p>
+              <p className="mt-1 text-xs text-muted-foreground">Itens com <ArrowUpRight className="inline h-3 w-3" /> abrem outro módulo. Os demais trocam a seção interna.</p>
+            </div>
             {sideNavGroups.map((group) => {
               const isGroupActive = group.items.some((item) => item.key === activeSection);
               const isOpen = openGroupKey === group.key;
@@ -1410,7 +1449,7 @@ export default function Administracao() {
                     className={cn(
                       'flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide transition-colors',
                       isGroupActive
-                        ? 'text-primary'
+                        ? 'bg-primary/5 text-primary'
                         : 'text-muted-foreground hover:text-foreground hover:bg-accent',
                     )}
                   >
@@ -1437,7 +1476,8 @@ export default function Administracao() {
                             )}
                           >
                             <Icon className="h-4 w-4 shrink-0" />
-                            {item.label}
+                            <span className="flex-1">{item.label}</span>
+                            {(item.behavior === 'external' || item.key === 'migracao') && <ArrowUpRight className="h-3.5 w-3.5 opacity-70" />}
                           </button>
                         );
                       })}
@@ -1448,12 +1488,23 @@ export default function Administracao() {
             })}
           </nav>
           <div className="space-y-4">
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="text-base">{sectionMeta.title}</CardTitle>
+                <CardDescription>{sectionMeta.description}</CardDescription>
+              </CardHeader>
+            </Card>
             {renderContent()}
             {showSaveButton && (
-              <div className="flex justify-end">
+              <div className="flex flex-col gap-2 rounded-lg border bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-xs text-muted-foreground">
+                  {saveMeta.lastSaved
+                    ? `Última atualização: ${new Date(saveMeta.lastSaved).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}`
+                    : 'Ainda não há atualização registrada para esta seção.'}
+                </p>
                 <Button onClick={handleSave} disabled={saving} className="gap-2" aria-label="Salvar alterações de configuração">
                   {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-                  Salvar alterações
+                  {saveMeta.cta}
                 </Button>
               </div>
             )}

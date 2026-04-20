@@ -48,11 +48,13 @@ export function useVisibleNavSections(): NavSection[] {
     return withoutAdmin
       .filter((s) => socialPermissions.canViewModule || s.key !== 'social')
       .filter((s) => {
-        // While permissions are still loading we keep the strict view.
-        // Only fall through when we KNOW the user has zero recognised roles.
-        if (permissionsLoaded && !hasRecognizedRoles) return true;
         const resources = sectionResourcesMap[s.key];
         if (!resources || resources.length === 0) return true;
+        // Sem roles reconhecidos (estado legado/inconsistente): não expõe o menu inteiro.
+        // Mantemos somente seções explicitamente permitidas por override.
+        if (permissionsLoaded && !hasRecognizedRoles) {
+          return resources.some((resource) => can(`${resource}:visualizar`));
+        }
         return resources.some((resource) => can(`${resource}:visualizar`));
       });
   }, [isAdmin, socialPermissions.canViewModule, can, roles, permissionsLoaded]);
