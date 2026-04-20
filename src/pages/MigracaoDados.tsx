@@ -38,6 +38,10 @@ import { useImportacaoEstoque } from "@/hooks/importacao/useImportacaoEstoque";
 import { useImportacaoXml } from "@/hooks/importacao/useImportacaoXml";
 import { useImportacaoFaturamento } from "@/hooks/importacao/useImportacaoFaturamento";
 import { useImportacaoFinanceiro } from "@/hooks/importacao/useImportacaoFinanceiro";
+import { useImportacaoConciliacao } from "@/hooks/importacao/useImportacaoConciliacao";
+import { PreviewConciliacaoTabs } from "@/components/importacao/PreviewConciliacaoTabs";
+import { LimparDadosMigracaoButton } from "@/components/importacao/LimparDadosMigracaoButton";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { PageShell } from "@/components/PageShell";
 import { useImportacaoEnriquecimento, type EnrichmentType } from "@/hooks/importacao/useImportacaoEnriquecimento";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -69,7 +73,8 @@ export default function MigracaoDados() {
     orderBy: "created_at"
   });
 
-  const [activeImportSource, setActiveImportSource] = useState<ImportSource | "enriquecimento">("cadastros");
+  const [activeImportSource, setActiveImportSource] = useState<ImportSource | "enriquecimento" | "conciliacao">("cadastros");
+  const { isAdmin } = useIsAdmin();
 
   const hookCadastros = useImportacaoCadastros();
   const hookEstoque = useImportacaoEstoque();
@@ -77,12 +82,14 @@ export default function MigracaoDados() {
   const hookFaturamento = useImportacaoFaturamento();
   const hookFinanceiro = useImportacaoFinanceiro();
   const hookEnriquecimento = useImportacaoEnriquecimento();
+  const hookConciliacao = useImportacaoConciliacao();
 
   const activeHook = activeImportSource === "cadastros" ? hookCadastros :
                     activeImportSource === "estoque" ? hookEstoque :
                     activeImportSource === "xml" ? hookXml :
                     activeImportSource === "faturamento" ? hookFaturamento :
-                    activeImportSource === "enriquecimento" ? hookEnriquecimento : hookFinanceiro;
+                    activeImportSource === "enriquecimento" ? hookEnriquecimento :
+                    activeImportSource === "conciliacao" ? hookConciliacao : hookFinanceiro;
 
   const {
     file,
