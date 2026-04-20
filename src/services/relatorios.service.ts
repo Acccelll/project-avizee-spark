@@ -627,7 +627,7 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
     case "compras": {
       let query = supabase
         .from("compras")
-        .select("numero, data_compra, data_entrega_prevista, data_entrega_real, valor_total, status, fornecedores(nome_razao_social)")
+        .select("id, fornecedor_id, numero, data_compra, data_entrega_prevista, data_entrega_real, valor_total, status, fornecedores(nome_razao_social)")
         .eq("ativo", true)
         .order("data_compra", { ascending: false });
 
@@ -639,7 +639,8 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
       const hoje = new Date();
       hoje.setHours(0, 0, 0, 0);
 
-      const rows = (data || []).map((item: RawComprasItem) => {
+      const rows = (data || []).map((raw: RawComprasItem & { id?: string; fornecedor_id?: string | null }) => {
+        const item = raw;
         const prevista = item.data_entrega_prevista ? new Date(item.data_entrega_prevista) : null;
         const entregaReal = item.data_entrega_real;
         const statusVal = item.status || '-';
@@ -647,7 +648,10 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
         const atraso = (prevista && emAberto && prevista < hoje)
           ? Math.floor((hoje.getTime() - prevista.getTime()) / (1000 * 60 * 60 * 24))
           : 0;
+        const stMeta = resolveStatus(compraStatusMap, statusVal);
         return {
+          compraId: item.id,
+          fornecedorId: item.fornecedor_id ?? undefined,
           numero: item.numero,
           fornecedor: item.fornecedores?.nome_razao_social || "-",
           compra: item.data_compra,
@@ -656,6 +660,8 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
           valor: Number(item.valor_total || 0),
           atraso,
           status: statusVal,
+          statusKey: stMeta.key,
+          statusKind: stMeta.kind,
         };
       });
 
@@ -672,6 +678,12 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
           value: row.valor,
         })),
         kpis: { qtdCompras: rows.length, totalComprado, emAberto, atrasadas },
+        meta: {
+          kind: 'list',
+          valueNature: 'monetario',
+          timeAxis: { field: 'criacao', label: 'data da compra', required: false },
+          drillDownReady: true,
+        },
       };
     }
 
@@ -777,6 +789,12 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
         },
         kpis: { receitaBruta, receitaLiquida, resultado },
         _isDreReport: true,
+        meta: {
+          kind: 'dre',
+          valueNature: 'monetario',
+          timeAxis: { field: 'competencia', label: 'competência', required: true },
+          drillDownReady: false,
+        },
       };
     }
 
@@ -785,7 +803,7 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
       // Inclui parcial (saldo ainda em aberto) e usa saldo_restante quando disponível.
       let query = supabase
         .from("financeiro_lancamentos")
-        .select("tipo, descricao, valor, saldo_restante, status, data_vencimento, data_pagamento, clientes(nome_razao_social), fornecedores(nome_razao_social)")
+        .select("id, cliente_id, fornecedor_id, tipo, descricao, valor, saldo_restante, status, data_vencimento, data_pagamento, clientes(nome_razao_social), fornecedores(nome_razao_social)")
         .eq("ativo", true)
         .in("status", ["aberto", "parcial", "vencido"])
         .order("data_vencimento", { ascending: true });
@@ -801,6 +819,9 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
 
       const rows = (data || []).map((raw: Record<string, unknown>) => {
         const item = raw as {
+          id: string;
+          cliente_id: string | null;
+          fornecedor_id: string | null;
           tipo: string;
           descricao: string | null;
           valor: number | null;
@@ -822,6 +843,9 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
           : Number(item.valor || 0);
 
         return {
+          lancamentoId: item.id,
+          clienteId: item.cliente_id ?? undefined,
+          fornecedorId: item.fornecedor_id ?? undefined,
           tipo: item.tipo === "receber" ? "Receber" : "Pagar",
           descricao: item.descricao || "-",
           parceiro: item.tipo === "receber"
@@ -831,6 +855,9 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
           vencimento: item.data_vencimento,
           diasVencido: diffDays > 0 ? diffDays : 0,
           faixa,
+          faixaKind: agingFaixaKind(faixa),
+          statusKey: faixa === 'A vencer' ? 'a_vencer' : 'vencido',
+          statusKind: agingFaixaKind(faixa),
         };
       });
 
@@ -854,6 +881,12 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
           totalValor: rows.reduce((s, r) => s + r.valor, 0),
         },
         kpis: { totalVencido, titulosVencidos, maisAntigosDias },
+        meta: {
+          kind: 'aging',
+          valueNature: 'monetario',
+          timeAxis: { field: 'vencimento', label: 'vencimento', required: false },
+          drillDownReady: true,
+        },
       };
     }
 
@@ -896,7 +929,7 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
       const rows = sorted.map((item, i) => {
         acumulado += item.total;
         const pctAcum = grandTotal > 0 ? (acumulado / grandTotal) * 100 : 0;
-        const classe = pctAcum <= 80 ? 'A' : pctAcum <= 95 ? 'B' : 'C';
+        const classe: 'A' | 'B' | 'C' = pctAcum <= 80 ? 'A' : pctAcum <= 95 ? 'B' : 'C';
         return {
           posicao: i + 1,
           codigo: item.codigo,
@@ -905,6 +938,9 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
           percentual: grandTotal > 0 ? ((item.total / grandTotal) * 100) : 0,
           acumulado: pctAcum,
           classe,
+          classeKind: curvaAbcClasseKind(classe),
+          statusKey: `classe_${classe.toLowerCase()}`,
+          statusKind: curvaAbcClasseKind(classe),
         };
       });
 
@@ -923,13 +959,19 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
         ],
         totals: { grandTotal },
         kpis: { grandTotal, itensClasseA: classA.length, itensClasseB: classB.length, itensClasseC: classC.length },
+        meta: {
+          kind: 'list',
+          valueNature: 'monetario',
+          timeAxis: { field: 'emissao', label: 'emissão', required: false },
+          drillDownReady: false,
+        },
       };
     }
 
     case "margem_produtos": {
       let query = supabase
         .from("produtos")
-        .select("codigo_interno, nome, preco_custo, preco_venda, estoque_atual, unidade_medida, grupos_produto(nome)")
+        .select("id, codigo_interno, nome, preco_custo, preco_venda, estoque_atual, unidade_medida, grupos_produto(nome)")
         .eq("ativo", true)
         .order("nome");
       if (filtros.grupoProdutoIds?.length) query = query.in('grupo_id', filtros.grupoProdutoIds);
@@ -937,12 +979,14 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
 
       if (error) throw error;
 
-      const rows = (data || []).map((item: RawMargemProdutoItem) => {
+      const rows = (data || []).map((raw: RawMargemProdutoItem & { id?: string }) => {
+        const item = raw;
         const custo = Number(item.preco_custo || 0);
         const venda = Number(item.preco_venda || 0);
         const margem = venda > 0 ? ((venda - custo) / venda) * 100 : 0;
         const markup = custo > 0 ? ((venda - custo) / custo) * 100 : 0;
         return {
+          produtoId: item.id,
           codigo: item.codigo_interno || "-",
           produto: item.nome,
           grupo: item.grupos_produto?.nome || "-",
@@ -971,13 +1015,14 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
         })),
         totals: { mediaMargemPct },
         kpis: { mediaMargemPct, itensMargNeg, maiorMargem, menorMargem },
+        meta: { kind: 'list', valueNature: 'misto', drillDownReady: true },
       };
     }
 
     case "estoque_minimo": {
       let query = supabase
         .from("produtos")
-        .select("codigo_interno, nome, unidade_medida, estoque_atual, estoque_minimo, preco_custo, grupos_produto(nome)")
+        .select("id, codigo_interno, nome, unidade_medida, estoque_atual, estoque_minimo, preco_custo, grupos_produto(nome)")
         .eq("ativo", true)
         .order("nome");
       if (filtros.grupoProdutoIds?.length) query = query.in('grupo_id', filtros.grupoProdutoIds);
@@ -986,12 +1031,14 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
 
       const rows = (data || [])
         .filter((p: RawEstoqueMinimoItem) => Number(p.estoque_atual || 0) <= Number(p.estoque_minimo || 0) && Number(p.estoque_minimo || 0) > 0)
-        .map((p: RawEstoqueMinimoItem) => {
+        .map((raw: RawEstoqueMinimoItem & { id?: string }) => {
+          const p = raw;
           const atual = Number(p.estoque_atual || 0);
           const min = Number(p.estoque_minimo || 0);
           const custo = Number(p.preco_custo || 0);
           const criticidade = atual <= 0 ? "Zerado" : "Abaixo do mínimo";
           return {
+            produtoId: p.id,
             codigo: p.codigo_interno || "-",
             produto: p.nome,
             grupo: p.grupos_produto?.nome || "-",
@@ -1000,6 +1047,9 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
             estoqueMinimo: min,
             deficit: min - atual,
             criticidade,
+            criticidadeKind: estoqueCriticidadeKind(criticidade),
+            statusKey: criticidade === 'Zerado' ? 'zerado' : 'abaixo_minimo',
+            statusKind: estoqueCriticidadeKind(criticidade),
             custoReposicao: (min - atual) * custo,
           };
         });
@@ -1017,6 +1067,7 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
         totals: { totalItens: rows.length, custoTotal },
         kpis: { itensCriticos, itensZerados, deficitTotal, custoTotal },
         _isQuantityReport: true,
+        meta: { kind: 'list', valueNature: 'misto', drillDownReady: true },
       };
     }
 
