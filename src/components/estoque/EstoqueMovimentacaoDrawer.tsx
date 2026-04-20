@@ -1,20 +1,12 @@
 import { ViewDrawerV2, ViewField, ViewSection } from "@/components/ViewDrawerV2";
-import { StatusBadge } from "@/components/StatusBadge";
 import { Badge } from "@/components/ui/badge";
 import { RelationalLink } from "@/components/ui/RelationalLink";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSummaryCard";
 import { DrawerStatusBanner } from "@/components/ui/DrawerStatusBanner";
 import { formatNumber } from "@/lib/format";
-import {
-  ArrowUpCircle,
-  ArrowDownCircle,
-  RotateCcw,
-  Package,
-  AlertTriangle,
-  User,
-  FileText,
-} from "lucide-react";
+import { getOrigemConfig, getTipoMovConfig } from "@/components/estoque/estoqueMovimentacaoConfig";
+import { AlertTriangle, User, FileText } from "lucide-react";
 
 interface Movimento {
   id: string;
@@ -37,40 +29,9 @@ interface EstoqueMovimentacaoDrawerProps {
   movimentacao: Movimento | null;
 }
 
-const tipoConfig: Record<
-  string,
-  { label: string; status: string; icon: typeof ArrowUpCircle; color: string }
-> = {
-  entrada: { label: "Entrada", status: "confirmado", icon: ArrowUpCircle, color: "text-success" },
-  saida: { label: "Saída", status: "cancelado", icon: ArrowDownCircle, color: "text-destructive" },
-  ajuste: { label: "Ajuste Manual", status: "pendente", icon: RotateCcw, color: "text-warning" },
-  transferencia: { label: "Transferência", status: "pendente", icon: RotateCcw, color: "text-warning" },
-  reserva: { label: "Reserva", status: "pendente", icon: Package, color: "text-muted-foreground" },
-  liberacao_reserva: { label: "Lib. de Reserva", status: "confirmado", icon: ArrowUpCircle, color: "text-success" },
-  estorno: { label: "Estorno", status: "pendente", icon: RotateCcw, color: "text-warning" },
-  inventario: { label: "Inventário", status: "pendente", icon: RotateCcw, color: "text-warning" },
-  perda_avaria: { label: "Perda / Avaria", status: "cancelado", icon: ArrowDownCircle, color: "text-destructive" },
-};
-
-function getTipoConfig(tipo: string) {
-  return tipoConfig[tipo] ?? { label: tipo, status: "pendente", icon: RotateCcw, color: "text-muted-foreground" };
-}
-
-const origemLabels: Record<string, string> = {
-  manual:        "Manual",
-  fiscal:        "Fiscal",
-  compra:        "Compra",
-  venda:         "Venda",
-  ajuste:        "Ajuste",
-  estorno_fiscal:"Estorno",
-  pedido:        "Pedido de Venda",
-  pedido_compra: "Pedido de Compra",
-  nota_fiscal:   "Nota Fiscal",
-};
-
 function origemLabel(tipo: string | null | undefined) {
   if (!tipo) return "—";
-  return origemLabels[tipo] || tipo;
+  return getOrigemConfig(tipo).label;
 }
 
 const origemRoutes: Record<string, string> = {
@@ -90,20 +51,10 @@ const origemEntityType: Record<string, "pedido_compra" | "ordem_venda" | "nota_f
 
 function OrigemBadge({ documentoTipo }: { documentoTipo: string | null | undefined }) {
   if (!documentoTipo) return null;
-  const colorMap: Record<string, string> = {
-    manual:        "bg-muted text-muted-foreground",
-    compra:        "bg-primary/10 text-primary",
-    pedido_compra: "bg-primary/10 text-primary",
-    pedido:        "bg-blue-500/10 text-blue-600",
-    nota_fiscal:   "bg-purple-500/10 text-purple-600",
-    fiscal:        "bg-purple-500/10 text-purple-600",
-    venda:         "bg-success/10 text-success",
-    ajuste:        "bg-warning/10 text-warning",
-  };
-  const cls = colorMap[documentoTipo] ?? "bg-muted text-muted-foreground";
+  const origem = getOrigemConfig(documentoTipo);
   return (
-    <Badge variant="outline" className={`text-xs font-medium ${cls}`}>
-      {origemLabel(documentoTipo)}
+    <Badge variant="outline" className={`text-xs font-medium ${origem.className}`}>
+      {origem.label}
     </Badge>
   );
 }
@@ -119,7 +70,7 @@ export function EstoqueMovimentacaoDrawer({
 }: EstoqueMovimentacaoDrawerProps) {
   if (!m) return <ViewDrawerV2 open={open} onClose={onClose} title="" />;
 
-  const cfg = getTipoConfig(m.tipo);
+  const cfg = getTipoMovConfig(m.tipo);
   const TipoIcon = cfg.icon;
 
   const produtoNome = m.produtos?.nome ?? "—";
@@ -137,9 +88,10 @@ export function EstoqueMovimentacaoDrawer({
 
   const temDocumento = Boolean(m.documento_id && m.documento_tipo && m.documento_tipo !== "manual");
 
-  const movTone = m.tipo === "saida" || m.tipo === "perda_avaria" ? "destructive"
-    : m.tipo === "entrada" || m.tipo === "liberacao_reserva" ? "success"
-    : "warning";
+  const movTone =
+    cfg.direction === "out" ? "destructive" :
+    cfg.direction === "in" ? "success" :
+    "warning";
 
   /* ── Summary strip ── */
   const summary = (
@@ -198,15 +150,15 @@ export function EstoqueMovimentacaoDrawer({
           )}
           <ViewField label="Tipo de Movimentação">
             <div className="flex items-center gap-1.5">
-              <TipoIcon className={`h-3.5 w-3.5 shrink-0 ${cfg.color}`} />
-              <StatusBadge status={cfg.status} label={cfg.label} />
+              <TipoIcon className="h-3.5 w-3.5 shrink-0" />
+              <Badge variant="outline" className={`text-xs ${cfg.className}`}>{cfg.label}</Badge>
             </div>
           </ViewField>
           <ViewField label="Data / Hora">
             {dataFormatada}
           </ViewField>
           <ViewField label="Quantidade">
-            <span className={`font-bold font-mono text-base ${cfg.color}`}>
+            <span className={`font-bold font-mono text-base ${cfg.direction === "out" ? "text-destructive" : cfg.direction === "in" ? "text-success" : "text-warning"}`}>
               {qtdFormatada}
             </span>
           </ViewField>
@@ -347,8 +299,8 @@ export function EstoqueMovimentacaoDrawer({
           </div>
 
           <div className="flex flex-col items-center justify-center gap-1">
-            <TipoIcon className={`h-5 w-5 ${cfg.color}`} />
-            <p className={`text-base font-bold font-mono ${cfg.color}`}>
+            <TipoIcon className={`h-5 w-5 ${cfg.direction === "out" ? "text-destructive" : cfg.direction === "in" ? "text-success" : "text-warning"}`} />
+            <p className={`text-base font-bold font-mono ${cfg.direction === "out" ? "text-destructive" : cfg.direction === "in" ? "text-success" : "text-warning"}`}>
               {qtdFormatada}
             </p>
           </div>
@@ -375,7 +327,7 @@ export function EstoqueMovimentacaoDrawer({
         <div className="grid grid-cols-2 gap-4">
           <ViewField label="Tipo de Evento">
             <div className="flex items-center gap-1.5">
-              <TipoIcon className={`h-3.5 w-3.5 shrink-0 ${cfg.color}`} />
+              <TipoIcon className={`h-3.5 w-3.5 shrink-0 ${cfg.direction === "out" ? "text-destructive" : cfg.direction === "in" ? "text-success" : "text-warning"}`} />
               <span className="text-sm">{cfg.label}</span>
             </div>
           </ViewField>
@@ -403,8 +355,8 @@ export function EstoqueMovimentacaoDrawer({
       }
       badge={
         <div className="flex items-center gap-1.5">
-          <TipoIcon className={`h-3.5 w-3.5 shrink-0 ${cfg.color}`} />
-          <StatusBadge status={cfg.status} label={cfg.label} />
+          <TipoIcon className={`h-3.5 w-3.5 shrink-0 ${cfg.direction === "out" ? "text-destructive" : cfg.direction === "in" ? "text-success" : "text-warning"}`} />
+          <Badge variant="outline" className={`text-xs ${cfg.className}`}>{cfg.label}</Badge>
           <OrigemBadge documentoTipo={m.documento_tipo} />
         </div>
       }

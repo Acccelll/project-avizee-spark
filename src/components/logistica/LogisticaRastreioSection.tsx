@@ -9,6 +9,7 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { trackAndPersistEventos } from "@/services/logistica/remessas.service";
 import { getUserFriendlyError } from "@/utils/errorMessages";
+import { getRastreioStatusConsistencyBadge } from "@/pages/logistica/logisticaStatus";
 
 type Remessa = Tables<"remessas"> & {
   transportadoras?: { nome_razao_social: string };
@@ -141,11 +142,27 @@ export function LogisticaRastreioSection({ pedidoCompraId, notaFiscalId, remessa
                   {trackingLoading === r.id ? "Consultando..." : "Rastrear"}
                 </Button>
               )}
+              {!r.codigo_rastreio && (
+                <span className="text-[10px] px-2 py-1 rounded border bg-muted text-muted-foreground">
+                  Remessa não rastreável (sem código)
+                </span>
+              )}
               <Button size="sm" variant="ghost" className="h-8" aria-label="Ir para Logística" onClick={() => navigate('/logistica')}>
                 <ExternalLink className="w-3.5 h-3.5" />
               </Button>
             </div>
           </div>
+          {(() => {
+            const consistency = getRastreioStatusConsistencyBadge(r.status_transporte || "", (eventos[r.id]?.length ?? 0) > 0);
+            if (!consistency) return null;
+            const Icon = consistency.icon;
+            return (
+              <div className={`text-[11px] flex items-center gap-1 ${consistency.className}`}>
+                <Icon className="w-3 h-3" />
+                {consistency.label}
+              </div>
+            );
+          })()}
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 py-3 border-y bg-muted/10 -mx-4 px-4">
             <div>

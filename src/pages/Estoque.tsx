@@ -1,7 +1,6 @@
 import { useState, useMemo } from "react";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
-import { StatusBadge } from "@/components/StatusBadge";
 import { SummaryCard } from "@/components/SummaryCard";
 import { EstoqueMovimentacaoDrawer } from "@/components/estoque/EstoqueMovimentacaoDrawer";
 import { EstoquePosicaoDrawer } from "@/components/estoque/EstoquePosicaoDrawer";
@@ -25,10 +24,11 @@ import { formatNumber, formatCurrency } from "@/lib/format";
 import type { Database } from "@/integrations/supabase/types";
 import { AlertTriangle, ArrowDownCircle, RotateCcw,
   TrendingDown, Package, CheckCircle, XCircle, ShieldAlert,
-  DollarSign, SlidersHorizontal, ChevronsUpDown,
+  DollarSign, SlidersHorizontal, ChevronsUpDown, Info, CircleAlert,
 } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { cn } from "@/lib/utils";
+import { getOrigemConfig, getTipoMovConfig, tipoMovConfig } from "@/components/estoque/estoqueMovimentacaoConfig";
 
 type ProdutoRow = Database["public"]["Tables"]["produtos"]["Row"];
 
@@ -73,18 +73,6 @@ function SituacaoEstoqueBadge({ situacao }: { situacao: SituacaoEstoque }) {
   );
 }
 
-const tipoMovConfig: Record<string, { label: string; status: string }> = {
-  entrada:          { label: "Entrada",           status: "confirmado" },
-  saida:            { label: "Saída",             status: "cancelado" },
-  ajuste:           { label: "Ajuste Manual",     status: "pendente" },
-  transferencia:    { label: "Transferência",     status: "pendente" },
-  reserva:          { label: "Reserva",           status: "pendente" },
-  liberacao_reserva:{ label: "Lib. Reserva",      status: "confirmado" },
-  estorno:          { label: "Estorno",           status: "pendente" },
-  inventario:       { label: "Inventário",        status: "pendente" },
-  perda_avaria:     { label: "Perda / Avaria",    status: "cancelado" },
-};
-
 const Estoque = () => {
   const { data, loading } = useSupabaseCrud<Movimento>({
     table: "estoque_movimentos", select: "*, produtos(nome, sku)", hasAtivo: false,
@@ -99,6 +87,8 @@ const Estoque = () => {
   const [form, setForm] = useState({ produto_id: "", tipo: "ajuste", quantidade: 0, motivo: "" });
   const [confirmMovOpen, setConfirmMovOpen] = useState(false);
   const [pendingMovForm, setPendingMovForm] = useState<typeof form | null>(null);
+  const [pendingSubmit, setPendingSubmit] = useState(false);
+  const [showTodosProdutos, setShowTodosProdutos] = useState(false);
   const [produtoSelectorOpen, setProdutoSelectorOpen] = useState(false);
   // Saldos filters
   const [searchPosicao, setSearchPosicao] = useState("");
@@ -135,7 +125,7 @@ const Estoque = () => {
     const q = searchPosicao.toLowerCase();
     return produtosCrud.data
       .filter((p) => p.ativo !== false)
-      .filter((p) => Number(p.estoque_atual ?? 0) !== 0 || Number(p.estoque_minimo ?? 0) > 0)
+      .filter((p) => showTodosProdutos || Number(p.estoque_atual ?? 0) !== 0 || Number(p.estoque_minimo ?? 0) > 0)
       .filter((p) => {
         if (!q) return true;
         return p.nome?.toLowerCase().includes(q) || p.sku?.toLowerCase().includes(q) || p.codigo_interno?.toLowerCase().includes(q);
@@ -144,7 +134,7 @@ const Estoque = () => {
         if (!situacaoFilters.length) return true;
         return situacaoFilters.includes(getSituacao(p));
       });
-  }, [produtosCrud.data, searchPosicao, situacaoFilters]);
+  }, [produtosCrud.data, searchPosicao, situacaoFilters, showTodosProdutos]);
 
   // Movimentações filtradas
   const filteredData = useMemo(() => {
@@ -164,6 +154,7 @@ const Estoque = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (pendingSubmit || saving) return;
     if (!form.produto_id) { toast.error("Selecione um produto"); return; }
     if (form.quantidade <= 0) { toast.error("A quantidade deve ser maior que zero"); return; }
     if (!form.motivo.trim()) {
@@ -187,7 +178,8 @@ const Estoque = () => {
   };
 
   const executeMovimentacao = async () => {
-    if (!pendingMovForm) return;
+    if (!pendingMovForm || pendingSubmit || saving) return;
+    setPendingSubmit(true);
     try {
       const produto = produtosCrud.data.find((p) => p.id === pendingMovForm.produto_id);
       const saldo_anterior = Number(produto?.estoque_atual ?? 0);
@@ -220,6 +212,8 @@ const Estoque = () => {
     } catch (err) {
       // onError in the hook already calls toast.error — log only for debugging.
       console.error("[estoque] executeMovimentacao:", err);
+    } finally {
+      setPendingSubmit(false);
     }
   };
 
@@ -270,26 +264,29 @@ const Estoque = () => {
     { label: "Sem Estoque", value: "zerado" },
   ];
 
-  const origemLabel = (m: Movimento) => {
-    if (!m.documento_tipo) return "—";
-    const labels: Record<string, string> = { manual: "Manual", fiscal: "Fiscal", compra: "Compra", venda: "Venda", ajuste: "Ajuste", estorno_fiscal: "Estorno", pedido: "Pedido", pedido_compra: "Compra", nota_fiscal: "Nota Fiscal" };
-    return labels[m.documento_tipo] || m.documento_tipo;
-  };
-
   const movColumns = [
     { key: "produto", label: "Produto", render: (m: Movimento) => (
       <div><span className="font-medium">{m.produtos?.nome ?? "—"}</span><br/><span className="text-xs text-muted-foreground font-mono">{m.produtos?.sku}</span></div>
     )},
     { key: "tipo", label: "Tipo", render: (m: Movimento) => {
-      const cfg = tipoMovConfig[m.tipo] ?? { label: m.tipo, status: "pendente" };
-      return <StatusBadge status={cfg.status} label={cfg.label} />;
+      const cfg = getTipoMovConfig(m.tipo);
+      const Icon = cfg.icon;
+      return (
+        <Badge variant="outline" className={`text-xs font-medium gap-1 ${cfg.className}`}>
+          <Icon className="h-3 w-3" />
+          {cfg.label}
+        </Badge>
+      );
     }},
     { key: "quantidade", label: "Qtd", render: (m: Movimento) => {
       const neg = m.tipo === "saida" || m.tipo === "perda_avaria";
       return <span className={`font-mono font-semibold ${neg ? "text-destructive" : "text-success"}`}>{neg ? "-" : "+"}{formatNumber(m.quantidade)}</span>;
     }},
     { key: "saldo_atual", label: "Saldo", render: (m: Movimento) => <span className="font-semibold font-mono">{formatNumber(m.saldo_atual)}</span> },
-    { key: "origem", label: "Origem", render: origemLabel },
+    { key: "origem", label: "Origem", render: (m: Movimento) => {
+      const origem = getOrigemConfig(m.documento_tipo);
+      return <Badge variant="outline" className={`text-xs ${origem.className}`}>{origem.label}</Badge>;
+    } },
     { key: "motivo", label: "Motivo / Observação", render: (m: Movimento) => m.motivo || <span className="text-muted-foreground">—</span> },
     { key: "created_at", label: "Data", render: (m: Movimento) => new Date(m.created_at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" }) },
   ];
@@ -361,8 +358,8 @@ const Estoque = () => {
               title="Ajustes Manuais"
               value={formatNumber(kpis.ajustesManuais)}
               icon={RotateCcw}
-              variation="registros no histórico"
-              variationType="neutral"
+              variation="evento sensível auditável"
+              variationType="negative"
               variant="warning"
             />
           </>
@@ -408,6 +405,13 @@ const Estoque = () => {
           <TabsContent value="saldos">
             <div className="mb-2">
               <p className="text-xs text-muted-foreground">Estado atual do estoque — posição de cada item, criticidade e valor.</p>
+              <div className="mt-2 flex flex-wrap items-center gap-2 rounded-md border border-blue-300/40 bg-blue-500/5 px-3 py-2 text-xs text-muted-foreground">
+                <Info className="h-3.5 w-3.5 text-blue-600" />
+                A lista exibe por padrão apenas itens com saldo ≠ 0 ou com estoque mínimo definido.
+                <Button size="sm" variant="ghost" className="h-6 px-2 text-[11px]" onClick={() => setShowTodosProdutos((prev) => !prev)}>
+                  {showTodosProdutos ? "Ocultar sem movimentação" : "Mostrar todos os produtos"}
+                </Button>
+              </div>
             </div>
             <AdvancedFilterBar
               searchValue={searchPosicao}
@@ -415,7 +419,7 @@ const Estoque = () => {
               searchPlaceholder="Buscar produto por nome, SKU ou código..."
               activeFilters={saldosActiveFilters}
               onRemoveFilter={handleRemoveSaldoFilter}
-              onClearAll={() => setSituacaoFilters([])}
+              onClearAll={() => { setSituacaoFilters([]); setSearchPosicao(""); setShowTodosProdutos(false); }}
               count={posicaoAtual.length}
             >
               <MultiSelect
@@ -614,10 +618,26 @@ const Estoque = () => {
                   </div>
                 </div>
 
+                <div className={cn(
+                  "rounded-md border px-3 py-2 text-xs flex gap-2",
+                  form.tipo === "saida" ? "border-orange-300/50 bg-orange-500/5 text-orange-700" :
+                  form.tipo === "entrada" ? "border-success/40 bg-success/5 text-success" :
+                  "border-warning/40 bg-warning/10 text-warning"
+                )}>
+                  {form.tipo === "ajuste" ? <ShieldAlert className="h-3.5 w-3.5 mt-0.5" /> : <CircleAlert className="h-3.5 w-3.5 mt-0.5" />}
+                  <p>
+                    {form.tipo === "ajuste"
+                      ? "Ajuste manual define o novo saldo absoluto e deve ser usado apenas para correções administrativas."
+                      : form.tipo === "saida"
+                        ? "Saída manual reduz o saldo e pode levar a saldo negativo se a quantidade exceder o disponível."
+                        : "Entrada manual incrementa o saldo; prefira fluxos de compra quando houver documento fiscal."}
+                  </p>
+                </div>
+
                 <div className="space-y-2">
                   <Label>
                     Motivo / Justificativa *{" "}
-                    <span className="text-xs font-normal text-muted-foreground">(obrigatório — será registrado no histórico)</span>
+                    <span className="text-xs font-normal text-muted-foreground">(obrigatório — explique causa raiz e referência operacional)</span>
                   </Label>
                   <Textarea
                     value={form.motivo}
@@ -636,8 +656,8 @@ const Estoque = () => {
                   >
                     Limpar
                   </Button>
-                  <Button type="submit" disabled={saving}>
-                    {saving ? "Registrando..." : "Registrar Ajuste"}
+                  <Button type="submit" disabled={saving || pendingSubmit}>
+                    {saving || pendingSubmit ? "Registrando..." : "Registrar Ajuste"}
                   </Button>
                 </div>
               </form>
@@ -671,11 +691,13 @@ const Estoque = () => {
           const nome = produto?.nome ?? "produto";
           const tipoLabels: Record<string, string> = { entrada: "entrada de", saida: "saída de", ajuste: "ajuste para" };
           const tipoLabel = tipoLabels[pendingMovForm.tipo] ?? pendingMovForm.tipo;
-          return `Confirmar ${tipoLabel} ${pendingMovForm.quantidade} unidade(s) do produto "${nome}"?`;
+          const avisoNegativo = pendingMovForm.tipo === "saida" && novoSaldoPreview < 0 ? " O saldo ficará negativo." : "";
+          const avisoAjuste = pendingMovForm.tipo === "ajuste" ? " Este ajuste sobrescreve o saldo atual." : "";
+          return `Confirmar ${tipoLabel} ${pendingMovForm.quantidade} unidade(s) do produto "${nome}"?${avisoAjuste}${avisoNegativo}`;
         })()}
         confirmLabel="Confirmar"
         confirmVariant="default"
-        loading={saving}
+        loading={saving || pendingSubmit}
       />
     </>
   );

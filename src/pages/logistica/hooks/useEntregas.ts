@@ -18,6 +18,7 @@ export interface Entrega {
   remessas_count: number;
   remessa_ids: string[];
   exibicao_remessas: "nenhuma" | "unica" | "multipla";
+  status_fonte: "sem_remessa" | "remessa_unica" | "ultima_remessa";
 }
 
 export interface EntregaFilters {
@@ -106,6 +107,8 @@ async function fetchEntregas(): Promise<Entrega[]> {
       remessa_ids: remessas.map((r) => r.id),
       exibicao_remessas:
         remessasCount === 0 ? "nenhuma" : remessasCount === 1 ? "unica" : "multipla",
+      status_fonte:
+        remessasCount === 0 ? "sem_remessa" : remessasCount === 1 ? "remessa_unica" : "ultima_remessa",
     };
   });
 }

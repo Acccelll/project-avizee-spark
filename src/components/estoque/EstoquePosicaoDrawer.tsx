@@ -6,6 +6,7 @@ import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSumm
 import { DrawerStatusBanner } from "@/components/ui/DrawerStatusBanner";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatCurrency, formatNumber } from "@/lib/format";
+import { getOrigemConfig, getTipoMovConfig } from "@/components/estoque/estoqueMovimentacaoConfig";
 import {
   Package,
   ArrowUpCircle,
@@ -99,12 +100,7 @@ function SituacaoBadge({ situacao }: { situacao: SituacaoEstoque }) {
 
 function origemLabel(m: Movimento) {
   if (!m.documento_tipo) return "—";
-  const labels: Record<string, string> = {
-    manual: "Manual", fiscal: "Fiscal", compra: "Compra",
-    venda: "Venda", ajuste: "Ajuste", estorno_fiscal: "Estorno",
-    pedido: "Pedido", pedido_compra: "Compra", nota_fiscal: "Nota Fiscal",
-  };
-  return labels[m.documento_tipo] || m.documento_tipo;
+  return getOrigemConfig(m.documento_tipo).label;
 }
 
 function TipoMovIcon({ tipo }: { tipo: string }) {
@@ -232,18 +228,7 @@ export function EstoquePosicaoDrawer({
               })}
             </ViewField>
             <ViewField label="Tipo">
-              <StatusBadge
-                status={
-                  ultimaMov.tipo === "entrada" ? "confirmado"
-                  : ultimaMov.tipo === "saida" ? "cancelado"
-                  : "pendente"
-                }
-                label={
-                  ultimaMov.tipo === "entrada" ? "Entrada"
-                  : ultimaMov.tipo === "saida" ? "Saída"
-                  : "Ajuste"
-                }
-              />
+              <StatusBadge status="pendente" label={getTipoMovConfig(ultimaMov.tipo).label} />
             </ViewField>
             <ViewField label="Quantidade">
               <span className="font-mono font-semibold">
