@@ -22,6 +22,7 @@ import {
   Pencil,
   Copy,
   ChevronsUpDown as ExpandIcon,
+  Settings2,
 } from 'lucide-react';
 import { buildExportFilename } from '@/lib/utils';
 import { exportarParaCsv, exportarParaExcel, exportarParaPdf, type ExportColumnDef } from '@/services/export.service';
@@ -661,17 +662,10 @@ export function DataTable<T extends Record<string, any>>({
             </Popover>
           )}
 
-          <Select value={viewMode} onValueChange={(v: 'pagination' | 'infinite') => { setViewMode(v); if (moduleKey) localStorage.setItem(getStorageKey(moduleKey, 'list-mode'), v); }}>
-            <SelectTrigger className="h-8 w-[170px] text-xs"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="pagination">Paginação</SelectItem>
-              <SelectItem value="infinite">Scroll infinito</SelectItem>
-            </SelectContent>
-          </Select>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {showColumnToggle && (
+          {showColumnToggle ? (
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs"><Columns3 className="h-3.5 w-3.5" />Colunas</Button>
@@ -689,6 +683,56 @@ export function DataTable<T extends Record<string, any>>({
                 <Button variant="ghost" size="sm" className="mt-2 w-full" onClick={() => setHiddenKeys(new Set(columns.filter((c) => c.hidden).map((c) => c.key)))}>
                   <RotateCcw className="h-3.5 w-3.5 mr-1" />Restaurar padrão
                 </Button>
+                <div className="mt-2 pt-2 border-t">
+                  <p className="text-xs font-semibold text-muted-foreground mb-2 px-1">Modo de exibição</p>
+                  <div className="space-y-1">
+                    {(['pagination', 'infinite'] as const).map((m) => (
+                      <label key={m} className="flex items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-accent cursor-pointer">
+                        <input
+                          type="radio"
+                          name="datatable-view-mode"
+                          value={m}
+                          checked={viewMode === m}
+                          onChange={() => {
+                            setViewMode(m);
+                            if (moduleKey) localStorage.setItem(getStorageKey(moduleKey, 'list-mode'), m);
+                          }}
+                          className="accent-primary"
+                        />
+                        {m === 'pagination' ? 'Paginação' : 'Scroll infinito'}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+          ) : (
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="icon" className="h-8 w-8" aria-label="Modo de exibição" title="Modo de exibição">
+                  <Settings2 className="h-3.5 w-3.5" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-56 p-2">
+                <p className="text-xs font-semibold text-muted-foreground mb-2 px-1">Modo de exibição</p>
+                <div className="space-y-1">
+                  {(['pagination', 'infinite'] as const).map((m) => (
+                    <label key={m} className="flex items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-accent cursor-pointer">
+                      <input
+                        type="radio"
+                        name="datatable-view-mode"
+                        value={m}
+                        checked={viewMode === m}
+                        onChange={() => {
+                          setViewMode(m);
+                          if (moduleKey) localStorage.setItem(getStorageKey(moduleKey, 'list-mode'), m);
+                        }}
+                        className="accent-primary"
+                      />
+                      {m === 'pagination' ? 'Paginação' : 'Scroll infinito'}
+                    </label>
+                  ))}
+                </div>
               </PopoverContent>
             </Popover>
           )}

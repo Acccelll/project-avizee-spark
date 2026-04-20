@@ -23,6 +23,7 @@ import {
   Share2,
   FileSpreadsheet,
   Presentation,
+  Store,
 } from 'lucide-react';
 
 /** Canonical list of navSection keys. Add here first when introducing a new section. */
@@ -77,7 +78,7 @@ export interface MobileBottomTab {
   key: NavSectionKey | typeof DASHBOARD_KEY;
   title: string;
   icon: LucideIcon;
-  path?: string;
+  path: string;
 }
 
 export const dashboardItem: NavLeafItem = {
@@ -105,7 +106,7 @@ export const navSections: NavSection[] = [
         items: [
           { title: 'Produtos', path: '/produtos', icon: Package, keywords: ['sku', 'catalogo'] },
           { title: 'Clientes', path: '/clientes', icon: Users },
-          { title: 'Fornecedores', path: '/fornecedores', icon: Truck },
+          { title: 'Fornecedores', path: '/fornecedores', icon: Store },
           { title: 'Transportadoras', path: '/transportadoras', icon: Truck, keywords: ['frete', 'logistica'] },
           { title: 'Formas de Pagamento', path: '/formas-pagamento', icon: CreditCard, keywords: ['prazo', 'parcelamento'] },
           { title: 'Grupos Econômicos', path: '/grupos-economicos', icon: Building2, keywords: ['matriz', 'filiais'] },
