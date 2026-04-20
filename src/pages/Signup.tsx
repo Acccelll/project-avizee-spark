@@ -192,32 +192,44 @@ export default function Signup() {
                 onChange={(e) => { setPassword(e.target.value); setErrors((p) => ({ ...p, password: undefined })); }}
                 className={`pl-9 pr-10 ${errors.password ? "border-destructive" : ""}`}
                 autoComplete="new-password"
+                aria-invalid={!!errors.password}
+                aria-describedby={errors.password ? "password-error" : undefined}
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                tabIndex={-1}
+                tabIndex={0}
                 aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
-            {errors.password && <p className="text-xs text-destructive">{errors.password}</p>}
-            {password.length > 0 && (
-              <div className="flex gap-1 mt-1">
-                {[1, 2, 3, 4].map((level) => (
-                  <div
-                    key={level}
-                    className={`h-1 flex-1 rounded-full transition-colors ${
-                      password.length >= level * 3
-                        ? level <= 2 ? "bg-warning" : "bg-success"
-                        : "bg-muted"
-                    }`}
-                  />
-                ))}
-              </div>
+            {errors.password && (
+              <p id="password-error" role="alert" className="text-xs text-destructive">
+                {errors.password}
+              </p>
             )}
+            {password.length > 0 && (() => {
+              const strength = password.length >= 12 ? 4 : password.length >= 9 ? 3 : password.length >= 6 ? 2 : 1;
+              const label = strength <= 1 ? "Fraca" : strength === 2 ? "Razoável" : strength === 3 ? "Boa" : "Forte";
+              const color = strength <= 1 ? "bg-destructive" : strength === 2 ? "bg-warning" : "bg-success";
+              return (
+                <div className="space-y-1 mt-1">
+                  <div className="flex gap-1">
+                    {[1, 2, 3, 4].map((level) => (
+                      <div
+                        key={level}
+                        className={`h-1 flex-1 rounded-full transition-colors ${level <= strength ? color : "bg-muted"}`}
+                      />
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    Senha <span className="font-medium text-foreground">{label}</span>
+                  </p>
+                </div>
+              );
+            })()}
           </div>
 
           <Button type="submit" className="w-full gap-2" disabled={loading}>
