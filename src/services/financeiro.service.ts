@@ -195,51 +195,64 @@ async function processarEstornoRpc(lancamentoId: string, motivoEstorno?: string)
 
 export async function processarEstorno(lancamentoId: string, motivoEstorno?: string): Promise<boolean> {
   try {
+    // 1) Tenta a RPC consolidada (estorna todas as baixas ativas em transação).
     const rpcResult = await processarEstornoRpc(lancamentoId, motivoEstorno);
     if (rpcResult === true) {
       toast.success("Estorno realizado com sucesso!");
       return true;
     }
 
-    const { data: lanc, error: lancError } = await supabase
-      .from("financeiro_lancamentos")
-      .select("id,status,valor")
-      .eq("id", lancamentoId)
-      .maybeSingle();
-
-    if (lancError) throw lancError;
-    if (!lanc?.id) throw new Error("Lançamento não encontrado para estorno.");
-
-    const { data: upd, error: updateError } = await supabase
-      .from("financeiro_lancamentos")
-      .update({
-        status: "aberto",
-        data_pagamento: null,
-        valor_pago: 0,
-        tipo_baixa: null,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        saldo_restante: Number((lanc as any).valor ?? 0),
-        motivo_estorno: motivoEstorno || null,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any)
-      .eq("id", lancamentoId)
+    // 2) Fallback estrutural: estorna LOGICAMENTE cada baixa ativa via `estornar_baixa_financeira`.
+    //    O trigger trg_sync_financeiro_saldo recalcula valor_pago/saldo/status automaticamente.
+    const { data: baixas, error: baixasError } = await supabase
+      .from("financeiro_baixas")
       .select("id")
-      .maybeSingle();
+      .eq("lancamento_id", lancamentoId)
+      .is("estornada_em", null);
 
-    if (updateError) throw updateError;
-    if (!upd?.id) throw new Error("Falha ao atualizar lançamento no estorno.");
+    if (baixasError) throw baixasError;
+    if (!baixas || baixas.length === 0) {
+      throw new Error("Nenhuma baixa ativa encontrada para estornar.");
+    }
 
-    const { error: parcelasError } = await supabase
-      .from("financeiro_lancamentos")
+    for (const b of baixas) {
+      const { error: estError } = await supabase.rpc("estornar_baixa_financeira", {
+        p_baixa_id: b.id,
+        p_motivo: motivoEstorno || "Estorno via interface",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .update({ ativo: false } as any)
-      .eq("documento_pai_id", lancamentoId);
-    if (parcelasError) throw parcelasError;
+      } as any);
+      if (estError) throw estError;
+    }
 
     toast.success("Estorno realizado com sucesso!");
     return true;
   } catch (error) {
     console.error("[financeiro] erro ao estornar:", error);
+    toast.error(getUserFriendlyError(error));
+    return false;
+  }
+}
+
+/**
+ * Cancela um lançamento financeiro (não pago, sem baixas ativas) via RPC oficial.
+ * Mantém o registro no banco com status='cancelado' e preserva a trilha.
+ */
+export async function cancelarLancamento(lancamentoId: string, motivo: string): Promise<boolean> {
+  try {
+    if (!motivo || motivo.trim().length < 5) {
+      toast.error("Informe um motivo para o cancelamento (mínimo 5 caracteres).");
+      return false;
+    }
+    const { error } = await supabase.rpc("financeiro_cancelar_lancamento", {
+      p_id: lancamentoId,
+      p_motivo: motivo.trim(),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any);
+    if (error) throw error;
+    toast.success("Lançamento cancelado com sucesso.");
+    return true;
+  } catch (error) {
+    console.error("[financeiro] erro ao cancelar:", error);
     toast.error(getUserFriendlyError(error));
     return false;
   }

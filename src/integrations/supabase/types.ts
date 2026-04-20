@@ -1615,34 +1615,85 @@ export type Database = {
         }
         Relationships: []
       }
+      financeiro_auditoria: {
+        Row: {
+          baixa_id: string | null
+          created_at: string
+          evento: string
+          id: string
+          lancamento_id: string | null
+          payload: Json | null
+          usuario_id: string | null
+        }
+        Insert: {
+          baixa_id?: string | null
+          created_at?: string
+          evento: string
+          id?: string
+          lancamento_id?: string | null
+          payload?: Json | null
+          usuario_id?: string | null
+        }
+        Update: {
+          baixa_id?: string | null
+          created_at?: string
+          evento?: string
+          id?: string
+          lancamento_id?: string | null
+          payload?: Json | null
+          usuario_id?: string | null
+        }
+        Relationships: []
+      }
       financeiro_baixas: {
         Row: {
+          conciliacao_data: string | null
+          conciliacao_extrato_referencia: string | null
+          conciliacao_status: string
+          conciliacao_usuario: string | null
           conta_bancaria_id: string | null
           created_at: string
           data_baixa: string
+          estornada_em: string | null
+          estornada_por: string | null
           forma_pagamento: string | null
           id: string
           lancamento_id: string
+          motivo_estorno: string | null
           observacoes: string | null
           valor_pago: number
         }
         Insert: {
+          conciliacao_data?: string | null
+          conciliacao_extrato_referencia?: string | null
+          conciliacao_status?: string
+          conciliacao_usuario?: string | null
           conta_bancaria_id?: string | null
           created_at?: string
           data_baixa: string
+          estornada_em?: string | null
+          estornada_por?: string | null
           forma_pagamento?: string | null
           id?: string
           lancamento_id: string
+          motivo_estorno?: string | null
           observacoes?: string | null
           valor_pago: number
         }
         Update: {
+          conciliacao_data?: string | null
+          conciliacao_extrato_referencia?: string | null
+          conciliacao_status?: string
+          conciliacao_usuario?: string | null
           conta_bancaria_id?: string | null
           created_at?: string
           data_baixa?: string
+          estornada_em?: string | null
+          estornada_por?: string | null
           forma_pagamento?: string | null
           id?: string
           lancamento_id?: string
+          motivo_estorno?: string | null
           observacoes?: string | null
           valor_pago?: number
         }
@@ -1708,6 +1759,10 @@ export type Database = {
           nome_abreviado_origem: string | null
           nota_fiscal_id: string | null
           observacoes: string | null
+          origem_descricao: string | null
+          origem_id: string | null
+          origem_tabela: string | null
+          origem_tipo: string
           parcela_numero: number | null
           parcela_total: number | null
           pedido_compra_id: string | null
@@ -1743,6 +1798,10 @@ export type Database = {
           nome_abreviado_origem?: string | null
           nota_fiscal_id?: string | null
           observacoes?: string | null
+          origem_descricao?: string | null
+          origem_id?: string | null
+          origem_tabela?: string | null
+          origem_tipo?: string
           parcela_numero?: number | null
           parcela_total?: number | null
           pedido_compra_id?: string | null
@@ -1778,6 +1837,10 @@ export type Database = {
           nome_abreviado_origem?: string | null
           nota_fiscal_id?: string | null
           observacoes?: string | null
+          origem_descricao?: string | null
+          origem_id?: string | null
+          origem_tabela?: string | null
+          origem_tipo?: string
           parcela_numero?: number | null
           parcela_total?: number | null
           pedido_compra_id?: string | null
@@ -5099,6 +5162,76 @@ export type Database = {
         }
         Relationships: []
       }
+      vw_conciliacao_eventos_financeiros: {
+        Row: {
+          baixa_id: string | null
+          cliente_id: string | null
+          conciliacao_data: string | null
+          conciliacao_extrato_referencia: string | null
+          conciliacao_status: string | null
+          conta_bancaria_id: string | null
+          conta_descricao: string | null
+          data_baixa: string | null
+          estornada_em: string | null
+          forma_pagamento: string | null
+          fornecedor_id: string | null
+          lancamento_descricao: string | null
+          lancamento_id: string | null
+          lancamento_tipo: string | null
+          valor_pago: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financeiro_baixas_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "contas_bancarias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_baixas_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_bancos_saldo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_baixas_lancamento_id_fkey"
+            columns: ["lancamento_id"]
+            isOneToOne: false
+            referencedRelation: "financeiro_lancamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_baixas_lancamento_id_fkey"
+            columns: ["lancamento_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_aging_cp"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_baixas_lancamento_id_fkey"
+            columns: ["lancamento_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_aging_cr"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_lancamentos_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_lancamentos_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "fornecedores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vw_entregas_consolidadas: {
         Row: {
           cidade: string | null
@@ -5135,6 +5268,22 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      vw_fluxo_caixa_financeiro: {
+        Row: {
+          baixa_id: string | null
+          categoria: string | null
+          cliente_id: string | null
+          conta_bancaria_id: string | null
+          data_ref: string | null
+          descricao: string | null
+          fornecedor_id: string | null
+          lancamento_id: string | null
+          status: string | null
+          tipo: string | null
+          valor: number | null
+        }
+        Relationships: []
       }
       vw_recebimentos_consolidado: {
         Row: {
@@ -5399,6 +5548,18 @@ export type Database = {
         Returns: undefined
       }
       expirar_orcamentos_vencidos: { Args: never; Returns: number }
+      financeiro_cancelar_lancamento: {
+        Args: { p_id: string; p_motivo: string }
+        Returns: undefined
+      }
+      financeiro_conciliar_baixa: {
+        Args: {
+          p_baixa_id: string
+          p_extrato_referencia?: string
+          p_status: string
+        }
+        Returns: undefined
+      }
       financeiro_processar_baixa_lote: {
         Args: { p_items: Json }
         Returns: Json
@@ -5406,6 +5567,10 @@ export type Database = {
       financeiro_processar_estorno: {
         Args: { p_lancamento_id: string; p_motivo?: string }
         Returns: Json
+      }
+      financeiro_status_efetivo: {
+        Args: { p_dv: string; p_ref: string; p_status: string }
+        Returns: string
       }
       gerar_devolucao_nota_fiscal: {
         Args: { p_itens?: Json; p_nf_origem_id: string }

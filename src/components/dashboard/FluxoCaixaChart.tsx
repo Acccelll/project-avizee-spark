@@ -33,44 +33,31 @@ export function FluxoCaixaChart({ embedded = false }: FluxoCaixaChartProps) {
       sixMonthsAgo.setDate(1);
       const dateFrom = sixMonthsAgo.toISOString().slice(0, 10);
 
-      const [{ data: realizados }, { data: previstos }] = await Promise.all([
-        supabase
-          .from('financeiro_lancamentos')
-          .select('tipo, valor, data_pagamento')
-          .eq('ativo', true)
-          .eq('status', 'pago')
-          .not('data_pagamento', 'is', null)
-          .gte('data_pagamento', dateFrom),
-        supabase
-          .from('financeiro_lancamentos')
-          .select('tipo, valor, saldo_restante, data_vencimento, status')
-          .eq('ativo', true)
-          .in('status', ['aberto', 'vencido', 'parcial'])
-          .gte('data_vencimento', dateFrom),
-      ]);
+      // Fonte unificada: vw_fluxo_caixa_financeiro (previsto por vencimento + realizado por baixa).
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: rows } = await (supabase as any)
+        .from('vw_fluxo_caixa_financeiro')
+        .select('tipo, valor, data_ref, categoria')
+        .gte('data_ref', dateFrom);
 
       const realMap = new Map<string, { entradas_real: number; saidas_real: number }>();
       const prevMap = new Map<string, { entradas_prev: number; saidas_prev: number }>();
 
-      for (const l of realizados || []) {
-        const month = l.data_pagamento!.slice(0, 7);
-        const current = realMap.get(month) || { entradas_real: 0, saidas_real: 0 };
-        const valor = Number(l.valor || 0);
-        if (l.tipo === 'receber') current.entradas_real += valor;
-        else current.saidas_real += valor;
-        realMap.set(month, current);
-      }
-
-      for (const l of previstos || []) {
-        const month = l.data_vencimento.slice(0, 7);
-        const current = prevMap.get(month) || { entradas_prev: 0, saidas_prev: 0 };
-        // For partial payments use the remaining balance, not the original amount.
-        const valor = l.status === 'parcial'
-          ? Number(l.saldo_restante ?? l.valor ?? 0)
-          : Number(l.valor || 0);
-        if (l.tipo === 'receber') current.entradas_prev += valor;
-        else current.saidas_prev += valor;
-        prevMap.set(month, current);
+      for (const r of (rows || []) as Array<{ tipo: string; valor: number | string; data_ref: string; categoria: string }>) {
+        if (!r.data_ref) continue;
+        const month = r.data_ref.slice(0, 7);
+        const valor = Number(r.valor || 0);
+        if (r.categoria === 'realizado') {
+          const cur = realMap.get(month) || { entradas_real: 0, saidas_real: 0 };
+          if (r.tipo === 'receber') cur.entradas_real += valor;
+          else cur.saidas_real += valor;
+          realMap.set(month, cur);
+        } else {
+          const cur = prevMap.get(month) || { entradas_prev: 0, saidas_prev: 0 };
+          if (r.tipo === 'receber') cur.entradas_prev += valor;
+          else cur.saidas_prev += valor;
+          prevMap.set(month, cur);
+        }
       }
 
       const months = Array.from(new Set([...realMap.keys(), ...prevMap.keys()])).sort();
