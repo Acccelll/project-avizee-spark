@@ -568,7 +568,7 @@ export default function Configuracoes() {
                     <AlertDialogHeader>
                       <AlertDialogTitle>Restaurar aparência padrão?</AlertDialogTitle>
                       <AlertDialogDescription>
-                        Isso vai redefinir tema, densidade, tamanho da fonte, menu compacto e animações para os valores originais do sistema (preferências pessoais).{isAdmin && ' As cores globais da interface também serão restauradas ao padrão.'}
+                        Isso vai redefinir tema, densidade, tamanho da fonte, menu compacto e animações para os valores originais do sistema. As cores institucionais não são alteradas — pertencem à Administração.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -579,33 +579,6 @@ export default function Configuracoes() {
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
-                {isAdmin && (
-                  <Button
-                    className="gap-2"
-                    onClick={async () => {
-                      const { error } = await supabase.from('app_configuracoes').upsert(
-                        [
-                          { chave: 'theme_primary_color', valor: corPrimaria, updated_at: new Date().toISOString() },
-                          { chave: 'theme_secondary_color', valor: corSecundaria, updated_at: new Date().toISOString() },
-                        ] satisfies AppConfigInsert[],
-                        { onConflict: 'chave' }
-                      );
-                      if (error) {
-                        console.error('[configuracoes] save colors:', error);
-                        toast.error(getUserFriendlyError(error));
-                        return;
-                      }
-                      const primary = hexToHslString(corPrimaria);
-                      const secondary = hexToHslString(corSecundaria);
-                      if (primary) document.documentElement.style.setProperty('--primary', primary);
-                      if (secondary) document.documentElement.style.setProperty('--secondary', secondary);
-                      toast.success('Cores globais da interface salvas.');
-                    }}
-                  >
-                    <Save className="h-4 w-4" />
-                    Salvar cores
-                  </Button>
-                )}
               </div>
             </CardContent>
           </Card>
