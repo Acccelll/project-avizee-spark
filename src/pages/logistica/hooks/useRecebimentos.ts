@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { normalizeRecebimentoStatus } from "@/pages/logistica/logisticaStatus";
 
 export interface Recebimento {
   id: string;
@@ -47,7 +48,6 @@ async function fetchRecebimentos(): Promise<Recebimento[]> {
     aprovado:              "pedido_emitido",
     enviado_ao_fornecedor: "aguardando_envio_fornecedor",
     aguardando_recebimento:"em_transito",
-    recebido_parcial:      "recebimento_parcial",
     parcialmente_recebido: "recebimento_parcial",
     recebido:              "recebido",
     rejeitado:             "cancelado",
@@ -67,14 +67,18 @@ async function fetchRecebimentos(): Promise<Recebimento[]> {
 
   return compras.map((compra) => {
     const tot = qtyByCompra.get(compra.id) ?? { pedida: 0, recebida: 0 };
-    const comprasStatus = compra.status ?? "rascunho";
+    const comprasStatusRaw = compra.status ?? "rascunho";
+    const comprasStatus = comprasStatusRaw === "recebido_parcial"
+      ? "parcialmente_recebido"
+      : comprasStatusRaw;
     const qtdPedida = tot.pedida;
     const qtdRecebida = tot.recebida;
     const pendencia = Math.max(0, qtdPedida - qtdRecebida);
     const recebimentoReal = qtdRecebida > 0;
 
-    const statusLogistico =
-      comprasStatusToLogistico[comprasStatus] ?? "pedido_emitido";
+    const statusLogistico = normalizeRecebimentoStatus(
+      comprasStatusToLogistico[comprasStatus] ?? "pedido_emitido",
+    );
 
     return {
       id: compra.id,

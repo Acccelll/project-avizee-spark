@@ -19,6 +19,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { getUserFriendlyError } from "@/utils/errorMessages";
+import { getEntregaStatusCfg } from "@/pages/logistica/logisticaStatus";
 
 /* ────────────────────────────────────────────────
    Types
@@ -73,26 +74,6 @@ interface EntregaDrawerProps {
   open: boolean;
   onClose: () => void;
   entrega: Entrega | null;
-}
-
-/* ────────────────────────────────────────────────
-   Status config
-──────────────────────────────────────────────── */
-
-const statusConfig: Record<string, { label: string; badge: string; statusKey: string }> = {
-  aguardando_separacao: { label: "Aguardando Separação", badge: "aguardando", statusKey: "aguardando" },
-  em_separacao:         { label: "Em Separação",         badge: "em_separacao", statusKey: "em_separacao" },
-  separado:             { label: "Separado",             badge: "aprovado", statusKey: "aprovado" },
-  aguardando_expedicao: { label: "Aguardando Expedição", badge: "aguardando", statusKey: "aguardando" },
-  em_transporte:        { label: "Em Transporte",        badge: "enviado", statusKey: "enviado" },
-  entregue:             { label: "Entregue",             badge: "entregue", statusKey: "entregue" },
-  entrega_parcial:      { label: "Entrega Parcial",      badge: "parcial", statusKey: "parcial" },
-  ocorrencia:           { label: "Com Ocorrência",       badge: "pendente", statusKey: "pendente" },
-  cancelado:            { label: "Cancelado",            badge: "cancelado", statusKey: "cancelado" },
-};
-
-function getStatusConfig(status: string) {
-  return statusConfig[status] ?? { label: status.replaceAll("_", " "), badge: "pendente", statusKey: "pendente" };
 }
 
 function isAtrasado(previsao: string | null, status: string): boolean {
@@ -160,7 +141,7 @@ export function EntregaDrawer({ open, onClose, entrega }: EntregaDrawerProps) {
 
   if (!entrega) return <ViewDrawerV2 open={open} onClose={onClose} title="" />;
 
-  const cfg = getStatusConfig(entrega.status_logistico);
+  const cfg = getEntregaStatusCfg(entrega.status_logistico);
   const atrasado = isAtrasado(entrega.previsao_entrega, entrega.status_logistico);
   const pesoTotal = entrega.peso_total;
   const transportadoraNome = remessa?.transportadoras?.nome_razao_social || entrega.transportadora;
@@ -203,10 +184,11 @@ export function EntregaDrawer({ open, onClose, entrega }: EntregaDrawerProps) {
   const tabResumo = (
     <div className="space-y-4">
       <ViewSection title="Situação logística">
+        <p className="mb-2 text-[11px] text-muted-foreground">Esta visão é consolidada por pedido; para leitura detalhada de cada volume e transição de status, use também a aba de Remessas.</p>
         <div className="grid grid-cols-2 gap-4">
           <ViewField label="Status">
             <div className="flex items-center gap-1.5 flex-wrap">
-              <StatusBadge status={cfg.statusKey} label={cfg.label} />
+              <StatusBadge status={cfg.badgeStatus} label={cfg.label} />
               {atrasado && (
                 <Badge variant="outline" className="text-xs border-destructive/40 text-destructive gap-1">
                   <AlertTriangle className="h-3 w-3" />Atrasado
@@ -522,7 +504,7 @@ export function EntregaDrawer({ open, onClose, entrega }: EntregaDrawerProps) {
       }
       badge={
         <div className="flex items-center gap-1.5 flex-wrap">
-          <StatusBadge status={cfg.statusKey} label={cfg.label} />
+          <StatusBadge status={cfg.badgeStatus} label={cfg.label} />
           {atrasado && (
             <Badge variant="outline" className="text-xs border-destructive/40 text-destructive gap-1">
               <AlertTriangle className="h-3 w-3" />Atrasado

@@ -7,6 +7,7 @@ import { DrawerStatusBanner } from "@/components/ui/DrawerStatusBanner";
 import { formatDate, formatNumber } from "@/lib/format";
 import { AlertTriangle, Package, Truck } from "lucide-react";
 import type { Recebimento } from "@/pages/logistica/hooks/useRecebimentos";
+import { getRecebimentoSourceMeta, getRecebimentoStatusCfg } from "@/pages/logistica/logisticaStatus";
 
 interface RecebimentoDrawerProps {
   open: boolean;
@@ -20,21 +21,6 @@ interface RecebimentoDrawerProps {
 // derived from the order status; they do NOT reflect real partial receiving
 // until a dedicated quantidade_recebida column is added to pedidos_compra_itens.
 
-const recebimentoStatusMap: Record<string, { label: string; badgeStatus: string }> = {
-  pedido_emitido:              { label: "Pedido Emitido",       badgeStatus: "pendente" },
-  aguardando_envio_fornecedor: { label: "Aguardando Envio",     badgeStatus: "aguardando" },
-  em_transito:                 { label: "Em Trânsito",          badgeStatus: "enviado" },
-  recebimento_parcial:         { label: "Recebimento Parcial",  badgeStatus: "parcial" },
-  recebido:                    { label: "Recebido",             badgeStatus: "entregue" },
-  recebido_com_divergencia:    { label: "Com Divergência",      badgeStatus: "pendente" },
-  atrasado:                    { label: "Atrasado",             badgeStatus: "vencido" },
-  cancelado:                   { label: "Cancelado",            badgeStatus: "cancelado" },
-};
-
-function getStatusCfg(status: string) {
-  return recebimentoStatusMap[status] ?? { label: status.replaceAll("_", " "), badgeStatus: "pendente" };
-}
-
 function isAtrasado(recebimento: Recebimento) {
   if (!recebimento.previsao_entrega) return false;
   if (recebimento.status_logistico === "recebido" || recebimento.status_logistico === "cancelado") return false;
@@ -44,7 +30,8 @@ function isAtrasado(recebimento: Recebimento) {
 export function RecebimentoDrawer({ open, onClose, recebimento: r }: RecebimentoDrawerProps) {
   if (!r) return <ViewDrawerV2 open={open} onClose={onClose} title="" />;
 
-  const cfg = getStatusCfg(r.status_logistico);
+  const cfg = getRecebimentoStatusCfg(r.status_logistico);
+  const sourceMeta = getRecebimentoSourceMeta(r.recebimento_real);
   const atrasado = isAtrasado(r);
   const percentRecebido = r.quantidade_pedida > 0
     ? Math.round((r.quantidade_recebida / r.quantidade_pedida) * 100)
@@ -90,6 +77,15 @@ export function RecebimentoDrawer({ open, onClose, recebimento: r }: Recebimento
   /* ── Tab Resumo ── */
   const tabResumo = (
     <div className="space-y-4">
+      {!r.recebimento_real && (
+        <DrawerStatusBanner
+          tone="warning"
+          icon={sourceMeta.icon}
+          title={sourceMeta.label}
+          description={sourceMeta.description}
+        />
+      )}
+
       {atrasado && (
         <DrawerStatusBanner
           tone="destructive"
@@ -106,6 +102,7 @@ export function RecebimentoDrawer({ open, onClose, recebimento: r }: Recebimento
           <ViewField label="Status">
             <div className="flex items-center gap-1.5 flex-wrap">
               <StatusBadge status={cfg.badgeStatus} label={cfg.label} />
+              <Badge variant="outline" className={`text-[10px] ${sourceMeta.className}`}>{sourceMeta.label}</Badge>
               {atrasado && (
                 <Badge variant="outline" className="text-xs border-destructive/40 text-destructive gap-1">
                   <AlertTriangle className="h-3 w-3" />Atrasado
@@ -232,6 +229,7 @@ export function RecebimentoDrawer({ open, onClose, recebimento: r }: Recebimento
       badge={
         <div className="flex items-center gap-1.5 flex-wrap">
           <StatusBadge status={cfg.badgeStatus} label={cfg.label} />
+          {!r.recebimento_real && <Badge variant="outline" className={`text-[10px] ${sourceMeta.className}`}>{sourceMeta.label}</Badge>}
           {atrasado && (
             <Badge variant="outline" className="text-xs border-destructive/40 text-destructive gap-1">
               <AlertTriangle className="h-3 w-3" />Atrasado

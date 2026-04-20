@@ -32,6 +32,16 @@ import type { Recebimento } from "@/pages/logistica/hooks/useRecebimentos";
 import { trackAndPersistEventos } from "@/services/logistica/remessas.service";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import {
+  ENTREGA_STATUS_ORDER,
+  ENTREGA_STATUS_META,
+  ENTREGA_TERMINAL,
+  RECEBIMENTO_STATUS_META,
+  RECEBIMENTO_TERMINAL,
+  getEntregaStatusCfg,
+  getRecebimentoStatusCfg,
+  getRecebimentoSourceMeta,
+} from "@/pages/logistica/logisticaStatus";
+import {
   Eye, AlertTriangle, Truck, Package, CheckCheck, ExternalLink, Loader2,
   Edit, Trash2, Plus, MapPin, Package as PackageIcon, Search, Clock, Timer,
 } from "lucide-react";
@@ -40,63 +50,24 @@ import {
 type Remessa = Tables<"remessas">;
 type RemessaEvento = Tables<"remessa_eventos">;
 
-// ─── Status maps ───
-const entregaStatusOptions = [
-  "aguardando_separacao", "em_separacao", "separado", "aguardando_expedicao",
-  "em_transporte", "entregue", "entrega_parcial", "ocorrencia", "cancelado",
-] as const;
-
-const logisticaStatusMap: Record<string, { label: string; badgeStatus: string }> = {
-  aguardando_separacao: { label: "Aguardando Separação", badgeStatus: "aguardando" },
-  em_separacao:         { label: "Em Separação",         badgeStatus: "em_separacao" },
-  separado:             { label: "Separado",             badgeStatus: "aprovado" },
-  aguardando_expedicao: { label: "Aguardando Expedição", badgeStatus: "aguardando" },
-  em_transporte:        { label: "Em Transporte",        badgeStatus: "enviado" },
-  entregue:             { label: "Entregue",             badgeStatus: "entregue" },
-  entrega_parcial:      { label: "Entrega Parcial",      badgeStatus: "parcial" },
-  ocorrencia:           { label: "Com Ocorrência",       badgeStatus: "pendente" },
-  cancelado:            { label: "Cancelado",            badgeStatus: "cancelado" },
-};
-
-const recebimentoStatusMap: Record<string, { label: string; badgeStatus: string }> = {
-  pedido_emitido:              { label: "Pedido Emitido",       badgeStatus: "pendente" },
-  aguardando_envio_fornecedor: { label: "Aguardando Envio",     badgeStatus: "aguardando" },
-  em_transito:                 { label: "Em Trânsito",          badgeStatus: "enviado" },
-  recebimento_parcial:         { label: "Recebimento Parcial",  badgeStatus: "parcial" },
-  recebido:                    { label: "Recebido",             badgeStatus: "entregue" },
-  recebido_com_divergencia:    { label: "Com Divergência",      badgeStatus: "pendente" },
-  atrasado:                    { label: "Atrasado",             badgeStatus: "vencido" },
-  cancelado:                   { label: "Cancelado",            badgeStatus: "cancelado" },
-};
-
 // statusRemessa now includes postado, coletado and cancelado — use directly
 const remessaStatusMap: Record<string, { label: string; color: string }> = { ...statusRemessa };
-
-function getEntregaStatusCfg(status: string) {
-  return logisticaStatusMap[status] ?? { label: status.replaceAll("_", " "), badgeStatus: "pendente" };
-}
-function getRecebimentoStatusCfg(status: string) {
-  return recebimentoStatusMap[status] ?? { label: status.replaceAll("_", " "), badgeStatus: "pendente" };
-}
-
-const TERMINAL_ENTREGA = ["entregue", "cancelado"];
-const TERMINAL_RECEBIMENTO = ["recebido", "cancelado"];
 const MULTI_REMESSA_STATUS_MESSAGE =
   "Este pedido possui múltiplas remessas. Atualize status por remessa na aba Remessas.";
 const RECEBIMENTO_REGISTRO_MESSAGE =
   "Data de recebimento registrada. A consolidação quantitativa permanece no módulo Compras.";
 
 function isAtrasadoEntrega(e: Entrega): boolean {
-  if (!e.previsao_entrega || TERMINAL_ENTREGA.includes(e.status_logistico)) return false;
+  if (!e.previsao_entrega || ENTREGA_TERMINAL.has(e.status_logistico)) return false;
   return new Date(e.previsao_entrega + "T00:00:00") < new Date();
 }
 function isAtrasadoRecebimento(r: Recebimento): boolean {
-  if (!r.previsao_entrega || TERMINAL_RECEBIMENTO.includes(r.status_logistico)) return false;
+  if (!r.previsao_entrega || RECEBIMENTO_TERMINAL.has(r.status_logistico)) return false;
   return new Date(r.previsao_entrega + "T00:00:00") < new Date();
 }
 
-const entregaStatusMultiOptions: MultiSelectOption[] = Object.entries(logisticaStatusMap).map(([k, v]) => ({ value: k, label: v.label }));
-const recebimentoStatusMultiOptions: MultiSelectOption[] = Object.entries(recebimentoStatusMap).map(([k, v]) => ({ value: k, label: v.label }));
+const entregaStatusMultiOptions: MultiSelectOption[] = Object.entries(ENTREGA_STATUS_META).map(([k, v]) => ({ value: k, label: v.label }));
+const recebimentoStatusMultiOptions: MultiSelectOption[] = Object.entries(RECEBIMENTO_STATUS_META).map(([k, v]) => ({ value: k, label: v.label }));
 const prazoOptions: MultiSelectOption[] = [{ label: "Atrasadas", value: "atrasado" }, { label: "No prazo", value: "ok" }];
 const prazoOptionsReceb: MultiSelectOption[] = [{ label: "Atrasados", value: "atrasado" }, { label: "No prazo", value: "ok" }];
 
@@ -112,6 +83,8 @@ export default function Logistica() {
   const loading = entregasLoading || recebimentosLoading;
   const [selectedEntrega, setSelectedEntrega] = useState<Entrega | null>(null);
   const [selectedRecebimento, setSelectedRecebimento] = useState<Recebimento | null>(null);
+  const [updatingEntregaId, setUpdatingEntregaId] = useState<string | null>(null);
+  const [markingRecebimentoId, setMarkingRecebimentoId] = useState<string | null>(null);
 
   // Derived lists for filters (computed from hook data)
   const transportadorasList = useMemo(
@@ -262,7 +235,7 @@ export default function Logistica() {
   // ─── Entrega filter chips ───
   const activeEntregaFilters = useMemo(() => {
     const chips: FilterChip[] = [];
-    statusFilters.forEach((f) => chips.push({ key: "status", label: "Status", value: [f], displayValue: logisticaStatusMap[f]?.label || f }));
+    statusFilters.forEach((f) => chips.push({ key: "status", label: "Status", value: [f], displayValue: ENTREGA_STATUS_META[f]?.label || f }));
     transportadoraFilters.forEach((f) => chips.push({ key: "transportadora", label: "Transportadora", value: [f], displayValue: f }));
     prazoFilters.forEach((f) => chips.push({ key: "prazo", label: "Prazo", value: [f], displayValue: prazoOptions.find((o) => o.value === f)?.label || f }));
     if (dataInicio) chips.push({ key: "dataInicio", label: "Prev. desde", value: [dataInicio], displayValue: formatDate(dataInicio) });
@@ -272,7 +245,7 @@ export default function Logistica() {
 
   const activeRecebimentoFilters = useMemo(() => {
     const chips: FilterChip[] = [];
-    statusFiltersReceb.forEach((f) => chips.push({ key: "status", label: "Status", value: [f], displayValue: recebimentoStatusMap[f]?.label || f }));
+    statusFiltersReceb.forEach((f) => chips.push({ key: "status", label: "Status", value: [f], displayValue: RECEBIMENTO_STATUS_META[f]?.label || f }));
     fornecedorFilters.forEach((f) => chips.push({ key: "fornecedor", label: "Fornecedor", value: [f], displayValue: f }));
     prazoFiltersReceb.forEach((f) => chips.push({ key: "prazo", label: "Prazo", value: [f], displayValue: prazoOptionsReceb.find((o) => o.value === f)?.label || f }));
     if (dataInicioReceb) chips.push({ key: "dataInicio", label: "Prev. desde", value: [dataInicioReceb], displayValue: formatDate(dataInicioReceb) });
@@ -313,6 +286,16 @@ export default function Logistica() {
   // ─── Status updates (invalidate query for fresh data after update) ───
   const updateEntregaStatus = async (entrega: Entrega, status: string) => {
     if (!canEdit) return;
+    if (status === entrega.status_logistico) return;
+    if (ENTREGA_TERMINAL.has(entrega.status_logistico)) {
+      toast.warning("Entrega em estado terminal. Atualize pela remessa se necessário.");
+      return;
+    }
+    if (ENTREGA_STATUS_META[status]?.sensivel) {
+      const ok = window.confirm(`Confirmar alteração para "${ENTREGA_STATUS_META[status]?.label ?? status}"?`);
+      if (!ok) return;
+    }
+    setUpdatingEntregaId(entrega.id);
     const { data: remessas, error: remessasError } = await supabase
       .from("remessas")
       .select("id")
@@ -320,27 +303,35 @@ export default function Logistica() {
       .eq("ativo", true);
     if (remessasError) {
       toast.error(getUserFriendlyError(remessasError));
+      setUpdatingEntregaId(null);
       return;
     }
     const remessaIds = (remessas ?? []).map((r) => r.id);
-    if (remessaIds.length === 0) { toast.warning("Nenhuma remessa encontrada para o pedido."); return; }
+    if (remessaIds.length === 0) { toast.warning("Nenhuma remessa encontrada para o pedido."); setUpdatingEntregaId(null); return; }
     if (remessaIds.length > 1) {
       toast.warning(MULTI_REMESSA_STATUS_MESSAGE);
+      setUpdatingEntregaId(null);
       return;
     }
     const { error } = await supabase.from("remessas").update({ status_transporte: status }).eq("id", remessaIds[0]);
-    if (error) { toast.error(getUserFriendlyError(error)); return; }
+    if (error) { toast.error(getUserFriendlyError(error)); setUpdatingEntregaId(null); return; }
     toast.success("Status atualizado");
+    setUpdatingEntregaId(null);
   };
 
   const updateRecebimentoStatus = async (recebimento: Recebimento, status: string) => {
     if (!canEdit) return;
+    const source = getRecebimentoSourceMeta(recebimento.recebimento_real);
+    const ok = window.confirm(`Atualizar acompanhamento logístico para "${RECEBIMENTO_STATUS_META[status]?.label ?? status}"?\n\n${source.description}`);
+    if (!ok) return;
+    setMarkingRecebimentoId(recebimento.id);
     // Guard: only allow transitions that are valid in the Compras domain.
     // Writing an arbitrary logistic status (e.g. "em_transito") to pedidos_compra.status
     // would corrupt the purchasing workflow.  Only "recebido" is safe to propagate here.
     const ALLOWED_FROM_LOGISTICA = ["recebido"];
     if (!ALLOWED_FROM_LOGISTICA.includes(status)) {
       toast.warning("Esta transição deve ser feita no módulo de Compras.");
+      setMarkingRecebimentoId(null);
       return;
     }
     // Only set data_entrega_real; do not overwrite the Compras status lifecycle.
@@ -348,8 +339,9 @@ export default function Logistica() {
       .from("pedidos_compra")
       .update({ data_entrega_real: new Date().toISOString().slice(0, 10) })
       .eq("id", recebimento.id);
-    if (error) { toast.error(getUserFriendlyError(error)); return; }
+    if (error) { toast.error(getUserFriendlyError(error)); setMarkingRecebimentoId(null); return; }
     toast.success(RECEBIMENTO_REGISTRO_MESSAGE);
+    setMarkingRecebimentoId(null);
   };
 
   const openViewRemessa = (r: Remessa) => { setRemSelected(r); setRemDrawerOpen(true); };
@@ -441,7 +433,7 @@ export default function Logistica() {
     { key: "status_logistico", label: "Status", sortable: true, render: (item: Entrega) => {
       const cfg = getEntregaStatusCfg(item.status_logistico);
       const atrasado = isAtrasadoEntrega(item);
-      return (<span className="inline-flex flex-col items-start gap-0.5"><StatusBadge status={cfg.badgeStatus} label={cfg.label} />{atrasado && <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-destructive/10 text-destructive border-destructive/20 gap-1"><AlertTriangle className="h-2.5 w-2.5" />Atrasada</Badge>}</span>);
+      return (<span className="inline-flex flex-col items-start gap-0.5"><StatusBadge status={cfg.badgeStatus} label={cfg.label} />{atrasado && <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-destructive/10 text-destructive border-destructive/20 gap-1"><AlertTriangle className="h-2.5 w-2.5" />Atrasada</Badge>}{item.exibicao_remessas === "multipla" && <span className="text-[10px] text-muted-foreground">status reflete última remessa</span>}</span>);
     }},
     { key: "previsao_entrega", label: "Prev. Entrega", render: (item: Entrega) => {
       if (!item.previsao_entrega) return <span className="text-muted-foreground text-xs">—</span>;
@@ -460,8 +452,8 @@ export default function Logistica() {
         <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-muted-foreground" onClick={() => pushView("ordem_venda", item.id)}><ExternalLink className="h-3.5 w-3.5" />Pedido</Button>
         {canEdit && (
           <Select value={item.status_logistico} onValueChange={(value) => updateEntregaStatus(item, value)}>
-            <SelectTrigger className="h-8 w-[180px] text-xs" disabled={item.exibicao_remessas === "multipla"}><SelectValue /></SelectTrigger>
-            <SelectContent>{entregaStatusOptions.map((s) => <SelectItem key={s} value={s}>{logisticaStatusMap[s]?.label || s.replaceAll("_", " ")}</SelectItem>)}</SelectContent>
+            <SelectTrigger className="h-8 w-[180px] text-xs" disabled={item.exibicao_remessas === "multipla" || updatingEntregaId === item.id || ENTREGA_TERMINAL.has(item.status_logistico)}><SelectValue /></SelectTrigger>
+            <SelectContent>{ENTREGA_STATUS_ORDER.map((s) => <SelectItem key={s} value={s} disabled={ENTREGA_TERMINAL.has(item.status_logistico) || (item.exibicao_remessas === "multipla" && s !== item.status_logistico)}>{ENTREGA_STATUS_META[s]?.label || s.replaceAll("_", " ")}</SelectItem>)}</SelectContent>
           </Select>
         )}
         {item.exibicao_remessas === "multipla" && (
@@ -489,6 +481,9 @@ export default function Logistica() {
     { key: "quantidade_recebida", label: "Qtd. Recebida", render: (item: Recebimento) => (
       <div className="inline-flex flex-col items-start gap-0.5">
         <span className="text-xs">{formatNumber(item.quantidade_recebida)}</span>
+        <span className={`text-[10px] ${getRecebimentoSourceMeta(item.recebimento_real).className}`}>
+          {getRecebimentoSourceMeta(item.recebimento_real).label}
+        </span>
         {!item.recebimento_real && item.status_logistico === "recebimento_parcial" && (
           <span className="text-[10px] text-muted-foreground">parcial não consolidado</span>
         )}
@@ -507,8 +502,8 @@ export default function Logistica() {
         <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => setSelectedRecebimento(item)}><Eye className="h-3.5 w-3.5" />Ver</Button>
         <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-muted-foreground" onClick={() => pushView("pedido_compra", item.id)}><ExternalLink className="h-3.5 w-3.5" />Compra</Button>
         {canEdit && item.status_logistico !== "recebido" && (
-          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => updateRecebimentoStatus(item, "recebido")}>
-            <CheckCheck className="h-3.5 w-3.5 mr-1" />Marcar Recebido
+          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => updateRecebimentoStatus(item, "recebido")} disabled={markingRecebimentoId === item.id}>
+            <CheckCheck className="h-3.5 w-3.5 mr-1" />Marcar recebimento logístico
           </Button>
         )}
       </div>
@@ -561,6 +556,9 @@ export default function Logistica() {
 
           {/* ── Tab: Entregas ── */}
           <TabsContent value="entregas">
+            <div className="mb-4 rounded-md border border-blue-300/40 bg-blue-500/5 px-3 py-2 text-xs text-muted-foreground">
+              Entregas é uma visão consolidada por pedido. Quando houver múltiplas remessas, o status exibido reflete somente a última atualização — gerencie com precisão na aba <strong>Remessas</strong>.
+            </div>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
               <SummaryCard title="Total de Entregas" value={formatNumber(entregasKpis.total)} icon={Package} variationType="neutral" variation="operações ativas" />
               <SummaryCard title="Em Transporte" value={formatNumber(entregasKpis.emTransporte)} icon={Truck} variationType="positive" variation="a caminho do cliente" />
@@ -619,6 +617,9 @@ export default function Logistica() {
 
           {/* ── Tab: Recebimentos ── */}
           <TabsContent value="recebimentos">
+            <div className="mb-4 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-muted-foreground">
+              Recebimentos nesta tela são de acompanhamento logístico. A consolidação quantitativa oficial continua no módulo <strong>Compras</strong>.
+            </div>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
               <SummaryCard title="Total de Recebimentos" value={formatNumber(recebimentosKpis.total)} icon={Package} variationType="neutral" variation="pedidos de compra" />
               <SummaryCard title="Em Trânsito" value={formatNumber(recebimentosKpis.emTransito)} icon={Truck} variationType="positive" variation="a caminho do armazém" />
