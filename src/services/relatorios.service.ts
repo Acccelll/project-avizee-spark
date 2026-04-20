@@ -2,7 +2,21 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/format";
 import { getEffectiveFiscalId } from "@/lib/fiscalUtils";
 import { addParticipacao, computeTop5Concentracao } from "@/utils/relatorios";
-import type { DivergenciasRow } from "@/types/relatorios";
+import type { DivergenciasRow, ReportMeta } from "@/types/relatorios";
+import {
+  financeiroStatusMap,
+  ordemVendaStatusMap,
+  faturamentoStatusMap,
+  compraStatusMap,
+  movimentoEstoqueStatusMap,
+  estoqueCriticidadeKind,
+  agingFaixaKind,
+  curvaAbcClasseKind,
+  resolveStatus,
+} from "@/services/relatorios/lib/statusMap";
+
+// Re-export for convenience.
+export type { ReportMeta } from "@/types/relatorios";
 
 // ── Local raw DB row shapes (what Supabase returns from each select) ─────────
 
@@ -132,7 +146,14 @@ export interface RelatorioResultado<T = Record<string, unknown>> {
   totals?: Record<string, number>;
   /** Rich KPI values keyed by the ReportKpiDef.key for the current report */
   kpis?: Record<string, number>;
+  /**
+   * Semantic metadata about the report. Populated by every loader; consumers
+   * should prefer `meta` over the legacy boolean flags.
+   */
+  meta?: ReportMeta;
+  /** @deprecated use `meta.valueNature === 'quantidade'` */
   _isQuantityReport?: boolean;
+  /** @deprecated use `meta.kind === 'dre'` */
   _isDreReport?: boolean;
 }
 
