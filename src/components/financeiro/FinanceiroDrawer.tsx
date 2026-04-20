@@ -122,12 +122,17 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
       open={open}
       onClose={onClose}
       title={tipoLabel}
-      subtitle={
-        <span>
-          <span className={cn("font-medium", tipoColor)}>{pessoa}</span>
-          {selected.descricao ? ` · ${selected.descricao}` : ""}
-        </span>
-      }
+      subtitle={(() => {
+        const planoLabel = selected.contas_contabeis
+          ? `${selected.contas_contabeis.codigo} - ${selected.contas_contabeis.descricao}`
+          : (typeof selected.descricao === "string" ? selected.descricao : "");
+        return (
+          <span>
+            <span className={cn("font-medium", tipoColor)}>{pessoa}</span>
+            {planoLabel ? ` · ${planoLabel}` : ""}
+          </span>
+        );
+      })()}
       badge={<StatusBadge status={effectiveStatus} />}
       summary={summary}
       actions={
