@@ -49,7 +49,6 @@ export function AppSidebar({
 
   return (
     <aside
-      role="navigation"
       aria-label="Barra lateral principal"
       className={[
         'fixed inset-y-0 left-0 z-50 flex h-screen flex-col border-r border-border bg-card transition-all duration-200',
