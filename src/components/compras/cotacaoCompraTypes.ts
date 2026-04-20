@@ -47,6 +47,8 @@ export interface LocalItem {
 
 export {
   COTACAO_FLOW_STEPS as FLOW_STEPS,
+  cotacaoCanEdit,
+  cotacaoCanGeneratePedido,
   cotacaoStatusLabelMap as statusLabels,
   getCotacaoFlowStepIndex as getFlowStepIndex,
 } from "./comprasStatus";

@@ -13,14 +13,16 @@ import { Button } from "@/components/ui/button";
 import { useActionLock } from "@/hooks/useActionLock";
 import { formatCurrency } from "@/lib/format";
 import {
-  ShoppingCart, Edit, Trash2, CheckCircle2, Clock,
+  ShoppingCart, Edit, Trash2, Clock,
   ClipboardList, AlertCircle, Info,
-  ThumbsUp, ThumbsDown, Send, ChevronRight, Trophy, X,
+  ThumbsUp, ThumbsDown, Send, ChevronRight, Trophy,
 } from "lucide-react";
 import {
   type CotacaoCompra,
   type CotacaoItem,
   type Proposta,
+  cotacaoCanEdit,
+  cotacaoCanGeneratePedido,
   statusLabels,
 } from "./cotacaoCompraTypes";
 import { CotacaoCompraHeaderSummary } from "./CotacaoCompraHeader";
@@ -158,7 +160,7 @@ export function CotacaoCompraDrawer({
                         </div>
                       )}
                       {viewItems.length > 0 && viewPropostas.length > 0 && !drawerStats.allItemsHaveSelected &&
-                        ! ["convertida", "cancelada"].includes(selected.status) && (
+                        cotacaoCanEdit(selected.status) && (
                         <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/5 px-3 py-2 text-xs text-warning">
                           <AlertCircle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" /> Aguardando seleção de fornecedor para todos os itens.
                         </div>
@@ -335,7 +337,7 @@ export function CotacaoCompraDrawer({
                     <ThumbsUp className="h-4 w-4" /> Aprovar
                   </Button>
                 )}
-                {selected.status === "aprovada" && (
+                {cotacaoCanGeneratePedido(selected.status) && (
                   <Button size="sm" className="gap-2" disabled={gerarPending} onClick={() => runGerar(() => onGerarPedido())}>
                     <ClipboardList className="h-4 w-4" /> Gerar Pedido de Compra
                   </Button>

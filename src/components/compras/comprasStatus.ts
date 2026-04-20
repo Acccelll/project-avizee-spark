@@ -40,28 +40,28 @@ export const COTACAO_FLOW_STEPS = [
 
 const COTACAO_FLOW_STEP_ORDER = COTACAO_FLOW_STEPS.map((s) => s.key);
 
-export function getCotacaoFlowStepIndex(status: string): number {
+export function getCotacaoFlowStepIndex(status: string | null | undefined): number {
   return COTACAO_FLOW_STEP_ORDER.indexOf(canonicalCotacaoStatus(status) as (typeof COTACAO_FLOW_STEP_ORDER)[number]);
 }
 
-export function cotacaoCanEdit(status: string): boolean {
+export function cotacaoCanEdit(status: string | null | undefined): boolean {
   return !["convertida", "cancelada"].includes(canonicalCotacaoStatus(status));
 }
 
-export function cotacaoCanApprove(status: string): boolean {
+export function cotacaoCanApprove(status: string | null | undefined): boolean {
   const normalized = canonicalCotacaoStatus(status);
   return ["aberta", "em_analise", "aguardando_aprovacao"].includes(normalized);
 }
 
-export function cotacaoCanGeneratePedido(status: string): boolean {
+export function cotacaoCanGeneratePedido(status: string | null | undefined): boolean {
   return canonicalCotacaoStatus(status) === "aprovada";
 }
 
-export function pedidoCanReceive(status: string): boolean {
+export function pedidoCanReceive(status: string | null | undefined): boolean {
   return ["aprovado", "enviado_ao_fornecedor", "aguardando_recebimento", "parcialmente_recebido"].includes(canonicalPedidoStatus(status));
 }
 
-export function pedidoRecebimentoLabel(status: string): string {
+export function pedidoRecebimentoLabel(status: string | null | undefined): string {
   const normalized = canonicalPedidoStatus(status);
   if (normalized === "recebido") return "Recebido";
   if (normalized === "parcialmente_recebido") return "Recebimento Parcial";

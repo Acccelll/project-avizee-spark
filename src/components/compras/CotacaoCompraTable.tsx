@@ -4,7 +4,7 @@ import { AlertCircle, CheckCircle2, Clock3, Trophy } from "lucide-react";
 import type { CotacaoCompra, CotacaoSummary } from "./cotacaoCompraTypes";
 import { statusLabels } from "./cotacaoCompraTypes";
 import { canonicalCotacaoStatus } from "./comprasStatus";
-import { formatDate } from "@/lib/format";
+import { calculateDaysBetween, formatDate } from "@/lib/format";
 
 interface CotacaoCompraTableProps {
   data: CotacaoCompra[];
@@ -15,7 +15,7 @@ interface CotacaoCompraTableProps {
 }
 
 export function CotacaoCompraTable({ data, loading, summaries, onView, onEdit }: CotacaoCompraTableProps) {
-  const isExpired = (validade: string | null) => !!validade && new Date(validade) < new Date();
+  const isExpired = (validade: string | null) => !!validade && calculateDaysBetween(new Date(), validade) < 0;
   const columns = [
     {
       key: "numero",
@@ -92,7 +92,7 @@ export function CotacaoCompraTable({ data, loading, summaries, onView, onEdit }:
             </span>
           );
         }
-        const dias = Math.ceil((new Date(c.data_validade).getTime() - Date.now()) / 86400000);
+        const dias = calculateDaysBetween(new Date(), c.data_validade);
         if (dias <= 2) {
           return (
             <span className="inline-flex items-center gap-1 text-warning text-xs">
