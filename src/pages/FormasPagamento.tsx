@@ -81,7 +81,7 @@ const emptyForm: FormaPagamentoForm = {
 };
 
 export default function FormasPagamento() {
-  const { data, loading, create, update, remove } = useSupabaseCrud<FormaPagamento>({ table: "formas_pagamento" });
+  const { data, loading, create, update, remove } = useSupabaseCrud<FormaPagamento>({ table: "formas_pagamento", hasAtivo: false });
   const [modalOpen, setModalOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selected, setSelected] = useState<FormaPagamento | null>(null);

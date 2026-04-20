@@ -2,6 +2,7 @@ import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import {
   Eye,
+  CheckCircle2,
   ChevronUp,
   ChevronDown,
   ChevronsUpDown,
@@ -21,6 +22,7 @@ import {
   MoreVertical,
   Pencil,
   Copy,
+  Ban,
   ChevronsUpDown as ExpandIcon,
 } from 'lucide-react';
 import { buildExportFilename } from '@/lib/utils';
@@ -429,6 +431,13 @@ export function DataTable<T extends Record<string, any>>({
           </Button>
         </TooltipTrigger><TooltipContent>Visualizar</TooltipContent></Tooltip>
       )}
+      {onEdit && (
+        <Tooltip><TooltipTrigger asChild>
+          <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Editar registro" onClick={(e) => { e.stopPropagation(); onEdit(item); }}>
+            <Pencil className="h-4 w-4" />
+          </Button>
+        </TooltipTrigger><TooltipContent>Editar</TooltipContent></Tooltip>
+      )}
       {onDuplicate && (
         <Tooltip><TooltipTrigger asChild>
           <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Duplicar registro" onClick={(e) => { e.stopPropagation(); onDuplicate(item); }}>
@@ -436,12 +445,32 @@ export function DataTable<T extends Record<string, any>>({
           </Button>
         </TooltipTrigger><TooltipContent>Duplicar</TooltipContent></Tooltip>
       )}
+      {onDelete && (
+        <Tooltip><TooltipTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-destructive hover:text-destructive"
+            aria-label="Inativar ou excluir registro"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (skipDeleteConfirm) {
+                onDelete(item);
+                return;
+              }
+              setDeleteItem(item);
+            }}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </TooltipTrigger><TooltipContent>Inativar / Excluir</TooltipContent></Tooltip>
+      )}
     </div>
   );
 
   // Mobile card action menu
   const renderMobileActions = (item: T) => {
-    const hasMenu = onView || onDuplicate;
+    const hasMenu = onView || onEdit || onDuplicate || onDelete;
     if (!hasMenu) return null;
     return (
       <DropdownMenu>
@@ -456,10 +485,33 @@ export function DataTable<T extends Record<string, any>>({
               <Eye className="mr-2 h-4 w-4" /> Visualizar
             </DropdownMenuItem>
           )}
+          {onEdit && (
+            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(item); }}>
+              <Pencil className="mr-2 h-4 w-4" /> Editar
+            </DropdownMenuItem>
+          )}
           {onDuplicate && (
             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onDuplicate(item); }}>
               <Copy className="mr-2 h-4 w-4" /> Duplicar
             </DropdownMenuItem>
+          )}
+          {onDelete && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (skipDeleteConfirm) {
+                    onDelete(item);
+                    return;
+                  }
+                  setDeleteItem(item);
+                }}
+              >
+                <Trash2 className="mr-2 h-4 w-4" /> Inativar / Excluir
+              </DropdownMenuItem>
+            </>
           )}
         </DropdownMenuContent>
       </DropdownMenu>
@@ -647,9 +699,18 @@ export function DataTable<T extends Record<string, any>>({
         <div className="mb-2 flex items-center justify-between rounded-lg border bg-primary/5 px-3 py-2">
           <span className="text-sm">{selectedIds.length} selecionado(s)</span>
           <div className="flex gap-2">
-            {onBatchStatusChange && <Button size="sm" variant="outline" onClick={() => onBatchStatusChange(selectedIds, 'confirmado')}>Alterar status</Button>}
+            {onBatchStatusChange && (
+              <>
+                <Button size="sm" variant="outline" onClick={() => onBatchStatusChange(selectedIds, 'ativo')}>
+                  <CheckCircle2 className="mr-1 h-4 w-4" />Reativar
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => onBatchStatusChange(selectedIds, 'inativo')}>
+                  <Ban className="mr-1 h-4 w-4" />Inativar
+                </Button>
+              </>
+            )}
             <Button size="sm" variant="outline" onClick={() => exportData('csv')}>Exportar</Button>
-            {(onBatchDelete || onDelete) && <Button size="sm" variant="destructive" onClick={() => { if (onBatchDelete) onBatchDelete(selectedIds); else toast.info('Implemente onBatchDelete para exclusão em lote.'); }}>Excluir</Button>}
+            {(onBatchDelete || onDelete) && <Button size="sm" variant="destructive" onClick={() => { if (onBatchDelete) onBatchDelete(selectedIds); else toast.info('Implemente onBatchDelete para exclusão em lote.'); }}>Inativar / Excluir</Button>}
           </div>
         </div>
       )}

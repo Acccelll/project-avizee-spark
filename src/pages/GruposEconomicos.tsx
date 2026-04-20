@@ -99,6 +99,7 @@ const GruposEconomicos = () => {
   const { data, loading, create, update, remove, fetchData } = useSupabaseCrud<GrupoEconomico>({
     table: "grupos_economicos",
     searchTerm: debouncedSearch,
+    hasAtivo: false,
     searchColumns: ["nome"],
   });
 

@@ -49,6 +49,7 @@ export default function UnidadesMedida() {
   const { data, loading, create, update, remove, fetchData } = useSupabaseCrud<UnidadeMedida>({
     table: "unidades_medida",
     searchTerm: debouncedSearch,
+    hasAtivo: false,
     searchColumns: ["codigo", "descricao"],
   });
 

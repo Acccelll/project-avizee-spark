@@ -110,6 +110,7 @@ const Produtos = () => {
   const { data, loading, create, update, remove, duplicate, fetchData } = useSupabaseCrud<Produto>({
     table: "produtos",
     searchTerm: debouncedSearch,
+    hasAtivo: false,
     searchColumns: ["nome", "sku", "codigo_interno", "ncm"],
   });
   const { pushView } = useRelationalNavigation();

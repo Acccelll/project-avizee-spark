@@ -97,6 +97,7 @@ export default function Funcionarios() {
   const { data, loading, create, update, remove, fetchData } = useSupabaseCrud<Funcionario>({
     table: "funcionarios",
     searchTerm: debouncedSearch,
+    hasAtivo: false,
     searchColumns: ["nome", "cpf", "cargo", "departamento"],
   });
   const [modalOpen, setModalOpen] = useState(false);
@@ -194,6 +195,13 @@ export default function Funcionarios() {
     if (!form.nome.trim()) { toast.error("Nome é obrigatório"); return; }
     const cpfDigits = form.cpf.replace(/\D/g, "");
     if (form.cpf && !isValidCpf(cpfDigits)) { toast.error("CPF inválido"); return; }
+    if (cpfDigits) {
+      const alreadyExists = data.some((f) => f.id !== selected?.id && (f.cpf || "").replace(/\D/g, "") === cpfDigits);
+      if (alreadyExists) {
+        toast.error("CPF já cadastrado. Corrija antes de salvar.");
+        return;
+      }
+    }
     await submit(async () => {
       const payload = { ...form, data_demissao: form.data_demissao || null };
       if (mode === "create") await create(payload as Partial<Funcionario>);
