@@ -45,6 +45,7 @@ export interface NotaFiscal {
   modelo_documento: string; nf_referenciada_id: string | null; tipo_operacao: string;
   frete_valor: number; icms_valor: number; ipi_valor: number; pis_valor: number;
   cofins_valor: number; icms_st_valor: number; desconto_valor: number; outras_despesas: number;
+  status_sefaz?: string;
   fornecedores?: { nome_razao_social: string; cpf_cnpj: string };
   clientes?: { nome_razao_social: string };
   ordens_venda?: { numero: string };
