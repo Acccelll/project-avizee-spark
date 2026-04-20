@@ -1074,26 +1074,26 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
     case "vendas_cliente": {
       let query = supabase
         .from("ordens_venda")
-        .select("valor_total, clientes(nome_razao_social, cpf_cnpj)")
+        .select("cliente_id, valor_total, clientes(nome_razao_social, cpf_cnpj)")
         .eq("ativo", true);
       query = withDateRange(query, "data_emissao", filtros);
       if (filtros.clienteIds?.length) query = query.in('cliente_id', filtros.clienteIds);
       const { data, error } = await query;
       if (error) throw error;
 
-      const map = new Map<string, { cliente: string; cnpj: string; total: number; qtd: number }>();
+      const map = new Map<string, { clienteId: string | null; cliente: string; cnpj: string; total: number; qtd: number }>();
       for (const ov of data || []) {
         const c = ov.clientes as { nome_razao_social: string; cpf_cnpj: string | null } | null;
         const nome = c?.nome_razao_social || "Sem cliente";
-        const key = nome;
-        const existing = map.get(key) || { cliente: nome, cnpj: c?.cpf_cnpj || "-", total: 0, qtd: 0 };
+        const key = ((ov as Record<string, unknown>).cliente_id as string | null) || nome;
+        const existing = map.get(key) || { clienteId: ((ov as Record<string, unknown>).cliente_id as string | null), cliente: nome, cnpj: c?.cpf_cnpj || "-", total: 0, qtd: 0 };
         existing.total += Number(ov.valor_total || 0);
         existing.qtd += 1;
         map.set(key, existing);
       }
 
       const rows = Array.from(map.values()).sort((a, b) => b.total - a.total).map((r, i) => ({
-        posicao: i + 1, cliente: r.cliente, cnpj: r.cnpj, pedidos: r.qtd, valorTotal: r.total,
+        posicao: i + 1, clienteId: r.clienteId ?? undefined, cliente: r.cliente, cnpj: r.cnpj, pedidos: r.qtd, valorTotal: r.total,
         ticketMedio: r.qtd > 0 ? r.total / r.qtd : 0,
       }));
 
@@ -1113,32 +1113,38 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
         rows: rowsWithParticipacao,
         chartData: rowsWithParticipacao.slice(0, 8).map(r => ({ name: r.cliente.substring(0, 20), value: r.valorTotal })),
         kpis: { totalVendido: grandTotalVcli, clientesAtendidos, ticketMedioGeral, top5Concentracao },
+        meta: {
+          kind: 'ranking',
+          valueNature: 'monetario',
+          timeAxis: { field: 'emissao', label: 'emissão', required: false },
+          drillDownReady: true,
+        },
       };
     }
 
     case "compras_fornecedor": {
       let query = supabase
         .from("compras")
-        .select("valor_total, fornecedores(nome_razao_social, cpf_cnpj)")
+        .select("fornecedor_id, valor_total, fornecedores(nome_razao_social, cpf_cnpj)")
         .eq("ativo", true);
       query = withDateRange(query, "data_compra", filtros);
       if (filtros.fornecedorIds?.length) query = query.in('fornecedor_id', filtros.fornecedorIds);
       const { data, error } = await query;
       if (error) throw error;
 
-      const map = new Map<string, { fornecedor: string; cnpj: string; total: number; qtd: number }>();
+      const map = new Map<string, { fornecedorId: string | null; fornecedor: string; cnpj: string; total: number; qtd: number }>();
       for (const c of data || []) {
         const f = c.fornecedores as { nome_razao_social: string; cpf_cnpj: string | null } | null;
         const nome = f?.nome_razao_social || "Sem fornecedor";
-        const key = nome;
-        const existing = map.get(key) || { fornecedor: nome, cnpj: f?.cpf_cnpj || "-", total: 0, qtd: 0 };
+        const key = ((c as Record<string, unknown>).fornecedor_id as string | null) || nome;
+        const existing = map.get(key) || { fornecedorId: ((c as Record<string, unknown>).fornecedor_id as string | null), fornecedor: nome, cnpj: f?.cpf_cnpj || "-", total: 0, qtd: 0 };
         existing.total += Number(c.valor_total || 0);
         existing.qtd += 1;
         map.set(key, existing);
       }
 
       const rows = Array.from(map.values()).sort((a, b) => b.total - a.total).map((r, i) => ({
-        posicao: i + 1, fornecedor: r.fornecedor, cnpj: r.cnpj, pedidos: r.qtd, valorTotal: r.total,
+        posicao: i + 1, fornecedorId: r.fornecedorId ?? undefined, fornecedor: r.fornecedor, cnpj: r.cnpj, pedidos: r.qtd, valorTotal: r.total,
         ticketMedio: r.qtd > 0 ? r.total / r.qtd : 0,
       }));
 
@@ -1156,6 +1162,12 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
         rows: rowsWithParticipacao,
         chartData: rowsWithParticipacao.slice(0, 8).map(r => ({ name: r.fornecedor.substring(0, 20), value: r.valorTotal })),
         kpis: { totalComprado: totalCompradoCf, fornecedoresAtivos, ticketMedioGeral, top5Concentracao },
+        meta: {
+          kind: 'ranking',
+          valueNature: 'monetario',
+          timeAxis: { field: 'criacao', label: 'data da compra', required: false },
+          drillDownReady: true,
+        },
       };
     }
 
@@ -1205,11 +1217,20 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
           status: pc.status,
           criticidade: "Alta",
           observacao: "Pedido de compra aprovado/pendente há mais de 3 dias sem nota fiscal vinculada",
-        });
+        } as DivergenciasRow & Record<string, unknown>);
+        // Augment with structured kinds + IDs (as extra row props).
+        const last = rows[rows.length - 1] as DivergenciasRow & Record<string, unknown>;
+        last.referenciaId = (pc as Record<string, unknown>).id as string | undefined;
+        last.referenciaTipo = 'pedido_compra';
+        last.criticidadeKind = 'critical';
+        last.tipoKind = 'critical';
+        last.statusKey = 'pedido_sem_nf';
+        last.statusKind = 'critical';
       }
 
       for (const nf of nfsSemFinanceiro) {
         const nfTyped = nf as {
+          id: string;
           numero: string; tipo: string; valor_total: number | null;
           clientes: { nome_razao_social: string } | null;
           fornecedores: { nome_razao_social: string } | null;
@@ -1225,7 +1246,14 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
           status: nfTyped.tipo,
           criticidade: "Alta",
           observacao: "Nota fiscal com flag financeiro mas sem lançamento gerado",
-        });
+        } as DivergenciasRow & Record<string, unknown>);
+        const last = rows[rows.length - 1] as DivergenciasRow & Record<string, unknown>;
+        last.referenciaId = nfTyped.id;
+        last.referenciaTipo = 'nota_fiscal';
+        last.criticidadeKind = 'critical';
+        last.tipoKind = 'critical';
+        last.statusKey = 'nf_sem_financeiro';
+        last.statusKind = 'critical';
       }
 
       return {
@@ -1243,6 +1271,7 @@ export async function carregarRelatorio(tipo: TipoRelatorio, filtros: FiltroRela
           pedidosSemNf: (pedidos || []).length,
           nfSemFinanceiro: nfsSemFinanceiro.length,
         },
+        meta: { kind: 'divergencias', valueNature: 'monetario', drillDownReady: true },
       };
     }
   }
