@@ -8,9 +8,11 @@ import { useDashboardPeriod, type DashboardPeriod } from '@/contexts/DashboardPe
 interface DashboardHeaderProps {
   lastUpdated?: Date;
   onRefresh?: () => void;
+  /** Optional slot rendered alongside the period selector / refresh button. */
+  rightSlot?: React.ReactNode;
 }
 
-export function DashboardHeader({ lastUpdated, onRefresh }: DashboardHeaderProps) {
+export function DashboardHeader({ lastUpdated, onRefresh, rightSlot }: DashboardHeaderProps) {
   const {
     period,
     setPeriod,
@@ -68,6 +70,7 @@ export function DashboardHeader({ lastUpdated, onRefresh }: DashboardHeaderProps
               <span className="hidden sm:inline">Atualizar</span>
             </Button>
           )}
+          {rightSlot}
         </div>
       </div>
 

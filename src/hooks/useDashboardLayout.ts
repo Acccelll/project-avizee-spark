@@ -1,4 +1,5 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useUserPreference } from '@/hooks/useUserPreference';
 
 export interface DashboardLayoutItem {
   i: string;
@@ -12,6 +13,7 @@ export interface DashboardLayoutItem {
 
 export type WidgetId =
   | 'kpis'
+  | 'operational'
   | 'alertas'
   | 'financeiro'
   | 'acoes_rapidas'
@@ -35,53 +37,119 @@ export const DEFAULT_LAYOUT: DashboardLayoutItem[] = [
   { i: 'fiscal',        x: 6, y: 23, w: 6,  h: 6, minW: 4,  minH: 2 },
 ];
 
-// ── Increment this string whenever DEFAULT_LAYOUT changes ─────────────────────
-// A new key means users with an old cached layout will get the new defaults.
-const STORAGE_KEY_PREFIX = 'avizee:dashboard-layout:v3:';
-
-function buildKey(userId: string | null | undefined) {
-  return `${STORAGE_KEY_PREFIX}${userId ?? 'anon'}`;
+/**
+ * Persisted layout preferences for the dashboard. v1 keeps it lightweight:
+ *  - `order`: ordered list of widget ids (controls render order)
+ *  - `hidden`: widgets the user explicitly toggled off
+ * Position/sizing remains the responsive CSS grid (no react-grid-layout yet).
+ */
+export interface DashboardLayoutPrefs {
+  order: WidgetId[];
+  hidden: WidgetId[];
 }
 
-function readFromStorage(key: string): DashboardLayoutItem[] | null {
+export const DEFAULT_ORDER: WidgetId[] = [
+  'kpis',
+  'operational',
+  'alertas',
+  'financeiro',
+  'acoes_rapidas',
+  'vendas_chart',
+  'pendencias',
+  'comercial',
+  'estoque',
+  'logistica',
+  'fiscal',
+];
+
+const DEFAULT_PREFS: DashboardLayoutPrefs = { order: DEFAULT_ORDER, hidden: [] };
+
+const LEGACY_STORAGE_KEY_PREFIX = 'avizee:dashboard-layout:v3:';
+
+function readLegacyLayout(userId: string | null | undefined): DashboardLayoutPrefs | null {
   try {
-    const raw = localStorage.getItem(key);
+    const raw = localStorage.getItem(`${LEGACY_STORAGE_KEY_PREFIX}${userId ?? 'anon'}`);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed) && parsed.length > 0) return parsed as DashboardLayoutItem[];
+    if (Array.isArray(parsed)) {
+      // Legacy format is the absolute layout array; we only salvage order.
+      const order = parsed
+        .map((item: { i?: string }) => item?.i)
+        .filter((id): id is WidgetId => typeof id === 'string' && (DEFAULT_ORDER as string[]).includes(id));
+      if (order.length > 0) {
+        // Append any new widgets missing from legacy snapshot at the end.
+        const merged = [...order, ...DEFAULT_ORDER.filter((w) => !order.includes(w))];
+        return { order: merged, hidden: [] };
+      }
+    }
   } catch {
-    // ignore malformed data
+    // ignore
   }
   return null;
 }
 
 export function useDashboardLayout(userId: string | null | undefined) {
-  const storageKey = useMemo(() => buildKey(userId), [userId]);
-
-  const [layout, setLayoutState] = useState<DashboardLayoutItem[]>(() => {
-    return readFromStorage(buildKey(userId)) ?? DEFAULT_LAYOUT;
-  });
-
-  const setLayout = useCallback(
-    (nextLayout: DashboardLayoutItem[]) => {
-      setLayoutState(nextLayout);
-      try {
-        localStorage.setItem(storageKey, JSON.stringify(nextLayout));
-      } catch {
-        // quota exceeded or storage unavailable
-      }
-    },
-    [storageKey],
+  const { value, save } = useUserPreference<DashboardLayoutPrefs>(
+    userId ?? null,
+    'dashboard_layout_v1',
+    DEFAULT_PREFS,
   );
 
-  const resetLayout = useCallback(() => {
-    setLayoutState(DEFAULT_LAYOUT);
+  // One-shot legacy migration: if no remote prefs exist yet but the v3
+  // localStorage entry is around, salvage the order before deletion.
+  useEffect(() => {
+    if (!userId) return;
+    const legacy = readLegacyLayout(userId);
+    if (legacy && (!value || (value.order === DEFAULT_ORDER && value.hidden.length === 0))) {
+      void save(legacy);
+    }
     try {
-      localStorage.removeItem(storageKey);
+      localStorage.removeItem(`${LEGACY_STORAGE_KEY_PREFIX}${userId ?? 'anon'}`);
     } catch {
       // ignore
     }
-  }, [storageKey]);
+    // run once per user id
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
 
-  return { layout, setLayout, resetLayout };
+  // Always reconcile against the latest DEFAULT_ORDER so newly added widgets
+  // appear at the bottom for users with stored prefs.
+  const prefs = useMemo<DashboardLayoutPrefs>(() => {
+    const order = (value?.order ?? DEFAULT_ORDER).filter((id) =>
+      (DEFAULT_ORDER as string[]).includes(id),
+    ) as WidgetId[];
+    const merged = [...order, ...DEFAULT_ORDER.filter((w) => !order.includes(w))];
+    const hidden = (value?.hidden ?? []).filter((id) =>
+      (DEFAULT_ORDER as string[]).includes(id),
+    ) as WidgetId[];
+    return { order: merged, hidden };
+  }, [value]);
+
+  const toggleVisibility = useCallback(
+    async (id: WidgetId) => {
+      const isHidden = prefs.hidden.includes(id);
+      const nextHidden = isHidden ? prefs.hidden.filter((w) => w !== id) : [...prefs.hidden, id];
+      await save({ ...prefs, hidden: nextHidden });
+    },
+    [prefs, save],
+  );
+
+  const moveWidget = useCallback(
+    async (id: WidgetId, direction: 'up' | 'down') => {
+      const idx = prefs.order.indexOf(id);
+      if (idx < 0) return;
+      const swap = direction === 'up' ? idx - 1 : idx + 1;
+      if (swap < 0 || swap >= prefs.order.length) return;
+      const next = [...prefs.order];
+      [next[idx], next[swap]] = [next[swap], next[idx]];
+      await save({ ...prefs, order: next });
+    },
+    [prefs, save],
+  );
+
+  const resetLayout = useCallback(async () => {
+    await save(DEFAULT_PREFS);
+  }, [save]);
+
+  return { prefs, toggleVisibility, moveWidget, resetLayout };
 }

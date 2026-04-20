@@ -34,6 +34,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useDashboardData } from "@/pages/dashboard/hooks/useDashboardData";
 import { useDashboardKpis } from "@/pages/dashboard/hooks/useDashboardKpis";
 import { useDashboardDrawerData } from "@/pages/dashboard/hooks/useDashboardDrawerData";
+import { useDashboardLayout } from "@/hooks/useDashboardLayout";
+import { DashboardCustomizeMenu } from "@/components/dashboard/DashboardCustomizeMenu";
+import { buildDrilldownUrl } from "@/lib/dashboard/drilldown";
 
 const VendasChart = lazy(() =>
   import("@/components/dashboard/VendasChart").then((m) => ({ default: m.VendasChart })),
@@ -71,8 +74,10 @@ function LazyInViewWidget({
 
 const DashboardContent = () => {
   const navigate = useNavigate();
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   const { metas } = useMetas();
+  const { prefs, toggleVisibility, moveWidget, resetLayout } = useDashboardLayout(user?.id);
+  const isVisible = (id: string) => !prefs.hidden.includes(id as never);
 
   const [metricDrawer, setMetricDrawer] = useState<null | "receber" | "estoque">(null);
 
@@ -102,16 +107,22 @@ const DashboardContent = () => {
   // React Query handles fetching/caching automatically — no useEffect needed.
   const greeting = getGreeting();
 
-  const { kpiCards, saldoProjetado } = useDashboardKpis({
+  const { kpiCards, operationalCards, saldoProjetado } = useDashboardKpis({
     metas,
     stats,
     estoqueBaixoCount: estoqueBaixo.length,
+    backlogOVsCount,
+    comprasAtrasadasCount,
+    remessasAtrasadasCount: remessasAtrasadas,
     dailyReceber,
     dailyPagar,
-    onOpenReceber: () => navigate("/financeiro?tipo=receber"),
-    onOpenPagar: () => navigate("/financeiro?tipo=pagar"),
-    onOpenSaldo: () => navigate("/fluxo-caixa"),
-    onOpenEstoque: () => navigate("/estoque"),
+    onOpenReceber: () => navigate(buildDrilldownUrl({ kind: "financeiro:receber-aberto" })),
+    onOpenPagar: () => navigate(buildDrilldownUrl({ kind: "financeiro:pagar-aberto" })),
+    onOpenSaldo: () => navigate(buildDrilldownUrl({ kind: "financeiro:saldo" })),
+    onOpenEstoque: () => navigate(buildDrilldownUrl({ kind: "estoque:critico" })),
+    onOpenBacklog: () => navigate(buildDrilldownUrl({ kind: "pedidos:aguardando-faturamento" })),
+    onOpenCompras: () => navigate(buildDrilldownUrl({ kind: "compras:atrasadas" })),
+    onOpenRemessas: () => navigate(buildDrilldownUrl({ kind: "logistica:remessas-atrasadas" })),
     onReceberDetail: () => setMetricDrawer("receber"),
     onEstoqueDetail: () => setMetricDrawer("estoque"),
   });
@@ -134,7 +145,18 @@ const DashboardContent = () => {
   const openMetric = metricDrawer ? detailData[metricDrawer] : null;
 
   return (
-    <><DashboardHeader lastUpdated={loadedAt} onRefresh={loadData} />
+    <><DashboardHeader
+        lastUpdated={loadedAt}
+        onRefresh={loadData}
+        rightSlot={
+          <DashboardCustomizeMenu
+            prefs={prefs}
+            onToggle={toggleVisibility}
+            onMove={moveWidget}
+            onReset={resetLayout}
+          />
+        }
+      />
 
       <div className="mb-4 rounded-lg border border-border/60 bg-muted/10 px-4 py-3">
         <p className="text-sm font-medium text-foreground">
@@ -147,24 +169,39 @@ const DashboardContent = () => {
       </div>
 
       <div className="space-y-4">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {kpiCards.map((c) => (
-            <SummaryCard key={c.id} {...c} density="compact" />
-          ))}
-        </div>
+        {isVisible("kpis") && (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            {kpiCards.map((c) => (
+              <SummaryCard key={c.id} {...c} density="compact" />
+            ))}
+          </div>
+        )}
 
-        <AlertStrip
-          titulosVencidos={stats.contasVencidas}
-          estoqueBaixo={estoqueBaixo.length}
-          remessasAtrasadas={remessasAtrasadas}
-          comprasAtrasadas={comprasAtrasadasCount}
-          notasPendentes={fiscalStats.pendentes}
-          ovsPendentes={backlogOVsCount}
-        />
+        {isVisible("operational") && (
+          <div>
+            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Indicadores operacionais</p>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {operationalCards.map((c) => (
+                <SummaryCard key={c.id} {...c} density="compact" />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {isVisible("alertas") && (
+          <AlertStrip
+            titulosVencidos={stats.contasVencidas}
+            estoqueBaixo={estoqueBaixo.length}
+            remessasAtrasadas={remessasAtrasadas}
+            comprasAtrasadas={comprasAtrasadasCount}
+            notasPendentes={fiscalStats.pendentes}
+            ovsPendentes={backlogOVsCount}
+          />
+        )}
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           <div className="lg:col-span-2">
-            <BlockErrorBoundary label="Financeiro">
+            {isVisible("financeiro") && <BlockErrorBoundary label="Financeiro">
               <FinanceiroBlock
                 totalReceber={stats.totalReceber}
                 totalPagar={stats.totalPagar}
@@ -173,17 +210,17 @@ const DashboardContent = () => {
                 recebimentosHoje={vencimentosHoje.receber}
                 pagamentosHoje={vencimentosHoje.pagar}
               />
-            </BlockErrorBoundary>
+            </BlockErrorBoundary>}
           </div>
           <div>
-            <BlockErrorBoundary label="Ações Rápidas">
+            {isVisible("acoes_rapidas") && <BlockErrorBoundary label="Ações Rápidas">
               <QuickActions />
-            </BlockErrorBoundary>
+            </BlockErrorBoundary>}
           </div>
         </div>
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <LazyInViewWidget fallback={<Skeleton className="h-[240px] w-full rounded-xl" />}>
+          {isVisible("vendas_chart") && <LazyInViewWidget fallback={<Skeleton className="h-[240px] w-full rounded-xl" />}>
             <DashboardCard>
               <BlockErrorBoundary label="Gráfico de Vendas">
                 <Suspense fallback={<Skeleton className="h-[200px] w-full" />}>
@@ -197,16 +234,16 @@ const DashboardContent = () => {
                 </Suspense>
               </BlockErrorBoundary>
             </DashboardCard>
-          </LazyInViewWidget>
-          <DashboardCard>
+          </LazyInViewWidget>}
+          {isVisible("pendencias") && <DashboardCard>
             <BlockErrorBoundary label="Pendências">
               <PendenciasList />
             </BlockErrorBoundary>
-          </DashboardCard>
+          </DashboardCard>}
         </div>
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <BlockErrorBoundary label="Comercial">
+          {isVisible("comercial") && <BlockErrorBoundary label="Comercial">
             <ComercialBlock
               cotacoesAbertas={stats.orcamentos}
               pedidosPendentes={backlogOVsCount}
@@ -214,30 +251,30 @@ const DashboardContent = () => {
               recentOrcamentos={recentOrcamentos}
               loading={loading}
             />
-          </BlockErrorBoundary>
-          <BlockErrorBoundary label="Estoque">
+          </BlockErrorBoundary>}
+          {isVisible("estoque") && <BlockErrorBoundary label="Estoque">
             <EstoqueBlock
               itensBaixoMinimo={estoqueBaixo}
               valorTotalEstoque={valorEstoque}
               totalProdutosAtivos={stats.produtos}
             />
-          </BlockErrorBoundary>
+          </BlockErrorBoundary>}
         </div>
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <LazyInViewWidget fallback={<Skeleton className="h-[220px] w-full rounded-xl" />}>
+          {isVisible("logistica") && <LazyInViewWidget fallback={<Skeleton className="h-[220px] w-full rounded-xl" />}>
             <BlockErrorBoundary label="Logística">
               <LogisticaBlock
                 comprasAguardando={comprasAguardando}
                 totalRemessasAtrasadas={remessasAtrasadas}
               />
             </BlockErrorBoundary>
-          </LazyInViewWidget>
-          <LazyInViewWidget fallback={<Skeleton className="h-[220px] w-full rounded-xl" />}>
+          </LazyInViewWidget>}
+          {isVisible("fiscal") && <LazyInViewWidget fallback={<Skeleton className="h-[220px] w-full rounded-xl" />}>
             <BlockErrorBoundary label="Fiscal">
               <FiscalBlock stats={fiscalStats} />
             </BlockErrorBoundary>
-          </LazyInViewWidget>
+          </LazyInViewWidget>}
         </div>
       </div>
 

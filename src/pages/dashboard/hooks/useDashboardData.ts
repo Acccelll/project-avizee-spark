@@ -10,6 +10,7 @@ import { useDashboardFiscalData } from "./useDashboardFiscalData";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import type { DashboardStats, FaturamentoStats, FiscalStats, ProdRow, TopPoint } from "./types";
 import type { BacklogOv, CompraAguardando, RecentOrcamento } from "./types";
+import type { ScopeKind } from "@/components/dashboard/ScopeBadge";
 
 interface DashboardDataState {
   stats: DashboardStats;
@@ -31,6 +32,18 @@ interface DashboardDataState {
   dailyVendas: Array<{ dia: string; valor: number }>;
   valorEstoque: number;
   remessasAtrasadas: number;
+  /** Per-block scope metadata so blocks can render a ScopeBadge. */
+  scopes: {
+    financeiro: ScopeKind;
+    comercial: ScopeKind;
+    fiscal: ScopeKind;
+    estoque: ScopeKind;
+    logistica: ScopeKind;
+    faturamento: ScopeKind;
+    fluxo: ScopeKind;
+    vendas: ScopeKind;
+    pendencias: ScopeKind;
+  };
 }
 
 const INITIAL_STATE: DashboardDataState = {
@@ -62,6 +75,17 @@ const INITIAL_STATE: DashboardDataState = {
   dailyVendas: [],
   valorEstoque: 0,
   remessasAtrasadas: 0,
+  scopes: {
+    financeiro: { kind: 'global-range', eixo: 'data_vencimento' },
+    comercial: { kind: 'global-range', eixo: 'data_orcamento' },
+    fiscal: { kind: 'fixed-window', janela: 'mes-atual' },
+    estoque: { kind: 'snapshot' },
+    logistica: { kind: 'snapshot' },
+    faturamento: { kind: 'fixed-window', janela: 'mes-atual' },
+    fluxo: { kind: 'fixed-window', janela: 'next-7d' },
+    vendas: { kind: 'fixed-window', janela: 'last-7d' },
+    pendencias: { kind: 'fixed-window', janela: 'next-7d' },
+  },
 };
 
 export function useDashboardData() {
@@ -70,7 +94,7 @@ export function useDashboardData() {
   const { loadFinanceiroData } = useDashboardFinanceiroData(range);
   const { loadComercialData } = useDashboardComercialData(range);
   const { loadEstoqueData } = useDashboardEstoqueData();
-  const { loadFiscalData } = useDashboardFiscalData();
+  const { loadFiscalData } = useDashboardFiscalData(range);
   const { loadAuxData } = useDashboardAuxData(range);
 
   const query = useQuery<DashboardDataState>({
@@ -85,6 +109,7 @@ export function useDashboardData() {
           loadAuxData(),
         ]);
 
+        const usingGlobal = !!(range.dateFrom && range.dateTo);
         return {
           stats: {
             produtos: estoque.produtos,
@@ -114,6 +139,19 @@ export function useDashboardData() {
           dailyVendas: comercial.dailyVendas,
           valorEstoque: estoque.valorEstoque,
           remessasAtrasadas: aux.remessasAtrasadas,
+          scopes: {
+            financeiro: { kind: 'global-range', eixo: 'data_vencimento' },
+            comercial: { kind: 'global-range', eixo: 'data_orcamento' },
+            fiscal: fiscal._scope,
+            estoque: { kind: 'snapshot' },
+            logistica: { kind: 'snapshot' },
+            faturamento: { kind: 'fixed-window', janela: 'mes-atual' },
+            fluxo: { kind: 'fixed-window', janela: 'next-7d' },
+            vendas: { kind: 'fixed-window', janela: 'last-7d' },
+            pendencias: usingGlobal
+              ? { kind: 'global-range', eixo: 'data_vencimento' }
+              : { kind: 'fixed-window', janela: 'next-7d' },
+          },
         };
       } catch (error) {
         console.error("[dashboard] erro ao carregar dados:", error);

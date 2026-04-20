@@ -70,12 +70,18 @@ export function useDashboardFinanceiroData(range: DashboardDateRange) {
         .eq("tipo", "pagar")
         .in("status", ["aberto", "parcial", "vencido"])
         .eq("data_vencimento", today),
-      supabase
-        .from("financeiro_lancamentos")
-        .select("valor, saldo_restante, status, clientes(nome_razao_social)")
-        .eq("tipo", "receber")
-        .eq("ativo", true)
-        .in("status", ["aberto", "vencido", "parcial"]),
+      (() => {
+        // Top clientes: respect the global period filter when set.
+        let q = supabase
+          .from("financeiro_lancamentos")
+          .select("valor, saldo_restante, status, clientes(nome_razao_social)")
+          .eq("tipo", "receber")
+          .eq("ativo", true)
+          .in("status", ["aberto", "vencido", "parcial"]);
+        if (dateFrom) q = q.gte("data_vencimento", dateFrom);
+        if (dateTo) q = q.lte("data_vencimento", dateTo);
+        return q;
+      })(),
       supabase
         .from("financeiro_lancamentos")
         .select("data_vencimento, valor, saldo_restante, status")
