@@ -32,7 +32,8 @@ import {
 } from "lucide-react";
 import { formatDate, formatCurrency } from "@/lib/format";
 import { clienteFornecedorSchema, validateForm } from "@/lib/validationSchemas";
-import { StatCard } from "@/components/StatCard";
+import { SummaryCard } from "@/components/SummaryCard";
+import { UF_OPTIONS } from "@/constants/brasil";
 import { AddProdutoFornecedor } from "@/components/fornecedores/AddProdutoFornecedor";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
@@ -356,9 +357,9 @@ const Fornecedores = () => {
         onAdd={openCreate}
         summaryCards={
           <>
-            <StatCard title="Total de Fornecedores" value={String(data.length)} icon={Users} />
-            <StatCard title="Ativos" value={String(summaryAtivos)} icon={UserCheck} iconColor="text-success" />
-            <StatCard title="Inativos" value={String(data.length - summaryAtivos)} icon={UserX} />
+            <SummaryCard title="Total de Fornecedores" value={data.length} icon={Users} />
+            <SummaryCard title="Ativos" value={summaryAtivos} icon={UserCheck} variant="success" />
+            <SummaryCard title="Inativos" value={data.length - summaryAtivos} icon={UserX} />
           </>
         }
       >
@@ -667,13 +668,16 @@ const Fornecedores = () => {
             </div>
             <div className="col-span-1 md:col-span-1 space-y-1.5">
               <Label>UF</Label>
-              <Input
-                maxLength={2}
-                placeholder="SP"
-                value={form.uf}
-                onChange={(e) => updateForm({ uf: e.target.value.toUpperCase() })}
-                className={formErrors.uf ? "border-destructive" : ""}
-              />
+              <Select value={form.uf || undefined} onValueChange={(v) => updateForm({ uf: v })}>
+                <SelectTrigger className={formErrors.uf ? "border-destructive" : ""}>
+                  <SelectValue placeholder="UF" />
+                </SelectTrigger>
+                <SelectContent>
+                  {UF_OPTIONS.map((uf) => (
+                    <SelectItem key={uf} value={uf}>{uf}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               {formErrors.uf && <p className="text-xs text-destructive">{formErrors.uf}</p>}
             </div>
             <div className="col-span-1 md:col-span-2 space-y-1.5">

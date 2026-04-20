@@ -28,7 +28,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MaskedInput } from "@/components/ui/MaskedInput";
-import { StatCard } from "@/components/StatCard";
+import { SummaryCard } from "@/components/SummaryCard";
+import { UF_OPTIONS } from "@/constants/brasil";
 import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
@@ -423,9 +424,9 @@ export default function Transportadoras() {
         onAdd={openCreate}
         summaryCards={
           <>
-            <StatCard title="Total" value={String(data.length)} icon={Truck} />
-            <StatCard title="Ativas" value={String(summaryAtivos)} icon={UserCheck} iconColor="text-success" />
-            <StatCard title="Inativas" value={String(data.length - summaryAtivos)} icon={UserX} />
+            <SummaryCard title="Total" value={data.length} icon={Truck} />
+            <SummaryCard title="Ativas" value={summaryAtivos} icon={UserCheck} variant="success" />
+            <SummaryCard title="Inativas" value={data.length - summaryAtivos} icon={UserX} />
           </>
         }
       >
@@ -672,7 +673,16 @@ export default function Transportadoras() {
             </div>
             <div className="col-span-1 space-y-2">
               <Label>UF</Label>
-              <Input maxLength={2} value={form.uf} onChange={(e) => setForm({ ...form, uf: e.target.value.toUpperCase() })} className="uppercase" />
+              <Select value={form.uf || undefined} onValueChange={(v) => setForm({ ...form, uf: v })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="UF" />
+                </SelectTrigger>
+                <SelectContent>
+                  {UF_OPTIONS.map((uf) => (
+                    <SelectItem key={uf} value={uf}>{uf}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
             </TabsContent>

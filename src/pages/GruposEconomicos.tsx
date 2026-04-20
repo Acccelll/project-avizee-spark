@@ -22,7 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { StatCard } from "@/components/StatCard";
+import { SummaryCard } from "@/components/SummaryCard";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { toast } from "sonner";
@@ -682,10 +682,10 @@ const GruposEconomicos = () => {
         count={filteredData.length}
         summaryCards={
           <>
-            <StatCard title="Total de Grupos" value={String(data.length)} icon={Building2} />
-            <StatCard title="Ativos" value={String(summaryAtivos)} icon={UserCheck} iconColor="text-success" />
-            <StatCard title="Inativos" value={String(data.length - summaryAtivos)} icon={Building2} />
-            <StatCard title="Com Clientes" value={String(summaryComClientes)} icon={Users} />
+            <SummaryCard title="Total de Grupos" value={data.length} icon={Building2} />
+            <SummaryCard title="Ativos" value={summaryAtivos} icon={UserCheck} variant="success" />
+            <SummaryCard title="Inativos" value={data.length - summaryAtivos} icon={Building2} />
+            <SummaryCard title="Com Clientes" value={summaryComClientes} icon={Users} />
           </>
         }
       >
