@@ -42,7 +42,7 @@ function findSheet(wb: XLSX.WorkBook, candidates: string[]): string | null {
 function readSheetAsObjects(wb: XLSX.WorkBook, sheetName: string): Record<string, unknown>[] {
   const ws = wb.Sheets[sheetName];
   if (!ws) return [];
-  const rows = XLSX.utils.sheet_to_json(ws, { defval: null }) as Record<string, unknown>[];
+  const rows = XLSX.utils.sheet_to_json(ws) as Record<string, unknown>[];
   // Remove linhas totalmente vazias
   return rows.filter((r) => Object.values(r).some((v) => v !== null && v !== "" && v !== undefined));
 }
