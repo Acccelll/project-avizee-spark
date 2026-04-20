@@ -3,6 +3,8 @@ import { ArrowRight, Truck, Clock, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { useRelationalNavigation } from '@/contexts/RelationalNavigationContext';
+import { ScopeBadge } from './ScopeBadge';
+import { buildDrilldownUrl } from '@/lib/dashboard/drilldown';
 import type { PedidoCompra } from '@/types/domain';
 
 interface LogisticaBlockProps {
@@ -38,6 +40,7 @@ export function LogisticaBlock({ comprasAguardando, totalRemessasAtrasadas }: Lo
         <h3 className="font-semibold text-foreground flex items-center gap-2">
           <Truck className="h-4 w-4 text-info" />
           Logística
+          <ScopeBadge scope={{ kind: 'snapshot' }} />
           {hasAlerts && (
             <div className="flex items-center gap-1.5">
               {comprasAtrasadasPreview > 0 && (
@@ -59,7 +62,7 @@ export function LogisticaBlock({ comprasAguardando, totalRemessasAtrasadas }: Lo
           variant="ghost"
           size="sm"
           className="h-7 gap-1 text-xs text-primary hover:text-primary"
-          onClick={() => navigate('/logistica')}
+          onClick={() => navigate(totalRemessasAtrasadas > 0 ? buildDrilldownUrl({ kind: 'logistica:remessas-atrasadas' }) : '/logistica')}
         >
           Ver módulo <ArrowRight className="h-3.5 w-3.5" />
         </Button>

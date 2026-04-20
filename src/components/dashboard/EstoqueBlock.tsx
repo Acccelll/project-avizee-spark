@@ -3,6 +3,8 @@ import { ArrowRight, Package, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatCurrency, formatNumber } from '@/lib/format';
 import { useRelationalNavigation } from '@/contexts/RelationalNavigationContext';
+import { ScopeBadge } from './ScopeBadge';
+import { buildDrilldownUrl } from '@/lib/dashboard/drilldown';
 
 export interface EstoqueBlockItem {
   id: string;
@@ -31,6 +33,7 @@ export function EstoqueBlock({ itensBaixoMinimo, valorTotalEstoque, totalProduto
         <h3 className="font-semibold text-foreground flex items-center gap-2">
           <Package className="h-4 w-4 text-info" />
           Estoque
+          <ScopeBadge scope={{ kind: 'snapshot' }} />
           {temCriticos && (
             <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-bold text-destructive">
               <AlertTriangle className="h-2.5 w-2.5" />
@@ -42,7 +45,7 @@ export function EstoqueBlock({ itensBaixoMinimo, valorTotalEstoque, totalProduto
           variant="ghost"
           size="sm"
           className="h-7 gap-1 text-xs text-primary hover:text-primary"
-          onClick={() => navigate('/estoque')}
+          onClick={() => navigate(temCriticos ? buildDrilldownUrl({ kind: 'estoque:critico' }) : '/estoque')}
         >
           Ver módulo <ArrowRight className="h-3.5 w-3.5" />
         </Button>
