@@ -183,7 +183,7 @@ export async function conciliarTransacao(
 
   const { data: lanc, error: fetchError } = await supabase
     .from("financeiro_lancamentos")
-    .select("id, valor, saldo_restante")
+    .select("id, valor, saldo_restante, status")
     .eq("id", tituloId)
     .maybeSingle();
 
@@ -194,29 +194,46 @@ export async function conciliarTransacao(
     ? Number(lanc.saldo_restante)
     : Number(lanc.valor);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error: baixaError } = await (supabase.from as any)("financeiro_baixas").insert({
-    lancamento_id: tituloId,
-    valor_pago: saldoAtual,
-    data_baixa: transacaoExtrato.data,
-    forma_pagamento: null,
-    conta_bancaria_id: contaId,
+  let baixaId: string | null = null;
+
+  if (saldoAtual > 0.009 && lanc.status !== "cancelado") {
+    const { data, error } = await supabase.rpc("registrar_baixa_financeira", {
+      p_lancamento_id: tituloId,
+      p_valor_pago: saldoAtual,
+      p_data_baixa: transacaoExtrato.data,
+      p_forma_pagamento: "extrato_conciliacao",
+      p_conta_bancaria_id: contaId,
+      p_observacoes: `Baixa gerada por conciliação automática (${transacaoExtrato.id})`,
+    });
+
+    if (error) throw new Error(error.message);
+    baixaId = (data as string | null) ?? null;
+  }
+
+  if (!baixaId) {
+    const { data: ultimaBaixa, error: baixaErr } = await supabase
+      .from("financeiro_baixas")
+      .select("id")
+      .eq("lancamento_id", tituloId)
+      .is("estornada_em", null)
+      .order("data_baixa", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (baixaErr) throw new Error(baixaErr.message);
+    if (!ultimaBaixa?.id) {
+      throw new Error("Não foi possível localizar baixa ativa para conciliação.");
+    }
+    baixaId = ultimaBaixa.id;
+  }
+
+  const { error: concError } = await supabase.rpc("financeiro_conciliar_baixa", {
+    p_baixa_id: baixaId,
+    p_status: "conciliado",
+    p_extrato_referencia: transacaoExtrato.id,
   });
 
-  if (baixaError) throw new Error(baixaError.message);
-
-  const { error } = await supabase
-    .from("financeiro_lancamentos")
-    .update({
-      status: "pago",
-      data_pagamento: transacaoExtrato.data,
-      conta_bancaria_id: contaId,
-      valor_pago: Number(lanc.valor) - 0,
-      saldo_restante: 0,
-    })
-    .eq("id", tituloId);
-
-  if (error) throw new Error(error.message);
+  if (concError) throw new Error(concError.message);
 }
 
 /**
