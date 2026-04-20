@@ -91,6 +91,7 @@ const Fornecedores = () => {
   const { data, loading, create, update, remove, fetchData } = useSupabaseCrud<Fornecedor>({
     table: "fornecedores",
     searchTerm: debouncedSearch,
+    filterAtivo: false,
     searchColumns: ["nome_razao_social", "nome_fantasia", "cpf_cnpj", "email", "cidade"],
   });
   const { pushView } = useRelationalNavigation();
@@ -204,6 +205,11 @@ const Fornecedores = () => {
       setFormErrors(validation.errors);
       const firstError = Object.values(validation.errors)[0];
       toast.error(firstError || "Corrija os erros do formulário");
+      return;
+    }
+    if (!docChecking && docUnico === false) {
+      setFormErrors((prev) => ({ ...prev, cpf_cnpj: "Documento já cadastrado em outra entidade." }));
+      toast.error("Documento já cadastrado. Corrija antes de salvar.");
       return;
     }
     setFormErrors({});
@@ -392,6 +398,7 @@ const Fornecedores = () => {
             onView={openView}
             onEdit={openEdit}
             onDelete={(f) => remove(f.id)}
+            deleteBehavior="soft"
           />
         </PullToRefresh>
       </ModulePage>

@@ -104,6 +104,7 @@ export default function Transportadoras() {
   const { data, loading, create, update, remove, fetchData } = useSupabaseCrud<Transportadora>({
     table: "transportadoras",
     searchTerm: debouncedSearch,
+    filterAtivo: false,
     searchColumns: ["nome_razao_social", "nome_fantasia", "cpf_cnpj", "cidade"],
   });
   const { pushView } = useRelationalNavigation();
@@ -254,6 +255,10 @@ export default function Transportadoras() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.nome_razao_social) { toast.error("Razão Social é obrigatória"); return; }
+    if (!docChecking && docUnico === false) {
+      toast.error("CNPJ já cadastrado. Corrija antes de salvar.");
+      return;
+    }
     await submit(async () => {
       const submitData = { ...form };
       if (mode === "create") await create(submitData);
@@ -277,7 +282,7 @@ export default function Transportadoras() {
 
 
   const hasChanges = useMemo(() => {
-    if (mode === "create") return false;
+    if (mode === "create") return JSON.stringify(form) !== JSON.stringify(emptyForm);
     if (!selected) return false;
     const original: TransportadoraFormData = {
       nome_razao_social: selected.nome_razao_social || "",
@@ -459,6 +464,7 @@ export default function Transportadoras() {
             onView={openView}
             onEdit={openEdit}
             onDelete={(t) => { setSelected(t); setDeleteConfirmOpen(true); }}
+            deleteBehavior="soft"
             emptyTitle="Nenhuma transportadora encontrada"
             emptyDescription="Tente ajustar os filtros ou cadastre uma nova transportadora."
           />

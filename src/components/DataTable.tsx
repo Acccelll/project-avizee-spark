@@ -93,7 +93,9 @@ interface DataTableProps<T> {
   showInternalFilters?: boolean;
   onBatchDelete?: (ids: string[]) => void;
   onBatchStatusChange?: (ids: string[], status: string) => void;
+  batchStatusActions?: Array<{ label: string; value: string; icon?: React.ComponentType<{ className?: string }> }>;
   renderInlineDetails?: (item: T) => React.ReactNode;
+  deleteBehavior?: 'soft' | 'hard';
   /**
    * Row count threshold above which virtualization is enabled.
    * Below this threshold, rows render normally without virtualization.
@@ -132,7 +134,9 @@ export function DataTable<T extends Record<string, any>>({
   showInternalFilters = false,
   onBatchDelete,
   onBatchStatusChange,
+  batchStatusActions,
   renderInlineDetails,
+  deleteBehavior = 'hard',
   virtualizeThreshold = 50,
   maxHeight = 600,
 }: DataTableProps<T>) {
@@ -205,7 +209,7 @@ export function DataTable<T extends Record<string, any>>({
   useEffect(() => {
     if (!moduleKey || !user?.id) return;
     try {
-      supabase.from('user_preferences' as any).upsert({
+      supabase.from('user_preferences' as never).upsert({
         user_id: user.id,
         module_key: moduleKey,
         columns_config: [...hiddenKeys],
@@ -413,6 +417,12 @@ export function DataTable<T extends Record<string, any>>({
     }
   };
 
+  const deleteActionLabel = deleteBehavior === 'soft' ? 'Inativar' : 'Excluir permanentemente';
+  const deleteDialogTitle = deleteBehavior === 'soft' ? 'Inativar registro' : 'Excluir registro';
+  const deleteDialogDescription = deleteBehavior === 'soft'
+    ? `Esta ação inativará ${deleteItem?.nome || deleteItem?.numero || 'o registro selecionado'}.`
+    : `Esta ação removerá ${deleteItem?.nome || deleteItem?.numero || 'o registro selecionado'} permanentemente.`;
+
   const renderActions = (item: T) => (
     <div className="flex items-center gap-1 flex-nowrap">
       {renderInlineDetails && (
@@ -429,6 +439,13 @@ export function DataTable<T extends Record<string, any>>({
           </Button>
         </TooltipTrigger><TooltipContent>Visualizar</TooltipContent></Tooltip>
       )}
+      {onEdit && (
+        <Tooltip><TooltipTrigger asChild>
+          <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Editar registro" onClick={(e) => { e.stopPropagation(); onEdit(item); }}>
+            <Pencil className="h-4 w-4" />
+          </Button>
+        </TooltipTrigger><TooltipContent>Editar</TooltipContent></Tooltip>
+      )}
       {onDuplicate && (
         <Tooltip><TooltipTrigger asChild>
           <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Duplicar registro" onClick={(e) => { e.stopPropagation(); onDuplicate(item); }}>
@@ -436,12 +453,32 @@ export function DataTable<T extends Record<string, any>>({
           </Button>
         </TooltipTrigger><TooltipContent>Duplicar</TooltipContent></Tooltip>
       )}
+      {onDelete && (
+        <Tooltip><TooltipTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-destructive hover:text-destructive"
+            aria-label={deleteActionLabel}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (skipDeleteConfirm) {
+                onDelete(item);
+                return;
+              }
+              setDeleteItem(item);
+            }}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </TooltipTrigger><TooltipContent>{deleteActionLabel}</TooltipContent></Tooltip>
+      )}
     </div>
   );
 
   // Mobile card action menu
   const renderMobileActions = (item: T) => {
-    const hasMenu = onView || onDuplicate;
+    const hasMenu = onView || onEdit || onDuplicate || onDelete;
     if (!hasMenu) return null;
     return (
       <DropdownMenu>
@@ -456,10 +493,33 @@ export function DataTable<T extends Record<string, any>>({
               <Eye className="mr-2 h-4 w-4" /> Visualizar
             </DropdownMenuItem>
           )}
+          {onEdit && (
+            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(item); }}>
+              <Pencil className="mr-2 h-4 w-4" /> Editar
+            </DropdownMenuItem>
+          )}
           {onDuplicate && (
             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onDuplicate(item); }}>
               <Copy className="mr-2 h-4 w-4" /> Duplicar
             </DropdownMenuItem>
+          )}
+          {onDelete && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (skipDeleteConfirm) {
+                    onDelete(item);
+                    return;
+                  }
+                  setDeleteItem(item);
+                }}
+              >
+                <Trash2 className="mr-2 h-4 w-4" /> {deleteActionLabel}
+              </DropdownMenuItem>
+            </>
           )}
         </DropdownMenuContent>
       </DropdownMenu>
@@ -647,9 +707,21 @@ export function DataTable<T extends Record<string, any>>({
         <div className="mb-2 flex items-center justify-between rounded-lg border bg-primary/5 px-3 py-2">
           <span className="text-sm">{selectedIds.length} selecionado(s)</span>
           <div className="flex gap-2">
-            {onBatchStatusChange && <Button size="sm" variant="outline" onClick={() => onBatchStatusChange(selectedIds, 'confirmado')}>Alterar status</Button>}
+            {onBatchStatusChange && (
+              <>
+                {(batchStatusActions?.length ? batchStatusActions : [{ label: 'Alterar status', value: 'confirmado' }]).map((action) => {
+                  const Icon = action.icon;
+                  return (
+                    <Button key={action.value} size="sm" variant="outline" onClick={() => onBatchStatusChange(selectedIds, action.value)}>
+                      {Icon ? <Icon className="mr-1 h-4 w-4" /> : null}
+                      {action.label}
+                    </Button>
+                  );
+                })}
+              </>
+            )}
             <Button size="sm" variant="outline" onClick={() => exportData('csv')}>Exportar</Button>
-            {(onBatchDelete || onDelete) && <Button size="sm" variant="destructive" onClick={() => { if (onBatchDelete) onBatchDelete(selectedIds); else toast.info('Implemente onBatchDelete para exclusão em lote.'); }}>Excluir</Button>}
+            {(onBatchDelete || onDelete) && <Button size="sm" variant="destructive" onClick={() => { if (onBatchDelete) onBatchDelete(selectedIds); else toast.info('Implemente onBatchDelete para exclusão em lote.'); }}>{deleteActionLabel}</Button>}
           </div>
         </div>
       )}
@@ -769,8 +841,8 @@ export function DataTable<T extends Record<string, any>>({
       <ConfirmDialog
         open={!!deleteItem}
         onClose={() => { setDeleteItem(null); setPendingSkipPref(false); }}
-        title="Excluir registro"
-        description={`Esta ação removerá ${deleteItem?.nome || deleteItem?.numero || 'o registro selecionado'} permanentemente.`}
+        title={deleteDialogTitle}
+        description={deleteDialogDescription}
         onConfirm={() => {
           if (deleteItem && onDelete) {
             // Persiste a preferência só se confirmar.

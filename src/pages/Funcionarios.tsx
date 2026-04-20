@@ -28,6 +28,7 @@ import { getUserFriendlyError } from "@/utils/errorMessages";
 import { useEffect } from "react";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
+import { useDocumentoUnico } from "@/hooks/useDocumentoUnico";
 
 interface Funcionario {
   id: string; nome: string; cpf: string; cargo: string; departamento: string;
@@ -97,6 +98,7 @@ export default function Funcionarios() {
   const { data, loading, create, update, remove, fetchData } = useSupabaseCrud<Funcionario>({
     table: "funcionarios",
     searchTerm: debouncedSearch,
+    filterAtivo: false,
     searchColumns: ["nome", "cpf", "cargo", "departamento"],
   });
   const [modalOpen, setModalOpen] = useState(false);
@@ -107,6 +109,7 @@ export default function Funcionarios() {
   const [baselineForm, setBaselineForm] = useState<FuncionarioForm>(emptyForm);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const { saving: submitting, submit } = useSubmitLock();
+  const { isUnique: cpfUnico, isLoading: cpfChecking } = useDocumentoUnico("cpf", form.cpf, selected?.id, "funcionarios");
   const { confirm: confirmDiscard, dialog: confirmDiscardDialog } = useConfirmDialog();
   const [ativoFilters, setAtivoFilters] = useState<string[]>([]);
   const [tipoContratoFilters, setTipoContratoFilters] = useState<string[]>([]);
@@ -194,6 +197,10 @@ export default function Funcionarios() {
     if (!form.nome.trim()) { toast.error("Nome é obrigatório"); return; }
     const cpfDigits = form.cpf.replace(/\D/g, "");
     if (form.cpf && !isValidCpf(cpfDigits)) { toast.error("CPF inválido"); return; }
+    if (!cpfChecking && cpfUnico === false) {
+      toast.error("CPF já cadastrado. Corrija antes de salvar.");
+      return;
+    }
     await submit(async () => {
       const payload = { ...form, data_demissao: form.data_demissao || null };
       if (mode === "create") await create(payload as Partial<Funcionario>);
