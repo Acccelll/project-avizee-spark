@@ -8,13 +8,11 @@ export const comercialLabels = {
   invoice: "Nota Fiscal",
 } as const;
 
-export const ORCAMENTO_STATUS_ALIAS: Record<string, string> = {
-  pendente: "confirmado",
-};
-
 export function normalizeOrcamentoStatus(status?: string | null): string {
   if (!status) return "rascunho";
-  return ORCAMENTO_STATUS_ALIAS[status] || status;
+  // Aliases legados (dados antigos da UI) → canônico
+  if (status === "confirmado" || status === "enviado") return "pendente";
+  return status;
 }
 
 export function getOrcamentoStatusLabel(status?: string | null): string {
@@ -27,7 +25,7 @@ export function canSendOrcamento(status?: string | null): boolean {
 }
 
 export function canApproveOrcamento(status?: string | null): boolean {
-  return normalizeOrcamentoStatus(status) === "confirmado";
+  return normalizeOrcamentoStatus(status) === "pendente";
 }
 
 export function canConvertOrcamento(status?: string | null): boolean {

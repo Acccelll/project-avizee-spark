@@ -1812,6 +1812,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "financeiro_lancamentos_nota_fiscal_id_fkey"
+            columns: ["nota_fiscal_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_comercial"
+            referencedColumns: ["nf_id"]
+          },
+          {
             foreignKeyName: "financeiro_lancamentos_pedido_compra_id_fkey"
             columns: ["pedido_compra_id"]
             isOneToOne: false
@@ -2382,6 +2389,13 @@ export type Database = {
             referencedRelation: "notas_fiscais"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "nota_fiscal_anexos_nota_fiscal_id_fkey"
+            columns: ["nota_fiscal_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_comercial"
+            referencedColumns: ["nf_id"]
+          },
         ]
       }
       nota_fiscal_eventos: {
@@ -2425,6 +2439,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "notas_fiscais"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nota_fiscal_eventos_nota_fiscal_id_fkey"
+            columns: ["nota_fiscal_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_comercial"
+            referencedColumns: ["nf_id"]
           },
         ]
       }
@@ -2636,11 +2657,25 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "notas_fiscais_nf_referenciada_id_fkey"
+            columns: ["nf_referenciada_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_comercial"
+            referencedColumns: ["nf_id"]
+          },
+          {
             foreignKeyName: "notas_fiscais_ordem_venda_id_fkey"
             columns: ["ordem_venda_id"]
             isOneToOne: false
             referencedRelation: "ordens_venda"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notas_fiscais_ordem_venda_id_fkey"
+            columns: ["ordem_venda_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_comercial"
+            referencedColumns: ["pedido_id"]
           },
         ]
       }
@@ -2775,6 +2810,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "notas_fiscais"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notas_fiscais_itens_nota_fiscal_id_fkey"
+            columns: ["nota_fiscal_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_comercial"
+            referencedColumns: ["nf_id"]
           },
           {
             foreignKeyName: "notas_fiscais_itens_produto_id_fkey"
@@ -3030,6 +3072,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "orcamentos_itens_orcamento_id_fkey"
+            columns: ["orcamento_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_comercial"
+            referencedColumns: ["orcamento_id"]
+          },
+          {
             foreignKeyName: "orcamentos_itens_produto_id_fkey"
             columns: ["produto_id"]
             isOneToOne: false
@@ -3159,6 +3208,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "ordens_venda_cotacao_id_fkey"
+            columns: ["cotacao_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_comercial"
+            referencedColumns: ["orcamento_id"]
+          },
+          {
             foreignKeyName: "ordens_venda_transportadora_id_fkey"
             columns: ["transportadora_id"]
             isOneToOne: false
@@ -3230,6 +3286,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "ordens_venda"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ordens_venda_itens_ordem_venda_id_fkey"
+            columns: ["ordem_venda_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_comercial"
+            referencedColumns: ["pedido_id"]
           },
           {
             foreignKeyName: "ordens_venda_itens_produto_id_fkey"
@@ -3926,11 +3989,25 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "remessas_nota_fiscal_id_fkey"
+            columns: ["nota_fiscal_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_comercial"
+            referencedColumns: ["nf_id"]
+          },
+          {
             foreignKeyName: "remessas_ordem_venda_id_fkey"
             columns: ["ordem_venda_id"]
             isOneToOne: false
             referencedRelation: "ordens_venda"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "remessas_ordem_venda_id_fkey"
+            columns: ["ordem_venda_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_comercial"
+            referencedColumns: ["pedido_id"]
           },
           {
             foreignKeyName: "remessas_pedido_compra_id_fkey"
@@ -4598,6 +4675,13 @@ export type Database = {
             referencedRelation: "orcamentos_public_view"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "orcamentos_itens_orcamento_id_fkey"
+            columns: ["orcamento_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_comercial"
+            referencedColumns: ["orcamento_id"]
+          },
         ]
       }
       orcamentos_public_view: {
@@ -4647,6 +4731,35 @@ export type Database = {
           valor_total?: number | null
         }
         Relationships: []
+      }
+      v_trilha_comercial: {
+        Row: {
+          cliente_id: string | null
+          cliente_nome: string | null
+          criado_em: string | null
+          nf_id: string | null
+          nf_numero: string | null
+          nf_status: string | null
+          orcamento_id: string | null
+          orcamento_numero: string | null
+          orcamento_status: string | null
+          pedido_id: string | null
+          pedido_numero: string | null
+          pedido_status: string | null
+          status_faturamento: string | null
+          valor_nf: number | null
+          valor_orcamento: number | null
+          valor_pedido: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orcamentos_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       vw_workbook_aging_cp: {
         Row: {
@@ -4800,6 +4913,10 @@ export type Database = {
         Returns: string
       }
       aprovar_pedido: { Args: { p_pedido_id: string }; Returns: Json }
+      cancelar_orcamento: {
+        Args: { p_id: string; p_motivo?: string }
+        Returns: Json
+      }
       cancelar_remessa: {
         Args: { p_motivo?: string; p_remessa_id: string }
         Returns: undefined
@@ -4820,14 +4937,24 @@ export type Database = {
         Returns: Json
       }
       consolidar_lote_financeiro: { Args: { p_lote_id: string }; Returns: Json }
-      converter_orcamento_em_ov: {
-        Args: {
-          p_data_po?: string
-          p_orcamento_id: string
-          p_po_number?: string
-        }
-        Returns: Json
-      }
+      converter_orcamento_em_ov:
+        | {
+            Args: {
+              p_data_po?: string
+              p_orcamento_id: string
+              p_po_number?: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_data_po?: string
+              p_forcar?: boolean
+              p_orcamento_id: string
+              p_po_number?: string
+            }
+            Returns: Json
+          }
       count_estoque_baixo: { Args: never; Returns: number }
       delete_email: {
         Args: { message_id: number; queue_name: string }
@@ -4853,6 +4980,7 @@ export type Database = {
         Args: { p_data_expedicao?: string; p_remessa_id: string }
         Returns: undefined
       }
+      expirar_orcamentos_vencidos: { Args: never; Returns: number }
       financeiro_processar_baixa_lote: {
         Args: { p_items: Json }
         Returns: Json

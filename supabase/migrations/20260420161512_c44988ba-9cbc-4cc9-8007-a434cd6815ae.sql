@@ -1,0 +1,1 @@
+ALTER VIEW public.v_trilha_comercial SET (security_invoker = true);
