@@ -4796,7 +4796,7 @@ export type Database = {
         }
         Returns: boolean
       }
-      limpar_dados_migracao: { Args: { p_confirmar: boolean }; Returns: Json }
+      limpar_dados_migracao: { Args: { p_confirmar?: boolean }; Returns: Json }
       marcar_lancamentos_vencidos: { Args: never; Returns: number }
       marcar_remessa_em_transito: {
         Args: { p_remessa_id: string }
