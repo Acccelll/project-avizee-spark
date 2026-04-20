@@ -3688,25 +3688,43 @@ export type Database = {
         Row: {
           alteracao: Json | null
           created_at: string
+          entidade: string | null
+          entidade_id: string | null
           id: string
+          ip_address: string | null
+          motivo: string | null
           role_padrao: string | null
           target_user_id: string | null
+          tipo_acao: string
+          user_agent: string | null
           user_id: string | null
         }
         Insert: {
           alteracao?: Json | null
           created_at?: string
+          entidade?: string | null
+          entidade_id?: string | null
           id?: string
+          ip_address?: string | null
+          motivo?: string | null
           role_padrao?: string | null
           target_user_id?: string | null
+          tipo_acao?: string
+          user_agent?: string | null
           user_id?: string | null
         }
         Update: {
           alteracao?: Json | null
           created_at?: string
+          entidade?: string | null
+          entidade_id?: string | null
           id?: string
+          ip_address?: string | null
+          motivo?: string | null
           role_padrao?: string | null
           target_user_id?: string | null
+          tipo_acao?: string
+          user_agent?: string | null
           user_id?: string | null
         }
         Relationships: []
@@ -5183,6 +5201,23 @@ export type Database = {
           status?: string | null
           validade?: string | null
           valor_total?: number | null
+        }
+        Relationships: []
+      }
+      v_admin_audit_unified: {
+        Row: {
+          ator_id: string | null
+          created_at: string | null
+          entidade: string | null
+          entidade_id: string | null
+          id: string | null
+          ip_address: string | null
+          motivo: string | null
+          origem: string | null
+          payload: Json | null
+          target_user_id: string | null
+          tipo_acao: string | null
+          user_agent: string | null
         }
         Relationships: []
       }
