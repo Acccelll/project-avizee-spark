@@ -185,7 +185,11 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
                 </ViewField>
                 <ViewField label="Status"><StatusBadge status={effectiveStatus} /></ViewField>
               </div>
-              <ViewField label="Descrição">{selected.descricao || "—"}</ViewField>
+              <ViewField label="Descrição">
+                {selected.contas_contabeis
+                  ? `${selected.contas_contabeis.codigo} - ${selected.contas_contabeis.descricao}`
+                  : (typeof selected.descricao === "string" && selected.descricao) || "—"}
+              </ViewField>
               <ViewField label={isCR ? "Cliente" : "Fornecedor"}>
                 {isCR && selected.cliente_id ? (
                   <RelationalLink type="cliente" id={selected.cliente_id}>{pessoa}</RelationalLink>
