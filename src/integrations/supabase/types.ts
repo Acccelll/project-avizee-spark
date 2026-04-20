@@ -4912,24 +4912,42 @@ export type Database = {
           action: string
           allowed: boolean
           created_at: string
+          expires_at: string | null
+          granted_at: string
+          granted_by: string | null
           id: string
+          motivo: string | null
           resource: string
+          updated_at: string
+          updated_by: string | null
           user_id: string
         }
         Insert: {
           action: string
           allowed?: boolean
           created_at?: string
+          expires_at?: string | null
+          granted_at?: string
+          granted_by?: string | null
           id?: string
+          motivo?: string | null
           resource: string
+          updated_at?: string
+          updated_by?: string | null
           user_id: string
         }
         Update: {
           action?: string
           allowed?: boolean
           created_at?: string
+          expires_at?: string | null
+          granted_at?: string
+          granted_by?: string | null
           id?: string
+          motivo?: string | null
           resource?: string
+          updated_at?: string
+          updated_by?: string | null
           user_id?: string
         }
         Relationships: []
