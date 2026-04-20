@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 export type TipoDocumento = "cpf" | "cnpj";
-export type DocumentoTable = "clientes" | "fornecedores" | "transportadoras";
+export type DocumentoTable = "clientes" | "fornecedores" | "transportadoras" | "funcionarios";
 
 const CPF_LENGTH = 11;
 const CNPJ_LENGTH = 14;
@@ -41,7 +41,22 @@ async function checkDocumentoUnico(
   const { count: countForn, error: errorForn } = await queryForn;
   if (errorForn) throw new Error(errorForn.message);
 
-  return (countClientes ?? 0) + (countForn ?? 0) === 0;
+  // Check funcionarios (only CPF applies)
+  let countFunc = 0;
+  if (tipo === "cpf") {
+    let queryFunc = supabase
+      .from("funcionarios")
+      .select("id", { count: "exact", head: true })
+      .eq("cpf", digits);
+    if (excludeId && excludeTable === "funcionarios") {
+      queryFunc = queryFunc.neq("id", excludeId);
+    }
+    const { count, error } = await queryFunc;
+    if (error) throw new Error(error.message);
+    countFunc = count ?? 0;
+  }
+
+  return (countClientes ?? 0) + (countForn ?? 0) + countFunc === 0;
 }
 
 export interface UseDocumentoUnicoReturn {

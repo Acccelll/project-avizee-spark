@@ -209,12 +209,15 @@ export function DataTable<T extends Record<string, any>>({
   useEffect(() => {
     if (!moduleKey || !user?.id) return;
     try {
-      supabase.from('user_preferences' as never).upsert({
-        user_id: user.id,
-        module_key: moduleKey,
-        columns_config: [...hiddenKeys],
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'user_id,module_key' }).then(() => {});
+      supabase.from('user_preferences').upsert(
+        {
+          user_id: user.id,
+          module_key: moduleKey,
+          columns_config: [...hiddenKeys],
+          updated_at: new Date().toISOString(),
+        } as never,
+        { onConflict: 'user_id,module_key' }
+      ).then(() => {});
     } catch {
       // Fallback silencioso - preferências ficam apenas no estado local
     }
