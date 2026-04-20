@@ -5,7 +5,6 @@ import { getNotaFiscalPermissions } from "@/lib/drawerPermissions";
 import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSummaryCard";
 import { DrawerStatusBanner, type DrawerStatusTone } from "@/components/ui/DrawerStatusBanner";
 import { EmptyState } from "@/components/ui/empty-state";
-import { StatusBadge } from "@/components/StatusBadge";
 import { RelationalLink } from "@/components/ui/RelationalLink";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,11 +13,19 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
-  Edit, Trash2, CheckCircle, XCircle, ArrowLeftRight, FileText,
+  Edit, CheckCircle, XCircle, ArrowLeftRight, FileText,
   Package, DollarSign, AlertCircle, Copy, Clock, Download, File,
 } from "lucide-react";
 import { toast } from "sonner";
 import { getUserFriendlyError } from "@/utils/errorMessages";
+import {
+  canConfirmFiscal,
+  canDevolverFiscal,
+  canEstornarFiscal,
+  getFiscalInternalStatus,
+  getFiscalSefazStatus,
+} from "@/lib/fiscalStatus";
+import { FiscalInternalStatusBadge, FiscalSefazStatusBadge } from "@/components/fiscal/FiscalStatusBadges";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -26,45 +33,6 @@ const modeloLabels: Record<string, string> = {
   "55": "NF-e", "65": "NFC-e", "57": "CT-e", "67": "CT-e OS", nfse: "NFS-e", outro: "Outro",
 };
 
-interface StatusInfo { description: string; tone: DrawerStatusTone }
-const statusInfoMap: Record<string, StatusInfo> = {
-  pendente: {
-    description: "Nota em rascunho — pendente de confirmação. Estoque e financeiro ainda não foram impactados.",
-    tone: "warning",
-  },
-  rascunho: {
-    description: "Nota em rascunho via subfluxo especializado. Ainda não confirmada no módulo principal.",
-    tone: "neutral",
-  },
-  confirmada: {
-    description: "Nota fiscal confirmada. Estoque e lançamentos financeiros já foram registrados.",
-    tone: "success",
-  },
-  autorizada: {
-    description: "Nota autorizada pela SEFAZ. Documento fiscal com validade eletrônica.",
-    tone: "success",
-  },
-  cancelada: {
-    description: "Nota fiscal cancelada — sem vigência fiscal ou operacional.",
-    tone: "destructive",
-  },
-  cancelada_sefaz: {
-    description: "Nota cancelada junto à SEFAZ. Evento de cancelamento registrado na receita.",
-    tone: "destructive",
-  },
-  rejeitada: {
-    description: "Nota rejeitada pela SEFAZ. Verifique os dados e reprocesse.",
-    tone: "destructive",
-  },
-  inutilizada: {
-    description: "Numeração inutilizada junto à SEFAZ. Número não poderá ser reaproveitado.",
-    tone: "neutral",
-  },
-  importada: {
-    description: "Nota importada a partir de XML externo.",
-    tone: "info",
-  },
-};
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -225,16 +193,21 @@ export function NotaFiscalDrawer({
     selected.condicao_pagamento === "a_prazo" ? "A Prazo" :
     selected.condicao_pagamento || "—";
 
-  const statusInfo = statusInfoMap[selected.status] ?? null;
+  const internalStatus = getFiscalInternalStatus(selected.status);
+  const sefazStatus = getFiscalSefazStatus(selected.status_sefaz || "nao_enviada");
+  const statusToneByClass: Record<string, DrawerStatusTone> = {
+    success: "success",
+    warning: "warning",
+    destructive: "destructive",
+    primary: "info",
+  };
+  const statusTone = Object.entries(statusToneByClass).find(([key]) => internalStatus.classes.includes(key))?.[1] ?? "neutral";
 
   const perms = getNotaFiscalPermissions(selected);
   // Override fiscal-specific rules (devolução só p/ saída normal)
-  const canConfirmar = selected.status === "pendente";
-  const canEstornar = selected.status === "confirmada";
-  const canDevolucao =
-    selected.status === "confirmada" &&
-    selected.tipo === "saida" &&
-    (selected.tipo_operacao || "normal") === "normal";
+  const canConfirmar = canConfirmFiscal(selected.status);
+  const canEstornar = canEstornarFiscal(selected.status);
+  const canDevolucao = canDevolverFiscal(selected.status, selected.tipo, selected.tipo_operacao);
   void perms;
 
   const copyChave = () => {
@@ -257,14 +230,18 @@ export function NotaFiscalDrawer({
 
   const tabResumo = (
     <div className="space-y-5">
-      {statusInfo && (
-        <DrawerStatusBanner
-          tone={statusInfo.tone}
-          icon={AlertCircle}
-          title={`Status: ${selected.status}`}
-          description={statusInfo.description}
-        />
-      )}
+      <DrawerStatusBanner
+        tone={statusTone}
+        icon={AlertCircle}
+        title={`Status ERP: ${internalStatus.label}`}
+        description={internalStatus.description}
+      />
+      <DrawerStatusBanner
+        tone={sefazStatus.label === "Rejeitada" ? "destructive" : sefazStatus.label === "Autorizada" ? "success" : "neutral"}
+        icon={AlertCircle}
+        title={`Status SEFAZ: ${sefazStatus.label}`}
+        description={sefazStatus.description}
+      />
 
       <ViewSection title="Identificação">
         <div className="grid grid-cols-2 gap-4">
@@ -289,7 +266,8 @@ export function NotaFiscalDrawer({
             </span>
           </ViewField>
           <ViewField label="Data de Emissão">{formatDate(selected.data_emissao)}</ViewField>
-          <ViewField label="Status"><StatusBadge status={selected.status} /></ViewField>
+          <ViewField label="Status ERP"><FiscalInternalStatusBadge status={selected.status} /></ViewField>
+          <ViewField label="Status SEFAZ"><FiscalSefazStatusBadge status={selected.status_sefaz || "nao_enviada"} /></ViewField>
           {(selected.tipo_operacao || "normal") !== "normal" && (
             <ViewField label="Operação">
               <span className="font-medium capitalize text-warning">{selected.tipo_operacao}</span>
@@ -421,8 +399,11 @@ export function NotaFiscalDrawer({
             <span className="font-mono">{selected.serie || "1"}</span>
           </ViewField>
           <ViewField label="Data de Emissão">{formatDate(selected.data_emissao)}</ViewField>
-          <ViewField label="Status Fiscal">
-            <StatusBadge status={selected.status} />
+          <ViewField label="Status ERP">
+            <FiscalInternalStatusBadge status={selected.status} />
+          </ViewField>
+          <ViewField label="Status SEFAZ">
+            <FiscalSefazStatusBadge status={selected.status_sefaz || "nao_enviada"} />
           </ViewField>
           <ViewField label="Operação">
             <span className="capitalize">{selected.tipo === "entrada" ? "Entrada" : "Saída"}</span>
@@ -826,7 +807,12 @@ export function NotaFiscalDrawer({
           )}
         </span>
       }
-      badge={<StatusBadge status={selected.status} />}
+      badge={
+        <div className="flex items-center gap-2">
+          <FiscalInternalStatusBadge status={selected.status} />
+          <FiscalSefazStatusBadge status={selected.status_sefaz || "nao_enviada"} />
+        </div>
+      }
       summary={summary}
       actions={
         <>
@@ -837,11 +823,12 @@ export function NotaFiscalDrawer({
             variant="outline"
             size="sm"
             className="gap-1.5 text-destructive border-destructive/30 hover:text-destructive hover:bg-destructive/10"
-            aria-label="Excluir nota fiscal"
-            disabled={deletePending}
+            aria-label="Inativar rascunho fiscal"
+            disabled={deletePending || !["pendente", "rascunho"].includes(selected.status)}
+            title={selected.status === "pendente" || selected.status === "rascunho" ? "Inativar rascunho no ERP" : "Inativação permitida somente para rascunho/pendente"}
             onClick={() => runDelete(() => { onDelete(selected.id); onClose(); })}
           >
-            <Trash2 className="h-3.5 w-3.5" /> Excluir
+            <XCircle className="h-3.5 w-3.5" /> Inativar
           </Button>
         </>
       }
@@ -862,6 +849,7 @@ export function NotaFiscalDrawer({
                 size="sm"
                 className="gap-2 text-destructive border-destructive/30 hover:text-destructive"
                 disabled={estornarPending}
+                title="Estorno operacional: reverte estoque, financeiro e vínculo de faturamento"
                 onClick={() => runEstornar(() => { onEstornar(selected); onClose(); })}
               >
                 <XCircle className="h-4 w-4" /> Estornar
@@ -874,12 +862,12 @@ export function NotaFiscalDrawer({
                 <FileText className="h-4 w-4" /> DANFE
               </Button>
               {canDevolucao && (
-                <Button variant="outline" size="sm" className="gap-2" disabled={devolucaoPending} onClick={() => runDevolucao(() => { onDevolucao(selected); onClose(); })}>
+                <Button variant="outline" size="sm" className="gap-2" disabled={devolucaoPending} title="Gerar NF de devolução vinculada à nota de origem" onClick={() => runDevolucao(() => { onDevolucao(selected); onClose(); })}>
                   <ArrowLeftRight className="h-4 w-4" /> Devolução
                 </Button>
               )}
               {canConfirmar && (
-                <Button size="sm" className="gap-2" disabled={confirmarPending} onClick={() => runConfirmar(() => { onConfirmar(selected); onClose(); })}>
+                <Button size="sm" className="gap-2" disabled={confirmarPending} title="Confirmação operacional: cria impactos reais em estoque e financeiro" onClick={() => runConfirmar(() => { onConfirmar(selected); onClose(); })}>
                   <CheckCircle className="h-4 w-4" /> Confirmar NF
                 </Button>
               )}

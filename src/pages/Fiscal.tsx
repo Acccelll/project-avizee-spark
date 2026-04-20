@@ -33,6 +33,15 @@ import { useActionLock } from "@/hooks/useActionLock";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useInvalidateAfterMutation } from "@/hooks/useInvalidateAfterMutation";
 import { INVALIDATION_KEYS } from "@/services/_invalidationKeys";
+import {
+  canConfirmFiscal,
+  canEstornarFiscal,
+  fiscalInternalStatusOptions,
+  fiscalSefazStatusOptions,
+  getFiscalInternalStatus,
+  getFiscalSefazStatus,
+} from "@/lib/fiscalStatus";
+import { FiscalInternalStatusBadge, FiscalSefazStatusBadge } from "@/components/fiscal/FiscalStatusBadges";
 
 export interface NotaFiscal {
   id: string; tipo: string; numero: string; serie: string; chave_acesso: string;
@@ -93,7 +102,6 @@ const modeloLabels: Record<string, string> = {
 };
 
 const origemLabels: Record<string, string> = { manual: "Manual", pedido: "Pedido", importacao_xml: "Importação XML" };
-const statusSefazLabels: Record<string, string> = { nao_enviada: "Não Enviada", pendente_envio: "Pendente Envio", em_processamento: "Em Processamento", autorizada: "Autorizada", rejeitada: "Rejeitada", cancelada_sefaz: "Cancelada SEFAZ", inutilizada: "Inutilizada", importada_externa: "Importada Externa" };
 
 interface FornecedorRef { id: string; nome_razao_social: string; cpf_cnpj: string | null; }
 interface ClienteRef { id: string; nome_razao_social: string; cpf_cnpj: string | null; }
@@ -131,7 +139,7 @@ interface DevolucaoItem extends NfItemRow { qtd_devolver: number; nome: string; 
 const Fiscal = () => {
   const navigate = useNavigate();
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const { data, loading, create, update, remove, fetchData } = useSupabaseCrud<NotaFiscal>({
+  const { data, loading, remove, fetchData } = useSupabaseCrud<NotaFiscal>({
     table: "notas_fiscais", select: "*, fornecedores(nome_razao_social, cpf_cnpj), clientes(nome_razao_social), ordens_venda(numero)"
   });
   const fornecedoresCrud = useSupabaseCrud<FornecedorRef>({ table: "fornecedores" });
@@ -291,10 +299,21 @@ const Fiscal = () => {
   };
 
   const handleConfirmar = async (nf: NotaFiscal) => {
+    if (!canConfirmFiscal(nf.status)) {
+      toast.error(`NF ${nf.numero} não está em estado confirmável.`);
+      return;
+    }
+    const ok = await confirm({
+      title: "Confirmar nota fiscal",
+      description: `Ao confirmar a NF ${nf.numero}, o ERP registrará efeitos operacionais (estoque) e financeiros conforme a configuração da nota.`,
+      confirmLabel: "Confirmar e processar",
+      confirmVariant: "default",
+    });
+    if (!ok) return;
     await confirmarLock.run(async () => {
       try {
         await confirmarNotaFiscal({ nf, parcelas });
-        toast.success("Nota fiscal confirmada! Estoque e financeiro atualizados.");
+        toast.success(`NF ${nf.numero} confirmada com sucesso. Impactos operacionais aplicados.`);
         fetchData();
         // Invalidação cross-módulo: outros módulos abertos em background
         // (Estoque, Financeiro, Pedidos) refletem a mudança imediatamente.
@@ -307,9 +326,13 @@ const Fiscal = () => {
   };
 
   const handleEstornar = async (nf: NotaFiscal) => {
+    if (!canEstornarFiscal(nf.status)) {
+      toast.error(`NF ${nf.numero} não está em estado estornável.`);
+      return;
+    }
     const ok = await confirm({
       title: "Estornar nota fiscal",
-      description: `Deseja estornar a NF ${nf.numero}? Isso reverterá movimentos de estoque e lançamentos financeiros vinculados.`,
+      description: `Estorno da NF ${nf.numero}: o sistema reverterá os movimentos de estoque, cancelará lançamentos financeiros e recalculará faturamento vinculado.`,
       confirmLabel: "Estornar",
       confirmVariant: "destructive",
     });
@@ -345,7 +368,7 @@ const Fiscal = () => {
         status_novo: "cancelada",
         descricao: `Rascunho da NF ${selected.numero} cancelado pelo usuário.`,
       });
-      toast.success("Rascunho cancelado.");
+      toast.success("Rascunho inativado com sucesso.");
       setModalOpen(false);
       fetchData();
     } catch (err: unknown) {
@@ -544,6 +567,24 @@ const Fiscal = () => {
     setDevolucaoModalOpen(true);
   };
 
+  const handleInativar = async (nfId: string) => {
+    const nf = data.find((item) => item.id === nfId);
+    if (!nf) return;
+    if (!["pendente", "rascunho"].includes(nf.status)) {
+      toast.error("Inativação permitida apenas para notas em preparação (rascunho/pendente).");
+      return;
+    }
+    const ok = await confirm({
+      title: "Inativar rascunho fiscal",
+      description: `A NF ${nf.numero} será inativada no ERP. Esta ação não cancela eventos na SEFAZ.`,
+      confirmLabel: "Inativar",
+      confirmVariant: "destructive",
+    });
+    if (!ok) return;
+    await remove(nfId);
+    toast.success(`NF ${nf.numero} inativada.`);
+  };
+
   const tipoParam = searchParams.get("tipo");
   const filteredData = useMemo(() => {
     const query = consultaSearch.trim().toLowerCase();
@@ -574,9 +615,9 @@ const Fiscal = () => {
     const chips: FilterChip[] = [];
     tipoFilters.forEach(f => chips.push({ key: "tipo", label: "Tipo", value: [f], displayValue: f === "entrada" ? "Entrada" : "Saída" }));
     modeloFilters.forEach(f => chips.push({ key: "modelo", label: "Modelo", value: [f], displayValue: modeloLabels[f] || f }));
-    statusFilters.forEach(f => chips.push({ key: "status", label: "Status", value: [f], displayValue: f.charAt(0).toUpperCase() + f.slice(1) }));
+    statusFilters.forEach(f => chips.push({ key: "status", label: "Status ERP", value: [f], displayValue: getFiscalInternalStatus(f).label }));
     origemFilters.forEach(f => chips.push({ key: "origem", label: "Origem", value: [f], displayValue: origemLabels[f] || f }));
-    statusSefazFilters.forEach(f => chips.push({ key: "status_sefaz", label: "SEFAZ", value: [f], displayValue: statusSefazLabels[f] || f }));
+    statusSefazFilters.forEach(f => chips.push({ key: "status_sefaz", label: "Status SEFAZ", value: [f], displayValue: getFiscalSefazStatus(f).label }));
     return chips;
   }, [tipoFilters, modeloFilters, statusFilters, origemFilters, statusSefazFilters]);
 
@@ -590,19 +631,15 @@ const Fiscal = () => {
 
   const tipoOptions: MultiSelectOption[] = [{ label: "Entrada", value: "entrada" }, { label: "Saída", value: "saida" }];
   const modeloOptions: MultiSelectOption[] = Object.entries(modeloLabels).map(([v, l]) => ({ label: l, value: v }));
-  const statusOptions: MultiSelectOption[] = [
-    { label: "Pendente", value: "pendente" },
-    { label: "Rascunho", value: "rascunho" },
-    { label: "Importada", value: "importada" },
-    { label: "Confirmada", value: "confirmada" },
-    { label: "Autorizada", value: "autorizada" },
-    { label: "Rejeitada", value: "rejeitada" },
-    { label: "Cancelada", value: "cancelada" },
-    { label: "Cancelada SEFAZ", value: "cancelada_sefaz" },
-    { label: "Inutilizada", value: "inutilizada" },
-  ];
+  const statusOptions: MultiSelectOption[] = fiscalInternalStatusOptions.map((value) => ({
+    value,
+    label: getFiscalInternalStatus(value).label,
+  }));
   const origemOptions: MultiSelectOption[] = Object.entries(origemLabels).map(([v, l]) => ({ label: l, value: v }));
-  const statusSefazOptions: MultiSelectOption[] = Object.entries(statusSefazLabels).map(([v, l]) => ({ label: l, value: v }));
+  const statusSefazOptions: MultiSelectOption[] = fiscalSefazStatusOptions.map((value) => ({
+    value,
+    label: getFiscalSefazStatus(value).label,
+  }));
 
   const tipoConfig = tipoParam === "entrada"
     ? { title: "Notas de Entrada", subtitle: "Central de conferência e recebimento fiscal", addLabel: "Nova NF de Entrada", moduleKey: "notas-entrada", parceiroLabel: "Fornecedor" }
@@ -610,26 +647,7 @@ const Fiscal = () => {
     ? { title: "Notas de Saída", subtitle: "Notas fiscais de saída e faturamento", addLabel: "Nova NF de Saída", moduleKey: "notas-saida", parceiroLabel: "Cliente" }
     : { title: "Fiscal", subtitle: "Notas fiscais, faturas e documentos", addLabel: "Nova NF", moduleKey: "notas-fiscais", parceiroLabel: "Parceiro" };
 
-  const fiscalStatusMap: Record<string, { label: string; className: string }> = {
-    pendente:        { label: "Pendente",        className: "bg-warning/10 text-warning border-warning/20" },
-    confirmada:      { label: "Confirmada",      className: "bg-success/10 text-success border-success/20" },
-    cancelada:       { label: "Cancelada",       className: "bg-destructive/10 text-destructive border-destructive/20" },
-    importada:       { label: "Importada",       className: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-800" },
-    autorizada:      { label: "Autorizada",      className: "bg-success/10 text-success border-success/20" },
-    rejeitada:       { label: "Rejeitada",       className: "bg-destructive/10 text-destructive border-destructive/20" },
-    cancelada_sefaz: { label: "Cancelada SEFAZ", className: "bg-destructive/10 text-destructive border-destructive/20" },
-    inutilizada:     { label: "Inutilizada",     className: "bg-muted text-muted-foreground border-muted" },
-    rascunho:        { label: "Rascunho",        className: "bg-muted text-muted-foreground border-muted" },
-  };
-
-  const renderFiscalStatus = (n: NotaFiscal) => {
-    const cfg = fiscalStatusMap[n.status] ?? { label: n.status, className: "bg-muted text-muted-foreground border-muted" };
-    return (
-      <Badge variant="outline" className={`text-xs font-medium ${cfg.className}`}>
-        {cfg.label}
-      </Badge>
-    );
-  };
+  const renderFiscalStatus = (n: NotaFiscal) => <FiscalInternalStatusBadge status={n.status} />;
 
   const parceiroLabel = tipoConfig.parceiroLabel;
 
@@ -664,7 +682,7 @@ const Fiscal = () => {
     },
     {
       key: "status",
-      label: "Status",
+      label: "Status ERP",
       render: renderFiscalStatus,
     },
     {
@@ -738,12 +756,8 @@ const Fiscal = () => {
     },
     {
       key: "status_sefaz",
-      label: "SEFAZ",
-      render: (n: NotaFiscal) => {
-        const sf = n.status_sefaz || "nao_enviada";
-        const sfClass = sf === "autorizada" ? "text-success border-success/30" : sf === "rejeitada" ? "text-destructive border-destructive/30" : "text-muted-foreground border-muted";
-        return <Badge variant="outline" className={`text-xs ${sfClass}`}>{statusSefazLabels[sf] || sf}</Badge>;
-      },
+      label: "Status SEFAZ",
+      render: (n: NotaFiscal) => <FiscalSefazStatusBadge status={n.status_sefaz || "nao_enviada"} />,
     },
   ];
 
@@ -778,9 +792,9 @@ const Fiscal = () => {
         >
           {!tipoParam && <MultiSelect options={tipoOptions} selected={tipoFilters} onChange={setTipoFilters} placeholder="Tipo" className="w-[150px]" />}
           <MultiSelect options={modeloOptions} selected={modeloFilters} onChange={setModeloFilters} placeholder="Modelos" className="w-[180px]" />
-          <MultiSelect options={statusOptions} selected={statusFilters} onChange={setStatusFilters} placeholder="Status" className="w-[180px]" />
+          <MultiSelect options={statusOptions} selected={statusFilters} onChange={setStatusFilters} placeholder="Status ERP" className="w-[180px]" />
           <MultiSelect options={origemOptions} selected={origemFilters} onChange={setOrigemFilters} placeholder="Origem" className="w-[180px]" />
-          <MultiSelect options={statusSefazOptions} selected={statusSefazFilters} onChange={setStatusSefazFilters} placeholder="SEFAZ" className="w-[180px]" />
+          <MultiSelect options={statusSefazOptions} selected={statusSefazFilters} onChange={setStatusSefazFilters} placeholder="Status SEFAZ" className="w-[180px]" />
         </AdvancedFilterBar>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -925,7 +939,7 @@ const Fiscal = () => {
         onClose={() => setDrawerOpen(false)}
         selected={selected}
         onEdit={openEdit}
-        onDelete={(id) => remove(id)}
+        onDelete={handleInativar}
         onConfirmar={handleConfirmar}
         onEstornar={handleEstornar}
         onDevolucao={openDevolucao}

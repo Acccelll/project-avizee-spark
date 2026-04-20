@@ -12,6 +12,7 @@ import { ArrowLeft, Eye, Receipt, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ListPageHeader } from "@/components/list/ListPageHeader";
 import { NotaFiscalDrawer } from "@/components/fiscal/NotaFiscalDrawer";
+import { FiscalInternalStatusBadge, FiscalSefazStatusBadge } from "@/components/fiscal/FiscalStatusBadges";
 import { DetailLoading, DetailError, DetailEmpty } from "@/components/ui/DetailStates";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import { toast } from "sonner";
@@ -40,13 +41,17 @@ export default function FiscalDetail() {
   });
 
   function handleDelete(nfId: string) {
+    if (!nf || !["pendente", "rascunho"].includes(nf.status)) {
+      toast.error("Inativação permitida apenas para notas em rascunho/pendente.");
+      return;
+    }
     run("delete", async () => {
       const { error: delErr } = await supabase
         .from("notas_fiscais")
         .update({ ativo: false })
         .eq("id", nfId);
       if (delErr) throw delErr;
-      toast.success("Nota fiscal removida.");
+      toast.success("Rascunho fiscal inativado.");
       invalidate(["notas_fiscais", "fiscal"]);
       navigate("/fiscal");
     }).catch(() => {
@@ -107,8 +112,8 @@ export default function FiscalDetail() {
   const tipoLabel = nf.tipo === "entrada" ? "Entrada" : "Saída";
   const contraparte =
     nf.tipo === "entrada"
-      ? (nf as any).fornecedores?.nome_razao_social
-      : (nf as any).clientes?.nome_razao_social;
+      ? nf.fornecedores?.nome_razao_social
+      : nf.clientes?.nome_razao_social;
 
   return (
     <><div className="p-6">
@@ -126,8 +131,14 @@ export default function FiscalDetail() {
               ? `Emitida em ${new Date(nf.data_emissao).toLocaleDateString("pt-BR")}`
               : undefined
           }
+          rightSlot={
+            <div className="flex items-center gap-2">
+              <FiscalInternalStatusBadge status={nf.status} />
+              <FiscalSefazStatusBadge status={nf.status_sefaz || "nao_enviada"} />
+            </div>
+          }
           primaryAction={{
-            label: "Abrir Detalhes",
+            label: "Abrir Drawer Operacional",
             icon: Eye,
             onClick: () => setDrawerOpen(true),
             disabled: locked("delete"),

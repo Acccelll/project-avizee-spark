@@ -55,6 +55,9 @@ export async function confirmarNotaFiscal({ nf, parcelas }: ConfirmarNFParams) {
     console.warn("[fiscal] NF já confirmada, ignorando duplicidade");
     return;
   }
+  if (current?.status && !["pendente", "rascunho"].includes(current.status)) {
+    throw new Error(`NF não pode ser confirmada no status atual (${current.status}).`);
+  }
 
   // Pre-confirmation validation
   if (!nf.numero) throw new Error("Número da NF é obrigatório para confirmação.");
@@ -184,6 +187,11 @@ export async function estornarNotaFiscal(nf: {
   if (current?.status === "cancelada") {
     console.warn("[fiscal] NF já cancelada, ignorando duplicidade");
     return;
+  }
+  if (current?.status !== "confirmada") {
+    throw new Error(
+      `Estorno disponível apenas para NF confirmada. Use cancelamento SEFAZ para notas autorizadas eletronicamente.`,
+    );
   }
 
   const statusAnterior = current?.status || nf.status || "confirmada";

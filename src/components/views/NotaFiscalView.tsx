@@ -1,5 +1,4 @@
 import { supabase } from "@/integrations/supabase/client";
-import { StatusBadge } from "@/components/StatusBadge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { RelationalLink } from "@/components/ui/RelationalLink";
@@ -12,6 +11,7 @@ import { Truck, FileText, Edit } from "lucide-react";
 import { useDetailFetch } from "@/hooks/useDetailFetch";
 import { DetailLoading, DetailError, DetailEmpty } from "@/components/ui/DetailStates";
 import type { NotaFiscal } from "@/types/domain";
+import { FiscalInternalStatusBadge, FiscalSefazStatusBadge } from "@/components/fiscal/FiscalStatusBadges";
 
 interface NfViewItem {
   id: string;
@@ -76,7 +76,8 @@ export function NotaFiscalView({ id }: Props) {
               : selected.clientes?.nome_razao_social && ` · ${selected.clientes.nome_razao_social}`}
           </p>
           <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-            <StatusBadge status={selected.status} />
+            <FiscalInternalStatusBadge status={selected.status} />
+            <FiscalSefazStatusBadge status={selected.status_sefaz || "nao_enviada"} />
             <span className="inline-flex items-center rounded-full border bg-muted/50 px-2 py-0.5 text-[10px] font-medium text-muted-foreground capitalize">
               {selected.tipo}
             </span>
@@ -107,6 +108,9 @@ export function NotaFiscalView({ id }: Props) {
   return (
     <div className="space-y-4">
       <Tabs defaultValue="itens" className="w-full">
+        <div className="rounded-md border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+          Este painel lateral é uma visão rápida. Para operação completa (confirmação, estorno, devolução e trilha fiscal), use <strong>“Abrir Detalhes”</strong>.
+        </div>
         <TabsList className="w-full grid grid-cols-3">
           <TabsTrigger value="itens">Itens</TabsTrigger>
           <TabsTrigger value="logistica">Logística</TabsTrigger>

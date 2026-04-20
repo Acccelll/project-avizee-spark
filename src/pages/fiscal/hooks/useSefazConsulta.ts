@@ -17,10 +17,11 @@ export function useSefazConsulta(
   options?: UseSefazConsultaOptions,
 ) {
   return useQuery({
-    queryKey: ["sefaz-consulta", chave],
+    queryKey: ["sefaz-consulta", chave, urlSefaz],
     queryFn: () => consultarNFe(chave!, certificado!, urlSefaz),
     enabled: !!chave && !!certificado && !!urlSefaz,
     refetchInterval: options?.pollingInterval,
     staleTime: 0,
+    retry: 1,
   });
 }
