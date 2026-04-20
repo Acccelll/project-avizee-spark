@@ -720,6 +720,13 @@ export type Database = {
             referencedRelation: "v_trilha_compras"
             referencedColumns: ["pedido_id"]
           },
+          {
+            foreignKeyName: "fk_compras_pedido_compra"
+            columns: ["pedido_compra_id"]
+            isOneToOne: false
+            referencedRelation: "vw_recebimentos_consolidado"
+            referencedColumns: ["pedido_compra_id"]
+          },
         ]
       }
       compras_itens: {
@@ -1312,39 +1319,54 @@ export type Database = {
       }
       estoque_movimentos: {
         Row: {
+          aprovado_em: string | null
+          aprovado_por: string | null
+          categoria_ajuste: string | null
           created_at: string
           documento_id: string | null
           documento_tipo: string | null
           id: string
           motivo: string | null
+          motivo_estruturado: string | null
           produto_id: string
           quantidade: number
+          requer_aprovacao: boolean
           saldo_anterior: number | null
           saldo_atual: number | null
           tipo: string
           usuario_id: string | null
         }
         Insert: {
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          categoria_ajuste?: string | null
           created_at?: string
           documento_id?: string | null
           documento_tipo?: string | null
           id?: string
           motivo?: string | null
+          motivo_estruturado?: string | null
           produto_id: string
           quantidade: number
+          requer_aprovacao?: boolean
           saldo_anterior?: number | null
           saldo_atual?: number | null
           tipo: string
           usuario_id?: string | null
         }
         Update: {
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          categoria_ajuste?: string | null
           created_at?: string
           documento_id?: string | null
           documento_tipo?: string | null
           id?: string
           motivo?: string | null
+          motivo_estruturado?: string | null
           produto_id?: string
           quantidade?: number
+          requer_aprovacao?: boolean
           saldo_anterior?: number | null
           saldo_atual?: number | null
           tipo?: string
@@ -1859,6 +1881,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_trilha_compras"
             referencedColumns: ["pedido_id"]
+          },
+          {
+            foreignKeyName: "financeiro_lancamentos_pedido_compra_id_fkey"
+            columns: ["pedido_compra_id"]
+            isOneToOne: false
+            referencedRelation: "vw_recebimentos_consolidado"
+            referencedColumns: ["pedido_compra_id"]
           },
         ]
       }
@@ -2712,6 +2741,13 @@ export type Database = {
             referencedRelation: "v_trilha_comercial"
             referencedColumns: ["pedido_id"]
           },
+          {
+            foreignKeyName: "notas_fiscais_ordem_venda_id_fkey"
+            columns: ["ordem_venda_id"]
+            isOneToOne: false
+            referencedRelation: "vw_entregas_consolidadas"
+            referencedColumns: ["ordem_venda_id"]
+          },
         ]
       }
       notas_fiscais_itens: {
@@ -3330,6 +3366,13 @@ export type Database = {
             referencedColumns: ["pedido_id"]
           },
           {
+            foreignKeyName: "ordens_venda_itens_ordem_venda_id_fkey"
+            columns: ["ordem_venda_id"]
+            isOneToOne: false
+            referencedRelation: "vw_entregas_consolidadas"
+            referencedColumns: ["ordem_venda_id"]
+          },
+          {
             foreignKeyName: "ordens_venda_itens_produto_id_fkey"
             columns: ["produto_id"]
             isOneToOne: false
@@ -3484,6 +3527,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_trilha_compras"
             referencedColumns: ["pedido_id"]
+          },
+          {
+            foreignKeyName: "pedidos_compra_itens_pedido_compra_id_fkey"
+            columns: ["pedido_compra_id"]
+            isOneToOne: false
+            referencedRelation: "vw_recebimentos_consolidado"
+            referencedColumns: ["pedido_compra_id"]
           },
           {
             foreignKeyName: "pedidos_compra_itens_produto_id_fkey"
@@ -3862,6 +3912,172 @@ export type Database = {
         }
         Relationships: []
       }
+      recebimentos_compra: {
+        Row: {
+          compra_id: string | null
+          created_at: string
+          data_recebimento: string
+          id: string
+          motivo_divergencia: string | null
+          nota_fiscal_id: string | null
+          numero: string | null
+          observacoes: string | null
+          pedido_compra_id: string
+          responsavel_id: string | null
+          status_logistico: string
+          tem_divergencia: boolean
+          updated_at: string
+          usuario_id: string | null
+        }
+        Insert: {
+          compra_id?: string | null
+          created_at?: string
+          data_recebimento?: string
+          id?: string
+          motivo_divergencia?: string | null
+          nota_fiscal_id?: string | null
+          numero?: string | null
+          observacoes?: string | null
+          pedido_compra_id: string
+          responsavel_id?: string | null
+          status_logistico?: string
+          tem_divergencia?: boolean
+          updated_at?: string
+          usuario_id?: string | null
+        }
+        Update: {
+          compra_id?: string | null
+          created_at?: string
+          data_recebimento?: string
+          id?: string
+          motivo_divergencia?: string | null
+          nota_fiscal_id?: string | null
+          numero?: string | null
+          observacoes?: string | null
+          pedido_compra_id?: string
+          responsavel_id?: string | null
+          status_logistico?: string
+          tem_divergencia?: boolean
+          updated_at?: string
+          usuario_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recebimentos_compra_compra_id_fkey"
+            columns: ["compra_id"]
+            isOneToOne: false
+            referencedRelation: "compras"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recebimentos_compra_compra_id_fkey"
+            columns: ["compra_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_compras"
+            referencedColumns: ["compra_id"]
+          },
+          {
+            foreignKeyName: "recebimentos_compra_nota_fiscal_id_fkey"
+            columns: ["nota_fiscal_id"]
+            isOneToOne: false
+            referencedRelation: "notas_fiscais"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recebimentos_compra_nota_fiscal_id_fkey"
+            columns: ["nota_fiscal_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_comercial"
+            referencedColumns: ["nf_id"]
+          },
+          {
+            foreignKeyName: "recebimentos_compra_pedido_compra_id_fkey"
+            columns: ["pedido_compra_id"]
+            isOneToOne: false
+            referencedRelation: "pedidos_compra"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recebimentos_compra_pedido_compra_id_fkey"
+            columns: ["pedido_compra_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_compras"
+            referencedColumns: ["pedido_id"]
+          },
+          {
+            foreignKeyName: "recebimentos_compra_pedido_compra_id_fkey"
+            columns: ["pedido_compra_id"]
+            isOneToOne: false
+            referencedRelation: "vw_recebimentos_consolidado"
+            referencedColumns: ["pedido_compra_id"]
+          },
+        ]
+      }
+      recebimentos_compra_itens: {
+        Row: {
+          created_at: string
+          id: string
+          motivo_divergencia: string | null
+          pedido_compra_item_id: string
+          produto_id: string | null
+          quantidade_pedida_snapshot: number
+          quantidade_recebida: number
+          recebimento_id: string
+          tem_divergencia: boolean
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          motivo_divergencia?: string | null
+          pedido_compra_item_id: string
+          produto_id?: string | null
+          quantidade_pedida_snapshot?: number
+          quantidade_recebida?: number
+          recebimento_id: string
+          tem_divergencia?: boolean
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          motivo_divergencia?: string | null
+          pedido_compra_item_id?: string
+          produto_id?: string | null
+          quantidade_pedida_snapshot?: number
+          quantidade_recebida?: number
+          recebimento_id?: string
+          tem_divergencia?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recebimentos_compra_itens_pedido_compra_item_id_fkey"
+            columns: ["pedido_compra_item_id"]
+            isOneToOne: false
+            referencedRelation: "pedidos_compra_itens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recebimentos_compra_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produtos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recebimentos_compra_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_estoque_posicao"
+            referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "recebimentos_compra_itens_recebimento_id_fkey"
+            columns: ["recebimento_id"]
+            isOneToOne: false
+            referencedRelation: "recebimentos_compra"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       remessa_eventos: {
         Row: {
           created_at: string
@@ -4069,6 +4285,13 @@ export type Database = {
             referencedColumns: ["pedido_id"]
           },
           {
+            foreignKeyName: "remessas_ordem_venda_id_fkey"
+            columns: ["ordem_venda_id"]
+            isOneToOne: false
+            referencedRelation: "vw_entregas_consolidadas"
+            referencedColumns: ["ordem_venda_id"]
+          },
+          {
             foreignKeyName: "remessas_pedido_compra_id_fkey"
             columns: ["pedido_compra_id"]
             isOneToOne: false
@@ -4081,6 +4304,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_trilha_compras"
             referencedColumns: ["pedido_id"]
+          },
+          {
+            foreignKeyName: "remessas_pedido_compra_id_fkey"
+            columns: ["pedido_compra_id"]
+            isOneToOne: false
+            referencedRelation: "vw_recebimentos_consolidado"
+            referencedColumns: ["pedido_compra_id"]
           },
           {
             foreignKeyName: "remessas_transportadora_id_fkey"
@@ -4854,6 +5084,85 @@ export type Database = {
           },
         ]
       }
+      v_trilha_logistica: {
+        Row: {
+          codigo_rastreio: string | null
+          compra_id: string | null
+          ordem_venda_id: string | null
+          ordem_venda_numero: string | null
+          origem: string | null
+          pedido_compra_id: string | null
+          pedido_compra_numero: string | null
+          recebimento_id: string | null
+          remessa_id: string | null
+          status_transporte: string | null
+        }
+        Relationships: []
+      }
+      vw_entregas_consolidadas: {
+        Row: {
+          cidade: string | null
+          cliente: string | null
+          cliente_id: string | null
+          data_entrega: string | null
+          data_expedicao: string | null
+          numero_pedido: string | null
+          ordem_venda_id: string | null
+          peso_total: number | null
+          previsao_entrega: string | null
+          previsao_envio: string | null
+          status_consolidado: string | null
+          tem_divergencia_quantidade: boolean | null
+          total_remessas: number | null
+          total_volumes: number | null
+          transportadora: string | null
+          transportadora_principal_id: string | null
+          uf: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ordens_venda_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "remessas_transportadora_id_fkey"
+            columns: ["transportadora_principal_id"]
+            isOneToOne: false
+            referencedRelation: "transportadoras"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vw_recebimentos_consolidado: {
+        Row: {
+          data_recebimento: string | null
+          fornecedor: string | null
+          fornecedor_id: string | null
+          nf_vinculada: string | null
+          numero_compra: string | null
+          pedido_compra_id: string | null
+          pendencia: number | null
+          previsao_entrega: string | null
+          quantidade_pedida: number | null
+          quantidade_recebida: number | null
+          status_logistico: string | null
+          tem_consolidacao_real: boolean | null
+          tem_divergencia: boolean | null
+          total_recebimentos: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pedidos_compra_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "fornecedores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vw_workbook_aging_cp: {
         Row: {
           data_vencimento: string | null
@@ -4996,15 +5305,27 @@ export type Database = {
       }
     }
     Functions: {
-      ajustar_estoque_manual: {
-        Args: {
-          p_motivo?: string
-          p_produto_id: string
-          p_quantidade: number
-          p_tipo: string
-        }
-        Returns: string
-      }
+      ajustar_estoque_manual:
+        | {
+            Args: {
+              p_motivo?: string
+              p_produto_id: string
+              p_quantidade: number
+              p_tipo: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_categoria_ajuste?: string
+              p_motivo?: string
+              p_motivo_estruturado?: string
+              p_produto_id: string
+              p_quantidade: number
+              p_tipo: string
+            }
+            Returns: string
+          }
       aprovar_pedido: { Args: { p_pedido_id: string }; Returns: Json }
       cancelar_cotacao_compra: {
         Args: { p_id: string; p_motivo?: string }
@@ -5107,6 +5428,14 @@ export type Database = {
         Args: { p_cotacao_id: string; p_observacoes?: string }
         Returns: Json
       }
+      get_recebimento_status_efetivo: {
+        Args: {
+          p_previsao: string
+          p_status: string
+          p_tem_divergencia: boolean
+        }
+        Returns: string
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -5165,6 +5494,17 @@ export type Database = {
           p_lancamento_id: string
           p_observacoes?: string
           p_valor_pago: number
+        }
+        Returns: string
+      }
+      registrar_recebimento_compra: {
+        Args: {
+          p_compra_id?: string
+          p_data_recebimento: string
+          p_itens: Json
+          p_nota_fiscal_id?: string
+          p_observacoes?: string
+          p_pedido_compra_id: string
         }
         Returns: string
       }
