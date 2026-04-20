@@ -203,6 +203,8 @@ export async function parseConciliacaoWorkbook(file: File): Promise<ConciliacaoB
     FORNECEDORES: findSheet(wb, ["FORNECEDORES"]),
     PLANO: findSheet(wb, ["Plano de Contas", "PlanoContas"]),
     CC: findSheet(wb, ["Centro de Custo", "CentroCusto"]),
+    PRODUTOS: findSheet(wb, ["PRODUTOS", "Produtos", "Produtos e Insumos"]),
+    INSUMOS: findSheet(wb, ["INSUMOS", "Insumos"]),
   };
 
   const abasDetectadas: string[] = [];
@@ -221,6 +223,8 @@ export async function parseConciliacaoWorkbook(file: File): Promise<ConciliacaoB
     centroCusto: map.CC ? parseCentroCusto(wb, map.CC) : [],
     clientes: map.CLIENTES ? parsePessoasAux(wb, map.CLIENTES) : [],
     fornecedores: map.FORNECEDORES ? parsePessoasAux(wb, map.FORNECEDORES) : [],
+    produtos: map.PRODUTOS ? parseProdutosOuInsumos(wb, map.PRODUTOS, "produto") : [],
+    insumos: map.INSUMOS ? parseProdutosOuInsumos(wb, map.INSUMOS, "insumo") : [],
     abasDetectadas,
     abasFaltantes,
   };
@@ -399,14 +403,71 @@ function parsePessoasAux(wb: XLSX.WorkBook, sheetName: string): PessoaAuxRow[] {
     })();
     const nome = normalizeText(pick(row, "Cliente", "Fornecedor", "Nome", "Razão Social"));
     if (!nome && !cpfCnpj && !codigo) return;
+    const cep = pick(row, "CEP");
     out.push({
+      tipo_pessoa: detectTipoPessoa(cpfCnpj),
       cpf_cnpj: cpfCnpj,
       codigo_legado: codigo,
       nome_razao_social: nome,
       nome_fantasia: normalizeText(pick(row, "Fantasia", "Nome Fantasia")) || null,
-      email: normalizeText(pick(row, "Email", "E-mail")) || null,
-      telefone: normalizeText(pick(row, "Telefone", "Fone", "Celular")) || null,
+      inscricao_estadual: normalizeText(pick(row, "IE", "Inscrição Estadual")) || null,
+      contato: normalizeText(pick(row, "Contato", "Pessoa de Contato")) || null,
+      email: normalizeEmail(pick(row, "Email", "E-mail")) || null,
+      telefone: normalizePhone(pick(row, "Fone", "Telefone")) || null,
+      celular: normalizePhone(pick(row, "Celular", "Whatsapp")) || null,
+      cep: cep !== null && cep !== "" ? normalizeCep(cep) : null,
+      logradouro: normalizeText(pick(row, "Endereço", "Endereco", "Logradouro")) || null,
+      numero: (() => { const v = pick(row, "Número", "Numero"); return v !== null && v !== "" ? String(v).trim() : null; })(),
+      complemento: normalizeText(pick(row, "Complemento")) || null,
+      bairro: normalizeText(pick(row, "Bairro")) || null,
+      cidade: normalizeText(pick(row, "Cidade")) || null,
+      uf: normalizeText(pick(row, "UF", "Estado")) || null,
+      caixa_postal: normalizeText(pick(row, "Caixa Postal")) || null,
+      observacoes: normalizeText(pick(row, "Obs.", "Observações")) || null,
+      prazo_padrao: parsePrazoPadrao(pick(row, "Pagt.", "Pagto", "Prazo")),
       forma_pagamento_padrao: normalizeText(pick(row, "Pagt.", "Pagto", "Forma Pagamento")) || null,
+      _originalLine: idx + 2,
+    });
+  });
+  return out;
+}
+
+function parseProdutosOuInsumos(
+  wb: XLSX.WorkBook,
+  sheetName: string,
+  tipo: "produto" | "insumo",
+): ProdutoInsumoRow[] {
+  const rows = readSheetAsObjects(wb, sheetName);
+  const out: ProdutoInsumoRow[] = [];
+  rows.forEach((row, idx) => {
+    const codigo = (() => {
+      const v = pick(row, "COD.", "Cod.", "Código", "Codigo");
+      return v !== null && v !== "" ? String(v).trim() : "";
+    })();
+    const nome = normalizeText(pick(row, "Nome", "Descrição"));
+    if (!codigo && !nome) return;
+    const unidade = (normalizeText(pick(row, "UN", "Unidade")) || "UN").toUpperCase();
+    const fornCodigo = (() => {
+      const v = pick(row, "COD. FORNECEDOR", "Cod. Fornecedor", "Código Fornecedor");
+      return v !== null && v !== "" ? String(v).trim() : null;
+    })();
+    out.push({
+      tipo_item: tipo,
+      codigo_legado: codigo,
+      sku: codigo,
+      nome,
+      grupo_nome: normalizeText(pick(row, "GRUPO", "Grupo")) || null,
+      unidade_medida: unidade,
+      variacoes: normalizeText(pick(row, "VARIAÇÕES", "Variações")) || null,
+      preco_custo: parseDecimalFlexible(pick(row, "Custo", "Preço de Custo")).value || 0,
+      preco_venda: parseDecimalFlexible(pick(row, "Preço", "Preco")).value || 0,
+      peso: parseDecimalFlexible(pick(row, "PESO", "Peso")).value || 0,
+      ncm: "84369100",
+      estoque_inicial: parseDecimalFlexible(pick(row, "ESTOQUE", "Estoque")).value || 0,
+      fornecedor_principal_nome: normalizeText(pick(row, "Fornecedor")) || null,
+      fornecedor_principal_legado: fornCodigo,
+      ref_fornecedor: normalizeText(pick(row, "REF. FORNECEDOR", "Ref. Fornecedor")) || null,
+      url_produto_fornecedor: normalizeText(pick(row, "SITE PRODUTO FORNECEDOR:", "Site Produto Fornecedor")) || null,
       _originalLine: idx + 2,
     });
   });
