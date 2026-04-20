@@ -12,6 +12,7 @@ interface Pendencia {
   id: string;
   tipo: 'receber' | 'pagar';
   descricao: string;
+  pessoa: string;
   valor: number;
   data_vencimento: string;
   status: string;
@@ -20,7 +21,6 @@ interface Pendencia {
 const QUERY_KEY = ['dashboard', 'pendencias'] as const;
 
 async function fetchPendencias(): Promise<Pendencia[]> {
-  const today = new Date().toISOString().slice(0, 10);
   const sevenDaysAhead = new Date();
   sevenDaysAhead.setDate(sevenDaysAhead.getDate() + 7);
   const ahead = sevenDaysAhead.toISOString().slice(0, 10);
@@ -32,7 +32,7 @@ async function fetchPendencias(): Promise<Pendencia[]> {
 
   const { data, error } = await supabase
     .from('financeiro_lancamentos')
-    .select('id, tipo, descricao, valor, data_vencimento, status')
+    .select('id, tipo, descricao, valor, data_vencimento, status, clientes(nome_razao_social), fornecedores(nome_razao_social)')
     .eq('ativo', true)
     .in('status', ['aberto', 'vencido'])
     .gte('data_vencimento', pastBound)
@@ -42,14 +42,30 @@ async function fetchPendencias(): Promise<Pendencia[]> {
 
   if (error) throw error;
 
-  return (data || []).map((r: { id: string; tipo: string; descricao: string | null; valor: number; data_vencimento: string; status: string | null }) => ({
-    id: r.id,
-    tipo: r.tipo as 'receber' | 'pagar',
-    descricao: r.descricao || (r.tipo === 'receber' ? 'A receber' : 'A pagar'),
-    valor: Number(r.valor || 0),
-    data_vencimento: r.data_vencimento,
-    status: r.status ?? 'aberto',
-  }));
+  return (data || []).map((r: {
+    id: string;
+    tipo: string;
+    descricao: string | null;
+    valor: number;
+    data_vencimento: string;
+    status: string | null;
+    clientes?: { nome_razao_social: string | null } | null;
+    fornecedores?: { nome_razao_social: string | null } | null;
+  }) => {
+    const isReceber = r.tipo === 'receber';
+    const pessoa = (isReceber
+      ? r.clientes?.nome_razao_social
+      : r.fornecedores?.nome_razao_social) || (isReceber ? 'Cliente não informado' : 'Fornecedor não informado');
+    return {
+      id: r.id,
+      tipo: r.tipo as 'receber' | 'pagar',
+      descricao: typeof r.descricao === 'string' && r.descricao ? r.descricao : (isReceber ? 'A receber' : 'A pagar'),
+      pessoa,
+      valor: Number(r.valor || 0),
+      data_vencimento: r.data_vencimento,
+      status: r.status ?? 'aberto',
+    };
+  });
 }
 
 const INITIAL_VISIBLE = 5;
