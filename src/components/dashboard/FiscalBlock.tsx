@@ -2,6 +2,8 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowRight, FileText, CheckCircle, AlertCircle, Clock, Ban } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatNumber, formatCurrency } from '@/lib/format';
+import { ScopeBadge } from './ScopeBadge';
+import { buildDrilldownUrl } from '@/lib/dashboard/drilldown';
 
 interface FiscalStats {
   emitidas: number;
@@ -76,6 +78,7 @@ export function FiscalBlock({ stats }: FiscalBlockProps) {
         <h3 className="font-semibold text-foreground flex items-center gap-2">
           <FileText className="h-4 w-4 text-secondary" />
           Fiscal
+          <ScopeBadge scope={{ kind: 'global-range', eixo: 'data_emissao' }} />
           {stats.pendentes > 0 && (
             <span className="inline-flex items-center gap-1 rounded-full bg-warning/10 px-2 py-0.5 text-[10px] font-bold text-warning">
               <Clock className="h-2.5 w-2.5" />
@@ -87,7 +90,7 @@ export function FiscalBlock({ stats }: FiscalBlockProps) {
           variant="ghost"
           size="sm"
           className="h-7 gap-1 text-xs text-primary hover:text-primary"
-          onClick={() => navigate('/fiscal')}
+          onClick={() => navigate(stats.pendentes > 0 ? buildDrilldownUrl({ kind: 'fiscal:pendentes' }) : '/fiscal')}
         >
           Ver módulo <ArrowRight className="h-3.5 w-3.5" />
         </Button>
@@ -101,7 +104,10 @@ export function FiscalBlock({ stats }: FiscalBlockProps) {
             <div
               key={item.label}
               className="flex items-center gap-3 rounded-lg border border-border/40 px-3 py-2 hover:bg-muted/20 cursor-pointer"
-              onClick={() => navigate('/fiscal')}
+              onClick={() => {
+                if (item.label === 'Pendentes de emissão') navigate(buildDrilldownUrl({ kind: 'fiscal:pendentes' }));
+                else navigate('/fiscal');
+              }}
             >
               <div className={`rounded-lg p-1.5 ${item.bg}`}>
                 <Icon className={`h-3.5 w-3.5 ${item.color}`} />

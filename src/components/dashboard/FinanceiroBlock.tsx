@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button';
 import { FluxoCaixaChart } from './FluxoCaixaChart';
 import { formatCurrency, formatNumber } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { ScopeBadge } from './ScopeBadge';
+import { buildDrilldownUrl } from '@/lib/dashboard/drilldown';
 
 interface FinanceiroBlockProps {
   totalReceber: number;
@@ -56,12 +58,13 @@ export function FinanceiroBlock({
         <h3 className="font-semibold text-foreground flex items-center gap-2">
           <DollarSign className="h-4 w-4 text-primary" />
           Financeiro
+          <ScopeBadge scope={{ kind: 'global-range', eixo: 'data_vencimento' }} />
         </h3>
         <Button
           variant="ghost"
           size="sm"
           className="h-7 gap-1 text-xs text-primary hover:text-primary"
-          onClick={() => navigate('/financeiro')}
+          onClick={() => navigate(buildDrilldownUrl({ kind: 'financeiro:receber-aberto' }))}
         >
           Abrir módulo <ArrowRight className="h-3.5 w-3.5" />
         </Button>

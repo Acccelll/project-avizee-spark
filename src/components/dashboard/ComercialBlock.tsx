@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button';
 import { formatCurrency, formatNumber } from '@/lib/format';
 import { useRelationalNavigation } from '@/contexts/RelationalNavigationContext';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ScopeBadge } from './ScopeBadge';
+import { buildDrilldownUrl } from '@/lib/dashboard/drilldown';
 import type { Orcamento } from '@/types/domain';
 
 interface ComercialBlockProps {
@@ -49,6 +51,7 @@ export function ComercialBlock({
         <h3 className="font-semibold text-foreground flex items-center gap-2">
           <ShoppingBag className="h-4 w-4 text-secondary" />
           Comercial
+          <ScopeBadge scope={{ kind: 'global-range', eixo: 'data_orcamento' }} />
         </h3>
         <Button
           variant="ghost"
@@ -129,7 +132,7 @@ export function ComercialBlock({
           variant="link"
           size="sm"
           className="h-auto p-0 text-xs"
-          onClick={() => navigate('/pedidos')}
+          onClick={() => navigate(buildDrilldownUrl({ kind: 'pedidos:aguardando-faturamento' }))}
         >
           <TrendingUp className="h-3 w-3 mr-1" />
           Ver pedidos →
