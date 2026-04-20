@@ -4,7 +4,8 @@
  * All functions are side-effect-free so they can be unit-tested without mocks.
  */
 
-import type { VendasRow, AgingRow, CurvaAbcRow, EstoqueRow } from "@/types/relatorios";
+import type { VendasRow, AgingRow, CurvaAbcRow } from "@/types/relatorios";
+import type { TipoRelatorio } from "@/services/relatorios.service";
 
 // ─── Sales aggregation ───────────────────────────────────────────────────────
 
@@ -124,7 +125,8 @@ export function agruparAgingPorFaixa(
 /** Filters a generic rows array by a status substring (case-insensitive). */
 export function filtrarPorStatus<T extends Record<string, unknown>>(
   rows: T[],
-  statusFiltro: string
+  statusFiltro: string,
+  options?: { statusField?: string }
 ): T[] {
   if (statusFiltro === "todos") return rows;
   const wanted = statusFiltro.toLowerCase();
@@ -149,12 +151,13 @@ export function filtrarPorStatus<T extends Record<string, unknown>>(
  */
 export function sortarRows<T extends Record<string, unknown>>(
   rows: T[],
-  agrupamento: "padrao" | "valor_desc" | "status" | "vencimento"
+  agrupamento: "padrao" | "valor_desc" | "status" | "vencimento",
+  options?: { statusField?: string; valueSortField?: string; dateSortField?: string }
 ): T[] {
   const copy = [...rows];
   if (agrupamento === "valor_desc") {
     const valueOf = (r: T): number => {
-      const direct = r["valor"] ?? r["valorTotal"];
+      const direct = (options?.valueSortField ? r[options.valueSortField] : undefined) ?? r["valor"] ?? r["valorTotal"];
       if (direct != null) return Number(direct);
       const entrada = Number(r["entrada"] ?? 0);
       const saida = Number(r["saida"] ?? 0);
@@ -164,20 +167,52 @@ export function sortarRows<T extends Record<string, unknown>>(
   }
   if (agrupamento === "vencimento") {
     return copy.sort((a, b) =>
-      String(a["vencimento"] ?? a["data"] ?? "").localeCompare(
-        String(b["vencimento"] ?? b["data"] ?? "")
+      String((options?.dateSortField ? a[options.dateSortField] : undefined) ?? a["vencimento"] ?? a["data"] ?? "").localeCompare(
+        String((options?.dateSortField ? b[options.dateSortField] : undefined) ?? b["vencimento"] ?? b["data"] ?? "")
       )
     );
   }
   if (agrupamento === "status") {
     return copy.sort((a, b) =>
-      String(a["status"] ?? a["situacao"] ?? "").localeCompare(
-        String(b["status"] ?? b["situacao"] ?? ""),
+      normalizeSemanticToken((options?.statusField ? a[options.statusField] : undefined) ?? a["status"] ?? a["situacao"] ?? "").localeCompare(
+        normalizeSemanticToken((options?.statusField ? b[options.statusField] : undefined) ?? b["status"] ?? b["situacao"] ?? ""),
         "pt-BR"
       )
     );
   }
   return copy;
+}
+
+export type SemanticBadgeTone = "default" | "success" | "warning" | "destructive" | "secondary" | "outline";
+
+const BADGE_TONE_MAP: Array<{ match: RegExp; tone: SemanticBadgeTone }> = [
+  { match: /(vencid|atras|zerad|ruptura|diverg|pendente|negativ|critic|erro|falha|cancelad|c)\b/i, tone: "destructive" },
+  { match: /(atenc|abaixo|minim|risco|b|parcial)/i, tone: "warning" },
+  { match: /(ok|pago|faturad|confirmad|entreg|regular|a)\b/i, tone: "success" },
+];
+
+export function classifyBadgeTone(
+  raw: unknown,
+  ctx?: { reportId?: TipoRelatorio; columnKey?: string }
+): SemanticBadgeTone {
+  if (typeof raw !== "string") return "secondary";
+  const value = normalizeSemanticToken(raw);
+  if (!value || value === "-") return "secondary";
+  if (ctx?.reportId === "curva_abc" && ctx.columnKey === "classe") {
+    if (value === "a") return "success";
+    if (value === "b") return "warning";
+    return "destructive";
+  }
+  const match = BADGE_TONE_MAP.find((def) => def.match.test(value));
+  return match?.tone ?? "secondary";
+}
+
+export function normalizeSemanticToken(value: unknown): string {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .trim()
+    .toLowerCase();
 }
 
 // ─── Curva ABC ───────────────────────────────────────────────────────────────

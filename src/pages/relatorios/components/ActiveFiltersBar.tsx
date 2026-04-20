@@ -17,6 +17,7 @@ export interface ActiveFilterChip {
   value: string;
   /** Callback de remoção. Se ausente, o chip não mostra o X. */
   onRemove?: () => void;
+  tone?: 'default' | 'relevant';
 }
 
 export interface ActiveFiltersBarProps {
@@ -37,7 +38,7 @@ export function ActiveFiltersBar({ chips, recordCount, onClearAll }: ActiveFilte
           {chips.map((chip) => (
             <Badge
               key={chip.id}
-              variant="secondary"
+              variant={chip.tone === 'relevant' ? 'default' : 'secondary'}
               className="gap-1 font-normal pr-1 py-0.5"
             >
               <span className="text-muted-foreground">{chip.label}:</span>

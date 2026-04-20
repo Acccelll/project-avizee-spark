@@ -118,6 +118,25 @@ export interface ReportConfig {
   drillDown?: ReportDrillDownAction[];
 }
 
+export interface ReportRuntimeSemantics {
+  /** Campo canônico de status por relatório (fallback controlado no utilitário). */
+  statusField?: string;
+  /** Campo canônico para ordenação por valor quando usuário escolhe "Maior valor". */
+  valueSortField?: string;
+  /** Campo canônico para ordenação temporal. */
+  dateSortField?: string;
+  /** Eixo temporal que o período representa para o usuário. */
+  periodAxisLabel?: string;
+  /** Texto auxiliar para explicar o filtro de status nesse relatório. */
+  statusMeaning?: string;
+  /** Texto auxiliar para explicar o filtro de tipo nesse relatório. */
+  typeMeaning?: string;
+  /** Filtros mais relevantes para o relatório (mostrados com destaque). */
+  highlightFilters?: Array<'periodo' | 'status' | 'tipo' | 'clientes' | 'fornecedores' | 'grupos'>;
+  /** Campo que indica linha investigável/navegável (preparo para drill-down). */
+  investigableField?: string;
+}
+
 // ---------------------------------------------------------------------------
 // Individual report configurations
 // ---------------------------------------------------------------------------
@@ -732,4 +751,76 @@ export const reportCategoryMeta: Record<
   financeiro: { title: 'Financeiro', icon: Landmark },
   estoque_suprimentos: { title: 'Estoque e Suprimentos', icon: Boxes },
   fiscal_faturamento: { title: 'Fiscal / Faturamento', icon: Receipt },
+};
+
+export const reportRuntimeSemantics: Partial<Record<TipoRelatorio, ReportRuntimeSemantics>> = {
+  estoque: {
+    statusField: 'criticidade',
+    valueSortField: 'totalCusto',
+    periodAxisLabel: 'posição atual de estoque',
+    highlightFilters: ['grupos'],
+    investigableField: 'produto',
+  },
+  estoque_minimo: {
+    statusField: 'criticidade',
+    valueSortField: 'custoReposicao',
+    periodAxisLabel: 'posição atual de abastecimento',
+    highlightFilters: ['grupos'],
+    investigableField: 'produto',
+  },
+  movimentos_estoque: {
+    statusField: 'tipo',
+    valueSortField: 'quantidade',
+    dateSortField: 'data',
+    periodAxisLabel: 'data de movimentação',
+    typeMeaning: 'Tipo representa entrada, saída ou ajuste no estoque.',
+    highlightFilters: ['periodo', 'grupos'],
+    investigableField: 'documento',
+  },
+  financeiro: {
+    statusField: 'status',
+    valueSortField: 'valor',
+    dateSortField: 'vencimento',
+    periodAxisLabel: 'vencimento/pagamento dos títulos',
+    statusMeaning: 'Status indica situação financeira do título no contas a pagar/receber.',
+    typeMeaning: 'Tipo representa se o título é a pagar ou a receber.',
+    highlightFilters: ['periodo', 'status', 'tipo'],
+    investigableField: 'descricao',
+  },
+  aging: {
+    statusField: 'faixa',
+    valueSortField: 'valor',
+    dateSortField: 'vencimento',
+    periodAxisLabel: 'vencimento dos títulos',
+    statusMeaning: 'Status agrupa títulos por faixa de atraso (aging).',
+    highlightFilters: ['periodo', 'status'],
+    investigableField: 'parceiro',
+  },
+  dre: {
+    valueSortField: 'valor',
+    periodAxisLabel: 'competência contábil',
+    highlightFilters: ['periodo'],
+  },
+  curva_abc: {
+    statusField: 'classe',
+    valueSortField: 'faturamento',
+    periodAxisLabel: 'faturamento acumulado no período',
+    highlightFilters: ['periodo', 'grupos'],
+    investigableField: 'produto',
+  },
+  divergencias: {
+    statusField: 'criticidade',
+    valueSortField: 'valor',
+    periodAxisLabel: 'janela operacional analisada',
+    statusMeaning: 'Status e criticidade representam impacto da divergência entre módulos.',
+    highlightFilters: ['status'],
+    investigableField: 'referencia',
+  },
+  vendas: { statusField: 'status', valueSortField: 'valor', dateSortField: 'emissao', periodAxisLabel: 'data de emissão' },
+  vendas_cliente: { valueSortField: 'valorTotal', periodAxisLabel: 'emissão por cliente', highlightFilters: ['periodo', 'clientes'], investigableField: 'cliente' },
+  compras: { statusField: 'status', valueSortField: 'valor', dateSortField: 'emissao', periodAxisLabel: 'data de compra', highlightFilters: ['periodo', 'fornecedores'], investigableField: 'fornecedor' },
+  compras_fornecedor: { valueSortField: 'valorTotal', periodAxisLabel: 'compras por fornecedor', highlightFilters: ['periodo', 'fornecedores'], investigableField: 'fornecedor' },
+  faturamento: { valueSortField: 'valor', dateSortField: 'emissao', periodAxisLabel: 'emissão/faturamento', highlightFilters: ['periodo'] },
+  fluxo_caixa: { valueSortField: 'saldo', dateSortField: 'data', periodAxisLabel: 'movimentação de caixa', highlightFilters: ['periodo', 'tipo'] },
+  margem_produtos: { valueSortField: 'margem', periodAxisLabel: 'margem calculada na carteira', highlightFilters: ['grupos'], investigableField: 'produto' },
 };

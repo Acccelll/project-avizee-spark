@@ -20,6 +20,8 @@ export interface PeriodoFilterValue {
 export interface PeriodoFilterProps {
   dataInicio: string;
   dataFim: string;
+  axisLabel?: string;
+  highlighted?: boolean;
   onChange: (value: PeriodoFilterValue) => void;
   /** Optional human label of the temporal axis applied (e.g. "vencimento"). */
   axisLabel?: string;
@@ -78,7 +80,7 @@ export function PeriodoFilter({ dataInicio, dataFim, onChange, axisLabel }: Peri
   };
 
   return (
-    <div className="space-y-2">
+    <div className={`space-y-2 ${highlighted ? 'rounded-md bg-primary/5 ring-1 ring-primary/20 px-2 py-2' : ''}`}>
       <div className="flex flex-wrap items-center gap-1.5">
         <Label className="text-xs text-muted-foreground mr-1">
           Período{axisLabel ? <span className="ml-1 text-muted-foreground/80">por {axisLabel}</span> : null}:

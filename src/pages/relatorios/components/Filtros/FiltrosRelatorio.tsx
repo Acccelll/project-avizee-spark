@@ -50,6 +50,12 @@ export interface FiltrosRelatorioProps {
   clientes: ClienteRef[];
   fornecedores: FornecedorRef[];
   grupos: GrupoProdutoRef[];
+  semantics?: {
+    statusMeaning?: string;
+    typeMeaning?: string;
+    highlightFilters?: Array<'periodo' | 'status' | 'tipo' | 'clientes' | 'fornecedores' | 'grupos'>;
+    listLimitHints?: { clientes?: number; fornecedores?: number; grupos?: number };
+  };
   onChange: (partial: Partial<FiltrosRelatorioState>) => void;
 }
 
@@ -59,13 +65,18 @@ export function FiltrosRelatorio({
   clientes,
   fornecedores,
   grupos,
+  semantics,
   onChange,
 }: FiltrosRelatorioProps) {
+  const hints = semantics?.listLimitHints;
+  const highlightFilters = semantics?.highlightFilters ?? [];
+  const highlightClass = "ring-1 ring-primary/20 bg-primary/5 rounded-md px-2 py-1.5";
+
   return (
     <>
-      <div className="flex flex-wrap gap-3 items-end">
+      <div className="flex flex-wrap gap-3 items-start">
         {filters.showClientes && (
-          <div className="space-y-1">
+          <div className={`space-y-1 ${highlightFilters.includes('clientes') ? highlightClass : ''}`}>
             <Label className="text-xs">Clientes</Label>
             <AsyncMultiSelect
               selected={state.clienteIds}
@@ -76,11 +87,12 @@ export function FiltrosRelatorio({
               emptyText="Digite ao menos 2 letras."
               className="w-[250px]"
             />
+            {hints?.clientes ? <p className="text-[11px] text-muted-foreground">Lista limitada aos {hints.clientes} primeiros clientes ativos. Use busca para localizar.</p> : null}
           </div>
         )}
 
         {filters.showFornecedores && (
-          <div className="space-y-1">
+          <div className={`space-y-1 ${highlightFilters.includes('fornecedores') ? highlightClass : ''}`}>
             <Label className="text-xs">Fornecedores</Label>
             <AsyncMultiSelect
               selected={state.fornecedorIds}
@@ -91,24 +103,26 @@ export function FiltrosRelatorio({
               emptyText="Digite ao menos 2 letras."
               className="w-[250px]"
             />
+            {hints?.fornecedores ? <p className="text-[11px] text-muted-foreground">Lista limitada aos {hints.fornecedores} primeiros fornecedores ativos.</p> : null}
           </div>
         )}
 
         {filters.showGrupos && (
-          <div className="space-y-1">
+          <div className={`space-y-1 ${highlightFilters.includes('grupos') ? highlightClass : ''}`}>
             <Label className="text-xs">Grupos de Produto</Label>
             <MultiSelect
               options={grupos.map((g) => ({ label: g.nome, value: g.id }))}
               selected={state.grupoIds}
               onChange={(v) => onChange({ grupoIds: v })}
-              placeholder="Todos os grupos"
+              placeholder="Selecionar grupos"
               className="w-[220px]"
             />
+            {hints?.grupos ? <p className="text-[11px] text-muted-foreground">A listagem pode ser parcial para manter performance.</p> : null}
           </div>
         )}
 
         {filters.showStatus && (
-          <div className="space-y-1">
+          <div className={`space-y-1 ${highlightFilters.includes('status') ? highlightClass : ''}`}>
             <Label className="text-xs">Status</Label>
             <Select value={state.statusFiltro} onValueChange={(v) => onChange({ statusFiltro: v })}>
               <SelectTrigger className="h-9 w-[160px]"><SelectValue placeholder="Todos" /></SelectTrigger>
@@ -118,6 +132,7 @@ export function FiltrosRelatorio({
                 ))}
               </SelectContent>
             </Select>
+            {semantics?.statusMeaning ? <p className="text-[11px] text-muted-foreground max-w-[240px]">{semantics.statusMeaning}</p> : null}
           </div>
         )}
 
@@ -135,7 +150,7 @@ export function FiltrosRelatorio({
         </div>
 
         {filters.showTipos && (
-          <div className="space-y-1">
+          <div className={`space-y-1 ${highlightFilters.includes('tipo') ? highlightClass : ''}`}>
             <Label className="text-xs">Tipos</Label>
             <MultiSelect
               options={[
@@ -147,6 +162,7 @@ export function FiltrosRelatorio({
               placeholder="Todos"
               className="w-[180px]"
             />
+            {semantics?.typeMeaning ? <p className="text-[11px] text-muted-foreground max-w-[220px]">{semantics.typeMeaning}</p> : null}
           </div>
         )}
       </div>

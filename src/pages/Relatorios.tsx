@@ -27,8 +27,8 @@ import { useRelatoriosFavoritos } from '@/hooks/useRelatoriosFavoritos';
 import { cn } from '@/lib/utils';
 import { BookmarkPlus, BookOpen, Columns, Hash, Eye, Layers, Trash2, RefreshCcw, Rows3, SearchX } from 'lucide-react';
 import { exportarParaCsv, exportarParaExcel, exportarParaPdf, type ExportColumnDef } from '@/services/export.service';
-import { filtrarPorStatus, sortarRows } from '@/utils/relatorios';
-import { reportConfigs, reportCategoryMeta, type ReportCategory } from '@/config/relatoriosConfig';
+import { filtrarPorStatus, sortarRows, classifyBadgeTone } from '@/utils/relatorios';
+import { reportConfigs, reportCategoryMeta, reportRuntimeSemantics, type ReportCategory } from '@/config/relatoriosConfig';
 import { formatCurrency, formatNumber, formatDate } from '@/lib/format';
 import { formatCellValue, type TipoRelatorio } from '@/services/relatorios.service';
 import type { DreRow } from '@/types/relatorios';
@@ -42,6 +42,7 @@ const BADGE_CRITICAL = ['vencido', 'abaixo do mínimo', 'zerado', 'pendente', 'n
 const BADGE_OK = ['ok', 'entregue', 'confirmado', 'pago', 'faturado', 'a'];
 
 const DENSITY_KEY = 'relatorios:density';
+const PDF_ROW_LIMIT = 200;
 
 function buildDreDateRange(state: FiltrosRelatorioState, dataInicio: string, dataFim: string) {
   if (state.dreCompetencia === 'personalizado') return { dataInicio, dataFim };
@@ -122,7 +123,7 @@ export default function Relatorios() {
     updateParams(patch);
   };
 
-  const { clientes, fornecedores, grupos, empresaConfig } = useRelatoriosFiltrosData();
+  const { clientes, fornecedores, grupos, empresaConfig, limits } = useRelatoriosFiltrosData();
 
   const filtros = useMemo(() => {
     if (tipo === 'dre') return buildDreDateRange(filtrosState, dataInicio, dataFim);
@@ -143,8 +144,16 @@ export default function Relatorios() {
   const isDreReport = reportMeta?.kind === 'dre' || resultado?._isDreReport === true;
   const rows = useMemo(() => (resultado?.rows ?? []) as Record<string, unknown>[], [resultado?.rows]);
 
-  const filteredRows = useMemo(() => filtrarPorStatus(rows, filtrosState.statusFiltro), [rows, filtrosState.statusFiltro]);
-  const sortedRows = useMemo(() => sortarRows(filteredRows, filtrosState.agrupamento), [filteredRows, filtrosState.agrupamento]);
+  const selectedMeta = tipo ? reportConfigs[tipo as TipoRelatorio] : undefined;
+  const semantics = tipo ? reportRuntimeSemantics[tipo as TipoRelatorio] : undefined;
+  const filteredRows = useMemo(
+    () => filtrarPorStatus(rows, filtrosState.statusFiltro, { statusField: semantics?.statusField }),
+    [rows, filtrosState.statusFiltro, semantics?.statusField],
+  );
+  const sortedRows = useMemo(
+    () => sortarRows(filteredRows, filtrosState.agrupamento, { statusField: semantics?.statusField, valueSortField: semantics?.valueSortField, dateSortField: semantics?.dateSortField }),
+    [filteredRows, filtrosState.agrupamento, semantics?.statusField, semantics?.valueSortField, semantics?.dateSortField],
+  );
 
   const kpiCards = useMemo(() => {
     if (!resultado || !tipo) return [];
@@ -217,7 +226,7 @@ export default function Relatorios() {
   const handleExportPdf = async () => {
     if (!sortedRows.length) { toast.warning('Nenhum dado visível para exportar.'); return; }
     if (isExporting) return;
-    if (sortedRows.length > 200) toast.warning(`PDF limitado a 200 de ${sortedRows.length} registros. Use Excel para tudo.`, { duration: 8000 });
+    if (sortedRows.length > PDF_ROW_LIMIT) toast.warning(`PDF limitado a ${PDF_ROW_LIMIT} de ${sortedRows.length} registros. Use Excel para exportação completa.`, { duration: 8000 });
     const tid = toast.loading('Gerando PDF...', { description: exportScopeDescription });
     setIsExporting(true);
     try {
@@ -259,6 +268,7 @@ export default function Relatorios() {
   const handleCarregarFavorito = (params: string) => {
     setSearchParams(new URLSearchParams(params));
     setHiddenColumns([]);
+    toast.success('Favorito aplicado aos filtros atuais.');
   };
 
   const handleChartDrillDown = (point: { name: string; value: number }) => {
@@ -292,7 +302,6 @@ export default function Relatorios() {
     }));
   }, []);
 
-  const selectedMeta = tipo ? reportConfigs[tipo as TipoRelatorio] : undefined;
   const categoryMeta = selectedMeta ? reportCategoryMeta[selectedMeta.category] : undefined;
   const prioritized = Object.values(reportConfigs).filter((r) => r.priority);
   const showEmpty = !isLoading && !isError && sortedRows.length === 0;
@@ -312,6 +321,15 @@ export default function Relatorios() {
   // ── Active filter chips ──────────────────────────────────────────────────
   const activeFilterChips = useMemo<ActiveFilterChip[]>(() => {
     const out: ActiveFilterChip[] = [];
+    if (dataInicio || dataFim) {
+      out.push({
+        id: 'periodo',
+        label: 'Período',
+        value: `${dataInicio ? formatDate(dataInicio) : '—'} → ${dataFim ? formatDate(dataFim) : '—'}`,
+        tone: semantics?.highlightFilters?.includes('periodo') ? 'relevant' : 'default',
+        onRemove: () => updateParams({ di: undefined, df: undefined }),
+      });
+    }
     if (filtrosState.clienteIds.length) {
       const names = filtrosState.clienteIds
         .map((id) => clientes.find((c) => c.id === id)?.nome_razao_social)
@@ -320,6 +338,7 @@ export default function Relatorios() {
         id: 'cli',
         label: 'Clientes',
         value: names.length === 1 ? names[0] : `${names.length} selecionados`,
+        tone: semantics?.highlightFilters?.includes('clientes') ? 'relevant' : 'default',
         onRemove: () => setFiltrosState({ clienteIds: [] }),
       });
     }
@@ -331,6 +350,7 @@ export default function Relatorios() {
         id: 'for',
         label: 'Fornecedores',
         value: names.length === 1 ? names[0] : `${names.length} selecionados`,
+        tone: semantics?.highlightFilters?.includes('fornecedores') ? 'relevant' : 'default',
         onRemove: () => setFiltrosState({ fornecedorIds: [] }),
       });
     }
@@ -342,6 +362,7 @@ export default function Relatorios() {
         id: 'grp',
         label: 'Grupos',
         value: names.length === 1 ? names[0] : `${names.length} selecionados`,
+        tone: semantics?.highlightFilters?.includes('grupos') ? 'relevant' : 'default',
         onRemove: () => setFiltrosState({ grupoIds: [] }),
       });
     }
@@ -351,6 +372,7 @@ export default function Relatorios() {
         id: 'st',
         label: 'Status',
         value: opt?.label ?? filtrosState.statusFiltro,
+        tone: semantics?.highlightFilters?.includes('status') ? 'relevant' : 'default',
         onRemove: () => setFiltrosState({ statusFiltro: 'todos' }),
       });
     }
@@ -359,6 +381,7 @@ export default function Relatorios() {
         id: 'tp',
         label: 'Tipos',
         value: filtrosState.tipos.join(', '),
+        tone: semantics?.highlightFilters?.includes('tipo') ? 'relevant' : 'default',
         onRemove: () => setFiltrosState({ tipos: [] }),
       });
     }
@@ -377,7 +400,7 @@ export default function Relatorios() {
     }
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtrosState, clientes, fornecedores, grupos, selectedMeta]);
+  }, [filtrosState, clientes, fornecedores, grupos, selectedMeta, semantics, dataInicio, dataFim]);
 
   const handleClearAllFilters = () => {
     // Mantém o tipo de relatório, limpa o restante.
@@ -405,7 +428,7 @@ export default function Relatorios() {
         <PopoverTrigger asChild>
           <Button variant="outline" size="sm" className="gap-1.5" aria-label="Salvar configuração de filtros">
             <BookmarkPlus className="h-3.5 w-3.5" />
-            Salvar
+            Salvar favorito
           </Button>
         </PopoverTrigger>
         <PopoverContent align="end" className="w-64 p-3 space-y-2">
@@ -426,11 +449,11 @@ export default function Relatorios() {
           <PopoverTrigger asChild>
             <Button variant="outline" size="sm" className="gap-1.5" aria-label="Carregar configuração favorita">
               <BookOpen className="h-3.5 w-3.5" />
-              Carregar
+              Aplicar favorito
             </Button>
           </PopoverTrigger>
           <PopoverContent align="end" className="w-72 p-3">
-            <p className="text-xs font-semibold mb-2 text-muted-foreground uppercase tracking-wide">Configurações salvas</p>
+            <p className="text-xs font-semibold mb-2 text-muted-foreground uppercase tracking-wide">Favoritos salvos</p>
             <div className="space-y-1 max-h-60 overflow-y-auto">
               {favoritos.map((fav) => (
                 <div key={fav.id} className="flex items-center justify-between rounded-md hover:bg-muted/50 px-2 py-1.5 gap-2">
@@ -498,6 +521,7 @@ export default function Relatorios() {
                 title={selectedMeta.title}
                 description={selectedMeta.objective}
                 periodLabel={periodoLabel}
+                periodAxisLabel={semantics?.periodAxisLabel}
                 recordCount={sortedRows.length}
                 onBack={() => setSearchParams({})}
                 actions={headerActions}
@@ -538,6 +562,12 @@ export default function Relatorios() {
                         clientes={clientes}
                         fornecedores={fornecedores}
                         grupos={grupos}
+                        semantics={{
+                          statusMeaning: semantics?.statusMeaning,
+                          typeMeaning: semantics?.typeMeaning,
+                          highlightFilters: semantics?.highlightFilters,
+                          listLimitHints: { clientes: limits.clientes, fornecedores: limits.fornecedores },
+                        }}
                         onChange={(partial) => setFiltrosState(partial)}
                       />
                     </div>
@@ -598,6 +628,7 @@ export default function Relatorios() {
                         columnCount={visibleColumns.length}
                         disabled={!hasExportableData}
                         loading={isExporting}
+                        pdfRowLimitHint={PDF_ROW_LIMIT}
                         onExportPdf={handleExportPdf}
                         onExportExcel={handleExportXlsx}
                         onExportCsv={handleExportCsv}
@@ -645,10 +676,11 @@ export default function Relatorios() {
                           data={sortedRows}
                           loading={isLoading}
                           moduleKey={`relatorios-${tipo}`}
+                          onRowClick={semantics?.investigableField ? () => toast.info('Drill-down em preparação. Em breve você poderá abrir o detalhe desta linha.') : undefined}
                           emptyTitle={`Nenhum registro em ${selectedMeta.title}`}
                           emptyDescription="Ajuste o período e os filtros para encontrar registros relevantes."
                         />
-                        <ReportResultFooter rows={sortedRows} cols={footerCols} />
+                        <ReportResultFooter rows={sortedRows} cols={footerCols.map((c) => ({ ...c, emphasize: c.format === 'currency' }))} />
                       </>
                     )}
                     {showEmpty && (
@@ -673,6 +705,8 @@ export default function Relatorios() {
                   chartData={resultado?.chartData ?? []}
                   chartType={selectedMeta.chartType ?? 'bar'}
                   isQuantityReport={isQtyReport}
+                  contextLabel={semantics?.periodAxisLabel ? `Resumo por ${semantics.periodAxisLabel}` : undefined}
+                  importance={selectedMeta.chartType === 'pie' ? 'central' : 'complementar'}
                   onDataPointClick={handleChartDrillDown}
                 />
               </div>
@@ -691,6 +725,7 @@ export default function Relatorios() {
             columnCount={visibleColumns.length}
             disabled={!hasExportableData}
             loading={isExporting}
+            pdfRowLimitHint={PDF_ROW_LIMIT}
             onExportPdf={handleExportPdf}
             onExportExcel={handleExportXlsx}
             onExportCsv={handleExportCsv}

@@ -34,6 +34,7 @@ export function useRelatorio<TSelected = RelatorioResultado>(
     staleTime: RELATORIO_STALE_TIME,
     placeholderData: keepPreviousData,
     refetchOnWindowFocus: false,
+    retry: 1,
     enabled: enabled && !!tipo,
     select,
   });
