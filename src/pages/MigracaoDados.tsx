@@ -224,6 +224,8 @@ export default function MigracaoDados() {
     } else if (type === "financeiro") {
       setActiveImportSource("financeiro");
       setImportType("produtos" as ImportType);
+    } else if (type === "conciliacao") {
+      setActiveImportSource("conciliacao");
     } else if (["produtos_fornecedores", "formas_pagamento", "contas_contabeis", "contas_bancarias"].includes(type)) {
       setActiveImportSource("enriquecimento");
       hookEnriquecimento.setEnrichmentType(type as EnrichmentType);
@@ -238,6 +240,23 @@ export default function MigracaoDados() {
   const handleNextStep = async () => {
     if (activeImportSource !== 'xml' && step === 1 && !file) {
       toast.error("Selecione um arquivo primeiro.");
+      return;
+    }
+
+    if (activeImportSource === 'xml' && step === 1 && hookXml.files.length === 0) {
+      toast.error("Selecione os arquivos XML primeiro.");
+      return;
+    }
+
+    if (step === 1 && activeImportSource === 'xml') {
+      setStep(3);
+      return;
+    }
+
+    // Conciliação: pula mapeamento (layout fixo) — vai do upload direto para preview
+    if (step === 1 && activeImportSource === 'conciliacao') {
+      await hookConciliacao.generatePreview();
+      setStep(3);
       return;
     }
 
