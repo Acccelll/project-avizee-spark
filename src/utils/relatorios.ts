@@ -127,11 +127,16 @@ export function filtrarPorStatus<T extends Record<string, unknown>>(
   statusFiltro: string
 ): T[] {
   if (statusFiltro === "todos") return rows;
+  const wanted = statusFiltro.toLowerCase();
   return rows.filter((r) => {
+    // Prefer canonical statusKey when present (no substring heuristics).
+    const key = r["statusKey"];
+    if (typeof key === "string" && key) return key.toLowerCase() === wanted;
+    // Fallback for rows that haven't been migrated yet.
     const status = String(
       r["status"] ?? r["situacao"] ?? r["faturamento"] ?? ""
     ).toLowerCase();
-    return status.includes(statusFiltro.toLowerCase());
+    return status.includes(wanted);
   });
 }
 

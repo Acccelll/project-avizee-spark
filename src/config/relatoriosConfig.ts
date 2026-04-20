@@ -86,7 +86,16 @@ export interface ReportDrillDownAction {
   label: string;
   /** Prepared for future navigation — may not be wired yet */
   route?: string;
+  /** Hidden row field carrying the ID to use when constructing the navigation. */
+  targetField?: string;
   available: boolean;
+}
+
+/** Semantic temporal axis applied by a report's date filter. */
+export interface ReportTimeAxisDef {
+  field: 'emissao' | 'vencimento' | 'pagamento' | 'criacao' | 'competencia';
+  label: string;
+  required: boolean;
 }
 
 export interface ReportConfig {
@@ -101,6 +110,11 @@ export interface ReportConfig {
   columns: ReportColumnDef[];
   filters: ReportFiltersDef;
   kpis: ReportKpiDef[];
+  /**
+   * Declares which date column is filtered when `filters.showDateRange` is on.
+   * Mirrored into `RelatorioResultado.meta.timeAxis` by the service layer.
+   */
+  timeAxis?: ReportTimeAxisDef;
   drillDown?: ReportDrillDownAction[];
 }
 
