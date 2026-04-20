@@ -11,9 +11,20 @@ export const cotacaoCompraSchema = z.object({
   observacoes: z.string().optional().or(z.literal("")),
   status: z
     .string()
-    .refine((s) => !["convertida", "cancelada"].includes(s), {
-      message: "O status selecionado só pode ser definido por ações do sistema.",
-    }),
+    .refine(
+      (s) =>
+        [
+          "rascunho",
+          "aberta",
+          "em_analise",
+          "aguardando_aprovacao",
+          "aprovada",
+        ].includes(s),
+      {
+        message:
+          "Status inválido para edição. Use 'aberta', 'em_analise', 'aguardando_aprovacao' ou 'aprovada'.",
+      },
+    ),
 });
 
 export type CotacaoCompraFormValues = z.infer<typeof cotacaoCompraSchema>;
