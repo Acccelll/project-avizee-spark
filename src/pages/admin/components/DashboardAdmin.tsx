@@ -1,34 +1,23 @@
 /**
- * DashboardAdmin — widgets de monitoramento de segurança para o módulo Admin.
+ * DashboardAdmin — widgets de monitoramento de segurança.
  *
- * Exibe:
- *  - Tentativas de login falhas nas últimas 24 h
- *  - Usuários com permissões administrativas
- *  - Logins antigos (eventos de login registrados há mais de 30 dias)
- *    NOTA: esta métrica conta registros de auditoria_logs com ação "auth:login",
- *    NÃO sessões activas. Uma futura integração com `admin-sessions` permitirá
- *    métricas reais de sessão.
+ * Métricas exibidas (semanticamente confiáveis — vide docs/administracao-modelo.md):
+ *  - Sessões ativas       (auth.users.last_sign_in_at nos últimos 30 min)
+ *  - Usuários inativos +30d (auth.users.last_sign_in_at < hoje-30d)
+ *  - Administradores      (user_roles WHERE role='admin')
+ *  - Eventos administrativos 24h (permission_audit nas últimas 24 h)
+ *
+ * Cards removidos: "Logins Falhos 24h" e "Logins Antigos +30d" — dependiam de
+ * eventos `auth:login`/`LOGIN_FAILED` que ninguém grava. Voltarão quando captura
+ * via Auth Hooks for implementada.
  */
 
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, Clock, ShieldAlert, Users } from "lucide-react";
+import { Activity, ShieldAlert, UserMinus, Users } from "lucide-react";
 import { SummaryCard } from "@/components/SummaryCard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
-
-// ─── Query functions ──────────────────────────────────────────────────────────
-
-async function fetchLoginsFalhos(): Promise<number> {
-  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  const { count, error } = await supabase
-    .from("auditoria_logs")
-    .select("*", { count: "exact", head: true })
-    .eq("tabela", "auth")
-    .eq("acao", "LOGIN_FAILED")
-    .gte("created_at", since);
-  if (error) throw error;
-  return count ?? 0;
-}
+import { useSessoesMetricas } from "@/pages/admin/hooks/useSessoesMetricas";
 
 async function fetchUsuariosAdministrativos(): Promise<number> {
   const { count, error } = await supabase
@@ -39,33 +28,18 @@ async function fetchUsuariosAdministrativos(): Promise<number> {
   return count ?? 0;
 }
 
-async function fetchLoginsAntigos(): Promise<number> {
-  // Counts audit log entries for login events older than 30 days.
-  // This is NOT a real active-session metric — it reflects login events stored
-  // in auditoria_logs. Integration with admin-sessions is needed for true session data.
-  try {
-    const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-    const { count, error } = await supabase
-      .from("auditoria_logs")
-      .select("*", { count: "exact", head: true })
-      .eq("acao", "auth:login")
-      .lt("created_at", cutoff);
-    if (error) return 0;
-    return count ?? 0;
-  } catch {
-    return 0;
-  }
+async function fetchEventosAdmin24h(): Promise<number> {
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const { count, error } = await supabase
+    .from("permission_audit")
+    .select("*", { count: "exact", head: true })
+    .gte("created_at", since);
+  if (error) throw error;
+  return count ?? 0;
 }
 
-// ─── Componente ───────────────────────────────────────────────────────────────
-
 export function DashboardAdmin() {
-  const loginsFalhos = useQuery({
-    queryKey: ["admin", "security", "logins-falhos"],
-    queryFn: fetchLoginsFalhos,
-    staleTime: 5 * 60 * 1000,
-    retry: 1,
-  });
+  const sessoes = useSessoesMetricas();
 
   const usuariosAdmin = useQuery({
     queryKey: ["admin", "security", "usuarios-admin"],
@@ -74,16 +48,17 @@ export function DashboardAdmin() {
     retry: 1,
   });
 
-  const loginsAntigos = useQuery({
-    queryKey: ["admin", "security", "logins-antigos"],
-    queryFn: fetchLoginsAntigos,
-    staleTime: 5 * 60 * 1000,
+  const eventos24h = useQuery({
+    queryKey: ["admin", "security", "eventos-admin-24h"],
+    queryFn: fetchEventosAdmin24h,
+    staleTime: 60 * 1000,
     retry: 1,
   });
 
-  const loginsFalhosCount = loginsFalhos.data ?? 0;
-  const usuariosAdminCount = usuariosAdmin.data ?? 0;
-  const loginsAntigosCount = loginsAntigos.data ?? 0;
+  const ativasCount = sessoes.data?.ativas ?? 0;
+  const inativasCount = sessoes.data?.inativasMais30d ?? 0;
+  const adminsCount = usuariosAdmin.data ?? 0;
+  const eventosCount = eventos24h.data ?? 0;
 
   return (
     <div className="space-y-6">
@@ -94,39 +69,49 @@ export function DashboardAdmin() {
             Monitoramento de Segurança
           </CardTitle>
           <CardDescription>
-            Indicadores de segurança e atividade do sistema em tempo real.
+            Sessões reais, governança administrativa e papéis privilegiados.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <SummaryCard
-              title="Logins Falhos (24 h)"
-              value={loginsFalhosCount}
-              subtitle="Tentativas de acesso mal-sucedidas"
-              icon={AlertTriangle}
-              variant={loginsFalhosCount > 10 ? "danger" : loginsFalhosCount > 0 ? "warning" : "success"}
-              variationType={loginsFalhosCount > 0 ? "negative" : "neutral"}
-              loading={loginsFalhos.isLoading}
+              title="Sessões ativas"
+              value={ativasCount}
+              subtitle="Login nos últimos 30 minutos"
+              icon={Activity}
+              variant="info"
+              variationType="neutral"
+              loading={sessoes.isLoading}
             />
 
             <SummaryCard
-              title="Usuários Administradores"
-              value={usuariosAdminCount}
-              subtitle="Com permissões de nível admin"
+              title="Inativos (+30 dias)"
+              value={inativasCount}
+              subtitle="Sem login há mais de 30 dias"
+              icon={UserMinus}
+              variant={inativasCount > 0 ? "warning" : "success"}
+              variationType={inativasCount > 0 ? "negative" : "neutral"}
+              loading={sessoes.isLoading}
+            />
+
+            <SummaryCard
+              title="Administradores"
+              value={adminsCount}
+              subtitle="Com papel admin atribuído"
               icon={Users}
-              variant={usuariosAdminCount > 3 ? "warning" : "info"}
+              variant={adminsCount > 3 ? "warning" : "info"}
               variationType="neutral"
               loading={usuariosAdmin.isLoading}
             />
 
             <SummaryCard
-              title="Logins Antigos (+30 dias)"
-              value={loginsAntigosCount}
-              subtitle="Eventos de login com mais de 30 dias em auditoria"
-              icon={Clock}
-              variant={loginsAntigosCount > 0 ? "warning" : "success"}
-              variationType={loginsAntigosCount > 0 ? "negative" : "neutral"}
-              loading={loginsAntigos.isLoading}
+              title="Eventos admin (24 h)"
+              value={eventosCount}
+              subtitle="Mudanças em usuários, papéis e permissões"
+              icon={ShieldAlert}
+              variant={eventosCount > 20 ? "warning" : "info"}
+              variationType="neutral"
+              loading={eventos24h.isLoading}
             />
           </div>
         </CardContent>
