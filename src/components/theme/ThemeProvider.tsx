@@ -59,13 +59,16 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     applyLocalUiPreferences();
 
-    supabase.from('app_configuracoes')
-      .select('chave, valor')
-      .in('chave', ['theme_primary_color', 'theme_secondary_color'])
+    // Branding institucional vive em empresa_config (colunas dedicadas),
+    // gerenciado apenas por admins via Administracao.tsx → aba Empresa.
+    supabase
+      .from('empresa_config')
+      .select('cor_primaria, cor_secundaria')
+      .limit(1)
+      .maybeSingle()
       .then(({ data }) => {
-        const primary = data?.find((c) => c.chave === 'theme_primary_color')?.valor as string | undefined;
-        const secondary = data?.find((c) => c.chave === 'theme_secondary_color')?.valor as string | undefined;
-        applyCorporateTheme(primary, secondary);
+        const row = data as { cor_primaria?: string | null; cor_secundaria?: string | null } | null;
+        applyCorporateTheme(row?.cor_primaria ?? null, row?.cor_secundaria ?? null);
       });
   }, []);
 
