@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Truck, Plus, Trash2, Star } from "lucide-react";
 import { toast } from "sonner";
 import { getUserFriendlyError } from "@/utils/errorMessages";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 
 interface TransportadoraBasic { id: string; nome_razao_social: string; }
 
@@ -38,6 +39,7 @@ export function ClienteTransportadorasTab({ clienteId }: Props) {
   const [vinculoTranspId, setVinculoTranspId] = useState("");
   const [vinculoPrioridade, setVinculoPrioridade] = useState<number>(1);
   const [savingVinculo, setSavingVinculo] = useState(false);
+  const { confirm: confirmRemove, dialog: confirmRemoveDialog } = useConfirmDialog();
 
   const loadVinculos = async () => {
     setLoading(true);
@@ -99,6 +101,13 @@ export function ClienteTransportadorasTab({ clienteId }: Props) {
   };
 
   const handleRemove = async (vinculoId: string) => {
+    const ok = await confirmRemove({
+      title: "Remover transportadora",
+      description: "Deseja remover o vínculo com esta transportadora?",
+      confirmLabel: "Remover",
+      confirmVariant: "destructive",
+    });
+    if (!ok) return;
     try {
       const { error } = await supabase.from("cliente_transportadoras").update({ ativo: false }).eq("id", vinculoId);
       if (error) throw error;
@@ -175,6 +184,7 @@ export function ClienteTransportadorasTab({ clienteId }: Props) {
           </>
         )}
       </div>
+      {confirmRemoveDialog}
     </div>
   );
 }
