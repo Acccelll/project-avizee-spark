@@ -58,6 +58,12 @@ export async function saveEmpresaConfig(
 
 export type AppConfigChave = "email" | "fiscal" | "financeiro" | "geral" | "usuarios";
 
+/**
+ * Branding/identidade institucional vive em `empresa_config` (fonte canônica).
+ * `app_configuracoes['geral']` continua existindo durante 1 sprint para
+ * compatibilidade — não escreva mais lá. Veja `docs/administracao-modelo.md`.
+ */
+
 /** Busca uma configuração do sistema por chave. */
 export async function fetchAppConfig(chave: AppConfigChave): Promise<AppConfigValue> {
   const { data, error } = await supabase
