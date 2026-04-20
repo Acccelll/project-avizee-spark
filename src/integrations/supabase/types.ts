@@ -1241,12 +1241,16 @@ export type Database = {
           cnpj: string | null
           codigo_ibge_municipio: string | null
           complemento: string | null
+          cor_primaria: string | null
+          cor_secundaria: string | null
           created_at: string
           crt: string | null
           email: string | null
           email_fiscal: string | null
+          geral_legacy: Json | null
           id: string
           inscricao_estadual: string | null
+          inscricao_municipal: string | null
           logo_url: string | null
           logradouro: string | null
           nome_fantasia: string | null
@@ -1254,10 +1258,13 @@ export type Database = {
           proximo_numero_nfe: number | null
           razao_social: string | null
           regime_tributario: string | null
+          responsavel: string | null
           serie_padrao_nfe: string | null
+          site: string | null
           telefone: string | null
           uf: string | null
           updated_at: string
+          whatsapp: string | null
         }
         Insert: {
           ambiente_padrao?: string | null
@@ -1269,12 +1276,16 @@ export type Database = {
           cnpj?: string | null
           codigo_ibge_municipio?: string | null
           complemento?: string | null
+          cor_primaria?: string | null
+          cor_secundaria?: string | null
           created_at?: string
           crt?: string | null
           email?: string | null
           email_fiscal?: string | null
+          geral_legacy?: Json | null
           id?: string
           inscricao_estadual?: string | null
+          inscricao_municipal?: string | null
           logo_url?: string | null
           logradouro?: string | null
           nome_fantasia?: string | null
@@ -1282,10 +1293,13 @@ export type Database = {
           proximo_numero_nfe?: number | null
           razao_social?: string | null
           regime_tributario?: string | null
+          responsavel?: string | null
           serie_padrao_nfe?: string | null
+          site?: string | null
           telefone?: string | null
           uf?: string | null
           updated_at?: string
+          whatsapp?: string | null
         }
         Update: {
           ambiente_padrao?: string | null
@@ -1297,12 +1311,16 @@ export type Database = {
           cnpj?: string | null
           codigo_ibge_municipio?: string | null
           complemento?: string | null
+          cor_primaria?: string | null
+          cor_secundaria?: string | null
           created_at?: string
           crt?: string | null
           email?: string | null
           email_fiscal?: string | null
+          geral_legacy?: Json | null
           id?: string
           inscricao_estadual?: string | null
+          inscricao_municipal?: string | null
           logo_url?: string | null
           logradouro?: string | null
           nome_fantasia?: string | null
@@ -1310,10 +1328,13 @@ export type Database = {
           proximo_numero_nfe?: number | null
           razao_social?: string | null
           regime_tributario?: string | null
+          responsavel?: string | null
           serie_padrao_nfe?: string | null
+          site?: string | null
           telefone?: string | null
           uf?: string | null
           updated_at?: string
+          whatsapp?: string | null
         }
         Relationships: []
       }
