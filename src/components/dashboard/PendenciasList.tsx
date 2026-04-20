@@ -60,7 +60,7 @@ async function fetchPendencias(): Promise<Pendencia[]> {
       : r.fornecedores?.nome_razao_social) || (isReceber ? 'Cliente não informado' : 'Fornecedor não informado');
     const conta = r.contas_contabeis;
     const plano_contas = conta
-      ? [conta.codigo, conta.descricao].filter(Boolean).join(' - ')
+      ? (conta.descricao || conta.codigo || 'Sem plano de contas')
       : 'Sem plano de contas';
     return {
       id: r.id,
