@@ -67,7 +67,7 @@ export function FiltrosRelatorio({
 
   return (
     <>
-      <div className="flex flex-wrap gap-3 items-end">
+      <div className="flex flex-wrap gap-3 items-start">
         {filters.showClientes && (
           <div className={`space-y-1 ${highlightFilters.includes('clientes') ? highlightClass : ''}`}>
             <Label className="text-xs">Clientes</Label>

@@ -791,11 +791,11 @@ export const reportRuntimeSemantics: Partial<Record<TipoRelatorio, ReportRuntime
     highlightFilters: ['status'],
     investigableField: 'referencia',
   },
-  vendas: { statusField: 'faturamento', valueSortField: 'valor', dateSortField: 'emissao', periodAxisLabel: 'data de emissão' },
+  vendas: { statusField: 'status', valueSortField: 'valor', dateSortField: 'emissao', periodAxisLabel: 'data de emissão' },
   vendas_cliente: { valueSortField: 'valorTotal', periodAxisLabel: 'emissão por cliente', highlightFilters: ['periodo', 'clientes'], investigableField: 'cliente' },
   compras: { statusField: 'status', valueSortField: 'valor', dateSortField: 'emissao', periodAxisLabel: 'data de compra', highlightFilters: ['periodo', 'fornecedores'], investigableField: 'fornecedor' },
   compras_fornecedor: { valueSortField: 'valorTotal', periodAxisLabel: 'compras por fornecedor', highlightFilters: ['periodo', 'fornecedores'], investigableField: 'fornecedor' },
-  faturamento: { statusField: 'status', valueSortField: 'valor', dateSortField: 'emissao', periodAxisLabel: 'emissão/faturamento', highlightFilters: ['periodo', 'status'] },
+  faturamento: { valueSortField: 'valor', dateSortField: 'emissao', periodAxisLabel: 'emissão/faturamento', highlightFilters: ['periodo'] },
   fluxo_caixa: { valueSortField: 'saldo', dateSortField: 'data', periodAxisLabel: 'movimentação de caixa', highlightFilters: ['periodo', 'tipo'] },
   margem_produtos: { valueSortField: 'margem', periodAxisLabel: 'margem calculada na carteira', highlightFilters: ['grupos'], investigableField: 'produto' },
 };

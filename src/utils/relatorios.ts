@@ -136,6 +136,7 @@ export function filtrarPorStatus<T extends Record<string, unknown>>(
       ? r[statusField]
       : r["status"] ?? r["situacao"] ?? r["faturamento"];
     const normalized = normalizeSemanticToken(raw);
+    if (statusField) return normalized === normalizedTarget;
     return normalized === normalizedTarget || normalized.includes(normalizedTarget);
   });
 }
