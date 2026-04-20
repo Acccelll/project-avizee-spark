@@ -172,15 +172,17 @@ export default function Configuracoes() {
   }, [densidadePref]);
 
   useEffect(() => {
+    // Branding institucional vive em empresa_config (admin-only via Administracao.tsx).
+    // Aqui apenas exibimos as cores correntes para contexto visual do usuário.
     supabase
-      .from('app_configuracoes')
-      .select('chave, valor')
-      .in('chave', ['theme_primary_color', 'theme_secondary_color'])
+      .from('empresa_config')
+      .select('cor_primaria, cor_secundaria')
+      .limit(1)
+      .maybeSingle()
       .then(({ data }) => {
-        const primary = data?.find((d) => d.chave === 'theme_primary_color')?.valor as string | undefined;
-        const secondary = data?.find((d) => d.chave === 'theme_secondary_color')?.valor as string | undefined;
-        if (primary) setCorPrimaria(primary);
-        if (secondary) setCorSecundaria(secondary);
+        const row = data as { cor_primaria?: string | null; cor_secundaria?: string | null } | null;
+        if (row?.cor_primaria) setCorPrimaria(row.cor_primaria);
+        if (row?.cor_secundaria) setCorSecundaria(row.cor_secundaria);
       });
   }, []);
 
