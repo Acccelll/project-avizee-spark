@@ -114,9 +114,9 @@ export default function Signup() {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <img src={logoAvizee} alt="AviZee ERP" className="h-14 mx-auto mb-4" />
+          <img src={logoAvizee} alt="AviZee ERP" className="h-16 mx-auto mb-5" />
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Criar Conta</h1>
           <p className="text-muted-foreground text-sm mt-1">Cadastre-se no AviZee ERP</p>
         </div>
@@ -129,7 +129,11 @@ export default function Signup() {
           </Alert>
         )}
 
-        <form onSubmit={handleSignup} className="bg-card border rounded-xl p-6 space-y-4 shadow-sm">
+        <form
+          onSubmit={handleSignup}
+          className="bg-card border border-border/70 rounded-2xl p-8 space-y-5 shadow-[0_4px_24px_rgba(0,0,0,0.07)] border-t-2 border-t-primary/80"
+          noValidate
+        >
           <div className="space-y-2">
             <Label htmlFor="nome">Nome completo</Label>
             <div className="relative">
@@ -142,9 +146,15 @@ export default function Signup() {
                 className={`pl-9 ${errors.nome ? "border-destructive" : ""}`}
                 autoComplete="name"
                 autoFocus
+                aria-invalid={!!errors.nome}
+                aria-describedby={errors.nome ? "nome-error" : undefined}
               />
             </div>
-            {errors.nome && <p className="text-xs text-destructive">{errors.nome}</p>}
+            {errors.nome && (
+              <p id="nome-error" role="alert" className="text-xs text-destructive">
+                {errors.nome}
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
