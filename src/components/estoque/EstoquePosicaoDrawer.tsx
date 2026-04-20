@@ -1,5 +1,4 @@
 import { ViewDrawerV2, ViewField, ViewSection } from "@/components/ViewDrawerV2";
-import { StatusBadge } from "@/components/StatusBadge";
 import { Badge } from "@/components/ui/badge";
 import { RelationalLink } from "@/components/ui/RelationalLink";
 import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSummaryCard";
@@ -228,7 +227,9 @@ export function EstoquePosicaoDrawer({
               })}
             </ViewField>
             <ViewField label="Tipo">
-              <StatusBadge status="pendente" label={getTipoMovConfig(ultimaMov.tipo).label} />
+              <Badge variant="outline" className={`text-xs ${getTipoMovConfig(ultimaMov.tipo).className}`}>
+                {getTipoMovConfig(ultimaMov.tipo).label}
+              </Badge>
             </ViewField>
             <ViewField label="Quantidade">
               <span className="font-mono font-semibold">

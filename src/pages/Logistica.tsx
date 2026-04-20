@@ -322,7 +322,7 @@ export default function Logistica() {
   const updateRecebimentoStatus = async (recebimento: Recebimento, status: string) => {
     if (!canEdit) return;
     const source = getRecebimentoSourceMeta(recebimento.recebimento_real);
-    const ok = window.confirm(`Atualizar acompanhamento logístico para "${RECEBIMENTO_STATUS_META[status]?.label ?? status}"?\\n\\n${source.description}`);
+    const ok = window.confirm(`Atualizar acompanhamento logístico para "${RECEBIMENTO_STATUS_META[status]?.label ?? status}"?\n\n${source.description}`);
     if (!ok) return;
     setMarkingRecebimentoId(recebimento.id);
     // Guard: only allow transitions that are valid in the Compras domain.

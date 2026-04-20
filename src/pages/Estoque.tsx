@@ -279,8 +279,12 @@ const Estoque = () => {
       );
     }},
     { key: "quantidade", label: "Qtd", render: (m: Movimento) => {
-      const neg = m.tipo === "saida" || m.tipo === "perda_avaria";
-      return <span className={`font-mono font-semibold ${neg ? "text-destructive" : "text-success"}`}>{neg ? "-" : "+"}{formatNumber(m.quantidade)}</span>;
+      const cfg = getTipoMovConfig(m.tipo);
+      const neg = cfg.direction === "out";
+      const qtyTextClass =
+        cfg.className.split(" ").find((c) => c.startsWith("text-")) ??
+        (neg ? "text-destructive" : "text-success");
+      return <span className={`font-mono font-semibold ${qtyTextClass}`}>{neg ? "-" : "+"}{formatNumber(m.quantidade)}</span>;
     }},
     { key: "saldo_atual", label: "Saldo", render: (m: Movimento) => <span className="font-semibold font-mono">{formatNumber(m.saldo_atual)}</span> },
     { key: "origem", label: "Origem", render: (m: Movimento) => {

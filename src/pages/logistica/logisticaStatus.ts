@@ -74,7 +74,6 @@ export function getRastreioStatusConsistencyBadge(remessaStatus: string, temEven
   if (!temEventos) return { label: "Sem eventos", icon: Circle, className: "text-muted-foreground" };
   if (remessaStatus === "em_transito") return { label: "Em atualização", icon: Truck, className: "text-info" };
   if (remessaStatus === "postado" || remessaStatus === "coletado") return { label: "Aguardando trânsito", icon: Clock3, className: "text-warning" };
-  if (remessaStatus === "entregue") return { label: "Conferir baixa", icon: PackageCheck, className: "text-success" };
   if (remessaStatus === "ocorrencia") return { label: "Atenção", icon: AlertTriangle, className: "text-destructive" };
   return { label: "Acompanhar", icon: CheckCheck, className: "text-muted-foreground" };
 }
