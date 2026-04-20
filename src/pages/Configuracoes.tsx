@@ -256,28 +256,9 @@ export default function Configuracoes() {
     document.documentElement.dataset.density = APPEARANCE_DEFAULTS.densidade === 'compacta' ? 'compact' : 'comfortable';
     document.documentElement.style.setProperty('--base-font-size', `${APPEARANCE_DEFAULTS.fontScale}px`);
     document.documentElement.classList.remove('reduce-motion');
-    // Only reset global colors if the user is an admin.
-    if (isAdmin) {
-      setCorPrimaria(APPEARANCE_DEFAULTS.corPrimaria);
-      setCorSecundaria(APPEARANCE_DEFAULTS.corSecundaria);
-      const { error } = await supabase.from('app_configuracoes').upsert(
-        [
-          { chave: 'theme_primary_color', valor: APPEARANCE_DEFAULTS.corPrimaria, updated_at: new Date().toISOString() },
-          { chave: 'theme_secondary_color', valor: APPEARANCE_DEFAULTS.corSecundaria, updated_at: new Date().toISOString() },
-        ] satisfies AppConfigInsert[],
-        { onConflict: 'chave' }
-      );
-      if (error) {
-        console.error('[configuracoes] reset colors:', error);
-        toast.error(getUserFriendlyError(error));
-        return;
-      }
-      const primaryHsl = hexToHslString(APPEARANCE_DEFAULTS.corPrimaria);
-      const secondaryHsl = hexToHslString(APPEARANCE_DEFAULTS.corSecundaria);
-      if (primaryHsl) document.documentElement.style.setProperty('--primary', primaryHsl);
-      if (secondaryHsl) document.documentElement.style.setProperty('--secondary', secondaryHsl);
-    }
-    toast.success('Aparência restaurada ao padrão.');
+    // Branding global (cores institucionais) NÃO é mais resetado a partir daqui —
+    // pertence à Administração (empresa_config). Esta tela cuida apenas de prefs pessoais.
+    toast.success('Preferências de aparência restauradas ao padrão.');
   };
 
   const renderContent = () => {
