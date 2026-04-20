@@ -1,129 +1,47 @@
 
 
-## Revisão estrutural do módulo de Cadastros
+## Revisão estrutural do módulo Comercial — Execução
 
-Plano dividido em duas partes: (A) correção imediata dos erros de build que estão bloqueando o projeto, e (B) a revisão estrutural completa solicitada.
+Aplicar o plano aprovado em 8 migrations idempotentes + ajustes de front alinhando banco, RPCs e UI ao vocabulário canônico.
 
----
+### Migrations (ordem)
 
-### Parte A — Correções de build (bloqueantes)
+1. **`padronizar_status_orcamento`** — recria `chk_orcamentos_status` com `(rascunho, pendente, aprovado, convertido, rejeitado, cancelado, expirado)`; `UPDATE` normalizando `confirmado`/`enviado` → `pendente`; trigger `trg_orcamento_transicao_valida` bloqueando transições inválidas; RPC `expirar_orcamentos_vencidos()`.
+2. **`protecao_exclusao_orcamento`** — trigger `trg_orcamento_protege_delete` (só permite DELETE em `rascunho` e sem OV vinculada); RPC `cancelar_orcamento(p_id, p_motivo)`.
+3. **`pedido_status_integridade`** — drop `chk_ordens_venda_status_fat` duplicado; `chk_ordens_venda_matriz_status` (matriz operacional × faturamento); trigger `trg_pedido_status_auto` recalcula ao emitir NF.
+4. **`converter_orcamento_em_ov_v2`** — `CREATE OR REPLACE`: gate `status='aprovado'` (com bypass `p_forcar`); `UNIQUE INDEX ux_ordens_venda_cotacao_id`; grava em `auditoria_logs`.
+5. **`gerar_nf_de_pedido_v2`** — `CREATE OR REPLACE`: `pg_advisory_xact_lock`, gate operacional, `INSERT` em `nota_fiscal_eventos`, retorno com `status_faturamento_novo`.
+6. **`trilha_comercial_integridade`** — FKs `cotacao_id` e `ordem_venda_id` com `ON DELETE RESTRICT`; índices em `cotacao_id`, `ordem_venda_id`, `(cliente_id,status)`; view `v_trilha_comercial`.
+7. **`orcamento_condicoes_comerciais_checks`** — `chk_orcamento_frete_tipo`, `chk_orcamento_modalidade`; `transportadora_id` com `ON DELETE SET NULL`.
+8. **`auditoria_comercial_triggers`** — trigger `trg_auditoria_orcamento_status` em `AFTER UPDATE` gravando `{antes, depois, usuario, contexto}` em `auditoria_logs`.
 
-**A1. `src/components/DataTable.tsx` linha 213** — o `upsert` está com cast `'user_preferences' as never`, o que colapsa o tipo do payload para `never[]`. Trocar por `supabase.from('user_preferences').upsert({...} as never, {...})` usando cast apenas no payload, ou remover o cast (a tabela já existe nos types).
-
-**A2. `src/pages/Funcionarios.tsx` linha 112** — `useDocumentoUnico(..., "funcionarios")` falha porque `DocumentoTable` só aceita `"clientes" | "fornecedores" | "transportadoras"`. Ampliar a união em `src/hooks/useDocumentoUnico.ts` para incluir `"funcionarios"` e adicionar um bloco de verificação nessa tabela (mesmo padrão dos demais).
-
----
-
-### Parte B — Revisão estrutural do módulo de Cadastros
-
-#### B1. Clientes × Formas de Pagamento — consolidar `forma_pagamento_id`
-
-Migration `consolidar_forma_pagamento_clientes.sql`:
-
-1. Garantir índice em `formas_pagamento(lower(descricao))` para match case-insensitive.
-2. Backfill:
-   ```sql
-   UPDATE clientes c
-     SET forma_pagamento_id = fp.id
-     FROM formas_pagamento fp
-     WHERE c.forma_pagamento_id IS NULL
-       AND c.forma_pagamento_padrao IS NOT NULL
-       AND lower(trim(c.forma_pagamento_padrao)) = lower(trim(fp.descricao));
-   ```
-3. Criar tabela `cadastros_pendencias_migracao (id, entidade, entidade_id, campo, valor_origem, motivo, created_at)` para registrar:
-   - clientes cujo `forma_pagamento_padrao` não achou match (motivo `sem_match`);
-   - clientes cujo texto casou com >1 forma (motivo `ambiguo`).
-4. FK `clientes_forma_pagamento_id_fkey → formas_pagamento(id) ON UPDATE CASCADE ON DELETE SET NULL`.
-5. Manter `forma_pagamento_padrao` como coluna legada (sem drop), marcada por comentário SQL `COMMENT ON COLUMN ... IS 'DEPRECATED: usar forma_pagamento_id'`.
-6. Atualizar UI (`Clientes.tsx`, `FormularioCliente`, `QuickAddClientModal`, `ClienteView`) para ler/gravar via `forma_pagamento_id` + `useFormasPagamentoRef()`. Views de leitura passam a fazer `join` pelo ID.
-
-#### B2. Semântica de Formas de Pagamento
-
-Sem quebrar dados atuais:
-
-- `formas_pagamento.tipo` passa a representar **categoria de meio** (`pix | boleto | cartao | dinheiro | transferencia | outro`) via `CHECK chk_forma_pagamento_tipo`.
-- `formas_pagamento.descricao` permanece como **condição comercial** (ex.: "Boleto 30/60/90").
-- Adicionar coluna `categoria text` se houver necessidade de separar meio vs. condição — **decisão**: manter `tipo` como categoria (já é o uso real) e apenas formalizar via CHECK. Documentar em `docs/cadastros-formas-pagamento.md`.
-- Unificar referência: `financeiro_lancamentos.forma_pagamento` (texto) ganha coluna paralela `forma_pagamento_id uuid REFERENCES formas_pagamento(id)`. Backfill por descrição; manter texto como fallback visual.
-
-#### B3. Grupos Econômicos — FK para empresa matriz
-
-Migration `fk_grupos_economicos_matriz.sql`:
-
-1. Detectar órfãos: `SELECT id FROM grupos_economicos WHERE empresa_matriz_id IS NOT NULL AND empresa_matriz_id NOT IN (SELECT id FROM clientes);` → setar `NULL` e registrar em `cadastros_pendencias_migracao` (motivo `matriz_orfa`).
-2. `ALTER TABLE grupos_economicos ADD CONSTRAINT grupos_economicos_matriz_fkey FOREIGN KEY (empresa_matriz_id) REFERENCES clientes(id) ON UPDATE CASCADE ON DELETE SET NULL;`
-3. Índice em `grupos_economicos(empresa_matriz_id)`.
-4. Validar também `clientes.grupo_economico_id → grupos_economicos(id)` com `ON DELETE SET NULL` (se ainda não existir FK real).
-
-#### B4. Documentos únicos (CPF/CNPJ)
-
-Migration `unicidade_documentos.sql`:
-
-1. Normalizar: `UPDATE clientes SET cpf_cnpj = regexp_replace(cpf_cnpj, '\D', '', 'g') WHERE cpf_cnpj ~ '\D';` (idem fornecedores, transportadoras, funcionarios p/ CPF).
-2. Detectar duplicatas ativas e registrar em `cadastros_pendencias_migracao` (motivo `documento_duplicado`) **sem apagar dados**.
-3. Índice único **parcial** (documento inativo pode ser reutilizado):
-   ```sql
-   CREATE UNIQUE INDEX ux_clientes_cpf_cnpj_ativo
-     ON clientes (cpf_cnpj) WHERE ativo = true AND cpf_cnpj IS NOT NULL AND cpf_cnpj <> '';
-   ```
-   Mesma lógica para `fornecedores`, `transportadoras`, `funcionarios.cpf`.
-4. Trigger `trg_normaliza_documento` em INSERT/UPDATE: strip de caracteres não-numéricos antes de persistir.
-5. Ampliar `useDocumentoUnico` para aceitar `"funcionarios"` (já coberto em A2) e fazer a checagem **cross-table** para CPF (clientes PF + funcionarios + fornecedores PF + transportadoras PF).
-
-#### B5. Política oficial de inativação (soft delete)
-
-Migration `politica_soft_delete.sql`, aplicada às tabelas-mestre (`clientes`, `fornecedores`, `transportadoras`, `produtos`, `funcionarios`):
-
-1. Adicionar `deleted_at timestamptz NULL`, `deleted_by uuid NULL REFERENCES auth.users(id)`, `motivo_inativacao text NULL`.
-2. `ativo` continua como status operacional primário (compatibilidade com todo o código existente).
-3. Trigger `trg_registrar_inativacao`: quando `ativo` passa de `true`→`false`, preencher `deleted_at = now()` e `deleted_by = auth.uid()` se estiverem nulos. Quando volta para `true`, limpar os três campos.
-4. Nenhuma mudança de RLS ou de UI obrigatória — é enriquecimento de auditoria.
-
-#### B6. Auditoria e FKs faltantes
-
-Varredura e, onde ausente, adicionar FKs com `ON DELETE RESTRICT` (ou `SET NULL` em opcionais):
-
-- `clientes.grupo_economico_id → grupos_economicos(id)` (SET NULL)
-- `clientes.forma_pagamento_id → formas_pagamento(id)` (SET NULL)
-- `cliente_transportadoras.{cliente_id, transportadora_id}` (CASCADE/RESTRICT)
-- `clientes_enderecos_entrega.cliente_id` (CASCADE)
-- `cliente_registros_comunicacao.cliente_id` (CASCADE)
-- `financeiro_lancamentos.{cliente_id, fornecedor_id, conta_contabil_id, conta_bancaria_id}` (RESTRICT)
-- `produtos_fornecedores.{produto_id, fornecedor_id}` (CASCADE)
-
-Cada FK é precedida por um `SELECT` que move órfãos para `cadastros_pendencias_migracao` antes de criar a constraint, para não falhar idempotência.
-
----
-
-### Migrations entregues (ordem)
-
-1. `fix_build_funcionarios_documento_unico` (tipagem de DocumentoTable — só código)
-2. `consolidar_forma_pagamento_clientes`
-3. `formas_pagamento_categoria_check`
-4. `financeiro_lancamentos_forma_pagamento_id`
-5. `fk_grupos_economicos_matriz`
-6. `unicidade_documentos_cadastros`
-7. `politica_soft_delete_cadastros`
-8. `fks_integridade_cadastros`
-
-Todas idempotentes (`IF NOT EXISTS` / `DO $$ ... EXCEPTION WHEN duplicate_object`), `SET search_path = public` em qualquer function/trigger criada.
+Todas com `SET search_path = public`, idempotentes (`IF NOT EXISTS`, `DROP ... IF EXISTS` antes de `CREATE`), preservando dados.
 
 ### Código afetado
 
-- `src/hooks/useDocumentoUnico.ts` — união ampliada + checagem cross-table opcional para CPF.
-- `src/components/DataTable.tsx` — ajuste do cast do upsert.
-- `src/pages/Clientes.tsx`, `src/pages/cadastros/clientes/*`, `src/components/QuickAddClientModal.tsx`, `src/components/views/ClienteView.tsx` — passar a ler/gravar `forma_pagamento_id`; label via join.
-- `src/hooks/useReferenceCache.ts` — adicionar `useFormasPagamentoRef()`.
-- `src/types/cadastros.ts` — refletir novos campos (`deleted_at`, `forma_pagamento_id` já existe).
-- `docs/cadastros-formas-pagamento.md` e `docs/MIGRACAO.md` atualizados com decisões.
+- `src/lib/statusSchema.ts` — `statusOrcamento` passa a ter só o conjunto canônico (7 valores); `statusPedido` realinhado a `rascunho|pendente|aprovada|em_separacao|faturada_parcial|faturada|cancelada`.
+- `src/lib/orcamentoSchema.ts` — enum Zod com os 7 status canônicos.
+- `src/lib/comercialWorkflow.ts` — remover `ORCAMENTO_STATUS_ALIAS`; `canApproveOrcamento` testa `'pendente'`; `canConvertOrcamento` mantém `'aprovado'`.
+- `src/services/orcamentos.service.ts` — `sendForApproval` grava `'pendente'`; nova `cancelarOrcamento(id, motivo)` chamando a RPC.
+- `src/pages/comercial/hooks/useConverterOrcamento.ts` — tolera retorno enriquecido (sem mudança de assinatura pública).
+- `src/pages/comercial/hooks/useFaturarPedido.ts` — usa `status_faturamento_novo` do retorno para update otimista.
+- `src/components/views/OrcamentoView.tsx` e `src/pages/Orcamentos.tsx` — ação "Excluir" só aparece em `rascunho` sem OV; caso contrário, "Cancelar" abre modal de motivo.
+- `src/components/StatusBadge.tsx` / `statusFaturamentoLabels` — remover labels órfãs (`confirmado`, `enviado`, `em_transporte`, `separado`, `entregue`).
+- `docs/comercial-modelo.md` (novo) — documenta: cotação = `orcamentos`; fluxos oficiais; política de exclusão; matriz de status do pedido; trilha `v_trilha_comercial`.
+- `docs/MIGRACAO.md` — apêndice com as 8 migrations e backfills aplicados.
 
-### Saída final (após execução)
+### Detalhes técnicos
 
-Relatório com: migrations criadas, tabelas/colunas alteradas, contagens de backfill por regra, e lista de pendências registradas em `cadastros_pendencias_migracao` (ambíguos, órfãos, duplicados) para tratamento manual.
+- **Transição válida de orçamento** (trigger): mapa de `OLD.status → NEW.status permitidos`; bloqueia qualquer saída de terminal (`convertido`, `rejeitado`, `cancelado`, `expirado`).
+- **Matriz pedido** (CHECK composto): conforme tabela do plano; `em_separacao` aceita `aguardando|parcial` porque faturamento parcial pode ocorrer durante separação.
+- **Auditoria**: payload JSONB com `{ antes:{status}, depois:{status}, usuario:auth.uid(), contexto:'trigger|rpc:<nome>' }`.
+- **Compatibilidade**: `forma_pagamento_padrao` e demais colunas legadas não sofrem alteração; nenhum DROP de coluna; `statusOrdemVenda` alias mantido para não quebrar imports.
+
+### Relatório pós-execução
+
+Após aplicar, reportar: migrations aplicadas, contagem de orçamentos renomeados (`confirmado`/`enviado` → `pendente`), contagem de marcados como `expirado`, orçamentos bloqueados para DELETE, e entradas criadas em `auditoria_logs`.
 
 ### Fora de escopo
 
-- Nenhuma mudança visual.
-- Nenhuma alteração de RLS existente.
-- Nenhum drop de coluna legada nesta fase (`forma_pagamento_padrao` permanece com comentário `DEPRECATED`).
+Nenhuma mudança visual além dos botões condicionais de exclusão/cancelamento; sem alterações em RLS, fiscal, financeiro ou estoque além dos gates listados.
 
