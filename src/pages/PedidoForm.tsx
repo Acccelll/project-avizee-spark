@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -7,11 +7,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { StatusBadge } from "@/components/StatusBadge";
-import { Save } from "lucide-react";
+import { Save, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { getUserFriendlyError } from "@/utils/errorMessages";
-import { formatDate } from "@/lib/format";
+import { formatCurrency, formatDate } from "@/lib/format";
 import { PageShell } from "@/components/PageShell";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
+import { getPedidoStatusLabel } from "@/lib/comercialWorkflow";
 
 const statusOptions = [
   { value: "pendente", label: "Pendente" },
@@ -53,6 +55,8 @@ const PedidoForm = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [pedido, setPedido] = useState<PedidoRecord | null>(null);
+  const baselineRef = useRef<PedidoEditForm | null>(null);
+  const { confirm, dialog } = useConfirmDialog();
   const [form, setForm] = useState<PedidoEditForm>({
     status: "",
     po_number: "",
@@ -61,6 +65,10 @@ const PedidoForm = () => {
     prazo_despacho_dias: "",
     observacoes: "",
   });
+  const isDirty = useMemo(() => {
+    if (!baselineRef.current) return false;
+    return JSON.stringify(form) !== JSON.stringify(baselineRef.current);
+  }, [form]);
 
   useEffect(() => {
     if (!id) return;
@@ -88,6 +96,14 @@ const PedidoForm = () => {
           prazo_despacho_dias: typed.prazo_despacho_dias != null ? String(typed.prazo_despacho_dias) : "",
           observacoes: typed.observacoes || "",
         });
+        baselineRef.current = {
+          status: typed.status || "pendente",
+          po_number: typed.po_number || "",
+          data_po_cliente: typed.data_po_cliente || "",
+          data_prometida_despacho: typed.data_prometida_despacho || "",
+          prazo_despacho_dias: typed.prazo_despacho_dias != null ? String(typed.prazo_despacho_dias) : "",
+          observacoes: typed.observacoes || "",
+        };
       } catch (err: unknown) {
         toast.error(getUserFriendlyError(err));
         navigate("/pedidos");
@@ -97,6 +113,16 @@ const PedidoForm = () => {
     };
     load();
   }, [id, navigate]);
+
+  useEffect(() => {
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!isDirty) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [isDirty]);
 
   const handleSave = async () => {
     if (!id) return;
@@ -116,6 +142,7 @@ const PedidoForm = () => {
         .eq("id", id);
       if (error) throw error;
       toast.success("Pedido atualizado com sucesso.");
+      baselineRef.current = { ...form };
       navigate("/pedidos");
     } catch (err: unknown) {
       toast.error(getUserFriendlyError(err));
@@ -127,6 +154,19 @@ const PedidoForm = () => {
   const set = (field: keyof PedidoEditForm, value: string) =>
     setForm((prev) => ({ ...prev, [field]: value }));
 
+  const handleCancel = async () => {
+    if (isDirty) {
+      const ok = await confirm({
+        title: "Descartar alterações?",
+        description: "Você possui alterações não salvas no pedido.",
+        confirmLabel: "Descartar alterações",
+        confirmVariant: "destructive",
+      });
+      if (!ok) return;
+    }
+    navigate("/pedidos");
+  };
+
   if (loading) {
     return <div className="p-8 text-center animate-pulse">Carregando pedido...</div>;
   }
@@ -135,7 +175,7 @@ const PedidoForm = () => {
 
   return (
     <PageShell
-      backTo="/pedidos"
+      backTo={handleCancel}
       title={`Editando Pedido — ${pedido.numero}`}
       subtitle={
         <>
@@ -145,7 +185,7 @@ const PedidoForm = () => {
       }
       actions={
         <>
-          <StatusBadge status={pedido.status} />
+          <StatusBadge status={pedido.status || "pendente"} label={getPedidoStatusLabel(pedido.status)} />
           <Button onClick={handleSave} disabled={saving} className="gap-2">
             <Save className="w-4 h-4" />
             {saving ? "Salvando..." : "Salvar Alterações"}
@@ -173,7 +213,33 @@ const PedidoForm = () => {
         </div>
       }
     >
-      <div className="max-w-2xl space-y-5">
+      <div className="max-w-3xl space-y-5">
+        <div className="rounded-xl border bg-muted/20 px-4 py-3">
+          <p className="text-xs font-semibold uppercase text-muted-foreground">Escopo desta edição</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            Esta tela altera apenas dados operacionais do pedido. Itens, valores e vínculos (cotação e faturamento) são controlados pelo fluxo comercial/fiscal.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <div className="rounded-lg border bg-card p-3">
+            <p className="text-[10px] uppercase text-muted-foreground font-semibold">Pedido</p>
+            <p className="font-mono font-semibold text-primary">{pedido.numero}</p>
+          </div>
+          <div className="rounded-lg border bg-card p-3">
+            <p className="text-[10px] uppercase text-muted-foreground font-semibold">Cliente</p>
+            <p className="text-sm truncate">{pedido.clientes?.nome_razao_social || "—"}</p>
+          </div>
+          <div className="rounded-lg border bg-card p-3">
+            <p className="text-[10px] uppercase text-muted-foreground font-semibold">Cotação origem</p>
+            <p className="font-mono text-sm">{pedido.orcamentos?.numero || "—"}</p>
+          </div>
+          <div className="rounded-lg border bg-card p-3">
+            <p className="text-[10px] uppercase text-muted-foreground font-semibold">Valor total</p>
+            <p className="font-mono font-semibold">{formatCurrency(Number(pedido.valor_total || 0))}</p>
+          </div>
+        </div>
+
         {/* Status + Datas */}
         <div className="bg-card rounded-xl border shadow-soft p-5 space-y-4">
           <h3 className="font-semibold text-foreground">Status Operacional</h3>
@@ -245,15 +311,17 @@ const PedidoForm = () => {
         </div>
 
         <div className="flex gap-3">
-          <Button onClick={handleSave} disabled={saving} className="gap-2">
-            <Save className="w-4 h-4" />
-            {saving ? "Salvando..." : "Salvar Alterações"}
-          </Button>
-          <Button variant="outline" onClick={() => navigate("/pedidos")}>
+          <Button variant="outline" onClick={handleCancel}>
             Cancelar
           </Button>
+          {isDirty && (
+            <span className="inline-flex items-center gap-1 text-xs text-warning">
+              <AlertTriangle className="w-3.5 h-3.5" /> Alterações pendentes
+            </span>
+          )}
         </div>
       </div>
+      {dialog}
     </PageShell>
   );
 };

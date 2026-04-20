@@ -8,7 +8,6 @@ import { RelationalLink } from "@/components/ui/RelationalLink";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { usePublishDrawerSlots } from "@/contexts/RelationalDrawerSlotsContext";
 import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,9 +19,7 @@ import { getUserFriendlyError } from "@/utils/errorMessages";
 import { pagamentoLabels, freteTipoLabels } from "@/utils/comercial";
 import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSummaryCard";
 import { RecordIdentityCard } from "@/components/ui/RecordIdentityCard";
-import { SectionTitle } from "@/components/ui/SectionTitle";
 import { DetailLoading, DetailError, DetailEmpty } from "@/components/ui/DetailStates";
-import { EmptyState } from "@/components/ui/empty-state";
 import {
   sendForApproval,
   approveOrcamento,
@@ -31,6 +28,7 @@ import {
 import { useConverterOrcamento } from "@/pages/comercial/hooks/useConverterOrcamento";
 import { useCrossModuleToast } from "@/hooks/useCrossModuleToast";
 import { CrossModuleActionDialog, type ImpactItem } from "@/components/CrossModuleActionDialog";
+import { canApproveOrcamento, canConvertOrcamento, canSendOrcamento, normalizeOrcamentoStatus } from "@/lib/comercialWorkflow";
 import {
   Edit,
   Trash2,
@@ -111,7 +109,7 @@ export function OrcamentoView({ id }: Props) {
   today.setHours(0, 0, 0, 0);
   const isExpired = !!(
     selected?.validade &&
-    selected.status !== "convertido" &&
+    normalizeOrcamentoStatus(selected.status) !== "convertido" &&
     new Date(selected.validade) < today
   );
 
@@ -206,22 +204,22 @@ export function OrcamentoView({ id }: Props) {
     ),
     actions: (
       <>
-        {selected.status === "rascunho" && (
+        {canSendOrcamento(selected.status) && (
           <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs" onClick={handleSendForApproval} disabled={isAnyLocked}>
             <Send className="h-3.5 w-3.5" /> Enviar p/ Aprovação
           </Button>
         )}
-        {selected.status === "confirmado" && isAdmin && (
+        {canApproveOrcamento(selected.status) && isAdmin && (
           <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs" onClick={() => setApproveConfirmOpen(true)} disabled={isAnyLocked}>
             <CheckCircle className="h-3.5 w-3.5" /> Aprovar
           </Button>
         )}
-        {selected.status === "aprovado" && (
+        {canConvertOrcamento(selected.status) && (
           <Button size="sm" variant="default" className="h-8 gap-1.5 text-xs" onClick={() => setConvertConfirmOpen(true)} disabled={isAnyLocked}>
             <ArrowRightCircle className="h-3.5 w-3.5" /> Gerar Pedido
           </Button>
         )}
-        {selected.status === "convertido" && linkedOV && (
+        {normalizeOrcamentoStatus(selected.status) === "convertido" && linkedOV && (
           <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs" onClick={() => pushView("ordem_venda", linkedOV.id)}>
             <ExternalLink className="h-3.5 w-3.5" /> Ver Pedido {linkedOV.numero}
           </Button>
@@ -235,10 +233,10 @@ export function OrcamentoView({ id }: Props) {
         <Button
           variant="ghost" size="sm"
           className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
-          aria-label="Excluir cotação"
+          aria-label="Cancelar cotação"
           onClick={() => {
             if (linkedOV) {
-              toast.error("Não é possível excluir uma cotação com pedido vinculado.", {
+              toast.error("Não é possível cancelar uma cotação com pedido vinculado.", {
                 description: `Pedido ${linkedOV.numero} está vinculado a esta cotação.`,
               });
               return;
@@ -247,7 +245,7 @@ export function OrcamentoView({ id }: Props) {
           }}
           disabled={Boolean(linkedOV)}
         >
-          <Trash2 className="h-3.5 w-3.5" /> Excluir
+          <Trash2 className="h-3.5 w-3.5" /> Cancelar
         </Button>
       </>
     ),
@@ -308,9 +306,9 @@ export function OrcamentoView({ id }: Props) {
             )}
             <div className="flex justify-between items-center">
               <span className="text-muted-foreground">Status</span>
-              <StatusBadge status={selected.status} />
+              <StatusBadge status={normalizeOrcamentoStatus(selected.status)} />
             </div>
-            {selected.status === "convertido" && linkedOV && (
+            {normalizeOrcamentoStatus(selected.status) === "convertido" && linkedOV && (
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Convertida em Pedido</span>
                 <RelationalLink onClick={() => pushView("ordem_venda", linkedOV.id)}>
@@ -505,7 +503,7 @@ export function OrcamentoView({ id }: Props) {
                   <span>Atualizado em</span>
                   <span>{formatDate(selected.updated_at)}</span>
                 </div>
-                {selected.status === "convertido" && linkedOV && (
+                {normalizeOrcamentoStatus(selected.status) === "convertido" && linkedOV && (
                   <div className="flex justify-between items-center text-muted-foreground">
                     <span>Convertida em Pedido</span>
                     <RelationalLink onClick={() => pushView("ordem_venda", linkedOV.id)}>
@@ -519,27 +517,27 @@ export function OrcamentoView({ id }: Props) {
         </TabsContent>
       </Tabs>
 
-      {/* Delete confirm */}
+      {/* Cancel confirm */}
       <ConfirmDialog
         open={deleteConfirmOpen}
         onClose={() => setDeleteConfirmOpen(false)}
         onConfirm={async () => {
           try {
-            const { error: delErr } = await supabase.from("orcamentos").delete().eq("id", id);
-            if (delErr) throw delErr;
-            toast.success("Cotação excluída com sucesso.");
+            const { error: updErr } = await supabase.from("orcamentos").update({ status: "cancelado" }).eq("id", id);
+            if (updErr) throw updErr;
+            toast.success("Cotação cancelada com sucesso.");
             invalidate(["orcamentos"]);
-            clearStack();
+            await reload();
           } catch (err: unknown) {
-            console.error("[OrcamentoView] erro ao excluir:", err);
+            console.error("[OrcamentoView] erro ao cancelar:", err);
             toast.error(getUserFriendlyError(err));
           } finally {
             setDeleteConfirmOpen(false);
           }
         }}
-        title="Excluir cotação"
-        description={`Tem certeza que deseja excluir a cotação ${selected?.numero || ""}? Esta ação não pode ser desfeita.`}
-        confirmLabel="Excluir"
+        title="Cancelar cotação"
+        description={`Tem certeza que deseja cancelar a cotação ${selected?.numero || ""}? Ela permanecerá no histórico e não poderá avançar no fluxo comercial.`}
+        confirmLabel="Cancelar cotação"
         confirmVariant="destructive"
       />
 

@@ -16,7 +16,7 @@ export async function sendForApproval(orc: OrcamentoBase): Promise<void> {
   if (orc.status !== "rascunho") return;
   const { error } = await supabase
     .from("orcamentos")
-    .update({ status: "pendente" })
+    .update({ status: "confirmado" })
     .eq("id", orc.id);
   if (error) throw new Error(`Erro ao enviar orçamento para aprovação: ${error.message}`);
   toast.success(`Cotação ${orc.numero} enviada para aprovação!`);

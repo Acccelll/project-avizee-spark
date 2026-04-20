@@ -1,5 +1,5 @@
 
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
@@ -18,7 +18,6 @@ import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { formatCurrency, formatDate, calculateDaysBetween } from "@/lib/format";
-import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { Send } from "lucide-react";
 import { sendForApproval, approveOrcamento } from "@/services/orcamentos.service";
@@ -26,6 +25,7 @@ import { useConverterOrcamento } from "@/pages/comercial/hooks/useConverterOrcam
 import { useCrossModuleToast } from "@/hooks/useCrossModuleToast";
 import { CrossModuleActionDialog, type ImpactItem } from "@/components/CrossModuleActionDialog";
 import { statusOrcamento } from "@/lib/statusSchema";
+import { canApproveOrcamento, canConvertOrcamento, canSendOrcamento, getOrcamentoStatusLabel, normalizeOrcamentoStatus } from "@/lib/comercialWorkflow";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import { useClientesRef } from "@/hooks/useReferenceCache";
 import { useActionLock } from "@/hooks/useActionLock";
@@ -261,7 +261,8 @@ const Orcamentos = () => {
   const filteredData = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
     return data.filter((orc) => {
-      if (statusFilters.length > 0 && !statusFilters.includes(orc.status)) return false;
+      const normalizedStatus = normalizeOrcamentoStatus(orc.status);
+      if (statusFilters.length > 0 && !statusFilters.includes(normalizedStatus)) return false;
       if (clienteFilters.length > 0 && !clienteFilters.includes(orc.cliente_id || "")) return false;
 
       if (validadeFilters.length > 0) {
@@ -323,8 +324,9 @@ const Orcamentos = () => {
       mobileCard: true, label: "Status", sortable: true,
       render: (o: Orcamento) => {
         const vs = getValidadeStatus(o.validade, o.status);
-        const effectiveStatus = vs === "vencida" && o.status === "enviado" ? "expirado" : o.status;
-        return <StatusBadge status={effectiveStatus} label={statusLabels[effectiveStatus] ?? statusLabels[o.status]} />;
+        const normalizedStatus = normalizeOrcamentoStatus(o.status);
+        const effectiveStatus = vs === "vencida" && normalizedStatus === "enviado" ? "expirado" : normalizedStatus;
+        return <StatusBadge status={effectiveStatus} label={statusLabels[effectiveStatus] ?? getOrcamentoStatusLabel(o.status)} />;
       },
     },
     {
@@ -346,17 +348,17 @@ const Orcamentos = () => {
       key: "acoes_comercial", label: "Ações", sortable: false,
       render: (o: Orcamento) => (
         <div className="flex items-center gap-1">
-          {o.status === "rascunho" && (
+          {canSendOrcamento(o.status) && (
             <Button size="sm" variant="outline" className="h-7 text-xs gap-1" disabled={sendLock.pending} onClick={(e) => { e.stopPropagation(); handleSendForApproval(o); }}>
               <Send className="w-3 h-3" /> Enviar
             </Button>
           )}
-          {o.status === "confirmado" && (
+          {canApproveOrcamento(o.status) && (
             <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={(e) => { e.stopPropagation(); handleApprove(o); }} disabled={!isAdmin || approveLock.pending} title={!isAdmin ? "Somente admins podem aprovar" : ""}>
               <CheckCircle className="w-3 h-3" /> Aprovar
             </Button>
           )}
-          {o.status === "aprovado" && (
+          {canConvertOrcamento(o.status) && (
             <Button size="sm" variant="default" className="h-7 text-xs gap-1" disabled={convertLock.pending} onClick={(e) => { e.stopPropagation(); setConvertingId(o.id); }}>
               <ArrowRightCircle className="w-3 h-3" /> Gerar Pedido
             </Button>
@@ -406,7 +408,7 @@ const Orcamentos = () => {
     <><ModulePage
         title="Cotações"
         subtitle="Central de consulta e acompanhamento do funil comercial"
-        addLabel="Novo Orçamento"
+        addLabel="Nova Cotação"
         onAdd={() => navigate("/orcamentos/novo")}
       >
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
