@@ -21,6 +21,8 @@ export interface PeriodoFilterProps {
   dataInicio: string;
   dataFim: string;
   onChange: (value: PeriodoFilterValue) => void;
+  /** Optional human label of the temporal axis applied (e.g. "vencimento"). */
+  axisLabel?: string;
 }
 
 type QuickPeriod = "hoje" | "7d" | "30d" | "mes";
@@ -59,7 +61,7 @@ function detectActive(dataInicio: string, dataFim: string): QuickPeriod | null {
   return null;
 }
 
-export function PeriodoFilter({ dataInicio, dataFim, onChange }: PeriodoFilterProps) {
+export function PeriodoFilter({ dataInicio, dataFim, onChange, axisLabel }: PeriodoFilterProps) {
   const today = fmt(new Date());
   const active = detectActive(dataInicio, dataFim);
   const hasCustom = !!(dataInicio || dataFim);
@@ -78,7 +80,9 @@ export function PeriodoFilter({ dataInicio, dataFim, onChange }: PeriodoFilterPr
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-1.5">
-        <Label className="text-xs text-muted-foreground mr-1">Período:</Label>
+        <Label className="text-xs text-muted-foreground mr-1">
+          Período{axisLabel ? <span className="ml-1 text-muted-foreground/80">por {axisLabel}</span> : null}:
+        </Label>
         <Button
           size="sm"
           variant={active === "hoje" ? "default" : "outline"}

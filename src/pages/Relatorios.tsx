@@ -32,9 +32,12 @@ import { reportConfigs, reportCategoryMeta, type ReportCategory } from '@/config
 import { formatCurrency, formatNumber, formatDate } from '@/lib/format';
 import { formatCellValue, type TipoRelatorio } from '@/services/relatorios.service';
 import type { DreRow } from '@/types/relatorios';
+import { badgeVariantFromKind } from '@/lib/relatoriosBadges';
 import { toast } from 'sonner';
 
-// ─── Badge classification constants ──────────────────────────────────────────
+// ─── Legacy badge classification — used only as fallback when a row hasn't
+// been migrated to expose `statusKind`/`criticidadeKind`/etc. yet.
+// New reports should populate `*Kind` fields in the service layer.
 const BADGE_CRITICAL = ['vencido', 'abaixo do mínimo', 'zerado', 'pendente', 'nf s/ financeiro', 'pedido s/ nf', 'c', 'alta'];
 const BADGE_OK = ['ok', 'entregue', 'confirmado', 'pago', 'faturado', 'a'];
 
@@ -135,8 +138,9 @@ export default function Relatorios() {
 
   const { data: resultado, isLoading, isError, refetch } = useRelatorio(tipo, filtros);
 
-  const isQtyReport = resultado?._isQuantityReport === true;
-  const isDreReport = resultado?._isDreReport === true;
+  const reportMeta = resultado?.meta;
+  const isQtyReport = reportMeta?.valueNature === 'quantidade' || resultado?._isQuantityReport === true;
+  const isDreReport = reportMeta?.kind === 'dre' || resultado?._isDreReport === true;
   const rows = useMemo(() => (resultado?.rows ?? []) as Record<string, unknown>[], [resultado?.rows]);
 
   const filteredRows = useMemo(() => filtrarPorStatus(rows, filtrosState.statusFiltro), [rows, filtrosState.statusFiltro]);
@@ -168,8 +172,22 @@ export default function Relatorios() {
         const isBadgeKey = fmt === 'badge' || ['criticidade', 'faixa', 'classe'].includes(colDef.key)
           || colDef.key.toLowerCase().includes('status') || colDef.key.toLowerCase().includes('situacao');
         if (isBadgeKey && typeof raw === 'string' && raw !== '-') {
-          const n = raw.toLowerCase();
-          const variant = BADGE_CRITICAL.some((t) => n.includes(t)) ? 'destructive' : BADGE_OK.some((t) => n === t) ? 'default' : 'secondary';
+          // Prefer structured *Kind field exposed by the service layer.
+          const kindKey =
+            colDef.key === 'criticidade' ? 'criticidadeKind' :
+            colDef.key === 'faixa' ? 'faixaKind' :
+            colDef.key === 'classe' ? 'classeKind' :
+            colDef.key === 'tipo' ? 'tipoKind' :
+            'statusKind';
+          const kind = item[kindKey] as string | undefined;
+          let variant: 'default' | 'secondary' | 'destructive' | 'outline';
+          if (kind) {
+            variant = badgeVariantFromKind(kind as Parameters<typeof badgeVariantFromKind>[0]);
+          } else {
+            // Fallback to legacy text heuristic for un-migrated rows.
+            const n = raw.toLowerCase();
+            variant = BADGE_CRITICAL.some((t) => n.includes(t)) ? 'destructive' : BADGE_OK.some((t) => n === t) ? 'default' : 'secondary';
+          }
           return <Badge variant={variant}>{raw}</Badge>;
         }
         if (fmt === 'percent' && typeof raw === 'number') return `${raw.toFixed(1)}%`;
@@ -510,6 +528,7 @@ export default function Relatorios() {
                         <PeriodoFilter
                           dataInicio={dataInicio}
                           dataFim={dataFim}
+                          axisLabel={selectedMeta.timeAxis?.label ?? reportMeta?.timeAxis?.label}
                           onChange={({ dataInicio: di, dataFim: df }) => { setDataInicio(di); setDataFim(df); }}
                         />
                       )}

@@ -10,6 +10,13 @@
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MultiSelect } from "@/components/ui/MultiSelect";
+import { AsyncMultiSelect } from "@/components/ui/AsyncMultiSelect";
+import {
+  loadClienteOptions,
+  loadClienteLabels,
+  loadFornecedorOptions,
+  loadFornecedorLabels,
+} from "../../hooks/useRelatoriosFiltrosData";
 import { Input } from "@/components/ui/input";
 import type { ReportFiltersDef } from "@/config/relatoriosConfig";
 import type { ClienteRef, FornecedorRef, GrupoProdutoRef } from "../../hooks/useRelatoriosFiltrosData";
@@ -60,11 +67,13 @@ export function FiltrosRelatorio({
         {filters.showClientes && (
           <div className="space-y-1">
             <Label className="text-xs">Clientes</Label>
-            <MultiSelect
-              options={clientes.map((c) => ({ label: c.nome_razao_social, value: c.id }))}
+            <AsyncMultiSelect
               selected={state.clienteIds}
               onChange={(v) => onChange({ clienteIds: v })}
-              placeholder="Todos os clientes"
+              loadOptions={loadClienteOptions}
+              loadSelectedLabels={loadClienteLabels}
+              placeholder="Buscar clientes..."
+              emptyText="Digite ao menos 2 letras."
               className="w-[250px]"
             />
           </div>
@@ -73,11 +82,13 @@ export function FiltrosRelatorio({
         {filters.showFornecedores && (
           <div className="space-y-1">
             <Label className="text-xs">Fornecedores</Label>
-            <MultiSelect
-              options={fornecedores.map((f) => ({ label: f.nome_razao_social, value: f.id }))}
+            <AsyncMultiSelect
               selected={state.fornecedorIds}
               onChange={(v) => onChange({ fornecedorIds: v })}
-              placeholder="Todos os fornecedores"
+              loadOptions={loadFornecedorOptions}
+              loadSelectedLabels={loadFornecedorLabels}
+              placeholder="Buscar fornecedores..."
+              emptyText="Digite ao menos 2 letras."
               className="w-[250px]"
             />
           </div>
