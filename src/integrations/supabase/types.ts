@@ -1932,6 +1932,13 @@ export type Database = {
             referencedColumns: ["nf_id"]
           },
           {
+            foreignKeyName: "financeiro_lancamentos_nota_fiscal_id_fkey"
+            columns: ["nota_fiscal_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_fiscal"
+            referencedColumns: ["nf_id"]
+          },
+          {
             foreignKeyName: "financeiro_lancamentos_pedido_compra_id_fkey"
             columns: ["pedido_compra_id"]
             isOneToOne: false
@@ -2523,6 +2530,13 @@ export type Database = {
             referencedRelation: "v_trilha_comercial"
             referencedColumns: ["nf_id"]
           },
+          {
+            foreignKeyName: "nota_fiscal_anexos_nota_fiscal_id_fkey"
+            columns: ["nota_fiscal_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_fiscal"
+            referencedColumns: ["nf_id"]
+          },
         ]
       }
       nota_fiscal_eventos: {
@@ -2572,6 +2586,13 @@ export type Database = {
             columns: ["nota_fiscal_id"]
             isOneToOne: false
             referencedRelation: "v_trilha_comercial"
+            referencedColumns: ["nf_id"]
+          },
+          {
+            foreignKeyName: "nota_fiscal_eventos_nota_fiscal_id_fkey"
+            columns: ["nota_fiscal_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_fiscal"
             referencedColumns: ["nf_id"]
           },
         ]
@@ -2791,6 +2812,13 @@ export type Database = {
             referencedColumns: ["nf_id"]
           },
           {
+            foreignKeyName: "notas_fiscais_nf_referenciada_id_fkey"
+            columns: ["nf_referenciada_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_fiscal"
+            referencedColumns: ["nf_id"]
+          },
+          {
             foreignKeyName: "notas_fiscais_ordem_venda_id_fkey"
             columns: ["ordem_venda_id"]
             isOneToOne: false
@@ -2810,6 +2838,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_entregas_consolidadas"
             referencedColumns: ["ordem_venda_id"]
+          },
+          {
+            foreignKeyName: "notas_fiscais_transportadora_id_fkey"
+            columns: ["transportadora_id"]
+            isOneToOne: false
+            referencedRelation: "transportadoras"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -2950,6 +2985,13 @@ export type Database = {
             columns: ["nota_fiscal_id"]
             isOneToOne: false
             referencedRelation: "v_trilha_comercial"
+            referencedColumns: ["nf_id"]
+          },
+          {
+            foreignKeyName: "notas_fiscais_itens_nota_fiscal_id_fkey"
+            columns: ["nota_fiscal_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_fiscal"
             referencedColumns: ["nf_id"]
           },
           {
@@ -4054,6 +4096,13 @@ export type Database = {
             referencedColumns: ["nf_id"]
           },
           {
+            foreignKeyName: "recebimentos_compra_nota_fiscal_id_fkey"
+            columns: ["nota_fiscal_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_fiscal"
+            referencedColumns: ["nf_id"]
+          },
+          {
             foreignKeyName: "recebimentos_compra_pedido_compra_id_fkey"
             columns: ["pedido_compra_id"]
             isOneToOne: false
@@ -4331,6 +4380,13 @@ export type Database = {
             columns: ["nota_fiscal_id"]
             isOneToOne: false
             referencedRelation: "v_trilha_comercial"
+            referencedColumns: ["nf_id"]
+          },
+          {
+            foreignKeyName: "remessas_nota_fiscal_id_fkey"
+            columns: ["nota_fiscal_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_fiscal"
             referencedColumns: ["nf_id"]
           },
           {
@@ -5147,6 +5203,103 @@ export type Database = {
           },
         ]
       }
+      v_trilha_fiscal: {
+        Row: {
+          data_emissao: string | null
+          devolucoes_ids: string[] | null
+          estoque_movimento_ids: string[] | null
+          eventos_count: number | null
+          financeiro_lancamento_ids: string[] | null
+          nf_id: string | null
+          nf_referenciada_id: string | null
+          numero: string | null
+          ordem_venda_id: string | null
+          origem: string | null
+          status: string | null
+          status_sefaz: string | null
+          tipo: string | null
+          tipo_operacao: string | null
+          valor_total: number | null
+        }
+        Insert: {
+          data_emissao?: string | null
+          devolucoes_ids?: never
+          estoque_movimento_ids?: never
+          eventos_count?: never
+          financeiro_lancamento_ids?: never
+          nf_id?: string | null
+          nf_referenciada_id?: string | null
+          numero?: string | null
+          ordem_venda_id?: string | null
+          origem?: string | null
+          status?: string | null
+          status_sefaz?: string | null
+          tipo?: string | null
+          tipo_operacao?: string | null
+          valor_total?: number | null
+        }
+        Update: {
+          data_emissao?: string | null
+          devolucoes_ids?: never
+          estoque_movimento_ids?: never
+          eventos_count?: never
+          financeiro_lancamento_ids?: never
+          nf_id?: string | null
+          nf_referenciada_id?: string | null
+          numero?: string | null
+          ordem_venda_id?: string | null
+          origem?: string | null
+          status?: string | null
+          status_sefaz?: string | null
+          tipo?: string | null
+          tipo_operacao?: string | null
+          valor_total?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notas_fiscais_nf_referenciada_id_fkey"
+            columns: ["nf_referenciada_id"]
+            isOneToOne: false
+            referencedRelation: "notas_fiscais"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notas_fiscais_nf_referenciada_id_fkey"
+            columns: ["nf_referenciada_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_comercial"
+            referencedColumns: ["nf_id"]
+          },
+          {
+            foreignKeyName: "notas_fiscais_nf_referenciada_id_fkey"
+            columns: ["nf_referenciada_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_fiscal"
+            referencedColumns: ["nf_id"]
+          },
+          {
+            foreignKeyName: "notas_fiscais_ordem_venda_id_fkey"
+            columns: ["ordem_venda_id"]
+            isOneToOne: false
+            referencedRelation: "ordens_venda"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notas_fiscais_ordem_venda_id_fkey"
+            columns: ["ordem_venda_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_comercial"
+            referencedColumns: ["pedido_id"]
+          },
+          {
+            foreignKeyName: "notas_fiscais_ordem_venda_id_fkey"
+            columns: ["ordem_venda_id"]
+            isOneToOne: false
+            referencedRelation: "vw_entregas_consolidadas"
+            referencedColumns: ["ordem_venda_id"]
+          },
+        ]
+      }
       v_trilha_logistica: {
         Row: {
           codigo_rastreio: string | null
@@ -5480,6 +5633,14 @@ export type Database = {
         Args: { p_id: string; p_motivo?: string }
         Returns: Json
       }
+      cancelar_nota_fiscal: {
+        Args: { p_motivo: string; p_nf_id: string }
+        Returns: undefined
+      }
+      cancelar_nota_fiscal_sefaz: {
+        Args: { p_motivo: string; p_nf_id: string; p_protocolo: string }
+        Returns: undefined
+      }
       cancelar_orcamento: {
         Args: { p_id: string; p_motivo?: string }
         Returns: Json
@@ -5607,6 +5768,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      inutilizar_nota_fiscal: {
+        Args: { p_motivo: string; p_nf_id: string; p_protocolo: string }
+        Returns: undefined
       }
       limpar_dados_migracao: { Args: { p_confirmar?: boolean }; Returns: Json }
       marcar_lancamentos_vencidos: { Args: never; Returns: number }
