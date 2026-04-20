@@ -1,7 +1,6 @@
 
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { addDays } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -13,7 +12,7 @@ import {
   type ProdutoOptionRow,
   buildEmptyPedidoForm,
 } from "@/components/compras/pedidoCompraTypes";
-import { statusPedidoCompra } from "@/lib/statusSchema";
+import { canonicalPedidoStatus, pedidoStatusLabelMap } from "@/components/compras/comprasStatus";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { validateForm } from "@/lib/validationSchemas";
 import { pedidoCompraSchema, validatePedidoItems } from "@/lib/pedidoCompraSchema";
@@ -71,10 +70,7 @@ export interface PedidoCompraForm {
   observacoes: string;
 }
 
-const statusLabels: Record<string, string> = Object.fromEntries(
-  Object.entries(statusPedidoCompra).map(([k, v]) => [k, v.label]),
-);
-const DEFAULT_DUE_DAYS = 30;
+const statusLabels: Record<string, string> = pedidoStatusLabelMap;
 
 export interface UsePedidosCompraReturn {
   // Data
@@ -158,6 +154,7 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
     },
     select: (data) => data.map((pedido) => ({
       ...pedido,
+      status: canonicalPedidoStatus(pedido.status),
       fornecedor_nome: pedido.fornecedores?.nome_razao_social ?? null,
       fornecedor_cnpj: pedido.fornecedores?.cpf_cnpj ?? null,
     })),
@@ -219,9 +216,9 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
 
   const kpis = useMemo(() => {
     const aguardando = pedidos.filter((p) =>
-      ["rascunho", "aguardando_aprovacao", "aprovado", "enviado_ao_fornecedor", "aguardando_recebimento"].includes(p.status),
+      ["rascunho", "aguardando_aprovacao", "aprovado", "enviado_ao_fornecedor", "aguardando_recebimento"].includes(canonicalPedidoStatus(p.status)),
     );
-    const recebidos = pedidos.filter((p) => p.status === "recebido");
+    const recebidos = pedidos.filter((p) => canonicalPedidoStatus(p.status) === "recebido");
     const totalValue = pedidos.reduce((s, p) => s + Number(p.valor_total || 0), 0);
     return { total: pedidos.length, totalValue, aguardando: aguardando.length, recebidos: recebidos.length };
   }, [pedidos]);
@@ -256,7 +253,7 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
       data_entrega_real: p.data_entrega_real || "",
       frete_valor: String(p.frete_valor ?? ""),
       condicao_pagamento: p.condicao_pagamento || p.condicoes_pagamento || "",
-      status: p.status || "rascunho",
+      status: canonicalPedidoStatus(p.status) || "rascunho",
       observacoes: p.observacoes || "",
     });
 

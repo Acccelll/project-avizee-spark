@@ -4,6 +4,7 @@ import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { type MultiSelectOption } from "@/components/ui/MultiSelect";
 import { formatDate } from "@/lib/format";
 import type { PedidoCompra, FornecedorOptionRow } from "./pedidoCompraTypes";
+import { canonicalPedidoStatus } from "./comprasStatus";
 
 export const recebimentoFilterOptions: MultiSelectOption[] = [
   { label: "Aguardando Recebimento", value: "aguardando" },
@@ -12,9 +13,10 @@ export const recebimentoFilterOptions: MultiSelectOption[] = [
 ];
 
 function getRecebimentoFilter(status: string): string {
-  if (status === "recebido") return "recebido";
-  if (status === "parcialmente_recebido") return "parcial";
-  if (["aguardando_recebimento", "enviado_ao_fornecedor", "aprovado"].includes(status)) return "aguardando";
+  const normalized = canonicalPedidoStatus(status);
+  if (normalized === "recebido") return "recebido";
+  if (normalized === "parcialmente_recebido") return "parcial";
+  if (["aguardando_recebimento", "enviado_ao_fornecedor", "aprovado"].includes(normalized)) return "aguardando";
   return "";
 }
 

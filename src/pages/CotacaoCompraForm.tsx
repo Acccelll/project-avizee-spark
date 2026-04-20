@@ -12,7 +12,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { StatusBadge } from "@/components/StatusBadge";
 import { AutocompleteSearch } from "@/components/ui/AutocompleteSearch";
 import { CotacaoCompraPropostasPanel } from "@/components/compras/CotacaoCompraPropostasPanel";
@@ -348,16 +347,10 @@ export default function CotacaoCompraForm() {
               </div>
               <div className="space-y-2">
                 <Label>Status</Label>
-                <Select value={form.status} onValueChange={(v) => updateForm({ ...form, status: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="aberta">Aberta</SelectItem>
-                    <SelectItem value="em_analise">Em Análise</SelectItem>
-                    <SelectItem value="aguardando_aprovacao">Aguardando Aprovação</SelectItem>
-                    <SelectItem value="aprovada">Aprovada</SelectItem>
-                    <SelectItem value="rejeitada">Rejeitada</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Input value={statusLabels[form.status] || form.status} disabled />
+                <p className="text-[11px] text-muted-foreground">
+                  O status é alterado por ações de workflow (aprovar/rejeitar/gerar pedido), não no formulário.
+                </p>
               </div>
             </div>
 

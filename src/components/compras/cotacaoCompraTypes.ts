@@ -45,35 +45,11 @@ export interface LocalItem {
   unidade: string;
 }
 
-export const statusLabels: Record<string, string> = {
-  aberta: "Aberta",
-  em_analise: "Em Análise",
-  aguardando_aprovacao: "Aguardando Aprovação",
-  aprovada: "Aprovada",
-  finalizada: "Concluída",
-  convertida: "Convertida em Pedido",
-  rejeitada: "Rejeitada",
-  cancelada: "Cancelada",
-};
-
-/** Maps legacy 'finalizada' status to 'aprovada' for flow/stepper logic */
-export function normalizeStatus(status: string): string {
-  return status === "finalizada" ? "aprovada" : status;
-}
-
-export const FLOW_STEPS = [
-  { key: "aberta", label: "Em Cotação" },
-  { key: "em_analise", label: "Em Análise" },
-  { key: "aguardando_aprovacao", label: "Aprovação" },
-  { key: "aprovada", label: "Aprovada" },
-  { key: "convertida", label: "Convertida" },
-];
-
-export const FLOW_STEP_ORDER = ["aberta", "em_analise", "aguardando_aprovacao", "aprovada", "convertida"];
-
-export function getFlowStepIndex(status: string): number {
-  return FLOW_STEP_ORDER.indexOf(normalizeStatus(status));
-}
+export {
+  COTACAO_FLOW_STEPS as FLOW_STEPS,
+  cotacaoStatusLabelMap as statusLabels,
+  getCotacaoFlowStepIndex as getFlowStepIndex,
+} from "./comprasStatus";
 
 /**
  * Returns a fresh empty form so `data_cotacao` reflects the current

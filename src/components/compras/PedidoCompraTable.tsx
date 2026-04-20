@@ -9,13 +9,14 @@ import { formatCurrency, formatDate, calculateDaysBetween } from "@/lib/format";
 import type { PedidoCompra } from "./pedidoCompraTypes";
 import { pedidoNumero } from "./pedidoCompraTypes";
 import { useActionLock } from "@/hooks/useActionLock";
+import { canonicalPedidoStatus, pedidoCanReceive } from "./comprasStatus";
 
 const ENTREGA_ALERTA_DIAS = 3;
 const TERMINAL_STATUS_PC = ["recebido", "cancelado"];
 
 function EntregaCell({ dataEntrega, status }: { dataEntrega: string | null; status: string }) {
   if (!dataEntrega) return <span className="text-muted-foreground text-xs">—</span>;
-  if (TERMINAL_STATUS_PC.includes(status)) {
+  if (TERMINAL_STATUS_PC.includes(canonicalPedidoStatus(status))) {
     return <span className="text-xs">{formatDate(dataEntrega)}</span>;
   }
   const daysLeft = calculateDaysBetween(new Date(), dataEntrega);
@@ -116,12 +117,13 @@ export function PedidoCompraTable({
       key: "recebimento",
       label: "Recebimento",
       render: (p: PedidoCompra) => {
-        if (p.status === "recebido") return <StatusBadge status="recebido" />;
-        if (p.status === "parcialmente_recebido") return <StatusBadge status="recebido_parcial" />;
-        if (["aguardando_recebimento", "enviado_ao_fornecedor", "aprovado"].includes(p.status)) {
+        const status = canonicalPedidoStatus(p.status);
+        if (status === "recebido") return <StatusBadge status="recebido" />;
+        if (status === "parcialmente_recebido") return <StatusBadge status="recebido_parcial" label="Recebimento Parcial" />;
+        if (["aguardando_recebimento", "enviado_ao_fornecedor", "aprovado"].includes(status)) {
           return <StatusBadge status="aguardando" />;
         }
-        if (p.status === "cancelado") return <span className="text-xs text-muted-foreground">—</span>;
+        if (status === "cancelado") return <span className="text-xs text-muted-foreground">—</span>;
         return <StatusBadge status="rascunho" />;
       },
     },
@@ -141,8 +143,9 @@ export function PedidoCompraTable({
       label: "Ações",
       sortable: false,
       render: (p: PedidoCompra) => {
-        const canSend = p.status === "aprovado";
-        const canReceive = ["aprovado", "enviado_ao_fornecedor", "aguardando_recebimento", "parcialmente_recebido"].includes(p.status);
+        const status = canonicalPedidoStatus(p.status);
+        const canSend = status === "aprovado";
+        const canReceive = pedidoCanReceive(status);
         if (!canSend && !canReceive) return null;
         const primary = canSend
           ? { label: "Enviar ao fornecedor", icon: SendHorizontal, onClick: () => sendLock.run(() => onSend(p)), disabled: sendLock.pending }

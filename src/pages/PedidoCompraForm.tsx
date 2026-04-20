@@ -19,7 +19,6 @@ import { ItemsGrid, type GridItem } from "@/components/ui/ItemsGrid";
 import { ArrowLeft, Save } from "lucide-react";
 import { PageShell } from "@/components/PageShell";
 import { toast } from "sonner";
-import { getUserFriendlyError } from "@/utils/errorMessages";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { statusPedidoCompra } from "@/lib/statusSchema";
 import type { PedidoCompra } from "@/components/compras/pedidoCompraTypes";
@@ -27,6 +26,7 @@ import { pedidoNumero } from "@/components/compras/pedidoCompraTypes";
 import type { Database } from "@/integrations/supabase/types";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
+import { canonicalPedidoStatus, pedidoStatusLabelMap } from "@/components/compras/comprasStatus";
 
 type ProdutoRow = Database["public"]["Tables"]["produtos"]["Row"] & { preco_custo?: number | null };
 type FornecedorRow = Database["public"]["Tables"]["fornecedores"]["Row"];
@@ -96,7 +96,7 @@ export default function PedidoCompraForm() {
         data_entrega_real: ped.data_entrega_real || "",
         frete_valor: String(ped.frete_valor ?? ""),
         condicao_pagamento: ped.condicao_pagamento || ped.condicoes_pagamento || "",
-        status: ped.status || "rascunho",
+        status: canonicalPedidoStatus(ped.status) || "rascunho",
         observacoes: ped.observacoes || "",
       });
       updateItems(
@@ -229,7 +229,7 @@ export default function PedidoCompraForm() {
           <span className="font-mono">{pedidoNumero(pedido)}</span>
           <StatusBadge
             status={pedido.status}
-            label={statusPedidoCompra[pedido.status as keyof typeof statusPedidoCompra]?.label ?? pedido.status}
+            label={pedidoStatusLabelMap[canonicalPedidoStatus(pedido.status)] ?? pedido.status}
           />
         </span>
       }
@@ -257,7 +257,7 @@ export default function PedidoCompraForm() {
         {isTerminal && (
           <div className="rounded-lg border border-warning/30 bg-warning/5 px-4 py-3 text-sm text-warning">
             Este pedido está em status <strong>
-              {statusPedidoCompra[pedido.status as keyof typeof statusPedidoCompra]?.label ?? pedido.status}
+              {pedidoStatusLabelMap[canonicalPedidoStatus(pedido.status)] ?? pedido.status}
             </strong> e não pode ser editado aqui. Use as ações do drawer.
           </div>
         )}
@@ -303,7 +303,7 @@ export default function PedidoCompraForm() {
                   ))}
                   {!["rascunho", "aprovado"].includes(form.status) && (
                     <SelectItem value={form.status} disabled>
-                      {statusPedidoCompra[form.status as keyof typeof statusPedidoCompra]?.label ?? form.status}
+                      {pedidoStatusLabelMap[canonicalPedidoStatus(form.status)] ?? form.status}
                     </SelectItem>
                   )}
                 </SelectContent>

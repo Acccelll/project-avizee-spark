@@ -1,11 +1,10 @@
 /**
  * Subcomponente: cabeçalho do drawer de cotação com estatísticas e stepper.
  */
-import { Badge } from '@/components/ui/badge';
-import { StatusBadge } from '@/components/StatusBadge';
-import { formatCurrency, formatDate } from '@/lib/format';
-import { PackageSearch, Users2, TrendingDown, Trophy, X, AlertCircle, ClipboardList } from 'lucide-react';
-import { FLOW_STEPS, getFlowStepIndex, normalizeStatus, statusLabels } from './cotacaoCompraTypes';
+import { formatCurrency } from '@/lib/format';
+import { PackageSearch, Users2, TrendingDown, X } from 'lucide-react';
+import { FLOW_STEPS, getFlowStepIndex } from './cotacaoCompraTypes';
+import { canonicalCotacaoStatus } from './comprasStatus';
 import type { CotacaoCompra, CotacaoItem, Proposta } from './cotacaoCompraTypes';
 
 interface DrawerStats {
@@ -23,7 +22,7 @@ interface CotacaoCompraHeaderProps {
   drawerStats: DrawerStats;
 }
 
-export function CotacaoCompraHeaderSummary({ selected, viewItems, viewPropostas, drawerStats }: CotacaoCompraHeaderProps) {
+export function CotacaoCompraHeaderSummary({ selected, viewItems, drawerStats }: CotacaoCompraHeaderProps) {
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-3 gap-2">
@@ -55,7 +54,7 @@ export function CotacaoCompraHeaderSummary({ selected, viewItems, viewPropostas,
             {FLOW_STEPS.map((step, i) => {
               const currentIdx = getFlowStepIndex(selected.status);
               const stepIdx = getFlowStepIndex(step.key);
-              const isActive = normalizeStatus(selected.status) === step.key;
+              const isActive = canonicalCotacaoStatus(selected.status) === step.key;
               const isPast = currentIdx > stepIdx;
               return (
                 <div key={step.key} className="flex items-center flex-1 min-w-0">

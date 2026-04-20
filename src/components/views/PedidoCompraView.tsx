@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { useDetailFetch } from "@/hooks/useDetailFetch";
 import { DetailLoading, DetailError, DetailEmpty } from "@/components/ui/DetailStates";
 import { RelatedRecordsStrip } from "@/components/views/RelatedRecordsStrip";
+import { canonicalPedidoStatus, pedidoRecebimentoLabel } from "@/components/compras/comprasStatus";
 import {
   Truck,
   CheckCircle2,
@@ -143,24 +144,25 @@ export function PedidoCompraView({ id }: Props) {
   });
 
   const selected = data?.pedido ?? null;
+  const pedidoStatus = canonicalPedidoStatus(selected?.status);
   const viewItems = data?.itens ?? [];
   const viewEstoque = data?.estoque ?? [];
   const viewCotacao = data?.cotacao ?? null;
 
   const isOverdue = !!(
     selected &&
-    !["recebido", "cancelado"].includes(selected.status) &&
+    !["recebido", "cancelado"].includes(pedidoStatus) &&
     !!selected.data_entrega_prevista &&
     new Date(selected.data_entrega_prevista) < new Date()
   );
 
   const recebimentoStatus = (() => {
     if (!selected) return { label: "—", color: "text-muted-foreground", Icon: FileText };
-    if (selected.status === "recebido") return { label: "Recebido", color: "text-success", Icon: CheckCircle2 };
-    if (selected.status === "parcialmente_recebido") return { label: "Parcial", color: "text-warning", Icon: ArrowDownToLine };
-    if (["aguardando_recebimento", "enviado_ao_fornecedor", "aprovado"].includes(selected.status))
+    if (pedidoStatus === "recebido") return { label: "Recebido", color: "text-success", Icon: CheckCircle2 };
+    if (pedidoStatus === "parcialmente_recebido") return { label: "Parcial", color: "text-warning", Icon: ArrowDownToLine };
+    if (["aguardando_recebimento", "enviado_ao_fornecedor", "aprovado"].includes(pedidoStatus))
       return { label: "Aguardando", color: "text-warning", Icon: Clock };
-    if (selected.status === "cancelado") return { label: "Cancelado", color: "text-destructive", Icon: AlertCircle };
+    if (pedidoStatus === "cancelado") return { label: "Cancelado", color: "text-destructive", Icon: AlertCircle };
     return { label: "Pendente", color: "text-muted-foreground", Icon: FileText };
   })();
 
@@ -192,7 +194,7 @@ export function PedidoCompraView({ id }: Props) {
             {selected.fornecedores?.nome_razao_social || "—"} · {formatDate(selected.data_pedido)}
           </p>
           <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-            <StatusBadge status={selected.status} />
+            <StatusBadge status={pedidoStatus} />
             {pctRecebimento > 0 && (
               <span className={`inline-flex items-center rounded-full border bg-muted/50 px-2 py-0.5 text-[10px] font-mono ${pctRecebimento === 100 ? "text-success" : "text-warning"}`}>
                 {pctRecebimento}% recebido
@@ -271,7 +273,7 @@ export function PedidoCompraView({ id }: Props) {
                 <span className="font-mono font-medium">{pedidoNum}</span>
               </ViewField>
               <ViewField label="Status">
-                <StatusBadge status={selected.status} />
+                <StatusBadge status={pedidoStatus} />
               </ViewField>
               <ViewField label="Data Pedido">{formatDate(selected.data_pedido)}</ViewField>
               <ViewField label="Valor Total">
@@ -373,7 +375,7 @@ export function PedidoCompraView({ id }: Props) {
             <div className="flex items-center gap-3">
               <recebimentoStatus.Icon className={`h-5 w-5 shrink-0 ${recebimentoStatus.color}`} />
               <div className="flex-1 min-w-0">
-                <p className="font-semibold text-sm">{recebimentoStatus.label}</p>
+                <p className="font-semibold text-sm">{pedidoRecebimentoLabel(pedidoStatus)}</p>
                 <p className="text-xs text-muted-foreground">{selected.status}</p>
               </div>
               {pctRecebimento > 0 && (
@@ -466,7 +468,7 @@ export function PedidoCompraView({ id }: Props) {
           ) : (
             <div className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
               <Boxes className="h-8 w-8 mx-auto mb-2 opacity-30" />
-              {["recebido", "parcialmente_recebido"].includes(selected.status)
+              {["recebido", "parcialmente_recebido"].includes(pedidoStatus)
                 ? "Movimentações de estoque não encontradas."
                 : "Nenhum recebimento registrado ainda."}
             </div>

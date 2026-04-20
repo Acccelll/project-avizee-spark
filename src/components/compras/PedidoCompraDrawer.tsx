@@ -10,6 +10,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { RelationalLink } from "@/components/ui/RelationalLink";
 import { useActionLock } from "@/hooks/useActionLock";
 import { getPedidoCompraPermissions, isVencido } from "@/lib/drawerPermissions";
+import { canonicalPedidoStatus, pedidoCanReceive, pedidoRecebimentoLabel } from "./comprasStatus";
 
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -81,6 +82,7 @@ export function PedidoCompraDrawer({
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectMotivo, setRejectMotivo] = useState("");
+  const pedidoStatus = canonicalPedidoStatus(selected.status);
 
   const { pending: sendPending, run: runSend } = useActionLock();
   const { pending: receivePending, run: runReceive } = useActionLock();
@@ -92,14 +94,14 @@ export function PedidoCompraDrawer({
   if (!open || !selected) return null;
 
   const isOverdue =
-    !["recebido", "cancelado"].includes(selected.status) &&
+    !["recebido", "cancelado"].includes(pedidoStatus) &&
     isVencido(selected.data_entrega_prevista);
 
   const recebimentoStatus = (() => {
-    if (selected.status === "recebido") return { label: "Recebido", color: "success" };
-    if (selected.status === "parcialmente_recebido") return { label: "Parcial", color: "warning" };
-    if (selected.status === "aguardando_recebimento") return { label: "Aguardando", color: "warning" };
-    if (selected.status === "cancelado") return { label: "Cancelado", color: "destructive" };
+    if (pedidoStatus === "recebido") return { label: "Recebido", color: "success" };
+    if (pedidoStatus === "parcialmente_recebido") return { label: "Recebimento Parcial", color: "warning" };
+    if (pedidoStatus === "aguardando_recebimento") return { label: "Aguardando Recebimento", color: "warning" };
+    if (pedidoStatus === "cancelado") return { label: "Cancelado", color: "destructive" };
     return { label: "Pendente", color: "secondary" };
   })();
 
@@ -264,19 +266,19 @@ export function PedidoCompraDrawer({
       <div className="rounded-lg border p-4">
         <p className="text-xs text-muted-foreground uppercase font-semibold mb-2">Situação de Recebimento</p>
         <div className="flex items-center gap-3">
-          {selected.status === "recebido" && <CheckCircle2 className="h-5 w-5 text-success shrink-0" />}
-          {selected.status === "parcialmente_recebido" && (
+          {pedidoStatus === "recebido" && <CheckCircle2 className="h-5 w-5 text-success shrink-0" />}
+          {pedidoStatus === "parcialmente_recebido" && (
             <ArrowDownToLine className="h-5 w-5 text-warning shrink-0" />
           )}
-          {["aguardando_recebimento", "enviado_ao_fornecedor", "aprovado"].includes(selected.status) && (
+          {["aguardando_recebimento", "enviado_ao_fornecedor", "aprovado"].includes(pedidoStatus) && (
             <Clock className="h-5 w-5 text-warning shrink-0" />
           )}
-          {selected.status === "rascunho" && <FileText className="h-5 w-5 text-muted-foreground shrink-0" />}
-          {selected.status === "cancelado" && (
+          {pedidoStatus === "rascunho" && <FileText className="h-5 w-5 text-muted-foreground shrink-0" />}
+          {pedidoStatus === "cancelado" && (
             <AlertCircle className="h-5 w-5 text-destructive shrink-0" />
           )}
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-sm">{recebimentoStatus.label}</p>
+            <p className="font-semibold text-sm">{pedidoRecebimentoLabel(pedidoStatus)}</p>
             <p className="text-xs text-muted-foreground">{statusLabels[selected.status] || selected.status}</p>
           </div>
           {pctRecebimento > 0 && (
@@ -382,7 +384,7 @@ export function PedidoCompraDrawer({
       ) : (
         <div className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
           <Boxes className="h-8 w-8 mx-auto mb-2 opacity-30" />
-          {["recebido", "parcialmente_recebido"].includes(selected.status)
+          {["recebido", "parcialmente_recebido"].includes(pedidoStatus)
             ? "Movimentações de estoque não encontradas."
             : "Nenhum recebimento registrado ainda."}
         </div>
@@ -508,7 +510,7 @@ export function PedidoCompraDrawer({
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">
-            {["recebido", "parcialmente_recebido"].includes(selected.status)
+            {["recebido", "parcialmente_recebido"].includes(pedidoStatus)
               ? "Lançamento financeiro não encontrado para este pedido."
               : "Lançamento gerado automaticamente ao registrar o recebimento."}
           </p>
@@ -531,11 +533,11 @@ export function PedidoCompraDrawer({
 
   const perms = getPedidoCompraPermissions({ status: selected.status, ativo: true }, !!isAdmin);
   // Mantém regras locais detalhadas (status com mais variações que helper genérico)
-  const canReceive = ["aprovado", "enviado_ao_fornecedor", "aguardando_recebimento", "parcialmente_recebido", "recebido_parcial"].includes(selected.status);
-  const canSend = selected.status === "aprovado";
-  const canCancel = ["rascunho", "aprovado", "enviado_ao_fornecedor", "aguardando_recebimento"].includes(selected.status);
-  const canSolicitarAprovacao = selected.status === "rascunho" && !!onSolicitarAprovacao;
-  const canApproveReject = selected.status === "aguardando_aprovacao" && !!isAdmin;
+  const canReceive = pedidoCanReceive(pedidoStatus);
+  const canSend = pedidoStatus === "aprovado";
+  const canCancel = ["rascunho", "aprovado", "enviado_ao_fornecedor", "aguardando_recebimento"].includes(pedidoStatus);
+  const canSolicitarAprovacao = pedidoStatus === "rascunho" && !!onSolicitarAprovacao;
+  const canApproveReject = pedidoStatus === "aguardando_aprovacao" && !!isAdmin;
   void perms;
 
   const drawerFooter =
