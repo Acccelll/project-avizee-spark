@@ -119,3 +119,18 @@ SELECT entidade, motivo, count(*)
  GROUP BY entidade, motivo
  ORDER BY entidade, motivo;
 ```
+
+## Revisão estrutural do módulo Comercial (2026-04-20)
+
+Migrations idempotentes aplicadas em lote:
+
+1. Padronização de status do orçamento (`confirmado`/`enviado` → `pendente`), CHECK atualizado e trigger `trg_orcamento_transicao_valida`.
+2. Proteção de exclusão + RPC `cancelar_orcamento(p_id, p_motivo)`.
+3. Matriz `chk_ordens_venda_matriz_status`; removido CHECK duplicado `chk_ordens_venda_status_fat`.
+4. RPC `converter_orcamento_em_ov` v2 — gate `aprovado`, `ux_ordens_venda_cotacao_id`, auditoria, parâmetro `p_forcar`.
+5. RPC `gerar_nf_de_pedido` v2 — `pg_advisory_xact_lock`, gate operacional, retorno com `status_faturamento_novo`.
+6. FKs `cotacao_id` e `ordem_venda_id` com `ON DELETE RESTRICT`; índices; view `v_trilha_comercial` (security_invoker).
+7. `chk_orcamento_frete_tipo` / `chk_orcamento_modalidade` + FK transportadora `ON DELETE SET NULL`.
+8. Trigger `trg_auditoria_orcamento_status` em `auditoria_logs`.
+
+Ver `docs/comercial-modelo.md` para o modelo completo.
