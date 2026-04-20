@@ -777,6 +777,10 @@ export default function MigracaoDados() {
                     <PreviewFaturamentoTable data={hookFaturamento.previewData} />
                   ) : activeImportSource === 'financeiro' ? (
                     <PreviewFinanceiroTable data={hookFinanceiro.previewData} />
+                  ) : activeImportSource === 'conciliacao' ? (
+                    hookConciliacao.previewData
+                      ? <PreviewConciliacaoTabs preview={hookConciliacao.previewData} />
+                      : <p className="text-sm text-muted-foreground py-8 text-center">Carregando prévia da conciliação…</p>
                   ) : (
                     <>
                       <ErrosImportacaoPanel data={previewData} />
