@@ -86,7 +86,8 @@ export function useCargaInicial() {
       const newLoteId = lote.id; setLoteId(newLoteId);
 
       // stg_cadastros: grupos + plano + fornecedores + clientes + produtos + insumos
-      const cadRows: Array<{ lote_id: string; status: string; dados: Record<string, unknown> }> = [];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const cadRows: any[] = [];
       grupos.forEach(g => cadRows.push({ lote_id: newLoteId, status: "pendente", dados: { _tipo: "grupo", nome: g } }));
       bundle.planoContas.forEach(p => cadRows.push({ lote_id: newLoteId, status: "pendente", dados: { _tipo: "plano_conta", codigo: p.codigo, descricao: p.descricao, i_level: p.i_level } }));
       bundle.fornecedores.forEach(f => cadRows.push({ lote_id: newLoteId, status: "pendente", dados: { _tipo: "fornecedor", ...f } }));
