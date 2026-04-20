@@ -8,6 +8,7 @@ import {
   Users,
   Receipt,
 } from 'lucide-react';
+import { buildDrilldownUrl } from '@/lib/dashboard/drilldown';
 
 interface AlertItem {
   id: string;
@@ -57,6 +58,7 @@ export function AlertStrip({
 }: AlertStripProps) {
   const navigate = useNavigate();
 
+  const SEVERITY_ORDER = { error: 0, warning: 1, info: 2 } as const;
   const items = [
     {
       id: 'vencidos',
@@ -64,8 +66,7 @@ export function AlertStrip({
       count: titulosVencidos,
       icon: Receipt,
       severity: 'error',
-      // Navigate directly to /financeiro — the page does not consume query-string filters.
-      href: '/financeiro',
+      href: buildDrilldownUrl({ kind: 'financeiro:vencidos' }),
     },
     {
       id: 'estoque',
@@ -73,7 +74,7 @@ export function AlertStrip({
       count: estoqueBaixo,
       icon: Package,
       severity: 'error',
-      href: '/estoque',
+      href: buildDrilldownUrl({ kind: 'estoque:critico' }),
     },
     {
       id: 'remessas',
@@ -81,7 +82,7 @@ export function AlertStrip({
       count: remessasAtrasadas,
       icon: Truck,
       severity: 'warning',
-      href: '/logistica',
+      href: buildDrilldownUrl({ kind: 'logistica:remessas-atrasadas' }),
     },
     {
       id: 'compras',
@@ -89,15 +90,15 @@ export function AlertStrip({
       count: comprasAtrasadas,
       icon: ClipboardList,
       severity: 'warning',
-      href: '/pedidos-compra',
+      href: buildDrilldownUrl({ kind: 'compras:atrasadas' }),
     },
     {
       id: 'notas',
       label: 'Notas pendentes',
       count: notasPendentes,
       icon: FileText,
-      severity: 'info',
-      href: '/fiscal',
+      severity: notasPendentes > 5 ? 'warning' : 'info',
+      href: buildDrilldownUrl({ kind: 'fiscal:rascunho' }),
     },
     {
       id: 'ovs',
@@ -105,9 +106,11 @@ export function AlertStrip({
       count: ovsPendentes,
       icon: Users,
       severity: 'info',
-      href: '/pedidos',
+      href: buildDrilldownUrl({ kind: 'pedidos:aguardando-faturamento' }),
     },
-  ].filter((item) => item.count > 0);
+  ]
+    .filter((item) => item.count > 0)
+    .sort((a, b) => SEVERITY_ORDER[a.severity as keyof typeof SEVERITY_ORDER] - SEVERITY_ORDER[b.severity as keyof typeof SEVERITY_ORDER]);
 
   if (items.length === 0) {
     return (
