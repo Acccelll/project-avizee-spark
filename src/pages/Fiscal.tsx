@@ -586,6 +586,12 @@ const Fiscal = () => {
   };
 
   const tipoParam = searchParams.get("tipo");
+  // Drill-down from Dashboard: ?status=rascunho or ?status=pendente,rascunho.
+  const statusUrlParam = searchParams.get("status");
+  const statusFromUrl = useMemo(
+    () => (statusUrlParam ? statusUrlParam.split(",").map((s) => s.trim()).filter(Boolean) : []),
+    [statusUrlParam],
+  );
   const filteredData = useMemo(() => {
     const query = consultaSearch.trim().toLowerCase();
     return data.filter((n) => {
@@ -593,6 +599,7 @@ const Fiscal = () => {
       if (tipoFilters.length > 0 && !tipoFilters.includes(n.tipo)) return false;
       if (modeloFilters.length > 0 && !modeloFilters.includes(n.modelo_documento || "55")) return false;
       if (statusFilters.length > 0 && !statusFilters.includes(n.status)) return false;
+      if (statusFromUrl.length > 0 && !statusFromUrl.includes(n.status)) return false;
       if (origemFilters.length > 0 && !origemFilters.includes(n.origem || "manual")) return false;
       if (statusSefazFilters.length > 0 && !statusSefazFilters.includes(n.status_sefaz || "nao_enviada")) return false;
       if (!query) return true;
@@ -600,7 +607,7 @@ const Fiscal = () => {
       const haystack = [n.numero, n.serie, n.chave_acesso, parceiro, n.ordens_venda?.numero].filter(Boolean).join(" ").toLowerCase();
       return haystack.includes(query);
     });
-  }, [consultaSearch, data, tipoParam, modeloFilters, statusFilters, tipoFilters, origemFilters, statusSefazFilters]);
+  }, [consultaSearch, data, tipoParam, modeloFilters, statusFilters, tipoFilters, origemFilters, statusSefazFilters, statusFromUrl]);
 
   // KPIs — sobre os dados filtrados (consistente com a grid)
   const kpis = useMemo(() => {

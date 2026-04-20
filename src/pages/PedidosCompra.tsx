@@ -1,4 +1,5 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { ModulePage } from "@/components/ModulePage";
 import { SummaryCard } from "@/components/SummaryCard";
 import { CheckCircle2, Clock, ShoppingCart } from "lucide-react";
@@ -22,6 +23,15 @@ export default function PedidosCompra() {
   const { isAdmin } = useIsAdmin();
 
   const filters = usePedidoCompraFilters(ctx.pedidos, ctx.fornecedoresAtivos, statusLabels);
+
+  // Drill-down from Dashboard: ?atrasadas=1 → applies "atrasada" recebimento filter.
+  const [searchParams] = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get("atrasadas") === "1") {
+      filters.setRecebimentoFilters((prev) => (prev.includes("atrasada") ? prev : ["atrasada"]));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const statusOptions = useMemo<MultiSelectOption[]>(
     () => Object.entries(statusLabels).map(([k, v]) => ({ value: k, label: v })),

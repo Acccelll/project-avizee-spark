@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -76,6 +76,7 @@ export default function Logistica() {
   const { can } = useCan();
   const { pushView } = useRelationalNavigation();
   const canEdit = can("logistica:editar");
+  const [searchParams] = useSearchParams();
 
   // ─── Entregas / Recebimentos via hooks ───
   const { data: entregas = [], isLoading: entregasLoading } = useEntregas();
@@ -102,6 +103,18 @@ export default function Logistica() {
   const [prazoFilters, setPrazoFilters] = useState<string[]>([]);
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
+  const [activeTab, setActiveTab] = useState<string>("entregas");
+
+  // Drill-down from Dashboard: ?tab=remessas&atrasadas=1 → switch tab + apply filter.
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    const atrasadas = searchParams.get("atrasadas");
+    if (tab) setActiveTab(tab);
+    if (atrasadas === "1") {
+      setPrazoFilters((prev) => (prev.includes("atrasado") ? prev : ["atrasado"]));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const [searchTermReceb, setSearchTermReceb] = useState("");
   const [statusFiltersReceb, setStatusFiltersReceb] = useState<string[]>([]);

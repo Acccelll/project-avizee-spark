@@ -82,6 +82,7 @@ const Estoque = () => {
   const produtosCrud = useSupabaseCrud<ProdutoPosicao>({ table: "produtos" });
   const { registrar, isSaving: saving } = useEstoqueMutations();
   const [activeTab, setActiveTab] = useState("saldos");
+  const [searchParams] = useSearchParams();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selected, setSelected] = useState<Movimento | null>(null);
   const [posicaoDrawerOpen, setPosicaoDrawerOpen] = useState(false);
@@ -95,6 +96,15 @@ const Estoque = () => {
   // Saldos filters
   const [searchPosicao, setSearchPosicao] = useState("");
   const [situacaoFilters, setSituacaoFilters] = useState<string[]>([]);
+
+  // Drill-down from Dashboard: ?critico=1 → tab "saldos" + filter for critical/zeroed.
+  useEffect(() => {
+    if (searchParams.get("critico") === "1") {
+      setActiveTab("saldos");
+      setSituacaoFilters((prev) => (prev.length ? prev : ["critico", "zerado"]));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
   // Movimentações filters
   const [searchMovimentacao, setSearchMovimentacao] = useState("");
   const [tipoFilters, setTipoFilters] = useState<string[]>([]);
