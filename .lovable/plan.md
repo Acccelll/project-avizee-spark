@@ -1,153 +1,218 @@
 
 
-## Revisão estrutural — Módulo Fiscal
+## Revisão estrutural — Módulo Relatórios
 
-Banco hoje: 0 NFs, CHECK em `notas_fiscais.status` aceita só **3 valores** (`rascunho`, `confirmada`, `cancelada`), enquanto o front (`fiscalStatus.ts`) trabalha com **9** (`pendente, rascunho, confirmada, autorizada, importada, rejeitada, cancelada, cancelada_sefaz, inutilizada`). A RPC `gerar_nf_de_pedido` insere `status='pendente'` — viola o CHECK atual. RPC `confirmar_nota_fiscal` aceita "qualquer status ≠ confirmada/cancelada" sem máquina de estados. `estornar_nota_fiscal` faz `DELETE` em `financeiro_lancamentos` (perde rastreabilidade — deveria usar `cancelar_lancamento`). Não há trigger anti-DELETE em `notas_fiscais`. Não há gate impedindo edição de NF confirmada/autorizada. Sem `unique` em `(modelo,serie,numero)` ou `chave_acesso`.
+Diagnóstico real:
+- O serviço já entrega `title/subtitle/rows/chartData/totals/kpis`, mas usa **duas flags ad‑hoc** (`_isQuantityReport`, `_isDreReport`) que vazam para `Relatorios.tsx` e `formatCellValue`.
+- Status/badges são classificados no front por **substring genérica** (`BADGE_CRITICAL/BADGE_OK` em `Relatorios.tsx` e `filtrarPorStatus` em `utils/relatorios.ts`), com `r["status"] ?? r["situacao"] ?? r["faturamento"]` — frágil ao variar rótulo.
+- O **eixo temporal** de cada relatório (emissão, vencimento, pagamento, criação, competência) é definido implicitamente dentro de cada `case`, sem aparecer no config para a UI ou para exportação.
+- `drillDown` no config existe mas as rows **não trazem IDs** dos vínculos (ex.: `vendas` retorna `numero` mas não `ordem_venda_id`; `faturamento` não retorna `nota_fiscal_id`/`cliente_id`).
+- `useRelatoriosFiltrosData` tem `limit(300)` em clientes/fornecedores — trunca silenciosamente.
+- `relatorios.service.ts` tem 1129 linhas em um único `switch` — dificulta evolução por domínio.
+- DRE/Aging/Curva ABC/Divergências têm semântica especial sem metadado explícito.
 
-Plano executa apenas o necessário para alinhar banco+RPCs+front, preservando arquitetura.
+Plano corrige sem inventar sistema novo: enriquece o contrato existente, remove heurísticas, prepara drill‑down real e refatora arquivos por domínio.
 
 ---
 
-### Máquina de estados oficial
+### 1) Contrato semântico padronizado
 
-**Status interno do ERP** (`notas_fiscais.status`) — ciclo operacional:
+Em `relatorios.service.ts`, estender (sem quebrar) o `RelatorioResultado`:
 
-```text
-rascunho → pendente → confirmada → cancelada
-                  └→ cancelada (cancelamento antes de confirmar)
-importada (terminal alternativo, para NFs externas via XML)
+```ts
+export type ReportKind = 'list' | 'ranking' | 'aging' | 'dre' | 'divergencias';
+export type ValueNature = 'monetario' | 'quantidade' | 'percentual' | 'misto';
+
+export interface ReportMeta {
+  kind: ReportKind;
+  valueNature: ValueNature;
+  /** Eixo temporal aplicado: nome do campo de data + label legível */
+  timeAxis?: { field: string; label: string; required: boolean };
+  /** Indica se rows trazem IDs aptas a drill-down */
+  drillDownReady: boolean;
+}
+
+export interface RelatorioResultado<T = Record<string, unknown>> {
+  title: string; subtitle: string;
+  rows: T[];
+  chartData?: Array<{ name: string; value: number }>;
+  totals?: Record<string, number>;
+  kpis?: Record<string, number>;
+  meta: ReportMeta;                     // NOVO — sempre presente
+  /** @deprecated usar meta.valueNature === 'quantidade' */
+  _isQuantityReport?: boolean;
+  /** @deprecated usar meta.kind === 'dre' */
+  _isDreReport?: boolean;
+}
 ```
 
-- `rascunho`: edição livre, nenhum efeito.
-- `pendente`: criada por automação (ex.: `gerar_nf_de_pedido`); dados estruturais prontos, ainda não impacta estoque/financeiro. Editável.
-- `confirmada`: efeitos operacionais aplicados (estoque + financeiro + faturamento OV). Estruturalmente travada.
-- `importada`: NF de fornecedor importada via XML; somente leitura, pode movimentar estoque/financeiro de entrada conforme flags.
-- `cancelada`: terminal local. Sem efeitos vigentes.
+Cada `case` passa a popular `meta`. As flags antigas continuam emitidas por compatibilidade (1 sprint), mas o front passa a ler `meta`.
 
-**Status fiscal SEFAZ** (`notas_fiscais.status_sefaz`) — ciclo eletrônico, ortogonal:
+### 2) Status estruturado — fim do "substring textual"
 
-```text
-nao_enviada → em_processamento → autorizada
-                              └→ rejeitada (volta a nao_enviada após correção)
-                              └→ denegada (terminal)
-autorizada → cancelada_sefaz (terminal)
-nao_enviada → inutilizada (terminal, faixa numérica não usada)
-importada_externa (terminal, NF de terceiro)
+Hoje o front filtra por `r["status"] ?? r["situacao"] ?? r["faturamento"]` com `.includes(...)`. Substituir por **status canônico explícito** via duas adições:
+
+a) Em cada row de relatório que tem dimensão de status, adicionar campos novos **persistentes ao lado dos textuais**:
+```ts
+statusKey: string;       // 'aberto' | 'parcial' | 'pago' | ... (canônico)
+statusKind: 'critical' | 'warning' | 'success' | 'info' | 'neutral';
+```
+- `financeiro`: já tem `status` canônico — apenas mapear para `statusKey/statusKind` na própria service (mapa pequeno em `src/lib/relatoriosStatusMap.ts`).
+- `vendas`: usa `status_comercial` + `faturamento_status` — manter labels visuais e expor `statusKey`/`statusKind` derivados das constantes já existentes em `src/lib/statusSchema.ts`.
+- `compras`, `aging`, `divergencias`, `estoque`, `estoque_minimo`, `movimentos_estoque`, `curva_abc`: idem.
+
+b) `filtrarPorStatus` em `utils/relatorios.ts` passa a comparar `r.statusKey === valor` (com fallback ao antigo path para retrocompat). `Relatorios.tsx` remove `BADGE_CRITICAL/BADGE_OK`: a variante de badge vem de `r.statusKind`.
+
+### 3) Badges estruturadas
+
+Novo helper `src/lib/relatoriosBadges.ts`:
+```ts
+export function badgeVariantFromKind(kind?: StatusKind): BadgeVariant
+```
+`Relatorios.tsx` usa exclusivamente `r.statusKind` / `r.criticidadeKind` quando presentes. Constantes textuais ficam apenas como **fallback** para colunas legadas, com comentário `// fallback heurístico — remover quando todos relatórios expuserem statusKind`.
+
+Para colunas como `criticidade`, `faixa`, `classe` (ABC), o service passa a anexar `criticidadeKind` / `faixaKind` / `classeKind` ao lado.
+
+### 4) Eixo temporal explícito por relatório
+
+No config (`relatoriosConfig.ts`), cada `ReportConfig` ganha campo opcional:
+```ts
+timeAxis?: { field: 'emissao' | 'vencimento' | 'pagamento' | 'criacao' | 'competencia', 
+             label: string, required: boolean }
+```
+Tabela canônica:
+
+| Relatório | timeAxis.field | Coluna real | Required |
+|---|---|---|---|
+| estoque, margem_produtos, divergencias | — | (sem período) | false |
+| estoque_minimo | — | — | false |
+| movimentos_estoque | criacao | `created_at` | false |
+| financeiro | vencimento | `data_vencimento` | false |
+| fluxo_caixa | pagamento | `data_pagamento` (fallback `data_vencimento`) | false |
+| vendas, vendas_cliente | emissao | `data_emissao` | false |
+| compras, compras_fornecedor | criacao | `data_compra` | false |
+| faturamento, curva_abc | emissao | `data_emissao` | false |
+| aging | vencimento | `data_vencimento` | false |
+| dre | competencia | derivada (DRE) | true |
+
+`PeriodoFilter` passa a exibir um sublabel **"por <label do eixo>"** (ex.: "Período por vencimento") usando `selectedMeta.timeAxis.label`. O service já aplica em campos certos; agora isso fica visível e auditável.
+
+### 5) Drill-down real — IDs nas rows
+
+Para todos relatórios "list" e "ranking", o service passa a retornar IDs ocultos do vínculo principal:
+
+| Relatório | IDs adicionados às rows |
+|---|---|
+| estoque, margem_produtos, estoque_minimo, movimentos_estoque | `produtoId` |
+| financeiro, aging | `lancamentoId`, `clienteId?`, `fornecedorId?` |
+| vendas | `ordemVendaId`, `clienteId` |
+| vendas_cliente | `clienteId` |
+| compras | `pedidoCompraId` (na verdade `compraId`), `fornecedorId` |
+| compras_fornecedor | `fornecedorId` |
+| faturamento | `notaFiscalId`, `clienteId`, `ordemVendaId` |
+| curva_abc | `produtoId` |
+| divergencias | `referenciaId` (uuid) + `referenciaTipo` ('pedido_compra' \| 'nota_fiscal') |
+
+Esses campos **não entram nas colunas visíveis** (não estão em `cfg.columns`). Como `Relatorios.tsx` já filtra `colDefs` por `rowKeys`, basta adicionar os campos — o filtro mantém os IDs fora da tabela. Eles ficam disponíveis para a futura ação `onRowClick`/`drillDown` e para exportação opcional.
+
+`ReportDrillDownAction` ganha `targetField: string` indicando qual ID da row usar para construir a navegação. Implementação completa do click → navegação fica preparada (não wired ainda) para evitar escopo demais.
+
+### 6) Filtros de referência escaláveis
+
+Substituir `MultiSelect` simples de clientes/fornecedores em `FiltrosRelatorio.tsx` por **busca assíncrona com debounce**:
+
+- Novo hook `useRefSearch(table, q, ids)` em `src/pages/relatorios/hooks/useRelatoriosFiltrosData.ts`:
+  - `enabled` quando `q.length >= 2` ou quando há `ids` selecionados.
+  - Limit 50 por busca, sem `limit(300)` global.
+  - Cache por `[table, q]` com `staleTime: 5min`.
+- Mantém-se o `useRelatoriosFiltrosData` para grupos (volume baixo) e empresa.
+- `MultiSelect` é trocado por `AsyncMultiSelect` (componente novo em `src/components/ui/AsyncMultiSelect.tsx`) que aceita `loadOptions(query)`. Ele já busca também os labels dos `ids` pré-selecionados via segunda query (`in('id', ids)`).
+
+Resultado: fim da truncagem silenciosa.
+
+### 7) DRE / Aging / Curva ABC / Divergências — metadados especiais
+
+Cada um passa a setar `meta.kind`:
+- `dre` → `kind: 'dre'`, `valueNature: 'monetario'`. `DreTable` continua sendo a renderização condicional, mas o gate vira `resultado.meta.kind === 'dre'` (sai a flag `_isDreReport`).
+- `aging` → `kind: 'aging'`. UI pode mostrar legenda das faixas a partir de `meta`.
+- `curva_abc` → `kind: 'list'` + `valueNature: 'monetario'`. Cada row já carrega `classeKind` para badge.
+- `divergencias` → `kind: 'divergencias'`. UI passa a usar `criticidadeKind` e `tipoKind` (em vez de `BADGE_CRITICAL.includes('alta'|'pedido s/ nf'|...)`).
+
+### 8) Exportação semântica
+
+`ExportOptions` passa a aceitar `meta?: ReportMeta`. `buildPdfDocument` usa:
+- `meta.timeAxis?.label` no subtítulo do período ("Período por vencimento: …").
+- `meta.kind === 'dre'` para layout em duas colunas largas (substitui heurística pelo título).
+- `meta.valueNature === 'quantidade'` para suprimir prefixo monetário no rodapé totais.
+
+`exportColumnDefs` em `Relatorios.tsx` continua igual; o ganho é remover ifs de "se titulo contém DRE…" (não há, mas evita cair nesse padrão).
+
+### 9) Refatoração do service por domínio
+
+`relatorios.service.ts` (1129 linhas) é dividido mantendo a API pública intacta:
+
+```
+src/services/relatorios/
+  index.ts                     // re-exporta carregarRelatorio + tipos públicos
+  contracts.ts                 // RelatorioResultado, ReportMeta, FiltroRelatorio, helpers
+  dispatcher.ts                // switch (tipo) → chama loaders por domínio
+  domains/
+    estoque.ts                 // estoque, estoque_minimo, movimentos_estoque, margem_produtos
+    financeiro.ts              // financeiro, fluxo_caixa, aging, dre
+    comercial.ts               // vendas, vendas_cliente, curva_abc
+    compras.ts                 // compras, compras_fornecedor
+    fiscal.ts                  // faturamento
+    divergencias.ts            // divergencias
+  lib/
+    rangeQuery.ts              // withDateRange
+    statusMap.ts               // mapas canônicos statusKey/statusKind por entidade
 ```
 
-**Relação oficial**:
-- Confirmação interna **sempre** antecede envio à SEFAZ. CHECK estrutural: `status_sefaz IN ('autorizada','em_processamento','cancelada_sefaz') ⇒ status='confirmada'`.
-- `inutilizada` só permitida quando `status='rascunho'` ou `status='cancelada'`.
-- NF `importada` (XML externo) entra com `status='importada'` + `status_sefaz='importada_externa'` (novo valor).
+`src/services/relatorios.service.ts` vira **shim re-export**:
+```ts
+export * from './relatorios/index';
+```
+para não quebrar nenhum import existente (`Relatorios.tsx`, `useRelatorio.ts`, hooks, testes).
 
----
+### 10) Compatibilidade
 
-### Migrations (ordem, idempotentes, `SET search_path=public`)
+- `_isQuantityReport` e `_isDreReport` continuam preenchidos, marcados `@deprecated`. `formatCellValue` continua aceitando `isQuantityReport`. UI passa a ler `meta` mas tolera ausência (fallback ao comportamento atual).
+- `filtrarPorStatus` mantém path antigo quando `statusKey` ausente.
+- Testes existentes (`src/services/__tests__/relatorios.service.test.ts`, `src/utils/__tests__/relatorios.test.ts`) continuam válidos; novos casos cobrem `meta` e `statusKey`.
 
-**1. `fiscal_status_canonico`**
-- DROP `chk_notas_fiscais_status` antigo; CREATE com `('rascunho','pendente','confirmada','importada','cancelada')`.
-- DROP `chk_notas_fiscais_status_sefaz` antigo; CREATE com `('nao_enviada','em_processamento','autorizada','rejeitada','denegada','cancelada_sefaz','inutilizada','importada_externa')`.
-- CHECK composto `chk_nf_coerencia_sefaz`: `(status_sefaz IN ('autorizada','em_processamento','cancelada_sefaz') AND status='confirmada') OR status_sefaz NOT IN ('autorizada','em_processamento','cancelada_sefaz')`.
-- CHECK `chk_nf_inutilizacao`: `status_sefaz='inutilizada' ⇒ status IN ('rascunho','cancelada')`.
-- CHECK `chk_nf_importada`: `status='importada' ⇒ status_sefaz='importada_externa'`.
-- Trigger `trg_nf_status_transicao BEFORE UPDATE OF status`: bloqueia transições inválidas (sai de `confirmada` só via `estornar_nota_fiscal`; sai de `cancelada`/`importada` proibido).
+### Arquivos alterados / criados
 
-**2. `fiscal_origem_canonica`**
-- CHECK `chk_nf_origem` em `notas_fiscais.origem`: `('manual','xml_importado','pedido','devolucao','importacao_historica','sefaz_externa')`.
-- Reforço de FK `nf_referenciada_id` (já existe) + CHECK `chk_nf_devolucao_referencia`: `tipo_operacao='devolucao' ⇒ nf_referenciada_id IS NOT NULL`.
-- Backfill: notas com `origem IS NULL` → `'manual'`.
+Criados:
+- `src/services/relatorios/{index,contracts,dispatcher}.ts`
+- `src/services/relatorios/domains/{estoque,financeiro,comercial,compras,fiscal,divergencias}.ts`
+- `src/services/relatorios/lib/{rangeQuery,statusMap}.ts`
+- `src/lib/relatoriosBadges.ts`
+- `src/components/ui/AsyncMultiSelect.tsx`
 
-**3. `fiscal_protege_delete_edicao`**
-- Trigger `trg_nf_protege_delete BEFORE DELETE`: permite DELETE apenas em `status='rascunho' AND status_sefaz='nao_enviada'`. Para demais casos, exige `cancelar_nota_fiscal` ou `inutilizar_nota_fiscal`.
-- Trigger `trg_nf_itens_protege_edicao BEFORE INSERT/UPDATE/DELETE` em `notas_fiscais_itens`: bloqueia mutações quando NF.status ∈ (`confirmada`,`importada`,`cancelada`) E não está em fluxo de devolução/estorno (verifica via flag `current_setting('app.nf_internal_op',true)='1'` setado pelas RPCs).
-- Trigger análogo em `notas_fiscais` para colunas estruturais (`valor_total`, `chave_acesso`, partner ids) — bloqueia UPDATE quando confirmada/importada/cancelada.
+Alterados:
+- `src/services/relatorios.service.ts` → shim de re-export.
+- `src/types/relatorios.ts` → tipos `ReportMeta`, `ValueNature`, novas colunas opcionais (`statusKey`, `statusKind`, `criticidadeKind`, `*Id`).
+- `src/config/relatoriosConfig.ts` → `timeAxis` por relatório; `drillDown[].targetField`.
+- `src/pages/Relatorios.tsx` → remove `BADGE_CRITICAL/OK`, lê `statusKind`/`meta`, mostra label do eixo temporal.
+- `src/pages/relatorios/components/Filtros/FiltrosRelatorio.tsx` → usa `AsyncMultiSelect` para clientes/fornecedores.
+- `src/pages/relatorios/hooks/useRelatoriosFiltrosData.ts` → adiciona `useRefSearch`; remove `limit(300)` (mantém grupos).
+- `src/utils/relatorios.ts` → `filtrarPorStatus` prefere `statusKey`.
+- `src/services/export.service.ts` → aceita `meta`, usa `timeAxis.label` no PDF.
+- `src/pages/relatorios/components/Tabelas/DreTable.tsx` → gate vira `meta.kind === 'dre'`.
+- Documentação: `docs/relatorios-modelo.md` (novo) com tabela de eixo temporal, mapa `statusKey/statusKind`, contratos `ReportMeta` e drill‑down.
 
-**4. `fiscal_unicidade`**
-- UNIQUE INDEX `ux_nf_chave_acesso (chave_acesso) WHERE chave_acesso IS NOT NULL` (idempotência fiscal).
-- UNIQUE INDEX `ux_nf_modelo_serie_numero_tipo (modelo_documento, serie, numero, tipo) WHERE numero IS NOT NULL AND ativo` (impede duplicidade de numeração).
+### Estratégias declaradas
 
-**5. `fiscal_rpcs_v2`** — `CREATE OR REPLACE`:
-- `confirmar_nota_fiscal`:
-  - Gate explícito: aceita só `status IN ('rascunho','pendente')`.
-  - `pg_advisory_xact_lock(hashtext('nf:'||p_nf_id::text))` para idempotência sob concorrência.
-  - Mantém idempotência por `NOT EXISTS` em `estoque_movimentos` e `financeiro_lancamentos`.
-  - Seta `app.nf_internal_op='1'` para liberar inserts de itens nos triggers (não aplicável aqui, mas padroniza).
-  - Insere em `auditoria_logs` (já existe a tabela) com `acao='confirmar_nf'`.
-- `estornar_nota_fiscal`:
-  - Substitui `DELETE FROM financeiro_lancamentos` por `PERFORM financeiro_cancelar_lancamento(id, 'Estorno NF '||numero)` para cada lançamento em aberto da NF (preserva trilha financeira).
-  - Mantém movimentos opostos em estoque com `documento_tipo='fiscal_estorno'` (já faz).
-  - Reverte `quantidade_faturada` na OV vinculada e recalcula `status_faturamento` (hoje não faz — bug).
-  - Insere `nota_fiscal_eventos` + `auditoria_logs`.
-- `gerar_devolucao_nota_fiscal`:
-  - Adiciona validação: somatório de quantidade já devolvida + nova ≤ quantidade da NF origem (consulta NFs filhas com `nf_referenciada_id=p_nf_origem_id` e `tipo_operacao='devolucao'` não canceladas).
-  - Insere em `auditoria_logs`.
-- Nova RPC `cancelar_nota_fiscal(p_nf_id, p_motivo)`: cancela NF não confirmada (status `rascunho`/`pendente`) ou NF confirmada **sem** SEFAZ autorizada; bloqueia cancelamento se `status_sefaz='autorizada'` (deve ir por `cancelar_nota_fiscal_sefaz`). Estorna efeitos via `estornar_nota_fiscal` quando `status='confirmada'`.
-- Nova RPC `cancelar_nota_fiscal_sefaz(p_nf_id, p_protocolo, p_motivo)`: aceita só `status_sefaz='autorizada'`; seta `status_sefaz='cancelada_sefaz'`, mantém `status='confirmada'` (por integridade contábil; estorno separado se desejado), grava evento + auditoria.
-- Nova RPC `inutilizar_nota_fiscal(p_nf_id, p_protocolo, p_motivo)`: aceita só `status IN ('rascunho','cancelada') AND status_sefaz='nao_enviada'`; seta `status_sefaz='inutilizada'`, evento, auditoria.
+- **Status estruturado**: campos `statusKey` + `statusKind` por row, mapa central em `relatorios/lib/statusMap.ts`. Filtro e badge não dependem mais de label.
+- **Badges**: variant vem de `*Kind`; constantes textuais permanecem só como fallback.
+- **Eixo temporal**: declarado em `ReportConfig.timeAxis` e refletido em `meta.timeAxis`; UI exibe sublabel.
+- **Drill-down**: rows carregam `*Id` ocultos; `drillDown[].targetField` aponta o ID a usar; navegação fica plug-and-play em fase posterior.
+- **Filtros de referência**: busca assíncrona com debounce, sem truncagem.
 
-**6. `fiscal_evento_canonico`**
-- CHECK `chk_nf_eventos_tipo` em `nota_fiscal_eventos.tipo_evento`: `('criacao','edicao','confirmacao','estorno','autorizacao_sefaz','rejeicao_sefaz','cancelamento','cancelamento_sefaz','inutilizacao','criacao_devolucao','importacao_xml','anexo_adicionado')`.
-- Triggers `AFTER UPDATE OF status,status_sefaz ON notas_fiscais` gravando `nota_fiscal_eventos` automaticamente quando muda — substitui inserts ad-hoc dispersos em RPCs (mantidos como complemento descritivo).
+### Pontos para evolução futura (fora deste escopo)
 
-**7. `fiscal_integridade_relacional`**
-- Confirmar/adicionar FK `notas_fiscais.transportadora_id → transportadoras(id) ON DELETE SET NULL`.
-- Confirmar/adicionar FK `notas_fiscais.conta_contabil_id → contas_contabeis(id) ON DELETE SET NULL`.
-- Confirmar `notas_fiscais.ordem_venda_id → ordens_venda(id) ON DELETE SET NULL`.
-- View `v_trilha_fiscal` (security_invoker): `nf_id, numero, status, status_sefaz, ordem_venda_id, financeiro_lancamento_ids, estoque_movimento_ids, devolucoes_ids, eventos_count`.
-
-Sem migration de dados (banco vazio); apenas defaults futuros.
-
----
-
-### Política oficial — exclusão / cancelamento / inutilização / estorno
-
-| Operação | Quando aplicar | Como |
-|---|---|---|
-| **DELETE físico** | Só `status='rascunho' AND status_sefaz='nao_enviada'` | DELETE direto (trigger libera) |
-| **Cancelamento interno** | NF não enviada à SEFAZ ou rejeitada/denegada | `cancelar_nota_fiscal()` — estorna efeitos se confirmada |
-| **Cancelamento SEFAZ** | NF `status_sefaz='autorizada'` dentro do prazo legal | `cancelar_nota_fiscal_sefaz()` — comunica SEFAZ via edge function, atualiza `status_sefaz='cancelada_sefaz'` |
-| **Inutilização** | Faixa numérica nunca usada/cancelada | `inutilizar_nota_fiscal()` — só com `status_sefaz='nao_enviada'` |
-| **Estorno operacional** | Reverter efeitos sem cancelar (correção interna) | `estornar_nota_fiscal()` — só para `status='confirmada' AND status_sefaz NOT IN ('autorizada','em_processamento')` |
-| **Devolução** | Documento derivado da NF origem | `gerar_devolucao_nota_fiscal()` — origem deve estar `confirmada`, soma de devoluções ≤ qtd origem |
-
----
-
-### Código afetado (front)
-
-- `src/lib/fiscalStatus.ts` — adicionar `importada_externa` ao `fiscalSefazStatusOptions`. Já está alinhado no resto.
-- `src/services/fiscal.service.ts` — `processarEstorno` continua válido. Adicionar `cancelarNotaFiscal(id, motivo)`, `cancelarNFSefaz(id, protocolo, motivo)`, `inutilizarNF(id, protocolo, motivo)`.
-- `src/components/fiscal/NotaFiscalDrawer.tsx` — botão "Cancelar" condicional pelo `status` real (não só `selected.status`); adicionar ações "Cancelar SEFAZ" e "Inutilizar" quando aplicável (gates já documentados em `fiscalStatus.ts`).
-- `src/components/fiscal/NotaFiscalEditModal.tsx` — passar a respeitar `isFiscalStructurallyLocked` (já existe) bloqueando edição de cabeçalho/itens em `confirmada`/`importada`.
-- `src/services/fiscal/sefaz/autorizacao.service.ts` e `cancelamento.service.ts` — após retorno da SEFAZ, gravar via novas RPCs (`cancelar_nota_fiscal_sefaz`) em vez de UPDATE direto.
-- `src/pages/fiscal/hooks/useNotaFiscalLifecycle.ts` — adicionar `useCancelarNF`, `useCancelarNFSefaz`, `useInutilizarNF`.
-
-### Documentação
-
-- `docs/fiscal-modelo-estrutural.md` (novo): máquina de estados (interna + SEFAZ), tabela de transições válidas, política de exclusão/cancelamento/inutilização, política de devolução, política de estorno, regras de coerência (CHECKs documentados).
-- `docs/MIGRACAO.md` — apêndice com as 7 migrations.
-
-### Backfills
-
-- Nenhum dado de NF a migrar (banco vazio).
-- `origem IS NULL` → `'manual'` (precaução para inserts antigos não verificados).
-
-### Pontos para revisão manual
-
-- Quando começarem a entrar NFs reais, conferir se há fluxos legados criando `status='pendente'` em direção à SEFAZ sem passar por `confirmar_nota_fiscal` (CHECK de coerência irá rejeitar).
-- Edge function `sefaz-proxy` deve ser atualizada para chamar `cancelar_nota_fiscal_sefaz` em vez de UPDATE direto (próxima rodada se ainda houver UPDATE direto).
-
-### Impacto no front
-
-- Botão "Excluir" só aparece em rascunho não enviado; demais casos viram "Cancelar"/"Cancelar SEFAZ"/"Inutilizar" conforme contexto.
-- Modal de edição respeita lock estrutural — campos de cabeçalho/itens ficam read-only após confirmar/importar.
-- Drawer ganha duas ações novas (Cancelar SEFAZ, Inutilizar) quando o estado permite.
-- Estorno passa a preservar lançamentos financeiros (cancelados em vez de deletados); drawer financeiro vinculado mostrará histórico completo.
-- Devolução rejeita quantidade que excede saldo devolvível.
-
-### Fora de escopo
-
-- DROP de colunas legadas em `notas_fiscais` (nenhuma identificada como morta).
-- Reescrita do XML builder ou assinatura digital (já server-side em `sefaz-proxy`).
-- Mudança em RLS (já adequada).
-- Reenvio retroativo à SEFAZ (não há NFs).
+- DRE oficial via view contábil dedicada (hoje gerencial aproximado).
+- Wire real do `onRowClick` para drill-down navegacional.
+- Materialização (view) de Curva ABC e Aging para grandes volumes.
+- Cache server-side de relatórios com `staleTime` maior por categoria.
 
