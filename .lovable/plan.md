@@ -1,218 +1,198 @@
 
 
-## Revisão estrutural — Módulo Relatórios
+## Revisão estrutural — Módulo Administração
 
 Diagnóstico real:
-- O serviço já entrega `title/subtitle/rows/chartData/totals/kpis`, mas usa **duas flags ad‑hoc** (`_isQuantityReport`, `_isDreReport`) que vazam para `Relatorios.tsx` e `formatCellValue`.
-- Status/badges são classificados no front por **substring genérica** (`BADGE_CRITICAL/BADGE_OK` em `Relatorios.tsx` e `filtrarPorStatus` em `utils/relatorios.ts`), com `r["status"] ?? r["situacao"] ?? r["faturamento"]` — frágil ao variar rótulo.
-- O **eixo temporal** de cada relatório (emissão, vencimento, pagamento, criação, competência) é definido implicitamente dentro de cada `case`, sem aparecer no config para a UI ou para exportação.
-- `drillDown` no config existe mas as rows **não trazem IDs** dos vínculos (ex.: `vendas` retorna `numero` mas não `ordem_venda_id`; `faturamento` não retorna `nota_fiscal_id`/`cliente_id`).
-- `useRelatoriosFiltrosData` tem `limit(300)` em clientes/fornecedores — trunca silenciosamente.
-- `relatorios.service.ts` tem 1129 linhas em um único `switch` — dificulta evolução por domínio.
-- DRE/Aging/Curva ABC/Divergências têm semântica especial sem metadado explícito.
+- **Branding/identidade fragmentado**: `empresa_config` guarda CNPJ/endereço/logo_url/regime_tributario; `app_configuracoes['geral']` guarda nomeFantasia/site/whatsapp/responsavel/corPrimaria/corSecundaria — campos de identidade institucional misturados em duas tabelas, com risco de divergência (`empresa.razao_social` vs `geral.empresa`).
+- **`auditoria_logs` quase vazia para Admin** (0 entradas administrativas — 1 INSERT total). Não há trigger gravando alterações em `app_configuracoes`/`empresa_config`/`user_roles`/`user_permissions`. Há `permission_audit` separada, usada **apenas** pela edge function `admin-users`, com schema mínimo (`alteracao jsonb` sem campos estruturados de motivo/action_type/permission_diff).
+- **Modelo de overrides incompleto**: `user_permissions` não tem `motivo`, `granted_by`, `granted_at` (created_at não basta — não diferencia conceder de revogar), `revoked_by`, `revoked_at`, `expires_at`. `allowed=false` permanece como linha — mas não há quem/quando da revogação.
+- **`replaceUserPermissions` apaga e reinsere**: a edge function destrói histórico ao trocar permissões; perde rastro individual de quando uma permissão extra foi concedida pela primeira vez.
+- **Matriz visual mostra 6 de 20 ações** (`MATRIX_ACTIONS = visualizar/criar/editar/excluir/exportar/aprovar`), comunicando recorte como se fosse o todo. Modos como `confirmar`, `importar_xml`, `admin_fiscal`, `gerar`, `sincronizar`, `gerenciar_alertas` estão escondidos.
+- **Dashboard de Segurança usa métricas semânticamente erradas**: "Logins Antigos +30 dias" conta `auditoria_logs` com `acao='auth:login'` (que ninguém grava — 0 hoje) — não é sessão ativa, não é último login do usuário. "Logins Falhos 24h" depende de `acao='LOGIN_FAILED'` igualmente não gravado.
+- **Guards coerentes mas com sutileza**: `AdminRoute` usa `isAdmin` (role check) e `useVisibleNavSections` esconde o item `administracao` para não-admin — alinhados. Porém `PermissionRoute` para `administracao:visualizar` nunca é usado — qualquer não-admin com `administracao:visualizar` (raro, mas possível via override) **não acessaria** porque `AdminRoute` exige role `admin`. Inconsistência estrutural admin-vs-permissão.
+- **Ausência de `ativo` em `profiles`**: ativação de usuário usa `auth.users.banned_until` (correto), mas estado não fica replicado em `profiles` para queries simples sem service_role.
+- **Configurações sem versionamento**: `app_configuracoes` upsert sobrescreve sem snapshot anterior — perde-se visibilidade de "quando trocaram CFOP padrão".
 
-Plano corrige sem inventar sistema novo: enriquece o contrato existente, remove heurísticas, prepara drill‑down real e refatora arquivos por domínio.
+Plano: alinha estrutura sem reinventar. Reaproveita `permission_audit` (renomeando conceitualmente para "audit administrativo") e `auditoria_logs` para mudanças de configuração, fortalece `user_permissions` com governança e reorganiza a fronteira branding/sistêmico.
 
 ---
 
-### 1) Contrato semântico padronizado
+### 1) Fronteira oficial — institucional vs sistêmico
 
-Em `relatorios.service.ts`, estender (sem quebrar) o `RelatorioResultado`:
+Definição canônica:
 
-```ts
-export type ReportKind = 'list' | 'ranking' | 'aging' | 'dre' | 'divergencias';
-export type ValueNature = 'monetario' | 'quantidade' | 'percentual' | 'misto';
+**`empresa_config`** (1 linha, identidade fiscal/jurídica) — adiciona campos hoje em `geral`:
+- `nome_fantasia` ✓ (já existe)
+- `site text`, `whatsapp text`, `responsavel text`, `inscricao_municipal text` (novos)
+- `cor_primaria text`, `cor_secundaria text` (novos — branding visual)
 
-export interface ReportMeta {
-  kind: ReportKind;
-  valueNature: ValueNature;
-  /** Eixo temporal aplicado: nome do campo de data + label legível */
-  timeAxis?: { field: string; label: string; required: boolean };
-  /** Indica se rows trazem IDs aptas a drill-down */
-  drillDownReady: boolean;
-}
+**`app_configuracoes`** (chave-valor, parâmetros sistêmicos) — mantém apenas:
+- `email`, `fiscal`, `financeiro`, `usuarios`, `cep_empresa`, `compras.limite_aprovacao`, `frete:caixas_embalagem`, `theme_primary_color`, `theme_secondary_color`
+- **Remove de `geral`**: `nomeFantasia`, `inscricaoMunicipal`, `site`, `whatsapp`, `responsavel`, `logoUrl`, `corPrimaria`, `corSecundaria` (migrados para `empresa_config`)
+- Mantém em `geral` apenas chaves operacionais residuais que não pertencem ao perfil da empresa (se houver).
 
-export interface RelatorioResultado<T = Record<string, unknown>> {
-  title: string; subtitle: string;
-  rows: T[];
-  chartData?: Array<{ name: string; value: number }>;
-  totals?: Record<string, number>;
-  kpis?: Record<string, number>;
-  meta: ReportMeta;                     // NOVO — sempre presente
-  /** @deprecated usar meta.valueNature === 'quantidade' */
-  _isQuantityReport?: boolean;
-  /** @deprecated usar meta.kind === 'dre' */
-  _isDreReport?: boolean;
-}
-```
+Migration `admin_fronteira_branding`:
+- ALTER TABLE empresa_config ADD COLUMN site/whatsapp/responsavel/inscricao_municipal/cor_primaria/cor_secundaria (text, nullable).
+- Backfill: copia de `app_configuracoes.valor->>'…'` (chave `geral`) para a única linha de `empresa_config`. Mantém backup numa coluna `geral_legacy jsonb` em `empresa_config` por 1 sprint para conferência.
+- **Não** apaga `geral` da `app_configuracoes` no DB — apenas marca campos migrados como deprecated no front; serviço passa a ler/escrever em `empresa_config`.
 
-Cada `case` passa a popular `meta`. As flags antigas continuam emitidas por compatibilidade (1 sprint), mas o front passa a ler `meta`.
+Front:
+- `Administracao.tsx` aba "Empresa": usa `useEmpresaConfig` para todos os campos institucionais (incluindo cores, site, whatsapp).
+- `useAppConfig('geral')` continua existindo, mas a UI principal de empresa não escreve mais lá.
+- `useThemeColors` (se existe) lê de `empresa_config` com fallback em `app_configuracoes['theme_primary_color']`.
 
-### 2) Status estruturado — fim do "substring textual"
+### 2) Governança de overrides — `user_permissions` reforçada
 
-Hoje o front filtra por `r["status"] ?? r["situacao"] ?? r["faturamento"]` com `.includes(...)`. Substituir por **status canônico explícito** via duas adições:
+Migration `admin_user_permissions_governance`:
+- ALTER TABLE user_permissions ADD COLUMN:
+  - `granted_by uuid REFERENCES auth.users(id) ON DELETE SET NULL`
+  - `granted_at timestamptz NOT NULL DEFAULT now()` (renomeia conceitualmente `created_at`; mantém `created_at` por compat)
+  - `motivo text` (justificativa textual)
+  - `expires_at timestamptz` (suporte a permissões temporárias — opcional, sem cron, apenas filtro em `useCan`)
+  - `updated_at timestamptz NOT NULL DEFAULT now()`
+  - `updated_by uuid REFERENCES auth.users(id) ON DELETE SET NULL`
+- Trigger `trg_user_permissions_audit AFTER INSERT OR UPDATE OR DELETE`: grava em `permission_audit` com `tipo` derivado (`grant`, `revoke`, `update`, `delete`) e diff antes/depois. Captura `auth.uid()` como `user_id` (ator).
 
-a) Em cada row de relatório que tem dimensão de status, adicionar campos novos **persistentes ao lado dos textuais**:
-```ts
-statusKey: string;       // 'aberto' | 'parcial' | 'pago' | ... (canônico)
-statusKind: 'critical' | 'warning' | 'success' | 'info' | 'neutral';
-```
-- `financeiro`: já tem `status` canônico — apenas mapear para `statusKey/statusKind` na própria service (mapa pequeno em `src/lib/relatoriosStatusMap.ts`).
-- `vendas`: usa `status_comercial` + `faturamento_status` — manter labels visuais e expor `statusKey`/`statusKind` derivados das constantes já existentes em `src/lib/statusSchema.ts`.
-- `compras`, `aging`, `divergencias`, `estoque`, `estoque_minimo`, `movimentos_estoque`, `curva_abc`: idem.
+`useCan` em `src/hooks/useCan.ts`: ignora overrides com `expires_at < now()` (filtro no `buildPermissionSet` ou no fetch de `user_permissions`).
 
-b) `filtrarPorStatus` em `utils/relatorios.ts` passa a comparar `r.statusKey === valor` (com fallback ao antigo path para retrocompat). `Relatorios.tsx` remove `BADGE_CRITICAL/BADGE_OK`: a variante de badge vem de `r.statusKind`.
+### 3) `permission_audit` enriquecida — auditoria administrativa canônica
 
-### 3) Badges estruturadas
+Migration `admin_permission_audit_v2`:
+- ALTER TABLE permission_audit ADD COLUMN:
+  - `tipo_acao text NOT NULL DEFAULT 'legacy'` — canônico: `user_create`, `user_update`, `user_status_change`, `role_grant`, `role_revoke`, `permission_grant`, `permission_revoke`, `config_update`, `branding_update`, `logo_upload`.
+  - `entidade text` (`user`, `role`, `permission`, `app_config`, `empresa_config`)
+  - `entidade_id text` (uuid ou chave de config)
+  - `motivo text`
+  - `ip_address text`, `user_agent text` (capturados na edge function quando possível)
+- Backfill: tenta extrair `tipo` de `alteracao->>'tipo'` para `tipo_acao` em registros existentes.
+- View `v_admin_audit_unified`: UNION de `permission_audit` + `auditoria_logs` filtrado para tabelas administrativas (`app_configuracoes`, `empresa_config`, `user_roles`, `user_permissions`, `profiles`), normalizando colunas para a UI de auditoria.
 
-Novo helper `src/lib/relatoriosBadges.ts`:
-```ts
-export function badgeVariantFromKind(kind?: StatusKind): BadgeVariant
-```
-`Relatorios.tsx` usa exclusivamente `r.statusKind` / `r.criticidadeKind` quando presentes. Constantes textuais ficam apenas como **fallback** para colunas legadas, com comentário `// fallback heurístico — remover quando todos relatórios expuserem statusKind`.
+### 4) Triggers de auditoria em config
 
-Para colunas como `criticidade`, `faixa`, `classe` (ABC), o service passa a anexar `criticidadeKind` / `faixaKind` / `classeKind` ao lado.
+Migration `admin_audit_triggers_config`:
+- Trigger `trg_audit_app_configuracoes AFTER INSERT/UPDATE/DELETE ON app_configuracoes`: insere em `auditoria_logs` com `tabela='app_configuracoes'`, `acao` ('CONFIG_UPDATE' / 'CONFIG_INSERT' / 'CONFIG_DELETE'), `dados_anteriores`/`dados_novos` em jsonb. Usa `auth.uid()` para `usuario_id`.
+- Trigger `trg_audit_empresa_config AFTER INSERT/UPDATE` idem.
+- Trigger `trg_audit_user_roles AFTER INSERT/UPDATE/DELETE ON user_roles`: grava em `permission_audit` com `tipo_acao='role_grant'/'role_revoke'`, `entidade='role'`, `entidade_id=role`.
+- Não cria trigger em `user_permissions` aqui (já tratado no item 2).
 
-### 4) Eixo temporal explícito por relatório
+### 5) Edge function `admin-users` — preserva governança
 
-No config (`relatoriosConfig.ts`), cada `ReportConfig` ganha campo opcional:
-```ts
-timeAxis?: { field: 'emissao' | 'vencimento' | 'pagamento' | 'criacao' | 'competencia', 
-             label: string, required: boolean }
-```
-Tabela canônica:
+`supabase/functions/admin-users/index.ts`:
+- `replaceUserPermissions` deixa de ser destrutivo: calcula diff (atual vs desejado), faz `INSERT` apenas das novas, `UPDATE allowed=false` para revogadas (em vez de DELETE) — preserva `granted_by`/`granted_at` originais. DELETE só quando override é totalmente removido (e nesse caso o trigger grava em `permission_audit`).
+- Aceita `motivo` em `payload` (`update`, `toggle-status`) e propaga para `user_permissions.motivo` e `permission_audit.motivo`.
+- `insertAudit` passa a popular `tipo_acao`/`entidade`/`entidade_id` (não só `alteracao` jsonb solto).
 
-| Relatório | timeAxis.field | Coluna real | Required |
-|---|---|---|---|
-| estoque, margem_produtos, divergencias | — | (sem período) | false |
-| estoque_minimo | — | — | false |
-| movimentos_estoque | criacao | `created_at` | false |
-| financeiro | vencimento | `data_vencimento` | false |
-| fluxo_caixa | pagamento | `data_pagamento` (fallback `data_vencimento`) | false |
-| vendas, vendas_cliente | emissao | `data_emissao` | false |
-| compras, compras_fornecedor | criacao | `data_compra` | false |
-| faturamento, curva_abc | emissao | `data_emissao` | false |
-| aging | vencimento | `data_vencimento` | false |
-| dre | competencia | derivada (DRE) | true |
+### 6) Matriz de permissões — cobertura real
 
-`PeriodoFilter` passa a exibir um sublabel **"por <label do eixo>"** (ex.: "Período por vencimento") usando `selectedMeta.timeAxis.label`. O service já aplica em campos certos; agora isso fica visível e auditável.
+`src/pages/admin/components/PermissaoMatrix/index.tsx`:
+- `MATRIX_ACTIONS` deixa de ser lista hardcoded; passa a derivar dinamicamente de `ERP_ACTIONS` agrupadas em duas faixas:
+  - **Núcleo** (sempre visível): `visualizar`, `criar`, `editar`, `excluir`, `exportar`, `aprovar`, `cancelar`.
+  - **Avançado** (toggle "Mostrar ações avançadas"): `confirmar`, `importar_xml`, `admin_fiscal`, `gerar`, `download`, `editar_comentarios`, `gerenciar_templates`, `configurar`, `sincronizar`, `gerenciar_alertas`, `baixar`, `reenviar_email`, `visualizar_rentabilidade`.
+- Cada recurso só renderiza ações **aplicáveis** (filtra ações que existem na matriz canônica para qualquer role) — evita coluna `confirmar` em recursos onde nenhum role usa.
+- Banner informativo passa a indicar nº de ações exibidas / nº total + link para alternar visão.
 
-### 5) Drill-down real — IDs nas rows
+### 7) Dashboard de Segurança — métricas estruturalmente honestas
 
-Para todos relatórios "list" e "ranking", o service passa a retornar IDs ocultos do vínculo principal:
+`src/pages/admin/components/DashboardAdmin.tsx` substitui as 3 métricas atuais por 4 confiáveis:
 
-| Relatório | IDs adicionados às rows |
-|---|---|
-| estoque, margem_produtos, estoque_minimo, movimentos_estoque | `produtoId` |
-| financeiro, aging | `lancamentoId`, `clienteId?`, `fornecedorId?` |
-| vendas | `ordemVendaId`, `clienteId` |
-| vendas_cliente | `clienteId` |
-| compras | `pedidoCompraId` (na verdade `compraId`), `fornecedorId` |
-| compras_fornecedor | `fornecedorId` |
-| faturamento | `notaFiscalId`, `clienteId`, `ordemVendaId` |
-| curva_abc | `produtoId` |
-| divergencias | `referenciaId` (uuid) + `referenciaTipo` ('pedido_compra' \| 'nota_fiscal') |
+| Card | Fonte real | Semântica |
+|---|---|---|
+| Sessões ativas | `admin-sessions` edge function (já existe) → conta usuários com `last_sign_in_at` nos últimos 30 min | sessão real |
+| Usuários inativos (>30 dias) | `auth.users.last_sign_in_at < now() - 30d` via `admin-sessions` | última atividade |
+| Administradores | `user_roles WHERE role='admin'` | igual hoje |
+| Eventos administrativos (24h) | `permission_audit` count nas últimas 24h | trilha real |
 
-Esses campos **não entram nas colunas visíveis** (não estão em `cfg.columns`). Como `Relatorios.tsx` já filtra `colDefs` por `rowKeys`, basta adicionar os campos — o filtro mantém os IDs fora da tabela. Eles ficam disponíveis para a futura ação `onRowClick`/`drillDown` e para exportação opcional.
+Card removido: "Logins Falhos 24h" (não há captura) e "Logins Antigos" (semântica errada). Quando `LOGIN_FAILED` for capturado no futuro (via Supabase Auth Hooks ou edge function de login), retorna como métrica.
 
-`ReportDrillDownAction` ganha `targetField: string` indicando qual ID da row usar para construir a navegação. Implementação completa do click → navegação fica preparada (não wired ainda) para evitar escopo demais.
+Hook novo `useSessoesMetricas` (em `src/pages/admin/hooks/`) chama `admin-sessions` com `action='metrics'`. Edge function ganha esta action retornando `{ ativas, inativasMais30d, totalUsuarios }`.
 
-### 6) Filtros de referência escaláveis
+### 8) Modelo de usuário administrável — `profiles.ativo`
 
-Substituir `MultiSelect` simples de clientes/fornecedores em `FiltrosRelatorio.tsx` por **busca assíncrona com debounce**:
+Migration `admin_profile_ativo`:
+- ALTER TABLE profiles ADD COLUMN `ativo boolean NOT NULL DEFAULT true`.
+- Backfill: marca `ativo=false` para perfis cujo `auth.users.banned_until` está no futuro (executado pela edge function manualmente via script ou no próximo `update_user`).
+- Edge function `admin-users` passa a sincronizar `profiles.ativo` quando muda `ban_duration`.
+- Frontend (lista de usuários) lê `ativo` direto de `profiles` em vez de depender de chamada à edge function para flag simples.
 
-- Novo hook `useRefSearch(table, q, ids)` em `src/pages/relatorios/hooks/useRelatoriosFiltrosData.ts`:
-  - `enabled` quando `q.length >= 2` ou quando há `ids` selecionados.
-  - Limit 50 por busca, sem `limit(300)` global.
-  - Cache por `[table, q]` com `staleTime: 5min`.
-- Mantém-se o `useRelatoriosFiltrosData` para grupos (volume baixo) e empresa.
-- `MultiSelect` é trocado por `AsyncMultiSelect` (componente novo em `src/components/ui/AsyncMultiSelect.tsx`) que aceita `loadOptions(query)`. Ele já busca também os labels dos `ids` pré-selecionados via segunda query (`in('id', ids)`).
+RLS: `profiles.ativo` continua visível pelo próprio usuário e admins (já coberto).
 
-Resultado: fim da truncagem silenciosa.
+### 9) Coerência guards Admin vs Permissão
 
-### 7) DRE / Aging / Curva ABC / Divergências — metadados especiais
+- `AdminRoute` continua exigindo role `admin` (caminho canônico para área administrativa completa).
+- Para sub-recursos administrativos que **possam** ser delegados (futuro: ex.: financeiro acessar config financeira sem ser admin), `PermissionRoute resource="administracao" action="configurar"` fica disponível sem mudança. Hoje não há rota usando isso — apenas formaliza a porta.
+- `useVisibleNavSections`: condiciona seção `administracao` a `isAdmin || can('administracao:visualizar')` (em vez de só `isAdmin`). Backwards-compat: como apenas admin tem `administracao:visualizar` na matriz canônica, comportamento atual preservado; mas overrides individuais passam a funcionar.
 
-Cada um passa a setar `meta.kind`:
-- `dre` → `kind: 'dre'`, `valueNature: 'monetario'`. `DreTable` continua sendo a renderização condicional, mas o gate vira `resultado.meta.kind === 'dre'` (sai a flag `_isDreReport`).
-- `aging` → `kind: 'aging'`. UI pode mostrar legenda das faixas a partir de `meta`.
-- `curva_abc` → `kind: 'list'` + `valueNature: 'monetario'`. Cada row já carrega `classeKind` para badge.
-- `divergencias` → `kind: 'divergencias'`. UI passa a usar `criticidadeKind` e `tipoKind` (em vez de `BADGE_CRITICAL.includes('alta'|'pedido s/ nf'|...)`).
+### 10) Storage de logo — governança
 
-### 8) Exportação semântica
+Bucket `dbavizee` já é usado. Adiciona:
+- Path canônico `empresa/logo.{ext}` (substitui timestamp/aleatório); upload faz `upsert: true` para preservar URL estável.
+- Trigger de auditoria já cobre `empresa_config.logo_url` (item 4); upload em si fica logado na `auditoria_logs` via chamada explícita do front (`tipo_acao='logo_upload'`).
 
-`ExportOptions` passa a aceitar `meta?: ReportMeta`. `buildPdfDocument` usa:
-- `meta.timeAxis?.label` no subtítulo do período ("Período por vencimento: …").
-- `meta.kind === 'dre'` para layout em duas colunas largas (substitui heurística pelo título).
-- `meta.valueNature === 'quantidade'` para suprimir prefixo monetário no rodapé totais.
+---
 
-`exportColumnDefs` em `Relatorios.tsx` continua igual; o ganho é remover ifs de "se titulo contém DRE…" (não há, mas evita cair nesse padrão).
+### Migrations (idempotentes, `SET search_path=public`)
 
-### 9) Refatoração do service por domínio
+1. `admin_fronteira_branding` — adiciona colunas em `empresa_config`, backfill de `app_configuracoes.geral`.
+2. `admin_user_permissions_governance` — colunas + trigger `trg_user_permissions_audit`.
+3. `admin_permission_audit_v2` — colunas estruturadas + view `v_admin_audit_unified`.
+4. `admin_audit_triggers_config` — triggers em `app_configuracoes`, `empresa_config`, `user_roles`.
+5. `admin_profile_ativo` — coluna `ativo` em `profiles`.
 
-`relatorios.service.ts` (1129 linhas) é dividido mantendo a API pública intacta:
+Sem DROP destrutivo. RLS preservada (admin-only mantida em todas).
 
-```
-src/services/relatorios/
-  index.ts                     // re-exporta carregarRelatorio + tipos públicos
-  contracts.ts                 // RelatorioResultado, ReportMeta, FiltroRelatorio, helpers
-  dispatcher.ts                // switch (tipo) → chama loaders por domínio
-  domains/
-    estoque.ts                 // estoque, estoque_minimo, movimentos_estoque, margem_produtos
-    financeiro.ts              // financeiro, fluxo_caixa, aging, dre
-    comercial.ts               // vendas, vendas_cliente, curva_abc
-    compras.ts                 // compras, compras_fornecedor
-    fiscal.ts                  // faturamento
-    divergencias.ts            // divergencias
-  lib/
-    rangeQuery.ts              // withDateRange
-    statusMap.ts               // mapas canônicos statusKey/statusKind por entidade
-```
+### Arquivos editados / criados
 
-`src/services/relatorios.service.ts` vira **shim re-export**:
-```ts
-export * from './relatorios/index';
-```
-para não quebrar nenhum import existente (`Relatorios.tsx`, `useRelatorio.ts`, hooks, testes).
+**Banco**: 5 migrations.
 
-### 10) Compatibilidade
+**Edge functions**:
+- `supabase/functions/admin-users/index.ts` — `replaceUserPermissions` não-destrutivo, propagação de `motivo`, escrita estruturada em `permission_audit`.
+- `supabase/functions/admin-sessions/index.ts` — nova action `metrics`.
 
-- `_isQuantityReport` e `_isDreReport` continuam preenchidos, marcados `@deprecated`. `formatCellValue` continua aceitando `isQuantityReport`. UI passa a ler `meta` mas tolera ausência (fallback ao comportamento atual).
-- `filtrarPorStatus` mantém path antigo quando `statusKey` ausente.
-- Testes existentes (`src/services/__tests__/relatorios.service.test.ts`, `src/utils/__tests__/relatorios.test.ts`) continuam válidos; novos casos cobrem `meta` e `statusKey`.
+**Front (editados)**:
+- `src/pages/Administracao.tsx` — aba Empresa lê/escreve em `empresa_config` para branding, remove duplicação com `geral`.
+- `src/pages/admin/components/DashboardAdmin.tsx` — substitui métricas por sessões reais + eventos administrativos.
+- `src/pages/admin/components/PermissaoMatrix/index.tsx` — toggle "ações avançadas", filtro de ações aplicáveis, contador real.
+- `src/pages/admin/hooks/useEmpresaConfig.ts` — adiciona campos novos.
+- `src/pages/admin/hooks/useUsuarios.ts` — propaga `motivo`.
+- `src/components/usuarios/UsuariosTab.tsx` — campo `motivo` opcional ao editar permissões.
+- `src/services/admin/perfis.service.ts` — `concederPermissao`/`revogarPermissao` aceitam `motivo`, `granted_by`.
+- `src/hooks/useCan.ts` — filtra overrides expirados (`expires_at`).
+- `src/hooks/useVisibleNavSections.ts` — `administracao` por `isAdmin || can('administracao:visualizar')`.
 
-### Arquivos alterados / criados
+**Front (criados)**:
+- `src/pages/admin/hooks/useSessoesMetricas.ts` — wrapper do `admin-sessions?action=metrics`.
+- `src/pages/admin/hooks/useAdminAuditUnificada.ts` — consulta a `v_admin_audit_unified` para a aba Auditoria.
 
-Criados:
-- `src/services/relatorios/{index,contracts,dispatcher}.ts`
-- `src/services/relatorios/domains/{estoque,financeiro,comercial,compras,fiscal,divergencias}.ts`
-- `src/services/relatorios/lib/{rangeQuery,statusMap}.ts`
-- `src/lib/relatoriosBadges.ts`
-- `src/components/ui/AsyncMultiSelect.tsx`
-
-Alterados:
-- `src/services/relatorios.service.ts` → shim de re-export.
-- `src/types/relatorios.ts` → tipos `ReportMeta`, `ValueNature`, novas colunas opcionais (`statusKey`, `statusKind`, `criticidadeKind`, `*Id`).
-- `src/config/relatoriosConfig.ts` → `timeAxis` por relatório; `drillDown[].targetField`.
-- `src/pages/Relatorios.tsx` → remove `BADGE_CRITICAL/OK`, lê `statusKind`/`meta`, mostra label do eixo temporal.
-- `src/pages/relatorios/components/Filtros/FiltrosRelatorio.tsx` → usa `AsyncMultiSelect` para clientes/fornecedores.
-- `src/pages/relatorios/hooks/useRelatoriosFiltrosData.ts` → adiciona `useRefSearch`; remove `limit(300)` (mantém grupos).
-- `src/utils/relatorios.ts` → `filtrarPorStatus` prefere `statusKey`.
-- `src/services/export.service.ts` → aceita `meta`, usa `timeAxis.label` no PDF.
-- `src/pages/relatorios/components/Tabelas/DreTable.tsx` → gate vira `meta.kind === 'dre'`.
-- Documentação: `docs/relatorios-modelo.md` (novo) com tabela de eixo temporal, mapa `statusKey/statusKind`, contratos `ReportMeta` e drill‑down.
+**Documentação**:
+- `docs/administracao-modelo.md` (novo): fronteira branding/sistêmico, modelo de overrides com governança, eventos auditados, política de Dashboard de Segurança, matriz canônica vs visual.
 
 ### Estratégias declaradas
 
-- **Status estruturado**: campos `statusKey` + `statusKind` por row, mapa central em `relatorios/lib/statusMap.ts`. Filtro e badge não dependem mais de label.
-- **Badges**: variant vem de `*Kind`; constantes textuais permanecem só como fallback.
-- **Eixo temporal**: declarado em `ReportConfig.timeAxis` e refletido em `meta.timeAxis`; UI exibe sublabel.
-- **Drill-down**: rows carregam `*Id` ocultos; `drillDown[].targetField` aponta o ID a usar; navegação fica plug-and-play em fase posterior.
-- **Filtros de referência**: busca assíncrona com debounce, sem truncagem.
+- **Overrides individuais auditáveis**: `user_permissions` ganha `granted_by/at`, `motivo`, `expires_at`, `updated_by`; trigger grava `permission_audit` com diff e ator. Edge function não-destrutiva preserva histórico.
+- **Matriz visual fiel**: ações nucleares por padrão + toggle avançado + filtro por aplicabilidade — nada do modelo real fica escondido sem indicação.
+- **Dashboard de segurança**: deixa de inferir sessão a partir de log; passa a consumir `admin-sessions` (Auth Admin API) e contagem de eventos administrativos reais. Cards com semântica enganosa removidos.
+- **Auditoria administrativa**: triggers cobrem todas as tabelas administrativas; `permission_audit` ganha campos estruturados (`tipo_acao`, `entidade`, `entidade_id`, `motivo`); view unificada simplifica a UI.
+- **Branding institucional**: tudo que define a empresa (jurídico + visual + contato) vive em `empresa_config`. `app_configuracoes` fica com parâmetros operacionais (e-mail, fiscal, financeiro, limites). Backfill preserva dados existentes.
 
-### Pontos para evolução futura (fora deste escopo)
+### Compatibilidade com front atual
 
-- DRE oficial via view contábil dedicada (hoje gerencial aproximado).
-- Wire real do `onRowClick` para drill-down navegacional.
-- Materialização (view) de Curva ABC e Aging para grandes volumes.
-- Cache server-side de relatórios com `staleTime` maior por categoria.
+- `useAppConfig('geral')` continua respondendo durante transição (campos legados ainda presentes em `app_configuracoes` por 1 sprint via backfill espelhado opcional, ou simplesmente não usados).
+- `useEmpresaConfig` ganha campos novos sem quebrar consumers existentes (campos opcionais).
+- Edge function `admin-users` mantém contrato (`action='list'/'create'/'update'/'toggle-status'`); apenas `payload` aceita `motivo` adicional.
+- Matriz visual sem mudança de API — novos toggles internos.
+- Dashboard de segurança troca conteúdo dos cards mas mantém `<DashboardAdmin />` exportado.
+
+### Pontos para revisão manual
+
+- Decidir se `app_configuracoes['geral']` será apagado depois do backfill (sugestão: manter 1 sprint, depois migration de cleanup).
+- Configurar captura de `LOGIN_FAILED`/`auth:login` (Auth Hooks) se quiser ressuscitar essas métricas — fora deste escopo.
+- Usuários com múltiplas roles (raro hoje): edge function `replaceUserRole` continua substituindo; rever se é desejado.
+- Logo legado armazenado fora do path canônico permanece acessível via URL antiga; novos uploads vão para `empresa/logo.{ext}`.
+
+### Fora de escopo
+
+- 2FA real (campo `exigir2fa` em `app_configuracoes['usuarios']` permanece declarativo — Supabase MFA é setup separado).
+- Cron de expiração de overrides (`expires_at` é checado em leitura, sem job de limpeza).
+- Captura de IP/UA em todos os fluxos (apenas onde a edge function tem acesso ao request).
+- Dashboard de auditoria com gráficos temporais (apenas tabela na aba Auditoria).
 
