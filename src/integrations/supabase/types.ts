@@ -4774,6 +4774,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      limpar_dados_migracao: { Args: { p_confirmar: boolean }; Returns: Json }
       marcar_lancamentos_vencidos: { Args: never; Returns: number }
       marcar_remessa_em_transito: {
         Args: { p_remessa_id: string }
@@ -4792,6 +4793,7 @@ export type Database = {
         }
         Returns: number
       }
+      normalize_text_match: { Args: { p_input: string }; Returns: string }
       proximo_numero_cotacao_compra: { Args: never; Returns: string }
       proximo_numero_nf: { Args: never; Returns: string }
       proximo_numero_nota_fiscal: { Args: never; Returns: string }
