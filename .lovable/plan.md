@@ -1,64 +1,93 @@
 
 
-## Plano — Auditoria estrutural (P17–P23)
+## Plano — Limpeza geral + Importação financeira por Conciliação
 
-Risco priorizado: P20 (segurança), P18+P19 (perf realtime), P22 (a11y), P21 (DX), P17 (refactor enorme), P23 (limpeza).
+Objetivo: tornar a planilha `Conciliação_FluxoCaixa 2026.xlsx` a fonte primária de carga financeira inicial, sem inventar estrutura e sem duplicar registros.
 
-### Bloco 1 — Segurança (P20)
-**`useImportacaoXml.ts`:** validar antes de processar:
-- `MAX_FILE_SIZE_MB = 50` por arquivo.
-- `MAX_XML_FILES = 200` por ZIP.
-- `MAX_ZIP_EXPANDED_MB = 200` (somar `_data.uncompressedSize` durante iteração; abortar ao estourar).
-- Se `selectedFiles.length > 10`, sugerir uso de ZIP.
-- Toasts de erro claros e early return.
+### Realidade que descobri (importa para o plano)
+- `financeiro_lancamentos` real tem: `tipo, descricao, valor, data_vencimento, data_pagamento, status, forma_pagamento, banco, cliente_id, fornecedor_id, conta_bancaria_id, conta_contabil_id, parcela_numero, parcela_total, saldo_restante, valor_pago, observacoes, ativo`. **Não há** `data_emissao`, `titulo`, `nome_abreviado`, `origem`, `centro_custo_id`, `pmv/pmp`, `sócio`, `i_level`. → Tudo isso vai para `observacoes` estruturado e/ou metadata no staging.
+- `contas_contabeis` tem `codigo, descricao, natureza, aceita_lancamento, conta_pai_id, ativo` (sem `i_level` próprio).
+- `clientes`/`fornecedores` têm `codigo_legado` e `cpf_cnpj` — chaves de match.
+- `stg_financeiro_aberto(lote_id, dados jsonb, status, erro)` — staging genérico já serve.
+- `importacao_lotes.fase` aceita texto livre — usaremos `fase='conciliacao'`.
+- Nenhuma tabela de centro de custo / FOPAG / plano hierárquico — não vou criar.
 
-### Bloco 2 — Performance & Realtime (P18, P19)
-**P18 — query estoque baixo:** Supabase PostgREST não suporta comparação coluna×coluna direto. Solução: criar **migration** com RPC `count_estoque_baixo()` (`SECURITY DEFINER`, `search_path = public`) que retorna `bigint`. Substituir o filtro client-side por `supabase.rpc('count_estoque_baixo')`. Payload vira 1 inteiro.
+### Bloco 1 — Limpeza segura de dados operacionais
+RPC `limpar_dados_migracao(confirmar boolean)` (`SECURITY DEFINER`, `search_path=public`), só para `admin`, ordem dependente:
+1. `DELETE FROM stg_financeiro_aberto, stg_estoque_inicial, stg_faturamento, stg_cadastros, stg_compras_xml`
+2. `DELETE FROM importacao_logs; DELETE FROM importacao_lotes`
+3. `DELETE FROM financeiro_baixas; DELETE FROM caixa_movimentos; DELETE FROM financeiro_lancamentos`
+4. **Não toca**: profiles, user_roles, app_configuracoes, empresa_config, contas_bancarias, contas_contabeis, clientes/fornecedores/produtos, NFs, estoque_movimentos.
 
-**P19 — unificar alertas:**
-- Migrar `useSidebarAlerts` para `useQuery` (`queryKey: ['sidebar-alerts']`, `staleTime: 60_000`).
-- Criar singleton `src/lib/realtime/alertsChannel.ts` com `getAlertsChannel(onUpdate)` para evitar canais duplicados em re-renders/StrictMode.
-- `NotificationsPanel.tsx`: remover queries próprias e canal duplicado; consumir `useSidebarAlerts` + dados já carregados. Manter o cálculo de itens críticos de estoque via uma segunda query enxuta no mesmo hook (lista enxuta com `limit(20)` apenas quando o painel abrir — via hook secundário `useNotificationDetails(open)`).
+UI: botão "Limpar dados de migração" no topo da página `MigracaoDados` com `ConfirmDialog` exigindo digitação de "LIMPAR". Visível só para admin.
 
-### Bloco 3 — Acessibilidade (P22)
-Adicionar `aria-label` em botões só-ícone nos 4 componentes prioritários:
-- `DataTable.tsx` (editar/excluir/visualizar por linha — usar nome da entidade no label).
-- `OrcamentoItemsGrid.tsx` (remover item).
-- `FormModalFooter.tsx` (fechar/cancelar).
-- `ViewDrawerV2.tsx` (fechar drawer).
-Escopo limitado — não vou varrer 306 botões nesta passada.
+### Bloco 2 — Parser da planilha de conciliação
+Novo `src/lib/importacao/conciliacaoParser.ts`:
+- `parseConciliacaoWorkbook(file)`: detecta abas `CR`, `CP`, `FC`, `FOPAG`, `CLIENTES`, `FORNECEDORES`, `Plano de Contas`, `Centro de Custo` (case-insensitive, normalizado).
+- Para cada aba: aplica aliases dedicados (P)Vencto/Vencimento, Cod./Código, etc.
+- Normaliza: datas (BR/Excel serial via `parseDateFlexible`), moeda BR, nomes (uppercase + sem acentos + trim para matching).
+- Retorna `{ cr[], cp[], fc[], fopag[], clientes[], fornecedores[], planoContas[], centroCusto[], abasFaltantes[] }`.
 
-### Bloco 4 — Dashboard com React Query (P21)
-- Refatorar `useDashboardData.ts` para `useQuery({ queryKey: ['dashboard', range], queryFn, staleTime: 2*60_000, gcTime: 5*60_000, retry: 1 })`.
-- Manter shape de retorno retrocompatível: expor `data`, `isLoading`, `refetch`, `dataUpdatedAt` mas também os campos achatados (`stats`, `faturamento`, etc.) com defaults de `INITIAL_STATE` quando `data` indefinido — para não quebrar `Index.tsx` e widgets.
-- `Index.tsx`: trocar `loadData()` no `useEffect` por nada (React Query cuida); botão "Atualizar" chama `refetch()`; `loadedAt` vira `new Date(dataUpdatedAt)`.
+### Bloco 3 — Hook `useImportacaoConciliacao`
+Substitui `useImportacaoFinanceiro` no card "Financeiro / Conciliação". Etapas:
 
-### Bloco 5 — Limpeza (P23)
-- Verificar usos de `ViewDrawer` (v1). Se só `Auditoria.tsx`, migrar para `ViewDrawerV2` e deletar `ViewDrawer.tsx`. Se tiver outros usos, marcar como `@deprecated`.
+**generatePreview**:
+1. Carrega `clientes`, `fornecedores`, `contas_contabeis` existentes + clientes/fornecedores da própria planilha (vira `entityIndex` em memória — não grava, só ajuda no match).
+2. Para cada CR/CP/FOPAG monta linha normalizada com `_action`, `_match` (`codigo_legado | cpf_cnpj | nome_abreviado | pendente`), `_duplicado` (lookup determinístico: `tipo + vencimento + valor + (cliente|fornecedor) + título`), `_errors`, `_warnings`.
+3. **Reconciliação FC**: agrega CR+CP+FOPAG por (vencimento, tipo, pessoa, valor) e compara linha a linha com FC. Calcula divergências por valor/status/pessoa/tipo. **FC nunca vira lançamento.**
+4. **Plano de Contas**: linhas viram preview de upsert por `codigo`.
+
+**processImport (staging)**:
+- Cria 1 lote `tipo='conciliacao_financeiro'`, `fase='conciliacao'`, `resumo={cr, cp, fopag, plano, fc_total, fc_divergencias, pendencias_vinculo, duplicados_estimados}`.
+- Grava CR/CP/FOPAG em `stg_financeiro_aberto` com `dados.origem ∈ {'CR','CP','FOPAG'}` + campos auxiliares (titulo, parcela, pmv/pmp, banco, nome_abreviado, conta_contabil_codigo, fc_match_id).
+- Grava plano de contas em `stg_cadastros` com `dados._tipo_enriquecimento='contas_contabeis'`.
+- Grava FC em `importacao_logs` (nivel='info', mensagem JSON) — só para conferência, nunca consolidado.
+- Centro de custo: grava em `importacao_logs` como "preservado para fase futura".
+
+**finalizeImport (consolidação)**:
+- Roda `consolidar_lote_enriquecimento` (já existe — processa contas_contabeis).
+- Roda `consolidar_lote_financeiro` ajustada (Bloco 4).
+
+### Bloco 4 — Ajustes na RPC `consolidar_lote_financeiro`
+Migration substituindo a função:
+1. **Resolução de pessoa**: `codigo_legado` → `cpf_cnpj` → match exato por `nome_razao_social` normalizado (uppercase sem acento). Sem fuzzy. Ambíguo = pendente (status `erro`, mensagem clara).
+2. **Resolução de conta contábil**: lookup por `dados.conta_contabil_codigo` em `contas_contabeis.codigo` → preenche `conta_contabil_id`.
+3. **Status derivado**: `pago` (data_pagamento + valor_pago≥valor) | `parcial` (valor_pago>0) | `vencido` (sem pagamento + vencimento<hoje) | `aberto`.
+4. **Deduplicação determinística**: antes de inserir, busca `financeiro_lancamentos` com mesmo `(tipo, data_vencimento, valor, cliente_id|fornecedor_id, observacoes ILIKE '%[Título: X]%')`. Se existir → marca staging `status='duplicado'`, não insere.
+5. **Observações estruturadas**: `[Origem: CR|CP|FOPAG] [Título: ...] [Parcela: 1/3] [Nome Abrev: ...] [PMP: ...] [Sócio: ...] — descricao original`. Garante auditabilidade do que veio da planilha.
+6. **FOPAG**: tipo='pagar', sem `fornecedor_id` se não houver match (vira pendente com aviso, lançamento ainda é criado com observação `[Origem: FOPAG][Sócio: X]` e `fornecedor_id=NULL`).
+7. Resposta: `{inseridos, duplicados, pendentes_vinculo, erros, por_origem:{cr,cp,fopag}}`.
+
+### Bloco 5 — UI da Migração (apenas o necessário)
+- **Novo card** "Conciliação / Financeiro" no grupo "Posição inicial / Saldos", substituindo o card "Financeiro" atual (mantém retrocompat lendo o mesmo `tipo='conciliacao_financeiro'` para os indicadores).
+- **Wizard adaptado** quando `activeImportSource='conciliacao'`:
+  - Etapa Upload: aceita só este arquivo, lista abas detectadas com check verde/amarelo.
+  - Etapa Preview: tabs `CR | CP | FOPAG | Plano de Contas | FC (conferência) | Pendências de vínculo`. Cards-resumo no topo (lidos / válidos / duplicados / pendentes / divergências FC).
+  - Etapa Staging: chama `processImport`.
+  - Etapa Confirmação: mostra resumo do lote staged + botão "Confirmar carga".
+- Componente novo `PreviewConciliacaoTabs.tsx` reutilizando `PreviewFinanceiroTable` com filtro por origem.
 
 ### Fora de escopo
-- **P17 (mover 20 páginas para camada de serviços):** refactor gigantesco e arriscado. Vou criar `src/services/clientes.service.ts` com as queries de endereços/comunicações/transportadoras (extraídas dos novos sub-componentes do refactor anterior) como **prova de padrão**, e documentar em `docs/services-migration-plan.md` o roteiro para Fiscal/Orçamento/FluxoCaixa em passadas futuras. Mover Fiscal.tsx e OrcamentoForm.tsx (14 chamadas cada) num único lote junto com tudo isso seria irresponsável.
-- Auditoria completa de `aria-label` em todos os 306 botões.
-- View materializada para estoque baixo (RPC simples já resolve sem o custo de manutenção de MV).
+- Centro de Custo como entidade (preservado em logs).
+- Atualização de cadastros de cliente/fornecedor a partir das abas CLIENTES/FORNECEDORES da planilha — **suportado** apenas como `enriquecimento` opcional desligado por padrão (toggle); nesta passada implemento o toggle mas o efeito apenas registra match; criar/atualizar cadastro fica para próxima rodada para não inflar o lote.
+- Tabela própria de FOPAG/RH.
+- Refatorar `OrcamentoForm.tsx` (P12B pendente).
 
 ### Critério de aceite
-- Imports XML rejeitam arquivos >50MB, ZIPs com >200 XMLs ou expansão >200MB.
-- Sidebar alerts via React Query + RPC `count_estoque_baixo` (1 inteiro de payload).
-- Apenas 1 canal realtime de alertas no app (singleton).
-- 4 componentes prioritários com `aria-label` em botões só-ícone.
-- Dashboard com cache entre navegações; botão "Atualizar" usa `refetch()`.
-- `ViewDrawer` v1 deletado ou marcado deprecated.
-- `clientes.service.ts` criado como template + plano de migração documentado.
+- `MigracaoDados` mostra botão "Limpar dados de migração" (admin) e card "Conciliação / Financeiro".
+- Upload da planilha → preview com 6 tabs e cards de resumo + reconciliação FC com contagem de divergências.
+- Carga final cria contas contábeis (upsert por código) e financeiro_lancamentos sem duplicar (rerodar o mesmo lote = 0 inseridos, todos duplicados).
+- FC nunca vira lançamento, mas aparece nos logs e na reconciliação.
+- FOPAG vira `tipo='pagar'` com observação `[Origem: FOPAG]`.
 - Build OK.
 
 ### Migrations
-1. `CREATE FUNCTION public.count_estoque_baixo() RETURNS bigint LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$ SELECT count(*) FROM produtos WHERE ativo = true AND estoque_minimo > 0 AND estoque_atual <= estoque_minimo; $$;` + GRANT EXECUTE para `authenticated`.
+1. `CREATE OR REPLACE FUNCTION limpar_dados_migracao(p_confirmar boolean)` — admin only, retorna jsonb com contadores apagados.
+2. `CREATE OR REPLACE FUNCTION consolidar_lote_financeiro` — versão nova com dedup determinístico, conta contábil, status correto, observações estruturadas, contadores por origem.
 
 ### Arquivos afetados
-**Segurança:** `src/hooks/importacao/useImportacaoXml.ts`.
-**Perf:** `src/hooks/useSidebarAlerts.ts`, `src/components/navigation/NotificationsPanel.tsx`, `src/lib/realtime/alertsChannel.ts` (novo), migration nova.
-**A11y:** `src/components/DataTable.tsx`, `src/components/OrcamentoItemsGrid.tsx`, `src/components/FormModalFooter.tsx`, `src/components/ViewDrawerV2.tsx`.
-**Dashboard:** `src/pages/dashboard/hooks/useDashboardData.ts`, `src/pages/Index.tsx`.
-**Limpeza:** `src/pages/Auditoria.tsx`, `src/components/ViewDrawer.tsx` (delete ou deprecate).
-**Serviços (template):** `src/services/clientes.service.ts` (novo), `docs/services-migration-plan.md` (novo), atualizar 3 sub-componentes de cliente para consumir o serviço.
+**Novos**: `src/lib/importacao/conciliacaoParser.ts`, `src/hooks/importacao/useImportacaoConciliacao.ts`, `src/components/importacao/PreviewConciliacaoTabs.tsx`, `src/components/importacao/LimparDadosMigracaoButton.tsx`, 1 migration.
+**Editados**: `src/pages/MigracaoDados.tsx` (botão limpeza + card conciliação + wizard novo source), `src/hooks/importacao/types.ts` (novo `PreviewConciliacaoBundle`), `src/lib/importacao/aliases.ts` (aliases CR/CP/FC/FOPAG/Plano), `docs/MIGRACAO.md` (atualizar fluxo conciliação).
+
+### Relatório final será entregue após execução com: arquivos modificados, contagens reais (CR/CP/FOPAG/contas/divergências FC), interpretação vs TXT, build/lint.
 
