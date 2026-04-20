@@ -16,6 +16,7 @@ interface Pendencia {
   valor: number;
   data_vencimento: string;
   status: string;
+  plano_contas: string;
 }
 
 const QUERY_KEY = ['dashboard', 'pendencias'] as const;
@@ -32,7 +33,7 @@ async function fetchPendencias(): Promise<Pendencia[]> {
 
   const { data, error } = await supabase
     .from('financeiro_lancamentos')
-    .select('id, tipo, descricao, valor, data_vencimento, status, clientes(nome_razao_social), fornecedores(nome_razao_social)')
+    .select('id, tipo, descricao, valor, data_vencimento, status, clientes(nome_razao_social), fornecedores(nome_razao_social), contas_contabeis(codigo, descricao)')
     .eq('ativo', true)
     .in('status', ['aberto', 'vencido'])
     .gte('data_vencimento', pastBound)
@@ -51,11 +52,16 @@ async function fetchPendencias(): Promise<Pendencia[]> {
     status: string | null;
     clientes?: { nome_razao_social: string | null } | null;
     fornecedores?: { nome_razao_social: string | null } | null;
+    contas_contabeis?: { codigo: string | null; descricao: string | null } | null;
   }) => {
     const isReceber = r.tipo === 'receber';
     const pessoa = (isReceber
       ? r.clientes?.nome_razao_social
       : r.fornecedores?.nome_razao_social) || (isReceber ? 'Cliente não informado' : 'Fornecedor não informado');
+    const conta = r.contas_contabeis;
+    const plano_contas = conta
+      ? [conta.codigo, conta.descricao].filter(Boolean).join(' - ')
+      : 'Sem plano de contas';
     return {
       id: r.id,
       tipo: r.tipo as 'receber' | 'pagar',
@@ -64,6 +70,7 @@ async function fetchPendencias(): Promise<Pendencia[]> {
       valor: Number(r.valor || 0),
       data_vencimento: r.data_vencimento,
       status: r.status ?? 'aberto',
+      plano_contas,
     };
   });
 }
@@ -133,7 +140,7 @@ export function PendenciasList() {
                     <Clock className="h-2.5 w-2.5" />
                     {vencido ? 'Vencido em ' : ''}{formatDate(p.data_vencimento)}
                     <span className="mx-1">·</span>
-                    <span className="truncate">{p.descricao}</span>
+                    <span className="truncate" title={p.plano_contas}>{p.plano_contas}</span>
                   </p>
                 </div>
                 <span
