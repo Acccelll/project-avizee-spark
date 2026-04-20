@@ -38,8 +38,10 @@ export function useAdminAuditUnificada(filtros: {
       const from = (page - 1) * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
 
-      let q = supabase
-        // @ts-expect-error view não tipada em types.ts ainda — rebuild gerará tipo
+      // View `v_admin_audit_unified` ainda não está tipada em types.ts;
+      // usamos cast para `any` apenas no `.from(...)`.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let q = (supabase as any)
         .from("v_admin_audit_unified")
         .select("*", { count: "exact" })
         .order("created_at", { ascending: false })
