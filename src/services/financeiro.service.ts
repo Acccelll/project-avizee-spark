@@ -213,7 +213,7 @@ export async function processarEstorno(lancamentoId: string, motivoEstorno?: str
     const { data: upd, error: updateError } = await supabase
       .from("financeiro_lancamentos")
       .update({
-        status: "estornado",
+        status: "aberto",
         data_pagamento: null,
         valor_pago: 0,
         tipo_baixa: null,

@@ -82,16 +82,24 @@ export function useConciliacaoBancaria(
       if (!contaId) return [];
 
       const { data, error } = await supabase
-        .from("financeiro_lancamentos")
-        .select("id, descricao, valor, data_vencimento, tipo, status")
-        .eq("ativo", true)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .from("vw_conciliacao_eventos_financeiros" as any)
+        .select("lancamento_id, descricao, valor_movimento, data_movimento, tipo, status_titulo, conciliacao_status")
         .eq("conta_bancaria_id", contaId)
-        .gte("data_vencimento", dataInicio)
-        .lte("data_vencimento", dataFim)
-        .order("data_vencimento", { ascending: true });
+        .gte("data_movimento", dataInicio)
+        .lte("data_movimento", dataFim)
+        .in("conciliacao_status", ["pendente", "divergente", "desconciliado"])
+        .order("data_movimento", { ascending: true });
 
       if (error) throw new Error(error.message);
-      return (data ?? []) as TituloParaConciliacao[];
+      return ((data ?? []) as Array<Record<string, unknown>>).map((item) => ({
+        id: String(item.lancamento_id),
+        descricao: (item.descricao as string | null) ?? null,
+        valor: Number(item.valor_movimento ?? 0),
+        data_vencimento: String(item.data_movimento),
+        tipo: String(item.tipo ?? ""),
+        status: String(item.status_titulo ?? "aberto"),
+      }));
     },
     enabled: Boolean(contaId),
   });
