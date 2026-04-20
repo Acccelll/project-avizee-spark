@@ -331,10 +331,13 @@ export default function MigracaoDados() {
       }
       subtitle="Central de importação, saneamento e carga de dados legados."
       actions={
-        <Button variant="outline" size="sm" onClick={handleRefresh} className="gap-2">
-          <RefreshCw className={`h-4 w-4 ${loadingLotes ? 'animate-spin' : ''}`} />
-          Atualizar
-        </Button>
+        <div className="flex items-center gap-2">
+          {isAdmin && <LimparDadosMigracaoButton onCleaned={refreshLotes} />}
+          <Button variant="outline" size="sm" onClick={handleRefresh} className="gap-2">
+            <RefreshCw className={`h-4 w-4 ${loadingLotes ? 'animate-spin' : ''}`} />
+            Atualizar
+          </Button>
+        </div>
       }
     >
       <div className="flex flex-col gap-6">
@@ -455,14 +458,14 @@ export default function MigracaoDados() {
               />
               <ImportacaoTipoCard
                 type="financeiro"
-                title="Financeiro em Aberto"
-                description="Carga de contas a pagar e receber pendentes."
+                title="Conciliação / Financeiro"
+                description="Carga oficial: planilha Conciliação_FluxoCaixa (CR + CP + FOPAG + Plano de Contas + reconciliação FC). Substitui a importação financeira simples."
                 criticidade="financeiro"
                 dependencies={["Clientes", "Fornecedores"]}
                 cardStatus={cardInfoMap.financeiro.cardStatus}
                 summary={cardInfoMap.financeiro.summary}
-                onImport={() => handleOpenImport("financeiro")}
-                onViewBatches={() => { setTypeFilter("financeiro_aberto"); setActiveTab("lotes"); }}
+                onImport={() => handleOpenImport("conciliacao")}
+                onViewBatches={() => { setTypeFilter("conciliacao_financeiro"); setActiveTab("lotes"); }}
               />
             </ImportacaoGrupoSection>
 
