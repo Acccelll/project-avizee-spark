@@ -11,7 +11,23 @@
 
 import * as XLSX from "@/lib/xlsx-compat";
 import { parseDateFlexible, parseDecimalFlexible } from "./parsers";
-import { normalizeCpfCnpj, normalizeText } from "./normalizers";
+import { normalizeCpfCnpj, normalizeText, normalizeCep, normalizePhone, normalizeEmail } from "./normalizers";
+
+/** Detecta tipo_pessoa pelo CPF/CNPJ (apenas dígitos). */
+function detectTipoPessoa(cpfCnpj: string): "fisica" | "juridica" {
+  const len = (cpfCnpj || "").replace(/\D/g, "").length;
+  return len === 14 ? "juridica" : "fisica";
+}
+
+/** Converte valor "Pagt." (texto livre) em prazo em dias quando possível. */
+function parsePrazoPadrao(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const s = String(value).toUpperCase();
+  // Casos comuns: "28DDL", "30 DDL", "30 DIAS", "30"
+  const m = s.match(/(\d+)/);
+  if (m) return parseInt(m[1]);
+  return null;
+}
 
 /** Match insensível a caixa/acento/espaços. */
 function normHeader(s: unknown): string {
@@ -112,13 +128,47 @@ export interface CentroCustoRow {
 }
 
 export interface PessoaAuxRow {
+  tipo_pessoa: "fisica" | "juridica";
   cpf_cnpj: string;
   codigo_legado: string;
   nome_razao_social: string;
   nome_fantasia: string | null;
+  inscricao_estadual: string | null;
+  contato: string | null;
   email: string | null;
   telefone: string | null;
+  celular: string | null;
+  cep: string | null;
+  logradouro: string | null;
+  numero: string | null;
+  complemento: string | null;
+  bairro: string | null;
+  cidade: string | null;
+  uf: string | null;
+  caixa_postal: string | null;
+  observacoes: string | null;
+  prazo_padrao: number | null;
   forma_pagamento_padrao: string | null;
+  _originalLine: number;
+}
+
+export interface ProdutoInsumoRow {
+  tipo_item: "produto" | "insumo";
+  codigo_legado: string;
+  sku: string;
+  nome: string;
+  grupo_nome: string | null;
+  unidade_medida: string;
+  variacoes: string | null;
+  preco_custo: number;
+  preco_venda: number;
+  peso: number;
+  ncm: string;
+  estoque_inicial: number;
+  fornecedor_principal_nome: string | null;
+  fornecedor_principal_legado: string | null;
+  ref_fornecedor: string | null;
+  url_produto_fornecedor: string | null;
   _originalLine: number;
 }
 
@@ -131,6 +181,8 @@ export interface ConciliacaoBundle {
   centroCusto: CentroCustoRow[];
   clientes: PessoaAuxRow[];
   fornecedores: PessoaAuxRow[];
+  produtos: ProdutoInsumoRow[];
+  insumos: ProdutoInsumoRow[];
   abasDetectadas: string[];
   abasFaltantes: string[];
 }
