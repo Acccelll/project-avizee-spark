@@ -713,6 +713,13 @@ export type Database = {
             referencedRelation: "pedidos_compra"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fk_compras_pedido_compra"
+            columns: ["pedido_compra_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_compras"
+            referencedColumns: ["pedido_id"]
+          },
         ]
       }
       compras_itens: {
@@ -753,6 +760,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "compras"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "compras_itens_compra_id_fkey"
+            columns: ["compra_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_compras"
+            referencedColumns: ["compra_id"]
           },
           {
             foreignKeyName: "compras_itens_produto_id_fkey"
@@ -1035,6 +1049,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "cotacoes_compra_itens_cotacao_compra_id_fkey"
+            columns: ["cotacao_compra_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_compras"
+            referencedColumns: ["cotacao_id"]
+          },
+          {
             foreignKeyName: "cotacoes_compra_itens_produto_id_fkey"
             columns: ["produto_id"]
             isOneToOne: false
@@ -1091,6 +1112,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "cotacoes_compra"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cotacoes_compra_propostas_cotacao_compra_id_fkey"
+            columns: ["cotacao_compra_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_compras"
+            referencedColumns: ["cotacao_id"]
           },
           {
             foreignKeyName: "cotacoes_compra_propostas_fornecedor_id_fkey"
@@ -1824,6 +1852,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "pedidos_compra"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_lancamentos_pedido_compra_id_fkey"
+            columns: ["pedido_compra_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_compras"
+            referencedColumns: ["pedido_id"]
           },
         ]
       }
@@ -3386,6 +3421,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "pedidos_compra_cotacao_compra_id_fkey"
+            columns: ["cotacao_compra_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_compras"
+            referencedColumns: ["cotacao_id"]
+          },
+          {
             foreignKeyName: "pedidos_compra_fornecedor_id_fkey"
             columns: ["fornecedor_id"]
             isOneToOne: false
@@ -3401,6 +3443,7 @@ export type Database = {
           pedido_compra_id: string
           preco_unitario: number | null
           produto_id: string | null
+          proposta_selecionada_id: string | null
           quantidade: number | null
           quantidade_recebida: number
           subtotal: number | null
@@ -3411,6 +3454,7 @@ export type Database = {
           pedido_compra_id: string
           preco_unitario?: number | null
           produto_id?: string | null
+          proposta_selecionada_id?: string | null
           quantidade?: number | null
           quantidade_recebida?: number
           subtotal?: number | null
@@ -3421,6 +3465,7 @@ export type Database = {
           pedido_compra_id?: string
           preco_unitario?: number | null
           produto_id?: string | null
+          proposta_selecionada_id?: string | null
           quantidade?: number | null
           quantidade_recebida?: number
           subtotal?: number | null
@@ -3432,6 +3477,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "pedidos_compra"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pedidos_compra_itens_pedido_compra_id_fkey"
+            columns: ["pedido_compra_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_compras"
+            referencedColumns: ["pedido_id"]
           },
           {
             foreignKeyName: "pedidos_compra_itens_produto_id_fkey"
@@ -3446,6 +3498,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_workbook_estoque_posicao"
             referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "pedidos_compra_itens_proposta_selecionada_id_fkey"
+            columns: ["proposta_selecionada_id"]
+            isOneToOne: false
+            referencedRelation: "cotacoes_compra_propostas"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -4015,6 +4074,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "pedidos_compra"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "remessas_pedido_compra_id_fkey"
+            columns: ["pedido_compra_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_compras"
+            referencedColumns: ["pedido_id"]
           },
           {
             foreignKeyName: "remessas_transportadora_id_fkey"
@@ -4761,6 +4827,33 @@ export type Database = {
           },
         ]
       }
+      v_trilha_compras: {
+        Row: {
+          compra_id: string | null
+          compra_numero: string | null
+          compra_status: string | null
+          compra_valor_total: number | null
+          cotacao_id: string | null
+          cotacao_numero: string | null
+          cotacao_status: string | null
+          data_entrega_real: string | null
+          fornecedor_id: string | null
+          fornecedor_nome: string | null
+          pedido_id: string | null
+          pedido_numero: string | null
+          pedido_status: string | null
+          pedido_valor_total: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pedidos_compra_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "fornecedores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vw_workbook_aging_cp: {
         Row: {
           data_vencimento: string | null
@@ -4913,6 +5006,10 @@ export type Database = {
         Returns: string
       }
       aprovar_pedido: { Args: { p_pedido_id: string }; Returns: Json }
+      cancelar_cotacao_compra: {
+        Args: { p_id: string; p_motivo?: string }
+        Returns: Json
+      }
       cancelar_orcamento: {
         Args: { p_id: string; p_motivo?: string }
         Returns: Json
@@ -5081,7 +5178,7 @@ export type Database = {
       }
       replace_pedido_compra_itens: {
         Args: { p_itens: Json; p_pedido_id: string }
-        Returns: undefined
+        Returns: Json
       }
       salvar_orcamento: {
         Args: { p_id: string; p_itens: Json; p_payload: Json }

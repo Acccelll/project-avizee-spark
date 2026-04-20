@@ -227,11 +227,15 @@ export async function conciliarTransacao(
     baixaId = ultimaBaixa.id;
   }
 
-  const { error: concError } = await supabase.rpc("financeiro_conciliar_baixa", {
-    p_baixa_id: baixaId,
-    p_status: "conciliado",
-    p_extrato_referencia: transacaoExtrato.id,
-  });
+  // RPC name not yet present in generated types — cast required until next type sync
+  const { error: concError } = await (supabase.rpc as any)(
+    "financeiro_conciliar_baixa",
+    {
+      p_baixa_id: baixaId,
+      p_status: "conciliado",
+      p_extrato_referencia: transacaoExtrato.id,
+    },
+  );
 
   if (concError) throw new Error(concError.message);
 }

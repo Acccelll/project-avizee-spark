@@ -11,7 +11,16 @@ export const pedidoCompraSchema = z.object({
   data_entrega_real: z.string().optional().or(z.literal("")),
   frete_valor: z.union([z.string(), z.number()]).optional(),
   condicao_pagamento: z.string().optional().or(z.literal("")),
-  status: z.string().min(1),
+  status: z.enum([
+    "rascunho",
+    "aguardando_aprovacao",
+    "aprovado",
+    "enviado_ao_fornecedor",
+    "aguardando_recebimento",
+    "parcialmente_recebido",
+    "recebido",
+    "cancelado",
+  ]),
   observacoes: z.string().optional().or(z.literal("")),
 });
 

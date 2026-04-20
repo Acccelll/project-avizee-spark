@@ -19,7 +19,7 @@ export interface ReceberCompraInput {
 interface ReceberCompraResult {
   compra_id: string;
   numero: string;
-  status_pedido: "recebido" | "recebido_parcial";
+  status_pedido: "recebido" | "parcialmente_recebido";
   valor_total: number;
 }
 

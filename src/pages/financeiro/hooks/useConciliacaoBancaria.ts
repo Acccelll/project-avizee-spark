@@ -92,7 +92,7 @@ export function useConciliacaoBancaria(
         .order("data_movimento", { ascending: true });
 
       if (error) throw new Error(error.message);
-      return ((data ?? []) as Array<Record<string, unknown>>).map((item) => ({
+      return ((data as unknown as Array<Record<string, unknown>>) ?? []).map((item) => ({
         id: String(item.lancamento_id),
         descricao: (item.descricao as string | null) ?? null,
         valor: Number(item.valor_movimento ?? 0),
