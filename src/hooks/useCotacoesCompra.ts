@@ -8,7 +8,6 @@ import { toast } from "sonner";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import { validateForm } from "@/lib/validationSchemas";
 import { cotacaoCompraSchema, validateCotacaoItems } from "@/lib/cotacaoCompraSchema";
-import { todayISO } from "@/lib/dateUtils";
 import { useGerarPedidoCompra } from "@/pages/comercial/hooks/useGerarPedidoCompra";
 import type { Database } from "@/integrations/supabase/types";
 import {
@@ -19,6 +18,7 @@ import {
   type LocalItem,
   buildEmptyForm,
 } from "@/components/compras/cotacaoCompraTypes";
+import { canonicalCotacaoStatus } from "@/components/compras/comprasStatus";
 
 export function useCotacoesCompra() {
   const navigate = useNavigate();
@@ -53,9 +53,9 @@ export function useCotacoesCompra() {
 
   // KPIs
   const kpis = useMemo(() => {
-    const emCotacao = data.filter((c) => c.status === "aberta" || c.status === "em_analise").length;
-    const aguardandoAprovacao = data.filter((c) => c.status === "aguardando_aprovacao").length;
-    const convertidas = data.filter((c) => c.status === "convertida").length;
+    const emCotacao = data.filter((c) => ["aberta", "em_analise"].includes(canonicalCotacaoStatus(c.status))).length;
+    const aguardandoAprovacao = data.filter((c) => canonicalCotacaoStatus(c.status) === "aguardando_aprovacao").length;
+    const convertidas = data.filter((c) => canonicalCotacaoStatus(c.status) === "convertida").length;
     return { total: data.length, emCotacao, aguardandoAprovacao, convertidas };
   }, [data]);
 
@@ -154,7 +154,7 @@ export function useCotacoesCompra() {
       data_cotacao: c.data_cotacao,
       data_validade: c.data_validade || "",
       observacoes: c.observacoes || "",
-      status: c.status,
+      status: canonicalCotacaoStatus(c.status),
     });
     const { data: itens } = await supabase
       .from("cotacoes_compra_itens")
@@ -173,7 +173,7 @@ export function useCotacoesCompra() {
   };
 
   const openView = async (c: CotacaoCompra) => {
-    setSelected(c);
+    setSelected({ ...c, status: canonicalCotacaoStatus(c.status) });
     setDrawerOpen(true);
     const [{ data: itens }, { data: propostas }] = await Promise.all([
       supabase

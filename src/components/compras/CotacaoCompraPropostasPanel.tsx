@@ -184,7 +184,7 @@ export function CotacaoCompraPropostasPanel({
                           </div>
                           {p.prazo_entrega_dias && <Badge variant="secondary" className="text-[10px]">{p.prazo_entrega_dias}d</Badge>}
                           <div className="flex gap-1">
-                            {!p.selecionado && selected.status !== "finalizada" && selected.status !== "convertida" && (
+                            {!p.selecionado && selected.status !== "aprovada" && selected.status !== "convertida" && (
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Selecionar proposta" onClick={() => onSelectProposal(p.id!, item.id)}>
@@ -194,7 +194,7 @@ export function CotacaoCompraPropostasPanel({
                                 <TooltipContent>Selecionar</TooltipContent>
                               </Tooltip>
                             )}
-                            {selected.status !== "finalizada" && selected.status !== "convertida" && (
+                            {selected.status !== "aprovada" && selected.status !== "convertida" && (
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" aria-label="Remover proposta" onClick={() => onDeleteProposal(p.id!)}>
@@ -212,7 +212,7 @@ export function CotacaoCompraPropostasPanel({
                 </div>
               )}
 
-              {selected.status !== "finalizada" && selected.status !== "convertida" && selected.status !== "cancelada" && (
+              {selected.status !== "aprovada" && selected.status !== "convertida" && selected.status !== "cancelada" && (
                 <>
                   {addingProposal === item.id ? (
                     <div className="rounded-lg border border-dashed p-3 space-y-3 bg-muted/30">

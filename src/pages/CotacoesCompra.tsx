@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AutocompleteSearch } from "@/components/ui/AutocompleteSearch";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Info, Plus, X, ShoppingCart, Clock, FileSearch, CheckCircle2 } from "lucide-react";
@@ -26,7 +25,7 @@ export default function CotacoesCompra() {
     data, loading, remove,
     modalOpen, setModalOpen,
     drawerOpen, setDrawerOpen,
-    selected, setSelected,
+    selected,
     mode, form, setForm,
     localItems, saving,
     deleteConfirmOpen, setDeleteConfirmOpen,
@@ -111,7 +110,7 @@ export default function CotacoesCompra() {
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
             <div className="space-y-2">
               <Label>Número *</Label>
-              <Input value={form.numero} onChange={(e) => setForm({ ...form, numero: e.target.value })} required className="font-mono" />
+              <Input value={form.numero} onChange={(e) => setForm({ ...form, numero: e.target.value })} required className="font-mono" disabled={mode === "edit"} />
             </div>
             <div className="space-y-2">
               <Label>Data Cotação</Label>
@@ -123,24 +122,10 @@ export default function CotacoesCompra() {
             </div>
             <div className="space-y-2">
               <Label>Status</Label>
-              {/* Terminal statuses (convertida, cancelada) can only be set
-                  by system actions (gerarPedido, cancel), not the form. */}
-              <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="aberta">Aberta</SelectItem>
-                  <SelectItem value="em_analise">Em Análise</SelectItem>
-                  <SelectItem value="aguardando_aprovacao">Aguardando Aprovação</SelectItem>
-                  <SelectItem value="aprovada">Aprovada</SelectItem>
-                  <SelectItem value="rejeitada">Rejeitada</SelectItem>
-                  {/* Show current status if it's terminal (read-only, disabled) */}
-                  {["convertida", "cancelada"].includes(form.status) && (
-                    <SelectItem value={form.status} disabled>
-                      {form.status === "convertida" ? "Convertida" : "Cancelada"}
-                    </SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
+              <Input value={statusLabels[form.status] || form.status} disabled />
+              <p className="text-[11px] text-muted-foreground">
+                O status é controlado pelas ações de fluxo na visualização detalhada.
+              </p>
             </div>
           </div>
 

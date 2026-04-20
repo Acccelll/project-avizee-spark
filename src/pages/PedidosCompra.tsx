@@ -3,7 +3,6 @@ import { ModulePage } from "@/components/ModulePage";
 import { SummaryCard } from "@/components/SummaryCard";
 import { CheckCircle2, Clock, ShoppingCart } from "lucide-react";
 import { formatCurrency, formatNumber } from "@/lib/format";
-import { statusPedidoCompra } from "@/lib/statusSchema";
 import { usePedidosCompra } from "@/hooks/usePedidosCompra";
 import {
   usePedidoCompraFilters,
@@ -13,12 +12,10 @@ import { PedidoCompraTable } from "@/components/compras/PedidoCompraTable";
 import { PedidoCompraFormModal } from "@/components/compras/PedidoCompraFormModal";
 import { PedidoCompraDrawer } from "@/components/compras/PedidoCompraDrawer";
 import { type MultiSelectOption } from "@/components/ui/MultiSelect";
-import type { PedidoCompra } from "@/components/compras/pedidoCompraTypes";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { pedidoStatusLabelMap } from "@/components/compras/comprasStatus";
 
-const statusLabels: Record<string, string> = Object.fromEntries(
-  Object.entries(statusPedidoCompra).map(([k, v]) => [k, v.label]),
-);
+const statusLabels: Record<string, string> = pedidoStatusLabelMap;
 
 export default function PedidosCompra() {
   const ctx = usePedidosCompra();

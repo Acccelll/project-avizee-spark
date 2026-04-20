@@ -25,6 +25,7 @@ import {
 import type { PedidoCompra, ProdutoOptionRow } from "./pedidoCompraTypes";
 import { pedidoNumero } from "./pedidoCompraTypes";
 import type { PedidoCompraForm, EstoqueMovimentoRow } from "@/hooks/usePedidosCompra";
+import { canonicalPedidoStatus } from "./comprasStatus";
 
 interface PedidoCompraFormModalProps {
   open: boolean;
@@ -94,11 +95,12 @@ export function PedidoCompraFormModal({
 
         const recStatusEdit = (() => {
           const s = form.status;
-          if (s === "recebido") return { label: "Recebido", colorClass: "text-success", Icon: CheckCircle2 };
-          if (s === "parcialmente_recebido") return { label: "Parcial", colorClass: "text-warning", Icon: ArrowDownToLine };
-          if (["aguardando_recebimento", "enviado_ao_fornecedor", "aprovado"].includes(s))
+          const normalized = canonicalPedidoStatus(s);
+          if (normalized === "recebido") return { label: "Recebido", colorClass: "text-success", Icon: CheckCircle2 };
+          if (normalized === "parcialmente_recebido") return { label: "Recebimento Parcial", colorClass: "text-warning", Icon: ArrowDownToLine };
+          if (["aguardando_recebimento", "enviado_ao_fornecedor", "aprovado"].includes(normalized))
             return { label: "Aguardando", colorClass: "text-warning", Icon: Clock };
-          if (s === "cancelado") return { label: "Cancelado", colorClass: "text-destructive", Icon: XCircle };
+          if (normalized === "cancelado") return { label: "Cancelado", colorClass: "text-destructive", Icon: XCircle };
           return { label: "Rascunho", colorClass: "text-muted-foreground", Icon: FileText };
         })();
         const RecStatusIcon = recStatusEdit.Icon;

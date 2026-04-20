@@ -1,8 +1,10 @@
 import { DataTable } from "@/components/DataTable";
 import { StatusBadge } from "@/components/StatusBadge";
-import { Trophy } from "lucide-react";
+import { AlertCircle, CheckCircle2, Clock3, Trophy } from "lucide-react";
 import type { CotacaoCompra, CotacaoSummary } from "./cotacaoCompraTypes";
 import { statusLabels } from "./cotacaoCompraTypes";
+import { canonicalCotacaoStatus } from "./comprasStatus";
+import { calculateDaysBetween, formatDate } from "@/lib/format";
 
 interface CotacaoCompraTableProps {
   data: CotacaoCompra[];
@@ -13,6 +15,7 @@ interface CotacaoCompraTableProps {
 }
 
 export function CotacaoCompraTable({ data, loading, summaries, onView, onEdit }: CotacaoCompraTableProps) {
+  const isExpired = (validade: string | null) => !!validade && calculateDaysBetween(new Date(), validade) < 0;
   const columns = [
     {
       key: "numero",
@@ -21,7 +24,7 @@ export function CotacaoCompraTable({ data, loading, summaries, onView, onEdit }:
         <div>
           <span className="font-mono text-xs font-semibold text-primary">{c.numero}</span>
           <p className="text-[10px] text-muted-foreground mt-0.5">
-            {new Date(c.data_cotacao).toLocaleDateString("pt-BR")}
+            {formatDate(c.data_cotacao)}
           </p>
         </div>
       ),
@@ -45,7 +48,7 @@ export function CotacaoCompraTable({ data, loading, summaries, onView, onEdit }:
           return <span className="text-xs text-muted-foreground italic">Sem propostas</span>;
         }
         return (
-          <div>
+          <div className="space-y-0.5">
             <span className="text-sm font-mono font-semibold">{s.fornecedores_count}</span>
             {s.vencedor_nome ? (
               <p className="text-[10px] text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5 mt-0.5">
@@ -53,7 +56,7 @@ export function CotacaoCompraTable({ data, loading, summaries, onView, onEdit }:
                 <span className="truncate max-w-[110px]">{s.vencedor_nome}</span>
               </p>
             ) : (
-              <p className="text-[10px] text-muted-foreground mt-0.5">Sem vencedor</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Sem vencedor definido</p>
             )}
           </div>
         );
@@ -62,17 +65,47 @@ export function CotacaoCompraTable({ data, loading, summaries, onView, onEdit }:
     {
       key: "status",
       label: "Status",
-      render: (c: CotacaoCompra) => (
-        <StatusBadge status={c.status} label={statusLabels[c.status] || c.status} />
-      ),
+      render: (c: CotacaoCompra) => <StatusBadge status={c.status} label={statusLabels[c.status] || c.status} />,
+    },
+    {
+      key: "prontidao",
+      label: "Prontidão",
+      render: (c: CotacaoCompra) => {
+        const s = summaries[c.id];
+        const status = canonicalCotacaoStatus(c.status);
+        if (!s) return <span className="text-xs text-muted-foreground">Carregando…</span>;
+        if (status === "convertida") return <StatusBadge status="recebido" label="Pedido gerado" />;
+        if (status === "aguardando_aprovacao") return <StatusBadge status="aguardando" label="Aguardando decisão" />;
+        if (s.tem_vencedor && s.itens_count > 0) return <StatusBadge status="aprovado" label="Pronta para aprovação" />;
+        return <StatusBadge status="rascunho" label="Aguardando seleção" />;
+      },
     },
     {
       key: "data_validade",
       label: "Validade",
-      render: (c: CotacaoCompra) =>
-        c.data_validade
-          ? new Date(c.data_validade).toLocaleDateString("pt-BR")
-          : "—",
+      render: (c: CotacaoCompra) => {
+        if (!c.data_validade) return "—";
+        if (isExpired(c.data_validade)) {
+          return (
+            <span className="inline-flex items-center gap-1 text-destructive text-xs font-medium">
+              <AlertCircle className="h-3 w-3" /> {formatDate(c.data_validade)}
+            </span>
+          );
+        }
+        const dias = calculateDaysBetween(new Date(), c.data_validade);
+        if (dias <= 2) {
+          return (
+            <span className="inline-flex items-center gap-1 text-warning text-xs">
+              <Clock3 className="h-3 w-3" /> {formatDate(c.data_validade)}
+            </span>
+          );
+        }
+        return (
+          <span className="inline-flex items-center gap-1 text-xs">
+            <CheckCircle2 className="h-3 w-3 text-emerald-500" /> {formatDate(c.data_validade)}
+          </span>
+        );
+      },
     },
   ];
 
