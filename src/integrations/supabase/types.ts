@@ -890,6 +890,7 @@ export type Database = {
           conta_pai_id: string | null
           created_at: string
           descricao: string
+          i_level: string | null
           id: string
           natureza: string | null
         }
@@ -900,6 +901,7 @@ export type Database = {
           conta_pai_id?: string | null
           created_at?: string
           descricao: string
+          i_level?: string | null
           id?: string
           natureza?: string | null
         }
@@ -910,6 +912,7 @@ export type Database = {
           conta_pai_id?: string | null
           created_at?: string
           descricao?: string
+          i_level?: string | null
           id?: string
           natureza?: string | null
         }
@@ -1598,9 +1601,11 @@ export type Database = {
           banco: string | null
           cartao: string | null
           cliente_id: string | null
+          codigo_fluxo_origem: string | null
           conta_bancaria_id: string | null
           conta_contabil_id: string | null
           created_at: string
+          data_emissao: string | null
           data_pagamento: string | null
           data_vencimento: string
           descricao: string | null
@@ -1610,6 +1615,7 @@ export type Database = {
           funcionario_id: string | null
           id: string
           motivo_estorno: string | null
+          nome_abreviado_origem: string | null
           nota_fiscal_id: string | null
           observacoes: string | null
           parcela_numero: number | null
@@ -1619,6 +1625,7 @@ export type Database = {
           status: string | null
           tipo: string
           tipo_baixa: string | null
+          titulo: string | null
           updated_at: string
           valor: number
           valor_pago: number | null
@@ -1628,9 +1635,11 @@ export type Database = {
           banco?: string | null
           cartao?: string | null
           cliente_id?: string | null
+          codigo_fluxo_origem?: string | null
           conta_bancaria_id?: string | null
           conta_contabil_id?: string | null
           created_at?: string
+          data_emissao?: string | null
           data_pagamento?: string | null
           data_vencimento: string
           descricao?: string | null
@@ -1640,6 +1649,7 @@ export type Database = {
           funcionario_id?: string | null
           id?: string
           motivo_estorno?: string | null
+          nome_abreviado_origem?: string | null
           nota_fiscal_id?: string | null
           observacoes?: string | null
           parcela_numero?: number | null
@@ -1649,6 +1659,7 @@ export type Database = {
           status?: string | null
           tipo?: string
           tipo_baixa?: string | null
+          titulo?: string | null
           updated_at?: string
           valor?: number
           valor_pago?: number | null
@@ -1658,9 +1669,11 @@ export type Database = {
           banco?: string | null
           cartao?: string | null
           cliente_id?: string | null
+          codigo_fluxo_origem?: string | null
           conta_bancaria_id?: string | null
           conta_contabil_id?: string | null
           created_at?: string
+          data_emissao?: string | null
           data_pagamento?: string | null
           data_vencimento?: string
           descricao?: string | null
@@ -1670,6 +1683,7 @@ export type Database = {
           funcionario_id?: string | null
           id?: string
           motivo_estorno?: string | null
+          nome_abreviado_origem?: string | null
           nota_fiscal_id?: string | null
           observacoes?: string | null
           parcela_numero?: number | null
@@ -1679,6 +1693,7 @@ export type Database = {
           status?: string | null
           tipo?: string
           tipo_baixa?: string | null
+          titulo?: string | null
           updated_at?: string
           valor?: number
           valor_pago?: number | null
@@ -3559,6 +3574,7 @@ export type Database = {
           produto_id: string
           referencia_fornecedor: string | null
           unidade_fornecedor: string | null
+          url_produto_fornecedor: string | null
         }
         Insert: {
           created_at?: string
@@ -3571,6 +3587,7 @@ export type Database = {
           produto_id: string
           referencia_fornecedor?: string | null
           unidade_fornecedor?: string | null
+          url_produto_fornecedor?: string | null
         }
         Update: {
           created_at?: string
@@ -3583,6 +3600,7 @@ export type Database = {
           produto_id?: string
           referencia_fornecedor?: string | null
           unidade_fornecedor?: string | null
+          url_produto_fornecedor?: string | null
         }
         Relationships: [
           {
@@ -4692,6 +4710,10 @@ export type Database = {
       cancelar_remessa: {
         Args: { p_motivo?: string; p_remessa_id: string }
         Returns: undefined
+      }
+      carga_inicial_conciliacao: {
+        Args: { p_force?: boolean; p_lote_id: string }
+        Returns: Json
       }
       confirmar_nota_fiscal: { Args: { p_nf_id: string }; Returns: undefined }
       consolidar_lote_cadastros: { Args: { p_lote_id: string }; Returns: Json }
