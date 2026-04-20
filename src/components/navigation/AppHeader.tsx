@@ -33,6 +33,44 @@ function primaryRole(roles: AppRole[]): AppRole | null {
   return roles[0] ?? null;
 }
 
+/**
+ * Itens compartilhados pelo menu da conta — usado nos contextos mobile e desktop
+ * para evitar duplicação visual e funcional.
+ */
+function AccountMenuItems({
+  navigate,
+  theme,
+  setTheme,
+  signOut,
+}: {
+  navigate: (path: string) => void;
+  theme: string | undefined;
+  setTheme: (t: string) => void;
+  signOut: () => Promise<void>;
+}) {
+  return (
+    <>
+      <DropdownMenuItem onClick={() => navigate('/perfil')}>
+        <User className="mr-2 h-4 w-4" /> Meu perfil
+      </DropdownMenuItem>
+      <DropdownMenuItem onClick={() => navigate('/configuracoes')}>
+        <Settings className="mr-2 h-4 w-4" /> Configurações
+      </DropdownMenuItem>
+      <DropdownMenuItem onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
+        {theme === 'dark' ? <Sun className="mr-2 h-4 w-4" /> : <Moon className="mr-2 h-4 w-4" />}
+        Tema {theme === 'dark' ? 'claro' : 'escuro'}
+      </DropdownMenuItem>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem
+        className="text-destructive focus:text-destructive"
+        onClick={async () => { await signOut(); }}
+      >
+        Sair
+      </DropdownMenuItem>
+    </>
+  );
+}
+
 interface AppHeaderProps {
   onOpenMobileMenu: () => void;
   onOpenSearch: () => void;
@@ -127,25 +165,7 @@ export function AppHeader({ onOpenMobileMenu: _onOpenMobileMenu, onOpenSearch, o
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => navigate('/perfil')}>
-                    <User className="mr-2 h-4 w-4" /> Meu perfil
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/configuracoes')}>
-                    <Settings className="mr-2 h-4 w-4" /> Configurações
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
-                    {theme === 'dark' ? <Sun className="mr-2 h-4 w-4" /> : <Moon className="mr-2 h-4 w-4" />}
-                    Tema {theme === 'dark' ? 'claro' : 'escuro'}
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    className="text-destructive focus:text-destructive"
-                    onClick={async () => {
-                      await signOut();
-                    }}
-                  >
-                    Sair
-                  </DropdownMenuItem>
+                  <AccountMenuItems navigate={navigate} theme={theme} setTheme={setTheme} signOut={signOut} />
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -190,17 +210,6 @@ export function AppHeader({ onOpenMobileMenu: _onOpenMobileMenu, onOpenSearch, o
 
             <NotificationsPanel />
 
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
-              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              aria-label={theme === 'dark' ? 'Ativar tema claro' : 'Ativar tema escuro'}
-              title={theme === 'dark' ? 'Tema claro' : 'Tema escuro'}
-            >
-              {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            </Button>
-
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Tooltip>
@@ -232,27 +241,7 @@ export function AppHeader({ onOpenMobileMenu: _onOpenMobileMenu, onOpenSearch, o
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => navigate('/perfil')}>
-                  <User className="mr-2 h-4 w-4" />
-                  Meu perfil
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate('/configuracoes')}>
-                  <Settings className="mr-2 h-4 w-4" />
-                  Configurações
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
-                  {theme === 'dark' ? <Sun className="mr-2 h-4 w-4" /> : <Moon className="mr-2 h-4 w-4" />}
-                  Tema {theme === 'dark' ? 'claro' : 'escuro'}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  className="text-destructive focus:text-destructive"
-                  onClick={async () => {
-                    await signOut();
-                  }}
-                >
-                  Sair
-                </DropdownMenuItem>
+                <AccountMenuItems navigate={navigate} theme={theme} setTheme={setTheme} signOut={signOut} />
               </DropdownMenuContent>
             </DropdownMenu>
           </>

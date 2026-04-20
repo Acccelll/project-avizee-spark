@@ -9,6 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Home, Plus, Trash2, Star, FileText, MapPin, Loader2, Search } from "lucide-react";
 import { useViaCep } from "@/hooks/useViaCep";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
+import { MaskedInput } from "@/components/ui/MaskedInput";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { UF_OPTIONS } from "@/constants/brasil";
 import { toast } from "sonner";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 
@@ -56,6 +60,7 @@ export function ClienteEnderecosTab({ clienteId, fallbackEndereco, onCountChange
   const [form, setForm] = useState<EnderecoFormData>({ ...emptyEnderecoForm });
   const [saving, setSaving] = useState(false);
   const { buscarCep, loading: cepLoading } = useViaCep();
+  const { confirm: confirmRemove, dialog: confirmRemoveDialog } = useConfirmDialog();
 
   const load = async () => {
     setLoading(true);
@@ -128,6 +133,13 @@ export function ClienteEnderecosTab({ clienteId, fallbackEndereco, onCountChange
   };
 
   const handleRemove = async (enderecoId: string) => {
+    const ok = await confirmRemove({
+      title: "Remover endereço",
+      description: "Esta ação removerá este endereço de entrega. Deseja continuar?",
+      confirmLabel: "Remover",
+      confirmVariant: "destructive",
+    });
+    if (!ok) return;
     try {
       await supabase.from("clientes_enderecos_entrega").update({ ativo: false }).eq("id", enderecoId);
       await load();
@@ -278,11 +290,11 @@ export function ClienteEnderecosTab({ clienteId, fallbackEndereco, onCountChange
               <div className="flex-1 space-y-2">
                 <Label>CEP</Label>
                 <div className="flex gap-2">
-                  <Input
+                  <MaskedInput
+                    mask="cep"
                     value={form.cep || ""}
-                    onChange={(e) => setForm({ ...form, cep: e.target.value })}
+                    onChange={(v) => setForm({ ...form, cep: v })}
                     placeholder="00000-000"
-                    maxLength={9}
                     className="flex-1"
                   />
                   <Button
@@ -322,7 +334,16 @@ export function ClienteEnderecosTab({ clienteId, fallbackEndereco, onCountChange
               </div>
               <div className="space-y-2">
                 <Label>UF</Label>
-                <Input maxLength={2} value={form.uf || ""} onChange={(e) => setForm({ ...form, uf: e.target.value.toUpperCase() })} className="uppercase" />
+                <Select value={form.uf || undefined} onValueChange={(v) => setForm({ ...form, uf: v })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="UF" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {UF_OPTIONS.map((uf) => (
+                      <SelectItem key={uf} value={uf}>{uf}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label>Contato</Label>
@@ -330,7 +351,12 @@ export function ClienteEnderecosTab({ clienteId, fallbackEndereco, onCountChange
               </div>
               <div className="space-y-2">
                 <Label>Telefone</Label>
-                <Input value={form.telefone || ""} onChange={(e) => setForm({ ...form, telefone: e.target.value })} placeholder="(00) 00000-0000" />
+                <MaskedInput
+                  mask="telefone"
+                  value={form.telefone || ""}
+                  onChange={(v) => setForm({ ...form, telefone: v })}
+                  placeholder="(00) 00000-0000"
+                />
               </div>
             </div>
             <div className="space-y-2">
@@ -346,6 +372,7 @@ export function ClienteEnderecosTab({ clienteId, fallbackEndereco, onCountChange
           </div>
         </DialogContent>
       </Dialog>
+      {confirmRemoveDialog}
     </>
   );
 }

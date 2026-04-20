@@ -38,7 +38,7 @@ export function MobileBottomNav({ onOpenMenu }: MobileBottomNavProps) {
             <button
               key={tab.key}
               type="button"
-              onClick={() => tab.path && navigate(tab.path)}
+              onClick={() => navigate(tab.path)}
               aria-current={active ? 'page' : undefined}
               className={cn(
                 'relative flex min-h-[56px] flex-col items-center justify-center gap-1 rounded-xl px-2 py-1.5 text-[10px] font-medium transition-colors',

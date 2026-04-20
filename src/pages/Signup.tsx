@@ -114,9 +114,9 @@ export default function Signup() {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <img src={logoAvizee} alt="AviZee ERP" className="h-14 mx-auto mb-4" />
+          <img src={logoAvizee} alt="AviZee ERP" className="h-16 mx-auto mb-5" />
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Criar Conta</h1>
           <p className="text-muted-foreground text-sm mt-1">Cadastre-se no AviZee ERP</p>
         </div>
@@ -129,7 +129,11 @@ export default function Signup() {
           </Alert>
         )}
 
-        <form onSubmit={handleSignup} className="bg-card border rounded-xl p-6 space-y-4 shadow-sm">
+        <form
+          onSubmit={handleSignup}
+          className="bg-card border border-border/70 rounded-2xl p-8 space-y-5 shadow-[0_4px_24px_rgba(0,0,0,0.07)] border-t-2 border-t-primary/80"
+          noValidate
+        >
           <div className="space-y-2">
             <Label htmlFor="nome">Nome completo</Label>
             <div className="relative">
@@ -142,9 +146,15 @@ export default function Signup() {
                 className={`pl-9 ${errors.nome ? "border-destructive" : ""}`}
                 autoComplete="name"
                 autoFocus
+                aria-invalid={!!errors.nome}
+                aria-describedby={errors.nome ? "nome-error" : undefined}
               />
             </div>
-            {errors.nome && <p className="text-xs text-destructive">{errors.nome}</p>}
+            {errors.nome && (
+              <p id="nome-error" role="alert" className="text-xs text-destructive">
+                {errors.nome}
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -159,9 +169,15 @@ export default function Signup() {
                 onChange={(e) => { setEmail(e.target.value); setErrors((p) => ({ ...p, email: undefined })); }}
                 className={`pl-9 ${errors.email ? "border-destructive" : ""}`}
                 autoComplete="email"
+                aria-invalid={!!errors.email}
+                aria-describedby={errors.email ? "email-error" : undefined}
               />
             </div>
-            {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
+            {errors.email && (
+              <p id="email-error" role="alert" className="text-xs text-destructive">
+                {errors.email}
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -176,32 +192,44 @@ export default function Signup() {
                 onChange={(e) => { setPassword(e.target.value); setErrors((p) => ({ ...p, password: undefined })); }}
                 className={`pl-9 pr-10 ${errors.password ? "border-destructive" : ""}`}
                 autoComplete="new-password"
+                aria-invalid={!!errors.password}
+                aria-describedby={errors.password ? "password-error" : undefined}
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                tabIndex={-1}
+                tabIndex={0}
                 aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
-            {errors.password && <p className="text-xs text-destructive">{errors.password}</p>}
-            {password.length > 0 && (
-              <div className="flex gap-1 mt-1">
-                {[1, 2, 3, 4].map((level) => (
-                  <div
-                    key={level}
-                    className={`h-1 flex-1 rounded-full transition-colors ${
-                      password.length >= level * 3
-                        ? level <= 2 ? "bg-warning" : "bg-success"
-                        : "bg-muted"
-                    }`}
-                  />
-                ))}
-              </div>
+            {errors.password && (
+              <p id="password-error" role="alert" className="text-xs text-destructive">
+                {errors.password}
+              </p>
             )}
+            {password.length > 0 && (() => {
+              const strength = password.length >= 12 ? 4 : password.length >= 9 ? 3 : password.length >= 6 ? 2 : 1;
+              const label = strength <= 1 ? "Fraca" : strength === 2 ? "Razoável" : strength === 3 ? "Boa" : "Forte";
+              const color = strength <= 1 ? "bg-destructive" : strength === 2 ? "bg-warning" : "bg-success";
+              return (
+                <div className="space-y-1 mt-1">
+                  <div className="flex gap-1">
+                    {[1, 2, 3, 4].map((level) => (
+                      <div
+                        key={level}
+                        className={`h-1 flex-1 rounded-full transition-colors ${level <= strength ? color : "bg-muted"}`}
+                      />
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    Senha <span className="font-medium text-foreground">{label}</span>
+                  </p>
+                </div>
+              );
+            })()}
           </div>
 
           <Button type="submit" className="w-full gap-2" disabled={loading}>
