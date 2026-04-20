@@ -123,7 +123,7 @@ export function PendenciasList() {
                   )}
                 />
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs font-medium truncate">{p.descricao}</p>
+                  <p className="text-xs font-medium truncate">{p.pessoa}</p>
                   <p
                     className={cn(
                       'text-[11px] flex items-center gap-0.5',
@@ -132,6 +132,8 @@ export function PendenciasList() {
                   >
                     <Clock className="h-2.5 w-2.5" />
                     {vencido ? 'Vencido em ' : ''}{formatDate(p.data_vencimento)}
+                    <span className="mx-1">·</span>
+                    <span className="truncate">{p.descricao}</span>
                   </p>
                 </div>
                 <span
