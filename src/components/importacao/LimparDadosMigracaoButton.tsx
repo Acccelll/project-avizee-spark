@@ -20,8 +20,25 @@ interface Props {
   onCleaned?: () => void;
 }
 
+type RpcErrorLike = {
+  code?: string;
+  details?: string | null;
+  hint?: string | null;
+  message?: string;
+};
+
+const getErrorMessage = (err: unknown) => {
+  if (err instanceof Error) return err.message;
+  if (typeof err === "string") return err;
+  if (err && typeof err === "object") {
+    const rpcError = err as RpcErrorLike;
+    return rpcError.details || rpcError.message || rpcError.hint || "Erro desconhecido ao limpar dados.";
+  }
+  return "Erro desconhecido ao limpar dados.";
+};
+
 /**
- * Botão admin para limpar TODOS os dados operacionais de migração + financeiro.
+ * Botão admin para limpar os dados da carga inicial do ERP.
  * Exige digitação literal "LIMPAR" para confirmar.
  */
 export function LimparDadosMigracaoButton({ onCleaned }: Props) {
@@ -34,22 +51,27 @@ export function LimparDadosMigracaoButton({ onCleaned }: Props) {
       toast.error('Digite "LIMPAR" para confirmar.');
       return;
     }
+
     setBusy(true);
+
     try {
       const { data, error } = await supabase.rpc("limpar_dados_migracao", { p_confirmar: true });
       if (error) throw error;
+
       const r = data as { ok?: boolean; erro?: string; apagados?: Record<string, number> };
+
       if (r?.erro) {
         toast.error(r.erro);
         return;
       }
+
       const total = Object.values(r.apagados ?? {}).reduce((a, b) => a + b, 0);
       toast.success(`Limpeza concluída — ${total.toLocaleString("pt-BR")} registros apagados.`);
       setOpen(false);
       setTyped("");
       onCleaned?.();
     } catch (err) {
-      toast.error(`Erro: ${err instanceof Error ? err.message : String(err)}`);
+      toast.error(getErrorMessage(err));
     } finally {
       setBusy(false);
     }
@@ -57,7 +79,12 @@ export function LimparDadosMigracaoButton({ onCleaned }: Props) {
 
   return (
     <>
-      <Button variant="outline" size="sm" className="gap-2 text-rose-700 border-rose-200 hover:bg-rose-50" onClick={() => setOpen(true)}>
+      <Button
+        variant="outline"
+        size="sm"
+        className="gap-2 border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+        onClick={() => setOpen(true)}
+      >
         <Trash2 className="h-4 w-4" />
         Limpar dados de migração
       </Button>
@@ -65,21 +92,23 @@ export function LimparDadosMigracaoButton({ onCleaned }: Props) {
       <AlertDialog open={open} onOpenChange={(o) => !busy && setOpen(o)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2 text-rose-700">
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
               <AlertTriangle className="h-5 w-5" />
-              Limpar dados operacionais
+              Limpar dados da carga inicial
             </AlertDialogTitle>
             <AlertDialogDescription className="space-y-2">
               <p>
-                Esta ação <strong>apaga permanentemente</strong> todos os lotes, logs, staging,
-                financeiro (lançamentos, baixas) e movimentos de caixa.
+                Esta ação <strong>apaga permanentemente</strong> os dados de migração, staging,
+                financeiro, estoque, vendas, compras e os cadastros usados na carga inicial.
               </p>
               <p className="text-xs">
-                <strong>Preserva:</strong> usuários, perfis, configurações, empresa, contas bancárias,
-                contas contábeis, clientes, fornecedores, produtos, NFs e estoque.
+                <strong>Preserva:</strong> dados de acesso e configurações estruturais fora do escopo
+                da carga inicial.
               </p>
               <div className="space-y-1 pt-2">
-                <Label htmlFor="confirma">Digite <strong>LIMPAR</strong> para confirmar:</Label>
+                <Label htmlFor="confirma">
+                  Digite <strong>LIMPAR</strong> para confirmar:
+                </Label>
                 <Input
                   id="confirma"
                   value={typed}
@@ -91,16 +120,23 @@ export function LimparDadosMigracaoButton({ onCleaned }: Props) {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={busy}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault();
-                handleConfirm();
-              }}
-              disabled={busy || typed.trim().toUpperCase() !== "LIMPAR"}
-              className="bg-rose-600 hover:bg-rose-700"
-            >
-              {busy ? "Limpando..." : "Confirmar limpeza"}
+            <AlertDialogCancel asChild>
+              <Button variant="outline" disabled={busy}>
+                Cancelar
+              </Button>
+            </AlertDialogCancel>
+            <AlertDialogAction asChild>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={(e) => {
+                  e.preventDefault();
+                  void handleConfirm();
+                }}
+                disabled={busy || typed.trim().toUpperCase() !== "LIMPAR"}
+              >
+                {busy ? "Limpando..." : "Confirmar limpeza"}
+              </Button>
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
