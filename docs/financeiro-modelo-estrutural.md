@@ -56,3 +56,20 @@ Tabela `financeiro_auditoria` com eventos de:
 - baixa;
 - estorno;
 - conciliação/desconciliação.
+
+## 8) Implementação
+
+Migrations aplicadas (2026-04-20):
+- CHECK único `chk_financeiro_lancamentos_status` (`aberto/parcial/pago/cancelado`).
+- Backfill: 52 títulos `vencido` → `aberto`; quaisquer `estornado` → `cancelado`.
+- Função `financeiro_status_efetivo(status, dv, ref)` — `vencido` derivado.
+- `financeiro_baixas`: colunas `estornada_em`, `estornada_por`, `motivo_estorno`; índice `idx_fin_baixas_lanc_ativas` (parcial).
+- Trigger `trg_sync_financeiro_saldo` reescrito para considerar somente baixas ativas.
+- Colunas `origem_tipo`, `origem_tabela`, `origem_id`, `origem_descricao` em `financeiro_lancamentos` (CHECK + backfill por FKs existentes).
+- RPC `financeiro_cancelar_lancamento(p_id, p_motivo)` — motivo obrigatório (≥5 chars).
+- Trigger `trg_financeiro_protege_delete` — bloqueia DELETE fora de `manual + aberto/cancelado + sem baixas ativas`.
+- `financeiro_baixas`: colunas de conciliação (`conciliacao_status`, `conciliacao_data`, `conciliacao_extrato_referencia`, `conciliacao_usuario`).
+- RPC `financeiro_conciliar_baixa(p_baixa_id, p_status, p_extrato_referencia)`.
+- View `vw_conciliacao_eventos_financeiros` (eixo: baixa).
+- View `vw_fluxo_caixa_financeiro` (UNION previsto+realizado).
+- Tabela `financeiro_auditoria` + triggers em lançamentos e baixas + RLS (admin/financeiro).
