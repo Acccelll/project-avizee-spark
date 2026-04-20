@@ -28,6 +28,53 @@ export async function registrarEventoFiscal(params: {
   } as any);
 }
 
+/**
+ * Cancelamento interno da NF (status_sefaz != autorizada).
+ * Estorna efeitos automaticamente quando NF estava confirmada.
+ * Para NF autorizada na SEFAZ, use `cancelarNotaFiscalSefaz`.
+ */
+export async function cancelarNotaFiscal(nfId: string, motivo: string): Promise<void> {
+  const { error } = await supabase.rpc("cancelar_nota_fiscal" as never, {
+    p_nf_id: nfId,
+    p_motivo: motivo,
+  } as never);
+  if (error) throw error;
+}
+
+/**
+ * Cancelamento via SEFAZ (somente NFs autorizadas).
+ * Atualiza status_sefaz para `cancelada_sefaz` preservando integridade contábil.
+ */
+export async function cancelarNotaFiscalSefaz(
+  nfId: string,
+  protocolo: string,
+  motivo: string,
+): Promise<void> {
+  const { error } = await supabase.rpc("cancelar_nota_fiscal_sefaz" as never, {
+    p_nf_id: nfId,
+    p_protocolo: protocolo,
+    p_motivo: motivo,
+  } as never);
+  if (error) throw error;
+}
+
+/**
+ * Inutilização de faixa numérica (somente status_sefaz=nao_enviada e
+ * status interno em rascunho/cancelada).
+ */
+export async function inutilizarNotaFiscal(
+  nfId: string,
+  protocolo: string,
+  motivo: string,
+): Promise<void> {
+  const { error } = await supabase.rpc("inutilizar_nota_fiscal" as never, {
+    p_nf_id: nfId,
+    p_protocolo: protocolo,
+    p_motivo: motivo,
+  } as never);
+  if (error) throw error;
+}
+
 // ── Confirm NF ─────────────────────────────────────────────────────────────────
 
 interface ConfirmarNFParams {

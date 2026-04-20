@@ -6,10 +6,15 @@
  *   - empresa config (name / CNPJ for PDF header)
  *
  * Data is cached for 30 minutes — these lists change rarely.
+ *
+ * For very large bases, prefer the async loaders exported below
+ * (`makeClienteLoader`, `makeFornecedorLoader`) which paginate via Supabase
+ * `ilike` instead of trusting a static cap.
  */
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { AsyncOption } from "@/components/ui/AsyncMultiSelect";
 
 export interface ClienteRef {
   id: string;
@@ -122,3 +127,53 @@ export function useRelatoriosFiltrosData() {
     },
   };
 }
+
+// ─── Async loaders for AsyncMultiSelect ──────────────────────────────────────
+
+/**
+ * Returns a `loadOptions(query)` function for clientes that searches
+ * `nome_razao_social` server-side (case-insensitive, debounced by the caller).
+ */
+export const loadClienteOptions = async (query: string): Promise<AsyncOption[]> => {
+  const { data, error } = await supabase
+    .from("clientes")
+    .select("id, nome_razao_social")
+    .eq("ativo", true)
+    .ilike("nome_razao_social", `%${query}%`)
+    .order("nome_razao_social")
+    .limit(50);
+  if (error) return [];
+  return (data ?? []).map((c) => ({ value: c.id, label: c.nome_razao_social }));
+};
+
+export const loadClienteLabels = async (ids: string[]): Promise<AsyncOption[]> => {
+  if (!ids.length) return [];
+  const { data, error } = await supabase
+    .from("clientes")
+    .select("id, nome_razao_social")
+    .in("id", ids);
+  if (error) return [];
+  return (data ?? []).map((c) => ({ value: c.id, label: c.nome_razao_social }));
+};
+
+export const loadFornecedorOptions = async (query: string): Promise<AsyncOption[]> => {
+  const { data, error } = await supabase
+    .from("fornecedores")
+    .select("id, nome_razao_social")
+    .eq("ativo", true)
+    .ilike("nome_razao_social", `%${query}%`)
+    .order("nome_razao_social")
+    .limit(50);
+  if (error) return [];
+  return (data ?? []).map((f) => ({ value: f.id, label: f.nome_razao_social }));
+};
+
+export const loadFornecedorLabels = async (ids: string[]): Promise<AsyncOption[]> => {
+  if (!ids.length) return [];
+  const { data, error } = await supabase
+    .from("fornecedores")
+    .select("id, nome_razao_social")
+    .in("id", ids);
+  if (error) return [];
+  return (data ?? []).map((f) => ({ value: f.id, label: f.nome_razao_social }));
+};

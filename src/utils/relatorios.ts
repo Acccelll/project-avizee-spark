@@ -129,15 +129,16 @@ export function filtrarPorStatus<T extends Record<string, unknown>>(
   options?: { statusField?: string }
 ): T[] {
   if (statusFiltro === "todos") return rows;
-  const normalizedTarget = normalizeSemanticToken(statusFiltro);
+  const wanted = statusFiltro.toLowerCase();
   return rows.filter((r) => {
-    const statusField = options?.statusField;
-    const raw = statusField
-      ? r[statusField]
-      : r["status"] ?? r["situacao"] ?? r["faturamento"];
-    const normalized = normalizeSemanticToken(raw);
-    if (statusField) return normalized === normalizedTarget;
-    return normalized === normalizedTarget || normalized.includes(normalizedTarget);
+    // Prefer canonical statusKey when present (no substring heuristics).
+    const key = r["statusKey"];
+    if (typeof key === "string" && key) return key.toLowerCase() === wanted;
+    // Fallback for rows that haven't been migrated yet.
+    const status = String(
+      r["status"] ?? r["situacao"] ?? r["faturamento"] ?? ""
+    ).toLowerCase();
+    return status.includes(wanted);
   });
 }
 

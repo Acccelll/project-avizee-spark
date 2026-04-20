@@ -86,7 +86,16 @@ export interface ReportDrillDownAction {
   label: string;
   /** Prepared for future navigation — may not be wired yet */
   route?: string;
+  /** Hidden row field carrying the ID to use when constructing the navigation. */
+  targetField?: string;
   available: boolean;
+}
+
+/** Semantic temporal axis applied by a report's date filter. */
+export interface ReportTimeAxisDef {
+  field: 'emissao' | 'vencimento' | 'pagamento' | 'criacao' | 'competencia';
+  label: string;
+  required: boolean;
 }
 
 export interface ReportConfig {
@@ -101,6 +110,11 @@ export interface ReportConfig {
   columns: ReportColumnDef[];
   filters: ReportFiltersDef;
   kpis: ReportKpiDef[];
+  /**
+   * Declares which date column is filtered when `filters.showDateRange` is on.
+   * Mirrored into `RelatorioResultado.meta.timeAxis` by the service layer.
+   */
+  timeAxis?: ReportTimeAxisDef;
   drillDown?: ReportDrillDownAction[];
 }
 
@@ -166,8 +180,8 @@ const estoqueConfig: ReportConfig = {
     { key: 'itensZerados', label: 'Zerados', format: 'number', variant: 'danger', variation: 'sem estoque' },
   ],
   drillDown: [
-    { key: 'produto', label: 'Abrir produto', route: '/produtos', available: true },
-    { key: 'movimentos', label: 'Ver movimentações', route: '/relatorios?tipo=movimentos_estoque', available: true },
+    { key: 'produto', label: 'Abrir produto', route: '/produtos', targetField: 'produtoId', available: true },
+    { key: 'movimentos', label: 'Ver movimentações', route: '/relatorios?tipo=movimentos_estoque', targetField: 'produtoId', available: true },
   ],
 };
 
@@ -207,8 +221,8 @@ const estoqueMinConfig: ReportConfig = {
     { key: 'custoTotal', label: 'Custo de Reposição', format: 'currency', variant: 'warning', variation: 'estimado' },
   ],
   drillDown: [
-    { key: 'produto', label: 'Abrir produto', route: '/produtos', available: true },
-    { key: 'compra', label: 'Iniciar reposição', route: '/pedidos-compra', available: false },
+    { key: 'produto', label: 'Abrir produto', route: '/produtos', targetField: 'produtoId', available: true },
+    { key: 'compra', label: 'Iniciar reposição', route: '/pedidos-compra', targetField: 'produtoId', available: false },
   ],
 };
 
@@ -239,6 +253,7 @@ const movimentosConfig: ReportConfig = {
     showStatus: false,
     showTipos: false,
   },
+  timeAxis: { field: 'criacao', label: 'criação', required: false },
   kpis: [
     { key: 'totalMovimentos', label: 'Total de Movimentos', format: 'number', variation: 'no período' },
     { key: 'totalEntradas', label: 'Entradas', format: 'number', variant: 'success', variation: 'unidades' },
@@ -246,7 +261,7 @@ const movimentosConfig: ReportConfig = {
     { key: 'totalAjustes', label: 'Ajustes', format: 'number', variant: 'warning', variation: 'unidades' },
   ],
   drillDown: [
-    { key: 'produto', label: 'Abrir produto', route: '/produtos', available: true },
+    { key: 'produto', label: 'Abrir produto', route: '/produtos', targetField: 'produtoId', available: true },
   ],
 };
 
@@ -280,6 +295,7 @@ const financeiroConfig: ReportConfig = {
     showStatus: true,
     showTipos: true,
   },
+  timeAxis: { field: 'vencimento', label: 'vencimento', required: false },
   kpis: [
     { key: 'totalReceber', label: 'A Receber', format: 'currency', variant: 'success', variation: 'em aberto' },
     { key: 'totalPagar', label: 'A Pagar', format: 'currency', variant: 'danger', variation: 'em aberto' },
@@ -287,7 +303,7 @@ const financeiroConfig: ReportConfig = {
     { key: 'totalPago', label: 'Pago no Período', format: 'currency', variation: 'liquidado' },
   ],
   drillDown: [
-    { key: 'lancamento', label: 'Abrir lançamento', route: '/financeiro', available: true },
+    { key: 'lancamento', label: 'Abrir lançamento', route: '/financeiro', targetField: 'lancamentoId', available: true },
   ],
 };
 
@@ -317,6 +333,7 @@ const fluxoCaixaConfig: ReportConfig = {
     showStatus: false,
     showTipos: true,
   },
+  timeAxis: { field: 'pagamento', label: 'pagamento (ou vencimento)', required: false },
   kpis: [
     { key: 'totalEntradas', label: 'Entradas', format: 'currency', variant: 'success', variation: 'período' },
     { key: 'totalSaidas', label: 'Saídas', format: 'currency', variant: 'danger', variation: 'período' },
@@ -354,6 +371,7 @@ const vendasConfig: ReportConfig = {
     ],
     showTipos: false,
   },
+  timeAxis: { field: 'emissao', label: 'emissão', required: false },
   kpis: [
     { key: 'totalVendido', label: 'Total Vendido', format: 'currency', variation: 'no período' },
     { key: 'qtdPedidos', label: 'Pedidos', format: 'number', variation: 'quantidade' },
@@ -361,7 +379,7 @@ const vendasConfig: ReportConfig = {
     { key: 'aguardandoFaturamento', label: 'Aguard. Faturamento', format: 'number', variant: 'warning', variation: 'pedidos' },
   ],
   drillDown: [
-    { key: 'pedido', label: 'Abrir pedido', route: '/pedidos', available: true },
+    { key: 'pedido', label: 'Abrir pedido', route: '/pedidos', targetField: 'ordemVendaId', available: true },
   ],
 };
 
@@ -389,6 +407,7 @@ const vendasClienteConfig: ReportConfig = {
     showStatus: false,
     showTipos: false,
   },
+  timeAxis: { field: 'emissao', label: 'emissão', required: false },
   kpis: [
     { key: 'totalVendido', label: 'Total Vendido', format: 'currency', variation: 'no período' },
     { key: 'clientesAtendidos', label: 'Clientes Atendidos', format: 'number', variation: 'no período' },
@@ -396,7 +415,7 @@ const vendasClienteConfig: ReportConfig = {
     { key: 'top5Concentracao', label: 'Conc. Top 5', format: 'percent', variation: '% do total' },
   ],
   drillDown: [
-    { key: 'cliente', label: 'Abrir cliente', route: '/clientes', available: true },
+    { key: 'cliente', label: 'Abrir cliente', route: '/clientes', targetField: 'clienteId', available: true },
   ],
 };
 
@@ -434,6 +453,7 @@ const comprasConfig: ReportConfig = {
     ],
     showTipos: false,
   },
+  timeAxis: { field: 'criacao', label: 'data de compra', required: false },
   kpis: [
     { key: 'qtdCompras', label: 'Compras', format: 'number', variation: 'no período' },
     { key: 'totalComprado', label: 'Valor Comprado', format: 'currency', variation: 'total' },
@@ -441,8 +461,8 @@ const comprasConfig: ReportConfig = {
     { key: 'atrasadas', label: 'Atrasadas', format: 'number', variant: 'danger', variation: 'pendentes' },
   ],
   drillDown: [
-    { key: 'compra', label: 'Abrir pedido', route: '/pedidos-compra', available: true },
-    { key: 'fornecedor', label: 'Abrir fornecedor', route: '/fornecedores', available: false },
+    { key: 'compra', label: 'Abrir pedido', route: '/pedidos-compra', targetField: 'compraId', available: true },
+    { key: 'fornecedor', label: 'Abrir fornecedor', route: '/fornecedores', targetField: 'fornecedorId', available: false },
   ],
 };
 
@@ -470,6 +490,7 @@ const comprasFornecedorConfig: ReportConfig = {
     showStatus: false,
     showTipos: false,
   },
+  timeAxis: { field: 'criacao', label: 'data de compra', required: false },
   kpis: [
     { key: 'totalComprado', label: 'Total Comprado', format: 'currency', variation: 'no período' },
     { key: 'fornecedoresAtivos', label: 'Fornecedores', format: 'number', variation: 'no período' },
@@ -477,7 +498,7 @@ const comprasFornecedorConfig: ReportConfig = {
     { key: 'top5Concentracao', label: 'Conc. Top 5', format: 'percent', variation: '% do total' },
   ],
   drillDown: [
-    { key: 'fornecedor', label: 'Abrir fornecedor', route: '/fornecedores', available: false },
+    { key: 'fornecedor', label: 'Abrir fornecedor', route: '/fornecedores', targetField: 'fornecedorId', available: false },
   ],
 };
 
@@ -510,6 +531,7 @@ const faturamentoConfig: ReportConfig = {
     showStatus: false,
     showTipos: false,
   },
+  timeAxis: { field: 'emissao', label: 'emissão', required: false },
   kpis: [
     { key: 'totalNotas', label: 'Notas Fiscais', format: 'number', variation: 'confirmadas' },
     { key: 'totalBruto', label: 'Bruto', format: 'currency', variation: 'faturamento bruto' },
@@ -517,9 +539,9 @@ const faturamentoConfig: ReportConfig = {
     { key: 'totalLiquido', label: 'Receita Líquida', format: 'currency', variant: 'success', variation: 'resultado líquido' },
   ],
   drillDown: [
-    { key: 'nf', label: 'Abrir NF', route: '/fiscal', available: true },
-    { key: 'cliente', label: 'Abrir cliente', route: '/clientes', available: true },
-    { key: 'pedido', label: 'Abrir pedido', route: '/pedidos', available: true },
+    { key: 'nf', label: 'Abrir NF', route: '/fiscal', targetField: 'notaFiscalId', available: true },
+    { key: 'cliente', label: 'Abrir cliente', route: '/clientes', targetField: 'clienteId', available: true },
+    { key: 'pedido', label: 'Abrir pedido', route: '/pedidos', targetField: 'ordemVendaId', available: true },
   ],
 };
 
@@ -548,13 +570,14 @@ const agingConfig: ReportConfig = {
     showStatus: false,
     showTipos: true,
   },
+  timeAxis: { field: 'vencimento', label: 'vencimento', required: false },
   kpis: [
     { key: 'totalVencido', label: 'Total em Aberto', format: 'currency', variant: 'danger', variation: 'carteira vencida' },
     { key: 'titulosVencidos', label: 'Títulos Vencidos', format: 'number', variant: 'warning', variation: 'quantidade' },
     { key: 'maisAntigosDias', label: 'Mais Antigo', format: 'number', variation: 'dias de atraso' },
   ],
   drillDown: [
-    { key: 'lancamento', label: 'Abrir lançamento', route: '/financeiro', available: true },
+    { key: 'lancamento', label: 'Abrir lançamento', route: '/financeiro', targetField: 'lancamentoId', available: true },
   ],
 };
 
@@ -580,6 +603,7 @@ const dreConfig: ReportConfig = {
     showTipos: false,
     showDreCompetencia: true,
   },
+  timeAxis: { field: 'competencia', label: 'competência', required: true },
   kpis: [
     { key: 'receitaBruta', label: 'Receita Bruta', format: 'currency', variation: 'total bruto' },
     { key: 'receitaLiquida', label: 'Receita Líquida', format: 'currency', variation: 'após deduções' },
@@ -612,6 +636,7 @@ const curvaAbcConfig: ReportConfig = {
     showStatus: false,
     showTipos: false,
   },
+  timeAxis: { field: 'emissao', label: 'emissão', required: false },
   kpis: [
     { key: 'grandTotal', label: 'Total Faturado', format: 'currency', variation: 'no período' },
     { key: 'itensClasseA', label: 'Classe A', format: 'number', variant: 'success', variation: 'produtos (≤ 80% acumulado)' },
@@ -620,7 +645,7 @@ const curvaAbcConfig: ReportConfig = {
     { key: 'itensClasseC', label: 'Classe C', format: 'number', variation: 'produtos (> 95% acumulado)' },
   ],
   drillDown: [
-    { key: 'produto', label: 'Abrir produto', route: '/produtos', available: true },
+    { key: 'produto', label: 'Abrir produto', route: '/produtos', targetField: 'produtoId', available: true },
   ],
 };
 
@@ -658,7 +683,7 @@ const margemConfig: ReportConfig = {
     { key: 'menorMargem', label: 'Menor Margem', format: 'percent', variant: 'warning', variation: '%' },
   ],
   drillDown: [
-    { key: 'produto', label: 'Abrir produto', route: '/produtos', available: true },
+    { key: 'produto', label: 'Abrir produto', route: '/produtos', targetField: 'produtoId', available: true },
   ],
 };
 
