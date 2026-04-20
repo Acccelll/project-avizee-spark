@@ -21,6 +21,7 @@ export interface ExportMenuProps {
   columnCount: number;
   disabled?: boolean;
   loading?: boolean;
+  pdfRowLimitHint?: number;
   onExportPdf: () => void;
   onExportExcel: () => void;
   onExportCsv: () => void;
@@ -31,6 +32,7 @@ export function ExportMenu({
   columnCount,
   disabled,
   loading,
+  pdfRowLimitHint,
   onExportPdf,
   onExportExcel,
   onExportCsv,
@@ -68,7 +70,7 @@ export function ExportMenu({
           <FileText className="h-4 w-4 text-destructive" />
           <div className="flex-1">
             <div className="text-sm font-medium">PDF</div>
-            <div className="text-xs text-muted-foreground">Documento para impressão</div>
+            <div className="text-xs text-muted-foreground">Documento para impressão{pdfRowLimitHint ? ` (até ${pdfRowLimitHint} linhas recomendadas)` : ''}</div>
           </div>
         </DropdownMenuItem>
         <DropdownMenuItem onClick={onExportCsv} className="gap-2">

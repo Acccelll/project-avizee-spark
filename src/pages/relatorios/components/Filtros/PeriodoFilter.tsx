@@ -20,6 +20,8 @@ export interface PeriodoFilterValue {
 export interface PeriodoFilterProps {
   dataInicio: string;
   dataFim: string;
+  axisLabel?: string;
+  highlighted?: boolean;
   onChange: (value: PeriodoFilterValue) => void;
 }
 
@@ -59,7 +61,7 @@ function detectActive(dataInicio: string, dataFim: string): QuickPeriod | null {
   return null;
 }
 
-export function PeriodoFilter({ dataInicio, dataFim, onChange }: PeriodoFilterProps) {
+export function PeriodoFilter({ dataInicio, dataFim, axisLabel, highlighted, onChange }: PeriodoFilterProps) {
   const today = fmt(new Date());
   const active = detectActive(dataInicio, dataFim);
   const hasCustom = !!(dataInicio || dataFim);
@@ -76,9 +78,10 @@ export function PeriodoFilter({ dataInicio, dataFim, onChange }: PeriodoFilterPr
   };
 
   return (
-    <div className="space-y-2">
+    <div className={`space-y-2 ${highlighted ? 'rounded-md bg-primary/5 ring-1 ring-primary/20 px-2 py-2' : ''}`}>
       <div className="flex flex-wrap items-center gap-1.5">
         <Label className="text-xs text-muted-foreground mr-1">Período:</Label>
+        {axisLabel ? <span className="text-[11px] text-muted-foreground mr-2">baseado em {axisLabel}</span> : null}
         <Button
           size="sm"
           variant={active === "hoje" ? "default" : "outline"}

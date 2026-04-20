@@ -44,6 +44,8 @@ export interface RelatorioChartProps {
   chartData: ChartDataPoint[];
   chartType: ChartType;
   isQuantityReport?: boolean;
+  contextLabel?: string;
+  importance?: 'central' | 'complementar';
   onDataPointClick?: (point: ChartDataPoint) => void;
 }
 
@@ -51,6 +53,8 @@ export function RelatorioChart({
   chartData,
   chartType,
   isQuantityReport = false,
+  contextLabel,
+  importance = 'complementar',
   onDataPointClick,
 }: RelatorioChartProps) {
   const usePie = chartType === "pie";
@@ -81,6 +85,11 @@ export function RelatorioChart({
         <CardTitle className="text-base flex items-center gap-2">
           Resumo Visual {chartIcon}
         </CardTitle>
+        <p className="text-xs text-muted-foreground">
+          {contextLabel || 'Consolidação gráfica dos principais agrupamentos do relatório.'}
+          <span className="ml-1">·</span>
+          <span className="ml-1">{importance === 'central' ? 'Visão central para análise' : 'Leitura complementar da tabela'}</span>
+        </p>
       </CardHeader>
       <CardContent className="space-y-4">
         {chartData.length > 0 ? (
@@ -127,7 +136,7 @@ export function RelatorioChart({
                   </PieChart>
                 ) : (
                   <BarChart data={chartData}>
-                    <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                    <XAxis dataKey="name" tick={{ fontSize: 11 }} interval={chartData.length > 8 ? 'preserveStartEnd' : 0} />
                     <YAxis hide />
                     <Tooltip formatter={(v: number) => formatValue(v)} />
                     <Bar

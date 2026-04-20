@@ -26,6 +26,7 @@ export interface ReportHeaderProps {
   periodLabel?: string;
   /** Total de registros visíveis. */
   recordCount?: number;
+  periodAxisLabel?: string;
   /** Callback para o botão Voltar. */
   onBack: () => void;
   /** Ações secundárias (refresh, salvar/carregar). Renderizadas à direita. */
@@ -39,6 +40,7 @@ export function ReportHeader({
   description,
   periodLabel,
   recordCount,
+  periodAxisLabel,
   onBack,
   actions,
 }: ReportHeaderProps) {
@@ -73,6 +75,7 @@ export function ReportHeader({
             {recordCount != null && (
               <span className="ml-1 text-muted-foreground">· {recordCount} registros</span>
             )}
+            {periodAxisLabel ? <span className="ml-1 text-muted-foreground">· eixo: {periodAxisLabel}</span> : null}
           </Badge>
         )}
       </div>

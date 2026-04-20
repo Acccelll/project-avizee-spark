@@ -12,6 +12,7 @@ export interface FooterTotalCol {
   key: string;
   label: string;
   format?: string;
+  emphasize?: boolean;
 }
 
 export interface ReportResultFooterProps {
@@ -30,7 +31,7 @@ export function ReportResultFooter({ rows, cols }: ReportResultFooterProps) {
           const formatted =
             col.format === "currency" ? formatCurrency(total) : formatNumber(total);
           return (
-            <div key={col.key} className="flex flex-col">
+            <div key={col.key} className={`flex flex-col ${col.emphasize ? 'rounded-md bg-background px-2 py-1 ring-1 ring-primary/20' : ''}`}>
               <span className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">
                 {col.label}
               </span>

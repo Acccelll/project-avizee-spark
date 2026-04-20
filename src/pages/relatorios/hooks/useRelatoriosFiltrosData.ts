@@ -116,5 +116,9 @@ export function useRelatoriosFiltrosData() {
     fornecedores: fornecedores.data ?? [],
     grupos: grupos.data ?? [],
     empresaConfig: empresaConfig.data ?? null,
+    limits: {
+      clientes: 300,
+      fornecedores: 300,
+    },
   };
 }

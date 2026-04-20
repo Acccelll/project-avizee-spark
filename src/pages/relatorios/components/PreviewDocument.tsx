@@ -92,6 +92,7 @@ export function PreviewDocument({
         {reportSubtitle && (
           <p className="text-sm text-muted-foreground mt-0.5">{reportSubtitle}</p>
         )}
+        <p className="text-[11px] text-muted-foreground mt-1">Pré-visualização documental. O layout final pode variar ligeiramente conforme o formato exportado.</p>
         <p className="text-xs text-muted-foreground mt-1.5">
           <span className="font-medium text-foreground">Período:</span> {periodLabel}
           <span className="mx-2 text-muted-foreground/50">·</span>
