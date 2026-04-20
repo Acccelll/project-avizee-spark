@@ -10,6 +10,8 @@ export interface AjusteEstoqueInput {
   tipo: TipoAjuste;
   quantidade: number;
   motivo?: string;
+  categoria_ajuste?: string;
+  motivo_estruturado?: string;
 }
 
 /**
@@ -24,11 +26,13 @@ export function useAjustarEstoque() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: AjusteEstoqueInput) => {
-      const { data, error } = await supabase.rpc("ajustar_estoque_manual", {
+      const { data, error } = await (supabase.rpc as any)("ajustar_estoque_manual", {
         p_produto_id: input.produto_id,
         p_tipo: input.tipo,
         p_quantidade: input.quantidade,
         p_motivo: input.motivo ?? null,
+        p_categoria_ajuste: input.categoria_ajuste ?? null,
+        p_motivo_estruturado: input.motivo_estruturado ?? null,
       });
       if (error) throw new Error(error.message);
       return data as string;
