@@ -441,7 +441,7 @@ export default function Administracao() {
           cor_primaria: config.geral.corPrimaria || null,
           cor_secundaria: config.geral.corSecundaria || null,
           updated_at: now,
-        } as Record<string, unknown>;
+        };
         if (empresaConfigId) {
           const { error: empError } = await supabase.from('empresa_config').update(empresaPayload).eq('id', empresaConfigId);
           if (empError) throw empError;
