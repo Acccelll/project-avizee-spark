@@ -27,6 +27,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { AlertTriangle, ArrowDownCircle, RotateCcw,
   TrendingDown, Package, CheckCircle, XCircle, ShieldAlert,
   DollarSign, SlidersHorizontal, ChevronsUpDown, Info, CircleAlert,
+  ArrowRight, History,
 } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { cn } from "@/lib/utils";
