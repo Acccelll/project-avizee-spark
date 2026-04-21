@@ -323,7 +323,7 @@ export default function OrcamentoForm() {
             reset({
               numero: orc.numero,
               dataOrcamento: orc.data_orcamento,
-              status: orc.status as OrcamentoFormValues['status'],
+              status: (orc.status === 'confirmado' ? 'pendente' : orc.status) as OrcamentoFormValues['status'],
               clienteId: orc.cliente_id || '',
               observacoes: orc.observacoes || '',
               observacoesInternas: orc.observacoes_internas || '',
@@ -336,7 +336,8 @@ export default function OrcamentoForm() {
               pagamento: orc.pagamento || '',
               prazoPagamento: orc.prazo_pagamento || '',
               prazoEntrega: orc.prazo_entrega || '',
-              freteTipo: orc.frete_tipo || '',
+              freteTipo: (orc.frete_tipo && ['CIF','FOB','sem_frete'].includes(orc.frete_tipo)) ? orc.frete_tipo : '',
+              servicoFrete: orc.servico_frete || '',
               modalidade: orc.modalidade || '',
             });
             if (orc.cliente_snapshot) setClienteSnapshot(orc.cliente_snapshot as unknown as ClienteSnapshot);
@@ -452,6 +453,7 @@ export default function OrcamentoForm() {
       prazoPagamento: (draft.prazoPagamento as string) || '',
       prazoEntrega: (draft.prazoEntrega as string) || '',
       freteTipo: (draft.freteTipo as string) || '',
+      servicoFrete: (draft.servicoFrete as string) || '',
       modalidade: (draft.modalidade as string) || '',
       observacoes: (draft.observacoes as string) || '',
       observacoesInternas: (draft.observacoesInternas as string) || '',
@@ -469,7 +471,7 @@ export default function OrcamentoForm() {
       prazoPagamento,
       prazoEntrega,
       modalidade,
-      freteTipo,
+      freteTipo: servicoFrete || freteTipo,
       observacoes,
       observacoes_internas: observacoesInternas,
     };
@@ -516,7 +518,12 @@ export default function OrcamentoForm() {
     setValue('prazoPagamento', tpl.payload.prazoPagamento || '');
     setValue('prazoEntrega', tpl.payload.prazoEntrega || '');
     setValue('modalidade', tpl.payload.modalidade || '');
-    setValue('freteTipo', tpl.payload.freteTipo || '');
+    // Templates antigos podem ter texto livre em freteTipo; tratá-lo como servicoFrete.
+    if (['CIF','FOB','sem_frete'].includes(tpl.payload.freteTipo || '')) {
+      setValue('freteTipo', tpl.payload.freteTipo || '');
+    } else {
+      setValue('servicoFrete', tpl.payload.freteTipo || '');
+    }
     setValue('observacoes', tpl.payload.observacoes || '');
     setValue('observacoesInternas', tpl.payload.observacoes_internas || '');
     toast.success(`Template '${tpl.nome}' aplicado`);
@@ -543,13 +550,14 @@ export default function OrcamentoForm() {
       pagamento: formValues.pagamento,
       prazo_pagamento: formValues.prazoPagamento,
       prazo_entrega: formValues.prazoEntrega,
-      frete_tipo: formValues.freteTipo,
+      // frete_tipo aceita só CIF/FOB/sem_frete; texto livre vai para servico_frete.
+      frete_tipo: ['CIF','FOB','sem_frete'].includes(formValues.freteTipo || '') ? formValues.freteTipo : (formValues.modalidade || ''),
       modalidade: formValues.modalidade,
       cliente_snapshot: clienteSnapshot,
       transportadora_id: freteTransportadoraId || null,
       frete_simulacao_id: freteSimulacaoId || null,
       origem_frete: freteOrigemFrete || null,
-      servico_frete: freteServico || null,
+      servico_frete: formValues.servicoFrete || freteServico || null,
       prazo_entrega_dias: fretePrazoEntregaDias || null,
       volumes: freteVolumes || null,
       altura_cm: freteAlturaCm || null,
@@ -721,7 +729,7 @@ export default function OrcamentoForm() {
       pagamento: 'pagamento',
       prazo_pagamento: 'prazoPagamento',
       prazo_entrega: 'prazoEntrega',
-      frete_tipo: 'freteTipo',
+      servico_frete: 'servicoFrete',
       modalidade: 'modalidade',
     };
     const key = fieldMap[field];
