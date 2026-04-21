@@ -141,6 +141,7 @@ export default function Configuracoes() {
     saveSidebarCollapsed: saveMenuCompacto,
     loadingSidebarCollapsed: loadingMenuCompacto,
   } = useAppConfigContext();
+  const { value: themePref, save: saveThemePref } = useUserPreference<string>(user?.id, 'ui_theme', 'system');
   const { value: densidadePref, save: saveDensidadePref } = useUserPreference<string>(user?.id, 'ui_density', 'confortavel');
   const { value: fontScale, save: saveFontScale } = useUserPreference<number>(user?.id, 'ui_font_scale', 16);
   const { value: reduceMotion, save: saveReduceMotion } = useUserPreference<boolean>(user?.id, 'ui_reduce_motion', false);
@@ -148,6 +149,10 @@ export default function Configuracoes() {
   useEffect(() => {
     if (densidadePref) setDensidade(densidadePref);
   }, [densidadePref]);
+
+  useEffect(() => {
+    if (themePref && theme !== themePref) setTheme(themePref);
+  }, [themePref, theme, setTheme]);
 
   useEffect(() => {
     // Branding institucional vive em empresa_config (admin-only via Administracao.tsx).
@@ -229,6 +234,7 @@ export default function Configuracoes() {
 
   const handleResetAppearance = async () => {
     setTheme(APPEARANCE_DEFAULTS.theme);
+    await saveThemePref(APPEARANCE_DEFAULTS.theme);
     setDensidade(APPEARANCE_DEFAULTS.densidade);
     await saveDensidadePref(APPEARANCE_DEFAULTS.densidade);
     await saveFontScale(APPEARANCE_DEFAULTS.fontScale);
@@ -422,7 +428,11 @@ export default function Configuracoes() {
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label>Tema</Label>
-                    <Select value={theme || 'system'} onValueChange={(value) => { setTheme(value); markAppearanceSaved(); }}>
+                    <Select value={theme || 'system'} onValueChange={async (value) => {
+                      setTheme(value);
+                      await saveThemePref(value);
+                      markAppearanceSaved();
+                    }}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="light">

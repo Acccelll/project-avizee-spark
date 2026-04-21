@@ -135,6 +135,24 @@ interface FinanceiroConfigRaw {
   [key: string]: unknown;
 }
 
+interface IntegracoesConfigRaw {
+  _updatedAt?: string;
+  _updatedByName?: string;
+  [key: string]: unknown;
+}
+
+interface NotificacoesConfigRaw {
+  _updatedAt?: string;
+  _updatedByName?: string;
+  [key: string]: unknown;
+}
+
+interface BackupConfigRaw {
+  _updatedAt?: string;
+  _updatedByName?: string;
+  [key: string]: unknown;
+}
+
 interface UsuariosConfigRaw {
   permitirCadastro?: boolean;
   exigir2fa?: boolean;
@@ -204,6 +222,7 @@ export default function Administracao() {
   const toggleGroup = (key: string) => setOpenGroupKey((prev) => (prev === key ? '' : key));
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [showSefazCertificado, setShowSefazCertificado] = useState(false);
   const [empresaConfigId, setEmpresaConfigId] = useState<string | null>(null);
   const [empresaUpdatedAt, setEmpresaUpdatedAt] = useState<string | null>(null);
   const [empresaCreatedAt, setEmpresaCreatedAt] = useState<string | null>(null);
@@ -212,6 +231,9 @@ export default function Administracao() {
 
   const [emailErrors, setEmailErrors] = useState<Record<string, string>>({});
   const [emailLastSaved, setEmailLastSaved] = useState<{ at: string | null; by: string | null }>({ at: null, by: null });
+  const [integracoesLastSaved, setIntegracoesLastSaved] = useState<{ at: string | null; by: string | null }>({ at: null, by: null });
+  const [notificacoesLastSaved, setNotificacoesLastSaved] = useState<{ at: string | null; by: string | null }>({ at: null, by: null });
+  const [backupLastSaved, setBackupLastSaved] = useState<{ at: string | null; by: string | null }>({ at: null, by: null });
 
   const [fiscalErrors, setFiscalErrors] = useState<Record<string, string>>({});
   const [fiscalLastSaved, setFiscalLastSaved] = useState<{ at: string | null; by: string | null }>({ at: null, by: null });
@@ -247,6 +269,12 @@ export default function Administracao() {
         const { _updatedAt: fiscalUpdatedAt, _updatedByName: fiscalUpdatedByName, ...fiscalData } = fiscalRaw;
         const financeiroRaw: FinanceiroConfigRaw = (appConfig.financeiro as FinanceiroConfigRaw) || {};
         const { _updatedAt: financeiroUpdatedAt, _updatedByName: financeiroUpdatedByName, ...financeiroData } = financeiroRaw;
+        const integracoesRaw: IntegracoesConfigRaw = (appConfig.integracoes as IntegracoesConfigRaw) || {};
+        const { _updatedAt: integracoesUpdatedAt, _updatedByName: integracoesUpdatedByName, ...integracoesData } = integracoesRaw;
+        const notificacoesRaw: NotificacoesConfigRaw = (appConfig.notificacoes as NotificacoesConfigRaw) || {};
+        const { _updatedAt: notificacoesUpdatedAt, _updatedByName: notificacoesUpdatedByName, ...notificacoesData } = notificacoesRaw;
+        const backupRaw: BackupConfigRaw = (appConfig.backup as BackupConfigRaw) || {};
+        const { _updatedAt: backupUpdatedAt, _updatedByName: backupUpdatedByName, ...backupData } = backupRaw;
         const merged = {
           ...defaultConfig,
           geral: {
@@ -274,9 +302,9 @@ export default function Administracao() {
           },
           usuarios: { ...defaultConfig.usuarios, ...((appConfig.usuarios as UsuariosConfigRaw) || {}) },
           email: { ...defaultConfig.email, ...emailData },
-          integracoes: { ...defaultConfig.integracoes, ...((appConfig.integracoes as Record<string, unknown>) || {}) },
-          notificacoes: { ...defaultConfig.notificacoes, ...((appConfig.notificacoes as Record<string, unknown>) || {}) },
-          backup: { ...defaultConfig.backup, ...((appConfig.backup as Record<string, unknown>) || {}) },
+          integracoes: { ...defaultConfig.integracoes, ...integracoesData },
+          notificacoes: { ...defaultConfig.notificacoes, ...notificacoesData },
+          backup: { ...defaultConfig.backup, ...backupData },
           fiscal: { ...defaultConfig.fiscal, ...fiscalData },
           financeiro: { ...defaultConfig.financeiro, ...financeiroData },
         };
@@ -286,6 +314,9 @@ export default function Administracao() {
           setEmpresaCreatedAt(empresa?.created_at || null);
           setConfig(merged);
           setEmailLastSaved({ at: emailUpdatedAt || null, by: emailUpdatedBy || null });
+          setIntegracoesLastSaved({ at: integracoesUpdatedAt || null, by: integracoesUpdatedByName || null });
+          setNotificacoesLastSaved({ at: notificacoesUpdatedAt || null, by: notificacoesUpdatedByName || null });
+          setBackupLastSaved({ at: backupUpdatedAt || null, by: backupUpdatedByName || null });
           setFiscalLastSaved({ at: fiscalUpdatedAt || null, by: fiscalUpdatedByName || null });
           setFinanceiroLastSaved({ at: financeiroUpdatedAt || null, by: financeiroUpdatedByName || null });
         }
@@ -355,13 +386,13 @@ export default function Administracao() {
       return { cta: 'Salvar parâmetros de e-mail', lastSaved: emailLastSaved.at, message: 'Parâmetros de e-mail atualizados.' };
     }
     if (activeSection === 'integracoes') {
-      return { cta: 'Salvar integrações globais', lastSaved: null, message: 'Parâmetros globais de integração atualizados.' };
+      return { cta: 'Salvar integrações globais', lastSaved: integracoesLastSaved.at, message: 'Parâmetros globais de integração atualizados.' };
     }
     if (activeSection === 'notificacoes') {
-      return { cta: 'Salvar notificações globais', lastSaved: null, message: 'Política global de notificações atualizada.' };
+      return { cta: 'Salvar notificações globais', lastSaved: notificacoesLastSaved.at, message: 'Política global de notificações atualizada.' };
     }
     if (activeSection === 'backup') {
-      return { cta: 'Salvar política de backup', lastSaved: null, message: 'Política global de backup atualizada.' };
+      return { cta: 'Salvar política de backup', lastSaved: backupLastSaved.at, message: 'Política global de backup atualizada.' };
     }
     if (activeSection === 'fiscal') {
       return { cta: 'Salvar parâmetros fiscais', lastSaved: fiscalLastSaved.at, message: 'Parâmetros fiscais atualizados.' };
@@ -400,6 +431,13 @@ export default function Administracao() {
   };
 
   const isValidEmailFormat = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const isValidBase64 = (value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) return true;
+    if (/\s/.test(trimmed)) return false;
+    if (!/^[A-Za-z0-9+/=]+$/.test(trimmed)) return false;
+    return trimmed.length % 4 === 0;
+  };
 
   const validateEmailSection = (): Record<string, string> => {
     const errors: Record<string, string> = {};
@@ -438,6 +476,10 @@ export default function Administracao() {
   };
 
   const handleSave = async () => {
+    if (activeSection === 'integracoes' && !isValidBase64(config.integracoes.sefazCertificadoBase64)) {
+      toast.error('Corrija o certificado SEFAZ: o conteúdo deve estar em Base64 válido.');
+      return;
+    }
     if (activeSection === 'email') {
       const errors = validateEmailSection();
       if (Object.keys(errors).length > 0) {
@@ -527,6 +569,7 @@ export default function Administracao() {
         };
         const { error } = await supabase.from('app_configuracoes').upsert([row], { onConflict: 'chave' });
         if (error) throw error;
+        setIntegracoesLastSaved({ at: now, by: updatedByName });
 
       } else if (activeSection === 'notificacoes') {
         const row: AppConfigInsert = {
@@ -537,16 +580,18 @@ export default function Administracao() {
         };
         const { error } = await supabase.from('app_configuracoes').upsert([row], { onConflict: 'chave' });
         if (error) throw error;
+        setNotificacoesLastSaved({ at: now, by: updatedByName });
 
       } else if (activeSection === 'backup') {
         const row: AppConfigInsert = {
           chave: 'backup',
           valor: { ...config.backup, _updatedAt: now, _updatedByName: updatedByName },
           categoria: 'infraestrutura',
-          sensibilidade: 'restrito',
+          sensibilidade: 'sensivel',
         };
         const { error } = await supabase.from('app_configuracoes').upsert([row], { onConflict: 'chave' });
         if (error) throw error;
+        setBackupLastSaved({ at: now, by: updatedByName });
 
       } else if (activeSection === 'fiscal') {
         const fiscalRow: AppConfigInsert = {
@@ -1127,7 +1172,34 @@ export default function Administracao() {
           </div>
           <div className="space-y-1.5 md:col-span-2">
             <Label>Certificado digital (Base64)</Label>
-            <Textarea rows={4} placeholder="Cole aqui o conteúdo Base64 (sem cabeçalhos PEM)." value={config.integracoes.sefazCertificadoBase64} onChange={(e) => updateSection('integracoes', { sefazCertificadoBase64: e.target.value })} className="font-mono text-xs" />
+            <div className="space-y-2 rounded-md border bg-muted/20 p-3">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs text-muted-foreground">Campo sensível. O conteúdo fica oculto por padrão para reduzir exposição acidental.</p>
+                <Button type="button" size="sm" variant="outline" onClick={() => setShowSefazCertificado((prev) => !prev)}>
+                  {showSefazCertificado ? 'Ocultar conteúdo' : 'Mostrar conteúdo'}
+                </Button>
+              </div>
+              {showSefazCertificado ? (
+                <Textarea
+                  rows={4}
+                  placeholder="Cole aqui o conteúdo Base64 (sem cabeçalhos PEM)."
+                  value={config.integracoes.sefazCertificadoBase64}
+                  onChange={(e) => updateSection('integracoes', { sefazCertificadoBase64: e.target.value.trim() })}
+                  className="font-mono text-xs"
+                />
+              ) : (
+                <Input
+                  type="password"
+                  value={config.integracoes.sefazCertificadoBase64}
+                  placeholder="Conteúdo oculto"
+                  onChange={(e) => updateSection('integracoes', { sefazCertificadoBase64: e.target.value.trim() })}
+                  className="font-mono text-xs"
+                />
+              )}
+            </div>
+            {!isValidBase64(config.integracoes.sefazCertificadoBase64) && (
+              <p className="text-[11px] text-destructive">Formato inválido: informe um Base64 contínuo (sem espaços e sem cabeçalhos PEM).</p>
+            )}
             <p className="text-[11px] text-muted-foreground">Hint: use apenas conteúdo Base64 limpo. Em breve este campo será substituído por upload seguro de certificado.</p>
           </div>
         </CardContent>
