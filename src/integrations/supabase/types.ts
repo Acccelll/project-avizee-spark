@@ -2975,6 +2975,7 @@ export type Database = {
           cest: string | null
           cfop: string | null
           codigo_produto: string | null
+          codigo_produto_origem: string | null
           cofins_aliquota: number | null
           cofins_valor: number | null
           created_at: string
@@ -2986,6 +2987,7 @@ export type Database = {
           custo_historico_unitario: number | null
           desconto: number | null
           descricao: string | null
+          descricao_produto_origem: string | null
           frete_rateado: number | null
           icms_aliquota: number | null
           icms_base: number | null
@@ -2993,21 +2995,28 @@ export type Database = {
           id: string
           ipi_aliquota: number | null
           ipi_valor: number | null
+          match_status: string | null
           ncm: string | null
           nota_fiscal_id: string
           observacoes: string | null
           origem_mercadoria: string | null
+          origem_migracao: string | null
           outras_despesas_rateadas: number | null
           pis_aliquota: number | null
           pis_valor: number | null
           produto_id: string | null
+          produto_identificador_legacy_id: string | null
           quantidade: number | null
+          quantidade_origem: number | null
           seguro_rateado: number | null
           unidade: string | null
+          unidade_origem: string | null
           unidade_tributavel: string | null
           valor_st: number | null
           valor_total: number | null
+          valor_total_origem: number | null
           valor_unitario: number | null
+          valor_unitario_origem: number | null
         }
         Insert: {
           base_cofins?: number | null
@@ -3017,6 +3026,7 @@ export type Database = {
           cest?: string | null
           cfop?: string | null
           codigo_produto?: string | null
+          codigo_produto_origem?: string | null
           cofins_aliquota?: number | null
           cofins_valor?: number | null
           created_at?: string
@@ -3028,6 +3038,7 @@ export type Database = {
           custo_historico_unitario?: number | null
           desconto?: number | null
           descricao?: string | null
+          descricao_produto_origem?: string | null
           frete_rateado?: number | null
           icms_aliquota?: number | null
           icms_base?: number | null
@@ -3035,21 +3046,28 @@ export type Database = {
           id?: string
           ipi_aliquota?: number | null
           ipi_valor?: number | null
+          match_status?: string | null
           ncm?: string | null
           nota_fiscal_id: string
           observacoes?: string | null
           origem_mercadoria?: string | null
+          origem_migracao?: string | null
           outras_despesas_rateadas?: number | null
           pis_aliquota?: number | null
           pis_valor?: number | null
           produto_id?: string | null
+          produto_identificador_legacy_id?: string | null
           quantidade?: number | null
+          quantidade_origem?: number | null
           seguro_rateado?: number | null
           unidade?: string | null
+          unidade_origem?: string | null
           unidade_tributavel?: string | null
           valor_st?: number | null
           valor_total?: number | null
+          valor_total_origem?: number | null
           valor_unitario?: number | null
+          valor_unitario_origem?: number | null
         }
         Update: {
           base_cofins?: number | null
@@ -3059,6 +3077,7 @@ export type Database = {
           cest?: string | null
           cfop?: string | null
           codigo_produto?: string | null
+          codigo_produto_origem?: string | null
           cofins_aliquota?: number | null
           cofins_valor?: number | null
           created_at?: string
@@ -3070,6 +3089,7 @@ export type Database = {
           custo_historico_unitario?: number | null
           desconto?: number | null
           descricao?: string | null
+          descricao_produto_origem?: string | null
           frete_rateado?: number | null
           icms_aliquota?: number | null
           icms_base?: number | null
@@ -3077,21 +3097,28 @@ export type Database = {
           id?: string
           ipi_aliquota?: number | null
           ipi_valor?: number | null
+          match_status?: string | null
           ncm?: string | null
           nota_fiscal_id?: string
           observacoes?: string | null
           origem_mercadoria?: string | null
+          origem_migracao?: string | null
           outras_despesas_rateadas?: number | null
           pis_aliquota?: number | null
           pis_valor?: number | null
           produto_id?: string | null
+          produto_identificador_legacy_id?: string | null
           quantidade?: number | null
+          quantidade_origem?: number | null
           seguro_rateado?: number | null
           unidade?: string | null
+          unidade_origem?: string | null
           unidade_tributavel?: string | null
           valor_st?: number | null
           valor_total?: number | null
+          valor_total_origem?: number | null
           valor_unitario?: number | null
+          valor_unitario_origem?: number | null
         }
         Relationships: [
           {
@@ -3128,6 +3155,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_workbook_estoque_posicao"
             referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "notas_fiscais_itens_produto_identificador_legacy_id_fkey"
+            columns: ["produto_identificador_legacy_id"]
+            isOneToOne: false
+            referencedRelation: "produto_identificadores_legacy"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -3943,6 +3977,66 @@ export type Database = {
           },
         ]
       }
+      produto_identificadores_legacy: {
+        Row: {
+          ativo: boolean
+          codigo_legacy: string | null
+          confianca_match: number
+          criado_em: string
+          descricao_legacy: string | null
+          descricao_normalizada: string | null
+          id: string
+          match_tipo: string
+          observacao: string | null
+          origem: string
+          produto_id: string
+          unidade_legacy: string | null
+        }
+        Insert: {
+          ativo?: boolean
+          codigo_legacy?: string | null
+          confianca_match?: number
+          criado_em?: string
+          descricao_legacy?: string | null
+          descricao_normalizada?: string | null
+          id?: string
+          match_tipo: string
+          observacao?: string | null
+          origem: string
+          produto_id: string
+          unidade_legacy?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          codigo_legacy?: string | null
+          confianca_match?: number
+          criado_em?: string
+          descricao_legacy?: string | null
+          descricao_normalizada?: string | null
+          id?: string
+          match_tipo?: string
+          observacao?: string | null
+          origem?: string
+          produto_id?: string
+          unidade_legacy?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "produto_identificadores_legacy_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produtos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "produto_identificadores_legacy_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_estoque_posicao"
+            referencedColumns: ["produto_id"]
+          },
+        ]
+      }
       produtos: {
         Row: {
           ativo: boolean
@@ -3954,6 +4048,7 @@ export type Database = {
           cst: string | null
           deleted_at: string | null
           deleted_by: string | null
+          descontinuado_em: string | null
           descricao: string | null
           eh_composto: boolean
           estoque_atual: number | null
@@ -3966,6 +4061,7 @@ export type Database = {
           motivo_inativacao: string | null
           ncm: string | null
           nome: string
+          origem: string
           origem_mercadoria: string | null
           peso: number | null
           peso_bruto: number | null
@@ -3990,6 +4086,7 @@ export type Database = {
           cst?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
+          descontinuado_em?: string | null
           descricao?: string | null
           eh_composto?: boolean
           estoque_atual?: number | null
@@ -4002,6 +4099,7 @@ export type Database = {
           motivo_inativacao?: string | null
           ncm?: string | null
           nome: string
+          origem?: string
           origem_mercadoria?: string | null
           peso?: number | null
           peso_bruto?: number | null
@@ -4026,6 +4124,7 @@ export type Database = {
           cst?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
+          descontinuado_em?: string | null
           descricao?: string | null
           eh_composto?: boolean
           estoque_atual?: number | null
@@ -4038,6 +4137,7 @@ export type Database = {
           motivo_inativacao?: string | null
           ncm?: string | null
           nome?: string
+          origem?: string
           origem_mercadoria?: string | null
           peso?: number | null
           peso_bruto?: number | null
@@ -5981,6 +6081,7 @@ export type Database = {
         }
         Returns: number
       }
+      normalizar_descricao: { Args: { p: string }; Returns: string }
       normalize_text_match: { Args: { p_input: string }; Returns: string }
       proximo_numero_cotacao_compra: { Args: never; Returns: string }
       proximo_numero_nf: { Args: never; Returns: string }
@@ -6029,6 +6130,10 @@ export type Database = {
       }
       rejeitar_pedido: {
         Args: { p_motivo: string; p_pedido_id: string }
+        Returns: Json
+      }
+      relatorio_migracao_faturamento: {
+        Args: { p_lote_id: string }
         Returns: Json
       }
       replace_cotacao_compra_itens: {
@@ -6111,6 +6216,7 @@ export type Database = {
           score: number
         }[]
       }
+      unaccent: { Args: { "": string }; Returns: string }
       vincular_produto_fornecedor: {
         Args: {
           p_fornecedor_legado: string
