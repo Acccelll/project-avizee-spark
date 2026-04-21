@@ -6,7 +6,13 @@ import { validateFaturamentoImport } from "@/lib/importacao/validators";
 import { FIELD_ALIASES, FATURAMENTO_FIELD_ALIASES } from "@/lib/importacao/aliases";
 import { validarChaveAcesso, extrairInformacoesChave } from "@/services/fiscal/validadores/chaveAcesso.validator";
 import { normalizeText } from "@/lib/importacao/normalizers";
-import { normalizarDescricao } from "@/lib/importacao/produtoMatch";
+import {
+  normalizarDescricao,
+  contarPreviewMatches,
+  type PreviewMatchCounts,
+  type ProdutoLookup,
+  type IdentificadorLegacyLookup,
+} from "@/lib/importacao/produtoMatch";
 import { Mapping } from "./types";
 
 export interface GroupedNF {
@@ -44,6 +50,7 @@ export function useImportacaoFaturamento() {
   const [headers, setHeaders] = useState<string[]>([]);
   const [mapping, setMapping] = useState<Mapping>({});
   const [previewData, setPreviewData] = useState<GroupedNF[]>([]);
+  const [matchCounts, setMatchCounts] = useState<PreviewMatchCounts | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [loteId, setLoteId] = useState<string | null>(null);
 
