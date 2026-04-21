@@ -245,6 +245,28 @@ export function ClienteView({ id }: Props) {
               ))}
             </div>
           )}
+
+          <SectionTitle icon={FileText} className="mt-5">Notas Fiscais de Saída</SectionTitle>
+          {notasSaida.length === 0 ? (
+            <EmptyState icon={FileText} title="Nenhuma nota de saída" description="Este cliente ainda não possui notas fiscais de saída emitidas ou migradas." />
+          ) : (
+            <div className="space-y-2">
+              {notasSaida.map((nf) => (
+                <div key={nf.id} className="flex items-center justify-between p-2 rounded border bg-card hover:bg-muted/30 transition-colors text-sm">
+                  <div>
+                    <RelationalLink onClick={() => pushView("nota_fiscal", nf.id)} className="font-mono">
+                      {nf.numero || "—"}
+                    </RelationalLink>
+                    <p className="text-[10px] text-muted-foreground">{nf.data_emissao ? formatDate(nf.data_emissao) : "—"}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-semibold">{formatCurrency(Number(nf.valor_total) || 0)}</p>
+                    {nf.status && <StatusBadge status={nf.status} className="h-4 text-[10px]" />}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="financeiro" className="space-y-4 mt-3">
