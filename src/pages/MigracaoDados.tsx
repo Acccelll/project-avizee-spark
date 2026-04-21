@@ -816,17 +816,22 @@ export default function MigracaoDados() {
               )}
 
               {step === 4 && (
-                <div className="flex flex-col items-center justify-center py-12 text-center space-y-4">
-                  <div className="p-4 bg-emerald-100 rounded-full">
-                    <CheckCircle2 className="h-12 w-12 text-emerald-600" />
+                <div className="space-y-4">
+                  <div className="flex flex-col items-center justify-center py-6 text-center space-y-3">
+                    <div className="p-4 bg-emerald-100 rounded-full">
+                      <CheckCircle2 className="h-12 w-12 text-emerald-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold">Tudo pronto!</h3>
+                      <p className="text-muted-foreground max-w-md">
+                        Os dados foram validados e estão no ambiente de staging.
+                        Clique em <strong>Confirmar Carga</strong> para inserir definitivamente no sistema.
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-xl font-bold">Tudo pronto!</h3>
-                    <p className="text-muted-foreground max-w-md">
-                      Os dados foram validados e estão no ambiente de staging.
-                      Clique em <strong>Confirmar Carga</strong> para inserir definitivamente no sistema.
-                    </p>
-                  </div>
+                  {activeImportSource === 'faturamento' && currentLoteId && (
+                    <RelatorioMigracaoFaturamentoCard loteId={currentLoteId} />
+                  )}
                 </div>
               )}
             </div>
