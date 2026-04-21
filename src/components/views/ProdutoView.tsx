@@ -25,6 +25,7 @@ import { SectionTitle } from "@/components/ui/SectionTitle";
 import { DetailLoading, DetailError, DetailEmpty } from "@/components/ui/DetailStates";
 import type {
   HistoricoNfItemRow,
+  HistoricoNfVendaRow,
   ComposicaoItemRow,
   MovimentoEstoqueRow,
   ProdutoFornecedorViewRow,
@@ -44,7 +45,8 @@ interface Props {
 interface ProdutoDetail {
   produto: Tables<"produtos">;
   grupoNome: string | null;
-  historico: HistoricoNfItemRow[];
+  historicoCompras: HistoricoNfItemRow[];
+  historicoVendas: HistoricoNfVendaRow[];
   composicao: ComposicaoItemRow[];
   movimentos: MovimentoEstoqueRow[];
   fornecedoresProd: ProdutoFornecedorViewRow[];
@@ -68,10 +70,19 @@ export function ProdutoView({ id }: Props) {
     if (!p) return null;
 
     // A4 fix: settled em vez de all — falha em uma query não silencia as outras.
-    const [nfRes, compRes, movRes, fornRes, grupoRes] = await Promise.allSettled([
+    const [comprasRes, vendasRes, compRes, movRes, fornRes, grupoRes] = await Promise.allSettled([
       supabase.from("notas_fiscais_itens")
-        .select("quantidade, valor_unitario, notas_fiscais(id, numero, tipo, data_emissao, fornecedores(id, nome_razao_social))")
-        .eq("produto_id", p.id).abortSignal(signal).limit(20),
+        .select("quantidade, valor_unitario, notas_fiscais!inner(id, numero, tipo, data_emissao, fornecedores(id, nome_razao_social))")
+        .eq("produto_id", p.id)
+        .in("notas_fiscais.tipo", ["entrada", "compra"])
+        .order("data_emissao", { foreignTable: "notas_fiscais", ascending: false })
+        .abortSignal(signal).limit(30),
+      supabase.from("notas_fiscais_itens")
+        .select("quantidade, valor_unitario, notas_fiscais!inner(id, numero, tipo, data_emissao, clientes(id, nome_razao_social))")
+        .eq("produto_id", p.id)
+        .in("notas_fiscais.tipo", ["saida", "venda"])
+        .order("data_emissao", { foreignTable: "notas_fiscais", ascending: false })
+        .abortSignal(signal).limit(30),
       p.eh_composto ? supabase.from("produto_composicoes")
         .select("quantidade, ordem, produtos:produto_filho_id(id, nome, sku, preco_custo)")
         .eq("produto_pai_id", p.id).abortSignal(signal).order("ordem")
@@ -93,7 +104,8 @@ export function ProdutoView({ id }: Props) {
       return (v?.data ?? fallback) as T;
     };
 
-    const nfData = pickData(nfRes, [] as unknown[]);
+    const comprasData = pickData(comprasRes, [] as unknown[]);
+    const vendasData = pickData(vendasRes, [] as unknown[]);
     const compData = pickData(compRes, [] as unknown[]);
     const movData = pickData(movRes, [] as unknown[]);
     const fornData = pickData(fornRes, [] as unknown[]);
@@ -102,7 +114,8 @@ export function ProdutoView({ id }: Props) {
     return {
       produto: p,
       grupoNome: (grupoData as Record<string, unknown> | null)?.nome as string ?? null,
-      historico: nfData as HistoricoNfItemRow[],
+      historicoCompras: comprasData as HistoricoNfItemRow[],
+      historicoVendas: vendasData as HistoricoNfVendaRow[],
       composicao: (compData as ComposicaoQueryRow[]).map((c) => ({
         id: c.produtos?.id ?? null,
         nome: c.produtos?.nome ?? null,
@@ -118,7 +131,8 @@ export function ProdutoView({ id }: Props) {
 
   const selected = data?.produto ?? null;
   const grupoNome = data?.grupoNome ?? null;
-  const historico = data?.historico ?? [];
+  const historicoCompras = data?.historicoCompras ?? [];
+  const historicoVendas = data?.historicoVendas ?? [];
   const composicao = data?.composicao ?? [];
   const movimentos = data?.movimentos ?? [];
   const fornecedoresProd = data?.fornecedoresProd ?? [];
@@ -127,6 +141,20 @@ export function ProdutoView({ id }: Props) {
   const lucroBruto = selected ? selected.preco_venda - (selected.preco_custo || 0) : 0;
   const custoCompostoView = composicao.reduce((s, c) => s + c.quantidade * (c.preco_custo || 0), 0);
   const estoqueValor = selected ? (selected.estoque_atual || 0) * (selected.preco_custo || 0) : 0;
+
+  // KPIs Compras
+  const totalComprado = historicoCompras.reduce((s, h) => s + Number(h.quantidade || 0), 0);
+  const valorComprado = historicoCompras.reduce((s, h) => s + Number(h.quantidade || 0) * Number(h.valor_unitario || 0), 0);
+  const custoMedioCompras = totalComprado > 0 ? valorComprado / totalComprado : 0;
+
+  // KPIs Vendas
+  const totalVendido = historicoVendas.reduce((s, h) => s + Number(h.quantidade || 0), 0);
+  const valorVendido = historicoVendas.reduce((s, h) => s + Number(h.quantidade || 0) * Number(h.valor_unitario || 0), 0);
+  const ticketMedioVenda = totalVendido > 0 ? valorVendido / totalVendido : 0;
+  const margemMediaVenda = ticketMedioVenda > 0 && (selected?.preco_custo || 0) > 0
+    ? ((ticketMedioVenda / Number(selected!.preco_custo)) - 1) * 100
+    : 0;
+
   const estoqueBaixo = selected ? Number(selected.estoque_atual) <= Number(selected.estoque_minimo) && Number(selected.estoque_minimo) > 0 : false;
   const fiscalCompleto = !!(selected?.ncm && selected?.cst && selected?.cfop_padrao);
   const fornecedorPrincipal = fornecedoresProd.find((f) => f.eh_principal);
@@ -232,7 +260,7 @@ export function ProdutoView({ id }: Props) {
           <TabsTrigger value="estoque" className="text-xs px-0.5">Estoque</TabsTrigger>
           <TabsTrigger value="fiscal" className="text-xs px-0.5">Fiscal</TabsTrigger>
           <TabsTrigger value="precos" className="text-xs px-0.5">Espec.</TabsTrigger>
-          <TabsTrigger value="historico" className="text-xs px-0.5">Hist.</TabsTrigger>
+          <TabsTrigger value="vendas" className="text-xs px-0.5">Vendas</TabsTrigger>
         </TabsList>
 
         {/* Tab: Geral */}
@@ -350,14 +378,18 @@ export function ProdutoView({ id }: Props) {
               ))}
             </div>
           )}
-        {historico.filter((h) => h.notas_fiscais?.tipo === 'entrada' || h.notas_fiscais?.tipo === 'compra').length > 0 && (
+        {(historicoCompras.length > 0 || totalComprado > 0) && (
             <div className="border-t pt-3">
+              <div className="grid grid-cols-3 gap-2 mb-3">
+                <DrawerSummaryCard label="Qtd Comprada" value={totalComprado.toLocaleString("pt-BR")} align="center" />
+                <DrawerSummaryCard label="Valor Total" value={formatCurrency(valorComprado)} align="center" />
+                <DrawerSummaryCard label="Custo Médio" value={formatCurrency(custoMedioCompras)} align="center" />
+              </div>
               <h4 className="font-semibold text-xs text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-2">
                 <FileText className="w-3.5 h-3.5" /> Últimas Compras
               </h4>
               <div className="space-y-1.5">
-                {historico
-                  .filter((h) => h.notas_fiscais?.tipo === 'entrada' || h.notas_fiscais?.tipo === 'compra')
+                {historicoCompras
                   .slice(0, 10)
                   .map((h, idx: number) => (
                     <div key={idx} className="flex justify-between text-xs py-1.5 border-b last:border-b-0">
@@ -519,28 +551,51 @@ export function ProdutoView({ id }: Props) {
           <PrecosEspeciaisTab produtoId={selected.id} />
         </TabsContent>
 
-        {/* Tab: Histórico */}
-        <TabsContent value="historico" className="space-y-3 mt-3">
-          <h4 className="font-semibold text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-            <FileText className="w-3.5 h-3.5" /> Histórico de Notas Fiscais
-          </h4>
-          {historico.length === 0 ? (
-            <EmptyState icon={FileText} title="Nenhum histórico de notas" description="Nenhum histórico de notas fiscais para este produto" />
+        {/* Tab: Vendas */}
+        <TabsContent value="vendas" className="space-y-3 mt-3">
+          {historicoVendas.length === 0 ? (
+            <EmptyState icon={FileText} title="Nenhuma venda registrada" description="Este produto ainda não foi vendido em notas fiscais de saída" />
           ) : (
-            <div className="space-y-2 max-h-[350px] overflow-y-auto">
-            {historico.map((h, idx: number) => (
-                <div key={idx} className="text-sm py-1.5 border-b last:border-b-0">
-                  <div className="flex justify-between items-center">
-                    <RelationalLink onClick={() => pushView("nota_fiscal", h.notas_fiscais?.id)} mono className="text-xs">{h.notas_fiscais?.numero}</RelationalLink>
-                    <span className="text-[10px] text-muted-foreground">{formatDate(h.notas_fiscais?.data_emissao)}</span>
-                  </div>
-                  <div className="flex justify-between text-[10px] mt-1">
-                    <span className="truncate max-w-[150px] text-muted-foreground">{h.notas_fiscais?.fornecedores?.nome_razao_social || "—"}</span>
-                    <span className="font-mono">Qtd: {h.quantidade} × {formatCurrency(h.valor_unitario)}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <DrawerSummaryCard label="Qtd Vendida" value={totalVendido.toLocaleString("pt-BR")} align="center" />
+                <DrawerSummaryCard label="Faturamento" value={formatCurrency(valorVendido)} align="center" />
+                <DrawerSummaryCard label="Ticket Médio" value={formatCurrency(ticketMedioVenda)} align="center" />
+                <DrawerSummaryCard
+                  label="Margem Méd."
+                  value={(selected.preco_custo || 0) > 0 ? `${margemMediaVenda.toFixed(1)}%` : "—"}
+                  tone={margemMediaVenda > 0 ? "success" : margemMediaVenda < 0 ? "destructive" : "neutral"}
+                  align="center"
+                />
+              </div>
+              <h4 className="font-semibold text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-2 pt-2">
+                <FileText className="w-3.5 h-3.5" /> Notas Fiscais de Saída
+              </h4>
+              <div className="space-y-2 max-h-[350px] overflow-y-auto">
+                {historicoVendas.map((h, idx: number) => {
+                  const qtd = Number(h.quantidade || 0);
+                  const vu = Number(h.valor_unitario || 0);
+                  return (
+                    <div key={idx} className="text-sm py-1.5 border-b last:border-b-0">
+                      <div className="flex justify-between items-center">
+                        <RelationalLink onClick={() => pushView("nota_fiscal", h.notas_fiscais?.id)} mono className="text-xs">{h.notas_fiscais?.numero}</RelationalLink>
+                        <span className="text-[10px] text-muted-foreground">{formatDate(h.notas_fiscais?.data_emissao)}</span>
+                      </div>
+                      <div className="flex justify-between text-[10px] mt-1">
+                        {h.notas_fiscais?.clientes ? (
+                          <RelationalLink onClick={() => pushView("cliente", h.notas_fiscais?.clientes?.id)} className="truncate max-w-[180px] text-xs">
+                            {h.notas_fiscais.clientes.nome_razao_social}
+                          </RelationalLink>
+                        ) : (
+                          <span className="truncate max-w-[180px] text-muted-foreground">—</span>
+                        )}
+                        <span className="font-mono">Qtd: {qtd} × {formatCurrency(vu)} = <span className="font-semibold">{formatCurrency(qtd * vu)}</span></span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
           )}
         </TabsContent>
       </Tabs>
@@ -566,7 +621,7 @@ export function ProdutoView({ id }: Props) {
           "Esta ação não pode ser desfeita.",
           fornecedoresProd.length > 0 ? `Este produto possui ${fornecedoresProd.length} fornecedor(es) vinculado(s).` : "",
           composicao.length > 0 ? "Este produto possui itens de composição." : "",
-          historico.length > 0 ? "Este produto possui histórico de notas fiscais." : "",
+          (historicoCompras.length + historicoVendas.length) > 0 ? "Este produto possui histórico de notas fiscais." : "",
         ].filter(Boolean).join(" ")}
       />
     </div>
