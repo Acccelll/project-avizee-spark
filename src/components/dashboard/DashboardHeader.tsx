@@ -4,6 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useDashboardPeriod, type DashboardPeriod } from '@/contexts/DashboardPeriodContext';
+import { useSafeDateInput } from '@/lib/safeDateInput';
 
 interface DashboardHeaderProps {
   lastUpdated?: Date;
@@ -21,6 +22,9 @@ export function DashboardHeader({ lastUpdated, onRefresh, rightSlot }: Dashboard
     setCustomStart,
     setCustomEnd,
   } = useDashboardPeriod();
+
+  const startInput = useSafeDateInput(customStart, setCustomStart);
+  const endInput = useSafeDateInput(customEnd, setCustomEnd);
 
   const now = new Date();
   const dateLabel = now.toLocaleDateString('pt-BR', {
@@ -80,18 +84,22 @@ export function DashboardHeader({ lastUpdated, onRefresh, rightSlot }: Dashboard
             <Label className="text-xs">Data inicial</Label>
             <Input
               type="date"
-              value={customStart}
-              onChange={(e) => setCustomStart(e.target.value)}
-              className="mt-1 h-8 text-sm"
+              value={startInput.value}
+              onChange={startInput.onChange}
+              onBlur={startInput.onBlur}
+              aria-invalid={startInput.invalid || undefined}
+              className={`mt-1 h-8 text-sm ${startInput.invalid ? 'border-destructive' : ''}`}
             />
           </div>
           <div>
             <Label className="text-xs">Data final</Label>
             <Input
               type="date"
-              value={customEnd}
-              onChange={(e) => setCustomEnd(e.target.value)}
-              className="mt-1 h-8 text-sm"
+              value={endInput.value}
+              onChange={endInput.onChange}
+              onBlur={endInput.onBlur}
+              aria-invalid={endInput.invalid || undefined}
+              className={`mt-1 h-8 text-sm ${endInput.invalid ? 'border-destructive' : ''}`}
             />
           </div>
         </div>
