@@ -36,6 +36,20 @@ export interface PreviewPlanoLinha extends PlanoContasRow {
   _action: "criar" | "atualizar" | "ignorar";
 }
 
+export interface PreviewPessoaLinha {
+  origem: "CLIENTES" | "FORNECEDORES";
+  tipo_pessoa: "fisica" | "juridica";
+  codigo_legado: string;
+  cpf_cnpj: string | null;
+  nome_razao_social: string;
+  nome_fantasia: string | null;
+  cidade: string | null;
+  uf: string | null;
+  _action: "criar" | "atualizar" | "ignorar";
+  _matched_id: string | null;
+  _errors: string[];
+}
+
 export interface ReconciliacaoFC {
   totalFC: number;
   totalDerivado: number;
@@ -52,6 +66,8 @@ export interface PreviewConciliacaoBundle {
   cp: PreviewFinanceiroLinha[];
   fopag: PreviewFinanceiroLinha[];
   plano: PreviewPlanoLinha[];
+  clientes: PreviewPessoaLinha[];
+  fornecedores: PreviewPessoaLinha[];
   fc: FCRow[];
   reconciliacao: ReconciliacaoFC;
   abasDetectadas: string[];
@@ -62,6 +78,10 @@ export interface PreviewConciliacaoBundle {
     pendentes: number;
     duplicados: number;
     erros: number;
+    clientes_a_criar: number;
+    clientes_a_atualizar: number;
+    fornecedores_a_criar: number;
+    fornecedores_a_atualizar: number;
   };
 }
 
@@ -229,6 +249,47 @@ export function useImportacaoConciliacao() {
         _action: contasByCodigo.has(p.codigo) ? "atualizar" : "criar",
       }));
 
+      // Cadastros (clientes/fornecedores) — usa lookups já carregados.
+      const buildPessoa = (
+        origem: "CLIENTES" | "FORNECEDORES",
+        rows: typeof bundle.clientes,
+      ): PreviewPessoaLinha[] => {
+        const byLegado = origem === "CLIENTES" ? cliByLegado : fornByLegado;
+        const byCpf = origem === "CLIENTES" ? cliByCpf : fornByCpf;
+        const byNome = origem === "CLIENTES" ? cliByNome : fornByNome;
+        return rows.map((p) => {
+          const errors: string[] = [];
+          if (!p.nome_razao_social) errors.push("Nome/Razão Social ausente.");
+          let matchedId: string | null = null;
+          if (p.codigo_legado && byLegado.has(p.codigo_legado)) {
+            matchedId = byLegado.get(p.codigo_legado)!.id;
+          } else if (p.cpf_cnpj && byCpf.has(p.cpf_cnpj)) {
+            matchedId = byCpf.get(p.cpf_cnpj)!.id;
+          } else if (p.nome_razao_social) {
+            const m = byNome.get(normalizeNomeMatch(p.nome_razao_social));
+            if (m && m.count === 1) matchedId = m.id;
+          }
+          const action: "criar" | "atualizar" | "ignorar" =
+            errors.length ? "ignorar" : matchedId ? "atualizar" : "criar";
+          return {
+            origem,
+            tipo_pessoa: p.tipo_pessoa,
+            codigo_legado: p.codigo_legado,
+            cpf_cnpj: p.cpf_cnpj || null,
+            nome_razao_social: p.nome_razao_social,
+            nome_fantasia: p.nome_fantasia,
+            cidade: p.cidade,
+            uf: p.uf,
+            _action: action,
+            _matched_id: matchedId,
+            _errors: errors,
+          };
+        });
+      };
+
+      const clientesPreview = buildPessoa("CLIENTES", bundle.clientes);
+      const fornecedoresPreview = buildPessoa("FORNECEDORES", bundle.fornecedores);
+
       // Reconciliação FC
       const consolidados = [...cr, ...cp, ...fopag].filter((x) => x._valid && !x._duplicado);
       const derivKey = (tipo: string | null, venc: string | null, valor: number) =>
@@ -252,6 +313,10 @@ export function useImportacaoConciliacao() {
         pendentes: all.filter((x) => x._match === "pendente" && x.origem !== "FOPAG").length,
         duplicados: all.filter((x) => x._duplicado).length,
         erros: all.filter((x) => !x._valid).length,
+        clientes_a_criar: clientesPreview.filter((x) => x._action === "criar").length,
+        clientes_a_atualizar: clientesPreview.filter((x) => x._action === "atualizar").length,
+        fornecedores_a_criar: fornecedoresPreview.filter((x) => x._action === "criar").length,
+        fornecedores_a_atualizar: fornecedoresPreview.filter((x) => x._action === "atualizar").length,
       };
 
       const out: PreviewConciliacaoBundle = {
@@ -259,6 +324,8 @@ export function useImportacaoConciliacao() {
         cp,
         fopag,
         plano,
+        clientes: clientesPreview,
+        fornecedores: fornecedoresPreview,
         fc: bundle.fc,
         reconciliacao: { totalFC: bundle.fc.length, totalDerivado: consolidados.length, divergencias, detalhes },
         abasDetectadas: bundle.abasDetectadas,
@@ -312,6 +379,49 @@ export function useImportacaoConciliacao() {
       if (loteError) throw loteError;
       const newLoteId = lote.id;
       setLoteId(newLoteId);
+
+      // Staging de cadastros (clientes/fornecedores) — consolidados via
+      // consolidar_lote_cadastros ANTES do financeiro, para que o lookup por
+      // codigo_legado/cpf_cnpj resolva corretamente.
+      const pessoaRows = [
+        ...preview.clientes
+          .filter((p) => p._action !== "ignorar")
+          .map((p) => ({
+            lote_id: newLoteId,
+            status: "pendente" as const,
+            dados: {
+              _tipo_entidade: "cliente",
+              codigo_legado: p.codigo_legado || null,
+              cpf_cnpj: p.cpf_cnpj,
+              tipo_pessoa: p.tipo_pessoa === "juridica" ? "J" : "F",
+              nome_razao_social: p.nome_razao_social,
+              nome_fantasia: p.nome_fantasia,
+              cidade: p.cidade,
+              uf: p.uf,
+            },
+          })),
+        ...preview.fornecedores
+          .filter((p) => p._action !== "ignorar")
+          .map((p) => ({
+            lote_id: newLoteId,
+            status: "pendente" as const,
+            dados: {
+              _tipo_entidade: "fornecedor",
+              codigo_legado: p.codigo_legado || null,
+              cpf_cnpj: p.cpf_cnpj,
+              tipo_pessoa: p.tipo_pessoa === "juridica" ? "J" : "F",
+              nome_razao_social: p.nome_razao_social,
+              nome_fantasia: p.nome_fantasia,
+              cidade: p.cidade,
+              uf: p.uf,
+            },
+          })),
+      ];
+      for (let i = 0; i < pessoaRows.length; i += 500) {
+        const chunk = pessoaRows.slice(i, i + 500);
+        const { error } = await supabase.from("stg_cadastros").insert(chunk);
+        if (error) throw error;
+      }
 
       // Staging financeiro (CR + CP + FOPAG válidos)
       const all = [...preview.cr, ...preview.cp, ...preview.fopag].filter((x) => x._valid && !x._duplicado);
@@ -400,11 +510,18 @@ export function useImportacaoConciliacao() {
       }
       setIsProcessing(true);
       try {
-        // 1) Plano de contas via consolidar_lote_enriquecimento
+        // 1) Cadastros (clientes/fornecedores da aba CLIENTES/FORNECEDORES)
+        const { error: errCad } = await supabase.rpc("consolidar_lote_cadastros", { p_lote_id: target });
+        if (errCad) throw errCad;
+        // Re-marca lote como staging para próxima RPC (consolidar_lote_cadastros muda status).
+        await supabase.from("importacao_lotes").update({ status: "staging" }).eq("id", target);
+
+        // 2) Plano de contas via consolidar_lote_enriquecimento
         const { error: errEnr } = await supabase.rpc("consolidar_lote_enriquecimento", { p_lote_id: target });
         if (errEnr) throw errEnr;
+        await supabase.from("importacao_lotes").update({ status: "staging" }).eq("id", target);
 
-        // 2) Financeiro
+        // 3) Financeiro
         const { data, error } = await supabase.rpc("consolidar_lote_financeiro", { p_lote_id: target });
         if (error) throw error;
         const r = data as Record<string, unknown> & { erro?: string };
