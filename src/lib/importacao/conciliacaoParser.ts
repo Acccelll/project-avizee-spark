@@ -484,3 +484,27 @@ function parseProdutosOuInsumos(
   });
   return out;
 }
+
+function parseSinteticas(wb: XLSX.WorkBook, sheetName: string): SinteticaRow[] {
+  const rows = readSheetAsObjects(wb, sheetName);
+  const out: SinteticaRow[] = [];
+  rows.forEach((row, idx) => {
+    const codigo = normalizeText(
+      pick(row, "Código Sintético", "Codigo Sintetico", "Código", "Codigo", "Conta Sintética", "Conta Sintetica"),
+    );
+    const descricao = normalizeText(
+      pick(row, "Nome Sintético Sugerido", "Nome Sintetico Sugerido", "Descrição", "Descricao", "Nome"),
+    );
+    if (!codigo) return;
+    const nivelRaw = pick(row, "Nível", "Nivel", "Level");
+    const nivel = nivelRaw !== null && nivelRaw !== "" ? parseInt(String(nivelRaw)) : null;
+    out.push({
+      codigo,
+      descricao: descricao || codigo,
+      nivel: nivel !== null && !isNaN(nivel) ? nivel : null,
+      conta_pai_codigo: normalizeText(pick(row, "Conta Pai", "Codigo Pai", "Código Pai")) || null,
+      _originalLine: idx + 2,
+    });
+  });
+  return out;
+}
