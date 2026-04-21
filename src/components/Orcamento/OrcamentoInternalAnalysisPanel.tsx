@@ -141,6 +141,71 @@ export function OrcamentoInternalAnalysisPanel({
   const lucroDelta = scenarioAnalysis.resumo.lucroLiquidoEstimado - baseAnalysis.resumo.lucroLiquidoEstimado;
   const margemDelta = scenarioAnalysis.resumo.margemGeralPercentual - baseAnalysis.resumo.margemGeralPercentual;
 
+  const comparisonTable = (
+    <div className="overflow-x-auto border rounded-lg bg-background">
+      <table className="w-full min-w-[1500px] text-xs">
+        <thead>
+          <tr className="border-b bg-muted/30">
+            <th className="p-2 text-left" colSpan={4}>BASE</th>
+            <th className="p-2 text-left bg-primary/5" colSpan={5}>CENÁRIO</th>
+            <th className="p-2 text-left" colSpan={8}>RESULTADO</th>
+          </tr>
+          <tr className="border-b bg-muted/40 text-muted-foreground">
+            <th className="text-left p-2">Item</th>
+            <th className="text-right p-2">Custo Base</th>
+            <th className="text-right p-2">Preço Base</th>
+            <th className="text-right p-2">Desc. Base</th>
+            <th className="text-right p-2 bg-primary/5">Custo Cenário</th>
+            <th className="text-right p-2 bg-primary/5">Preço Cenário</th>
+            <th className="text-right p-2 bg-primary/5">Desc. Cenário</th>
+            <th className="text-center p-2 bg-primary/5">Ativo</th>
+            <th className="text-center p-2 bg-primary/5">Detalhar</th>
+            <th className="text-right p-2">Lucro Base</th>
+            <th className="text-right p-2">Lucro Cenário</th>
+            <th className="text-right p-2">Margem Base</th>
+            <th className="text-right p-2">Margem Cenário</th>
+            <th className="text-right p-2">Delta Lucro</th>
+            <th className="text-right p-2">Delta Margem</th>
+            <th className="text-left p-2">Status</th>
+            <th className="text-center p-2">Restaurar</th>
+          </tr>
+        </thead>
+        <tbody>
+          {comparisonRows.map(({ base, scenario, source, idx }) => {
+            const simulado = Boolean(source.usar_cenario || source.custo_simulado != null || source.preco_simulado_unitario != null || source.desconto_simulado_percentual != null);
+            const itemDeltaLucro = (scenario.lucroTotal ?? 0) - (base.lucroTotal ?? 0);
+            const itemDeltaMargem = (scenario.margemPercentual ?? 0) - (base.margemPercentual ?? 0);
+            return (
+              <tr key={`${base.produtoId}-${idx}`} className="border-b last:border-0 align-top">
+                <td className="p-2 min-w-[260px]">
+                  <p className="font-medium">{base.descricao}</p>
+                  <p className="text-muted-foreground">{base.quantidade} un. · {COST_SOURCE_LABEL[base.custoSource]}</p>
+                  {simulado && <Badge variant="secondary" className="mt-1 bg-primary/15 text-primary">Simulado</Badge>}
+                </td>
+                <td className="p-2 text-right">{base.custoFinalUnitario == null ? "—" : formatCurrency(base.custoFinalUnitario)}</td>
+                <td className="p-2 text-right">{formatCurrency(base.precoVendaUnitario)}</td>
+                <td className="p-2 text-right">{percentFmt.format((source.desconto_percentual || 0) / 100)}</td>
+                <td className="p-2 bg-primary/5"><Input type="number" className="h-8 text-right" value={source.custo_simulado ?? ""} placeholder={base.custoFinalUnitario?.toString() || "0"} onChange={(e) => updateItem(idx, { custo_simulado: e.target.value === "" ? null : Number(e.target.value), usar_cenario: true })} /></td>
+                <td className="p-2 bg-primary/5"><Input type="number" className="h-8 text-right" value={source.preco_simulado_unitario ?? ""} placeholder={base.precoVendaUnitario.toString()} onChange={(e) => updateItem(idx, { preco_simulado_unitario: e.target.value === "" ? null : Number(e.target.value), usar_cenario: true })} /></td>
+                <td className="p-2 bg-primary/5"><Input type="number" className="h-8 text-right" value={source.desconto_simulado_percentual ?? ""} placeholder={(source.desconto_percentual || 0).toString()} onChange={(e) => updateItem(idx, { desconto_simulado_percentual: e.target.value === "" ? null : Number(e.target.value), usar_cenario: true })} /></td>
+                <td className="p-2 text-center bg-primary/5"><div className="flex justify-center"><Switch checked={Boolean(source.usar_cenario)} onCheckedChange={(checked) => updateItem(idx, { usar_cenario: checked })} /></div></td>
+                <td className="p-2 text-center bg-primary/5"><Button variant="ghost" size="sm" className="h-8" onClick={() => setAdvancedIndex(idx)}><SlidersHorizontal className="h-3.5 w-3.5" /></Button></td>
+                <td className="p-2 text-right">{base.lucroTotal == null ? "—" : formatCurrency(base.lucroTotal)}</td>
+                <td className="p-2 text-right">{scenario.lucroTotal == null ? "—" : formatCurrency(scenario.lucroTotal)}</td>
+                <td className="p-2 text-right">{base.margemPercentual == null ? "—" : percentFmt.format(base.margemPercentual)}</td>
+                <td className="p-2 text-right">{scenario.margemPercentual == null ? "—" : percentFmt.format(scenario.margemPercentual)}</td>
+                <td className={`p-2 text-right ${itemDeltaLucro < 0 ? "text-red-600" : "text-emerald-600"}`}>{formatCurrency(itemDeltaLucro)}</td>
+                <td className={`p-2 text-right ${itemDeltaMargem < 0 ? "text-red-600" : "text-emerald-600"}`}>{percentFmt.format(itemDeltaMargem)}</td>
+                <td className="p-2"><Badge variant="secondary" className={marginClass(scenario.margemStatus)}>{MARGIN_LABEL[scenario.margemStatus]}</Badge></td>
+                <td className="p-2 text-center"><Button variant="ghost" size="sm" className="h-8" onClick={() => updateItem(idx, { usar_cenario: false, custo_simulado: null, preco_simulado_unitario: null, desconto_simulado_percentual: null, frete_rateado_simulado_unitario: null, imposto_rateado_simulado_unitario: null, outros_custos_simulados_unitario: null, observacao_interna_margem: "" })}><RotateCcw className="h-3.5 w-3.5" /></Button></td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+
   return (
     <Card className="border-dashed border-primary/30 bg-primary/5 p-4 space-y-4 overflow-hidden">
       <div className="flex flex-wrap items-start justify-between gap-3 min-w-0">
