@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertTriangle, Database, Loader2, CheckCircle2, FileSpreadsheet } from "lucide-react";
 import { useCargaInicial } from "@/hooks/importacao/useCargaInicial";
-import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 
 interface Props {
   onCompleted?: () => void;
@@ -13,8 +14,8 @@ interface Props {
 
 export function CargaInicialDialog({ onCompleted }: Props) {
   const [open, setOpen] = useState(false);
-  const [force, setForce] = useState(false);
-  const { file, resumo, loteId, resultado, isProcessing, onFileChange, stageAll, consolidar } = useCargaInicial();
+  const [modo, setModo] = useState<"insert" | "merge">("merge");
+  const { file, resumo, loteId, resultado, isProcessing, onFileChange, stageAll, consolidar, consolidarMerge } = useCargaInicial();
 
   const handleConsolidar = async () => {
     let id = loteId;
@@ -22,7 +23,7 @@ export function CargaInicialDialog({ onCompleted }: Props) {
       id = await stageAll();
       if (!id) return;
     }
-    const ok = await consolidar(force);
+    const ok = modo === "merge" ? await consolidarMerge() : await consolidar(false);
     if (ok) { onCompleted?.(); }
   };
 
@@ -41,13 +42,23 @@ export function CargaInicialDialog({ onCompleted }: Props) {
         </DialogHeader>
 
         <div className="space-y-4">
-          <Alert variant="destructive">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Pré-requisitos</AlertTitle>
-            <AlertDescription className="text-xs">
-              Sistema deve estar zerado (use "Limpar Dados de Migração" antes). Esta carga não faz merge — falha em caso de conflito.
-            </AlertDescription>
-          </Alert>
+          <div className="border rounded-lg p-3 space-y-2">
+            <Label className="text-sm font-medium">Modo de importação</Label>
+            <RadioGroup value={modo} onValueChange={(v) => setModo(v as "insert" | "merge")} className="space-y-1.5">
+              <label className="flex items-start gap-2 cursor-pointer text-xs">
+                <RadioGroupItem value="merge" id="modo-merge" className="mt-0.5" />
+                <span>
+                  <span className="font-medium">Merge (recomendado)</span> — atualiza registros existentes pelo código legado e cria os faltantes. Estoque é ajustado por movimento de abertura. Idempotente.
+                </span>
+              </label>
+              <label className="flex items-start gap-2 cursor-pointer text-xs">
+                <RadioGroupItem value="insert" id="modo-insert" className="mt-0.5" />
+                <span>
+                  <span className="font-medium">Carga inicial estrita</span> — só roda se as tabelas alvo estiverem vazias. Usar apenas em base zerada.
+                </span>
+              </label>
+            </RadioGroup>
+          </div>
 
           <div className="space-y-2">
             <label className="text-sm font-medium flex items-center gap-2"><FileSpreadsheet className="h-4 w-4" /> Planilha Conciliação_FluxoCaixa</label>
@@ -83,17 +94,15 @@ export function CargaInicialDialog({ onCompleted }: Props) {
             </Alert>
           )}
 
-          <label className="flex items-center gap-2 text-sm">
-            <Checkbox checked={force} onCheckedChange={(v) => setForce(v === true)} />
-            Forçar carga mesmo com dados pré-existentes (não recomendado)
-          </label>
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)} disabled={isProcessing}>Fechar</Button>
           <Button onClick={handleConsolidar} disabled={!file || isProcessing} className="gap-2">
             {isProcessing && <Loader2 className="h-4 w-4 animate-spin" />}
-            {loteId ? "Confirmar Carga Inicial" : "Stage + Carga Inicial"}
+            {loteId
+              ? (modo === "merge" ? "Confirmar Merge" : "Confirmar Carga Inicial")
+              : (modo === "merge" ? "Stage + Merge" : "Stage + Carga Inicial")}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -160,5 +160,25 @@ export function useCargaInicial() {
     } finally { setIsProcessing(false); }
   }, [loteId]);
 
-  return { file, bundle, resumo, loteId, resultado, isProcessing, onFileChange, stageAll, consolidar };
+  /** Modo merge: tolerante a dados existentes — UPSERT por código legado. */
+  const consolidarMerge = useCallback(async (): Promise<boolean> => {
+    if (!loteId) { toast.error("Faça o staging primeiro."); return false; }
+    setIsProcessing(true);
+    try {
+      const { data, error } = await supabase.rpc("merge_lote_conciliacao", { p_lote_id: loteId });
+      if (error) throw error;
+      const r = data as Record<string, unknown> & { erro?: string };
+      if (r?.erro) { toast.error(`Erro: ${String(r.erro)}`); setResultado(r); return false; }
+      setResultado(r);
+      toast.success(
+        `Merge concluído: ${r.inseridos} novos, ${r.atualizados} atualizados, ${r.estoque} ajustes de estoque, ${r.duplicados} duplicados.`,
+      );
+      return true;
+    } catch (err) {
+      toast.error(`Falha no merge: ${err instanceof Error ? err.message : String(err)}`);
+      return false;
+    } finally { setIsProcessing(false); }
+  }, [loteId]);
+
+  return { file, bundle, resumo, loteId, resultado, isProcessing, onFileChange, stageAll, consolidar, consolidarMerge };
 }
