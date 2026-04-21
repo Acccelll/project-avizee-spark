@@ -510,11 +510,18 @@ export function useImportacaoConciliacao() {
       }
       setIsProcessing(true);
       try {
-        // 1) Plano de contas via consolidar_lote_enriquecimento
+        // 1) Cadastros (clientes/fornecedores da aba CLIENTES/FORNECEDORES)
+        const { error: errCad } = await supabase.rpc("consolidar_lote_cadastros", { p_lote_id: target });
+        if (errCad) throw errCad;
+        // Re-marca lote como staging para próxima RPC (consolidar_lote_cadastros muda status).
+        await supabase.from("importacao_lotes").update({ status: "staging" }).eq("id", target);
+
+        // 2) Plano de contas via consolidar_lote_enriquecimento
         const { error: errEnr } = await supabase.rpc("consolidar_lote_enriquecimento", { p_lote_id: target });
         if (errEnr) throw errEnr;
+        await supabase.from("importacao_lotes").update({ status: "staging" }).eq("id", target);
 
-        // 2) Financeiro
+        // 3) Financeiro
         const { data, error } = await supabase.rpc("consolidar_lote_financeiro", { p_lote_id: target });
         if (error) throw error;
         const r = data as Record<string, unknown> & { erro?: string };
