@@ -152,3 +152,38 @@ Correções aplicadas nos hooks para aproveitar 100% das planilhas-modelo:
 
 ### RPCs (sem alteração)
 `consolidar_lote_faturamento` já cria cliente automático com CNPJ + nome + cidade + UF (origem `migracao_nf:CNPJ`). `consolidar_lote_financeiro` mantém dedup determinístico e status derivado (`pago/parcial/vencido/aberto`).
+
+---
+
+## Smoke tests pós-migração
+
+Após uma carga inicial completa, rodar as 4 queries abaixo para validar integridade:
+
+```sql
+-- 1) Cobertura de codigo_legado em pessoas
+SELECT
+  (SELECT count(*) FROM clientes WHERE codigo_legado IS NULL) AS clientes_sem_legado,
+  (SELECT count(*) FROM fornecedores WHERE codigo_legado IS NULL) AS fornec_sem_legado,
+  (SELECT count(*) FROM produtos WHERE codigo_legado IS NULL) AS produtos_sem_legado;
+
+-- 2) Lançamentos órfãos (sem pessoa vinculada)
+SELECT tipo, count(*) FROM financeiro_lancamentos
+WHERE cliente_id IS NULL AND fornecedor_id IS NULL AND funcionario_id IS NULL
+GROUP BY tipo;
+
+-- 3) Lançamentos sem conta contábil
+SELECT count(*) FROM financeiro_lancamentos WHERE conta_contabil_id IS NULL;
+
+-- 4) Produtos sem fornecedor vinculado (apenas produtos, não insumos)
+SELECT count(*) FROM produtos p
+WHERE p.tipo_item = 'produto'
+  AND NOT EXISTS (SELECT 1 FROM produtos_fornecedores pf WHERE pf.produto_id = p.id);
+```
+
+### Novas estruturas (Abr/2026)
+
+- **`centros_custo`** — referenciado por `financeiro_lancamentos.centro_custo_id`.
+- **`contas_contabeis_sinteticas`** — agrupador hierárquico do plano analítico (`contas_contabeis.conta_sintetica_codigo`).
+- **`notas_fiscais_itens.custo_historico_unitario`** — preserva o custo unitário original da planilha de faturamento histórico (margem de referência).
+
+A RPC `carga_inicial_processar_extras(p_lote_id)` é executada automaticamente após `carga_inicial_conciliacao` para popular centros de custo e sintéticas a partir do staging.
