@@ -9,7 +9,7 @@ interface CondicoesForm {
   pagamento: string;
   prazo_pagamento: string;
   prazo_entrega: string;
-  frete_tipo: string;
+  servico_frete: string;
   modalidade: string;
 }
 
@@ -58,8 +58,8 @@ export function OrcamentoCondicoesCard({ form, onChange }: Props) {
           <Input value={form.prazo_entrega} onChange={(e) => onChange("prazo_entrega", e.target.value)} placeholder="Ex: 12 dias úteis" />
         </div>
         <div className="space-y-1.5">
-          <Label className="text-xs">Transportadora / Serviço de Frete</Label>
-          <Input value={form.frete_tipo} onChange={(e) => onChange("frete_tipo", e.target.value)} placeholder="Ex: CORREIOS SEDEX, Transportadora X" />
+          <Label className="text-xs">Frete</Label>
+          <Input value={form.servico_frete} onChange={(e) => onChange("servico_frete", e.target.value)} placeholder="Ex.: SEDEX, Transportadora X" />
         </div>
         <div className="space-y-1.5">
           <Label className="text-xs">Modalidade (FOB / CIF)</Label>
@@ -68,6 +68,7 @@ export function OrcamentoCondicoesCard({ form, onChange }: Props) {
             <SelectContent>
               <SelectItem value="FOB">FOB</SelectItem>
               <SelectItem value="CIF">CIF</SelectItem>
+              <SelectItem value="sem_frete">Sem frete</SelectItem>
             </SelectContent>
           </Select>
         </div>

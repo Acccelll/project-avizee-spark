@@ -161,8 +161,10 @@ export function useFreteSimulador({
     try {
       const cepDest = (cepDestino || '').replace(/\D/g, '');
       const result = await consultarCorreios({ cepOrigem, cepDestino: cepDest, peso: pesoTotal, comprimento: comprimentoCm, altura: alturaCm, largura: larguraCm });
-      const validas = result.filter((o) => !o.erro && o.valor > 0);
+      // Aceita tanto valores oficiais quanto fallback de estimativa (servico contém "(estimativa)")
+      const validas = result.filter((o) => (!o.erro || o.valor > 0) && o.valor > 0);
       if (validas.length === 0) { toast.warning('Nenhuma opção de frete disponível para este destino.'); return; }
+      const isEstimativa = validas.some((o) => /estimativa/i.test(o.servico || ''));
       const salvas = await salvarOpcoesCorreios(simId, validas);
       const novasOpcoes: FreteOpcaoLocal[] = salvas.map((s) => ({
         id: s.id, simulacao_id: s.simulacao_id, transportadora_id: s.transportadora_id,
@@ -171,7 +173,11 @@ export function useFreteSimulador({
         valor_adicional: s.valor_adicional, valor_total: s.valor_total, selecionada: s.selecionada, observacoes: s.observacoes,
       }));
       setOpcoes((prev) => [...prev.filter((o) => o.fonte !== 'correios'), ...novasOpcoes]);
-      toast.success(`${validas.length} opção(ões) dos Correios encontrada(s).`);
+      if (isEstimativa) {
+        toast.warning(`${validas.length} opção(ões) estimadas — credenciais Correios indisponíveis ou serviço fora do ar.`);
+      } else {
+        toast.success(`${validas.length} opção(ões) dos Correios encontrada(s).`);
+      }
     } catch (err) {
       console.error('[frete-correios]', err);
       toast.error('Erro ao consultar Correios: ' + (err instanceof Error ? err.message : 'Tente novamente'));
