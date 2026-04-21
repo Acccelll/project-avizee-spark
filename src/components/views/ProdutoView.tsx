@@ -25,6 +25,7 @@ import { SectionTitle } from "@/components/ui/SectionTitle";
 import { DetailLoading, DetailError, DetailEmpty } from "@/components/ui/DetailStates";
 import type {
   HistoricoNfItemRow,
+  HistoricoNfVendaRow,
   ComposicaoItemRow,
   MovimentoEstoqueRow,
   ProdutoFornecedorViewRow,
@@ -44,7 +45,8 @@ interface Props {
 interface ProdutoDetail {
   produto: Tables<"produtos">;
   grupoNome: string | null;
-  historico: HistoricoNfItemRow[];
+  historicoCompras: HistoricoNfItemRow[];
+  historicoVendas: HistoricoNfVendaRow[];
   composicao: ComposicaoItemRow[];
   movimentos: MovimentoEstoqueRow[];
   fornecedoresProd: ProdutoFornecedorViewRow[];
