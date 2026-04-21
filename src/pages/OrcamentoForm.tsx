@@ -20,9 +20,10 @@ import { OrcamentoSidebarSummary } from "@/components/Orcamento/OrcamentoSidebar
 import { OrcamentoPdfTemplate } from "@/components/Orcamento/OrcamentoPdfTemplate";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Save, Eye, FileText, Copy, Plus, Search, Wand2, RefreshCw, CheckCircle2, AlertTriangle, CalendarDays, Clock } from "lucide-react";
+import { Save, Eye, FileText, Copy, Plus, Search, Wand2, RefreshCw, CheckCircle2, AlertTriangle, CalendarDays, Clock, MoreHorizontal, LayoutTemplate, Mail, ChevronDown } from "lucide-react";
 import { PageShell } from "@/components/PageShell";
 import { JustCreatedBanner } from "@/components/JustCreatedBanner";
 import { QuickAddClientModal } from "@/components/QuickAddClientModal";
@@ -128,6 +129,7 @@ export default function OrcamentoForm() {
   const [restoreDraftOpen, setRestoreDraftOpen] = useState(false);
   const [templateName, setTemplateName] = useState("");
   const [templates, setTemplates] = useState<OrcamentoTemplate[]>([]);
+  const [templateDialogOpen, setTemplateDialogOpen] = useState<null | "usuario" | "equipe">(null);
   const [layoutTemplate, setLayoutTemplate] = useState<'simples' | 'completo' | 'logo'>('completo');
   const { confirm: confirmAction, dialog: confirmActionDialog } = useConfirmDialog();
 
@@ -158,6 +160,7 @@ export default function OrcamentoForm() {
       prazoPagamento: '',
       prazoEntrega: '',
       freteTipo: '',
+      servicoFrete: '',
       modalidade: '',
       observacoes: '',
       observacoesInternas: '',
@@ -179,6 +182,7 @@ export default function OrcamentoForm() {
     prazoPagamento,
     prazoEntrega,
     freteTipo,
+    servicoFrete,
     modalidade,
     observacoes,
     observacoesInternas,
