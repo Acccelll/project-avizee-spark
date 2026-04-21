@@ -4,10 +4,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { validateFaturamentoImport } from "@/lib/importacao/validators";
 import { FIELD_ALIASES, FATURAMENTO_FIELD_ALIASES } from "@/lib/importacao/aliases";
+import { validarChaveAcesso, extrairInformacoesChave } from "@/services/fiscal/validadores/chaveAcesso.validator";
+import { normalizeText } from "@/lib/importacao/normalizers";
 import { Mapping } from "./types";
 
 export interface GroupedNF {
   numero: string;
+  serie: string;
   cliente_nome: string;
   cliente_id?: string | null;
   cpf_cnpj_destinatario?: string | null;
