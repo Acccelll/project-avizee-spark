@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { Clock } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useUserPreference } from "@/hooks/useUserPreference";
 import {
   Dialog,
   DialogContent,
@@ -22,15 +23,28 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
-const WARN_BEFORE_MS = 5 * 60 * 1000; // 5 min
 const TOAST_ID = "session-expiry";
+const KEEPALIVE_INTERVAL_MS = 30 * 60 * 1000; // 30 min
 
 export function SessionExpiryWarning() {
-  const { session, signOut } = useAuth();
+  const { session, signOut, user } = useAuth();
   const [expired, setExpired] = useState(false);
   const warnTimerRef = useRef<number | null>(null);
   const expireTimerRef = useRef<number | null>(null);
   const lastWarnedFor = useRef<number | null>(null);
+
+  const { value: keepalive } = useUserPreference<boolean>(user?.id, 'session_keepalive', true);
+  const { value: warnMinutes } = useUserPreference<number>(user?.id, 'session_warn_minutes', 5);
+
+  // Keepalive: refresh silencioso a cada 30 min enquanto a aba está visível.
+  useEffect(() => {
+    if (!keepalive || !session) return;
+    const interval = window.setInterval(async () => {
+      if (document.visibilityState !== 'visible') return;
+      try { await supabase.auth.refreshSession(); } catch (e) { console.warn('[session keepalive]', e); }
+    }, KEEPALIVE_INTERVAL_MS);
+    return () => window.clearInterval(interval);
+  }, [keepalive, session]);
 
   useEffect(() => {
     // Limpa timers anteriores
@@ -46,7 +60,8 @@ export function SessionExpiryWarning() {
     const expiresAtMs = session.expires_at * 1000;
     const now = Date.now();
     const msUntilExpire = expiresAtMs - now;
-    const msUntilWarn = msUntilExpire - WARN_BEFORE_MS;
+    const warnBeforeMs = Math.max(1, warnMinutes ?? 5) * 60 * 1000;
+    const msUntilWarn = msUntilExpire - warnBeforeMs;
 
     const triggerWarn = () => {
       if (lastWarnedFor.current === expiresAtMs) return;
@@ -90,7 +105,7 @@ export function SessionExpiryWarning() {
       if (warnTimerRef.current) window.clearTimeout(warnTimerRef.current);
       if (expireTimerRef.current) window.clearTimeout(expireTimerRef.current);
     };
-  }, [session?.expires_at, signOut]);
+  }, [session?.expires_at, signOut, warnMinutes]);
 
   return (
     <Dialog open={expired} onOpenChange={() => { /* bloqueante */ }}>
