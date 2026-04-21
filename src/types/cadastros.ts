@@ -42,6 +42,18 @@ export interface HistoricoNfItemRow {
   } | null;
 }
 
+export interface HistoricoNfVendaRow {
+  quantidade: number | null;
+  valor_unitario: number | null;
+  notas_fiscais: {
+    id: string;
+    numero: string;
+    tipo: string;
+    data_emissao: string | null;
+    clientes: { id: string; nome_razao_social: string } | null;
+  } | null;
+}
+
 export interface ComposicaoItemRow {
   id: string | null;
   nome: string | null;
