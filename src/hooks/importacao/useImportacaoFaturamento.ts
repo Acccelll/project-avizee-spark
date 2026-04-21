@@ -194,7 +194,7 @@ export function useImportacaoFaturamento() {
   }, [rawRows, mapping]);
 
   /**
-   * Write to staging only — no final table writes.
+   * Faz staging + consolidação em uma única chamada (sem etapa manual de confirmação).
    */
   const processImport = async () => {
     if (previewData.length === 0) return;
@@ -285,7 +285,28 @@ export function useImportacaoFaturamento() {
         mensagem: `Staging de faturamento: ${validos.length} NFs, ${totalItens} itens, valor total R$ ${totalValor.toFixed(2)}.`,
       });
 
-      toast.success(`${validos.length} NFs enviadas para staging. Confirme para consolidar.`);
+      // Consolida automaticamente — sem etapa manual de confirmação
+      const { data: consolidData, error: consolidError } = await supabase.rpc(
+        "consolidar_lote_faturamento",
+        { p_lote_id: currentLoteId }
+      );
+      if (consolidError) throw consolidError;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result = consolidData as any;
+      if (result?.erro) {
+        toast.error(`Erro na consolidação: ${result.erro}`);
+        return currentLoteId;
+      }
+
+      await supabase.from("importacao_logs").insert({
+        lote_id: currentLoteId,
+        nivel: "info",
+        mensagem: `Consolidação automática: ${result?.nfs_inseridas ?? 0} NFs, ${result?.itens_inseridos ?? 0} itens, ${result?.erros ?? 0} erros.`,
+      });
+
+      toast.success(
+        `Importação concluída: ${result?.nfs_inseridas ?? validos.length} NFs e ${result?.itens_inseridos ?? totalItens} itens gravados.`
+      );
       return currentLoteId;
 
     } catch (error: unknown) {
@@ -296,43 +317,9 @@ export function useImportacaoFaturamento() {
     }
   };
 
-  const finalizeImport = async (loteIdParam?: string) => {
-    const targetLoteId = loteIdParam || loteId;
-    if (!targetLoteId) {
-      toast.error("Nenhum lote selecionado para consolidar.");
-      return false;
-    }
-
-    setIsProcessing(true);
-    try {
-      const { data, error } = await supabase.rpc("consolidar_lote_faturamento", {
-        p_lote_id: targetLoteId,
-      });
-
-      if (error) throw error;
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const result = data as any;
-      if (result?.erro) {
-        toast.error(`Erro na consolidação: ${result.erro}`);
-        return false;
-      }
-
-      await supabase.from("importacao_logs").insert({
-        lote_id: targetLoteId,
-        nivel: "info",
-        mensagem: `Consolidação de faturamento: ${result.nfs_inseridas} NFs, ${result.itens_inseridos} itens, ${result.erros} erros.`,
-      });
-
-      toast.success(`${result.nfs_inseridas} NFs históricas consolidadas (sem impacto em estoque/financeiro).`);
-      return true;
-    } catch (error: unknown) {
-      console.error("Erro na consolidação de faturamento:", error);
-      toast.error(`Falha na consolidação: ${error instanceof Error ? error.message : String(error)}`);
-      return false;
-    } finally {
-      setIsProcessing(false);
-    }
+  // Mantido por compatibilidade com a UI atual; o processImport já consolidou.
+  const finalizeImport = async (_loteIdParam?: string) => {
+    return true;
   };
 
   const cancelLote = async (loteIdParam?: string) => {
