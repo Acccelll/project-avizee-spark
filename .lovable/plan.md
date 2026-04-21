@@ -1,96 +1,94 @@
 
 
-# Implementação das correções da Revisão de Migração
+# Finalização das pendências da Revisão de Migração
 
-Aplicar as 11 correções identificadas no documento de revisão, organizadas por criticidade. Foco em destravar a deduplicação por `codigo_legado`/`cpf_cnpj`, completar abas hoje ignoradas (Centro de Custo, Sintéticas, Insumos) e enriquecer relacionamentos perdidos (produto↔fornecedor, lançamento↔conta bancária).
-
----
-
-## Fase 1 — Aliases e inferência de tipo (críticas, sem schema)
-
-**`src/lib/importacao/aliases.ts`** — adicionar entradas faltantes em `FIELD_ALIASES`:
-- `'CNPJ/CPF' → cpf_cnpj`, `'CNPJ' → cpf_cnpj`
-- `'COD.' → codigo_legado`, `'COD' → codigo_legado`
-- `'FANTASIA' → nome_fantasia`
-- `'VARIACOES' / 'VARIAÇÕES' → variacoes`
-- `'PAGT.' / 'PAGAMENTO' / 'COND. PAGAMENTO' → forma_pagamento_padrao`
-- `'REF. FORNECEDOR' / 'REF FORNECEDOR' → referencia_fornecedor`
-- `'COMPLEMENTO' → complemento` (já existe em FIELD_ALIASES — confirmar e estender ao parser de fornecedores)
-
-**`src/hooks/importacao/useImportacaoCadastros.ts`** — em `onSheetChange` e `generatePreview`, forçar `tipo_item = 'insumo'` quando `sheetName.toUpperCase().includes('INSUMO')`.
-
-**`src/lib/importacao/conciliacaoParser.ts`** — em `parsePessoasAux` (fornecedores), ler `Complemento`/`COMPLEMENTO` quando presente.
+Restam 4 lacunas das 11 correções do documento de revisão. As demais (aliases, schema novo, RPCs base, smoke tests) já estão aplicadas. Este plano foca exclusivamente no que ainda não funciona ponta-a-ponta.
 
 ---
 
-## Fase 2 — Schema: Centro de Custo e Sintéticas (crítico)
+## Pendência 1 — Hierarquia sintética do plano de contas
 
-Migration SQL:
-- Criar `centros_custo` (id, codigo unique, descricao, responsavel, ativo).
-- `ALTER TABLE financeiro_lancamentos ADD COLUMN centro_custo_id uuid REFERENCES centros_custo(id)`.
-- Criar `contas_contabeis_sinteticas` (codigo unique, descricao, nivel, conta_pai_codigo self-FK, ativo).
-- `ALTER TABLE contas_contabeis ADD COLUMN conta_sintetica_codigo text REFERENCES contas_contabeis_sinteticas(codigo)`.
-- `ALTER TABLE notas_fiscais_itens ADD COLUMN custo_historico_unitario numeric` (para Fase 4).
-- RLS em `centros_custo` e `contas_contabeis_sinteticas` (admin/financeiro write, autenticado read).
+A tabela `contas_contabeis_sinteticas` e a RPC `carga_inicial_processar_extras` já existem, mas ninguém envia linhas com `_tipo='sintetica'` ao staging. O parser não lê a aba `Sinteticas` e o `useCargaInicial` não a empacota.
 
-Parser/Hooks:
-- `parseConciliacaoWorkbook`: ler abas `Centro de Custo` e `Sinteticas`; expor em `ConciliacaoBundle`.
-- Novo `useImportacaoCentrosCusto.ts` (padrão preview→staging→RPC).
-- `useCargaInicial`: encadear sintéticas **antes** das analíticas, e centros de custo antes do financeiro.
-- RPC `carga_inicial_conciliacao`: processar sintéticas → analíticas (linkando `conta_sintetica_codigo`) e inserir centros de custo.
+**`src/lib/importacao/conciliacaoParser.ts`**
+- Adicionar tipo `SinteticaRow { codigo; descricao; nivel; conta_pai_codigo; _originalLine }` e expor `sinteticas: SinteticaRow[]` em `ConciliacaoBundle`.
+- Em `parseConciliacaoWorkbook`, buscar aba via `findSheet(wb, ["Sinteticas","Sintéticas"])` e chamar novo `parseSinteticas` (colunas: `Código Sintético`, `Nome Sintético Sugerido`, `Nível`, `Conta Pai`).
 
----
+**`src/hooks/importacao/useCargaInicial.ts`**
+- Acrescentar `bundle.sinteticas.forEach(s => cadRows.push({ ..., dados: { _tipo: "sintetica", codigo: s.codigo, descricao: s.descricao, nivel: s.nivel, conta_pai_codigo: s.conta_pai_codigo } }))` antes do plano analítico.
+- Atualizar `CargaInicialResumo.contagens` com `sinteticas`.
 
-## Fase 3 — Enriquecimentos do Financeiro e Produtos (moderado)
-
-**Banco → conta bancária** (`useImportacaoConciliacao` + RPC `consolidar_lote_financeiro`):
-- Carregar `contas_bancarias` (id, apelido/nome) e construir Map normalizado.
-- Resolver `conta_bancaria_id` por nome/apelido a partir do campo `Banco` antes de gravar em `stg_financeiro_aberto`.
-
-**`produtos_fornecedores` a partir da aba PRODUTOS:**
-- Parser captura `referencia_fornecedor` e `fornecedor_nome`.
-- RPC `consolidar_lote_cadastros`: após upsert de produto, resolver fornecedor e fazer upsert em `produtos_fornecedores` com `ON CONFLICT (produto_id, fornecedor_id) DO UPDATE`.
-
-**Custo zero em INSUMOS** (`validators.ts`): `validateEstoqueInicialImport` aceita `custo_medio` ausente como warning, gravando `0`.
+**Migração SQL**
+- Alterar `carga_inicial_processar_extras` para também: após criar sintéticas, fazer `UPDATE contas_contabeis SET conta_sintetica_codigo = (mais longo prefixo do código que case com `contas_contabeis_sinteticas.codigo`)` para amarrar a hierarquia.
 
 ---
 
-## Fase 4 — Qualidade e validação (melhoria)
+## Pendência 2 — `conta_bancaria_id` no financeiro
 
-- RPC `consolidar_lote_faturamento`: gravar `custo_unitario` da planilha em `notas_fiscais_itens.custo_historico_unitario` (preserva margem histórica).
-- Confirmar dedup `ON CONFLICT (chave_acesso) DO NOTHING` na consolidação de faturamento (evita colisão com `useImportacaoXml`).
-- `docs/MIGRACAO.md`: adicionar seção "Smoke tests pós-migração" com as 4 queries de validação do prompt.
+O campo `Banco` chega ao JSONB mas vira só texto. `contas_bancarias` tem `descricao` (não `apelido`).
+
+**Migração SQL — `consolidar_lote_financeiro`**
+- Adicionar bloco após resolução da conta contábil:
+  ```sql
+  IF v_dados->>'banco' IS NOT NULL AND v_dados->>'banco' <> '' THEN
+    SELECT id INTO v_conta_bancaria_id FROM contas_bancarias
+     WHERE upper(unaccent(descricao)) = upper(unaccent(v_dados->>'banco'))
+        OR upper(unaccent(titular))   = upper(unaccent(v_dados->>'banco'))
+     LIMIT 1;
+  END IF;
+  ```
+- Incluir `conta_bancaria_id` no `INSERT INTO financeiro_lancamentos`.
+- Mesmo bloco em `merge_lote_conciliacao`.
 
 ---
 
-## Detalhes Técnicos
+## Pendência 3 — `produtos_fornecedores` na carga inicial
 
-**Tabelas/Colunas novas:**
-```text
-centros_custo(id, codigo UQ, descricao, responsavel, ativo)
-contas_contabeis_sinteticas(id, codigo UQ, descricao, nivel, conta_pai_codigo FK self, ativo)
-financeiro_lancamentos.centro_custo_id  → centros_custo.id
-contas_contabeis.conta_sintetica_codigo → contas_contabeis_sinteticas.codigo
-notas_fiscais_itens.custo_historico_unitario numeric
-```
+A RPC `vincular_produto_fornecedor` já está pronta; falta invocá-la dentro de `carga_inicial_conciliacao` após o loop de produtos/insumos.
 
-**RPCs afetadas (todas com `SET search_path = public`):**
-- `carga_inicial_conciliacao` — adicionar processamento de sintéticas e centros de custo na ordem correta.
-- `consolidar_lote_cadastros` — upsert em `produtos_fornecedores`.
-- `consolidar_lote_financeiro` — aceitar `conta_bancaria_id` e `centro_custo_id` no JSONB.
-- `consolidar_lote_faturamento` — gravar custo histórico, garantir idempotência por `chave_acesso`.
+**Migração SQL — `carga_inicial_conciliacao`**
+- Após o `INSERT/UPDATE` de cada produto, se `dados->>'fornecedor_principal_nome'` ou `fornecedor_principal_legado` existirem, chamar:
+  ```sql
+  PERFORM vincular_produto_fornecedor(
+    v_produto_id,
+    dados->>'fornecedor_principal_nome',
+    dados->>'fornecedor_principal_legado',
+    dados->>'ref_fornecedor',
+    dados->>'url_produto_fornecedor',
+    NULL
+  );
+  ```
+- Idem em `merge_lote_conciliacao`.
+
+---
+
+## Pendência 4 — `custo_historico_unitario` em NF itens
+
+Coluna existe mas RPC ignora. Preserva margem real da época da venda.
+
+**Migração SQL — `consolidar_lote_faturamento`**
+- No `INSERT INTO notas_fiscais_itens`, acrescentar coluna e valor:
+  ```sql
+  custo_historico_unitario = NULLIF(v_item->>'custo_unitario','')::numeric
+  ```
+- Documentar em `docs/MIGRACAO.md` que esse campo congela o custo histórico (separado do custo médio atual do produto).
+
+---
+
+## Detalhes técnicos
 
 **Arquivos editados:**
-- `src/lib/importacao/aliases.ts`
-- `src/lib/importacao/conciliacaoParser.ts`
-- `src/lib/importacao/validators.ts`
-- `src/hooks/importacao/useImportacaoCadastros.ts`
-- `src/hooks/importacao/useImportacaoConciliacao.ts`
-- `src/hooks/importacao/useCargaInicial.ts`
-- `src/hooks/importacao/useImportacaoCentrosCusto.ts` (novo)
-- `src/hooks/importacao/types.ts`
-- `docs/MIGRACAO.md`
-- Migrations SQL (schema + RPCs).
+- `src/lib/importacao/conciliacaoParser.ts` (parseSinteticas + tipo)
+- `src/hooks/importacao/useCargaInicial.ts` (staging de sintéticas + resumo)
+- `docs/MIGRACAO.md` (parágrafo sobre custo histórico)
+- 1 nova migration SQL com 4 alterações de função (`carga_inicial_processar_extras`, `consolidar_lote_financeiro`, `merge_lote_conciliacao`, `carga_inicial_conciliacao`, `consolidar_lote_faturamento`).
 
-**Fora de escopo:** UI de gestão de centros de custo e plano sintético (apenas importação/persistência); refazer migração dos dados já importados (rodar separadamente após o código estar pronto).
+**RPCs alteradas (todas mantendo `SET search_path = public, SECURITY DEFINER`):**
+- `consolidar_lote_financeiro` — resolver `conta_bancaria_id` por descricao/titular.
+- `merge_lote_conciliacao` — idem + chamada `vincular_produto_fornecedor`.
+- `carga_inicial_conciliacao` — chamada `vincular_produto_fornecedor`.
+- `carga_inicial_processar_extras` — pós-processo de `conta_sintetica_codigo` por prefixo.
+- `consolidar_lote_faturamento` — gravar `custo_historico_unitario`.
+
+**Fora de escopo:** UI para visualizar sintéticas/centros de custo; reprocessar lotes já consolidados (rodar manualmente após deploy se desejado); criar coluna `apelido` em `contas_bancarias` (a busca usará `descricao`/`titular` que já existem).
 
