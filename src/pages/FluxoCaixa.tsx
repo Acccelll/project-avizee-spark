@@ -26,6 +26,7 @@ import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianG
 import { exportarParaExcel } from "@/services/export.service";
 import type { Lancamento, ContaBancaria } from "@/types/domain";
 import { getUserFriendlyError } from "@/utils/errorMessages";
+import { displayDescricao } from "@/lib/displayLancamento";
 
 type Periodicidade = "diaria" | "semanal" | "mensal";
 
@@ -274,7 +275,7 @@ const FluxoCaixa = () => {
     },
     {
       key: "descricao", label: "Descrição", sortable: true,
-      render: (l: Lancamento) => <span className="text-sm">{l.descricao}</span>,
+      render: (l: Lancamento) => <span className="text-sm">{displayDescricao(l)}</span>,
     },
     {
       key: "valor", label: "Valor", sortable: true,

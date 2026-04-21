@@ -22,7 +22,18 @@ interface AppConfigContextValue {
   sidebarCollapsed: boolean;
   loadingSidebarCollapsed: boolean;
   saveSidebarCollapsed: (value: boolean) => Promise<boolean>;
+
+  /**
+   * Modo do menu lateral:
+   *  - `fixed-expanded`: sempre expandido (240px)
+   *  - `fixed-collapsed`: sempre recolhido (72px)
+   *  - `dynamic`: recolhido por padrão; expande no hover (overlay)
+   */
+  sidebarMode: SidebarMode;
+  saveSidebarMode: (mode: SidebarMode) => Promise<boolean>;
 }
+
+export type SidebarMode = 'fixed-expanded' | 'fixed-collapsed' | 'dynamic';
 
 const AppConfigContext = createContext<AppConfigContextValue | null>(null);
 
@@ -46,6 +57,11 @@ export function AppConfigProvider({ children }: { children: ReactNode }) {
     save: saveSidebarCollapsed,
   } = useUserPreference<boolean>(user?.id, 'sidebar_collapsed', true);
 
+  const {
+    value: sidebarMode,
+    save: saveSidebarMode,
+  } = useUserPreference<SidebarMode>(user?.id, 'sidebar_mode', 'dynamic');
+
   return (
     <AppConfigContext.Provider
       value={{
@@ -54,6 +70,8 @@ export function AppConfigProvider({ children }: { children: ReactNode }) {
         sidebarCollapsed,
         loadingSidebarCollapsed,
         saveSidebarCollapsed,
+        sidebarMode,
+        saveSidebarMode,
       }}
     >
       {children}

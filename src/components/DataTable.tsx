@@ -427,58 +427,31 @@ export function DataTable<T extends Record<string, any>>({
     ? `Esta ação inativará ${deleteItem?.nome || deleteItem?.numero || 'o registro selecionado'}.`
     : `Esta ação removerá ${deleteItem?.nome || deleteItem?.numero || 'o registro selecionado'} permanentemente.`;
 
-  const renderActions = (item: T) => (
-    <div className="flex items-center gap-1 flex-nowrap">
-      {renderInlineDetails && (
-        <Tooltip><TooltipTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Expandir detalhes" onClick={(e) => { e.stopPropagation(); toggleExpanded(item.id); }}>
-            <ExpandIcon className="h-4 w-4" />
-          </Button>
-        </TooltipTrigger><TooltipContent>Detalhes inline</TooltipContent></Tooltip>
-      )}
-      {onView && (
-        <Tooltip><TooltipTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Visualizar registro" onClick={(e) => { e.stopPropagation(); onView(item); }}>
-            <Eye className="h-4 w-4" />
-          </Button>
-        </TooltipTrigger><TooltipContent>Visualizar</TooltipContent></Tooltip>
-      )}
-      {onEdit && (
-        <Tooltip><TooltipTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Editar registro" onClick={(e) => { e.stopPropagation(); onEdit(item); }}>
-            <Pencil className="h-4 w-4" />
-          </Button>
-        </TooltipTrigger><TooltipContent>Editar</TooltipContent></Tooltip>
-      )}
-      {onDuplicate && (
-        <Tooltip><TooltipTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Duplicar registro" onClick={(e) => { e.stopPropagation(); onDuplicate(item); }}>
-            <Copy className="h-4 w-4" />
-          </Button>
-        </TooltipTrigger><TooltipContent>Duplicar</TooltipContent></Tooltip>
-      )}
-      {onDelete && (
-        <Tooltip><TooltipTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-destructive hover:text-destructive"
-            aria-label={deleteActionLabel}
-            onClick={(e) => {
-              e.stopPropagation();
-              if (skipDeleteConfirm) {
-                onDelete(item);
-                return;
-              }
-              setDeleteItem(item);
-            }}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </TooltipTrigger><TooltipContent>{deleteActionLabel}</TooltipContent></Tooltip>
-      )}
-    </div>
-  );
+  // Em grids desktop só exibimos a ação primária "Visualizar".
+  // Edit / Duplicar / Excluir continuam disponíveis pelas props, mas devem ser
+  // expostos dentro do drawer (cabeçalho do ViewDrawerV2). Caso a tela não
+  // implemente onView, caímos no edit como fallback de compatibilidade.
+  const renderActions = (item: T) => {
+    const primaryAction = onView ?? onEdit;
+    return (
+      <div className="flex items-center gap-1 flex-nowrap">
+        {renderInlineDetails && (
+          <Tooltip><TooltipTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Expandir detalhes" onClick={(e) => { e.stopPropagation(); toggleExpanded(item.id); }}>
+              <ExpandIcon className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger><TooltipContent>Detalhes inline</TooltipContent></Tooltip>
+        )}
+        {primaryAction && (
+          <Tooltip><TooltipTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Visualizar registro" onClick={(e) => { e.stopPropagation(); primaryAction(item); }}>
+              <Eye className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger><TooltipContent>Visualizar</TooltipContent></Tooltip>
+        )}
+      </div>
+    );
+  };
 
   // Mobile card action menu
   const renderMobileActions = (item: T) => {

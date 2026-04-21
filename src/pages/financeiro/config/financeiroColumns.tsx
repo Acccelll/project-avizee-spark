@@ -6,6 +6,7 @@ import { formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { CreditCard } from "lucide-react";
 import type { Lancamento } from "@/types/domain";
+import { displayDescricao } from "@/lib/displayLancamento";
 
 interface Params {
   getLancamentoStatus: (l: Lancamento) => string;
@@ -52,7 +53,7 @@ export function buildFinanceiroColumns({ getLancamentoStatus, hoje, hojeStr, onB
       sortable: true,
       render: (l: Lancamento) => (
         <div className="space-y-0.5">
-          <span className="text-sm">{l.descricao}</span>
+          <span className="text-sm">{displayDescricao(l)}</span>
           {l.parcela_numero > 0 && (
             <span className="text-[10px] text-muted-foreground font-mono block">
               Parcela {l.parcela_numero}/{l.parcela_total}

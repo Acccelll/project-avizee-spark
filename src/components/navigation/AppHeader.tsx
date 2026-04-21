@@ -212,25 +212,20 @@ export function AppHeader({ onOpenMobileMenu: _onOpenMobileMenu, onOpenSearch, o
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="ghost" className="h-9 w-9 rounded-full p-0 ring-2 ring-transparent hover:ring-primary/20 focus-visible:ring-primary/40 transition relative" aria-label={`Menu da conta — ${profile?.nome || 'Admin'} · ${roleLabel}`}>
-                      <Avatar className="h-8 w-8">
-                        <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">{initials}</AvatarFallback>
-                      </Avatar>
-                      <span
-                        aria-hidden="true"
-                        className={cn('absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full ring-2 ring-card', roleDot)}
-                      />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">
-                    <p className="text-xs">
-                      <span className="font-medium">{profile?.nome || 'Admin'}</span>
-                      <span className="text-muted-foreground"> · {roleLabel}</span>
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
+                <Button
+                  variant="ghost"
+                  className="h-9 w-9 rounded-full p-0 ring-2 ring-transparent hover:ring-primary/20 focus-visible:ring-primary/40 transition relative"
+                  aria-label={`Menu da conta — ${profile?.nome || 'Admin'} · ${roleLabel}`}
+                  title={`${profile?.nome || 'Admin'} · ${roleLabel}`}
+                >
+                  <Avatar className="h-8 w-8">
+                    <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">{initials}</AvatarFallback>
+                  </Avatar>
+                  <span
+                    aria-hidden="true"
+                    className={cn('absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full ring-2 ring-card', roleDot)}
+                  />
+                </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel className="space-y-1">
