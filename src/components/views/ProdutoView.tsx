@@ -131,7 +131,8 @@ export function ProdutoView({ id }: Props) {
 
   const selected = data?.produto ?? null;
   const grupoNome = data?.grupoNome ?? null;
-  const historico = data?.historico ?? [];
+  const historicoCompras = data?.historicoCompras ?? [];
+  const historicoVendas = data?.historicoVendas ?? [];
   const composicao = data?.composicao ?? [];
   const movimentos = data?.movimentos ?? [];
   const fornecedoresProd = data?.fornecedoresProd ?? [];
@@ -140,6 +141,20 @@ export function ProdutoView({ id }: Props) {
   const lucroBruto = selected ? selected.preco_venda - (selected.preco_custo || 0) : 0;
   const custoCompostoView = composicao.reduce((s, c) => s + c.quantidade * (c.preco_custo || 0), 0);
   const estoqueValor = selected ? (selected.estoque_atual || 0) * (selected.preco_custo || 0) : 0;
+
+  // KPIs Compras
+  const totalComprado = historicoCompras.reduce((s, h) => s + Number(h.quantidade || 0), 0);
+  const valorComprado = historicoCompras.reduce((s, h) => s + Number(h.quantidade || 0) * Number(h.valor_unitario || 0), 0);
+  const custoMedioCompras = totalComprado > 0 ? valorComprado / totalComprado : 0;
+
+  // KPIs Vendas
+  const totalVendido = historicoVendas.reduce((s, h) => s + Number(h.quantidade || 0), 0);
+  const valorVendido = historicoVendas.reduce((s, h) => s + Number(h.quantidade || 0) * Number(h.valor_unitario || 0), 0);
+  const ticketMedioVenda = totalVendido > 0 ? valorVendido / totalVendido : 0;
+  const margemMediaVenda = ticketMedioVenda > 0 && (selected?.preco_custo || 0) > 0
+    ? ((ticketMedioVenda / Number(selected!.preco_custo)) - 1) * 100
+    : 0;
+
   const estoqueBaixo = selected ? Number(selected.estoque_atual) <= Number(selected.estoque_minimo) && Number(selected.estoque_minimo) > 0 : false;
   const fiscalCompleto = !!(selected?.ncm && selected?.cst && selected?.cfop_padrao);
   const fornecedorPrincipal = fornecedoresProd.find((f) => f.eh_principal);
