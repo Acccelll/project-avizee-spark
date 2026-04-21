@@ -1343,6 +1343,37 @@ export default function OrcamentoForm() {
           handleClienteChange(newId);
         }}
       />
+
+      <Dialog open={templateDialogOpen !== null} onOpenChange={(open) => !open && setTemplateDialogOpen(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{templateDialogOpen === 'equipe' ? 'Compartilhar template com a equipe' : 'Salvar como meu template'}</DialogTitle>
+            <DialogDescription>Dê um nome para identificar este template ao reutilizá-lo em novos orçamentos.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="tpl-name" className="text-xs">Nome do template</Label>
+            <Input
+              id="tpl-name"
+              autoFocus
+              value={templateName}
+              onChange={(e) => setTemplateName(e.target.value)}
+              placeholder="Ex.: Cotação padrão SP"
+            />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setTemplateDialogOpen(null)}>Cancelar</Button>
+            <Button
+              disabled={!templateName.trim()}
+              onClick={async () => {
+                const escopo = templateDialogOpen!;
+                await saveTemplate(escopo);
+                setTemplateDialogOpen(null);
+              }}
+            >Salvar</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {confirmActionDialog}
     </PageShell>
   );
