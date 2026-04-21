@@ -6,7 +6,13 @@ import { validateFaturamentoImport } from "@/lib/importacao/validators";
 import { FIELD_ALIASES, FATURAMENTO_FIELD_ALIASES } from "@/lib/importacao/aliases";
 import { validarChaveAcesso, extrairInformacoesChave } from "@/services/fiscal/validadores/chaveAcesso.validator";
 import { normalizeText } from "@/lib/importacao/normalizers";
-import { normalizarDescricao } from "@/lib/importacao/produtoMatch";
+import {
+  normalizarDescricao,
+  contarPreviewMatches,
+  type PreviewMatchCounts,
+  type ProdutoLookup,
+  type IdentificadorLegacyLookup,
+} from "@/lib/importacao/produtoMatch";
 import { Mapping } from "./types";
 
 export interface GroupedNF {
@@ -44,6 +50,7 @@ export function useImportacaoFaturamento() {
   const [headers, setHeaders] = useState<string[]>([]);
   const [mapping, setMapping] = useState<Mapping>({});
   const [previewData, setPreviewData] = useState<GroupedNF[]>([]);
+  const [matchCounts, setMatchCounts] = useState<PreviewMatchCounts | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [loteId, setLoteId] = useState<string | null>(null);
 
@@ -258,6 +265,34 @@ export function useImportacaoFaturamento() {
       });
 
       setPreviewData(Array.from(grouped.values()));
+
+      // Contagem prevista de match — espelha pipeline da RPC (sem persistir).
+      const { data: identificadores } = await supabase
+        .from("produto_identificadores_legacy")
+        .select("produto_id, codigo_legacy, descricao_normalizada")
+        .eq("ativo", true);
+
+      const produtosLookup: ProdutoLookup[] = (produtosBanco ?? []).map((p: any) => ({
+        id: p.id,
+        codigo_interno: p.codigo_interno,
+        codigo_legado: p.codigo_legado,
+        nome: p.nome,
+        ativo: true,
+      }));
+      const identsLookup: IdentificadorLegacyLookup[] = (identificadores ?? []) as IdentificadorLegacyLookup[];
+
+      const itensFlat: Array<{ codigo: string | null; descricao: string | null }> = [];
+      grouped.forEach((nf) => {
+        if (nf.status === "duplicado" || nf.status === "erro") return;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        nf.itens.forEach((it: any) => {
+          itensFlat.push({
+            codigo: (it.codigo_legado_produto ?? it.codigo_produto_nf ?? null) as string | null,
+            descricao: (it.nome_produto ?? it.descricao ?? null) as string | null,
+          });
+        });
+      });
+      setMatchCounts(contarPreviewMatches(itensFlat, produtosLookup, identsLookup));
     } catch (err: unknown) {
       toast.error(`Erro ao gerar prévia: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
@@ -419,6 +454,7 @@ export function useImportacaoFaturamento() {
     headers,
     mapping,
     previewData,
+    matchCounts,
     isProcessing,
     onFileChange,
     onSheetChange,

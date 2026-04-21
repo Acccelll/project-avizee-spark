@@ -42,6 +42,7 @@ import { useImportacaoConciliacao } from "@/hooks/importacao/useImportacaoConcil
 import { PreviewConciliacaoTabs } from "@/components/importacao/PreviewConciliacaoTabs";
 import { LimparDadosMigracaoButton } from "@/components/importacao/LimparDadosMigracaoButton";
 import { CargaInicialDialog } from "@/components/importacao/CargaInicialDialog";
+import { RelatorioMigracaoFaturamentoCard } from "@/components/importacao/RelatorioMigracaoFaturamento";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { PageShell } from "@/components/PageShell";
 import { useImportacaoEnriquecimento, type EnrichmentType } from "@/hooks/importacao/useImportacaoEnriquecimento";
@@ -776,7 +777,29 @@ export default function MigracaoDados() {
                   {activeImportSource === 'xml' ? (
                     <PreviewXmlTable data={hookXml.xmlData} />
                   ) : activeImportSource === 'faturamento' ? (
-                    <PreviewFaturamentoTable data={hookFaturamento.previewData} />
+                    <div className="space-y-4">
+                      {hookFaturamento.matchCounts && (
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                          <div className="p-3 rounded-md border bg-emerald-50 border-emerald-200">
+                            <div className="text-xs text-emerald-700">Vinculáveis</div>
+                            <div className="text-xl font-bold text-emerald-700">{hookFaturamento.matchCounts.vinculado}</div>
+                          </div>
+                          <div className="p-3 rounded-md border bg-amber-50 border-amber-200">
+                            <div className="text-xs text-amber-700">Duvidosos</div>
+                            <div className="text-xl font-bold text-amber-700">{hookFaturamento.matchCounts.duvidoso}</div>
+                          </div>
+                          <div className="p-3 rounded-md border bg-red-50 border-red-200">
+                            <div className="text-xs text-red-700">Não vinculados</div>
+                            <div className="text-xl font-bold text-red-700">{hookFaturamento.matchCounts.nao_vinculado}</div>
+                          </div>
+                          <div className="p-3 rounded-md border bg-muted/50">
+                            <div className="text-xs text-muted-foreground">Criar como descontinuados</div>
+                            <div className="text-xl font-bold">{hookFaturamento.matchCounts.criar_descontinuado}</div>
+                          </div>
+                        </div>
+                      )}
+                      <PreviewFaturamentoTable data={hookFaturamento.previewData} />
+                    </div>
                   ) : activeImportSource === 'financeiro' ? (
                     <PreviewFinanceiroTable data={hookFinanceiro.previewData} />
                   ) : activeImportSource === 'conciliacao' ? (
@@ -793,17 +816,22 @@ export default function MigracaoDados() {
               )}
 
               {step === 4 && (
-                <div className="flex flex-col items-center justify-center py-12 text-center space-y-4">
-                  <div className="p-4 bg-emerald-100 rounded-full">
-                    <CheckCircle2 className="h-12 w-12 text-emerald-600" />
+                <div className="space-y-4">
+                  <div className="flex flex-col items-center justify-center py-6 text-center space-y-3">
+                    <div className="p-4 bg-emerald-100 rounded-full">
+                      <CheckCircle2 className="h-12 w-12 text-emerald-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold">Tudo pronto!</h3>
+                      <p className="text-muted-foreground max-w-md">
+                        Os dados foram validados e estão no ambiente de staging.
+                        Clique em <strong>Confirmar Carga</strong> para inserir definitivamente no sistema.
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-xl font-bold">Tudo pronto!</h3>
-                    <p className="text-muted-foreground max-w-md">
-                      Os dados foram validados e estão no ambiente de staging.
-                      Clique em <strong>Confirmar Carga</strong> para inserir definitivamente no sistema.
-                    </p>
-                  </div>
+                  {activeImportSource === 'faturamento' && currentLoteId && (
+                    <RelatorioMigracaoFaturamentoCard loteId={currentLoteId} />
+                  )}
                 </div>
               )}
             </div>
