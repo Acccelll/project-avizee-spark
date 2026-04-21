@@ -127,6 +127,14 @@ export interface CentroCustoRow {
   _originalLine: number;
 }
 
+export interface SinteticaRow {
+  codigo: string;
+  descricao: string;
+  nivel: number | null;
+  conta_pai_codigo: string | null;
+  _originalLine: number;
+}
+
 export interface PessoaAuxRow {
   tipo_pessoa: "fisica" | "juridica";
   cpf_cnpj: string;
@@ -179,6 +187,7 @@ export interface ConciliacaoBundle {
   fc: FCRow[];
   planoContas: PlanoContasRow[];
   centroCusto: CentroCustoRow[];
+  sinteticas: SinteticaRow[];
   clientes: PessoaAuxRow[];
   fornecedores: PessoaAuxRow[];
   produtos: ProdutoInsumoRow[];
