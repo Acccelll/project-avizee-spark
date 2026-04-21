@@ -51,6 +51,8 @@ export function useCargaInicial() {
         contagens: {
           grupos: grupos.size,
           planoContas: b.planoContas.length,
+          sinteticas: b.sinteticas.length,
+          centrosCusto: b.centroCusto.length,
           fornecedores: b.fornecedores.length,
           clientes: b.clientes.length,
           produtos: b.produtos.length,
