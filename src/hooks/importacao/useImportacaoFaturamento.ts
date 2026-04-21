@@ -313,7 +313,7 @@ export function useImportacaoFaturamento() {
           lote_id: currentLoteId,
           dados: {
             numero: nf.numero,
-            serie: "1",
+            serie: nf.serie || "1",
             data_emissao: nf.data_emissao,
             chave_acesso: nf.chave_acesso,
             valor_total: nf.valor_total,
@@ -329,6 +329,7 @@ export function useImportacaoFaturamento() {
             itens: nf.itens.map((item: any) => ({
               codigo_produto: item.codigo_produto_nf,
               codigo_legado_produto: item.codigo_legado_produto,
+              produto_id: item.produto_id || null,
               descricao: item.nome_produto || item.descricao || "Item",
               quantidade: item.quantidade || 1,
               unidade: item.unidade || "UN",
