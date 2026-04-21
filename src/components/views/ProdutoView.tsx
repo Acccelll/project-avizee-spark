@@ -378,14 +378,18 @@ export function ProdutoView({ id }: Props) {
               ))}
             </div>
           )}
-        {historico.filter((h) => h.notas_fiscais?.tipo === 'entrada' || h.notas_fiscais?.tipo === 'compra').length > 0 && (
+        {(historicoCompras.length > 0 || totalComprado > 0) && (
             <div className="border-t pt-3">
+              <div className="grid grid-cols-3 gap-2 mb-3">
+                <DrawerSummaryCard label="Qtd Comprada" value={totalComprado.toLocaleString("pt-BR")} align="center" />
+                <DrawerSummaryCard label="Valor Total" value={formatCurrency(valorComprado)} align="center" />
+                <DrawerSummaryCard label="Custo Médio" value={formatCurrency(custoMedioCompras)} align="center" />
+              </div>
               <h4 className="font-semibold text-xs text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-2">
                 <FileText className="w-3.5 h-3.5" /> Últimas Compras
               </h4>
               <div className="space-y-1.5">
-                {historico
-                  .filter((h) => h.notas_fiscais?.tipo === 'entrada' || h.notas_fiscais?.tipo === 'compra')
+                {historicoCompras
                   .slice(0, 10)
                   .map((h, idx: number) => (
                     <div key={idx} className="flex justify-between text-xs py-1.5 border-b last:border-b-0">
