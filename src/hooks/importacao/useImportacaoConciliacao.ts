@@ -36,6 +36,20 @@ export interface PreviewPlanoLinha extends PlanoContasRow {
   _action: "criar" | "atualizar" | "ignorar";
 }
 
+export interface PreviewPessoaLinha {
+  origem: "CLIENTES" | "FORNECEDORES";
+  tipo_pessoa: "fisica" | "juridica";
+  codigo_legado: string;
+  cpf_cnpj: string | null;
+  nome_razao_social: string;
+  nome_fantasia: string | null;
+  cidade: string | null;
+  uf: string | null;
+  _action: "criar" | "atualizar" | "ignorar";
+  _matched_id: string | null;
+  _errors: string[];
+}
+
 export interface ReconciliacaoFC {
   totalFC: number;
   totalDerivado: number;
@@ -52,6 +66,8 @@ export interface PreviewConciliacaoBundle {
   cp: PreviewFinanceiroLinha[];
   fopag: PreviewFinanceiroLinha[];
   plano: PreviewPlanoLinha[];
+  clientes: PreviewPessoaLinha[];
+  fornecedores: PreviewPessoaLinha[];
   fc: FCRow[];
   reconciliacao: ReconciliacaoFC;
   abasDetectadas: string[];
@@ -62,6 +78,10 @@ export interface PreviewConciliacaoBundle {
     pendentes: number;
     duplicados: number;
     erros: number;
+    clientes_a_criar: number;
+    clientes_a_atualizar: number;
+    fornecedores_a_criar: number;
+    fornecedores_a_atualizar: number;
   };
 }
 
