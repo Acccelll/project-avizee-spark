@@ -31,6 +31,7 @@ type ClienteWithGroup = Tables<"clientes"> & {
 };
 
 interface VendaRow { id: string; numero: string; data_emissao: string; valor_total: number; status: string }
+interface NotaSaidaRow { id: string; numero: string | null; data_emissao: string | null; valor_total: number | null; status: string | null; ordem_venda_id: string | null }
 type FinanceiroRow = Tables<"financeiro_lancamentos">;
 type ComunicacaoRow = Tables<"cliente_registros_comunicacao">;
 type TransportadoraRow = Tables<"cliente_transportadoras"> & { transportadoras: { nome_razao_social: string } | null };
@@ -38,6 +39,7 @@ type TransportadoraRow = Tables<"cliente_transportadoras"> & { transportadoras: 
 interface ClienteDetail {
   cliente: ClienteWithGroup;
   vendas: VendaRow[];
+  notasSaida: NotaSaidaRow[];
   financeiro: FinanceiroRow[];
   comunicacao: ComunicacaoRow[];
   transportadoras: TransportadoraRow[];
@@ -61,13 +63,21 @@ export function ClienteView({ id }: Props) {
     if (cError) throw cError;
     if (!c) return null;
 
-    const [vRes, fRes, commRes, transRes] = await Promise.all([
+    const [vRes, nfRes, fRes, commRes, transRes] = await Promise.all([
       supabase
         .from("ordens_venda")
         .select("id, numero, data_emissao, valor_total, status")
         .eq("cliente_id", c.id)
         .order("data_emissao", { ascending: false })
         .limit(10)
+        .abortSignal(signal),
+      supabase
+        .from("notas_fiscais")
+        .select("id, numero, data_emissao, valor_total, status, ordem_venda_id")
+        .eq("cliente_id", c.id)
+        .in("tipo", ["saida", "venda"])
+        .order("data_emissao", { ascending: false })
+        .limit(30)
         .abortSignal(signal),
       supabase
         .from("financeiro_lancamentos")
@@ -92,6 +102,7 @@ export function ClienteView({ id }: Props) {
     return {
       cliente: c as ClienteWithGroup,
       vendas: (vRes.data as VendaRow[]) || [],
+      notasSaida: (nfRes.data as NotaSaidaRow[]) || [],
       financeiro: (fRes.data as FinanceiroRow[]) || [],
       comunicacao: (commRes.data as ComunicacaoRow[]) || [],
       transportadoras: (transRes.data as TransportadoraRow[]) || [],
@@ -100,6 +111,7 @@ export function ClienteView({ id }: Props) {
 
   const selected = data?.cliente ?? null;
   const vendas = data?.vendas ?? [];
+  const notasSaida = data?.notasSaida ?? [];
   const financeiro = data?.financeiro ?? [];
   const comunicacao = data?.comunicacao ?? [];
   const transportadoras = data?.transportadoras ?? [];
@@ -108,8 +120,12 @@ export function ClienteView({ id }: Props) {
   const totalAberto = financeiro
     .filter((f) => f.status === "aberto" || f.status === "vencido" || f.status === "parcial")
     .reduce((acc, curr) => acc + (curr.saldo_restante || curr.valor), 0);
-  const ultCompra = vendas.length > 0 ? vendas[0].data_emissao : null;
-  const pmv = vendas.length > 0 ? vendas.reduce((acc, curr) => acc + (curr.valor_total || 0), 0) / Math.max(vendas.length, 1) : 0;
+  // Combina pedidos atuais + notas históricas migradas para os KPIs.
+  const ultCompra = vendas[0]?.data_emissao || notasSaida[0]?.data_emissao || null;
+  const pmvBase = vendas.length > 0 ? vendas : notasSaida;
+  const pmv = pmvBase.length > 0
+    ? pmvBase.reduce((acc, curr) => acc + (Number(curr.valor_total) || 0), 0) / pmvBase.length
+    : 0;
 
   // Publica slots no header padronizado
   usePublishDrawerSlots(`cliente:${id}`, {
