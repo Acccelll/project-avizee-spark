@@ -134,3 +134,21 @@ Migrations idempotentes aplicadas em lote:
 8. Trigger `trg_auditoria_orcamento_status` em `auditoria_logs`.
 
 Ver `docs/comercial-modelo.md` para o modelo completo.
+
+## Revisão da Migração de Dados (2026-04-21)
+
+Correções aplicadas nos hooks para aproveitar 100% das planilhas-modelo:
+
+### Faturamento (`useImportacaoFaturamento`)
+- **Série real da chave**: extrai posições 22-25 da `chave_acesso` via `extrairInformacoesChave`. Substitui o `serie="1"` hardcoded — NFs 117, 200, etc. agora coexistem com séries diferentes.
+- **Agrupamento por `numero|serie|data_emissao`**: evita colisão entre NFs reaproveitando o mesmo número em datas/séries distintas.
+- **Aba `Produtos` do workbook**: carregada em memória (não persiste) para enriquecer o lookup de itens — quando o `codigo_produto_nf` não bate em `produtos`, tenta resolver pelo nome via aba auxiliar. Item ainda guarda `produto_id` resolvido.
+- **Dedup contra banco**: prioriza `chave_acesso`; fallback `numero+serie+data_emissao` (não só `numero`).
+
+### Conciliação (`useImportacaoConciliacao`)
+- **Aba `CLIENTES` e `FORNECEDORES` agora viram cadastros reais**: parser `parsePessoasAux` já extraía endereço, IE, contato, prazo. O hook gera `PreviewPessoaLinha` com ação `criar/atualizar` e enfileira em `stg_cadastros` antes do financeiro.
+- **Ordem do `finalizeImport`**: 1) `consolidar_lote_cadastros` (clientes/fornecedores) → 2) `consolidar_lote_enriquecimento` (plano contas) → 3) `consolidar_lote_financeiro`. Garante que o lookup `codigo_legado`/`cpf_cnpj` resolva no passo 3.
+- **Resumo do preview** ganha `clientes_a_criar/atualizar` e `fornecedores_a_criar/atualizar`.
+
+### RPCs (sem alteração)
+`consolidar_lote_faturamento` já cria cliente automático com CNPJ + nome + cidade + UF (origem `migracao_nf:CNPJ`). `consolidar_lote_financeiro` mantém dedup determinístico e status derivado (`pago/parcial/vencido/aberto`).
