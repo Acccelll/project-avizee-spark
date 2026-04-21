@@ -551,28 +551,51 @@ export function ProdutoView({ id }: Props) {
           <PrecosEspeciaisTab produtoId={selected.id} />
         </TabsContent>
 
-        {/* Tab: Histórico */}
-        <TabsContent value="historico" className="space-y-3 mt-3">
-          <h4 className="font-semibold text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-            <FileText className="w-3.5 h-3.5" /> Histórico de Notas Fiscais
-          </h4>
-          {historico.length === 0 ? (
-            <EmptyState icon={FileText} title="Nenhum histórico de notas" description="Nenhum histórico de notas fiscais para este produto" />
+        {/* Tab: Vendas */}
+        <TabsContent value="vendas" className="space-y-3 mt-3">
+          {historicoVendas.length === 0 ? (
+            <EmptyState icon={FileText} title="Nenhuma venda registrada" description="Este produto ainda não foi vendido em notas fiscais de saída" />
           ) : (
-            <div className="space-y-2 max-h-[350px] overflow-y-auto">
-            {historico.map((h, idx: number) => (
-                <div key={idx} className="text-sm py-1.5 border-b last:border-b-0">
-                  <div className="flex justify-between items-center">
-                    <RelationalLink onClick={() => pushView("nota_fiscal", h.notas_fiscais?.id)} mono className="text-xs">{h.notas_fiscais?.numero}</RelationalLink>
-                    <span className="text-[10px] text-muted-foreground">{formatDate(h.notas_fiscais?.data_emissao)}</span>
-                  </div>
-                  <div className="flex justify-between text-[10px] mt-1">
-                    <span className="truncate max-w-[150px] text-muted-foreground">{h.notas_fiscais?.fornecedores?.nome_razao_social || "—"}</span>
-                    <span className="font-mono">Qtd: {h.quantidade} × {formatCurrency(h.valor_unitario)}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <DrawerSummaryCard label="Qtd Vendida" value={totalVendido.toLocaleString("pt-BR")} align="center" />
+                <DrawerSummaryCard label="Faturamento" value={formatCurrency(valorVendido)} align="center" />
+                <DrawerSummaryCard label="Ticket Médio" value={formatCurrency(ticketMedioVenda)} align="center" />
+                <DrawerSummaryCard
+                  label="Margem Méd."
+                  value={(selected.preco_custo || 0) > 0 ? `${margemMediaVenda.toFixed(1)}%` : "—"}
+                  tone={margemMediaVenda > 0 ? "success" : margemMediaVenda < 0 ? "destructive" : "neutral"}
+                  align="center"
+                />
+              </div>
+              <h4 className="font-semibold text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-2 pt-2">
+                <FileText className="w-3.5 h-3.5" /> Notas Fiscais de Saída
+              </h4>
+              <div className="space-y-2 max-h-[350px] overflow-y-auto">
+                {historicoVendas.map((h, idx: number) => {
+                  const qtd = Number(h.quantidade || 0);
+                  const vu = Number(h.valor_unitario || 0);
+                  return (
+                    <div key={idx} className="text-sm py-1.5 border-b last:border-b-0">
+                      <div className="flex justify-between items-center">
+                        <RelationalLink onClick={() => pushView("nota_fiscal", h.notas_fiscais?.id)} mono className="text-xs">{h.notas_fiscais?.numero}</RelationalLink>
+                        <span className="text-[10px] text-muted-foreground">{formatDate(h.notas_fiscais?.data_emissao)}</span>
+                      </div>
+                      <div className="flex justify-between text-[10px] mt-1">
+                        {h.notas_fiscais?.clientes ? (
+                          <RelationalLink onClick={() => pushView("cliente", h.notas_fiscais?.clientes?.id)} className="truncate max-w-[180px] text-xs">
+                            {h.notas_fiscais.clientes.nome_razao_social}
+                          </RelationalLink>
+                        ) : (
+                          <span className="truncate max-w-[180px] text-muted-foreground">—</span>
+                        )}
+                        <span className="font-mono">Qtd: {qtd} × {formatCurrency(vu)} = <span className="font-semibold">{formatCurrency(qtd * vu)}</span></span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
           )}
         </TabsContent>
       </Tabs>
@@ -598,7 +621,7 @@ export function ProdutoView({ id }: Props) {
           "Esta ação não pode ser desfeita.",
           fornecedoresProd.length > 0 ? `Este produto possui ${fornecedoresProd.length} fornecedor(es) vinculado(s).` : "",
           composicao.length > 0 ? "Este produto possui itens de composição." : "",
-          historico.length > 0 ? "Este produto possui histórico de notas fiscais." : "",
+          (historicoCompras.length + historicoVendas.length) > 0 ? "Este produto possui histórico de notas fiscais." : "",
         ].filter(Boolean).join(" ")}
       />
     </div>
