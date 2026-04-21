@@ -454,6 +454,7 @@ export function useImportacaoFaturamento() {
     headers,
     mapping,
     previewData,
+    matchCounts,
     isProcessing,
     onFileChange,
     onSheetChange,
