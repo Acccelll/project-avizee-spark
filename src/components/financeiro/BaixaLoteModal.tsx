@@ -41,6 +41,9 @@ export function BaixaLoteModal({ open, onClose, selectedLancamentos, contasBanca
   const [tipoBaixa, setTipoBaixa] = useState<"total" | "parcial">("total");
   const [valorPagoBaixa, setValorPagoBaixa] = useState(0);
   const [processing, setProcessing] = useState(false);
+  const [overrides, setOverrides] = useState<Record<string, BaixaItemOverride>>({});
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draftOverride, setDraftOverride] = useState<BaixaItemOverride>({});
 
   const totalBaixa = useMemo(() => {
     return selectedLancamentos.reduce((s, l) => s + Number(l.saldo_restante != null ? l.saldo_restante : l.valor || 0), 0);
@@ -53,8 +56,43 @@ export function BaixaLoteModal({ open, onClose, selectedLancamentos, contasBanca
       setContaBancaria("");
       setTipoBaixa("total");
       setValorPagoBaixa(totalBaixa);
+      setOverrides({});
+      setEditingId(null);
+      setDraftOverride({});
     }
   }, [open, totalBaixa]);
+
+  const startEdit = (l: Lancamento) => {
+    const existing = overrides[l.id] ?? {};
+    const saldo = Number(l.saldo_restante != null ? l.saldo_restante : l.valor || 0);
+    setDraftOverride({
+      data_baixa: existing.data_baixa ?? baixaDate,
+      forma_pagamento: existing.forma_pagamento ?? formaPagamento,
+      conta_bancaria_id: existing.conta_bancaria_id ?? contaBancaria,
+      valor_pago: existing.valor_pago ?? saldo,
+      observacoes: existing.observacoes ?? "",
+    });
+    setEditingId(l.id);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setDraftOverride({});
+  };
+
+  const saveEdit = (id: string) => {
+    setOverrides((prev) => ({ ...prev, [id]: { ...draftOverride } }));
+    setEditingId(null);
+    setDraftOverride({});
+  };
+
+  const removeOverride = (id: string) => {
+    setOverrides((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+  };
 
   const handleConfirm = async () => {
     if (!baixaDate) return;
@@ -72,6 +110,7 @@ export function BaixaLoteModal({ open, onClose, selectedLancamentos, contasBanca
       baixaDate,
       formaPagamento,
       contaBancariaId: contaBancaria,
+      overrides: Object.keys(overrides).length > 0 ? overrides : undefined,
     });
     setProcessing(false);
     if (ok) {
