@@ -125,7 +125,6 @@ export const FIELD_ALIASES: Record<string, string> = {
   'REF FORNECEDOR': 'referencia_fornecedor',
   'REFERENCIA FORNECEDOR': 'referencia_fornecedor',
   'PAGT.': 'forma_pagamento_padrao',
-  'PAGAMENTO': 'forma_pagamento_padrao',
   'COND. PAGAMENTO': 'forma_pagamento_padrao',
   'COND PAGAMENTO': 'forma_pagamento_padrao',
   'CONDICAO PAGAMENTO': 'forma_pagamento_padrao',
