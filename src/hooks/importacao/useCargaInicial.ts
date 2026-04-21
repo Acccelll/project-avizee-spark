@@ -20,7 +20,7 @@ export interface CargaInicialResumo {
   abasDetectadas: string[];
   abasFaltantes: string[];
   contagens: {
-    grupos: number; planoContas: number;
+    grupos: number; planoContas: number; sinteticas: number; centrosCusto: number;
     fornecedores: number; clientes: number;
     produtos: number; insumos: number;
     estoque: number; cr: number; cp: number;
@@ -51,6 +51,8 @@ export function useCargaInicial() {
         contagens: {
           grupos: grupos.size,
           planoContas: b.planoContas.length,
+          sinteticas: b.sinteticas.length,
+          centrosCusto: b.centroCusto.length,
           fornecedores: b.fornecedores.length,
           clientes: b.clientes.length,
           produtos: b.produtos.length,
@@ -89,6 +91,7 @@ export function useCargaInicial() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const cadRows: any[] = [];
       grupos.forEach(g => cadRows.push({ lote_id: newLoteId, status: "pendente", dados: { _tipo: "grupo", nome: g } }));
+      bundle.sinteticas.forEach(s => cadRows.push({ lote_id: newLoteId, status: "pendente", dados: { _tipo: "sintetica", codigo: s.codigo, descricao: s.descricao, nivel: s.nivel, conta_pai_codigo: s.conta_pai_codigo } }));
       bundle.planoContas.forEach(p => cadRows.push({ lote_id: newLoteId, status: "pendente", dados: { _tipo: "plano_conta", codigo: p.codigo, descricao: p.descricao, i_level: p.i_level } }));
       bundle.centroCusto.forEach(c => cadRows.push({ lote_id: newLoteId, status: "pendente", dados: { _tipo: "centro_custo", codigo: c.codigo, descricao: c.descricao, responsavel: c.responsavel } }));
       bundle.fornecedores.forEach(f => cadRows.push({ lote_id: newLoteId, status: "pendente", dados: { _tipo: "fornecedor", ...f } }));

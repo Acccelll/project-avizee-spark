@@ -127,6 +127,14 @@ export interface CentroCustoRow {
   _originalLine: number;
 }
 
+export interface SinteticaRow {
+  codigo: string;
+  descricao: string;
+  nivel: number | null;
+  conta_pai_codigo: string | null;
+  _originalLine: number;
+}
+
 export interface PessoaAuxRow {
   tipo_pessoa: "fisica" | "juridica";
   cpf_cnpj: string;
@@ -179,6 +187,7 @@ export interface ConciliacaoBundle {
   fc: FCRow[];
   planoContas: PlanoContasRow[];
   centroCusto: CentroCustoRow[];
+  sinteticas: SinteticaRow[];
   clientes: PessoaAuxRow[];
   fornecedores: PessoaAuxRow[];
   produtos: ProdutoInsumoRow[];
@@ -203,6 +212,7 @@ export async function parseConciliacaoWorkbook(file: File): Promise<ConciliacaoB
     FORNECEDORES: findSheet(wb, ["FORNECEDORES"]),
     PLANO: findSheet(wb, ["Plano de Contas", "PlanoContas"]),
     CC: findSheet(wb, ["Centro de Custo", "CentroCusto"]),
+    SINT: findSheet(wb, ["Sinteticas", "Sintéticas", "Plano Sintetico", "Plano Sintético"]),
     PRODUTOS: findSheet(wb, ["PRODUTOS", "Produtos", "Produtos e Insumos"]),
     INSUMOS: findSheet(wb, ["INSUMOS", "Insumos"]),
   };
@@ -221,6 +231,7 @@ export async function parseConciliacaoWorkbook(file: File): Promise<ConciliacaoB
     fc: map.FC ? parseFC(wb, map.FC) : [],
     planoContas: map.PLANO ? parsePlanoContas(wb, map.PLANO) : [],
     centroCusto: map.CC ? parseCentroCusto(wb, map.CC) : [],
+    sinteticas: map.SINT ? parseSinteticas(wb, map.SINT) : [],
     clientes: map.CLIENTES ? parsePessoasAux(wb, map.CLIENTES) : [],
     fornecedores: map.FORNECEDORES ? parsePessoasAux(wb, map.FORNECEDORES) : [],
     produtos: map.PRODUTOS ? parseProdutosOuInsumos(wb, map.PRODUTOS, "produto") : [],
@@ -468,6 +479,30 @@ function parseProdutosOuInsumos(
       fornecedor_principal_legado: fornCodigo,
       ref_fornecedor: normalizeText(pick(row, "REF. FORNECEDOR", "Ref. Fornecedor")) || null,
       url_produto_fornecedor: normalizeText(pick(row, "SITE PRODUTO FORNECEDOR:", "Site Produto Fornecedor")) || null,
+      _originalLine: idx + 2,
+    });
+  });
+  return out;
+}
+
+function parseSinteticas(wb: XLSX.WorkBook, sheetName: string): SinteticaRow[] {
+  const rows = readSheetAsObjects(wb, sheetName);
+  const out: SinteticaRow[] = [];
+  rows.forEach((row, idx) => {
+    const codigo = normalizeText(
+      pick(row, "Código Sintético", "Codigo Sintetico", "Código", "Codigo", "Conta Sintética", "Conta Sintetica"),
+    );
+    const descricao = normalizeText(
+      pick(row, "Nome Sintético Sugerido", "Nome Sintetico Sugerido", "Descrição", "Descricao", "Nome"),
+    );
+    if (!codigo) return;
+    const nivelRaw = pick(row, "Nível", "Nivel", "Level");
+    const nivel = nivelRaw !== null && nivelRaw !== "" ? parseInt(String(nivelRaw)) : null;
+    out.push({
+      codigo,
+      descricao: descricao || codigo,
+      nivel: nivel !== null && !isNaN(nivel) ? nivel : null,
+      conta_pai_codigo: normalizeText(pick(row, "Conta Pai", "Codigo Pai", "Código Pai")) || null,
       _originalLine: idx + 2,
     });
   });
