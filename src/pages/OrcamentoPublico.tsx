@@ -180,6 +180,25 @@ export default function OrcamentoPublico() {
               <p className="font-semibold text-foreground">{cliente.nome_razao_social || 'Cliente'}</p>
               {cliente.cpf_cnpj && <p className="text-muted-foreground">CPF/CNPJ: {cliente.cpf_cnpj}</p>}
               {cliente.email && <p className="text-muted-foreground">{cliente.email}</p>}
+              {(cliente.logradouro || cliente.cidade || cliente.cep) && (
+                <div className="mt-3 pt-3 border-t border-dashed">
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Endereço</p>
+                  {(cliente.logradouro || cliente.numero) && (
+                    <p className="text-muted-foreground">
+                      {cliente.logradouro || '—'}
+                      {cliente.numero ? `, ${cliente.numero}` : ''}
+                      {cliente.complemento ? ` · ${cliente.complemento}` : ''}
+                    </p>
+                  )}
+                  {(cliente.bairro || cliente.cidade || cliente.uf) && (
+                    <p className="text-muted-foreground">
+                      {cliente.bairro ? `${cliente.bairro} · ` : ''}
+                      {cliente.cidade || ''}{cliente.uf ? `/${cliente.uf}` : ''}
+                    </p>
+                  )}
+                  {cliente.cep && <p className="text-muted-foreground">CEP: {cliente.cep}</p>}
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Trash2, Search, Tag, Info, AlertTriangle, CheckCircle2, Copy, GripVertical, Upload } from "lucide-react";
+import { Plus, Trash2, Search, Tag, Info, AlertTriangle, CheckCircle2, Copy, GripVertical, Upload, Maximize2 } from "lucide-react";
 import { ProductSelector } from "@/components/ui/DataSelector";
 import { AutocompleteSearch } from "@/components/ui/AutocompleteSearch";
 import { Tables } from "@/integrations/supabase/types";
@@ -66,6 +66,7 @@ export function OrcamentoItemsGrid({ items, onChange, produtos, precosEspeciais 
   const [importOpen, setImportOpen] = useState(false);
   const [importText, setImportText] = useState("");
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
+  const [expandedOpen, setExpandedOpen] = useState(false);
 
   const addItem = () => onChange([...items, emptyItem()]);
 
@@ -268,28 +269,19 @@ export function OrcamentoItemsGrid({ items, onChange, produtos, precosEspeciais 
     }
   };
 
-  return (
-    <div className="bg-card rounded-xl border shadow-soft overflow-hidden">
-      <div className="flex items-center justify-between p-4 border-b">
-        <h3 className="font-semibold text-foreground">Itens do Orçamento</h3>
-        <div className="flex items-center gap-2">
-          <div className="rounded-md border bg-muted/30 px-2 py-1 text-xs font-medium">Parcial: {formatCurrency(subtotal)}</div>
-          <Button size="sm" variant="outline" onClick={() => setImportOpen(true)} className="gap-1"><Upload className="h-3.5 w-3.5" />Importar texto</Button>
-          <Button size="sm" onClick={addItem} className="gap-1.5"><Plus className="w-4 h-4" />Adicionar Item</Button>
-        </div>
-      </div>
-      <div className="overflow-x-auto min-h-[240px]">
-        <table className="w-full min-w-[1150px]">
+  const renderTable = (compact: boolean) => (
+    <div className="overflow-x-auto min-h-[240px]">
+      <table className={`w-full ${compact ? 'min-w-[980px]' : 'min-w-[1150px]'}`}>
           <thead>
             <tr className="bg-accent/50 border-b">
               <th className="w-8" />
-              <th className="text-left text-xs font-semibold uppercase tracking-wider px-3 py-2.5">Código</th>
-              <th className="text-left text-xs font-semibold uppercase tracking-wider px-3 py-2.5">Descrição</th>
-              <th className="text-right text-xs font-semibold uppercase tracking-wider px-3 py-2.5">Qtd.</th>
-              <th className="text-right text-xs font-semibold uppercase tracking-wider px-3 py-2.5">Unitário</th>
-              <th className="text-right text-xs font-semibold uppercase tracking-wider px-3 py-2.5">Desc. %</th>
-              <th className="text-right text-xs font-semibold uppercase tracking-wider px-3 py-2.5">Subtotal</th>
-              <th className="text-right text-xs font-semibold uppercase tracking-wider px-3 py-2.5">Ações</th>
+              <th className={`text-left text-[11px] font-semibold uppercase tracking-wider px-2 py-2 ${compact ? 'hidden lg:table-cell' : ''}`}>Código</th>
+              <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-2 py-2">Descrição</th>
+              <th className="text-right text-[11px] font-semibold uppercase tracking-wider px-2 py-2">Qtd.</th>
+              <th className="text-right text-[11px] font-semibold uppercase tracking-wider px-2 py-2">Unitário</th>
+              <th className="text-right text-[11px] font-semibold uppercase tracking-wider px-2 py-2">%</th>
+              <th className="text-right text-[11px] font-semibold uppercase tracking-wider px-2 py-2">Subtotal</th>
+              <th className="text-right text-[11px] font-semibold uppercase tracking-wider px-2 py-2">Ações</th>
             </tr>
           </thead>
           <tbody>
@@ -316,19 +308,24 @@ export function OrcamentoItemsGrid({ items, onChange, produtos, precosEspeciais 
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={() => onDropIndex(idx)}
                 >
-                  <td className="px-2 text-muted-foreground"><GripVertical className="h-4 w-4" /></td>
-                  <td className="px-3 py-2"><Input className="h-8 text-xs font-mono" value={item.codigo_snapshot} onChange={(e) => updateItem(idx, "codigo_snapshot", e.target.value)} /></td>
-                  <td className="px-3 py-2">
+                  <td className="px-1.5 text-muted-foreground"><GripVertical className="h-3.5 w-3.5" /></td>
+                  <td className={`px-2 py-1.5 ${compact ? 'hidden lg:table-cell' : ''}`}><Input className="h-7 text-xs font-mono" value={item.codigo_snapshot} onChange={(e) => updateItem(idx, "codigo_snapshot", e.target.value)} /></td>
+                  <td className="px-2 py-1.5">
                     <div className="flex gap-1 items-center">
                       <AutocompleteSearch options={getProductOptions()} value={item.produto_id} onChange={(val) => updateItem(idx, "produto_id", val)} placeholder="Buscar produto..." className="flex-1" onCreateNew={() => window.open('/produtos', '_blank')} createNewLabel="Produto não encontrado? Cadastrar" dropdownMinWidth="min-w-[420px]" />
-                      <ProductSelector produtos={produtos} onSelect={(p) => updateItem(idx, "produto_id", p.id)} trigger={<Button variant="outline" size="icon" className="h-8 w-8"><Search className="h-3 w-3" /></Button>} />
-                      {item.produto_id && <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setDetailProductId(item.produto_id)}><Info className="h-3 w-3" /></Button>}
+                      <ProductSelector produtos={produtos} onSelect={(p) => updateItem(idx, "produto_id", p.id)} trigger={<Button variant="outline" size="icon" className="h-7 w-7"><Search className="h-3 w-3" /></Button>} />
+                      {item.produto_id && <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => setDetailProductId(item.produto_id)}><Info className="h-3 w-3" /></Button>}
                     </div>
                     {hasSpecial && <p className="text-[11px] text-primary mt-1">Preço especial para este cliente aplicado.</p>}
                   </td>
-                  <td className="px-3 py-2"><Input type="number" className="h-8 text-right" value={item.quantidade || ""} onChange={(e) => updateItem(idx, "quantidade", Number(e.target.value))} /></td>
-                  <td className="px-3 py-2">
-                    <Input type="number" className="h-8 text-right" value={item.valor_unitario || ""} onChange={(e) => updateItem(idx, "valor_unitario", Number(e.target.value))} />
+                  <td className="px-2 py-1.5">
+                    <div className="flex items-center gap-1">
+                      <Input type="number" className="h-7 text-right text-xs" value={item.quantidade || ""} onChange={(e) => updateItem(idx, "quantidade", Number(e.target.value))} />
+                      <span className="text-[10px] text-muted-foreground uppercase">{item.unidade || 'UN'}</span>
+                    </div>
+                  </td>
+                  <td className="px-2 py-1.5">
+                    <Input type="number" className="h-7 text-right text-xs" value={item.valor_unitario || ""} onChange={(e) => updateItem(idx, "valor_unitario", Number(e.target.value))} />
                     {hasSpecial && (
                       <div className="mt-1">
                         <Input
@@ -340,13 +337,14 @@ export function OrcamentoItemsGrid({ items, onChange, produtos, precosEspeciais 
                       </div>
                     )}
                   </td>
-                  <td className="px-3 py-2"><Input type="number" className="h-8 text-right" value={item.desconto_percentual || 0} onChange={(e) => updateItem(idx, "desconto_percentual", Number(e.target.value))} /></td>
-                  <td className="px-3 py-2 text-right font-semibold">{formatCurrency(item.valor_total || 0)}</td>
-                  <td className="px-3 py-2">
+                  <td className="px-2 py-1.5"><Input type="number" className="h-7 text-right text-xs" value={item.desconto_percentual || 0} onChange={(e) => updateItem(idx, "desconto_percentual", Number(e.target.value))} /></td>
+                  <td className="px-2 py-1.5 text-right font-semibold text-xs">{formatCurrency(item.valor_total || 0)}</td>
+                  <td className="px-2 py-1.5">
                     <div className="flex justify-end gap-1">
                       <Button
                         variant="ghost"
                         size="icon"
+                        className="h-7 w-7"
                         aria-label={`Duplicar item ${item.descricao_snapshot || idx + 1}`}
                         onClick={() => duplicateItem(idx)}
                       >
@@ -355,6 +353,7 @@ export function OrcamentoItemsGrid({ items, onChange, produtos, precosEspeciais 
                       <Button
                         variant="ghost"
                         size="icon"
+                        className="h-7 w-7"
                         aria-label={`Remover item ${item.descricao_snapshot || idx + 1}`}
                         onClick={() => removeItem(idx)}
                       >
@@ -368,7 +367,35 @@ export function OrcamentoItemsGrid({ items, onChange, produtos, precosEspeciais 
             })}
           </tbody>
         </table>
+    </div>
+  );
+
+  return (
+    <div className="bg-card rounded-xl border shadow-soft overflow-hidden">
+      <div className="flex items-center justify-between p-4 border-b flex-wrap gap-2">
+        <h3 className="font-semibold text-foreground">Itens do Orçamento</h3>
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="rounded-md border bg-muted/30 px-2 py-1 text-xs font-medium">Parcial: {formatCurrency(subtotal)}</div>
+          <Button size="sm" variant="outline" onClick={() => setImportOpen(true)} className="gap-1"><Upload className="h-3.5 w-3.5" />Importar texto</Button>
+          <Button size="sm" variant="outline" onClick={() => setExpandedOpen(true)} className="gap-1"><Maximize2 className="h-3.5 w-3.5" />Tela cheia</Button>
+          <Button size="sm" onClick={addItem} className="gap-1.5"><Plus className="w-4 h-4" />Adicionar Item</Button>
+        </div>
       </div>
+      {renderTable(true)}
+
+      <Dialog open={expandedOpen} onOpenChange={setExpandedOpen}>
+        <DialogContent className="max-w-6xl w-[95vw]">
+          <DialogHeader><DialogTitle>Itens do Orçamento — Tela cheia</DialogTitle></DialogHeader>
+          <div className="overflow-auto max-h-[75vh]">{renderTable(false)}</div>
+          <div className="flex items-center justify-between gap-2 pt-2 border-t">
+            <div className="text-xs text-muted-foreground">Parcial: <span className="font-semibold text-foreground">{formatCurrency(subtotal)}</span></div>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={addItem} className="gap-1.5"><Plus className="w-4 h-4" />Adicionar Item</Button>
+              <Button size="sm" onClick={() => setExpandedOpen(false)}>Fechar</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <ViewDrawerV2 open={!!detailProductId} onClose={() => setDetailProductId(null)} title={activeDetailProduct?.nome || "Detalhes do Produto"}>
         {activeDetailProduct ? (

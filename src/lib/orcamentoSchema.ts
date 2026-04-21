@@ -23,6 +23,7 @@ export const orcamentoSchema = z.object({
   prazoPagamento: z.string().optional(),
   prazoEntrega: z.string().optional(),
   freteTipo: z.string().optional(),
+  servicoFrete: z.string().optional(),
   modalidade: z.string().optional(),
   observacoes: z.string().optional(),
   observacoesInternas: z.string().optional(),

@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { ChevronDown, ChevronUp, RotateCcw, ShieldAlert, SlidersHorizontal, TriangleAlert } from "lucide-react";
+import { ChevronDown, ChevronUp, RotateCcw, ShieldAlert, SlidersHorizontal, TriangleAlert, Maximize2 } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 import type { OrcamentoInternalAccess } from "@/lib/orcamentoInternalAccess";
 import type { MarginStatus, RentabilidadeAnalise, InternalCostSource } from "@/lib/orcamentoRentabilidade";
@@ -68,6 +68,7 @@ export function OrcamentoInternalAnalysisPanel({
 }: Props) {
   const [open, setOpen] = useState(false);
   const [advancedIndex, setAdvancedIndex] = useState<number | null>(null);
+  const [expandedOpen, setExpandedOpen] = useState(false);
   const topAlerts = useMemo(() => scenarioAnalysis.alerts.slice(0, 4), [scenarioAnalysis.alerts]);
 
   const changedIndexes = useMemo(
@@ -147,10 +148,17 @@ export function OrcamentoInternalAnalysisPanel({
           <h3 className="font-semibold text-sm">Análise Interna · Base x Cenário</h3>
           <p className="text-xs text-muted-foreground">Área interna e isolada da operação comercial (não exibida em PDF/e-mail/cliente).</p>
         </div>
-        <Button size="sm" variant="outline" onClick={() => setOpen((prev) => !prev)} className="gap-1.5 shrink-0">
-          {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          {open ? "Ocultar" : "Exibir"}
-        </Button>
+        <div className="flex gap-2 shrink-0">
+          {open && (
+            <Button size="sm" variant="outline" onClick={() => setExpandedOpen(true)} className="gap-1.5">
+              <Maximize2 className="h-4 w-4" />Expandir
+            </Button>
+          )}
+          <Button size="sm" variant="outline" onClick={() => setOpen((prev) => !prev)} className="gap-1.5">
+            {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            {open ? "Ocultar" : "Exibir"}
+          </Button>
+        </div>
       </div>
 
       {!!topAlerts.length && (
