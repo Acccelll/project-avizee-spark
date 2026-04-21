@@ -266,11 +266,11 @@ export function OrcamentoInternalAnalysisPanel({
           {!expandedOpen && comparisonTable}
 
           <Dialog open={expandedOpen} onOpenChange={setExpandedOpen}>
-            <DialogContent className="max-w-[95vw] sm:max-w-7xl">
+            <DialogContent className="max-w-[95vw] sm:max-w-[95vw] xl:max-w-7xl">
               <DialogHeader>
                 <DialogTitle>Análise Interna · Base x Cenário (tela cheia)</DialogTitle>
               </DialogHeader>
-              <div className="px-6 pb-6">{comparisonTable}</div>
+              <div className="flex-1 overflow-auto px-6 py-4">{comparisonTable}</div>
             </DialogContent>
           </Dialog>
 
