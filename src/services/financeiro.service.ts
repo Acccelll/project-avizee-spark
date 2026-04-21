@@ -26,6 +26,14 @@ interface ProcessarEstornoRpcArgs {
   p_motivo_estorno: string | null;
 }
 
+export interface BaixaItemOverride {
+  data_baixa?: string;
+  forma_pagamento?: string;
+  conta_bancaria_id?: string;
+  valor_pago?: number;
+  observacoes?: string;
+}
+
 export interface BaixaLoteParams {
   selectedIds: string[];
   selectedLancamentos: Array<{ id: string; valor: number; saldo_restante: number | null }>;
@@ -35,6 +43,7 @@ export interface BaixaLoteParams {
   baixaDate: string;
   formaPagamento: string;
   contaBancariaId: string;
+  overrides?: Record<string, BaixaItemOverride>;
 }
 
 interface BaixaPlanItem {
