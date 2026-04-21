@@ -187,3 +187,51 @@ WHERE p.tipo_item = 'produto'
 - **`notas_fiscais_itens.custo_historico_unitario`** — preserva o custo unitário original da planilha de faturamento histórico (margem de referência).
 
 A RPC `carga_inicial_processar_extras(p_lote_id)` é executada automaticamente após `carga_inicial_conciliacao` para popular centros de custo e sintéticas a partir do staging.
+
+---
+
+## Estratégia de preservação histórica (produtos × faturamento)
+
+A partir desta versão, a migração separa **catálogo atual** (vivo) de **histórico imutável** (snapshot original do faturamento). Nenhum dado original é sobrescrito.
+
+### Tabela ponte
+- `produto_identificadores_legacy` mapeia códigos/descrições antigas para o `produto_id` atual.
+- `match_tipo` ∈ {exato_codigo, exato_descricao, manual, aproximado, nao_vinculado}.
+- `confianca_match` 0–1 (1.0 = código exato, 0.95 = ponte, 0.85 = descrição normalizada).
+
+### Snapshot imutável em `notas_fiscais_itens`
+Colunas `*_origem` (`codigo_produto_origem`, `descricao_produto_origem`, `unidade_origem`, `quantidade_origem`, `valor_unitario_origem`, `valor_total_origem`) são gravadas no insert e protegidas por trigger `trg_nf_item_snapshot_imutavel`.
+
+### Pipeline de match (na consolidação do faturamento)
+1. Código exato (`codigo_legado` ou `codigo_interno`) — confiança 1.0.
+2. Tabela ponte por código — confiança 0.95.
+3. Descrição normalizada (`normalizar_descricao`) — confiança 0.85.
+- Múltiplos resultados ⇒ `match_status='duvidoso'`, `produto_id=NULL`.
+- Sem match e com código legado ⇒ cria produto **descontinuado** (`ativo=false`, `origem='importacao_legacy'`).
+
+### Custo histórico (`custo_historico_unitario`)
+Congelado no momento da venda. Independente do `preco_custo` atual do produto, garantindo margem real da época.
+
+### Smoke tests pós-deploy
+```sql
+-- Itens migrados sem snapshot completo (deve retornar 0):
+SELECT count(*) FROM notas_fiscais_itens
+ WHERE origem_migracao='faturamento_legacy'
+   AND (codigo_produto_origem IS NULL OR descricao_produto_origem IS NULL
+        OR quantidade_origem IS NULL OR valor_total_origem IS NULL);
+
+-- Duplicidade de codigo_interno em produtos (deve retornar 0):
+SELECT codigo_interno, count(*) FROM produtos
+ WHERE codigo_interno IS NOT NULL
+ GROUP BY codigo_interno HAVING count(*) > 1;
+
+-- Distribuição de match no faturamento histórico:
+SELECT match_status, count(*) FROM notas_fiscais_itens
+ WHERE origem_migracao='faturamento_legacy' GROUP BY match_status;
+```
+
+### Reprocessar lotes antigos
+```sql
+SELECT consolidar_lote_faturamento('<lote_id>');
+SELECT relatorio_migracao_faturamento('<lote_id>');
+```
