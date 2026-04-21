@@ -274,7 +274,7 @@ const FluxoCaixa = () => {
     },
     {
       key: "descricao", label: "Descrição", sortable: true,
-      render: (l: Lancamento) => <span className="text-sm">{l.descricao}</span>,
+      render: (l: Lancamento) => <span className="text-sm">{displayDescricao(l)}</span>,
     },
     {
       key: "valor", label: "Valor", sortable: true,
