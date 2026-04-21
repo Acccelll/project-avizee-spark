@@ -24,19 +24,19 @@ export function OrcamentoCondicoesCard({ form, onChange }: Props) {
       <h3 className="font-semibold text-foreground mb-4">Condições Comerciais</h3>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="space-y-1.5">
-          <Label className="text-xs">Quantidade Total</Label>
+          <Label className="text-xs h-4 flex items-center">Quantidade Total</Label>
           <div className="h-10 flex items-center px-3 bg-accent/30 rounded-md font-mono text-sm">
             {form.quantidade_total}
           </div>
         </div>
         <div className="space-y-1.5">
-          <Label className="text-xs">Peso Total (kg)</Label>
+          <Label className="text-xs h-4 flex items-center">Peso Total (kg)</Label>
           <div className="h-10 flex items-center px-3 bg-accent/30 rounded-md font-mono text-sm">
             {form.peso_total.toFixed(2)}
           </div>
         </div>
         <div className="space-y-1.5">
-          <Label className="text-xs">Pagamento</Label>
+          <Label className="text-xs h-4 flex items-center">Pagamento</Label>
           <Select value={form.pagamento} onValueChange={(v) => onChange("pagamento", v)}>
             <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
             <SelectContent>
@@ -50,19 +50,19 @@ export function OrcamentoCondicoesCard({ form, onChange }: Props) {
           </Select>
         </div>
         <div className="space-y-1.5">
-          <Label className="text-xs">Prazo</Label>
+          <Label className="text-xs h-4 flex items-center">Prazo</Label>
           <Input value={form.prazo_pagamento} onChange={(e) => onChange("prazo_pagamento", e.target.value)} placeholder="Ex: 30/60/90 dias" />
         </div>
         <div className="space-y-1.5">
-          <Label className="text-xs">Prazo de Entrega</Label>
+          <Label className="text-xs h-4 flex items-center">Prazo de Entrega</Label>
           <Input value={form.prazo_entrega} onChange={(e) => onChange("prazo_entrega", e.target.value)} placeholder="Ex: 12 dias úteis" />
         </div>
         <div className="space-y-1.5">
-          <Label className="text-xs">Frete</Label>
+          <Label className="text-xs h-4 flex items-center">Frete</Label>
           <Input value={form.servico_frete} onChange={(e) => onChange("servico_frete", e.target.value)} placeholder="Ex.: SEDEX, Transportadora X" />
         </div>
         <div className="space-y-1.5">
-          <Label className="text-xs">Modalidade (FOB / CIF)</Label>
+          <Label className="text-xs h-4 flex items-center">Modalidade</Label>
           <Select value={form.modalidade} onValueChange={(v) => onChange("modalidade", v)}>
             <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
             <SelectContent>
