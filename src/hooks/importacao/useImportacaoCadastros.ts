@@ -37,6 +37,10 @@ export function useImportacaoCadastros() {
     if (!activeWb) return;
 
     setCurrentSheet(sheetName);
+    // Auto-inferir tipo_item=insumo quando a aba for "INSUMOS"
+    if (importType === "produtos" && sheetName.toUpperCase().includes("INSUMO")) {
+      // Sinaliza para o generatePreview forçar o tipo
+    }
     const ws = activeWb.Sheets[sheetName];
     const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
     if (data.length > 0) {
@@ -53,7 +57,7 @@ export function useImportacaoCadastros() {
       });
       setMapping(initialMapping);
     }
-  }, [workbook]);
+  }, [workbook, importType]);
 
   const onFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -112,6 +116,10 @@ export function useImportacaoCadastros() {
         Object.entries(mapping).forEach(([field, colName]) => {
           mappedRow[field] = row[colName];
         });
+        // Forçar tipo_item=insumo quando a aba ativa contém "INSUMO"
+        if (importType === "produtos" && currentSheet.toUpperCase().includes("INSUMO")) {
+          mappedRow.tipo_item = "insumo";
+        }
 
         let validation;
         if (importType === "produtos") validation = validateProdutoImport(mappedRow);
@@ -149,7 +157,7 @@ export function useImportacaoCadastros() {
     } finally {
       setIsProcessing(false);
     }
-  }, [rawRows, mapping, importType]);
+  }, [rawRows, mapping, importType, currentSheet]);
 
   /**
    * Step 2: Write to staging (stg_cadastros + importacao_lotes).

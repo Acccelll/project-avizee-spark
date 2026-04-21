@@ -181,6 +181,10 @@ export function validateEstoqueInicialImport(data: Record<string, unknown>): Imp
   if (!normalizedData.data_estoque_inicial) {
     warnings.push(dataEstoqueResult.error || 'Data do estoque inicial não informada; será usada a data atual.');
   }
+  if (normalizedData.custo_unitario === null || normalizedData.custo_unitario === undefined) {
+    warnings.push('Custo unitário não informado; será gravado como 0 (típico para insumos).');
+    normalizedData.custo_unitario = 0;
+  }
 
   return { valid: errors.length === 0, errors, warnings, normalizedData };
 }
