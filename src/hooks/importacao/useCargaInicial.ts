@@ -91,6 +91,7 @@ export function useCargaInicial() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const cadRows: any[] = [];
       grupos.forEach(g => cadRows.push({ lote_id: newLoteId, status: "pendente", dados: { _tipo: "grupo", nome: g } }));
+      bundle.sinteticas.forEach(s => cadRows.push({ lote_id: newLoteId, status: "pendente", dados: { _tipo: "sintetica", codigo: s.codigo, descricao: s.descricao, nivel: s.nivel, conta_pai_codigo: s.conta_pai_codigo } }));
       bundle.planoContas.forEach(p => cadRows.push({ lote_id: newLoteId, status: "pendente", dados: { _tipo: "plano_conta", codigo: p.codigo, descricao: p.descricao, i_level: p.i_level } }));
       bundle.centroCusto.forEach(c => cadRows.push({ lote_id: newLoteId, status: "pendente", dados: { _tipo: "centro_custo", codigo: c.codigo, descricao: c.descricao, responsavel: c.responsavel } }));
       bundle.fornecedores.forEach(f => cadRows.push({ lote_id: newLoteId, status: "pendente", dados: { _tipo: "fornecedor", ...f } }));
