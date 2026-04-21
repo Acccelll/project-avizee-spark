@@ -26,6 +26,7 @@ import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianG
 import { exportarParaExcel } from "@/services/export.service";
 import type { Lancamento, ContaBancaria } from "@/types/domain";
 import { getUserFriendlyError } from "@/utils/errorMessages";
+import { displayDescricao } from "@/lib/displayLancamento";
 
 type Periodicidade = "diaria" | "semanal" | "mensal";
 
