@@ -1731,61 +1731,50 @@ export default function Administracao() {
   return (
     <><ModulePage title="Administração" subtitle="Governança, parâmetros globais e gestão do sistema.">
         <div className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
-          <nav className="space-y-2" aria-label="Navegação administrativa">
-            <div className="rounded-lg border bg-muted/30 px-3 py-2">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Escopo desta tela</p>
-              <p className="mt-1 text-xs text-muted-foreground">Itens com <ArrowUpRight className="inline h-3 w-3" /> abrem outro módulo. Os demais trocam a seção interna.</p>
-            </div>
-            {sideNavGroups.map((group) => {
-              const isGroupActive = group.items.some((item) => item.key === activeSection);
-              const isOpen = openGroupKey === group.key;
-              return (
-                <div key={group.key}>
-                  {/* Group header */}
-                  <button
-                    type="button"
-                    onClick={() => toggleGroup(group.key)}
-                    aria-expanded={isOpen}
-                    className={cn(
-                      'flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide transition-colors',
-                      isGroupActive
-                        ? 'bg-primary/5 text-primary'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-accent',
-                    )}
-                  >
-                    <span className="flex-1">{group.label}</span>
-                    {isOpen
-                      ? <ChevronDown className="h-3.5 w-3.5 shrink-0" />
-                      : <ChevronRight className="h-3.5 w-3.5 shrink-0" />}
-                  </button>
-                  {/* Group items (only when expanded) */}
-                  {isOpen && (
-                    <div className="ml-2 mb-1 space-y-0.5 border-l border-border pl-3 py-0.5">
-                      {group.items.map((item) => {
-                        const Icon = item.icon;
-                        const isActive = activeSection === item.key;
-                        return (
-                          <button
-                            key={item.key}
-                            onClick={() => handleSectionChange(item.key)}
-                            className={cn(
-                              'flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium transition-colors text-left',
-                              isActive
-                                ? 'bg-primary/10 text-primary'
-                                : 'text-muted-foreground hover:bg-accent hover:text-foreground',
-                            )}
-                          >
-                            <Icon className="h-4 w-4 shrink-0" />
-                            <span className="flex-1">{item.label}</span>
-                            {(item.behavior === 'external' || item.key === 'migracao') && <ArrowUpRight className="h-3.5 w-3.5 opacity-70" />}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
+          <nav className="w-full lg:w-60 space-y-5" aria-label="Navegação administrativa">
+            {sideNavGroups.map((group, gIdx) => (
+              <div key={group.key}>
+                <p className="px-2 mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  {group.label}
+                </p>
+                <div className="space-y-0.5">
+                  {group.items.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = activeSection === item.key;
+                    const external = item.behavior === 'external' || item.key === 'migracao';
+                    return (
+                      <button
+                        key={item.key}
+                        type="button"
+                        onClick={() => handleSectionChange(item.key)}
+                        aria-current={isActive ? 'page' : undefined}
+                        className={cn(
+                          'group relative flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium text-left transition-colors',
+                          isActive
+                            ? 'bg-accent/40 text-foreground'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-accent/30',
+                        )}
+                      >
+                        {isActive && (
+                          <span aria-hidden className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r bg-primary" />
+                        )}
+                        <span
+                          className={cn(
+                            'flex h-6 w-6 items-center justify-center rounded-md shrink-0 transition-colors',
+                            isActive ? 'bg-primary/10 text-primary' : 'bg-muted/40 text-muted-foreground group-hover:text-foreground',
+                          )}
+                        >
+                          <Icon className="h-3.5 w-3.5" />
+                        </span>
+                        <span className="flex-1 truncate">{item.label}</span>
+                        {external && <ArrowUpRight className="h-3.5 w-3.5 opacity-60" />}
+                      </button>
+                    );
+                  })}
                 </div>
-              );
-            })}
+                {gIdx < sideNavGroups.length - 1 && <Separator className="mt-4 opacity-60" />}
+              </div>
+            ))}
           </nav>
           <div className="space-y-4">
             <Card>
