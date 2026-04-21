@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { useTheme } from 'next-themes';
-import { AlertCircle, CalendarDays, Check, CheckCircle2, Clock, Eye, EyeOff, Info, Loader2, Lock, Mail, Moon, Palette, RotateCcw, Save, Settings, Shield, ShieldCheck, Sun, User } from 'lucide-react';
+import { AlertCircle, ArrowUpRight, Building2, CalendarDays, Check, CheckCircle2, Clock, Eye, EyeOff, Info, Loader2, Lock, Mail, Moon, Palette, RotateCcw, Save, Settings, Shield, ShieldCheck, Sun, User } from 'lucide-react';
 import { useUserPreference } from '@/hooks/useUserPreference';
 import { useAppConfigContext } from '@/contexts/AppConfigContext';
 import { ModulePage } from '@/components/ModulePage';
@@ -26,12 +27,9 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import type { Database as SupabaseDatabase } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { getUserFriendlyError } from '@/utils/errorMessages';
-
-type AppConfigInsert = SupabaseDatabase['public']['Tables']['app_configuracoes']['Insert'];
 
 interface TabNavItem {
   key: string;
@@ -44,28 +42,6 @@ const tabNavItems: TabNavItem[] = [
   { key: 'aparencia', label: 'Aparência', icon: Palette },
   { key: 'seguranca', label: 'Segurança', icon: Lock },
 ];
-
-function hexToHslString(hex: string) {
-  const clean = hex.replace('#', '');
-  if (clean.length !== 6) return null;
-  const r = parseInt(clean.slice(0, 2), 16) / 255;
-  const g = parseInt(clean.slice(2, 4), 16) / 255;
-  const b = parseInt(clean.slice(4, 6), 16) / 255;
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  const l = (max + min) / 2;
-  const d = max - min;
-  const s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
-  let h = 0;
-  if (d !== 0) {
-    if (max === r) h = ((g - b) / d) % 6;
-    else if (max === g) h = (b - r) / d + 2;
-    else h = (r - g) / d + 4;
-  }
-  h = Math.round(h * 60);
-  if (h < 0) h += 360;
-  return `${h} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
-}
 
 const ROLE_LABELS: Record<string, string> = {
   admin: 'Administrador',
@@ -129,6 +105,7 @@ export default function Configuracoes() {
   const [nome, setNome] = useState(profile?.nome || '');
   const [cargo, setCargo] = useState(profile?.cargo || '');
   const [savingProfile, setSavingProfile] = useState(false);
+  const [profileSavedAt, setProfileSavedAt] = useState<Date | null>(null);
 
   // Track whether the profile has been applied to the form at least once so we
   // don't overwrite intentional user edits on subsequent profile re-renders.
@@ -158,11 +135,13 @@ export default function Configuracoes() {
   const [densidade, setDensidade] = useState('confortavel');
   const [corPrimaria, setCorPrimaria] = useState('#6b0d0d');
   const [corSecundaria, setCorSecundaria] = useState('#b85b2d');
+  const [appearanceSavedAt, setAppearanceSavedAt] = useState<Date | null>(null);
   const {
     sidebarCollapsed: menuCompacto,
     saveSidebarCollapsed: saveMenuCompacto,
     loadingSidebarCollapsed: loadingMenuCompacto,
   } = useAppConfigContext();
+  const { value: themePref, save: saveThemePref } = useUserPreference<string>(user?.id, 'ui_theme', 'system');
   const { value: densidadePref, save: saveDensidadePref } = useUserPreference<string>(user?.id, 'ui_density', 'confortavel');
   const { value: fontScale, save: saveFontScale } = useUserPreference<number>(user?.id, 'ui_font_scale', 16);
   const { value: reduceMotion, save: saveReduceMotion } = useUserPreference<boolean>(user?.id, 'ui_reduce_motion', false);
@@ -170,6 +149,10 @@ export default function Configuracoes() {
   useEffect(() => {
     if (densidadePref) setDensidade(densidadePref);
   }, [densidadePref]);
+
+  useEffect(() => {
+    if (themePref && theme !== themePref) setTheme(themePref);
+  }, [themePref, theme, setTheme]);
 
   useEffect(() => {
     // Branding institucional vive em empresa_config (admin-only via Administracao.tsx).
@@ -190,12 +173,15 @@ export default function Configuracoes() {
     ? nome.trim().split(/\s+/).filter(Boolean).map((w) => w[0]).slice(0, 2).join('').toUpperCase()
     : (user?.email || 'U').substring(0, 2).toUpperCase();
 
+  const profileDirty = nome.trim() !== (profile?.nome || '').trim() || cargo.trim() !== (profile?.cargo || '').trim();
+
   const handleSaveProfile = async () => {
     if (!user) return;
     setSavingProfile(true);
     try {
       const { error } = await supabase.from('profiles').update({ nome, cargo }).eq('id', user.id);
       if (error) throw error;
+      setProfileSavedAt(new Date());
       toast.success('Dados pessoais salvos com sucesso.');
     } catch (err: unknown) {
       console.error('[perfil] save:', err);
@@ -248,6 +234,7 @@ export default function Configuracoes() {
 
   const handleResetAppearance = async () => {
     setTheme(APPEARANCE_DEFAULTS.theme);
+    await saveThemePref(APPEARANCE_DEFAULTS.theme);
     setDensidade(APPEARANCE_DEFAULTS.densidade);
     await saveDensidadePref(APPEARANCE_DEFAULTS.densidade);
     await saveFontScale(APPEARANCE_DEFAULTS.fontScale);
@@ -256,9 +243,14 @@ export default function Configuracoes() {
     document.documentElement.dataset.density = APPEARANCE_DEFAULTS.densidade === 'compacta' ? 'compact' : 'comfortable';
     document.documentElement.style.setProperty('--base-font-size', `${APPEARANCE_DEFAULTS.fontScale}px`);
     document.documentElement.classList.remove('reduce-motion');
+    setAppearanceSavedAt(new Date());
     // Branding global (cores institucionais) NÃO é mais resetado a partir daqui —
     // pertence à Administração (empresa_config). Esta tela cuida apenas de prefs pessoais.
     toast.success('Preferências de aparência restauradas ao padrão.');
+  };
+
+  const markAppearanceSaved = () => {
+    setAppearanceSavedAt(new Date());
   };
 
   const renderContent = () => {
@@ -328,9 +320,9 @@ export default function Configuracoes() {
             {/* Editable personal info */}
             <Card>
               <CardHeader>
-                <CardTitle>Informações Pessoais</CardTitle>
+                <CardTitle>Dados pessoais editáveis</CardTitle>
                 <CardDescription>
-                  Atualize as informações pessoais exibidas no sistema. Alguns dados da conta são controlados pelo sistema e não podem ser alterados por aqui.
+                  Atualize como você é identificado internamente no sistema. Dados de conta e permissões ficam em blocos separados para evitar confusão.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -345,10 +337,15 @@ export default function Configuracoes() {
                     <p className="text-xs text-muted-foreground">Exibido no sistema em contextos internos, quando aplicável.</p>
                   </div>
                 </div>
-                <div className="flex justify-end">
-                  <Button onClick={handleSaveProfile} disabled={savingProfile} className="gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-xs text-muted-foreground">
+                    {profileSavedAt
+                      ? `Último salvamento: ${profileSavedAt.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}`
+                      : 'Sem alterações salvas nesta sessão.'}
+                  </p>
+                  <Button onClick={handleSaveProfile} disabled={savingProfile || !profileDirty} className="gap-2">
                     {savingProfile ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                    Salvar Perfil
+                    {profileDirty ? 'Salvar perfil' : 'Perfil atualizado'}
                   </Button>
                 </div>
               </CardContent>
@@ -359,10 +356,10 @@ export default function Configuracoes() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Shield className="h-4 w-4 text-muted-foreground" />
-                  Dados da Conta
+                  Dados corporativos e de acesso
                 </CardTitle>
                 <CardDescription>
-                  Informações controladas pelo sistema. Não podem ser alteradas por aqui.
+                  Esses dados são globais ou administrativos. Você visualiza aqui, mas a alteração não ocorre na tela pessoal.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -408,10 +405,19 @@ export default function Configuracoes() {
             <CardHeader>
               <CardTitle>Aparência</CardTitle>
               <CardDescription>
-                Ajuste suas preferências visuais. Tema, densidade, fonte, menu e animações são pessoais e afetam apenas o seu usuário. As cores da interface são configurações globais e afetam todos os usuários do sistema.
+                Ajuste suas preferências pessoais de leitura e navegação. Tema, densidade, fonte, menu e animações afetam apenas o seu usuário.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-8">
+              <div className="rounded-lg border bg-muted/30 px-4 py-3 text-sm">
+                <p className="font-medium">Aplicação imediata no seu perfil</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Mudanças de aparência são aplicadas em tempo real e salvas automaticamente para sua conta.
+                  {appearanceSavedAt
+                    ? ` Último ajuste salvo em ${appearanceSavedAt.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}.`
+                    : ' Nenhum ajuste salvo nesta sessão.'}
+                </p>
+              </div>
 
               {/* ── Bloco 1: Aparência geral ─────────────────────────────────── */}
               <div className="space-y-4">
@@ -422,7 +428,11 @@ export default function Configuracoes() {
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label>Tema</Label>
-                    <Select value={theme || 'system'} onValueChange={(value) => setTheme(value)}>
+                    <Select value={theme || 'system'} onValueChange={async (value) => {
+                      setTheme(value);
+                      await saveThemePref(value);
+                      markAppearanceSaved();
+                    }}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="light">
@@ -443,6 +453,7 @@ export default function Configuracoes() {
                       setDensidade(value);
                       await saveDensidadePref(value);
                       document.documentElement.dataset.density = value === 'compacta' ? 'compact' : 'comfortable';
+                      markAppearanceSaved();
                     }}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
@@ -450,6 +461,14 @@ export default function Configuracoes() {
                         <SelectItem value="compacta">Compacta — mais informação por tela</SelectItem>
                       </SelectContent>
                     </Select>
+                  </div>
+                </div>
+                <div className="rounded-lg border bg-card px-4 py-3">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Prévia rápida</p>
+                  <div className="flex items-center gap-3 text-sm">
+                    <Badge variant="outline">Tema: {theme === 'dark' ? 'Escuro' : theme === 'light' ? 'Claro' : 'Sistema'}</Badge>
+                    <Badge variant="outline">Densidade: {densidade === 'compacta' ? 'Compacta' : 'Confortável'}</Badge>
+                    <Badge variant="outline">Fonte: {fontScale}px</Badge>
                   </div>
                 </div>
               </div>
@@ -480,6 +499,7 @@ export default function Configuracoes() {
                       const value = Number(e.target.value);
                       await saveFontScale(value);
                       document.documentElement.style.setProperty('--base-font-size', `${value}px`);
+                      markAppearanceSaved();
                     }}
                   />
                   <div className="flex justify-between text-xs text-muted-foreground">
@@ -502,6 +522,7 @@ export default function Configuracoes() {
                     onCheckedChange={async (checked) => {
                       const ok = await saveMenuCompacto(checked);
                       if (!ok) toast.error('Não foi possível salvar a preferência do menu.');
+                      if (ok) markAppearanceSaved();
                     }}
                   />
                 </div>
@@ -525,6 +546,7 @@ export default function Configuracoes() {
                     onCheckedChange={async (checked) => {
                       await saveReduceMotion(checked);
                       document.documentElement.classList.toggle('reduce-motion', checked);
+                      markAppearanceSaved();
                     }}
                   />
                 </div>
@@ -550,6 +572,17 @@ export default function Configuracoes() {
                     <div className="h-7 w-7 rounded-md border" style={{ backgroundColor: corPrimaria }} aria-label="Cor primária atual" />
                     <div className="h-7 w-7 rounded-md border" style={{ backgroundColor: corSecundaria }} aria-label="Cor secundária atual" />
                   </div>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-xs">Visualização apenas informativa nesta tela pessoal.</p>
+                  {isAdmin && (
+                    <Button asChild variant="outline" size="sm" className="gap-1.5">
+                      <Link to="/administracao?tab=empresa">
+                        Gerenciar branding global
+                        <ArrowUpRight className="h-3.5 w-3.5" />
+                      </Link>
+                    </Button>
+                  )}
                 </div>
               </div>
 
@@ -677,10 +710,13 @@ export default function Configuracoes() {
                   Alterar senha
                 </CardTitle>
                 <CardDescription>
-                  Proteja sua conta com uma senha segura. Você precisará informar a senha atual para confirmar a alteração.
+                  Proteja sua conta com uma senha forte. A alteração exige confirmação da senha atual e é aplicada imediatamente após validação.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-5">
+                <div className="rounded-lg border border-dashed bg-muted/30 px-4 py-3 text-xs text-muted-foreground">
+                  Para sua segurança, nunca exibimos nem armazenamos a senha atual neste formulário.
+                </div>
                 {/* Current password */}
                 <div className="space-y-2 max-w-sm">
                   <Label htmlFor="current-password">Senha atual</Label>
@@ -844,6 +880,12 @@ export default function Configuracoes() {
                       </p>
                     )}
                   </div>
+                  {allCriteriaMet && currentPassword && !changingPassword && (
+                    <p className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      Requisitos atendidos. Clique em "Alterar senha" para concluir.
+                    </p>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -872,6 +914,29 @@ export default function Configuracoes() {
 
   return (
     <><ModulePage title="Configurações" subtitle="Preferências pessoais da sua conta.">
+        <Card className="mb-6 border-dashed bg-muted/30">
+          <CardContent className="pt-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="space-y-1.5">
+                <p className="text-sm font-semibold">Escopo pessoal</p>
+                <p className="text-sm text-muted-foreground">
+                  Esta página altera apenas dados do seu usuário (perfil, aparência e segurança). Configurações globais da empresa ficam na Administração.
+                </p>
+              </div>
+              {isAdmin ? (
+                <Button asChild variant="outline" size="sm" className="gap-2">
+                  <Link to="/administracao?tab=empresa">
+                    <Building2 className="h-4 w-4" />
+                    Ir para configurações globais
+                    <ArrowUpRight className="h-3.5 w-3.5" />
+                  </Link>
+                </Button>
+              ) : (
+                <Badge variant="secondary" className="h-fit">Somente administradores alteram configurações globais</Badge>
+              )}
+            </div>
+          </CardContent>
+        </Card>
         {/* Horizontal tab navigation */}
         <div role="tablist" aria-label="Seções de Configurações" className="flex gap-0 border-b overflow-x-auto mb-6 -mt-1">
           {tabNavItems.map((item) => {

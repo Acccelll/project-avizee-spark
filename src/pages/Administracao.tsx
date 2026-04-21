@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { ArrowUpRight, Building2, Calendar, CheckCircle2, ChevronDown, ChevronRight, Database, Globe, Image, Info, Loader2, Mail, MapPin, PenLine, Phone, Receipt, Reply, Shield, Upload, Users, Wallet } from 'lucide-react';
+import { AlertCircle, ArrowUpRight, Bell, Building2, Calendar, CheckCircle2, ChevronDown, ChevronRight, Database, Globe, HardDrive, Image, Info, Loader2, Mail, MapPin, PenLine, Phone, Plug, Receipt, Reply, Shield, Upload, Users, Wallet, Webhook } from 'lucide-react';
 import { ModulePage } from '@/components/ModulePage';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -55,6 +55,27 @@ const defaultConfig = {
     remetenteEmail: 'contato@avizee.com.br',
     responderPara: 'comercial@avizee.com.br',
     assinatura: 'Equipe AviZee',
+  },
+  integracoes: {
+    gatewayUrl: '',
+    gatewayApiKey: '',
+    sefazAmbiente: 'homologacao',
+    sefazCertificadoBase64: '',
+    webhookUrl: '',
+    webhookSecret: '',
+  },
+  notificacoes: {
+    resumoDiario: true,
+    alertasOperacionais: true,
+    avisosSeguranca: true,
+    canalPadrao: 'email',
+  },
+  backup: {
+    frequencia: 'diario',
+    retencaoDias: '30',
+    destino: 'storage-interno',
+    ultimaExecucao: '',
+    ultimoStatus: 'nao-executado',
   },
   fiscal: {
     cfopPadraoVenda: '5102',
@@ -114,6 +135,24 @@ interface FinanceiroConfigRaw {
   [key: string]: unknown;
 }
 
+interface IntegracoesConfigRaw {
+  _updatedAt?: string;
+  _updatedByName?: string;
+  [key: string]: unknown;
+}
+
+interface NotificacoesConfigRaw {
+  _updatedAt?: string;
+  _updatedByName?: string;
+  [key: string]: unknown;
+}
+
+interface BackupConfigRaw {
+  _updatedAt?: string;
+  _updatedByName?: string;
+  [key: string]: unknown;
+}
+
 interface UsuariosConfigRaw {
   permitirCadastro?: boolean;
   exigir2fa?: boolean;
@@ -123,7 +162,7 @@ interface UsuariosConfigRaw {
 
 /** Set of section keys that render actual content here — used to guard invalid ?tab= values */
 const VALID_SECTION_KEYS = new Set([
-  'empresa', 'dashboard', 'usuarios', 'email', 'fiscal', 'financeiro', 'auditoria',
+  'empresa', 'dashboard', 'usuarios', 'email', 'integracoes', 'notificacoes', 'backup', 'fiscal', 'financeiro', 'auditoria',
 ]);
 
 const sideNavGroups: SideNavGroup[] = [
@@ -147,6 +186,9 @@ const sideNavGroups: SideNavGroup[] = [
     label: 'Configurações',
     items: [
       { key: 'email', label: 'E-mails', icon: Mail },
+      { key: 'integracoes', label: 'Integrações', icon: Plug },
+      { key: 'notificacoes', label: 'Notificações globais', icon: Bell },
+      { key: 'backup', label: 'Backup', icon: HardDrive },
       { key: 'fiscal', label: 'Parâmetros Fiscais', icon: Receipt },
       { key: 'financeiro', label: 'Parâmetros Financeiros', icon: Wallet },
     ],
@@ -180,6 +222,7 @@ export default function Administracao() {
   const toggleGroup = (key: string) => setOpenGroupKey((prev) => (prev === key ? '' : key));
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [showSefazCertificado, setShowSefazCertificado] = useState(false);
   const [empresaConfigId, setEmpresaConfigId] = useState<string | null>(null);
   const [empresaUpdatedAt, setEmpresaUpdatedAt] = useState<string | null>(null);
   const [empresaCreatedAt, setEmpresaCreatedAt] = useState<string | null>(null);
@@ -188,6 +231,9 @@ export default function Administracao() {
 
   const [emailErrors, setEmailErrors] = useState<Record<string, string>>({});
   const [emailLastSaved, setEmailLastSaved] = useState<{ at: string | null; by: string | null }>({ at: null, by: null });
+  const [integracoesLastSaved, setIntegracoesLastSaved] = useState<{ at: string | null; by: string | null }>({ at: null, by: null });
+  const [notificacoesLastSaved, setNotificacoesLastSaved] = useState<{ at: string | null; by: string | null }>({ at: null, by: null });
+  const [backupLastSaved, setBackupLastSaved] = useState<{ at: string | null; by: string | null }>({ at: null, by: null });
 
   const [fiscalErrors, setFiscalErrors] = useState<Record<string, string>>({});
   const [fiscalLastSaved, setFiscalLastSaved] = useState<{ at: string | null; by: string | null }>({ at: null, by: null });
@@ -223,6 +269,12 @@ export default function Administracao() {
         const { _updatedAt: fiscalUpdatedAt, _updatedByName: fiscalUpdatedByName, ...fiscalData } = fiscalRaw;
         const financeiroRaw: FinanceiroConfigRaw = (appConfig.financeiro as FinanceiroConfigRaw) || {};
         const { _updatedAt: financeiroUpdatedAt, _updatedByName: financeiroUpdatedByName, ...financeiroData } = financeiroRaw;
+        const integracoesRaw: IntegracoesConfigRaw = (appConfig.integracoes as IntegracoesConfigRaw) || {};
+        const { _updatedAt: integracoesUpdatedAt, _updatedByName: integracoesUpdatedByName, ...integracoesData } = integracoesRaw;
+        const notificacoesRaw: NotificacoesConfigRaw = (appConfig.notificacoes as NotificacoesConfigRaw) || {};
+        const { _updatedAt: notificacoesUpdatedAt, _updatedByName: notificacoesUpdatedByName, ...notificacoesData } = notificacoesRaw;
+        const backupRaw: BackupConfigRaw = (appConfig.backup as BackupConfigRaw) || {};
+        const { _updatedAt: backupUpdatedAt, _updatedByName: backupUpdatedByName, ...backupData } = backupRaw;
         const merged = {
           ...defaultConfig,
           geral: {
@@ -250,6 +302,9 @@ export default function Administracao() {
           },
           usuarios: { ...defaultConfig.usuarios, ...((appConfig.usuarios as UsuariosConfigRaw) || {}) },
           email: { ...defaultConfig.email, ...emailData },
+          integracoes: { ...defaultConfig.integracoes, ...integracoesData },
+          notificacoes: { ...defaultConfig.notificacoes, ...notificacoesData },
+          backup: { ...defaultConfig.backup, ...backupData },
           fiscal: { ...defaultConfig.fiscal, ...fiscalData },
           financeiro: { ...defaultConfig.financeiro, ...financeiroData },
         };
@@ -259,6 +314,9 @@ export default function Administracao() {
           setEmpresaCreatedAt(empresa?.created_at || null);
           setConfig(merged);
           setEmailLastSaved({ at: emailUpdatedAt || null, by: emailUpdatedBy || null });
+          setIntegracoesLastSaved({ at: integracoesUpdatedAt || null, by: integracoesUpdatedByName || null });
+          setNotificacoesLastSaved({ at: notificacoesUpdatedAt || null, by: notificacoesUpdatedByName || null });
+          setBackupLastSaved({ at: backupUpdatedAt || null, by: backupUpdatedByName || null });
           setFiscalLastSaved({ at: fiscalUpdatedAt || null, by: fiscalUpdatedByName || null });
           setFinanceiroLastSaved({ at: financeiroUpdatedAt || null, by: financeiroUpdatedByName || null });
         }
@@ -305,6 +363,12 @@ export default function Administracao() {
         return { title: 'Usuários e permissões', description: 'Gestão de papéis, permissões complementares e revogações individuais.' };
       case 'email':
         return { title: 'Parâmetros de comunicação', description: 'Identidade do remetente e assinatura institucional de e-mails.' };
+      case 'integracoes':
+        return { title: 'Integrações globais', description: 'Conexões sistêmicas (gateway, SEFAZ e webhooks) válidas para toda a operação.' };
+      case 'notificacoes':
+        return { title: 'Notificações globais', description: 'Políticas administrativas de comunicação automática do sistema.' };
+      case 'backup':
+        return { title: 'Backup e retenção', description: 'Políticas globais de proteção de dados, agendamento e histórico operacional.' };
       case 'fiscal':
         return { title: 'Parâmetros fiscais', description: 'Padrões fiscais globais usados como base no sistema.' };
       case 'financeiro':
@@ -320,6 +384,15 @@ export default function Administracao() {
     }
     if (activeSection === 'email') {
       return { cta: 'Salvar parâmetros de e-mail', lastSaved: emailLastSaved.at, message: 'Parâmetros de e-mail atualizados.' };
+    }
+    if (activeSection === 'integracoes') {
+      return { cta: 'Salvar integrações globais', lastSaved: integracoesLastSaved.at, message: 'Parâmetros globais de integração atualizados.' };
+    }
+    if (activeSection === 'notificacoes') {
+      return { cta: 'Salvar notificações globais', lastSaved: notificacoesLastSaved.at, message: 'Política global de notificações atualizada.' };
+    }
+    if (activeSection === 'backup') {
+      return { cta: 'Salvar política de backup', lastSaved: backupLastSaved.at, message: 'Política global de backup atualizada.' };
     }
     if (activeSection === 'fiscal') {
       return { cta: 'Salvar parâmetros fiscais', lastSaved: fiscalLastSaved.at, message: 'Parâmetros fiscais atualizados.' };
@@ -358,6 +431,13 @@ export default function Administracao() {
   };
 
   const isValidEmailFormat = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const isValidBase64 = (value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) return true;
+    if (/\s/.test(trimmed)) return false;
+    if (!/^[A-Za-z0-9+/=]+$/.test(trimmed)) return false;
+    return trimmed.length % 4 === 0;
+  };
 
   const validateEmailSection = (): Record<string, string> => {
     const errors: Record<string, string> = {};
@@ -396,6 +476,10 @@ export default function Administracao() {
   };
 
   const handleSave = async () => {
+    if (activeSection === 'integracoes' && !isValidBase64(config.integracoes.sefazCertificadoBase64)) {
+      toast.error('Corrija o certificado SEFAZ: o conteúdo deve estar em Base64 válido.');
+      return;
+    }
     if (activeSection === 'email') {
       const errors = validateEmailSection();
       if (Object.keys(errors).length > 0) {
@@ -475,6 +559,39 @@ export default function Administracao() {
         const { error } = await supabase.from('app_configuracoes').upsert([emailRow], { onConflict: 'chave' });
         if (error) throw error;
         setEmailLastSaved({ at: now, by: updatedByName });
+
+      } else if (activeSection === 'integracoes') {
+        const row: AppConfigInsert = {
+          chave: 'integracoes',
+          valor: { ...config.integracoes, _updatedAt: now, _updatedByName: updatedByName },
+          categoria: 'integracoes',
+          sensibilidade: 'sensivel',
+        };
+        const { error } = await supabase.from('app_configuracoes').upsert([row], { onConflict: 'chave' });
+        if (error) throw error;
+        setIntegracoesLastSaved({ at: now, by: updatedByName });
+
+      } else if (activeSection === 'notificacoes') {
+        const row: AppConfigInsert = {
+          chave: 'notificacoes',
+          valor: { ...config.notificacoes, _updatedAt: now, _updatedByName: updatedByName },
+          categoria: 'comunicacao',
+          sensibilidade: 'interno',
+        };
+        const { error } = await supabase.from('app_configuracoes').upsert([row], { onConflict: 'chave' });
+        if (error) throw error;
+        setNotificacoesLastSaved({ at: now, by: updatedByName });
+
+      } else if (activeSection === 'backup') {
+        const row: AppConfigInsert = {
+          chave: 'backup',
+          valor: { ...config.backup, _updatedAt: now, _updatedByName: updatedByName },
+          categoria: 'infraestrutura',
+          sensibilidade: 'sensivel',
+        };
+        const { error } = await supabase.from('app_configuracoes').upsert([row], { onConflict: 'chave' });
+        if (error) throw error;
+        setBackupLastSaved({ at: now, by: updatedByName });
 
       } else if (activeSection === 'fiscal') {
         const fiscalRow: AppConfigInsert = {
@@ -1010,6 +1127,179 @@ export default function Administracao() {
     </div>
   );
 
+  const renderIntegracoes = () => (
+    <div className="space-y-6">
+      <Card className="border-dashed bg-muted/30">
+        <CardContent className="pt-6 text-sm text-muted-foreground">
+          Estas integrações são <strong className="text-foreground">globais</strong>. Qualquer alteração impacta todos os usuários e fluxos administrativos do sistema.
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><Plug className="h-4 w-4 text-muted-foreground" />Gateway externo</CardTitle>
+          <CardDescription>Conexão global com serviço de gateway. O teste desta tela valida apenas preenchimento básico dos parâmetros.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-1.5 md:col-span-2">
+            <Label>URL do gateway</Label>
+            <Input placeholder="https://api.gateway.com/v1" value={config.integracoes.gatewayUrl} onChange={(e) => updateSection('integracoes', { gatewayUrl: e.target.value })} />
+          </div>
+          <div className="space-y-1.5 md:col-span-2">
+            <Label>API key do gateway</Label>
+            <Input type="password" placeholder="••••••••••••" value={config.integracoes.gatewayApiKey} onChange={(e) => updateSection('integracoes', { gatewayApiKey: e.target.value })} />
+          </div>
+          <div className="md:col-span-2 flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 px-3 py-2.5 text-sm text-amber-800 dark:text-amber-300">
+            <Info className="h-4 w-4 mt-0.5 shrink-0" />
+            <p>Teste disponível nesta tela: validação de preenchimento local. Reachability e teste funcional real dependem de endpoint de backend dedicado.</p>
+          </div>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><Receipt className="h-4 w-4 text-muted-foreground" />SEFAZ</CardTitle>
+          <CardDescription>Parâmetros globais para emissão fiscal. Certificado em Base64 é aceito temporariamente enquanto o fluxo de upload dedicado não é implementado.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label>Ambiente SEFAZ</Label>
+            <Select value={config.integracoes.sefazAmbiente} onValueChange={(v) => updateSection('integracoes', { sefazAmbiente: v })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="homologacao">Homologação</SelectItem>
+                <SelectItem value="producao">Produção</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5 md:col-span-2">
+            <Label>Certificado digital (Base64)</Label>
+            <div className="space-y-2 rounded-md border bg-muted/20 p-3">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs text-muted-foreground">Campo sensível. O conteúdo fica oculto por padrão para reduzir exposição acidental.</p>
+                <Button type="button" size="sm" variant="outline" onClick={() => setShowSefazCertificado((prev) => !prev)}>
+                  {showSefazCertificado ? 'Ocultar conteúdo' : 'Mostrar conteúdo'}
+                </Button>
+              </div>
+              {showSefazCertificado ? (
+                <Textarea
+                  rows={4}
+                  placeholder="Cole aqui o conteúdo Base64 (sem cabeçalhos PEM)."
+                  value={config.integracoes.sefazCertificadoBase64}
+                  onChange={(e) => updateSection('integracoes', { sefazCertificadoBase64: e.target.value.trim() })}
+                  className="font-mono text-xs"
+                />
+              ) : (
+                <Input
+                  type="password"
+                  value={config.integracoes.sefazCertificadoBase64}
+                  placeholder="Conteúdo oculto"
+                  onChange={(e) => updateSection('integracoes', { sefazCertificadoBase64: e.target.value.trim() })}
+                  className="font-mono text-xs"
+                />
+              )}
+            </div>
+            {!isValidBase64(config.integracoes.sefazCertificadoBase64) && (
+              <p className="text-[11px] text-destructive">Formato inválido: informe um Base64 contínuo (sem espaços e sem cabeçalhos PEM).</p>
+            )}
+            <p className="text-[11px] text-muted-foreground">Hint: use apenas conteúdo Base64 limpo. Em breve este campo será substituído por upload seguro de certificado.</p>
+          </div>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><Webhook className="h-4 w-4 text-muted-foreground" />Webhooks</CardTitle>
+          <CardDescription>Canal global de eventos para sistemas externos.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-1.5 md:col-span-2">
+            <Label>Endpoint do webhook</Label>
+            <Input placeholder="https://sua-api.com/webhooks/erp" value={config.integracoes.webhookUrl} onChange={(e) => updateSection('integracoes', { webhookUrl: e.target.value })} />
+          </div>
+          <div className="space-y-1.5 md:col-span-2">
+            <Label>Segredo de assinatura</Label>
+            <Input type="password" placeholder="chave de assinatura HMAC" value={config.integracoes.webhookSecret} onChange={(e) => updateSection('integracoes', { webhookSecret: e.target.value })} />
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
+  const renderNotificacoes = () => (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><Bell className="h-4 w-4 text-muted-foreground" />Política global de notificações</CardTitle>
+          <CardDescription>Estas opções definem notificações automáticas em nível de sistema — não são preferências pessoais de usuário.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex items-center justify-between rounded-lg border p-4"><div><p className="font-medium text-sm">Resumo diário operacional</p><p className="text-sm text-muted-foreground">Envia panorama diário para perfis administrativos.</p></div><Switch checked={config.notificacoes.resumoDiario} onCheckedChange={(checked) => updateSection('notificacoes', { resumoDiario: checked })} /></div>
+          <div className="flex items-center justify-between rounded-lg border p-4"><div><p className="font-medium text-sm">Alertas operacionais críticos</p><p className="text-sm text-muted-foreground">Falhas de integração, filas e indisponibilidades relevantes.</p></div><Switch checked={config.notificacoes.alertasOperacionais} onCheckedChange={(checked) => updateSection('notificacoes', { alertasOperacionais: checked })} /></div>
+          <div className="flex items-center justify-between rounded-lg border p-4"><div><p className="font-medium text-sm">Avisos de segurança</p><p className="text-sm text-muted-foreground">Mudanças sensíveis, tentativas de acesso e revogações.</p></div><Switch checked={config.notificacoes.avisosSeguranca} onCheckedChange={(checked) => updateSection('notificacoes', { avisosSeguranca: checked })} /></div>
+          <div className="space-y-1.5 max-w-sm">
+            <Label>Canal padrão das notificações globais</Label>
+            <Select value={config.notificacoes.canalPadrao} onValueChange={(v) => updateSection('notificacoes', { canalPadrao: v })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="email">E-mail</SelectItem>
+                <SelectItem value="painel">Painel interno</SelectItem>
+                <SelectItem value="email-painel">E-mail + painel</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
+  const renderBackup = () => (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><HardDrive className="h-4 w-4 text-muted-foreground" />Política de backup global</CardTitle>
+          <CardDescription>Define frequência, retenção e destino. Esta tela configura política; a execução real depende da infraestrutura de backup.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-3">
+          <div className="space-y-1.5">
+            <Label>Frequência</Label>
+            <Select value={config.backup.frequencia} onValueChange={(v) => updateSection('backup', { frequencia: v })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="diario">Diário</SelectItem>
+                <SelectItem value="semanal">Semanal</SelectItem>
+                <SelectItem value="mensal">Mensal</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Retenção (dias)</Label>
+            <Input value={config.backup.retencaoDias} onChange={(e) => updateSection('backup', { retencaoDias: e.target.value.replace(/\D/g, '') })} placeholder="30" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Destino</Label>
+            <Select value={config.backup.destino} onValueChange={(v) => updateSection('backup', { destino: v })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="storage-interno">Storage interno</SelectItem>
+                <SelectItem value="s3-externo">Bucket externo (S3)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Status operacional</CardTitle>
+          <CardDescription>Leitura do último ciclo conhecido e do próximo passo previsto.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3 md:grid-cols-3">
+          <div className="rounded-md border bg-muted/30 p-3"><p className="text-[11px] uppercase text-muted-foreground">Última execução</p><p className="text-sm font-medium">{config.backup.ultimaExecucao || 'Sem execução registrada'}</p></div>
+          <div className="rounded-md border bg-muted/30 p-3"><p className="text-[11px] uppercase text-muted-foreground">Status</p><p className="text-sm font-medium flex items-center gap-1.5">{config.backup.ultimoStatus === 'sucesso' ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : config.backup.ultimoStatus === 'falha' ? <AlertCircle className="h-4 w-4 text-destructive" /> : <Info className="h-4 w-4 text-muted-foreground" />}{config.backup.ultimoStatus}</p></div>
+          <div className="rounded-md border bg-muted/30 p-3"><p className="text-[11px] uppercase text-muted-foreground">Próximo agendamento</p><p className="text-sm font-medium">Calculado pela infraestrutura ({config.backup.frequencia})</p></div>
+          <div className="md:col-span-3 flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 px-3 py-2.5 text-sm text-amber-800 dark:text-amber-300"><Info className="h-4 w-4 mt-0.5 shrink-0" /><p>Esta interface não dispara backup manual nem valida execução remota. Ela mantém a política global para consumo dos serviços de infraestrutura.</p></div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
   const renderFiscal = () => (
     <div className="space-y-6">
       {/* Bloco 1 — Classificação fiscal padrão */}
@@ -1395,6 +1685,12 @@ export default function Administracao() {
 
       case 'email':
         return renderEmail();
+      case 'integracoes':
+        return renderIntegracoes();
+      case 'notificacoes':
+        return renderNotificacoes();
+      case 'backup':
+        return renderBackup();
 
       case 'fiscal':
         return renderFiscal();
