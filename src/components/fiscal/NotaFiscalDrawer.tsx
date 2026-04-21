@@ -130,7 +130,7 @@ export function NotaFiscalDrawer({
     anexos: AnexoFiscal[];
   }>(open, selectedId, async (id) => {
     const [{ data: it }, { data: lanc }, { data: mov }, { data: ev }, { data: anx }] = await Promise.all([
-      supabase.from("notas_fiscais_itens").select("*, produtos(id, nome, sku), contas_contabeis(codigo, descricao)").eq("nota_fiscal_id", id),
+      supabase.from("notas_fiscais_itens").select("*, produtos(id, nome, sku)").eq("nota_fiscal_id", id),
       supabase.from("financeiro_lancamentos").select("id, tipo, descricao, valor, data_vencimento, status, forma_pagamento, parcela_numero, parcela_total").or(`nota_fiscal_id.eq.${id},documento_fiscal_id.eq.${id}`).order("parcela_numero", { ascending: true }),
       supabase.from("estoque_movimentos").select("*, produtos(id, nome, sku)").eq("documento_id", id).eq("documento_tipo", "fiscal").order("created_at", { ascending: true }),
       supabase.from("nota_fiscal_eventos").select("*").eq("nota_fiscal_id", id).order("data_evento", { ascending: false }),
