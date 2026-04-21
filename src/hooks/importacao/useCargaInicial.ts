@@ -90,6 +90,7 @@ export function useCargaInicial() {
       const cadRows: any[] = [];
       grupos.forEach(g => cadRows.push({ lote_id: newLoteId, status: "pendente", dados: { _tipo: "grupo", nome: g } }));
       bundle.planoContas.forEach(p => cadRows.push({ lote_id: newLoteId, status: "pendente", dados: { _tipo: "plano_conta", codigo: p.codigo, descricao: p.descricao, i_level: p.i_level } }));
+      bundle.centroCusto.forEach(c => cadRows.push({ lote_id: newLoteId, status: "pendente", dados: { _tipo: "centro_custo", codigo: c.codigo, descricao: c.descricao, responsavel: c.responsavel } }));
       bundle.fornecedores.forEach(f => cadRows.push({ lote_id: newLoteId, status: "pendente", dados: { _tipo: "fornecedor", ...f } }));
       bundle.clientes.forEach(c => cadRows.push({ lote_id: newLoteId, status: "pendente", dados: { _tipo: "cliente", ...c } }));
       [...bundle.produtos, ...bundle.insumos].forEach(p => cadRows.push({ lote_id: newLoteId, status: "pendente", dados: { _tipo: p.tipo_item, ...p } }));
@@ -151,6 +152,13 @@ export function useCargaInicial() {
       if (error) throw error;
       const r = data as Record<string, unknown> & { erro?: string };
       if (r?.erro) { toast.error(`Bloqueado: ${String(r.erro)}`); setResultado(r); return false; }
+      // Processar extras (centros de custo + sintéticas)
+      try {
+        const { data: extras } = await supabase.rpc("carga_inicial_processar_extras", { p_lote_id: loteId });
+        if (extras) Object.assign(r as object, { extras });
+      } catch (e) {
+        console.warn("Falha ao processar extras (centro_custo/sinteticas):", e);
+      }
       setResultado(r);
       toast.success(`Carga inicial concluída: ${r.fornecedores} forn, ${r.clientes} cli, ${r.produtos} prod, ${r.insumos} insumos, ${r.cr} CR, ${r.cp} CP.`);
       return true;

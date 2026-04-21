@@ -327,6 +327,36 @@ export type Database = {
           },
         ]
       }
+      centros_custo: {
+        Row: {
+          ativo: boolean
+          codigo: string
+          created_at: string
+          descricao: string
+          id: string
+          responsavel: string | null
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          codigo: string
+          created_at?: string
+          descricao: string
+          id?: string
+          responsavel?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          codigo?: string
+          created_at?: string
+          descricao?: string
+          id?: string
+          responsavel?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       cliente_registros_comunicacao: {
         Row: {
           assunto: string | null
@@ -957,6 +987,7 @@ export type Database = {
           ativo: boolean
           codigo: string
           conta_pai_id: string | null
+          conta_sintetica_codigo: string | null
           created_at: string
           descricao: string
           i_level: string | null
@@ -968,6 +999,7 @@ export type Database = {
           ativo?: boolean
           codigo: string
           conta_pai_id?: string | null
+          conta_sintetica_codigo?: string | null
           created_at?: string
           descricao: string
           i_level?: string | null
@@ -979,6 +1011,7 @@ export type Database = {
           ativo?: boolean
           codigo?: string
           conta_pai_id?: string | null
+          conta_sintetica_codigo?: string | null
           created_at?: string
           descricao?: string
           i_level?: string | null
@@ -992,6 +1025,51 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "contas_contabeis"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contas_contabeis_conta_sintetica_codigo_fkey"
+            columns: ["conta_sintetica_codigo"]
+            isOneToOne: false
+            referencedRelation: "contas_contabeis_sinteticas"
+            referencedColumns: ["codigo"]
+          },
+        ]
+      }
+      contas_contabeis_sinteticas: {
+        Row: {
+          ativo: boolean
+          codigo: string
+          conta_pai_codigo: string | null
+          created_at: string
+          descricao: string
+          id: string
+          nivel: number | null
+        }
+        Insert: {
+          ativo?: boolean
+          codigo: string
+          conta_pai_codigo?: string | null
+          created_at?: string
+          descricao: string
+          id?: string
+          nivel?: number | null
+        }
+        Update: {
+          ativo?: boolean
+          codigo?: string
+          conta_pai_codigo?: string | null
+          created_at?: string
+          descricao?: string
+          id?: string
+          nivel?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contas_contabeis_sinteticas_conta_pai_codigo_fkey"
+            columns: ["conta_pai_codigo"]
+            isOneToOne: false
+            referencedRelation: "contas_contabeis_sinteticas"
+            referencedColumns: ["codigo"]
           },
         ]
       }
@@ -1770,6 +1848,7 @@ export type Database = {
           ativo: boolean
           banco: string | null
           cartao: string | null
+          centro_custo_id: string | null
           cliente_id: string | null
           codigo_fluxo_origem: string | null
           conta_bancaria_id: string | null
@@ -1809,6 +1888,7 @@ export type Database = {
           ativo?: boolean
           banco?: string | null
           cartao?: string | null
+          centro_custo_id?: string | null
           cliente_id?: string | null
           codigo_fluxo_origem?: string | null
           conta_bancaria_id?: string | null
@@ -1848,6 +1928,7 @@ export type Database = {
           ativo?: boolean
           banco?: string | null
           cartao?: string | null
+          centro_custo_id?: string | null
           cliente_id?: string | null
           codigo_fluxo_origem?: string | null
           conta_bancaria_id?: string | null
@@ -1884,6 +1965,13 @@ export type Database = {
           valor_pago?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "financeiro_lancamentos_centro_custo_id_fkey"
+            columns: ["centro_custo_id"]
+            isOneToOne: false
+            referencedRelation: "centros_custo"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "financeiro_lancamentos_cliente_id_fkey"
             columns: ["cliente_id"]
@@ -2895,6 +2983,7 @@ export type Database = {
           cst_cofins: string | null
           cst_ipi: string | null
           cst_pis: string | null
+          custo_historico_unitario: number | null
           desconto: number | null
           descricao: string | null
           frete_rateado: number | null
@@ -2936,6 +3025,7 @@ export type Database = {
           cst_cofins?: string | null
           cst_ipi?: string | null
           cst_pis?: string | null
+          custo_historico_unitario?: number | null
           desconto?: number | null
           descricao?: string | null
           frete_rateado?: number | null
@@ -2977,6 +3067,7 @@ export type Database = {
           cst_cofins?: string | null
           cst_ipi?: string | null
           cst_pis?: string | null
+          custo_historico_unitario?: number | null
           desconto?: number | null
           descricao?: string | null
           frete_rateado?: number | null
@@ -5743,6 +5834,10 @@ export type Database = {
         Args: { p_force?: boolean; p_lote_id: string }
         Returns: Json
       }
+      carga_inicial_processar_extras: {
+        Args: { p_lote_id: string }
+        Returns: Json
+      }
       confirmar_nota_fiscal: { Args: { p_nf_id: string }; Returns: undefined }
       consolidar_lote_cadastros: { Args: { p_lote_id: string }; Returns: Json }
       consolidar_lote_enriquecimento: {
@@ -6015,6 +6110,17 @@ export type Database = {
           lancamento_id: string
           score: number
         }[]
+      }
+      vincular_produto_fornecedor: {
+        Args: {
+          p_fornecedor_legado: string
+          p_fornecedor_nome: string
+          p_preco_custo?: number
+          p_produto_id: string
+          p_referencia: string
+          p_url: string
+        }
+        Returns: string
       }
     }
     Enums: {
