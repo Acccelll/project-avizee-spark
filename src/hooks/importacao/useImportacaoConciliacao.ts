@@ -380,6 +380,49 @@ export function useImportacaoConciliacao() {
       const newLoteId = lote.id;
       setLoteId(newLoteId);
 
+      // Staging de cadastros (clientes/fornecedores) — consolidados via
+      // consolidar_lote_cadastros ANTES do financeiro, para que o lookup por
+      // codigo_legado/cpf_cnpj resolva corretamente.
+      const pessoaRows = [
+        ...preview.clientes
+          .filter((p) => p._action !== "ignorar")
+          .map((p) => ({
+            lote_id: newLoteId,
+            status: "pendente" as const,
+            dados: {
+              _tipo_entidade: "cliente",
+              codigo_legado: p.codigo_legado || null,
+              cpf_cnpj: p.cpf_cnpj,
+              tipo_pessoa: p.tipo_pessoa === "juridica" ? "J" : "F",
+              nome_razao_social: p.nome_razao_social,
+              nome_fantasia: p.nome_fantasia,
+              cidade: p.cidade,
+              uf: p.uf,
+            },
+          })),
+        ...preview.fornecedores
+          .filter((p) => p._action !== "ignorar")
+          .map((p) => ({
+            lote_id: newLoteId,
+            status: "pendente" as const,
+            dados: {
+              _tipo_entidade: "fornecedor",
+              codigo_legado: p.codigo_legado || null,
+              cpf_cnpj: p.cpf_cnpj,
+              tipo_pessoa: p.tipo_pessoa === "juridica" ? "J" : "F",
+              nome_razao_social: p.nome_razao_social,
+              nome_fantasia: p.nome_fantasia,
+              cidade: p.cidade,
+              uf: p.uf,
+            },
+          })),
+      ];
+      for (let i = 0; i < pessoaRows.length; i += 500) {
+        const chunk = pessoaRows.slice(i, i + 500);
+        const { error } = await supabase.from("stg_cadastros").insert(chunk);
+        if (error) throw error;
+      }
+
       // Staging financeiro (CR + CP + FOPAG válidos)
       const all = [...preview.cr, ...preview.cp, ...preview.fopag].filter((x) => x._valid && !x._duplicado);
       const stgRows = all.map((r) => ({
