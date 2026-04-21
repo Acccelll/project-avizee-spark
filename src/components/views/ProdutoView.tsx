@@ -70,10 +70,19 @@ export function ProdutoView({ id }: Props) {
     if (!p) return null;
 
     // A4 fix: settled em vez de all — falha em uma query não silencia as outras.
-    const [nfRes, compRes, movRes, fornRes, grupoRes] = await Promise.allSettled([
+    const [comprasRes, vendasRes, compRes, movRes, fornRes, grupoRes] = await Promise.allSettled([
       supabase.from("notas_fiscais_itens")
-        .select("quantidade, valor_unitario, notas_fiscais(id, numero, tipo, data_emissao, fornecedores(id, nome_razao_social))")
-        .eq("produto_id", p.id).abortSignal(signal).limit(20),
+        .select("quantidade, valor_unitario, notas_fiscais!inner(id, numero, tipo, data_emissao, fornecedores(id, nome_razao_social))")
+        .eq("produto_id", p.id)
+        .in("notas_fiscais.tipo", ["entrada", "compra"])
+        .order("data_emissao", { foreignTable: "notas_fiscais", ascending: false })
+        .abortSignal(signal).limit(30),
+      supabase.from("notas_fiscais_itens")
+        .select("quantidade, valor_unitario, notas_fiscais!inner(id, numero, tipo, data_emissao, clientes(id, nome_razao_social))")
+        .eq("produto_id", p.id)
+        .in("notas_fiscais.tipo", ["saida", "venda"])
+        .order("data_emissao", { foreignTable: "notas_fiscais", ascending: false })
+        .abortSignal(signal).limit(30),
       p.eh_composto ? supabase.from("produto_composicoes")
         .select("quantidade, ordem, produtos:produto_filho_id(id, nome, sku, preco_custo)")
         .eq("produto_pai_id", p.id).abortSignal(signal).order("ordem")
@@ -95,7 +104,8 @@ export function ProdutoView({ id }: Props) {
       return (v?.data ?? fallback) as T;
     };
 
-    const nfData = pickData(nfRes, [] as unknown[]);
+    const comprasData = pickData(comprasRes, [] as unknown[]);
+    const vendasData = pickData(vendasRes, [] as unknown[]);
     const compData = pickData(compRes, [] as unknown[]);
     const movData = pickData(movRes, [] as unknown[]);
     const fornData = pickData(fornRes, [] as unknown[]);
@@ -104,7 +114,8 @@ export function ProdutoView({ id }: Props) {
     return {
       produto: p,
       grupoNome: (grupoData as Record<string, unknown> | null)?.nome as string ?? null,
-      historico: nfData as HistoricoNfItemRow[],
+      historicoCompras: comprasData as HistoricoNfItemRow[],
+      historicoVendas: vendasData as HistoricoNfVendaRow[],
       composicao: (compData as ComposicaoQueryRow[]).map((c) => ({
         id: c.produtos?.id ?? null,
         nome: c.produtos?.nome ?? null,
