@@ -20,7 +20,7 @@ export interface CargaInicialResumo {
   abasDetectadas: string[];
   abasFaltantes: string[];
   contagens: {
-    grupos: number; planoContas: number;
+    grupos: number; planoContas: number; sinteticas: number; centrosCusto: number;
     fornecedores: number; clientes: number;
     produtos: number; insumos: number;
     estoque: number; cr: number; cp: number;
