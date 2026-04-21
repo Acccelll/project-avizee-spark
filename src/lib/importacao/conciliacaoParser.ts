@@ -212,6 +212,7 @@ export async function parseConciliacaoWorkbook(file: File): Promise<ConciliacaoB
     FORNECEDORES: findSheet(wb, ["FORNECEDORES"]),
     PLANO: findSheet(wb, ["Plano de Contas", "PlanoContas"]),
     CC: findSheet(wb, ["Centro de Custo", "CentroCusto"]),
+    SINT: findSheet(wb, ["Sinteticas", "Sintéticas", "Plano Sintetico", "Plano Sintético"]),
     PRODUTOS: findSheet(wb, ["PRODUTOS", "Produtos", "Produtos e Insumos"]),
     INSUMOS: findSheet(wb, ["INSUMOS", "Insumos"]),
   };
@@ -230,6 +231,7 @@ export async function parseConciliacaoWorkbook(file: File): Promise<ConciliacaoB
     fc: map.FC ? parseFC(wb, map.FC) : [],
     planoContas: map.PLANO ? parsePlanoContas(wb, map.PLANO) : [],
     centroCusto: map.CC ? parseCentroCusto(wb, map.CC) : [],
+    sinteticas: map.SINT ? parseSinteticas(wb, map.SINT) : [],
     clientes: map.CLIENTES ? parsePessoasAux(wb, map.CLIENTES) : [],
     fornecedores: map.FORNECEDORES ? parsePessoasAux(wb, map.FORNECEDORES) : [],
     produtos: map.PRODUTOS ? parseProdutosOuInsumos(wb, map.PRODUTOS, "produto") : [],
