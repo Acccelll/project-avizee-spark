@@ -260,7 +260,7 @@ export function ProdutoView({ id }: Props) {
           <TabsTrigger value="estoque" className="text-xs px-0.5">Estoque</TabsTrigger>
           <TabsTrigger value="fiscal" className="text-xs px-0.5">Fiscal</TabsTrigger>
           <TabsTrigger value="precos" className="text-xs px-0.5">Espec.</TabsTrigger>
-          <TabsTrigger value="historico" className="text-xs px-0.5">Hist.</TabsTrigger>
+          <TabsTrigger value="vendas" className="text-xs px-0.5">Vendas</TabsTrigger>
         </TabsList>
 
         {/* Tab: Geral */}
