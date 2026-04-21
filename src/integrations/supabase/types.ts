@@ -5876,6 +5876,7 @@ export type Database = {
         Args: { p_data_entrega?: string; p_remessa_id: string }
         Returns: undefined
       }
+      merge_lote_conciliacao: { Args: { p_lote_id: string }; Returns: Json }
       move_to_dlq: {
         Args: {
           dlq_name: string
