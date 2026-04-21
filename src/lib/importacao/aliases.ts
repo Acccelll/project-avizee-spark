@@ -203,3 +203,75 @@ export const FIELD_ALIASES: Record<string, string> = {
   'CUSTO PRODUTO': 'custo_produto',
   'LUCRO': 'lucro',
 };
+
+/**
+ * Mapa de aliases ESPECÍFICO para a aba "Notas" do faturamento histórico.
+ * Resolve ambiguidades do FIELD_ALIASES global (ex.: TOTAL → valor_total, não "valor"),
+ * e cobre os cabeçalhos exatos exportados pelo template "Faturamento_Geral".
+ */
+export const FATURAMENTO_FIELD_ALIASES: Record<string, string> = {
+  // Cabeçalho da NF
+  'NF': 'numero_nota',
+  'NOTA': 'numero_nota',
+  'NUMERO NOTA': 'numero_nota',
+  'NÚMERO NOTA': 'numero_nota',
+  'CHAVE': 'chave_acesso',
+  'CHAVE ACESSO': 'chave_acesso',
+  'CHAVE DE ACESSO': 'chave_acesso',
+  'EMISSÃO': 'data_emissao',
+  'EMISSAO': 'data_emissao',
+  'DATA EMISSÃO': 'data_emissao',
+  'DATA EMISSAO': 'data_emissao',
+  'DATA': 'data_emissao',
+
+  // Emitente (não usado para cliente, mas registramos para descarte controlado)
+  'EMITENTE  CNPJ/CPF': 'emitente_cpf_cnpj',
+  'EMITENTE CNPJ/CPF': 'emitente_cpf_cnpj',
+  'EMITENTE': 'emitente_nome',
+
+  // Destinatário (vira cliente)
+  'DESTINATÁRIO CNPJ/CPF': 'cpf_cnpj_destinatario',
+  'DESTINATARIO CNPJ/CPF': 'cpf_cnpj_destinatario',
+  'IE': 'inscricao_estadual_destinatario',
+  'DESTINATÁRIO': 'cliente_nome',
+  'DESTINATARIO': 'cliente_nome',
+  'DESTINATÁRIO MUNÍCIPIO': 'municipio',
+  'DESTINATARIO MUNICIPIO': 'municipio',
+  'DESTINATÁRIO MUNICÍPIO': 'municipio',
+  'DESTINATÁRIO UF': 'uf',
+  'DESTINATARIO UF': 'uf',
+
+  // Item
+  'ITEM': 'item_seq',
+  'CÓDIGO PRODUTO': 'codigo_produto_nf',
+  'CODIGO PRODUTO': 'codigo_produto_nf',
+  'BARRAS': 'gtin',
+  'PRODUTO': 'nome_produto',
+  'NCM': 'ncm',
+  'CEST': 'cest',
+  'CFOP': 'cfop',
+  'UN': 'unidade',
+  'QUANTIDADE': 'quantidade_nf',
+  'V.UN': 'valor_unitario',
+  'V. UN': 'valor_unitario',
+  'VALOR UNITÁRIO': 'valor_unitario',
+  'VALOR UNITARIO': 'valor_unitario',
+  'T. PRODUTOS': 'valor_total_produtos',
+  'T.PRODUTOS': 'valor_total_produtos',
+  'DESCONTO': 'desconto_valor',
+  'FRETE': 'frete_valor',
+  'TOTAL': 'valor_total',
+  'V. LÍQUIDO': 'valor_liquido',
+  'V. LIQUIDO': 'valor_liquido',
+  'V.LIQUIDO': 'valor_liquido',
+  'IMPOSTOS': 'impostos_valor',
+  'CUSTO UN.': 'custo_unitario',
+  'CUSTO UN': 'custo_unitario',
+  'CUSTO TOTAL': 'custo_produto',
+  'LUCRO BRUTO UN.': 'lucro_bruto_un',
+  'LUCRO BRU. TOTAL': 'lucro_bruto_total',
+  'LUCRO LÍQUIDO UN.': 'lucro_liquido_un',
+  'LUCRO LIQ. TOTAL': 'lucro',
+  'ANO': 'ano',
+  'GRUPO': 'grupo',
+};
