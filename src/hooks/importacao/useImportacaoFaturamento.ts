@@ -6,6 +6,7 @@ import { validateFaturamentoImport } from "@/lib/importacao/validators";
 import { FIELD_ALIASES, FATURAMENTO_FIELD_ALIASES } from "@/lib/importacao/aliases";
 import { validarChaveAcesso, extrairInformacoesChave } from "@/services/fiscal/validadores/chaveAcesso.validator";
 import { normalizeText } from "@/lib/importacao/normalizers";
+import { normalizarDescricao } from "@/lib/importacao/produtoMatch";
 import { Mapping } from "./types";
 
 export interface GroupedNF {
@@ -380,7 +381,9 @@ export function useImportacaoFaturamento() {
       });
 
       toast.success(
-        `Importação concluída: ${result?.nfs_inseridas ?? validos.length} NFs e ${result?.itens_inseridos ?? totalItens} itens gravados.`
+        `Importação concluída: ${result?.nfs_inseridas ?? validos.length} NFs, ${result?.itens_inseridos ?? totalItens} itens. ` +
+        `Vinculados: ${result?.vinculados ?? 0} · Duvidosos: ${result?.duvidosos ?? 0} · ` +
+        `Não vinculados: ${result?.nao_vinculados ?? 0} · Descontinuados criados: ${result?.descontinuados_criados ?? 0}.`
       );
       return currentLoteId;
 
