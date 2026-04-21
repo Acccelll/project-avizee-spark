@@ -558,6 +558,71 @@ export default function Configuracoes() {
 
               <Separator />
 
+              {/* ── Sessão ─────────────────────────────────────────────────── */}
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground">Sessão</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">Controle quanto tempo sua sessão permanece ativa.</p>
+                </div>
+                <div className="flex items-center justify-between rounded-lg border p-4">
+                  <div>
+                    <p className="font-medium">Manter sessão ativa</p>
+                    <p className="text-sm text-muted-foreground">Renova automaticamente sua sessão a cada 30 min enquanto a aba estiver aberta.</p>
+                  </div>
+                  <Switch
+                    checked={sessionKeepalive ?? true}
+                    onCheckedChange={(c) => saveSessionKeepalive(c)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Avisar antes de expirar</Label>
+                  <Select value={String(sessionWarnMinutes ?? 5)} onValueChange={(v) => saveSessionWarnMinutes(Number(v))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="5">5 minutos antes</SelectItem>
+                      <SelectItem value="15">15 minutos antes</SelectItem>
+                      <SelectItem value="30">30 minutos antes</SelectItem>
+                      <SelectItem value="60">1 hora antes</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* ── Menu lateral (modo) ────────────────────────────────────── */}
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground">Comportamento do menu lateral</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">Escolha como o menu lateral se comporta.</p>
+                </div>
+                <div className="grid gap-3 md:grid-cols-3">
+                  {([
+                    { mode: 'dynamic' as SidebarMode, title: 'Dinâmico', desc: 'Recolhido por padrão; expande no hover.' },
+                    { mode: 'fixed-expanded' as SidebarMode, title: 'Sempre expandido', desc: 'Largura fixa de 240px.' },
+                    { mode: 'fixed-collapsed' as SidebarMode, title: 'Sempre recolhido', desc: 'Apenas ícones (72px).' },
+                  ]).map((opt) => {
+                    const active = sidebarMode === opt.mode;
+                    return (
+                      <button
+                        key={opt.mode}
+                        type="button"
+                        onClick={() => saveSidebarMode(opt.mode)}
+                        className={cn(
+                          'rounded-lg border p-3 text-left transition-colors',
+                          active ? 'border-primary bg-primary/5' : 'hover:bg-accent/30',
+                        )}
+                      >
+                        <p className="text-sm font-medium">{opt.title}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{opt.desc}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <Separator />
+
               {/* ── Bloco 4: Branding institucional (somente leitura) ────────── */}
               {/*
                 Branding (cores e logo) pertence a `empresa_config` e é gerenciado
