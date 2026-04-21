@@ -1,97 +1,153 @@
 
 
-# Ajustes em Orçamentos — endereço, frete, layout e correção de erro ao salvar
+# Ajustes em massa — Admin, sessão, financeiro, sidebar e UX
 
-Seis problemas independentes na tela de Orçamentos. O foco é resolver a causa real do erro de salvar (constraint), simplificar campos confusos e melhorar a usabilidade da grade de itens.
+11 problemas independentes. Plano agrupado por área.
 
 ---
 
-## 1. Causa do erro "Valor Fora do Intervalo Permitido"
+## 1. Menu lateral de Administração — visual
 
-**Diagnóstico:** o erro é o SQLSTATE `23514` (check violation) traduzido por `src/utils/errorMessages.ts`. Duas constraints estão sendo violadas:
+Hoje cada grupo (`Empresa / Acesso & Segurança / Configurações / Dados & Auditoria`) é um accordion sem hierarquia visual clara, a área "Empresa" só tem 1 item e o item ativo destaca o grupo inteiro com cor avermelhada. Refatorar `src/pages/Administracao.tsx`:
 
-- `chk_orcamento_frete_tipo` permite só `'CIF' | 'FOB' | 'sem_frete'`, mas o campo "Transportadora / Serviço de Frete" é texto livre (envia coisas como `"CORREIOS SEDEX"`).
-- `chk_orcamentos_status` permite só os 7 canônicos (`rascunho|pendente|aprovado|convertido|rejeitado|cancelado|expirado`), mas o `<Select>` da UI ainda lista `"confirmado"` como opção.
+- Trocar accordions por **secções fixas com headers tipográficos** (caps, 11px, `text-muted-foreground`) — sem expand/collapse, todos os itens visíveis (são poucos).
+- Item ativo: barra vertical primary à esquerda + bg `accent/40`, sem chip de cor inteiro.
+- Ícones em quadradinho (24×24) com bg `muted/40`; `Dados da Empresa` deixa de ficar dentro de um card vermelho.
+- Adicionar separador fino entre seções e largura fixa `w-60`.
 
-**Correções:**
-- Remover do schema/UI o status `"confirmado"` (substituir por `"pendente"` — já é o alias normalizado).
-- Trocar a coluna `frete_tipo` de uso. Hoje o **payload** envia o texto livre da transportadora dentro de `frete_tipo`, contaminando a constraint. O correto:
-  - `frete_tipo` ↔ apenas modalidade (CIF/FOB/sem_frete).
-  - `servico_frete` (já existe na tabela) ↔ texto livre (ex.: `"CORREIOS SEDEX"`).
-- Atualizar `OrcamentoCondicoesCard` e `OrcamentoForm` para usar **`servico_frete`** no campo "Frete" (item 4), e parar de gravar o texto livre em `frete_tipo`.
-- Em `salvar_orcamento`: passar `NULLIF(p_payload->>'frete_tipo','')` para evitar string vazia → constraint (string vazia falha o CHECK porque não está na lista). Mesma proteção para `modalidade`.
+## 2. Filtro de data personalizado bugado no Dashboard
 
-## 2. Endereço completo do cliente no formulário e no link público
+`src/components/dashboard/DashboardHeader.tsx` usa `<Input type="date">` controlado direto pelo contexto. Cada keystroke (`2`, `20`, `202`…) dispara `setCustomStart` com data inválida e o `useMemo` do `range` recalcula imediatamente, retornando datas inválidas que quebram queries downstream.
 
-**Em `OrcamentoForm.tsx` (bloco "Cliente")** — após o grid existente, adicionar um sub-bloco "Endereço" exibindo `logradouro`, `numero`, `bairro`, `cidade/uf`, `cep` (já estão no `clienteSnapshot`). Layout em 2 colunas, somente leitura, com fallback "—".
+- Manter estado local (`localStart`, `localEnd`) para digitação; só propagar via `setCustomStart/End` no `onBlur` ou quando a string completar 10 chars válidos (`/^\d{4}-\d{2}-\d{2}$/`).
+- Validar `dateFrom <= dateTo`; se inválido, manter o range anterior e mostrar `aria-invalid` no input vermelho.
+- Adicionar botão "Aplicar" explícito ao lado dos inputs para confirmar.
 
-**Em `OrcamentoPublico.tsx`** — a `cliente_snapshot` já é JSON e contém endereço; basta renderizar. Adicionar bloco "Endereço de entrega/cobrança" no card do cliente com `logradouro, numero · bairro · cidade/uf · cep`. **Não precisa migration** — a view `orcamentos_public_view` já expõe `cliente_snapshot` inteiro.
+**Auditar mesmo padrão em**: `Auditoria.tsx`, `relatorios/.../FiltrosRelatorio.tsx`, `relatorios/.../PeriodoFilter.tsx` (usam o mesmo padrão `<Input type="date" onChange={direto}>`). Aplicar a mesma proteção via util novo `src/lib/safeDateInput.ts` (`useDebouncedDateInput`) reutilizável.
 
-## 3. Visualização de "Itens do Orçamento"
+## 3. Timeout de sessão configurável (≥1h) + preferência
 
-A tabela tem `min-w-[1150px]` e estoura a tela em viewports comuns. Estratégia em duas frentes:
+`SessionExpiryWarning` usa `WARN_BEFORE_MS = 5 min` e dispara o toast assim que a expiração nativa do Supabase se aproxima (~1h). O toast aparece muito cedo na UX.
 
-- **Compactar a grade in-page**: reduzir paddings (`px-3 py-2` → `px-2 py-1.5`), encurtar headers ("Desc. %" → "%"), unidade colada ao Qtd, esconder coluna "Código" abaixo de `lg` (mostrar só dentro do edit do produto), e usar `text-xs` consistente. Meta: caber em ≥1100px sem scroll horizontal.
-- **Botão "Editar em tela cheia"** ao lado de "Adicionar Item" → abre um `Dialog` largo (`max-w-6xl`) com a mesma grade em modo expandido (todas as colunas, inclusive custo/margem para quem tem permissão). O dialog usa o mesmo `OrcamentoItemsGrid` controlado pelo mesmo `items`/`setItems`, então edição é bidirecional.
+- Adicionar preferência `session_keepalive` (`'on' | 'off'`, default `'on'`) e `session_warn_minutes` (`number`, default `60`) em `useUserPreference`.
+- Se `keepalive='on'`: a cada 30 min, chamar `supabase.auth.refreshSession()` em background (silenciosamente). Isso renova a janela de 1h continuamente enquanto a aba estiver ativa (`document.visibilityState === 'visible'`).
+- Toast "Renovar sessão" só aparece **N minutos antes** da expiração (configurável; default 5 min). Garante que nunca aparece se keepalive estiver ligado e a aba ativa.
+- UI: nova seção "Sessão" em `src/pages/Configuracoes.tsx` (rota `/configuracoes`, é onde `/perfil` redireciona) com **Switch "Manter sessão ativa"** + **Slider/Select "Avisar X min antes de expirar"** (5/15/30/60).
 
-**Mesmo padrão para "Análise Interna · Base x Cenário"** (`OrcamentoInternalAnalysisPanel`): adicionar ação "Expandir" que abre `Dialog` `max-w-7xl` com o conteúdo já existente, sem reescrever a lógica.
+## 4. Visual de "Ajuste Manual" do Estoque
 
-## 4. Renomear campo "Transportadora / Serviço de Frete" → "Frete"
+`src/pages/Estoque.tsx` (aba `ajuste`): hoje é uma coluna estreita `max-w-lg` num fundo bege gritante, banner amarelo desproporcional, sem agrupamento.
 
-Em `OrcamentoCondicoesCard.tsx`:
-- Label: `"Transportadora / Serviço de Frete"` → `"Frete"`.
-- Placeholder mais curto: `"Ex.: SEDEX, Transportadora X"`.
-- Vincular ao novo campo `servicoFrete` (no form) em vez de `freteTipo` (ver item 1).
+- Wrapper em **2 colunas** (`grid lg:grid-cols-3 gap-6`): formulário ocupa 2/3, **lateral direita** mostra histórico recente do produto (últimos 5 ajustes via `vw_estoque_ultimos_ajustes` se existir, senão `estoque_movimentos` filtrado por `produto_id` e `tipo='ajuste'`).
+- Banner de aviso: trocar fundo amarelo cheio por borda lateral `border-l-4 border-warning` + bg `warning/5` mais sutil.
+- Cards segmentados (FormSection) para "Produto", "Operação" e "Justificativa" — cada um com header tipográfico claro.
+- Preview do "Saldo Atual / Novo Saldo" vira um card destacado com tipografia maior (32px) e diff colorido (verde/vermelho) com seta.
+- Botões de ação fixos no rodapé (sticky) do card.
 
-No `OrcamentoForm` adicionar `servicoFrete: z.string().optional()` no `orcamentoSchema` e mapear:
-- carregar `orc.servico_frete` em `servicoFrete`;
-- gravar em `payload.servico_frete` (já existe coluna).
+## 5. `[object Object]` na coluna Descrição (Lançamentos)
 
-O `freteTipo` continua existindo no schema/payload, mas vira **derivado da modalidade** (CIF/FOB) ou `null`. O `FreteSimuladorCard` que hoje seta `freteTipo: "CORREIOS (SEDEX)"` passa a setar **`servicoFrete`** com esse texto e `freteTipo` segue `'CIF'|'FOB'|null`.
+**Causa raiz confirmada** (consulta no DB): 363 registros em `financeiro_lancamentos` têm a string literal `"[object Object]"` em `descricao`. Foram gravados por um bug antigo (provavelmente `String(objetoPlanoContas)` sem `.descricao`). O FK `conta_contabil_id` está correto e `contas_contabeis.descricao` tem o nome.
 
-## 5. Verificar consulta de frete dos Correios
+**Correção em duas frentes:**
 
-A edge function `correios-api` (action `cotacao_multi`) está implementada e usa o calculador público `CalcPrecoPrazo.aspx` com fallback estimado. Plano de verificação em runtime (sem alterar a função se passar):
+1. **Migration SQL — backfill**: 
+   ```sql
+   UPDATE financeiro_lancamentos l
+   SET descricao = cc.descricao
+   FROM contas_contabeis cc
+   WHERE l.conta_contabil_id = cc.id AND l.descricao = '[object Object]';
+   ```
+   Para os que não tiverem `conta_contabil_id`, fallback para "Lançamento sem descrição".
 
-- Após deploy das mudanças, abrir `/orcamentos/novo`, escolher cliente com CEP, clicar "Consultar Correios" no `FreteSimuladorCard`.
-- Inspecionar o painel de logs da edge function `correios-api`. Se aparecer `fallback_estimativa`, significa que o WS dos Correios respondeu com erro/timeout — comportamento esperado quando `CORREIOS_USER`/`PASS` não estão configurados ou a API legacy está fora do ar.
-- **Correção mínima já necessária no client (`useFreteSimulador.handleConsultarCorreios`)**: hoje o filtro `validas = result.filter(o => !o.erro && o.valor > 0)` descarta as opções de fallback (que não vêm com `erro` mas vêm com sufixo "(estimativa)"), então o usuário pode estar vendo "Nenhuma opção" mesmo quando o backend retornou estimativa. Aceitar fallback e mostrar toast informativo: "Valores estimados — credenciais Correios indisponíveis."
-- Se mesmo o fallback não aparecer: log `fetch` no console do client + verificar `400` por CEP de origem ausente (`cepOrigem` precisa ter 8 dígitos sem máscara — já está em `consultarCorreios` mas vale auditar `freteSimulacao.service.ts`).
+2. **Render defensivo** em `src/pages/financeiro/config/financeiroColumns.tsx` (linha 55) e `src/pages/FluxoCaixa.tsx` (linha 277):
+   - Helper `displayDescricao(l)`: se `descricao === '[object Object]'` ou for objeto, retorna `l.contas_contabeis?.descricao ?? '—'`.
 
-## 6. Botões da parte superior da tela de orçamentos
+## 6. Baixa em lote com edição individual por título
 
-A barra de ações atual (vide print) tem 8 controles (`Salvar Rascunho`, `Visualizar`, `Gerar PDF`, `Aplicar template`, input "Nome do template", `Salvar Meu`, `Compartilhar`, e mais Duplicar quando edit). Estoura visualmente, mistura ações principais com gestão de templates.
+Hoje `BaixaLoteModal` aplica forma de pagamento + conta + data **uniformemente** a todos. Não dá pra editar cada título.
 
-**Reorganização:**
-- **Ações primárias** (sempre visíveis): `Salvar` (primary), `Visualizar`, `Gerar PDF`.
-- **Ações secundárias** num menu `DropdownMenu` "Mais": `Duplicar`, `Reenviar por e-mail`.
-- **Templates** num bloco próprio `DropdownMenu` "Templates" com sub-itens: lista de templates clicáveis (aplica), separador, e dois itens "Salvar como meu…" / "Compartilhar com equipe…" que abrem um `Dialog` pedindo o nome (em vez do input solto na barra). Remove o input `Nome do template` da topbar.
+Refatorar `src/components/financeiro/BaixaLoteModal.tsx`:
 
-Resultado: barra com 4 botões em vez de 8, sem perder nenhuma funcionalidade.
+- Cada linha da tabela ganha um botão "✏️ Editar" que **substitui a linha** por um formulário inline (mesmos campos do `BaixaParcialDialog`: data baixa, forma pgto, conta bancária, valor pago, observação).
+- Edição salva em estado local `perItemOverrides: Record<id, BaixaConfig>` — a baixa final usa o override quando presente, senão os defaults da seção superior.
+- Linha editada mostra ícone ✓ e resumo dos overrides.
+- Botão "Voltar" reverte a linha ao modo readonly mantendo overrides.
+- Atualizar `processarBaixaLote` em `src/services/financeiro.service.ts` para aceitar `overrides?: Record<string, Partial<BaixaConfig>>` e aplicar por item; quando há override, gera 1 INSERT em `financeiro_baixas` com os valores específicos.
+
+## 7. `[object Object]` em "Movimentos" do Fluxo de Caixa
+
+Mesmo bug do item 5 (já coberto pelo backfill SQL). Adicionar o mesmo `displayDescricao` helper em `src/pages/FluxoCaixa.tsx:277`.
+
+## 8. Primeira coluna do grid: só "Visualizar"
+
+`src/components/DataTable.tsx` `renderActions` (linhas 430-481) mostra hoje **Visualizar + Editar + Duplicar + Excluir** todos juntos.
+
+- Modificar `renderActions` para mostrar **apenas o botão "Visualizar"** quando `onView` está presente.
+- Os botões `onEdit`, `onDuplicate`, `onDelete` continuam disponíveis via prop, mas só são renderizados **dentro do drawer** (não na grid).
+- `ViewDrawerV2` já é onde o usuário clica em "Visualizar" — adicionar slot de `headerActions` com Editar/Duplicar/Excluir lá. Hoje cada drawer (`FinanceiroDrawer`, `EstoqueDrawer`, etc.) já tem seus próprios botões; padronizar via `ViewDrawerV2.headerActions` prop.
+- Mobile (`renderMobileActions`): mantém `MoreVertical` dropdown como hoje (caso de uso diferente — touch).
+
+## 9. Click no avatar/perfil sem ação
+
+Pelo print (`image-12`) o avatar está sendo renderizado mas o `DropdownMenu` parece não abrir. Inspeção do código `AppHeader.tsx` mostra que o trigger está envolto em `<Tooltip>` *dentro* do `DropdownMenuTrigger asChild`, o que pode estar quebrando a propagação do click no Radix (conflito entre dois `asChild` aninhados).
+
+- Reordenar: colocar `<Tooltip>` **fora** do `DropdownMenuTrigger` (envolvendo o botão como wrapper, não dentro dele), ou separar tooltip e trigger em elementos distintos.
+- Validar manualmente que o menu abre.
+- Conteúdo do menu já existe e tem "Meu perfil → /perfil → /configuracoes", "Configurações", "Tema", "Sair" — mantém esses 4 itens.
+
+## 10. Erro ao criar usuário em Administração
+
+Suspeitas, em ordem:
+1. `inviteUserByEmail` requer SMTP configurado no projeto Supabase. Sem SMTP, falha com mensagem genérica.
+2. `ALLOWED_ORIGIN` env var não setada no edge function rejeita o request com 500.
+3. Trigger `handle_new_user` no Postgres tentando inserir em tabelas com colunas obrigatórias.
+
+**Plano de correção:**
+- Adicionar `console.log` detalhado em cada etapa de `supabase/functions/admin-users/index.ts` action `create` (já tem `console.error` no catch).
+- Trocar `inviteUserByEmail` por `createUser` com `email_confirm: true` e `password: random` quando SMTP não está configurado, depois usar `generateLink({ type: 'recovery' })` para enviar reset de senha. Mostra senha temporária na UI como fallback.
+- Mostrar mensagem de erro real no toast (já passa via `data.error`); auditar `getUserFriendlyError` para não mascarar a causa.
+- Após reproduzir o erro com logs, aplicar fix específico.
+
+## 11. Sidebar dinâmico (recolhido por padrão, expande no hover)
+
+Hoje sidebar tem só dois estados (recolhido fixo / expandido fixo) controlados por `sidebarCollapsed` em `useUserPreference`.
+
+- Adicionar terceiro modo: **`sidebar_mode: 'fixed-expanded' | 'fixed-collapsed' | 'dynamic'`** (default `'dynamic'`).
+- Modo `dynamic`: sidebar fica recolhido (72px) por padrão; ao `onMouseEnter` no `<aside>`, expande para 240px com transição; ao `onMouseLeave`, recolhe. Usar overlay (sidebar com `position: fixed` já está, pode crescer sem empurrar conteúdo no modo dinâmico).
+- Modo `fixed-collapsed`: sempre 72px, conteúdo `md:ml-[72px]`.
+- Modo `fixed-expanded`: sempre 240px, conteúdo `md:ml-[240px]`.
+- Botão de toggle no sidebar abre um pequeno menu com os 3 modos (radio).
+- Garantir navegação completa quando recolhido: `SidebarSection` no modo collapsed já mostra ícones; revisar se hover-popout dos submenus funciona (já existe `onExpandRail`); ajustar para não auto-expandir o rail no modo `fixed-collapsed`.
+- Persistir em `useUserPreference('sidebar_mode')` em `AppConfigContext`.
+- Adicionar UI em `Configuracoes` (mesma seção de preferências do item 3) com 3 opções visuais (cards com ícone explicativo).
 
 ---
 
 ## Detalhes técnicos
 
-**Arquivos editados**
-- `src/lib/orcamentoSchema.ts` — adicionar `servicoFrete`, remover `'confirmado'` do enum se ainda existir.
-- `src/pages/OrcamentoForm.tsx` — bloco endereço do cliente; usar `servicoFrete`; reorganizar topbar com `DropdownMenu`; dialog "Salvar template"; remover opção `confirmado` do `<Select>` de status; passar `frete_tipo` derivado (CIF/FOB/null) no payload.
-- `src/components/Orcamento/OrcamentoCondicoesCard.tsx` — label "Frete", binding em `servicoFrete`.
-- `src/components/Orcamento/OrcamentoItemsGrid.tsx` — densidade compacta + botão "Expandir" abrindo `Dialog max-w-6xl` que renderiza a própria grade.
-- `src/components/Orcamento/OrcamentoInternalAnalysisPanel.tsx` — botão "Expandir" abrindo `Dialog max-w-7xl`.
-- `src/components/Orcamento/useFreteSimulador.ts` — aceitar opções de fallback dos Correios; setar `servicoFrete` no payload em vez de embutir no `freteTipo`.
-- `src/services/freteSimulacao.service.ts` — adicionar `servicoFrete` em `FreteSelecaoPayload` e propagação.
-- `src/pages/OrcamentoPublico.tsx` — bloco "Endereço" usando `cliente_snapshot.{logradouro, numero, bairro, cidade, uf, cep}`.
+**Arquivos a editar**
+- `src/pages/Administracao.tsx` — refatorar `sideNavGroups` rendering (item 1).
+- `src/components/dashboard/DashboardHeader.tsx` + novo `src/lib/safeDateInput.ts` — fix data personalizada (item 2). Aplicar nos 3 outros lugares.
+- `src/components/auth/SessionExpiryWarning.tsx` + `src/pages/Configuracoes.tsx` — keepalive + preferências (item 3).
+- `src/pages/Estoque.tsx` (bloco da aba "ajuste", linhas 508-680) — redesign visual (item 4).
+- `src/pages/financeiro/config/financeiroColumns.tsx`, `src/pages/FluxoCaixa.tsx`, novo `src/lib/displayLancamento.ts` — helper de descrição (itens 5 e 7).
+- `src/components/financeiro/BaixaLoteModal.tsx` + `src/services/financeiro.service.ts` — overrides por título (item 6).
+- `src/components/DataTable.tsx` (`renderActions`) + `src/components/ViewDrawerV2.tsx` — só Visualizar na grid (item 8).
+- `src/components/navigation/AppHeader.tsx` — Tooltip/DropdownMenu fix (item 9).
+- `supabase/functions/admin-users/index.ts` — logs + fallback createUser (item 10).
+- `src/components/AppSidebar.tsx` + `src/components/AppLayout.tsx` + `src/contexts/AppConfigContext.tsx` — modo dinâmico (item 11).
 
-**Migration SQL** (1 arquivo):
-- `CREATE OR REPLACE FUNCTION salvar_orcamento(...)` — aplicar `NULLIF` nos campos `frete_tipo`, `modalidade`, `pagamento` antes do cast/insert para que string vazia vire `NULL` (evita o 23514 quando o usuário não escolhe modalidade). Sem alterar assinatura nem itens.
-- Nenhuma alteração de schema/constraints — a regra `frete_tipo ∈ {CIF,FOB,sem_frete}` continua correta; o que era errado era o uso da coluna no client.
+**Migrations SQL** (1 arquivo)
+- Backfill `descricao = '[object Object]'` → `contas_contabeis.descricao` (item 5/7).
+
+**Sem mudança de schema** em nenhum item. Sem novas dependências.
 
 **Compatibilidade**
-- Orçamentos antigos cujo `frete_tipo` contém texto livre (ex.: "CORREIOS SEDEX") continuarão a violar a constraint **só ao serem editados/salvos novamente**. Backfill: `UPDATE orcamentos SET servico_frete = frete_tipo, frete_tipo = NULL WHERE frete_tipo NOT IN ('CIF','FOB','sem_frete')` na mesma migration.
+- Sidebar: usuários atuais (preferência `sidebar_collapsed: true/false`) migram automaticamente para `fixed-collapsed`/`fixed-expanded` na primeira leitura, então nada quebra.
+- Sessão: keepalive `'on'` por padrão preserva a UX atual mas sem o toast precoce.
 
 **Fora de escopo**
-- Editor inline de endereço do cliente dentro do orçamento (continua somente leitura — alterações via `/clientes`).
-- Cache local de tarifas Correios (otimização futura).
-- Suporte a SEDEX 10/12 no simulador (apenas SEDEX e PAC hoje, conforme função existente).
+- Reescrita do `BaixaParcialDialog` para reutilizar componentes do BaixaLote (item 6 reusa via composição).
+- 2FA / SAML em criação de usuário (item 10 fica só em invite/create).
+- Persistir histórico de ajustes em tabela nova (item 4 reusa `estoque_movimentos`).
 
