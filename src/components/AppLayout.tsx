@@ -1,5 +1,5 @@
 import { Outlet } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useAppConfigContext } from '@/contexts/AppConfigContext';
 import { AppSidebar } from './AppSidebar';
 import { AppHeader } from './navigation/AppHeader';
@@ -24,10 +24,29 @@ import { GlobalShortcutsDialog } from './navigation/GlobalShortcutsDialog';
  */
 export function AppLayout() {
   const isMobile = useIsMobile();
-  const { sidebarCollapsed: collapsed, saveSidebarCollapsed } = useAppConfigContext();
+  const { sidebarCollapsed, saveSidebarCollapsed, sidebarMode } = useAppConfigContext();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [hoverExpanded, setHoverExpanded] = useState(false);
+
+  // Modo dinâmico: recolhido por padrão, expande visualmente no hover (overlay).
+  // No modo fixed-* a preferência boolean `sidebarCollapsed` continua valendo
+  // como retrocompatibilidade — usamos o modo apenas se foi explicitamente setado.
+  const isDynamic = sidebarMode === 'dynamic';
+  const isFixedCollapsed = sidebarMode === 'fixed-collapsed';
+  const isFixedExpanded = sidebarMode === 'fixed-expanded';
+
+  const collapsed = useMemo(() => {
+    if (isFixedExpanded) return false;
+    if (isFixedCollapsed) return true;
+    if (isDynamic) return !hoverExpanded;
+    return sidebarCollapsed;
+  }, [isFixedExpanded, isFixedCollapsed, isDynamic, hoverExpanded, sidebarCollapsed]);
+
+  // No modo dinâmico, a margem do conteúdo principal segue sempre o estado
+  // recolhido (72px) — o overlay cresce sobre o conteúdo, sem empurrá-lo.
+  const contentMarginCollapsed = isDynamic ? true : collapsed;
 
   // Hotkeys globais — registradas uma única vez, sobrevivem a navegação.
   useGlobalHotkeys({
@@ -43,7 +62,11 @@ export function AppLayout() {
     <div className="min-h-screen bg-background">
       <SkipLink />
 
-      <div className="hidden md:block">
+      <div
+        className="hidden md:block"
+        onMouseEnter={isDynamic ? () => setHoverExpanded(true) : undefined}
+        onMouseLeave={isDynamic ? () => setHoverExpanded(false) : undefined}
+      >
         <AppSidebar
           collapsed={collapsed}
           onToggleCollapsed={() => saveSidebarCollapsed(!collapsed)}
@@ -52,7 +75,7 @@ export function AppLayout() {
       </div>
 
       <div
-        className={`min-h-screen transition-[margin] duration-200 ${collapsed ? 'md:ml-[72px]' : 'md:ml-[240px]'}`}
+        className={`min-h-screen transition-[margin] duration-200 ${contentMarginCollapsed ? 'md:ml-[72px]' : 'md:ml-[240px]'}`}
       >
         <AppHeader
           onOpenMobileMenu={() => setMobileMenuOpen(true)}
