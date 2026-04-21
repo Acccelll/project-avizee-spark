@@ -528,12 +528,26 @@ function UserFormModal({
 
         toast.success('Usuário atualizado com sucesso.');
       } else {
-        await invokeAdminUsers({
+        const result = await invokeAdminUsers({
           action: 'create',
           payload,
         });
 
-        toast.success('Usuário criado e convite enviado com sucesso.');
+        if (result?.inviteSent) {
+          toast.success('Usuário criado e convite enviado por e-mail.');
+        } else if (result?.tempPassword) {
+          toast.success(
+            `Usuário criado. Senha temporária: ${result.tempPassword}` +
+            (result.recoveryLink ? ' (link de redefinição também gerado)' : ''),
+            { duration: 20000 },
+          );
+          // Loga o link no console para o admin copiar manualmente se precisar
+          if (result.recoveryLink) {
+            console.info('[usuarios] Link de redefinição:', result.recoveryLink);
+          }
+        } else {
+          toast.success('Usuário criado com sucesso.');
+        }
       }
       onSaved();
       onClose();
