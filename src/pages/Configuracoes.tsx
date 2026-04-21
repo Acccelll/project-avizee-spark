@@ -4,6 +4,7 @@ import { useTheme } from 'next-themes';
 import { AlertCircle, ArrowUpRight, Building2, CalendarDays, Check, CheckCircle2, Clock, Eye, EyeOff, Info, Loader2, Lock, Mail, Moon, Palette, RotateCcw, Save, Settings, Shield, ShieldCheck, Sun, User } from 'lucide-react';
 import { useUserPreference } from '@/hooks/useUserPreference';
 import { useAppConfigContext } from '@/contexts/AppConfigContext';
+import type { SidebarMode } from '@/contexts/AppConfigContext';
 import { ModulePage } from '@/components/ModulePage';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -145,6 +146,9 @@ export default function Configuracoes() {
   const { value: densidadePref, save: saveDensidadePref } = useUserPreference<string>(user?.id, 'ui_density', 'confortavel');
   const { value: fontScale, save: saveFontScale } = useUserPreference<number>(user?.id, 'ui_font_scale', 16);
   const { value: reduceMotion, save: saveReduceMotion } = useUserPreference<boolean>(user?.id, 'ui_reduce_motion', false);
+  const { value: sessionKeepalive, save: saveSessionKeepalive } = useUserPreference<boolean>(user?.id, 'session_keepalive', true);
+  const { value: sessionWarnMinutes, save: saveSessionWarnMinutes } = useUserPreference<number>(user?.id, 'session_warn_minutes', 5);
+  const { sidebarMode, saveSidebarMode } = useAppConfigContext();
 
   useEffect(() => {
     if (densidadePref) setDensidade(densidadePref);
