@@ -3,7 +3,7 @@ import * as XLSX from "@/lib/xlsx-compat";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { validateFaturamentoImport } from "@/lib/importacao/validators";
-import { FIELD_ALIASES } from "@/lib/importacao/aliases";
+import { FIELD_ALIASES, FATURAMENTO_FIELD_ALIASES } from "@/lib/importacao/aliases";
 import { Mapping } from "./types";
 
 export interface GroupedNF {
@@ -81,8 +81,11 @@ export function useImportacaoFaturamento() {
       const initialMapping: Mapping = {};
       headerRow.forEach(h => {
         const cleanH = String(h).trim().toUpperCase();
-        if (FIELD_ALIASES[cleanH]) {
-          initialMapping[FIELD_ALIASES[cleanH]] = h;
+        // Faturamento usa um mapa específico (resolve ambiguidades como TOTAL/QUANTIDADE).
+        // Se não houver match no específico, recai para o global.
+        const target = FATURAMENTO_FIELD_ALIASES[cleanH] || FIELD_ALIASES[cleanH];
+        if (target && !initialMapping[target]) {
+          initialMapping[target] = h;
         }
       });
       setMapping(initialMapping);
@@ -160,6 +163,8 @@ export function useImportacaoFaturamento() {
         nd.produto_id = produtoId;
         nf.itens.push({ ...nd, _originalLine: index + 2, _originalRow: row });
         nf.itens_count++;
+        // Soma valor por linha (cada linha = 1 item). valor_total já foi resolvido
+        // pelo validator priorizando T. PRODUTOS (subtotal por item) sobre TOTAL (total da NF).
         nf.valor_total += Number(nd.valor_total || 0);
         if (!validation.valid) {
           nf.status = "erro";
