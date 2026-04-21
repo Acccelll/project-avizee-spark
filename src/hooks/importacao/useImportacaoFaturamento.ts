@@ -120,6 +120,35 @@ export function useImportacaoFaturamento() {
         produtosBanco?.filter((p: any) => p.codigo_interno).map((p: any) => [p.codigo_interno, p.id]) || []
       );
 
+      // Aba Produtos do mesmo workbook (1031 itens com COD./GRUPO/Nome/Custo).
+      // Usada SOMENTE para enriquecer o lookup das NFs (não persiste cadastro).
+      // Resolve códigos da NF que não batem com codigo_legado/codigo_interno do banco
+      // mas casam por nome aproximado de produto.
+      const prodAuxByCodigo = new Map<string, { nome: string; grupo?: string }>();
+      const prodIdByNomeNorm = new Map<string, string>();
+      (produtosBanco ?? []).forEach((p: any) => {
+        if (p.nome) prodIdByNomeNorm.set(String(p.nome).toUpperCase().trim(), p.id);
+      });
+      if (workbook) {
+        const sheetProdutos = workbook.SheetNames.find(
+          n => n.toUpperCase().trim() === "PRODUTOS"
+        );
+        if (sheetProdutos) {
+          const wsProd = workbook.Sheets[sheetProdutos];
+          const rowsProd = XLSX.utils.sheet_to_json(wsProd) as Record<string, unknown>[];
+          rowsProd.forEach(r => {
+            const cod = r["COD."] ?? r["Cod."] ?? r["CÓDIGO"] ?? r["CODIGO"];
+            const nome = r["Nome"] ?? r["NOME"] ?? r["DESCRIÇÃO"];
+            if (cod && nome) {
+              prodAuxByCodigo.set(String(cod).trim(), {
+                nome: String(nome).trim(),
+                grupo: r["GRUPO"] ? String(r["GRUPO"]).trim() : undefined,
+              });
+            }
+          });
+        }
+      }
+
       const grouped = new Map<string, GroupedNF>();
 
       rawRows.forEach((row, index) => {
@@ -133,14 +162,25 @@ export function useImportacaoFaturamento() {
         const nd = validation.normalizedData;
         const numero = nd.numero_nota || `S/N-${index}`;
 
-        if (!grouped.has(numero as string)) {
+        // Extrai série real da chave de acesso (posições 22-25). Fallback "1".
+        let serieReal = "1";
+        const chaveLimpa = String(nd.chave_acesso || "").replace(/\D/g, "");
+        if (chaveLimpa.length === 44 && validarChaveAcesso(chaveLimpa)) {
+          serieReal = String(parseInt(extrairInformacoesChave(chaveLimpa).serie, 10));
+        }
+
+        // Chave do agrupamento: numero + serie + data (uma NF por combinação).
+        const groupKey = `${numero}|${serieReal}|${nd.data_emissao || ""}`;
+
+        if (!grouped.has(groupKey)) {
           const cpfClean = String(nd.cpf_cnpj_destinatario || "").replace(/\D/g, "");
           const clienteId = (cpfClean && clienteByCpf.get(cpfClean))
             || clienteByName.get(String(nd.cliente_nome || "").toUpperCase())
             || null;
 
-          grouped.set(numero as string, {
+          grouped.set(groupKey, {
             numero: numero as string,
+            serie: serieReal,
             cliente_nome: nd.cliente_nome as string,
             cliente_id: clienteId,
             cpf_cnpj_destinatario: nd.cpf_cnpj_destinatario as string,
@@ -156,12 +196,25 @@ export function useImportacaoFaturamento() {
           });
         }
 
-        const nf = grouped.get(numero as string)!;
+        const nf = grouped.get(groupKey)!;
 
         const codigoProduto = nd.codigo_produto_nf || nd.codigo_legado_produto || "";
-        const produtoId = (nd.codigo_legado_produto && prodByLegado.get(nd.codigo_legado_produto as string))
+        let produtoId = (nd.codigo_legado_produto && prodByLegado.get(nd.codigo_legado_produto as string))
           || (nd.codigo_produto_nf && prodByInterno.get(nd.codigo_produto_nf as string))
           || null;
+
+        // Fallback: se o código da NF bate com a aba Produtos do workbook,
+        // tenta resolver pelo nome do produto da aba auxiliar.
+        if (!produtoId && codigoProduto) {
+          const aux = prodAuxByCodigo.get(String(codigoProduto).trim());
+          if (aux?.nome) {
+            produtoId = prodIdByNomeNorm.get(aux.nome.toUpperCase().trim()) || null;
+          }
+        }
+        // Último fallback: nome do produto da própria NF.
+        if (!produtoId && nd.nome_produto) {
+          produtoId = prodIdByNomeNorm.get(String(nd.nome_produto).toUpperCase().trim()) || null;
+        }
 
         nd.produto_id = produtoId;
         nf.itens.push({ ...nd, _originalLine: index + 2, _originalRow: row });
@@ -175,23 +228,33 @@ export function useImportacaoFaturamento() {
         }
       });
 
-      // Check DB duplicates
-      const numeros = Array.from(grouped.keys());
-      if (numeros.length > 0) {
-        const { data: existentes } = await supabase
-          .from("notas_fiscais")
-          .select("numero")
-          .eq("origem", "importacao_historica")
-          .in("numero", numeros);
-
-        const existentesSet = new Set(existentes?.map(e => e.numero));
-        grouped.forEach(nf => {
-          if (existentesSet.has(nf.numero)) {
-            nf.status = "duplicado";
-            nf.errors.push("NF já cadastrada (histórico).");
-          }
-        });
-      }
+      // Dedup contra banco: prioriza chave_acesso; fallback por numero+serie+data.
+      const todas = Array.from(grouped.values());
+      const chaves = todas.map(n => n.chave_acesso).filter(Boolean) as string[];
+      const numeros = todas.map(n => n.numero);
+      const [{ data: porChave }, { data: porNumero }] = await Promise.all([
+        chaves.length
+          ? supabase.from("notas_fiscais").select("chave_acesso").in("chave_acesso", chaves)
+          : Promise.resolve({ data: [] as { chave_acesso: string | null }[] }),
+        numeros.length
+          ? supabase.from("notas_fiscais")
+              .select("numero, serie, data_emissao")
+              .eq("origem", "importacao_historica")
+              .in("numero", numeros)
+          : Promise.resolve({ data: [] as { numero: string; serie: string | null; data_emissao: string | null }[] }),
+      ]);
+      const chavesExistentes = new Set((porChave ?? []).map(r => r.chave_acesso).filter(Boolean) as string[]);
+      const triplas = new Set(
+        (porNumero ?? []).map(r => `${r.numero}|${String(r.serie ?? "1")}|${String(r.data_emissao ?? "").slice(0, 10)}`)
+      );
+      grouped.forEach(nf => {
+        const chaveOk = nf.chave_acesso && chavesExistentes.has(nf.chave_acesso);
+        const tripla = `${nf.numero}|${nf.serie}|${String(nf.data_emissao ?? "").slice(0, 10)}`;
+        if (chaveOk || triplas.has(tripla)) {
+          nf.status = "duplicado";
+          nf.errors.push("NF já cadastrada (histórico).");
+        }
+      });
 
       setPreviewData(Array.from(grouped.values()));
     } catch (err: unknown) {
@@ -199,7 +262,7 @@ export function useImportacaoFaturamento() {
     } finally {
       setIsProcessing(false);
     }
-  }, [rawRows, mapping]);
+  }, [rawRows, mapping, workbook]);
 
   /**
    * Faz staging + consolidação em uma única chamada (sem etapa manual de confirmação).
