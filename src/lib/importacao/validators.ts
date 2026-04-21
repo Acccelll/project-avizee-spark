@@ -196,7 +196,7 @@ export function validateFaturamentoImport(data: Record<string, unknown>): Import
     data.data || data.data_emissao || data.DATA || data['DATA EMISSÃO'] || data.EMISSÃO || data.EMISSAO
   );
   const valorUnitRef = parseDecimalFlexible(
-    data.valor_unitario || data['VALOR UNITÁRIO'] || data['VALOR UNITARIO'] || data.VALOR
+    data.valor_unitario || data['VALOR UNITÁRIO'] || data['VALOR UNITARIO'] || data['V.UN'] || data.VALOR
   );
   const qtdRef = parseDecimalFlexible(
     data.quantidade_nf || data['QUANTIDADE NF'] || data.quantidade || data.QTD || data.QUANTIDADE || 1
@@ -204,40 +204,63 @@ export function validateFaturamentoImport(data: Record<string, unknown>): Import
   const valorTotalRef = parseDecimalFlexible(
     data.valor_total || data['VALOR TOTAL'] || data.TOTAL || 0
   );
+  const valorTotalProdRef = parseDecimalFlexible(
+    data.valor_total_produtos || data['T. PRODUTOS'] || 0
+  );
+  const valorLiquidoRef = parseDecimalFlexible(
+    data.valor_liquido || data['V. LÍQUIDO'] || data['V. LIQUIDO'] || 0
+  );
 
   const cpfCnpjDest = normalizeCpfCnpj(
-    data.cpf_cnpj || data['CPF/CNPJ'] || data.cpf_cnpj_destinatario || ''
+    data.cpf_cnpj_destinatario || data['DESTINATÁRIO CNPJ/CPF'] || data.cpf_cnpj || data['CPF/CNPJ'] || ''
   );
+
+  // Resolve valor_total do item: prioriza T. PRODUTOS (subtotal por linha),
+  // depois TOTAL, depois V.UN * QTD. O campo TOTAL na planilha "Notas" às vezes
+  // repete o total da NF inteira em todas as linhas, então T. PRODUTOS é mais confiável.
+  const qtd = qtdRef.value || 1;
+  const vUn = valorUnitRef.value || 0;
+  const valorTotalItem =
+    (valorTotalProdRef.value && valorTotalProdRef.value > 0) ? valorTotalProdRef.value :
+    (valorLiquidoRef.value && valorLiquidoRef.value > 0) ? valorLiquidoRef.value :
+    (valorTotalRef.value && valorTotalRef.value > 0 && vUn > 0 && Math.abs(valorTotalRef.value - vUn * qtd) < 0.05) ? valorTotalRef.value :
+    vUn * qtd;
 
   const normalizedData: Record<string, unknown> = {
     numero_nota: normalizeText(data.numero_nota || data.NOTA || data.NF || data['NUMERO NOTA'] || ''),
     chave_acesso: normalizeText(data.chave_acesso || data['CHAVE ACESSO'] || data['CHAVE DE ACESSO'] || '') || null,
     data_emissao: dataRef.value,
-    cliente_nome: normalizeText(data.cliente || data.CLIENTE || data.DESTINATÁRIO || data.DESTINATARIO || ''),
+    cliente_nome: normalizeText(data.cliente_nome || data.cliente || data.CLIENTE || data.DESTINATÁRIO || data.DESTINATARIO || ''),
     cpf_cnpj_destinatario: cpfCnpjDest || null,
+    inscricao_estadual_destinatario: normalizeText(data.inscricao_estadual_destinatario || data.IE || '') || null,
     municipio: normalizeText(data.municipio || data.MUNICÍPIO || data.CIDADE || '') || null,
     uf: normalizeText(data.uf || data.UF || data.ESTADO || '').toUpperCase().slice(0, 2) || null,
+    item_seq: normalizeText(data.item_seq || data.ITEM || '') || null,
     // Item fields
     codigo_produto_nf: normalizeCodigoProduto(
-      data.codigo_produto_nf || data['COD PRODUTO NF'] || data.codigo_produto || data.SKU || data.CÓDIGO || ''
+      data.codigo_produto_nf || data['COD PRODUTO NF'] || data['CÓDIGO PRODUTO'] || data['CODIGO PRODUTO'] || data.codigo_produto || data.SKU || data.CÓDIGO || ''
     ) || null,
     codigo_legado_produto: normalizeText(data.codigo_legado_produto || data['CODIGO LEGADO'] || '') || null,
+    gtin: normalizeText(data.gtin || data.BARRAS || '') || null,
     nome_produto: normalizeText(data.nome_produto || data.PRODUTO || data['DESCRIÇÃO PRODUTO'] || data['DESCRICAO PRODUTO'] || '') || null,
     ncm: normalizeText(data.ncm || data.NCM) || null,
+    cest: normalizeText(data.cest || data.CEST) || null,
     cfop: normalizeText(data.cfop || data.CFOP) || null,
     cst: normalizeText(data.cst || data.CST) || null,
     unidade: normalizeText(data.unidade_medida || data.UN || data.UNIDADE) || 'UN',
-    quantidade: qtdRef.value || 1,
-    valor_unitario: valorUnitRef.value || 0,
-    valor_total: valorTotalRef.value > 0
-      ? valorTotalRef.value
-      : (valorUnitRef.value || 0) * (qtdRef.value || 1),
+    quantidade: qtd,
+    valor_unitario: vUn,
+    valor_total: valorTotalItem,
+    valor_total_nf: valorTotalRef.value || 0,
+    desconto_valor: parseDecimalFlexible(data.desconto_valor || data.DESCONTO).value || 0,
     frete_valor: parseDecimalFlexible(data.frete_valor || data.FRETE).value || 0,
+    impostos_valor: parseDecimalFlexible(data.impostos_valor || data.IMPOSTOS).value || 0,
     icms_valor: parseDecimalFlexible(data.icms_valor || data.ICMS).value || 0,
     ipi_valor: parseDecimalFlexible(data.ipi_valor || data.IPI).value || 0,
     pis_valor: parseDecimalFlexible(data.pis_valor || data.PIS).value || 0,
     cofins_valor: parseDecimalFlexible(data.cofins_valor || data.COFINS).value || 0,
-    custo_produto: parseDecimalFlexible(data.custo_produto || data['CUSTO PRODUTO']).value || 0,
+    custo_unitario: parseDecimalFlexible(data.custo_unitario || data['CUSTO UN.'] || data['CUSTO UN']).value || 0,
+    custo_produto: parseDecimalFlexible(data.custo_produto || data['CUSTO TOTAL'] || data['CUSTO PRODUTO']).value || 0,
     lucro: parseDecimalFlexible(data.lucro || data.LUCRO).value || 0,
     grupo: normalizeText(data.grupo || data.GRUPO || '') || null,
   };
