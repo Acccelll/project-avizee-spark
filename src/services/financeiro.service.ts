@@ -26,6 +26,14 @@ interface ProcessarEstornoRpcArgs {
   p_motivo_estorno: string | null;
 }
 
+export interface BaixaItemOverride {
+  data_baixa?: string;
+  forma_pagamento?: string;
+  conta_bancaria_id?: string;
+  valor_pago?: number;
+  observacoes?: string;
+}
+
 export interface BaixaLoteParams {
   selectedIds: string[];
   selectedLancamentos: Array<{ id: string; valor: number; saldo_restante: number | null }>;
@@ -35,6 +43,7 @@ export interface BaixaLoteParams {
   baixaDate: string;
   formaPagamento: string;
   contaBancariaId: string;
+  overrides?: Record<string, BaixaItemOverride>;
 }
 
 interface BaixaPlanItem {
@@ -80,13 +89,17 @@ export function criarPlanoBaixaLote(params: BaixaLoteParams): BaixaPlanItem[] {
 }
 
 async function ensureUpdateLancamento(item: BaixaPlanItem, params: BaixaLoteParams) {
+  const ovr = params.overrides?.[item.id] ?? {};
+  const dataPagamento = ovr.data_baixa ?? params.baixaDate;
+  const formaPagamento = ovr.forma_pagamento ?? params.formaPagamento;
+  const contaBancariaId = ovr.conta_bancaria_id ?? params.contaBancariaId;
   const payload = {
     status: item.novoStatus,
-    data_pagamento: item.novoStatus === "pago" ? params.baixaDate : null,
+    data_pagamento: item.novoStatus === "pago" ? dataPagamento : null,
     valor_pago: item.valor - item.novoSaldo,
     tipo_baixa: params.tipoBaixa,
-    forma_pagamento: params.formaPagamento,
-    conta_bancaria_id: params.contaBancariaId,
+    forma_pagamento: formaPagamento,
+    conta_bancaria_id: contaBancariaId,
     saldo_restante: item.novoSaldo,
   };
 
@@ -105,15 +118,17 @@ async function ensureUpdateLancamento(item: BaixaPlanItem, params: BaixaLotePara
 }
 
 async function ensureInsertBaixa(item: BaixaPlanItem, params: BaixaLoteParams) {
+  const ovr = params.overrides?.[item.id] ?? {};
   const { data, error } = await supabase
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .from("financeiro_baixas" as any)
     .insert({
       lancamento_id: item.id,
-      valor_pago: item.valorPago,
-      data_baixa: params.baixaDate,
-      forma_pagamento: params.formaPagamento,
-      conta_bancaria_id: params.contaBancariaId,
+      valor_pago: ovr.valor_pago ?? item.valorPago,
+      data_baixa: ovr.data_baixa ?? params.baixaDate,
+      forma_pagamento: ovr.forma_pagamento ?? params.formaPagamento,
+      conta_bancaria_id: ovr.conta_bancaria_id ?? params.contaBancariaId,
+      observacoes: ovr.observacoes ?? null,
     })
     .select("id")
     .maybeSingle();
@@ -126,6 +141,10 @@ async function ensureInsertBaixa(item: BaixaPlanItem, params: BaixaLoteParams) {
 }
 
 async function processarBaixaLoteRpc(params: BaixaLoteParams): Promise<boolean | null> {
+  // Se há overrides por item, não usa o RPC consolidado (que aplica defaults uniformes).
+  if (params.overrides && Object.keys(params.overrides).length > 0) {
+    return null;
+  }
   const { error } = await supabase.rpc("financeiro_processar_baixa_lote", {
     p_selected_ids: params.selectedIds,
     p_tipo_baixa: params.tipoBaixa,

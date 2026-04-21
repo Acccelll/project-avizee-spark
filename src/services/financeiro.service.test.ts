@@ -20,8 +20,8 @@ describe("criarPlanoBaixaLote", () => {
     const plan = criarPlanoBaixaLote(baseParams);
 
     expect(plan).toEqual([
-      { id: "1", saldo: 100, valorPago: 100, novoSaldo: 0, novoStatus: "pago" },
-      { id: "2", saldo: 200, valorPago: 200, novoSaldo: 0, novoStatus: "pago" },
+      { id: "1", saldo: 100, valor: 100, valorPago: 100, novoSaldo: 0, novoStatus: "pago" },
+      { id: "2", saldo: 200, valor: 300, valorPago: 200, novoSaldo: 0, novoStatus: "pago" },
     ]);
   });
 

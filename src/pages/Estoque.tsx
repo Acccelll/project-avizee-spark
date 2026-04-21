@@ -27,6 +27,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { AlertTriangle, ArrowDownCircle, RotateCcw,
   TrendingDown, Package, CheckCircle, XCircle, ShieldAlert,
   DollarSign, SlidersHorizontal, ChevronsUpDown, Info, CircleAlert,
+  ArrowRight, History,
 } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { cn } from "@/lib/utils";
@@ -507,22 +508,27 @@ const Estoque = () => {
 
           {/* ── ABA AJUSTE MANUAL ─────────────────────────────── */}
           <TabsContent value="ajuste">
-            <div className="max-w-lg space-y-5">
-              {/* Aviso de operação sensível */}
-              <div className="rounded-lg border border-warning/40 bg-warning/5 p-4 flex gap-3">
+            <div className="space-y-5">
+              {/* Aviso de operação sensível — borda lateral discreta */}
+              <div className="rounded-md border-l-4 border-warning bg-warning/5 px-4 py-3 flex gap-3">
                 <ShieldAlert className="h-5 w-5 text-warning shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-sm font-semibold text-warning mb-1">Operação administrativa controlada</p>
+                  <p className="text-sm font-semibold text-warning mb-0.5">Operação administrativa controlada</p>
                   <p className="text-xs text-muted-foreground">
                     Ajustes manuais alteram diretamente o saldo do estoque e geram rastreabilidade.
-                    Use apenas quando houver necessidade real e registre o motivo com clareza.
-                    Todas as operações são registradas com responsável e data.
+                    Todas as operações ficam registradas com responsável e data.
                   </p>
                 </div>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
+              <div className="grid gap-6 lg:grid-cols-3">
+                {/* Coluna esquerda: formulário (2/3) */}
+                <form onSubmit={handleSubmit} className="lg:col-span-2 space-y-4">
+                  {/* Card: Produto */}
+                  <Card>
+                    <CardContent className="space-y-3 pt-5">
+                      <h3 className="text-[11px] uppercase font-bold tracking-wider text-muted-foreground">Produto</h3>
+                      <div className="space-y-2">
                   <Label>Produto *</Label>
                   <Popover open={produtoSelectorOpen} onOpenChange={setProdutoSelectorOpen}>
                     <PopoverTrigger asChild>
@@ -547,7 +553,7 @@ const Estoque = () => {
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 text-muted-foreground" />
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-[420px] p-0" align="start">
+                    <PopoverContent className="w-[480px] p-0" align="start">
                       <Command>
                         <CommandInput placeholder="Buscar por nome, SKU ou código..." />
                         <CommandList>
@@ -581,35 +587,15 @@ const Estoque = () => {
                       </Command>
                     </PopoverContent>
                   </Popover>
-                </div>
+                      </div>
+                    </CardContent>
+                  </Card>
 
-                {/* Preview do saldo atual */}
-                {produtoSelecionado && (
-                  <div className="rounded-lg border bg-muted/30 px-4 py-3 flex items-center gap-6 text-sm">
-                    <div>
-                      <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-0.5">Saldo Atual</p>
-                      <p className="font-bold font-mono text-base">{formatNumber(saldoAtualPreview)}</p>
-                    </div>
-                    {form.quantidade > 0 && (
-                      <>
-                        <ArrowDownCircle className="h-4 w-4 text-muted-foreground shrink-0" />
-                        <div>
-                          <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-0.5">Novo Saldo</p>
-                          <p className={`font-bold font-mono text-base ${novoSaldoPreview < 0 ? "text-destructive" : novoSaldoPreview === 0 ? "text-warning" : "text-success"}`}>
-                            {formatNumber(novoSaldoPreview)}
-                          </p>
-                        </div>
-                        {novoSaldoPreview < 0 && (
-                          <p className="text-xs text-destructive font-medium flex items-center gap-1">
-                            <AlertTriangle className="h-3.5 w-3.5" />Saldo ficará negativo
-                          </p>
-                        )}
-                      </>
-                    )}
-                  </div>
-                )}
-
-                <div className="grid grid-cols-2 gap-4">
+                  {/* Card: Operação */}
+                  <Card>
+                    <CardContent className="space-y-4 pt-5">
+                      <h3 className="text-[11px] uppercase font-bold tracking-wider text-muted-foreground">Operação</h3>
+                      <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Tipo de Operação *</Label>
                     <Select value={form.tipo} onValueChange={(v) => setForm({ ...form, tipo: v })}>
@@ -635,8 +621,8 @@ const Estoque = () => {
                 </div>
 
                 <div className={cn(
-                  "rounded-md border px-3 py-2 text-xs flex gap-2",
-                  form.tipo === "saida" ? "border-orange-300/50 bg-orange-500/5 text-orange-700" :
+                  "rounded-md border-l-4 px-3 py-2 text-xs flex gap-2 border bg-card",
+                  form.tipo === "saida" ? "border-l-warning bg-warning/5 text-warning" :
                   form.tipo === "entrada" ? "border-success/40 bg-success/5 text-success" :
                   "border-warning/40 bg-warning/10 text-warning"
                 )}>
@@ -649,8 +635,54 @@ const Estoque = () => {
                         : "Entrada manual incrementa o saldo; prefira fluxos de compra quando houver documento fiscal."}
                   </p>
                 </div>
+                    </CardContent>
+                  </Card>
 
-                <div className="space-y-2">
+                  {/* Card destaque: Preview do saldo */}
+                  {produtoSelecionado && (
+                    <Card className="border-primary/30 bg-primary/5">
+                      <CardContent className="pt-5">
+                        <h3 className="text-[11px] uppercase font-bold tracking-wider text-muted-foreground mb-3">Impacto no saldo</h3>
+                        <div className="flex items-center justify-between gap-4">
+                          <div className="flex-1">
+                            <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">Saldo Atual</p>
+                            <p className="font-bold font-mono text-3xl tabular-nums">{formatNumber(saldoAtualPreview)}</p>
+                            <p className="text-[10px] text-muted-foreground mt-0.5">{produtoSelecionado.unidade_medida || "UN"}</p>
+                          </div>
+                          <ArrowRight className="h-6 w-6 text-muted-foreground shrink-0" />
+                          <div className="flex-1 text-right">
+                            <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">Novo Saldo</p>
+                            <p className={cn(
+                              "font-bold font-mono text-3xl tabular-nums",
+                              novoSaldoPreview < 0 ? "text-destructive" :
+                              novoSaldoPreview === 0 ? "text-warning" :
+                              novoSaldoPreview === saldoAtualPreview ? "text-muted-foreground" :
+                              "text-success"
+                            )}>
+                              {formatNumber(novoSaldoPreview)}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground mt-0.5">
+                              {novoSaldoPreview > saldoAtualPreview ? `+${formatNumber(novoSaldoPreview - saldoAtualPreview)} ` :
+                               novoSaldoPreview < saldoAtualPreview ? `${formatNumber(novoSaldoPreview - saldoAtualPreview)} ` : "sem alteração "}
+                              {produtoSelecionado.unidade_medida || "UN"}
+                            </p>
+                          </div>
+                        </div>
+                        {novoSaldoPreview < 0 && (
+                          <div className="mt-3 text-xs text-destructive font-medium flex items-center gap-1.5">
+                            <AlertTriangle className="h-3.5 w-3.5" />
+                            Atenção: o saldo ficará negativo após esta operação.
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Card: Justificativa */}
+                  <Card>
+                    <CardContent className="space-y-3 pt-5">
+                      <h3 className="text-[11px] uppercase font-bold tracking-wider text-muted-foreground">Justificativa</h3>
+                      <div className="space-y-2">
                   <Label>
                     Motivo / Justificativa *{" "}
                     <span className="text-xs font-normal text-muted-foreground">(obrigatório — explique causa raiz e referência operacional)</span>
@@ -662,9 +694,12 @@ const Estoque = () => {
                     rows={3}
                     required
                   />
-                </div>
+                      </div>
+                    </CardContent>
+                  </Card>
 
-                <div className="flex justify-end gap-2 pt-1">
+                  {/* Botões fixos no rodapé */}
+                  <div className="sticky bottom-0 z-10 -mx-1 px-1 py-3 bg-background/95 backdrop-blur border-t flex justify-end gap-2">
                   <Button
                     type="button"
                     variant="outline"
@@ -675,8 +710,59 @@ const Estoque = () => {
                   <Button type="submit" disabled={saving || pendingSubmit}>
                     {saving || pendingSubmit ? "Registrando..." : "Registrar Ajuste"}
                   </Button>
-                </div>
-              </form>
+                  </div>
+                </form>
+
+                {/* Coluna direita: histórico recente */}
+                <aside className="lg:col-span-1">
+                  <Card className="lg:sticky lg:top-4">
+                    <CardContent className="pt-5 space-y-3">
+                      <div className="flex items-center gap-2 mb-1">
+                        <History className="h-4 w-4 text-muted-foreground" />
+                        <h3 className="text-[11px] uppercase font-bold tracking-wider text-muted-foreground">
+                          {produtoSelecionado ? "Últimos ajustes" : "Histórico"}
+                        </h3>
+                      </div>
+                      {!produtoSelecionado ? (
+                        <p className="text-xs text-muted-foreground py-6 text-center">
+                          Selecione um produto para ver o histórico de ajustes.
+                        </p>
+                      ) : (() => {
+                        const ajustes = data
+                          .filter((m) => m.produto_id === produtoSelecionado.id && m.tipo === "ajuste")
+                          .sort((a, b) => b.created_at.localeCompare(a.created_at))
+                          .slice(0, 5);
+                        if (ajustes.length === 0) {
+                          return (
+                            <p className="text-xs text-muted-foreground py-6 text-center">
+                              Nenhum ajuste manual registrado para este produto.
+                            </p>
+                          );
+                        }
+                        return (
+                          <ul className="space-y-2.5">
+                            {ajustes.map((m) => (
+                              <li key={m.id} className="text-xs border-l-2 border-muted pl-3 py-1">
+                                <div className="flex items-center justify-between gap-2 mb-0.5">
+                                  <span className="font-mono font-semibold tabular-nums">
+                                    {formatNumber(m.saldo_anterior)} → {formatNumber(m.saldo_atual)}
+                                  </span>
+                                  <span className="text-[10px] text-muted-foreground">
+                                    {new Date(m.created_at).toLocaleDateString("pt-BR")}
+                                  </span>
+                                </div>
+                                {m.motivo && (
+                                  <p className="text-muted-foreground line-clamp-2">{m.motivo}</p>
+                                )}
+                              </li>
+                            ))}
+                          </ul>
+                        );
+                      })()}
+                    </CardContent>
+                  </Card>
+                </aside>
+              </div>
             </div>
           </TabsContent>
         </Tabs>

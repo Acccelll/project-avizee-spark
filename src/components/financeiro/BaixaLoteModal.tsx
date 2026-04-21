@@ -5,7 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatCurrency } from "@/lib/format";
-import { processarBaixaLote } from "@/services/financeiro.service";
+import { processarBaixaLote, type BaixaItemOverride } from "@/services/financeiro.service";
+import { Pencil, Check, X } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 
 interface ContaBancaria {
   id: string;
@@ -39,6 +41,9 @@ export function BaixaLoteModal({ open, onClose, selectedLancamentos, contasBanca
   const [tipoBaixa, setTipoBaixa] = useState<"total" | "parcial">("total");
   const [valorPagoBaixa, setValorPagoBaixa] = useState(0);
   const [processing, setProcessing] = useState(false);
+  const [overrides, setOverrides] = useState<Record<string, BaixaItemOverride>>({});
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draftOverride, setDraftOverride] = useState<BaixaItemOverride>({});
 
   const totalBaixa = useMemo(() => {
     return selectedLancamentos.reduce((s, l) => s + Number(l.saldo_restante != null ? l.saldo_restante : l.valor || 0), 0);
@@ -51,8 +56,43 @@ export function BaixaLoteModal({ open, onClose, selectedLancamentos, contasBanca
       setContaBancaria("");
       setTipoBaixa("total");
       setValorPagoBaixa(totalBaixa);
+      setOverrides({});
+      setEditingId(null);
+      setDraftOverride({});
     }
   }, [open, totalBaixa]);
+
+  const startEdit = (l: Lancamento) => {
+    const existing = overrides[l.id] ?? {};
+    const saldo = Number(l.saldo_restante != null ? l.saldo_restante : l.valor || 0);
+    setDraftOverride({
+      data_baixa: existing.data_baixa ?? baixaDate,
+      forma_pagamento: existing.forma_pagamento ?? formaPagamento,
+      conta_bancaria_id: existing.conta_bancaria_id ?? contaBancaria,
+      valor_pago: existing.valor_pago ?? saldo,
+      observacoes: existing.observacoes ?? "",
+    });
+    setEditingId(l.id);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setDraftOverride({});
+  };
+
+  const saveEdit = (id: string) => {
+    setOverrides((prev) => ({ ...prev, [id]: { ...draftOverride } }));
+    setEditingId(null);
+    setDraftOverride({});
+  };
+
+  const removeOverride = (id: string) => {
+    setOverrides((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+  };
 
   const handleConfirm = async () => {
     if (!baixaDate) return;
@@ -70,6 +110,7 @@ export function BaixaLoteModal({ open, onClose, selectedLancamentos, contasBanca
       baixaDate,
       formaPagamento,
       contaBancariaId: contaBancaria,
+      overrides: Object.keys(overrides).length > 0 ? overrides : undefined,
     });
     setProcessing(false);
     if (ok) {
@@ -94,27 +135,142 @@ export function BaixaLoteModal({ open, onClose, selectedLancamentos, contasBanca
                   <th className="text-left px-3 py-2 text-xs font-semibold text-muted-foreground">Parceiro</th>
                   <th className="text-right px-3 py-2 text-xs font-semibold text-muted-foreground">Valor</th>
                   <th className="text-right px-3 py-2 text-xs font-semibold text-muted-foreground">Vencimento</th>
+                  <th className="text-right px-3 py-2 text-xs font-semibold text-muted-foreground w-24">Ações</th>
                 </tr>
               </thead>
               <tbody>
-                {selectedLancamentos.map((l, idx) => (
-                  <tr key={l.id} className={idx % 2 === 0 ? "bg-muted/20" : ""}>
-                    <td className="px-3 py-2 text-xs">{l.descricao}</td>
-                    <td className="px-3 py-2 text-xs">{l.tipo === "receber" ? l.clientes?.nome_razao_social : l.fornecedores?.nome_razao_social || "—"}</td>
-                    <td className="px-3 py-2 text-xs font-mono text-right font-semibold">{formatCurrency(Number(l.valor))}</td>
-                    <td className="px-3 py-2 text-xs text-right">{new Date(l.data_vencimento).toLocaleDateString("pt-BR")}</td>
-                  </tr>
-                ))}
+                {selectedLancamentos.map((l, idx) => {
+                  const isEditing = editingId === l.id;
+                  const ovr = overrides[l.id];
+                  const hasOverride = !!ovr;
+                  if (isEditing) {
+                    return (
+                      <tr key={l.id} className="bg-primary/5 border-y-2 border-primary/30">
+                        <td colSpan={5} className="px-3 py-3">
+                          <div className="space-y-2">
+                            <div className="flex items-start justify-between gap-2 mb-1">
+                              <div>
+                                <p className="text-xs font-semibold">{l.descricao}</p>
+                                <p className="text-[11px] text-muted-foreground">
+                                  {l.tipo === "receber" ? l.clientes?.nome_razao_social : l.fornecedores?.nome_razao_social || "—"}
+                                  {" · "}Vencimento {new Date(l.data_vencimento).toLocaleDateString("pt-BR")}
+                                  {" · "}<span className="font-mono">{formatCurrency(Number(l.valor))}</span>
+                                </p>
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div className="space-y-1">
+                                <Label className="text-[10px] uppercase">Data baixa</Label>
+                                <Input type="date" className="h-8 text-xs"
+                                  value={draftOverride.data_baixa ?? ""}
+                                  onChange={(e) => setDraftOverride(d => ({ ...d, data_baixa: e.target.value }))}
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-[10px] uppercase">Valor pago</Label>
+                                <Input type="number" step="0.01" min={0} className="h-8 text-xs font-mono"
+                                  value={draftOverride.valor_pago ?? 0}
+                                  onChange={(e) => setDraftOverride(d => ({ ...d, valor_pago: Number(e.target.value) }))}
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-[10px] uppercase">Forma pgto</Label>
+                                <Select value={draftOverride.forma_pagamento || ""} onValueChange={(v) => setDraftOverride(d => ({ ...d, forma_pagamento: v }))}>
+                                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="dinheiro">Dinheiro</SelectItem>
+                                    <SelectItem value="pix">PIX</SelectItem>
+                                    <SelectItem value="boleto">Boleto</SelectItem>
+                                    <SelectItem value="cartao">Cartão</SelectItem>
+                                    <SelectItem value="transferencia">Transferência</SelectItem>
+                                    <SelectItem value="cheque">Cheque</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-[10px] uppercase">Conta bancária</Label>
+                                <Select value={draftOverride.conta_bancaria_id || ""} onValueChange={(v) => setDraftOverride(d => ({ ...d, conta_bancaria_id: v }))}>
+                                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                                  <SelectContent>
+                                    {contasBancarias.map(c => (
+                                      <SelectItem key={c.id} value={c.id}>{c.bancos?.nome} - {c.descricao}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-[10px] uppercase">Observações</Label>
+                              <Textarea rows={2} className="text-xs"
+                                value={draftOverride.observacoes ?? ""}
+                                onChange={(e) => setDraftOverride(d => ({ ...d, observacoes: e.target.value }))}
+                                placeholder="Notas específicas para este título (opcional)"
+                              />
+                            </div>
+                            <div className="flex justify-end gap-2 pt-1">
+                              <Button type="button" size="sm" variant="ghost" onClick={cancelEdit} className="h-7 text-xs">
+                                <X className="h-3 w-3 mr-1" />Voltar
+                              </Button>
+                              <Button type="button" size="sm" onClick={() => saveEdit(l.id)} className="h-7 text-xs">
+                                <Check className="h-3 w-3 mr-1" />Aplicar a este título
+                              </Button>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  }
+                  return (
+                    <tr key={l.id} className={idx % 2 === 0 ? "bg-muted/20" : ""}>
+                      <td className="px-3 py-2 text-xs">
+                        <div className="flex items-center gap-1.5">
+                          {hasOverride && <Check className="h-3 w-3 text-primary shrink-0" aria-label="Personalizado" />}
+                          <span>{l.descricao}</span>
+                        </div>
+                        {hasOverride && (
+                          <p className="text-[10px] text-primary mt-0.5">
+                            Personalizado: {ovr.valor_pago != null ? formatCurrency(ovr.valor_pago) : ""}
+                            {ovr.data_baixa ? ` · ${new Date(ovr.data_baixa + "T00:00:00").toLocaleDateString("pt-BR")}` : ""}
+                            {ovr.forma_pagamento ? ` · ${ovr.forma_pagamento}` : ""}
+                          </p>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-xs">{l.tipo === "receber" ? l.clientes?.nome_razao_social : l.fornecedores?.nome_razao_social || "—"}</td>
+                      <td className="px-3 py-2 text-xs font-mono text-right font-semibold">{formatCurrency(Number(l.valor))}</td>
+                      <td className="px-3 py-2 text-xs text-right">{new Date(l.data_vencimento).toLocaleDateString("pt-BR")}</td>
+                      <td className="px-3 py-2 text-xs text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button type="button" size="sm" variant="ghost" className="h-6 px-2"
+                            onClick={() => startEdit(l)} aria-label="Editar este título">
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                          {hasOverride && (
+                            <Button type="button" size="sm" variant="ghost" className="h-6 px-2 text-muted-foreground"
+                              onClick={() => removeOverride(l.id)} aria-label="Remover personalização">
+                              <X className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
               <tfoot>
                 <tr className="border-t bg-muted/30">
                   <td colSpan={2} className="px-3 py-2 text-xs font-semibold">Total</td>
                   <td className="px-3 py-2 text-xs font-mono text-right font-bold text-primary">{formatCurrency(totalBaixa)}</td>
-                  <td />
+                  <td colSpan={2} />
                 </tr>
               </tfoot>
             </table>
           </div>
+          {Object.keys(overrides).length > 0 && (
+            <p className="text-xs text-primary flex items-center gap-1.5">
+              <Check className="h-3 w-3" />
+              {Object.keys(overrides).length} título(s) com configuração individual — sobrescrevem os defaults abaixo.
+            </p>
+          )}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Data de Baixa *</Label>

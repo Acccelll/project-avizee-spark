@@ -261,20 +261,63 @@ Deno.serve(async (req) => {
       const rolePadrao = normalizeRole(payload.role_padrao);
 
       if (!nome || !email) throw new HttpError(400, "Nome e e-mail são obrigatórios.");
+      console.log("[admin-users] create: starting", { email, nome, rolePadrao });
 
       const existingUsersResult = await serviceClient.auth.admin.listUsers({ page: 1, perPage: 1000 });
       if (existingUsersResult.error) throw existingUsersResult.error;
       const alreadyExists = (existingUsersResult.data.users ?? []).some((user: any) => user.email?.toLowerCase() === email);
       if (alreadyExists) throw new HttpError(409, "Já existe um usuário cadastrado com este e-mail.");
 
-      const inviteResult = await serviceClient.auth.admin.inviteUserByEmail(email, { data: { full_name: nome } });
-      if (inviteResult.error || !inviteResult.data.user) throw inviteResult.error ?? new Error("Não foi possível criar o usuário.");
+      // Tenta convite por e-mail (requer SMTP). Em qualquer falha (ex.: SMTP não configurado),
+      // faz fallback para createUser com senha temporária + recovery link, sem bloquear o admin.
+      let targetUser: any = null;
+      let tempPassword: string | null = null;
+      let recoveryLink: string | null = null;
+      let inviteSent = false;
 
-      const targetUser = inviteResult.data.user;
+      try {
+        const inviteResult = await serviceClient.auth.admin.inviteUserByEmail(email, { data: { full_name: nome } });
+        if (inviteResult.error) throw inviteResult.error;
+        if (!inviteResult.data?.user) throw new Error("Resposta vazia ao convidar usuário.");
+        targetUser = inviteResult.data.user;
+        inviteSent = true;
+        console.log("[admin-users] create: invite sent successfully", { userId: targetUser.id });
+      } catch (inviteErr) {
+        console.warn("[admin-users] create: invite failed, falling back to createUser", inviteErr);
+        // Fallback: cria usuário diretamente com senha temporária
+        tempPassword = `Tmp-${crypto.randomUUID().slice(0, 8)}-${Date.now().toString(36)}`;
+        const createResult = await serviceClient.auth.admin.createUser({
+          email,
+          password: tempPassword,
+          email_confirm: true,
+          user_metadata: { full_name: nome },
+        });
+        if (createResult.error || !createResult.data?.user) {
+          console.error("[admin-users] create: createUser fallback failed", createResult.error);
+          throw createResult.error ?? new Error("Falha ao criar usuário (fallback).");
+        }
+        targetUser = createResult.data.user;
+        // Tenta gerar link de recuperação para o usuário definir a própria senha
+        try {
+          const linkResult = await serviceClient.auth.admin.generateLink({
+            type: "recovery",
+            email,
+          });
+          if (!linkResult.error) {
+            recoveryLink = linkResult.data?.properties?.action_link ?? null;
+          }
+        } catch (linkErr) {
+          console.warn("[admin-users] create: generateLink failed", linkErr);
+        }
+      }
+
       const now = new Date().toISOString();
 
       const { error: profileError } = await serviceClient.from("profiles").upsert({ id: targetUser.id, nome, email, cargo: cargo || null, updated_at: now }, { onConflict: "id" });
-      if (profileError) throw profileError;
+      if (profileError) {
+        console.error("[admin-users] create: profile upsert failed", profileError);
+        throw profileError;
+      }
 
       await replaceUserRole(serviceClient, targetUser.id, rolePadrao);
       await replaceUserPermissions(serviceClient, targetUser.id, payload.extra_permissions);
@@ -284,7 +327,14 @@ Deno.serve(async (req) => {
         tipo: "user_create", email, cargo: cargo || null, ativo, extra_permissions: payload.extra_permissions ?? [],
       });
 
-      return json({ ok: true, userId: targetUser.id });
+      return json({
+        ok: true,
+        userId: targetUser.id,
+        inviteSent,
+        // Em modo fallback, devolve credenciais temporárias para o admin entregar manualmente
+        tempPassword,
+        recoveryLink,
+      });
     }
 
     if (action === "update") {
