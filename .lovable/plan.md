@@ -1,94 +1,164 @@
 
 
-# Finalização das pendências da Revisão de Migração
+# Migração de Produtos e Faturamento — Preservação Total de Histórico
 
-Restam 4 lacunas das 11 correções do documento de revisão. As demais (aliases, schema novo, RPCs base, smoke tests) já estão aplicadas. Este plano foca exclusivamente no que ainda não funciona ponta-a-ponta.
-
----
-
-## Pendência 1 — Hierarquia sintética do plano de contas
-
-A tabela `contas_contabeis_sinteticas` e a RPC `carga_inicial_processar_extras` já existem, mas ninguém envia linhas com `_tipo='sintetica'` ao staging. O parser não lê a aba `Sinteticas` e o `useCargaInicial` não a empacota.
-
-**`src/lib/importacao/conciliacaoParser.ts`**
-- Adicionar tipo `SinteticaRow { codigo; descricao; nivel; conta_pai_codigo; _originalLine }` e expor `sinteticas: SinteticaRow[]` em `ConciliacaoBundle`.
-- Em `parseConciliacaoWorkbook`, buscar aba via `findSheet(wb, ["Sinteticas","Sintéticas"])` e chamar novo `parseSinteticas` (colunas: `Código Sintético`, `Nome Sintético Sugerido`, `Nível`, `Conta Pai`).
-
-**`src/hooks/importacao/useCargaInicial.ts`**
-- Acrescentar `bundle.sinteticas.forEach(s => cadRows.push({ ..., dados: { _tipo: "sintetica", codigo: s.codigo, descricao: s.descricao, nivel: s.nivel, conta_pai_codigo: s.conta_pai_codigo } }))` antes do plano analítico.
-- Atualizar `CargaInicialResumo.contagens` com `sinteticas`.
-
-**Migração SQL**
-- Alterar `carga_inicial_processar_extras` para também: após criar sintéticas, fazer `UPDATE contas_contabeis SET conta_sintetica_codigo = (mais longo prefixo do código que case com `contas_contabeis_sinteticas.codigo`)` para amarrar a hierarquia.
+Implementar a estratégia que separa **catálogo atual** (produtos vivos da Conciliação) do **histórico imutável** (snapshots originais do Faturamento), com tabela-ponte de identificadores legados e classificação de match auditável.
 
 ---
 
-## Pendência 2 — `conta_bancaria_id` no financeiro
+## 1. Schema (migration SQL)
 
-O campo `Banco` chega ao JSONB mas vira só texto. `contas_bancarias` tem `descricao` (não `apelido`).
+### 1.1 Ajustes em `produtos`
+- Adicionar `descontinuado_em date NULL`.
+- Adicionar `origem text` (default `'cadastro_manual'`); usar `'importacao_conciliacao'` ou `'importacao_legacy'`.
+- `codigo_interno` continua como `codigo_atual` (já é UNIQUE). `tipo_item`, `unidade_medida`, `ativo`, `codigo_legado`, `variacoes` já existem — não recriar.
+- Trigger `trg_produto_descontinuado`: quando `ativo` passa de true→false e `descontinuado_em` é null, gravar `now()::date`.
 
-**Migração SQL — `consolidar_lote_financeiro`**
-- Adicionar bloco após resolução da conta contábil:
-  ```sql
-  IF v_dados->>'banco' IS NOT NULL AND v_dados->>'banco' <> '' THEN
-    SELECT id INTO v_conta_bancaria_id FROM contas_bancarias
-     WHERE upper(unaccent(descricao)) = upper(unaccent(v_dados->>'banco'))
-        OR upper(unaccent(titular))   = upper(unaccent(v_dados->>'banco'))
-     LIMIT 1;
-  END IF;
-  ```
-- Incluir `conta_bancaria_id` no `INSERT INTO financeiro_lancamentos`.
-- Mesmo bloco em `merge_lote_conciliacao`.
+### 1.2 Nova tabela `produto_identificadores_legacy`
+```text
+id uuid PK
+produto_id uuid FK→produtos(id) ON DELETE CASCADE
+origem text NOT NULL                  -- 'faturamento_legacy' | 'conciliacao_legacy'
+codigo_legacy text
+descricao_legacy text
+descricao_normalizada text            -- gerada via função
+unidade_legacy text
+match_tipo text CHECK IN
+  ('exato_codigo','exato_descricao','manual','aproximado','nao_vinculado')
+confianca_match numeric(3,2)          -- 0.00–1.00
+ativo boolean DEFAULT true
+observacao text
+criado_em timestamptz DEFAULT now()
+UNIQUE (origem, codigo_legacy, descricao_normalizada)
+```
+Índices: `(produto_id)`, `(codigo_legacy)`, `(descricao_normalizada)`. RLS: leitura autenticada; escrita admin/financeiro/estoquista.
+
+### 1.3 Snapshot em `notas_fiscais_itens`
+Adicionar colunas (NOT NULL após backfill — primeiro nullable, depois constraint):
+```text
+codigo_produto_origem text
+descricao_produto_origem text
+unidade_origem text
+quantidade_origem numeric
+valor_unitario_origem numeric
+valor_total_origem numeric
+produto_identificador_legacy_id uuid FK→produto_identificadores_legacy(id)
+match_status text CHECK IN ('vinculado','nao_vinculado','manual','duvidoso')
+origem_migracao text                 -- 'faturamento_legacy' nas linhas migradas
+```
+Trigger `trg_nf_item_snapshot_imutavel`: bloqueia UPDATE nas colunas `*_origem` (`RAISE EXCEPTION` se mudarem após insert).
+
+### 1.4 Função utilitária SQL
+```sql
+CREATE OR REPLACE FUNCTION public.normalizar_descricao(p text)
+RETURNS text LANGUAGE sql IMMUTABLE
+SET search_path = public AS $$
+  SELECT regexp_replace(
+           lower(unaccent(coalesce(p,''))),
+           '\s+', ' ', 'g'
+         )::text
+$$;
+```
+(usar a mesma em TS — `src/lib/importacao/produtoMatch.ts`).
 
 ---
 
-## Pendência 3 — `produtos_fornecedores` na carga inicial
+## 2. Importação do catálogo atual (Conciliação → `produtos`)
 
-A RPC `vincular_produto_fornecedor` já está pronta; falta invocá-la dentro de `carga_inicial_conciliacao` após o loop de produtos/insumos.
-
-**Migração SQL — `carga_inicial_conciliacao`**
-- Após o `INSERT/UPDATE` de cada produto, se `dados->>'fornecedor_principal_nome'` ou `fornecedor_principal_legado` existirem, chamar:
-  ```sql
-  PERFORM vincular_produto_fornecedor(
-    v_produto_id,
-    dados->>'fornecedor_principal_nome',
-    dados->>'fornecedor_principal_legado',
-    dados->>'ref_fornecedor',
-    dados->>'url_produto_fornecedor',
-    NULL
-  );
-  ```
-- Idem em `merge_lote_conciliacao`.
+Atualizar `consolidar_lote_cadastros` (RPC) para o caminho `_tipo='produto'|'insumo'`:
+- Resolver duplicidade por `codigo_legado` antes de upsert.
+- **Se houver duplicidade real do mesmo `codigo_atual` na planilha**: abortar o lote inteiro (`RAISE EXCEPTION`) e gravar `importacao_logs` com nível `error` listando as linhas conflitantes — NÃO consolidar parcial.
+- Após upsert: gravar identidade própria em `produto_identificadores_legacy` com `origem='conciliacao_legacy'`, `match_tipo='exato_codigo'`, `confianca=1.00` (idempotente via UNIQUE).
+- `produtos.origem = 'importacao_conciliacao'` quando inserido pela carga.
 
 ---
 
-## Pendência 4 — `custo_historico_unitario` em NF itens
+## 3. Importação do faturamento (`consolidar_lote_faturamento`)
 
-Coluna existe mas RPC ignora. Preserva margem real da época da venda.
+Reescrita parcial da RPC. Para cada item do JSONB:
 
-**Migração SQL — `consolidar_lote_faturamento`**
-- No `INSERT INTO notas_fiscais_itens`, acrescentar coluna e valor:
-  ```sql
-  custo_historico_unitario = NULLIF(v_item->>'custo_unitario','')::numeric
-  ```
-- Documentar em `docs/MIGRACAO.md` que esse campo congela o custo histórico (separado do custo médio atual do produto).
+### 3.1 Snapshot obrigatório
+Sempre gravar `codigo_produto_origem`, `descricao_produto_origem`, `unidade_origem`, `quantidade_origem`, `valor_unitario_origem`, `valor_total_origem` a partir do staging — antes de qualquer tentativa de match. Validação: se algum snapshot vier null/zero (exceto descrição), o item é rejeitado e contado em `erros`.
+
+### 3.2 Pipeline de match (em ordem)
+1. **Exato por código**: `codigo_legacy = produtos.codigo_legado` (ou `codigo_interno`). Confiança 1.0.
+2. **Tabela ponte**: `produto_identificadores_legacy` com `codigo_legacy` igual + `ativo=true`.
+3. **Exato por descrição normalizada**: `normalizar_descricao(descricao_legacy)` contra `produto_identificadores_legacy.descricao_normalizada` e contra `normalizar_descricao(produtos.nome)`. Confiança 0.85.
+4. Se etapa 1 ou 3 retornar **>1 produto distinto**: `match_status='duvidoso'`, `produto_id=NULL`.
+5. Se nenhum match: `match_status='nao_vinculado'`, `produto_id=NULL`.
+
+### 3.3 Persistência do vínculo
+- Quando match único é encontrado, fazer `INSERT … ON CONFLICT DO NOTHING` em `produto_identificadores_legacy` (origem `faturamento_legacy`, `match_tipo` conforme regra que disparou, `confianca` correspondente). Guardar o `id` retornado em `notas_fiscais_itens.produto_identificador_legacy_id`.
+- `notas_fiscais.origem='importacao_historica'`, `movimenta_estoque=false`, `gera_financeiro=false` (já implementado, manter).
+
+### 3.4 Produtos descontinuados
+Se `match_status='nao_vinculado'` E `codigo_legacy` não vazio: criar produto com `ativo=false`, `descontinuado_em=now()`, `origem='importacao_legacy'`, `codigo_atual=codigo_legacy`, `descricao=descricao_legacy`, `tipo_item='produto'`, `unidade_medida=unidade_legacy`. Vincular via `produto_identificadores_legacy` com `match_tipo='exato_codigo'`, `confianca=1.00`. Item da NF passa a `match_status='vinculado'`. Contador `produtos_descontinuados_criados`.
+
+### 3.5 Idempotência
+- NF: `ON CONFLICT (chave_acesso) DO NOTHING` mantido.
+- Item: `UNIQUE (nota_fiscal_id, codigo_produto_origem, valor_total_origem)` parcial onde `origem_migracao='faturamento_legacy'` para evitar duplicar item em reprocessamento.
+
+---
+
+## 4. Hook TS (`useImportacaoFaturamento`)
+
+- `generatePreview`: mostrar contagem prevista de match por categoria (`vinculado/duvidoso/nao_vinculado/criar_descontinuado`) — apenas leitura, sem persistir.
+- Adicionar função `normalizarDescricao` em `src/lib/importacao/produtoMatch.ts` reaproveitada no preview.
+- `processImport`: continuar gravando staging → RPC; ler retorno expandido (`vinculados`, `duvidosos`, `nao_vinculados`, `descontinuados_criados`) e exibir no toast.
+
+---
+
+## 5. Relatório de migração
+
+Nova RPC `relatorio_migracao_faturamento(p_lote_id uuid) RETURNS jsonb`:
+```text
+{
+  total_itens, vinculados, duvidosos, nao_vinculados,
+  pct_vinculados, pct_duvidosos, pct_nao_vinculados,
+  produtos_descontinuados_criados,
+  amostra_nao_vinculados: [{codigo, descricao, count}],   -- top 50
+  amostra_descontinuados: [{produto_id, codigo, descricao}]
+}
+```
+Componente `RelatorioMigracaoFaturamento` exibido na página `/migracao-dados` após consolidação (consome `importacao_logs` + RPC). Listas exportáveis como CSV via `/mnt/documents/`.
+
+---
+
+## 6. Validações pré-conclusão (SQL — verificação no fim da RPC)
+```sql
+-- abortar com mensagem clara se algum quebrar:
+PERFORM 1 FROM notas_fiscais_itens
+ WHERE origem_migracao='faturamento_legacy'
+   AND (codigo_produto_origem IS NULL OR descricao_produto_origem IS NULL
+        OR quantidade_origem IS NULL OR valor_total_origem IS NULL);
+-- duplicidade catalog:
+PERFORM 1 FROM produtos GROUP BY codigo_interno HAVING count(*)>1;
+```
+Adicionar à seção "Smoke tests" do `docs/MIGRACAO.md`.
 
 ---
 
 ## Detalhes técnicos
 
-**Arquivos editados:**
-- `src/lib/importacao/conciliacaoParser.ts` (parseSinteticas + tipo)
-- `src/hooks/importacao/useCargaInicial.ts` (staging de sintéticas + resumo)
-- `docs/MIGRACAO.md` (parágrafo sobre custo histórico)
-- 1 nova migration SQL com 4 alterações de função (`carga_inicial_processar_extras`, `consolidar_lote_financeiro`, `merge_lote_conciliacao`, `carga_inicial_conciliacao`, `consolidar_lote_faturamento`).
+**Arquivos editados / criados**
+- `src/lib/importacao/produtoMatch.ts` (novo) — `normalizarDescricao`, tipos do relatório.
+- `src/hooks/importacao/useImportacaoFaturamento.ts` — preview com contagem de match, toast expandido.
+- `src/components/importacao/RelatorioMigracaoFaturamento.tsx` (novo).
+- `src/pages/MigracaoDados.tsx` — exibir relatório após lote `concluido`.
+- `docs/MIGRACAO.md` — seção "Estratégia de preservação histórica".
+- 1 migration SQL com:
+  - colunas novas em `produtos` (`descontinuado_em`, `origem`) e `notas_fiscais_itens` (snapshots + `match_status` + FK).
+  - tabela `produto_identificadores_legacy` + RLS + índices + UNIQUE.
+  - função `normalizar_descricao` (usa `unaccent` — habilitar extensão se necessário).
+  - triggers `trg_produto_descontinuado` e `trg_nf_item_snapshot_imutavel`.
+  - reescrita das RPCs `consolidar_lote_cadastros` (validação dup-código), `consolidar_lote_faturamento` (snapshot + match em 3 níveis + criação de descontinuados) e nova `relatorio_migracao_faturamento`.
+  - todas com `SET search_path = public` e `SECURITY DEFINER`.
 
-**RPCs alteradas (todas mantendo `SET search_path = public, SECURITY DEFINER`):**
-- `consolidar_lote_financeiro` — resolver `conta_bancaria_id` por descricao/titular.
-- `merge_lote_conciliacao` — idem + chamada `vincular_produto_fornecedor`.
-- `carga_inicial_conciliacao` — chamada `vincular_produto_fornecedor`.
-- `carga_inicial_processar_extras` — pós-processo de `conta_sintetica_codigo` por prefixo.
-- `consolidar_lote_faturamento` — gravar `custo_historico_unitario`.
+**Compatibilidade**
+- Lotes já consolidados: backfill opcional via UPDATE que copia `codigo_produto`/`descricao`/`quantidade`/`valor_unitario`/`valor_total` para as colunas `*_origem` quando `origem_migracao IS NULL` e a NF pai for `origem='importacao_historica'`. Marcar `match_status` com base em `produto_id IS NULL`. Trigger de imutabilidade só dispara após o backfill (cláusula `WHEN OLD.codigo_produto_origem IS NOT NULL`).
 
-**Fora de escopo:** UI para visualizar sintéticas/centros de custo; reprocessar lotes já consolidados (rodar manualmente após deploy se desejado); criar coluna `apelido` em `contas_bancarias` (a busca usará `descricao`/`titular` que já existem).
+**Fora de escopo**
+- UI manual de "resolver duvidoso" (vincular item a produto via tela). Será proposto separadamente — a tabela ponte e o `match_status='duvidoso'` já preparam o terreno.
+- Reprocessar lotes históricos automaticamente: rodar manualmente após deploy via `SELECT consolidar_lote_faturamento(id)` em lotes `parcial`/`erro`.
+- Match aproximado por similaridade (`pg_trgm`). Pode ser adicionado depois como degrau extra entre 3 e 4.
 
