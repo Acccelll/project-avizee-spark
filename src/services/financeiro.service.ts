@@ -141,6 +141,10 @@ async function ensureInsertBaixa(item: BaixaPlanItem, params: BaixaLoteParams) {
 }
 
 async function processarBaixaLoteRpc(params: BaixaLoteParams): Promise<boolean | null> {
+  // Se há overrides por item, não usa o RPC consolidado (que aplica defaults uniformes).
+  if (params.overrides && Object.keys(params.overrides).length > 0) {
+    return null;
+  }
   const { error } = await supabase.rpc("financeiro_processar_baixa_lote", {
     p_selected_ids: params.selectedIds,
     p_tipo_baixa: params.tipoBaixa,
