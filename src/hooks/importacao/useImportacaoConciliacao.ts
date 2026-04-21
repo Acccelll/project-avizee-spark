@@ -249,6 +249,47 @@ export function useImportacaoConciliacao() {
         _action: contasByCodigo.has(p.codigo) ? "atualizar" : "criar",
       }));
 
+      // Cadastros (clientes/fornecedores) — usa lookups já carregados.
+      const buildPessoa = (
+        origem: "CLIENTES" | "FORNECEDORES",
+        rows: typeof bundle.clientes,
+      ): PreviewPessoaLinha[] => {
+        const byLegado = origem === "CLIENTES" ? cliByLegado : fornByLegado;
+        const byCpf = origem === "CLIENTES" ? cliByCpf : fornByCpf;
+        const byNome = origem === "CLIENTES" ? cliByNome : fornByNome;
+        return rows.map((p) => {
+          const errors: string[] = [];
+          if (!p.nome_razao_social) errors.push("Nome/Razão Social ausente.");
+          let matchedId: string | null = null;
+          if (p.codigo_legado && byLegado.has(p.codigo_legado)) {
+            matchedId = byLegado.get(p.codigo_legado)!.id;
+          } else if (p.cpf_cnpj && byCpf.has(p.cpf_cnpj)) {
+            matchedId = byCpf.get(p.cpf_cnpj)!.id;
+          } else if (p.nome_razao_social) {
+            const m = byNome.get(normalizeNomeMatch(p.nome_razao_social));
+            if (m && m.count === 1) matchedId = m.id;
+          }
+          const action: "criar" | "atualizar" | "ignorar" =
+            errors.length ? "ignorar" : matchedId ? "atualizar" : "criar";
+          return {
+            origem,
+            tipo_pessoa: p.tipo_pessoa,
+            codigo_legado: p.codigo_legado,
+            cpf_cnpj: p.cpf_cnpj || null,
+            nome_razao_social: p.nome_razao_social,
+            nome_fantasia: p.nome_fantasia,
+            cidade: p.cidade,
+            uf: p.uf,
+            _action: action,
+            _matched_id: matchedId,
+            _errors: errors,
+          };
+        });
+      };
+
+      const clientesPreview = buildPessoa("CLIENTES", bundle.clientes);
+      const fornecedoresPreview = buildPessoa("FORNECEDORES", bundle.fornecedores);
+
       // Reconciliação FC
       const consolidados = [...cr, ...cp, ...fopag].filter((x) => x._valid && !x._duplicado);
       const derivKey = (tipo: string | null, venc: string | null, valor: number) =>
@@ -272,6 +313,10 @@ export function useImportacaoConciliacao() {
         pendentes: all.filter((x) => x._match === "pendente" && x.origem !== "FOPAG").length,
         duplicados: all.filter((x) => x._duplicado).length,
         erros: all.filter((x) => !x._valid).length,
+        clientes_a_criar: clientesPreview.filter((x) => x._action === "criar").length,
+        clientes_a_atualizar: clientesPreview.filter((x) => x._action === "atualizar").length,
+        fornecedores_a_criar: fornecedoresPreview.filter((x) => x._action === "criar").length,
+        fornecedores_a_atualizar: fornecedoresPreview.filter((x) => x._action === "atualizar").length,
       };
 
       const out: PreviewConciliacaoBundle = {
@@ -279,6 +324,8 @@ export function useImportacaoConciliacao() {
         cp,
         fopag,
         plano,
+        clientes: clientesPreview,
+        fornecedores: fornecedoresPreview,
         fc: bundle.fc,
         reconciliacao: { totalFC: bundle.fc.length, totalDerivado: consolidados.length, divergencias, detalhes },
         abasDetectadas: bundle.abasDetectadas,
