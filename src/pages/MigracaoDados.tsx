@@ -777,7 +777,29 @@ export default function MigracaoDados() {
                   {activeImportSource === 'xml' ? (
                     <PreviewXmlTable data={hookXml.xmlData} />
                   ) : activeImportSource === 'faturamento' ? (
-                    <PreviewFaturamentoTable data={hookFaturamento.previewData} />
+                    <div className="space-y-4">
+                      {hookFaturamento.matchCounts && (
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                          <div className="p-3 rounded-md border bg-emerald-50 border-emerald-200">
+                            <div className="text-xs text-emerald-700">Vinculáveis</div>
+                            <div className="text-xl font-bold text-emerald-700">{hookFaturamento.matchCounts.vinculado}</div>
+                          </div>
+                          <div className="p-3 rounded-md border bg-amber-50 border-amber-200">
+                            <div className="text-xs text-amber-700">Duvidosos</div>
+                            <div className="text-xl font-bold text-amber-700">{hookFaturamento.matchCounts.duvidoso}</div>
+                          </div>
+                          <div className="p-3 rounded-md border bg-red-50 border-red-200">
+                            <div className="text-xs text-red-700">Não vinculados</div>
+                            <div className="text-xl font-bold text-red-700">{hookFaturamento.matchCounts.nao_vinculado}</div>
+                          </div>
+                          <div className="p-3 rounded-md border bg-muted/50">
+                            <div className="text-xs text-muted-foreground">Criar como descontinuados</div>
+                            <div className="text-xl font-bold">{hookFaturamento.matchCounts.criar_descontinuado}</div>
+                          </div>
+                        </div>
+                      )}
+                      <PreviewFaturamentoTable data={hookFaturamento.previewData} />
+                    </div>
                   ) : activeImportSource === 'financeiro' ? (
                     <PreviewFinanceiroTable data={hookFinanceiro.previewData} />
                   ) : activeImportSource === 'conciliacao' ? (
