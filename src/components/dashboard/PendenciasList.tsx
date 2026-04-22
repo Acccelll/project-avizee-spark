@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { useDashboardPeriod } from '@/contexts/DashboardPeriodContext';
+import { ScopeBadge } from './ScopeBadge';
 
 interface Pendencia {
   id: string;
@@ -102,10 +103,13 @@ export function PendenciasList() {
 
   return (
     <div className="flex flex-col h-full">
-      <h3 className="mb-3 font-semibold text-foreground text-sm flex items-center gap-2">
-        <AlertTriangle className="h-4 w-4 text-warning" />
-        Vencimentos / Pendências
-      </h3>
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h3 className="font-semibold text-foreground text-sm flex items-center gap-2">
+          <AlertTriangle className="h-4 w-4 text-warning" />
+          Vencimentos / Pendências
+        </h3>
+        <ScopeBadge scope={{ kind: 'fixed-window', janela: 'next-7d' }} />
+      </div>
 
       {isLoading ? (
         <div className="space-y-2">

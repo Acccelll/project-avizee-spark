@@ -26,6 +26,8 @@ interface KpiParams {
   onOpenSaldo: () => void;
   onOpenEstoque: () => void;
   onReceberDetail: () => void;
+  onPagarDetail?: () => void;
+  onSaldoDetail?: () => void;
   onEstoqueDetail: () => void;
   onOpenBacklog: () => void;
   onOpenCompras: () => void;
@@ -47,6 +49,8 @@ export function useDashboardKpis(params: KpiParams) {
     onOpenSaldo,
     onOpenEstoque,
     onReceberDetail,
+    onPagarDetail,
+    onSaldoDetail,
     onEstoqueDetail,
     onOpenBacklog,
     onOpenCompras,
@@ -82,11 +86,15 @@ export function useDashboardKpis(params: KpiParams) {
         value: formatCurrency(stats.totalPagar),
         subtitle: `${formatNumber(stats.contasPagar)} título${stats.contasPagar !== 1 ? "s" : ""} em aberto`,
         icon: DollarSign,
-        variation: stats.totalPagar > stats.totalReceber ? "Saldo negativo" : "Saldo positivo",
-        variationType: stats.totalPagar > stats.totalReceber ? ("negative" as const) : ("positive" as const),
+        variation:
+          stats.contasVencidas > 0
+            ? `${formatNumber(stats.contasPagar)} título${stats.contasPagar !== 1 ? "s" : ""} no período`
+            : `${formatNumber(stats.contasPagar)} título${stats.contasPagar !== 1 ? "s" : ""} no período`,
+        variationType: "neutral" as const,
         variant: stats.totalPagar > stats.totalReceber ? ("danger" as const) : ("warning" as const),
         sparklineData: dailyPagar.length > 0 ? dailyPagar.map((d) => d.valor) : undefined,
         onClick: onOpenPagar,
+        onDetail: onPagarDetail,
         "aria-label": "Ver contas a pagar no módulo financeiro",
         meta: metas.pagar,
         realizado: stats.totalPagar,
@@ -95,7 +103,7 @@ export function useDashboardKpis(params: KpiParams) {
         id: "saldo",
         title: "Saldo Projetado",
         value: formatCurrency(saldoProjetado),
-        subtitle: "receber − pagar",
+        subtitle: "receber − pagar (janela)",
         icon: BarChart2,
         variation: saldoProjetado >= 0 ? "Caixa positivo" : "Caixa negativo",
         variationType: saldoProjetado >= 0 ? ("positive" as const) : ("negative" as const),
@@ -105,6 +113,7 @@ export function useDashboardKpis(params: KpiParams) {
             ? dailyReceber.map((r, index) => r.valor - (dailyPagar[index]?.valor ?? 0))
             : undefined,
         onClick: onOpenSaldo,
+        onDetail: onSaldoDetail,
         "aria-label": "Ver saldo projetado no fluxo de caixa",
         meta: metas.saldo,
         realizado: saldoProjetado,
@@ -120,6 +129,8 @@ export function useDashboardKpis(params: KpiParams) {
       onOpenReceber,
       onOpenSaldo,
       onReceberDetail,
+      onPagarDetail,
+      onSaldoDetail,
       saldoProjetado,
       stats.contasPagar,
       stats.contasReceber,
@@ -144,6 +155,7 @@ export function useDashboardKpis(params: KpiParams) {
         variant: estoqueBaixoCount > 0 ? ("danger" as const) : ("success" as const),
         onClick: onOpenEstoque,
         onDetail: onEstoqueDetail,
+        scope: { kind: "snapshot" as const },
         "aria-label": "Ver produtos com estoque crítico",
       },
       {
@@ -154,6 +166,7 @@ export function useDashboardKpis(params: KpiParams) {
         icon: ClipboardList,
         variant: backlogOVsCount > 0 ? ("warning" as const) : ("success" as const),
         onClick: onOpenBacklog,
+        scope: { kind: "snapshot" as const },
         "aria-label": "Ver pedidos aguardando faturamento",
       },
       {
@@ -164,6 +177,7 @@ export function useDashboardKpis(params: KpiParams) {
         icon: AlertTriangle,
         variant: comprasAtrasadasCount > 0 ? ("danger" as const) : ("success" as const),
         onClick: onOpenCompras,
+        scope: { kind: "snapshot" as const },
         "aria-label": "Ver pedidos de compra atrasados",
       },
       {
@@ -174,6 +188,7 @@ export function useDashboardKpis(params: KpiParams) {
         icon: Truck,
         variant: remessasAtrasadasCount > 0 ? ("warning" as const) : ("success" as const),
         onClick: onOpenRemessas,
+        scope: { kind: "snapshot" as const },
         "aria-label": "Ver remessas atrasadas",
       },
     ],

@@ -53,6 +53,7 @@ export function useDashboardComercialData(range: DashboardDateRange) {
           .from("orcamentos")
           .select("*", { count: "exact", head: true })
           .eq("ativo", true)
+          .neq("origem", "importacao_historica")
           .in("status", OPEN_ORC_STATUSES)
           .gte("data_orcamento", dateFrom)
           .lte("data_orcamento", dateTo),
@@ -60,6 +61,7 @@ export function useDashboardComercialData(range: DashboardDateRange) {
           .from("orcamentos")
           .select("id, numero, valor_total, status, data_orcamento, clientes(nome_razao_social)")
           .eq("ativo", true)
+          .neq("origem", "importacao_historica")
           .gte("data_orcamento", dateFrom)
           .lte("data_orcamento", dateTo)
           .order("created_at", { ascending: false })

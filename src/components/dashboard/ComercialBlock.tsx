@@ -14,6 +14,10 @@ interface ComercialBlockProps {
   ticketMedio: number;
   recentOrcamentos: Orcamento[];
   loading?: boolean;
+  /** Faturamento confirmado no mês atual. */
+  faturamentoMesAtual?: number;
+  /** Faturamento confirmado no mês anterior — para comparativo MoM. */
+  faturamentoMesAnterior?: number;
 }
 
 const statusStyles: Record<string, string> = {
@@ -40,9 +44,16 @@ export function ComercialBlock({
   ticketMedio,
   recentOrcamentos,
   loading,
+  faturamentoMesAtual = 0,
+  faturamentoMesAnterior = 0,
 }: ComercialBlockProps) {
   const navigate = useNavigate();
   const { pushView } = useRelationalNavigation();
+
+  const variacaoMoM =
+    faturamentoMesAnterior > 0
+      ? ((faturamentoMesAtual - faturamentoMesAnterior) / faturamentoMesAnterior) * 100
+      : null;
 
   return (
     <div className="bg-card rounded-xl border flex flex-col">
@@ -64,7 +75,7 @@ export function ComercialBlock({
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-3 border-b border-border/60">
+      <div className="grid grid-cols-2 border-b border-border/60 md:grid-cols-4">
         <div className="px-4 py-2">
           <p className="text-xs text-muted-foreground">Orçamentos em aberto</p>
           <p className="text-lg font-bold mono mt-0.5">{formatNumber(cotacoesAbertas)}</p>
@@ -76,6 +87,19 @@ export function ComercialBlock({
         <div className="px-4 py-2 border-l border-border/60">
           <p className="text-xs text-muted-foreground">Ticket médio</p>
           <p className="text-lg font-bold mono mt-0.5">{formatCurrency(ticketMedio)}</p>
+        </div>
+        <div className="px-4 py-2 border-l border-border/60">
+          <p className="text-xs text-muted-foreground">Faturamento (mês)</p>
+          <p className="text-lg font-bold mono mt-0.5">{formatCurrency(faturamentoMesAtual)}</p>
+          {variacaoMoM !== null && (
+            <p
+              className={`text-[11px] font-medium ${
+                variacaoMoM >= 0 ? 'text-success' : 'text-destructive'
+              }`}
+            >
+              {variacaoMoM >= 0 ? '▲' : '▼'} {Math.abs(variacaoMoM).toFixed(1)}% vs mês anterior
+            </p>
+          )}
         </div>
       </div>
 

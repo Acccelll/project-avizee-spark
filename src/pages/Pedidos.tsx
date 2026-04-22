@@ -98,10 +98,17 @@ const Pedidos = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const searchTerm = searchParams.get("q") ?? "";
-  const statusFilters = searchParams.getAll("status");
-  const faturamentoFilters = searchParams.getAll("faturamento");
-  const clienteFilters = searchParams.getAll("cliente");
-  const prazoFilters = searchParams.getAll("prazo");
+  // Convenção: filtros multivalor lidos como CSV (`?status=aprovada,em_separacao`)
+  // para ficarem compatíveis com `buildDrilldownUrl` e com Financeiro.
+  const splitParam = (key: string) => {
+    const raw = searchParams.get(key);
+    if (!raw) return [] as string[];
+    return raw.split(",").map((v) => v.trim()).filter(Boolean);
+  };
+  const statusFilters = splitParam("status");
+  const faturamentoFilters = splitParam("faturamento");
+  const clienteFilters = splitParam("cliente");
+  const prazoFilters = splitParam("prazo");
   const dataInicio = searchParams.get("de") ?? "";
   const dataFim = searchParams.get("ate") ?? "";
 
@@ -110,7 +117,7 @@ const Pedidos = () => {
       const next = new URLSearchParams(prev);
       next.delete(key);
       if (Array.isArray(value)) {
-        value.forEach((v) => next.append(key, v));
+        if (value.length > 0) next.set(key, value.join(","));
       } else if (value) {
         next.set(key, value);
       }

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from "react";
+import { lazy, Suspense, useMemo, useState, type ReactNode } from "react";
 import {
   Bar,
   BarChart,
@@ -34,9 +34,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useDashboardData } from "@/pages/dashboard/hooks/useDashboardData";
 import { useDashboardKpis } from "@/pages/dashboard/hooks/useDashboardKpis";
 import { useDashboardDrawerData } from "@/pages/dashboard/hooks/useDashboardDrawerData";
-import { useDashboardLayout } from "@/hooks/useDashboardLayout";
+import { useDashboardLayout, type WidgetId } from "@/hooks/useDashboardLayout";
 import { DashboardCustomizeMenu } from "@/components/dashboard/DashboardCustomizeMenu";
 import { buildDrilldownUrl } from "@/lib/dashboard/drilldown";
+import { ScopeBadge } from "@/components/dashboard/ScopeBadge";
 
 const VendasChart = lazy(() =>
   import("@/components/dashboard/VendasChart").then((m) => ({ default: m.VendasChart })),
@@ -77,9 +78,9 @@ const DashboardContent = () => {
   const { profile, user } = useAuth();
   const { metas } = useMetas();
   const { prefs, toggleVisibility, moveWidget, resetLayout } = useDashboardLayout(user?.id);
-  const isVisible = (id: string) => !prefs.hidden.includes(id as never);
+  const isVisible = (id: WidgetId) => !prefs.hidden.includes(id);
 
-  const [metricDrawer, setMetricDrawer] = useState<null | "receber" | "estoque">(null);
+  const [metricDrawer, setMetricDrawer] = useState<null | "receber" | "pagar" | "saldo" | "estoque">(null);
 
   const {
     stats,
@@ -94,6 +95,7 @@ const DashboardContent = () => {
     dailyReceber,
     dailyVendas,
     estoqueBaixo,
+    faturamento,
     fiscalStats,
     recentOrcamentos,
     remessasAtrasadas,
@@ -124,11 +126,14 @@ const DashboardContent = () => {
     onOpenCompras: () => navigate(buildDrilldownUrl({ kind: "compras:atrasadas" })),
     onOpenRemessas: () => navigate(buildDrilldownUrl({ kind: "logistica:remessas-atrasadas" })),
     onReceberDetail: () => setMetricDrawer("receber"),
+    onPagarDetail: () => setMetricDrawer("pagar"),
+    onSaldoDetail: () => setMetricDrawer("saldo"),
     onEstoqueDetail: () => setMetricDrawer("estoque"),
   });
 
   const detailData = useDashboardDrawerData({
     dailyReceber,
+    dailyPagar,
     topClientes,
     estoqueBaixo,
     dailyVendas,
@@ -170,7 +175,7 @@ const DashboardContent = () => {
 
       <div className="space-y-4">
         {isVisible("kpis") && (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3" aria-live="polite" aria-atomic="false">
             {kpiCards.map((c) => (
               <SummaryCard key={c.id} {...c} density="compact" />
             ))}
@@ -179,8 +184,13 @@ const DashboardContent = () => {
 
         {isVisible("operational") && (
           <div>
-            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Indicadores operacionais</p>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Exceções operacionais
+              </p>
+              <ScopeBadge scope={{ kind: "snapshot" }} />
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4" aria-live="polite" aria-atomic="false">
               {operationalCards.map((c) => (
                 <SummaryCard key={c.id} {...c} density="compact" />
               ))}
@@ -250,6 +260,8 @@ const DashboardContent = () => {
               ticketMedio={ticketMedio}
               recentOrcamentos={recentOrcamentos}
               loading={loading}
+              faturamentoMesAtual={faturamento.mesAtual}
+              faturamentoMesAnterior={faturamento.mesAnterior}
             />
           </BlockErrorBoundary>}
           {isVisible("estoque") && <BlockErrorBoundary label="Estoque">
@@ -318,6 +330,34 @@ const DashboardContent = () => {
                             className="text-xs text-primary underline-offset-2 hover:underline"
                           >
                             Ver todos os títulos →
+                          </button>
+                        </div>
+                      )}
+                      {metricDrawer === "pagar" && (
+                        <div className="text-right">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setMetricDrawer(null);
+                              navigate(buildDrilldownUrl({ kind: "financeiro:pagar-aberto" }));
+                            }}
+                            className="text-xs text-primary underline-offset-2 hover:underline"
+                          >
+                            Ver todos os títulos →
+                          </button>
+                        </div>
+                      )}
+                      {metricDrawer === "saldo" && (
+                        <div className="text-right">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setMetricDrawer(null);
+                              navigate("/fluxo-caixa");
+                            }}
+                            className="text-xs text-primary underline-offset-2 hover:underline"
+                          >
+                            Abrir fluxo de caixa →
                           </button>
                         </div>
                       )}

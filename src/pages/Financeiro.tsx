@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
@@ -47,6 +47,7 @@ const Financeiro = () => {
   const { id: paramId } = useParams<{ id?: string }>();
   const queryClient = useQueryClient();
   const autoOpenedRef = useRef(false);
+  const [searchParams, setSearchParams] = useSearchParams();
   const {
     data,
     loading,
@@ -80,6 +81,23 @@ const Financeiro = () => {
   const [baixaLoteOpen, setBaixaLoteOpen] = useState(false);
   const [baixaParcialOpen, setBaixaParcialOpen] = useState(false);
   const [baixaParcialTarget, setBaixaParcialTarget] = useState<Lancamento | null>(null);
+
+  // Atalho do Dashboard: `/financeiro?baixa=lote` abre o modal de baixa em lote.
+  const baixaAutoOpenedRef = useRef(false);
+  useEffect(() => {
+    if (baixaAutoOpenedRef.current) return;
+    if (searchParams.get("baixa") !== "lote") return;
+    baixaAutoOpenedRef.current = true;
+    setBaixaLoteOpen(true);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("baixa");
+        return next;
+      },
+      { replace: true },
+    );
+  }, [searchParams, setSearchParams]);
 
   const hoje = useMemo(() => {
     const date = new Date();
