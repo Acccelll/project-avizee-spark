@@ -118,7 +118,7 @@ export function FiltrosRelatorio({
             <Select value={state.statusFiltro} onValueChange={(v) => onChange({ statusFiltro: v })}>
               <SelectTrigger className="h-9 w-[160px]"><SelectValue placeholder="Todos" /></SelectTrigger>
               <SelectContent>
-                {(filters.statusOptions ?? DEFAULT_STATUS_OPTIONS).map((opt) => (
+                {(filters.statusOptions ?? [{ value: 'todos', label: 'Todos' }]).map((opt) => (
                   <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                 ))}
               </SelectContent>
