@@ -14,19 +14,17 @@ interface OrcamentoBase {
 
 export async function sendForApproval(orc: OrcamentoBase): Promise<void> {
   if (orc.status !== "rascunho") return;
-  const { error } = await supabase
-    .from("orcamentos")
-    .update({ status: "pendente" })
-    .eq("id", orc.id);
+  const { error } = await supabase.rpc("enviar_orcamento_aprovacao" as never, {
+    p_id: orc.id,
+  } as never);
   if (error) throw new Error(`Erro ao enviar orçamento para aprovação: ${error.message}`);
   toast.success(`Orçamento ${orc.numero} enviado para aprovação!`);
 }
 
 export async function approveOrcamento(orc: OrcamentoBase): Promise<void> {
-  const { error } = await supabase
-    .from("orcamentos")
-    .update({ status: "aprovado" })
-    .eq("id", orc.id);
+  const { error } = await supabase.rpc("aprovar_orcamento" as never, {
+    p_id: orc.id,
+  } as never);
   if (error) throw new Error(`Erro ao aprovar orçamento: ${error.message}`);
   toast.success(`Orçamento ${orc.numero} aprovado!`);
 }
