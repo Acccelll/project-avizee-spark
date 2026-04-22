@@ -1294,7 +1294,7 @@ export default function OrcamentoForm() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Restaurar rascunho não finalizado?</DialogTitle>
-            <DialogDescription>Encontramos um rascunho salvo automaticamente para esta cotação.</DialogDescription>
+            <DialogDescription>Encontramos um rascunho salvo automaticamente para este orçamento.</DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-2">
             <Button
@@ -1361,7 +1361,7 @@ export default function OrcamentoForm() {
               autoFocus
               value={templateName}
               onChange={(e) => setTemplateName(e.target.value)}
-              placeholder="Ex.: Cotação padrão SP"
+              placeholder="Ex.: Orçamento padrão SP"
             />
           </div>
           <div className="flex justify-end gap-2">
