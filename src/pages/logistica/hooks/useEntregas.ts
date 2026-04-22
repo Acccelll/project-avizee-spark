@@ -12,6 +12,7 @@ export interface Entrega {
   previsao_envio: string | null;
   previsao_entrega: string | null;
   data_expedicao: string | null;
+  data_entrega: string | null;
   status_logistico: string;
   responsavel: string;
   codigo_rastreio: string | null;
@@ -57,6 +58,7 @@ async function fetchEntregas(): Promise<Entrega[]> {
     previsao_envio: string | null;
     previsao_entrega: string | null;
     data_expedicao: string | null;
+    data_entrega: string | null;
     status_consolidado: string;
     total_remessas: number | null;
   };
@@ -75,6 +77,7 @@ async function fetchEntregas(): Promise<Entrega[]> {
       previsao_envio: r.previsao_envio,
       previsao_entrega: r.previsao_entrega,
       data_expedicao: r.data_expedicao,
+      data_entrega: r.data_entrega,
       status_logistico: r.status_consolidado,
       responsavel: "—",
       codigo_rastreio: remessas[0]?.codigo_rastreio ?? null,
