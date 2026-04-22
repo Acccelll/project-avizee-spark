@@ -6,13 +6,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { ArrowLeft, Mail, Send, CheckCircle2 } from "lucide-react";
-import logoAvizee from "@/assets/logoavizee.png";
+import { useBranding } from "@/hooks/useBranding";
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
+  const branding = useBranding();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,7 +53,7 @@ export default function ForgotPassword() {
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <img src={logoAvizee} alt="AviZee ERP" className="h-14 mx-auto mb-4" />
+          <img src={branding.logoUrl} alt={branding.marcaTexto || "ERP"} className="h-14 mx-auto mb-4 object-contain" />
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Recuperar Senha</h1>
           <p className="text-muted-foreground text-sm mt-1">Informe seu e-mail para receber o link de redefinição</p>
         </div>

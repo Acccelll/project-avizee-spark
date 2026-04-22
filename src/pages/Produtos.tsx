@@ -570,6 +570,7 @@ const Produtos = () => {
     {
       key: "tipo_item",
       label: "Classificação",
+      hidden: true,
       render: (p: Produto) => <StatusBadge status={p.tipo_item || "produto"} />,
     },
     {

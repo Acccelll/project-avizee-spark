@@ -301,7 +301,7 @@ const Clientes = () => {
         : <span className="text-muted-foreground text-xs">—</span> },
     { key: "grupo", label: "Grupo Econômico",
       render: (c: Cliente) => grupoNome(c.grupo_economico_id) },
-    { key: "ativo", mobileCard: true, label: "Status",
+    { key: "ativo", mobileCard: true, label: "Status", hidden: true,
       render: (c: Cliente) => <StatusBadge status={c.ativo ? "ativo" : "inativo"} /> },
   ];
 

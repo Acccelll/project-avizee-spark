@@ -294,20 +294,20 @@ const Fornecedores = () => {
     },
   },
   {
-    key: "prazo_padrao", label: "Prazo",
+    key: "prazo_padrao", label: "Prazo", hidden: true,
     render: (f: Fornecedor) => f.prazo_padrao
       ? <span className="font-mono text-xs font-medium">{f.prazo_padrao}d</span>
       : <span className="text-muted-foreground text-xs">—</span>,
   },
   {
     key: "cidade",
-      mobileCard: true, label: "Cidade", sortable: true,
+      mobileCard: true, label: "Cidade", sortable: true, hidden: true,
     render: (f: Fornecedor) => f.cidade
       ? <span className="text-xs">{f.cidade}{f.uf ? `/${f.uf}` : ""}</span>
       : <span className="text-muted-foreground text-xs">—</span>,
   },
   { key: "ativo",
-      mobileCard: true, label: "Status", render: (f: Fornecedor) => <StatusBadge status={f.ativo ? "ativo" : "inativo"} /> },
+      mobileCard: true, label: "Status", hidden: true, render: (f: Fornecedor) => <StatusBadge status={f.ativo ? "ativo" : "inativo"} /> },
   ];
 
 

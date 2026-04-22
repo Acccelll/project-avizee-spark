@@ -8,9 +8,9 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { Eye, EyeOff, Mail, Lock, Zap, Loader2, LogIn, AlertCircle, HelpCircle } from "lucide-react";
-import logoAvizee from "@/assets/logoavizee.png";
 import { CapsLockIndicator } from "@/components/auth/CapsLockIndicator";
 import { ADMIN_EMAIL } from "@/constants/app";
+import { useBranding } from "@/hooks/useBranding";
 
 const DEV_EMAIL = import.meta.env.VITE_DEV_EMAIL as string | undefined;
 const DEV_PASSWORD = import.meta.env.VITE_DEV_PASSWORD as string | undefined;
@@ -26,6 +26,7 @@ export default function Login() {
   const [serverError, setServerError] = useState<string | null>(null);
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const branding = useBranding();
 
   useEffect(() => {
     if (!authLoading && user) {
@@ -90,8 +91,15 @@ export default function Login() {
       <div className="w-full max-w-sm animate-fade-in">
         {/* Header */}
         <div className="text-center mb-10">
-          <img src={logoAvizee} alt="AviZee ERP" className="h-16 mx-auto mb-5 drop-shadow-sm" />
-          <h1 className="text-3xl font-bold text-foreground tracking-tight">AviZee ERP</h1>
+          <img src={branding.logoUrl} alt={branding.marcaTexto || "ERP"} className="h-16 mx-auto mb-5 drop-shadow-sm object-contain" />
+          {(branding.marcaTexto || branding.marcaSubtitulo) && (
+            <h1 className="text-3xl font-bold text-foreground tracking-tight">
+              {branding.marcaTexto}
+              {branding.marcaSubtitulo && (
+                <span className="ml-2 text-base font-medium text-muted-foreground align-middle">{branding.marcaSubtitulo}</span>
+              )}
+            </h1>
+          )}
           <p className="text-muted-foreground text-sm mt-2 leading-relaxed">
             Acesso restrito ao sistema corporativo
           </p>

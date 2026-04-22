@@ -42,6 +42,9 @@ const defaultConfig = {
     cidade: '',
     uf: '',
     logoUrl: '/images/logoavizee.png',
+    simboloUrl: '',
+    marcaTexto: '',
+    marcaSubtitulo: 'ERP',
     corPrimaria: '#690500',
     corSecundaria: '#b2592c',
   },
@@ -112,6 +115,9 @@ interface GeralConfigRaw {
   whatsapp?: string;
   responsavel?: string;
   logoUrl?: string;
+  simboloUrl?: string;
+  marcaTexto?: string;
+  marcaSubtitulo?: string;
   corPrimaria?: string;
   corSecundaria?: string;
   [key: string]: unknown;
@@ -228,6 +234,8 @@ export default function Administracao() {
   const [empresaCreatedAt, setEmpresaCreatedAt] = useState<string | null>(null);
   const [logoUploading, setLogoUploading] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
+  const [simboloUploading, setSimboloUploading] = useState(false);
+  const simboloInputRef = useRef<HTMLInputElement>(null);
 
   const [emailErrors, setEmailErrors] = useState<Record<string, string>>({});
   const [emailLastSaved, setEmailLastSaved] = useState<{ at: string | null; by: string | null }>({ at: null, by: null });
@@ -297,6 +305,9 @@ export default function Administracao() {
             cidade: empresa?.cidade || defaultConfig.geral.cidade,
             uf: empresa?.uf || defaultConfig.geral.uf,
             logoUrl: empresa?.logo_url || geralRaw.logoUrl || defaultConfig.geral.logoUrl,
+            simboloUrl: (empresa as { simbolo_url?: string | null } | undefined)?.simbolo_url || geralRaw.simboloUrl || defaultConfig.geral.simboloUrl,
+            marcaTexto: (empresa as { marca_texto?: string | null } | undefined)?.marca_texto || geralRaw.marcaTexto || defaultConfig.geral.marcaTexto,
+            marcaSubtitulo: (empresa as { marca_subtitulo?: string | null } | undefined)?.marca_subtitulo || geralRaw.marcaSubtitulo || defaultConfig.geral.marcaSubtitulo,
             corPrimaria: empresa?.cor_primaria || geralRaw.corPrimaria || defaultConfig.geral.corPrimaria,
             corSecundaria: empresa?.cor_secundaria || geralRaw.corSecundaria || defaultConfig.geral.corSecundaria,
           },
@@ -430,6 +441,36 @@ export default function Administracao() {
     }
   };
 
+  const handleSimboloUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !supabase) return;
+    const allowed = ['image/png', 'image/jpeg', 'image/jpg', 'image/svg+xml', 'image/webp'];
+    if (!allowed.includes(file.type)) {
+      toast.error('Formato de imagem não suportado. Use PNG, JPEG, SVG ou WebP.');
+      return;
+    }
+    if (file.size > 1 * 1024 * 1024) {
+      toast.error('Arquivo muito grande. O tamanho máximo do símbolo é 1 MB.');
+      return;
+    }
+    setSimboloUploading(true);
+    try {
+      const ext = file.name.split('.').pop() ?? 'png';
+      const path = `logos/simbolo-empresa.${ext}`;
+      const { error: uploadError } = await supabase.storage.from('dbavizee').upload(path, file, { upsert: true, contentType: file.type });
+      if (uploadError) throw uploadError;
+      const { data: urlData } = supabase.storage.from('dbavizee').getPublicUrl(path);
+      updateSection('geral', { simboloUrl: urlData.publicUrl });
+      toast.success('Símbolo enviado com sucesso.');
+    } catch (err) {
+      console.error('[admin] Erro ao enviar símbolo:', err);
+      toast.error(getUserFriendlyError(err));
+    } finally {
+      setSimboloUploading(false);
+      if (simboloInputRef.current) simboloInputRef.current.value = '';
+    }
+  };
+
   const isValidEmailFormat = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const isValidBase64 = (value: string) => {
     const trimmed = value.trim();
@@ -522,6 +563,9 @@ export default function Administracao() {
           cidade: config.geral.cidade || null,
           uf: config.geral.uf || null,
           logo_url: config.geral.logoUrl || null,
+          simbolo_url: config.geral.simboloUrl || null,
+          marca_texto: config.geral.marcaTexto || null,
+          marca_subtitulo: config.geral.marcaSubtitulo || null,
           cor_primaria: config.geral.corPrimaria || null,
           cor_secundaria: config.geral.corSecundaria || null,
           updated_at: now,
@@ -861,6 +905,89 @@ export default function Administracao() {
               <p className="text-[11px] text-muted-foreground flex items-center gap-1">
                 <Info className="h-3 w-3" />Formatos: PNG, JPEG, SVG, WebP. Tamanho máximo: 2 MB. Usada no cabeçalho e nos PDFs.
               </p>
+            </div>
+
+            <Separator />
+
+            {/* Símbolo (ícone reduzido) */}
+            <div className="space-y-3">
+              <Label>Símbolo (ícone reduzido)</Label>
+              {config.geral.simboloUrl && (
+                <div className="flex items-start gap-4">
+                  <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-md border bg-muted/30 p-2">
+                    <img
+                      src={config.geral.simboloUrl}
+                      alt="Símbolo da empresa"
+                      className="max-h-full max-w-full object-contain"
+                      onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                    />
+                  </div>
+                  <p className="mt-2 truncate max-w-xs text-xs text-muted-foreground font-mono">{config.geral.simboloUrl}</p>
+                </div>
+              )}
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => simboloInputRef.current?.click()}
+                  disabled={simboloUploading}
+                  aria-label={config.geral.simboloUrl ? 'Substituir símbolo' : 'Enviar símbolo'}
+                >
+                  {simboloUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                  {config.geral.simboloUrl ? 'Substituir símbolo' : 'Enviar símbolo'}
+                </Button>
+                {config.geral.simboloUrl && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive hover:text-destructive"
+                    onClick={() => updateSection('geral', { simboloUrl: '' })}
+                    aria-label="Remover símbolo"
+                  >
+                    Remover símbolo
+                  </Button>
+                )}
+              </div>
+              <input
+                ref={simboloInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/jpg,image/svg+xml,image/webp"
+                className="hidden"
+                onChange={handleSimboloUpload}
+              />
+              <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                <Info className="h-3 w-3" />Quadrado, idealmente com fundo transparente. Usado no menu lateral recolhido e em favicons. Máximo 1 MB.
+              </p>
+            </div>
+
+            <Separator />
+
+            {/* Marca textual exibida ao lado do símbolo no menu lateral expandido e nas telas de login. */}
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="marcaTexto">Texto da marca</Label>
+                <Input
+                  id="marcaTexto"
+                  value={config.geral.marcaTexto || ''}
+                  onChange={(e) => updateSection('geral', { marcaTexto: e.target.value })}
+                  placeholder="Ex.: AviZee"
+                  maxLength={40}
+                />
+                <p className="text-[11px] text-muted-foreground">Aparece no menu expandido e na tela de login. Deixe em branco para usar apenas a logo.</p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="marcaSubtitulo">Subtítulo discreto</Label>
+                <Input
+                  id="marcaSubtitulo"
+                  value={config.geral.marcaSubtitulo || ''}
+                  onChange={(e) => updateSection('geral', { marcaSubtitulo: e.target.value })}
+                  placeholder="Ex.: ERP"
+                  maxLength={20}
+                />
+                <p className="text-[11px] text-muted-foreground">Texto curto exibido em destaque sutil ao lado da marca.</p>
+              </div>
             </div>
 
             <Separator />
