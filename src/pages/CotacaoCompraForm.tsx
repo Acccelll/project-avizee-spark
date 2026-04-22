@@ -32,6 +32,8 @@ import { canonicalCotacaoStatus } from "@/components/compras/comprasStatus";
 import type { Database } from "@/integrations/supabase/types";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
+import { useBeforeUnloadGuard } from "@/hooks/useBeforeUnloadGuard";
+import { validarTransicaoCotacao } from "@/lib/comprasTransitions";
 
 type ProdutoRow = Database["public"]["Tables"]["produtos"]["Row"];
 type FornecedorRow = Database["public"]["Tables"]["fornecedores"]["Row"];
@@ -65,6 +67,9 @@ export default function CotacaoCompraForm() {
   const [produtoOptions, setProdutoOptions] = useState<{ id: string; label: string; sublabel: string }[]>([]);
   const [fornecedorOptions, setFornecedorOptions] = useState<{ id: string; label: string; sublabel: string }[]>([]);
   const [isDirty, setIsDirty] = useState(false);
+
+  // Bloqueia fechar/recarregar a aba se houver mudanças não salvas.
+  useBeforeUnloadGuard(isDirty);
 
   const updateForm = useCallback((next: SetStateAction<typeof form>) => {
     setForm(next);

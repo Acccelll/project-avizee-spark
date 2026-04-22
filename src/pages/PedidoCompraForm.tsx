@@ -27,6 +27,8 @@ import type { Database } from "@/integrations/supabase/types";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { canonicalPedidoStatus, pedidoStatusLabelMap } from "@/components/compras/comprasStatus";
 import { useSalvarPedidoCompra } from "@/pages/comercial/hooks/useSalvarPedidoCompra";
+import { useBeforeUnloadGuard } from "@/hooks/useBeforeUnloadGuard";
+import { validarTransicaoPedidoCompra } from "@/lib/comprasTransitions";
 
 type ProdutoRow = Database["public"]["Tables"]["produtos"]["Row"] & { preco_custo?: number | null };
 type FornecedorRow = Database["public"]["Tables"]["fornecedores"]["Row"];
@@ -62,6 +64,9 @@ export default function PedidoCompraForm() {
   const [formasPagamento, setFormasPagamento] = useState<FormasPagRow[]>([]);
   const [viewCotacao, setViewCotacao] = useState<{ numero: string; status: string } | null>(null);
   const [isDirty, setIsDirty] = useState(false);
+
+  // Bloqueia fechar/recarregar a aba se houver mudanças não salvas.
+  useBeforeUnloadGuard(isDirty);
 
   const updateForm = useCallback((next: SetStateAction<typeof form>) => {
     setForm(next);

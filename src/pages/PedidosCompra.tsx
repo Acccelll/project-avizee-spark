@@ -15,12 +15,16 @@ import { PedidoCompraDrawer } from "@/components/compras/PedidoCompraDrawer";
 import { type MultiSelectOption } from "@/components/ui/MultiSelect";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { pedidoStatusLabelMap } from "@/components/compras/comprasStatus";
+import { useComprasRealtime } from "@/hooks/useComprasRealtime";
 
 const statusLabels: Record<string, string> = pedidoStatusLabelMap;
 
 export default function PedidosCompra() {
   const ctx = usePedidosCompra();
   const { isAdmin } = useIsAdmin();
+
+  // Realtime: invalida React Query quando outro usuário/aba altera registros.
+  useComprasRealtime();
 
   const filters = usePedidoCompraFilters(ctx.pedidos, ctx.fornecedoresAtivos, statusLabels);
 
