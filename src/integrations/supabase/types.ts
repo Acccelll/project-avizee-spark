@@ -6582,6 +6582,16 @@ export type Database = {
         Returns: undefined
       }
       limpar_dados_migracao: { Args: { p_confirmar?: boolean }; Returns: Json }
+      log_self_update_audit: {
+        Args: {
+          p_alteracao: Json
+          p_entidade: string
+          p_entidade_id: string
+          p_motivo?: string
+          p_tipo_acao: string
+        }
+        Returns: string
+      }
       marcar_lancamentos_vencidos: { Args: never; Returns: number }
       marcar_remessa_em_transito: {
         Args: { p_remessa_id: string }

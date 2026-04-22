@@ -86,8 +86,8 @@ function getPasswordStrength(pwd: string): { label: string; level: 0 | 1 | 2 | 3
   if (/\d/.test(pwd)) score++;
   if (/[^A-Za-z0-9]/.test(pwd)) score++;
   if (score <= 2) return { label: 'Fraca', level: 1, bar: 'bg-destructive' };
-  if (score <= 3) return { label: 'Média', level: 2, bar: 'bg-yellow-500' };
-  return { label: 'Forte', level: 3, bar: 'bg-emerald-500' };
+  if (score <= 3) return { label: 'Média', level: 2, bar: 'bg-warning' };
+  return { label: 'Forte', level: 3, bar: 'bg-success' };
 }
 
 function getPasswordCriteria(pwd: string, confirm: string) {
@@ -143,6 +143,9 @@ export default function Configuracoes() {
   const [passwordErrors, setPasswordErrors] = useState<{ current?: string; new?: string; confirm?: string }>({});
   const [passwordChangedAt, setPasswordChangedAt] = useState<Date | null>(null);
   const [changingPassword, setChangingPassword] = useState(false);
+  // Dialog pós-troca de senha: oferece encerrar sessões em outros dispositivos.
+  const [showSignOutOthersDialog, setShowSignOutOthersDialog] = useState(false);
+  const [signingOutOthers, setSigningOutOthers] = useState(false);
 
   const [densidade, setDensidade] = useState('confortavel');
   const [appearanceSavedAt, setAppearanceSavedAt] = useState<Date | null>(null);
@@ -181,8 +184,25 @@ export default function Configuracoes() {
     if (!user) return;
     setSavingProfile(true);
     try {
+      const previousNome = profile?.nome || '';
+      const previousCargo = profile?.cargo || '';
       const { error } = await supabase.from('profiles').update({ nome, cargo }).eq('id', user.id);
       if (error) throw error;
+      // Auditoria self-update (não bloqueia em caso de falha).
+      try {
+        await supabase.rpc('log_self_update_audit', {
+          p_tipo_acao: 'self_profile_update',
+          p_entidade: 'profiles',
+          p_entidade_id: user.id,
+          p_alteracao: {
+            antes: { nome: previousNome, cargo: previousCargo },
+            depois: { nome, cargo },
+          },
+          p_motivo: 'alteração pelo próprio usuário',
+        });
+      } catch (auditErr) {
+        console.warn('[perfil] auditoria self-update falhou:', auditErr);
+      }
       setProfileSavedAt(new Date());
       toast.success('Dados pessoais salvos com sucesso.');
     } catch (err: unknown) {
@@ -221,17 +241,61 @@ export default function Configuracoes() {
         return;
       }
       const { error } = await supabase.auth.updateUser({ password: newPassword });
-      if (error) throw error;
+      if (error) {
+        // Mapeia erros comuns da política de senha do Supabase em mensagens explícitas.
+        const msg = (error.message || '').toLowerCase();
+        if (msg.includes('weak') || msg.includes('password') && msg.includes('short')) {
+          setPasswordErrors({ new: 'A senha não atende à política mínima do servidor. Use uma senha mais forte.' });
+          setChangingPassword(false);
+          return;
+        }
+        if (msg.includes('same') || msg.includes('different')) {
+          setPasswordErrors({ new: 'A nova senha precisa ser diferente da senha atual.' });
+          setChangingPassword(false);
+          return;
+        }
+        throw error;
+      }
       toast.success('Senha alterada com sucesso!');
+      // Auditoria self-update (sem expor a senha — apenas o evento).
+      try {
+        await supabase.rpc('log_self_update_audit', {
+          p_tipo_acao: 'self_password_change',
+          p_entidade: 'auth.users',
+          p_entidade_id: user!.id,
+          p_alteracao: { evento: 'password_changed' },
+          p_motivo: 'troca de senha pelo próprio usuário',
+        });
+      } catch (auditErr) {
+        console.warn('[perfil] auditoria self-password falhou:', auditErr);
+      }
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
       setPasswordChangedAt(new Date());
+      // Oferece encerrar sessões em outros dispositivos. A sessão atual permanece ativa.
+      setShowSignOutOthersDialog(true);
     } catch (err: unknown) {
       console.error('[perfil] password:', err);
       toast.error(getUserFriendlyError(err));
     }
     setChangingPassword(false);
+  };
+
+  const handleSignOutOthers = async () => {
+    setSigningOutOthers(true);
+    try {
+      // scope: 'others' invalida refresh tokens em outros dispositivos sem
+      // afetar a sessão atual.
+      const { error } = await supabase.auth.signOut({ scope: 'others' });
+      if (error) throw error;
+      toast.success('Sessões em outros dispositivos foram encerradas.');
+      setShowSignOutOthersDialog(false);
+    } catch (err: unknown) {
+      console.error('[perfil] signOut others:', err);
+      toast.error(getUserFriendlyError(err));
+    }
+    setSigningOutOthers(false);
   };
 
   const handleResetAppearance = async () => {
@@ -286,7 +350,7 @@ export default function Configuracoes() {
                         </Badge>
                       ))}
                       {user?.email_confirmed_at && (
-                        <Badge variant="outline" className="text-emerald-600 border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20 dark:border-emerald-800 dark:text-emerald-400">
+                        <Badge variant="outline" className="text-success border-success/30 bg-success/10">
                           Ativo
                         </Badge>
                       )}
@@ -640,8 +704,22 @@ export default function Configuracoes() {
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <div className="h-7 w-7 rounded-md border" style={{ backgroundColor: corPrimaria }} aria-label="Cor primária atual" />
-                    <div className="h-7 w-7 rounded-md border" style={{ backgroundColor: corSecundaria }} aria-label="Cor secundária atual" />
+                    <div className="flex items-center gap-1.5">
+                      <div
+                        className="h-7 w-7 rounded-md border"
+                        style={{ backgroundColor: corPrimaria }}
+                        aria-label={`Cor primária atual: ${corPrimaria}`}
+                      />
+                      <span className="font-mono text-[11px] text-muted-foreground">{corPrimaria}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <div
+                        className="h-7 w-7 rounded-md border"
+                        style={{ backgroundColor: corSecundaria }}
+                        aria-label={`Cor secundária atual: ${corSecundaria}`}
+                      />
+                      <span className="font-mono text-[11px] text-muted-foreground">{corSecundaria}</span>
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center justify-between gap-3">
@@ -728,12 +806,12 @@ export default function Configuracoes() {
                     <div className="flex items-center gap-2 h-10 px-3 rounded-md border bg-muted text-sm text-muted-foreground">
                       {user?.email_confirmed_at ? (
                         <>
-                          <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                          <CheckCircle2 className="h-4 w-4 text-success shrink-0" />
                           <span>Ativa e verificada</span>
                         </>
                       ) : (
                         <>
-                          <AlertCircle className="h-4 w-4 text-yellow-500 shrink-0" />
+                          <AlertCircle className="h-4 w-4 text-warning shrink-0" />
                           <span>Aguardando verificação</span>
                         </>
                       )}
@@ -756,7 +834,7 @@ export default function Configuracoes() {
                   </div>
                 )}
                 {passwordChangedAt && (
-                  <div className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400 pt-1">
+                  <div className="flex items-center gap-2 text-sm text-success pt-1">
                     <CheckCircle2 className="h-4 w-4 shrink-0" />
                     <span>
                       Senha alterada em{' '}
@@ -863,8 +941,8 @@ export default function Configuracoes() {
                         <span className={cn(
                           'text-xs font-medium',
                           pwdStrength.level === 1 && 'text-destructive',
-                          pwdStrength.level === 2 && 'text-yellow-600 dark:text-yellow-400',
-                          pwdStrength.level === 3 && 'text-emerald-600 dark:text-emerald-400',
+                          pwdStrength.level === 2 && 'text-warning',
+                          pwdStrength.level === 3 && 'text-success',
                         )}>
                           {pwdStrength.label}
                         </span>
@@ -922,7 +1000,7 @@ export default function Configuracoes() {
                   <div className="rounded-lg border bg-muted/30 p-4 space-y-2 max-w-sm">
                     <p className="text-xs font-medium text-foreground mb-1">Critérios da senha</p>
                     {pwdCriteria.map(({ key, label, met }) => (
-                      <div key={key} className={cn('flex items-center gap-2 text-xs', met ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground')}>
+                      <div key={key} className={cn('flex items-center gap-2 text-xs', met ? 'text-success' : 'text-muted-foreground')}>
                         <Check className={cn('h-3.5 w-3.5 shrink-0', met ? 'opacity-100' : 'opacity-30')} />
                         {label}
                       </div>
@@ -952,7 +1030,7 @@ export default function Configuracoes() {
                     )}
                   </div>
                   {allCriteriaMet && currentPassword && !changingPassword && (
-                    <p className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                    <p className="text-xs text-success flex items-center gap-1.5">
                       <CheckCircle2 className="h-3.5 w-3.5" />
                       Requisitos atendidos. Clique em "Alterar senha" para concluir.
                     </p>
@@ -1036,6 +1114,27 @@ export default function Configuracoes() {
         {/* Section content */}
         <div>{renderContent()}</div>
       </ModulePage>
+      {/* Pós-troca de senha: oferece encerrar sessões em outros dispositivos. */}
+      <AlertDialog open={showSignOutOthersDialog} onOpenChange={setShowSignOutOthersDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Encerrar sessões em outros dispositivos?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Sua senha foi alterada com sucesso. Por segurança, você pode encerrar todas as sessões ativas em outros navegadores e dispositivos. Sua sessão atual permanecerá ativa.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={signingOutOthers}>Manter sessões</AlertDialogCancel>
+            <AlertDialogAction onClick={handleSignOutOthers} disabled={signingOutOthers}>
+              {signingOutOthers ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Encerrando...</>
+              ) : (
+                'Encerrar outras sessões'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
