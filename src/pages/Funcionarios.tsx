@@ -169,7 +169,11 @@ export default function Funcionarios() {
     if (!form.nome.trim()) { toast.error("Nome é obrigatório"); return; }
     const cpfDigits = form.cpf.replace(/\D/g, "");
     if (form.cpf && !isValidCpf(cpfDigits)) { toast.error("CPF inválido"); return; }
-    if (!cpfChecking && cpfUnico === false) {
+    if (cpfChecking) {
+      toast.error("Aguarde a verificação do CPF antes de salvar.");
+      return;
+    }
+    if (cpfUnico === false) {
       toast.error("CPF já cadastrado. Corrija antes de salvar.");
       return;
     }

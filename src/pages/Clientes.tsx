@@ -206,7 +206,11 @@ const Clientes = () => {
       toast.error(firstError || "Corrija os erros do formulário");
       return;
     }
-    if (!docChecking && docUnico === false) {
+    if (docChecking) {
+      toast.error("Aguarde a verificação do documento antes de salvar.");
+      return;
+    }
+    if (docUnico === false) {
       setFormErrors((prev) => ({ ...prev, cpf_cnpj: "Documento já cadastrado em outra entidade." }));
       toast.error("Documento já cadastrado. Corrija antes de salvar.");
       return;
