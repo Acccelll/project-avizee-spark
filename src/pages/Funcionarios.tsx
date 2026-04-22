@@ -344,6 +344,9 @@ export default function Funcionarios() {
             moduleKey="funcionarios"
             showColumnToggle={true}
             onView={openView}
+            onEdit={openEdit}
+            onDelete={(f) => remove(f.id)}
+            deleteBehavior="soft"
           />
         </PullToRefresh>
       </ModulePage>
