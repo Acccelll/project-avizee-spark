@@ -190,6 +190,51 @@ describe("filtrarPorStatus", () => {
   });
 });
 
+describe("filtrarPorStatus — statusKey canonical path", () => {
+  // Linhas migradas (Fase 1) carregam `statusKey` canônico, derivado pelo
+  // statusMap. O filtro deve preferir esse caminho a qualquer heurística.
+  const rows = [
+    { status: "Em aberto", statusKey: "aberto" },
+    { status: "Quitado", statusKey: "pago" },
+    { status: "Em atraso", statusKey: "vencido" },
+    { status: "Parcialmente pago", statusKey: "parcial" },
+  ];
+
+  it("matches by exact statusKey ignoring display label", () => {
+    const result = filtrarPorStatus(rows, "aberto");
+    expect(result).toHaveLength(1);
+    expect(result[0].statusKey).toBe("aberto");
+  });
+
+  it("does NOT confuse rows whose display label contains the term", () => {
+    // "Parcialmente pago" contém "pago" mas seu statusKey é "parcial".
+    // O filtro canônico deve devolver apenas rows com statusKey === 'pago'.
+    const result = filtrarPorStatus(rows, "pago");
+    expect(result).toHaveLength(1);
+    expect(result[0].statusKey).toBe("pago");
+  });
+
+  it("is case-insensitive on statusKey comparison", () => {
+    const result = filtrarPorStatus(rows, "VENCIDO");
+    expect(result).toHaveLength(1);
+    expect(result[0].statusKey).toBe("vencido");
+  });
+
+  it("falls back to substring path when row has no statusKey", () => {
+    const mixed = [
+      { status: "pago" }, // sem statusKey → fallback
+      { status: "Quitado", statusKey: "pago" },
+    ];
+    const result = filtrarPorStatus(mixed, "pago");
+    expect(result).toHaveLength(2);
+  });
+
+  it("ignores empty statusKey and falls back to substring", () => {
+    const rowsEmpty = [{ status: "pago", statusKey: "" }];
+    expect(filtrarPorStatus(rowsEmpty, "pago")).toHaveLength(1);
+  });
+});
+
 // ─── sortarRows ──────────────────────────────────────────────────────────────
 
 describe("sortarRows", () => {
