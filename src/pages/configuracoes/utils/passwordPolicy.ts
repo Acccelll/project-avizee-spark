@@ -52,7 +52,17 @@ export const ROLE_LABELS: Record<string, string> = {
   estoquista: 'Estoquista',
 };
 
-export const APPEARANCE_DEFAULTS = {
+export interface AppearanceDefaults {
+  theme: string;
+  densidade: string;
+  fontScale: number;
+  menuCompacto: boolean;
+  reduceMotion: boolean;
+  corPrimaria: string;
+  corSecundaria: string;
+}
+
+export const APPEARANCE_DEFAULTS: AppearanceDefaults = {
   theme: 'system',
   densidade: 'confortavel',
   fontScale: 16,
@@ -60,4 +70,4 @@ export const APPEARANCE_DEFAULTS = {
   reduceMotion: false,
   corPrimaria: '#6b0d0d',
   corSecundaria: '#b85b2d',
-} as const;
+};
