@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -7,12 +8,9 @@ import { FormModalFooter } from "@/components/FormModalFooter";
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { StatCard } from "@/components/StatCard";
-import { ViewDrawerV2, ViewField, ViewSection } from "@/components/ViewDrawerV2";
-import { RelationalLink } from "@/components/ui/RelationalLink";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
 import {
-  Edit, Trash2, Plus, X, FileText, Banknote, CreditCard, QrCode, CheckSquare,
+  Plus, X, FileText, Banknote, CreditCard, QrCode, CheckSquare,
   Building2, Wallet, AlertTriangle, Users, TrendingUp, CalendarDays, StickyNote,
   Info, CheckCircle, Ban,
 } from "lucide-react";
