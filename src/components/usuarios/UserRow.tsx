@@ -1,0 +1,115 @@
+/**
+ * Linha individual da lista de usuários.
+ *
+ * Responsável apenas pela apresentação e por dois gatilhos de ação
+ * (`onEdit` e `onToggleStatus`). Toda a lógica de "última admin",
+ * "é o próprio usuário", reload e confirmação fica no componente pai.
+ */
+
+import { Edit2, MoreHorizontal, UserCheck, UserMinus } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { ShieldAlert } from 'lucide-react';
+import type { UserWithRoles } from './_shared';
+import { RoleBadge, StatusBadgeUser } from './UserBadges';
+
+interface UserRowProps {
+  user: UserWithRoles;
+  isCurrentUser: boolean;
+  isLastAdmin: boolean;
+  onEdit: (user: UserWithRoles) => void;
+  onToggleStatus: (user: UserWithRoles) => void;
+}
+
+export function UserRow({
+  user,
+  isCurrentUser,
+  isLastAdmin,
+  onEdit,
+  onToggleStatus,
+}: UserRowProps) {
+  const canToggle = !(
+    isCurrentUser || (user.role_padrao === 'admin' && isLastAdmin && user.ativo)
+  );
+  const exceptionCount =
+    user.extra_permissions.length + (user.denied_permissions?.length ?? 0);
+
+  return (
+    <div className="flex flex-col gap-3 rounded-lg border p-4 transition-colors hover:bg-muted/30 sm:flex-row sm:items-center">
+      <div className="min-w-0 flex-1 space-y-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-sm font-medium truncate">{user.nome}</p>
+          {isCurrentUser && (
+            <span className="text-[10px] border rounded-full px-1.5 py-0.5 text-muted-foreground">
+              você
+            </span>
+          )}
+          {exceptionCount > 0 && (
+            <span
+              className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[10px] text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-400"
+              title={`${user.extra_permissions.length} concedida(s), ${
+                user.denied_permissions?.length ?? 0
+              } revogada(s)`}
+            >
+              <ShieldAlert className="h-2.5 w-2.5" />
+              {exceptionCount} exceção{exceptionCount > 1 ? 'ões' : ''}
+            </span>
+          )}
+        </div>
+        <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+        {user.cargo && <p className="text-xs text-muted-foreground">{user.cargo}</p>}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 shrink-0">
+        <RoleBadge role={user.role_padrao} />
+        <StatusBadgeUser ativo={user.ativo} />
+      </div>
+
+      <div className="flex items-center gap-1 shrink-0">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 w-8 p-0"
+          onClick={() => onEdit(user)}
+          title="Editar usuário"
+        >
+          <Edit2 className="h-3.5 w-3.5" />
+        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+              <MoreHorizontal className="h-3.5 w-3.5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => onEdit(user)}>
+              <Edit2 className="mr-2 h-3.5 w-3.5" /> Editar
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => onToggleStatus(user)}
+              disabled={!canToggle}
+              className={!user.ativo ? 'text-emerald-600' : 'text-destructive'}
+            >
+              {user.ativo ? (
+                <>
+                  <UserMinus className="mr-2 h-3.5 w-3.5" /> Inativar usuário
+                </>
+              ) : (
+                <>
+                  <UserCheck className="mr-2 h-3.5 w-3.5" /> Reativar usuário
+                </>
+              )}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </div>
+  );
+}
