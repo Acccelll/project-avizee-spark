@@ -131,7 +131,10 @@ export function NotaFiscalDrawer({
   }>(open, selectedId, async (id) => {
     const [{ data: it }, { data: lanc }, { data: mov }, { data: ev }, { data: anx }] = await Promise.all([
       supabase.from("notas_fiscais_itens").select("*, produtos(id, nome, sku)").eq("nota_fiscal_id", id),
-      supabase.from("financeiro_lancamentos").select("id, tipo, descricao, valor, data_vencimento, status, forma_pagamento, parcela_numero, parcela_total").or(`nota_fiscal_id.eq.${id},documento_fiscal_id.eq.${id}`).order("parcela_numero", { ascending: true }),
+      // A coluna canônica em `financeiro_lancamentos` é `nota_fiscal_id`.
+      // `documento_fiscal_id` não existe no schema atual — o `or(...)` antigo
+      // gerava query inválida silenciosa.
+      supabase.from("financeiro_lancamentos").select("id, tipo, descricao, valor, data_vencimento, status, forma_pagamento, parcela_numero, parcela_total").eq("nota_fiscal_id", id).order("parcela_numero", { ascending: true }),
       supabase.from("estoque_movimentos").select("*, produtos(id, nome, sku)").eq("documento_id", id).eq("documento_tipo", "fiscal").order("created_at", { ascending: true }),
       supabase.from("nota_fiscal_eventos").select("*").eq("nota_fiscal_id", id).order("data_evento", { ascending: false }),
       supabase.from("nota_fiscal_anexos").select("*").eq("nota_fiscal_id", id).order("created_at", { ascending: false }),

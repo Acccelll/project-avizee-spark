@@ -108,6 +108,11 @@ export async function confirmarNotaFiscal({ nf, parcelas }: ConfirmarNFParams) {
 
   // Pre-confirmation validation
   if (!nf.numero) throw new Error("Número da NF é obrigatório para confirmação.");
+  // Devoluções já nascem confirmadas via `gerar_devolucao_nota_fiscal` (RPC).
+  // Confirmar uma devolução por este caminho duplicaria efeitos em estoque/financeiro.
+  if ((nf.tipo_operacao || "normal") === "devolucao") {
+    throw new Error("NFs de devolução são confirmadas automaticamente pela RPC de devolução. Não use o fluxo de confirmação manual.");
+  }
   const { data: nfItensCheck } = await supabase
     .from("notas_fiscais_itens")
     .select("id")
@@ -119,9 +124,12 @@ export async function confirmarNotaFiscal({ nf, parcelas }: ConfirmarNFParams) {
 
   const statusAnterior = current?.status || nf.status || "pendente";
 
+  // Apenas o eixo interno é alterado aqui. O eixo SEFAZ (`status_sefaz`)
+  // é controlado exclusivamente pelas RPCs de SEFAZ (autorização, cancelamento,
+  // inutilização) — sobrescrevê-lo para `nao_enviada` aqui apagaria estados
+  // legítimos como `importada_externa` ou `autorizada`.
   await supabase.from("notas_fiscais").update({
     status: "confirmada",
-    status_sefaz: "nao_enviada",
   } as any).eq("id", nf.id);
 
   const { data: itens } = await supabase
@@ -342,9 +350,11 @@ export async function estornarNotaFiscal(nf: {
   }
 
   // 4. Set NF as cancelled
+  // Preserva o eixo SEFAZ: estorno operacional não anula autorização SEFAZ.
+  // Apenas `cancelar_nota_fiscal_sefaz` deve mudar `status_sefaz`.
   await supabase
     .from("notas_fiscais")
-    .update({ status: "cancelada", status_sefaz: "nao_enviada" } as any)
+    .update({ status: "cancelada" } as any)
     .eq("id", nf.id);
 
   // Register event
