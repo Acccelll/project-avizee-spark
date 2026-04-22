@@ -29,10 +29,7 @@ export async function cancelarNFe(
   dadosEmitente: { cnpj: string },
   ambiente: AmbienteSefaz = "2",
 ): Promise<CancelamentoResult> {
-  if (!certificado.conteudo || !certificado.senha) {
-    return { sucesso: false, motivo: "Conteúdo e senha do certificado são obrigatórios." };
-  }
-
+  const useVault = !certificado.conteudo || !certificado.senha;
   const dataHora = new Date().toISOString().replace("Z", "-03:00");
   const xml = construirXMLCancelamento(
     chave,
@@ -47,7 +44,9 @@ export async function cancelarNFe(
     xml,
     urlSefaz,
     "http://www.portalfiscal.inf.br/nfe/wsdl/NFeRecepcaoEvento4/nfeRecepcaoEvento",
-    { certificado_base64: certificado.conteudo, certificado_senha: certificado.senha },
+    useVault
+      ? null
+      : { certificado_base64: certificado.conteudo, certificado_senha: certificado.senha },
   );
 
   if (!resposta.sucesso) {
