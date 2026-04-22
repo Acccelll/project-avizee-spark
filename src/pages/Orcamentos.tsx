@@ -54,7 +54,7 @@ interface Orcamento {
   clientes?: { nome_razao_social: string } | null;
 }
 
-const TERMINAL_STATUSES = ["convertido", "cancelado", "rejeitado"];
+const TERMINAL_STATUSES = ["convertido", "cancelado", "rejeitado", "expirado"];
 const PROXIMA_VENCER_DIAS = 7;
 
 const historicoOptions: { label: string; value: string }[] = [
