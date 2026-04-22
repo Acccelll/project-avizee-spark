@@ -191,6 +191,10 @@ const Fiscal = () => {
   const invalidate = useInvalidateAfterMutation();
   const confirmarMutation = useConfirmarNotaFiscal();
   const estornarMutation = useEstornarNotaFiscal();
+  const { importXml } = useNFeXmlImport({
+    fornecedores: fornecedoresCrud.data,
+    produtos: produtosCrud.data,
+  });
 
   // Contexto de origem vindo da URL (ex.: redirect de Pedido de Compra após receber).
   const pedidoCompraOriginId = searchParams.get("pedido_compra_id");
