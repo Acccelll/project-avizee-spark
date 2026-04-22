@@ -129,6 +129,8 @@ const Financeiro = () => {
     setTipoFilters,
     bancoFilters,
     setBancoFilters,
+    origemFilters,
+    setOrigemFilters,
     period,
     setPeriod,
     filteredData,
@@ -136,6 +138,7 @@ const Financeiro = () => {
     handleRemoveFilter,
     tipoOpts,
     bancoOpts,
+    origemOpts,
   } = useFinanceiroFiltros({ data, contasBancarias, getLancamentoStatus });
 
   const statusOpts = statusToOptions(statusFinanceiroSchema);
@@ -239,6 +242,7 @@ const Financeiro = () => {
             setTipoFilters([]);
             setStatusFilters([]);
             setBancoFilters([]);
+            setOrigemFilters([]);
           }}
           count={filteredData.length}
           extra={selectedIds.length > 0 ? (
@@ -256,6 +260,7 @@ const Financeiro = () => {
           <MultiSelect options={tipoOpts} selected={tipoFilters} onChange={setTipoFilters} placeholder="Tipo" className="w-[150px]" />
           <MultiSelect options={statusOpts} selected={statusFilters} onChange={setStatusFilters} placeholder="Status" className="w-[180px]" />
           <MultiSelect options={bancoOpts} selected={bancoFilters} onChange={setBancoFilters} placeholder="Bancos" className="w-[200px]" />
+          <MultiSelect options={origemOpts} selected={origemFilters} onChange={setOrigemFilters} placeholder="Origem" className="w-[200px]" />
         </AdvancedFilterBar>
 
         {viewMode === "calendario" ? (
