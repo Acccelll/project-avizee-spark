@@ -696,6 +696,31 @@ export default function Conciliacao() {
         </div>
 
         {/* ── FILTER BAR + DATATABLE ───────────────────────────────────────── */}
+        {/* Eixo de filtragem (Fase 3 — query híbrida baixa + vencimento) */}
+        {selectedConta && (
+          <div className="flex items-center justify-between mb-2">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Badge
+                    variant="outline"
+                    className="text-[10px] gap-1 border-info/40 text-info bg-info/5 cursor-help"
+                  >
+                    <Info className="w-3 h-3" />
+                    Eixo: baixa + vencimento
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="max-w-xs">
+                  <p className="text-xs leading-relaxed">
+                    A grade considera dois eixos: títulos com <strong>baixa não estornada</strong>{" "}
+                    no período (eixo da liquidação) e títulos em <strong>aberto/parcial</strong> com
+                    vencimento no período (candidatos a nova baixa).
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+        )}
         <AdvancedFilterBar
           searchValue={searchTerm}
           onSearchChange={setSearchTerm}
@@ -728,23 +753,87 @@ export default function Conciliacao() {
           />
         </AdvancedFilterBar>
 
-        <DataTable
-          columns={columns}
-          data={filteredData}
-          loading={loadingLanc}
-          moduleKey="conciliacao"
-          showColumnToggle={true}
-          emptyTitle={
-            !selectedConta
-              ? "Selecione uma conta bancária"
-              : "Nenhum lançamento encontrado"
-          }
-          emptyDescription={
-            !selectedConta
-              ? "Escolha uma conta e um período para visualizar os lançamentos para conciliação."
-              : "Tente ajustar o período ou os filtros de busca."
-          }
-        />
+        {selectedConta && !loadingLanc && lancamentos.length === 0 ? (
+          <div className="bg-card rounded-xl border">
+            <EmptyState
+              variant="noResults"
+              icon={CalendarPlus}
+              title="Nenhum lançamento no período"
+              description="Tente ampliar o intervalo de datas ou importar um extrato OFX para começar a conciliar."
+              action={
+                <div className="flex flex-wrap gap-2 justify-center">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      const [y, m, d] = dataFim.split("-").map(Number);
+                      const next = new Date(y, m - 1, d);
+                      next.setDate(next.getDate() + 30);
+                      setDataFim(next.toISOString().slice(0, 10));
+                    }}
+                  >
+                    <CalendarPlus className="w-4 h-4 mr-1.5" />
+                    Ampliar período (+30 dias)
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                  >
+                    <FileUp className="w-4 h-4 mr-1.5" />
+                    Importar OFX
+                  </Button>
+                </div>
+              }
+            />
+          </div>
+        ) : selectedConta && extratoItems.length === 0 && lancamentos.length > 0 ? (
+          <>
+            <div className="bg-card rounded-xl border mb-4">
+              <EmptyState
+                variant="firstUse"
+                icon={FileUp}
+                title="Importe um extrato OFX para conciliar"
+                description="Há lançamentos no período aguardando confronto. Carregue o arquivo OFX do banco para iniciar o pareamento automático."
+                action={
+                  <Button
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                  >
+                    <FileUp className="w-4 h-4 mr-1.5" />
+                    {uploading ? "Importando..." : "Importar extrato OFX"}
+                  </Button>
+                }
+              />
+            </div>
+            <DataTable
+              columns={columns}
+              data={filteredData}
+              loading={loadingLanc}
+              moduleKey="conciliacao"
+              showColumnToggle={true}
+            />
+          </>
+        ) : (
+          <DataTable
+            columns={columns}
+            data={filteredData}
+            loading={loadingLanc}
+            moduleKey="conciliacao"
+            showColumnToggle={true}
+            emptyTitle={
+              !selectedConta
+                ? "Selecione uma conta bancária"
+                : "Nenhum lançamento encontrado"
+            }
+            emptyDescription={
+              !selectedConta
+                ? "Escolha uma conta e um período para visualizar os lançamentos para conciliação."
+                : "Tente ajustar o período ou os filtros de busca."
+            }
+          />
+        )}
 
         {/* ── OFX MATCHING SECTION (secondary, only when OFX loaded) ────────── */}
         {extratoItems.length > 0 && (
