@@ -705,8 +705,11 @@ function UserFormModal({
         }
       }
       onSaved();
-      // Mantém o modal aberto enquanto há credenciais temporárias para entregar.
-      if (!tempCredentials) onClose();
+      // Quando há credenciais temporárias para entregar, mantemos o modal
+      // do usuário fechado mas o `TempPasswordDialog` cuidará da entrega.
+      // O `onClose()` aqui é seguro porque o dialog vive no escopo do
+      // UserFormModal e usa portal — fica visível mesmo após fechar.
+      onClose();
     } catch (err) {
       console.error('[usuarios] Erro ao salvar usuário:', err);
       toast.error(getUserFriendlyError(err));
@@ -923,13 +926,48 @@ function UserFormModal({
       {/* Confirm role change */}
       <ConfirmDialog
         open={confirmRoleChange !== null}
-        onClose={() => setConfirmRoleChange(null)}
+        onClose={() => {
+          setConfirmRoleChange(null);
+          setRoleChangeMotivo('');
+        }}
         onConfirm={handleConfirmRoleChange}
         title="Alterar role padrão"
         description={`Alterar o role padrão de "${user ? ROLE_LABELS[user.role_padrao] : ''}" para "${confirmRoleChange ? ROLE_LABELS[confirmRoleChange] : ''}" irá redefinir as permissões base deste usuário. As permissões complementares existentes serão mantidas. Deseja continuar?`}
         confirmLabel="Alterar role"
-        confirmVariant="default"
-      />
+        confirmVariant={
+          // Rebaixar admin → outro role é tão impactante quanto inativar.
+          user?.role_padrao === 'admin' && confirmRoleChange !== 'admin'
+            ? 'destructive'
+            : 'default'
+        }
+      >
+        <div className="space-y-1.5 px-1">
+          <Label htmlFor="role-change-motivo" className="text-xs">
+            Motivo (opcional — registrado na auditoria)
+          </Label>
+          <Textarea
+            id="role-change-motivo"
+            value={roleChangeMotivo}
+            onChange={(e) => setRoleChangeMotivo(e.target.value.slice(0, 500))}
+            placeholder="Ex.: promoção a financeiro após mudança de área."
+            rows={2}
+            className="resize-none text-sm"
+          />
+        </div>
+      </ConfirmDialog>
+
+      {/* Diálogo dedicado para credenciais temporárias quando o convite por
+          e-mail falha — substitui exibição em toast. */}
+      {tempCredentials && (
+        <TempPasswordDialog
+          open
+          onClose={() => setTempCredentials(null)}
+          userName={tempCredentials.userName}
+          email={tempCredentials.email}
+          tempPassword={tempCredentials.tempPassword}
+          recoveryLink={tempCredentials.recoveryLink}
+        />
+      )}
     </>
   );
 }
