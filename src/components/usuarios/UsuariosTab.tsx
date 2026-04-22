@@ -72,6 +72,8 @@ import { FormModal } from '@/components/FormModal';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { EmptyState } from '@/components/EmptyState';
 import { StatCard } from '@/components/StatCard';
+import { TempPasswordDialog } from '@/components/usuarios/TempPasswordDialog';
+import { Textarea } from '@/components/ui/textarea';
 import type { Database } from '@/integrations/supabase/types';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -564,6 +566,13 @@ function UserFormModal({
   const [confirmRoleChange, setConfirmRoleChange] = useState<AppRole | null>(
     null,
   );
+  const [roleChangeMotivo, setRoleChangeMotivo] = useState('');
+  const [tempCredentials, setTempCredentials] = useState<{
+    userName: string;
+    email: string;
+    tempPassword: string;
+    recoveryLink?: string | null;
+  } | null>(null);
 
   // Inherited permissions from the selected role
   const inheritedPermissions = useMemo(
