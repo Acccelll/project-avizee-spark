@@ -1108,7 +1108,11 @@ export function UsuariosTab() {
       if (filterStatus === 'ativo' && !u.ativo) return false;
       if (filterStatus === 'inativo' && u.ativo) return false;
       if (filterRole !== 'todos' && u.role_padrao !== filterRole) return false;
-      if (filterExtra && u.extra_permissions.length === 0) return false;
+      if (
+        filterExtra &&
+        u.extra_permissions.length === 0 &&
+        (u.denied_permissions?.length ?? 0) === 0
+      ) return false;
       return true;
     });
   }, [users, search, filterStatus, filterRole, filterExtra]);
