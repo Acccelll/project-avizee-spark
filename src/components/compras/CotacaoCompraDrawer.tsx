@@ -6,14 +6,15 @@
  * - CotacaoCompraItensTable
  * - CotacaoCompraPropostasPanel (comparativo + propostas por item)
  */
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { ViewDrawerV2, DrawerStickyFooter } from "@/components/ViewDrawerV2";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { useActionLock } from "@/hooks/useActionLock";
 import { formatCurrency } from "@/lib/format";
 import {
-  ShoppingCart, Edit, Trash2, Clock,
+  ShoppingCart, Edit, Trash2, Clock, Ban,
   ClipboardList, AlertCircle, Info,
   ThumbsUp, ThumbsDown, Send, ChevronRight, Trophy,
 } from "lucide-react";
@@ -63,7 +64,8 @@ interface CotacaoCompraDrawerProps {
   onAddProposal: (itemId: string) => void;
   onSendForApproval: () => void;
   onApprove: () => void;
-  onReject: () => void;
+  onReject: (motivo: string) => void;
+  onCancel: (motivo: string) => void;
   onGerarPedido: () => void;
   onNavigatePedidos: () => void;
 }
@@ -72,13 +74,18 @@ export function CotacaoCompraDrawer({
   open, onClose, selected, viewItems, viewPropostas, drawerStats,
   fornecedorOptions, addingProposal, setAddingProposal, proposalForm, setProposalForm,
   onEdit, onDeleteOpen, onSelectProposal, onDeleteProposal, onAddProposal,
-  onSendForApproval, onApprove, onReject, onGerarPedido, onNavigatePedidos,
+  onSendForApproval, onApprove, onReject, onCancel, onGerarPedido, onNavigatePedidos,
 }: CotacaoCompraDrawerProps) {
   const { pending: editPending, run: runEdit } = useActionLock();
   const { pending: sendPending, run: runSend } = useActionLock();
   const { pending: approvePending, run: runApprove } = useActionLock();
   const { pending: rejectPending, run: runReject } = useActionLock();
   const { pending: gerarPending, run: runGerar } = useActionLock();
+  const { pending: cancelPending, run: runCancel } = useActionLock();
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [rejectMotivo, setRejectMotivo] = useState("");
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelMotivo, setCancelMotivo] = useState("");
 
   // Memoize the approved-total to avoid recomputing the reduce on every render of the Decisão tab.
   const totalAprovado = useMemo(() => {
