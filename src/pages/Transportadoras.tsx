@@ -36,6 +36,7 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
+import { transportadoraSchema, validateForm } from "@/lib/validationSchemas";
 
 interface Transportadora {
   id: string;
