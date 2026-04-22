@@ -371,7 +371,13 @@ const Orcamentos = () => {
             </Button>
           )}
           {canConvertOrcamento(o.status) && (
-            <Button size="sm" variant="default" className="h-7 text-xs gap-1" disabled={convertLock.pending} onClick={(e) => { e.stopPropagation(); setConvertingId(o.id); }}>
+            <Button size="sm" variant="default" className="h-7 text-xs gap-1" disabled={convertLock.pending} onClick={(e) => {
+              e.stopPropagation();
+              // Reset PO state ao abrir o dialog para evitar vazamento entre orçamentos.
+              setPoNumberCliente("");
+              setDataPoCliente("");
+              setConvertingId(o.id);
+            }}>
               <ArrowRightCircle className="w-3 h-3" /> Gerar Pedido
             </Button>
           )}
