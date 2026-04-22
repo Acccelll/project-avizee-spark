@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import type { Lancamento } from "@/types/domain";
 import { useDrawerData } from "@/hooks/useDrawerData";
 import { useActionLock } from "@/hooks/useActionLock";
+import { getOrigemLabel } from "@/lib/financeiro";
 
 interface Baixa {
   id: string;
@@ -23,6 +24,13 @@ interface Baixa {
   forma_pagamento: string | null;
   observacoes: string | null;
   created_at: string;
+}
+
+interface AuditoriaEvento {
+  id: string;
+  evento: string;
+  created_at: string;
+  payload: Record<string, unknown> | null;
 }
 
 interface FinanceiroDrawerProps {
@@ -55,6 +63,22 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
     },
   );
   const baixasList = baixas ?? [];
+
+  // Auditoria do lançamento (eventos de criação, baixa, estorno, cancelamento…)
+  const { data: auditoria, loading: loadingAuditoria } = useDrawerData<AuditoriaEvento[]>(
+    open,
+    selectedId,
+    async (id, signal) => {
+      const { data } = await supabase
+        .from("financeiro_auditoria")
+        .select("id, evento, created_at, payload")
+        .eq("lancamento_id", id)
+        .order("created_at", { ascending: false })
+        .abortSignal(signal);
+      return (data as AuditoriaEvento[]) || [];
+    },
+  );
+  const auditoriaList = auditoria ?? [];
 
   const hoje = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }, []);
 
