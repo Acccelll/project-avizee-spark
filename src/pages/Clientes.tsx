@@ -65,7 +65,7 @@ interface ClienteFormData {
   contato: string;
   prazo_padrao: number;
   limite_credito: number;
-  forma_pagamento_padrao: string;
+  forma_pagamento_id: string;
   prazo_preferencial: number;
   logradouro: string;
   numero: string;
@@ -84,7 +84,7 @@ interface ClienteFormData {
 const emptyCliente: ClienteFormData = {
   tipo_pessoa: "J", nome_razao_social: "", nome_fantasia: "", cpf_cnpj: "",
   inscricao_estadual: "", email: "", telefone: "", celular: "", contato: "",
-  prazo_padrao: 30, limite_credito: 0, forma_pagamento_padrao: "", prazo_preferencial: 0,
+  prazo_padrao: 30, limite_credito: 0, forma_pagamento_id: "", prazo_preferencial: 0,
   logradouro: "", numero: "", complemento: "", bairro: "", cidade: "", uf: "", cep: "", pais: "Brasil",
   observacoes: "", grupo_economico_id: "", tipo_relacao_grupo: "independente", caixa_postal: ""
 };
