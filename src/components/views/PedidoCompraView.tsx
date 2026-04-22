@@ -153,11 +153,27 @@ export function PedidoCompraView({ id }: Props) {
       cotacao = (cot as CotacaoRow | null) ?? null;
     }
 
+    const [finResult, nfResult] = await Promise.all([
+      supabase
+        .from("financeiro_lancamentos")
+        .select("id, descricao, valor, status, data_vencimento")
+        .eq("pedido_compra_id", p.id)
+        .eq("ativo", true)
+        .abortSignal(signal),
+      supabase
+        .from("notas_fiscais")
+        .select("id, numero, status, data_emissao, valor_total")
+        .eq("pedido_compra_id", p.id)
+        .abortSignal(signal),
+    ]);
+
     return {
       pedido: p as PedidoCompraRow,
       itens: (itensResult.data || []) as PedidoItemRow[],
       estoque: (estResult.data || []) as EstoqueMovRow[],
       cotacao,
+      financeiro: (finResult.data || []) as FinanceiroLancRow[],
+      nfsEntrada: (nfResult.data || []) as NfEntradaRow[],
     };
   });
 
@@ -166,6 +182,8 @@ export function PedidoCompraView({ id }: Props) {
   const viewItems = data?.itens ?? [];
   const viewEstoque = data?.estoque ?? [];
   const viewCotacao = data?.cotacao ?? null;
+  const viewFinanceiro = data?.financeiro ?? [];
+  const viewNfsEntrada = data?.nfsEntrada ?? [];
 
   const isOverdue = !!(
     selected &&
