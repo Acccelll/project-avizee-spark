@@ -452,10 +452,20 @@ export function useCotacoesCompra() {
     sublabel: f.cpf_cnpj || "",
   }));
 
+  /**
+   * Wrapper de fetchData que também invalida a queryKey `cotacoes_compra`
+   * do React Query — garante que consumidores RQ (ex.: `useGerarPedidoCompra`,
+   * outras telas) sincronizem com o cache do useSupabaseCrud (legacy).
+   */
+  const fetchDataWithInvalidation = async () => {
+    await fetchData();
+    queryClient.invalidateQueries({ queryKey: ["cotacoes_compra"] });
+  };
+
   return {
     data,
     loading,
-    fetchData,
+    fetchData: fetchDataWithInvalidation,
     remove,
     modalOpen,
     setModalOpen,
