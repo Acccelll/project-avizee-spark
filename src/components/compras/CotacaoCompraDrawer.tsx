@@ -367,6 +367,57 @@ export function CotacaoCompraDrawer({
         ) : undefined
       }
     />
+    {selected && (
+      <>
+        <ConfirmDialog
+          open={rejectOpen}
+          onClose={() => { setRejectOpen(false); setRejectMotivo(""); }}
+          onConfirm={() => {
+            if (!rejectMotivo.trim()) return;
+            const motivo = rejectMotivo.trim();
+            setRejectOpen(false);
+            setRejectMotivo("");
+            runReject(() => onReject(motivo));
+          }}
+          title="Reprovar cotação"
+          description={`Informe o motivo da reprovação da cotação ${selected.numero}:`}
+          confirmLabel="Reprovar"
+          confirmVariant="destructive"
+          confirmDisabled={!rejectMotivo.trim()}
+        >
+          <textarea
+            value={rejectMotivo}
+            onChange={(e) => setRejectMotivo(e.target.value)}
+            className="w-full min-h-20 rounded-md border border-input bg-background p-2 text-sm"
+            placeholder="Ex: preços acima do esperado / fornecedores insuficientes"
+          />
+        </ConfirmDialog>
+        <ConfirmDialog
+          open={cancelOpen}
+          onClose={() => { setCancelOpen(false); setCancelMotivo(""); }}
+          onConfirm={() => {
+            if (!cancelMotivo.trim()) return;
+            const motivo = cancelMotivo.trim();
+            setCancelOpen(false);
+            setCancelMotivo("");
+            runCancel(() => onCancel(motivo));
+          }}
+          title="Cancelar cotação"
+          description={`Informe o motivo do cancelamento da cotação ${selected.numero}:`}
+          confirmLabel="Cancelar cotação"
+          confirmVariant="destructive"
+          confirmDisabled={!cancelMotivo.trim()}
+        >
+          <textarea
+            value={cancelMotivo}
+            onChange={(e) => setCancelMotivo(e.target.value)}
+            className="w-full min-h-20 rounded-md border border-input bg-background p-2 text-sm"
+            placeholder="Ex: necessidade cancelada / cotação substituída"
+          />
+        </ConfirmDialog>
+      </>
+    )}
+    </>
   );
 }
 
