@@ -17,6 +17,9 @@ import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSumm
 import { RecordIdentityCard } from "@/components/ui/RecordIdentityCard";
 import { DetailLoading, DetailError, DetailEmpty } from "@/components/ui/DetailStates";
 import { formatCurrency, formatDate } from "@/lib/format";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { toast } from "sonner";
+import { getUserFriendlyError } from "@/utils/errorMessages";
 
 interface Props {
   id: string;
@@ -70,7 +73,8 @@ const tipoContratoLabel: Record<string, string> = {
 export function FuncionarioView({ id }: Props) {
   const navigate = useNavigate();
   const { clearStack } = useRelationalNavigation();
-  const [, setDeleteOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const { data, loading, error } = useDetailFetch<FuncionarioDetail>(id, async (fId, signal) => {
     const { data: f, error: fErr } = await supabase
@@ -175,10 +179,10 @@ export function FuncionarioView({ id }: Props) {
           variant="ghost"
           size="sm"
           className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
-          aria-label="Excluir funcionário"
+          aria-label="Inativar funcionário"
           onClick={() => setDeleteOpen(true)}
         >
-          <Trash2 className="h-3.5 w-3.5" /> Excluir
+          <Trash2 className="h-3.5 w-3.5" /> Inativar
         </Button>
       </>
     ) : undefined,
@@ -369,6 +373,31 @@ export function FuncionarioView({ id }: Props) {
           )}
         </TabsContent>
       </Tabs>
+
+      <ConfirmDialog
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        loading={deleting}
+        onConfirm={async () => {
+          setDeleting(true);
+          try {
+            const { error } = await supabase
+              .from("funcionarios")
+              .update({ ativo: false })
+              .eq("id", id);
+            if (error) throw error;
+            toast.success("Funcionário inativado.");
+            setDeleteOpen(false);
+            clearStack();
+          } catch (err) {
+            toast.error(getUserFriendlyError(err));
+          } finally {
+            setDeleting(false);
+          }
+        }}
+        title="Inativar funcionário"
+        description={`Tem certeza que deseja inativar "${funcionario.nome}"? O histórico de folha e financeiro será preservado. Você pode reativar a qualquer momento na lista.`}
+      />
     </div>
   );
 }
