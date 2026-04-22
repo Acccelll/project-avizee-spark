@@ -543,6 +543,7 @@ export function OrdemVendaView({ id }: Props) {
                   variant="default"
                   className="mt-3 h-7 text-xs gap-1"
                   onClick={() => setGenerateNfOpen(true)}
+                  disabled={locked("generate_nf")}
                 >
                   <FileOutput className="h-3 w-3" /> Gerar NF
                 </Button>

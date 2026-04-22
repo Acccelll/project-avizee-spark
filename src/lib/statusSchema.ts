@@ -25,6 +25,9 @@ export const statusPedido: Record<string, { label: string; color: string }> = {
   pendente: { label: "Aguardando", color: "warning" },
   aprovada: { label: "Aprovado", color: "success" },
   em_separacao: { label: "Em Separação", color: "info" },
+  separado: { label: "Separado", color: "info" },
+  em_transporte: { label: "Em Transporte", color: "info" },
+  entregue: { label: "Entregue", color: "success" },
   faturada_parcial: { label: "Faturado Parcial", color: "warning" },
   faturada: { label: "Faturado", color: "success" },
   cancelada: { label: "Cancelado", color: "destructive" },
@@ -35,6 +38,7 @@ export const statusOrdemVenda = statusPedido;
 
 export const statusNotaFiscal: Record<string, { label: string; color: string }> = {
   pendente: { label: "Pendente", color: "warning" },
+  confirmada: { label: "Confirmada", color: "success" },
   autorizada: { label: "Autorizada", color: "success" },
   cancelada: { label: "Cancelada", color: "destructive" },
   denegada: { label: "Denegada", color: "destructive" },
