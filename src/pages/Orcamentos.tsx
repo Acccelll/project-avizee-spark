@@ -182,7 +182,7 @@ const Orcamentos = () => {
       // Buscar metadados completos do orçamento original (frete simulador, etc.)
       const { data: fullOrcamento } = await supabase.from("orcamentos").select("*").eq("id", orc.id).maybeSingle();
       const { data: newNumero } = await supabase.rpc("proximo_numero_orcamento");
-      const newNumeroStr = newNumero || `COT${String(Date.now()).slice(-6)}`;
+      const newNumeroStr = newNumero || `ORC${String(Date.now()).slice(-6)}`;
       const fullOrc = (fullOrcamento || {}) as Record<string, unknown>;
       const { data: newOrc, error } = await supabase.from("orcamentos").insert({
         numero: newNumeroStr, data_orcamento: new Date().toISOString().split("T")[0],
@@ -216,7 +216,7 @@ const Orcamentos = () => {
         }));
         await supabase.from("orcamentos_itens").insert(newItems);
       }
-      toast.success(`Cotação duplicada: ${newNumeroStr}`);
+      toast.success(`Orçamento duplicado: ${newNumeroStr}`);
       fetchData();
       navigate(`/orcamentos/${newOrc.id}`);
     } catch (err: unknown) {
@@ -227,7 +227,7 @@ const Orcamentos = () => {
 
   const handleApprove = async (orc: Orcamento) => {
     if (!isAdmin) {
-      toast.error("Somente administradores podem aprovar cotações.");
+      toast.error("Somente administradores podem aprovar orçamentos.");
       return;
     }
     await approveLock.run(async () => {
@@ -254,7 +254,7 @@ const Orcamentos = () => {
         // Toast com CTA: abre o pedido criado em drawer (sem sair da grid de cotações).
         crossToast.success({
           title: "Pedido gerado!",
-          description: `OV ${result.ovNumero} criada a partir da cotação ${orc.numero}.`,
+          description: `OV ${result.ovNumero} criada a partir do orçamento ${orc.numero}.`,
           actionLabel: "Abrir pedido",
           action: { drawer: { type: "ordem_venda", id: result.ovId } },
         });
@@ -308,7 +308,7 @@ const Orcamentos = () => {
   const columns = [
     {
       key: "numero",
-      mobileCard: true, label: "Nº Cotação", sortable: true,
+      mobileCard: true, label: "Nº Orçamento", sortable: true,
       render: (o: Orcamento) => <span className="font-mono text-xs font-semibold text-primary">{o.numero}</span>,
     },
     {
@@ -418,22 +418,22 @@ const Orcamentos = () => {
 
   return (
     <><ModulePage
-        title="Cotações"
+        title="Orçamentos"
         subtitle="Central de consulta e acompanhamento do funil comercial"
-        addLabel="Nova Cotação"
+        addLabel="Novo Orçamento"
         onAdd={() => navigate("/orcamentos/novo")}
       >
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <SummaryCard title="Total de Cotações" value={String(kpis.total)} icon={FileText} variationType="neutral" variation="registros" />
+          <SummaryCard title="Total de Orçamentos" value={String(kpis.total)} icon={FileText} variationType="neutral" variation="registros" />
           <SummaryCard title="Valor Total" value={formatCurrency(kpis.totalValue)} icon={DollarSign} variationType="neutral" variation="acumulado" />
           <SummaryCard title="Aprovadas" value={String(kpis.approved)} icon={CheckCircle} variationType="positive" variation="aguardando geração de pedido" />
-          <SummaryCard title="Taxa de Conversão" value={`${kpis.conversionRate}%`} icon={BarChart3} variationType="positive" variation="cotações → Pedido" />
+          <SummaryCard title="Taxa de Conversão" value={`${kpis.conversionRate}%`} icon={BarChart3} variationType="positive" variation="orçamentos → Pedido" />
         </div>
 
         <AdvancedFilterBar
           searchValue={searchTerm}
           onSearchChange={setSearchTerm}
-          searchPlaceholder="Buscar por número da cotação ou cliente..."
+          searchPlaceholder="Buscar por número do orçamento ou cliente..."
           activeFilters={orcActiveFilters}
           onRemoveFilter={handleRemoveOrcFilter}
           onClearAll={() => { setStatusFilters([]); setClienteFilters([]); setValidadeFilters([]); setDataInicio(""); setDataFim(""); setSearchTerm(""); }}
@@ -497,8 +497,8 @@ const Orcamentos = () => {
           showColumnToggle={true}
           onView={(o) => pushView("orcamento", o.id)}
           onEdit={(o) => navigate(`/orcamentos/${o.id}`)}
-          emptyTitle="Nenhuma cotação encontrada"
-          emptyDescription="Crie uma nova cotação ou ajuste os filtros aplicados."
+          emptyTitle="Nenhum orçamento encontrado"
+          emptyDescription="Crie um novo orçamento ou ajuste os filtros aplicados."
         />
       </ModulePage>
 
@@ -511,7 +511,7 @@ const Orcamentos = () => {
         }}
         onConfirm={() => convertingOrc && handleConvertToPedido(convertingOrc)}
         title="Gerar Pedido"
-        description={`Confirma a conversão da cotação ${convertingOrc?.numero} em Pedido?`}
+        description={`Confirma a conversão do orçamento ${convertingOrc?.numero} em Pedido?`}
         confirmLabel="Gerar Pedido"
         loading={convertLock.pending}
         impacts={[
@@ -520,7 +520,7 @@ const Orcamentos = () => {
             detail: convertingOrc ? formatCurrency(Number(convertingOrc.valor_total || 0)) : undefined,
             tone: "primary",
           },
-          { label: "Cotação muda para “convertido”", tone: "info" },
+          { label: "Orçamento muda para “convertido”", tone: "info" },
           { label: "Pedido fica disponível para faturamento", tone: "success" },
         ] satisfies ImpactItem[]}
       >
