@@ -241,7 +241,21 @@ export default function Configuracoes() {
         return;
       }
       const { error } = await supabase.auth.updateUser({ password: newPassword });
-      if (error) throw error;
+      if (error) {
+        // Mapeia erros comuns da política de senha do Supabase em mensagens explícitas.
+        const msg = (error.message || '').toLowerCase();
+        if (msg.includes('weak') || msg.includes('password') && msg.includes('short')) {
+          setPasswordErrors({ new: 'A senha não atende à política mínima do servidor. Use uma senha mais forte.' });
+          setChangingPassword(false);
+          return;
+        }
+        if (msg.includes('same') || msg.includes('different')) {
+          setPasswordErrors({ new: 'A nova senha precisa ser diferente da senha atual.' });
+          setChangingPassword(false);
+          return;
+        }
+        throw error;
+      }
       toast.success('Senha alterada com sucesso!');
       // Auditoria self-update (sem expor a senha — apenas o evento).
       try {
