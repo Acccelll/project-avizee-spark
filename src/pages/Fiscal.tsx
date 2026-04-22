@@ -27,7 +27,11 @@ import { parseNFeXml, type NFeData } from "@/lib/nfeXmlParser";
 import { DanfeViewer } from "@/components/DanfeViewer";
 import { DevolucaoDialog } from "@/components/fiscal/DevolucaoDialog";
 import { NotaFiscalDrawer } from "@/components/fiscal/NotaFiscalDrawer";
-import { confirmarNotaFiscal, estornarNotaFiscal, registrarEventoFiscal, verificarDuplicidadeChave, cancelarNotaFiscal } from "@/services/fiscal.service";
+import { registrarEventoFiscal, verificarDuplicidadeChave, cancelarNotaFiscal } from "@/services/fiscal.service";
+import {
+  useConfirmarNotaFiscal,
+  useEstornarNotaFiscal,
+} from "@/pages/fiscal/hooks/useNotaFiscalLifecycle";
 import { NotaFiscalEditModal } from "@/components/fiscal/NotaFiscalEditModal";
 import { useActionLock } from "@/hooks/useActionLock";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
@@ -191,6 +195,8 @@ const Fiscal = () => {
   const estornarLock = useActionLock();
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
   const invalidate = useInvalidateAfterMutation();
+  const confirmarMutation = useConfirmarNotaFiscal();
+  const estornarMutation = useEstornarNotaFiscal();
 
   // Contexto de origem vindo da URL (ex.: redirect de Pedido de Compra após receber).
   const pedidoCompraOriginId = searchParams.get("pedido_compra_id");
@@ -324,7 +330,7 @@ const Fiscal = () => {
     if (!ok) return;
     await confirmarLock.run(async () => {
       try {
-        await confirmarNotaFiscal({ nf, parcelas });
+        await confirmarMutation.mutateAsync(nf.id);
         toast.success(`NF ${nf.numero} confirmada com sucesso. Impactos operacionais aplicados.`);
         fetchData();
         // Invalidação cross-módulo: outros módulos abertos em background
@@ -351,7 +357,7 @@ const Fiscal = () => {
     if (!ok) return;
     await estornarLock.run(async () => {
       try {
-        await estornarNotaFiscal(nf);
+        await estornarMutation.mutateAsync({ nfId: nf.id });
         toast.success(`NF ${nf.numero} estornada! Estoque e financeiro revertidos.`);
         fetchData();
         await invalidate(INVALIDATION_KEYS.fiscalLifecycle);
@@ -450,7 +456,7 @@ const Fiscal = () => {
         await supabase.from("notas_fiscais_itens").insert(itemsPayload as never);
       }
       const nfForConfirm = { ...selected, ...payload, valor_total: savedTotal };
-      await confirmarNotaFiscal({ nf: nfForConfirm as NotaFiscal, parcelas });
+      await confirmarMutation.mutateAsync(selected.id);
       toast.success("Nota fiscal salva e confirmada! Estoque e financeiro atualizados.");
       setModalOpen(false);
       fetchData();

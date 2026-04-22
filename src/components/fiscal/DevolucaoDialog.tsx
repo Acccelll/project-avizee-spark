@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { getUserFriendlyError } from "@/utils/errorMessages";
-import { processarDevolucao } from "@/services/fiscal.service";
+import { useGerarDevolucaoNF } from "@/pages/fiscal/hooks/useNotaFiscalLifecycle";
 
 /** Minimal shape of the originating NF used by the devolução flow. */
 export interface NfSimples {
@@ -24,6 +24,7 @@ export interface NfSimples {
 /** One line-item with the extra field for how many units to return. */
 export interface NfItemDevolver {
   id: string;
+  produto_id?: string;
   nome: string;
   quantidade: number;
   valor_unitario: number;
@@ -43,6 +44,7 @@ export function DevolucaoDialog({ open, onOpenChange, devolucaoNF, devolucaoIten
   const [dataDevolucao, setDataDevolucao] = useState(new Date().toISOString().split("T")[0]);
   const [motivoDevolucao, setMotivoDevolucao] = useState("");
   const [processing, setProcessing] = useState(false);
+  const gerarDevolucao = useGerarDevolucaoNF();
 
   const valorTotalDevolucao = devolucaoItens.reduce((s, i) => s + (i.qtd_devolver || 0) * Number(i.valor_unitario), 0);
 
@@ -51,10 +53,20 @@ export function DevolucaoDialog({ open, onOpenChange, devolucaoNF, devolucaoIten
     const itensDevolver = devolucaoItens.filter((i) => i.qtd_devolver > 0);
     if (itensDevolver.length === 0) { toast.error("Selecione ao menos um item para devolver"); return; }
     if (!motivoDevolucao.trim()) { toast.error("Informe o motivo da devolução"); return; }
+    const semProduto = itensDevolver.filter((i) => !i.produto_id);
+    if (semProduto.length > 0) {
+      toast.error("Itens sem vínculo de produto não podem ser devolvidos via RPC.");
+      return;
+    }
     setProcessing(true);
     try {
-      await processarDevolucao({ devolucaoNF, itensDevolver, dataDevolucao, motivoDevolucao });
-      toast.success("Nota de devolução criada e estoque revertido!");
+      await gerarDevolucao.mutateAsync({
+        nfOrigemId: devolucaoNF.id,
+        itens: itensDevolver.map((i) => ({
+          produto_id: i.produto_id as string,
+          quantidade: i.qtd_devolver,
+        })),
+      });
       onOpenChange(false);
       onSuccess();
     } catch (err: unknown) {

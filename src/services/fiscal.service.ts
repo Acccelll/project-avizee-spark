@@ -90,6 +90,11 @@ interface ConfirmarNFParams {
   parcelas: number;
 }
 
+/**
+ * @deprecated Use `useConfirmarNotaFiscal` (RPC `confirmar_nota_fiscal`) em
+ * `src/pages/fiscal/hooks/useNotaFiscalLifecycle.ts`. Esta implementação manual
+ * permanece apenas como fallback histórico e será removida na Fase 9.
+ */
 export async function confirmarNotaFiscal({ nf, parcelas }: ConfirmarNFParams) {
   // Idempotency: if already confirmed, skip
   const { data: current } = await supabase
@@ -226,6 +231,10 @@ export async function confirmarNotaFiscal({ nf, parcelas }: ConfirmarNFParams) {
 
 // ── Reverse NF ─────────────────────────────────────────────────────────────────
 
+/**
+ * @deprecated Use `useEstornarNotaFiscal` (RPC `estornar_nota_fiscal`) em
+ * `src/pages/fiscal/hooks/useNotaFiscalLifecycle.ts`. Será removida na Fase 9.
+ */
 export async function estornarNotaFiscal(nf: {
   id: string; numero: string; tipo: string;
   movimenta_estoque: boolean; gera_financeiro: boolean;
@@ -418,6 +427,10 @@ export { calcularCfopDevolucao } from "@/lib/fiscal";
 
 // ── Process Return ─────────────────────────────────────────────────────────────
 
+/**
+ * @deprecated Use `useGerarDevolucaoNF` (RPC `gerar_devolucao_nota_fiscal`) em
+ * `src/pages/fiscal/hooks/useNotaFiscalLifecycle.ts`. Será removida na Fase 9.
+ */
 export async function processarDevolucao(params: {
   devolucaoNF: {
     id: string;
