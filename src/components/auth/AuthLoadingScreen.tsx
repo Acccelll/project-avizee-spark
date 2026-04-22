@@ -8,7 +8,7 @@
  */
 
 import { Spinner } from "@/components/ui/spinner";
-import logoAvizee from "@/assets/logoavizee.png";
+import { useBranding } from "@/hooks/useBranding";
 
 export type AuthLoadingMode = "session" | "permissions" | "restoring";
 
@@ -26,12 +26,13 @@ export interface AuthLoadingScreenProps {
 
 export function AuthLoadingScreen({ mode = "session", label }: AuthLoadingScreenProps) {
   const finalLabel = label ?? LABELS[mode];
+  const branding = useBranding();
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30 flex items-center justify-center p-6 animate-fade-in">
       <div className="flex flex-col items-center gap-6">
         <img
-          src={logoAvizee}
-          alt="AviZee ERP"
+          src={branding.logoUrl}
+          alt={branding.marcaTexto || "ERP"}
           className="h-14 drop-shadow-sm opacity-95"
         />
         <div className="flex flex-col items-center gap-3">

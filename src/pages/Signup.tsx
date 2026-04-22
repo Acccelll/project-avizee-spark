@@ -7,8 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { UserPlus, Eye, EyeOff, Mail, Lock, User, CheckCircle2, ShieldAlert } from "lucide-react";
-import logoAvizee from "@/assets/logoavizee.png";
 import { ADMIN_EMAIL, INVITE_ONLY } from "@/constants/app";
+import { useBranding } from "@/hooks/useBranding";
 
 export default function Signup() {
   const [searchParams] = useSearchParams();

@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Lock, Eye, EyeOff, CheckCircle2, ShieldCheck } from "lucide-react";
-import logoAvizee from "@/assets/logoavizee.png";
+import { useBranding } from "@/hooks/useBranding";
 
 export default function ResetPassword() {
   const [password, setPassword] = useState("");
@@ -17,6 +17,7 @@ export default function ResetPassword() {
   const [checkingSession, setCheckingSession] = useState(true);
   const [errors, setErrors] = useState<{ password?: string; confirm?: string }>({});
   const navigate = useNavigate();
+  const branding = useBranding();
 
   useEffect(() => {
     // Valida via getSession(): o Supabase consome o hash automaticamente,
@@ -95,7 +96,7 @@ export default function ResetPassword() {
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-6">
-          <img src={logoAvizee} alt="AviZee ERP" className="h-14 mx-auto mb-4" />
+          <img src={branding.logoUrl} alt={branding.marcaTexto || "ERP"} className="h-14 mx-auto mb-4 object-contain" />
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Nova Senha</h1>
           <p className="text-muted-foreground text-sm mt-1">Defina sua nova senha de acesso</p>
         </div>

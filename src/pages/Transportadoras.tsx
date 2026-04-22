@@ -380,7 +380,7 @@ export default function Transportadoras() {
         : <span className="text-muted-foreground text-xs">—</span>,
     },
     { key: "ativo",
-      mobileCard: true, label: "Status", render: (t: Transportadora) => <StatusBadge status={t.ativo ? "ativo" : "inativo"} /> },
+      mobileCard: true, label: "Status", hidden: true, render: (t: Transportadora) => <StatusBadge status={t.ativo ? "ativo" : "inativo"} /> },
   ];
 
   const ativoOptions: MultiSelectOption[] = [
