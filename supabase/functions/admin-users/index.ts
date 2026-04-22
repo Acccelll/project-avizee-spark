@@ -58,7 +58,7 @@ class HttpError extends Error {
   }
 }
 
-function json(data: unknown, status = 200) {
+function json(data: unknown, status = 200, corsHeaders: Record<string, string> = {}) {
   return new Response(JSON.stringify(data), {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -255,21 +255,16 @@ async function listUsers(serviceClient: any) {
 }
 
 Deno.serve(async (req) => {
+  const origin = req.headers.get("origin");
+  const corsHeaders = buildCorsHeaders(origin);
+
   if (req.method === "OPTIONS") {
-    if (!allowedOrigin) {
-      return new Response(JSON.stringify({ error: "ALLOWED_ORIGIN env var is required" }), {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
     return new Response("ok", { headers: corsHeaders });
   }
 
-  if (!allowedOrigin) {
-    return new Response(JSON.stringify({ error: "ALLOWED_ORIGIN env var is required" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+  if (origin && !isOriginAllowed(origin)) {
+    console.warn("[admin-users] origin not allowed:", origin);
+    return json({ error: `Origem não permitida: ${origin}` }, 403, corsHeaders);
   }
 
   try {
@@ -283,7 +278,7 @@ Deno.serve(async (req) => {
     const { action, payload = {} } = await req.json();
 
     if (action === "list") {
-      return json({ users: await listUsers(serviceClient) });
+      return json({ users: await listUsers(serviceClient) }, 200, corsHeaders);
     }
 
     if (action === "create") {
@@ -367,7 +362,7 @@ Deno.serve(async (req) => {
         // Em modo fallback, devolve credenciais temporárias para o admin entregar manualmente
         tempPassword,
         recoveryLink,
-      });
+      }, 200, corsHeaders);
     }
 
     if (action === "update") {
@@ -394,7 +389,7 @@ Deno.serve(async (req) => {
         tipo: "user_update", cargo: cargo || null, ativo, extra_permissions: payload.extra_permissions ?? [],
       });
 
-      return json({ ok: true });
+      return json({ ok: true }, 200, corsHeaders);
     }
 
     if (action === "toggle-status") {
@@ -403,13 +398,13 @@ Deno.serve(async (req) => {
       if (!id) throw new HttpError(400, "Usuário inválido.");
       await setUserActiveStatus(serviceClient, id, ativo);
       await insertAudit(serviceClient, currentUser.id, id, null, { tipo: "status_change", ativo });
-      return json({ ok: true });
+      return json({ ok: true }, 200, corsHeaders);
     }
 
     throw new HttpError(400, "Ação inválida.");
   } catch (error) {
     console.error("[admin-users]", error);
-    if (error instanceof HttpError) return json({ error: error.message }, error.status);
-    return json({ error: error instanceof Error ? error.message : "Erro interno ao gerenciar usuários." }, 500);
+    if (error instanceof HttpError) return json({ error: error.message }, error.status, corsHeaders);
+    return json({ error: error instanceof Error ? error.message : "Erro interno ao gerenciar usuários." }, 500, corsHeaders);
   }
 });
