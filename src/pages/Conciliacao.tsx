@@ -291,6 +291,7 @@ export default function Conciliacao() {
           data_vencimento: l.data_vencimento,
           tipo: l.tipo,
           status: l.status,
+          data_baixa: (l as Lancamento & { data_baixa?: string | null }).data_baixa ?? null,
         };
         const score = calcularScoreConciliacao(transacao, titulo);
         if (score > melhorScore) {
