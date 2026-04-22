@@ -28,7 +28,7 @@ import { useRelatorioUrlState } from '@/pages/relatorios/hooks/useRelatorioUrlSt
 import { useRelatorioDensity } from '@/pages/relatorios/hooks/useRelatorioDensity';
 import { useRelatorioExport } from '@/pages/relatorios/hooks/useRelatorioExport';
 import { useActiveFilterChips } from '@/pages/relatorios/hooks/useActiveFilterChips';
-import { useRelatorioDrillDown, type ResolvedDrillAction } from '@/pages/relatorios/hooks/useRelatorioDrillDown';
+import { useRelatorioDrillDown } from '@/pages/relatorios/hooks/useRelatorioDrillDown';
 import { RowActionsMenu } from '@/pages/relatorios/components/RowActionsMenu';
 import { cn } from '@/lib/utils';
 import { BookmarkPlus, BookOpen, Columns, Hash, Eye, Trash2, RefreshCcw, Rows3, SearchX } from 'lucide-react';
