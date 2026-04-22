@@ -49,8 +49,9 @@ export interface AntecipacaoData {
 /**
  * Realiza a baixa (pagamento) de um título financeiro.
  *
- * Registra um lançamento na tabela `financeiro_baixas` e atualiza o status
- * e saldo do lançamento em `financeiro_lancamentos`.
+ * @deprecated Use o hook `useRegistrarBaixa` (RPC `registrar_baixa_financeira`).
+ * Este caminho NÃO é transacional, NÃO atualiza o saldo da conta bancária e
+ * NÃO gera movimento de caixa. Mantido apenas para compatibilidade temporária.
  *
  * @param id         ID do lançamento a ser baixado.
  * @param dadosBaixa Dados do pagamento (valor, datas, forma, conta).
@@ -129,8 +130,8 @@ export async function baixarTitulo(
 /**
  * Negocia (reparcelamento) um título financeiro.
  *
- * Cancela o título original e gera novas parcelas conforme os parâmetros
- * informados, criando novos lançamentos na tabela `financeiro_lancamentos`.
+ * @deprecated Sem transação real (Promise.all + UPDATE separado). Substituir por
+ * uma RPC dedicada antes de plugar em UI. Não há consumidor ativo no momento.
  *
  * @param id              ID do lançamento original a ser negociado.
  * @param dadosNegociacao Parâmetros de negociação (parcelas, datas, etc.).
@@ -208,7 +209,8 @@ export async function negociarTitulo(
 /**
  * Antecipa o vencimento de um título financeiro.
  *
- * Registra um pagamento adiantado e atualiza a data e status do lançamento.
+ * @deprecated Mesma classe de problema de `baixarTitulo`: INSERT + UPDATE
+ * separados sem transação. Sem consumidor ativo. Migrar para RPC antes de plugar.
  *
  * @param id                  ID do lançamento a ser antecipado.
  * @param dadosAntecipacao    Dados da antecipação.

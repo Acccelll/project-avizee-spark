@@ -32,7 +32,7 @@ import { FinanceiroCalendar } from "@/components/financeiro/FinanceiroCalendar";
 import { BaixaParcialDialog } from "@/components/financeiro/BaixaParcialDialog";
 import { BaixaLoteModal } from "@/components/financeiro/BaixaLoteModal";
 import { FinanceiroDrawer } from "@/components/financeiro/FinanceiroDrawer";
-import { getEffectiveStatus } from "@/services/financeiro.service";
+import { getEffectiveStatus, cancelarLancamento } from "@/services/financeiro.service";
 import { statusFinanceiro as statusFinanceiroSchema, statusToOptions } from "@/lib/statusSchema";
 import type { Lancamento, Cliente, Fornecedor } from "@/types/domain";
 import { useFinanceiroAuxiliares } from "@/pages/financeiro/hooks/useFinanceiroAuxiliares";
@@ -81,6 +81,9 @@ const Financeiro = () => {
   const [baixaLoteOpen, setBaixaLoteOpen] = useState(false);
   const [baixaParcialOpen, setBaixaParcialOpen] = useState(false);
   const [baixaParcialTarget, setBaixaParcialTarget] = useState<Lancamento | null>(null);
+  const [cancelTarget, setCancelTarget] = useState<Lancamento | null>(null);
+  const [cancelMotivo, setCancelMotivo] = useState("");
+  const [cancelProcessing, setCancelProcessing] = useState(false);
 
   // Atalho do Dashboard: `/financeiro?baixa=lote` abre o modal de baixa em lote.
   const baixaAutoOpenedRef = useRef(false);
@@ -323,8 +326,12 @@ const Financeiro = () => {
           openEdit(l);
         }}
         onDelete={(id) => {
+          const target = data.find((l) => l.id === id) ?? selected;
           setDrawerOpen(false);
-          remove(id);
+          if (target) {
+            setCancelTarget(target);
+            setCancelMotivo("");
+          }
         }}
       />
 
@@ -367,6 +374,43 @@ const Financeiro = () => {
           invalidateAfterBaixa();
         }}
       />
+
+      <ConfirmDialog
+        open={!!cancelTarget}
+        onClose={() => {
+          setCancelTarget(null);
+          setCancelMotivo("");
+        }}
+        onConfirm={async () => {
+          if (!cancelTarget) return;
+          setCancelProcessing(true);
+          const ok = await cancelarLancamento(cancelTarget.id, cancelMotivo.trim());
+          setCancelProcessing(false);
+          if (ok) {
+            setCancelTarget(null);
+            setCancelMotivo("");
+            await fetchData();
+          }
+        }}
+        title="Cancelar Lançamento"
+        description={`Deseja cancelar "${cancelTarget?.descricao}"? O título permanecerá no histórico com status Cancelado.`}
+        confirmLabel="Cancelar Lançamento"
+        loading={cancelProcessing}
+        confirmDisabled={cancelMotivo.trim().length < 5}
+      >
+        <div className="space-y-2 mt-2">
+          <Label className="text-sm font-medium">Motivo do cancelamento *</Label>
+          <Textarea
+            value={cancelMotivo}
+            onChange={(e) => setCancelMotivo(e.target.value)}
+            placeholder="Mínimo de 5 caracteres. Ex.: duplicidade, divergência com NF, solicitação do cliente..."
+            rows={3}
+          />
+          <p className="text-xs text-muted-foreground">
+            A exclusão definitiva não é permitida quando há baixas ou origem fora de “manual”. Use o cancelamento para preservar a trilha de auditoria.
+          </p>
+        </div>
+      </ConfirmDialog>
     </>
   );
 };
