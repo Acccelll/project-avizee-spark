@@ -151,29 +151,10 @@ const Produtos = () => {
     });
   }, []);
 
-  useEffect(() => {
-    const stateEditId = (location.state as { editId?: string } | null)?.editId;
-    const searchEditId = new URLSearchParams(location.search).get("editId");
-    const editId = stateEditId || searchEditId;
-    if (!editId) return;
-    let cancelled = false;
-    supabase.from("produtos").select("*").eq("id", editId).maybeSingle().then(({ data: p }) => {
-      if (cancelled) return;
-      if (p) openEdit(p as unknown as Produto);
-      const nextSearch = new URLSearchParams(location.search);
-      nextSearch.delete("editId");
-      navigate(
-        {
-          pathname: location.pathname,
-          search: nextSearch.toString() ? `?${nextSearch.toString()}` : "",
-        },
-        { replace: true, state: {} }
-      );
-    });
-    return () => { cancelled = true; };
-  // openEdit is stable; navigate/pathname are stable refs
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.pathname, location.search, location.state]);
+  useEditDeepLink<Produto>({
+    table: "produtos",
+    onLoad: (p) => openEdit(p),
+  });
 
   // Atalho rápido: abrir formulário de criação ao chegar com ?new=1.
   useEffect(() => {

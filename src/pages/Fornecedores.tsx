@@ -66,29 +66,10 @@ const Fornecedores = () => {
   const debouncedSearch = useDebounce(searchTerm, 350);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
-  useEffect(() => {
-    const stateEditId = (location.state as { editId?: string } | null)?.editId;
-    const searchEditId = new URLSearchParams(location.search).get("editId");
-    const editId = stateEditId || searchEditId;
-    if (!editId) return;
-    let cancelled = false;
-    supabase.from("fornecedores").select("*").eq("id", editId).maybeSingle().then(({ data: f }) => {
-      if (cancelled) return;
-      if (f) openEdit(f as Fornecedor);
-      const nextSearch = new URLSearchParams(location.search);
-      nextSearch.delete("editId");
-      navigate(
-        {
-          pathname: location.pathname,
-          search: nextSearch.toString() ? `?${nextSearch.toString()}` : "",
-        },
-        { replace: true, state: {} }
-      );
-    });
-    return () => { cancelled = true; };
-  // openEdit is stable; navigate/pathname are stable refs
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.pathname, location.search, location.state]);
+  useEditDeepLink<Fornecedor>({
+    table: "fornecedores",
+    onLoad: (f) => openEdit(f),
+  });
 
   const { data, loading, create, update, remove, fetchData } = useSupabaseCrud<Fornecedor>({
     table: "fornecedores",
