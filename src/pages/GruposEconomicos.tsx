@@ -7,7 +7,6 @@ import { PullToRefresh } from "@/components/ui/PullToRefresh";
 import { StatusBadge } from "@/components/StatusBadge";
 import { FormModal } from "@/components/FormModal";
 import { FormModalFooter } from "@/components/FormModalFooter";
-import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -64,19 +63,6 @@ const relacaoLabel: Record<string, string> = {
   coligada: "Coligada",
   independente: "Independente",
 };
-
-const relacaoOrder: Record<string, number> = {
-  matriz: 0,
-  filial: 1,
-  coligada: 2,
-  independente: 3,
-};
-
-const DEFAULT_RELACAO_ORDER = 99;
-
-function formatLocation(cidade: string | null, uf: string | null): string {
-  return cidade ? `${cidade}/${uf}` : "—";
-}
 
 function getRiskInfo(titulosVencidos: number, saldoConsolidado: number) {
   if (titulosVencidos > 0)
