@@ -39,6 +39,7 @@ interface Orcamento {
   valor_total: number | null;
   observacoes: string | null;
   status: string;
+  origem?: string | null;
   quantidade_total: number | null;
   peso_total: number | null;
   pagamento: string | null;
@@ -55,6 +56,12 @@ interface Orcamento {
 
 const TERMINAL_STATUSES = ["convertido", "cancelado", "rejeitado"];
 const PROXIMA_VENCER_DIAS = 7;
+
+const historicoOptions: { label: string; value: string }[] = [
+  { label: "Excluir históricos", value: "excluir" },
+  { label: "Apenas históricos", value: "apenas" },
+  { label: "Todos", value: "todos" },
+];
 
 const validadeOptions: { label: string; value: string }[] = [
   { label: "Vencidas", value: "vencida" },
@@ -119,6 +126,7 @@ const Orcamentos = () => {
   const validadeFilters = searchParams.getAll("validade");
   const dataInicio = searchParams.get("de") ?? "";
   const dataFim = searchParams.get("ate") ?? "";
+  const historicoFilter = searchParams.get("historico") ?? "excluir";
 
   const updateParam = (key: string, value: string | string[] | null) => {
     setSearchParams((prev) => {
@@ -148,6 +156,7 @@ const Orcamentos = () => {
   };
   const setDataInicio = (v: string) => updateParam("de", v || null);
   const setDataFim = (v: string) => updateParam("ate", v || null);
+  const setHistoricoFilter = (v: string) => updateParam("historico", v === "excluir" ? null : v);
   const { data: clientesList = [] } = useClientesRef();
   const { isAdmin } = useIsAdmin();
   const sendLock = useActionLock();
@@ -261,6 +270,9 @@ const Orcamentos = () => {
   const filteredData = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
     return data.filter((orc) => {
+      const isHistorico = orc.origem === "importacao_historica" || orc.status === "historico";
+      if (historicoFilter === "excluir" && isHistorico) return false;
+      if (historicoFilter === "apenas" && !isHistorico) return false;
       const normalizedStatus = normalizeOrcamentoStatus(orc.status);
       if (statusFilters.length > 0 && !statusFilters.includes(normalizedStatus)) return false;
       if (clienteFilters.length > 0 && !clienteFilters.includes(orc.cliente_id || "")) return false;
@@ -282,7 +294,7 @@ const Orcamentos = () => {
       if (!query) return true;
       return [orc.numero, orc.clientes?.nome_razao_social, orc.observacoes].filter(Boolean).join(" ").toLowerCase().includes(query);
     });
-  }, [data, searchTerm, statusFilters, clienteFilters, validadeFilters, dataInicio, dataFim]);
+  }, [data, searchTerm, statusFilters, clienteFilters, validadeFilters, dataInicio, dataFim, historicoFilter]);
 
   const kpis = useMemo(() => {
     const total = filteredData.length;
@@ -441,6 +453,16 @@ const Orcamentos = () => {
             placeholder="Validade"
             className="w-[200px]"
           />
+          <select
+            value={historicoFilter}
+            onChange={(e) => setHistoricoFilter(e.target.value)}
+            className="h-9 px-3 text-xs rounded-md border border-input bg-background"
+            title="Filtro de orçamentos históricos importados"
+          >
+            {historicoOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
           <MultiSelect
             options={clienteOptions}
             selected={clienteFilters}

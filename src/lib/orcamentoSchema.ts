@@ -11,6 +11,7 @@ export const orcamentoSchema = z.object({
     'rejeitado',
     'cancelado',
     'expirado',
+    'historico',
   ]),
   clienteId: z.string().min(1, 'Cliente obrigatório'),
   validade: z.string().optional(),

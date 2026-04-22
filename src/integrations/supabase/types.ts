@@ -3222,6 +3222,7 @@ export type Database = {
           numero: string
           observacoes: string | null
           observacoes_internas: string | null
+          origem: string
           origem_frete: string | null
           outras_despesas: number | null
           pagamento: string | null
@@ -3260,6 +3261,7 @@ export type Database = {
           numero: string
           observacoes?: string | null
           observacoes_internas?: string | null
+          origem?: string
           origem_frete?: string | null
           outras_despesas?: number | null
           pagamento?: string | null
@@ -3298,6 +3300,7 @@ export type Database = {
           numero?: string
           observacoes?: string | null
           observacoes_internas?: string | null
+          origem?: string
           origem_frete?: string | null
           outras_despesas?: number | null
           pagamento?: string | null
