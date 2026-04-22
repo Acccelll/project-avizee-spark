@@ -8,6 +8,7 @@ export const statusOrcamento: Record<string, { label: string; color: string }> =
   rejeitado: { label: "Rejeitado", color: "destructive" },
   cancelado: { label: "Cancelado", color: "destructive" },
   expirado: { label: "Expirado", color: "warning" },
+  historico: { label: "Histórico", color: "secondary" },
 };
 
 export const statusCompra: Record<string, { label: string; color: string }> = {
