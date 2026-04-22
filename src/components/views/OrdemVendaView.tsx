@@ -18,7 +18,7 @@ import { useDetailActions } from "@/hooks/useDetailActions";
 import { DetailLoading, DetailEmpty } from "@/components/ui/DetailStates";
 import { pagamentoLabels, freteTipoLabels } from "@/utils/comercial";
 import { useFaturarPedido } from "@/pages/comercial/hooks/useFaturarPedido";
-import { getPedidoStatusLabel, statusFaturamentoLabels } from "@/lib/comercialWorkflow";
+import { canFaturarPedido, getPedidoStatusLabel, statusFaturamentoLabels } from "@/lib/comercialWorkflow";
 import {
   FileOutput,
   DollarSign,
@@ -165,11 +165,7 @@ export function OrdemVendaView({ id }: Props) {
 
   const pesoTotal = items.reduce((s: number, i: Record<string, unknown>) => s + Number(i.peso_total || 0), 0);
   const qtdTotal = items.reduce((s: number, i: Record<string, unknown>) => s + Number(i.quantidade || 0), 0);
-  const canGenerateNF = !!(
-    selected &&
-    ["aprovada", "em_separacao", "separado"].includes(selected.status) &&
-    selected.status_faturamento !== "total"
-  );
+  const canGenerateNF = canFaturarPedido(selected);
 
   // KPI Faturado: NFs com status interno `confirmada` (após confirmarNotaFiscal)
   // ou `autorizada` (status SEFAZ, aplicável quando integração emite NFe oficial).
@@ -287,12 +283,12 @@ export function OrdemVendaView({ id }: Props) {
           {
             icon: Receipt,
             count: selected.cotacao_id ? 1 : 0,
-            label: "Cotação origem",
+            label: "Orçamento origem",
             tone: "default",
             onClick: selected.cotacao_id
               ? () => pushView("orcamento", selected.cotacao_id)
               : undefined,
-            title: "Cotação que originou este pedido",
+            title: "Orçamento que originou este pedido",
           },
         ] satisfies RelatedRecordChip[]}
       />
@@ -319,7 +315,7 @@ export function OrdemVendaView({ id }: Props) {
             <div className="rounded-md border bg-muted/20 px-3 py-2">
               <p className="text-[10px] uppercase font-semibold text-muted-foreground">Escopo de edição do pedido</p>
               <p className="text-xs text-muted-foreground mt-1">
-                A edição do pedido altera apenas dados operacionais (status, prazos, PO e observações). Itens, valores e vínculos com cotação/NF permanecem no fluxo original.
+                A edição do pedido altera apenas dados operacionais (status, prazos, PO e observações). Itens, valores e vínculos com orçamento/NF permanecem no fluxo original.
               </p>
             </div>
             <div>
@@ -330,9 +326,9 @@ export function OrdemVendaView({ id }: Props) {
             </div>
             {selected.cotacao_id && (
               <div>
-                <p className="text-[10px] text-muted-foreground uppercase font-semibold">Cotação de Origem</p>
+                <p className="text-[10px] text-muted-foreground uppercase font-semibold">Orçamento de Origem</p>
                 <RelationalLink type="orcamento" id={selected.cotacao_id}>
-                  {selected.orcamentos?.numero ? `Cotação ${selected.orcamentos.numero}` : "Ver cotação"}
+                  {selected.orcamentos?.numero ? `Orçamento ${selected.orcamentos.numero}` : "Ver orçamento"}
                 </RelationalLink>
               </div>
             )}
@@ -384,7 +380,7 @@ export function OrdemVendaView({ id }: Props) {
             )}
             {selected.orcamentos?.prazo_entrega && (
               <div>
-                <p className="text-[10px] text-muted-foreground uppercase font-semibold">Prazo de Entrega (Cotação)</p>
+                <p className="text-[10px] text-muted-foreground uppercase font-semibold">Prazo de Entrega (Orçamento)</p>
                 <p>{selected.orcamentos.prazo_entrega}</p>
               </div>
             )}
@@ -606,9 +602,9 @@ export function OrdemVendaView({ id }: Props) {
             {selected.cotacao_id && (
               <div className="flex items-center justify-between rounded-lg border px-3 py-2">
                 <div>
-                  <p className="text-[10px] text-muted-foreground uppercase font-semibold">Cotação de Origem</p>
+                  <p className="text-[10px] text-muted-foreground uppercase font-semibold">Orçamento de Origem</p>
                   <RelationalLink type="orcamento" id={selected.cotacao_id}>
-                    {selected.orcamentos?.numero ? `Cotação ${selected.orcamentos.numero}` : "Ver cotação"}
+                    {selected.orcamentos?.numero ? `Orçamento ${selected.orcamentos.numero}` : "Ver orçamento"}
                   </RelationalLink>
                 </div>
               </div>

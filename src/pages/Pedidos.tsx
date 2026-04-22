@@ -20,7 +20,7 @@ import { formatCurrency, formatDate, daysSince, formatNumber, calculateDaysBetwe
 import { FileText, DollarSign, Truck } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useFaturarPedido } from "@/pages/comercial/hooks/useFaturarPedido";
-import { getPedidoStatusLabel, statusFaturamentoLabels } from "@/lib/comercialWorkflow";
+import { canFaturarPedido, getPedidoStatusLabel, statusFaturamentoLabels } from "@/lib/comercialWorkflow";
 import { statusPedido } from "@/lib/statusSchema";
 
 interface Pedido {
@@ -334,7 +334,7 @@ const Pedidos = () => {
       key: "acoes", label: "Ações", sortable: false,
       render: (p: Pedido) => (
         <div className="flex gap-1">
-          {(p.status === "aprovada" || p.status === "em_separacao") && p.status_faturamento !== "total" && (
+          {canFaturarPedido(p) && (
             <Button
               size="sm"
               variant="default"
