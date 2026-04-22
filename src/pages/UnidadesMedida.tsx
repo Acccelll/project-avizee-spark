@@ -268,7 +268,19 @@ export default function UnidadesMedida() {
           loading={loading}
           
           onEdit={openEdit}
-          onDelete={(u) => remove(u.id)}
+          onDelete={async (u) => {
+            const n = usageMap[u.codigo.toUpperCase()] || 0;
+            if (n > 0) {
+              const ok = await confirm({
+                title: "Inativar unidade em uso?",
+                description: `Esta unidade está vinculada a ${n} produto${n === 1 ? "" : "s"}. Eles continuarão funcionando, mas a unidade não aparecerá em novas seleções.`,
+                confirmLabel: "Inativar mesmo assim",
+                confirmVariant: "destructive",
+              });
+              if (!ok) return;
+            }
+            await remove(u.id);
+          }}
           deleteBehavior="soft"
           moduleKey="unidades-medida"
           emptyTitle="Nenhuma unidade de medida encontrada"
