@@ -763,6 +763,20 @@ export function PedidoCompraDrawer({
           placeholder="Ex: valor acima do orçamento aprovado"
         />
       </ConfirmDialog>
+      <RegistrarRecebimentoDialog
+        open={receberOpen}
+        onClose={() => setReceberOpen(false)}
+        pedidoId={String(selected.id)}
+        pedidoNumero={pedidoNumero(selected)}
+        onSuccess={() => { onAfterRecebimentoChange?.(); }}
+      />
+      <EstornarRecebimentoDialog
+        open={estornoOpen}
+        onClose={() => setEstornoOpen(false)}
+        pedidoId={String(selected.id)}
+        pedidoNumero={pedidoNumero(selected)}
+        onSuccess={() => { onAfterRecebimentoChange?.(); }}
+      />
     </>
   );
 }
