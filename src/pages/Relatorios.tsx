@@ -170,6 +170,32 @@ export default function Relatorios() {
 
   const visibleColumns = useMemo(() => columns.filter((c) => !hiddenColumns.includes(c.key)), [columns, hiddenColumns]);
 
+  // Coluna virtual de ações (drill-down). Só é anexada quando há pelo menos
+  // uma ação navegável declarada para o relatório atual.
+  const visibleColumnsWithActions = useMemo(() => {
+    if (!hasActions) return visibleColumns;
+    return [
+      ...visibleColumns,
+      {
+        key: '__actions__',
+        label: 'Ações',
+        render: (item: Record<string, unknown>): React.ReactNode => (
+          <RowActionsMenu actions={getRowActions(item)} onSelect={navigateAction} />
+        ),
+      },
+    ];
+  }, [visibleColumns, hasActions, getRowActions, navigateAction]);
+
+  // onRowClick: dispara ação primária quando há exatamente uma disponível,
+  // caso contrário não faz nada (usuário usa o menu para escolher).
+  const handleRowClick = useMemo(() => {
+    if (!hasActions) return undefined;
+    return (row: Record<string, unknown>) => {
+      const actions = getRowActions(row);
+      if (actions.length === 1) navigateAction(actions[0]);
+    };
+  }, [hasActions, getRowActions, navigateAction]);
+
   const handleSelectTipo = (next: TipoRelatorio) => {
     setHiddenColumns([]);
     setSearchParams({ tipo: next });
