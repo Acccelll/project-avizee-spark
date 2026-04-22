@@ -330,7 +330,7 @@ const Fiscal = () => {
     if (!ok) return;
     await confirmarLock.run(async () => {
       try {
-        await confirmarNotaFiscal({ nf, parcelas });
+        await confirmarMutation.mutateAsync(nf.id);
         toast.success(`NF ${nf.numero} confirmada com sucesso. Impactos operacionais aplicados.`);
         fetchData();
         // Invalidação cross-módulo: outros módulos abertos em background
@@ -357,7 +357,7 @@ const Fiscal = () => {
     if (!ok) return;
     await estornarLock.run(async () => {
       try {
-        await estornarNotaFiscal(nf);
+        await estornarMutation.mutateAsync({ nfId: nf.id });
         toast.success(`NF ${nf.numero} estornada! Estoque e financeiro revertidos.`);
         fetchData();
         await invalidate(INVALIDATION_KEYS.fiscalLifecycle);
@@ -456,7 +456,7 @@ const Fiscal = () => {
         await supabase.from("notas_fiscais_itens").insert(itemsPayload as never);
       }
       const nfForConfirm = { ...selected, ...payload, valor_total: savedTotal };
-      await confirmarNotaFiscal({ nf: nfForConfirm as NotaFiscal, parcelas });
+      await confirmarMutation.mutateAsync(selected.id);
       toast.success("Nota fiscal salva e confirmada! Estoque e financeiro atualizados.");
       setModalOpen(false);
       fetchData();
