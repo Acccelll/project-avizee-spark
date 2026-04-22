@@ -6,10 +6,11 @@ import { PullToRefresh } from "@/components/ui/PullToRefresh";
 import { StatusBadge } from "@/components/StatusBadge";
 import { FormModal } from "@/components/FormModal";
 import { FormModalFooter } from "@/components/FormModalFooter";
-import { ViewDrawerV2, ViewField, ViewSection } from "@/components/ViewDrawerV2";
+import { ViewField, ViewSection } from "@/components/ViewDrawerV2";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { RelationalLink } from "@/components/ui/RelationalLink";
+import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -151,18 +152,11 @@ const GruposEconomicos = () => {
   }, [matrizIdsKey]);
 
   const [modalOpen, setModalOpen] = useState(false);
-  const [drawerOpen, setDrawerOpen] = useState(false);
   const [selected, setSelected] = useState<GrupoEconomico | null>(null);
   const [mode, setMode] = useState<"create" | "edit">("create");
   const [form, setForm] = useState(emptyForm);
   const [initialForm, setInitialForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
-  const [empresas, setEmpresas] = useState<ClienteDoGrupo[]>([]);
-  const [saldoConsolidado, setSaldoConsolidado] = useState(0);
-  const [titulosVencidos, setTitulosVencidos] = useState(0);
-  const [titulosAbertos, setTitulosAbertos] = useState(0);
-  const [matrizInfo, setMatrizInfo] = useState<ClienteDoGrupo | null>(null);
-  const [perEmpresaFinanceiro, setPerEmpresaFinanceiro] = useState<Record<string, { saldo: number; vencidos: number }>>({});
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   // modal-specific state for the improved edit form
