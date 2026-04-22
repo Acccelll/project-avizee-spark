@@ -2892,6 +2892,7 @@ export type Database = {
           origem: string | null
           outras_despesas: number | null
           pdf_gerado: boolean | null
+          pedido_compra_id: string | null
           peso_bruto: number | null
           peso_liquido: number | null
           pis_valor: number | null
@@ -2951,6 +2952,7 @@ export type Database = {
           origem?: string | null
           outras_despesas?: number | null
           pdf_gerado?: boolean | null
+          pedido_compra_id?: string | null
           peso_bruto?: number | null
           peso_liquido?: number | null
           pis_valor?: number | null
@@ -3010,6 +3012,7 @@ export type Database = {
           origem?: string | null
           outras_despesas?: number | null
           pdf_gerado?: boolean | null
+          pedido_compra_id?: string | null
           peso_bruto?: number | null
           peso_liquido?: number | null
           pis_valor?: number | null
@@ -3093,6 +3096,27 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_entregas_consolidadas"
             referencedColumns: ["ordem_venda_id"]
+          },
+          {
+            foreignKeyName: "notas_fiscais_pedido_compra_id_fkey"
+            columns: ["pedido_compra_id"]
+            isOneToOne: false
+            referencedRelation: "pedidos_compra"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notas_fiscais_pedido_compra_id_fkey"
+            columns: ["pedido_compra_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_compras"
+            referencedColumns: ["pedido_id"]
+          },
+          {
+            foreignKeyName: "notas_fiscais_pedido_compra_id_fkey"
+            columns: ["pedido_compra_id"]
+            isOneToOne: false
+            referencedRelation: "vw_recebimentos_consolidado"
+            referencedColumns: ["pedido_compra_id"]
           },
           {
             foreignKeyName: "notas_fiscais_transportadora_id_fkey"
@@ -6702,6 +6726,10 @@ export type Database = {
         }[]
       }
       unaccent: { Args: { "": string }; Returns: string }
+      vincular_nf_pedido_compra: {
+        Args: { p_nf_id: string; p_pedido_id: string }
+        Returns: Json
+      }
       vincular_produto_fornecedor: {
         Args: {
           p_fornecedor_legado: string

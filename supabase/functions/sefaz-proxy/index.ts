@@ -7,6 +7,9 @@
  * Actions:
  *   - assinar-e-enviar: Assina XML com certificado A1 e envia para SEFAZ via SOAP
  *   - parse-certificado: Extrai metadados (CNPJ, razão social, validade) do PFX
+ *   - assinar-e-enviar-vault: Igual ao assinar-e-enviar, porém lê o .pfx do
+ *     Storage privado `dbavizee/certificados/empresa.pfx` e a senha do secret
+ *     `CERTIFICADO_PFX_SENHA`. O cliente NÃO envia senha nem certificado.
  */
 
 import forge from "https://esm.sh/node-forge@1.3.1";
@@ -262,6 +265,57 @@ Deno.serve(async (req) => {
       let xmlAssinado: string;
       try {
         xmlAssinado = assinarXml(xml, certificado_base64, certificado_senha);
+      } catch (e: any) {
+        return json({ sucesso: false, erro: `Erro na assinatura: ${e.message}` });
+      }
+
+      const resultado = await enviarSoap(xmlAssinado, url, soapAction);
+      return json(resultado);
+    }
+
+    if (action === "assinar-e-enviar-vault") {
+      const { xml, url, soapAction } = body;
+      if (!xml || !url || !soapAction) {
+        return json(
+          { error: "xml, url e soapAction são obrigatórios" },
+          400,
+        );
+      }
+
+      const senha = Deno.env.get("CERTIFICADO_PFX_SENHA");
+      if (!senha) {
+        return json(
+          { sucesso: false, erro: "Secret CERTIFICADO_PFX_SENHA não configurado." },
+          500,
+        );
+      }
+
+      // Baixar o .pfx do Storage privado dbavizee/certificados/empresa.pfx
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const adminClient = createClient(supabaseUrl, serviceRoleKey, {
+        auth: { autoRefreshToken: false, persistSession: false },
+      });
+
+      const { data: blob, error: dlErr } = await adminClient.storage
+        .from("dbavizee")
+        .download("certificados/empresa.pfx");
+
+      if (dlErr || !blob) {
+        return json(
+          { sucesso: false, erro: `Não foi possível ler o certificado do Storage: ${dlErr?.message ?? "arquivo ausente"}` },
+          500,
+        );
+      }
+
+      const arrBuf = await blob.arrayBuffer();
+      const certBase64 = forge.util.encode64(
+        String.fromCharCode(...new Uint8Array(arrBuf)),
+      );
+
+      let xmlAssinado: string;
+      try {
+        xmlAssinado = assinarXml(xml, certBase64, senha);
       } catch (e: any) {
         return json({ sucesso: false, erro: `Erro na assinatura: ${e.message}` });
       }
