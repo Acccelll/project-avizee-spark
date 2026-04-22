@@ -37,6 +37,19 @@ export type Fornecedor = TableRow<"fornecedores">;
 
 export type Funcionario = TableRow<"funcionarios">;
 
+// ── Sócios e Participações ───────────────────────────────────────────────────
+
+export type Socio = TableRow<"socios">;
+export type SocioParticipacao = TableRow<"socios_participacoes">;
+export type SocioParametro = TableRow<"socios_parametros">;
+export type ApuracaoSocietaria = TableRow<"apuracoes_societarias">;
+export type ApuracaoSocietariaItem = TableRow<"apuracoes_societarias_itens"> & {
+  socios?: { nome: string; cpf: string | null } | null;
+};
+export type SocioRetirada = TableRow<"socios_retiradas"> & {
+  socios?: { nome: string } | null;
+};
+
 export type GrupoProduto = TableRow<"grupos_produto">;
 
 export type GrupoEconomico = TableRow<"grupos_economicos">;
