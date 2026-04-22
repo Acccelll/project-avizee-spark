@@ -143,6 +143,9 @@ export default function Configuracoes() {
   const [passwordErrors, setPasswordErrors] = useState<{ current?: string; new?: string; confirm?: string }>({});
   const [passwordChangedAt, setPasswordChangedAt] = useState<Date | null>(null);
   const [changingPassword, setChangingPassword] = useState(false);
+  // Dialog pós-troca de senha: oferece encerrar sessões em outros dispositivos.
+  const [showSignOutOthersDialog, setShowSignOutOthersDialog] = useState(false);
+  const [signingOutOthers, setSigningOutOthers] = useState(false);
 
   const [densidade, setDensidade] = useState('confortavel');
   const [appearanceSavedAt, setAppearanceSavedAt] = useState<Date | null>(null);
