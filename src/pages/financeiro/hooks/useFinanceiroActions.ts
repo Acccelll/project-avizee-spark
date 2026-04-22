@@ -6,6 +6,7 @@ import { getUserFriendlyError } from "@/utils/errorMessages";
 import { supabase } from "@/integrations/supabase/client";
 import type { Lancamento } from "@/types/domain";
 import type { LancamentoForm } from "@/pages/financeiro/types";
+import { useGerarParcelas } from "@/pages/financeiro/hooks/useBaixaFinanceira";
 
 type LancamentoWritePayload = Partial<Lancamento>;
 
@@ -22,6 +23,7 @@ export function useFinanceiroActions({ filteredData, getLancamentoStatus, create
   const [estornoTarget, setEstornoTarget] = useState<Lancamento | null>(null);
   const [estornoProcessing, setEstornoProcessing] = useState(false);
   const [estornoMotivo, setEstornoMotivo] = useState("");
+  const gerarParcelas = useGerarParcelas();
 
   const handleSubmit = useCallback(
     async (mode: "create" | "edit", form: LancamentoForm, selected: Lancamento | null, onSuccess: () => void) => {
@@ -70,46 +72,28 @@ export function useFinanceiroActions({ filteredData, getLancamentoStatus, create
 
         if (mode === "create" && form.gerar_parcelas && form.num_parcelas > 1) {
           const numParcelas = Number(form.num_parcelas);
-          const numP = numParcelas;
           const intervalo = Number(form.intervalo_dias) || 30;
-          const valorParcela = Number((form.valor / numP).toFixed(2));
-          const resto = Number((form.valor - valorParcela * numP).toFixed(2));
-          const parentPayload: LancamentoWritePayload = {
-            ...basePayload,
-            descricao: `${form.descricao} (agrupador)`,
-            parcela_numero: 0,
-            parcela_total: numP,
-          };
-          const parentResult = await create(parentPayload);
-          const parentId = parentResult?.id ?? null;
-
-          const parcelas = Array.from({ length: numP }, (_, i) => {
-            const venc = new Date(form.data_vencimento);
-            venc.setDate(venc.getDate() + intervalo * i);
-            return {
-              ...basePayload,
-              descricao: `${form.descricao} - ${i + 1}/${numP}`,
-              valor: i === numP - 1 ? valorParcela + resto : valorParcela,
-              data_vencimento: venc.toISOString().split("T")[0],
-              parcela_numero: i + 1,
-              parcela_total: numP,
-              documento_pai_id: parentId || null,
-            };
+          // RPC oficial `gerar_parcelas_financeiras`: cria agrupador + N parcelas
+          // de forma atômica, garantindo rollback automático em caso de falha.
+          await gerarParcelas.mutateAsync({
+            base: {
+              tipo: form.tipo as "receber" | "pagar",
+              descricao: form.descricao,
+              valor: form.valor,
+              data_vencimento: form.data_vencimento,
+              forma_pagamento: form.forma_pagamento || null,
+              banco: form.banco || null,
+              cartao: form.cartao || null,
+              cliente_id: form.cliente_id || null,
+              fornecedor_id: form.fornecedor_id || null,
+              conta_bancaria_id: form.conta_bancaria_id || null,
+              conta_contabil_id: form.conta_contabil_id || null,
+              observacoes: form.observacoes || null,
+            },
+            numParcelas,
+            intervaloDias: intervalo,
           });
-
-          try {
-            const { error: parcelasError } = await supabase
-              .from("financeiro_lancamentos")
-              .insert(parcelas as never);
-            if (parcelasError) throw parcelasError;
-          } catch (parcelaErr) {
-            if (parentId) {
-              await supabase.from("financeiro_lancamentos").delete().eq("id", parentId);
-            }
-            throw parcelaErr;
-          }
-
-          toast.success(`${numParcelas} parcelas geradas com sucesso!`);
+          await fetchData();
         } else if (mode === "create") {
           await create(basePayload);
         } else if (selected) {
@@ -124,7 +108,7 @@ export function useFinanceiroActions({ filteredData, getLancamentoStatus, create
         setSaving(false);
       }
     },
-    [create, update],
+    [create, update, fetchData, gerarParcelas],
   );
 
   const handleEstorno = useCallback(async () => {
