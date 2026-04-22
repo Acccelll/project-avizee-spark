@@ -89,7 +89,9 @@ export default function Logistica() {
   const [selectedEntrega, setSelectedEntrega] = useState<Entrega | null>(null);
   const [selectedRecebimento, setSelectedRecebimento] = useState<Recebimento | null>(null);
   const [updatingEntregaId, setUpdatingEntregaId] = useState<string | null>(null);
-  const [markingRecebimentoId, setMarkingRecebimentoId] = useState<string | null>(null);
+  const [recebimentoDialogPedido, setRecebimentoDialogPedido] = useState<Recebimento | null>(null);
+  const [trackingTarget, setTrackingTarget] = useState<{ codigo: string; remessaId: string } | null>(null);
+  const queryClient = useQueryClient();
 
   // Derived lists for filters (computed from hook data)
   const transportadorasList = useMemo(
