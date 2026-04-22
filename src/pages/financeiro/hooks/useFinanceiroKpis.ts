@@ -31,7 +31,9 @@ export function useFinanceiroKpis({ filteredData, getLancamentoStatus, hojeStr }
         totalVencido += valor;
       } else if (effectiveStatus === "parcial") {
         parcialCount++;
-        totalParcial += Number(item.saldo_restante ?? valor);
+        // Padronizado: KPI usa valor original do título (consistente com os demais cards).
+        // Saldo em aberto continua disponível em `item.saldo_restante` para uso pontual.
+        totalParcial += valor;
       } else if (effectiveStatus === "aberto") {
         if (item.data_vencimento === hojeStr) venceHoje++;
         aVencer++;
