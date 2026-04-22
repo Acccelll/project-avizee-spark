@@ -40,7 +40,8 @@ export default function PedidoCompraForm() {
   const { id } = useParams<{ id: string }>();
 
   const [loading, setLoading] = useState(true);
-  const { saving, submit } = useSubmitLock({ errorPrefix: "Erro ao salvar pedido" });
+  const salvarPedidoCompra = useSalvarPedidoCompra();
+  const saving = salvarPedidoCompra.isPending;
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
   const [pedido, setPedido] = useState<PedidoCompra | null>(null);
   // Use a fresh date when initialising the form (avoid module-level
