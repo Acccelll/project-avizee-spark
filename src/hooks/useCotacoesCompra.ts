@@ -491,6 +491,7 @@ export function useCotacoesCompra() {
     handleSendForApproval,
     handleApprove,
     handleReject,
+    handleCancel,
     gerarPedido,
     produtoOptions,
     fornecedorOptions,
