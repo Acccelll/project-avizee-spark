@@ -523,13 +523,13 @@ export default function Relatorios() {
                           </div>
                         )}
                         <DataTable
-                          columns={visibleColumns}
+                          columns={visibleColumnsWithActions}
                           data={sortedRows}
                           loading={isLoading}
                           moduleKey={`relatorios-${tipo}`}
-                          // Drill-down de linha será habilitado quando a navegação real estiver
-                          // implementada (Fase 8). Até lá não exibimos cursor pointer + toast inerte.
-                          onRowClick={undefined}
+                          // Drill-down: clique em linha aciona a ação primária quando única;
+                          // múltiplas ações ficam acessíveis pelo menu na coluna "Ações".
+                          onRowClick={handleRowClick}
                           emptyTitle={`Nenhum registro em ${selectedMeta.title}`}
                           emptyDescription="Ajuste o período e os filtros para encontrar registros relevantes."
                         />
