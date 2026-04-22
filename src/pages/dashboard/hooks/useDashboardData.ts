@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useDashboardPeriod } from "@/contexts/DashboardPeriodContext";
 import { useDashboardAuxData } from "./useDashboardAuxData";
@@ -90,6 +90,7 @@ const INITIAL_STATE: DashboardDataState = {
 
 export function useDashboardData() {
   const { range } = useDashboardPeriod();
+  const queryClient = useQueryClient();
 
   const { loadFinanceiroData } = useDashboardFinanceiroData(range);
   const { loadComercialData } = useDashboardComercialData(range);
@@ -187,7 +188,8 @@ export function useDashboardData() {
     loading: query.isLoading,
     loadedAt,
     ticketMedio,
-    /** Triggers a manual refetch — use for the dashboard's "Atualizar" button. */
-    loadData: () => query.refetch(),
+    /** Triggers a manual refetch — use for the dashboard's "Atualizar" button.
+     *  Invalidates the entire `["dashboard", ...]` tree so chart widgets refresh too. */
+    loadData: () => queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
   };
 }
