@@ -35,12 +35,6 @@ import type { DreRow } from '@/types/relatorios';
 import { badgeVariantFromKind } from '@/lib/relatoriosBadges';
 import { toast } from 'sonner';
 
-// ─── Legacy badge classification — used only as fallback when a row hasn't
-// been migrated to expose `statusKind`/`criticidadeKind`/etc. yet.
-// New reports should populate `*Kind` fields in the service layer.
-const BADGE_CRITICAL = ['vencido', 'abaixo do mínimo', 'zerado', 'pendente', 'nf s/ financeiro', 'pedido s/ nf', 'c', 'alta'];
-const BADGE_OK = ['ok', 'entregue', 'confirmado', 'pago', 'faturado', 'a'];
-
 const DENSITY_KEY = 'relatorios:density';
 const PDF_ROW_LIMIT = 200;
 
@@ -202,14 +196,17 @@ export default function Relatorios() {
             colDef.key === 'tipo' ? 'tipoKind' :
             'statusKind';
           const kind = item[kindKey] as string | undefined;
-          let variant: 'default' | 'secondary' | 'destructive' | 'outline';
-          if (kind) {
-            variant = badgeVariantFromKind(kind as Parameters<typeof badgeVariantFromKind>[0]);
-          } else {
-            // Fallback to legacy text heuristic for un-migrated rows.
-            const n = raw.toLowerCase();
-            variant = BADGE_CRITICAL.some((t) => n.includes(t)) ? 'destructive' : BADGE_OK.some((t) => n === t) ? 'default' : 'secondary';
+          // Canonical path: every loader populates `*Kind` (statusMap.ts).
+          // If a future loader forgets it, the badge falls back to neutral
+          // `secondary` and we warn loudly in dev so the gap is fixed at the
+          // source instead of being papered over by a text heuristic.
+          if (!kind && import.meta.env.DEV) {
+            // eslint-disable-next-line no-console
+            console.warn(`[Relatorios] Row missing "${kindKey}" for column "${colDef.key}" in report "${tipo}". Loader must populate the *Kind field via statusMap.`);
           }
+          const variant = kind
+            ? badgeVariantFromKind(kind as Parameters<typeof badgeVariantFromKind>[0])
+            : 'secondary';
           return <Badge variant={variant}>{raw}</Badge>;
         }
         if (fmt === 'percent' && typeof raw === 'number') return `${raw.toFixed(1)}%`;
@@ -590,6 +587,7 @@ export default function Relatorios() {
                           highlightFilters: semantics?.highlightFilters,
                           listLimitHints: { clientes: limits.clientes, fornecedores: limits.fornecedores },
                         }}
+                        hideAgrupamento={isDreReport}
                         onChange={(partial) => setFiltrosState(partial)}
                       />
                     </div>
@@ -607,7 +605,7 @@ export default function Relatorios() {
                         <Eye className="h-3.5 w-3.5" />
                         Visualizar
                       </Button>
-                      {columns.length > 0 && (
+                      {columns.length > 0 && !isDreReport && (
                         <Popover>
                           <PopoverTrigger asChild>
                             <Button variant="outline" size="sm" className="gap-1.5" aria-label="Personalizar colunas">

@@ -5,7 +5,6 @@
  */
 
 import type { VendasRow, AgingRow, CurvaAbcRow } from "@/types/relatorios";
-import type { TipoRelatorio } from "@/services/relatorios.service";
 
 // ─── Sales aggregation ───────────────────────────────────────────────────────
 
@@ -183,29 +182,10 @@ export function sortarRows<T extends Record<string, unknown>>(
   return copy;
 }
 
-export type SemanticBadgeTone = "default" | "success" | "warning" | "destructive" | "secondary" | "outline";
-
-const BADGE_TONE_MAP: Array<{ match: RegExp; tone: SemanticBadgeTone }> = [
-  { match: /(vencid|atras|zerad|ruptura|diverg|pendente|negativ|critic|erro|falha|cancelad|c)\b/i, tone: "destructive" },
-  { match: /(atenc|abaixo|minim|risco|b|parcial)/i, tone: "warning" },
-  { match: /(ok|pago|faturad|confirmad|entreg|regular|a)\b/i, tone: "success" },
-];
-
-export function classifyBadgeTone(
-  raw: unknown,
-  ctx?: { reportId?: TipoRelatorio; columnKey?: string }
-): SemanticBadgeTone {
-  if (typeof raw !== "string") return "secondary";
-  const value = normalizeSemanticToken(raw);
-  if (!value || value === "-") return "secondary";
-  if (ctx?.reportId === "curva_abc" && ctx.columnKey === "classe") {
-    if (value === "a") return "success";
-    if (value === "b") return "warning";
-    return "destructive";
-  }
-  const match = BADGE_TONE_MAP.find((def) => def.match.test(value));
-  return match?.tone ?? "secondary";
-}
+// `classifyBadgeTone` / `BADGE_TONE_MAP` were removed in Fase 2 (limpeza de
+// heurísticas zumbis): badge tone is now derived exclusively from the
+// canonical `*Kind` fields populated by the service via `statusMap.ts`. See
+// `src/lib/relatoriosBadges.ts` and `src/services/relatorios/lib/statusMap.ts`.
 
 export function normalizeSemanticToken(value: unknown): string {
   return String(value ?? "")
