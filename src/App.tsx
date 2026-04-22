@@ -12,6 +12,7 @@ import { PermissionRoute } from "@/components/PermissionRoute";
 import { SocialRoute } from "@/components/SocialRoute";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
+import { RemoteUiPreferencesHydrator } from "@/components/theme/RemoteUiPreferencesHydrator";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { AppLayout } from "@/components/AppLayout";
 import { ContentSpinner } from "@/components/ui/spinner";
