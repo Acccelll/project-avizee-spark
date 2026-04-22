@@ -504,11 +504,15 @@ export default function Conciliacao() {
       label: "Origem",
       hidden: true,
       render: (l) => {
-        if (l.nota_fiscal_id)
-          return <Badge variant="outline" className="text-xs border-primary/30 text-primary bg-primary/5 whitespace-nowrap">NF Fiscal</Badge>;
-        if (l.documento_pai_id)
-          return <Badge variant="outline" className="text-xs whitespace-nowrap">Parcelamento</Badge>;
-        return <Badge variant="outline" className="text-xs text-muted-foreground whitespace-nowrap">Manual</Badge>;
+        const key = getOrigemKey(l);
+        const label = getOrigemLabel(l);
+        const className =
+          key === "nf"
+            ? "text-xs border-primary/30 text-primary bg-primary/5 whitespace-nowrap"
+            : key === "manual"
+            ? "text-xs text-muted-foreground whitespace-nowrap"
+            : "text-xs whitespace-nowrap";
+        return <Badge variant="outline" className={className}>{label}</Badge>;
       },
     },
     {
