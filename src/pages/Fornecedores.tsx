@@ -51,11 +51,11 @@ interface Fornecedor {
   observacoes: string;ativo: boolean;created_at: string;updated_at: string;
 }
 
-const emptyForm: Omit<Fornecedor, "id" | "ativo" | "created_at" | "updated_at"> = {
+const emptyForm: Omit<Fornecedor, "id" | "created_at" | "updated_at"> = {
   tipo_pessoa: "J", nome_razao_social: "", nome_fantasia: "", cpf_cnpj: "",
   inscricao_estadual: "", email: "", telefone: "", celular: "", contato: "",
   prazo_padrao: 30, logradouro: "", numero: "", complemento: "",
-  bairro: "", cidade: "", uf: "", cep: "", pais: "Brasil", observacoes: ""
+  bairro: "", cidade: "", uf: "", cep: "", pais: "Brasil", observacoes: "", ativo: true,
 };
 
 const Fornecedores = () => {
@@ -167,7 +167,8 @@ const Fornecedores = () => {
       email: f.email || "", telefone: f.telefone || "", celular: f.celular || "", contato: f.contato || "",
       prazo_padrao: f.prazo_padrao || 30, logradouro: f.logradouro || "", numero: f.numero || "",
       complemento: f.complemento || "", bairro: f.bairro || "", cidade: f.cidade || "",
-      uf: f.uf || "", cep: f.cep || "", pais: f.pais || "Brasil", observacoes: f.observacoes || ""
+      uf: f.uf || "", cep: f.cep || "", pais: f.pais || "Brasil", observacoes: f.observacoes || "",
+      ativo: f.ativo !== false,
     });
     setIsDirty(false);
     setModalProdutosForn([]); setModalComprasForn({ count: 0, ultima: null, total: 0 });

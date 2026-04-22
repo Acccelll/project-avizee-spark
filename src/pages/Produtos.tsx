@@ -46,7 +46,7 @@ interface Produto {
   variacoes?: string[] | null;
 }
 
-type ProdutoFormData = Omit<Produto, "id" | "estoque_atual" | "ativo" | "created_at" | "updated_at"> & { id?: string; variacoes_texto: string };
+type ProdutoFormData = Omit<Produto, "id" | "estoque_atual" | "created_at" | "updated_at"> & { id?: string; variacoes_texto: string };
 
 interface ComposicaoItem {
   id?: string;
@@ -99,7 +99,7 @@ const UNIDADES_FALLBACK = ["UN", "KG", "MT", "CX", "PC", "LT", "G", "M2", "M3", 
 const emptyProduto = {
   nome: "", sku: "", codigo_interno: "", descricao: "", unidade_medida: "UN" as string,
   preco_custo: 0, preco_venda: 0, estoque_minimo: 0, ncm: "", cst: "", cfop_padrao: "", peso: 0, eh_composto: false,
-  grupo_id: "", tipo_item: "produto" as TipoItem, variacoes_texto: "",
+  grupo_id: "", tipo_item: "produto" as TipoItem, variacoes_texto: "", ativo: true,
 };
 
 const Produtos = () => {
@@ -216,6 +216,7 @@ const Produtos = () => {
       grupo_id: p.grupo_id || "",
       tipo_item: p.tipo_item || "produto",
       variacoes_texto: variacoesArr.join(", "),
+      ativo: p.ativo !== false,
     });
     const [compRes, fornRes] = await Promise.all([
       p.eh_composto
