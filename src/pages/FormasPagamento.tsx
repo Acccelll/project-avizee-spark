@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
@@ -20,12 +20,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { useEditDirtyForm } from "@/hooks/useEditDirtyForm";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { Switch } from "@/components/ui/switch";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 
@@ -40,17 +39,6 @@ interface FormaPagamento {
   observacoes: string;
   ativo: boolean;
   created_at: string;
-}
-
-interface ClienteVinculado {
-  id: string;
-  nome_razao_social: string;
-  prazo_preferencial: number | null;
-}
-
-interface UsoResumo {
-  lancamentos: number;
-  caixa: number;
 }
 
 const tipoLabel: Record<string, string> = {
