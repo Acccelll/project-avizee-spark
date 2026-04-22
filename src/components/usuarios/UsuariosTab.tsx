@@ -21,7 +21,19 @@ import {
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { ERP_RESOURCES, getRolePermissions, ROLE_DESCRIPTIONS, ROLE_LABELS, PERMISSION_HELP_TEXT } from '@/lib/permissions';
+import {
+  ERP_RESOURCES,
+  RESOURCE_ACTIONS,
+  RESOURCE_LABELS,
+  ACTION_LABELS,
+  getRolePermissions,
+  ROLE_DESCRIPTIONS,
+  ROLE_LABELS,
+  PERMISSION_HELP_TEXT,
+  type ErpResource,
+  type ErpAction,
+  type PermissionOverrideState,
+} from '@/lib/permissions';
 import { getUserFriendlyError } from '@/utils/errorMessages';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -79,26 +91,27 @@ const ROLE_COLORS: Record<AppRole, string> = {
   viewer: 'bg-muted text-muted-foreground border-muted-foreground/30',
 };
 
-const MODULE_LABELS: Record<string, string> = {
-  dashboard: 'Dashboard',
+/**
+ * Rótulos hierárquicos para o editor — exibe "Cadastros › Produtos" no lugar
+ * do label flat de `RESOURCE_LABELS`. Usado SOMENTE aqui (a fonte canônica
+ * `RESOURCE_LABELS` em `lib/permissions.ts` continua sendo o padrão para o
+ * resto da aplicação: AccessDenied, tooltips, catálogo, etc.).
+ */
+const RESOURCE_PATH_LABEL: Partial<Record<ErpResource, string>> = {
   produtos: 'Cadastros › Produtos',
   clientes: 'Cadastros › Clientes',
   fornecedores: 'Cadastros › Fornecedores',
   transportadoras: 'Cadastros › Transportadoras',
-  formas_pagamento: 'Cadastros › Formas de Pagamento',
+  formas_pagamento: 'Cadastros › Formas de pagamento',
   orcamentos: 'Comercial › Orçamentos',
   pedidos: 'Comercial › Pedidos',
-  compras: 'Compras › Pedidos de Compra',
-  estoque: 'Estoque',
-  logistica: 'Logística',
+  compras: 'Compras › Pedidos de compra',
   financeiro: 'Financeiro › Lançamentos',
   faturamento_fiscal: 'Fiscal › Notas',
-  relatorios: 'Relatórios',
   usuarios: 'Administração › Usuários',
-  administracao: 'Administração',
+  socios: 'Sócios e participações',
 };
-
-const UI_ACTIONS = ['visualizar', 'editar'] as const;
+const resourceLabel = (r: ErpResource) => RESOURCE_PATH_LABEL[r] ?? RESOURCE_LABELS[r];
 
 interface UserWithRoles {
   id: string;
@@ -110,6 +123,8 @@ interface UserWithRoles {
   updated_at: string;
   role_padrao: AppRole;
   extra_permissions: string[];
+  /** Revogações individuais (user_permissions.allowed=false). */
+  denied_permissions: string[];
   /** Not persisted — used for display only */
   last_sign_in?: string | null;
 }
@@ -121,6 +136,7 @@ interface UserFormData {
   ativo: boolean;
   role_padrao: AppRole;
   extra_permissions: string[];
+  denied_permissions: string[];
 }
 
 const emptyForm = (): UserFormData => ({
@@ -130,6 +146,7 @@ const emptyForm = (): UserFormData => ({
   ativo: true,
   role_padrao: 'vendedor',
   extra_permissions: [],
+  denied_permissions: [],
 });
 
 const ADMIN_USERS_FUNCTION = 'admin-users';
