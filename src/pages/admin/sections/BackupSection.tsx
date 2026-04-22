@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SectionShell } from "@/pages/admin/components/SectionShell";
 import { useSectionConfig } from "@/pages/admin/hooks/useSectionConfig";
+import { Badge } from "@/components/ui/badge";
 
 const DEFAULTS = {
   frequencia: "diario",
@@ -43,6 +44,18 @@ export function BackupSection() {
       onSave={() => save(draft)}
     >
       <div className="space-y-6">
+        <div className="flex items-start gap-2 rounded-md border border-amber-300/60 bg-amber-50 dark:border-amber-700/60 dark:bg-amber-950/30 px-3 py-2.5 text-sm text-amber-900 dark:text-amber-200">
+          <Info className="h-4 w-4 mt-0.5 shrink-0" />
+          <div className="flex-1">
+            <p className="font-medium flex items-center gap-2">
+              Execução automática
+              <Badge variant="outline" className="border-amber-400/60 text-amber-800 dark:text-amber-200 text-[10px] uppercase tracking-wider">Em breve</Badge>
+            </p>
+            <p className="text-xs">
+              A política definida abaixo é persistida, mas a execução agendada (cron) ainda não está ativa. Backups manuais devem continuar sendo realizados pela infraestrutura.
+            </p>
+          </div>
+        </div>
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
