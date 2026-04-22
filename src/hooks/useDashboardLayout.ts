@@ -1,15 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useUserPreference } from '@/hooks/useUserPreference';
-
-export interface DashboardLayoutItem {
-  i: string;
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  minW?: number;
-  minH?: number;
-}
 
 export type WidgetId =
   | 'kpis'
@@ -24,24 +14,12 @@ export type WidgetId =
   | 'vendas_chart'
   | 'pendencias';
 
-export const DEFAULT_LAYOUT: DashboardLayoutItem[] = [
-  { i: 'kpis',          x: 0, y: 0,  w: 12, h: 3, minW: 6,  minH: 2 },
-  { i: 'alertas',       x: 0, y: 3,  w: 12, h: 2, minW: 6,  minH: 1 },
-  { i: 'financeiro',    x: 0, y: 5,  w: 8,  h: 7, minW: 4,  minH: 4 },
-  { i: 'acoes_rapidas', x: 8, y: 5,  w: 4,  h: 7, minW: 3,  minH: 3 },
-  { i: 'vendas_chart',  x: 0, y: 12, w: 6,  h: 5, minW: 4,  minH: 3 },
-  { i: 'pendencias',    x: 6, y: 12, w: 6,  h: 5, minW: 4,  minH: 2 },
-  { i: 'comercial',     x: 0, y: 17, w: 6,  h: 6, minW: 4,  minH: 3 },
-  { i: 'estoque',       x: 6, y: 17, w: 6,  h: 6, minW: 4,  minH: 3 },
-  { i: 'logistica',     x: 0, y: 23, w: 6,  h: 6, minW: 4,  minH: 2 },
-  { i: 'fiscal',        x: 6, y: 23, w: 6,  h: 6, minW: 4,  minH: 2 },
-];
-
 /**
- * Persisted layout preferences for the dashboard. v1 keeps it lightweight:
+ * Persisted layout preferences for the dashboard. v1 is intentionally
+ * lightweight — there is no drag-and-drop nor widget resizing:
  *  - `order`: ordered list of widget ids (controls render order)
  *  - `hidden`: widgets the user explicitly toggled off
- * Position/sizing remains the responsive CSS grid (no react-grid-layout yet).
+ * The actual visual position/sizing is governed by the responsive CSS grid.
  */
 export interface DashboardLayoutPrefs {
   order: WidgetId[];
