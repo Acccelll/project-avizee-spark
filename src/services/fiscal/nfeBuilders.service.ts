@@ -208,7 +208,7 @@ export async function buildNFeDataFromDb(nf: NotaFiscal): Promise<NFeData> {
       codigo: it.codigo_produto ?? `ITEM-${idx + 1}`,
       descricao: it.descricao ?? "Produto",
       ncm: (it.ncm ?? "00000000").replace(/\D/g, "").padStart(8, "0").slice(0, 8),
-      cfop: it.cfop ?? nf.cfop ?? "5102",
+      cfop: it.cfop ?? "5102",
       unidade: it.unidade ?? "UN",
       quantidade: qtd,
       valorUnitario: vUnit,
@@ -259,7 +259,7 @@ export async function buildNFeDataFromDb(nf: NotaFiscal): Promise<NFeData> {
     finalidade: "1",
     crt: crtFromConfig(emi),
     ambiente: ambienteFromConfig(emi),
-    cfop: nf.cfop ?? itens[0]?.cfop ?? "5102",
+    cfop: itens[0]?.cfop ?? "5102",
     emitente: {
       cnpj: emi.cnpj,
       razaoSocial: emi.razao_social,
