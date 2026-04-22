@@ -44,12 +44,12 @@ export function BackupSection() {
       onSave={() => save(draft)}
     >
       <div className="space-y-6">
-        <div className="flex items-start gap-2 rounded-md border border-amber-300/60 bg-amber-50 dark:border-amber-700/60 dark:bg-amber-950/30 px-3 py-2.5 text-sm text-amber-900 dark:text-amber-200">
+        <div className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2.5 text-sm text-warning">
           <Info className="h-4 w-4 mt-0.5 shrink-0" />
           <div className="flex-1">
             <p className="font-medium flex items-center gap-2">
               Execução automática
-              <Badge variant="outline" className="border-amber-400/60 text-amber-800 dark:text-amber-200 text-[10px] uppercase tracking-wider">Em breve</Badge>
+              <Badge variant="outline" className="border-warning/40 text-warning text-[10px] uppercase tracking-wider">Em breve</Badge>
             </p>
             <p className="text-xs">
               A política definida abaixo é persistida, mas a execução agendada (cron) ainda não está ativa. Backups manuais devem continuar sendo realizados pela infraestrutura.
@@ -130,7 +130,7 @@ export function BackupSection() {
                 Calculado pela infraestrutura ({draft.frequencia})
               </p>
             </div>
-            <div className="md:col-span-3 flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 px-3 py-2.5 text-sm text-amber-800 dark:text-amber-300">
+            <div className="md:col-span-3 flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2.5 text-sm text-warning">
               <Info className="h-4 w-4 mt-0.5 shrink-0" />
               <p>
                 Esta interface não dispara backup manual nem valida execução remota. Ela mantém a política global para consumo dos serviços de infraestrutura.

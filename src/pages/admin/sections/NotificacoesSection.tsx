@@ -39,12 +39,12 @@ export function NotificacoesSection() {
       isSaving={isSaving}
       onSave={() => save(draft)}
     >
-      <div className="mb-4 flex items-start gap-2 rounded-md border border-amber-300/60 bg-amber-50 dark:border-amber-700/60 dark:bg-amber-950/30 px-3 py-2.5 text-sm text-amber-900 dark:text-amber-200">
+      <div className="mb-4 flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2.5 text-sm text-warning">
         <Info className="h-4 w-4 mt-0.5 shrink-0" />
         <div className="flex-1">
           <p className="font-medium flex items-center gap-2">
             Disparo automático
-            <Badge variant="outline" className="border-amber-400/60 text-amber-800 dark:text-amber-200 text-[10px] uppercase tracking-wider">Em breve</Badge>
+            <Badge variant="outline" className="border-warning/40 text-warning text-[10px] uppercase tracking-wider">Em breve</Badge>
           </p>
           <p className="text-xs">
             As preferências definidas aqui são persistidas como política global, mas o cron de envio (resumo diário, alertas) ainda não está ativo. Avisos críticos continuam saindo apenas pelos fluxos transacionais existentes.
