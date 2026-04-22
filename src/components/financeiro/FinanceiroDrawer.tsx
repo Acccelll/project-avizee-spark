@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import type { Lancamento } from "@/types/domain";
 import { useDrawerData } from "@/hooks/useDrawerData";
 import { useActionLock } from "@/hooks/useActionLock";
+import { getOrigemLabel } from "@/lib/financeiro";
 
 interface Baixa {
   id: string;
@@ -23,6 +24,13 @@ interface Baixa {
   forma_pagamento: string | null;
   observacoes: string | null;
   created_at: string;
+}
+
+interface AuditoriaEvento {
+  id: string;
+  evento: string;
+  created_at: string;
+  payload: Record<string, unknown> | null;
 }
 
 interface FinanceiroDrawerProps {
@@ -56,6 +64,22 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
   );
   const baixasList = baixas ?? [];
 
+  // Auditoria do lançamento (eventos de criação, baixa, estorno, cancelamento…)
+  const { data: auditoria, loading: loadingAuditoria } = useDrawerData<AuditoriaEvento[]>(
+    open,
+    selectedId,
+    async (id, signal) => {
+      const { data } = await supabase
+        .from("financeiro_auditoria")
+        .select("id, evento, created_at, payload")
+        .eq("lancamento_id", id)
+        .order("created_at", { ascending: false })
+        .abortSignal(signal);
+      return (data as AuditoriaEvento[]) || [];
+    },
+  );
+  const auditoriaList = auditoria ?? [];
+
   const hoje = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }, []);
 
   const { pending: actionPending, run: runAction } = useActionLock();
@@ -88,13 +112,7 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
 
   const totalBaixado = baixasList.reduce((sum, b) => sum + Number(b.valor_pago || 0), 0);
 
-  const origemLabel = selected.nota_fiscal_id
-    ? "Nota Fiscal"
-    : selected.origem_tipo === "societario"
-    ? "Retirada de Sócio"
-    : selected.documento_pai_id
-    ? "Parcelamento"
-    : "Manual";
+  const origemLabel = getOrigemLabel(selected);
 
   const summary = (
     <DrawerSummaryGrid cols={4}>
@@ -340,6 +358,46 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
                   <Badge variant="outline">{selected.ativo !== false ? "Sim" : "Não"}</Badge>
                 </ViewField>
               </div>
+            </ViewSection>
+            <ViewSection title="Trilha de Auditoria">
+              {loadingAuditoria ? (
+                <p className="text-sm text-muted-foreground text-center py-4">Carregando histórico…</p>
+              ) : auditoriaList.length === 0 ? (
+                <p className="text-xs text-muted-foreground">Nenhum evento de auditoria registrado.</p>
+              ) : (
+                <div className="rounded-lg border overflow-hidden">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="bg-muted/50 border-b">
+                        <th className="text-left px-3 py-2 font-semibold text-muted-foreground">Quando</th>
+                        <th className="text-left px-3 py-2 font-semibold text-muted-foreground">Evento</th>
+                        <th className="text-left px-3 py-2 font-semibold text-muted-foreground">Detalhes</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {auditoriaList.map((e, i) => {
+                        const motivo = (e.payload && typeof e.payload === "object"
+                          ? (e.payload as Record<string, unknown>).motivo
+                            ?? (e.payload as Record<string, unknown>).motivo_estorno
+                          : null) as string | undefined;
+                        return (
+                          <tr key={e.id} className={cn("border-b last:border-0", i % 2 !== 0 && "bg-muted/20")}>
+                            <td className="px-3 py-2 whitespace-nowrap">
+                              {new Date(e.created_at).toLocaleString("pt-BR")}
+                            </td>
+                            <td className="px-3 py-2">
+                              <Badge variant="outline" className="text-[10px]">{e.evento}</Badge>
+                            </td>
+                            <td className="px-3 py-2 text-muted-foreground truncate max-w-[200px]">
+                              {motivo || "—"}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </ViewSection>
             {selected.observacoes && (
               <ViewSection title="Observações Internas">

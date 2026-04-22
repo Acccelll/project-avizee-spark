@@ -120,3 +120,41 @@ export function calcularPagamentoParcialLote(saldo: number, ratio: number): numb
 export function statusPosBaixa(novoSaldo: number): 'pago' | 'parcial' {
   return novoSaldo <= 0.01 ? 'pago' : 'parcial';
 }
+
+// ── Origem do Lançamento ──────────────────────────────────────────────────────
+
+/**
+ * Rótulo canônico da origem de um lançamento financeiro.
+ * Prioriza `origem_tipo` (modelo canônico — doc 4); usa
+ * `nota_fiscal_id`/`documento_pai_id` apenas como fallback retrocompatível.
+ */
+export function getOrigemLabel(l: {
+  origem_tipo?: string | null;
+  nota_fiscal_id?: string | null;
+  documento_pai_id?: string | null;
+}): string {
+  switch (l.origem_tipo) {
+    case 'fiscal_nota': return 'Nota Fiscal';
+    case 'comercial': return 'Comercial';
+    case 'compras': return 'Compras';
+    case 'parcelamento': return 'Parcelamento';
+    case 'sistemica': return 'Sistêmica';
+    case 'societario': return 'Retirada de Sócio';
+    case 'manual': return 'Manual';
+  }
+  if (l.nota_fiscal_id) return 'Nota Fiscal';
+  if (l.documento_pai_id) return 'Parcelamento';
+  return 'Manual';
+}
+
+/** Chave curta para filtros do grid (compatível com origemFilters atual). */
+export function getOrigemKey(l: {
+  origem_tipo?: string | null;
+  nota_fiscal_id?: string | null;
+  documento_pai_id?: string | null;
+}): 'nf' | 'parcela' | 'manual' | 'outro' {
+  if (l.origem_tipo === 'fiscal_nota' || (!l.origem_tipo && l.nota_fiscal_id)) return 'nf';
+  if (l.origem_tipo === 'parcelamento' || (!l.origem_tipo && l.documento_pai_id)) return 'parcela';
+  if (l.origem_tipo === 'manual' || !l.origem_tipo) return 'manual';
+  return 'outro';
+}

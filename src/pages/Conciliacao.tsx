@@ -30,6 +30,7 @@ import type { TransacaoExtrato } from "@/services/financeiro/ofxParser.service";
 import { exportarParaExcel } from "@/services/export.service";
 import type { Lancamento } from "@/types/domain";
 import { getUserFriendlyError } from "@/utils/errorMessages";
+import { getOrigemKey, getOrigemLabel } from "@/lib/financeiro";
 
 interface LancamentoComStatus extends Lancamento {
   statusConciliacao: string;
@@ -139,7 +140,7 @@ export default function Conciliacao() {
       //   1) Títulos com baixa ativa no período (eixo data_baixa)
       //   2) Títulos em aberto/parcial pelo vencimento no período (candidatos a nova baixa)
       const lancSelect =
-        "id, descricao, valor, data_vencimento, tipo, status, saldo_restante, nota_fiscal_id, documento_pai_id, conta_bancaria_id, forma_pagamento, contas_bancarias(descricao, bancos(nome))";
+        "id, descricao, valor, data_vencimento, tipo, status, saldo_restante, nota_fiscal_id, documento_pai_id, origem_tipo, conta_bancaria_id, forma_pagamento, contas_bancarias(descricao, bancos(nome))";
 
       const [{ data: porBaixa }, { data: porVencimento }] = await Promise.all([
         supabase
@@ -433,14 +434,8 @@ export default function Conciliacao() {
       if (statusConcFilters.length > 0 && !statusConcFilters.includes(l.statusConciliacao)) return false;
       if (tipoFilters.length > 0 && !tipoFilters.includes(l.tipo)) return false;
       if (origemFilters.length > 0) {
-        const isNF = !!l.nota_fiscal_id;
-        const isParcela = !!l.documento_pai_id;
-        const isManual = !isNF && !isParcela;
-        const matchesOrigem =
-          (origemFilters.includes("nf") && isNF) ||
-          (origemFilters.includes("parcela") && isParcela) ||
-          (origemFilters.includes("manual") && isManual);
-        if (!matchesOrigem) return false;
+        const key = getOrigemKey(l);
+        if (!origemFilters.includes(key)) return false;
       }
       return true;
     });
@@ -509,11 +504,15 @@ export default function Conciliacao() {
       label: "Origem",
       hidden: true,
       render: (l) => {
-        if (l.nota_fiscal_id)
-          return <Badge variant="outline" className="text-xs border-primary/30 text-primary bg-primary/5 whitespace-nowrap">NF Fiscal</Badge>;
-        if (l.documento_pai_id)
-          return <Badge variant="outline" className="text-xs whitespace-nowrap">Parcelamento</Badge>;
-        return <Badge variant="outline" className="text-xs text-muted-foreground whitespace-nowrap">Manual</Badge>;
+        const key = getOrigemKey(l);
+        const label = getOrigemLabel(l);
+        const className =
+          key === "nf"
+            ? "text-xs border-primary/30 text-primary bg-primary/5 whitespace-nowrap"
+            : key === "manual"
+            ? "text-xs text-muted-foreground whitespace-nowrap"
+            : "text-xs whitespace-nowrap";
+        return <Badge variant="outline" className={className}>{label}</Badge>;
       },
     },
     {
