@@ -94,7 +94,7 @@ export const quickActions: QuickAction[] = [
   { id: 'novo-produto', title: 'Novo Produto', description: 'Abrir formulário de produto', path: '/produtos?new=1' },
   { id: 'novo-pedido-compra', title: 'Novo Pedido', description: 'Abrir pedido de compra', path: '/pedidos-compra/novo' },
   { id: 'nova-nota-saida', title: 'Nova Nota', description: 'Emitir nota fiscal de saída', path: '/fiscal?tipo=saida&new=1' },
-  { id: 'baixa-financeira', title: 'Baixa Financeira', description: 'Abrir Lançamentos', path: '/financeiro' },
+  { id: 'baixa-financeira', title: 'Baixa Financeira', description: 'Abrir baixa em lote no Financeiro', path: '/financeiro?baixa=lote' },
 ];
 
 export const navSections: NavSection[] = [
