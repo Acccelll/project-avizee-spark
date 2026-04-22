@@ -23,11 +23,10 @@ import { getUserFriendlyError } from "@/utils/errorMessages";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { FileText, DollarSign, CheckCircle, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { parseNFeXml, type NFeData } from "@/lib/nfeXmlParser";
 import { DanfeViewer } from "@/components/DanfeViewer";
 import { DevolucaoDialog } from "@/components/fiscal/DevolucaoDialog";
 import { NotaFiscalDrawer } from "@/components/fiscal/NotaFiscalDrawer";
-import { registrarEventoFiscal, verificarDuplicidadeChave, cancelarNotaFiscal } from "@/services/fiscal.service";
+import { registrarEventoFiscal, cancelarNotaFiscal } from "@/services/fiscal.service";
 import {
   useConfirmarNotaFiscal,
   useEstornarNotaFiscal,
