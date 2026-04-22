@@ -148,9 +148,7 @@ export default function Configuracoes() {
   const [corSecundaria, setCorSecundaria] = useState('#b85b2d');
   const [appearanceSavedAt, setAppearanceSavedAt] = useState<Date | null>(null);
   const {
-    sidebarCollapsed: menuCompacto,
     saveSidebarCollapsed: saveMenuCompacto,
-    loadingSidebarCollapsed: loadingMenuCompacto,
   } = useAppConfigContext();
   const { value: themePref, save: saveThemePref } = useUserPreference<string>(user?.id, 'ui_theme', 'system');
   const { value: densidadePref, save: saveDensidadePref } = useUserPreference<string>(user?.id, 'ui_density', 'confortavel');
