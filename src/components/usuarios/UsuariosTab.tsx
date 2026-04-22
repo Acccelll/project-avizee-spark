@@ -581,6 +581,7 @@ function UserFormModal({
           ativo: user.ativo,
           role_padrao: user.role_padrao,
           extra_permissions: [...user.extra_permissions],
+          denied_permissions: [...(user.denied_permissions ?? [])],
         });
       } else {
         setForm(emptyForm());
@@ -646,7 +647,13 @@ function UserFormModal({
         cargo: form.cargo.trim(),
         ativo: form.ativo,
         role_padrao: form.role_padrao,
-        extra_permissions: form.extra_permissions,
+        // Novo shape `{ allow, deny }` — back-compat aceita também `string[]`.
+        // Edge function `admin-users` normaliza e atualiza `user_permissions`
+        // preservando histórico (allowed=false em vez de DELETE para revogações).
+        extra_permissions: {
+          allow: form.extra_permissions,
+          deny: form.denied_permissions,
+        },
       };
 
       if (isEdit && user) {
