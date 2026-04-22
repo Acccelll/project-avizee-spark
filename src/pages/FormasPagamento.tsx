@@ -10,7 +10,7 @@ import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { StatCard } from "@/components/StatCard";
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
 import {
-  Plus, X, FileText, Banknote, CreditCard, QrCode, CheckSquare,
+  Plus, X, FileText, Banknote, CreditCard, QrCode, ArrowLeftRight, HelpCircle,
   Building2, Wallet, AlertTriangle, Users, TrendingUp, CalendarDays, StickyNote,
   Info, CheckCircle, Ban,
 } from "lucide-react";
@@ -27,6 +27,7 @@ import { toast } from "sonner";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { Switch } from "@/components/ui/switch";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { useEditDeepLink } from "@/hooks/useEditDeepLink";
 
 interface FormaPagamento {
   id: string;
@@ -42,13 +43,13 @@ interface FormaPagamento {
 }
 
 const tipoLabel: Record<string, string> = {
-  dinheiro: "Dinheiro", boleto: "Boleto", cartao: "Cartão",
-  pix: "PIX", cheque: "Cheque", deposito: "Depósito",
+  pix: "PIX", boleto: "Boleto", cartao: "Cartão",
+  dinheiro: "Dinheiro", transferencia: "Transferência", outro: "Outro",
 };
 
 const tipoIcon: Record<string, React.ElementType> = {
-  dinheiro: Banknote, boleto: FileText, cartao: CreditCard,
-  pix: QrCode, cheque: CheckSquare, deposito: Building2,
+  pix: QrCode, boleto: FileText, cartao: CreditCard,
+  dinheiro: Banknote, transferencia: ArrowLeftRight, outro: HelpCircle,
 };
 
 interface FormaPagamentoForm {
