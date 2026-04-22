@@ -24,6 +24,7 @@ import {
   sendForApproval,
   approveOrcamento,
   ensurePublicToken,
+  cancelarOrcamento,
 } from "@/services/orcamentos.service";
 import { useConverterOrcamento } from "@/pages/comercial/hooks/useConverterOrcamento";
 import { useCrossModuleToast } from "@/hooks/useCrossModuleToast";
@@ -64,6 +65,7 @@ export function OrcamentoView({ id }: Props) {
   const [approveConfirmOpen, setApproveConfirmOpen] = useState(false);
   const [poNumberCliente, setPoNumberCliente] = useState("");
   const [dataPoCliente, setDataPoCliente] = useState("");
+  const [cancelMotivo, setCancelMotivo] = useState("");
   const { pushView, clearStack } = useRelationalNavigation();
   const { isAdmin } = useIsAdmin();
   const { run, locked, isAnyLocked } = useDetailActions();
@@ -538,14 +540,17 @@ export function OrcamentoView({ id }: Props) {
       {/* Cancel confirm */}
       <ConfirmDialog
         open={deleteConfirmOpen}
-        onClose={() => setDeleteConfirmOpen(false)}
+        onClose={() => {
+          setDeleteConfirmOpen(false);
+          setCancelMotivo("");
+        }}
         onConfirm={async () => {
           try {
-            const { error: updErr } = await supabase.from("orcamentos").update({ status: "cancelado" }).eq("id", id);
-            if (updErr) throw updErr;
-            toast.success("Orçamento cancelado com sucesso.");
+            // Usa a RPC oficial `cancelar_orcamento` para garantir auditoria.
+            await cancelarOrcamento(id, cancelMotivo.trim() || undefined);
             invalidate(["orcamentos"]);
             await reload();
+            setCancelMotivo("");
           } catch (err: unknown) {
             console.error("[OrcamentoView] erro ao cancelar:", err);
             toast.error(getUserFriendlyError(err));
@@ -557,7 +562,18 @@ export function OrcamentoView({ id }: Props) {
         description={`Tem certeza que deseja cancelar o orçamento ${selected?.numero || ""}? Ele permanecerá no histórico e não poderá avançar no fluxo comercial.`}
         confirmLabel="Cancelar orçamento"
         confirmVariant="destructive"
-      />
+      >
+        <div className="space-y-2 mt-2">
+          <Label className="text-xs">Motivo (opcional)</Label>
+          <Input
+            value={cancelMotivo}
+            onChange={(e) => setCancelMotivo(e.target.value)}
+            placeholder="Ex: cliente desistiu, valor fora do orçado..."
+            className="h-9"
+          />
+          <p className="text-[10px] text-muted-foreground">O motivo é registrado na auditoria do orçamento.</p>
+        </div>
+      </ConfirmDialog>
 
       {/* Approve confirm */}
       <ConfirmDialog
