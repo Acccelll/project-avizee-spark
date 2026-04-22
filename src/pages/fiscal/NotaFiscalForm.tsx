@@ -16,6 +16,11 @@ import {
   FiscalInternalStatusBadge,
 } from "@/components/fiscal/FiscalStatusBadges";
 import { SefazAcoesPanel } from "@/pages/fiscal/components/SefazAcoesPanel";
+import { PedidoCompraLinker } from "@/pages/fiscal/components/PedidoCompraLinker";
+import {
+  buildNFeDataFromDb,
+  buildDanfeDataFromDb,
+} from "@/services/fiscal/nfeBuilders.service";
 import type { NotaFiscal } from "@/types/domain";
 
 /**
@@ -52,6 +57,7 @@ interface NotaFiscalRow {
   observacoes: string | null;
   status: string | null;
   status_sefaz: string | null;
+  pedido_compra_id: string | null;
 }
 
 function rowToFormDefaults(row: NotaFiscalRow): Partial<NFeFormData> {
@@ -96,7 +102,7 @@ export default function NotaFiscalFormPage() {
       const { data, error } = await supabase
         .from("notas_fiscais")
         .select(
-          "id, numero, serie, data_emissao, natureza_operacao, cfop, tipo, cliente_id, fornecedor_id, forma_pagamento, condicao_pagamento, frete_modalidade, frete_valor, desconto_valor, outras_despesas, observacoes, status, status_sefaz",
+          "id, numero, serie, data_emissao, natureza_operacao, cfop, tipo, cliente_id, fornecedor_id, forma_pagamento, condicao_pagamento, frete_modalidade, frete_valor, desconto_valor, outras_despesas, observacoes, status, status_sefaz, pedido_compra_id",
         )
         .eq("id", id!)
         .maybeSingle();
@@ -226,11 +232,24 @@ export default function NotaFiscalFormPage() {
               <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Ações SEFAZ
               </p>
-              <SefazAcoesPanel nf={nfRow as unknown as NotaFiscal} />
-              <p className="mt-2 text-xs text-muted-foreground">
-                Transmitir requer payload de itens completo (em construção).
-                Consultar/Cancelar/DANFE já operam quando há chave de acesso.
-              </p>
+              <SefazAcoesPanel
+                nf={nfRow as unknown as NotaFiscal}
+                buildNFeData={buildNFeDataFromDb}
+                buildDanfeData={buildDanfeDataFromDb}
+              />
+              {nfRow.tipo === "entrada" && (
+                <div className="mt-3 border-t pt-3">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Pedido de Compra
+                  </p>
+                  <PedidoCompraLinker
+                    notaFiscalId={nfRow.id}
+                    fornecedorId={nfRow.fornecedor_id}
+                    pedidoCompraIdAtual={nfRow.pedido_compra_id}
+                    disabled={readOnly}
+                  />
+                </div>
+              )}
             </div>
           )}
           {loading ? (
