@@ -24,9 +24,9 @@ import { statusPedidoCompra } from "@/lib/statusSchema";
 import type { PedidoCompra } from "@/components/compras/pedidoCompraTypes";
 import { pedidoNumero } from "@/components/compras/pedidoCompraTypes";
 import type { Database } from "@/integrations/supabase/types";
-import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { canonicalPedidoStatus, pedidoStatusLabelMap } from "@/components/compras/comprasStatus";
+import { useSalvarPedidoCompra } from "@/pages/comercial/hooks/useSalvarPedidoCompra";
 
 type ProdutoRow = Database["public"]["Tables"]["produtos"]["Row"] & { preco_custo?: number | null };
 type FornecedorRow = Database["public"]["Tables"]["fornecedores"]["Row"];
@@ -40,7 +40,8 @@ export default function PedidoCompraForm() {
   const { id } = useParams<{ id: string }>();
 
   const [loading, setLoading] = useState(true);
-  const { saving, submit } = useSubmitLock({ errorPrefix: "Erro ao salvar pedido" });
+  const salvarPedidoCompra = useSalvarPedidoCompra();
+  const saving = salvarPedidoCompra.isPending;
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
   const [pedido, setPedido] = useState<PedidoCompra | null>(null);
   // Use a fresh date when initialising the form (avoid module-level
@@ -165,41 +166,32 @@ export default function PedidoCompraForm() {
       return;
     }
 
-    await submit(async () => {
-      const payload = {
-        fornecedor_id: form.fornecedor_id,
-        data_pedido: form.data_pedido,
-        data_entrega_prevista: form.data_entrega_prevista || null,
-        data_entrega_real: form.data_entrega_real || null,
-        frete_valor: Number(form.frete_valor || 0),
-        condicao_pagamento: form.condicao_pagamento || null,
-        status: form.status,
-        observacoes: form.observacoes || null,
-        valor_total: valorTotal,
-      };
+    const header = {
+      fornecedor_id: form.fornecedor_id,
+      data_pedido: form.data_pedido,
+      data_entrega_prevista: form.data_entrega_prevista || null,
+      data_entrega_real: form.data_entrega_real || null,
+      frete_valor: Number(form.frete_valor || 0),
+      condicao_pagamento: form.condicao_pagamento || null,
+      status: form.status,
+      observacoes: form.observacoes || null,
+      valor_total: valorTotal,
+    };
+    const itensPayload = validItems.map((i) => ({
+      produto_id: String(i.produto_id),
+      quantidade: Number(i.quantidade || 0),
+      preco_unitario: Number(i.valor_unitario || 0),
+      subtotal: Number(i.valor_total || 0),
+    }));
 
-      const { error: updErr } = await supabase.from("pedidos_compra").update(payload).eq("id", pedido.id);
-      if (updErr) throw updErr;
-
-      // Substituição atômica dos itens via RPC (delete+insert em uma única transação no servidor).
-      const itensPayload = validItems.map((i) => ({
-        produto_id: String(i.produto_id),
-        quantidade: Number(i.quantidade || 0),
-        preco_unitario: Number(i.valor_unitario || 0),
-        subtotal: Number(i.valor_total || 0),
-      }));
-      const { error: rpcErr } = await supabase.rpc("replace_pedido_compra_itens", {
-        p_pedido_id: pedido.id,
-        p_itens: itensPayload as unknown as never,
-      });
-      if (rpcErr) throw rpcErr;
-
-      toast.success("Pedido de compra salvo!", {
-        description: pedido?.numero ? `Pedido ${pedido.numero}` : undefined,
-      });
-      setPedido({ ...pedido, ...payload } as PedidoCompra);
+    try {
+      // Hook centralizado: header + replace_pedido_compra_itens + invalidação RQ.
+      await salvarPedidoCompra.mutateAsync({ id: pedido.id, header, itens: itensPayload });
+      setPedido({ ...pedido, ...header } as PedidoCompra);
       setIsDirty(false);
-    });
+    } catch {
+      // toast já emitido pelo hook
+    }
   };
 
   const handleBack = async () => {

@@ -1,6 +1,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { supabase } from "@/integrations/supabase/client";
@@ -23,6 +24,7 @@ import { canonicalCotacaoStatus } from "@/components/compras/comprasStatus";
 export function useCotacoesCompra() {
   const navigate = useNavigate();
   const gerarPedidoCompra = useGerarPedidoCompra();
+  const queryClient = useQueryClient();
   const { data, loading, fetchData, remove } = useSupabaseCrud({
     table: "cotacoes_compra",
     orderBy: "created_at",
@@ -147,29 +149,11 @@ export function useCotacoesCompra() {
   };
 
   const openEdit = async (c: CotacaoCompra) => {
-    setMode("edit");
-    setSelected(c);
-    setForm({
-      numero: c.numero,
-      data_cotacao: c.data_cotacao,
-      data_validade: c.data_validade || "",
-      observacoes: c.observacoes || "",
-      status: canonicalCotacaoStatus(c.status),
-    });
-    const { data: itens } = await supabase
-      .from("cotacoes_compra_itens")
-      .select("*, produtos(nome, codigo_interno, sku)")
-      .eq("cotacao_compra_id", c.id);
-    setLocalItems(
-      (itens || []).map((i: CotacaoItem & { id: string }) => ({
-        _localId: i.id,
-        id: i.id,
-        produto_id: i.produto_id,
-        quantidade: i.quantidade,
-        unidade: i.unidade || "UN",
-      }))
-    );
-    setModalOpen(true);
+    // Caminho único de edição: rota dedicada.
+    // O modal foi aposentado para edição (race delete+insert client-side).
+    // O form de rota usa `replace_cotacao_compra_itens` (RPC transacional).
+    setDrawerOpen(false);
+    navigate(`/cotacoes-compra/${c.id}`);
   };
 
   const openView = async (c: CotacaoCompra) => {
@@ -254,6 +238,12 @@ export function useCotacoesCompra() {
       toast.success("Cotação de compra salva!");
       setModalOpen(false);
       fetchData();
+
+      // Caminho único: após CRIAR pelo modal rápido, redireciona para a
+      // rota dedicada (a edição posterior só acontece via rota).
+      if (mode === "create" && cotacaoId) {
+        navigate(`/cotacoes-compra/${cotacaoId}`);
+      }
     });
   };
 
@@ -423,16 +413,33 @@ export function useCotacoesCompra() {
       return;
     }
 
+    // Confirmação de impacto: cria pedido permanente e marca cotação como convertida.
+    const fornecedorNome =
+      propostasSelecionadas[0]?.fornecedores?.nome_razao_social ?? "fornecedor selecionado";
+    const totalEstimado = propostasSelecionadas.reduce((sum, p) => {
+      const item = viewItems.find((i) => i.id === p.item_id);
+      return sum + Number(p.preco_unitario || 0) * Number(item?.quantidade || 0);
+    }, 0);
+    const ok = window.confirm(
+      `Gerar pedido de compra?\n\n` +
+      `Fornecedor: ${fornecedorNome}\n` +
+      `Total estimado: ${totalEstimado.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}\n` +
+      `Itens: ${propostasSelecionadas.length}\n\n` +
+      `Esta ação marca a cotação como CONVERTIDA e não pode ser desfeita.`
+    );
+    if (!ok) return;
+
     // Delega para a RPC transacional `gerar_pedido_compra` via mutation hook.
     // O hook já invalida `cotacoes_compra` + `pedidos_compra` cross-módulo.
     try {
-      await gerarPedidoCompra.mutateAsync({
+      const result = await gerarPedidoCompra.mutateAsync({
         id: selected.id,
         observacoes: `Gerado a partir da cotação ${selected.numero}`,
       });
       setDrawerOpen(false);
       fetchData();
-      navigate("/pedidos-compra");
+      // CTA pós-conversão: leva direto para o pedido recém-criado (não para a lista).
+      navigate(`/pedidos-compra/${result.pedidoId}`);
     } catch (err: unknown) {
       console.error("[gerarPedido]", err);
       // toast já emitido pelo hook
@@ -451,10 +458,20 @@ export function useCotacoesCompra() {
     sublabel: f.cpf_cnpj || "",
   }));
 
+  /**
+   * Wrapper de fetchData que também invalida a queryKey `cotacoes_compra`
+   * do React Query — garante que consumidores RQ (ex.: `useGerarPedidoCompra`,
+   * outras telas) sincronizem com o cache do useSupabaseCrud (legacy).
+   */
+  const fetchDataWithInvalidation = async () => {
+    await fetchData();
+    queryClient.invalidateQueries({ queryKey: ["cotacoes_compra"] });
+  };
+
   return {
     data,
     loading,
-    fetchData,
+    fetchData: fetchDataWithInvalidation,
     remove,
     modalOpen,
     setModalOpen,
