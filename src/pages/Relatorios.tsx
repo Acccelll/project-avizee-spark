@@ -28,6 +28,8 @@ import { useRelatorioUrlState } from '@/pages/relatorios/hooks/useRelatorioUrlSt
 import { useRelatorioDensity } from '@/pages/relatorios/hooks/useRelatorioDensity';
 import { useRelatorioExport } from '@/pages/relatorios/hooks/useRelatorioExport';
 import { useActiveFilterChips } from '@/pages/relatorios/hooks/useActiveFilterChips';
+import { useRelatorioDrillDown } from '@/pages/relatorios/hooks/useRelatorioDrillDown';
+import { RowActionsMenu } from '@/pages/relatorios/components/RowActionsMenu';
 import { cn } from '@/lib/utils';
 import { BookmarkPlus, BookOpen, Columns, Hash, Eye, Trash2, RefreshCcw, Rows3, SearchX } from 'lucide-react';
 import { filtrarPorStatus, sortarRows } from '@/utils/relatorios';
@@ -77,6 +79,8 @@ export default function Relatorios() {
   const { favoritos, salvar: salvarFavorito, remover: removerFavorito } = useRelatoriosFavoritos();
 
   const { clientes, fornecedores, grupos, empresaConfig, limits } = useRelatoriosFiltrosData();
+
+  const { getRowActions, navigateAction, hasActions } = useRelatorioDrillDown(tipo as TipoRelatorio | undefined);
 
   const filtros = useMemo(() => {
     if (tipo === 'dre') return buildDreDateRange(filtrosState, dataInicio, dataFim);
@@ -165,6 +169,32 @@ export default function Relatorios() {
   }, [sortedRows, isQtyReport, tipo]);
 
   const visibleColumns = useMemo(() => columns.filter((c) => !hiddenColumns.includes(c.key)), [columns, hiddenColumns]);
+
+  // Coluna virtual de ações (drill-down). Só é anexada quando há pelo menos
+  // uma ação navegável declarada para o relatório atual.
+  const visibleColumnsWithActions = useMemo(() => {
+    if (!hasActions) return visibleColumns;
+    return [
+      ...visibleColumns,
+      {
+        key: '__actions__',
+        label: 'Ações',
+        render: (item: Record<string, unknown>): React.ReactNode => (
+          <RowActionsMenu actions={getRowActions(item)} onSelect={navigateAction} />
+        ),
+      },
+    ];
+  }, [visibleColumns, hasActions, getRowActions, navigateAction]);
+
+  // onRowClick: dispara ação primária quando há exatamente uma disponível,
+  // caso contrário não faz nada (usuário usa o menu para escolher).
+  const handleRowClick = useMemo(() => {
+    if (!hasActions) return undefined;
+    return (row: Record<string, unknown>) => {
+      const actions = getRowActions(row);
+      if (actions.length === 1) navigateAction(actions[0]);
+    };
+  }, [hasActions, getRowActions, navigateAction]);
 
   const handleSelectTipo = (next: TipoRelatorio) => {
     setHiddenColumns([]);
@@ -493,13 +523,13 @@ export default function Relatorios() {
                           </div>
                         )}
                         <DataTable
-                          columns={visibleColumns}
+                          columns={visibleColumnsWithActions}
                           data={sortedRows}
                           loading={isLoading}
                           moduleKey={`relatorios-${tipo}`}
-                          // Drill-down de linha será habilitado quando a navegação real estiver
-                          // implementada (Fase 8). Até lá não exibimos cursor pointer + toast inerte.
-                          onRowClick={undefined}
+                          // Drill-down: clique em linha aciona a ação primária quando única;
+                          // múltiplas ações ficam acessíveis pelo menu na coluna "Ações".
+                          onRowClick={handleRowClick}
                           emptyTitle={`Nenhum registro em ${selectedMeta.title}`}
                           emptyDescription="Ajuste o período e os filtros para encontrar registros relevantes."
                         />
