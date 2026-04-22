@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useEditDirtyForm } from "@/hooks/useEditDirtyForm";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
@@ -17,7 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
-import { Loader2, Tag, CheckCircle2 } from "lucide-react";
+import { Loader2, Tag, CheckCircle2, Package } from "lucide-react";
 import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { StatCard } from "@/components/StatCard";
