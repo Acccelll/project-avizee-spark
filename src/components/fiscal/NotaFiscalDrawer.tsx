@@ -595,7 +595,10 @@ export function NotaFiscalDrawer({
       ) : eventos.length === 0 ? (
         <div className="rounded-lg border bg-muted/20 p-4 flex items-center gap-3 text-muted-foreground">
           <Clock className="h-4 w-4 shrink-0" />
-          <p className="text-xs">Nenhum evento registrado para esta nota fiscal.</p>
+          <p className="text-xs">
+            Nenhum evento registrado — eventos são gerados ao confirmar, estornar
+            ou cancelar a NF.
+          </p>
         </div>
       ) : (
         <TimelineList
