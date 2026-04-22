@@ -400,6 +400,16 @@ const Fornecedores = () => {
         createHint="Preencha razão social, CPF/CNPJ e contato principal. Demais dados podem ser complementados depois."
         identifier={mode === "edit" && selected?.cpf_cnpj ? selected.cpf_cnpj : undefined}
         status={mode === "edit" && selected ? <StatusBadge status={selected.ativo ? "ativo" : "inativo"} /> : undefined}
+        headerActions={mode === "edit" && selected ? (
+          <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
+            <Switch
+              checked={form.ativo}
+              onCheckedChange={(v) => updateForm({ ativo: v })}
+              aria-label={form.ativo ? "Inativar fornecedor" : "Reativar fornecedor"}
+            />
+            <span className="font-medium">{form.ativo ? "Ativo" : "Inativo"}</span>
+          </label>
+        ) : undefined}
         meta={mode === "edit" && selected ? [
           ...(selected.created_at ? [{ icon: Calendar, label: `Cadastrado em ${formatDate(selected.created_at)}` }] : []),
           ...(selected.updated_at && selected.updated_at !== selected.created_at ? [{ icon: BadgeCheck, label: `Atualizado em ${formatDate(selected.updated_at)}` }] : []),

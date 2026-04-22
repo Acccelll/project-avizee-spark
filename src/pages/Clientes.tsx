@@ -393,6 +393,16 @@ const Clientes = () => {
         createHint="Preencha os dados básicos para criar o cliente. Endereços, transportadoras e comunicações ficam disponíveis após salvar."
         identifier={mode === "edit" && selected?.cpf_cnpj ? selected.cpf_cnpj : undefined}
         status={mode === "edit" && selected ? <StatusBadge status={selected.ativo ? "ativo" : "inativo"} /> : undefined}
+        headerActions={mode === "edit" && selected ? (
+          <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
+            <Switch
+              checked={form.ativo}
+              onCheckedChange={(v) => updateForm({ ativo: v })}
+              aria-label={form.ativo ? "Inativar cliente" : "Reativar cliente"}
+            />
+            <span className="font-medium">{form.ativo ? "Ativo" : "Inativo"}</span>
+          </label>
+        ) : undefined}
         meta={mode === "edit" && selected ? [
           ...(selected.created_at ? [{ icon: Calendar, label: `Cadastrado em ${formatDate(selected.created_at)}` }] : []),
           ...(form.forma_pagamento_id
