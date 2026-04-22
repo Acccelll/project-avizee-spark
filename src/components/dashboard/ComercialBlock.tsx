@@ -85,11 +85,17 @@ export function ComercialBlock({
           <p className="text-lg font-bold mono mt-0.5">{formatNumber(pedidosPendentes)}</p>
         </div>
         <div className="px-4 py-2 border-l border-border/60">
-          <p className="text-xs text-muted-foreground">Ticket médio</p>
+          <p className="text-xs text-muted-foreground flex items-center gap-1">
+            Ticket médio
+            <ScopeBadge scope={{ kind: 'fixed-window', janela: 'mes-atual' }} />
+          </p>
           <p className="text-lg font-bold mono mt-0.5">{formatCurrency(ticketMedio)}</p>
         </div>
         <div className="px-4 py-2 border-l border-border/60">
-          <p className="text-xs text-muted-foreground">Faturamento (mês)</p>
+          <p className="text-xs text-muted-foreground flex items-center gap-1">
+            Faturamento (mês)
+            <ScopeBadge scope={{ kind: 'fixed-window', janela: 'mes-atual' }} />
+          </p>
           <p className="text-lg font-bold mono mt-0.5">{formatCurrency(faturamentoMesAtual)}</p>
           {variacaoMoM !== null && (
             <p
