@@ -12,13 +12,10 @@
 
 import { useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Building2, Database, HardDrive, Mail, Plug, Bell, Receipt, Shield, Users, Wallet } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Building2, Database, HardDrive, Mail, Plug, Bell, Receipt, Shield, Users, Wallet, KeyRound } from "lucide-react";
 import { ModulePage } from "@/components/ModulePage";
 import { AdminSidebar, type SideNavGroup } from "@/pages/admin/components/AdminSidebar";
 import { DashboardAdmin } from "@/pages/admin/components/DashboardAdmin";
-import { PermissaoMatrix } from "@/pages/admin/components/PermissaoMatrix";
 import { UsuariosTab } from "@/components/usuarios/UsuariosTab";
 import { EmpresaSection } from "@/pages/admin/sections/EmpresaSection";
 import { EmailSection } from "@/pages/admin/sections/EmailSection";
@@ -27,12 +24,14 @@ import { NotificacoesSection } from "@/pages/admin/sections/NotificacoesSection"
 import { BackupSection } from "@/pages/admin/sections/BackupSection";
 import { FiscalSection } from "@/pages/admin/sections/FiscalSection";
 import { FinanceiroSection } from "@/pages/admin/sections/FinanceiroSection";
+import { PerfisCatalogoSection } from "@/pages/admin/sections/PerfisCatalogoSection";
 
 /** Seções renderizadas internamente (não inclui atalhos externos). */
 const VALID_SECTION_KEYS = new Set([
   "empresa",
   "dashboard",
   "usuarios",
+  "perfis",
   "email",
   "integracoes",
   "notificacoes",
@@ -53,6 +52,7 @@ const sideNavGroups: SideNavGroup[] = [
     items: [
       { key: "dashboard", label: "Dashboard de Segurança", icon: Shield },
       { key: "usuarios", label: "Usuários e Permissões", icon: Users },
+      { key: "perfis", label: "Perfis e Catálogo", icon: KeyRound },
     ],
   },
   {
@@ -126,32 +126,9 @@ function SectionContent({ section }: { section: string }) {
     case "empresa":
       return <EmpresaSection />;
     case "usuarios":
-      return (
-        <Tabs defaultValue="usuarios" className="w-full">
-          <TabsList className="mb-4">
-            <TabsTrigger value="usuarios" className="gap-1.5">
-              <Users className="h-3.5 w-3.5" />Usuários
-            </TabsTrigger>
-            <TabsTrigger value="permissoes" className="gap-1.5">
-              <Shield className="h-3.5 w-3.5" />Matriz de Permissões
-            </TabsTrigger>
-          </TabsList>
-          <TabsContent value="usuarios">
-            <UsuariosTab />
-          </TabsContent>
-          <TabsContent value="permissoes">
-            <Card>
-              <CardHeader>
-                <CardTitle>Matriz de Permissões</CardTitle>
-                <CardDescription>Gerencie visualmente as permissões por perfil de acesso.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <PermissaoMatrix />
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      );
+      return <UsuariosTab />;
+    case "perfis":
+      return <PerfisCatalogoSection />;
     case "email":
       return <EmailSection />;
     case "integracoes":
