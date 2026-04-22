@@ -169,46 +169,22 @@ export default function Relatorios() {
     setSearchParams({ tipo: next });
   };
 
-  const [isExporting, setIsExporting] = useState(false);
-
-  const exportScopeDescription = `${sortedRows.length} ${sortedRows.length === 1 ? 'registro' : 'registros'} · ${visibleColumns.length} ${visibleColumns.length === 1 ? 'coluna' : 'colunas'}`;
-
-  const handleExportCsv = () => {
-    if (!sortedRows.length) { toast.warning('Nenhum dado visível para exportar.'); return; }
-    exportarParaCsv({ titulo: resultado?.title || String(tipo), rows: sortedRows, columns: exportColumnDefs });
-    toast.success('CSV exportado com sucesso.', { description: exportScopeDescription });
-  };
-  const handleExportPdf = async () => {
-    if (!sortedRows.length) { toast.warning('Nenhum dado visível para exportar.'); return; }
-    if (isExporting) return;
-    if (sortedRows.length > PDF_ROW_LIMIT) toast.warning(`PDF limitado a ${PDF_ROW_LIMIT} de ${sortedRows.length} registros. Use Excel para exportação completa.`, { duration: 8000 });
-    const tid = toast.loading('Gerando PDF...', { description: exportScopeDescription });
-    setIsExporting(true);
-    try {
-      await exportarParaPdf({ titulo: resultado?.title || String(tipo), rows: sortedRows, columns: exportColumnDefs, empresa: empresaConfig, dataInicio, dataFim, resultado });
-      toast.success('PDF gerado com sucesso!', { id: tid, description: exportScopeDescription });
-    } catch (e) {
-      toast.error('Falha ao gerar PDF.', { id: tid });
-      console.error(e);
-    } finally {
-      setIsExporting(false);
-    }
-  };
-  const handleExportXlsx = async () => {
-    if (!sortedRows.length) { toast.warning('Nenhum dado visível para exportar.'); return; }
-    if (isExporting) return;
-    const tid = toast.loading('Gerando Excel...', { description: exportScopeDescription });
-    setIsExporting(true);
-    try {
-      await exportarParaExcel({ titulo: resultado?.title || String(tipo), rows: sortedRows, columns: exportColumnDefs });
-      toast.success('Excel gerado com sucesso!', { id: tid, description: exportScopeDescription });
-    } catch (e) {
-      toast.error('Falha ao gerar Excel.', { id: tid });
-      console.error(e);
-    } finally {
-      setIsExporting(false);
-    }
-  };
+  const {
+    isExporting,
+    exportColumnDefs,
+    handleExportCsv,
+    handleExportPdf,
+    handleExportXlsx,
+    PDF_ROW_LIMIT,
+  } = useRelatorioExport({
+    tipo,
+    resultado,
+    sortedRows,
+    visibleColumns,
+    empresaConfig,
+    dataInicio,
+    dataFim,
+  });
 
   const handleSalvarFavorito = () => {
     const name = saveName.trim();
@@ -250,112 +226,23 @@ export default function Relatorios() {
     ? `${dataInicio ? formatDate(dataInicio) : '—'} a ${dataFim ? formatDate(dataFim) : '—'}`
     : new Date().toLocaleDateString('pt-BR');
 
-  const groupedReports = useMemo(() => {
-    const all = Object.values(reportConfigs);
-    return Object.entries(reportCategoryMeta).map(([cat, meta]) => ({
-      category: cat as ReportCategory, ...meta, items: all.filter((r) => r.category === cat),
-    }));
-  }, []);
-
   const categoryMeta = selectedMeta ? reportCategoryMeta[selectedMeta.category] : undefined;
-  const prioritized = Object.values(reportConfigs).filter((r) => r.priority);
   const showEmpty = !isLoading && !isError && sortedRows.length === 0;
   const hasExportableData = sortedRows.length > 0;
   const hasLocalFiltersApplied = rows.length !== sortedRows.length;
 
-  const exportColumnDefs = useMemo<ExportColumnDef[] | undefined>(() => {
-    if (!tipo || !selectedMeta) return undefined;
-    const cfgCols = selectedMeta.columns;
-    if (!cfgCols.length) return undefined;
-    return visibleColumns.map((vc) => {
-      const cfgCol = cfgCols.find((c) => c.key === vc.key);
-      return { key: vc.key, label: vc.label, format: cfgCol?.format };
-    });
-  }, [visibleColumns, tipo, selectedMeta]);
-
-  // ── Active filter chips ──────────────────────────────────────────────────
-  const activeFilterChips = useMemo<ActiveFilterChip[]>(() => {
-    const out: ActiveFilterChip[] = [];
-    if (dataInicio || dataFim) {
-      out.push({
-        id: 'periodo',
-        label: 'Período',
-        value: `${dataInicio ? formatDate(dataInicio) : '—'} → ${dataFim ? formatDate(dataFim) : '—'}`,
-        tone: semantics?.highlightFilters?.includes('periodo') ? 'relevant' : 'default',
-        onRemove: () => updateParams({ di: undefined, df: undefined }),
-      });
-    }
-    if (filtrosState.clienteIds.length) {
-      const names = filtrosState.clienteIds
-        .map((id) => clientes.find((c) => c.id === id)?.nome_razao_social)
-        .filter(Boolean) as string[];
-      out.push({
-        id: 'cli',
-        label: 'Clientes',
-        value: names.length === 1 ? names[0] : `${names.length} selecionados`,
-        tone: semantics?.highlightFilters?.includes('clientes') ? 'relevant' : 'default',
-        onRemove: () => setFiltrosState({ clienteIds: [] }),
-      });
-    }
-    if (filtrosState.fornecedorIds.length) {
-      const names = filtrosState.fornecedorIds
-        .map((id) => fornecedores.find((f) => f.id === id)?.nome_razao_social)
-        .filter(Boolean) as string[];
-      out.push({
-        id: 'for',
-        label: 'Fornecedores',
-        value: names.length === 1 ? names[0] : `${names.length} selecionados`,
-        tone: semantics?.highlightFilters?.includes('fornecedores') ? 'relevant' : 'default',
-        onRemove: () => setFiltrosState({ fornecedorIds: [] }),
-      });
-    }
-    if (filtrosState.grupoIds.length) {
-      const names = filtrosState.grupoIds
-        .map((id) => grupos.find((g) => g.id === id)?.nome)
-        .filter(Boolean) as string[];
-      out.push({
-        id: 'grp',
-        label: 'Grupos',
-        value: names.length === 1 ? names[0] : `${names.length} selecionados`,
-        tone: semantics?.highlightFilters?.includes('grupos') ? 'relevant' : 'default',
-        onRemove: () => setFiltrosState({ grupoIds: [] }),
-      });
-    }
-    if (filtrosState.statusFiltro && filtrosState.statusFiltro !== 'todos') {
-      const opt = (selectedMeta?.filters.statusOptions ?? []).find((o) => o.value === filtrosState.statusFiltro);
-      out.push({
-        id: 'st',
-        label: 'Status',
-        value: opt?.label ?? filtrosState.statusFiltro,
-        tone: semantics?.highlightFilters?.includes('status') ? 'relevant' : 'default',
-        onRemove: () => setFiltrosState({ statusFiltro: 'todos' }),
-      });
-    }
-    if (filtrosState.tipos.length) {
-      out.push({
-        id: 'tp',
-        label: 'Tipos',
-        value: filtrosState.tipos.join(', '),
-        tone: semantics?.highlightFilters?.includes('tipo') ? 'relevant' : 'default',
-        onRemove: () => setFiltrosState({ tipos: [] }),
-      });
-    }
-    if (filtrosState.agrupamento && filtrosState.agrupamento !== 'padrao') {
-      const labels: Record<string, string> = {
-        valor_desc: 'Maior valor',
-        status: 'Status',
-        vencimento: 'Vencimento',
-      };
-      out.push({
-        id: 'ag',
-        label: 'Ordenação',
-        value: labels[filtrosState.agrupamento] ?? filtrosState.agrupamento,
-        onRemove: () => setFiltrosState({ agrupamento: 'padrao' }),
-      });
-    }
-    return out;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtrosState, clientes, fornecedores, grupos, selectedMeta, semantics, dataInicio, dataFim]);
+  const activeFilterChips = useActiveFilterChips({
+    filtrosState,
+    dataInicio,
+    dataFim,
+    clientes,
+    fornecedores,
+    grupos,
+    selectedMeta,
+    semantics,
+    setFiltrosState,
+    updateParams,
+  });
 
   const handleClearAllFilters = () => {
     // Mantém o tipo de relatório, limpa o restante.
