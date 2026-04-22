@@ -152,7 +152,7 @@ export default function OrcamentoPublico() {
               )}
               <div className="flex items-center gap-2">
                 <FileText className="h-5 w-5 text-primary" />
-                <h1 className="text-xl font-bold text-foreground">Cotação {data.numero}</h1>
+                <h1 className="text-xl font-bold text-foreground">Orçamento {data.numero}</h1>
               </div>
             </div>
             <div className="text-right text-sm space-y-1">
@@ -206,7 +206,7 @@ export default function OrcamentoPublico() {
         {/* Items */}
         <div className="bg-card rounded-xl border overflow-hidden">
           <div className="px-6 py-4 border-b">
-            <h3 className="font-semibold text-foreground">Itens da Cotação</h3>
+            <h3 className="font-semibold text-foreground">Itens do Orçamento</h3>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -240,7 +240,7 @@ export default function OrcamentoPublico() {
         {/* Total + conditions */}
         <div className="bg-card rounded-xl border p-6">
           <div className="flex items-center justify-between mb-4">
-            <span className="text-sm text-muted-foreground font-medium">TOTAL DA COTAÇÃO</span>
+            <span className="text-sm text-muted-foreground font-medium">TOTAL DO ORÇAMENTO</span>
             <span className="text-2xl font-bold font-mono text-primary">{formatCurrency(data.valor_total)}</span>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
@@ -276,7 +276,7 @@ export default function OrcamentoPublico() {
                 onClick={() => handleAction('aprovado')}
               >
                 <CheckCircle className="h-5 w-5" />
-                {actionLoading ? 'Aguarde...' : 'Aceitar esta cotação'}
+                {actionLoading ? 'Aguarde...' : 'Aceitar este orçamento'}
               </Button>
               <Button
                 size="lg"
@@ -300,7 +300,7 @@ export default function OrcamentoPublico() {
             {actionDone === 'aprovado' ? (
               <>
                 <CheckCircle className="h-12 w-12 text-green-600 mx-auto mb-4" />
-                <p className="text-lg font-semibold text-green-700 mb-2">Cotação aceita com sucesso!</p>
+                <p className="text-lg font-semibold text-green-700 mb-2">Orçamento aceita com sucesso!</p>
                 <p className="text-sm text-muted-foreground">
                   Nossa equipe entrará em contato em breve para confirmar os próximos passos.
                 </p>
