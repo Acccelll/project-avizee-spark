@@ -674,6 +674,33 @@ const Estoque = () => {
                         : "Entrada manual incrementa o saldo; prefira fluxos de compra quando houver documento fiscal."}
                   </p>
                 </div>
+
+                {form.tipo === "ajuste" && (
+                  <div className="space-y-2">
+                    <Label>
+                      Categoria do ajuste *{" "}
+                      <span className="text-xs font-normal text-muted-foreground">(exigido pela RPC; cai em auditoria_logs)</span>
+                    </Label>
+                    <Select
+                      value={form.categoria_ajuste}
+                      onValueChange={(v) => setForm({ ...form, categoria_ajuste: v })}
+                    >
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="correcao_inventario">Correção de inventário</SelectItem>
+                        <SelectItem value="perda">Perda</SelectItem>
+                        <SelectItem value="avaria">Avaria</SelectItem>
+                        <SelectItem value="vencimento">Vencimento</SelectItem>
+                        <SelectItem value="furto_extravio">Furto / extravio</SelectItem>
+                        <SelectItem value="divergencia_recebimento">Divergência de recebimento</SelectItem>
+                        <SelectItem value="outro">Outro</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-[11px] text-muted-foreground">
+                      O motivo abaixo precisa ter pelo menos 10 caracteres e somente usuários com perfil <strong>admin</strong> ou <strong>estoquista</strong> podem registrar ajustes críticos.
+                    </p>
+                  </div>
+                )}
                     </CardContent>
                   </Card>
 
