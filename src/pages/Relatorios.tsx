@@ -188,14 +188,15 @@ export default function Relatorios() {
     dataFim,
   });
 
-  const handleSalvarFavorito = () => {
+  const handleSalvarFavorito = async () => {
     const name = saveName.trim();
     if (!name) return;
-    const saved = salvarFavorito(name, searchParams);
+    const saved = await salvarFavorito(name, searchParams);
     setSaveName('');
     setSaveNameOpen(false);
+    // Failure toasts (duplicate / network) are emitted inside the hook so we
+    // only surface success here.
     if (saved) toast.success(`Configuração "${name}" salva com sucesso!`);
-    else toast.warning(`Já existe uma configuração com o nome "${name}".`);
   };
 
   const handleCarregarFavorito = (params: string) => {
