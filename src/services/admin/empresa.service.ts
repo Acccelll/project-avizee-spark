@@ -56,7 +56,15 @@ export async function saveEmpresaConfig(
   return data;
 }
 
-export type AppConfigChave = "email" | "fiscal" | "financeiro" | "geral" | "usuarios";
+export type AppConfigChave =
+  | "email"
+  | "fiscal"
+  | "financeiro"
+  | "geral"
+  | "usuarios"
+  | "integracoes"
+  | "notificacoes"
+  | "backup";
 
 /**
  * Branding/identidade institucional vive em `empresa_config` (fonte canônica).
