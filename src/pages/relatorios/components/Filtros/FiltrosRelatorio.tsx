@@ -24,15 +24,6 @@ import type { ClienteRef, FornecedorRef, GrupoProdutoRef } from "../../hooks/use
 export type Agrupamento = "padrao" | "valor_desc" | "status" | "vencimento";
 export type DreCompetencia = "mes" | "trimestre" | "ano" | "personalizado";
 
-/** Fallback status options for financial-style reports (Financeiro, Aging). */
-const DEFAULT_STATUS_OPTIONS = [
-  { value: 'todos', label: 'Todos' },
-  { value: 'aberto', label: 'Em aberto' },
-  { value: 'vencido', label: 'Vencido' },
-  { value: 'pago', label: 'Pago/Confirmado' },
-  { value: 'pendente', label: 'Pendente' },
-];
-
 export interface FiltrosRelatorioState {
   clienteIds: string[];
   fornecedorIds: string[];
@@ -127,7 +118,7 @@ export function FiltrosRelatorio({
             <Select value={state.statusFiltro} onValueChange={(v) => onChange({ statusFiltro: v })}>
               <SelectTrigger className="h-9 w-[160px]"><SelectValue placeholder="Todos" /></SelectTrigger>
               <SelectContent>
-                {(filters.statusOptions ?? DEFAULT_STATUS_OPTIONS).map((opt) => (
+                {(filters.statusOptions ?? [{ value: 'todos', label: 'Todos' }]).map((opt) => (
                   <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                 ))}
               </SelectContent>

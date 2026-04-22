@@ -27,7 +27,7 @@ import { useRelatoriosFavoritos } from '@/hooks/useRelatoriosFavoritos';
 import { cn } from '@/lib/utils';
 import { BookmarkPlus, BookOpen, Columns, Hash, Eye, Layers, Trash2, RefreshCcw, Rows3, SearchX } from 'lucide-react';
 import { exportarParaCsv, exportarParaExcel, exportarParaPdf, type ExportColumnDef } from '@/services/export.service';
-import { filtrarPorStatus, sortarRows, classifyBadgeTone } from '@/utils/relatorios';
+import { filtrarPorStatus, sortarRows } from '@/utils/relatorios';
 import { reportConfigs, reportCategoryMeta, reportRuntimeSemantics, type ReportCategory } from '@/config/relatoriosConfig';
 import { formatCurrency, formatNumber, formatDate } from '@/lib/format';
 import { formatCellValue, type TipoRelatorio } from '@/services/relatorios.service';
@@ -61,7 +61,20 @@ function buildDreDateRange(state: FiltrosRelatorioState, dataInicio: string, dat
 export default function Relatorios() {
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const tipo = (searchParams.get('tipo') as TipoRelatorio) || '';
+  const rawTipo = searchParams.get('tipo') || '';
+  const isValidTipo = rawTipo !== '' && Object.prototype.hasOwnProperty.call(reportConfigs, rawTipo);
+  const tipo = (isValidTipo ? rawTipo : '') as TipoRelatorio | '';
+
+  // Reset URL when ?tipo is invalid (e.g. ?tipo=hack) so the catalog renders
+  // instead of an empty workspace.
+  useEffect(() => {
+    if (rawTipo !== '' && !isValidTipo) {
+      setSearchParams({});
+      toast.warning(`Relatório "${rawTipo}" não existe. Voltando ao catálogo.`);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rawTipo, isValidTipo]);
+
   const dataInicio = searchParams.get('di') || '';
   const dataFim = searchParams.get('df') || '';
 
@@ -528,6 +541,15 @@ export default function Relatorios() {
               />
 
               {/* KPIs */}
+              {hasLocalFiltersApplied && (
+                <div className="rounded-lg border border-warning/40 bg-warning/5 px-3 py-2 text-xs text-foreground flex items-start gap-2">
+                  <span className="font-medium">Atenção:</span>
+                  <span className="text-muted-foreground">
+                    Os KPIs abaixo refletem o universo total ({rows.length} registros) retornado do banco.
+                    A tabela aplica filtros locais e mostra {sortedRows.length} de {rows.length} registros.
+                  </span>
+                </div>
+              )}
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                 {kpiCards.map((kpi) => (
                   <SummaryCard
@@ -676,7 +698,9 @@ export default function Relatorios() {
                           data={sortedRows}
                           loading={isLoading}
                           moduleKey={`relatorios-${tipo}`}
-                          onRowClick={semantics?.investigableField ? () => toast.info('Drill-down em preparação. Em breve você poderá abrir o detalhe desta linha.') : undefined}
+                          // Drill-down de linha será habilitado quando a navegação real estiver
+                          // implementada (Fase 8). Até lá não exibimos cursor pointer + toast inerte.
+                          onRowClick={undefined}
                           emptyTitle={`Nenhum registro em ${selectedMeta.title}`}
                           emptyDescription="Ajuste o período e os filtros para encontrar registros relevantes."
                         />
