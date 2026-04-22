@@ -1,12 +1,15 @@
 /**
- * Serviço de operações com títulos financeiros (comunicação com Supabase).
+ * Tipos auxiliares de operações sobre títulos financeiros.
  *
- * Centraliza as operações de baixa, negociação e antecipação de títulos,
- * removendo essa lógica dos componentes de UI.
+ * As implementações antigas (`baixarTitulo`, `negociarTitulo`, `anteciparTitulo`)
+ * foram removidas na Fase 5 — não tinham consumidor ativo e dependiam de
+ * INSERT+UPDATE não-transacionais. Os fluxos canônicos passaram para:
+ *   - Baixas em lote   → services/financeiro/baixas
+ *   - Baixa individual → hook `useRegistrarBaixa` (RPC `registrar_baixa_financeira`)
+ *   - Estornos         → services/financeiro/estornos
+ *   - Cancelamento     → services/financeiro/cancelamentos
  */
 
-import { supabase } from "@/integrations/supabase/client";
-import { gerarParcelas } from "./calculosFinanceiros.service";
 import type { Parcela } from "./calculosFinanceiros.service";
 
 export type { Parcela };
@@ -18,7 +21,7 @@ export interface BaixaTituloData {
   juros?: number;
   multa?: number;
   abatimento?: number;
-  dataBaixa: string; // ISO 8601 "YYYY-MM-DD"
+  dataBaixa: string;
   formaPagamento: string;
   contaBancariaId: string;
   observacoes?: string;
@@ -38,243 +41,10 @@ export interface NegociacaoData {
 
 /** Dados necessários para antecipar um título. */
 export interface AntecipacaoData {
-  dataAntecipacao: string; // ISO 8601 "YYYY-MM-DD"
+  dataAntecipacao: string;
   valorAntecipado: number;
   desconto?: number;
   formaPagamento: string;
   contaBancariaId: string;
   observacoes?: string;
-}
-
-/**
- * Realiza a baixa (pagamento) de um título financeiro.
- *
- * @deprecated Use o hook `useRegistrarBaixa` (RPC `registrar_baixa_financeira`).
- * Este caminho NÃO é transacional, NÃO atualiza o saldo da conta bancária e
- * NÃO gera movimento de caixa. Mantido apenas para compatibilidade temporária.
- *
- * @param id         ID do lançamento a ser baixado.
- * @param dadosBaixa Dados do pagamento (valor, datas, forma, conta).
- */
-export async function baixarTitulo(
-  id: string,
-  dadosBaixa: BaixaTituloData,
-): Promise<void> {
-  const {
-    valorPago,
-    desconto = 0,
-    juros = 0,
-    multa = 0,
-    abatimento = 0,
-    dataBaixa,
-    formaPagamento,
-    contaBancariaId,
-    observacoes,
-  } = dadosBaixa;
-
-  // Buscar saldo atual
-  const { data: lancamento, error: fetchError } = await supabase
-    .from("financeiro_lancamentos")
-    .select("saldo_restante, valor")
-    .eq("id", id)
-    .single();
-
-  if (fetchError) throw new Error(fetchError.message);
-
-  const saldoAtual =
-    lancamento.saldo_restante != null
-      ? Number(lancamento.saldo_restante)
-      : Number(lancamento.valor);
-
-  const novoSaldo = Math.max(0, saldoAtual - valorPago - abatimento);
-  const novoStatus = novoSaldo <= 0.01 ? "pago" : "parcial";
-
-  // Inserir registro de baixa
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: baixaInserida, error: baixaError } = await (supabase.from as any)("financeiro_baixas").insert({
-    lancamento_id: id,
-    valor_pago: valorPago,
-    desconto,
-    juros,
-    multa,
-    abatimento,
-    data_baixa: dataBaixa,
-    forma_pagamento: formaPagamento,
-    conta_bancaria_id: contaBancariaId,
-    observacoes: observacoes ?? null,
-  }).select("id").single();
-
-  if (baixaError) throw new Error(baixaError.message);
-
-  // Atualizar lançamento — se falhar, reverter a baixa já inserida
-  const { error: updateError } = await supabase
-    .from("financeiro_lancamentos")
-    .update({
-      saldo_restante: novoSaldo,
-      status: novoStatus,
-      valor_pago: Number(lancamento.valor) - novoSaldo,
-      data_pagamento: novoStatus === "pago" ? dataBaixa : null,
-      forma_pagamento: formaPagamento,
-      conta_bancaria_id: contaBancariaId,
-    })
-    .eq("id", id);
-
-  if (updateError) {
-    // Compensating action: remove the baixa record that was just inserted
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabase.from as any)("financeiro_baixas").delete().eq("id", baixaInserida.id);
-    throw new Error(updateError.message);
-  }
-}
-
-/**
- * Negocia (reparcelamento) um título financeiro.
- *
- * @deprecated Sem transação real (Promise.all + UPDATE separado). Substituir por
- * uma RPC dedicada antes de plugar em UI. Não há consumidor ativo no momento.
- *
- * @param id              ID do lançamento original a ser negociado.
- * @param dadosNegociacao Parâmetros de negociação (parcelas, datas, etc.).
- */
-export async function negociarTitulo(
-  id: string,
-  dadosNegociacao: NegociacaoData,
-): Promise<void> {
-  const {
-    numParcelas,
-    dataPrimeiroVencimento,
-    intervaloDias = 30,
-    descricaoBase,
-    tipo,
-    formaPagamento,
-    contaBancariaId,
-    observacoes,
-  } = dadosNegociacao;
-
-  // Buscar saldo devedor atual
-  const { data: lancamento, error: fetchError } = await supabase
-    .from("financeiro_lancamentos")
-    .select("saldo_restante, valor")
-    .eq("id", id)
-    .single();
-
-  if (fetchError) throw new Error(fetchError.message);
-
-  const valorNegociado =
-    lancamento.saldo_restante != null
-      ? Number(lancamento.saldo_restante)
-      : Number(lancamento.valor);
-
-  const parcelas = gerarParcelas(
-    valorNegociado,
-    numParcelas,
-    dataPrimeiroVencimento,
-    intervaloDias,
-  );
-
-  // Criar novas parcelas antes de cancelar o original para minimizar inconsistência
-  await Promise.all(
-    parcelas.map((parcela) =>
-      supabase
-        .from("financeiro_lancamentos")
-        .insert({
-          tipo,
-          descricao: `${descricaoBase} - ${parcela.numero}/${numParcelas}`,
-          valor: parcela.valor,
-          data_vencimento: parcela.dataVencimento,
-          status: "aberto",
-          forma_pagamento: formaPagamento ?? null,
-          conta_bancaria_id: contaBancariaId ?? null,
-          documento_pai_id: id,
-          parcela_numero: parcela.numero,
-          parcela_total: numParcelas,
-          observacoes: observacoes ?? null,
-          ativo: true,
-        })
-        .then(({ error }) => {
-          if (error) throw new Error(error.message);
-        })
-    )
-  );
-
-  // Cancelar título original somente após todas as parcelas serem criadas com sucesso
-  const { error: cancelError } = await supabase
-    .from("financeiro_lancamentos")
-    .update({ status: "cancelado" })
-    .eq("id", id);
-
-  if (cancelError) throw new Error(cancelError.message);
-}
-
-/**
- * Antecipa o vencimento de um título financeiro.
- *
- * @deprecated Mesma classe de problema de `baixarTitulo`: INSERT + UPDATE
- * separados sem transação. Sem consumidor ativo. Migrar para RPC antes de plugar.
- *
- * @param id                  ID do lançamento a ser antecipado.
- * @param dadosAntecipacao    Dados da antecipação.
- */
-export async function anteciparTitulo(
-  id: string,
-  dadosAntecipacao: AntecipacaoData,
-): Promise<void> {
-  const {
-    dataAntecipacao,
-    valorAntecipado,
-    desconto = 0,
-    formaPagamento,
-    contaBancariaId,
-    observacoes,
-  } = dadosAntecipacao;
-
-  // Buscar saldo atual
-  const { data: lancamento, error: fetchError } = await supabase
-    .from("financeiro_lancamentos")
-    .select("saldo_restante, valor")
-    .eq("id", id)
-    .single();
-
-  if (fetchError) throw new Error(fetchError.message);
-
-  const saldoAtual =
-    lancamento.saldo_restante != null
-      ? Number(lancamento.saldo_restante)
-      : Number(lancamento.valor);
-
-  const novoSaldo = Math.max(0, saldoAtual - valorAntecipado - desconto);
-  const novoStatus = novoSaldo <= 0.01 ? "pago" : "parcial";
-
-  // Inserir registro de baixa (antecipação)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: baixaInserida, error: baixaError } = await (supabase.from as any)("financeiro_baixas").insert({
-    lancamento_id: id,
-    valor_pago: valorAntecipado,
-    desconto,
-    data_baixa: dataAntecipacao,
-    forma_pagamento: formaPagamento,
-    conta_bancaria_id: contaBancariaId,
-    observacoes: observacoes ?? null,
-  }).select("id").single();
-
-  if (baixaError) throw new Error(baixaError.message);
-
-  const { error: updateError } = await supabase
-    .from("financeiro_lancamentos")
-    .update({
-      saldo_restante: novoSaldo,
-      status: novoStatus,
-      data_vencimento: dataAntecipacao,
-      data_pagamento: novoStatus === "pago" ? dataAntecipacao : null,
-      forma_pagamento: formaPagamento,
-      conta_bancaria_id: contaBancariaId,
-    })
-    .eq("id", id);
-
-  if (updateError) {
-    // Compensating action: remove the baixa record that was just inserted
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabase.from as any)("financeiro_baixas").delete().eq("id", baixaInserida.id);
-    throw new Error(updateError.message);
-  }
 }
