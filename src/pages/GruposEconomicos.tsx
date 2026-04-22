@@ -95,6 +95,7 @@ const GruposEconomicos = () => {
   const [clienteCountMap, setClienteCountMap] = useState<Record<string, number>>({});
   const [matrizNomeMap, setMatrizNomeMap] = useState<Record<string, string>>({});
   const { confirm: confirmDiscard, dialog: discardDialog } = useConfirmDialog();
+  const { pushView } = useRelationalNavigation();
 
   const { data, loading, create, update, remove, fetchData } = useSupabaseCrud<GrupoEconomico>({
     table: "grupos_economicos",
@@ -286,14 +287,12 @@ const GruposEconomicos = () => {
     });
     setEmpresas(clientesList);
 
-    // Resolve matriz: prefer empresa_matriz_id, then tipo_relacao_grupo === "matriz"
     const matriz =
       (g.empresa_matriz_id ? clientesList.find((c) => c.id === g.empresa_matriz_id) : undefined) ??
       clientesList.find((c) => c.tipo_relacao_grupo === "matriz") ??
       null;
     setMatrizInfo(matriz);
 
-    // Consolidate financials
     const clienteIds = clientesList.map((c) => c.id);
     if (clienteIds.length > 0) {
       const { data: titulos } = await supabase

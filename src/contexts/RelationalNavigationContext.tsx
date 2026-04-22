@@ -12,9 +12,22 @@ export type EntityType =
   | "pedido_compra"
   | "nota_fiscal"
   | "remessa"
-  | "ordem_venda";
+  | "ordem_venda"
+  | "grupo_economico"
+  | "forma_pagamento";
 
-const VALID_ENTITY_TYPES: ReadonlyArray<EntityType> = ["produto", "cliente", "fornecedor", "orcamento", "pedido_compra", "nota_fiscal", "remessa", "ordem_venda"];
+const VALID_ENTITY_TYPES: ReadonlyArray<EntityType> = [
+  "produto",
+  "cliente",
+  "fornecedor",
+  "orcamento",
+  "pedido_compra",
+  "nota_fiscal",
+  "remessa",
+  "ordem_venda",
+  "grupo_economico",
+  "forma_pagamento",
+];
 
 export interface ViewState {
   type: EntityType;
