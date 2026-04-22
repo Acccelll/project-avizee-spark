@@ -28,7 +28,6 @@ import {
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { EmptyState } from '@/components/EmptyState';
 import { StatCard } from '@/components/StatCard';
 import { useAuth } from '@/contexts/AuthContext';
@@ -40,7 +39,6 @@ import {
 } from './_shared';
 import { UserFilters, type RoleFilter, type StatusFilter } from './UserFilters';
 import { UserRow } from './UserRow';
-import { RolesCatalog } from './RolesCatalog';
 import { UserFormModal } from './UserFormModal';
 import { ToggleStatusDialog } from './ToggleStatusDialog';
 
@@ -78,8 +76,6 @@ export function UsuariosTab() {
   const [toggleTarget, setToggleTarget] = useState<UserWithRoles | null>(null);
   const [toggleLoading, setToggleLoading] = useState(false);
   const [toggleMotivo, setToggleMotivo] = useState('');
-
-  const [activeTab, setActiveTab] = useState<'usuarios' | 'roles'>('usuarios');
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
@@ -265,34 +261,21 @@ export function UsuariosTab() {
           title="Com exceções"
           value={String(stats.comExtras)}
           icon={ShieldAlert}
-          iconColor="text-amber-600"
+          iconColor="text-warning"
           change={stats.comExtras > 0 ? 'Permissões complementares ativas' : undefined}
           changeType="neutral"
         />
       </div>
 
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)}>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <TabsList>
-            <TabsTrigger value="usuarios" className="gap-1.5">
-              <Users className="h-3.5 w-3.5" /> Usuários
-            </TabsTrigger>
-            <TabsTrigger value="roles" className="gap-1.5">
-              <Shield className="h-3.5 w-3.5" /> Perfis e Permissões
-            </TabsTrigger>
-          </TabsList>
+      <div className="flex justify-end">
+        <Button onClick={openCreate} className="gap-2">
+          <UserPlus className="h-4 w-4" />
+          Novo usuário
+        </Button>
+      </div>
 
-          {activeTab === 'usuarios' && (
-            <Button onClick={openCreate} className="gap-2">
-              <UserPlus className="h-4 w-4" />
-              Novo usuário
-            </Button>
-          )}
-        </div>
-
-        {/* ── Tab: Usuários ── */}
-        <TabsContent value="usuarios" className="space-y-4">
-          <UserFilters
+      <div className="space-y-4">
+        <UserFilters
             search={search}
             filterStatus={filterStatus}
             filterRole={filterRole}
@@ -344,13 +327,7 @@ export function UsuariosTab() {
               ))}
             </div>
           )}
-        </TabsContent>
-
-        {/* ── Tab: Roles ── */}
-        <TabsContent value="roles">
-          <RolesCatalog users={users} />
-        </TabsContent>
-      </Tabs>
+      </div>
 
       <UserFormModal
         open={modalOpen}
