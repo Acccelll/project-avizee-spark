@@ -146,7 +146,25 @@ const Estoque = () => {
   // Posição atual / Saldos
   const posicaoAtual = useMemo(() => {
     const q = searchPosicao.toLowerCase();
-    return produtosCrud.data
+    // Adapta linhas da view `vw_estoque_posicao` para o shape ProdutoPosicao
+    // usado pelos componentes/colunas existentes (mantém compatibilidade).
+    const adaptados: ProdutoPosicao[] = estoquePosicao.map((row) => ({
+      id: row.produto_id,
+      nome: row.produto_nome,
+      sku: row.sku,
+      codigo_interno: row.codigo_interno,
+      unidade_medida: row.unidade_medida,
+      estoque_minimo: row.estoque_minimo ?? 0,
+      preco_custo: row.preco_custo,
+      preco_venda: row.preco_venda ?? 0,
+      ativo: row.ativo,
+      estoque_atual: row.estoque_atual,
+      estoque_reservado: row.estoque_reservado,
+      // Campos extras exigidos pelo tipo gerado mas não usados na coluna:
+      created_at: "",
+      updated_at: "",
+    } as unknown as ProdutoPosicao));
+    return adaptados
       .filter((p) => p.ativo !== false)
       .filter((p) => showTodosProdutos || Number(p.estoque_atual ?? 0) !== 0 || Number(p.estoque_minimo ?? 0) > 0)
       .filter((p) => {
@@ -157,7 +175,7 @@ const Estoque = () => {
         if (!situacaoFilters.length) return true;
         return situacaoFilters.includes(getSituacao(p));
       });
-  }, [produtosCrud.data, searchPosicao, situacaoFilters, showTodosProdutos]);
+  }, [estoquePosicao, searchPosicao, situacaoFilters, showTodosProdutos]);
 
   // Movimentações filtradas
   const filteredData = useMemo(() => {
@@ -471,7 +489,7 @@ const Estoque = () => {
             <DataTable
               columns={posColumns}
               data={posicaoAtual}
-              loading={produtosCrud.loading}
+              loading={posicaoLoading}
               moduleKey="estoque-saldos"
               showColumnToggle={true}
               onView={(p) => { setSelectedPosicao(p as ProdutoPosicao); setPosicaoDrawerOpen(true); }}
