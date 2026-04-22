@@ -9,6 +9,7 @@ import { formatCurrency } from "@/lib/format";
 import type { Cliente, Fornecedor } from "@/types/domain";
 import type { ContaContabil, LancamentoForm } from "@/pages/financeiro/types";
 import type { ContaBancaria } from "@/types/domain";
+import { statusFinanceiro, getStatusLabel } from "@/lib/statusSchema";
 
 interface Props {
   form: LancamentoForm;
@@ -23,18 +24,13 @@ interface Props {
   onSubmit: (e: FormEvent) => void;
 }
 
-const STATUS_READONLY = new Set(["parcial", "estornado"]);
+// Status persistidos editáveis: aberto/pago/cancelado.
+// "parcial" é somente leitura (derivado de baixas).
+// "vencido" é estado efetivo derivado, nunca persistido — não aparece no Select.
+// "estornado" foi descontinuado pelo modelo canônico (backfilled para cancelado).
+const STATUS_READONLY = new Set(["parcial"]);
 const STATUS_BADGE_VARIANTS: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
   parcial: "secondary",
-  estornado: "destructive",
-};
-const STATUS_LABELS: Record<string, string> = {
-  aberto: "Aberto",
-  pago: "Pago",
-  cancelado: "Cancelado",
-  vencido: "Vencido",
-  parcial: "Parcialmente Pago",
-  estornado: "Estornado",
 };
 
 export function FinanceiroLancamentoForm({
@@ -70,7 +66,7 @@ export function FinanceiroLancamentoForm({
           {isStatusReadonly ? (
             <div className="flex items-center gap-2 h-9 px-3 rounded-md border bg-muted/30">
               <Badge variant={STATUS_BADGE_VARIANTS[form.status] ?? "outline"}>
-                {STATUS_LABELS[form.status] ?? form.status}
+                {getStatusLabel(statusFinanceiro, form.status)}
               </Badge>
               <span className="text-xs text-muted-foreground">(somente leitura)</span>
             </div>
