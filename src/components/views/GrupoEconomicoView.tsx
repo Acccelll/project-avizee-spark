@@ -224,7 +224,7 @@ export function GrupoEconomicoView({ id }: Props) {
                 <div key={e.id} className="flex items-center justify-between py-2 px-2 rounded-md border bg-card hover:bg-muted/30">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
-                      {e.id === matriz?.id && <Star className="h-3 w-3 text-amber-500 shrink-0" />}
+                      {e.id === matriz?.id && <Star className="h-3 w-3 text-warning shrink-0" />}
                       <RelationalLink type="cliente" id={e.id}>
                         <span className="truncate">{e.nome_razao_social}</span>
                       </RelationalLink>
