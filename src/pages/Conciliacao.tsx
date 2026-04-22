@@ -134,17 +134,48 @@ export default function Conciliacao() {
     if (!contaId) return;
     setLoadingLanc(true);
     try {
-      const { data } = await supabase
-        .from("financeiro_lancamentos")
-        .select(
-          "id, descricao, valor, data_vencimento, tipo, status, nota_fiscal_id, documento_pai_id, conta_bancaria_id, forma_pagamento, contas_bancarias(descricao, bancos(nome))",
-        )
-        .eq("ativo", true)
-        .eq("conta_bancaria_id", contaId)
-        .gte("data_vencimento", from)
-        .lte("data_vencimento", to)
-        .order("data_vencimento", { ascending: true });
-      setLancamentos((data as Lancamento[]) || []);
+      // Eixo canônico de conciliação: data_baixa (liquidação real).
+      // Carrega em duas frentes e une por id:
+      //   1) Títulos com baixa ativa no período (eixo data_baixa)
+      //   2) Títulos em aberto/parcial pelo vencimento no período (candidatos a nova baixa)
+      const lancSelect =
+        "id, descricao, valor, data_vencimento, tipo, status, saldo_restante, nota_fiscal_id, documento_pai_id, conta_bancaria_id, forma_pagamento, contas_bancarias(descricao, bancos(nome))";
+
+      const [{ data: porBaixa }, { data: porVencimento }] = await Promise.all([
+        supabase
+          .from("financeiro_baixas")
+          .select(`lancamento_id, data_baixa, financeiro_lancamentos!inner(${lancSelect})`)
+          .eq("conta_bancaria_id", contaId)
+          .is("estornada_em", null)
+          .gte("data_baixa", from)
+          .lte("data_baixa", to),
+        supabase
+          .from("financeiro_lancamentos")
+          .select(lancSelect)
+          .eq("ativo", true)
+          .eq("conta_bancaria_id", contaId)
+          .in("status", ["aberto", "parcial"])
+          .gte("data_vencimento", from)
+          .lte("data_vencimento", to)
+          .order("data_vencimento", { ascending: true }),
+      ]);
+
+      const merged = new Map<string, Lancamento & { data_baixa?: string | null }>();
+      // Liquidados (anexa data_baixa para uso no score)
+      ((porBaixa as Array<{
+        lancamento_id: string;
+        data_baixa: string;
+        financeiro_lancamentos: Lancamento;
+      }>) || []).forEach((row) => {
+        if (!row.financeiro_lancamentos) return;
+        merged.set(row.lancamento_id, { ...row.financeiro_lancamentos, data_baixa: row.data_baixa });
+      });
+      // Em aberto (preserva data_baixa se já existir vindo do outro ramo)
+      ((porVencimento as Lancamento[]) || []).forEach((l) => {
+        if (!merged.has(l.id)) merged.set(l.id, l);
+      });
+
+      setLancamentos(Array.from(merged.values()));
     } finally {
       setLoadingLanc(false);
     }
