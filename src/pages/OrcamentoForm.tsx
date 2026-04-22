@@ -466,9 +466,10 @@ export default function OrcamentoForm() {
     setItems((draft.items as OrcamentoItem[]) || []);
   };
 
+  // Templates: estado e persistência isolados em hook (Fase 5 — comercial-modelo).
+  const { templates, saveTemplate: persistTemplate } = useOrcamentoTemplates(user?.id);
+
   const saveTemplate = async (escopo: "usuario" | "equipe") => {
-    if (!templateName.trim()) { toast.error("Informe um nome para o template"); return; }
-    const key = escopo === "equipe" ? `${TEAM_TEMPLATE_KEY}:${templateName.trim()}` : `orcamento_template:${user?.id}:${templateName.trim()}`;
     const payload: TemplateConfig = {
       items,
       pagamento,
@@ -479,41 +480,19 @@ export default function OrcamentoForm() {
       observacoes,
       observacoes_internas: observacoesInternas,
     };
-
-    if (escopo === "equipe") {
-      const { data: existing, error: existingError } = await supabase
-        .from("app_configuracoes")
-        .select("chave")
-        .eq("chave", key)
-        .maybeSingle();
-      if (existingError) {
-        toast.error(getUserFriendlyError(existingError));
-        return;
-      }
-      if (existing) {
-        const shouldOverwrite = await confirmAction({
+    const ok = await persistTemplate({
+      nome: templateName,
+      escopo,
+      payload,
+      onConfirmOverwrite: () =>
+        confirmAction({
           title: "Sobrescrever template?",
           description: "Template com este nome já existe. Deseja sobrescrever?",
           confirmLabel: "Sobrescrever",
           confirmVariant: "destructive",
-        });
-        if (!shouldOverwrite) return;
-      }
-    }
-
-    const templateRecord: OrcamentoTemplate = {
-      id: key,
-      nome: templateName.trim(),
-      escopo,
-      payload,
-    };
-
-    await supabase.from("app_configuracoes").upsert(
-      { chave: key, valor: templateRecord as unknown as Json, updated_at: new Date().toISOString() },
-      { onConflict: "chave" },
-    );
-    toast.success("Template salvo");
-    setTemplateName("");
+        }),
+    });
+    if (ok) setTemplateName("");
   };
 
   const applyTemplate = (tpl: OrcamentoTemplate) => {
@@ -792,20 +771,6 @@ export default function OrcamentoForm() {
     }, 30000);
     return () => clearInterval(timer);
   }, [buildDraftPayload, draftKey, getValues, items.length, user?.id]);
-
-  useEffect(() => {
-    if (!user?.id) return;
-    supabase
-      .from("app_configuracoes")
-      .select("valor, chave")
-      .or(`chave.like.orcamento_template:${user.id}:%,chave.like.${TEAM_TEMPLATE_KEY}:%`)
-      .then(({ data }) => {
-        const list = (data || [])
-          .map((row) => row.valor as unknown as OrcamentoTemplate | null)
-          .filter((row): row is OrcamentoTemplate => !!row?.id && !!row?.nome && !!row?.payload);
-        setTemplates(list);
-      });
-  }, [user?.id]);
 
   useEffect(() => {
     supabase.from('empresa_config').select('*').limit(1).single().then(({ data }) => {
