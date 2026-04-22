@@ -16,7 +16,7 @@ const sectionResourcesMap: Partial<Record<NavSectionKey, ErpResource[]>> = {
   comercial: ['orcamentos', 'pedidos'],
   compras: ['compras'],
   estoque: ['estoque', 'logistica'],
-  financeiro: ['financeiro'],
+  financeiro: ['financeiro', 'socios'],
   fiscal: ['faturamento_fiscal'],
   relatorios: ['relatorios'],
   administracao: ['administracao'],

@@ -186,6 +186,134 @@ export type Database = {
         }
         Relationships: []
       }
+      apuracoes_societarias: {
+        Row: {
+          ajustes: number
+          bonus_total: number
+          competencia: string
+          created_at: string
+          created_by: string | null
+          fechado_em: string | null
+          fechado_por: string | null
+          fechamento_mensal_id: string | null
+          id: string
+          lucro_base: number
+          lucro_distribuivel: number
+          observacoes: string | null
+          pro_labore_total: number
+          status: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          ajustes?: number
+          bonus_total?: number
+          competencia: string
+          created_at?: string
+          created_by?: string | null
+          fechado_em?: string | null
+          fechado_por?: string | null
+          fechamento_mensal_id?: string | null
+          id?: string
+          lucro_base?: number
+          lucro_distribuivel?: number
+          observacoes?: string | null
+          pro_labore_total?: number
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          ajustes?: number
+          bonus_total?: number
+          competencia?: string
+          created_at?: string
+          created_by?: string | null
+          fechado_em?: string | null
+          fechado_por?: string | null
+          fechamento_mensal_id?: string | null
+          id?: string
+          lucro_base?: number
+          lucro_distribuivel?: number
+          observacoes?: string | null
+          pro_labore_total?: number
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "apuracoes_societarias_fechamento_mensal_id_fkey"
+            columns: ["fechamento_mensal_id"]
+            isOneToOne: false
+            referencedRelation: "fechamentos_mensais"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      apuracoes_societarias_itens: {
+        Row: {
+          apuracao_id: string
+          bonus_calculado: number
+          created_at: string
+          direito_teorico: number
+          distribuicao_calculada: number
+          id: string
+          observacoes: string | null
+          percentual_aplicado: number
+          pro_labore_calculado: number
+          retirado_no_periodo: number
+          saldo_disponivel: number
+          socio_id: string
+          updated_at: string
+        }
+        Insert: {
+          apuracao_id: string
+          bonus_calculado?: number
+          created_at?: string
+          direito_teorico?: number
+          distribuicao_calculada?: number
+          id?: string
+          observacoes?: string | null
+          percentual_aplicado?: number
+          pro_labore_calculado?: number
+          retirado_no_periodo?: number
+          saldo_disponivel?: number
+          socio_id: string
+          updated_at?: string
+        }
+        Update: {
+          apuracao_id?: string
+          bonus_calculado?: number
+          created_at?: string
+          direito_teorico?: number
+          distribuicao_calculada?: number
+          id?: string
+          observacoes?: string | null
+          percentual_aplicado?: number
+          pro_labore_calculado?: number
+          retirado_no_periodo?: number
+          saldo_disponivel?: number
+          socio_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "apuracoes_societarias_itens_apuracao_id_fkey"
+            columns: ["apuracao_id"]
+            isOneToOne: false
+            referencedRelation: "apuracoes_societarias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "apuracoes_societarias_itens_socio_id_fkey"
+            columns: ["socio_id"]
+            isOneToOne: false
+            referencedRelation: "socios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       auditoria_logs: {
         Row: {
           acao: string
@@ -4860,6 +4988,263 @@ export type Database = {
           },
         ]
       }
+      socios: {
+        Row: {
+          agencia: string | null
+          ativo: boolean
+          banco: string | null
+          chave_pix: string | null
+          conta: string | null
+          cpf: string | null
+          created_at: string
+          created_by: string | null
+          data_entrada: string | null
+          data_saida: string | null
+          email: string | null
+          forma_recebimento_padrao: string | null
+          id: string
+          nome: string
+          observacoes: string | null
+          percentual_participacao_atual: number
+          telefone: string | null
+          tipo_conta: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          agencia?: string | null
+          ativo?: boolean
+          banco?: string | null
+          chave_pix?: string | null
+          conta?: string | null
+          cpf?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_entrada?: string | null
+          data_saida?: string | null
+          email?: string | null
+          forma_recebimento_padrao?: string | null
+          id?: string
+          nome: string
+          observacoes?: string | null
+          percentual_participacao_atual?: number
+          telefone?: string | null
+          tipo_conta?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          agencia?: string | null
+          ativo?: boolean
+          banco?: string | null
+          chave_pix?: string | null
+          conta?: string | null
+          cpf?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_entrada?: string | null
+          data_saida?: string | null
+          email?: string | null
+          forma_recebimento_padrao?: string | null
+          id?: string
+          nome?: string
+          observacoes?: string | null
+          percentual_participacao_atual?: number
+          telefone?: string | null
+          tipo_conta?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      socios_parametros: {
+        Row: {
+          base_referencia: string
+          competencia: string
+          created_at: string
+          created_by: string | null
+          id: string
+          observacoes: string | null
+          pro_labore_total: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          base_referencia?: string
+          competencia: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          observacoes?: string | null
+          pro_labore_total?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          base_referencia?: string
+          competencia?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          observacoes?: string | null
+          pro_labore_total?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      socios_participacoes: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          observacoes: string | null
+          percentual: number
+          socio_id: string
+          updated_at: string
+          updated_by: string | null
+          vigencia_fim: string | null
+          vigencia_inicio: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          observacoes?: string | null
+          percentual: number
+          socio_id: string
+          updated_at?: string
+          updated_by?: string | null
+          vigencia_fim?: string | null
+          vigencia_inicio: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          observacoes?: string | null
+          percentual?: number
+          socio_id?: string
+          updated_at?: string
+          updated_by?: string | null
+          vigencia_fim?: string | null
+          vigencia_inicio?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "socios_participacoes_socio_id_fkey"
+            columns: ["socio_id"]
+            isOneToOne: false
+            referencedRelation: "socios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      socios_retiradas: {
+        Row: {
+          apuracao_id: string | null
+          competencia: string
+          created_at: string
+          created_by: string | null
+          criterio_rateio: string
+          data_pagamento: string | null
+          data_prevista: string | null
+          financeiro_lancamento_id: string | null
+          id: string
+          motivo_cancelamento: string | null
+          observacoes: string | null
+          percentual_aplicado: number | null
+          socio_id: string
+          status: string
+          tipo: string
+          updated_at: string
+          updated_by: string | null
+          valor_aprovado: number | null
+          valor_calculado: number
+          valor_total_evento: number | null
+        }
+        Insert: {
+          apuracao_id?: string | null
+          competencia: string
+          created_at?: string
+          created_by?: string | null
+          criterio_rateio?: string
+          data_pagamento?: string | null
+          data_prevista?: string | null
+          financeiro_lancamento_id?: string | null
+          id?: string
+          motivo_cancelamento?: string | null
+          observacoes?: string | null
+          percentual_aplicado?: number | null
+          socio_id: string
+          status?: string
+          tipo: string
+          updated_at?: string
+          updated_by?: string | null
+          valor_aprovado?: number | null
+          valor_calculado?: number
+          valor_total_evento?: number | null
+        }
+        Update: {
+          apuracao_id?: string | null
+          competencia?: string
+          created_at?: string
+          created_by?: string | null
+          criterio_rateio?: string
+          data_pagamento?: string | null
+          data_prevista?: string | null
+          financeiro_lancamento_id?: string | null
+          id?: string
+          motivo_cancelamento?: string | null
+          observacoes?: string | null
+          percentual_aplicado?: number | null
+          socio_id?: string
+          status?: string
+          tipo?: string
+          updated_at?: string
+          updated_by?: string | null
+          valor_aprovado?: number | null
+          valor_calculado?: number
+          valor_total_evento?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "socios_retiradas_apuracao_id_fkey"
+            columns: ["apuracao_id"]
+            isOneToOne: false
+            referencedRelation: "apuracoes_societarias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "socios_retiradas_financeiro_lancamento_id_fkey"
+            columns: ["financeiro_lancamento_id"]
+            isOneToOne: true
+            referencedRelation: "financeiro_lancamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "socios_retiradas_financeiro_lancamento_id_fkey"
+            columns: ["financeiro_lancamento_id"]
+            isOneToOne: true
+            referencedRelation: "vw_workbook_aging_cp"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "socios_retiradas_financeiro_lancamento_id_fkey"
+            columns: ["financeiro_lancamento_id"]
+            isOneToOne: true
+            referencedRelation: "vw_workbook_aging_cr"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "socios_retiradas_socio_id_fkey"
+            columns: ["socio_id"]
+            isOneToOne: false
+            referencedRelation: "socios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stg_cadastros: {
         Row: {
           created_at: string | null
@@ -5954,6 +6339,10 @@ export type Database = {
       aprovar_cotacao_compra: { Args: { p_id: string }; Returns: Json }
       aprovar_orcamento: { Args: { p_id: string }; Returns: Json }
       aprovar_pedido: { Args: { p_pedido_id: string }; Returns: Json }
+      aprovar_retirada_socio: {
+        Args: { p_retirada_id: string }
+        Returns: undefined
+      }
       cancelar_cotacao_compra: {
         Args: { p_id: string; p_motivo?: string }
         Returns: Json
@@ -5980,6 +6369,10 @@ export type Database = {
       }
       cancelar_remessa: {
         Args: { p_motivo?: string; p_remessa_id: string }
+        Returns: undefined
+      }
+      cancelar_retirada_socio: {
+        Args: { p_motivo: string; p_retirada_id: string }
         Returns: undefined
       }
       carga_inicial_conciliacao: {
@@ -6021,6 +6414,10 @@ export type Database = {
             Returns: Json
           }
       count_estoque_baixo: { Args: never; Returns: number }
+      criar_apuracao_societaria: {
+        Args: { p_competencia: string; p_lucro_base?: number }
+        Returns: string
+      }
       criar_revisao_orcamento: {
         Args: { p_orcamento_id: string }
         Returns: string
@@ -6052,6 +6449,10 @@ export type Database = {
         Returns: undefined
       }
       expirar_orcamentos_vencidos: { Args: never; Returns: number }
+      fechar_apuracao_societaria: {
+        Args: { p_apuracao_id: string }
+        Returns: undefined
+      }
       financeiro_cancelar_lancamento: {
         Args: { p_id: string; p_motivo: string }
         Returns: undefined
@@ -6086,6 +6487,14 @@ export type Database = {
             Returns: number
           }
         | { Args: { p_folha_id: string }; Returns: Json }
+      gerar_financeiro_retirada: {
+        Args: {
+          p_conta_bancaria_id?: string
+          p_data_vencimento: string
+          p_retirada_id: string
+        }
+        Returns: string
+      }
       gerar_nf_de_pedido: { Args: { p_pedido_id: string }; Returns: Json }
       gerar_parcelas_financeiras: {
         Args: {
@@ -6149,6 +6558,10 @@ export type Database = {
       proximo_numero_orcamento: { Args: never; Returns: string }
       proximo_numero_ordem_venda: { Args: never; Returns: string }
       proximo_numero_pedido_compra: { Args: never; Returns: string }
+      reabrir_apuracao_societaria: {
+        Args: { p_apuracao_id: string; p_motivo: string }
+        Returns: undefined
+      }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }
         Returns: {
@@ -6156,6 +6569,10 @@ export type Database = {
           msg_id: number
           read_ct: number
         }[]
+      }
+      recalcular_apuracao_societaria: {
+        Args: { p_apuracao_id: string }
+        Returns: undefined
       }
       receber_compra: {
         Args: {
