@@ -3,6 +3,7 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { orcamentoSchema, type OrcamentoFormValues } from "@/lib/orcamentoSchema";
+import type { Json } from "@/integrations/supabase/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -119,7 +120,6 @@ export default function OrcamentoForm() {
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [restoreDraftOpen, setRestoreDraftOpen] = useState(false);
   const [templateName, setTemplateName] = useState("");
-  const [templates, setTemplates] = useState<OrcamentoTemplate[]>([]);
   const [templateDialogOpen, setTemplateDialogOpen] = useState<null | "usuario" | "equipe">(null);
   const [layoutTemplate, setLayoutTemplate] = useState<'simples' | 'completo' | 'logo'>('completo');
   const { confirm: confirmAction, dialog: confirmActionDialog } = useConfirmDialog();
