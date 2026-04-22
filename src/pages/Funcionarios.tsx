@@ -126,8 +126,7 @@ export default function Funcionarios() {
 
   const openCreate = () => {
     setMode("create");
-    setForm({ ...emptyForm });
-    setBaselineForm({ ...emptyForm });
+    reset({ ...emptyForm });
     setSelected(null);
     setFolhas([]);
     setLancamentos([]);
@@ -136,18 +135,12 @@ export default function Funcionarios() {
   const openEdit = (f: Funcionario) => {
     setMode("edit"); setSelected(f);
     const next: FuncionarioForm = { nome: f.nome, cpf: f.cpf || "", cargo: f.cargo || "", departamento: f.departamento || "", data_admissao: f.data_admissao, data_demissao: f.data_demissao || null, salario_base: f.salario_base, tipo_contrato: f.tipo_contrato, observacoes: f.observacoes || "", ativo: f.ativo };
-    setForm(next);
-    setBaselineForm(next);
+    reset(next);
     // limpa estados de drawer-context para evitar mostrar dados de registro anterior por instante
     setFolhas([]);
     setLancamentos([]);
     setModalOpen(true);
   };
-
-  const isFormDirty = useMemo(
-    () => JSON.stringify(form) !== JSON.stringify(baselineForm),
-    [form, baselineForm],
-  );
 
   const handleCloseModal = async () => {
     if (isFormDirty) {
@@ -186,7 +179,7 @@ export default function Funcionarios() {
           toast.info(`${selected.nome} foi inativado. O histórico de folha foi preservado.`);
         }
       }
-      setBaselineForm(form);
+      markPristine();
       setModalOpen(false);
     });
   };
