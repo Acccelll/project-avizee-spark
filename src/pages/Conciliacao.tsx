@@ -30,6 +30,7 @@ import type { TransacaoExtrato } from "@/services/financeiro/ofxParser.service";
 import { exportarParaExcel } from "@/services/export.service";
 import type { Lancamento } from "@/types/domain";
 import { getUserFriendlyError } from "@/utils/errorMessages";
+import { getOrigemKey, getOrigemLabel } from "@/lib/financeiro";
 
 interface LancamentoComStatus extends Lancamento {
   statusConciliacao: string;
