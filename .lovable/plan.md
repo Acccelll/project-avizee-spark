@@ -1,133 +1,125 @@
 
 
-# Revisão Técnica e Funcional — Módulo Comercial
+# Revisão Técnica e Funcional — Módulo Compras
 
-Revisão baseada no estado real (`src/pages/{Orcamentos,OrcamentoForm,Pedidos,PedidoForm}.tsx`, `src/components/views/{OrcamentoView,OrdemVendaView}.tsx`, `src/pages/comercial/hooks/{useConverterOrcamento,useFaturarPedido,useGerarPedidoCompra,useReceberCompra}.ts`, `src/services/orcamentos.service.ts`, `src/services/comercial/cotacoes.service.ts`, `src/lib/{comercialWorkflow,statusSchema,orcamentoSchema}.ts`, `src/utils/comercial.ts`, `src/services/_invalidationKeys.ts`, `docs/comercial-modelo.md`).
+Revisão baseada no estado real (`src/pages/{CotacoesCompra,CotacaoCompraForm,PedidosCompra,PedidoCompraForm}.tsx`, `src/components/views/PedidoCompraView.tsx`, `src/components/compras/*`, `src/hooks/{useCotacoesCompra,usePedidosCompra}.ts`, `src/pages/comercial/hooks/{useGerarPedidoCompra,useReceberCompra}.ts`, `docs/compras-modelo.md`).
 
 ---
 
 ## 1. Visão geral do módulo
 
-O módulo Comercial cobre o ciclo **Orçamento → Pedido → NF**. Entidades reais:
+Cobre o ciclo **Cotação de Compra → Pedido de Compra → Recebimento (Estoque + Financeiro + NF entrada)**.
 
-| Camada | Página grid | Form (rota dedicada) | Drawer | Service / hook |
-|---|---|---|---|---|
-| Orçamento (= Cotação) | `Orcamentos.tsx` | `OrcamentoForm.tsx` (`/orcamentos/:id`) | `OrcamentoView` | `orcamentos.service.ts` |
-| Pedido (`ordens_venda`) | `Pedidos.tsx` | `PedidoForm.tsx` (`/pedidos/:id`, parcial) | `OrdemVendaView` | `useFaturarPedido` |
-| NF saída | externo (`Fiscal`) | — | `NotaFiscalDrawer` | `useFaturarPedido` (gera) |
+| Camada | Grid | Form rota dedicada | Modal | Drawer | Detalhe |
+|---|---|---|---|---|---|
+| Cotação Compra | `CotacoesCompra.tsx` | `CotacaoCompraForm.tsx` (`/cotacoes-compra/:id`) | `FormModal` inline | `CotacaoCompraDrawer` | — |
+| Pedido Compra | `PedidosCompra.tsx` | `PedidoCompraForm.tsx` (`/pedidos-compra/:id`) | `PedidoCompraFormModal` | `PedidoCompraDrawer` | `PedidoCompraView` (drawer relacional) |
 
-Workflow oficial (`docs/comercial-modelo.md`): `rascunho → pendente → aprovado → convertido` (terminal); `rejeitado/cancelado/expirado` terminais; ramos auxiliares via `cancelar_orcamento`, `expirar_orcamentos_vencidos`, `criar_revisao_orcamento`.
+Workflow oficial (`docs/compras-modelo.md`):
+- Cotação: `rascunho · aberta · em_analise · aguardando_aprovacao · aprovada · convertida · rejeitada · cancelada`. Terminais: `convertida/rejeitada/cancelada`.
+- Pedido: `rascunho · aguardando_aprovacao · aprovado · enviado_ao_fornecedor · aguardando_recebimento · parcialmente_recebido · recebido · cancelado`. Terminais: `recebido/cancelado`.
+- Aliases legados absorvidos: `finalizada→aprovada` (cotação), `recebido_parcial→parcialmente_recebido` (pedido).
 
-Operações cross-módulo via RPC transacional:
-- `converter_orcamento_em_ov` → invalida `conversaoOrcamento`.
-- `gerar_nf_de_pedido` → invalida `faturamentoPedido`.
-- `cancelar_orcamento`, `criar_revisao_orcamento` → operam no contexto do orçamento.
+RPCs: `gerar_pedido_compra`, `receber_compra`, `estornar_recebimento_compra`, `replace_pedido_compra_itens`, `replace_cotacao_compra_itens`, `cancelar_cotacao_compra`, `solicitar_aprovacao_pedido`, `aprovar_pedido`, `rejeitar_pedido`, `proximo_numero_*`.
 
-Persistência da grid via `useSupabaseCrud` legado (sem React Query). Drawers usam `useDetailFetch + usePublishDrawerSlots`. Filtros: a grid de Orçamentos usa multivalor via `getAll("status")` (querystring repetida), enquanto a grid de Pedidos usa CSV (`?status=a,b`) — duas convenções coexistem no mesmo módulo.
+Persistência: cotação usa `useSupabaseCrud` legado; pedido já usa **React Query**. Filtros via `useSearchParams` em ambos com **multivalor por param repetido** (`?status=a&status=b`).
 
 ---
 
 ## 2. Pontos fortes
 
-- **Modelagem de status canonizada** em `lib/statusSchema.ts` + `comercialWorkflow.ts`. `normalizeOrcamentoStatus` absorve aliases legados (`enviado`/`confirmado` → `pendente`).
-- **Guards de transição puros** (`canSendOrcamento`, `canApproveOrcamento`, `canConvertOrcamento`) consumidos identicamente pela grid e pelo drawer — reduz bug de divergência entre lugares.
-- **Cross-módulo via RPC**: conversão e faturamento são atômicos no banco. UI só chama `mutateAsync` e invalida via `INVALIDATION_KEYS.*`.
-- **`useDetailFetch` com `abortSignal`** em ambos os drawers — race resolvida.
-- **`CrossModuleActionDialog` + `crossToast`** com CTA "Abrir pedido / Abrir NF" entrega excelente continuidade de fluxo. Dois usos consistentes (conversão + faturamento).
-- **`OrdemVendaView` mostra impacto financeiro real** (notas vinculadas + lançamentos a receber) na aba Faturamento — bom drill-down.
-- **`OrcamentoView` bloqueia cancelamento quando há pedido vinculado** com `linkedOV` e mensagem explícita.
-- **Guarda `isDirty` + `beforeunload`** em `PedidoForm` evita perda silenciosa.
-- **Auto-detecção de "expirado" no badge da grid** (override visual de `pendente` validade-vencida) entrega informação imediata.
-- **`CONTRACTS.md`** documenta o mapa de mutações e callers — referência viva.
-- **Gate de estoque** na geração de NF (`Pedidos.handleRequestGenerateNF`) avisa shortfall por item antes de confirmar.
+- **Status canonizado** em `comprasStatus.ts` com aliases legados (`finalizada`, `recebido_parcial`) absorvidos no client; doc afirma que o banco já recusa os legados.
+- **`gerar_pedido_compra`** via mutation hook com idempotência (`ux_pedidos_compra_cotacao_id`) e invalidação cross-módulo.
+- **`receber_compra`** com `pg_advisory_xact_lock` e validação server-side de saldo pendente — recebimento parcial é tratado corretamente.
+- **`estornar_recebimento_compra`** existe, devolve estoque e recalcula `quantidade_recebida`.
+- **`PedidoCompraDrawer`** tem footer rico (cancelar, solicitar aprovação, aprovar/rejeitar com motivo, marcar enviado, registrar recebimento) gated por `useActionLock`.
+- **`PedidoCompraView` (drawer relacional)** mostra progresso de recebimento por item, movimentações de estoque, datas de entrega, vínculo com cotação e logística — boa rastreabilidade.
+- **`CotacaoCompraDrawer`** tem aba "Decisão" com totais aprovados, status do processo e gates explícitos por status. Boa UX de comparação de propostas.
+- **Validação de fornecedor único** ao gerar pedido (`gerarPedido` em `useCotacoesCompra`) impede misturar fornecedores no mesmo pedido.
+- **`replace_pedido_compra_itens` / `replace_cotacao_compra_itens`** transacionais — usadas pelos forms de rota (não pelo modal).
+- **`useDetailFetch` com `abortSignal`** em `PedidoCompraView` — race resolvida.
+- **`darEntrada`** redireciona para `/fiscal` com `pedido_compra_id` UUID + `fornecedor_id` para pré-vincular NF entrada — boa continuidade.
+- **Auditoria documentada** no `docs/compras-modelo.md` para todas as RPCs do lifecycle.
 
 ---
 
 ## 3. Problemas encontrados
 
-### A. Coerência do fluxo Cotação → Aprovação → Pedido → NF
+### A. Status: drift, alias e ações que ignoram o workflow
 
-1. **`statusOrcamento` não inclui `historico`** apesar de `orcamentoSchema` aceitar e o filtro "Apenas históricos" existir. Status `historico` cai no fallback `getOrcamentoStatusLabel` e renderiza string crua. Inconsistência entre schema, statusSchema e UI.
-2. **`statusPedido` não inclui `entregue` nem `em_transporte`** apesar de `Pedidos.tsx` usar (`TERMINAL_STATUSES_PEDIDO = ["entregue", "faturado", "cancelada"]` na linha 45 e KPI "Em Andamento" filtra `["em_separacao", "separado", "em_transporte"]`). Status renderiza cru no badge ("em_transporte" textual). E `statusPedido` lista `pendente` / `aprovada` / `faturada_parcial` / `faturada` que **não combinam com o set operacional do PedidoForm** (`aprovada/em_separacao/separado/em_transporte/entregue/cancelada`). Há **2 universos de status de pedido** no mesmo módulo:
-   - `statusPedido` (rascunho/pendente/aprovada/em_separacao/faturada_parcial/faturada/cancelada) — usado no Select da grid.
-   - `PedidoForm.statusOptions` (pendente/aprovada/em_separacao/separado/em_transporte/entregue/cancelada) — usado na edição.
-   O usuário pode salvar `entregue` no form mas o filtro da grid não tem essa opção; e pode salvar `separado` mas o KPI "Em Andamento" só conta isso parcialmente.
-3. **Faturamento ortogonal não está separado visualmente** da `matriz chk_ordens_venda_matriz_status`. O CHECK do banco (ver doc) restringe combinações status × status_faturamento, mas a UI não impede o usuário de mudar `status` para `cancelada` quando `status_faturamento='parcial'` etc. — só vai falhar no save. Falta de validação local.
-4. **`OrdemVendaView.canGenerateNF`** aceita `["aprovada", "em_separacao", "separado"]` enquanto **`Pedidos.tsx` columns "Gerar NF"** aceita só `["aprovada", "em_separacao"]` (sem `separado`). Mesma ação, dois gates. Pedido com status `separado` mostra botão no drawer mas não na grid.
-5. **`canSendOrcamento`/`canApprove`** ignoram o estado de items: é possível enviar para aprovação um orçamento `rascunho` **com 0 itens**. RPC pode aceitar. Não há gate na UI nem service.
-6. **`approveOrcamento` no service não é admin-gated**. A grid e o drawer fazem `if (!isAdmin)` na UI, mas a função `approveOrcamento` em `orcamentos.service.ts` é uma chamada pura `update status='aprovado'`. Qualquer caller pode burlar via console — depende inteiramente de RLS no Supabase. Não há documentação garantindo a policy.
+1. **`useCotacoesCompra.handleSendForApproval/handleApprove/handleReject`** fazem `update status=...` direto na tabela, **bypassando trigger** `trg_cotacao_compra_transicao` apenas no sentido de não usar RPC dedicada. Nenhuma RPC `aprovar_cotacao_compra` / `rejeitar_cotacao_compra` é usada — toda transição cai na trigger e **não há auditoria** dessas mudanças (só a doc fala em auditoria via `cancelar_cotacao_compra`). Inconsistente: cancelar tem RPC com auditoria; aprovar/rejeitar/enviar não.
+2. **`CotacaoCompraForm.handleSave` permite alterar `form.status` livremente** (passa o status atual no payload). Apenas bloqueia `convertida/cancelada`. Um usuário pode salvar `aprovada` direto pelo form de edição, pulando o caminho de aprovação. O Modal da grid (`CotacoesCompra.tsx`) trava o select como disabled, mas o form de rota não — **dois caminhos divergentes**.
+3. **`useCotacoesCompra.openEdit/openView` chamam `canonicalCotacaoStatus`** (alias `finalizada→aprovada`), mas a doc diz que o banco já não aceita o legado. O alias serve como leitura defensiva. **Concomitantemente**, `CotacaoCompraForm.tsx` (linha 99) seta `form.status = cot.status` sem canonização — abre brecha de salvar `finalizada` se algum registro legado existir e o usuário clicar Save.
+4. **`pedidoStatusLabelMap`** adiciona dois rótulos que **não constam em `statusPedidoCompra`** do `lib/statusSchema`: `aguardando_aprovacao` e `rejeitado`. Esses status existem no DB e nas RPCs (`solicitar_aprovacao_pedido`, `rejeitar_pedido`), mas **não estão modelados em `statusSchema`** — `StatusBadge` cai no fallback de cor padrão. Drift entre lib e código real.
+5. **`usePedidosCompra.kpis.aguardando`** filtra `["rascunho", "aguardando_aprovacao", "aprovado", "enviado_ao_fornecedor", "aguardando_recebimento"]`, mas **omite `parcialmente_recebido`** — pedidos com recebimento parcial não aparecem em "Aguardando" nem em "Recebidos". KPI subreporta o cenário mais comum operacionalmente.
+6. **`recebimentoFilterOptions`** não tem opção "Cancelado" — usuário não consegue filtrar pedidos cancelados pelo grupo de recebimento (só pelo status). E `getRecebimentoFilter` retorna string vazia para `cancelado/rascunho/aguardando_aprovacao/rejeitado/parcialmente_recebido`. Pedido `parcialmente_recebido` cai em `"parcial"` (ok), mas `rejeitado/cancelado` somem do agrupamento.
+7. **Em `PedidoCompraDrawer.tabRecebimento`**, a árvore `if/else` de ícones por status **não cobre `aguardando_aprovacao`** — pedido nesse status não mostra ícone na "Situação de Recebimento" (gap visual).
+8. **`canonicalCotacaoStatus` default** é `"aberta"`, mas a doc lista `rascunho` como estado inicial. Cotações sem status (improvável, mas possível em legado) ficam visíveis como "Em Cotação" em vez de "Rascunho".
 
-### B. Cotação vs Orçamento na UX
+### B. Coexistência de modal e form em rota — divergências reais
 
-7. **`docs/comercial-modelo.md` afirma "Cotação = Orçamento"** mas a UI mistura termos:
-   - `Pedidos.tsx` lê `orcamentos(numero)` mas chama de "Orçamento" no chip.
-   - `OrdemVendaView` chama de "Cotação de Origem" (`selected.orcamentos?.numero ? "Cotação ..." : "Ver cotação"`).
-   - `Orcamentos.tsx` título: "Orçamentos".
-   - `searchPlaceholder` em Pedidos: "número, PO, cliente ou orçamento".
-   - `RelatedRecordsStrip` em OrdemVendaView: chip "Cotação origem".
-   Usuário vê a mesma entidade chamada de dois nomes na mesma sessão.
-8. **`comercialLabels` em `comercialWorkflow.ts`** define `quote: "Orçamento"` mas **não é importado em lugar nenhum**. Centralização que não pegou.
+9. **Cotação tem 2 caminhos de edição** com escopo diferente:
+   - **Modal** (`CotacoesCompra.tsx`): usa `useCotacoesCompra.handleSubmit` que faz delete+insert client-side dos itens (passos 222–249), não usa `replace_cotacao_compra_itens`.
+   - **Form de rota** (`CotacaoCompraForm.tsx`): usa a RPC `replace_cotacao_compra_itens` (linha 189).
+   Mesma operação, dois mecanismos. Em caso de falha entre delete e insert no modal, a cotação fica sem itens. **Bug latente.**
+10. **`CotacaoCompraForm` salva via `update` direto** sem invalidar React Query — `useCotacoesCompra` na grid usa `useSupabaseCrud` (sem listener de queryKey), mas se outros consumidores usarem QC, ficam desatualizados. Hoje funciona porque a grid faz `fetchData()` ao reabrir, mas é frágil.
+11. **`PedidoCompraFormModal`** e **`PedidoCompraForm`** têm o **mesmo set de status no Select** (`["rascunho", "aprovado"]`) mas a lógica de bloqueio é diferente: o Form de rota tem `WORKFLOW_ONLY_STATUSES` que **inclui também `enviado_ao_fornecedor`**; o Modal não bloqueia `enviado_ao_fornecedor` explicitamente, apenas não o oferece. Mesma intenção, dois códigos.
+12. **Form de rota do Pedido tem comentário "Editar Pedido" mas escopo restrito** — aceita só `rascunho` e `aprovado`. Não há banner explícito (como em Comercial) avisando que se trata de "edição operacional restrita". O `isTerminal` warning só cobre `recebido/cancelado`.
+13. **`onEdit` no drawer de Pedido** navega para `/compras/pedidos/${id}` (linha 220 do `PedidoCompraView`), mas a rota real é **`/pedidos-compra/:id`**. Bug real: clicar "Editar" no drawer relacional do pedido leva a uma rota inexistente. Dois espaços de naming (`/compras/pedidos/` vs `/pedidos-compra/`).
+14. **`CotacoesCompra.tsx onEdit`** abre o **modal**, não navega para a rota dedicada. `PedidosCompra.tsx onEdit` abre o **modal** também (`ctx.openEdit`). A rota dedicada `/cotacoes-compra/:id` e `/pedidos-compra/:id` só é acessível via deep link manual ou pelo `PedidoCompraView` (com bug acima). Ou seja, o form de rota é praticamente inacessível pela UI normal. **Duplicação de código sem caminho de descoberta.**
 
-### C. Grid vs drawer vs tela de edição
+### C. Geração de pedido a partir de cotação
 
-9. **`Orcamentos.tsx onEdit` navega direto para `/orcamentos/:id`** (form), enquanto `onView` empilha drawer. Mas a coluna Ações da grid não oferece o drawer — só os botões de workflow. Usuário precisa clicar em **um espaço vazio da linha** para abrir o drawer (comportamento padrão do `DataTable`). Descoberta ruim.
-10. **`Pedidos.tsx` columns "Editar"** chama `navigate("/pedidos/:id")` — tela de edição operacional bem reduzida. Não há ação "Detalhar" na coluna; só clique na linha abre `pushView("ordem_venda", id)`. Inconsistente: Orçamentos tem Edit + onClick; Pedidos só tem Edit + onClick.
-11. **`OrcamentoView` atalho "Editar" usa `clearStack() + navigate(/orcamentos/:id)`** — fecha todo o stack, perdendo contexto se o orçamento foi aberto a partir de um cliente, NF ou drill-down. `OrdemVendaView` faz a mesma coisa ("Editar Pedido"). Quebra do padrão de drawer aninhado.
-12. **`PedidoForm` é "edição operacional restrita"** (status, PO, datas, observações) — desalinhado com `OrcamentoForm` que edita tudo. Discrepância semântica: "Editar Pedido" no drawer leva a uma tela com escopo radicalmente menor sem aviso prévio (só há um banner dentro da tela explicando "escopo desta edição").
+15. **`useCotacoesCompra.gerarPedido`** chama `gerarPedidoCompra.mutateAsync`, e em sucesso faz `setDrawerOpen(false) + fetchData() + navigate("/pedidos-compra")`. **Sem confirmação de impacto** ("vai criar pedido com fornecedor X, R$ Y, validade Z"). Ação destrutiva (cria registro permanente, marca cotação como convertida via trigger), mas zero gate UX.
+16. **Drawer de cotação não mostra o pedido gerado** após conversão — só um botão "Ver pedidos de compra" genérico. Compare com Comercial, onde o conversor mostra "Abrir pedido X". O usuário precisa procurar o pedido na lista.
+17. **`CotacaoCompraForm` não oferece o botão "Gerar Pedido"** apesar de aceitar status `aprovada`. Toda a ação de conversão só acontece via drawer. Inconsistência: edição rota dedicada não tem o ciclo completo.
+18. **`useGerarPedidoCompra` (não inspecionado mas usado)** invalida cross-módulo conforme CONTRACTS.md, mas o `fetchData()` manual na grid (passo 406) é evidência de que a invalidação do React Query não chega ao `useSupabaseCrud` da cotação (são caches separados). **Race entre cache RQ e cache do CRUD legado.**
 
-### D. Geração de Pedido (conversão)
+### D. Recebimento parcial / total
 
-13. **`Orcamentos.tsx handleConvertToPedido` lê `poNumberCliente`/`dataPoCliente` que existem como state global da página, sem reset entre orçamentos**. Se o usuário abre o dialog para o orçamento A, digita PO, fecha, abre o dialog para o orçamento B, **o state ainda contém o PO do A** porque o reset no `onClose` zera, mas se o usuário fechar via tecla ESC sem disparar `onClose`, persiste. Uso compartilhado entre 2 dialogs (grid e drawer) com state local — cheiro de bug.
-14. **Após conversão, `Orcamentos.tsx fetchData()`** mas o filtro de status pode ocultar o orçamento agora `convertido` (se o usuário tinha filtrado por `pendente/aprovado`). Sem aviso visual de que o registro saiu da listagem.
-15. **`OrcamentoView handleConvertToOV` permanece na visualização** após sucesso (decisão documentada em CONTRACTS.md), mas o badge do header só atualiza após `reload()`. O CTA "Abrir Pedido" do toast é o caminho oficial — mas o botão "Ver Pedido X" só aparece **após** o reload completar. Janela de ~300ms sem affordance pra abrir o pedido recém-criado se o usuário fechar o toast.
-16. **`convertToPedido` no service emite `toast.success` direto** (linha 70) — duplica com o `crossToast.success` chamado no caller. Usuário vê 2 toasts ("Pedido X criado!" + "Pedido gerado! OV X criada"). Bug confirmado.
-17. **Estado `convertingId` em `Orcamentos.tsx`** não é resetado se `convertLock.run` rejeitar. O `setConvertingId(null)` está dentro do `finally` do `try/catch` interno — ok — mas o `convertLock.pending` não cobre o tempo entre o clique no botão "Gerar Pedido" e o usuário confirmar no dialog. Se o usuário clica em duas linhas rápido, o `setConvertingId` muda só o último.
+19. **`darEntrada` em `usePedidosCompra`** sempre envia "tudo o que falta" (linhas 440–451) — recebe o saldo pendente integral. **Não há UI de recebimento parcial controlado pelo usuário** (escolher quantidade por item). A RPC `receber_compra` aceita itens granular, mas a UI só dispara o "tudo de uma vez". Capacidade do back-end inutilizada pela UI.
+20. **Ausência de "Estornar recebimento"** na UI — RPC `estornar_recebimento_compra` existe e está documentada, mas **nenhum botão a invoca**. Drawer de pedido recebido mostra movimentações de estoque mas não permite reverter. Em fluxo real (devolução/erro), usuário precisa ir ao banco.
+21. **`PedidoCompraDrawer` não mostra o total já recebido em valor** — só quantidade. `pctRecebimento` usa quantidade total ÷ ordenado, mas se há valores diferentes por item, o percentual de quantidade ≠ percentual financeiro. Distorção em pedidos com itens de preço heterogêneo.
 
-### E. Geração de NF
+### E. Semântica de exclusão / cancelamento
 
-18. **`Pedidos.tsx handleRequestGenerateNF` faz query de estoque no clique** mas **não filtra `ativo=true` em `produtos`** nem considera produtos que migraram pra `inativo`. Pode mostrar shortfall errado.
-19. **Stock check é apenas `estoque_atual` agregado** — não considera reservas (pedidos abertos consumindo o mesmo SKU). Para um ERP real isso é otimista. Documentar ou implementar `estoque_disponivel = estoque_atual - reservas`.
-20. **`OrdemVendaView.canGenerateNF`** não faz stock check — usuário pode gerar NF direto sem aviso. Inconsistência: a grid avisa, o drawer não.
-21. **Botão "Gerar NF" no drawer fica disponível mesmo durante `locked("generate_nf")`** porque o `disabled` está só no botão do header, não no botão dentro da aba "Faturamento" (linha 540-549). Duplo-submit possível clicando rápido entre as abas.
-22. **`OrdemVendaView valorFaturado`** soma NFs com status `["confirmada", "autorizada"]`. Mas `statusNFLabels` lista `["pendente", "autorizada", "cancelada", "denegada"]`. Status `confirmada` é interno — está documentado em comentário no código mas **não aparece em `statusNotaFiscal`** de `statusSchema.ts` (que tem só pendente/autorizada/cancelada/denegada/inutilizada). Drift entre o que o cálculo soma e o que a UI sabe rotular.
-23. **Após `gerar_nf_de_pedido`, a UI não mostra impacto no estoque/financeiro** dentro do drawer do pedido até o `reload()` rodar. O dialog de impacto promete "Atualiza estoque (saída)" + "Gera lançamentos a receber" mas o usuário precisa abrir o NF Drawer ou navegar pra ver a evidência.
+22. **`useCotacoesCompra.remove`** (do `useSupabaseCrud`) chama DELETE direto. A doc protege via `trg_cotacao_compra_protege_delete` — só permite DELETE em rascunho sem pedido vinculado. Mas **a UI não comunica isso**: o `ConfirmDialog` em `CotacoesCompra.tsx` só diz "Esta ação não pode ser desfeita". Se a trigger barrar, o usuário recebe erro genérico de Supabase.
+23. **`cancelar_cotacao_compra` (RPC) existe e está documentada** com auditoria, mas **nenhum caller a usa**. Toda exclusão/cancelamento passa por `remove()` (DELETE) ou pela ausência de cancelamento na UI. A doc afirma "Em qualquer outro caso, usar `cancelar_cotacao_compra(p_id, p_motivo)`" — desalinhado com o código real.
+24. **`CotacaoCompraDrawer.actions`** tem botão "Excluir" para todo status não-terminal, mas chama `onDeleteOpen` → `remove(selected.id)`. Em cotação `aguardando_aprovacao`/`aprovada`, isso vai bater na trigger e falhar. Affordance enganosa.
+25. **`usePedidosCompra.cancelarPedido`** faz `update status='cancelado'` direto, **sem RPC** com auditoria. A doc lista `cancelado` como terminal, mas não menciona RPC de cancelamento dedicada — porém, dado que `solicitar_aprovacao_pedido/aprovar_pedido/rejeitar_pedido` existem, a ausência de `cancelar_pedido_compra` é uma lacuna do lifecycle.
+26. **`usePedidosCompra.deleteSelected`** faz **soft delete** (`ativo=false`) sem confirmar com o usuário (o ConfirmDialog parental existe na grid, mas o método em si não tem gate). Pedido com NF de entrada vinculada vira "ativo=false" e desaparece de todas as queries que filtram por `ativo=true` — incluindo `PedidoCompraView`, que chama `eq("id", pId).maybeSingle()` (não filtra ativo, então ainda abre). **Inconsistência cross-tela**: o pedido "some" da grid mas continua acessível por deep link.
 
-### F. Semântica de exclusão / cancelamento
+### F. Form e edição
 
-24. **`OrcamentoView "Cancelar"** chama `update status='cancelado'` direto (linha 544), **bypassa** a RPC `cancelar_orcamento` que existe no service e está documentada como o caminho oficial com auditoria. Falta de auditoria silenciosa em todo cancelamento via UI.
-25. **Grid de Orçamentos não oferece cancelamento** — só botões de workflow. Para cancelar um orçamento `pendente`, o usuário precisa abrir o drawer.
-26. **Pedidos não têm botão "Cancelar"** em lugar nenhum (grid, drawer, form). O único caminho é mudar o `status` para `cancelada` no `PedidoForm`. E não há gate: usuário pode cancelar pedido que já tem NF emitida — quebra integridade. Backend pode aceitar ou rejeitar (depende de constraint), mas a UI não orienta.
-27. **`useSupabaseCrud` legado oferece `remove()` (DELETE/soft-delete)** para `orcamentos` e `ordens_venda`. Não há proteção UI — se algum botão chamar, conflita com a doc ("DELETE físico: somente rascunho sem pedido vinculado"). Trigger `trg_orcamento_protege_delete` é a última linha de defesa, mas a UI não comunica.
+27. **`useCotacoesCompra.handleSubmit` (modal)**: payload do `update` (linha 211) inclui `status: form.status`. Como o form do modal mostra status disabled, isso reescreve com o status canonizado. **Mas se o status atual era um alias legado**, a canonização aconteceu no openEdit (passo 157), então o save grava o canônico. Bom efeito colateral, ruim por estar implícito.
+28. **`PedidoCompraForm.handleSave`** valida `form.status === pedido.status` para liberar workflow-only statuses, mas **não invalida React Query** após salvar — só atualiza state local (`setPedido(...)`). A grid (`PedidosCompra`) e o drawer (`PedidoCompraView`) usam React Query e ficam desatualizados até refetch manual.
+29. **`PedidoCompraForm` tem 412 linhas, `CotacaoCompraForm` 451 linhas, `useCotacoesCompra` 470 linhas, `usePedidosCompra` 622 linhas**. Hooks são **God hooks**: data + state + KPIs + actions + workflow. Difícil testar e refatorar.
+30. **`PedidoCompraView.onEdit`** navega para `/compras/pedidos/${id}` (rota errada). **`PedidoCompraDrawer.onEdit`** delega para `usePedidosCompra.openEdit` que abre **modal**. Dois drawers, dois caminhos de edição diferentes — usuário acaba em telas distintas.
+31. **`CotacaoCompraForm` usa `useSubmitLock`** mas **não usa `useEditDirtyForm`** padronizado — `isDirty` é manual com setters wrapper. `PedidoCompraForm` faz o mesmo. Não há `beforeunload` guard em nenhum dos dois — só `confirm dialog` no botão Voltar. Fechar a aba descartar mudanças silenciosamente.
 
-### G. Vínculo com Fiscal e Financeiro
+### G. Integrações (Fiscal, Financeiro, Estoque)
 
-28. **`OrdemVendaView` carrega `lancamentos` filtrando `ativo=true`** (bom), mas `notasFiscais` também usa `ativo=true` — ok. Porém **só mostra NFs onde `ordem_venda_id = ov.id`**. Não cobre devolução (NF de devolução pode estar vinculada à NF original, não direto ao pedido). Aba Faturamento subreporta em cenários de devolução.
-29. **`Fiscal cross-module` é one-way**: gerar NF no pedido leva pro Fiscal, mas se o usuário cancelar uma NF no Fiscal, o pedido só atualiza após invalidação React Query (`fiscalLifecycle` lista `pedidos`). Bom em teoria — mas o `useSupabaseCrud` da grid de Pedidos **não escuta queryKey** (comentário no código linha 197-198). Refresh manual é necessário.
-30. **`Financeiro` é mostrado dentro do drawer** (lançamentos), bom. Mas não há link "Fazer baixa" inline — usuário precisa navegar para `/financeiro?lancamento=...`. Affordance perdida.
-31. **`OrdemVendaView` não exibe a `cotacao_id` quando o pedido foi criado fora do fluxo Cotação→Pedido** — o chip "Cotação origem" mostra count 0 mas não diz "criado direto" ou "sem origem". Confunde.
+32. **`darEntrada` redireciona para `/fiscal?tipo=entrada&pedido_compra_id=...`** mas o estoque já foi movimentado pela RPC `receber_compra` **antes** do usuário chegar no Fiscal. Se o usuário fechar a aba ou cancelar a NF de entrada, a movimentação de estoque permanece. **NF de entrada e movimento de estoque ficam desacoplados temporalmente** — isso é um risco de duplicação se o usuário emitir nova entrada por engano.
+33. **`PedidoCompraView.tabRecebimento`** mostra `viewEstoque` mas **não mostra `viewFinanceiro`** (lançamentos a pagar gerados). O drawer `PedidoCompraDrawer` carrega `viewFinanceiro` mas só usa em `tabRecebimento` (na verdade não, ele tampouco renderiza — declarado nas props, mas o trecho do código mostrado não consome). **Dado carregado e descartado** — ou pelo menos não usado consistentemente. Drill-down financeiro perdido.
+34. **`PedidoCompraView` (rota relacional) não carrega financeiro nem cotação completa** — `useDetailFetch` só busca pedido + itens + estoque + cotação minimal. Aba "Vínculos" não tem chip "Lançamentos financeiros" nem "NF entrada". O `RelatedRecordsStrip` chips são apenas Cotação e Estoque. NF de entrada gerada pelo recebimento não aparece como vínculo.
+35. **Não há ponte de retorno de Fiscal → Pedido de Compra** documentada na UI. CONTRACTS.md menciona breadcrumb "Voltar ao Pedido de Compra" mas a implementação não foi inspecionada — se o `OriginContextBanner` não tratar `pedido_compra_id`, o usuário fica sem retorno.
 
 ### H. Filtros e nomenclatura
 
-32. **2 convenções de query string no mesmo módulo**: `Orcamentos.tsx` usa `searchParams.getAll("status")` (param repetido), `Pedidos.tsx` usa CSV (`?status=a,b,c`). Drill-downs do dashboard só funcionam pra Pedidos (CSV padrão do `buildDrilldownUrl`), e não pra Orçamentos.
-33. **`filtroData` em ambas as grids é client-side** sobre dados paginados pelo servidor — se a tabela tiver milhares de orçamentos, o filtro só trabalha no que veio na página atual. Mesma observação da revisão de Cadastros, agora aqui.
-34. **Filtro "Histórico"** em Orçamentos cruza dois conceitos: `origem === "importacao_historica"` **OU** `status === "historico"`. Se algum legado estiver com `origem='importacao_historica'` e `status='aprovado'`, "Apenas históricos" o mostra; "Excluir históricos" o oculta — pode confundir um analista que quer ver todos os "aprovado".
-35. **`Pedidos KPIs` "Em Andamento" filtra `["em_separacao", "separado", "em_transporte"]`** — mas `separado` e `em_transporte` não constam em `statusPedido` (lib). KPI conta um set, badge renderiza com fallback de string crua, filtro da grid não oferece a opção. Trinca.
+36. **`CotacoesCompra.tsx` filtros são apenas Status** — não tem filtro por Fornecedor, Validade, Item ou Origem. `useCotacaoCompraFilters` declara setters para fornecedor/data, mas a `CotacaoCompraFilters.tsx` (componente de UI) só renderiza o `MultiSelect` de status. Capacidade no hook não exposta na UI.
+37. **`PedidosCompra` usa `?atrasadas=1`** vindo do dashboard para popular `recebimento=["aguardando", "parcial"]`, mas o filtro **não persiste a flag** — a próxima navegação para `/pedidos-compra` mantém o filtro mas perde o contexto de "vim do dashboard de atrasadas". Drill-down não é reversível.
+38. **2 convenções de querystring multivalor**: ambas as grids do Compras usam `searchParams.getAll("status")` (param repetido). Compras está **alinhado internamente** mas **divergente do `Pedidos.tsx` do Comercial** (CSV `?status=a,b,c`). Já identificado em revisão anterior — Compras precisa migrar para CSV se a convenção do projeto convergir.
+39. **`searchPlaceholder` do filtro de Cotação**: "Buscar por número ou observações..." — mas o filtro client-side em `useCotacaoCompraFilters` (linhas 75–80) busca apenas em `numero` e `observacoes`. **Não busca por nome de produto, fornecedor ou itens**. Em uma cotação com 20 propostas, usuário não consegue achar por SKU ou fornecedor.
+40. **Filtro `data_cotacao` é client-side** sobre dados paginados pelo servidor (limite default Supabase). Mesma observação dos demais módulos.
 
-### I. Form e edição
+### I. Risco de consistência / dívidas estruturais
 
-36. **`OrcamentoForm` tem 1397 linhas** — God component. Estado disperso (`useState` x 30+, `useForm`, `useMemo` x 10+). Uma única responsabilidade dispara render de tudo (ex.: digitar no PO simulado de cenário re-renderiza grid de itens).
-37. **`OrcamentoForm` não usa `useEditDirtyForm`** padronizado do projeto — usa `useForm.formState.isDirty` que tem semântica diferente (compara contra `defaultValues`, não contra a baseline pós-load). Pode reportar dirty incorretamente quando `reset` é chamado após load.
-38. **`PedidoForm.isDirty` usa `JSON.stringify`** — ineficiente e quebra se a ordem das chaves mudar. Já existe `useEditDirtyForm` no projeto, não foi adotado.
-39. **`PedidoForm.handleSave` faz `update` direto na tabela** sem service / hook. Não invalida React Query — outras telas (Pedidos grid, dashboard) só veem a mudança após refresh manual.
-40. **`OrcamentoForm` ainda envia `frete_tipo` derivado de `["CIF", "FOB", "sem_frete"].includes(formValues.freteTipo) ? freteTipo : modalidade`** (linha 567) — coerção implícita confusa. `freteTipo` e `modalidade` são campos diferentes mas se cruzam silenciosamente.
-
-### J. Risco de consistência
-
-41. **`orcamentos.service.ts.sendForApproval`** faz `if (orc.status !== "rascunho") return;` **silenciosamente** — sem toast, sem erro. Se o usuário clicar em "Enviar" duas vezes em condição de race (ex.: outra aba já enviou), o segundo clique simplesmente não faz nada. Sem feedback.
-42. **`approveOrcamento`** não checa estado atual antes do update — se o orçamento foi cancelado/expirado por trigger entre o load e o clique, a UI marca como `aprovado` por cima. RPC seria preferível.
-43. **`cancelarOrcamento` (RPC) existe no service mas não é chamada por nenhum caller real**. Toda exclusão lógica passa por update direto.
-44. **`TERMINAL_STATUSES`** em `Orcamentos.tsx` é `["convertido", "cancelado", "rejeitado"]`, mas o doc lista também `expirado` como terminal. `getValidadeStatus` retorna "vigente" para terminais — ou seja, um orçamento `expirado` é considerado "vigente" no badge. Bug semântico.
-45. **`OrdemVendaView` faz `useFaturarPedido` mas não invalida o próprio `useDetailFetch`** — depende do `reload()` manual chamado depois. Se `mutateAsync` resolve e o `reload` falha, o estado do drawer fica desatualizado mas o cache do React Query (que outras telas escutam) está atualizado. Inconsistência cross-aba.
+41. **`useCotacoesCompra` mistura `useSupabaseCrud` + `useQuery`** (via `useGerarPedidoCompra`). Cache desconectado: invalidação do mutation hook não atinge o CRUD legado.
+42. **`CotacaoCompraForm.handleSave` não chama `replace_cotacao_compra_itens` quando `localItems.length === 0`** — passa array vazio que a RPC pode interpretar como "limpar tudo". Validação client (linha 157) bloqueia, mas o caminho via modal (`useCotacoesCompra.handleSubmit`) **só insere se `localItems.length > 0`** (linha 236). Se usuário remover todos itens no modal, o cabeçalho é atualizado mas itens antigos ficam (o delete na linha 230–234 ocorreu, mas insert é skipped). **Cotação com 0 itens persistida** — bug confirmado.
+43. **`condicao_pagamento` (singular) vs `condicoes_pagamento` (plural)**: doc marca a plural como DEPRECATED, mas vários pontos do código ainda leem ambas (`p.condicao_pagamento || p.condicoes_pagamento`). Pedidos antigos podem ter dados na coluna deprecated; saves novos só gravam na canônica. **OK como leitura defensiva, mas o duplo código nunca é limpo** — risco de manutenção.
+44. **`cotacao_compra_id` em `PedidoCompra`** é tipado como `string | number | null`. Nada no código assume number, mas o mix tipográfico denuncia herança legada.
+45. **`PedidoCompraDrawer.tabRecebimento` lista status `aprovado`** como "Aguardando", mas em `recebimentoStatus` (linhas 100–106) `aprovado` cai no `else` ("Pendente"). Inconsistência interna entre o ícone (Clock para aprovado) e o label retornado pela função (Pendente).
+46. **`canonicalPedidoStatus` default `"rascunho"`** — pedidos sem status caem em rascunho, mas `pedidoCanReceive("rascunho")` retorna `false`. Pedido legado pode aparecer como "Rascunho" e usuário não consegue receber, sem explicação.
 
 ---
 
@@ -135,92 +127,92 @@ Persistência da grid via `useSupabaseCrud` legado (sem React Query). Drawers us
 
 Ordem por risco × impacto:
 
-1. **#16 (Toast duplicado em conversão)** — bug visível em produção. Remover o `toast.success` do service `convertToPedido` e deixar só o `crossToast` no caller.
-2. **#2 + #4 + #35 (Universos de status de pedido divergentes)** — `statusPedido` (lib), `statusOptions` (PedidoForm), `canGenerateNF` (drawer/grid) e KPI "Em Andamento" usam sets diferentes. Centralizar em `lib/statusSchema.ts` o **set canônico operacional** + **regra única `canFaturarPedido`** consumida pelas duas telas.
-3. **#22 + #44 (Drift de status NF e Orçamento expirado)** — o cálculo de "Faturado" usa `confirmada` que não está em `statusNotaFiscal`; "expirado" é considerado terminal no doc mas não em `Orcamentos.TERMINAL_STATUSES`. Sincronizar.
-4. **#24 + #43 (Cancelamento bypassa RPC)** — substituir `update status='cancelado'` no `OrcamentoView` pela chamada `cancelarOrcamento(id, motivo)` para garantir auditoria. Adicionar campo de motivo no dialog.
-5. **#26 (Pedido sem caminho de cancelamento)** — adicionar ação "Cancelar pedido" no drawer (com gate: bloquear se houver NF ativa) usando RPC dedicada (criar se não existir).
-6. **#21 (Botão duplicado de Gerar NF sem disable compartilhado no drawer)** — propagar `locked("generate_nf")` para todos os botões dentro da aba.
-7. **#13 + #17 (State compartilhado PO/dataPo entre dialogs)** — escopar o state ao dialog (resetar no abrir, não só no fechar). Impede vazamento entre orçamentos.
-8. **#7 + #8 (Cotação vs Orçamento)** — escolher um nome único na UX. Doc diz "= Orçamento", então usar "Orçamento" em todos os strings (chips, labels, breadcrumb). Remover `comercialLabels.quote` ou passar a usá-lo.
-9. **#1 + #34 (Status `historico` órfão)** — incluir no `statusOrcamento` ou removê-lo do schema; documentar a relação com `origem='importacao_historica'`.
-10. **#39 (`PedidoForm.handleSave` não invalida queries)** — usar mutation hook + `INVALIDATION_KEYS.faturamentoPedido` parcial (só `pedidos`, `ordens_venda`).
-11. **#11 (Drawer "Editar" mata stack)** — em vez de `clearStack + navigate`, oferecer botão modal-secondary "Abrir em tela cheia" e manter o drawer como fluxo principal. Ou navegar e preservar o stack via state.
-12. **#6 + #41 + #42 (Guards apenas client-side)** — confirmar/criar policies RLS para `update status` em orçamentos (admin only para `aprovado`); migrar `sendForApproval`/`approveOrcamento` para RPC com gate de status server-side.
+1. **#13 (Rota inexistente em `PedidoCompraView.onEdit`)** — `/compras/pedidos/${id}` não existe; a rota correta é `/pedidos-compra/:id`. Botão "Editar" do drawer relacional leva a 404. Bug visível.
+2. **#14 + #9 + #11 (Modal vs Form de rota duplicados)** — duas implementações de save da cotação, uma sem RPC atômica. Definir caminho único: ou só modal, ou só rota. Hoje o form de rota é praticamente inacessível.
+3. **#42 (Cotação fica sem itens se modal salvar com array vazio)** — bug confirmado: delete + skip insert.
+4. **#23 + #24 + #25 (Cancelamento bypassa RPC)** — `cancelar_cotacao_compra` existe mas não é usada; nenhuma RPC de cancelamento de pedido. Padronizar.
+5. **#19 + #20 (Recebimento sempre total + ausência de estorno)** — capacidade da RPC desperdiçada. Ciclo real sem estorno na UI.
+6. **#5 + #4 (KPIs e status incompletos)** — `parcialmente_recebido` fora de "Aguardando"; `aguardando_aprovacao`/`rejeitado` fora de `statusPedidoCompra` no `lib/statusSchema`.
+7. **#1 + #2 (`sendForApproval/approve/reject` sem RPC + form que altera status livre)** — o form de rota da cotação permite gravar `aprovada` sem passar pelo workflow.
+8. **#33 + #34 (Financeiro carregado mas não renderizado / `PedidoCompraView` sem vínculo financeiro/NF)** — drill-down financeiro perdido; vínculos importantes invisíveis.
+9. **#15 + #16 (Conversão sem confirmação + sem CTA "Abrir pedido X")** — UX abaixo do padrão estabelecido em Comercial.
+10. **#22 + #26 (Exclusão sem feedback semântico + soft delete sem gate)** — usuário não entende quando pode excluir; pedido com NF some da grid.
+11. **#28 (`PedidoCompraForm` não invalida queries)** — divergência de cache cross-tela.
+12. **#36 + #39 (Filtros pobres em Cotação)** — sem fornecedor, sem busca por produto, sem validade.
 
 ---
 
 ## 5. Melhorias de UI/UX
 
-- **Padronizar nomenclatura**: usar "Orçamento" em todos os pontos visíveis ao usuário; "Cotação" só aparece em Compras (cotação de fornecedor).
-- **Action column do `Orcamentos`**: adicionar ícone "👁 Ver" explícito além dos botões de workflow — descoberta do drawer não pode depender de clicar em espaço vazio.
-- **Uniformizar gate "Gerar NF"** entre grid e drawer com a mesma função pura `canFaturarPedido(pedido)`.
-- **Toast pós-conversão**: única notificação contextual com CTA "Abrir pedido"; remover o duplicado.
-- **Dialog de cancelamento de orçamento**: campo "Motivo (opcional)" + chamada RPC + exibir motivo no `OrcamentoView` se status for `cancelado`.
-- **Aviso visual quando orçamento sai do filtro após conversão**: toast info "Orçamento X agora aparece em outro filtro".
-- **Mostrar `lancamentos` com botão "Fazer baixa"** inline no drawer do pedido (link para `/financeiro?lancamento=:id&action=baixar`).
-- **Pedido cancelado deve mostrar banner com data/motivo** no header do `OrdemVendaView`.
-- **`PedidoForm` deve declarar visualmente seu escopo restrito** com chip "Edição operacional" no header (já há banner; promover a chip mais visível).
-- **KPI "Em Andamento" em Pedidos** deve ter tooltip "inclui em_separacao, separado, em_transporte" se esses dois forem mantidos.
-- **`OrcamentoView` cancel button**: renomear de "Cancelar" para "Cancelar orçamento" — fica ambíguo com o botão "Cancelar" do dialog.
-- **Prazo de despacho do Pedido**: mostrar dias restantes ao lado da data prometida (já existe no badge de grid; replicar no drawer).
-- **Status `entregue`**: adicionar ao `statusPedido` para que badges não renderizem texto cru.
+- **Edição "operacional restrita" do Pedido**: chip visível no header indicando que o form não cobre items/fornecedor (paralelo ao que existe em Comercial).
+- **Banner pós-conversão**: dialog "Pedido X criado · Abrir agora?" com CTA — replicar `CrossModuleActionDialog` do Comercial.
+- **Recebimento parcial controlado**: Dialog que lista itens com saldo pendente e permite editar quantidade a receber por item antes de chamar `receber_compra`.
+- **Botão "Estornar recebimento"** no `PedidoCompraDrawer.tabRecebimento` para status `recebido`/`parcialmente_recebido` (admin only), com motivo obrigatório → `estornar_recebimento_compra`.
+- **Confirmação de impacto antes de gerar pedido**: "Gerar pedido para fornecedor X · 5 itens · R$ Y · Cotação será marcada como convertida".
+- **Mostrar lançamentos financeiros no drawer de pedido recebido** com link "Ir para Financeiro / Fazer baixa".
+- **Vínculos no `PedidoCompraView`**: chips de NF entrada, lançamentos a pagar, cotação origem (já tem só esse).
+- **Cancelar cotação com motivo** no `CotacaoCompraDrawer` — adicionar dialog igual ao de rejeitar pedido.
+- **Filtros de cotação**: expor MultiSelect de Fornecedor, range de Validade e busca por produto/SKU.
+- **Indicador de "expirada"**: cotação com `data_validade < hoje` deve mostrar badge override (`Expirada`), assim como Pedidos têm `Em atraso`.
+- **`PedidoCompraView.onEdit`** corrigir rota para `/pedidos-compra/:id`.
+- **Status `parcialmente_recebido` deve ter ícone próprio** no `recebimentoStatus` do drawer (já tem) e **entrar em "Aguardando"** dos KPIs.
 
 ---
 
 ## 6. Melhorias estruturais
 
-- **Centralizar todos os status em `lib/statusSchema.ts`** incluindo `entregue`, `em_transporte`, `separado` no `statusPedido`; incluir `historico` no `statusOrcamento`; incluir `confirmada` no `statusNotaFiscal` (ou documentar canonização `confirmada → autorizada`).
-- **Função `canFaturarPedido(pedido): boolean`** em `comercialWorkflow.ts`, consumida pela grid, drawer e Pedido form. Tipar com `Pedido`.
-- **Função `canCancelarPedido(pedido, hasNFAtiva): boolean`** + ação no drawer + RPC `cancelar_pedido_venda`.
-- **Migrar `update status` direto para RPCs com gate**: `enviar_orcamento_aprovacao`, `aprovar_orcamento`. Já há `cancelar_orcamento`; padronizar todo lifecycle em RPC + auditoria.
-- **Migrar `useSupabaseCrud` legado para React Query** nas grids `Orcamentos`/`Pedidos` para que `INVALIDATION_KEYS` realmente funcione sem `fetchData()` manual.
-- **Padronizar querystring multivalor**: adotar CSV (`?status=a,b`) em todo o módulo + utility helper compartilhada (`useMultiSelectParam(key)`).
-- **Decompor `OrcamentoForm`** (1397 linhas) em: `useOrcamentoFormState` (state), `useOrcamentoCalculations` (totais/cenário), `useOrcamentoDraft` (autosave/restore), `useOrcamentoTemplates`. Cada um <300 linhas.
-- **Adotar `useEditDirtyForm`** no `PedidoForm` e `OrcamentoForm` em vez de `JSON.stringify`/`react-hook-form.isDirty` ad-hoc.
-- **Hook `useGerarNF`/`useCancelarPedido`/`useEnviarAprovacao`/`useAprovarOrcamento`** seguindo o padrão de `useFaturarPedido` (mutation + invalidation centralizada). Hoje, só conversão e faturamento têm hook; `sendForApproval`/`approve` chamam o service direto e invalidam manualmente.
-- **`PedidoForm.handleSave`** virar mutation hook que invalida `["pedidos", "ordens_venda"]`.
-- **Tipagem do drawer**: `OrcamentoDetail` e `OVDetail` declaram `any` em todos os campos. Tipar com `Tables<"orcamentos">` + relações.
-- **Aba "Devoluções" em `OrdemVendaView`** (ou expandir Faturamento) que busca NFs de devolução vinculadas via `nota_fiscal_origem_id`.
-- **Stock check unificado** em utility `verificarEstoquePedido(pedidoId): Promise<Shortfall[]>` consumido pela grid e pelo drawer.
-- **Documentar matriz de status × status_faturamento** em `comercialWorkflow.ts` como uma função `validarTransicaoPedido(from, to, statusFaturamento)` que espelha a CHECK constraint `chk_ordens_venda_matriz_status` — falha rápida no client antes do roundtrip.
-- **Realtime em `notas_fiscais` + `ordens_venda`** (Supabase channel) para invalidar React Query automaticamente — elimina o "fetchData manual" do `Pedidos.tsx`.
+- **RPCs de lifecycle paralelas às existentes**:
+  - `enviar_cotacao_aprovacao`, `aprovar_cotacao_compra`, `rejeitar_cotacao_compra` (com auditoria, espelhando o pattern do Pedido).
+  - `cancelar_pedido_compra(p_id, p_motivo)` com gate de NF entrada ativa.
+  - Hooks correspondentes (`useEnviarCotacao`, `useAprovarCotacao`, `useCancelarPedidoCompra`).
+- **Unificar caminho de edição**: decidir modal **ou** rota dedicada para Pedido e Cotação. Se ambos forem mantidos, garantir que **ambos chamem `replace_*_itens`** (RPC atômica).
+- **Migrar `useCotacoesCompra` para React Query** (eliminar `useSupabaseCrud`), padronizando com `usePedidosCompra` e fazendo `INVALIDATION_KEYS.geracaoPedidoCompra` realmente refletir na grid sem `fetchData()` manual.
+- **`PedidoCompraForm.handleSave`** virar `useSalvarPedidoCompra` mutation hook com invalidação `["pedidos_compra"]`.
+- **Adotar `useEditDirtyForm`** + `beforeunload` em ambos os forms de rota.
+- **Tipagem do drawer**: `PedidoCompraDetail` em `PedidoCompraView` e `OVDetail`-like em `PedidoCompraDrawer` declarando relações (`Tables<"pedidos_compra"> & { fornecedores: ..., notas_fiscais: ... }`) sem `unknown as`.
+- **Decompor `usePedidosCompra` (622L)** em: `usePedidosCompraQuery` (data), `usePedidoCompraForm` (modal state), `usePedidoCompraActions` (lifecycle). Mesma divisão para `useCotacoesCompra`.
+- **Realtime** em `pedidos_compra` + `cotacoes_compra` + `estoque_movimentos` (para cancelar NF Fiscal e ver pedido atualizar) — o canal já tem precedente em Comercial.
+- **Stock check antes de cancelar pedido com recebimento parcial** — utility `verificarMovimentosPedidoCompra(id)`.
+- **Substituir `condicoes_pagamento` legado**: migration que copia para `condicao_pagamento` e remove a coluna deprecated, depois eliminar leituras duplicadas.
+- **Função `validarTransicaoCotacao`/`validarTransicaoPedidoCompra`** pura espelhando triggers `trg_*_transicao` — falha rápida no client.
+- **Documentar e expor o caminho `Pedido de Compra → NF Entrada → Estoque/Financeiro`** com matriz de estados em `comprasStatus.ts` ou novo `comprasWorkflow.ts`.
+- **Aba "Devoluções/Estornos"** no `PedidoCompraView` mostrando estornos via `estornar_recebimento_compra` quando existirem.
 
 ---
 
 ## 7. Roadmap de execução
 
 **Fase 1 — Bugs visíveis e drift (1 sessão)**
-1. Remover toast duplicado em `convertToPedido` (#16).
-2. Adicionar `expirado` em `Orcamentos.TERMINAL_STATUSES` (#44).
-3. Incluir `entregue`, `em_transporte`, `separado` em `statusPedido` (#2).
-4. Incluir `historico` em `statusOrcamento` (#1).
-5. Adicionar `confirmada` em `statusNotaFiscal` ou canonizar para `autorizada` (#22).
-6. Resetar `poNumberCliente`/`dataPoCliente` ao **abrir** o dialog (#13).
-7. Propagar `locked("generate_nf")` para o botão dentro da aba Faturamento (#21).
+1. Corrigir rota em `PedidoCompraView.onEdit` para `/pedidos-compra/:id` (#13).
+2. Corrigir bug do `handleSubmit` do modal: garantir `replace_cotacao_compra_itens` ou bloquear save com 0 itens (#42).
+3. Incluir `parcialmente_recebido` no KPI "Aguardando" (#5).
+4. Adicionar `aguardando_aprovacao`, `rejeitado`, `parcialmente_recebido` em `statusPedidoCompra` no `lib/statusSchema` (#4).
+5. Corrigir `recebimentoStatus` do drawer para incluir `aguardando_aprovacao` (#7).
+6. Canonizar `cot.status` no `CotacaoCompraForm.openLoad` antes do `setForm` (#3).
 
-**Fase 2 — Coerência de gates e nomenclatura (1 sessão)**
-8. Função `canFaturarPedido` única + uso na grid + drawer (#4).
-9. Renomear todos os "Cotação" referentes ao orçamento para "Orçamento" (#7, #8).
-10. `OrcamentoView` cancel via `cancelarOrcamento` RPC com motivo (#24).
-11. `Orcamentos` grid: adicionar coluna explícita "👁" para abrir drawer (#9).
-12. Banner de "saiu do filtro" pós-conversão (#14).
+**Fase 2 — Cancelamento e lifecycle padronizados (1-2 sessões)**
+7. Migrar `OrcamentoView`-style: `CotacaoCompraDrawer` cancelar via `cancelar_cotacao_compra` RPC com motivo (#23).
+8. Criar RPC `cancelar_pedido_compra(p_id, p_motivo)` com gate de NF entrada ativa + hook + ação no drawer (#25).
+9. Bloquear `form.status` mutável no `CotacaoCompraForm` (campo disabled) (#2).
+10. Migrar `handleSendForApproval/Approve/Reject` da cotação para RPCs com auditoria (#1).
 
-**Fase 3 — Cancelamento de pedido + lifecycle RPC (1-2 sessões)**
-13. RPC `cancelar_pedido_venda` (com gate de NF ativa) + `useCancelarPedido` + ação no drawer (#26).
-14. RPCs `enviar_orcamento_aprovacao` e `aprovar_orcamento` com gate server-side + hooks (#6, #41, #42).
-15. Migrar `PedidoForm.handleSave` para mutation hook com invalidação (#39).
+**Fase 3 — Recebimento parcial + estorno (1-2 sessões)**
+11. Dialog "Receber Compra" com edição por item antes de chamar `receber_compra` (#19).
+12. Botão "Estornar recebimento" no drawer com motivo → `estornar_recebimento_compra` (#20).
+13. Mostrar `viewFinanceiro` no `PedidoCompraDrawer.tabRecebimento` com link para Financeiro (#33).
+14. Adicionar vínculos (NF entrada, lançamentos) no `PedidoCompraView.tabVinculos` (#34).
 
-**Fase 4 — Estrutura e tipagem (2-3 sessões)**
-16. Tipagem dos drawers (`OrcamentoDetail`, `OVDetail`) sem `any` (#tipagem).
-17. Adotar `useEditDirtyForm` em `PedidoForm` (#38) e `OrcamentoForm` (#37).
-18. Padronizar querystring multivalor com util compartilhada (#32).
-19. Função `validarTransicaoPedido` espelhando a CHECK constraint (#3).
-20. Stock check em utility unificada usada por grid+drawer (#19, #20).
-21. Aba/devoluções vinculadas por `nota_fiscal_origem_id` (#28).
+**Fase 4 — Caminho único de edição + invalidação (1-2 sessões)**
+15. Decidir modal **xor** rota; remover o caminho não escolhido ou unificar via `replace_*_itens` em ambos (#9, #14).
+16. `useSalvarPedidoCompra` hook + invalidação correta (#28).
+17. Migrar `useCotacoesCompra` para React Query (eliminar `useSupabaseCrud`) (#41).
+18. Confirmação de impacto + CTA "Abrir pedido" pós-conversão (#15, #16).
 
-**Fase 5 — Refator do God component (3+ sessões)**
-22. Decompor `OrcamentoForm` em hooks (`useOrcamentoFormState`, `useOrcamentoCalculations`, `useOrcamentoDraft`, `useOrcamentoTemplates`) (#36).
-23. Migrar grids para React Query nativo, eliminando `useSupabaseCrud` legado nas duas telas (#33, #29).
-24. Realtime channel em `notas_fiscais`/`ordens_venda` para invalidação automática (#realtime).
+**Fase 5 — Estrutura, filtros e tipagem (2-3 sessões)**
+19. Decompor `usePedidosCompra` e `useCotacoesCompra` em hooks menores (#29).
+20. Tipagem dos drawers sem `unknown as` (#tipagem).
+21. Expor filtros adicionais em `CotacaoCompraFilters` (fornecedor, validade) e busca por produto (#36, #39).
+22. `useEditDirtyForm` + `beforeunload` nos dois forms de rota (#31).
+23. Realtime channel em `pedidos_compra`/`cotacoes_compra`/`estoque_movimentos` (#realtime).
+24. `validarTransicaoCotacao`/`validarTransicaoPedidoCompra` puros + uso preventivo na UI.
 
