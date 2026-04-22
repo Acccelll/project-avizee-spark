@@ -272,10 +272,10 @@ export function PedidoCompraFormModal({
           <ItemsGrid
             items={items}
             onChange={setItems}
-            produtos={produtosOptionsData as Record<string, unknown>[]}
+            produtos={produtosOptionsData as unknown as Record<string, unknown>[]}
             title={produtosLoading ? "Carregando produtos..." : ""}
             getDefaultUnitPrice={(prod) =>
-              Number((prod as typeof produtosOptionsData[number]).preco_custo || 0)
+              Number((prod as unknown as typeof produtosOptionsData[number]).preco_custo || 0)
             }
           />
         </div>
