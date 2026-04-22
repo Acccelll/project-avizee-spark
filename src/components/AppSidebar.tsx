@@ -12,6 +12,7 @@ import { useSidebarBadges } from '@/hooks/useSidebarBadges';
 import { SidebarFavorites } from '@/components/sidebar/SidebarFavorites';
 import { SidebarSection } from '@/components/sidebar/SidebarSection';
 import { SidebarFooter } from '@/components/sidebar/SidebarFooter';
+import { SidebarBrand } from '@/components/sidebar/SidebarBrand';
 import { useAppConfigContext } from '@/contexts/AppConfigContext';
 
 interface AppSidebarProps {
