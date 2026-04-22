@@ -11,6 +11,14 @@ const validPeriods: readonly Period[] = ["7d", "15d", "30d", "90d", "year", "hoj
 const isPeriod = (value: string | null): value is Period =>
   value !== null && validPeriods.includes(value as Period);
 
+const origemLabelMap: Record<string, string> = {
+  manual: "Manual",
+  societario: "Sócio (Pró-labore/Bônus)",
+  nota_fiscal: "Nota Fiscal",
+  folha_pagamento: "Folha de pagamento",
+  pedido_compra: "Pedido de compra",
+};
+
 interface Params {
   data: Lancamento[];
   contasBancarias: ContaBancaria[];
