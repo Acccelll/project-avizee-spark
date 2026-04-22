@@ -14,6 +14,8 @@ const TYPE_SHORT_LABELS: Record<EntityType, string> = {
   ordem_venda: "Pedido",
   grupo_economico: "Grupo",
   forma_pagamento: "Forma",
+  transportadora: "Transp.",
+  funcionario: "Funcionário",
 };
 
 /**
