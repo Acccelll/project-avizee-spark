@@ -168,8 +168,22 @@ export default function Socios() {
           onEdit={openEdit}
           onDelete={(s) => remove.mutate(s.id)}
           deleteBehavior="hard"
+          onView={(s) => {
+            setDrawerSocio(s);
+            setDrawerOpen(true);
+          }}
         />
       </ModulePage>
+
+      <SocioDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        socio={drawerSocio}
+        onEdit={(s) => {
+          setDrawerOpen(false);
+          openEdit(s);
+        }}
+      />
 
       <FormModal
         open={modalOpen}
