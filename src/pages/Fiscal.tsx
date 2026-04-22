@@ -32,6 +32,7 @@ import {
   useConfirmarNotaFiscal,
   useEstornarNotaFiscal,
 } from "@/pages/fiscal/hooks/useNotaFiscalLifecycle";
+import { useNFeXmlImport } from "@/pages/fiscal/hooks/useNFeXmlImport";
 import { NotaFiscalEditModal } from "@/components/fiscal/NotaFiscalEditModal";
 import { useActionLock } from "@/hooks/useActionLock";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
