@@ -345,7 +345,7 @@ export function useCotacoesCompra() {
   const handleSendForApproval = async () => {
     if (!selected) return;
     try {
-      const { error } = await supabase.from("cotacoes_compra").update({ status: "aguardando_aprovacao" }).eq("id", selected.id);
+      const { error } = await supabase.rpc("enviar_cotacao_aprovacao", { p_id: selected.id });
       if (error) throw error;
       setSelected({ ...selected, status: "aguardando_aprovacao" });
       toast.success("Cotação enviada para aprovação!");
@@ -358,7 +358,7 @@ export function useCotacoesCompra() {
   const handleApprove = async () => {
     if (!selected) return;
     try {
-      const { error } = await supabase.from("cotacoes_compra").update({ status: "aprovada" }).eq("id", selected.id);
+      const { error } = await supabase.rpc("aprovar_cotacao_compra", { p_id: selected.id });
       if (error) throw error;
       setSelected({ ...selected, status: "aprovada" });
       toast.success("Cotação aprovada!");
@@ -368,13 +368,37 @@ export function useCotacoesCompra() {
     }
   };
 
-  const handleReject = async () => {
+  const handleReject = async (motivo?: string) => {
     if (!selected) return;
+    const motivoTrim = (motivo ?? "").trim();
+    if (!motivoTrim) {
+      toast.error("Informe o motivo da rejeição.");
+      return;
+    }
     try {
-      const { error } = await supabase.from("cotacoes_compra").update({ status: "rejeitada" }).eq("id", selected.id);
+      const { error } = await supabase.rpc("rejeitar_cotacao_compra", { p_id: selected.id, p_motivo: motivoTrim });
       if (error) throw error;
       setSelected({ ...selected, status: "rejeitada" });
       toast.error("Cotação rejeitada.");
+      fetchData();
+    } catch (err: unknown) {
+      toast.error(getUserFriendlyError(err));
+    }
+  };
+
+  const handleCancel = async (motivo: string) => {
+    if (!selected) return;
+    const motivoTrim = (motivo ?? "").trim();
+    if (!motivoTrim) {
+      toast.error("Informe o motivo do cancelamento.");
+      return;
+    }
+    try {
+      const { error } = await supabase.rpc("cancelar_cotacao_compra", { p_id: selected.id, p_motivo: motivoTrim });
+      if (error) throw error;
+      setSelected({ ...selected, status: "cancelada" });
+      toast.success("Cotação cancelada.");
+      setDrawerOpen(false);
       fetchData();
     } catch (err: unknown) {
       toast.error(getUserFriendlyError(err));
