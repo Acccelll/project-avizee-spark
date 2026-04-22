@@ -8,7 +8,7 @@ import { SummaryCard } from "@/components/SummaryCard";
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRightCircle, CheckCircle, FileText, DollarSign, Clock, BarChart3, AlertTriangle } from "lucide-react";
+import { ArrowRightCircle, CheckCircle, FileText, DollarSign, Clock, BarChart3, AlertTriangle, Eye } from "lucide-react";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { Button } from "@/components/ui/button";
@@ -251,6 +251,15 @@ const Orcamentos = () => {
         setPoNumberCliente("");
         setDataPoCliente("");
         fetchData();
+        // Aviso quando o orçamento sai do filtro atual após conversão.
+        const filtroEscondeConvertido =
+          statusFilters.length > 0 && !statusFilters.includes("convertido");
+        if (filtroEscondeConvertido) {
+          toast.info(
+            `Orçamento ${orc.numero} agora está como "convertido" e saiu do filtro atual.`,
+            { duration: 5000 }
+          );
+        }
         // Toast com CTA: abre o pedido criado em drawer (sem sair da grid de cotações).
         crossToast.success({
           title: "Pedido gerado!",
@@ -360,6 +369,16 @@ const Orcamentos = () => {
       key: "acoes_comercial", label: "Ações", sortable: false,
       render: (o: Orcamento) => (
         <div className="flex items-center gap-1">
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 w-7 p-0"
+            aria-label="Visualizar orçamento"
+            title="Visualizar"
+            onClick={(e) => { e.stopPropagation(); pushView("orcamento", o.id); }}
+          >
+            <Eye className="w-3.5 h-3.5" />
+          </Button>
           {canSendOrcamento(o.status) && (
             <Button size="sm" variant="outline" className="h-7 text-xs gap-1" disabled={sendLock.pending} onClick={(e) => { e.stopPropagation(); handleSendForApproval(o); }}>
               <Send className="w-3 h-3" /> Enviar
