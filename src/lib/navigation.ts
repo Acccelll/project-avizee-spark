@@ -24,6 +24,8 @@ import {
   FileSpreadsheet,
   Presentation,
   Store,
+  Briefcase,
+  PieChart,
 } from 'lucide-react';
 
 /** Canonical list of navSection keys. Add here first when introducing a new section. */
@@ -113,6 +115,7 @@ export const navSections: NavSection[] = [
           { title: 'Formas de Pagamento', path: '/formas-pagamento', icon: CreditCard, keywords: ['prazo', 'parcelamento'] },
           { title: 'Grupos Econômicos', path: '/grupos-economicos', icon: Building2, keywords: ['matriz', 'filiais'] },
           { title: 'Funcionários', path: '/funcionarios', icon: UserCog, keywords: ['fopag', 'folha', 'salario', 'rh'] },
+          { title: 'Sócios', path: '/socios', icon: Briefcase, keywords: ['socio', 'societario', 'participacao'] },
         ],
       },
     ],
@@ -172,6 +175,7 @@ export const navSections: NavSection[] = [
           { title: 'Contas Bancárias', path: '/contas-bancarias', icon: DollarSign, keywords: ['bancos'] },
           { title: 'Plano de Contas', path: '/contas-contabeis-plano', icon: FileSearch, keywords: ['contabil'] },
           { title: 'Conciliação', path: '/conciliacao', icon: DollarSign, keywords: ['ofx', 'extrato', 'banco', 'conciliar'] },
+          { title: 'Sócios e Participações', path: '/socios-participacoes', icon: PieChart, keywords: ['pro-labore', 'bonus', 'distribuicao', 'lucro', 'apuracao', 'societario'] },
         ],
       },
     ],
