@@ -29,6 +29,7 @@ import { useEffect } from "react";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useDocumentoUnico } from "@/hooks/useDocumentoUnico";
+import { useEditDeepLink } from "@/hooks/useEditDeepLink";
 
 interface Funcionario {
   id: string; nome: string; cpf: string; cargo: string; departamento: string;
@@ -97,6 +98,12 @@ export default function Funcionarios() {
   const { confirm: confirmDiscard, dialog: confirmDiscardDialog } = useConfirmDialog();
   const [ativoFilters, setAtivoFilters] = useState<string[]>([]);
   const [tipoContratoFilters, setTipoContratoFilters] = useState<string[]>([]);
+
+  // Deep-link: abrir edição via ?editId=… (usado pelo drawer ao clicar em "Editar").
+  useEditDeepLink<Funcionario>({
+    table: "funcionarios",
+    onLoad: (f) => openEdit(f),
+  });
 
   // Folha states
   const [folhaModalOpen, setFolhaModalOpen] = useState(false);

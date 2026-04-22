@@ -78,6 +78,12 @@ export default function FormasPagamento() {
   const [searchTerm, setSearchTerm] = useState("");
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
+  // Deep-link: abrir edição via ?editId=… (drawer "Editar" → modal).
+  useEditDeepLink<FormaPagamento>({
+    table: "formas_pagamento",
+    onLoad: (f) => openEdit(f),
+  });
+
   // Advanced filters
   const [ativoFilters, setAtivoFilters] = useState<string[]>([]);
   const [tipoFilters, setTipoFilters] = useState<string[]>([]);
@@ -359,12 +365,12 @@ export default function FormasPagamento() {
                   <Select value={form.tipo} onValueChange={(v) => updateForm({ tipo: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="dinheiro">Dinheiro</SelectItem>
+                      <SelectItem value="pix">PIX</SelectItem>
                       <SelectItem value="boleto">Boleto</SelectItem>
                       <SelectItem value="cartao">Cartão</SelectItem>
-                      <SelectItem value="pix">PIX</SelectItem>
-                      <SelectItem value="cheque">Cheque</SelectItem>
-                      <SelectItem value="deposito">Depósito</SelectItem>
+                      <SelectItem value="dinheiro">Dinheiro</SelectItem>
+                      <SelectItem value="transferencia">Transferência</SelectItem>
+                      <SelectItem value="outro">Outro</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
