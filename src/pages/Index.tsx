@@ -169,11 +169,7 @@ const DashboardContent = () => {
     alertas: () => (
       <AlertStrip
         titulosVencidos={stats.contasVencidas}
-        estoqueBaixo={estoqueBaixo.length}
-        remessasAtrasadas={remessasAtrasadas}
-        comprasAtrasadas={comprasAtrasadasCount}
         notasPendentes={fiscalStats.pendentes}
-        ovsPendentes={backlogOVsCount}
       />
     ),
     financeiro: () => (
@@ -315,8 +311,29 @@ const DashboardContent = () => {
           {greeting}, {profile?.nome?.split(" ")[0] || "time"}.
         </p>
         <p className="text-xs text-muted-foreground mt-0.5">
-          {formatVencimentosHoje(vencimentosHoje.receber, vencimentosHoje.pagar)}
-          {backlogOVsCount > 0 && ` · ${backlogOVsCount} pedido${backlogOVsCount > 1 ? "s" : ""} aguardando faturamento.`}
+          {(vencimentosHoje.receber > 0 || vencimentosHoje.pagar > 0) ? (
+            <button
+              type="button"
+              onClick={() => navigate(`/financeiro?venc=hoje`)}
+              className="hover:text-primary hover:underline transition-colors"
+            >
+              {formatVencimentosHoje(vencimentosHoje.receber, vencimentosHoje.pagar)}
+            </button>
+          ) : (
+            formatVencimentosHoje(vencimentosHoje.receber, vencimentosHoje.pagar)
+          )}
+          {backlogOVsCount > 0 && (
+            <>
+              {" · "}
+              <button
+                type="button"
+                onClick={() => navigate(buildDrilldownUrl({ kind: "pedidos:aguardando-faturamento" }))}
+                className="hover:text-primary hover:underline transition-colors"
+              >
+                {backlogOVsCount} pedido{backlogOVsCount > 1 ? "s" : ""} aguardando faturamento.
+              </button>
+            </>
+          )}
         </p>
       </div>
 
