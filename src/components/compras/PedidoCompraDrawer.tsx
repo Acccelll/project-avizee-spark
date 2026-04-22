@@ -585,10 +585,11 @@ export function PedidoCompraDrawer({
   const canCancel = ["rascunho", "aprovado", "enviado_ao_fornecedor", "aguardando_recebimento"].includes(pedidoStatus);
   const canSolicitarAprovacao = pedidoStatus === "rascunho" && !!onSolicitarAprovacao;
   const canApproveReject = pedidoStatus === "aguardando_aprovacao" && !!isAdmin;
+  const canEstornar = ["recebido", "parcialmente_recebido"].includes(pedidoStatus) && !!isAdmin;
   void perms;
 
   const drawerFooter =
-    canReceive || canSend || canCancel || canSolicitarAprovacao || canApproveReject ? (
+    canReceive || canSend || canCancel || canSolicitarAprovacao || canApproveReject || canEstornar ? (
       <DrawerStickyFooter
         left={
           canCancel && (
