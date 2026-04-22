@@ -145,9 +145,11 @@ export default function Configuracoes() {
   const [changingPassword, setChangingPassword] = useState(false);
 
   const [densidade, setDensidade] = useState('confortavel');
-  const [corPrimaria, setCorPrimaria] = useState('#6b0d0d');
-  const [corSecundaria, setCorSecundaria] = useState('#b85b2d');
   const [appearanceSavedAt, setAppearanceSavedAt] = useState<Date | null>(null);
+  // Branding institucional (apenas leitura) — vem do cache compartilhado.
+  const { branding: brandingPreview } = useBrandingPreview();
+  const corPrimaria = brandingPreview.corPrimaria || '#6b0d0d';
+  const corSecundaria = brandingPreview.corSecundaria || '#b85b2d';
   const {
     saveSidebarCollapsed: saveMenuCompacto,
   } = useAppConfigContext();
@@ -167,20 +169,7 @@ export default function Configuracoes() {
     if (themePref && theme !== themePref) setTheme(themePref);
   }, [themePref, theme, setTheme]);
 
-  useEffect(() => {
-    // Branding institucional vive em empresa_config (admin-only via Administracao.tsx).
-    // Aqui apenas exibimos as cores correntes para contexto visual do usuário.
-    supabase
-      .from('empresa_config')
-      .select('cor_primaria, cor_secundaria')
-      .limit(1)
-      .maybeSingle()
-      .then(({ data }) => {
-        const row = data as { cor_primaria?: string | null; cor_secundaria?: string | null } | null;
-        if (row?.cor_primaria) setCorPrimaria(row.cor_primaria);
-        if (row?.cor_secundaria) setCorSecundaria(row.cor_secundaria);
-      });
-  }, []);
+  // (Branding agora vem de `useBrandingPreview` — leitura única e cacheada.)
 
   const initials = nome.trim()
     ? nome.trim().split(/\s+/).filter(Boolean).map((w) => w[0]).slice(0, 2).join('').toUpperCase()
