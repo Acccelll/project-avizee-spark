@@ -86,12 +86,18 @@ export function useDashboardKpis(params: KpiParams) {
         value: formatCurrency(stats.totalPagar),
         subtitle: `${formatNumber(stats.contasPagar)} título${stats.contasPagar !== 1 ? "s" : ""} em aberto`,
         icon: DollarSign,
+        // Useful variation: percentage of contas a receber, gives the user
+        // a sense of "are we earning enough to cover what we owe?".
         variation:
-          stats.contasVencidas > 0
-            ? `${formatNumber(stats.contasPagar)} título${stats.contasPagar !== 1 ? "s" : ""} no período`
-            : `${formatNumber(stats.contasPagar)} título${stats.contasPagar !== 1 ? "s" : ""} no período`,
-        variationType: "neutral" as const,
-        variant: stats.totalPagar > stats.totalReceber ? ("danger" as const) : ("warning" as const),
+          stats.totalReceber > 0
+            ? `${Math.round((stats.totalPagar / stats.totalReceber) * 100)}% do total a receber`
+            : "Sem contraparte a receber",
+        variationType:
+          stats.totalReceber > 0 && stats.totalPagar > stats.totalReceber
+            ? ("negative" as const)
+            : ("neutral" as const),
+        // Variant reflects only "Pagar"'s own state — not the cross with Receber.
+        variant: stats.contasPagar > 0 ? ("warning" as const) : ("success" as const),
         sparklineData: dailyPagar.length > 0 ? dailyPagar.map((d) => d.valor) : undefined,
         onClick: onOpenPagar,
         onDetail: onPagarDetail,
@@ -103,9 +109,12 @@ export function useDashboardKpis(params: KpiParams) {
         id: "saldo",
         title: "Saldo Projetado",
         value: formatCurrency(saldoProjetado),
-        subtitle: "receber − pagar (janela)",
+        subtitle: "receber − pagar (período global)",
         icon: BarChart2,
-        variation: saldoProjetado >= 0 ? "Caixa positivo" : "Caixa negativo",
+        variation:
+          saldoProjetado >= 0
+            ? `Sobra de ${formatCurrency(saldoProjetado)}`
+            : `Déficit de ${formatCurrency(Math.abs(saldoProjetado))}`,
         variationType: saldoProjetado >= 0 ? ("positive" as const) : ("negative" as const),
         variant: saldoProjetado >= 0 ? ("success" as const) : ("danger" as const),
         sparklineData:

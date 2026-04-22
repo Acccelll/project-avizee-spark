@@ -1,15 +1,4 @@
 import { Fragment, lazy, Suspense, useState, type ReactNode } from "react";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
 import { SummaryCard } from "@/components/SummaryCard";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { AlertStrip } from "@/components/dashboard/AlertStrip";
@@ -23,10 +12,9 @@ import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { PendenciasList } from "@/components/dashboard/PendenciasList";
 import { DashboardCard } from "@/components/dashboard/DashboardCard";
 import { BlockErrorBoundary } from "@/components/dashboard/BlockErrorBoundary";
-import { ViewDrawerV2 } from "@/components/ViewDrawerV2";
+import { KpiDetailDrawer, type KpiMetricKey } from "@/components/dashboard/KpiDetailDrawer";
 import { useAuth } from "@/contexts/AuthContext";
 import { DashboardPeriodProvider } from "@/contexts/DashboardPeriodContext";
-import { formatCurrency } from "@/lib/format";
 import { useNavigate } from "react-router-dom";
 import { useMetas } from "@/hooks/useMetas";
 import { useInView } from "@/hooks/useInView";
@@ -80,7 +68,7 @@ const DashboardContent = () => {
   const { prefs, toggleVisibility, moveWidget, resetLayout } = useDashboardLayout(user?.id);
   const isVisible = (id: WidgetId) => !prefs.hidden.includes(id);
 
-  const [metricDrawer, setMetricDrawer] = useState<null | "receber" | "pagar" | "saldo" | "estoque">(null);
+  const [metricDrawer, setMetricDrawer] = useState<KpiMetricKey | null>(null);
 
   const {
     stats,
@@ -93,7 +81,6 @@ const DashboardContent = () => {
     comprasAtrasadasCount,
     dailyPagar,
     dailyReceber,
-    dailyVendas,
     estoqueBaixo,
     faturamento,
     fiscalStats,
@@ -101,7 +88,6 @@ const DashboardContent = () => {
     remessasAtrasadas,
     ticketMedio,
     topClientes,
-    topProdutos,
     valorEstoque,
     vencimentosHoje,
   } = useDashboardData();
@@ -136,15 +122,10 @@ const DashboardContent = () => {
     dailyPagar,
     topClientes,
     estoqueBaixo,
-    dailyVendas,
-    topProdutos,
   });
 
   if (loading) {
-    return (
-      <><DashboardSkeleton />
-      </>
-    );
+    return <DashboardSkeleton />;
   }
 
   const openMetric = metricDrawer ? detailData[metricDrawer] : null;
@@ -315,7 +296,8 @@ const DashboardContent = () => {
   }
 
   return (
-    <><DashboardHeader
+    <>
+      <DashboardHeader
         lastUpdated={loadedAt}
         onRefresh={loadData}
         rightSlot={
@@ -330,7 +312,7 @@ const DashboardContent = () => {
 
       <div className="mb-4 rounded-lg border border-border/60 bg-muted/10 px-4 py-3">
         <p className="text-sm font-medium text-foreground">
-          {greeting}, {profile?.nome?.split(" ")[0] || "time"} 👋
+          {greeting}, {profile?.nome?.split(" ")[0] || "time"}.
         </p>
         <p className="text-xs text-muted-foreground mt-0.5">
           {formatVencimentosHoje(vencimentosHoje.receber, vencimentosHoje.pagar)}
@@ -353,122 +335,10 @@ const DashboardContent = () => {
         })}
       </div>
 
-      <ViewDrawerV2
-        open={!!metricDrawer}
+      <KpiDetailDrawer
+        metric={metricDrawer}
+        payload={openMetric}
         onClose={() => setMetricDrawer(null)}
-        title={openMetric?.title || "Detalhes"}
-        tabs={
-          openMetric
-            ? [
-                {
-                  value: "evolucao",
-                  label: "Evolução diária",
-                  content: (
-                    <div className="space-y-3">
-                      {openMetric.daily.length > 0 ? (
-                        <div className="h-64">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={[...openMetric.daily]}>
-                              <CartesianGrid strokeDasharray="3 3" />
-                              <XAxis dataKey="dia" />
-                              <YAxis />
-                              <Tooltip formatter={(v: number) => formatCurrency(v)} />
-                              <Line dataKey="valor" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
-                            </LineChart>
-                          </ResponsiveContainer>
-                        </div>
-                      ) : (
-                        <p className="py-8 text-center text-sm text-muted-foreground">
-                          Sem dados para o período selecionado.
-                        </p>
-                      )}
-                      {metricDrawer === "receber" && (
-                        <div className="text-right">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setMetricDrawer(null);
-                              navigate("/financeiro?tipo=receber");
-                            }}
-                            className="text-xs text-primary underline-offset-2 hover:underline"
-                          >
-                            Ver todos os títulos →
-                          </button>
-                        </div>
-                      )}
-                      {metricDrawer === "pagar" && (
-                        <div className="text-right">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setMetricDrawer(null);
-                              navigate(buildDrilldownUrl({ kind: "financeiro:pagar-aberto" }));
-                            }}
-                            className="text-xs text-primary underline-offset-2 hover:underline"
-                          >
-                            Ver todos os títulos →
-                          </button>
-                        </div>
-                      )}
-                      {metricDrawer === "saldo" && (
-                        <div className="text-right">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setMetricDrawer(null);
-                              navigate("/fluxo-caixa");
-                            }}
-                            className="text-xs text-primary underline-offset-2 hover:underline"
-                          >
-                            Abrir fluxo de caixa →
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  ),
-                },
-                {
-                  value: "top",
-                  label: "Top itens",
-                  content: (
-                    <div className="space-y-3">
-                      {openMetric.top.length > 0 ? (
-                        <div className="h-64">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={[...openMetric.top]}>
-                              <CartesianGrid strokeDasharray="3 3" />
-                              <XAxis dataKey="nome" tick={{ fontSize: 11 }} />
-                              <YAxis />
-                              <Tooltip formatter={(v: number) => formatCurrency(v)} />
-                              <Bar dataKey="valor" fill="hsl(var(--primary))" />
-                            </BarChart>
-                          </ResponsiveContainer>
-                        </div>
-                      ) : (
-                        <p className="py-8 text-center text-sm text-muted-foreground">
-                          Sem dados disponíveis.
-                        </p>
-                      )}
-                      {metricDrawer === "estoque" && (
-                        <div className="text-right">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setMetricDrawer(null);
-                              navigate("/estoque");
-                            }}
-                            className="text-xs text-primary underline-offset-2 hover:underline"
-                          >
-                            Ver estoque completo →
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  ),
-                },
-              ]
-            : []
-        }
       />
     </>
   );

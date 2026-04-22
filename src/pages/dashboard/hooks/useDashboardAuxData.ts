@@ -2,6 +2,19 @@ import { useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { CompraAguardando, DashboardDateRange } from "./types";
 
+/**
+ * Local-date YYYY-MM-DD (avoids UTC off-by-one in BRT-3 sessions).
+ * Mirrors the implementation in DashboardPeriodContext to keep cutoffs
+ * consistent with the rest of the dashboard.
+ */
+function todayLocalIso(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 interface AuxData {
   clientes: number;
   fornecedores: number;
@@ -15,7 +28,7 @@ interface AuxData {
 export function useDashboardAuxData(range: DashboardDateRange) {
   const loadAuxData = useCallback(async (): Promise<AuxData> => {
     const { dateFrom, dateTo } = range;
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayLocalIso();
 
     try {
       const [

@@ -10,6 +10,21 @@
  * com valores separados por vírgula — `?status=aberto,parcial`. Não usar
  * params repetidos (`?status=aberto&status=parcial`). Esse padrão já é usado
  * por Financeiro; Pedidos foi alinhado em 2026-04 (vide useDashboardLayout PR).
+ *
+ * AUDITORIA HOOK ↔ PÁGINA (mantém em paridade os filtros que produzem o KPI
+ * com os filtros aplicados na listagem-destino). Ao alterar um lado, atualizar
+ * o outro.
+ *
+ * | intent                              | hook que produz a contagem               | filtro aplicado na página de destino                          |
+ * |-------------------------------------|------------------------------------------|---------------------------------------------------------------|
+ * | financeiro:receber-aberto           | useDashboardFinanceiroData (totalReceber)| tipo=receber + status IN (aberto,parcial,vencido)             |
+ * | financeiro:pagar-aberto             | useDashboardFinanceiroData (totalPagar)  | tipo=pagar + status IN (aberto,parcial,vencido)               |
+ * | financeiro:vencidos                 | useDashboardFinanceiroData (vencidos)    | status=vencido                                                |
+ * | estoque:critico                     | useDashboardEstoqueData                  | critico=1                                                     |
+ * | logistica:remessas-atrasadas        | useDashboardAuxData                      | tab=remessas + atrasadas=1                                    |
+ * | compras:atrasadas                   | useDashboardAuxData (comprasAtrasadasCount)| atrasadas=1 (interpretação local em PedidosCompra.tsx)      |
+ * | fiscal:rascunho / fiscal:pendentes  | useDashboardFiscalData (pendentes)       | status=rascunho (único status real de NF não emitida)         |
+ * | pedidos:aguardando-faturamento      | useDashboardComercialData (backlogOVs)   | status IN (aprovada,em_separacao) + faturamento IN (aguardando,parcial) |
  */
 
 export type DrilldownIntent =
@@ -49,8 +64,10 @@ export function buildDrilldownUrl(intent: DrilldownIntent): string {
     case 'fiscal:rascunho':
       return '/fiscal?status=rascunho';
     case 'fiscal:pendentes':
-      return '/fiscal?status=pendente,rascunho';
+      // 'pendente' não é status real de notas_fiscais; rascunho é a fonte de verdade.
+      return '/fiscal?status=rascunho';
     case 'pedidos:aguardando-faturamento':
-      return '/pedidos?faturamento=aguardando,parcial';
+      // Espelha o filtro do hook (status da OV + status_faturamento).
+      return '/pedidos?status=aprovada,em_separacao&faturamento=aguardando,parcial';
   }
 }
