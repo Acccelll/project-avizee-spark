@@ -16,6 +16,8 @@ import { PedidoCompraView } from "./PedidoCompraView";
 import { NotaFiscalView } from "./NotaFiscalView";
 import { RemessaView } from "./RemessaView";
 import { OrdemVendaView } from "./OrdemVendaView";
+import { GrupoEconomicoView } from "./GrupoEconomicoView";
+import { FormaPagamentoView } from "./FormaPagamentoView";
 
 const ViewBody = memo(function ViewBody({ view }: { view: ViewState }) {
   switch (view.type) {
@@ -27,6 +29,8 @@ const ViewBody = memo(function ViewBody({ view }: { view: ViewState }) {
     case "nota_fiscal": return <NotaFiscalView id={view.id} />;
     case "remessa": return <RemessaView id={view.id} />;
     case "ordem_venda": return <OrdemVendaView id={view.id} />;
+    case "grupo_economico": return <GrupoEconomicoView id={view.id} />;
+    case "forma_pagamento": return <FormaPagamentoView id={view.id} />;
     default: return <div className="p-4">Visualização não implementada para {view.type}</div>;
   }
 });
@@ -40,6 +44,8 @@ const TYPE_LABELS: Record<EntityType, string> = {
   nota_fiscal: "Nota Fiscal",
   remessa: "Remessa / Rastreio",
   ordem_venda: "Pedido",
+  grupo_economico: "Grupo Econômico",
+  forma_pagamento: "Forma de Pagamento",
 };
 
 const TYPE_BREADCRUMB: Record<EntityType, string> = {
@@ -51,6 +57,8 @@ const TYPE_BREADCRUMB: Record<EntityType, string> = {
   nota_fiscal: "Fiscal › Notas",
   remessa: "Logística › Remessas",
   ordem_venda: "Comercial › Pedidos",
+  grupo_economico: "Cadastros › Grupos Econômicos",
+  forma_pagamento: "Cadastros › Formas de Pagamento",
 };
 
 const getTitle = (type: EntityType) => TYPE_LABELS[type] || "Detalhes";
