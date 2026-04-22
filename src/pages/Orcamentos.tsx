@@ -1,6 +1,6 @@
 
 import { useMemo, useState, useCallback } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -29,6 +29,7 @@ import { canApproveOrcamento, canConvertOrcamento, canSendOrcamento, getOrcament
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import { useClientesRef } from "@/hooks/useReferenceCache";
 import { useActionLock } from "@/hooks/useActionLock";
+import { useUrlListState } from "@/hooks/useUrlListState";
 
 interface Orcamento {
   id: string;
@@ -118,45 +119,42 @@ const Orcamentos = () => {
   const [poNumberCliente, setPoNumberCliente] = useState("");
   const [dataPoCliente, setDataPoCliente] = useState("");
 
-  const [searchParams, setSearchParams] = useSearchParams();
+  // Querystring CSV unificada com Pedidos/Financeiro (compatível com `buildDrilldownUrl`).
+  const { value: filterState, set: setFilters } = useUrlListState({
+    schema: {
+      q: { type: "string" },
+      status: { type: "stringArray" },
+      cliente: { type: "stringArray" },
+      validade: { type: "stringArray" },
+      de: { type: "string" },
+      ate: { type: "string" },
+      historico: { type: "string" },
+    },
+  });
+  const searchTerm = filterState.q;
+  const statusFilters = filterState.status;
+  const clienteFilters = filterState.cliente;
+  const validadeFilters = filterState.validade;
+  const dataInicio = filterState.de;
+  const dataFim = filterState.ate;
+  const historicoFilter = filterState.historico || "todos";
 
-  const searchTerm = searchParams.get("q") ?? "";
-  const statusFilters = searchParams.getAll("status");
-  const clienteFilters = searchParams.getAll("cliente");
-  const validadeFilters = searchParams.getAll("validade");
-  const dataInicio = searchParams.get("de") ?? "";
-  const dataFim = searchParams.get("ate") ?? "";
-  const historicoFilter = searchParams.get("historico") ?? "todos";
-
-  const updateParam = (key: string, value: string | string[] | null) => {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      next.delete(key);
-      if (Array.isArray(value)) {
-        value.forEach((v) => next.append(key, v));
-      } else if (value) {
-        next.set(key, value);
-      }
-      return next;
-    }, { replace: true });
-  };
-
-  const setSearchTerm = (v: string) => updateParam("q", v || null);
+  const setSearchTerm = (v: string) => setFilters({ q: v });
   const setStatusFilters = (fn: string[] | ((prev: string[]) => string[])) => {
     const next = typeof fn === "function" ? fn(statusFilters) : fn;
-    updateParam("status", next);
+    setFilters({ status: next });
   };
   const setClienteFilters = (fn: string[] | ((prev: string[]) => string[])) => {
     const next = typeof fn === "function" ? fn(clienteFilters) : fn;
-    updateParam("cliente", next);
+    setFilters({ cliente: next });
   };
   const setValidadeFilters = (fn: string[] | ((prev: string[]) => string[])) => {
     const next = typeof fn === "function" ? fn(validadeFilters) : fn;
-    updateParam("validade", next);
+    setFilters({ validade: next });
   };
-  const setDataInicio = (v: string) => updateParam("de", v || null);
-  const setDataFim = (v: string) => updateParam("ate", v || null);
-  const setHistoricoFilter = (v: string) => updateParam("historico", v === "todos" ? null : v);
+  const setDataInicio = (v: string) => setFilters({ de: v });
+  const setDataFim = (v: string) => setFilters({ ate: v });
+  const setHistoricoFilter = (v: string) => setFilters({ historico: v === "todos" ? "" : v });
   const { data: clientesList = [] } = useClientesRef();
   const { isAdmin } = useIsAdmin();
   const sendLock = useActionLock();
