@@ -182,13 +182,7 @@ function populateSheet(
 
     rows.forEach((row) => {
       const values = columns.map((c) => {
-        const v = row[c.key];
-        if (v == null) return "";
-        if (typeof v === "number") return v;
-        if (typeof v === "string" && c.format === "date" && /^\d{4}-\d{2}-\d{2}/.test(v)) {
-          return formatDate(v);
-        }
-        return v;
+        return formatReportCell(row[c.key], c.key, { format: c.format, mode: "excel" });
       });
       sheet.addRow(values);
     });
@@ -402,24 +396,8 @@ export async function buildPdfDocument(params: PdfBuildParams) {
   return doc;
 }
 
-/** Formats a cell value for PDF rendering using config format hint when available. */
+/** Formats a cell value for PDF rendering — thin wrapper around the unified
+ *  `formatReportCell` so PDF, UI and other exporters share one source of truth. */
 function formatCellValuePdf(value: unknown, key: string, format?: string): string | number {
-  if (typeof value === "number") {
-    if (format === "currency") return formatCurrency(value);
-    if (format === "percent") return `${value.toFixed(1)}%`;
-    if (format === "quantity" || format === "number") return formatNumber(value);
-    // Legacy heuristic fallback when no format hint provided
-    if (
-      ["valor", "custo", "venda", "entrada", "saida"].some((f) =>
-        key.toLowerCase().includes(f)
-      )
-    ) {
-      return formatCurrency(value);
-    }
-    return formatNumber(value);
-  }
-  if (typeof value === "string" && (format === "date" || /^\d{4}-\d{2}-\d{2}/.test(value))) {
-    return formatDate(value);
-  }
-  return (value ?? "-") as string;
+  return formatReportCell(value, key, { format, mode: "display" });
 }
