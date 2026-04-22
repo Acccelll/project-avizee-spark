@@ -28,6 +28,7 @@ import {
   type LocalItem,
   statusLabels,
 } from "@/components/compras/cotacaoCompraTypes";
+import { canonicalCotacaoStatus } from "@/components/compras/comprasStatus";
 import type { Database } from "@/integrations/supabase/types";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
@@ -96,7 +97,7 @@ export default function CotacaoCompraForm() {
         data_cotacao: cot.data_cotacao,
         data_validade: cot.data_validade || "",
         observacoes: cot.observacoes || "",
-        status: cot.status,
+        status: canonicalCotacaoStatus(cot.status),
       });
       updateLocalItems(
         (itens || []).map((i: CotacaoItem) => ({

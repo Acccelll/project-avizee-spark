@@ -233,7 +233,7 @@ export function useCotacoesCompra() {
           .eq("cotacao_compra_id", selected.id);
         if (delErr) throw delErr;
       }
-      if (cotacaoId && localItems.length > 0) {
+      if (cotacaoId) {
         const itemsPayload = localItems
           .filter((i) => i.produto_id)
           .map((i) => ({
@@ -242,6 +242,10 @@ export function useCotacoesCompra() {
             quantidade: i.quantidade,
             unidade: i.unidade,
           }));
+        if (itemsPayload.length === 0) {
+          toast.error("A cotação precisa de pelo menos 1 item.");
+          throw new Error("Cotação sem itens válidos");
+        }
         const { error: insErr } = await supabase
           .from("cotacoes_compra_itens")
           .insert(itemsPayload);

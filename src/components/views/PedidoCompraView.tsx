@@ -217,7 +217,7 @@ export function PedidoCompraView({ id }: Props) {
         variant="outline"
         size="sm"
         className="h-8 gap-1.5 text-xs"
-        onClick={() => navigate(`/compras/pedidos/${selected.id}`)}
+        onClick={() => navigate(`/pedidos-compra/${selected.id}`)}
       >
         <Edit className="h-3.5 w-3.5" /> Editar
       </Button>

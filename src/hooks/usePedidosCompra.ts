@@ -216,7 +216,7 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
 
   const kpis = useMemo(() => {
     const aguardando = pedidos.filter((p) =>
-      ["rascunho", "aguardando_aprovacao", "aprovado", "enviado_ao_fornecedor", "aguardando_recebimento"].includes(canonicalPedidoStatus(p.status)),
+      ["rascunho", "aguardando_aprovacao", "aprovado", "enviado_ao_fornecedor", "aguardando_recebimento", "parcialmente_recebido"].includes(canonicalPedidoStatus(p.status)),
     );
     const recebidos = pedidos.filter((p) => canonicalPedidoStatus(p.status) === "recebido");
     const totalValue = pedidos.reduce((s, p) => s + Number(p.valor_total || 0), 0);
