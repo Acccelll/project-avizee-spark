@@ -1,153 +1,248 @@
 
+# Ajustes finais — sessão, criação de usuário, ações rápidas, datas, branding e grids padrão
 
-# Ajustes em massa — Admin, sessão, financeiro, sidebar e UX
+Sete frentes objetivas, com foco em corrigir a causa real dos problemas e alinhar o comportamento ao que você descreveu.
 
-11 problemas independentes. Plano agrupado por área.
+## 1. Aviso de renovação de sessão: padrão em 55 minutos após login
+
+Hoje há conflito entre o aviso e o keepalive automático: com keepalive ativo, o aviso quase nunca aparece.
+
+### O que ajustar
+- Alterar o comportamento padrão para:
+  - `session_keepalive = false`
+  - `session_warn_minutes = 5`
+- Assim, em uma sessão de 1 hora, o aviso aparece por padrão aos 55 minutos do login.
+- Manter a opção de ativar/desativar “Manter sessão ativa” em Preferências.
+- Quando keepalive estiver ativo:
+  - renovar em background;
+  - não exibir aviso enquanto a sessão estiver sendo renovada com sucesso.
+- Ajustar os textos da tela de Preferências para deixar claro:
+  - “Avisar 5 minutos antes” = aviso em torno de 55 minutos após login.
+
+### Arquivos
+- `src/components/auth/SessionExpiryWarning.tsx`
+- `src/pages/Configuracoes.tsx`
 
 ---
 
-## 1. Menu lateral de Administração — visual
+## 2. “Novo Usuário” ainda falha
 
-Hoje cada grupo (`Empresa / Acesso & Segurança / Configurações / Dados & Auditoria`) é um accordion sem hierarquia visual clara, a área "Empresa" só tem 1 item e o item ativo destaca o grupo inteiro com cor avermelhada. Refatorar `src/pages/Administracao.tsx`:
+Há um indício forte no backend: a função `admin-users` rejeita todas as requisições se `ALLOWED_ORIGIN` não estiver configurado. Como o fallback de criação já existe, o problema mais provável agora é CORS/origem, não a lógica de criação em si.
 
-- Trocar accordions por **secções fixas com headers tipográficos** (caps, 11px, `text-muted-foreground`) — sem expand/collapse, todos os itens visíveis (são poucos).
-- Item ativo: barra vertical primary à esquerda + bg `accent/40`, sem chip de cor inteiro.
-- Ícones em quadradinho (24×24) com bg `muted/40`; `Dados da Empresa` deixa de ficar dentro de um card vermelho.
-- Adicionar separador fino entre seções e largura fixa `w-60`.
+### O que ajustar
+- Revisar a função `admin-users` para:
+  - aceitar corretamente preview + domínio publicado + domínio customizado;
+  - não quebrar toda a função quando `ALLOWED_ORIGIN` estiver ausente ou divergente;
+  - validar a origem de forma segura, mas compatível com os ambientes reais do projeto.
+- Melhorar o retorno de erro para a UI:
+  - exibir motivo real no toast (CORS/origem, usuário existente, falha no perfil, etc.).
+- Validar o fluxo completo:
+  - convite por e-mail;
+  - fallback com senha temporária;
+  - link de redefinição.
 
-## 2. Filtro de data personalizado bugado no Dashboard
+### Arquivos
+- `supabase/functions/admin-users/index.ts`
+- `src/components/usuarios/UsuariosTab.tsx`
 
-`src/components/dashboard/DashboardHeader.tsx` usa `<Input type="date">` controlado direto pelo contexto. Cada keystroke (`2`, `20`, `202`…) dispara `setCustomStart` com data inválida e o `useMemo` do `range` recalcula imediatamente, retornando datas inválidas que quebram queries downstream.
+### Trabalho de backend necessário
+- Ajuste de configuração/segredo de origem permitido no backend gerenciado, se necessário.
 
-- Manter estado local (`localStart`, `localEnd`) para digitação; só propagar via `setCustomStart/End` no `onBlur` ou quando a string completar 10 chars válidos (`/^\d{4}-\d{2}-\d{2}$/`).
-- Validar `dateFrom <= dateTo`; se inválido, manter o range anterior e mostrar `aria-invalid` no input vermelho.
-- Adicionar botão "Aplicar" explícito ao lado dos inputs para confirmar.
+---
 
-**Auditar mesmo padrão em**: `Auditoria.tsx`, `relatorios/.../FiltrosRelatorio.tsx`, `relatorios/.../PeriodoFilter.tsx` (usam o mesmo padrão `<Input type="date" onChange={direto}>`). Aplicar a mesma proteção via util novo `src/lib/safeDateInput.ts` (`useDebouncedDateInput`) reutilizável.
+## 3. Ações rápidas: todas na mesma lógica de “Nova Cotação”
 
-## 3. Timeout de sessão configurável (≥1h) + preferência
+Hoje os atalhos apontam para listagens genéricas. O comportamento precisa abrir criação direta.
 
-`SessionExpiryWarning` usa `WARN_BEFORE_MS = 5 min` e dispara o toast assim que a expiração nativa do Supabase se aproxima (~1h). O toast aparece muito cedo na UX.
+### O que ajustar
+Padronizar em todos os pontos que usam ações rápidas:
+- card do dashboard;
+- drawer mobile;
+- menu “Novo” do header;
+- busca global/atalhos.
 
-- Adicionar preferência `session_keepalive` (`'on' | 'off'`, default `'on'`) e `session_warn_minutes` (`number`, default `60`) em `useUserPreference`.
-- Se `keepalive='on'`: a cada 30 min, chamar `supabase.auth.refreshSession()` em background (silenciosamente). Isso renova a janela de 1h continuamente enquanto a aba estiver ativa (`document.visibilityState === 'visible'`).
-- Toast "Renovar sessão" só aparece **N minutos antes** da expiração (configurável; default 5 min). Garante que nunca aparece se keepalive estiver ligado e a aba ativa.
-- UI: nova seção "Sessão" em `src/pages/Configuracoes.tsx` (rota `/configuracoes`, é onde `/perfil` redireciona) com **Switch "Manter sessão ativa"** + **Slider/Select "Avisar X min antes de expirar"** (5/15/30/60).
+### Comportamento desejado
+- Nova Cotação → `/orcamentos/novo`
+- Novo Cliente → abrir criação direta de cliente
+- Novo Produto → abrir criação direta de produto
+- Novo Pedido → abrir criação direta de pedido, se existir fluxo suportado; se o módulo ainda não tiver criação direta, criar entrada de criação dedicada
+- Nova Nota → abrir emissão direta de nota
+- Baixa Financeira → apenas abrir `Lançamentos`
 
-## 4. Visual de "Ajuste Manual" do Estoque
+### Estratégia
+- Criar rotas/queries de abertura direta consistentes, por exemplo:
+  - `/clientes?new=1`
+  - `/produtos?new=1`
+  - `/fiscal?tipo=saida&new=1`
+  - equivalente para pedidos
+- Nas páginas correspondentes, detectar `?new=1` e chamar `openCreate()` na montagem.
+- Unificar a fonte dos atalhos para desktop/mobile/header/search.
 
-`src/pages/Estoque.tsx` (aba `ajuste`): hoje é uma coluna estreita `max-w-lg` num fundo bege gritante, banner amarelo desproporcional, sem agrupamento.
+### Arquivos
+- `src/components/dashboard/QuickActions.tsx`
+- `src/components/navigation/MobileQuickActions.tsx`
+- `src/components/navigation/AppHeader.tsx`
+- `src/components/navigation/GlobalSearch.tsx`
+- `src/lib/navigation.ts`
+- `src/pages/Clientes.tsx`
+- `src/pages/Produtos.tsx`
+- `src/pages/Fiscal.tsx`
+- `src/pages/Pedidos.tsx` e/ou `src/pages/PedidoForm.tsx`
+- `src/App.tsx`
 
-- Wrapper em **2 colunas** (`grid lg:grid-cols-3 gap-6`): formulário ocupa 2/3, **lateral direita** mostra histórico recente do produto (últimos 5 ajustes via `vw_estoque_ultimos_ajustes` se existir, senão `estoque_movimentos` filtrado por `produto_id` e `tipo='ajuste'`).
-- Banner de aviso: trocar fundo amarelo cheio por borda lateral `border-l-4 border-warning` + bg `warning/5` mais sutil.
-- Cards segmentados (FormSection) para "Produto", "Operação" e "Justificativa" — cada um com header tipográfico claro.
-- Preview do "Saldo Atual / Novo Saldo" vira um card destacado com tipografia maior (32px) e diff colorido (verde/vermelho) com seta.
-- Botões de ação fixos no rodapé (sticky) do card.
+---
 
-## 5. `[object Object]` na coluna Descrição (Lançamentos)
+## 4. Filtro por datas do dashboard ainda “recarrega” e fecha o picker
 
-**Causa raiz confirmada** (consulta no DB): 363 registros em `financeiro_lancamentos` têm a string literal `"[object Object]"` em `descricao`. Foram gravados por um bug antigo (provavelmente `String(objetoPlanoContas)` sem `.descricao`). O FK `conta_contabil_id` está correto e `contas_contabeis.descricao` tem o nome.
+O problema atual é estrutural: a data ainda alimenta o contexto/query cedo demais. Isso faz o dashboard rerenderizar enquanto o calendário nativo está aberto, parecendo um reload.
 
-**Correção em duas frentes:**
+### O que ajustar
+- Separar “data digitada/selecionada” de “data aplicada ao dashboard”.
+- No `DashboardPeriodContext`:
+  - manter `customStartDraft` / `customEndDraft`;
+  - manter `customStartApplied` / `customEndApplied`;
+  - o `range` deve usar apenas os valores aplicados.
+- No header:
+  - inputs editam apenas o draft;
+  - botão “Aplicar” atualiza o range real;
+  - botão “Limpar” ou “Hoje” pode continuar agindo no draft sem disparar queries imediatamente.
+- Validar:
+  - data inicial <= data final;
+  - não aplicar datas inválidas.
+- Auditar outros pontos que atualizam URL/filtro em todo `onChange` de `<input type="date">`, principalmente telas com filtros em query string.
 
-1. **Migration SQL — backfill**: 
-   ```sql
-   UPDATE financeiro_lancamentos l
-   SET descricao = cc.descricao
-   FROM contas_contabeis cc
-   WHERE l.conta_contabil_id = cc.id AND l.descricao = '[object Object]';
-   ```
-   Para os que não tiverem `conta_contabil_id`, fallback para "Lançamento sem descrição".
+### Arquivos
+- `src/contexts/DashboardPeriodContext.tsx`
+- `src/components/dashboard/DashboardHeader.tsx`
+- `src/lib/safeDateInput.ts`
+- telas com filtros de data semelhantes, se confirmado no mesmo padrão
 
-2. **Render defensivo** em `src/pages/financeiro/config/financeiroColumns.tsx` (linha 55) e `src/pages/FluxoCaixa.tsx` (linha 277):
-   - Helper `displayDescricao(l)`: se `descricao === '[object Object]'` ou for objeto, retorna `l.contas_contabeis?.descricao ?? '—'`.
+---
 
-## 6. Baixa em lote com edição individual por título
+## 5. Branding do menu lateral e login
 
-Hoje `BaixaLoteModal` aplica forma de pagamento + conta + data **uniformemente** a todos. Não dá pra editar cada título.
+Hoje o sistema usa imagem fixa `logoavizee.png` no sidebar e nas telas de autenticação. Isso impede a personalização que você pediu.
 
-Refatorar `src/components/financeiro/BaixaLoteModal.tsx`:
+### O que ajustar no layout
+#### Menu expandido
+- remover o texto fixo “AviZee”;
+- dar mais espaço para a marca;
+- usar:
+  - símbolo + texto de marca configurável;
+  - subtítulo discreto “ERP” ao lado, se definido.
 
-- Cada linha da tabela ganha um botão "✏️ Editar" que **substitui a linha** por um formulário inline (mesmos campos do `BaixaParcialDialog`: data baixa, forma pgto, conta bancária, valor pago, observação).
-- Edição salva em estado local `perItemOverrides: Record<id, BaixaConfig>` — a baixa final usa o override quando presente, senão os defaults da seção superior.
-- Linha editada mostra ícone ✓ e resumo dos overrides.
-- Botão "Voltar" reverte a linha ao modo readonly mantendo overrides.
-- Atualizar `processarBaixaLote` em `src/services/financeiro.service.ts` para aceitar `overrides?: Record<string, Partial<BaixaConfig>>` e aplicar por item; quando há override, gera 1 INSERT em `financeiro_baixas` com os valores específicos.
+#### Menu recolhido
+- exibir apenas o símbolo;
+- posicionar visualmente o símbolo à esquerda da seta, com espaçamento mais limpo e centralização consistente.
 
-## 7. `[object Object]` em "Movimentos" do Fluxo de Caixa
+### O que ajustar na identidade visual
+Adicionar, em Administração → Empresa:
+- upload da logo principal;
+- upload do símbolo;
+- campo de texto da marca;
+- campo opcional de texto curto/subtítulo (default: “ERP”).
 
-Mesmo bug do item 5 (já coberto pelo backfill SQL). Adicionar o mesmo `displayDescricao` helper em `src/pages/FluxoCaixa.tsx:277`.
+Garantir que isso alimente:
+- menu lateral;
+- login;
+- signup;
+- recuperação de senha;
+- redefinição de senha;
+- telas de loading/autenticação relacionadas.
 
-## 8. Primeira coluna do grid: só "Visualizar"
+### Impacto técnico
+O schema atual de `empresa_config` tem `logo_url`, mas não tem campo para símbolo separado nem texto de marca dedicado.
 
-`src/components/DataTable.tsx` `renderActions` (linhas 430-481) mostra hoje **Visualizar + Editar + Duplicar + Excluir** todos juntos.
+### Trabalho necessário
+- adicionar colunas de branding, por exemplo:
+  - `simbolo_url`
+  - `marca_texto`
+  - `marca_subtitulo`
+- carregar isso no app inteiro via configuração central.
 
-- Modificar `renderActions` para mostrar **apenas o botão "Visualizar"** quando `onView` está presente.
-- Os botões `onEdit`, `onDuplicate`, `onDelete` continuam disponíveis via prop, mas só são renderizados **dentro do drawer** (não na grid).
-- `ViewDrawerV2` já é onde o usuário clica em "Visualizar" — adicionar slot de `headerActions` com Editar/Duplicar/Excluir lá. Hoje cada drawer (`FinanceiroDrawer`, `EstoqueDrawer`, etc.) já tem seus próprios botões; padronizar via `ViewDrawerV2.headerActions` prop.
-- Mobile (`renderMobileActions`): mantém `MoreVertical` dropdown como hoje (caso de uso diferente — touch).
+### Arquivos
+- `src/pages/Administracao.tsx`
+- `src/components/AppSidebar.tsx`
+- `src/contexts/AppConfigContext.tsx`
+- `src/pages/Login.tsx`
+- `src/pages/Signup.tsx`
+- `src/pages/ForgotPassword.tsx`
+- `src/pages/ResetPassword.tsx`
+- `src/components/auth/AuthLoadingScreen.tsx`
 
-## 9. Click no avatar/perfil sem ação
+### Mudança de banco
+- migration para expandir `empresa_config` com campos de branding.
 
-Pelo print (`image-12`) o avatar está sendo renderizado mas o `DropdownMenu` parece não abrir. Inspeção do código `AppHeader.tsx` mostra que o trigger está envolto em `<Tooltip>` *dentro* do `DropdownMenuTrigger asChild`, o que pode estar quebrando a propagação do click no Radix (conflito entre dois `asChild` aninhados).
+---
 
-- Reordenar: colocar `<Tooltip>` **fora** do `DropdownMenuTrigger` (envolvendo o botão como wrapper, não dentro dele), ou separar tooltip e trigger em elementos distintos.
-- Validar manualmente que o menu abre.
-- Conteúdo do menu já existe e tem "Meu perfil → /perfil → /configuracoes", "Configurações", "Tema", "Sair" — mantém esses 4 itens.
+## 6. Grids padrão dos cadastros
 
-## 10. Erro ao criar usuário em Administração
+Aplicar como padrão visual, mantendo as demais colunas disponíveis no seletor de colunas.
 
-Suspeitas, em ordem:
-1. `inviteUserByEmail` requer SMTP configurado no projeto Supabase. Sem SMTP, falha com mensagem genérica.
-2. `ALLOWED_ORIGIN` env var não setada no edge function rejeita o request com 500.
-3. Trigger `handle_new_user` no Postgres tentando inserir em tabelas com colunas obrigatórias.
+### Produtos
+Manter como está, mas:
+- ocultar por padrão:
+  - `Classificação`
+  - `Status`
+- manter visíveis:
+  - `Custo`
+  - `Margem`
 
-**Plano de correção:**
-- Adicionar `console.log` detalhado em cada etapa de `supabase/functions/admin-users/index.ts` action `create` (já tem `console.error` no catch).
-- Trocar `inviteUserByEmail` por `createUser` com `email_confirm: true` e `password: random` quando SMTP não está configurado, depois usar `generateLink({ type: 'recovery' })` para enviar reset de senha. Mostra senha temporária na UI como fallback.
-- Mostrar mensagem de erro real no toast (já passa via `data.error`); auditar `getUserFriendlyError` para não mascarar a causa.
-- Após reproduzir o erro com logs, aplicar fix específico.
+### Clientes
+Manter como está, mas:
+- ocultar por padrão:
+  - `Status`
 
-## 11. Sidebar dinâmico (recolhido por padrão, expande no hover)
+### Fornecedores
+Manter como está, mas:
+- ocultar por padrão:
+  - `Prazo`
+  - `Cidade`
+  - `Status`
 
-Hoje sidebar tem só dois estados (recolhido fixo / expandido fixo) controlados por `sidebarCollapsed` em `useUserPreference`.
+### Transportadoras
+Manter como está, mas:
+- ocultar por padrão:
+  - `Status`
 
-- Adicionar terceiro modo: **`sidebar_mode: 'fixed-expanded' | 'fixed-collapsed' | 'dynamic'`** (default `'dynamic'`).
-- Modo `dynamic`: sidebar fica recolhido (72px) por padrão; ao `onMouseEnter` no `<aside>`, expande para 240px com transição; ao `onMouseLeave`, recolhe. Usar overlay (sidebar com `position: fixed` já está, pode crescer sem empurrar conteúdo no modo dinâmico).
-- Modo `fixed-collapsed`: sempre 72px, conteúdo `md:ml-[72px]`.
-- Modo `fixed-expanded`: sempre 240px, conteúdo `md:ml-[240px]`.
-- Botão de toggle no sidebar abre um pequeno menu com os 3 modos (radio).
-- Garantir navegação completa quando recolhido: `SidebarSection` no modo collapsed já mostra ícones; revisar se hover-popout dos submenus funciona (já existe `onExpandRail`); ajustar para não auto-expandir o rail no modo `fixed-collapsed`.
-- Persistir em `useUserPreference('sidebar_mode')` em `AppConfigContext`.
-- Adicionar UI em `Configuracoes` (mesma seção de preferências do item 3) com 3 opções visuais (cards com ícone explicativo).
+### Estratégia
+- marcar essas colunas com `hidden: true` nas definições.
+- garantir que “Restaurar padrão” da `DataTable` respeite esse novo padrão.
+- preservar personalizações já salvas dos usuários sempre que possível; aplicar o novo padrão como base para novos estados e restauração padrão.
+
+### Arquivos
+- `src/pages/Produtos.tsx`
+- `src/pages/Clientes.tsx`
+- `src/pages/Fornecedores.tsx`
+- `src/pages/Transportadoras.tsx`
+- `src/components/DataTable.tsx`
+
+---
+
+## 7. Ordem recomendada de implementação
+
+1. Corrigir `admin-users` e validar criação de usuário
+2. Reestruturar filtro de datas do dashboard
+3. Ajustar comportamento padrão da sessão para aviso aos 55 minutos
+4. Unificar ações rápidas com criação direta
+5. Implementar branding configurável (logo + símbolo + texto)
+6. Refinar visual do sidebar expandido/recolhido
+7. Aplicar novos padrões das grids
 
 ---
 
 ## Detalhes técnicos
 
-**Arquivos a editar**
-- `src/pages/Administracao.tsx` — refatorar `sideNavGroups` rendering (item 1).
-- `src/components/dashboard/DashboardHeader.tsx` + novo `src/lib/safeDateInput.ts` — fix data personalizada (item 2). Aplicar nos 3 outros lugares.
-- `src/components/auth/SessionExpiryWarning.tsx` + `src/pages/Configuracoes.tsx` — keepalive + preferências (item 3).
-- `src/pages/Estoque.tsx` (bloco da aba "ajuste", linhas 508-680) — redesign visual (item 4).
-- `src/pages/financeiro/config/financeiroColumns.tsx`, `src/pages/FluxoCaixa.tsx`, novo `src/lib/displayLancamento.ts` — helper de descrição (itens 5 e 7).
-- `src/components/financeiro/BaixaLoteModal.tsx` + `src/services/financeiro.service.ts` — overrides por título (item 6).
-- `src/components/DataTable.tsx` (`renderActions`) + `src/components/ViewDrawerV2.tsx` — só Visualizar na grid (item 8).
-- `src/components/navigation/AppHeader.tsx` — Tooltip/DropdownMenu fix (item 9).
-- `supabase/functions/admin-users/index.ts` — logs + fallback createUser (item 10).
-- `src/components/AppSidebar.tsx` + `src/components/AppLayout.tsx` + `src/contexts/AppConfigContext.tsx` — modo dinâmico (item 11).
+### Mudanças de código
+- `SessionExpiryWarning` passa a operar com padrão compatível com aviso aos 55 minutos.
+- Dashboard deixa de refazer query ao selecionar cada data no picker.
+- Ações rápidas passam a disparar criação real, não apenas abrir listagens.
+- Sidebar e autenticação deixam de depender de asset fixo e passam a consumir branding configurável.
+- Grids passam a ter padrão inicial mais limpo, sem perder flexibilidade.
 
-**Migrations SQL** (1 arquivo)
-- Backfill `descricao = '[object Object]'` → `contas_contabeis.descricao` (item 5/7).
+### Mudanças de backend
+- Ajuste na função `admin-users` para origem/CORS e diagnóstico real.
+- Migration em `empresa_config` para branding completo.
 
-**Sem mudança de schema** em nenhum item. Sem novas dependências.
-
-**Compatibilidade**
-- Sidebar: usuários atuais (preferência `sidebar_collapsed: true/false`) migram automaticamente para `fixed-collapsed`/`fixed-expanded` na primeira leitura, então nada quebra.
-- Sessão: keepalive `'on'` por padrão preserva a UX atual mas sem o toast precoce.
-
-**Fora de escopo**
-- Reescrita do `BaixaParcialDialog` para reutilizar componentes do BaixaLote (item 6 reusa via composição).
-- 2FA / SAML em criação de usuário (item 10 fica só em invite/create).
-- Persistir histórico de ajustes em tabela nova (item 4 reusa `estoque_movimentos`).
-
+### Sem mudar stack
+- Tudo segue no padrão atual do projeto, sem refatoração ampla nem troca de arquitetura.
