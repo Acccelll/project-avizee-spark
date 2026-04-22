@@ -145,6 +145,8 @@ export const socialPermissions = [
  * Decide flags de visibilidade do módulo Social combinando:
  *  - papéis do usuário (admin/vendedor/financeiro liberam por padrão)
  *  - overrides individuais em `user_permissions` (extraPermissions)
+ *  - revogações individuais (deniedPermissions) — quando presentes,
+ *    sempre vencem a herança do papel.
  *
  * Permite, por exemplo, conceder `social:visualizar` a um estoquista, ou
  * revogar `social:configurar` de um vendedor (via deny no AuthContext).
@@ -152,16 +154,29 @@ export const socialPermissions = [
 export function getSocialPermissionFlags(
   roles: AppRole[],
   extraPermissions: PermissionKey[] = [],
+  deniedPermissions: PermissionKey[] = [],
 ): SocialPermissionFlags {
   const has = (role: AppRole) => roles.includes(role);
   const hasPerm = (perm: PermissionKey) => extraPermissions.includes(perm);
+  const isDenied = (perm: PermissionKey) => deniedPermissions.includes(perm);
 
-  const canViewModule = has('admin') || has('vendedor') || has('financeiro') || hasPerm('social:visualizar');
-  const canManageAccounts = has('admin') || has('vendedor') || hasPerm('social:configurar');
-  const canSync = has('admin') || has('vendedor') || hasPerm('social:sincronizar');
-  const canExportReports =
-    has('admin') || has('vendedor') || has('financeiro') || hasPerm('social:exportar');
-  const canManageAlerts = has('admin') || has('vendedor') || hasPerm('social:gerenciar_alertas');
+  // `deny` vence sempre — mesmo um admin com `social:visualizar` revogado
+  // explicitamente em `user_permissions` deixa de ver o módulo, mantendo a
+  // semântica consistente com `buildPermissionSet`/`useCan`.
+  const allow = (perm: PermissionKey, baseAllowed: boolean) =>
+    !isDenied(perm) && (baseAllowed || hasPerm(perm));
+
+  const canViewModule = allow(
+    'social:visualizar',
+    has('admin') || has('vendedor') || has('financeiro'),
+  );
+  const canManageAccounts = allow('social:configurar', has('admin') || has('vendedor'));
+  const canSync = allow('social:sincronizar', has('admin') || has('vendedor'));
+  const canExportReports = allow(
+    'social:exportar',
+    has('admin') || has('vendedor') || has('financeiro'),
+  );
+  const canManageAlerts = allow('social:gerenciar_alertas', has('admin') || has('vendedor'));
 
   return { canViewModule, canManageAccounts, canSync, canExportReports, canManageAlerts };
 }
