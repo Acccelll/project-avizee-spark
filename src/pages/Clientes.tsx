@@ -14,6 +14,7 @@ import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext"
 import { useViaCep } from "@/hooks/useViaCep";
 import { useCnpjLookup } from "@/hooks/useCnpjLookup";
 import { useDocumentoUnico } from "@/hooks/useDocumentoUnico";
+import { useEditDeepLink } from "@/hooks/useEditDeepLink";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,7 +45,7 @@ interface Cliente {
   id: string;tipo_pessoa: string;nome_razao_social: string;nome_fantasia: string;
   cpf_cnpj: string;inscricao_estadual: string;email: string;telefone: string;celular: string;
   contato: string;prazo_padrao: number;limite_credito: number;
-  forma_pagamento_padrao: string | null;prazo_preferencial: number | null;
+  forma_pagamento_id: string | null;forma_pagamento_padrao: string | null;prazo_preferencial: number | null;
   logradouro: string;numero: string;complemento: string;bairro: string;cidade: string;
   uf: string;cep: string;pais: string;observacoes: string;ativo: boolean;created_at: string;
   grupo_economico_id: string | null;tipo_relacao_grupo: string | null;caixa_postal: string | null;
@@ -65,7 +66,7 @@ interface ClienteFormData {
   contato: string;
   prazo_padrao: number;
   limite_credito: number;
-  forma_pagamento_padrao: string;
+  forma_pagamento_id: string;
   prazo_preferencial: number;
   logradouro: string;
   numero: string;
@@ -84,7 +85,7 @@ interface ClienteFormData {
 const emptyCliente: ClienteFormData = {
   tipo_pessoa: "J", nome_razao_social: "", nome_fantasia: "", cpf_cnpj: "",
   inscricao_estadual: "", email: "", telefone: "", celular: "", contato: "",
-  prazo_padrao: 30, limite_credito: 0, forma_pagamento_padrao: "", prazo_preferencial: 0,
+  prazo_padrao: 30, limite_credito: 0, forma_pagamento_id: "", prazo_preferencial: 0,
   logradouro: "", numero: "", complemento: "", bairro: "", cidade: "", uf: "", cep: "", pais: "Brasil",
   observacoes: "", grupo_economico_id: "", tipo_relacao_grupo: "independente", caixa_postal: ""
 };
@@ -147,25 +148,10 @@ const Clientes = () => {
     });
   }, []);
 
-  useEffect(() => {
-    const stateEditId = (location.state as { editId?: string } | null)?.editId;
-    const searchEditId = new URLSearchParams(location.search).get("editId");
-    const editId = stateEditId || searchEditId;
-    if (!editId) return;
-    let cancelled = false;
-    supabase.from("clientes").select("*").eq("id", editId).maybeSingle().then(({ data: c }) => {
-      if (cancelled) return;
-      if (c) openEdit(c as Cliente);
-      const nextSearch = new URLSearchParams(location.search);
-      nextSearch.delete("editId");
-      navigate(
-        { pathname: location.pathname, search: nextSearch.toString() ? `?${nextSearch.toString()}` : "" },
-        { replace: true, state: {} }
-      );
-    });
-    return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.pathname, location.search, location.state]);
+  useEditDeepLink<Cliente>({
+    table: "clientes",
+    onLoad: (c) => openEdit(c),
+  });
 
   // Atalho rápido: abrir formulário de criação ao chegar com ?new=1.
   useEffect(() => {
@@ -193,7 +179,7 @@ const Clientes = () => {
       cpf_cnpj: c.cpf_cnpj || "", inscricao_estadual: c.inscricao_estadual || "",
       email: c.email || "", telefone: c.telefone || "", celular: c.celular || "", contato: c.contato || "",
       prazo_padrao: c.prazo_padrao || 30, limite_credito: c.limite_credito || 0,
-      forma_pagamento_padrao: c.forma_pagamento_padrao || "",
+      forma_pagamento_id: c.forma_pagamento_id || "",
       prazo_preferencial: c.prazo_preferencial || 0,
       logradouro: c.logradouro || "", numero: c.numero || "", complemento: c.complemento || "",
       bairro: c.bairro || "", cidade: c.cidade || "", uf: c.uf || "", cep: c.cep || "",
@@ -228,7 +214,11 @@ const Clientes = () => {
       ...form,
       grupo_economico_id: form.grupo_economico_id || null,
       caixa_postal: form.caixa_postal || null,
-      forma_pagamento_padrao: form.forma_pagamento_padrao || null,
+      forma_pagamento_id: form.forma_pagamento_id || null,
+      // Coluna textual legada mantida em sync para fallback visual.
+      forma_pagamento_padrao: form.forma_pagamento_id
+        ? formasPagamento.find((fp) => fp.id === form.forma_pagamento_id)?.descricao ?? null
+        : null,
       prazo_preferencial: form.prazo_preferencial || null,
     };
     try {
@@ -403,11 +393,11 @@ const Clientes = () => {
         status={mode === "edit" && selected ? <StatusBadge status={selected.ativo ? "ativo" : "inativo"} /> : undefined}
         meta={mode === "edit" && selected ? [
           ...(selected.created_at ? [{ icon: Calendar, label: `Cadastrado em ${formatDate(selected.created_at)}` }] : []),
-          ...(form.forma_pagamento_padrao
+          ...(form.forma_pagamento_id
             ? [{
                 icon: CreditCard,
-                label: formasPagamento.find((fp) => fp.id === form.forma_pagamento_padrao)?.descricao
-                  ?? form.forma_pagamento_padrao,
+                label: formasPagamento.find((fp) => fp.id === form.forma_pagamento_id)?.descricao
+                  ?? "Forma de pagamento",
               }]
             : []),
           ...(form.grupo_economico_id ? [{ icon: Building2, label: grupos.find(g => g.id === form.grupo_economico_id)?.nome ?? "Grupo" }] : []),
@@ -694,8 +684,8 @@ const Clientes = () => {
                     </Tooltip>
                   </div>
                   <Select
-                    value={form.forma_pagamento_padrao || "nenhuma"}
-                    onValueChange={(v) => updateForm({ forma_pagamento_padrao: v === "nenhuma" ? "" : v })}
+                    value={form.forma_pagamento_id || "nenhuma"}
+                    onValueChange={(v) => updateForm({ forma_pagamento_id: v === "nenhuma" ? "" : v })}
                   >
                     <SelectTrigger><SelectValue placeholder="Não definida" /></SelectTrigger>
                     <SelectContent>

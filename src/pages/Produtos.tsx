@@ -34,6 +34,7 @@ import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useEditDirtyForm } from "@/hooks/useEditDirtyForm";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { produtoSchema, validateForm } from "@/lib/validationSchemas";
+import { useEditDeepLink } from "@/hooks/useEditDeepLink";
 
 type TipoItem = "produto" | "insumo";
 
@@ -150,29 +151,10 @@ const Produtos = () => {
     });
   }, []);
 
-  useEffect(() => {
-    const stateEditId = (location.state as { editId?: string } | null)?.editId;
-    const searchEditId = new URLSearchParams(location.search).get("editId");
-    const editId = stateEditId || searchEditId;
-    if (!editId) return;
-    let cancelled = false;
-    supabase.from("produtos").select("*").eq("id", editId).maybeSingle().then(({ data: p }) => {
-      if (cancelled) return;
-      if (p) openEdit(p as unknown as Produto);
-      const nextSearch = new URLSearchParams(location.search);
-      nextSearch.delete("editId");
-      navigate(
-        {
-          pathname: location.pathname,
-          search: nextSearch.toString() ? `?${nextSearch.toString()}` : "",
-        },
-        { replace: true, state: {} }
-      );
-    });
-    return () => { cancelled = true; };
-  // openEdit is stable; navigate/pathname are stable refs
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.pathname, location.search, location.state]);
+  useEditDeepLink<Produto>({
+    table: "produtos",
+    onLoad: (p) => openEdit(p),
+  });
 
   // Atalho rápido: abrir formulário de criação ao chegar com ?new=1.
   useEffect(() => {
@@ -365,23 +347,25 @@ const Produtos = () => {
         throw new Error("Erro ao salvar composição: " + (compError.message || "tente novamente"));
       }
 
-      // Fornecedores: replace via delete+insert. Se falhar, propaga (não fecha modal silenciosamente).
-      const { error: delErr } = await supabase.from("produtos_fornecedores").delete().eq("produto_id", produtoId);
-      if (delErr) throw new Error("Erro ao limpar fornecedores anteriores: " + delErr.message);
-
-      const validForn = editFornecedores.filter(f => f.fornecedor_id);
-      if (validForn.length > 0) {
-        const fRows = validForn.map(f => ({
-          produto_id: produtoId, fornecedor_id: f.fornecedor_id, eh_principal: f.eh_principal,
-          descricao_fornecedor: f.descricao_fornecedor || null, referencia_fornecedor: f.referencia_fornecedor || null,
-          unidade_fornecedor: f.unidade_fornecedor || null, lead_time_dias: f.lead_time_dias || null,
-          preco_compra: f.preco_compra || null,
+      // Fornecedores: RPC transacional (delete + insert atômico).
+      const fornecedoresPayload = editFornecedores
+        .filter((f) => f.fornecedor_id)
+        .map((f) => ({
+          fornecedor_id: f.fornecedor_id,
+          eh_principal: f.eh_principal ?? false,
+          descricao_fornecedor: f.descricao_fornecedor || "",
+          referencia_fornecedor: f.referencia_fornecedor || "",
+          unidade_fornecedor: f.unidade_fornecedor || "",
+          lead_time_dias: f.lead_time_dias != null ? String(f.lead_time_dias) : "",
+          preco_compra: f.preco_compra != null ? String(f.preco_compra) : "",
         }));
-        const { error } = await supabase.from("produtos_fornecedores").insert(fRows);
-        if (error) {
-          console.error('[produtos] fornecedores:', error);
-          throw new Error("Erro ao salvar fornecedores: " + error.message);
-        }
+      const { error: fornError } = await supabase.rpc("save_produto_fornecedores", {
+        p_produto_id: produtoId,
+        p_itens: fornecedoresPayload,
+      });
+      if (fornError) {
+        console.error("[produtos] fornecedores:", fornError);
+        throw new Error("Erro ao salvar fornecedores: " + (fornError.message || "tente novamente"));
       }
       markPristine();
       if (saveAndNewRef.current && mode === "create") {

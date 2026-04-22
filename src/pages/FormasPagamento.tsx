@@ -119,7 +119,7 @@ export default function FormasPagamento() {
         supabase
           .from("clientes")
           .select("id, nome_razao_social, prazo_preferencial")
-          .eq("forma_pagamento_padrao", selected.descricao)
+          .eq("forma_pagamento_id", selected.id)
           .eq("ativo", true)
           .limit(50),
         supabase

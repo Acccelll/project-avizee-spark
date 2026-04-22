@@ -6198,6 +6198,10 @@ export type Database = {
         Args: { p_itens: Json; p_payload?: Json; p_produto_pai_id: string }
         Returns: undefined
       }
+      save_produto_fornecedores: {
+        Args: { p_itens: Json; p_produto_id: string }
+        Returns: undefined
+      }
       set_principal_endereco: {
         Args: { p_cliente_id: string; p_endereco_id: string }
         Returns: undefined
