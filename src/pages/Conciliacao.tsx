@@ -434,14 +434,8 @@ export default function Conciliacao() {
       if (statusConcFilters.length > 0 && !statusConcFilters.includes(l.statusConciliacao)) return false;
       if (tipoFilters.length > 0 && !tipoFilters.includes(l.tipo)) return false;
       if (origemFilters.length > 0) {
-        const isNF = !!l.nota_fiscal_id;
-        const isParcela = !!l.documento_pai_id;
-        const isManual = !isNF && !isParcela;
-        const matchesOrigem =
-          (origemFilters.includes("nf") && isNF) ||
-          (origemFilters.includes("parcela") && isParcela) ||
-          (origemFilters.includes("manual") && isManual);
-        if (!matchesOrigem) return false;
+        const key = getOrigemKey(l);
+        if (!origemFilters.includes(key)) return false;
       }
       return true;
     });
