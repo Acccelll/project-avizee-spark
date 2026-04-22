@@ -674,6 +674,30 @@ export default function Logistica() {
       {/* Recebimento Drawer */}
       <RecebimentoDrawer open={!!selectedRecebimento} onClose={() => setSelectedRecebimento(null)} recebimento={selectedRecebimento} />
 
+      {/* Diálogo oficial de registro de recebimento (Compras) */}
+      <RegistrarRecebimentoDialog
+        open={!!recebimentoDialogPedido}
+        onClose={() => setRecebimentoDialogPedido(null)}
+        pedidoId={recebimentoDialogPedido?.id ?? ""}
+        pedidoNumero={recebimentoDialogPedido?.numero_compra ?? ""}
+        onSuccess={() => {
+          setRecebimentoDialogPedido(null);
+          queryClient.invalidateQueries({ queryKey: ["recebimentos"] });
+          queryClient.invalidateQueries({ queryKey: ["recebimentos-compra"] });
+          queryClient.invalidateQueries({ queryKey: ["estoque-posicao"] });
+        }}
+      />
+
+      {/* Modal de rastreio Correios */}
+      <TrackingModal
+        open={!!trackingTarget}
+        onClose={() => setTrackingTarget(null)}
+        codigoRastreio={trackingTarget?.codigo ?? null}
+        remessaId={trackingTarget?.remessaId}
+      />
+
+      {confirmDialog}
+
       {/* Remessa Detail Drawer */}
       <ViewDrawerV2
         open={remDrawerOpen}
