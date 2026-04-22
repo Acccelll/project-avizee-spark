@@ -126,7 +126,7 @@ const Orcamentos = () => {
   const validadeFilters = searchParams.getAll("validade");
   const dataInicio = searchParams.get("de") ?? "";
   const dataFim = searchParams.get("ate") ?? "";
-  const historicoFilter = searchParams.get("historico") ?? "excluir";
+  const historicoFilter = searchParams.get("historico") ?? "todos";
 
   const updateParam = (key: string, value: string | string[] | null) => {
     setSearchParams((prev) => {
@@ -156,7 +156,7 @@ const Orcamentos = () => {
   };
   const setDataInicio = (v: string) => updateParam("de", v || null);
   const setDataFim = (v: string) => updateParam("ate", v || null);
-  const setHistoricoFilter = (v: string) => updateParam("historico", v === "excluir" ? null : v);
+  const setHistoricoFilter = (v: string) => updateParam("historico", v === "todos" ? null : v);
   const { data: clientesList = [] } = useClientesRef();
   const { isAdmin } = useIsAdmin();
   const sendLock = useActionLock();
