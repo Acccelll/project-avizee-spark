@@ -266,6 +266,13 @@ export function PedidoCompraView({ id }: Props) {
             tone: "success",
             title: "Movimentos de estoque registrados pelo recebimento",
           },
+          {
+            icon: DollarSign,
+            count: viewFinanceiro.length,
+            label: viewFinanceiro.length === 1 ? "Lançamento financeiro" : "Lançamentos financeiros",
+            tone: "default",
+            title: "Lançamentos a pagar gerados pelo recebimento",
+          },
         ]}
       />
 
