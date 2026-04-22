@@ -140,7 +140,7 @@ export default function Conciliacao() {
       //   1) Títulos com baixa ativa no período (eixo data_baixa)
       //   2) Títulos em aberto/parcial pelo vencimento no período (candidatos a nova baixa)
       const lancSelect =
-        "id, descricao, valor, data_vencimento, tipo, status, saldo_restante, nota_fiscal_id, documento_pai_id, conta_bancaria_id, forma_pagamento, contas_bancarias(descricao, bancos(nome))";
+        "id, descricao, valor, data_vencimento, tipo, status, saldo_restante, nota_fiscal_id, documento_pai_id, origem_tipo, conta_bancaria_id, forma_pagamento, contas_bancarias(descricao, bancos(nome))";
 
       const [{ data: porBaixa }, { data: porVencimento }] = await Promise.all([
         supabase
