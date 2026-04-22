@@ -1,6 +1,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { supabase } from "@/integrations/supabase/client";
@@ -23,6 +24,7 @@ import { canonicalCotacaoStatus } from "@/components/compras/comprasStatus";
 export function useCotacoesCompra() {
   const navigate = useNavigate();
   const gerarPedidoCompra = useGerarPedidoCompra();
+  const queryClient = useQueryClient();
   const { data, loading, fetchData, remove } = useSupabaseCrud({
     table: "cotacoes_compra",
     orderBy: "created_at",
