@@ -21,6 +21,7 @@ export default function Signup() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [errors, setErrors] = useState<{ nome?: string; email?: string; password?: string }>({});
+  const branding = useBranding();
 
   const blockedByInvite = useMemo(
     () => INVITE_ONLY && inviteToken.length === 0,
@@ -116,9 +117,9 @@ export default function Signup() {
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <img src={logoAvizee} alt="AviZee ERP" className="h-16 mx-auto mb-5" />
+          <img src={branding.logoUrl} alt={branding.marcaTexto || "ERP"} className="h-16 mx-auto mb-5 object-contain" />
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Criar Conta</h1>
-          <p className="text-muted-foreground text-sm mt-1">Cadastre-se no AviZee ERP</p>
+          <p className="text-muted-foreground text-sm mt-1">Cadastre-se no sistema</p>
         </div>
 
         {INVITE_ONLY && inviteToken && (
