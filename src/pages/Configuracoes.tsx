@@ -661,8 +661,22 @@ export default function Configuracoes() {
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <div className="h-7 w-7 rounded-md border" style={{ backgroundColor: corPrimaria }} aria-label="Cor primária atual" />
-                    <div className="h-7 w-7 rounded-md border" style={{ backgroundColor: corSecundaria }} aria-label="Cor secundária atual" />
+                    <div className="flex items-center gap-1.5">
+                      <div
+                        className="h-7 w-7 rounded-md border"
+                        style={{ backgroundColor: corPrimaria }}
+                        aria-label={`Cor primária atual: ${corPrimaria}`}
+                      />
+                      <span className="font-mono text-[11px] text-muted-foreground">{corPrimaria}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <div
+                        className="h-7 w-7 rounded-md border"
+                        style={{ backgroundColor: corSecundaria }}
+                        aria-label={`Cor secundária atual: ${corSecundaria}`}
+                      />
+                      <span className="font-mono text-[11px] text-muted-foreground">{corSecundaria}</span>
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center justify-between gap-3">
