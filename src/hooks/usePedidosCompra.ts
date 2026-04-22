@@ -374,6 +374,12 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
       setItems([]);
       setForm(buildEmptyPedidoForm());
       await refreshAll();
+
+      // Caminho único: após CRIAR pelo modal rápido, redirecionar para
+      // a rota dedicada de edição. Edição posterior só acontece pela rota.
+      if (mode === "create" && pedidoId) {
+        navigate(`/pedidos-compra/${pedidoId}`);
+      }
     });
   };
 
