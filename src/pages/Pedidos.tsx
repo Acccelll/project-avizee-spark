@@ -1,5 +1,6 @@
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
@@ -24,6 +25,8 @@ import { canFaturarPedido, getPedidoStatusLabel, statusFaturamentoLabels } from 
 import { statusPedido } from "@/lib/statusSchema";
 import { verificarEstoquePedido } from "@/utils/comercialStock";
 import type { StockShortfall } from "@/types/comercial";
+import { subscribeComercial } from "@/lib/realtime/comercialChannel";
+import { INVALIDATION_KEYS } from "@/services/_invalidationKeys";
 
 interface Pedido {
   id: string;
@@ -92,10 +95,22 @@ const Pedidos = () => {
   const { pushView } = useRelationalNavigation();
   const navigate = useNavigate();
   const faturarPedido = useFaturarPedido();
+  const qc = useQueryClient();
   const { data: rawData, loading, fetchData } = useSupabaseCrud({
     table: "ordens_venda", select: "*, clientes(nome_razao_social), orcamentos(numero)",
   });
   const data = rawData as unknown as Pedido[];
+
+  // Realtime: invalida grid quando ordens_venda/notas_fiscais mudam em outras
+  // abas, RPCs (faturar/estornar) ou triggers — mantém status_faturamento
+  // sincronizado sem refresh manual.
+  useEffect(() => {
+    return subscribeComercial(() => {
+      INVALIDATION_KEYS.faturamentoPedido.forEach((key) => {
+        qc.invalidateQueries({ queryKey: [key] });
+      });
+    });
+  }, [qc]);
 
   const [searchParams, setSearchParams] = useSearchParams();
 
