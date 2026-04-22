@@ -18,6 +18,8 @@ import { useCotacaoCompraFilters } from "@/components/compras/useCotacaoCompraFi
 import { CotacaoCompraTable } from "@/components/compras/CotacaoCompraTable";
 import { CotacaoCompraDrawer } from "@/components/compras/CotacaoCompraDrawer";
 import { statusLabels } from "@/components/compras/cotacaoCompraTypes";
+import { useComprasRealtime } from "@/hooks/useComprasRealtime";
+import { useMemo } from "react";
 
 export default function CotacoesCompra() {
   const navigate = useNavigate();
@@ -40,11 +42,33 @@ export default function CotacoesCompra() {
     produtoOptions, fornecedorOptions,
   } = useCotacoesCompra();
 
+  // Realtime: invalida queries quando outro usuário/aba altera registros.
+  useComprasRealtime();
+
+  // Para o filtro de fornecedor da cotação, usamos a lista de fornecedores
+  // que aparecem em alguma proposta (cotação não tem FK direta).
+  const fornecedorById = useMemo(() => {
+    const m = new Map<string, string>();
+    fornecedorOptions.forEach((f) => m.set(String(f.id), f.label));
+    return m;
+  }, [fornecedorOptions]);
+
   const {
     searchTerm, setSearchTerm,
     statusFilters, setStatusFilters,
+    fornecedorFilters, setFornecedorFilters,
+    dataInicio, setDataInicio,
+    dataFim, setDataFim,
     filteredData, activeFilters, handleRemoveFilter, statusOptions,
-  } = useCotacaoCompraFilters(data, statusLabels);
+  } = useCotacaoCompraFilters(data, statusLabels, {
+    summaries,
+    fornecedorLabel: (id) => fornecedorById.get(id),
+  });
+
+  const fornecedorMultiOptions = useMemo(
+    () => fornecedorOptions.map((f) => ({ value: String(f.id), label: f.label })),
+    [fornecedorOptions],
+  );
 
   return (
     <><ModulePage
@@ -66,11 +90,23 @@ export default function CotacoesCompra() {
           onSearchChange={setSearchTerm}
           activeFilters={activeFilters}
           onRemoveFilter={handleRemoveFilter}
-          onClearAll={() => setStatusFilters([])}
+          onClearAll={() => {
+            setStatusFilters([]);
+            setFornecedorFilters([]);
+            setDataInicio("");
+            setDataFim("");
+          }}
           count={filteredData.length}
           statusOptions={statusOptions}
           statusFilters={statusFilters}
           onStatusChange={setStatusFilters}
+          fornecedorOptions={fornecedorMultiOptions}
+          fornecedorFilters={fornecedorFilters}
+          onFornecedorChange={setFornecedorFilters}
+          dataInicio={dataInicio}
+          onDataInicioChange={setDataInicio}
+          dataFim={dataFim}
+          onDataFimChange={setDataFim}
         />
 
         <CotacaoCompraTable

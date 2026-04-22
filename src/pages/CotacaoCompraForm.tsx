@@ -32,6 +32,8 @@ import { canonicalCotacaoStatus } from "@/components/compras/comprasStatus";
 import type { Database } from "@/integrations/supabase/types";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
+import { useBeforeUnloadGuard } from "@/hooks/useBeforeUnloadGuard";
+import { validarTransicaoCotacao } from "@/lib/comprasTransitions";
 
 type ProdutoRow = Database["public"]["Tables"]["produtos"]["Row"];
 type FornecedorRow = Database["public"]["Tables"]["fornecedores"]["Row"];
@@ -65,6 +67,9 @@ export default function CotacaoCompraForm() {
   const [produtoOptions, setProdutoOptions] = useState<{ id: string; label: string; sublabel: string }[]>([]);
   const [fornecedorOptions, setFornecedorOptions] = useState<{ id: string; label: string; sublabel: string }[]>([]);
   const [isDirty, setIsDirty] = useState(false);
+
+  // Bloqueia fechar/recarregar a aba se houver mudanças não salvas.
+  useBeforeUnloadGuard(isDirty);
 
   const updateForm = useCallback((next: SetStateAction<typeof form>) => {
     setForm(next);
@@ -168,6 +173,14 @@ export default function CotacaoCompraForm() {
     if (["convertida", "cancelada"].includes(form.status)) {
       toast.error("O status selecionado só pode ser definido por ações do sistema.");
       return;
+    }
+    // Validador puro: bloqueia transição inválida antes do round-trip ao banco.
+    if (cotacao && form.status !== cotacao.status) {
+      const v = validarTransicaoCotacao(cotacao.status, form.status);
+      if (!v.ok) {
+        toast.error(v.motivo ?? "Transição de status inválida.");
+        return;
+      }
     }
 
     await submit(async () => {

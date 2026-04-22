@@ -27,6 +27,8 @@ import type { Database } from "@/integrations/supabase/types";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { canonicalPedidoStatus, pedidoStatusLabelMap } from "@/components/compras/comprasStatus";
 import { useSalvarPedidoCompra } from "@/pages/comercial/hooks/useSalvarPedidoCompra";
+import { useBeforeUnloadGuard } from "@/hooks/useBeforeUnloadGuard";
+import { validarTransicaoPedidoCompra } from "@/lib/comprasTransitions";
 
 type ProdutoRow = Database["public"]["Tables"]["produtos"]["Row"] & { preco_custo?: number | null };
 type FornecedorRow = Database["public"]["Tables"]["fornecedores"]["Row"];
@@ -62,6 +64,9 @@ export default function PedidoCompraForm() {
   const [formasPagamento, setFormasPagamento] = useState<FormasPagRow[]>([]);
   const [viewCotacao, setViewCotacao] = useState<{ numero: string; status: string } | null>(null);
   const [isDirty, setIsDirty] = useState(false);
+
+  // Bloqueia fechar/recarregar a aba se houver mudanças não salvas.
+  useBeforeUnloadGuard(isDirty);
 
   const updateForm = useCallback((next: SetStateAction<typeof form>) => {
     setForm(next);
@@ -164,6 +169,14 @@ export default function PedidoCompraForm() {
     if (WORKFLOW_ONLY_STATUSES.includes(form.status) && form.status !== pedido.status) {
       toast.error("Este status só pode ser definido por ações do fluxo (receber, enviar, cancelar).");
       return;
+    }
+    // Validador puro: bloqueia transição inválida antes do round-trip ao banco.
+    if (form.status !== pedido.status) {
+      const v = validarTransicaoPedidoCompra(pedido.status, form.status);
+      if (!v.ok) {
+        toast.error(v.motivo ?? "Transição de status inválida.");
+        return;
+      }
     }
 
     const header = {
