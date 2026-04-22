@@ -86,8 +86,8 @@ function getPasswordStrength(pwd: string): { label: string; level: 0 | 1 | 2 | 3
   if (/\d/.test(pwd)) score++;
   if (/[^A-Za-z0-9]/.test(pwd)) score++;
   if (score <= 2) return { label: 'Fraca', level: 1, bar: 'bg-destructive' };
-  if (score <= 3) return { label: 'Média', level: 2, bar: 'bg-yellow-500' };
-  return { label: 'Forte', level: 3, bar: 'bg-emerald-500' };
+  if (score <= 3) return { label: 'Média', level: 2, bar: 'bg-warning' };
+  return { label: 'Forte', level: 3, bar: 'bg-success' };
 }
 
 function getPasswordCriteria(pwd: string, confirm: string) {
@@ -307,7 +307,7 @@ export default function Configuracoes() {
                         </Badge>
                       ))}
                       {user?.email_confirmed_at && (
-                        <Badge variant="outline" className="text-emerald-600 border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20 dark:border-emerald-800 dark:text-emerald-400">
+                        <Badge variant="outline" className="text-success border-success/30 bg-success/10">
                           Ativo
                         </Badge>
                       )}
@@ -749,12 +749,12 @@ export default function Configuracoes() {
                     <div className="flex items-center gap-2 h-10 px-3 rounded-md border bg-muted text-sm text-muted-foreground">
                       {user?.email_confirmed_at ? (
                         <>
-                          <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                          <CheckCircle2 className="h-4 w-4 text-success shrink-0" />
                           <span>Ativa e verificada</span>
                         </>
                       ) : (
                         <>
-                          <AlertCircle className="h-4 w-4 text-yellow-500 shrink-0" />
+                          <AlertCircle className="h-4 w-4 text-warning shrink-0" />
                           <span>Aguardando verificação</span>
                         </>
                       )}
@@ -777,7 +777,7 @@ export default function Configuracoes() {
                   </div>
                 )}
                 {passwordChangedAt && (
-                  <div className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400 pt-1">
+                  <div className="flex items-center gap-2 text-sm text-success pt-1">
                     <CheckCircle2 className="h-4 w-4 shrink-0" />
                     <span>
                       Senha alterada em{' '}
@@ -885,7 +885,7 @@ export default function Configuracoes() {
                           'text-xs font-medium',
                           pwdStrength.level === 1 && 'text-destructive',
                           pwdStrength.level === 2 && 'text-yellow-600 dark:text-yellow-400',
-                          pwdStrength.level === 3 && 'text-emerald-600 dark:text-emerald-400',
+                          pwdStrength.level === 3 && 'text-success',
                         )}>
                           {pwdStrength.label}
                         </span>
@@ -943,7 +943,7 @@ export default function Configuracoes() {
                   <div className="rounded-lg border bg-muted/30 p-4 space-y-2 max-w-sm">
                     <p className="text-xs font-medium text-foreground mb-1">Critérios da senha</p>
                     {pwdCriteria.map(({ key, label, met }) => (
-                      <div key={key} className={cn('flex items-center gap-2 text-xs', met ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground')}>
+                      <div key={key} className={cn('flex items-center gap-2 text-xs', met ? 'text-success' : 'text-muted-foreground')}>
                         <Check className={cn('h-3.5 w-3.5 shrink-0', met ? 'opacity-100' : 'opacity-30')} />
                         {label}
                       </div>
@@ -973,7 +973,7 @@ export default function Configuracoes() {
                     )}
                   </div>
                   {allCriteriaMet && currentPassword && !changingPassword && (
-                    <p className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                    <p className="text-xs text-success flex items-center gap-1.5">
                       <CheckCircle2 className="h-3.5 w-3.5" />
                       Requisitos atendidos. Clique em "Alterar senha" para concluir.
                     </p>
