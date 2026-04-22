@@ -26,6 +26,7 @@ import {
   Building2,
   Receipt,
   Edit,
+  DollarSign,
 } from "lucide-react";
 
 interface Props {
