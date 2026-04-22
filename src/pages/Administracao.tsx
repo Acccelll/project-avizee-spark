@@ -42,6 +42,9 @@ const defaultConfig = {
     cidade: '',
     uf: '',
     logoUrl: '/images/logoavizee.png',
+    simboloUrl: '',
+    marcaTexto: '',
+    marcaSubtitulo: 'ERP',
     corPrimaria: '#690500',
     corSecundaria: '#b2592c',
   },
@@ -112,6 +115,9 @@ interface GeralConfigRaw {
   whatsapp?: string;
   responsavel?: string;
   logoUrl?: string;
+  simboloUrl?: string;
+  marcaTexto?: string;
+  marcaSubtitulo?: string;
   corPrimaria?: string;
   corSecundaria?: string;
   [key: string]: unknown;
@@ -297,6 +303,9 @@ export default function Administracao() {
             cidade: empresa?.cidade || defaultConfig.geral.cidade,
             uf: empresa?.uf || defaultConfig.geral.uf,
             logoUrl: empresa?.logo_url || geralRaw.logoUrl || defaultConfig.geral.logoUrl,
+            simboloUrl: (empresa as { simbolo_url?: string | null } | undefined)?.simbolo_url || geralRaw.simboloUrl || defaultConfig.geral.simboloUrl,
+            marcaTexto: (empresa as { marca_texto?: string | null } | undefined)?.marca_texto || geralRaw.marcaTexto || defaultConfig.geral.marcaTexto,
+            marcaSubtitulo: (empresa as { marca_subtitulo?: string | null } | undefined)?.marca_subtitulo || geralRaw.marcaSubtitulo || defaultConfig.geral.marcaSubtitulo,
             corPrimaria: empresa?.cor_primaria || geralRaw.corPrimaria || defaultConfig.geral.corPrimaria,
             corSecundaria: empresa?.cor_secundaria || geralRaw.corSecundaria || defaultConfig.geral.corSecundaria,
           },
@@ -522,6 +531,9 @@ export default function Administracao() {
           cidade: config.geral.cidade || null,
           uf: config.geral.uf || null,
           logo_url: config.geral.logoUrl || null,
+          simbolo_url: config.geral.simboloUrl || null,
+          marca_texto: config.geral.marcaTexto || null,
+          marca_subtitulo: config.geral.marcaSubtitulo || null,
           cor_primaria: config.geral.corPrimaria || null,
           cor_secundaria: config.geral.corSecundaria || null,
           updated_at: now,
