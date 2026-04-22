@@ -102,6 +102,7 @@ const App = () => (
                   <Sonner />
                   <OfflineBanner />
                   <SessionExpiryWarning />
+                  <RemoteUiPreferencesHydrator />
                   <Routes>
                     {/* Public / unauthenticated */}
                     <Route path="/orcamento-publico" element={<LazyPage><OrcamentoPublico /></LazyPage>} />
