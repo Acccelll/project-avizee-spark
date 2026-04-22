@@ -6,14 +6,15 @@
  * - CotacaoCompraItensTable
  * - CotacaoCompraPropostasPanel (comparativo + propostas por item)
  */
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { ViewDrawerV2, DrawerStickyFooter } from "@/components/ViewDrawerV2";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { useActionLock } from "@/hooks/useActionLock";
 import { formatCurrency } from "@/lib/format";
 import {
-  ShoppingCart, Edit, Trash2, Clock,
+  ShoppingCart, Edit, Trash2, Clock, Ban,
   ClipboardList, AlertCircle, Info,
   ThumbsUp, ThumbsDown, Send, ChevronRight, Trophy,
 } from "lucide-react";
@@ -63,7 +64,8 @@ interface CotacaoCompraDrawerProps {
   onAddProposal: (itemId: string) => void;
   onSendForApproval: () => void;
   onApprove: () => void;
-  onReject: () => void;
+  onReject: (motivo: string) => void;
+  onCancel: (motivo: string) => void;
   onGerarPedido: () => void;
   onNavigatePedidos: () => void;
 }
@@ -72,13 +74,18 @@ export function CotacaoCompraDrawer({
   open, onClose, selected, viewItems, viewPropostas, drawerStats,
   fornecedorOptions, addingProposal, setAddingProposal, proposalForm, setProposalForm,
   onEdit, onDeleteOpen, onSelectProposal, onDeleteProposal, onAddProposal,
-  onSendForApproval, onApprove, onReject, onGerarPedido, onNavigatePedidos,
+  onSendForApproval, onApprove, onReject, onCancel, onGerarPedido, onNavigatePedidos,
 }: CotacaoCompraDrawerProps) {
   const { pending: editPending, run: runEdit } = useActionLock();
   const { pending: sendPending, run: runSend } = useActionLock();
   const { pending: approvePending, run: runApprove } = useActionLock();
   const { pending: rejectPending, run: runReject } = useActionLock();
   const { pending: gerarPending, run: runGerar } = useActionLock();
+  const { pending: cancelPending, run: runCancel } = useActionLock();
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [rejectMotivo, setRejectMotivo] = useState("");
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelMotivo, setCancelMotivo] = useState("");
 
   // Memoize the approved-total to avoid recomputing the reduce on every render of the Decisão tab.
   const totalAprovado = useMemo(() => {
@@ -88,6 +95,7 @@ export function CotacaoCompraDrawer({
     }, 0);
   }, [drawerStats.selectedPropostas, viewItems]);
   return (
+    <>
     <ViewDrawerV2
       open={open}
       onClose={onClose}
@@ -314,11 +322,18 @@ export function CotacaoCompraDrawer({
         selected ? (
           <DrawerStickyFooter
             left={
-              selected.status === "aguardando_aprovacao" && (
-                <Button variant="outline" size="sm" className="gap-2 text-destructive border-destructive/30 hover:text-destructive" disabled={rejectPending} onClick={() => runReject(() => onReject())}>
-                  <ThumbsDown className="h-4 w-4" /> Reprovar
-                </Button>
-              )
+              <>
+                {selected.status === "aguardando_aprovacao" && (
+                  <Button variant="outline" size="sm" className="gap-2 text-destructive border-destructive/30 hover:text-destructive" disabled={rejectPending} onClick={() => { setRejectMotivo(""); setRejectOpen(true); }}>
+                    <ThumbsDown className="h-4 w-4" /> Reprovar
+                  </Button>
+                )}
+                {!["convertida","cancelada","rejeitada"].includes(selected.status) && (
+                  <Button variant="outline" size="sm" className="gap-2 text-destructive border-destructive/30 hover:text-destructive" disabled={cancelPending} onClick={() => { setCancelMotivo(""); setCancelOpen(true); }}>
+                    <Ban className="h-4 w-4" /> Cancelar
+                  </Button>
+                )}
+              </>
             }
             right={
               <>
@@ -353,6 +368,57 @@ export function CotacaoCompraDrawer({
         ) : undefined
       }
     />
+    {selected && (
+      <>
+        <ConfirmDialog
+          open={rejectOpen}
+          onClose={() => { setRejectOpen(false); setRejectMotivo(""); }}
+          onConfirm={() => {
+            if (!rejectMotivo.trim()) return;
+            const motivo = rejectMotivo.trim();
+            setRejectOpen(false);
+            setRejectMotivo("");
+            runReject(() => onReject(motivo));
+          }}
+          title="Reprovar cotação"
+          description={`Informe o motivo da reprovação da cotação ${selected.numero}:`}
+          confirmLabel="Reprovar"
+          confirmVariant="destructive"
+          confirmDisabled={!rejectMotivo.trim()}
+        >
+          <textarea
+            value={rejectMotivo}
+            onChange={(e) => setRejectMotivo(e.target.value)}
+            className="w-full min-h-20 rounded-md border border-input bg-background p-2 text-sm"
+            placeholder="Ex: preços acima do esperado / fornecedores insuficientes"
+          />
+        </ConfirmDialog>
+        <ConfirmDialog
+          open={cancelOpen}
+          onClose={() => { setCancelOpen(false); setCancelMotivo(""); }}
+          onConfirm={() => {
+            if (!cancelMotivo.trim()) return;
+            const motivo = cancelMotivo.trim();
+            setCancelOpen(false);
+            setCancelMotivo("");
+            runCancel(() => onCancel(motivo));
+          }}
+          title="Cancelar cotação"
+          description={`Informe o motivo do cancelamento da cotação ${selected.numero}:`}
+          confirmLabel="Cancelar cotação"
+          confirmVariant="destructive"
+          confirmDisabled={!cancelMotivo.trim()}
+        >
+          <textarea
+            value={cancelMotivo}
+            onChange={(e) => setCancelMotivo(e.target.value)}
+            className="w-full min-h-20 rounded-md border border-input bg-background p-2 text-sm"
+            placeholder="Ex: necessidade cancelada / cotação substituída"
+          />
+        </ConfirmDialog>
+      </>
+    )}
+    </>
   );
 }
 

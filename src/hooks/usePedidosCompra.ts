@@ -558,11 +558,15 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
     }
   };
 
-  const cancelarPedido = async (p: PedidoCompra) => {
+  const cancelarPedido = async (p: PedidoCompra, motivo?: string) => {
+    const motivoTrim = (motivo ?? "").trim();
+    if (!motivoTrim) {
+      toast.error("Informe o motivo do cancelamento.");
+      return;
+    }
     try {
-      await supabase.from("pedidos_compra")
-        .update({ status: "cancelado" })
-        .eq("id", p.id);
+      const { error } = await supabase.rpc("cancelar_pedido_compra", { p_id: String(p.id), p_motivo: motivoTrim });
+      if (error) throw error;
       toast.success("Pedido de compra cancelado.");
       setDrawerOpen(false);
       await refreshAll();

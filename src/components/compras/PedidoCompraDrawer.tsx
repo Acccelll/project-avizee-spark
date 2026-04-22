@@ -52,7 +52,7 @@ interface PedidoCompraDrawerProps {
   onDelete: () => void;
   onSend: (p: PedidoCompra) => void;
   onReceive: (p: PedidoCompra) => void;
-  onCancel: (p: PedidoCompra) => void;
+  onCancel: (p: PedidoCompra, motivo: string) => void;
   onSolicitarAprovacao?: (p: PedidoCompra) => void;
   onAprovar?: (p: PedidoCompra) => void;
   onRejeitar?: (p: PedidoCompra, motivo: string) => void;
@@ -80,6 +80,7 @@ export function PedidoCompraDrawer({
   statusLabels,
 }: PedidoCompraDrawerProps) {
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
+  const [cancelMotivo, setCancelMotivo] = useState("");
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectMotivo, setRejectMotivo] = useState("");
   const pedidoStatus = canonicalPedidoStatus(selected.status);
@@ -665,16 +666,27 @@ export function PedidoCompraDrawer({
       />
       <ConfirmDialog
         open={cancelConfirmOpen}
-        onClose={() => setCancelConfirmOpen(false)}
+        onClose={() => { setCancelConfirmOpen(false); setCancelMotivo(""); }}
         onConfirm={() => {
+          if (!cancelMotivo.trim()) return;
+          const motivo = cancelMotivo.trim();
           setCancelConfirmOpen(false);
-          runCancel(() => onCancel(selected));
+          setCancelMotivo("");
+          runCancel(() => onCancel(selected, motivo));
         }}
         title="Cancelar pedido de compra"
-        description={`Cancelar o pedido ${pedidoNumero(selected)}? Esta ação não pode ser desfeita.`}
+        description={`Informe o motivo do cancelamento do pedido ${pedidoNumero(selected)}. Pedidos com NF de entrada ou recebimento já realizado precisam ser estornados antes.`}
         confirmLabel="Cancelar pedido"
         confirmVariant="destructive"
-      />
+        confirmDisabled={!cancelMotivo.trim()}
+      >
+        <textarea
+          value={cancelMotivo}
+          onChange={(e) => setCancelMotivo(e.target.value)}
+          className="w-full min-h-20 rounded-md border border-input bg-background p-2 text-sm"
+          placeholder="Ex: pedido duplicado / fornecedor cancelou"
+        />
+      </ConfirmDialog>
       <ConfirmDialog
         open={rejectOpen}
         onClose={() => setRejectOpen(false)}
