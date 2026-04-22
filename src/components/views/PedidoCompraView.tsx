@@ -612,6 +612,36 @@ export function PedidoCompraView({ id }: Props) {
               <p className="text-sm text-muted-foreground">Nenhuma movimentação de estoque registrada.</p>
             )}
           </ViewSection>
+
+          <ViewSection title="Lançamentos Financeiros">
+            {viewFinanceiro.length > 0 ? (
+              <div className="space-y-2">
+                {viewFinanceiro.map((l) => (
+                  <div
+                    key={l.id}
+                    className="flex items-center justify-between gap-2 rounded-md border bg-muted/20 px-3 py-2 text-xs"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium truncate">{l.descricao || "—"}</p>
+                      <p className="text-muted-foreground">
+                        Venc. {formatDate(l.data_vencimento)}
+                      </p>
+                    </div>
+                    {l.status && <StatusBadge status={l.status} />}
+                    <span className="font-mono font-semibold shrink-0">
+                      {formatCurrency(Number(l.valor || 0))}
+                    </span>
+                  </div>
+                ))}
+                <RelationalLink to={`/financeiro?pedido_compra_id=${selected.id}`}>
+                  <DollarSign className="h-3.5 w-3.5" />
+                  Abrir no Financeiro
+                </RelationalLink>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">Nenhum lançamento financeiro vinculado.</p>
+            )}
+          </ViewSection>
         </TabsContent>
       </Tabs>
     </div>
