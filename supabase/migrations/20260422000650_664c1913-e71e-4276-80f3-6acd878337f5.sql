@@ -1,0 +1,4 @@
+ALTER TABLE empresa_config
+  ADD COLUMN IF NOT EXISTS simbolo_url TEXT,
+  ADD COLUMN IF NOT EXISTS marca_texto TEXT,
+  ADD COLUMN IF NOT EXISTS marca_subtitulo TEXT DEFAULT 'ERP';

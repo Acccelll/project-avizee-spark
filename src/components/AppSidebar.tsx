@@ -1,7 +1,8 @@
 import { useCallback, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ChevronRight, LayoutDashboard, Search } from 'lucide-react';
-import logoAvizee from '@/assets/logoavizee.png';
+import brandLogotipo from '@/assets/brand-logotipo.png';
+import brandSimbolo from '@/assets/brand-simbolo.png';
 import { Button } from '@/components/ui/button';
 import { dashboardItem, flatNavItems } from '@/lib/navigation';
 import { useFavoritos } from '@/hooks/useFavoritos';
@@ -11,6 +12,7 @@ import { useSidebarBadges } from '@/hooks/useSidebarBadges';
 import { SidebarFavorites } from '@/components/sidebar/SidebarFavorites';
 import { SidebarSection } from '@/components/sidebar/SidebarSection';
 import { SidebarFooter } from '@/components/sidebar/SidebarFooter';
+import { useAppConfigContext } from '@/contexts/AppConfigContext';
 
 interface AppSidebarProps {
   collapsed: boolean;
@@ -26,6 +28,11 @@ export function AppSidebar({
   const location = useLocation();
   const navigate = useNavigate();
   const { favoritos, toggleFavorito, isFavorito } = useFavoritos();
+  const { branding } = useAppConfigContext();
+
+  const symbolSrc = branding.simboloUrl || brandSimbolo;
+  const logoSrc = branding.logoUrl || brandLogotipo;
+  const subtitulo = branding.marcaSubtitulo ?? 'ERP';
 
   const visibleSections = useVisibleNavSections();
   const { activeSectionKeys, isItemActive, isSectionOpen, toggleSection, isInsideAdminModule } =
@@ -55,26 +62,44 @@ export function AppSidebar({
         containerClasses,
       ].join(' ')}
     >
-        {/* Logo */}
-        <div className="flex h-14 items-center justify-between border-b border-border/60 px-3">
-          <div className="flex items-center gap-2.5 overflow-hidden">
-            <img src={logoAvizee} alt="AviZee" className="h-8 w-8 rounded object-contain" />
-            {!collapsed && (
-              <p className="text-[15px] font-bold tracking-tight">AviZee</p>
-            )}
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="hidden h-7 w-7 md:inline-flex"
-            onClick={onToggleCollapsed}
-            aria-label={collapsed ? 'Expandir menu lateral' : 'Recolher menu lateral'}
-            title={collapsed ? 'Expandir menu lateral' : 'Recolher menu lateral'}
-          >
-            <ChevronRight
-              className={`h-3.5 w-3.5 transition-transform ${collapsed ? '' : 'rotate-180'}`}
-            />
-          </Button>
+        {/* Brand */}
+        <div className="flex h-14 items-center justify-between border-b border-border/60 px-2">
+          {collapsed ? (
+            <>
+              <img src={symbolSrc} alt="Marca" className="h-8 w-8 object-contain ml-1" />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="hidden h-7 w-7 md:inline-flex"
+                onClick={onToggleCollapsed}
+                aria-label="Expandir menu lateral"
+                title="Expandir menu lateral"
+              >
+                <ChevronRight className="h-3.5 w-3.5" />
+              </Button>
+            </>
+          ) : (
+            <>
+              <div className="flex min-w-0 items-center gap-2 overflow-hidden pl-1">
+                <img src={logoSrc} alt={branding.marcaTexto || 'Logotipo'} className="h-8 max-w-[140px] object-contain" />
+                {subtitulo && (
+                  <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                    {subtitulo}
+                  </span>
+                )}
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="hidden h-7 w-7 md:inline-flex"
+                onClick={onToggleCollapsed}
+                aria-label="Recolher menu lateral"
+                title="Recolher menu lateral"
+              >
+                <ChevronRight className="h-3.5 w-3.5 rotate-180" />
+              </Button>
+            </>
+          )}
         </div>
 
         {/* Search */}

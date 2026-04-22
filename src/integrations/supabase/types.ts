@@ -1340,6 +1340,8 @@ export type Database = {
           inscricao_municipal: string | null
           logo_url: string | null
           logradouro: string | null
+          marca_subtitulo: string | null
+          marca_texto: string | null
           nome_fantasia: string | null
           numero: string | null
           proximo_numero_nfe: number | null
@@ -1347,6 +1349,7 @@ export type Database = {
           regime_tributario: string | null
           responsavel: string | null
           serie_padrao_nfe: string | null
+          simbolo_url: string | null
           site: string | null
           telefone: string | null
           uf: string | null
@@ -1375,6 +1378,8 @@ export type Database = {
           inscricao_municipal?: string | null
           logo_url?: string | null
           logradouro?: string | null
+          marca_subtitulo?: string | null
+          marca_texto?: string | null
           nome_fantasia?: string | null
           numero?: string | null
           proximo_numero_nfe?: number | null
@@ -1382,6 +1387,7 @@ export type Database = {
           regime_tributario?: string | null
           responsavel?: string | null
           serie_padrao_nfe?: string | null
+          simbolo_url?: string | null
           site?: string | null
           telefone?: string | null
           uf?: string | null
@@ -1410,6 +1416,8 @@ export type Database = {
           inscricao_municipal?: string | null
           logo_url?: string | null
           logradouro?: string | null
+          marca_subtitulo?: string | null
+          marca_texto?: string | null
           nome_fantasia?: string | null
           numero?: string | null
           proximo_numero_nfe?: number | null
@@ -1417,6 +1425,7 @@ export type Database = {
           regime_tributario?: string | null
           responsavel?: string | null
           serie_padrao_nfe?: string | null
+          simbolo_url?: string | null
           site?: string | null
           telefone?: string | null
           uf?: string | null

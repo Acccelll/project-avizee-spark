@@ -31,6 +31,14 @@ interface AppConfigContextValue {
    */
   sidebarMode: SidebarMode;
   saveSidebarMode: (mode: SidebarMode) => Promise<boolean>;
+
+  /** Branding institucional (carregado de empresa_config). */
+  branding: {
+    logoUrl: string | null;
+    simboloUrl: string | null;
+    marcaTexto: string | null;
+    marcaSubtitulo: string | null;
+  };
 }
 
 export type SidebarMode = 'fixed-expanded' | 'fixed-collapsed' | 'dynamic';
@@ -42,11 +50,23 @@ export function AppConfigProvider({ children }: { children: ReactNode }) {
 
   const [cepEmpresa, setCepEmpresa] = useState<string | null>(null);
   const [loadingCepEmpresa, setLoadingCepEmpresa] = useState(true);
+  const [branding, setBranding] = useState<AppConfigContextValue['branding']>({
+    logoUrl: null, simboloUrl: null, marcaTexto: null, marcaSubtitulo: null,
+  });
 
   useEffect(() => {
     if (!supabase) { setLoadingCepEmpresa(false); return; }
-    supabase.from('empresa_config').select('cep').maybeSingle().then(({ data, error }) => {
+    supabase.from('empresa_config').select('cep, logo_url, simbolo_url, marca_texto, marca_subtitulo').maybeSingle().then(({ data, error }) => {
       if (!error) setCepEmpresa(data?.cep ? data.cep.replace(/\D/g, '') : null);
+      if (!error && data) {
+        const row = data as { logo_url?: string | null; simbolo_url?: string | null; marca_texto?: string | null; marca_subtitulo?: string | null };
+        setBranding({
+          logoUrl: row.logo_url ?? null,
+          simboloUrl: row.simbolo_url ?? null,
+          marcaTexto: row.marca_texto ?? null,
+          marcaSubtitulo: row.marca_subtitulo ?? null,
+        });
+      }
       setLoadingCepEmpresa(false);
     });
   }, []);
@@ -72,6 +92,7 @@ export function AppConfigProvider({ children }: { children: ReactNode }) {
         saveSidebarCollapsed,
         sidebarMode,
         saveSidebarMode,
+        branding,
       }}
     >
       {children}
