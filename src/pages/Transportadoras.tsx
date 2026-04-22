@@ -112,7 +112,6 @@ export default function Transportadoras() {
   const { buscarCnpj, loading: cnpjLoading } = useCnpjLookup();
   const { buscarCep, loading: cepLoading } = useViaCep();
   const [modalOpen, setModalOpen] = useState(false);
-  const [drawerOpen, setDrawerOpen] = useState(false);
   const [selected, setSelected] = useState<Transportadora | null>(null);
   const [mode, setMode] = useState<"create" | "edit">("create");
   const [form, setForm] = useState<TransportadoraFormData>(emptyForm);
@@ -124,8 +123,6 @@ export default function Transportadoras() {
   );
   const { saving, submit } = useSubmitLock();
   const { confirm: confirmDiscard, dialog: confirmDiscardDialog } = useConfirmDialog();
-  const [clientesVinculados, setClientesVinculados] = useState<ClienteVinculado[]>([]);
-  const [remessasVinculadas, setRemessasVinculadas] = useState<RemessaVinculada[]>([]);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [modalCliCount, setModalCliCount] = useState(0);
   const [modalRemCount, setModalRemCount] = useState(0);
@@ -210,24 +207,6 @@ export default function Transportadoras() {
     }
   };
 
-  useEffect(() => {
-    if (selected && drawerOpen) {
-      supabase.from("cliente_transportadoras")
-        .select("*, clientes(nome_razao_social, cpf_cnpj)")
-        .eq("transportadora_id", selected.id)
-        .then(({ data }) => setClientesVinculados((data || []) as ClienteVinculado[]));
-      supabase.from("remessas")
-        .select("id, codigo_rastreio, status_transporte, data_postagem, previsao_entrega, servico, clientes(nome_razao_social)")
-        .eq("transportadora_id", selected.id)
-        .order("created_at", { ascending: false })
-        .limit(30)
-        .then(({ data }) => setRemessasVinculadas((data || []) as RemessaVinculada[]));
-    } else {
-      setClientesVinculados([]);
-      setRemessasVinculadas([]);
-    }
-  }, [selected, drawerOpen]);
-
   const openCreate = () => { setMode("create"); setForm({...emptyForm}); setSelected(null); setModalCliCount(0); setModalRemCount(0); setModalOpen(true); };
   const openEdit = (t: Transportadora) => {
     setMode("edit"); setSelected(t);
@@ -249,8 +228,7 @@ export default function Transportadoras() {
     setModalOpen(true);
   };
   const openView = (t: Transportadora) => {
-    setSelected(t);
-    setDrawerOpen(true);
+    pushView("transportadora", t.id);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
