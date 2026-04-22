@@ -242,56 +242,12 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
   };
 
   const openEdit = async (p: PedidoCompra) => {
-    setMode("edit");
-    setSelected(p);
-    setViewEstoque([]);
-    setViewCotacao(null);
-    setForm({
-      fornecedor_id: p.fornecedor_id ? String(p.fornecedor_id) : "",
-      data_pedido: p.data_pedido || todayISO(),
-      data_entrega_prevista: p.data_entrega_prevista || "",
-      data_entrega_real: p.data_entrega_real || "",
-      frete_valor: String(p.frete_valor ?? ""),
-      condicao_pagamento: p.condicao_pagamento || p.condicoes_pagamento || "",
-      status: canonicalPedidoStatus(p.status) || "rascunho",
-      observacoes: p.observacoes || "",
-    });
-
-    const { data: itens, error } = await supabase.from("pedidos_compra_itens")
-      .select("*, produtos(nome, codigo_interno)")
-      .eq("pedido_compra_id", p.id);
-
-    if (error) {
-      toast.error(getUserFriendlyError(error));
-      return;
-    }
-
-    setItems((itens || []).map((i: PedidoItemRow) => ({
-      id: String(i.id),
-      produto_id: i.produto_id ? String(i.produto_id) : "",
-      codigo: i.produtos?.codigo_interno || "",
-      descricao: i.produtos?.nome || "",
-      quantidade: Number(i.quantidade || 0),
-      valor_unitario: Number(i.preco_unitario ?? i.valor_unitario ?? 0),
-      valor_total: Number(i.subtotal ?? i.valor_total ?? 0),
-    })));
-
-    const estResult = await supabase
-      .from("estoque_movimentos")
-      .select("produto_id, quantidade")
-      .eq("documento_id", String(p.id))
-      .eq("documento_tipo", "pedido_compra");
-    setViewEstoque((estResult.data as EstoqueMovimentoRow[]) || []);
-
-    if (p.cotacao_compra_id) {
-      const { data: cot } = await supabase.from("cotacoes_compra")
-        .select("id, numero, status, data_cotacao")
-        .eq("id", String(p.cotacao_compra_id))
-        .single();
-      setViewCotacao(cot || null);
-    }
-
-    setModalOpen(true);
+    // Caminho único de edição: rota dedicada `/pedidos-compra/:id`.
+    // O modal foi aposentado para edição; o form de rota usa
+    // `replace_pedido_compra_itens` (RPC transacional) e suporta
+    // dirty-tracking + voltar protegido.
+    setDrawerOpen(false);
+    navigate(`/pedidos-compra/${p.id}`);
   };
 
   const openView = async (p: PedidoCompra) => {
