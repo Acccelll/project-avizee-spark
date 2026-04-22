@@ -611,6 +611,7 @@ function UserFormModal({
       setForm((f) => ({ ...f, role_padrao: confirmRoleChange }));
     }
     setConfirmRoleChange(null);
+    // O motivo é encaminhado no payload do PUT em handleSave (campo controlled).
   };
 
   const handleSave = async () => {
@@ -663,6 +664,11 @@ function UserFormModal({
           allow: form.extra_permissions,
           deny: form.denied_permissions,
         },
+        // Motivo opcional encaminhado para `permission_audit.motivo` quando
+        // houve troca de role neste fluxo (não bloqueante).
+        motivo: isEdit && user && user.role_padrao !== form.role_padrao && roleChangeMotivo.trim()
+          ? roleChangeMotivo.trim()
+          : undefined,
       };
 
       if (isEdit && user) {
@@ -684,21 +690,23 @@ function UserFormModal({
         if (result?.inviteSent) {
           toast.success('Usuário criado e convite enviado por e-mail.');
         } else if (result?.tempPassword) {
-          toast.success(
-            `Usuário criado. Senha temporária: ${result.tempPassword}` +
-            (result.recoveryLink ? ' (link de redefinição também gerado)' : ''),
-            { duration: 20000 },
-          );
-          // Loga o link no console para o admin copiar manualmente se precisar
-          if (result.recoveryLink) {
-            console.info('[usuarios] Link de redefinição:', result.recoveryLink);
-          }
+          // Substitui o toast (que vazaria em screencaptures e logs do
+          // navegador) por um diálogo dedicado com botões de copiar e
+          // confirmação ativa de leitura.
+          setTempCredentials({
+            userName: payload.nome,
+            email: payload.email,
+            tempPassword: result.tempPassword,
+            recoveryLink: result.recoveryLink ?? null,
+          });
+          toast.success('Usuário criado. Repasse as credenciais com segurança.');
         } else {
           toast.success('Usuário criado com sucesso.');
         }
       }
       onSaved();
-      onClose();
+      // Mantém o modal aberto enquanto há credenciais temporárias para entregar.
+      if (!tempCredentials) onClose();
     } catch (err) {
       console.error('[usuarios] Erro ao salvar usuário:', err);
       toast.error(getUserFriendlyError(err));
