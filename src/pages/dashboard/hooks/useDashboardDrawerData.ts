@@ -3,6 +3,7 @@ import type { DailyPoint, ProdRow, TopPoint } from "./types";
 
 interface DrawerParams {
   dailyReceber: DailyPoint[];
+  dailyPagar: DailyPoint[];
   topClientes: TopPoint[];
   estoqueBaixo: ProdRow[];
   dailyVendas: DailyPoint[];
@@ -10,7 +11,7 @@ interface DrawerParams {
 }
 
 export function useDashboardDrawerData(params: DrawerParams) {
-  const { dailyReceber, topClientes, estoqueBaixo, dailyVendas, topProdutos } = params;
+  const { dailyReceber, dailyPagar, topClientes, estoqueBaixo, dailyVendas, topProdutos } = params;
 
   return useMemo(
     () => ({
@@ -18,6 +19,19 @@ export function useDashboardDrawerData(params: DrawerParams) {
         title: "Vencimentos dos Próximos 7 Dias",
         daily: dailyReceber,
         top: topClientes,
+      },
+      pagar: {
+        title: "Pagamentos dos Próximos 7 Dias",
+        daily: dailyPagar,
+        top: [] as TopPoint[],
+      },
+      saldo: {
+        title: "Saldo Diário Projetado (próximos 7 dias)",
+        daily: dailyReceber.map((r, i) => ({
+          dia: r.dia,
+          valor: r.valor - (dailyPagar[i]?.valor ?? 0),
+        })),
+        top: [] as TopPoint[],
       },
       estoque: {
         title: "Estoque Crítico",
@@ -33,6 +47,6 @@ export function useDashboardDrawerData(params: DrawerParams) {
         top: topProdutos,
       },
     }),
-    [dailyReceber, topClientes, estoqueBaixo, dailyVendas, topProdutos],
+    [dailyReceber, dailyPagar, topClientes, estoqueBaixo, dailyVendas, topProdutos],
   );
 }
