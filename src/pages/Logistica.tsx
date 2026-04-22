@@ -24,6 +24,8 @@ import { formatNumber, formatDate } from "@/lib/format";
 import { format } from "date-fns";
 import { EntregaDrawer } from "@/components/logistica/EntregaDrawer";
 import { RecebimentoDrawer } from "@/components/logistica/RecebimentoDrawer";
+import { RegistrarRecebimentoDialog } from "@/components/compras/RegistrarRecebimentoDialog";
+import { TrackingModal } from "@/pages/logistica/components/TrackingModal";
 import { statusRemessa } from "@/lib/statusSchema";
 import { useEntregas } from "@/pages/logistica/hooks/useEntregas";
 import type { Entrega } from "@/pages/logistica/hooks/useEntregas";
@@ -56,8 +58,6 @@ type RemessaEvento = Tables<"remessa_eventos">;
 const remessaStatusMap: Record<string, { label: string; color: string }> = { ...statusRemessa };
 const MULTI_REMESSA_STATUS_MESSAGE =
   "Este pedido possui múltiplas remessas. Atualize status por remessa na aba Remessas.";
-const RECEBIMENTO_REGISTRO_MESSAGE =
-  "Data de recebimento registrada. A consolidação quantitativa permanece no módulo Compras.";
 
 function isAtrasadoEntrega(e: Entrega): boolean {
   if (!e.previsao_entrega || ENTREGA_TERMINAL.has(e.status_logistico)) return false;
