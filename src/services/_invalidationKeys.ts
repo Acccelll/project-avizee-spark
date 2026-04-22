@@ -61,4 +61,14 @@ export const INVALIDATION_KEYS = {
     "financeiro_baixas",
     "contas_bancarias",
   ],
+  /** Sócios e participações — apuração, retiradas e financeiro vinculado. */
+  socios: [
+    "socios",
+    "socios_participacoes",
+    "socios_parametros",
+    "apuracoes_societarias",
+    "apuracoes_societarias_itens",
+    "socios_retiradas",
+    "financeiro_lancamentos",
+  ],
 } as const;
