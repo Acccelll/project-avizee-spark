@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { baixarTitulo } from "@/services/financeiro/titulos.service";
+import { useRegistrarBaixa } from "@/pages/financeiro/hooks/useBaixaFinanceira";
 import { formatCurrency } from "@/lib/format";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import { toast } from "sonner";
@@ -58,6 +58,7 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
   const [saving, setSaving] = useState(false);
   const [baixasAnteriores, setBaixasAnteriores] = useState<Baixa[]>([]);
   const [loadingBaixas, setLoadingBaixas] = useState(false);
+  const registrarBaixa = useRegistrarBaixa();
 
   const saldoAtual = lancamento
     ? (lancamento.saldo_restante != null ? Number(lancamento.saldo_restante) : Number(lancamento.valor))
@@ -67,7 +68,7 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
   const novoSaldo = Math.max(0, saldoAtual - valorPago - abatimento);
 
   const isStatusBlocked = lancamento
-    ? (lancamento.status === "pago" || lancamento.status === "estornado" || lancamento.status === "cancelado")
+    ? (lancamento.status === "pago" || lancamento.status === "cancelado")
     : false;
 
   const isExcessivo = valorPago + abatimento > saldoAtual + 0.01;
@@ -130,20 +131,23 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
         // If the check fails, proceed with the original flow
       }
 
-      await baixarTitulo(lancamento.id, {
+      // Valor líquido efetivo da baixa (considera desconto/juros/multa/abatimento).
+      // A RPC `registrar_baixa_financeira` é a fonte oficial: atualiza saldo do lançamento,
+      // saldo da conta bancária e gera movimento de caixa atomicamente.
+      const obsParts: string[] = [];
+      if (observacoes) obsParts.push(observacoes);
+      if (desconto) obsParts.push(`Desconto: ${desconto.toFixed(2)}`);
+      if (juros) obsParts.push(`Juros: ${juros.toFixed(2)}`);
+      if (multa) obsParts.push(`Multa: ${multa.toFixed(2)}`);
+      if (abatimento) obsParts.push(`Abatimento: ${abatimento.toFixed(2)}`);
+      await registrarBaixa.mutateAsync({
+        lancamentoId: lancamento.id,
         valorPago,
-        desconto,
-        juros,
-        multa,
-        abatimento,
         dataBaixa,
         formaPagamento,
         contaBancariaId,
-        observacoes: observacoes || undefined,
+        observacoes: obsParts.length ? obsParts.join(" | ") : null,
       });
-      const newSaldo = Math.max(0, novoSaldo);
-      const newStatus = newSaldo <= 0.01 ? "pago" : "parcial";
-      toast.success(newStatus === "pago" ? "Título liquidado integralmente!" : "Baixa parcial registrada!");
       onSuccess();
       onClose();
     } catch (err: unknown) {
