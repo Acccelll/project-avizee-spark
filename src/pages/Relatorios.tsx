@@ -1,6 +1,5 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 import type React from 'react';
-import { useSearchParams } from 'react-router-dom';
 import { ModulePage } from '@/components/ModulePage';
 import { SummaryCard } from '@/components/SummaryCard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,25 +17,26 @@ import { RelatorioChart } from '@/pages/relatorios/components/Graficos/Relatorio
 import { DreTable } from '@/pages/relatorios/components/Tabelas/DreTable';
 import { ReportHeader } from '@/pages/relatorios/components/ReportHeader';
 import { ExportMenu } from '@/pages/relatorios/components/ExportMenu';
-import { ActiveFiltersBar, type ActiveFilterChip } from '@/pages/relatorios/components/ActiveFiltersBar';
+import { ActiveFiltersBar } from '@/pages/relatorios/components/ActiveFiltersBar';
 import { ReportResultFooter } from '@/pages/relatorios/components/ReportResultFooter';
 import { PreviewDocument } from '@/pages/relatorios/components/PreviewDocument';
+import { RelatorioCatalogo } from '@/pages/relatorios/components/RelatorioCatalogo';
 import { useRelatorio } from '@/pages/relatorios/hooks/useRelatorio';
 import { useRelatoriosFiltrosData } from '@/pages/relatorios/hooks/useRelatoriosFiltrosData';
 import { useRelatoriosFavoritos } from '@/hooks/useRelatoriosFavoritos';
+import { useRelatorioUrlState } from '@/pages/relatorios/hooks/useRelatorioUrlState';
+import { useRelatorioDensity } from '@/pages/relatorios/hooks/useRelatorioDensity';
+import { useRelatorioExport } from '@/pages/relatorios/hooks/useRelatorioExport';
+import { useActiveFilterChips } from '@/pages/relatorios/hooks/useActiveFilterChips';
 import { cn } from '@/lib/utils';
-import { BookmarkPlus, BookOpen, Columns, Hash, Eye, Layers, Trash2, RefreshCcw, Rows3, SearchX } from 'lucide-react';
-import { exportarParaCsv, exportarParaExcel, exportarParaPdf, type ExportColumnDef } from '@/services/export.service';
+import { BookmarkPlus, BookOpen, Columns, Hash, Eye, Trash2, RefreshCcw, Rows3, SearchX } from 'lucide-react';
 import { filtrarPorStatus, sortarRows } from '@/utils/relatorios';
-import { reportConfigs, reportCategoryMeta, reportRuntimeSemantics, type ReportCategory } from '@/config/relatoriosConfig';
+import { reportConfigs, reportCategoryMeta, reportRuntimeSemantics } from '@/config/relatoriosConfig';
 import { formatCurrency, formatNumber, formatDate } from '@/lib/format';
 import { formatCellValue, type TipoRelatorio } from '@/services/relatorios.service';
 import type { DreRow } from '@/types/relatorios';
 import { badgeVariantFromKind } from '@/lib/relatoriosBadges';
 import { toast } from 'sonner';
-
-const DENSITY_KEY = 'relatorios:density';
-const PDF_ROW_LIMIT = 200;
 
 function buildDreDateRange(state: FiltrosRelatorioState, dataInicio: string, dataFim: string) {
   if (state.dreCompetencia === 'personalizado') return { dataInicio, dataFim };
@@ -53,82 +53,27 @@ function buildDreDateRange(state: FiltrosRelatorioState, dataInicio: string, dat
 }
 
 export default function Relatorios() {
-  const [searchParams, setSearchParams] = useSearchParams();
-
-  const rawTipo = searchParams.get('tipo') || '';
-  const isValidTipo = rawTipo !== '' && Object.prototype.hasOwnProperty.call(reportConfigs, rawTipo);
-  const tipo = (isValidTipo ? rawTipo : '') as TipoRelatorio | '';
-
-  // Reset URL when ?tipo is invalid (e.g. ?tipo=hack) so the catalog renders
-  // instead of an empty workspace.
-  useEffect(() => {
-    if (rawTipo !== '' && !isValidTipo) {
-      setSearchParams({});
-      toast.warning(`Relatório "${rawTipo}" não existe. Voltando ao catálogo.`);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rawTipo, isValidTipo]);
-
-  const dataInicio = searchParams.get('di') || '';
-  const dataFim = searchParams.get('df') || '';
-
-  const filtrosState = useMemo<FiltrosRelatorioState>(() => ({
-    clienteIds: searchParams.get('cli') ? searchParams.get('cli')!.split(',') : [],
-    fornecedorIds: searchParams.get('for') ? searchParams.get('for')!.split(',') : [],
-    grupoIds: searchParams.get('grp') ? searchParams.get('grp')!.split(',') : [],
-    statusFiltro: searchParams.get('st') || 'todos',
-    agrupamento: (searchParams.get('ag') as FiltrosRelatorioState['agrupamento']) || 'padrao',
-    tipos: searchParams.get('tp') ? searchParams.get('tp')!.split(',') : [],
-    dreCompetencia: (searchParams.get('drc') as FiltrosRelatorioState['dreCompetencia']) || 'mes',
-    dreMes: searchParams.get('drm') || new Date().toISOString().slice(0, 7),
-  }), [searchParams]);
+  const {
+    tipo,
+    dataInicio,
+    dataFim,
+    filtrosState,
+    searchParams,
+    setSearchParams,
+    setDataInicio,
+    setDataFim,
+    setFiltrosState,
+    updateParams,
+  } = useRelatorioUrlState();
 
   const [hiddenColumns, setHiddenColumns] = useState<string[]>([]);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [saveNameOpen, setSaveNameOpen] = useState(false);
   const [saveName, setSaveName] = useState('');
 
-  // ── Density toggle (compact rows) — persisted in localStorage ────────────
-  const [compactDensity, setCompactDensity] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    return localStorage.getItem(DENSITY_KEY) === '1';
-  });
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(DENSITY_KEY, compactDensity ? '1' : '0');
-    }
-  }, [compactDensity]);
+  const { compactDensity, setCompactDensity } = useRelatorioDensity();
 
   const { favoritos, salvar: salvarFavorito, remover: removerFavorito } = useRelatoriosFavoritos();
-
-  const updateParams = (patch: Record<string, string | string[] | undefined>) => {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      for (const [k, v] of Object.entries(patch)) {
-        if (v == null || v === '' || (Array.isArray(v) && !v.length)) {
-          next.delete(k);
-        } else {
-          next.set(k, Array.isArray(v) ? v.join(',') : v);
-        }
-      }
-      return next;
-    });
-  };
-
-  const setDataInicio = (v: string) => updateParams({ di: v });
-  const setDataFim = (v: string) => updateParams({ df: v });
-  const setFiltrosState = (partial: Partial<FiltrosRelatorioState>) => {
-    const patch: Record<string, string | string[] | undefined> = {};
-    if ('clienteIds' in partial) patch.cli = partial.clienteIds;
-    if ('fornecedorIds' in partial) patch.for = partial.fornecedorIds;
-    if ('grupoIds' in partial) patch.grp = partial.grupoIds;
-    if ('statusFiltro' in partial) patch.st = partial.statusFiltro === 'todos' ? undefined : partial.statusFiltro;
-    if ('agrupamento' in partial) patch.ag = partial.agrupamento === 'padrao' ? undefined : partial.agrupamento;
-    if ('tipos' in partial) patch.tp = partial.tipos;
-    if ('dreCompetencia' in partial) patch.drc = partial.dreCompetencia === 'mes' ? undefined : partial.dreCompetencia;
-    if ('dreMes' in partial) patch.drm = partial.dreMes;
-    updateParams(patch);
-  };
 
   const { clientes, fornecedores, grupos, empresaConfig, limits } = useRelatoriosFiltrosData();
 
