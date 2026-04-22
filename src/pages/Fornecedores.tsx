@@ -25,6 +25,7 @@ import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MaskedInput } from "@/components/ui/MaskedInput";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import {
   Search, User2, Phone, ShoppingCart, MapPin,
