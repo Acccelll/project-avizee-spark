@@ -469,50 +469,42 @@ const Fiscal = () => {
     const file = event.target.files?.[0];
     if (!file) return;
     try {
-      const xmlText = await file.text();
-      const nfe: NFeData = parseNFeXml(xmlText);
-
-      // Check for duplicate access key
-      if (nfe.chaveAcesso) {
-        const isDuplicate = await verificarDuplicidadeChave(nfe.chaveAcesso);
-        if (isDuplicate) {
-          toast.error(`XML já importado anteriormente (chave: ${nfe.chaveAcesso.slice(0, 12)}…). Importação abortada.`);
-          if (xmlInputRef.current) xmlInputRef.current.value = "";
-          return;
-        }
+      const result = await importXml(file);
+      if (!result) {
+        if (xmlInputRef.current) xmlInputRef.current.value = "";
+        return;
       }
-
-      let fornecedorId = "";
-      if (nfe.emitente.cnpj) {
-        const cnpjClean = nfe.emitente.cnpj.replace(/\D/g, "");
-        const matched = fornecedoresCrud.data.find((f) => (f.cpf_cnpj || "").replace(/\D/g, "") === cnpjClean);
-        if (matched) { fornecedorId = matched.id; toast.info(`Fornecedor identificado: ${matched.nome_razao_social}`); }
-        else { toast.info(`Fornecedor CNPJ ${nfe.emitente.cnpj} não encontrado no cadastro. Preencha manualmente.`); }
+      const { nfe, fornecedorId, items: mappedItems, fiscalMap, unmatchedItemsCount } = result;
+      setForm({
+        ...emptyForm,
+        tipo: "entrada",
+        numero: nfe.numero,
+        serie: nfe.serie,
+        chave_acesso: nfe.chaveAcesso,
+        data_emissao: nfe.dataEmissao || new Date().toISOString().split("T")[0],
+        fornecedor_id: fornecedorId,
+        frete_valor: nfe.valorFrete,
+        icms_valor: nfe.icmsTotal,
+        ipi_valor: nfe.ipiTotal,
+        pis_valor: nfe.pisTotal,
+        cofins_valor: nfe.cofinsTotal,
+        icms_st_valor: nfe.icmsStTotal,
+        desconto_valor: nfe.valorDesconto,
+        outras_despesas: nfe.valorOutrasDespesas,
+        valor_total: nfe.valorTotal,
+        origem: "importacao_xml",
+      });
+      setItems(mappedItems);
+      setMode("create");
+      setSelected(null);
+      setItemContaContabil({});
+      setItemFiscalData(fiscalMap as Record<number, NfItemFiscalData>);
+      setModalOpen(true);
+      if (unmatchedItemsCount > 0) {
+        toast.warning(`${unmatchedItemsCount} item(ns) não foram vinculados automaticamente. Vincule manualmente antes de salvar.`);
+      } else {
+        toast.success("XML importado com sucesso! Todos os itens foram vinculados.");
       }
-      const mappedItems: GridItem[] = nfe.itens.map((nfeItem) => {
-        const matchedProd = produtosCrud.data.find((p) => p.codigo_interno === nfeItem.codigo || p.sku === nfeItem.codigo);
-        return { produto_id: matchedProd?.id || "", codigo: nfeItem.codigo, descricao: matchedProd?.nome || nfeItem.descricao, quantidade: nfeItem.quantidade, valor_unitario: nfeItem.valorUnitario, valor_total: nfeItem.valorTotal };
-      });
-      // Preserve fiscal fields from XML import
-      const xmlFiscalMap: Record<number, NfItemFiscalData> = {};
-      nfe.itens.forEach((nfeItem, idx) => {
-        xmlFiscalMap[idx] = {
-          cfop: nfeItem.cfop || null,
-          ncm: nfeItem.ncm || null,
-          unidade: nfeItem.unidade || null,
-          icms_valor: nfeItem.icms || null,
-          ipi_valor: nfeItem.ipi || null,
-          pis_valor: nfeItem.pis || null,
-          cofins_valor: nfeItem.cofins || null,
-          descricao: nfeItem.descricao || null,
-          codigo_produto: nfeItem.codigo || null,
-        };
-      });
-      setForm({ ...emptyForm, tipo: "entrada", numero: nfe.numero, serie: nfe.serie, chave_acesso: nfe.chaveAcesso, data_emissao: nfe.dataEmissao || new Date().toISOString().split("T")[0], fornecedor_id: fornecedorId, frete_valor: nfe.valorFrete, icms_valor: nfe.icmsTotal, ipi_valor: nfe.ipiTotal, pis_valor: nfe.pisTotal, cofins_valor: nfe.cofinsTotal, icms_st_valor: nfe.icmsStTotal, desconto_valor: nfe.valorDesconto, outras_despesas: nfe.valorOutrasDespesas, valor_total: nfe.valorTotal, origem: "importacao_xml" });
-      setItems(mappedItems); setMode("create"); setSelected(null); setItemContaContabil({}); setItemFiscalData(xmlFiscalMap); setModalOpen(true);
-      const unmatchedCount = mappedItems.filter((i) => !i.produto_id).length;
-      if (unmatchedCount > 0) toast.warning(`${unmatchedCount} item(ns) não foram vinculados automaticamente. Vincule manualmente antes de salvar.`);
-      else toast.success("XML importado com sucesso! Todos os itens foram vinculados.");
     } catch (err: unknown) {
       console.error("[fiscal] XML import:", err);
       toast.error(`Erro ao importar XML: ${err instanceof Error ? err.message : String(err)}`);
