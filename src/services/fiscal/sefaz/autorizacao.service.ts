@@ -73,12 +73,8 @@ export async function autorizarNFe(
     };
   }
 
-  if (!certificado.conteudo || !certificado.senha) {
-    return {
-      sucesso: false,
-      motivo: "Conteúdo e senha do certificado A1 são obrigatórios.",
-    };
-  }
+  // Sem credenciais explícitas → modo Vault (padrão recomendado).
+  // O sefaz-proxy lerá .pfx do Storage e a senha do secret server-side.
 
   // Garante que crt e ambiente reflitam a configuração da empresa quando
   // não vieram explicitamente em dadosNFe.
@@ -94,15 +90,21 @@ export async function autorizarNFe(
 
   const xmlNFe = construirXMLNFe(dadosCompletos);
 
-  // Assinatura + envio são feitos na Edge Function sefaz-proxy
+  // Assinatura + envio são feitos na Edge Function sefaz-proxy.
+  // Padrão Vault: certificado e senha são lidos server-side (Storage privado +
+  // secret CERTIFICADO_PFX_SENHA). Mantemos o objeto como fallback caso o
+  // caller queira injetar credenciais explicitamente (não recomendado).
+  const useVault = !certificado.conteudo || !certificado.senha;
   const resposta = await enviarParaSefaz(
     xmlNFe,
     urlSefaz,
     "http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4/nfeAutorizacaoLote",
-    {
-      certificado_base64: certificado.conteudo,
-      certificado_senha: certificado.senha,
-    },
+    useVault
+      ? null
+      : {
+          certificado_base64: certificado.conteudo,
+          certificado_senha: certificado.senha,
+        },
   );
 
   if (!resposta.sucesso) {
