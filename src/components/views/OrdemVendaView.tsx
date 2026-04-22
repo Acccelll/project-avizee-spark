@@ -102,39 +102,50 @@ export function OrdemVendaView({ id }: Props) {
         .abortSignal(signal),
       supabase
         .from("notas_fiscais")
-        .select("id, numero, status, valor_total, data_emissao")
+        .select("id, numero, status, valor_total, data_emissao, tipo_operacao, finalidade_nfe, nf_referenciada_id")
         .eq("ordem_venda_id", ov.id)
         .eq("ativo", true)
         .abortSignal(signal),
     ]);
 
     const nfList = nfs || [];
-    let lancamentos: unknown[] = [];
+    let lancamentos: LancamentoListItem[] = [];
+    let devolucoes: NotaFiscalListItem[] = [];
     if (nfList.length > 0) {
-      const nfIds = nfList.map((n: Record<string, unknown>) => n.id as string);
-      const { data: lanc } = await supabase
+      const nfIds = nfList.map((n) => n.id);
+      const [{ data: lanc }, { data: devs }] = await Promise.all([
+        supabase
         .from("financeiro_lancamentos")
         .select("id, descricao, valor, status, data_vencimento, data_pagamento, forma_pagamento, parcela_numero, parcela_total")
         .in("nota_fiscal_id", nfIds)
         .eq("ativo", true)
         .order("data_vencimento", { ascending: true })
-        .abortSignal(signal);
-      lancamentos = lanc || [];
+        .abortSignal(signal),
+        supabase
+          .from("notas_fiscais")
+          .select("id, numero, status, valor_total, data_emissao, tipo_operacao, finalidade_nfe, nf_referenciada_id")
+          .in("nf_referenciada_id", nfIds)
+          .eq("ativo", true)
+          .abortSignal(signal),
+      ]);
+      lancamentos = (lanc || []) as LancamentoListItem[];
+      devolucoes = (devs || []) as NotaFiscalListItem[];
     }
 
     return {
       ov,
-      items: itens || [],
-      notasFiscais: nfList,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      lancamentos: lancamentos as any[],
-    };
+      items: (itens || []) as OrdemVendaItemWithProduto[],
+      notasFiscais: nfList as NotaFiscalListItem[],
+      lancamentos,
+      devolucoes,
+    } as OVDetail;
   });
 
   const selected = data?.ov ?? null;
   const items = data?.items ?? [];
   const notasFiscais = data?.notasFiscais ?? [];
   const lancamentos = data?.lancamentos ?? [];
+  const devolucoes = data?.devolucoes ?? [];
 
   const handleGenerateNF = async () => {
     if (!selected) return;
@@ -160,19 +171,15 @@ export function OrdemVendaView({ id }: Props) {
     });
   };
 
-  const pesoTotal = items.reduce((s: number, i: Record<string, unknown>) => s + Number(i.peso_total || 0), 0);
-  const qtdTotal = items.reduce((s: number, i: Record<string, unknown>) => s + Number(i.quantidade || 0), 0);
+  const pesoTotal = items.reduce((s, i) => s + Number(i.peso_total || 0), 0);
+  const qtdTotal = items.reduce((s, i) => s + Number(i.quantidade || 0), 0);
   const canGenerateNF = canFaturarPedido(selected);
 
   // Gate de cancelamento: bloquear se já cancelado/faturado ou se houver NF ativa.
   const hasNFAtiva = notasFiscais.some(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (n: any) => !["cancelada", "denegada"].includes(n.status)
+    (n) => !["cancelada", "denegada"].includes(n.status || ""),
   );
-  const canCancelarPedido =
-    !!selected &&
-    !["cancelada", "faturada"].includes(selected.status || "") &&
-    !hasNFAtiva;
+  const canCancelarPedido = canCancelarPedidoFn(selected, hasNFAtiva);
 
   const handleCancelarPedido = async () => {
     if (!selected) return;
@@ -190,9 +197,8 @@ export function OrdemVendaView({ id }: Props) {
   // ou `autorizada` (status SEFAZ, aplicável quando integração emite NFe oficial).
   // Canceladas/denegadas continuam listadas mas não somam para faturamento.
   const valorFaturado = notasFiscais
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .filter((n: any) => ["confirmada", "autorizada"].includes(n.status))
-    .reduce((s: number, n: Record<string, unknown>) => s + Number(n.valor_total || 0), 0);
+    .filter((n) => ["confirmada", "autorizada"].includes(n.status || ""))
+    .reduce((s, n) => s + Number(n.valor_total || 0), 0);
   const valorPendente = Math.max(0, Number(selected?.valor_total || 0) - valorFaturado);
 
   // Publica slots no header padronizado
