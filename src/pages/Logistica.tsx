@@ -313,7 +313,7 @@ export default function Logistica() {
       const ok = await confirm({
         title: "Confirmar mudança de status",
         description: `Alterar entrega para "${ENTREGA_STATUS_META[status]?.label ?? status}"? Status sensíveis afetam a visão consolidada.`,
-        confirmText: "Confirmar",
+        confirmLabel: "Confirmar",
       });
       if (!ok) return;
     }
@@ -347,7 +347,7 @@ export default function Logistica() {
     const ok = await confirm({
       title: "Confirmar atualização de recebimento",
       description: `${RECEBIMENTO_STATUS_META[status]?.label ?? status}. ${source.description} A consolidação quantitativa permanece no módulo Compras.`,
-      confirmText: "Marcar recebido",
+      confirmLabel: "Marcar recebido",
     });
     if (!ok) return;
     setMarkingRecebimentoId(recebimento.id);
