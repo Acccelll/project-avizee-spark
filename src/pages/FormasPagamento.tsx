@@ -115,7 +115,7 @@ export default function FormasPagamento() {
     reset({ descricao: f.descricao, prazo_dias: f.prazo_dias, parcelas: f.parcelas, intervalos_dias: intervalos, gera_financeiro: f.gera_financeiro, tipo: f.tipo, observacoes: f.observacoes || "", ativo: f.ativo });
     setModalOpen(true);
   };
-  const openView = (f: FormaPagamento) => { setSelected(f); setDrawerOpen(true); };
+  const openView = (f: FormaPagamento) => { pushView("forma_pagamento", f.id); };
 
   const addIntervalo = () => {
     const current = Array.isArray(form.intervalos_dias) ? form.intervalos_dias : [];
