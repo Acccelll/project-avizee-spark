@@ -408,6 +408,38 @@ export function PedidoCompraDrawer({
       <ViewSection title="Logística / Rastreamento">
         <LogisticaRastreioSection pedidoCompraId={selected.id} />
       </ViewSection>
+
+      {viewFinanceiro.length > 0 && (
+        <ViewSection title="Lançamentos Financeiros gerados">
+          <div className="space-y-2">
+            {viewFinanceiro.map((l) => (
+              <div
+                key={l.id}
+                className="flex items-center justify-between rounded-md bg-accent/20 px-3 py-2 text-sm"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-medium truncate">{l.descricao ?? "—"}</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    Venc. {formatDate(l.data_vencimento)}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0 ml-2">
+                  <StatusBadge status={String(l.status ?? "")} />
+                  <span className="font-mono font-medium text-xs">{formatCurrency(Number(l.valor ?? 0))}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-2 gap-1.5 text-xs"
+            onClick={() => navigate(`/financeiro?pedido_compra_id=${selected.id}`)}
+          >
+            <ExternalLink className="h-3 w-3" /> Abrir no Financeiro
+          </Button>
+        </ViewSection>
+      )}
     </div>
   );
 
