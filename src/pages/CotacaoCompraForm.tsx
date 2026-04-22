@@ -28,6 +28,7 @@ import {
   type LocalItem,
   statusLabels,
 } from "@/components/compras/cotacaoCompraTypes";
+import { canonicalCotacaoStatus } from "@/components/compras/comprasStatus";
 import type { Database } from "@/integrations/supabase/types";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
