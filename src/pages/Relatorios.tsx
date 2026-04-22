@@ -33,7 +33,8 @@ import { BookmarkPlus, BookOpen, Columns, Hash, Eye, Trash2, RefreshCcw, Rows3, 
 import { filtrarPorStatus, sortarRows } from '@/utils/relatorios';
 import { reportConfigs, reportCategoryMeta, reportRuntimeSemantics } from '@/config/relatoriosConfig';
 import { formatCurrency, formatNumber, formatDate } from '@/lib/format';
-import { formatCellValue, type TipoRelatorio } from '@/services/relatorios.service';
+import { type TipoRelatorio } from '@/services/relatorios.service';
+import { formatReportCell } from '@/services/relatorios/lib/formatCell';
 import type { DreRow } from '@/types/relatorios';
 import { badgeVariantFromKind } from '@/lib/relatoriosBadges';
 import { toast } from 'sonner';
@@ -154,10 +155,11 @@ export default function Relatorios() {
             : 'secondary';
           return <Badge variant={variant}>{raw}</Badge>;
         }
-        if (fmt === 'percent' && typeof raw === 'number') return `${raw.toFixed(1)}%`;
-        if (fmt === 'currency' && typeof raw === 'number') return formatCurrency(raw);
-        if ((fmt === 'quantity' || fmt === 'number') && typeof raw === 'number') return formatNumber(raw);
-        return formatCellValue(raw, colDef.key, isQtyReport) as React.ReactNode;
+        return formatReportCell(raw, colDef.key, {
+          format: fmt,
+          isQuantityReport: isQtyReport,
+          mode: 'display',
+        }) as React.ReactNode;
       },
     }));
   }, [sortedRows, isQtyReport, tipo]);

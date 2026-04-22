@@ -19,9 +19,9 @@
 
 import { toast } from "sonner";
 import { buildExportFilename, downloadTextFile } from "@/lib/utils";
-import { formatCurrency, formatDate, formatNumber } from "@/lib/format";
 import type { RelatorioResultado } from "@/services/relatorios.service";
 import type { ColumnFormat } from "@/config/relatoriosConfig";
+import { formatReportCell } from "@/services/relatorios/lib/formatCell";
 
 export interface EmpresaInfo {
   razao_social?: string;
@@ -87,7 +87,7 @@ export function exportarParaCsv(options: ExportOptions): void {
   if (columns?.length) {
     const header = columns.map((c) => `"${c.label}"`).join(";");
     const body = rows.map((row) =>
-      columns.map((c) => formatCsvCellTyped(row[c.key], c.format)).join(";")
+      columns.map((c) => formatReportCell(row[c.key], c.key, { format: c.format, mode: "csv" })).join(";")
     );
     csv = [header, ...body].join("\n");
   } else {
@@ -95,33 +95,13 @@ export function exportarParaCsv(options: ExportOptions): void {
     csv = [
       headers.join(";"),
       ...rows.map((row) =>
-        headers.map((h) => formatCsvCell(row[h])).join(";")
+        headers.map((h) => formatReportCell(row[h], h, { mode: "csv" })).join(";")
       ),
     ].join("\n");
   }
 
   // Prepend UTF-8 BOM so Excel desktop pt-BR opens accents correctly.
   downloadTextFile(filename, `\uFEFF${csv}`, "text/csv;charset=utf-8");
-}
-
-function formatCsvCell(value: unknown): string {
-  if (typeof value === "number") return value.toString().replace(".", ",");
-  if (value == null) return "";
-  return `"${String(value).split('"').join('""')}"`;
-}
-
-/** Format-aware CSV cell formatting using ColumnFormat hints. */
-function formatCsvCellTyped(value: unknown, format?: string): string {
-  if (value == null) return "";
-  if (typeof value === "number") {
-    if (format === "currency") return formatCurrency(value).replace(/\./g, "").replace(",", ".");
-    if (format === "percent") return `${value.toFixed(1)}%`;
-    return value.toString().replace(".", ",");
-  }
-  if (typeof value === "string" && format === "date" && /^\d{4}-\d{2}-\d{2}/.test(value)) {
-    return formatDate(value);
-  }
-  return `"${String(value).split('"').join('""')}"`;
 }
 
 // ─── Excel ───────────────────────────────────────────────────────────────────
@@ -202,13 +182,7 @@ function populateSheet(
 
     rows.forEach((row) => {
       const values = columns.map((c) => {
-        const v = row[c.key];
-        if (v == null) return "";
-        if (typeof v === "number") return v;
-        if (typeof v === "string" && c.format === "date" && /^\d{4}-\d{2}-\d{2}/.test(v)) {
-          return formatDate(v);
-        }
-        return v;
+        return formatReportCell(row[c.key], c.key, { format: c.format, mode: "excel" });
       });
       sheet.addRow(values);
     });
@@ -422,24 +396,8 @@ export async function buildPdfDocument(params: PdfBuildParams) {
   return doc;
 }
 
-/** Formats a cell value for PDF rendering using config format hint when available. */
+/** Formats a cell value for PDF rendering — thin wrapper around the unified
+ *  `formatReportCell` so PDF, UI and other exporters share one source of truth. */
 function formatCellValuePdf(value: unknown, key: string, format?: string): string | number {
-  if (typeof value === "number") {
-    if (format === "currency") return formatCurrency(value);
-    if (format === "percent") return `${value.toFixed(1)}%`;
-    if (format === "quantity" || format === "number") return formatNumber(value);
-    // Legacy heuristic fallback when no format hint provided
-    if (
-      ["valor", "custo", "venda", "entrada", "saida"].some((f) =>
-        key.toLowerCase().includes(f)
-      )
-    ) {
-      return formatCurrency(value);
-    }
-    return formatNumber(value);
-  }
-  if (typeof value === "string" && (format === "date" || /^\d{4}-\d{2}-\d{2}/.test(value))) {
-    return formatDate(value);
-  }
-  return (value ?? "-") as string;
+  return formatReportCell(value, key, { format, mode: "display" });
 }
