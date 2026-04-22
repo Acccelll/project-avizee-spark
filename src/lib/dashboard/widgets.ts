@@ -21,7 +21,7 @@ export const WIDGET_REGISTRY: Record<WidgetId, WidgetMeta> = {
   acoes_rapidas: { id: 'acoes_rapidas', label: 'Ações Rápidas', description: 'Atalhos para criar registros' },
   vendas_chart: { id: 'vendas_chart', label: 'Gráfico de Vendas', description: 'Faturamento por dia' },
   pendencias: { id: 'pendencias', label: 'Pendências Financeiras', description: 'Vencimentos e atrasos' },
-  comercial: { id: 'comercial', label: 'Bloco Comercial', description: 'Cotações e pedidos' },
+  comercial: { id: 'comercial', label: 'Bloco Comercial', description: 'Orçamentos e pedidos' },
   estoque: { id: 'estoque', label: 'Bloco Estoque', description: 'Posição e itens críticos' },
   logistica: { id: 'logistica', label: 'Bloco Logística', description: 'Compras aguardando entrega' },
   fiscal: { id: 'fiscal', label: 'Bloco Fiscal', description: 'Notas emitidas e pendentes' },

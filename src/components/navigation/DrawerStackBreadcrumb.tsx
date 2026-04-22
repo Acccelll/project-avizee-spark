@@ -7,7 +7,7 @@ const TYPE_SHORT_LABELS: Record<EntityType, string> = {
   produto: "Produto",
   cliente: "Cliente",
   fornecedor: "Fornecedor",
-  orcamento: "Cotação",
+  orcamento: "Orçamento",
   pedido_compra: "PC",
   nota_fiscal: "NF",
   remessa: "Remessa",

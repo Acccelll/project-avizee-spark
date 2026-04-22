@@ -3220,8 +3220,10 @@ export type Database = {
           largura_cm: number | null
           modalidade: string | null
           numero: string
+          numero_base: string | null
           observacoes: string | null
           observacoes_internas: string | null
+          orcamento_pai_id: string | null
           origem: string
           origem_frete: string | null
           outras_despesas: number | null
@@ -3232,6 +3234,7 @@ export type Database = {
           prazo_pagamento: string | null
           public_token: string | null
           quantidade_total: number | null
+          revisao: number | null
           servico_frete: string | null
           status: string | null
           transportadora_id: string | null
@@ -3259,8 +3262,10 @@ export type Database = {
           largura_cm?: number | null
           modalidade?: string | null
           numero: string
+          numero_base?: string | null
           observacoes?: string | null
           observacoes_internas?: string | null
+          orcamento_pai_id?: string | null
           origem?: string
           origem_frete?: string | null
           outras_despesas?: number | null
@@ -3271,6 +3276,7 @@ export type Database = {
           prazo_pagamento?: string | null
           public_token?: string | null
           quantidade_total?: number | null
+          revisao?: number | null
           servico_frete?: string | null
           status?: string | null
           transportadora_id?: string | null
@@ -3298,8 +3304,10 @@ export type Database = {
           largura_cm?: number | null
           modalidade?: string | null
           numero?: string
+          numero_base?: string | null
           observacoes?: string | null
           observacoes_internas?: string | null
+          orcamento_pai_id?: string | null
           origem?: string
           origem_frete?: string | null
           outras_despesas?: number | null
@@ -3310,6 +3318,7 @@ export type Database = {
           prazo_pagamento?: string | null
           public_token?: string | null
           quantidade_total?: number | null
+          revisao?: number | null
           servico_frete?: string | null
           status?: string | null
           transportadora_id?: string | null
@@ -3333,6 +3342,27 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "frete_simulacoes"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orcamentos_orcamento_pai_id_fkey"
+            columns: ["orcamento_pai_id"]
+            isOneToOne: false
+            referencedRelation: "orcamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orcamentos_orcamento_pai_id_fkey"
+            columns: ["orcamento_pai_id"]
+            isOneToOne: false
+            referencedRelation: "orcamentos_public_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orcamentos_orcamento_pai_id_fkey"
+            columns: ["orcamento_pai_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_comercial"
+            referencedColumns: ["orcamento_id"]
           },
           {
             foreignKeyName: "orcamentos_transportadora_id_fkey"
@@ -5981,6 +6011,10 @@ export type Database = {
             Returns: Json
           }
       count_estoque_baixo: { Args: never; Returns: number }
+      criar_revisao_orcamento: {
+        Args: { p_orcamento_id: string }
+        Returns: string
+      }
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean

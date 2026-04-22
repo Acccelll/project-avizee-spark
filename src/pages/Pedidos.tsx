@@ -313,7 +313,7 @@ const Pedidos = () => {
       render: (p: Pedido) => p.po_number ? <span className="font-mono text-xs">{p.po_number}</span> : <span className="text-muted-foreground">—</span>,
     },
     {
-      key: "cotacao", label: "Cotação", hidden: true,
+      key: "cotacao", label: "Orçamento", hidden: true,
       render: (p: Pedido) => p.orcamentos?.numero ? <span className="font-mono text-xs">{p.orcamentos.numero}</span> : <span className="text-muted-foreground">—</span>,
     },
     {
@@ -366,7 +366,7 @@ const Pedidos = () => {
         <AdvancedFilterBar
           searchValue={searchTerm}
           onSearchChange={setSearchTerm}
-          searchPlaceholder="Buscar por número, PO, cliente ou cotação..."
+          searchPlaceholder="Buscar por número, PO, cliente ou orçamento..."
           activeFilters={activeFilters}
           onRemoveFilter={handleRemoveFilter}
           onClearAll={() => { setSearchTerm(""); setStatusFilters([]); setFaturamentoFilters([]); setClienteFilters([]); setPrazoFilters([]); setDataInicio(""); setDataFim(""); }}
@@ -428,7 +428,7 @@ const Pedidos = () => {
           showColumnToggle={true}
           onView={handleView}
           emptyTitle="Nenhum pedido encontrado"
-          emptyDescription="Converta uma cotação aprovada em pedido ou ajuste os filtros aplicados."
+          emptyDescription="Converta um orçamento aprovado em pedido ou ajuste os filtros aplicados."
         />
         </PullToRefresh>
       </ModulePage>

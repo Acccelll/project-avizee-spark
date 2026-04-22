@@ -19,7 +19,7 @@ export async function sendForApproval(orc: OrcamentoBase): Promise<void> {
     .update({ status: "pendente" })
     .eq("id", orc.id);
   if (error) throw new Error(`Erro ao enviar orçamento para aprovação: ${error.message}`);
-  toast.success(`Cotação ${orc.numero} enviada para aprovação!`);
+  toast.success(`Orçamento ${orc.numero} enviado para aprovação!`);
 }
 
 export async function approveOrcamento(orc: OrcamentoBase): Promise<void> {
@@ -28,7 +28,7 @@ export async function approveOrcamento(orc: OrcamentoBase): Promise<void> {
     .update({ status: "aprovado" })
     .eq("id", orc.id);
   if (error) throw new Error(`Erro ao aprovar orçamento: ${error.message}`);
-  toast.success(`Cotação ${orc.numero} aprovada!`);
+  toast.success(`Orçamento ${orc.numero} aprovado!`);
 }
 
 /**

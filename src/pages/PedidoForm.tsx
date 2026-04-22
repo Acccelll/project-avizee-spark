@@ -180,7 +180,7 @@ const PedidoForm = () => {
       subtitle={
         <>
           {pedido.clientes?.nome_razao_social || "—"}
-          {pedido.orcamentos?.numero ? ` · Cotação ${pedido.orcamentos.numero}` : ""}
+          {pedido.orcamentos?.numero ? ` · Orçamento ${pedido.orcamentos.numero}` : ""}
         </>
       }
       actions={
@@ -217,7 +217,7 @@ const PedidoForm = () => {
         <div className="rounded-xl border bg-muted/20 px-4 py-3">
           <p className="text-xs font-semibold uppercase text-muted-foreground">Escopo desta edição</p>
           <p className="text-sm text-muted-foreground mt-1">
-            Esta tela altera apenas dados operacionais do pedido. Itens, valores e vínculos (cotação e faturamento) são controlados pelo fluxo comercial/fiscal.
+            Esta tela altera apenas dados operacionais do pedido. Itens, valores e vínculos (orçamento e faturamento) são controlados pelo fluxo comercial/fiscal.
           </p>
         </div>
 
@@ -231,7 +231,7 @@ const PedidoForm = () => {
             <p className="text-sm truncate">{pedido.clientes?.nome_razao_social || "—"}</p>
           </div>
           <div className="rounded-lg border bg-card p-3">
-            <p className="text-[10px] uppercase text-muted-foreground font-semibold">Cotação origem</p>
+            <p className="text-[10px] uppercase text-muted-foreground font-semibold">Orçamento origem</p>
             <p className="font-mono text-sm">{pedido.orcamentos?.numero || "—"}</p>
           </div>
           <div className="rounded-lg border bg-card p-3">
