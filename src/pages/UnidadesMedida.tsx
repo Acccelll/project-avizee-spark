@@ -179,6 +179,16 @@ export default function UnidadesMedida() {
         : <span className="text-muted-foreground text-xs">—</span>,
     },
     {
+      key: "uso",
+      label: "Em uso",
+      render: (u: UnidadeMedida) => {
+        const n = usageMap[u.codigo.toUpperCase()] || 0;
+        return n > 0
+          ? <span className="text-xs font-medium">{n} produto{n === 1 ? "" : "s"}</span>
+          : <span className="text-xs text-muted-foreground">—</span>;
+      },
+    },
+    {
       key: "ativo",
       mobileCard: true,
       label: "Status",
@@ -191,10 +201,15 @@ export default function UnidadesMedida() {
     },
   ];
 
-  const kpis = useMemo(() => ({
-    total: data.length,
-    ativas: data.filter(u => u.ativo).length,
-  }), [data]);
+  const kpis = useMemo(() => {
+    const codigosEmUso = new Set(Object.keys(usageMap).filter(k => (usageMap[k] || 0) > 0));
+    const emUso = data.filter(u => codigosEmUso.has(u.codigo.toUpperCase())).length;
+    return {
+      total: data.length,
+      ativas: data.filter(u => u.ativo).length,
+      emUso,
+    };
+  }, [data, usageMap]);
 
   const ativoOptions: MultiSelectOption[] = [
     { label: "Ativo", value: "ativo" },
@@ -218,6 +233,11 @@ export default function UnidadesMedida() {
               title="Ativas"
               value={String(kpis.ativas)}
               icon={CheckCircle2}
+            />
+            <StatCard
+              title="Em uso por produtos"
+              value={String(kpis.emUso)}
+              icon={Package}
             />
           </>
         }
