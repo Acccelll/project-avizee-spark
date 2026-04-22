@@ -492,6 +492,11 @@ export default function Logistica() {
       <div className="flex items-center gap-1.5 flex-wrap">
         <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => setSelectedEntrega(item)}><Eye className="h-3.5 w-3.5" />Ver</Button>
         <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-muted-foreground" onClick={() => pushView("ordem_venda", item.id)}><ExternalLink className="h-3.5 w-3.5" />Pedido</Button>
+        {item.codigo_rastreio && (
+          <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => abrirRastreioEntrega(item)}>
+            <Search className="h-3.5 w-3.5" />Rastrear
+          </Button>
+        )}
         {canEdit && (
           <Select value={item.status_logistico} onValueChange={(value) => updateEntregaStatus(item, value)}>
             <SelectTrigger className="h-8 w-[180px] text-xs" disabled={item.exibicao_remessas === "multipla" || updatingEntregaId === item.id || ENTREGA_TERMINAL.has(item.status_logistico)}><SelectValue /></SelectTrigger>
