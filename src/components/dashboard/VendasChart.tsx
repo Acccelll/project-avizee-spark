@@ -57,7 +57,7 @@ export function VendasChart({ onBarClick }: VendasChartProps) {
         .select('valor_total, data_emissao')
         .eq('ativo', true)
         .eq('tipo', 'saida')
-        .eq('status', 'confirmada')
+        .in('status', ['confirmada', 'importada'])
         .gte('data_emissao', dateFrom)
         .lte('data_emissao', dateTo);
 
