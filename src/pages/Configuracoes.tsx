@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useTheme } from 'next-themes';
 import { AlertCircle, ArrowUpRight, Building2, CalendarDays, Check, CheckCircle2, Clock, Eye, EyeOff, Info, Loader2, Lock, Mail, Moon, Palette, RotateCcw, Save, Settings, Shield, ShieldCheck, Sun, User } from 'lucide-react';
 import { useUserPreference } from '@/hooks/useUserPreference';
@@ -101,7 +101,17 @@ function getPasswordCriteria(pwd: string, confirm: string) {
 export default function Configuracoes() {
   const { user, profile, roles, hasRole } = useAuth();
   const { theme, setTheme } = useTheme();
-  const [activeSection, setActiveSection] = useState('perfil');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabFromUrl = searchParams.get('tab');
+  const isValidTab = (key: string | null): key is string =>
+    !!key && tabNavItems.some((t) => t.key === key);
+  const activeSection = isValidTab(tabFromUrl) ? tabFromUrl : 'perfil';
+  const setActiveSection = (key: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (key === 'perfil') next.delete('tab');
+    else next.set('tab', key);
+    setSearchParams(next, { replace: true });
+  };
 
   const [nome, setNome] = useState(profile?.nome || '');
   const [cargo, setCargo] = useState(profile?.cargo || '');
