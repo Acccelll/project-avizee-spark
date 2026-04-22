@@ -29,12 +29,16 @@ const TENTATIVAS_PADRAO = 3;
  * Envia um XML para a SEFAZ via Edge Function sefaz-proxy.
  * A Edge Function assina o XML com o certificado A1 e envia para a SEFAZ via SOAP.
  * Realiza retry automático em caso de falha.
+ *
+ * Se `certificado` for omitido, usa a action `assinar-e-enviar-vault`, que lê o
+ * .pfx do Storage privado e a senha do secret `CERTIFICADO_PFX_SENHA` server-side.
+ * Esta é a forma RECOMENDADA — não envie credenciais do client.
  */
 export async function enviarParaSefaz(
   xml: string,
   url: string,
   soapAction: string,
-  certificado: SefazCertificado,
+  certificado: SefazCertificado | null,
   options: SefazRequestOptions = {},
 ): Promise<SefazResponse> {
   const tentativas = options.tentativas ?? TENTATIVAS_PADRAO;
@@ -43,16 +47,23 @@ export async function enviarParaSefaz(
 
   for (let tentativa = 1; tentativa <= tentativas; tentativa++) {
     try {
-      const { data, error } = await supabase.functions.invoke("sefaz-proxy", {
-        body: {
-          action: "assinar-e-enviar",
-          xml,
-          url,
-          soapAction,
-          certificado_base64: certificado.certificado_base64,
-          certificado_senha: certificado.certificado_senha,
-        },
-      });
+      const body = certificado
+        ? {
+            action: "assinar-e-enviar",
+            xml,
+            url,
+            soapAction,
+            certificado_base64: certificado.certificado_base64,
+            certificado_senha: certificado.certificado_senha,
+          }
+        : {
+            action: "assinar-e-enviar-vault",
+            xml,
+            url,
+            soapAction,
+          };
+
+      const { data, error } = await supabase.functions.invoke("sefaz-proxy", { body });
 
       if (error) {
         ultimoErro = error.message ?? "Erro na Edge Function sefaz-proxy";
