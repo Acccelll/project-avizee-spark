@@ -14,6 +14,7 @@ import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext"
 import { useViaCep } from "@/hooks/useViaCep";
 import { useCnpjLookup } from "@/hooks/useCnpjLookup";
 import { useDocumentoUnico } from "@/hooks/useDocumentoUnico";
+import { useEditDeepLink } from "@/hooks/useEditDeepLink";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
