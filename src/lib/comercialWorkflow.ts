@@ -32,6 +32,24 @@ export function canConvertOrcamento(status?: string | null): boolean {
   return normalizeOrcamentoStatus(status) === "aprovado";
 }
 
+/**
+ * Gate único para "Gerar NF" a partir de um pedido.
+ * Consumido pela grid (`Pedidos.tsx`) e pelo drawer (`OrdemVendaView.tsx`)
+ * para evitar drift entre os dois pontos de entrada.
+ */
+export function canFaturarPedido(pedido?: {
+  status?: string | null;
+  status_faturamento?: string | null;
+} | null): boolean {
+  if (!pedido) return false;
+  const status = pedido.status || "";
+  const faturamento = pedido.status_faturamento || "";
+  return (
+    ["aprovada", "em_separacao", "separado"].includes(status) &&
+    faturamento !== "total"
+  );
+}
+
 export const statusFaturamentoLabels: Record<string, string> = {
   aguardando: "Aguardando",
   parcial: "Parcial",

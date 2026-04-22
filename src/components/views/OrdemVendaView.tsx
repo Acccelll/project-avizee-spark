@@ -18,7 +18,7 @@ import { useDetailActions } from "@/hooks/useDetailActions";
 import { DetailLoading, DetailEmpty } from "@/components/ui/DetailStates";
 import { pagamentoLabels, freteTipoLabels } from "@/utils/comercial";
 import { useFaturarPedido } from "@/pages/comercial/hooks/useFaturarPedido";
-import { getPedidoStatusLabel, statusFaturamentoLabels } from "@/lib/comercialWorkflow";
+import { canFaturarPedido, getPedidoStatusLabel, statusFaturamentoLabels } from "@/lib/comercialWorkflow";
 import {
   FileOutput,
   DollarSign,
@@ -165,11 +165,7 @@ export function OrdemVendaView({ id }: Props) {
 
   const pesoTotal = items.reduce((s: number, i: Record<string, unknown>) => s + Number(i.peso_total || 0), 0);
   const qtdTotal = items.reduce((s: number, i: Record<string, unknown>) => s + Number(i.quantidade || 0), 0);
-  const canGenerateNF = !!(
-    selected &&
-    ["aprovada", "em_separacao", "separado"].includes(selected.status) &&
-    selected.status_faturamento !== "total"
-  );
+  const canGenerateNF = canFaturarPedido(selected);
 
   // KPI Faturado: NFs com status interno `confirmada` (após confirmarNotaFiscal)
   // ou `autorizada` (status SEFAZ, aplicável quando integração emite NFe oficial).
@@ -287,12 +283,12 @@ export function OrdemVendaView({ id }: Props) {
           {
             icon: Receipt,
             count: selected.cotacao_id ? 1 : 0,
-            label: "Cotação origem",
+            label: "Orçamento origem",
             tone: "default",
             onClick: selected.cotacao_id
               ? () => pushView("orcamento", selected.cotacao_id)
               : undefined,
-            title: "Cotação que originou este pedido",
+            title: "Orçamento que originou este pedido",
           },
         ] satisfies RelatedRecordChip[]}
       />
