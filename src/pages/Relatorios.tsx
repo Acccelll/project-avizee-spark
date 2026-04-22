@@ -1,6 +1,5 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 import type React from 'react';
-import { useSearchParams } from 'react-router-dom';
 import { ModulePage } from '@/components/ModulePage';
 import { SummaryCard } from '@/components/SummaryCard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,25 +17,26 @@ import { RelatorioChart } from '@/pages/relatorios/components/Graficos/Relatorio
 import { DreTable } from '@/pages/relatorios/components/Tabelas/DreTable';
 import { ReportHeader } from '@/pages/relatorios/components/ReportHeader';
 import { ExportMenu } from '@/pages/relatorios/components/ExportMenu';
-import { ActiveFiltersBar, type ActiveFilterChip } from '@/pages/relatorios/components/ActiveFiltersBar';
+import { ActiveFiltersBar } from '@/pages/relatorios/components/ActiveFiltersBar';
 import { ReportResultFooter } from '@/pages/relatorios/components/ReportResultFooter';
 import { PreviewDocument } from '@/pages/relatorios/components/PreviewDocument';
+import { RelatorioCatalogo } from '@/pages/relatorios/components/RelatorioCatalogo';
 import { useRelatorio } from '@/pages/relatorios/hooks/useRelatorio';
 import { useRelatoriosFiltrosData } from '@/pages/relatorios/hooks/useRelatoriosFiltrosData';
 import { useRelatoriosFavoritos } from '@/hooks/useRelatoriosFavoritos';
+import { useRelatorioUrlState } from '@/pages/relatorios/hooks/useRelatorioUrlState';
+import { useRelatorioDensity } from '@/pages/relatorios/hooks/useRelatorioDensity';
+import { useRelatorioExport } from '@/pages/relatorios/hooks/useRelatorioExport';
+import { useActiveFilterChips } from '@/pages/relatorios/hooks/useActiveFilterChips';
 import { cn } from '@/lib/utils';
-import { BookmarkPlus, BookOpen, Columns, Hash, Eye, Layers, Trash2, RefreshCcw, Rows3, SearchX } from 'lucide-react';
-import { exportarParaCsv, exportarParaExcel, exportarParaPdf, type ExportColumnDef } from '@/services/export.service';
+import { BookmarkPlus, BookOpen, Columns, Hash, Eye, Trash2, RefreshCcw, Rows3, SearchX } from 'lucide-react';
 import { filtrarPorStatus, sortarRows } from '@/utils/relatorios';
-import { reportConfigs, reportCategoryMeta, reportRuntimeSemantics, type ReportCategory } from '@/config/relatoriosConfig';
+import { reportConfigs, reportCategoryMeta, reportRuntimeSemantics } from '@/config/relatoriosConfig';
 import { formatCurrency, formatNumber, formatDate } from '@/lib/format';
 import { formatCellValue, type TipoRelatorio } from '@/services/relatorios.service';
 import type { DreRow } from '@/types/relatorios';
 import { badgeVariantFromKind } from '@/lib/relatoriosBadges';
 import { toast } from 'sonner';
-
-const DENSITY_KEY = 'relatorios:density';
-const PDF_ROW_LIMIT = 200;
 
 function buildDreDateRange(state: FiltrosRelatorioState, dataInicio: string, dataFim: string) {
   if (state.dreCompetencia === 'personalizado') return { dataInicio, dataFim };
@@ -53,82 +53,27 @@ function buildDreDateRange(state: FiltrosRelatorioState, dataInicio: string, dat
 }
 
 export default function Relatorios() {
-  const [searchParams, setSearchParams] = useSearchParams();
-
-  const rawTipo = searchParams.get('tipo') || '';
-  const isValidTipo = rawTipo !== '' && Object.prototype.hasOwnProperty.call(reportConfigs, rawTipo);
-  const tipo = (isValidTipo ? rawTipo : '') as TipoRelatorio | '';
-
-  // Reset URL when ?tipo is invalid (e.g. ?tipo=hack) so the catalog renders
-  // instead of an empty workspace.
-  useEffect(() => {
-    if (rawTipo !== '' && !isValidTipo) {
-      setSearchParams({});
-      toast.warning(`Relatório "${rawTipo}" não existe. Voltando ao catálogo.`);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rawTipo, isValidTipo]);
-
-  const dataInicio = searchParams.get('di') || '';
-  const dataFim = searchParams.get('df') || '';
-
-  const filtrosState = useMemo<FiltrosRelatorioState>(() => ({
-    clienteIds: searchParams.get('cli') ? searchParams.get('cli')!.split(',') : [],
-    fornecedorIds: searchParams.get('for') ? searchParams.get('for')!.split(',') : [],
-    grupoIds: searchParams.get('grp') ? searchParams.get('grp')!.split(',') : [],
-    statusFiltro: searchParams.get('st') || 'todos',
-    agrupamento: (searchParams.get('ag') as FiltrosRelatorioState['agrupamento']) || 'padrao',
-    tipos: searchParams.get('tp') ? searchParams.get('tp')!.split(',') : [],
-    dreCompetencia: (searchParams.get('drc') as FiltrosRelatorioState['dreCompetencia']) || 'mes',
-    dreMes: searchParams.get('drm') || new Date().toISOString().slice(0, 7),
-  }), [searchParams]);
+  const {
+    tipo,
+    dataInicio,
+    dataFim,
+    filtrosState,
+    searchParams,
+    setSearchParams,
+    setDataInicio,
+    setDataFim,
+    setFiltrosState,
+    updateParams,
+  } = useRelatorioUrlState();
 
   const [hiddenColumns, setHiddenColumns] = useState<string[]>([]);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [saveNameOpen, setSaveNameOpen] = useState(false);
   const [saveName, setSaveName] = useState('');
 
-  // ── Density toggle (compact rows) — persisted in localStorage ────────────
-  const [compactDensity, setCompactDensity] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    return localStorage.getItem(DENSITY_KEY) === '1';
-  });
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(DENSITY_KEY, compactDensity ? '1' : '0');
-    }
-  }, [compactDensity]);
+  const { compactDensity, setCompactDensity } = useRelatorioDensity();
 
   const { favoritos, salvar: salvarFavorito, remover: removerFavorito } = useRelatoriosFavoritos();
-
-  const updateParams = (patch: Record<string, string | string[] | undefined>) => {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      for (const [k, v] of Object.entries(patch)) {
-        if (v == null || v === '' || (Array.isArray(v) && !v.length)) {
-          next.delete(k);
-        } else {
-          next.set(k, Array.isArray(v) ? v.join(',') : v);
-        }
-      }
-      return next;
-    });
-  };
-
-  const setDataInicio = (v: string) => updateParams({ di: v });
-  const setDataFim = (v: string) => updateParams({ df: v });
-  const setFiltrosState = (partial: Partial<FiltrosRelatorioState>) => {
-    const patch: Record<string, string | string[] | undefined> = {};
-    if ('clienteIds' in partial) patch.cli = partial.clienteIds;
-    if ('fornecedorIds' in partial) patch.for = partial.fornecedorIds;
-    if ('grupoIds' in partial) patch.grp = partial.grupoIds;
-    if ('statusFiltro' in partial) patch.st = partial.statusFiltro === 'todos' ? undefined : partial.statusFiltro;
-    if ('agrupamento' in partial) patch.ag = partial.agrupamento === 'padrao' ? undefined : partial.agrupamento;
-    if ('tipos' in partial) patch.tp = partial.tipos;
-    if ('dreCompetencia' in partial) patch.drc = partial.dreCompetencia === 'mes' ? undefined : partial.dreCompetencia;
-    if ('dreMes' in partial) patch.drm = partial.dreMes;
-    updateParams(patch);
-  };
 
   const { clientes, fornecedores, grupos, empresaConfig, limits } = useRelatoriosFiltrosData();
 
@@ -224,46 +169,22 @@ export default function Relatorios() {
     setSearchParams({ tipo: next });
   };
 
-  const [isExporting, setIsExporting] = useState(false);
-
-  const exportScopeDescription = `${sortedRows.length} ${sortedRows.length === 1 ? 'registro' : 'registros'} · ${visibleColumns.length} ${visibleColumns.length === 1 ? 'coluna' : 'colunas'}`;
-
-  const handleExportCsv = () => {
-    if (!sortedRows.length) { toast.warning('Nenhum dado visível para exportar.'); return; }
-    exportarParaCsv({ titulo: resultado?.title || String(tipo), rows: sortedRows, columns: exportColumnDefs });
-    toast.success('CSV exportado com sucesso.', { description: exportScopeDescription });
-  };
-  const handleExportPdf = async () => {
-    if (!sortedRows.length) { toast.warning('Nenhum dado visível para exportar.'); return; }
-    if (isExporting) return;
-    if (sortedRows.length > PDF_ROW_LIMIT) toast.warning(`PDF limitado a ${PDF_ROW_LIMIT} de ${sortedRows.length} registros. Use Excel para exportação completa.`, { duration: 8000 });
-    const tid = toast.loading('Gerando PDF...', { description: exportScopeDescription });
-    setIsExporting(true);
-    try {
-      await exportarParaPdf({ titulo: resultado?.title || String(tipo), rows: sortedRows, columns: exportColumnDefs, empresa: empresaConfig, dataInicio, dataFim, resultado });
-      toast.success('PDF gerado com sucesso!', { id: tid, description: exportScopeDescription });
-    } catch (e) {
-      toast.error('Falha ao gerar PDF.', { id: tid });
-      console.error(e);
-    } finally {
-      setIsExporting(false);
-    }
-  };
-  const handleExportXlsx = async () => {
-    if (!sortedRows.length) { toast.warning('Nenhum dado visível para exportar.'); return; }
-    if (isExporting) return;
-    const tid = toast.loading('Gerando Excel...', { description: exportScopeDescription });
-    setIsExporting(true);
-    try {
-      await exportarParaExcel({ titulo: resultado?.title || String(tipo), rows: sortedRows, columns: exportColumnDefs });
-      toast.success('Excel gerado com sucesso!', { id: tid, description: exportScopeDescription });
-    } catch (e) {
-      toast.error('Falha ao gerar Excel.', { id: tid });
-      console.error(e);
-    } finally {
-      setIsExporting(false);
-    }
-  };
+  const {
+    isExporting,
+    exportColumnDefs,
+    handleExportCsv,
+    handleExportPdf,
+    handleExportXlsx,
+    PDF_ROW_LIMIT,
+  } = useRelatorioExport({
+    tipo,
+    resultado,
+    sortedRows,
+    visibleColumns,
+    empresaConfig,
+    dataInicio,
+    dataFim,
+  });
 
   const handleSalvarFavorito = () => {
     const name = saveName.trim();
@@ -305,112 +226,23 @@ export default function Relatorios() {
     ? `${dataInicio ? formatDate(dataInicio) : '—'} a ${dataFim ? formatDate(dataFim) : '—'}`
     : new Date().toLocaleDateString('pt-BR');
 
-  const groupedReports = useMemo(() => {
-    const all = Object.values(reportConfigs);
-    return Object.entries(reportCategoryMeta).map(([cat, meta]) => ({
-      category: cat as ReportCategory, ...meta, items: all.filter((r) => r.category === cat),
-    }));
-  }, []);
-
   const categoryMeta = selectedMeta ? reportCategoryMeta[selectedMeta.category] : undefined;
-  const prioritized = Object.values(reportConfigs).filter((r) => r.priority);
   const showEmpty = !isLoading && !isError && sortedRows.length === 0;
   const hasExportableData = sortedRows.length > 0;
   const hasLocalFiltersApplied = rows.length !== sortedRows.length;
 
-  const exportColumnDefs = useMemo<ExportColumnDef[] | undefined>(() => {
-    if (!tipo || !selectedMeta) return undefined;
-    const cfgCols = selectedMeta.columns;
-    if (!cfgCols.length) return undefined;
-    return visibleColumns.map((vc) => {
-      const cfgCol = cfgCols.find((c) => c.key === vc.key);
-      return { key: vc.key, label: vc.label, format: cfgCol?.format };
-    });
-  }, [visibleColumns, tipo, selectedMeta]);
-
-  // ── Active filter chips ──────────────────────────────────────────────────
-  const activeFilterChips = useMemo<ActiveFilterChip[]>(() => {
-    const out: ActiveFilterChip[] = [];
-    if (dataInicio || dataFim) {
-      out.push({
-        id: 'periodo',
-        label: 'Período',
-        value: `${dataInicio ? formatDate(dataInicio) : '—'} → ${dataFim ? formatDate(dataFim) : '—'}`,
-        tone: semantics?.highlightFilters?.includes('periodo') ? 'relevant' : 'default',
-        onRemove: () => updateParams({ di: undefined, df: undefined }),
-      });
-    }
-    if (filtrosState.clienteIds.length) {
-      const names = filtrosState.clienteIds
-        .map((id) => clientes.find((c) => c.id === id)?.nome_razao_social)
-        .filter(Boolean) as string[];
-      out.push({
-        id: 'cli',
-        label: 'Clientes',
-        value: names.length === 1 ? names[0] : `${names.length} selecionados`,
-        tone: semantics?.highlightFilters?.includes('clientes') ? 'relevant' : 'default',
-        onRemove: () => setFiltrosState({ clienteIds: [] }),
-      });
-    }
-    if (filtrosState.fornecedorIds.length) {
-      const names = filtrosState.fornecedorIds
-        .map((id) => fornecedores.find((f) => f.id === id)?.nome_razao_social)
-        .filter(Boolean) as string[];
-      out.push({
-        id: 'for',
-        label: 'Fornecedores',
-        value: names.length === 1 ? names[0] : `${names.length} selecionados`,
-        tone: semantics?.highlightFilters?.includes('fornecedores') ? 'relevant' : 'default',
-        onRemove: () => setFiltrosState({ fornecedorIds: [] }),
-      });
-    }
-    if (filtrosState.grupoIds.length) {
-      const names = filtrosState.grupoIds
-        .map((id) => grupos.find((g) => g.id === id)?.nome)
-        .filter(Boolean) as string[];
-      out.push({
-        id: 'grp',
-        label: 'Grupos',
-        value: names.length === 1 ? names[0] : `${names.length} selecionados`,
-        tone: semantics?.highlightFilters?.includes('grupos') ? 'relevant' : 'default',
-        onRemove: () => setFiltrosState({ grupoIds: [] }),
-      });
-    }
-    if (filtrosState.statusFiltro && filtrosState.statusFiltro !== 'todos') {
-      const opt = (selectedMeta?.filters.statusOptions ?? []).find((o) => o.value === filtrosState.statusFiltro);
-      out.push({
-        id: 'st',
-        label: 'Status',
-        value: opt?.label ?? filtrosState.statusFiltro,
-        tone: semantics?.highlightFilters?.includes('status') ? 'relevant' : 'default',
-        onRemove: () => setFiltrosState({ statusFiltro: 'todos' }),
-      });
-    }
-    if (filtrosState.tipos.length) {
-      out.push({
-        id: 'tp',
-        label: 'Tipos',
-        value: filtrosState.tipos.join(', '),
-        tone: semantics?.highlightFilters?.includes('tipo') ? 'relevant' : 'default',
-        onRemove: () => setFiltrosState({ tipos: [] }),
-      });
-    }
-    if (filtrosState.agrupamento && filtrosState.agrupamento !== 'padrao') {
-      const labels: Record<string, string> = {
-        valor_desc: 'Maior valor',
-        status: 'Status',
-        vencimento: 'Vencimento',
-      };
-      out.push({
-        id: 'ag',
-        label: 'Ordenação',
-        value: labels[filtrosState.agrupamento] ?? filtrosState.agrupamento,
-        onRemove: () => setFiltrosState({ agrupamento: 'padrao' }),
-      });
-    }
-    return out;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtrosState, clientes, fornecedores, grupos, selectedMeta, semantics, dataInicio, dataFim]);
+  const activeFilterChips = useActiveFilterChips({
+    filtrosState,
+    dataInicio,
+    dataFim,
+    clientes,
+    fornecedores,
+    grupos,
+    selectedMeta,
+    semantics,
+    setFiltrosState,
+    updateParams,
+  });
 
   const handleClearAllFilters = () => {
     // Mantém o tipo de relatório, limpa o restante.
@@ -486,41 +318,7 @@ export default function Relatorios() {
         <div className="space-y-6">
 
           {/* ── Report selector ── */}
-          {!tipo && (
-            <Card>
-              <CardHeader className="pb-4">
-                <CardTitle className="flex items-center gap-2 text-base"><Layers className="h-4 w-4 text-primary" />Selecione um Relatório</CardTitle>
-                <CardDescription>Escolha o contexto de negócio e o relatório desejado para acessar filtros, análises e exportações.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-5">
-                <div>
-                  <p className="text-sm font-medium mb-2">Relatórios prioritários</p>
-                  <div className="grid gap-3 grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
-                    {prioritized.map((card) => (
-                      <button key={card.id} onClick={() => handleSelectTipo(card.id)} aria-label={`Abrir relatório: ${card.title}`} className={cn('rounded-xl border p-3 text-left transition-all hover:-translate-y-0.5 hover:border-primary/30 bg-card')}>
-                        <div className="flex items-center gap-2"><card.icon className="h-4 w-4 text-primary" /><p className="text-xs font-semibold leading-tight">{card.title}</p></div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div className="space-y-4">
-                  {groupedReports.map((group) => (
-                    <div key={group.category} className="rounded-lg border p-4">
-                      <p className="text-sm font-semibold mb-3 flex items-center gap-2"><group.icon className="h-4 w-4 text-muted-foreground" />{group.title}</p>
-                      <div className="grid gap-3 grid-cols-1 md:grid-cols-2 xl:grid-cols-4">
-                        {group.items.map((card) => (
-                          <button key={card.id} onClick={() => handleSelectTipo(card.id)} aria-label={`Abrir relatório: ${card.title}`} className={cn('rounded-lg border p-3 text-left transition-all hover:border-primary/30 bg-card')}>
-                            <div className="flex items-center gap-2 mb-1.5"><card.icon className="h-4 w-4 text-muted-foreground" /><span className="text-sm font-semibold">{card.title}</span></div>
-                            <p className="text-xs text-muted-foreground">{card.description}</p>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+          {!tipo && <RelatorioCatalogo onSelect={handleSelectTipo} />}
 
           {/* ── Active report ── */}
           {!!tipo && selectedMeta && (
