@@ -52,13 +52,16 @@ export function AppSidebar({
   );
 
   const containerClasses = collapsed ? 'w-[72px]' : 'w-[240px]';
+  const transitionClasses =
+    'transition-[width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[width]';
   const dashboardActive = location.pathname === dashboardItem.path;
 
   return (
     <aside
       aria-label="Barra lateral principal"
       className={[
-        'fixed inset-y-0 left-0 z-50 flex h-screen flex-col border-r border-border bg-card transition-all duration-200',
+        'fixed inset-y-0 left-0 z-50 flex h-screen flex-col overflow-hidden border-r border-border bg-card',
+        transitionClasses,
         containerClasses,
       ].join(' ')}
     >
