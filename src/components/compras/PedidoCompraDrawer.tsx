@@ -11,6 +11,9 @@ import { RelationalLink } from "@/components/ui/RelationalLink";
 import { useActionLock } from "@/hooks/useActionLock";
 import { getPedidoCompraPermissions, isVencido } from "@/lib/drawerPermissions";
 import { canonicalPedidoStatus, pedidoCanReceive, pedidoRecebimentoLabel } from "./comprasStatus";
+import { RegistrarRecebimentoDialog } from "./RegistrarRecebimentoDialog";
+import { EstornarRecebimentoDialog } from "./EstornarRecebimentoDialog";
+import { useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -32,6 +35,8 @@ import {
   Clock,
   Truck,
   XCircle,
+  RotateCcw,
+  ExternalLink,
 } from "lucide-react";
 import { PedidoCompra, pedidoNumero } from "./pedidoCompraTypes";
 import type {
@@ -56,6 +61,7 @@ interface PedidoCompraDrawerProps {
   onSolicitarAprovacao?: (p: PedidoCompra) => void;
   onAprovar?: (p: PedidoCompra) => void;
   onRejeitar?: (p: PedidoCompra, motivo: string) => void;
+  onAfterRecebimentoChange?: () => void;
   isAdmin?: boolean;
   statusLabels: Record<string, string>;
 }
