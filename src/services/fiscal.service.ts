@@ -1,10 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- Supabase update type workaround */
 import { supabase } from "@/integrations/supabase/client";
-import {
-  calcularValorParcela,
-  calcularVencimentoParcela,
-  calcularStatusFaturamentoOV,
-} from "@/lib/fiscal";
 
 // ── Event logging ──────────────────────────────────────────────────────────────
 
