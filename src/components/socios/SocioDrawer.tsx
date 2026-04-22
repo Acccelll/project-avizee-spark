@@ -49,26 +49,21 @@ export function SocioDrawer({ open, onClose, socio, onEdit }: Props) {
   const participacaoVigente = participacoes.find((p) => !p.vigencia_fim) ?? participacoes[0];
 
   const summary = (
-    <DrawerSummaryGrid columns={4}>
+    <DrawerSummaryGrid cols={4}>
       <DrawerSummaryCard
         label="Participação atual"
         value={`${Number(socio.percentual_participacao_atual ?? 0).toFixed(2)}%`}
-        icon={Percent}
+        tone="primary"
       />
-      <DrawerSummaryCard
-        label="Pró-labore (acum.)"
-        value={formatCurrency(totais.proLabore)}
-        icon={Briefcase}
-      />
+      <DrawerSummaryCard label="Pró-labore (acum.)" value={formatCurrency(totais.proLabore)} />
       <DrawerSummaryCard
         label="Bônus + Distribuição"
         value={formatCurrency(totais.bonus + totais.distribuicao)}
-        icon={Wallet}
       />
       <DrawerSummaryCard
         label="Total retirado"
         value={formatCurrency(totais.totalRetirado)}
-        icon={ArrowDownRight}
+        tone="success"
       />
     </DrawerSummaryGrid>
   );
