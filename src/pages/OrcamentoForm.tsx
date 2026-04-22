@@ -1,4 +1,3 @@
-import type { Json } from "@/integrations/supabase/types";
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -37,6 +36,7 @@ import { calcularRentabilidade, type InternalCostCandidate } from "@/lib/orcamen
 import { getOrcamentoInternalAccess } from "@/lib/orcamentoInternalAccess";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
+import { useOrcamentoTemplates, type OrcamentoTemplate } from "@/pages/comercial/hooks/useOrcamentoTemplates";
 
 interface ClienteSnapshot {
   nome_razao_social: string; nome_fantasia: string; cpf_cnpj: string;
@@ -93,15 +93,6 @@ interface SalvarOrcamentoItemPayload {
   peso_total: number;
 }
 
-
-const TEAM_TEMPLATE_KEY = "orcamento_template:shared";
-
-interface OrcamentoTemplate {
-  id: string;
-  nome: string;
-  escopo: "usuario" | "equipe";
-  payload: TemplateConfig;
-}
 
 const emptyCliente: ClienteSnapshot = {
   nome_razao_social: "", nome_fantasia: "", cpf_cnpj: "", inscricao_estadual: "",
