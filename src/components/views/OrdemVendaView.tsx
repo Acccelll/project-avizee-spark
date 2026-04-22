@@ -148,6 +148,15 @@ export function OrdemVendaView({ id }: Props) {
   const lancamentos = data?.lancamentos ?? [];
   const devolucoes = data?.devolucoes ?? [];
 
+  // Realtime: refaz fetch do detalhe quando o pedido em foco ou suas NFs
+  // mudam (ex.: faturamento iniciado em outra aba, NF confirmada). Evita
+  // mostrar status_faturamento desatualizado ao usuário.
+  useEffect(() => {
+    return subscribeComercial(() => {
+      reload();
+    });
+  }, [reload]);
+
   const handleGenerateNF = async () => {
     if (!selected) return;
     await run("generate_nf", async () => {
