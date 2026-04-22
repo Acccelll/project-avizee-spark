@@ -27,6 +27,7 @@ import { exportarParaExcel } from "@/services/export.service";
 import type { Lancamento, ContaBancaria } from "@/types/domain";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import { displayDescricao } from "@/lib/displayLancamento";
+import { getEffectiveStatus as libGetEffectiveStatus } from "@/lib/financeiro";
 
 type Periodicidade = "diaria" | "semanal" | "mensal";
 
@@ -65,12 +66,13 @@ const statusOpts: MultiSelectOption[] = [
   { value: "cancelado", label: "Cancelado" },
 ];
 
-const getEffectiveStatus = (l: Lancamento, hoje: Date): string => {
-  if (l.status === "pago" || l.status === "cancelado") return l.status;
-  const venc = new Date(l.data_vencimento + "T00:00:00");
-  if (venc < hoje) return "vencido";
-  return l.status;
-};
+/**
+ * Wrapper local que adapta a função pura `lib/financeiro.getEffectiveStatus`
+ * para a assinatura antiga (Lancamento, Date). Mantém "parcial" e "cancelado"
+ * como estados terminais e deriva "vencido" para títulos em aberto.
+ */
+const getEffectiveStatus = (l: Lancamento, hoje: Date): string =>
+  libGetEffectiveStatus(l.status ?? "aberto", l.data_vencimento ?? "", hoje);
 
 const FluxoCaixa = () => {
   const [searchParams, setSearchParams] = useSearchParams();
