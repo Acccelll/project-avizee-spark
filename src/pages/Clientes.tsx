@@ -193,7 +193,7 @@ const Clientes = () => {
       cpf_cnpj: c.cpf_cnpj || "", inscricao_estadual: c.inscricao_estadual || "",
       email: c.email || "", telefone: c.telefone || "", celular: c.celular || "", contato: c.contato || "",
       prazo_padrao: c.prazo_padrao || 30, limite_credito: c.limite_credito || 0,
-      forma_pagamento_padrao: c.forma_pagamento_padrao || "",
+      forma_pagamento_id: c.forma_pagamento_id || "",
       prazo_preferencial: c.prazo_preferencial || 0,
       logradouro: c.logradouro || "", numero: c.numero || "", complemento: c.complemento || "",
       bairro: c.bairro || "", cidade: c.cidade || "", uf: c.uf || "", cep: c.cep || "",
@@ -228,7 +228,11 @@ const Clientes = () => {
       ...form,
       grupo_economico_id: form.grupo_economico_id || null,
       caixa_postal: form.caixa_postal || null,
-      forma_pagamento_padrao: form.forma_pagamento_padrao || null,
+      forma_pagamento_id: form.forma_pagamento_id || null,
+      // Coluna textual legada mantida em sync para fallback visual.
+      forma_pagamento_padrao: form.forma_pagamento_id
+        ? formasPagamento.find((fp) => fp.id === form.forma_pagamento_id)?.descricao ?? null
+        : null,
       prazo_preferencial: form.prazo_preferencial || null,
     };
     try {
@@ -403,11 +407,11 @@ const Clientes = () => {
         status={mode === "edit" && selected ? <StatusBadge status={selected.ativo ? "ativo" : "inativo"} /> : undefined}
         meta={mode === "edit" && selected ? [
           ...(selected.created_at ? [{ icon: Calendar, label: `Cadastrado em ${formatDate(selected.created_at)}` }] : []),
-          ...(form.forma_pagamento_padrao
+          ...(form.forma_pagamento_id
             ? [{
                 icon: CreditCard,
-                label: formasPagamento.find((fp) => fp.id === form.forma_pagamento_padrao)?.descricao
-                  ?? form.forma_pagamento_padrao,
+                label: formasPagamento.find((fp) => fp.id === form.forma_pagamento_id)?.descricao
+                  ?? "Forma de pagamento",
               }]
             : []),
           ...(form.grupo_economico_id ? [{ icon: Building2, label: grupos.find(g => g.id === form.grupo_economico_id)?.nome ?? "Grupo" }] : []),
@@ -694,8 +698,8 @@ const Clientes = () => {
                     </Tooltip>
                   </div>
                   <Select
-                    value={form.forma_pagamento_padrao || "nenhuma"}
-                    onValueChange={(v) => updateForm({ forma_pagamento_padrao: v === "nenhuma" ? "" : v })}
+                    value={form.forma_pagamento_id || "nenhuma"}
+                    onValueChange={(v) => updateForm({ forma_pagamento_id: v === "nenhuma" ? "" : v })}
                   >
                     <SelectTrigger><SelectValue placeholder="Não definida" /></SelectTrigger>
                     <SelectContent>
