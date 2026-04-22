@@ -884,7 +884,7 @@ export default function Configuracoes() {
                         <span className={cn(
                           'text-xs font-medium',
                           pwdStrength.level === 1 && 'text-destructive',
-                          pwdStrength.level === 2 && 'text-yellow-600 dark:text-yellow-400',
+                          pwdStrength.level === 2 && 'text-warning',
                           pwdStrength.level === 3 && 'text-success',
                         )}>
                           {pwdStrength.label}
