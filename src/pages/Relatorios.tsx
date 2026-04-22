@@ -80,6 +80,8 @@ export default function Relatorios() {
 
   const { clientes, fornecedores, grupos, empresaConfig, limits } = useRelatoriosFiltrosData();
 
+  const { getRowActions, navigateAction, hasActions } = useRelatorioDrillDown(tipo as TipoRelatorio | undefined);
+
   const filtros = useMemo(() => {
     if (tipo === 'dre') return buildDreDateRange(filtrosState, dataInicio, dataFim);
     return {
