@@ -170,6 +170,14 @@ export default function PedidoCompraForm() {
       toast.error("Este status só pode ser definido por ações do fluxo (receber, enviar, cancelar).");
       return;
     }
+    // Validador puro: bloqueia transição inválida antes do round-trip ao banco.
+    if (form.status !== pedido.status) {
+      const v = validarTransicaoPedidoCompra(pedido.status, form.status);
+      if (!v.ok) {
+        toast.error(v.motivo ?? "Transição de status inválida.");
+        return;
+      }
+    }
 
     const header = {
       fornecedor_id: form.fornecedor_id,

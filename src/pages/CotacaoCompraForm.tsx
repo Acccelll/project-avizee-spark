@@ -174,6 +174,14 @@ export default function CotacaoCompraForm() {
       toast.error("O status selecionado só pode ser definido por ações do sistema.");
       return;
     }
+    // Validador puro: bloqueia transição inválida antes do round-trip ao banco.
+    if (cotacao && form.status !== cotacao.status) {
+      const v = validarTransicaoCotacao(cotacao.status, form.status);
+      if (!v.ok) {
+        toast.error(v.motivo ?? "Transição de status inválida.");
+        return;
+      }
+    }
 
     await submit(async () => {
       const payload = {
