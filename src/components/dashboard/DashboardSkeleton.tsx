@@ -16,8 +16,8 @@ export function DashboardSkeleton() {
       </div>
 
       {/* KPI cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, i) => (
           <div key={i} className="rounded-xl border bg-card p-5 space-y-3">
             <div className="flex justify-between">
               <div className="space-y-2 flex-1">
@@ -29,6 +29,20 @@ export function DashboardSkeleton() {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Operational cards */}
+      <div>
+        <Skeleton className="h-3 w-40 mb-2" />
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="rounded-xl border bg-card p-3 space-y-2">
+              <Skeleton className="h-3 w-20" />
+              <Skeleton className="h-6 w-12" />
+              <Skeleton className="h-3 w-16" />
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Alert strip */}
