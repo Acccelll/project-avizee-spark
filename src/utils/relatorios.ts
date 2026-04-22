@@ -5,7 +5,6 @@
  */
 
 import type { VendasRow, AgingRow, CurvaAbcRow } from "@/types/relatorios";
-import type { TipoRelatorio } from "@/services/relatorios.service";
 
 // ─── Sales aggregation ───────────────────────────────────────────────────────
 
