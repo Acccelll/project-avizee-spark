@@ -71,13 +71,39 @@ function normalizeRole(role: string | undefined): AppRole {
 }
 
 function normalizePermissions(permissionKeys: unknown) {
-  if (!Array.isArray(permissionKeys)) return [] as Array<{ resource: string; action: string; allowed: true }>;
-  return permissionKeys
-    .filter((value): value is string => typeof value === "string" && value.includes(":"))
-    .map((value) => {
+  // Aceita 3 shapes (back-compat):
+  //  1. `string[]`                        — só allow (legado)
+  //  2. `{ allow, deny }`                 — tri-state explícito (novo)
+  //  3. `null/undefined`                  — sem mudanças
+  type Desired = { resource: string; action: string; allowed: boolean };
+  const out: Desired[] = [];
+  const seen = new Set<string>();
+
+  const pushList = (list: unknown, allowed: boolean) => {
+    if (!Array.isArray(list)) return;
+    for (const value of list) {
+      if (typeof value !== "string" || !value.includes(":")) continue;
       const [resource, action] = value.split(":");
-      return { resource, action, allowed: true as const };
-    });
+      const key = `${resource}:${action}`;
+      // `deny` vence se a mesma chave aparecer nos dois (defesa em profundidade)
+      if (seen.has(key)) {
+        const idx = out.findIndex((p) => `${p.resource}:${p.action}` === key);
+        if (idx >= 0 && !allowed) out[idx].allowed = false;
+        continue;
+      }
+      seen.add(key);
+      out.push({ resource, action, allowed });
+    }
+  };
+
+  if (Array.isArray(permissionKeys)) {
+    pushList(permissionKeys, true);
+  } else if (permissionKeys && typeof permissionKeys === "object") {
+    const obj = permissionKeys as { allow?: unknown; deny?: unknown };
+    pushList(obj.allow, true);
+    pushList(obj.deny, false);
+  }
+  return out;
 }
 
 function isUserActive(user: any) {
@@ -108,11 +134,14 @@ async function replaceUserRole(serviceClient: any, userId: string, role: AppRole
 async function replaceUserPermissions(serviceClient: any, userId: string, permissionKeys: unknown) {
   // Estratégia não-destrutiva (preserva granted_by/granted_at/motivo originais):
   //   INSERT  → permissões novas que não existiam.
-  //   UPDATE  → permissões hoje removidas (allowed=false em vez de DELETE).
-  //   UPDATE  → permissões re-adicionadas (allowed=true se estava false).
+  //   UPDATE  → permissões cujo `allowed` mudou (true↔false).
+  //   UPDATE  → permissões hoje removidas do payload (allowed=false em vez de DELETE).
   // Histórico é capturado pelo trigger trg_user_permissions_audit.
+  //
+  // O payload aceita tanto `string[]` (legado, só allow) quanto
+  // `{ allow, deny }` (novo, tri-state). Ver `normalizePermissions`.
   const desired = normalizePermissions(permissionKeys);
-  const desiredKeys = new Set(desired.map((p) => `${p.resource}:${p.action}`));
+  const desiredMap = new Map(desired.map((p) => [`${p.resource}:${p.action}`, p.allowed]));
 
   const { data: current, error: fetchError } = await serviceClient
     .from("user_permissions")
@@ -121,7 +150,7 @@ async function replaceUserPermissions(serviceClient: any, userId: string, permis
   if (fetchError) throw fetchError;
 
   const currentMap = new Map<string, { allowed: boolean }>(
-    (current ?? []).map((r: any) => [`${r.resource}:${r.action}`, { allowed: r.allowed !== false }])
+    (current ?? []).map((r: any) => [`${r.resource}:${r.action}`, { allowed: r.allowed !== false }]),
   );
 
   // INSERTS
@@ -133,29 +162,33 @@ async function replaceUserPermissions(serviceClient: any, userId: string, permis
     if (error) throw error;
   }
 
-  // RE-ENABLE: estava allowed=false e agora deve ser true
-  const toReenable = desired.filter((p) => {
-    const cur = currentMap.get(`${p.resource}:${p.action}`);
-    return cur && !cur.allowed;
-  });
-  for (const p of toReenable) {
+  // FLIPS: linhas existentes cujo `allowed` precisa mudar para refletir o desired
+  for (const p of desired) {
+    const key = `${p.resource}:${p.action}`;
+    const cur = currentMap.get(key);
+    if (!cur) continue; // já tratado em INSERTS
+    if (cur.allowed === p.allowed) continue; // sem mudança
     const { error } = await serviceClient
       .from("user_permissions")
-      .update({ allowed: true, updated_at: new Date().toISOString() })
+      .update({ allowed: p.allowed, updated_at: new Date().toISOString() })
       .eq("user_id", userId).eq("resource", p.resource).eq("action", p.action);
     if (error) throw error;
   }
 
-  // REVOKE: estava na tabela e não está mais no desired → marcar allowed=false
+  // OMITTED: linhas que estavam na tabela mas saíram do desired → tratar como
+  // "remover override". Para preservar histórico, marcamos allowed=false. Se
+  // a permissão antes era allow, isso vira deny (decisão consciente: "removi"
+  // = "não quero mais que herde"). Para restaurar herança, reenviar com a
+  // chave em `allow` ou apagar manualmente.
   for (const [key, val] of currentMap) {
-    if (!desiredKeys.has(key) && val.allowed) {
-      const [resource, action] = key.split(":");
-      const { error } = await serviceClient
-        .from("user_permissions")
-        .update({ allowed: false, updated_at: new Date().toISOString() })
-        .eq("user_id", userId).eq("resource", resource).eq("action", action);
-      if (error) throw error;
-    }
+    if (desiredMap.has(key)) continue;
+    if (!val.allowed) continue; // já está false; nada a fazer
+    const [resource, action] = key.split(":");
+    const { error } = await serviceClient
+      .from("user_permissions")
+      .update({ allowed: false, updated_at: new Date().toISOString() })
+      .eq("user_id", userId).eq("resource", resource).eq("action", action);
+    if (error) throw error;
   }
 }
 
