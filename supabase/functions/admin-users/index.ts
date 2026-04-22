@@ -227,7 +227,9 @@ async function listUsers(serviceClient: any) {
     serviceClient.auth.admin.listUsers({ page: 1, perPage: 1000 }),
     serviceClient.from("profiles").select("id, nome, email, cargo, created_at, updated_at"),
     serviceClient.from("user_roles").select("user_id, role"),
-    serviceClient.from("user_permissions").select("user_id, resource, action").eq("allowed", true),
+    // Carrega allow E deny — UI tri-state precisa dos dois, e o badge "exceções"
+    // passa a contar tanto concedidas quanto revogadas.
+    serviceClient.from("user_permissions").select("user_id, resource, action, allowed"),
   ]);
 
   if (authUsersResult.error) throw authUsersResult.error;
@@ -251,12 +253,15 @@ async function listUsers(serviceClient: any) {
     roleMap.set(uid, existing);
   }
 
-  const permissionMap = new Map<string, string[]>();
+  const allowMap = new Map<string, string[]>();
+  const denyMap = new Map<string, string[]>();
   for (const permission of permissions) {
     const uid = (permission as any).user_id as string;
-    const existing = permissionMap.get(uid) ?? [];
-    existing.push(`${(permission as any).resource}:${(permission as any).action}`);
-    permissionMap.set(uid, existing);
+    const key = `${(permission as any).resource}:${(permission as any).action}`;
+    const target = (permission as any).allowed === false ? denyMap : allowMap;
+    const existing = target.get(uid) ?? [];
+    existing.push(key);
+    target.set(uid, existing);
   }
 
   const userIds = new Set<string>([
@@ -280,7 +285,8 @@ async function listUsers(serviceClient: any) {
         created_at: profile?.created_at ?? authUser?.created_at ?? new Date().toISOString(),
         updated_at: profile?.updated_at ?? authUser?.updated_at ?? profile?.created_at ?? new Date().toISOString(),
         role_padrao: roleMap.get(userId)?.[0] ?? "vendedor",
-        extra_permissions: permissionMap.get(userId) ?? [],
+        extra_permissions: allowMap.get(userId) ?? [],
+        denied_permissions: denyMap.get(userId) ?? [],
         last_sign_in: authUser?.last_sign_in_at ?? null,
       };
     })
