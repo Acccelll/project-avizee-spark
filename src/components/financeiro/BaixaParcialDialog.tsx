@@ -227,6 +227,35 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
               <div className="space-y-1.5">
                 <Label className="text-xs">Valor a Pagar *</Label>
                 <Input type="number" step="0.01" min={0} max={saldoAtual} value={valorPago} onChange={(e) => setValorPago(Number(e.target.value))} />
+                <div className="flex flex-wrap gap-1 pt-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setValorPago(saldoAtual)}
+                    disabled={isStatusBlocked}
+                    className="text-[10px] font-medium px-2 py-0.5 rounded-md border border-border bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                    aria-label="Preencher com saldo total"
+                  >
+                    Saldo total
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setValorPago(Number((saldoAtual / 2).toFixed(2)))}
+                    disabled={isStatusBlocked}
+                    className="text-[10px] font-medium px-2 py-0.5 rounded-md border border-border bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                    aria-label="Preencher com 50% do saldo"
+                  >
+                    50%
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setValorPago(0)}
+                    disabled={isStatusBlocked}
+                    className="text-[10px] font-medium px-2 py-0.5 rounded-md border border-border bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                    aria-label="Limpar valor"
+                  >
+                    Limpar
+                  </button>
+                </div>
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Desconto</Label>
