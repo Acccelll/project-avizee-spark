@@ -5,6 +5,26 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useDashboardPeriod, type DashboardPeriod } from '@/contexts/DashboardPeriodContext';
 
+const periodLabels: Record<DashboardPeriod, string> = {
+  today: 'Hoje',
+  week: 'Esta semana',
+  month: 'Este mês',
+  '30d': 'Últimos 30 dias',
+  custom: 'Personalizado',
+};
+
+function formatRange(dateFrom: string, dateTo: string): string {
+  // dateFrom / dateTo são YYYY-MM-DD locais.
+  const fmt = (iso: string) => {
+    const [y, m, d] = iso.split('-').map(Number);
+    if (!y || !m || !d) return iso;
+    const date = new Date(y, m - 1, d);
+    return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+  };
+  if (dateFrom === dateTo) return fmt(dateFrom);
+  return `${fmt(dateFrom)} – ${fmt(dateTo)}`;
+}
+
 interface DashboardHeaderProps {
   lastUpdated?: Date;
   onRefresh?: () => void;
@@ -23,6 +43,7 @@ export function DashboardHeader({ lastUpdated, onRefresh, rightSlot }: Dashboard
     applyCustomRange,
     customRangeDirty,
     customRangeInvalid,
+    range,
   } = useDashboardPeriod();
 
   const now = new Date();
@@ -47,6 +68,14 @@ export function DashboardHeader({ lastUpdated, onRefresh, rightSlot }: Dashboard
             <span className="flex items-center gap-1">
               <RefreshCw className="h-3 w-3" />
               Atualizado às {lastUpdatedLabel}
+            </span>
+            <span className="hidden md:inline text-border">·</span>
+            <span
+              className="flex items-center gap-1"
+              title="Intervalo efetivo aplicado aos blocos sensíveis ao período"
+            >
+              <CalendarRange className="h-3 w-3" />
+              {periodLabels[period]}: {formatRange(range.dateFrom, range.dateTo)}
             </span>
           </div>
         </div>

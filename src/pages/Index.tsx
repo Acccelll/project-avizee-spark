@@ -1,15 +1,4 @@
 import { Fragment, lazy, Suspense, useState, type ReactNode } from "react";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
 import { SummaryCard } from "@/components/SummaryCard";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { AlertStrip } from "@/components/dashboard/AlertStrip";
@@ -23,10 +12,9 @@ import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { PendenciasList } from "@/components/dashboard/PendenciasList";
 import { DashboardCard } from "@/components/dashboard/DashboardCard";
 import { BlockErrorBoundary } from "@/components/dashboard/BlockErrorBoundary";
-import { ViewDrawerV2 } from "@/components/ViewDrawerV2";
+import { KpiDetailDrawer, type KpiMetricKey } from "@/components/dashboard/KpiDetailDrawer";
 import { useAuth } from "@/contexts/AuthContext";
 import { DashboardPeriodProvider } from "@/contexts/DashboardPeriodContext";
-import { formatCurrency } from "@/lib/format";
 import { useNavigate } from "react-router-dom";
 import { useMetas } from "@/hooks/useMetas";
 import { useInView } from "@/hooks/useInView";
@@ -80,7 +68,7 @@ const DashboardContent = () => {
   const { prefs, toggleVisibility, moveWidget, resetLayout } = useDashboardLayout(user?.id);
   const isVisible = (id: WidgetId) => !prefs.hidden.includes(id);
 
-  const [metricDrawer, setMetricDrawer] = useState<null | "receber" | "pagar" | "saldo" | "estoque">(null);
+  const [metricDrawer, setMetricDrawer] = useState<KpiMetricKey | null>(null);
 
   const {
     stats,
@@ -93,7 +81,6 @@ const DashboardContent = () => {
     comprasAtrasadasCount,
     dailyPagar,
     dailyReceber,
-    dailyVendas,
     estoqueBaixo,
     faturamento,
     fiscalStats,
@@ -101,7 +88,6 @@ const DashboardContent = () => {
     remessasAtrasadas,
     ticketMedio,
     topClientes,
-    topProdutos,
     valorEstoque,
     vencimentosHoje,
   } = useDashboardData();
@@ -136,15 +122,10 @@ const DashboardContent = () => {
     dailyPagar,
     topClientes,
     estoqueBaixo,
-    dailyVendas,
-    topProdutos,
   });
 
   if (loading) {
-    return (
-      <><DashboardSkeleton />
-      </>
-    );
+    return <DashboardSkeleton />;
   }
 
   const openMetric = metricDrawer ? detailData[metricDrawer] : null;
