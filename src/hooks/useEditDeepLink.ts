@@ -32,7 +32,6 @@ export function useEditDeepLink<T = Record<string, unknown>>(opts: {
     if (!editId) return;
 
     let cancelled = false;
-    // @ts-expect-error tabela tipada por união; supabase aceita string em runtime
     supabase.from(opts.table).select("*").eq("id", editId).maybeSingle().then(({ data }) => {
       if (cancelled) return;
       if (data) opts.onLoad(data as T);
