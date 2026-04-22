@@ -27,6 +27,7 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import { useEffect } from "react";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
+import { useEditDirtyForm } from "@/hooks/useEditDirtyForm";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useDocumentoUnico } from "@/hooks/useDocumentoUnico";
 import { useEditDeepLink } from "@/hooks/useEditDeepLink";
@@ -90,8 +91,7 @@ export default function Funcionarios() {
   const [modalOpen, setModalOpen] = useState(false);
   const [selected, setSelected] = useState<Funcionario | null>(null);
   const [mode, setMode] = useState<"create" | "edit">("create");
-  const [form, setForm] = useState<FuncionarioForm>(emptyForm);
-  const [baselineForm, setBaselineForm] = useState<FuncionarioForm>(emptyForm);
+  const { form, setForm, updateForm, reset, isDirty: isFormDirty, markPristine } = useEditDirtyForm<FuncionarioForm>(emptyForm);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const { saving: submitting, submit } = useSubmitLock();
   const { isUnique: cpfUnico, isLoading: cpfChecking } = useDocumentoUnico("cpf", form.cpf, selected?.id, "funcionarios");
