@@ -632,8 +632,18 @@ export function PedidoCompraDrawer({
                 <SendHorizontal className="w-4 h-4" /> Marcar como Enviado
               </Button>
             )}
+            {canEstornar && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2 text-warning border-warning/30 hover:bg-warning/10 hover:text-warning"
+                onClick={() => setEstornoOpen(true)}
+              >
+                <RotateCcw className="w-4 h-4" /> Estornar recebimento
+              </Button>
+            )}
             {canReceive && (
-              <Button size="sm" className="gap-2" disabled={receivePending} onClick={() => runReceive(() => onReceive(selected))}>
+              <Button size="sm" className="gap-2" disabled={receivePending} onClick={() => setReceberOpen(true)}>
                 <PackageCheck className="w-4 h-4" /> Registrar Recebimento
               </Button>
             )}
