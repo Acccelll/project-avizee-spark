@@ -7,6 +7,21 @@ import { cn } from "@/lib/utils";
 import { CreditCard } from "lucide-react";
 import type { Lancamento } from "@/types/domain";
 import { displayDescricao } from "@/lib/displayLancamento";
+import { getOrigemLabel } from "@/lib/financeiro";
+
+/**
+ * Mapa visual de origem (Fase 6) — usa tokens semânticos da paleta.
+ * Mantém alinhamento com `origem_tipo` do modelo canônico.
+ */
+const ORIGEM_BADGE_CLASSES: Record<string, string> = {
+  fiscal_nota: "border-info/40 text-info bg-info/5",
+  comercial: "border-primary/40 text-primary bg-primary/5",
+  compras: "border-warning/40 text-warning bg-warning/5",
+  parcelamento: "border-muted-foreground/30 text-muted-foreground bg-muted/40",
+  manual: "border-border text-muted-foreground bg-transparent",
+  sistemica: "border-accent/50 text-accent-foreground bg-accent/30",
+  societario: "border-success/40 text-success bg-success/5",
+};
 
 interface Params {
   getLancamentoStatus: (l: Lancamento) => string;
@@ -136,17 +151,14 @@ export function buildFinanceiroColumns({ getLancamentoStatus, hoje, hojeStr, onB
       label: "Origem",
       hidden: true,
       render: (l: Lancamento) => {
-        if (l.nota_fiscal_id)
-          return (
-            <Badge
-              variant="outline"
-              className="text-xs border-primary/30 text-primary bg-primary/5 whitespace-nowrap"
-            >
-              NF Fiscal
-            </Badge>
-          );
-        if (l.documento_pai_id) return <Badge variant="outline" className="text-xs whitespace-nowrap">Parcelamento</Badge>;
-        return <Badge variant="outline" className="text-xs text-muted-foreground whitespace-nowrap">Manual</Badge>;
+        const tipoRaw = (l as Lancamento & { origem_tipo?: string | null }).origem_tipo
+          ?? (l.nota_fiscal_id ? "fiscal_nota" : l.documento_pai_id ? "parcelamento" : "manual");
+        const cls = ORIGEM_BADGE_CLASSES[tipoRaw] ?? ORIGEM_BADGE_CLASSES.manual;
+        return (
+          <Badge variant="outline" className={cn("text-xs whitespace-nowrap", cls)}>
+            {getOrigemLabel(l)}
+          </Badge>
+        );
       },
     },
     {
