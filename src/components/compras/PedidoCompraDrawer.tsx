@@ -82,6 +82,7 @@ export function PedidoCompraDrawer({
   onSolicitarAprovacao,
   onAprovar,
   onRejeitar,
+  onAfterRecebimentoChange,
   isAdmin,
   statusLabels,
 }: PedidoCompraDrawerProps) {
@@ -89,6 +90,9 @@ export function PedidoCompraDrawer({
   const [cancelMotivo, setCancelMotivo] = useState("");
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectMotivo, setRejectMotivo] = useState("");
+  const [receberOpen, setReceberOpen] = useState(false);
+  const [estornoOpen, setEstornoOpen] = useState(false);
+  const navigate = useNavigate();
   const pedidoStatus = canonicalPedidoStatus(selected.status);
 
   const { pending: sendPending, run: runSend } = useActionLock();
