@@ -6068,10 +6068,12 @@ export type Database = {
         Args: { p_itens?: Json; p_nf_origem_id: string }
         Returns: string
       }
-      gerar_financeiro_folha: {
-        Args: { p_competencia: string; p_data_vencimento: string }
-        Returns: number
-      }
+      gerar_financeiro_folha:
+        | {
+            Args: { p_competencia: string; p_data_vencimento: string }
+            Returns: number
+          }
+        | { Args: { p_folha_id: string }; Returns: Json }
       gerar_nf_de_pedido: { Args: { p_pedido_id: string }; Returns: Json }
       gerar_parcelas_financeiras: {
         Args: {

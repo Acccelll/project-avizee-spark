@@ -76,22 +76,6 @@ function isValidCpf(cpf: string): boolean {
   return calc(10) === Number(digits[9]) && calc(11) === Number(digits[10]);
 }
 
-/**
- * Local augmented type for financeiro_lancamentos rows that include
- * `funcionario_id`.  The generated types don't carry this column yet;
- * this local definition prevents scattered `as any` casts until the
- * DB types are regenerated.
- */
-interface FinanceiroLancamentoComFuncionario {
-  tipo: "pagar";
-  descricao: string;
-  valor: number;
-  data_vencimento: string;
-  status: string;
-  funcionario_id: string;
-  ativo: boolean;
-}
-
 export default function Funcionarios() {
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearch = useDebounce(searchTerm, 350);
@@ -248,57 +232,19 @@ export default function Funcionarios() {
       toast.warning('Lançamentos financeiros já foram gerados para esta folha.');
       return;
     }
-
-    const competenciaDate = new Date(folha.competencia + '-01');
-    const mesRef = competenciaDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-
-    // Data de pagamento: 5º dia útil do mês seguinte (simplificado: dia 5)
-    const proximoMes = new Date(competenciaDate.getFullYear(), competenciaDate.getMonth() + 1, 5);
-    const dataPagamento = proximoMes.toISOString().slice(0, 10);
-
-    // Data FGTS: dia 7 do mês seguinte
-    const dataFgts = new Date(competenciaDate.getFullYear(), competenciaDate.getMonth() + 1, 7)
-      .toISOString().slice(0, 10);
-
-    // Lançamento do salário líquido
-    const salarioPayload: FinanceiroLancamentoComFuncionario = {
-      tipo: 'pagar',
-      descricao: `Salário ${mesRef} — ${selected?.nome}`,
-      valor: folha.valor_liquido,
-      data_vencimento: dataPagamento,
-      status: 'aberto',
-      funcionario_id: folha.funcionario_id,
-      ativo: true,
-    };
-
-    // Calcular e lançar FGTS (8% do salário base)
-    const fgts = Number(folha.salario_base) * 0.08;
-
-    const inserts: Promise<unknown>[] = [
-      // `FinanceiroLancamentoComFuncionario` is a local type (funcionario_id absent from
-      // generated Supabase types). Cast required until types are regenerated.
-      supabase.from('financeiro_lancamentos').insert(salarioPayload as never) as unknown as Promise<unknown>,
-      // Marcar folha como financeiro_gerado
-      supabase.from('folha_pagamento').update({ status: 'pago', financeiro_gerado: true }).eq('id', folha.id) as unknown as Promise<unknown>,
-    ];
-
-    if (fgts > 0) {
-      inserts.push(
-        supabase.from('financeiro_lancamentos').insert({
-          tipo: 'pagar',
-          descricao: `FGTS ${mesRef} — ${selected?.nome}`,
-          valor: fgts,
-          data_vencimento: dataFgts,
-          status: 'aberto',
-          ativo: true,
-        } as never) as unknown as Promise<unknown>
+    try {
+      const { data, error } = await supabase.rpc('gerar_financeiro_folha', { p_folha_id: folha.id });
+      if (error) throw error;
+      const r = data as { ok?: boolean; erro?: string; data_pagamento?: string; data_fgts?: string };
+      if (r?.erro) { toast.error(r.erro); return; }
+      toast.success(
+        `Lançamentos financeiros gerados: salário (${r.data_pagamento}) e FGTS (${r.data_fgts}).`,
       );
+      if (selected) openView(selected);
+    } catch (err) {
+      console.error('[funcionarios] erro ao gerar financeiro:', err);
+      toast.error(getUserFriendlyError(err));
     }
-
-    await Promise.all(inserts);
-
-    toast.success(`Lançamentos financeiros gerados: salário (${dataPagamento}) e FGTS (${dataFgts}).`);
-    openView(selected!);
   };
 
   const filteredData = useMemo(() => {

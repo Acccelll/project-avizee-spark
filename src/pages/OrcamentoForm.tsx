@@ -374,7 +374,7 @@ export default function OrcamentoForm() {
   // eslint-disable-next-line react-hooks/exhaustive-deps -- reset/setValue are stable react-hook-form refs
   }, [id, isEdit]);
 
-  const handleClienteChange = useCallback((cId: string) => {
+  const handleClienteChange = useCallback(async (cId: string) => {
     setValue('clienteId', cId);
     const c = clientes.find((cl) => cl.id === cId);
     if (c) {
@@ -386,8 +386,21 @@ export default function OrcamentoForm() {
         bairro: c.bairro || "", cidade: c.cidade || "", uf: c.uf || "",
         cep: c.cep || "", codigo: c.id?.substring(0, 6) || "",
       });
-      // Auto-fill payment preferences from client
-      if (c.forma_pagamento_padrao && !pagamento) setValue('pagamento', c.forma_pagamento_padrao);
+      // Auto-fill payment preferences: prioriza FK forma_pagamento_id (descrição via join);
+      // mantém leitura legada de forma_pagamento_padrao como fallback até backfill estar completo.
+      if (!pagamento) {
+        let descricaoForma: string | null = null;
+        if (c.forma_pagamento_id) {
+          const { data: fp } = await supabase
+            .from("formas_pagamento")
+            .select("descricao")
+            .eq("id", c.forma_pagamento_id)
+            .maybeSingle();
+          descricaoForma = fp?.descricao ?? null;
+        }
+        const fallback = descricaoForma ?? c.forma_pagamento_padrao ?? null;
+        if (fallback) setValue('pagamento', fallback);
+      }
       if (c.prazo_preferencial && !prazoPagamento) setValue('prazoPagamento', `${c.prazo_preferencial} dias`);
       if (c.prazo_padrao && !prazoPagamento && !c.prazo_preferencial) setValue('prazoPagamento', `${c.prazo_padrao} dias`);
 

@@ -36,6 +36,7 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
+import { transportadoraSchema, validateForm } from "@/lib/validationSchemas";
 
 interface Transportadora {
   id: string;
@@ -255,7 +256,12 @@ export default function Transportadoras() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.nome_razao_social) { toast.error("Razão Social é obrigatória"); return; }
+    const validation = validateForm(transportadoraSchema, form);
+    if (!validation.success) {
+      const firstError = Object.values(validation.errors)[0];
+      toast.error(firstError || "Corrija os erros do formulário");
+      return;
+    }
     if (!docChecking && docUnico === false) {
       toast.error("CNPJ já cadastrado. Corrija antes de salvar.");
       return;

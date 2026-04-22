@@ -28,6 +28,7 @@ interface Props {
 
 type ClienteWithGroup = Tables<"clientes"> & {
   grupos_economicos: { nome: string } | null;
+  formas_pagamento: { descricao: string } | null;
 };
 
 interface VendaRow { id: string; numero: string; data_emissao: string; valor_total: number; status: string }
@@ -56,7 +57,7 @@ export function ClienteView({ id }: Props) {
   const { data, loading, error } = useDetailFetch<ClienteDetail>(id, async (cId, signal) => {
     const { data: c, error: cError } = await supabase
       .from("clientes")
-      .select("*, grupos_economicos!clientes_grupo_economico_id_fkey(nome)")
+      .select("*, grupos_economicos!clientes_grupo_economico_id_fkey(nome), formas_pagamento!clientes_forma_pagamento_id_fkey(descricao)")
       .eq("id", cId)
       .abortSignal(signal)
       .maybeSingle();
@@ -275,7 +276,7 @@ export function ClienteView({ id }: Props) {
              <div className="grid grid-cols-3 gap-4 text-sm">
                <div>
                  <p className="text-[10px] text-muted-foreground uppercase font-semibold">Forma de Pagto</p>
-                 <p className="font-medium">{selected.forma_pagamento_padrao || "Não definida"}</p>
+                 <p className="font-medium">{selected.formas_pagamento?.descricao || selected.forma_pagamento_padrao || "Não definida"}</p>
                </div>
                <div>
                  <p className="text-[10px] text-muted-foreground uppercase font-semibold">Prazo (dias)</p>
