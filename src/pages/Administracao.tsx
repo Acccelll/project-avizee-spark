@@ -1828,26 +1828,6 @@ export default function Administracao() {
       case 'financeiro':
         return renderFinanceiro();
 
-      case 'auditoria':
-        // Redirect immediately — auditoria has its own full page
-        navigate('/auditoria', { replace: true });
-        return (
-          <Card>
-            <CardHeader>
-              <CardTitle>Auditoria</CardTitle>
-              <CardDescription>Rastreabilidade de alterações administrativas e operacionais.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground mb-4">
-                Redirecionando para o módulo de auditoria…
-              </p>
-              <Button variant="outline" onClick={() => navigate('/auditoria')} aria-label="Abrir auditoria completa">
-                <Shield className="mr-2 h-4 w-4" /> Abrir Auditoria Completa
-              </Button>
-            </CardContent>
-          </Card>
-        );
-
       default:
         // Fallback for any unknown section key — show empresa
         return renderEmpresa();
