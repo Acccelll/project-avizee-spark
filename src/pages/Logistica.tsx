@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -24,6 +25,8 @@ import { formatNumber, formatDate } from "@/lib/format";
 import { format } from "date-fns";
 import { EntregaDrawer } from "@/components/logistica/EntregaDrawer";
 import { RecebimentoDrawer } from "@/components/logistica/RecebimentoDrawer";
+import { RegistrarRecebimentoDialog } from "@/components/compras/RegistrarRecebimentoDialog";
+import { TrackingModal } from "@/pages/logistica/components/TrackingModal";
 import { statusRemessa } from "@/lib/statusSchema";
 import { useEntregas } from "@/pages/logistica/hooks/useEntregas";
 import type { Entrega } from "@/pages/logistica/hooks/useEntregas";
@@ -56,8 +59,6 @@ type RemessaEvento = Tables<"remessa_eventos">;
 const remessaStatusMap: Record<string, { label: string; color: string }> = { ...statusRemessa };
 const MULTI_REMESSA_STATUS_MESSAGE =
   "Este pedido possui múltiplas remessas. Atualize status por remessa na aba Remessas.";
-const RECEBIMENTO_REGISTRO_MESSAGE =
-  "Data de recebimento registrada. A consolidação quantitativa permanece no módulo Compras.";
 
 function isAtrasadoEntrega(e: Entrega): boolean {
   if (!e.previsao_entrega || ENTREGA_TERMINAL.has(e.status_logistico)) return false;
@@ -89,7 +90,9 @@ export default function Logistica() {
   const [selectedEntrega, setSelectedEntrega] = useState<Entrega | null>(null);
   const [selectedRecebimento, setSelectedRecebimento] = useState<Recebimento | null>(null);
   const [updatingEntregaId, setUpdatingEntregaId] = useState<string | null>(null);
-  const [markingRecebimentoId, setMarkingRecebimentoId] = useState<string | null>(null);
+  const [recebimentoDialogPedido, setRecebimentoDialogPedido] = useState<Recebimento | null>(null);
+  const [trackingTarget, setTrackingTarget] = useState<{ codigo: string; remessaId: string } | null>(null);
+  const queryClient = useQueryClient();
 
   // Derived lists for filters (computed from hook data)
   const transportadorasList = useMemo(
@@ -341,33 +344,39 @@ export default function Logistica() {
     setUpdatingEntregaId(null);
   };
 
-  const updateRecebimentoStatus = async (recebimento: Recebimento, status: string) => {
+  /**
+   * Abre o diálogo oficial de Compras (RegistrarRecebimentoDialog) para
+   * registrar quantitativamente o recebimento via RPC `registrar_recebimento_compra`.
+   * Isso elimina a divergência anterior em que a Logística apenas carimbava
+   * `data_entrega_real` no pedido sem criar `recebimentos_compra`.
+   */
+  const abrirRegistrarRecebimento = (recebimento: Recebimento) => {
     if (!canEdit) return;
-    const source = getRecebimentoSourceMeta(recebimento.recebimento_real);
-    const ok = await confirm({
-      title: "Confirmar atualização de recebimento",
-      description: `${RECEBIMENTO_STATUS_META[status]?.label ?? status}. ${source.description} A consolidação quantitativa permanece no módulo Compras.`,
-      confirmLabel: "Marcar recebido",
-    });
-    if (!ok) return;
-    setMarkingRecebimentoId(recebimento.id);
-    // Guard: only allow transitions that are valid in the Compras domain.
-    // Writing an arbitrary logistic status (e.g. "em_transito") to pedidos_compra.status
-    // would corrupt the purchasing workflow.  Only "recebido" is safe to propagate here.
-    const ALLOWED_FROM_LOGISTICA = ["recebido"];
-    if (!ALLOWED_FROM_LOGISTICA.includes(status)) {
-      toast.warning("Esta transição deve ser feita no módulo de Compras.");
-      setMarkingRecebimentoId(null);
+    setRecebimentoDialogPedido(recebimento);
+  };
+
+  /**
+   * Abre o TrackingModal para uma entrega.  Como `Entrega` é uma visão
+   * consolidada por OV, buscamos a remessa ativa associada para alimentar
+   * `remessa_id` (necessário para persistir eventos vindos dos Correios).
+   */
+  const abrirRastreioEntrega = async (entrega: Entrega) => {
+    if (!entrega.codigo_rastreio) {
+      toast.warning("Entrega sem código de rastreio");
       return;
     }
-    // Only set data_entrega_real; do not overwrite the Compras status lifecycle.
-    const { error } = await supabase
-      .from("pedidos_compra")
-      .update({ data_entrega_real: new Date().toISOString().slice(0, 10) })
-      .eq("id", recebimento.id);
-    if (error) { toast.error(getUserFriendlyError(error)); setMarkingRecebimentoId(null); return; }
-    toast.success(RECEBIMENTO_REGISTRO_MESSAGE);
-    setMarkingRecebimentoId(null);
+    const { data, error } = await supabase
+      .from("remessas")
+      .select("id")
+      .eq("ordem_venda_id", entrega.id)
+      .eq("ativo", true)
+      .eq("codigo_rastreio", entrega.codigo_rastreio)
+      .maybeSingle();
+    if (error) {
+      toast.error(getUserFriendlyError(error));
+      return;
+    }
+    setTrackingTarget({ codigo: entrega.codigo_rastreio, remessaId: data?.id ?? "" });
   };
 
   const openViewRemessa = (r: Remessa) => { setRemSelected(r); setRemDrawerOpen(true); };
@@ -483,6 +492,11 @@ export default function Logistica() {
       <div className="flex items-center gap-1.5 flex-wrap">
         <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => setSelectedEntrega(item)}><Eye className="h-3.5 w-3.5" />Ver</Button>
         <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-muted-foreground" onClick={() => pushView("ordem_venda", item.id)}><ExternalLink className="h-3.5 w-3.5" />Pedido</Button>
+        {item.codigo_rastreio && (
+          <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => abrirRastreioEntrega(item)}>
+            <Search className="h-3.5 w-3.5" />Rastrear
+          </Button>
+        )}
         {canEdit && (
           <Select value={item.status_logistico} onValueChange={(value) => updateEntregaStatus(item, value)}>
             <SelectTrigger className="h-8 w-[180px] text-xs" disabled={item.exibicao_remessas === "multipla" || updatingEntregaId === item.id || ENTREGA_TERMINAL.has(item.status_logistico)}><SelectValue /></SelectTrigger>
@@ -535,8 +549,8 @@ export default function Logistica() {
         <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => setSelectedRecebimento(item)}><Eye className="h-3.5 w-3.5" />Ver</Button>
         <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-muted-foreground" onClick={() => pushView("pedido_compra", item.id)}><ExternalLink className="h-3.5 w-3.5" />Compra</Button>
         {canEdit && item.status_logistico !== "recebido" && (
-          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => updateRecebimentoStatus(item, "recebido")} disabled={markingRecebimentoId === item.id}>
-            <CheckCheck className="h-3.5 w-3.5 mr-1" />Marcar recebimento logístico
+          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => abrirRegistrarRecebimento(item)}>
+            <CheckCheck className="h-3.5 w-3.5 mr-1" />Registrar recebimento
           </Button>
         )}
       </div>
@@ -552,6 +566,11 @@ export default function Logistica() {
       const s = r.status_transporte ?? "";
       return <StatusBadge status={remessaStatusMap[s]?.color ?? s} />;
     }},
+    { key: "rastrear", label: "Rastrear", render: (r: Remessa) => r.codigo_rastreio ? (
+      <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => setTrackingTarget({ codigo: r.codigo_rastreio!, remessaId: r.id })}>
+        <Search className="h-3.5 w-3.5" />Rastrear
+      </Button>
+    ) : <span className="text-muted-foreground text-xs">—</span> },
   ];
 
   const remSummaryItems = remSelected ? [
@@ -688,6 +707,30 @@ export default function Logistica() {
 
       {/* Recebimento Drawer */}
       <RecebimentoDrawer open={!!selectedRecebimento} onClose={() => setSelectedRecebimento(null)} recebimento={selectedRecebimento} />
+
+      {/* Diálogo oficial de registro de recebimento (Compras) */}
+      <RegistrarRecebimentoDialog
+        open={!!recebimentoDialogPedido}
+        onClose={() => setRecebimentoDialogPedido(null)}
+        pedidoId={recebimentoDialogPedido?.id ?? ""}
+        pedidoNumero={recebimentoDialogPedido?.numero_compra ?? ""}
+        onSuccess={() => {
+          setRecebimentoDialogPedido(null);
+          queryClient.invalidateQueries({ queryKey: ["recebimentos"] });
+          queryClient.invalidateQueries({ queryKey: ["recebimentos-compra"] });
+          queryClient.invalidateQueries({ queryKey: ["estoque-posicao"] });
+        }}
+      />
+
+      {/* Modal de rastreio Correios */}
+      <TrackingModal
+        open={!!trackingTarget}
+        onClose={() => setTrackingTarget(null)}
+        codigoRastreio={trackingTarget?.codigo ?? null}
+        remessaId={trackingTarget?.remessaId}
+      />
+
+      {confirmDialog}
 
       {/* Remessa Detail Drawer */}
       <ViewDrawerV2
