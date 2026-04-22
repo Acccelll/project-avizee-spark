@@ -520,8 +520,8 @@ export default function Logistica() {
         <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => setSelectedRecebimento(item)}><Eye className="h-3.5 w-3.5" />Ver</Button>
         <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-muted-foreground" onClick={() => pushView("pedido_compra", item.id)}><ExternalLink className="h-3.5 w-3.5" />Compra</Button>
         {canEdit && item.status_logistico !== "recebido" && (
-          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => updateRecebimentoStatus(item, "recebido")} disabled={markingRecebimentoId === item.id}>
-            <CheckCheck className="h-3.5 w-3.5 mr-1" />Marcar recebimento logístico
+          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => abrirRegistrarRecebimento(item)}>
+            <CheckCheck className="h-3.5 w-3.5 mr-1" />Registrar recebimento
           </Button>
         )}
       </div>
