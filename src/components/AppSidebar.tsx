@@ -12,7 +12,6 @@ import { useSidebarBadges } from '@/hooks/useSidebarBadges';
 import { SidebarFavorites } from '@/components/sidebar/SidebarFavorites';
 import { SidebarSection } from '@/components/sidebar/SidebarSection';
 import { SidebarFooter } from '@/components/sidebar/SidebarFooter';
-import { SidebarBrand } from '@/components/sidebar/SidebarBrand';
 import { useAppConfigContext } from '@/contexts/AppConfigContext';
 
 interface AppSidebarProps {
@@ -68,25 +67,42 @@ export function AppSidebar({
     >
         {/* Brand */}
         <div className="flex h-14 items-center justify-between border-b border-border/60 px-2">
-          <SidebarBrand
-            collapsed={collapsed}
-            symbolSrc={symbolSrc}
-            logoSrc={logoSrc}
-            marcaTexto={branding.marcaTexto || ''}
-            subtitulo={subtitulo}
-          />
-          <Button
-            variant="ghost"
-            size="icon"
-            className="hidden h-7 w-7 shrink-0 md:inline-flex"
-            onClick={onToggleCollapsed}
-            aria-label={collapsed ? 'Expandir menu lateral' : 'Recolher menu lateral'}
-            title={collapsed ? 'Expandir menu lateral' : 'Recolher menu lateral'}
-          >
-            <ChevronRight
-              className={`h-3.5 w-3.5 transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${collapsed ? '' : 'rotate-180'}`}
-            />
-          </Button>
+          {collapsed ? (
+            <>
+              <img src={symbolSrc} alt="Marca" className="h-8 w-8 object-contain ml-1" />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="hidden h-7 w-7 md:inline-flex"
+                onClick={onToggleCollapsed}
+                aria-label="Expandir menu lateral"
+                title="Expandir menu lateral"
+              >
+                <ChevronRight className="h-3.5 w-3.5" />
+              </Button>
+            </>
+          ) : (
+            <>
+              <div className="flex min-w-0 items-center gap-2 overflow-hidden pl-1">
+                <img src={logoSrc} alt={branding.marcaTexto || 'Logotipo'} className="h-8 max-w-[140px] object-contain" />
+                {subtitulo && (
+                  <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                    {subtitulo}
+                  </span>
+                )}
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="hidden h-7 w-7 md:inline-flex"
+                onClick={onToggleCollapsed}
+                aria-label="Recolher menu lateral"
+                title="Recolher menu lateral"
+              >
+                <ChevronRight className="h-3.5 w-3.5 rotate-180" />
+              </Button>
+            </>
+          )}
         </div>
 
         {/* Search */}
