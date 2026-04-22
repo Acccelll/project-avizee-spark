@@ -46,21 +46,13 @@ import {
   getFiscalSefazStatus,
 } from "@/lib/fiscalStatus";
 import { FiscalInternalStatusBadge, FiscalSefazStatusBadge } from "@/components/fiscal/FiscalStatusBadges";
+import type { NotaFiscal as NotaFiscalDomain } from "@/types/domain";
 
-export interface NotaFiscal {
-  id: string; tipo: string; numero: string; serie: string; chave_acesso: string;
-  data_emissao: string; fornecedor_id: string; cliente_id: string;
-  valor_total: number; status: string; forma_pagamento: string; condicao_pagamento: string;
-  observacoes: string; ativo: boolean; movimenta_estoque: boolean; gera_financeiro: boolean;
-  ordem_venda_id: string | null; conta_contabil_id: string | null;
-  modelo_documento: string; nf_referenciada_id: string | null; tipo_operacao: string;
-  frete_valor: number; icms_valor: number; ipi_valor: number; pis_valor: number;
-  cofins_valor: number; icms_st_valor: number; desconto_valor: number; outras_despesas: number;
-  origem?: string; status_sefaz?: string; natureza_operacao?: string;
-  fornecedores?: { nome_razao_social: string; cpf_cnpj: string };
-  clientes?: { nome_razao_social: string };
-  ordens_venda?: { numero: string };
-}
+/**
+ * Tipo canônico re-exportado de @/types/domain para preservar compat. local.
+ * Centralização: Fase 3 do roadmap fiscal.
+ */
+export type NotaFiscal = NotaFiscalDomain;
 
 interface FiscalForm {
   tipo: string;
