@@ -13,12 +13,24 @@ export interface GridItem {
   valor_total: number;
 }
 
-type ProdutoRow = Record<string, unknown>;
+/**
+ * Minimum shape every product row must satisfy to feed the grid.
+ * Callers can pass richer typed rows (e.g. `ProdutoOptionRow`) and they
+ * remain typed end-to-end without `unknown as` bridges.
+ */
+export interface ItemsGridProdutoBase {
+  id: string | number;
+  nome?: string | null;
+  codigo_interno?: string | null;
+  unidade_medida?: string | null;
+  preco_venda?: number | null;
+  referencia_fornecedor?: string | null;
+}
 
-interface Props {
+interface Props<TProd extends ItemsGridProdutoBase> {
   items: GridItem[];
   onChange: (items: GridItem[]) => void;
-  produtos: ProdutoRow[];
+  produtos: TProd[];
   title?: string;
   readOnly?: boolean;
   /** Per-item validation errors keyed by item index */
@@ -28,14 +40,16 @@ interface Props {
    * Defaults to `preco_venda` when not provided.
    * Use this to supply `preco_custo` (or 0) in purchase contexts.
    */
-  getDefaultUnitPrice?: (produto: ProdutoRow) => number;
+  getDefaultUnitPrice?: (produto: TProd) => number;
 }
 
 const emptyItem = (): GridItem => ({
   produto_id: "", codigo: "", descricao: "", quantidade: 0, valor_unitario: 0, valor_total: 0,
 });
 
-export function ItemsGrid({ items, onChange, produtos, title = "Itens", readOnly = false, itemErrors = {}, getDefaultUnitPrice }: Props) {
+export function ItemsGrid<TProd extends ItemsGridProdutoBase>({
+  items, onChange, produtos, title = "Itens", readOnly = false, itemErrors = {}, getDefaultUnitPrice,
+}: Props<TProd>) {
   const addItem = () => onChange([...items, emptyItem()]);
   const removeItem = (idx: number) => onChange(items.filter((_, i) => i !== idx));
 
@@ -44,7 +58,7 @@ export function ItemsGrid({ items, onChange, produtos, title = "Itens", readOnly
     const item = { ...next[idx], [field]: value };
 
     if (field === "produto_id" && value) {
-      const prod = produtos.find((p) => p.id === value);
+      const prod = produtos.find((p) => String(p.id) === String(value));
       if (prod) {
         item.codigo = String(prod.codigo_interno || "");
         item.descricao = String(prod.nome || "");
@@ -67,7 +81,7 @@ export function ItemsGrid({ items, onChange, produtos, title = "Itens", readOnly
   const total = items.reduce((s, i) => s + (i.valor_total || 0), 0);
 
   const produtoOptions = produtos.map((p) => ({
-    id: p.id as string,
+    id: String(p.id),
     label: String(p.nome || ""),
     sublabel: [p.codigo_interno, p.unidade_medida].filter(Boolean).join(" • "),
     searchTerms: [p.codigo_interno, p.referencia_fornecedor].filter(Boolean) as string[],
