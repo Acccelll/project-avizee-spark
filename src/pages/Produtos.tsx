@@ -34,6 +34,7 @@ import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useEditDirtyForm } from "@/hooks/useEditDirtyForm";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { produtoSchema, validateForm } from "@/lib/validationSchemas";
+import { useEditDeepLink } from "@/hooks/useEditDeepLink";
 
 type TipoItem = "produto" | "insumo";
 
