@@ -167,6 +167,19 @@ const Clientes = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname, location.search, location.state]);
 
+  // Atalho rápido: abrir formulário de criação ao chegar com ?new=1.
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get("new") !== "1") return;
+    openCreate();
+    params.delete("new");
+    navigate(
+      { pathname: location.pathname, search: params.toString() ? `?${params.toString()}` : "" },
+      { replace: true },
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.search]);
+
   const openCreate = () => {
     setMode("create"); setForm({ ...emptyCliente }); setSelected(null); setIsDirty(false);
     setEnderecosCount(0); setComunicacoesCount(0);

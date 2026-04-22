@@ -201,6 +201,18 @@ const Fiscal = () => {
 
   const openCreate = () => { setMode("create"); setForm({ ...emptyForm }); setItems([]); setSelected(null); setParcelas(1); setItemContaContabil({}); setItemFiscalData({}); setModalOpen(true); };
 
+  // Atalho rápido: ?new=1 abre o formulário de emissão.
+  useEffect(() => {
+    if (autoOpened) return;
+    if (searchParams.get("new") !== "1") return;
+    setAutoOpened(true);
+    openCreate();
+    const next = new URLSearchParams(searchParams);
+    next.delete("new");
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, autoOpened]);
+
   // Auto-abre o modal de NF de entrada pré-preenchida quando vem de PC.
   useEffect(() => {
     if (autoOpened || !pedidoCompraOriginId || tipoOriginParam !== "entrada") return;
