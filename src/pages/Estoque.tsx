@@ -215,22 +215,33 @@ const Estoque = () => {
         ? pendingMovForm.quantidade
         : saldo_anterior + qty;
 
-      // Use the official hook/service for a single, atomic update path.
-      // This prevents the old anti-pattern of calling create() + supabase.update() in parallel.
-      await registrar({
-        payload: {
-          produto_id: pendingMovForm.produto_id,
-          tipo: pendingMovForm.tipo,
-          quantidade: Math.abs(qty),
-          saldo_anterior,
-          saldo_atual,
-          motivo: pendingMovForm.motivo,
-          documento_tipo: "manual",
-        },
+      // Roteia via RPC `ajustar_estoque_manual`, que enforca:
+      //  - role admin/estoquista para tipos críticos
+      //  - categoria_ajuste e motivo_estruturado >= 10 chars
+      //  - atualização atômica de produtos.estoque_atual + auditoria
+      const tipoRpc = pendingMovForm.tipo;
+      const isCritico = tipoRpc === "ajuste";
+      // Para entrada/saída a quantidade é o delta; para ajuste é o saldo absoluto.
+      const quantidadeRpc = tipoRpc === "ajuste" ? pendingMovForm.quantidade : Math.abs(qty);
+      await ajustar.mutateAsync({
+        produto_id: pendingMovForm.produto_id,
+        tipo: tipoRpc,
+        quantidade: quantidadeRpc,
+        motivo: pendingMovForm.motivo,
+        categoria_ajuste: isCritico ? pendingMovForm.categoria_ajuste : undefined,
+        motivo_estruturado: isCritico ? pendingMovForm.motivo : undefined,
       });
+      // Variáveis de saldo previstas mantidas apenas para preview na UI.
+      void saldo_anterior; void saldo_atual;
 
       // The hook's onSuccess already calls toast.success + cache invalidation.
-      setForm({ produto_id: "", tipo: "ajuste", quantidade: 0, motivo: "" });
+      setForm({
+        produto_id: "",
+        tipo: "ajuste",
+        quantidade: 0,
+        motivo: "",
+        categoria_ajuste: "correcao_inventario",
+      });
       setPendingMovForm(null);
     } catch (err) {
       // onError in the hook already calls toast.error — log only for debugging.
@@ -608,7 +619,7 @@ const Estoque = () => {
                       <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Tipo de Operação *</Label>
-                    <Select value={form.tipo} onValueChange={(v) => setForm({ ...form, tipo: v })}>
+                     <Select value={form.tipo} onValueChange={(v) => setForm({ ...form, tipo: v as "entrada" | "saida" | "ajuste" })}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="entrada">Entrada — adicionar ao saldo</SelectItem>
@@ -710,11 +721,11 @@ const Estoque = () => {
 
                   {/* Botões fixos no rodapé */}
                   <div className="sticky bottom-0 z-10 -mx-1 px-1 py-3 bg-background/95 backdrop-blur border-t flex justify-end gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setForm({ produto_id: "", tipo: "ajuste", quantidade: 0, motivo: "" })}
-                  >
+                   <Button
+                     type="button"
+                     variant="outline"
+                     onClick={() => setForm({ produto_id: "", tipo: "ajuste", quantidade: 0, motivo: "", categoria_ajuste: "correcao_inventario" })}
+                   >
                     Limpar
                   </Button>
                   <Button type="submit" disabled={saving || pendingSubmit}>
