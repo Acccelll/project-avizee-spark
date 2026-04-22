@@ -74,11 +74,29 @@ interface CotacaoRow {
   data_cotacao: string;
 }
 
+interface FinanceiroLancRow {
+  id: string;
+  descricao: string | null;
+  valor: number | null;
+  status: string | null;
+  data_vencimento: string | null;
+}
+
+interface NfEntradaRow {
+  id: string;
+  numero: string | null;
+  status: string | null;
+  data_emissao: string | null;
+  valor_total: number | null;
+}
+
 interface PedidoCompraDetail {
   pedido: PedidoCompraRow;
   itens: PedidoItemRow[];
   estoque: EstoqueMovRow[];
   cotacao: CotacaoRow | null;
+  financeiro: FinanceiroLancRow[];
+  nfsEntrada: NfEntradaRow[];
 }
 
 function itemValorTotal(i: PedidoItemRow): number {
