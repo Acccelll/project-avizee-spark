@@ -51,7 +51,7 @@ export interface NotaFiscalForEdit {
   conta_contabil_id: string | null;
   modelo_documento: string;
   tipo_operacao?: string;
-  fornecedores?: { nome_razao_social: string; cpf_cnpj: string };
+  fornecedores?: { nome_razao_social: string; cpf_cnpj?: string | null };
   clientes?: { nome_razao_social: string };
   ordens_venda?: { numero: string };
 }
