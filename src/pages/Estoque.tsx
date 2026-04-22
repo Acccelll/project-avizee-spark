@@ -7,7 +7,8 @@ import { SummaryCard } from "@/components/SummaryCard";
 import { EstoqueMovimentacaoDrawer } from "@/components/estoque/EstoqueMovimentacaoDrawer";
 import { EstoquePosicaoDrawer } from "@/components/estoque/EstoquePosicaoDrawer";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
-import { useEstoqueMutations } from "@/pages/estoque/hooks/useEstoqueMutations";
+import { useAjustarEstoque } from "@/pages/estoque/hooks/useAjustarEstoque";
+import { useEstoquePosicao } from "@/pages/estoque/hooks/useEstoque";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -81,14 +82,23 @@ const Estoque = () => {
     table: "estoque_movimentos", select: "*, produtos(nome, sku)", hasAtivo: false,
   });
   const produtosCrud = useSupabaseCrud<ProdutoPosicao>({ table: "produtos" });
-  const { registrar, isSaving: saving } = useEstoqueMutations();
+  const ajustar = useAjustarEstoque();
+  const saving = ajustar.isPending;
+  // Aba Saldos consome a view `vw_estoque_posicao` para refletir reservas.
+  const { data: estoquePosicao = [], isLoading: posicaoLoading } = useEstoquePosicao();
   const [activeTab, setActiveTab] = useState("saldos");
   const [searchParams] = useSearchParams();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selected, setSelected] = useState<Movimento | null>(null);
   const [posicaoDrawerOpen, setPosicaoDrawerOpen] = useState(false);
   const [selectedPosicao, setSelectedPosicao] = useState<ProdutoPosicao | null>(null);
-  const [form, setForm] = useState({ produto_id: "", tipo: "ajuste", quantidade: 0, motivo: "" });
+  const [form, setForm] = useState({
+    produto_id: "",
+    tipo: "ajuste" as "entrada" | "saida" | "ajuste",
+    quantidade: 0,
+    motivo: "",
+    categoria_ajuste: "correcao_inventario",
+  });
   const [confirmMovOpen, setConfirmMovOpen] = useState(false);
   const [pendingMovForm, setPendingMovForm] = useState<typeof form | null>(null);
   const [pendingSubmit, setPendingSubmit] = useState(false);
