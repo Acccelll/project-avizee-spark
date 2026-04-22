@@ -66,7 +66,7 @@ export function ComercialBlock({
       {/* KPIs */}
       <div className="grid grid-cols-3 border-b border-border/60">
         <div className="px-4 py-2">
-          <p className="text-xs text-muted-foreground">Cotações em aberto</p>
+          <p className="text-xs text-muted-foreground">Orçamentos em aberto</p>
           <p className="text-lg font-bold mono mt-0.5">{formatNumber(cotacoesAbertas)}</p>
         </div>
         <div className="px-4 py-2 border-l border-border/60">

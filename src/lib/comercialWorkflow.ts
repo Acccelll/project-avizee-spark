@@ -1,8 +1,8 @@
 import { statusOrcamento, statusPedido } from "@/lib/statusSchema";
 
 export const comercialLabels = {
-  quote: "Cotação",
-  quotes: "Cotações",
+  quote: "Orçamento",
+  quotes: "Orçamentos",
   order: "Pedido",
   orders: "Pedidos",
   invoice: "Nota Fiscal",
