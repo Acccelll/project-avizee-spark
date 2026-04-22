@@ -20,6 +20,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useDetailFetch } from "@/hooks/useDetailFetch";
 import { useDetailActions } from "@/hooks/useDetailActions";
 import { useInvalidateAfterMutation } from "@/hooks/useInvalidateAfterMutation";
+import { cancelarNotaFiscal } from "@/services/fiscal.service";
+import { canConfirmFiscal } from "@/lib/fiscalStatus";
 import type { NotaFiscal } from "@/pages/Fiscal";
 
 export default function FiscalDetail() {
@@ -41,16 +43,15 @@ export default function FiscalDetail() {
   });
 
   function handleDelete(nfId: string) {
-    if (!nf || !["pendente", "rascunho"].includes(nf.status)) {
+    if (!nf || !canConfirmFiscal(nf.status)) {
       toast.error("Inativação permitida apenas para notas em rascunho/pendente.");
       return;
     }
     run("delete", async () => {
-      const { error: delErr } = await supabase
-        .from("notas_fiscais")
-        .update({ ativo: false })
-        .eq("id", nfId);
-      if (delErr) throw delErr;
+      // Unifica comportamento com a página /fiscal: usa RPC canônica
+      // `cancelar_nota_fiscal` (estorna efeitos se necessário, registra evento
+      // e respeita a máquina de estados oficial).
+      await cancelarNotaFiscal(nfId, `NF ${nf.numero} inativada via tela de detalhe.`);
       toast.success("Rascunho fiscal inativado.");
       invalidate(["notas_fiscais", "fiscal"]);
       navigate("/fiscal");

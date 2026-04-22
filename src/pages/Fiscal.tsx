@@ -27,7 +27,7 @@ import { parseNFeXml, type NFeData } from "@/lib/nfeXmlParser";
 import { DanfeViewer } from "@/components/DanfeViewer";
 import { DevolucaoDialog } from "@/components/fiscal/DevolucaoDialog";
 import { NotaFiscalDrawer } from "@/components/fiscal/NotaFiscalDrawer";
-import { confirmarNotaFiscal, estornarNotaFiscal, registrarEventoFiscal, verificarDuplicidadeChave } from "@/services/fiscal.service";
+import { confirmarNotaFiscal, estornarNotaFiscal, registrarEventoFiscal, verificarDuplicidadeChave, cancelarNotaFiscal } from "@/services/fiscal.service";
 import { NotaFiscalEditModal } from "@/components/fiscal/NotaFiscalEditModal";
 import { useActionLock } from "@/hooks/useActionLock";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
@@ -372,14 +372,9 @@ const Fiscal = () => {
     });
     if (!ok) return;
     try {
-      await supabase.from("notas_fiscais").update({ status: "cancelada" }).eq("id", selected.id);
-      await registrarEventoFiscal({
-        nota_fiscal_id: selected.id,
-        tipo_evento: "cancelamento_rascunho",
-        status_anterior: selected.status,
-        status_novo: "cancelada",
-        descricao: `Rascunho da NF ${selected.numero} cancelado pelo usuário.`,
-      });
+      // Usa RPC canônica `cancelar_nota_fiscal`: respeita máquina de estados,
+      // estorna efeitos quando necessário e registra evento dentro da transação.
+      await cancelarNotaFiscal(selected.id, `Rascunho da NF ${selected.numero} cancelado pelo usuário.`);
       toast.success("Rascunho inativado com sucesso.");
       setModalOpen(false);
       fetchData();
@@ -593,8 +588,15 @@ const Fiscal = () => {
       confirmVariant: "destructive",
     });
     if (!ok) return;
-    await remove(nfId);
-    toast.success(`NF ${nf.numero} inativada.`);
+    try {
+      // Unifica com FiscalDetail: usa RPC canônica em vez de DELETE físico.
+      await cancelarNotaFiscal(nfId, `NF ${nf.numero} inativada via grid.`);
+      toast.success(`NF ${nf.numero} inativada.`);
+      fetchData();
+    } catch (err: unknown) {
+      console.error('[fiscal] inativar NF:', err);
+      toast.error(getUserFriendlyError(err));
+    }
   };
 
   const tipoParam = searchParams.get("tipo");
