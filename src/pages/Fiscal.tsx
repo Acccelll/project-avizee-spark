@@ -47,6 +47,7 @@ import {
 } from "@/lib/fiscalStatus";
 import { FiscalInternalStatusBadge, FiscalSefazStatusBadge } from "@/components/fiscal/FiscalStatusBadges";
 import type { NotaFiscal as NotaFiscalDomain } from "@/types/domain";
+import { CertificadoValidadeAlert } from "@/components/fiscal/CertificadoValidadeAlert";
 
 /**
  * Tipo canônico re-exportado de @/types/domain para preservar compat. local.
@@ -625,7 +626,10 @@ const Fiscal = () => {
   const kpis = useMemo(() => {
     const total = filteredData.length;
     const pendentes = filteredData.filter(n => n.status === "pendente").length;
-    const confirmadas = filteredData.filter(n => n.status === "confirmada").length;
+    // Status com efeito ativo (Fase 8 — U3): confirmada + autorizada + importada.
+    const confirmadas = filteredData.filter(n =>
+      ["confirmada", "autorizada", "importada"].includes(n.status)
+    ).length;
     const valorTotal = filteredData.reduce((s, n) => s + Number(n.valor_total || 0), 0);
     return { total, pendentes, confirmadas, valorTotal };
   }, [filteredData]);
@@ -729,7 +733,7 @@ const Fiscal = () => {
     {
       key: "modelo",
       label: "Modelo",
-      hidden: true,
+      // U1: modelo é informação chave em página que mistura NF-e/NFC-e/CT-e/NFS-e.
       render: (n: NotaFiscal) => (
         <span className="text-xs font-mono font-medium">{modeloLabels[n.modelo_documento || "55"] || n.modelo_documento}</span>
       ),
@@ -737,7 +741,7 @@ const Fiscal = () => {
     {
       key: "operacao",
       label: "Operação",
-      hidden: true,
+      // U2: visibilidade de devolução vs operação normal sem precisar abrir a NF.
       render: (n: NotaFiscal) => {
         if ((n.tipo_operacao || "normal") === "devolucao")
           return <span className="text-xs text-warning font-medium">Devolução</span>;
@@ -767,6 +771,7 @@ const Fiscal = () => {
     {
       key: "origem",
       label: "Origem",
+      hidden: true,
       render: (n: NotaFiscal) => (
         <Badge variant="outline" className="text-xs capitalize">
           {origemLabels[n.origem || "manual"] || n.origem || "Manual"}
@@ -800,6 +805,7 @@ const Fiscal = () => {
             description="Vinculando NF de entrada deste pedido"
           />
         )}
+        <CertificadoValidadeAlert />
         <AdvancedFilterBar
           searchValue={consultaSearch}
           onSearchChange={setConsultaSearch}
