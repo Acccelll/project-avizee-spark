@@ -146,7 +146,7 @@ export default function Configuracoes() {
   const { value: densidadePref, save: saveDensidadePref } = useUserPreference<string>(user?.id, 'ui_density', 'confortavel');
   const { value: fontScale, save: saveFontScale } = useUserPreference<number>(user?.id, 'ui_font_scale', 16);
   const { value: reduceMotion, save: saveReduceMotion } = useUserPreference<boolean>(user?.id, 'ui_reduce_motion', false);
-  const { value: sessionKeepalive, save: saveSessionKeepalive } = useUserPreference<boolean>(user?.id, 'session_keepalive', true);
+  const { value: sessionKeepalive, save: saveSessionKeepalive } = useUserPreference<boolean>(user?.id, 'session_keepalive', false);
   const { value: sessionWarnMinutes, save: saveSessionWarnMinutes } = useUserPreference<number>(user?.id, 'session_warn_minutes', 5);
   const { sidebarMode, saveSidebarMode } = useAppConfigContext();
 
@@ -567,10 +567,10 @@ export default function Configuracoes() {
                 <div className="flex items-center justify-between rounded-lg border p-4">
                   <div>
                     <p className="font-medium">Manter sessão ativa</p>
-                    <p className="text-sm text-muted-foreground">Renova automaticamente sua sessão a cada 30 min enquanto a aba estiver aberta.</p>
+                    <p className="text-sm text-muted-foreground">Quando ligado, renova automaticamente a sessão a cada 30 min enquanto a aba estiver aberta — você não verá o aviso de expiração. Padrão: <strong>desligado</strong>, para que o aviso apareça cerca de 55 min após o login.</p>
                   </div>
                   <Switch
-                    checked={sessionKeepalive ?? true}
+                    checked={sessionKeepalive ?? false}
                     onCheckedChange={(c) => saveSessionKeepalive(c)}
                   />
                 </div>
@@ -579,12 +579,13 @@ export default function Configuracoes() {
                   <Select value={String(sessionWarnMinutes ?? 5)} onValueChange={(v) => saveSessionWarnMinutes(Number(v))}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="5">5 minutos antes</SelectItem>
-                      <SelectItem value="15">15 minutos antes</SelectItem>
-                      <SelectItem value="30">30 minutos antes</SelectItem>
-                      <SelectItem value="60">1 hora antes</SelectItem>
+                      <SelectItem value="5">5 minutos antes (≈ 55 min após login)</SelectItem>
+                      <SelectItem value="15">15 minutos antes (≈ 45 min após login)</SelectItem>
+                      <SelectItem value="30">30 minutos antes (≈ 30 min após login)</SelectItem>
+                      <SelectItem value="60">1 hora antes (sessão de 1h: aviso imediato)</SelectItem>
                     </SelectContent>
                   </Select>
+                  <p className="text-xs text-muted-foreground">A sessão padrão dura 1 hora. O aviso aparece o tempo escolhido antes de expirar.</p>
                 </div>
               </div>
 
