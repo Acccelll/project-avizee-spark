@@ -604,7 +604,7 @@ export default function Relatorios() {
                         <Eye className="h-3.5 w-3.5" />
                         Visualizar
                       </Button>
-                      {columns.length > 0 && (
+                      {columns.length > 0 && !isDreReport && (
                         <Popover>
                           <PopoverTrigger asChild>
                             <Button variant="outline" size="sm" className="gap-1.5" aria-label="Personalizar colunas">
