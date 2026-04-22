@@ -541,6 +541,15 @@ export default function Relatorios() {
               />
 
               {/* KPIs */}
+              {hasLocalFiltersApplied && (
+                <div className="rounded-lg border border-warning/40 bg-warning/5 px-3 py-2 text-xs text-foreground flex items-start gap-2">
+                  <span className="font-medium">Atenção:</span>
+                  <span className="text-muted-foreground">
+                    Os KPIs abaixo refletem o universo total ({rows.length} registros) retornado do banco.
+                    A tabela aplica filtros locais e mostra {sortedRows.length} de {rows.length} registros.
+                  </span>
+                </div>
+              )}
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                 {kpiCards.map((kpi) => (
                   <SummaryCard
@@ -689,7 +698,9 @@ export default function Relatorios() {
                           data={sortedRows}
                           loading={isLoading}
                           moduleKey={`relatorios-${tipo}`}
-                          onRowClick={semantics?.investigableField ? () => toast.info('Drill-down em preparação. Em breve você poderá abrir o detalhe desta linha.') : undefined}
+                          // Drill-down de linha será habilitado quando a navegação real estiver
+                          // implementada (Fase 8). Até lá não exibimos cursor pointer + toast inerte.
+                          onRowClick={undefined}
                           emptyTitle={`Nenhum registro em ${selectedMeta.title}`}
                           emptyDescription="Ajuste o período e os filtros para encontrar registros relevantes."
                         />
