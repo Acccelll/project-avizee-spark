@@ -1,6 +1,6 @@
 import { ThemeProvider as NextThemesProvider } from 'next-themes';
 import { ReactNode, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { useBrandingPreview } from '@/hooks/useBrandingPreview';
 
 function hexToHslString(hex: string) {
   const clean = hex.replace('#', '');
@@ -56,21 +56,17 @@ function applyCorporateTheme(primary?: string | null, secondary?: string | null)
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
+  // Branding institucional vem do cache compartilhado (`useBrandingPreview`),
+  // evitando uma segunda leitura concorrente de `empresa_config` no boot.
+  const { branding } = useBrandingPreview();
+
   useEffect(() => {
     applyLocalUiPreferences();
-
-    // Branding institucional vive em empresa_config (colunas dedicadas),
-    // gerenciado apenas por admins via Administracao.tsx → aba Empresa.
-    supabase
-      .from('empresa_config')
-      .select('cor_primaria, cor_secundaria')
-      .limit(1)
-      .maybeSingle()
-      .then(({ data }) => {
-        const row = data as { cor_primaria?: string | null; cor_secundaria?: string | null } | null;
-        applyCorporateTheme(row?.cor_primaria ?? null, row?.cor_secundaria ?? null);
-      });
   }, []);
+
+  useEffect(() => {
+    applyCorporateTheme(branding.corPrimaria, branding.corSecundaria);
+  }, [branding.corPrimaria, branding.corSecundaria]);
 
   return (
     // enableSystem={true} to support the "Sistema" option exposed in Configuracoes > Aparência.

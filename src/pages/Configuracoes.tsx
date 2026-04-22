@@ -5,6 +5,7 @@ import { AlertCircle, ArrowUpRight, Building2, CalendarDays, Check, CheckCircle2
 import { useUserPreference } from '@/hooks/useUserPreference';
 import { useAppConfigContext } from '@/contexts/AppConfigContext';
 import type { SidebarMode } from '@/contexts/AppConfigContext';
+import { useBrandingPreview } from '@/hooks/useBrandingPreview';
 import { ModulePage } from '@/components/ModulePage';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
