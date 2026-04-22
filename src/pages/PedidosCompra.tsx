@@ -155,6 +155,7 @@ export default function PedidosCompra() {
           onSolicitarAprovacao={ctx.solicitarAprovacao}
           onAprovar={ctx.aprovarPedido}
           onRejeitar={ctx.rejeitarPedido}
+          onAfterRecebimentoChange={() => { ctx.refreshAll(); ctx.setDrawerOpen(false); }}
           isAdmin={isAdmin}
           statusLabels={statusLabels}
         />
