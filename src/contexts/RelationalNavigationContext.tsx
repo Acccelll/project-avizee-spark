@@ -14,7 +14,9 @@ export type EntityType =
   | "remessa"
   | "ordem_venda"
   | "grupo_economico"
-  | "forma_pagamento";
+  | "forma_pagamento"
+  | "transportadora"
+  | "funcionario";
 
 const VALID_ENTITY_TYPES: ReadonlyArray<EntityType> = [
   "produto",
@@ -27,6 +29,8 @@ const VALID_ENTITY_TYPES: ReadonlyArray<EntityType> = [
   "ordem_venda",
   "grupo_economico",
   "forma_pagamento",
+  "transportadora",
+  "funcionario",
 ];
 
 export interface ViewState {
