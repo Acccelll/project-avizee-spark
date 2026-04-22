@@ -34,10 +34,7 @@ export async function inutilizarNumeracao(
   certificado: CertificadoDigital,
   urlSefaz: string,
 ): Promise<InutilizacaoResult> {
-  if (!certificado.conteudo || !certificado.senha) {
-    return { sucesso: false, motivo: "Conteúdo e senha do certificado são obrigatórios." };
-  }
-
+  const useVault = !certificado.conteudo || !certificado.senha;
   const xml = construirXMLInutilizacao(
     params.cnpj,
     params.ano,
@@ -53,7 +50,9 @@ export async function inutilizarNumeracao(
     xml,
     urlSefaz,
     "http://www.portalfiscal.inf.br/nfe/wsdl/NFeInutilizacao4/nfeInutilizacaoNF",
-    { certificado_base64: certificado.conteudo, certificado_senha: certificado.senha },
+    useVault
+      ? null
+      : { certificado_base64: certificado.conteudo, certificado_senha: certificado.senha },
   );
 
   if (!resposta.sucesso) {

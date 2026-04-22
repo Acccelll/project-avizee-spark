@@ -23,10 +23,7 @@ export async function consultarNFe(
   certificado: CertificadoDigital,
   urlSefaz: string,
 ): Promise<ConsultaResult> {
-  if (!certificado.conteudo || !certificado.senha) {
-    return { sucesso: false, motivo: "Conteúdo e senha do certificado são obrigatórios." };
-  }
-
+  const useVault = !certificado.conteudo || !certificado.senha;
   const xml = `<consSitNFe versao="4.00" xmlns="http://www.portalfiscal.inf.br/nfe">
     <tpAmb>2</tpAmb>
     <xServ>CONSULTAR</xServ>
@@ -37,7 +34,9 @@ export async function consultarNFe(
     xml,
     urlSefaz,
     "http://www.portalfiscal.inf.br/nfe/wsdl/NFeConsultaProtocolo4/nfeConsultaNF",
-    { certificado_base64: certificado.conteudo, certificado_senha: certificado.senha },
+    useVault
+      ? null
+      : { certificado_base64: certificado.conteudo, certificado_senha: certificado.senha },
   );
 
   if (!resposta.sucesso) {

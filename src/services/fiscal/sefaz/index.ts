@@ -26,3 +26,8 @@ export type { CancelamentoResult } from "./cancelamento.service";
 
 export { inutilizarNumeracao } from "./inutilizacao.service";
 export type { InutilizacaoParams, InutilizacaoResult } from "./inutilizacao.service";
+
+export { resolverUrlSefaz, UFS_SUPORTADAS } from "./sefazUrls.service";
+export type { SefazServico } from "./sefazUrls.service";
+
+export type { CRT, AmbienteSefaz, IndIEDest } from "./xmlBuilder.service";
