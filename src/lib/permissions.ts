@@ -31,6 +31,7 @@ export const ERP_RESOURCES = [
   "social",
   "usuarios",
   "administracao",
+  "socios",
 ] as const;
 
 export const ERP_ACTIONS = [
@@ -90,6 +91,7 @@ export const RESOURCE_LABELS: Record<ErpResource, string> = {
   social: "Social",
   usuarios: "Usuários",
   administracao: "Administração",
+  socios: "Sócios e Participações",
 };
 
 /** Rótulos humanizados para ações ERP — uso em tooltips de botões bloqueados. */
@@ -183,6 +185,7 @@ const rolePermissionMatrix: Record<AppRole, PermissionKey[]> = {
     "social:visualizar",
     "social:exportar",
     "orcamentos:visualizar_rentabilidade",
+    "socios:visualizar",
   ],
   estoquista: [
     "dashboard:visualizar",
