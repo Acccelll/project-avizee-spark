@@ -27,6 +27,7 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import { useEffect } from "react";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
+import { useEditDirtyForm } from "@/hooks/useEditDirtyForm";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useDocumentoUnico } from "@/hooks/useDocumentoUnico";
 import { useEditDeepLink } from "@/hooks/useEditDeepLink";
@@ -90,8 +91,7 @@ export default function Funcionarios() {
   const [modalOpen, setModalOpen] = useState(false);
   const [selected, setSelected] = useState<Funcionario | null>(null);
   const [mode, setMode] = useState<"create" | "edit">("create");
-  const [form, setForm] = useState<FuncionarioForm>(emptyForm);
-  const [baselineForm, setBaselineForm] = useState<FuncionarioForm>(emptyForm);
+  const { form, setForm, updateForm, reset, isDirty: isFormDirty, markPristine } = useEditDirtyForm<FuncionarioForm>(emptyForm);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const { saving: submitting, submit } = useSubmitLock();
   const { isUnique: cpfUnico, isLoading: cpfChecking } = useDocumentoUnico("cpf", form.cpf, selected?.id, "funcionarios");
@@ -126,8 +126,7 @@ export default function Funcionarios() {
 
   const openCreate = () => {
     setMode("create");
-    setForm({ ...emptyForm });
-    setBaselineForm({ ...emptyForm });
+    reset({ ...emptyForm });
     setSelected(null);
     setFolhas([]);
     setLancamentos([]);
@@ -136,18 +135,12 @@ export default function Funcionarios() {
   const openEdit = (f: Funcionario) => {
     setMode("edit"); setSelected(f);
     const next: FuncionarioForm = { nome: f.nome, cpf: f.cpf || "", cargo: f.cargo || "", departamento: f.departamento || "", data_admissao: f.data_admissao, data_demissao: f.data_demissao || null, salario_base: f.salario_base, tipo_contrato: f.tipo_contrato, observacoes: f.observacoes || "", ativo: f.ativo };
-    setForm(next);
-    setBaselineForm(next);
+    reset(next);
     // limpa estados de drawer-context para evitar mostrar dados de registro anterior por instante
     setFolhas([]);
     setLancamentos([]);
     setModalOpen(true);
   };
-
-  const isFormDirty = useMemo(
-    () => JSON.stringify(form) !== JSON.stringify(baselineForm),
-    [form, baselineForm],
-  );
 
   const handleCloseModal = async () => {
     if (isFormDirty) {
@@ -169,7 +162,11 @@ export default function Funcionarios() {
     if (!form.nome.trim()) { toast.error("Nome é obrigatório"); return; }
     const cpfDigits = form.cpf.replace(/\D/g, "");
     if (form.cpf && !isValidCpf(cpfDigits)) { toast.error("CPF inválido"); return; }
-    if (!cpfChecking && cpfUnico === false) {
+    if (cpfChecking) {
+      toast.error("Aguarde a verificação do CPF antes de salvar.");
+      return;
+    }
+    if (cpfUnico === false) {
       toast.error("CPF já cadastrado. Corrija antes de salvar.");
       return;
     }
@@ -182,7 +179,7 @@ export default function Funcionarios() {
           toast.info(`${selected.nome} foi inativado. O histórico de folha foi preservado.`);
         }
       }
-      setBaselineForm(form);
+      markPristine();
       setModalOpen(false);
     });
   };

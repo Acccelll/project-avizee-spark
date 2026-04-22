@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useEditDirtyForm } from "@/hooks/useEditDirtyForm";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
@@ -17,7 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
-import { Loader2, Tag, CheckCircle2 } from "lucide-react";
+import { Loader2, Tag, CheckCircle2, Package } from "lucide-react";
 import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { StatCard } from "@/components/StatCard";
@@ -61,6 +62,27 @@ export default function UnidadesMedida() {
   const { saving, submit } = useSubmitLock();
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
   const [ativoFilters, setAtivoFilters] = useState<string[]>([]);
+
+  // KPI: contagem de produtos por código de unidade (relacionamento atualmente por TEXTO).
+  const [usageMap, setUsageMap] = useState<Record<string, number>>({});
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data: produtos, error } = await supabase
+        .from("produtos")
+        .select("unidade_medida")
+        .eq("ativo", true);
+      if (cancelled || error || !produtos) return;
+      const counts: Record<string, number> = {};
+      for (const p of produtos) {
+        const k = (p.unidade_medida || "").toString().trim().toUpperCase();
+        if (!k) continue;
+        counts[k] = (counts[k] || 0) + 1;
+      }
+      setUsageMap(counts);
+    })();
+    return () => { cancelled = true; };
+  }, [data]);
 
   // Deep-link: abrir edição via ?editId=… (consistência com outras entidades de Cadastros).
   useEditDeepLink<UnidadeMedida>({
@@ -157,6 +179,16 @@ export default function UnidadesMedida() {
         : <span className="text-muted-foreground text-xs">—</span>,
     },
     {
+      key: "uso",
+      label: "Em uso",
+      render: (u: UnidadeMedida) => {
+        const n = usageMap[u.codigo.toUpperCase()] || 0;
+        return n > 0
+          ? <span className="text-xs font-medium">{n} produto{n === 1 ? "" : "s"}</span>
+          : <span className="text-xs text-muted-foreground">—</span>;
+      },
+    },
+    {
       key: "ativo",
       mobileCard: true,
       label: "Status",
@@ -169,10 +201,15 @@ export default function UnidadesMedida() {
     },
   ];
 
-  const kpis = useMemo(() => ({
-    total: data.length,
-    ativas: data.filter(u => u.ativo).length,
-  }), [data]);
+  const kpis = useMemo(() => {
+    const codigosEmUso = new Set(Object.keys(usageMap).filter(k => (usageMap[k] || 0) > 0));
+    const emUso = data.filter(u => codigosEmUso.has(u.codigo.toUpperCase())).length;
+    return {
+      total: data.length,
+      ativas: data.filter(u => u.ativo).length,
+      emUso,
+    };
+  }, [data, usageMap]);
 
   const ativoOptions: MultiSelectOption[] = [
     { label: "Ativo", value: "ativo" },
@@ -196,6 +233,11 @@ export default function UnidadesMedida() {
               title="Ativas"
               value={String(kpis.ativas)}
               icon={CheckCircle2}
+            />
+            <StatCard
+              title="Em uso por produtos"
+              value={String(kpis.emUso)}
+              icon={Package}
             />
           </>
         }
@@ -226,7 +268,19 @@ export default function UnidadesMedida() {
           loading={loading}
           
           onEdit={openEdit}
-          onDelete={(u) => remove(u.id)}
+          onDelete={async (u) => {
+            const n = usageMap[u.codigo.toUpperCase()] || 0;
+            if (n > 0) {
+              const ok = await confirm({
+                title: "Inativar unidade em uso?",
+                description: `Esta unidade está vinculada a ${n} produto${n === 1 ? "" : "s"}. Eles continuarão funcionando, mas a unidade não aparecerá em novas seleções.`,
+                confirmLabel: "Inativar mesmo assim",
+                confirmVariant: "destructive",
+              });
+              if (!ok) return;
+            }
+            await remove(u.id);
+          }}
           deleteBehavior="soft"
           moduleKey="unidades-medida"
           emptyTitle="Nenhuma unidade de medida encontrada"

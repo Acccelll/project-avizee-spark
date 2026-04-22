@@ -236,7 +236,11 @@ export default function Transportadoras() {
       toast.error(firstError || "Corrija os erros do formulário");
       return;
     }
-    if (!docChecking && docUnico === false) {
+    if (docChecking) {
+      toast.error("Aguarde a verificação do CNPJ antes de salvar.");
+      return;
+    }
+    if (docUnico === false) {
       toast.error("CNPJ já cadastrado. Corrija antes de salvar.");
       return;
     }
