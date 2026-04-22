@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import type { Socio, SocioParticipacao } from "@/types/domain";
 import { formatDate } from "@/lib/format";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SocioDrawer } from "@/components/socios/SocioDrawer";
 
 interface SocioForm {
   nome: string;
@@ -45,6 +46,8 @@ const emptyForm: SocioForm = {
 export default function Socios() {
   const { socios, loading, create, update, remove } = useSocios();
   const [modalOpen, setModalOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerSocio, setDrawerSocio] = useState<Socio | null>(null);
   const [selected, setSelected] = useState<Socio | null>(null);
   const [mode, setMode] = useState<"create" | "edit">("create");
   const [form, setForm] = useState<SocioForm>(emptyForm);
