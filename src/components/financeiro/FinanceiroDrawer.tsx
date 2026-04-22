@@ -359,6 +359,46 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
                 </ViewField>
               </div>
             </ViewSection>
+            <ViewSection title="Trilha de Auditoria">
+              {loadingAuditoria ? (
+                <p className="text-sm text-muted-foreground text-center py-4">Carregando histórico…</p>
+              ) : auditoriaList.length === 0 ? (
+                <p className="text-xs text-muted-foreground">Nenhum evento de auditoria registrado.</p>
+              ) : (
+                <div className="rounded-lg border overflow-hidden">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="bg-muted/50 border-b">
+                        <th className="text-left px-3 py-2 font-semibold text-muted-foreground">Quando</th>
+                        <th className="text-left px-3 py-2 font-semibold text-muted-foreground">Evento</th>
+                        <th className="text-left px-3 py-2 font-semibold text-muted-foreground">Detalhes</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {auditoriaList.map((e, i) => {
+                        const motivo = (e.payload && typeof e.payload === "object"
+                          ? (e.payload as Record<string, unknown>).motivo
+                            ?? (e.payload as Record<string, unknown>).motivo_estorno
+                          : null) as string | undefined;
+                        return (
+                          <tr key={e.id} className={cn("border-b last:border-0", i % 2 !== 0 && "bg-muted/20")}>
+                            <td className="px-3 py-2 whitespace-nowrap">
+                              {new Date(e.created_at).toLocaleString("pt-BR")}
+                            </td>
+                            <td className="px-3 py-2">
+                              <Badge variant="outline" className="text-[10px]">{e.evento}</Badge>
+                            </td>
+                            <td className="px-3 py-2 text-muted-foreground truncate max-w-[200px]">
+                              {motivo || "—"}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </ViewSection>
             {selected.observacoes && (
               <ViewSection title="Observações Internas">
                 <p className="text-sm text-foreground whitespace-pre-wrap">{selected.observacoes}</p>
