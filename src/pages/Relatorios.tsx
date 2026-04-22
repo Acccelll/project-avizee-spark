@@ -27,7 +27,7 @@ import { useRelatoriosFavoritos } from '@/hooks/useRelatoriosFavoritos';
 import { cn } from '@/lib/utils';
 import { BookmarkPlus, BookOpen, Columns, Hash, Eye, Layers, Trash2, RefreshCcw, Rows3, SearchX } from 'lucide-react';
 import { exportarParaCsv, exportarParaExcel, exportarParaPdf, type ExportColumnDef } from '@/services/export.service';
-import { filtrarPorStatus, sortarRows, classifyBadgeTone } from '@/utils/relatorios';
+import { filtrarPorStatus, sortarRows } from '@/utils/relatorios';
 import { reportConfigs, reportCategoryMeta, reportRuntimeSemantics, type ReportCategory } from '@/config/relatoriosConfig';
 import { formatCurrency, formatNumber, formatDate } from '@/lib/format';
 import { formatCellValue, type TipoRelatorio } from '@/services/relatorios.service';
@@ -61,7 +61,20 @@ function buildDreDateRange(state: FiltrosRelatorioState, dataInicio: string, dat
 export default function Relatorios() {
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const tipo = (searchParams.get('tipo') as TipoRelatorio) || '';
+  const rawTipo = searchParams.get('tipo') || '';
+  const isValidTipo = rawTipo !== '' && Object.prototype.hasOwnProperty.call(reportConfigs, rawTipo);
+  const tipo = (isValidTipo ? rawTipo : '') as TipoRelatorio | '';
+
+  // Reset URL when ?tipo is invalid (e.g. ?tipo=hack) so the catalog renders
+  // instead of an empty workspace.
+  useEffect(() => {
+    if (rawTipo !== '' && !isValidTipo) {
+      setSearchParams({});
+      toast.warning(`Relatório "${rawTipo}" não existe. Voltando ao catálogo.`);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rawTipo, isValidTipo]);
+
   const dataInicio = searchParams.get('di') || '';
   const dataFim = searchParams.get('df') || '';
 
