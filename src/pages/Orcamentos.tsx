@@ -39,6 +39,7 @@ interface Orcamento {
   valor_total: number | null;
   observacoes: string | null;
   status: string;
+  origem?: string | null;
   quantidade_total: number | null;
   peso_total: number | null;
   pagamento: string | null;
@@ -55,6 +56,12 @@ interface Orcamento {
 
 const TERMINAL_STATUSES = ["convertido", "cancelado", "rejeitado"];
 const PROXIMA_VENCER_DIAS = 7;
+
+const historicoOptions: { label: string; value: string }[] = [
+  { label: "Excluir históricos", value: "excluir" },
+  { label: "Apenas históricos", value: "apenas" },
+  { label: "Todos", value: "todos" },
+];
 
 const validadeOptions: { label: string; value: string }[] = [
   { label: "Vencidas", value: "vencida" },
@@ -119,6 +126,7 @@ const Orcamentos = () => {
   const validadeFilters = searchParams.getAll("validade");
   const dataInicio = searchParams.get("de") ?? "";
   const dataFim = searchParams.get("ate") ?? "";
+  const historicoFilter = searchParams.get("historico") ?? "excluir";
 
   const updateParam = (key: string, value: string | string[] | null) => {
     setSearchParams((prev) => {
@@ -148,6 +156,7 @@ const Orcamentos = () => {
   };
   const setDataInicio = (v: string) => updateParam("de", v || null);
   const setDataFim = (v: string) => updateParam("ate", v || null);
+  const setHistoricoFilter = (v: string) => updateParam("historico", v === "excluir" ? null : v);
   const { data: clientesList = [] } = useClientesRef();
   const { isAdmin } = useIsAdmin();
   const sendLock = useActionLock();
