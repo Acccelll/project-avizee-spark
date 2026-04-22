@@ -149,29 +149,11 @@ export function useCotacoesCompra() {
   };
 
   const openEdit = async (c: CotacaoCompra) => {
-    setMode("edit");
-    setSelected(c);
-    setForm({
-      numero: c.numero,
-      data_cotacao: c.data_cotacao,
-      data_validade: c.data_validade || "",
-      observacoes: c.observacoes || "",
-      status: canonicalCotacaoStatus(c.status),
-    });
-    const { data: itens } = await supabase
-      .from("cotacoes_compra_itens")
-      .select("*, produtos(nome, codigo_interno, sku)")
-      .eq("cotacao_compra_id", c.id);
-    setLocalItems(
-      (itens || []).map((i: CotacaoItem & { id: string }) => ({
-        _localId: i.id,
-        id: i.id,
-        produto_id: i.produto_id,
-        quantidade: i.quantidade,
-        unidade: i.unidade || "UN",
-      }))
-    );
-    setModalOpen(true);
+    // Caminho único de edição: rota dedicada.
+    // O modal foi aposentado para edição (race delete+insert client-side).
+    // O form de rota usa `replace_cotacao_compra_itens` (RPC transacional).
+    setDrawerOpen(false);
+    navigate(`/cotacoes-compra/${c.id}`);
   };
 
   const openView = async (c: CotacaoCompra) => {
