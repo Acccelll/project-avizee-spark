@@ -355,6 +355,30 @@ export default function Logistica() {
     setRecebimentoDialogPedido(recebimento);
   };
 
+  /**
+   * Abre o TrackingModal para uma entrega.  Como `Entrega` é uma visão
+   * consolidada por OV, buscamos a remessa ativa associada para alimentar
+   * `remessa_id` (necessário para persistir eventos vindos dos Correios).
+   */
+  const abrirRastreioEntrega = async (entrega: Entrega) => {
+    if (!entrega.codigo_rastreio) {
+      toast.warning("Entrega sem código de rastreio");
+      return;
+    }
+    const { data, error } = await supabase
+      .from("remessas")
+      .select("id")
+      .eq("ordem_venda_id", entrega.id)
+      .eq("ativo", true)
+      .eq("codigo_rastreio", entrega.codigo_rastreio)
+      .maybeSingle();
+    if (error) {
+      toast.error(getUserFriendlyError(error));
+      return;
+    }
+    setTrackingTarget({ codigo: entrega.codigo_rastreio, remessaId: data?.id ?? "" });
+  };
+
   const openViewRemessa = (r: Remessa) => { setRemSelected(r); setRemDrawerOpen(true); };
 
   const handleAddEvento = async () => {
