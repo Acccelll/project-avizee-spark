@@ -909,6 +909,89 @@ export default function Administracao() {
 
             <Separator />
 
+            {/* Símbolo (ícone reduzido) */}
+            <div className="space-y-3">
+              <Label>Símbolo (ícone reduzido)</Label>
+              {config.geral.simboloUrl && (
+                <div className="flex items-start gap-4">
+                  <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-md border bg-muted/30 p-2">
+                    <img
+                      src={config.geral.simboloUrl}
+                      alt="Símbolo da empresa"
+                      className="max-h-full max-w-full object-contain"
+                      onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                    />
+                  </div>
+                  <p className="mt-2 truncate max-w-xs text-xs text-muted-foreground font-mono">{config.geral.simboloUrl}</p>
+                </div>
+              )}
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => simboloInputRef.current?.click()}
+                  disabled={simboloUploading}
+                  aria-label={config.geral.simboloUrl ? 'Substituir símbolo' : 'Enviar símbolo'}
+                >
+                  {simboloUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                  {config.geral.simboloUrl ? 'Substituir símbolo' : 'Enviar símbolo'}
+                </Button>
+                {config.geral.simboloUrl && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive hover:text-destructive"
+                    onClick={() => updateSection('geral', { simboloUrl: '' })}
+                    aria-label="Remover símbolo"
+                  >
+                    Remover símbolo
+                  </Button>
+                )}
+              </div>
+              <input
+                ref={simboloInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/jpg,image/svg+xml,image/webp"
+                className="hidden"
+                onChange={handleSimboloUpload}
+              />
+              <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                <Info className="h-3 w-3" />Quadrado, idealmente com fundo transparente. Usado no menu lateral recolhido e em favicons. Máximo 1 MB.
+              </p>
+            </div>
+
+            <Separator />
+
+            {/* Marca textual exibida ao lado do símbolo no menu lateral expandido e nas telas de login. */}
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="marcaTexto">Texto da marca</Label>
+                <Input
+                  id="marcaTexto"
+                  value={config.geral.marcaTexto || ''}
+                  onChange={(e) => updateSection('geral', { marcaTexto: e.target.value })}
+                  placeholder="Ex.: AviZee"
+                  maxLength={40}
+                />
+                <p className="text-[11px] text-muted-foreground">Aparece no menu expandido e na tela de login. Deixe em branco para usar apenas a logo.</p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="marcaSubtitulo">Subtítulo discreto</Label>
+                <Input
+                  id="marcaSubtitulo"
+                  value={config.geral.marcaSubtitulo || ''}
+                  onChange={(e) => updateSection('geral', { marcaSubtitulo: e.target.value })}
+                  placeholder="Ex.: ERP"
+                  maxLength={20}
+                />
+                <p className="text-[11px] text-muted-foreground">Texto curto exibido em destaque sutil ao lado da marca.</p>
+              </div>
+            </div>
+
+            <Separator />
+
             {/* Cores */}
             <div className="grid gap-6 md:grid-cols-2">
               <ColorField
