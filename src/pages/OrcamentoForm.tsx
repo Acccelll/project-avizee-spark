@@ -317,8 +317,8 @@ export default function OrcamentoForm() {
         if (isEdit) {
           const { data: orc, error: orcError } = await supabase.from("orcamentos").select("*").eq("id", id).maybeSingle();
           if (orcError) {
-            console.error("[OrcamentoForm] erro ao carregar cotação:", orcError);
-            toast.error("Erro ao carregar cotação.", { description: orcError.message });
+            console.error("[OrcamentoForm] erro ao carregar orçamento:", orcError);
+            toast.error("Erro ao carregar orçamento.", { description: orcError.message });
           } else if (orc) {
             reset({
               numero: orc.numero,
@@ -354,7 +354,7 @@ export default function OrcamentoForm() {
             const { data: itensData } = await supabase.from("orcamentos_itens").select("*").eq("orcamento_id", id);
             if (itensData) setItems(itensData);
           } else {
-            toast.error("Cotação não encontrada.", { description: `Nenhuma cotação com ID ${id}.` });
+            toast.error("Orçamento não encontrado.", { description: `Nenhum orçamento com ID ${id}.` });
           }
         } else {
           const { data: novoNumero, error: numErr } = await supabase.rpc('proximo_numero_orcamento');
@@ -702,7 +702,11 @@ export default function OrcamentoForm() {
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
         pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
-        pdf.save(`${numero || "orcamento"}.pdf`);
+        const safeCliente = (clienteSnapshot.nome_razao_social || "CLIENTE")
+          .toUpperCase()
+          .replace(/[\\/:*?"<>|]/g, "")
+          .trim();
+        pdf.save(`${numero || "ORCAMENTO"} - ${safeCliente}.pdf`);
         toast.success("PDF gerado com sucesso!");
       } catch (err: unknown) {
         toast.error(getUserFriendlyError(err));
@@ -816,7 +820,7 @@ export default function OrcamentoForm() {
   return (
     <PageShell
       backTo="/orcamentos"
-      title={isEdit ? `Editando Cotação${numero ? ` — ${numero}` : ""}` : "Nova Cotação"}
+      title={isEdit ? `Editando Orçamento${numero ? ` — ${numero}` : ""}` : "Novo Orçamento"}
       subtitle={isEdit ? "Revisão e ajuste da proposta comercial" : "Criação e emissão da proposta comercial"}
       actions={
         <div className="hidden items-center gap-2 md:flex md:flex-wrap">
@@ -914,7 +918,7 @@ export default function OrcamentoForm() {
           {isMobile && (
             <div className="grid grid-cols-2 gap-3 rounded-2xl border bg-card p-4 shadow-sm">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Cotação</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Orçamento</p>
                 <p className="mt-1 font-mono text-sm font-semibold">{numero || '—'}</p>
               </div>
               <div className="text-right">
@@ -942,12 +946,12 @@ export default function OrcamentoForm() {
     >
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
         <div className="lg:col-span-8 space-y-5">
-          {/* Identificação da Cotação */}
+          {/* Identificação do Orçamento */}
           <div className="bg-card rounded-xl border shadow-soft p-5">
-            <h3 className="font-semibold text-foreground mb-4">Identificação da Cotação</h3>
+            <h3 className="font-semibold text-foreground mb-4">Identificação do Orçamento</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="space-y-1.5">
-                <Label className="text-xs">Nº Cotação</Label>
+                <Label className="text-xs">Nº Orçamento</Label>
                 <div className="relative">
                   <Input
                     {...register('numero')}
