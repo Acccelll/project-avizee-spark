@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from "react";
+import { lazy, Suspense, useMemo, useState, type ReactNode } from "react";
 import {
   Bar,
   BarChart,
@@ -34,9 +34,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useDashboardData } from "@/pages/dashboard/hooks/useDashboardData";
 import { useDashboardKpis } from "@/pages/dashboard/hooks/useDashboardKpis";
 import { useDashboardDrawerData } from "@/pages/dashboard/hooks/useDashboardDrawerData";
-import { useDashboardLayout } from "@/hooks/useDashboardLayout";
+import { useDashboardLayout, type WidgetId } from "@/hooks/useDashboardLayout";
 import { DashboardCustomizeMenu } from "@/components/dashboard/DashboardCustomizeMenu";
 import { buildDrilldownUrl } from "@/lib/dashboard/drilldown";
+import { ScopeBadge } from "@/components/dashboard/ScopeBadge";
 
 const VendasChart = lazy(() =>
   import("@/components/dashboard/VendasChart").then((m) => ({ default: m.VendasChart })),
@@ -77,9 +78,9 @@ const DashboardContent = () => {
   const { profile, user } = useAuth();
   const { metas } = useMetas();
   const { prefs, toggleVisibility, moveWidget, resetLayout } = useDashboardLayout(user?.id);
-  const isVisible = (id: string) => !prefs.hidden.includes(id as never);
+  const isVisible = (id: WidgetId) => !prefs.hidden.includes(id);
 
-  const [metricDrawer, setMetricDrawer] = useState<null | "receber" | "estoque">(null);
+  const [metricDrawer, setMetricDrawer] = useState<null | "receber" | "pagar" | "saldo" | "estoque">(null);
 
   const {
     stats,
@@ -94,6 +95,7 @@ const DashboardContent = () => {
     dailyReceber,
     dailyVendas,
     estoqueBaixo,
+    faturamento,
     fiscalStats,
     recentOrcamentos,
     remessasAtrasadas,
@@ -124,11 +126,14 @@ const DashboardContent = () => {
     onOpenCompras: () => navigate(buildDrilldownUrl({ kind: "compras:atrasadas" })),
     onOpenRemessas: () => navigate(buildDrilldownUrl({ kind: "logistica:remessas-atrasadas" })),
     onReceberDetail: () => setMetricDrawer("receber"),
+    onPagarDetail: () => setMetricDrawer("pagar"),
+    onSaldoDetail: () => setMetricDrawer("saldo"),
     onEstoqueDetail: () => setMetricDrawer("estoque"),
   });
 
   const detailData = useDashboardDrawerData({
     dailyReceber,
+    dailyPagar,
     topClientes,
     estoqueBaixo,
     dailyVendas,
