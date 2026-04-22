@@ -868,7 +868,7 @@ const Fiscal = () => {
               <Select value={form.ordem_venda_id || "none"} onValueChange={(v) => setForm({ ...form, ordem_venda_id: v === "none" ? "" : v })}><SelectTrigger><SelectValue placeholder="Vincular a um Pedido..." /></SelectTrigger><SelectContent><SelectItem value="none">Nenhum</SelectItem>{ordensVenda.map((ov) => (<SelectItem key={ov.id} value={ov.id}>{ov.numero} — {ov.clientes?.nome_razao_social || ""}</SelectItem>))}</SelectContent></Select>
             </div>
           )}
-          <ItemsGrid items={items} onChange={setItems} produtos={produtosCrud.data as unknown as Record<string, unknown>[]} title="Itens da Nota" />
+          <ItemsGrid items={items} onChange={setItems} produtos={produtosCrud.data} title="Itens da Nota" />
           {items.length > 0 && contasContabeis.length > 0 && (
             <div className="space-y-2"><Label className="text-sm font-semibold">Conta Contábil por Item</Label>
               <div className="space-y-2 rounded-lg border p-3">
