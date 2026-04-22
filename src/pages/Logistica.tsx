@@ -29,6 +29,8 @@ import { useEntregas } from "@/pages/logistica/hooks/useEntregas";
 import type { Entrega } from "@/pages/logistica/hooks/useEntregas";
 import { useRecebimentos } from "@/pages/logistica/hooks/useRecebimentos";
 import type { Recebimento } from "@/pages/logistica/hooks/useRecebimentos";
+import { useTransicionarRemessa, type RemessaTransition } from "@/pages/logistica/hooks/useTransicionarRemessa";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { trackAndPersistEventos } from "@/services/logistica/remessas.service";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import {
@@ -82,6 +84,8 @@ export default function Logistica() {
   const { data: entregas = [], isLoading: entregasLoading } = useEntregas();
   const { data: recebimentos = [], isLoading: recebimentosLoading } = useRecebimentos();
   const loading = entregasLoading || recebimentosLoading;
+  const transicionarRemessa = useTransicionarRemessa();
+  const { confirm, dialog: confirmDialog } = useConfirmDialog();
   const [selectedEntrega, setSelectedEntrega] = useState<Entrega | null>(null);
   const [selectedRecebimento, setSelectedRecebimento] = useState<Recebimento | null>(null);
   const [updatingEntregaId, setUpdatingEntregaId] = useState<string | null>(null);
