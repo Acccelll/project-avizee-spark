@@ -16,6 +16,12 @@ export interface TituloParaConciliacao {
   data_vencimento: string;
   tipo: string;
   status: string | null;
+  /**
+   * Data da última baixa ativa (quando existir).
+   * Quando presente, o matching usa-a como eixo principal — alinhando
+   * conciliação à baixa real, conforme modelo canônico.
+   */
+  data_baixa?: string | null;
 }
 
 /** Nível de confiança de uma sugestão automática de conciliação. */
@@ -114,8 +120,12 @@ export function calcularScoreConciliacao(
   const valorMatch = Math.abs(Math.abs(titulo.valor) - transacao.valor) < 0.01;
   if (!valorMatch) return 0;
 
+  // Eixo de comparação: data_baixa quando o título já foi liquidado;
+  // fallback para data_vencimento em títulos ainda em aberto.
+  // Reflete o modelo canônico (conciliação por baixa real, não por previsão).
+  const dataReferencia = titulo.data_baixa ?? titulo.data_vencimento;
   const dataExtrato = new Date(transacao.data);
-  const dataLanc = new Date(titulo.data_vencimento);
+  const dataLanc = new Date(dataReferencia);
   const diffDias = Math.abs(
     (dataExtrato.getTime() - dataLanc.getTime()) / (1000 * 60 * 60 * 24),
   );
@@ -194,9 +204,14 @@ export async function conciliarTransacao(
     ? Number(lanc.saldo_restante)
     : Number(lanc.valor);
 
+  // Guard: rejeitar conciliação quando o título não admite operação.
+  if (lanc.status === "cancelado") {
+    throw new Error("Lançamento cancelado não pode ser conciliado.");
+  }
+
   let baixaId: string | null = null;
 
-  if (saldoAtual > 0.009 && lanc.status !== "cancelado") {
+  if (saldoAtual > 0.009) {
     const { data, error } = await supabase.rpc("registrar_baixa_financeira", {
       p_lancamento_id: tituloId,
       p_valor_pago: saldoAtual,
@@ -211,20 +226,45 @@ export async function conciliarTransacao(
   }
 
   if (!baixaId) {
-    const { data: ultimaBaixa, error: baixaErr } = await supabase
+    // Título já liquidado: localizar a baixa ativa cuja data e valor
+    // correspondam à transação do extrato. Evita conciliar baixa antiga
+    // não relacionada quando há múltiplas baixas no histórico.
+    const valorExtrato = Math.abs(transacaoExtrato.valor);
+    const { data: baixasAtivas, error: baixaErr } = await supabase
       .from("financeiro_baixas")
-      .select("id")
+      .select("id, data_baixa, valor_pago, conciliacao_status")
       .eq("lancamento_id", tituloId)
       .is("estornada_em", null)
-      .order("data_baixa", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .order("data_baixa", { ascending: false });
 
     if (baixaErr) throw new Error(baixaErr.message);
-    if (!ultimaBaixa?.id) {
+    if (!baixasAtivas?.length) {
       throw new Error("Não foi possível localizar baixa ativa para conciliação.");
     }
-    baixaId = ultimaBaixa.id;
+
+    // Prioridade 1: baixa ainda não conciliada com valor exato
+    // Prioridade 2: baixa ainda não conciliada com data próxima (≤3 dias)
+    // Prioridade 3: última baixa ativa (compatibilidade)
+    const naoConciliadas = baixasAtivas.filter(
+      (b) => (b.conciliacao_status ?? "pendente") !== "conciliado",
+    );
+    const candidatas = naoConciliadas.length ? naoConciliadas : baixasAtivas;
+
+    const matchValor = candidatas.find(
+      (b) => Math.abs(Number(b.valor_pago) - valorExtrato) < 0.01,
+    );
+    if (matchValor) {
+      baixaId = matchValor.id;
+    } else {
+      const dataExtratoMs = new Date(transacaoExtrato.data).getTime();
+      const matchData = candidatas.find((b) => {
+        const diff = Math.abs(
+          (new Date(b.data_baixa).getTime() - dataExtratoMs) / (1000 * 60 * 60 * 24),
+        );
+        return diff <= 3;
+      });
+      baixaId = matchData?.id ?? candidatas[0].id;
+    }
   }
 
   // RPC name not yet present in generated types — cast required until next type sync
