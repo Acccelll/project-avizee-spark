@@ -50,10 +50,10 @@ function AccountMenuItems({
 }) {
   return (
     <>
-      <DropdownMenuItem onClick={() => navigate('/perfil')}>
+      <DropdownMenuItem onClick={() => navigate('/configuracoes')}>
         <User className="mr-2 h-4 w-4" /> Meu perfil
       </DropdownMenuItem>
-      <DropdownMenuItem onClick={() => navigate('/configuracoes')}>
+      <DropdownMenuItem onClick={() => navigate('/configuracoes?tab=aparencia')}>
         <Settings className="mr-2 h-4 w-4" /> Configurações
       </DropdownMenuItem>
       <DropdownMenuItem onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>

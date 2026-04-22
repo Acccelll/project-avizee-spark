@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useTheme } from 'next-themes';
 import { AlertCircle, ArrowUpRight, Building2, CalendarDays, Check, CheckCircle2, Clock, Eye, EyeOff, Info, Loader2, Lock, Mail, Moon, Palette, RotateCcw, Save, Settings, Shield, ShieldCheck, Sun, User } from 'lucide-react';
 import { useUserPreference } from '@/hooks/useUserPreference';
@@ -101,7 +101,17 @@ function getPasswordCriteria(pwd: string, confirm: string) {
 export default function Configuracoes() {
   const { user, profile, roles, hasRole } = useAuth();
   const { theme, setTheme } = useTheme();
-  const [activeSection, setActiveSection] = useState('perfil');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabFromUrl = searchParams.get('tab');
+  const isValidTab = (key: string | null): key is string =>
+    !!key && tabNavItems.some((t) => t.key === key);
+  const activeSection = isValidTab(tabFromUrl) ? tabFromUrl : 'perfil';
+  const setActiveSection = (key: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (key === 'perfil') next.delete('tab');
+    else next.set('tab', key);
+    setSearchParams(next, { replace: true });
+  };
 
   const [nome, setNome] = useState(profile?.nome || '');
   const [cargo, setCargo] = useState(profile?.cargo || '');
@@ -138,9 +148,7 @@ export default function Configuracoes() {
   const [corSecundaria, setCorSecundaria] = useState('#b85b2d');
   const [appearanceSavedAt, setAppearanceSavedAt] = useState<Date | null>(null);
   const {
-    sidebarCollapsed: menuCompacto,
     saveSidebarCollapsed: saveMenuCompacto,
-    loadingSidebarCollapsed: loadingMenuCompacto,
   } = useAppConfigContext();
   const { value: themePref, save: saveThemePref } = useUserPreference<string>(user?.id, 'ui_theme', 'system');
   const { value: densidadePref, save: saveDensidadePref } = useUserPreference<string>(user?.id, 'ui_density', 'confortavel');
@@ -238,19 +246,26 @@ export default function Configuracoes() {
 
   const handleResetAppearance = async () => {
     setTheme(APPEARANCE_DEFAULTS.theme);
-    await saveThemePref(APPEARANCE_DEFAULTS.theme);
     setDensidade(APPEARANCE_DEFAULTS.densidade);
-    await saveDensidadePref(APPEARANCE_DEFAULTS.densidade);
-    await saveFontScale(APPEARANCE_DEFAULTS.fontScale);
-    await saveMenuCompacto(APPEARANCE_DEFAULTS.menuCompacto);
-    await saveReduceMotion(APPEARANCE_DEFAULTS.reduceMotion);
+    const results = await Promise.allSettled([
+      saveThemePref(APPEARANCE_DEFAULTS.theme),
+      saveDensidadePref(APPEARANCE_DEFAULTS.densidade),
+      saveFontScale(APPEARANCE_DEFAULTS.fontScale),
+      saveReduceMotion(APPEARANCE_DEFAULTS.reduceMotion),
+      saveSidebarMode('dynamic'),
+      // Mantém retrocompatibilidade: o boolean derivado do modo padrão.
+      saveMenuCompacto(true),
+    ]);
     document.documentElement.dataset.density = APPEARANCE_DEFAULTS.densidade === 'compacta' ? 'compact' : 'comfortable';
     document.documentElement.style.setProperty('--base-font-size', `${APPEARANCE_DEFAULTS.fontScale}px`);
     document.documentElement.classList.remove('reduce-motion');
     setAppearanceSavedAt(new Date());
-    // Branding global (cores institucionais) NÃO é mais resetado a partir daqui —
-    // pertence à Administração (empresa_config). Esta tela cuida apenas de prefs pessoais.
-    toast.success('Preferências de aparência restauradas ao padrão.');
+    const failed = results.filter((r) => r.status === 'rejected').length;
+    if (failed > 0) {
+      toast.warning(`Algumas preferências (${failed}) não puderam ser salvas. Tente novamente.`);
+    } else {
+      toast.success('Preferências de aparência restauradas ao padrão.');
+    }
   };
 
   const markAppearanceSaved = () => {
@@ -513,23 +528,13 @@ export default function Configuracoes() {
                     <span>Máximo</span>
                   </div>
                 </div>
-                <div className="flex items-center justify-between rounded-lg border p-4">
-                  <div>
-                    <p className="font-medium">Menu compacto</p>
-                    <p className="text-sm text-muted-foreground">
-                      Reduz a largura da barra lateral, exibindo apenas ícones. Aumenta a área útil de trabalho e a navegação permanece acessível.
-                    </p>
-                  </div>
-                  <Switch
-                    checked={menuCompacto}
-                    disabled={loadingMenuCompacto}
-                    onCheckedChange={async (checked) => {
-                      const ok = await saveMenuCompacto(checked);
-                      if (!ok) toast.error('Não foi possível salvar a preferência do menu.');
-                      if (ok) markAppearanceSaved();
-                    }}
-                  />
-                </div>
+                {/*
+                  O antigo switch "Menu compacto" foi removido nesta fase: a
+                  preferência `sidebar_collapsed` agora é derivada
+                  automaticamente do modo selecionado abaixo
+                  ("Comportamento do menu lateral"), eliminando o conflito
+                  entre dois controles que descreviam a mesma intenção.
+                */}
               </div>
 
               <Separator />
@@ -608,7 +613,13 @@ export default function Configuracoes() {
                       <button
                         key={opt.mode}
                         type="button"
-                        onClick={() => saveSidebarMode(opt.mode)}
+                        onClick={async () => {
+                          await saveSidebarMode(opt.mode);
+                          // Mantém o boolean legado em sincronia com o modo
+                          // (consumido por AppLayout em fallback e por outras telas).
+                          await saveMenuCompacto(opt.mode !== 'fixed-expanded');
+                          markAppearanceSaved();
+                        }}
                         className={cn(
                           'rounded-lg border p-3 text-left transition-colors',
                           active ? 'border-primary bg-primary/5' : 'hover:bg-accent/30',
