@@ -20,7 +20,6 @@ import { pagamentoLabels, freteTipoLabels } from "@/utils/comercial";
 import { useFaturarPedido } from "@/pages/comercial/hooks/useFaturarPedido";
 import { useCancelarPedido } from "@/pages/comercial/hooks/useCancelarPedido";
 import { canFaturarPedido, getPedidoStatusLabel, statusFaturamentoLabels } from "@/lib/comercialWorkflow";
-import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -91,7 +90,6 @@ export function OrdemVendaView({ id }: Props) {
   const { run, locked } = useDetailActions();
   const faturarPedido = useFaturarPedido();
   const cancelarPedido = useCancelarPedido();
-  const { confirm, dialog: confirmDialog } = useConfirmDialog();
   const crossToast = useCrossModuleToast();
 
   const { data, loading, reload } = useDetailFetch<OVDetail>(id, async (ovId, signal) => {
@@ -188,13 +186,6 @@ export function OrdemVendaView({ id }: Props) {
 
   const handleCancelarPedido = async () => {
     if (!selected) return;
-    const ok = await confirm({
-      title: `Cancelar pedido ${selected.numero}?`,
-      description: "O pedido será marcado como cancelado e a ação ficará registrada na auditoria. Esta operação não pode ser desfeita pela UI.",
-      confirmLabel: "Cancelar pedido",
-      confirmVariant: "destructive",
-    });
-    if (!ok) return;
     await run("cancel_pedido", async () => {
       await cancelarPedido.mutateAsync({ id: selected.id, motivo: cancelMotivo.trim() || undefined });
       setCancelOpen(false);
@@ -769,7 +760,6 @@ export function OrdemVendaView({ id }: Props) {
           </div>
         </div>
       )}
-      {confirmDialog}
     </div>
   );
 }
