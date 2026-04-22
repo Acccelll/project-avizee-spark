@@ -566,6 +566,11 @@ export default function Logistica() {
       const s = r.status_transporte ?? "";
       return <StatusBadge status={remessaStatusMap[s]?.color ?? s} />;
     }},
+    { key: "rastrear", label: "Rastrear", render: (r: Remessa) => r.codigo_rastreio ? (
+      <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => setTrackingTarget({ codigo: r.codigo_rastreio!, remessaId: r.id })}>
+        <Search className="h-3.5 w-3.5" />Rastrear
+      </Button>
+    ) : <span className="text-muted-foreground text-xs">—</span> },
   ];
 
   const remSummaryItems = remSelected ? [
