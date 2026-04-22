@@ -1,9 +1,9 @@
-import type { Json } from "@/integrations/supabase/types";
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { orcamentoSchema, type OrcamentoFormValues } from "@/lib/orcamentoSchema";
+import type { Json } from "@/integrations/supabase/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -37,6 +37,7 @@ import { calcularRentabilidade, type InternalCostCandidate } from "@/lib/orcamen
 import { getOrcamentoInternalAccess } from "@/lib/orcamentoInternalAccess";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
+import { useOrcamentoTemplates, type OrcamentoTemplate } from "@/pages/comercial/hooks/useOrcamentoTemplates";
 
 interface ClienteSnapshot {
   nome_razao_social: string; nome_fantasia: string; cpf_cnpj: string;
@@ -94,15 +95,6 @@ interface SalvarOrcamentoItemPayload {
 }
 
 
-const TEAM_TEMPLATE_KEY = "orcamento_template:shared";
-
-interface OrcamentoTemplate {
-  id: string;
-  nome: string;
-  escopo: "usuario" | "equipe";
-  payload: TemplateConfig;
-}
-
 const emptyCliente: ClienteSnapshot = {
   nome_razao_social: "", nome_fantasia: "", cpf_cnpj: "", inscricao_estadual: "",
   email: "", telefone: "", celular: "", contato: "", logradouro: "", numero: "",
@@ -128,7 +120,6 @@ export default function OrcamentoForm() {
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [restoreDraftOpen, setRestoreDraftOpen] = useState(false);
   const [templateName, setTemplateName] = useState("");
-  const [templates, setTemplates] = useState<OrcamentoTemplate[]>([]);
   const [templateDialogOpen, setTemplateDialogOpen] = useState<null | "usuario" | "equipe">(null);
   const [layoutTemplate, setLayoutTemplate] = useState<'simples' | 'completo' | 'logo'>('completo');
   const { confirm: confirmAction, dialog: confirmActionDialog } = useConfirmDialog();
@@ -475,9 +466,10 @@ export default function OrcamentoForm() {
     setItems((draft.items as OrcamentoItem[]) || []);
   };
 
+  // Templates: estado e persistência isolados em hook (Fase 5 — comercial-modelo).
+  const { templates, saveTemplate: persistTemplate } = useOrcamentoTemplates(user?.id);
+
   const saveTemplate = async (escopo: "usuario" | "equipe") => {
-    if (!templateName.trim()) { toast.error("Informe um nome para o template"); return; }
-    const key = escopo === "equipe" ? `${TEAM_TEMPLATE_KEY}:${templateName.trim()}` : `orcamento_template:${user?.id}:${templateName.trim()}`;
     const payload: TemplateConfig = {
       items,
       pagamento,
@@ -488,41 +480,19 @@ export default function OrcamentoForm() {
       observacoes,
       observacoes_internas: observacoesInternas,
     };
-
-    if (escopo === "equipe") {
-      const { data: existing, error: existingError } = await supabase
-        .from("app_configuracoes")
-        .select("chave")
-        .eq("chave", key)
-        .maybeSingle();
-      if (existingError) {
-        toast.error(getUserFriendlyError(existingError));
-        return;
-      }
-      if (existing) {
-        const shouldOverwrite = await confirmAction({
+    const ok = await persistTemplate({
+      nome: templateName,
+      escopo,
+      payload,
+      onConfirmOverwrite: () =>
+        confirmAction({
           title: "Sobrescrever template?",
           description: "Template com este nome já existe. Deseja sobrescrever?",
           confirmLabel: "Sobrescrever",
           confirmVariant: "destructive",
-        });
-        if (!shouldOverwrite) return;
-      }
-    }
-
-    const templateRecord: OrcamentoTemplate = {
-      id: key,
-      nome: templateName.trim(),
-      escopo,
-      payload,
-    };
-
-    await supabase.from("app_configuracoes").upsert(
-      { chave: key, valor: templateRecord as unknown as Json, updated_at: new Date().toISOString() },
-      { onConflict: "chave" },
-    );
-    toast.success("Template salvo");
-    setTemplateName("");
+        }),
+    });
+    if (ok) setTemplateName("");
   };
 
   const applyTemplate = (tpl: OrcamentoTemplate) => {
@@ -801,20 +771,6 @@ export default function OrcamentoForm() {
     }, 30000);
     return () => clearInterval(timer);
   }, [buildDraftPayload, draftKey, getValues, items.length, user?.id]);
-
-  useEffect(() => {
-    if (!user?.id) return;
-    supabase
-      .from("app_configuracoes")
-      .select("valor, chave")
-      .or(`chave.like.orcamento_template:${user.id}:%,chave.like.${TEAM_TEMPLATE_KEY}:%`)
-      .then(({ data }) => {
-        const list = (data || [])
-          .map((row) => row.valor as unknown as OrcamentoTemplate | null)
-          .filter((row): row is OrcamentoTemplate => !!row?.id && !!row?.nome && !!row?.payload);
-        setTemplates(list);
-      });
-  }, [user?.id]);
 
   useEffect(() => {
     supabase.from('empresa_config').select('*').limit(1).single().then(({ data }) => {

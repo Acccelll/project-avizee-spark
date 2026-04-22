@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -23,6 +23,7 @@ import { canFaturarPedido, canCancelarPedido as canCancelarPedidoFn, getPedidoSt
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { OVDetail, NotaFiscalListItem, LancamentoListItem, OrdemVendaItemWithProduto } from "@/types/comercial";
+import { subscribeComercial } from "@/lib/realtime/comercialChannel";
 import {
   FileOutput,
   DollarSign,
@@ -146,6 +147,15 @@ export function OrdemVendaView({ id }: Props) {
   const notasFiscais = data?.notasFiscais ?? [];
   const lancamentos = data?.lancamentos ?? [];
   const devolucoes = data?.devolucoes ?? [];
+
+  // Realtime: refaz fetch do detalhe quando o pedido em foco ou suas NFs
+  // mudam (ex.: faturamento iniciado em outra aba, NF confirmada). Evita
+  // mostrar status_faturamento desatualizado ao usuário.
+  useEffect(() => {
+    return subscribeComercial(() => {
+      reload();
+    });
+  }, [reload]);
 
   const handleGenerateNF = async () => {
     if (!selected) return;
