@@ -25,6 +25,7 @@ import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MaskedInput } from "@/components/ui/MaskedInput";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import {
   Search, User2, Phone, ShoppingCart, MapPin,
@@ -51,11 +52,11 @@ interface Fornecedor {
   observacoes: string;ativo: boolean;created_at: string;updated_at: string;
 }
 
-const emptyForm: Omit<Fornecedor, "id" | "ativo" | "created_at" | "updated_at"> = {
+const emptyForm: Omit<Fornecedor, "id" | "created_at" | "updated_at"> = {
   tipo_pessoa: "J", nome_razao_social: "", nome_fantasia: "", cpf_cnpj: "",
   inscricao_estadual: "", email: "", telefone: "", celular: "", contato: "",
   prazo_padrao: 30, logradouro: "", numero: "", complemento: "",
-  bairro: "", cidade: "", uf: "", cep: "", pais: "Brasil", observacoes: ""
+  bairro: "", cidade: "", uf: "", cep: "", pais: "Brasil", observacoes: "", ativo: true,
 };
 
 const Fornecedores = () => {
@@ -167,7 +168,8 @@ const Fornecedores = () => {
       email: f.email || "", telefone: f.telefone || "", celular: f.celular || "", contato: f.contato || "",
       prazo_padrao: f.prazo_padrao || 30, logradouro: f.logradouro || "", numero: f.numero || "",
       complemento: f.complemento || "", bairro: f.bairro || "", cidade: f.cidade || "",
-      uf: f.uf || "", cep: f.cep || "", pais: f.pais || "Brasil", observacoes: f.observacoes || ""
+      uf: f.uf || "", cep: f.cep || "", pais: f.pais || "Brasil", observacoes: f.observacoes || "",
+      ativo: f.ativo !== false,
     });
     setIsDirty(false);
     setModalProdutosForn([]); setModalComprasForn({ count: 0, ultima: null, total: 0 });
@@ -398,6 +400,16 @@ const Fornecedores = () => {
         createHint="Preencha razão social, CPF/CNPJ e contato principal. Demais dados podem ser complementados depois."
         identifier={mode === "edit" && selected?.cpf_cnpj ? selected.cpf_cnpj : undefined}
         status={mode === "edit" && selected ? <StatusBadge status={selected.ativo ? "ativo" : "inativo"} /> : undefined}
+        headerActions={mode === "edit" && selected ? (
+          <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
+            <Switch
+              checked={form.ativo}
+              onCheckedChange={(v) => updateForm({ ativo: v })}
+              aria-label={form.ativo ? "Inativar fornecedor" : "Reativar fornecedor"}
+            />
+            <span className="font-medium">{form.ativo ? "Ativo" : "Inativo"}</span>
+          </label>
+        ) : undefined}
         meta={mode === "edit" && selected ? [
           ...(selected.created_at ? [{ icon: Calendar, label: `Cadastrado em ${formatDate(selected.created_at)}` }] : []),
           ...(selected.updated_at && selected.updated_at !== selected.created_at ? [{ icon: BadgeCheck, label: `Atualizado em ${formatDate(selected.updated_at)}` }] : []),

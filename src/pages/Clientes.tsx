@@ -24,6 +24,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { MaskedInput } from "@/components/ui/MaskedInput";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
@@ -80,6 +81,7 @@ interface ClienteFormData {
   grupo_economico_id: string;
   tipo_relacao_grupo: string;
   caixa_postal: string;
+  ativo: boolean;
 }
 
 const emptyCliente: ClienteFormData = {
@@ -87,7 +89,7 @@ const emptyCliente: ClienteFormData = {
   inscricao_estadual: "", email: "", telefone: "", celular: "", contato: "",
   prazo_padrao: 30, limite_credito: 0, forma_pagamento_id: "", prazo_preferencial: 0,
   logradouro: "", numero: "", complemento: "", bairro: "", cidade: "", uf: "", cep: "", pais: "Brasil",
-  observacoes: "", grupo_economico_id: "", tipo_relacao_grupo: "independente", caixa_postal: ""
+  observacoes: "", grupo_economico_id: "", tipo_relacao_grupo: "independente", caixa_postal: "", ativo: true,
 };
 
 const relacaoOptions = [
@@ -185,7 +187,8 @@ const Clientes = () => {
       bairro: c.bairro || "", cidade: c.cidade || "", uf: c.uf || "", cep: c.cep || "",
       pais: c.pais || "Brasil", observacoes: c.observacoes || "",
       grupo_economico_id: c.grupo_economico_id || "", tipo_relacao_grupo: c.tipo_relacao_grupo || "independente",
-      caixa_postal: c.caixa_postal || ""
+      caixa_postal: c.caixa_postal || "",
+      ativo: c.ativo !== false,
     });
     setIsDirty(false);
     setEnderecosCount(0); setComunicacoesCount(0);
@@ -390,6 +393,16 @@ const Clientes = () => {
         createHint="Preencha os dados básicos para criar o cliente. Endereços, transportadoras e comunicações ficam disponíveis após salvar."
         identifier={mode === "edit" && selected?.cpf_cnpj ? selected.cpf_cnpj : undefined}
         status={mode === "edit" && selected ? <StatusBadge status={selected.ativo ? "ativo" : "inativo"} /> : undefined}
+        headerActions={mode === "edit" && selected ? (
+          <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
+            <Switch
+              checked={form.ativo}
+              onCheckedChange={(v) => updateForm({ ativo: v })}
+              aria-label={form.ativo ? "Inativar cliente" : "Reativar cliente"}
+            />
+            <span className="font-medium">{form.ativo ? "Ativo" : "Inativo"}</span>
+          </label>
+        ) : undefined}
         meta={mode === "edit" && selected ? [
           ...(selected.created_at ? [{ icon: Calendar, label: `Cadastrado em ${formatDate(selected.created_at)}` }] : []),
           ...(form.forma_pagamento_id
