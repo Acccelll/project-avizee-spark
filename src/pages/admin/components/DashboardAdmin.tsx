@@ -13,13 +13,14 @@
  */
 
 import { useQuery } from "@tanstack/react-query";
-import { Activity, ArrowRight, ShieldAlert, UserMinus, Users } from "lucide-react";
+import { Activity, ArrowRight, History, ShieldAlert, UserMinus, Users } from "lucide-react";
 import { Link } from "react-router-dom";
 import { SummaryCard } from "@/components/SummaryCard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useSessoesMetricas } from "@/pages/admin/hooks/useSessoesMetricas";
+import { useEventosAdminTimeline } from "@/pages/admin/hooks/useEventosAdminTimeline";
 
 async function fetchUsuariosAdministrativos(): Promise<number> {
   const { count, error } = await supabase
@@ -42,6 +43,7 @@ async function fetchEventosAdmin24h(): Promise<number> {
 
 export function DashboardAdmin() {
   const sessoes = useSessoesMetricas();
+  const timeline = useEventosAdminTimeline();
 
   const usuariosAdmin = useQuery({
     queryKey: ["admin", "security", "usuarios-admin"],
@@ -61,6 +63,9 @@ export function DashboardAdmin() {
   const inativasCount = sessoes.data?.inativasMais30d ?? 0;
   const adminsCount = usuariosAdmin.data ?? 0;
   const eventosCount = eventos24h.data ?? 0;
+  const buckets = timeline.data?.buckets ?? [];
+  const maxBucket = Math.max(1, ...buckets.map((b) => b.total));
+  const ultimoPorEntidade = timeline.data?.ultimoPorEntidade ?? [];
 
   return (
     <div className="space-y-6">
@@ -132,6 +137,84 @@ export function DashboardAdmin() {
           </div>
         </CardContent>
       </Card>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Activity className="h-4 w-4 text-muted-foreground" />
+              Eventos administrativos — últimos 7 dias
+            </CardTitle>
+            <CardDescription>
+              {timeline.isLoading
+                ? "Carregando…"
+                : `${timeline.data?.total7d ?? 0} eventos no período. Cada barra é um dia.`}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex h-24 items-end gap-1.5">
+              {buckets.map((b) => {
+                const heightPct = (b.total / maxBucket) * 100;
+                return (
+                  <div key={b.dia} className="flex flex-1 flex-col items-center gap-1">
+                    <div
+                      className="w-full rounded-sm bg-primary/70 transition-all"
+                      style={{ height: `${Math.max(heightPct, 4)}%` }}
+                      title={`${b.dia}: ${b.total} eventos`}
+                    />
+                    <span className="text-[10px] text-muted-foreground">
+                      {b.dia.slice(8, 10)}/{b.dia.slice(5, 7)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <History className="h-4 w-4 text-muted-foreground" />
+              Último evento por entidade
+            </CardTitle>
+            <CardDescription>
+              Última alteração administrativa registrada por escopo de governança.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {ultimoPorEntidade.length === 0 ? (
+              <p className="py-4 text-sm text-muted-foreground">
+                {timeline.isLoading ? "Carregando…" : "Nenhum evento nos últimos 7 dias."}
+              </p>
+            ) : (
+              <ul className="space-y-2 text-sm">
+                {ultimoPorEntidade.map((e) => (
+                  <li
+                    key={`${e.entidade}-${e.created_at}`}
+                    className="flex items-center justify-between gap-3 rounded-md border bg-muted/30 px-3 py-2"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">{e.entidade}</p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {e.tipo_acao ?? "ação não especificada"}
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                      {new Date(e.created_at).toLocaleString("pt-BR", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
