@@ -411,6 +411,9 @@ Deno.serve(async (req) => {
       const cargo = String(payload.cargo ?? "").trim();
       const ativo = payload.ativo !== false;
       const rolePadrao = normalizeRole(payload.role_padrao);
+      const motivo = typeof payload.motivo === "string" && payload.motivo.trim()
+        ? payload.motivo.trim().slice(0, 500)
+        : undefined;
 
       if (!id || !nome) throw new HttpError(400, "Usuário inválido.");
 
@@ -426,7 +429,7 @@ Deno.serve(async (req) => {
 
       await insertAudit(serviceClient, currentUser.id, id, rolePadrao, {
         tipo: "user_update", cargo: cargo || null, ativo, extra_permissions: payload.extra_permissions ?? [],
-      });
+      }, { motivo });
 
       return json({ ok: true }, 200, corsHeaders);
     }
@@ -434,9 +437,12 @@ Deno.serve(async (req) => {
     if (action === "toggle-status") {
       const id = String(payload.id ?? "").trim();
       const ativo = payload.ativo === true;
+      const motivo = typeof payload.motivo === "string" && payload.motivo.trim()
+        ? payload.motivo.trim().slice(0, 500)
+        : undefined;
       if (!id) throw new HttpError(400, "Usuário inválido.");
       await setUserActiveStatus(serviceClient, id, ativo);
-      await insertAudit(serviceClient, currentUser.id, id, null, { tipo: "status_change", ativo });
+      await insertAudit(serviceClient, currentUser.id, id, null, { tipo: "status_change", ativo }, { motivo });
       return json({ ok: true }, 200, corsHeaders);
     }
 

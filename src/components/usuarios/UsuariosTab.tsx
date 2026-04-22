@@ -72,6 +72,8 @@ import { FormModal } from '@/components/FormModal';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { EmptyState } from '@/components/EmptyState';
 import { StatCard } from '@/components/StatCard';
+import { TempPasswordDialog } from '@/components/usuarios/TempPasswordDialog';
+import { Textarea } from '@/components/ui/textarea';
 import type { Database } from '@/integrations/supabase/types';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -564,6 +566,13 @@ function UserFormModal({
   const [confirmRoleChange, setConfirmRoleChange] = useState<AppRole | null>(
     null,
   );
+  const [roleChangeMotivo, setRoleChangeMotivo] = useState('');
+  const [tempCredentials, setTempCredentials] = useState<{
+    userName: string;
+    email: string;
+    tempPassword: string;
+    recoveryLink?: string | null;
+  } | null>(null);
 
   // Inherited permissions from the selected role
   const inheritedPermissions = useMemo(
@@ -602,6 +611,7 @@ function UserFormModal({
       setForm((f) => ({ ...f, role_padrao: confirmRoleChange }));
     }
     setConfirmRoleChange(null);
+    // O motivo é encaminhado no payload do PUT em handleSave (campo controlled).
   };
 
   const handleSave = async () => {
@@ -654,6 +664,11 @@ function UserFormModal({
           allow: form.extra_permissions,
           deny: form.denied_permissions,
         },
+        // Motivo opcional encaminhado para `permission_audit.motivo` quando
+        // houve troca de role neste fluxo (não bloqueante).
+        motivo: isEdit && user && user.role_padrao !== form.role_padrao && roleChangeMotivo.trim()
+          ? roleChangeMotivo.trim()
+          : undefined,
       };
 
       if (isEdit && user) {
@@ -675,20 +690,25 @@ function UserFormModal({
         if (result?.inviteSent) {
           toast.success('Usuário criado e convite enviado por e-mail.');
         } else if (result?.tempPassword) {
-          toast.success(
-            `Usuário criado. Senha temporária: ${result.tempPassword}` +
-            (result.recoveryLink ? ' (link de redefinição também gerado)' : ''),
-            { duration: 20000 },
-          );
-          // Loga o link no console para o admin copiar manualmente se precisar
-          if (result.recoveryLink) {
-            console.info('[usuarios] Link de redefinição:', result.recoveryLink);
-          }
+          // Substitui o toast (que vazaria em screencaptures e logs do
+          // navegador) por um diálogo dedicado com botões de copiar e
+          // confirmação ativa de leitura.
+          setTempCredentials({
+            userName: payload.nome,
+            email: payload.email,
+            tempPassword: result.tempPassword,
+            recoveryLink: result.recoveryLink ?? null,
+          });
+          toast.success('Usuário criado. Repasse as credenciais com segurança.');
         } else {
           toast.success('Usuário criado com sucesso.');
         }
       }
       onSaved();
+      // Quando há credenciais temporárias para entregar, mantemos o modal
+      // do usuário fechado mas o `TempPasswordDialog` cuidará da entrega.
+      // O `onClose()` aqui é seguro porque o dialog vive no escopo do
+      // UserFormModal e usa portal — fica visível mesmo após fechar.
       onClose();
     } catch (err) {
       console.error('[usuarios] Erro ao salvar usuário:', err);
@@ -906,13 +926,48 @@ function UserFormModal({
       {/* Confirm role change */}
       <ConfirmDialog
         open={confirmRoleChange !== null}
-        onClose={() => setConfirmRoleChange(null)}
+        onClose={() => {
+          setConfirmRoleChange(null);
+          setRoleChangeMotivo('');
+        }}
         onConfirm={handleConfirmRoleChange}
         title="Alterar role padrão"
         description={`Alterar o role padrão de "${user ? ROLE_LABELS[user.role_padrao] : ''}" para "${confirmRoleChange ? ROLE_LABELS[confirmRoleChange] : ''}" irá redefinir as permissões base deste usuário. As permissões complementares existentes serão mantidas. Deseja continuar?`}
         confirmLabel="Alterar role"
-        confirmVariant="default"
-      />
+        confirmVariant={
+          // Rebaixar admin → outro role é tão impactante quanto inativar.
+          user?.role_padrao === 'admin' && confirmRoleChange !== 'admin'
+            ? 'destructive'
+            : 'default'
+        }
+      >
+        <div className="space-y-1.5 px-1">
+          <Label htmlFor="role-change-motivo" className="text-xs">
+            Motivo (opcional — registrado na auditoria)
+          </Label>
+          <Textarea
+            id="role-change-motivo"
+            value={roleChangeMotivo}
+            onChange={(e) => setRoleChangeMotivo(e.target.value.slice(0, 500))}
+            placeholder="Ex.: promoção a financeiro após mudança de área."
+            rows={2}
+            className="resize-none text-sm"
+          />
+        </div>
+      </ConfirmDialog>
+
+      {/* Diálogo dedicado para credenciais temporárias quando o convite por
+          e-mail falha — substitui exibição em toast. */}
+      {tempCredentials && (
+        <TempPasswordDialog
+          open
+          onClose={() => setTempCredentials(null)}
+          userName={tempCredentials.userName}
+          email={tempCredentials.email}
+          tempPassword={tempCredentials.tempPassword}
+          recoveryLink={tempCredentials.recoveryLink}
+        />
+      )}
     </>
   );
 }
@@ -1053,6 +1108,7 @@ export function UsuariosTab() {
   // Toggle status confirm
   const [toggleTarget, setToggleTarget] = useState<UserWithRoles | null>(null);
   const [toggleLoading, setToggleLoading] = useState(false);
+  const [toggleMotivo, setToggleMotivo] = useState('');
 
   // Active sub-tab
   const [activeTab, setActiveTab] = useState<'usuarios' | 'roles'>('usuarios');
@@ -1149,6 +1205,7 @@ export function UsuariosTab() {
         payload: {
           id: toggleTarget.id,
           ativo: newStatus,
+          motivo: toggleMotivo.trim() || undefined,
         },
       });
 
@@ -1168,6 +1225,7 @@ export function UsuariosTab() {
     } finally {
       setToggleLoading(false);
       setToggleTarget(null);
+      setToggleMotivo('');
     }
   };
 
@@ -1411,7 +1469,10 @@ export function UsuariosTab() {
       {/* Toggle status confirm */}
       <ConfirmDialog
         open={toggleTarget !== null}
-        onClose={() => setToggleTarget(null)}
+        onClose={() => {
+          setToggleTarget(null);
+          setToggleMotivo('');
+        }}
         onConfirm={handleConfirmToggleStatus}
         loading={toggleLoading}
         title={
@@ -1426,7 +1487,26 @@ export function UsuariosTab() {
         }
         confirmLabel={toggleTarget?.ativo ? 'Inativar' : 'Reativar'}
         confirmVariant={toggleTarget?.ativo ? 'destructive' : 'default'}
-      />
+      >
+        <div className="space-y-1.5 px-1">
+          <Label htmlFor="toggle-motivo" className="text-xs">
+            Motivo {toggleTarget?.ativo ? '(opcional — registrado na auditoria)' : '(opcional)'}
+          </Label>
+          <Textarea
+            id="toggle-motivo"
+            value={toggleMotivo}
+            onChange={(e) => setToggleMotivo(e.target.value.slice(0, 500))}
+            placeholder={
+              toggleTarget?.ativo
+                ? 'Ex.: desligamento em 30/06.'
+                : 'Ex.: retorno após licença.'
+            }
+            rows={2}
+            className="resize-none text-sm"
+            disabled={toggleLoading}
+          />
+        </div>
+      </ConfirmDialog>
     </div>
   );
 }
