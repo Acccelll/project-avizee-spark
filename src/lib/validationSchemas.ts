@@ -86,6 +86,34 @@ export const produtoSchema = z.object({
 });
 
 /**
+ * Schema de validação para Transportadoras — exige DV de CNPJ.
+ */
+export const transportadoraSchema = z.object({
+  nome_razao_social: z.string().min(2, "Razão Social obrigatória").max(200),
+  nome_fantasia: z.string().max(200).optional().or(z.literal("")),
+  cpf_cnpj: z.string().optional().refine((val) => {
+    if (!val || val.trim() === "") return true;
+    const digits = val.replace(/\D/g, "");
+    if (digits.length !== 14) return false;
+    return validateCNPJ(digits);
+  }, { message: "CNPJ inválido" }),
+  contato: z.string().max(100).optional().or(z.literal("")),
+  telefone: telefoneSchema,
+  email: emailSchema,
+  logradouro: z.string().max(200).optional().or(z.literal("")),
+  numero: z.string().max(20).optional().or(z.literal("")),
+  complemento: z.string().max(100).optional().or(z.literal("")),
+  bairro: z.string().max(100).optional().or(z.literal("")),
+  cidade: z.string().max(100).optional().or(z.literal("")),
+  uf: ufSchema,
+  cep: cepSchema,
+  modalidade: z.string().optional().or(z.literal("")),
+  prazo_medio: z.string().optional().or(z.literal("")),
+  observacoes: z.string().max(2000).optional().or(z.literal("")),
+  ativo: z.boolean().optional(),
+});
+
+/**
  * Helper: valida um formulário contra um schema Zod e retorna erros por campo.
  */
 export function validateForm<T>(schema: z.ZodSchema<T>, data: unknown): { success: boolean; data?: T; errors: Record<string, string> } {
