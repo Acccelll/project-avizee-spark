@@ -184,8 +184,25 @@ export default function Configuracoes() {
     if (!user) return;
     setSavingProfile(true);
     try {
+      const previousNome = profile?.nome || '';
+      const previousCargo = profile?.cargo || '';
       const { error } = await supabase.from('profiles').update({ nome, cargo }).eq('id', user.id);
       if (error) throw error;
+      // Auditoria self-update (não bloqueia em caso de falha).
+      try {
+        await supabase.rpc('log_self_update_audit', {
+          p_tipo_acao: 'self_profile_update',
+          p_entidade: 'profiles',
+          p_entidade_id: user.id,
+          p_alteracao: {
+            antes: { nome: previousNome, cargo: previousCargo },
+            depois: { nome, cargo },
+          },
+          p_motivo: 'alteração pelo próprio usuário',
+        });
+      } catch (auditErr) {
+        console.warn('[perfil] auditoria self-update falhou:', auditErr);
+      }
       setProfileSavedAt(new Date());
       toast.success('Dados pessoais salvos com sucesso.');
     } catch (err: unknown) {
@@ -226,6 +243,18 @@ export default function Configuracoes() {
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
       toast.success('Senha alterada com sucesso!');
+      // Auditoria self-update (sem expor a senha — apenas o evento).
+      try {
+        await supabase.rpc('log_self_update_audit', {
+          p_tipo_acao: 'self_password_change',
+          p_entidade: 'auth.users',
+          p_entidade_id: user!.id,
+          p_alteracao: { evento: 'password_changed' },
+          p_motivo: 'troca de senha pelo próprio usuário',
+        });
+      } catch (auditErr) {
+        console.warn('[perfil] auditoria self-password falhou:', auditErr);
+      }
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
