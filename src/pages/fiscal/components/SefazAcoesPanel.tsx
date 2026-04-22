@@ -1,0 +1,172 @@
+import { useState } from "react";
+import { Send, Search, Ban, FileDown, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { useSefazAcoes } from "@/pages/fiscal/hooks/useSefazAcoes";
+import { SefazRetornoModal } from "@/pages/fiscal/components/SefazRetornoModal";
+import { gerarDanfePdf, type DanfeInput } from "@/services/fiscal/danfe.service";
+import { toast } from "sonner";
+import type { NotaFiscal } from "@/types/domain";
+import type { NFeData } from "@/services/fiscal/sefaz";
+
+interface SefazAcoesPanelProps {
+  nf: NotaFiscal;
+  /** Construtor opcional do payload NFeData (necessário para Transmitir). */
+  buildNFeData?: (nf: NotaFiscal) => Promise<NFeData> | NFeData;
+  /** Construtor opcional do payload da DANFE PDF. */
+  buildDanfeData?: (nf: NotaFiscal) => Promise<DanfeInput> | DanfeInput;
+}
+
+/**
+ * Painel compacto com as 4 ações SEFAZ + DANFE.
+ * Usa o `useSefazAcoes` para orquestrar e o `SefazRetornoModal` para feedback.
+ */
+export function SefazAcoesPanel({ nf, buildNFeData, buildDanfeData }: SefazAcoesPanelProps) {
+  const acoes = useSefazAcoes();
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [justificativa, setJustificativa] = useState("");
+  const [gerandoDanfe, setGerandoDanfe] = useState(false);
+
+  const podeTransmitir = !["autorizada", "cancelada_sefaz", "denegada"].includes(
+    nf.status_sefaz ?? "nao_enviada",
+  );
+  const podeConsultar = !!nf.chave_acesso;
+  const podeCancelar = nf.status_sefaz === "autorizada";
+  const podeDanfe = !!nf.chave_acesso;
+
+  const handleTransmitir = async () => {
+    if (!buildNFeData) {
+      toast.error("Construtor de NFeData não fornecido para esta tela.");
+      return;
+    }
+    const dados = await buildNFeData(nf);
+    await acoes.transmitir(nf, dados);
+  };
+
+  const handleDanfe = async () => {
+    if (!buildDanfeData) {
+      toast.error("Construtor de dados DANFE não fornecido para esta tela.");
+      return;
+    }
+    setGerandoDanfe(true);
+    try {
+      const dados = await buildDanfeData(nf);
+      gerarDanfePdf(dados, true);
+      toast.success("DANFE gerada com sucesso.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao gerar DANFE.");
+    } finally {
+      setGerandoDanfe(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <Button
+        size="sm"
+        variant="default"
+        className="gap-1.5"
+        disabled={!podeTransmitir || acoes.pending}
+        onClick={handleTransmitir}
+      >
+        {acoes.pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+        Transmitir SEFAZ
+      </Button>
+
+      <Button
+        size="sm"
+        variant="outline"
+        className="gap-1.5"
+        disabled={!podeConsultar || acoes.pending}
+        onClick={() => acoes.consultar(nf)}
+      >
+        <Search className="h-3.5 w-3.5" /> Consultar
+      </Button>
+
+      <Button
+        size="sm"
+        variant="outline"
+        className="gap-1.5 text-destructive border-destructive/30 hover:text-destructive"
+        disabled={!podeCancelar || acoes.pending}
+        onClick={() => setCancelOpen(true)}
+      >
+        <Ban className="h-3.5 w-3.5" /> Cancelar SEFAZ
+      </Button>
+
+      <Button
+        size="sm"
+        variant="secondary"
+        className="gap-1.5"
+        disabled={!podeDanfe || gerandoDanfe}
+        onClick={handleDanfe}
+      >
+        {gerandoDanfe ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileDown className="h-3.5 w-3.5" />}
+        DANFE PDF
+      </Button>
+
+      <SefazRetornoModal
+        aberto={acoes.modalAberto}
+        onFechar={acoes.fecharModal}
+        protocolo={acoes.ultimoRetorno?.protocolo}
+        status={acoes.ultimoRetorno?.status}
+        motivo={acoes.ultimoRetorno?.motivo}
+        xmlRetorno={acoes.ultimoRetorno?.xmlRetorno}
+        erros={acoes.ultimoRetorno?.erros}
+      />
+
+      <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancelar NF-e na SEFAZ</DialogTitle>
+            <DialogDescription>
+              O cancelamento exige justificativa de no mínimo 15 caracteres e é
+              irreversível. A NF mantém histórico contábil por exigência fiscal.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="justificativa-cancelamento">Justificativa</Label>
+            <Textarea
+              id="justificativa-cancelamento"
+              value={justificativa}
+              onChange={(e) => setJustificativa(e.target.value)}
+              placeholder="Descreva o motivo do cancelamento (mín. 15 caracteres)"
+              minLength={15}
+              rows={4}
+            />
+            <p className="text-xs text-muted-foreground">
+              {justificativa.length}/15 caracteres mínimos
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCancelOpen(false)}>
+              Voltar
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={justificativa.trim().length < 15 || acoes.pending}
+              onClick={async () => {
+                const r = await acoes.cancelar(nf, justificativa.trim());
+                if (r?.sucesso) {
+                  setCancelOpen(false);
+                  setJustificativa("");
+                }
+              }}
+            >
+              {acoes.pending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Confirmar cancelamento
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
