@@ -1,4 +1,4 @@
-import { Eye, EyeOff, RotateCcw, SlidersHorizontal } from 'lucide-react';
+import { ChevronDown, ChevronUp, Eye, EyeOff, RotateCcw, SlidersHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { WIDGET_REGISTRY } from '@/lib/dashboard/widgets';
@@ -7,12 +7,12 @@ import type { DashboardLayoutPrefs, WidgetId } from '@/hooks/useDashboardLayout'
 interface DashboardCustomizeMenuProps {
   prefs: DashboardLayoutPrefs;
   onToggle: (id: WidgetId) => void | Promise<void>;
-  /** Reorder ainda não comanda o render — botões ocultos até o RENDERERS map v2. */
+  /** Reorder agora comanda o render via RENDERERS map em Index.tsx. */
   onMove: (id: WidgetId, direction: 'up' | 'down') => void | Promise<void>;
   onReset: () => void | Promise<void>;
 }
 
-export function DashboardCustomizeMenu({ prefs, onToggle, onReset }: DashboardCustomizeMenuProps) {
+export function DashboardCustomizeMenu({ prefs, onToggle, onMove, onReset }: DashboardCustomizeMenuProps) {
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -30,16 +30,40 @@ export function DashboardCustomizeMenu({ prefs, onToggle, onReset }: DashboardCu
           </Button>
         </div>
         <ul className="max-h-[60vh] divide-y divide-border/40 overflow-y-auto">
-          {prefs.order.map((id) => {
+          {prefs.order.map((id, idx) => {
             const meta = WIDGET_REGISTRY[id];
             if (!meta) return null;
             const hidden = prefs.hidden.includes(id);
+            const isFirst = idx === 0;
+            const isLast = idx === prefs.order.length - 1;
             return (
               <li key={id} className="flex items-center gap-2 px-3 py-2">
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-xs font-medium text-foreground">{meta.label}</p>
                   <p className="truncate text-[10px] text-muted-foreground">{meta.description}</p>
                 </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={() => void onMove(id, 'up')}
+                  disabled={isFirst}
+                  aria-label={`Mover ${meta.label} para cima`}
+                  title="Mover para cima"
+                >
+                  <ChevronUp className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={() => void onMove(id, 'down')}
+                  disabled={isLast}
+                  aria-label={`Mover ${meta.label} para baixo`}
+                  title="Mover para baixo"
+                >
+                  <ChevronDown className="h-3.5 w-3.5" />
+                </Button>
                 <Button
                   variant="ghost"
                   size="icon"

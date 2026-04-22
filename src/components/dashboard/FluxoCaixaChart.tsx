@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { formatCurrency } from '@/lib/format';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -22,18 +22,14 @@ interface FluxoCaixaChartProps {
 }
 
 export function FluxoCaixaChart({ embedded = false }: FluxoCaixaChartProps) {
-  const [data, setData] = useState<ChartPoint[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
+  const { data = [], isLoading: loading } = useQuery<ChartPoint[]>({
+    queryKey: ['dashboard', 'fluxo-caixa-6m'],
+    queryFn: async () => {
       const sixMonthsAgo = new Date();
       sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
       sixMonthsAgo.setDate(1);
       const dateFrom = sixMonthsAgo.toISOString().slice(0, 10);
 
-      // Fonte unificada: vw_fluxo_caixa_financeiro (previsto por vencimento + realizado por baixa).
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data: rows } = await (supabase as any)
         .from('vw_fluxo_caixa_financeiro')
@@ -61,7 +57,7 @@ export function FluxoCaixaChart({ embedded = false }: FluxoCaixaChartProps) {
       }
 
       const months = Array.from(new Set([...realMap.keys(), ...prevMap.keys()])).sort();
-      const points: ChartPoint[] = months.map((m) => {
+      return months.map((m) => {
         const real = realMap.get(m) || { entradas_real: 0, saidas_real: 0 };
         const prev = prevMap.get(m) || { entradas_prev: 0, saidas_prev: 0 };
         const [year, mon] = m.split('-');
@@ -77,12 +73,9 @@ export function FluxoCaixaChart({ embedded = false }: FluxoCaixaChartProps) {
           saidas_prev: prev.saidas_prev,
         };
       });
-
-      setData(points);
-      setLoading(false);
-    };
-    load();
-  }, []);
+    },
+    staleTime: 2 * 60 * 1000,
+  });
 
   const chartContent = (
     <>

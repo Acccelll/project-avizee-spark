@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react';
 import {
   Bar,
   BarChart,
@@ -8,6 +7,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { formatCurrency } from '@/lib/format';
@@ -43,13 +43,9 @@ function parseMonth(rawDate: string) {
 export function VendasChart({ onBarClick }: VendasChartProps) {
   const navigate = useNavigate();
   const { range } = useDashboardPeriod();
-  const [data, setData] = useState<VendasPoint[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-
+  const { data = [], isLoading: loading } = useQuery<VendasPoint[]>({
+    queryKey: ['dashboard', 'vendas-6m', range.dateTo],
+    queryFn: async () => {
       const sixMonthsAgo = new Date();
       sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
       sixMonthsAgo.setDate(1);
@@ -72,17 +68,14 @@ export function VendasChart({ onBarClick }: VendasChartProps) {
       }
 
       const sorted = Array.from(monthMap.entries()).sort(([a], [b]) => a.localeCompare(b));
-      const points: VendasPoint[] = sorted.map(([month, valor]) => ({
+      return sorted.map(([month, valor]) => ({
         mes: parseMonth(month).label,
         valor,
         rawDate: month,
       }));
-
-      setData(points);
-      setLoading(false);
-    };
-    load();
-  }, [range]);
+    },
+    staleTime: 2 * 60 * 1000,
+  });
 
 interface RechartsClickPayload {
   activePayload?: Array<{ payload: VendasPoint }>;

@@ -1,4 +1,4 @@
-import type { Period } from '@/components/dashboard/periodTypes';
+import type { Period } from '@/components/filters/periodTypes';
 
 /**
  * Returns a forward-looking date range for financial filters.

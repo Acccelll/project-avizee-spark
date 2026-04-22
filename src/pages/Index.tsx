@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo, useState, type ReactNode } from "react";
+import { Fragment, lazy, Suspense, useState, type ReactNode } from "react";
 import {
   Bar,
   BarChart,
@@ -149,6 +149,171 @@ const DashboardContent = () => {
 
   const openMetric = metricDrawer ? detailData[metricDrawer] : null;
 
+  // ---------------------------------------------------------------------------
+  // Renderers map — a função de cada widget é renderizada de acordo com a
+  // ordem persistida em `prefs.order`. Isso faz com que reorder no menu
+  // "Personalizar" reflita na tela de fato.
+  //
+  // Widgets que historicamente convivem em uma mesma linha lado-a-lado
+  // (financeiro+ações, vendas+pendências, comercial+estoque, logística+fiscal)
+  // são "agrupados" via metadado `pair` no registry — quando dois widgets
+  // adjacentes pertencem ao mesmo grupo, são renderizados na mesma grid de 2
+  // colunas. Caso o usuário reorganize a ordem e quebre o par, cada um vira
+  // full-width (comportamento gracioso). Para v1 isso é suficiente.
+  // ---------------------------------------------------------------------------
+
+  const RENDERERS: Record<WidgetId, () => ReactNode> = {
+    kpis: () => (
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3" aria-live="polite" aria-atomic="false">
+        {kpiCards.map((c) => (
+          <SummaryCard key={c.id} {...c} density="compact" />
+        ))}
+      </div>
+    ),
+    operational: () => (
+      <div>
+        <div className="mb-2 flex items-center justify-between">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Exceções operacionais
+          </p>
+          <ScopeBadge scope={{ kind: "snapshot" }} />
+        </div>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4" aria-live="polite" aria-atomic="false">
+          {operationalCards.map((c) => (
+            <SummaryCard key={c.id} {...c} density="compact" />
+          ))}
+        </div>
+      </div>
+    ),
+    alertas: () => (
+      <AlertStrip
+        titulosVencidos={stats.contasVencidas}
+        estoqueBaixo={estoqueBaixo.length}
+        remessasAtrasadas={remessasAtrasadas}
+        comprasAtrasadas={comprasAtrasadasCount}
+        notasPendentes={fiscalStats.pendentes}
+        ovsPendentes={backlogOVsCount}
+      />
+    ),
+    financeiro: () => (
+      <BlockErrorBoundary label="Financeiro">
+        <FinanceiroBlock
+          totalReceber={stats.totalReceber}
+          totalPagar={stats.totalPagar}
+          contasVencidas={stats.contasVencidas}
+          saldoProjetado={saldoProjetado}
+          recebimentosHoje={vencimentosHoje.receber}
+          pagamentosHoje={vencimentosHoje.pagar}
+        />
+      </BlockErrorBoundary>
+    ),
+    acoes_rapidas: () => (
+      <BlockErrorBoundary label="Ações Rápidas">
+        <QuickActions />
+      </BlockErrorBoundary>
+    ),
+    vendas_chart: () => (
+      <LazyInViewWidget fallback={<Skeleton className="h-[240px] w-full rounded-xl" />}>
+        <DashboardCard>
+          <BlockErrorBoundary label="Gráfico de Vendas">
+            <Suspense fallback={<Skeleton className="h-[200px] w-full" />}>
+              <div className="h-[200px]">
+                <VendasChart
+                  onBarClick={(start, end) =>
+                    navigate(`/relatorios?tipo=vendas&di=${start}&df=${end}`)
+                  }
+                />
+              </div>
+            </Suspense>
+          </BlockErrorBoundary>
+        </DashboardCard>
+      </LazyInViewWidget>
+    ),
+    pendencias: () => (
+      <DashboardCard>
+        <BlockErrorBoundary label="Pendências">
+          <PendenciasList />
+        </BlockErrorBoundary>
+      </DashboardCard>
+    ),
+    comercial: () => (
+      <BlockErrorBoundary label="Comercial">
+        <ComercialBlock
+          cotacoesAbertas={stats.orcamentos}
+          pedidosPendentes={backlogOVsCount}
+          ticketMedio={ticketMedio}
+          recentOrcamentos={recentOrcamentos}
+          loading={loading}
+          faturamentoMesAtual={faturamento.mesAtual}
+          faturamentoMesAnterior={faturamento.mesAnterior}
+        />
+      </BlockErrorBoundary>
+    ),
+    estoque: () => (
+      <BlockErrorBoundary label="Estoque">
+        <EstoqueBlock
+          itensBaixoMinimo={estoqueBaixo}
+          valorTotalEstoque={valorEstoque}
+          totalProdutosAtivos={stats.produtos}
+        />
+      </BlockErrorBoundary>
+    ),
+    logistica: () => (
+      <LazyInViewWidget fallback={<Skeleton className="h-[220px] w-full rounded-xl" />}>
+        <BlockErrorBoundary label="Logística">
+          <LogisticaBlock
+            comprasAguardando={comprasAguardando}
+            totalRemessasAtrasadas={remessasAtrasadas}
+          />
+        </BlockErrorBoundary>
+      </LazyInViewWidget>
+    ),
+    fiscal: () => (
+      <LazyInViewWidget fallback={<Skeleton className="h-[220px] w-full rounded-xl" />}>
+        <BlockErrorBoundary label="Fiscal">
+          <FiscalBlock stats={fiscalStats} />
+        </BlockErrorBoundary>
+      </LazyInViewWidget>
+    ),
+  };
+
+  // Pares "naturais" para layout 2 colunas. Ordem dentro do par é livre.
+  const PAIR_GROUPS: Record<string, WidgetId[]> = {
+    finRow: ["financeiro", "acoes_rapidas"],
+    midRow: ["vendas_chart", "pendencias"],
+    comRow: ["comercial", "estoque"],
+    logRow: ["logistica", "fiscal"],
+  };
+  const widgetToGroup = new Map<WidgetId, string>();
+  for (const [gid, members] of Object.entries(PAIR_GROUPS)) {
+    members.forEach((m) => widgetToGroup.set(m, gid));
+  }
+
+  // Specials que sempre ocupam linha inteira independente de vizinhos.
+  const FULL_WIDTH = new Set<WidgetId>(["kpis", "operational", "alertas"]);
+
+  // Constrói as linhas conforme prefs.order respeitando os pares.
+  const visibleOrder = prefs.order.filter((id) => isVisible(id));
+  const rows: Array<{ key: string; items: WidgetId[]; pair: boolean }> = [];
+  let i = 0;
+  while (i < visibleOrder.length) {
+    const id = visibleOrder[i];
+    if (FULL_WIDTH.has(id)) {
+      rows.push({ key: `full-${id}`, items: [id], pair: false });
+      i += 1;
+      continue;
+    }
+    const group = widgetToGroup.get(id);
+    const next = visibleOrder[i + 1];
+    if (group && next && widgetToGroup.get(next) === group) {
+      rows.push({ key: `pair-${id}-${next}`, items: [id, next], pair: true });
+      i += 2;
+    } else {
+      rows.push({ key: `solo-${id}`, items: [id], pair: false });
+      i += 1;
+    }
+  }
+
   return (
     <><DashboardHeader
         lastUpdated={loadedAt}
@@ -174,120 +339,18 @@ const DashboardContent = () => {
       </div>
 
       <div className="space-y-4">
-        {isVisible("kpis") && (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3" aria-live="polite" aria-atomic="false">
-            {kpiCards.map((c) => (
-              <SummaryCard key={c.id} {...c} density="compact" />
-            ))}
-          </div>
-        )}
-
-        {isVisible("operational") && (
-          <div>
-            <div className="mb-2 flex items-center justify-between">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Exceções operacionais
-              </p>
-              <ScopeBadge scope={{ kind: "snapshot" }} />
-            </div>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4" aria-live="polite" aria-atomic="false">
-              {operationalCards.map((c) => (
-                <SummaryCard key={c.id} {...c} density="compact" />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {isVisible("alertas") && (
-          <AlertStrip
-            titulosVencidos={stats.contasVencidas}
-            estoqueBaixo={estoqueBaixo.length}
-            remessasAtrasadas={remessasAtrasadas}
-            comprasAtrasadas={comprasAtrasadasCount}
-            notasPendentes={fiscalStats.pendentes}
-            ovsPendentes={backlogOVsCount}
-          />
-        )}
-
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-          <div className="lg:col-span-2">
-            {isVisible("financeiro") && <BlockErrorBoundary label="Financeiro">
-              <FinanceiroBlock
-                totalReceber={stats.totalReceber}
-                totalPagar={stats.totalPagar}
-                contasVencidas={stats.contasVencidas}
-                saldoProjetado={saldoProjetado}
-                recebimentosHoje={vencimentosHoje.receber}
-                pagamentosHoje={vencimentosHoje.pagar}
-              />
-            </BlockErrorBoundary>}
-          </div>
-          <div>
-            {isVisible("acoes_rapidas") && <BlockErrorBoundary label="Ações Rápidas">
-              <QuickActions />
-            </BlockErrorBoundary>}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          {isVisible("vendas_chart") && <LazyInViewWidget fallback={<Skeleton className="h-[240px] w-full rounded-xl" />}>
-            <DashboardCard>
-              <BlockErrorBoundary label="Gráfico de Vendas">
-                <Suspense fallback={<Skeleton className="h-[200px] w-full" />}>
-                  <div className="h-[200px]">
-                    <VendasChart
-                      onBarClick={(start, end) =>
-                        navigate(`/relatorios?tipo=vendas&di=${start}&df=${end}`)
-                      }
-                    />
-                  </div>
-                </Suspense>
-              </BlockErrorBoundary>
-            </DashboardCard>
-          </LazyInViewWidget>}
-          {isVisible("pendencias") && <DashboardCard>
-            <BlockErrorBoundary label="Pendências">
-              <PendenciasList />
-            </BlockErrorBoundary>
-          </DashboardCard>}
-        </div>
-
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          {isVisible("comercial") && <BlockErrorBoundary label="Comercial">
-            <ComercialBlock
-              cotacoesAbertas={stats.orcamentos}
-              pedidosPendentes={backlogOVsCount}
-              ticketMedio={ticketMedio}
-              recentOrcamentos={recentOrcamentos}
-              loading={loading}
-              faturamentoMesAtual={faturamento.mesAtual}
-              faturamentoMesAnterior={faturamento.mesAnterior}
-            />
-          </BlockErrorBoundary>}
-          {isVisible("estoque") && <BlockErrorBoundary label="Estoque">
-            <EstoqueBlock
-              itensBaixoMinimo={estoqueBaixo}
-              valorTotalEstoque={valorEstoque}
-              totalProdutosAtivos={stats.produtos}
-            />
-          </BlockErrorBoundary>}
-        </div>
-
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          {isVisible("logistica") && <LazyInViewWidget fallback={<Skeleton className="h-[220px] w-full rounded-xl" />}>
-            <BlockErrorBoundary label="Logística">
-              <LogisticaBlock
-                comprasAguardando={comprasAguardando}
-                totalRemessasAtrasadas={remessasAtrasadas}
-              />
-            </BlockErrorBoundary>
-          </LazyInViewWidget>}
-          {isVisible("fiscal") && <LazyInViewWidget fallback={<Skeleton className="h-[220px] w-full rounded-xl" />}>
-            <BlockErrorBoundary label="Fiscal">
-              <FiscalBlock stats={fiscalStats} />
-            </BlockErrorBoundary>
-          </LazyInViewWidget>}
-        </div>
+        {rows.map((row) => {
+          if (row.pair) {
+            return (
+              <div key={row.key} className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                {row.items.map((id) => (
+                  <Fragment key={id}>{RENDERERS[id]()}</Fragment>
+                ))}
+              </div>
+            );
+          }
+          return <Fragment key={row.key}>{RENDERERS[row.items[0]]()}</Fragment>;
+        })}
       </div>
 
       <ViewDrawerV2

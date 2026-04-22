@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
 import type { MultiSelectOption } from "@/components/ui/MultiSelect";
 import { periodToFinancialRange } from "@/lib/periodFilter";
-import type { Period } from "@/components/dashboard/periodTypes";
+import type { Period } from "@/components/filters/periodTypes";
 import type { ContaBancaria, Lancamento } from "@/types/domain";
 
 const validPeriods: readonly Period[] = ["7d", "15d", "30d", "90d", "year", "hoje", "todos", "vencidos"];
