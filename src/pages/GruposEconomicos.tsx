@@ -664,56 +664,6 @@ const GruposEconomicos = () => {
         </form>
       </FormModal>
 
-      <ViewDrawerV2
-        open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        title={selected?.nome ?? "Grupo Econômico"}
-        badge={
-          selected ? (
-            <div className="flex items-center gap-1.5">
-              <StatusBadge status={selected.ativo ? "ativo" : "inativo"} />
-              {riskBadge}
-            </div>
-          ) : undefined
-        }
-        actions={
-          selected ? (
-            <>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Editar grupo econômico" onClick={() => { setDrawerOpen(false); openEdit(selected); }}>
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Editar</TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" aria-label="Excluir grupo econômico" onClick={() => setDeleteConfirmOpen(true)}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Excluir</TooltipContent>
-              </Tooltip>
-            </>
-          ) : undefined
-        }
-        tabs={[
-          { value: "resumo", label: "Resumo", content: tabResumo },
-          { value: "empresas", label: `Empresas (${empresas.length})`, content: tabEmpresas },
-          { value: "financeiro", label: "Financeiro", content: tabFinanceiro },
-          { value: "observacoes", label: "Observações", content: tabObservacoes },
-        ]}
-      />
-
-      <ConfirmDialog
-        open={deleteConfirmOpen}
-        onClose={() => setDeleteConfirmOpen(false)}
-        onConfirm={handleDelete}
-        loading={deleting}
-        title="Excluir Grupo Econômico"
-        description={deleteDescription}
-      />
       {discardDialog}
     </>
   );
