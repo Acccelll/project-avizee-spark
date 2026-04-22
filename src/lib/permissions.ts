@@ -238,3 +238,108 @@ export function buildPermissionSet(
 export function toPermissionKey(resource: ErpResource, action: ErpAction): PermissionKey {
   return `${resource}:${action}`;
 }
+
+/**
+ * Mapa explícito de ações relevantes por recurso para o editor de overrides.
+ *
+ * Por que existe?
+ *  - `ERP_ACTIONS` × `ERP_RESOURCES` = 400 combinações; muitas não fazem
+ *    sentido (ex.: `produtos:importar_xml`).
+ *  - A UI de overrides mostrava apenas `visualizar`/`editar` (10% do espaço
+ *    real). Aqui declaramos quais ações fazem sentido para cada recurso,
+ *    cobrindo exatamente o que o RBAC já reconhece nos roles padrão + ações
+ *    administrativas que só admin recebe (aprovar, cancelar, admin_fiscal…).
+ *
+ * Mantenha em sincronia com `rolePermissionMatrix` quando uma nova ação for
+ * concedida a algum role.
+ */
+export const RESOURCE_ACTIONS: Record<ErpResource, ErpAction[]> = {
+  dashboard: ["visualizar"],
+  produtos: ["visualizar", "criar", "editar", "excluir", "exportar"],
+  clientes: ["visualizar", "criar", "editar", "excluir", "exportar"],
+  fornecedores: ["visualizar", "criar", "editar", "excluir", "exportar"],
+  transportadoras: ["visualizar", "criar", "editar", "excluir"],
+  formas_pagamento: ["visualizar", "criar", "editar", "excluir"],
+  orcamentos: [
+    "visualizar",
+    "visualizar_rentabilidade",
+    "criar",
+    "editar",
+    "excluir",
+    "aprovar",
+    "cancelar",
+    "exportar",
+  ],
+  pedidos: [
+    "visualizar",
+    "criar",
+    "editar",
+    "excluir",
+    "aprovar",
+    "cancelar",
+    "exportar",
+    "confirmar",
+  ],
+  compras: [
+    "visualizar",
+    "criar",
+    "editar",
+    "excluir",
+    "aprovar",
+    "cancelar",
+    "confirmar",
+  ],
+  estoque: ["visualizar", "editar", "exportar", "aprovar"],
+  logistica: ["visualizar", "editar", "exportar"],
+  financeiro: [
+    "visualizar",
+    "criar",
+    "editar",
+    "excluir",
+    "baixar",
+    "aprovar",
+    "cancelar",
+    "exportar",
+  ],
+  faturamento_fiscal: [
+    "visualizar",
+    "criar",
+    "editar",
+    "excluir",
+    "cancelar",
+    "importar_xml",
+    "reenviar_email",
+    "admin_fiscal",
+  ],
+  relatorios: ["visualizar", "exportar"],
+  workbook: ["visualizar", "gerar", "exportar", "download", "gerenciar_templates"],
+  apresentacao: [
+    "visualizar",
+    "gerar",
+    "editar_comentarios",
+    "download",
+    "aprovar",
+    "gerenciar_templates",
+  ],
+  social: [
+    "visualizar",
+    "configurar",
+    "sincronizar",
+    "exportar",
+    "gerenciar_alertas",
+  ],
+  usuarios: ["visualizar", "criar", "editar", "excluir"],
+  administracao: ["visualizar", "editar", "configurar"],
+  socios: ["visualizar", "editar", "exportar"],
+};
+
+/**
+ * Tri-state state per (resource, action) used by the overrides editor.
+ *  - `inherited`: vem do role padrão; usuário pode mantê-lo ou explicitamente
+ *    revogar (`deny`). Não há "remover herança"; o que existe é o deny.
+ *  - `allow`: concedido individualmente em `user_permissions(allowed=true)`.
+ *  - `deny`: revogado individualmente em `user_permissions(allowed=false)` —
+ *    vence a herança do papel.
+ *  - `none`: não herdado e sem override.
+ */
+export type PermissionOverrideState = "inherited" | "allow" | "deny" | "none";

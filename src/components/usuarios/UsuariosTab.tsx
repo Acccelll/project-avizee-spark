@@ -21,7 +21,19 @@ import {
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { ERP_RESOURCES, getRolePermissions, ROLE_DESCRIPTIONS, ROLE_LABELS, PERMISSION_HELP_TEXT } from '@/lib/permissions';
+import {
+  ERP_RESOURCES,
+  RESOURCE_ACTIONS,
+  RESOURCE_LABELS,
+  ACTION_LABELS,
+  getRolePermissions,
+  ROLE_DESCRIPTIONS,
+  ROLE_LABELS,
+  PERMISSION_HELP_TEXT,
+  type ErpResource,
+  type ErpAction,
+  type PermissionOverrideState,
+} from '@/lib/permissions';
 import { getUserFriendlyError } from '@/utils/errorMessages';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -79,26 +91,27 @@ const ROLE_COLORS: Record<AppRole, string> = {
   viewer: 'bg-muted text-muted-foreground border-muted-foreground/30',
 };
 
-const MODULE_LABELS: Record<string, string> = {
-  dashboard: 'Dashboard',
+/**
+ * Rótulos hierárquicos para o editor — exibe "Cadastros › Produtos" no lugar
+ * do label flat de `RESOURCE_LABELS`. Usado SOMENTE aqui (a fonte canônica
+ * `RESOURCE_LABELS` em `lib/permissions.ts` continua sendo o padrão para o
+ * resto da aplicação: AccessDenied, tooltips, catálogo, etc.).
+ */
+const RESOURCE_PATH_LABEL: Partial<Record<ErpResource, string>> = {
   produtos: 'Cadastros › Produtos',
   clientes: 'Cadastros › Clientes',
   fornecedores: 'Cadastros › Fornecedores',
   transportadoras: 'Cadastros › Transportadoras',
-  formas_pagamento: 'Cadastros › Formas de Pagamento',
+  formas_pagamento: 'Cadastros › Formas de pagamento',
   orcamentos: 'Comercial › Orçamentos',
   pedidos: 'Comercial › Pedidos',
-  compras: 'Compras › Pedidos de Compra',
-  estoque: 'Estoque',
-  logistica: 'Logística',
+  compras: 'Compras › Pedidos de compra',
   financeiro: 'Financeiro › Lançamentos',
   faturamento_fiscal: 'Fiscal › Notas',
-  relatorios: 'Relatórios',
   usuarios: 'Administração › Usuários',
-  administracao: 'Administração',
+  socios: 'Sócios e participações',
 };
-
-const UI_ACTIONS = ['visualizar', 'editar'] as const;
+const resourceLabel = (r: ErpResource) => RESOURCE_PATH_LABEL[r] ?? RESOURCE_LABELS[r];
 
 interface UserWithRoles {
   id: string;
@@ -110,6 +123,8 @@ interface UserWithRoles {
   updated_at: string;
   role_padrao: AppRole;
   extra_permissions: string[];
+  /** Revogações individuais (user_permissions.allowed=false). */
+  denied_permissions: string[];
   /** Not persisted — used for display only */
   last_sign_in?: string | null;
 }
@@ -121,6 +136,7 @@ interface UserFormData {
   ativo: boolean;
   role_padrao: AppRole;
   extra_permissions: string[];
+  denied_permissions: string[];
 }
 
 const emptyForm = (): UserFormData => ({
@@ -130,6 +146,7 @@ const emptyForm = (): UserFormData => ({
   ativo: true,
   role_padrao: 'vendedor',
   extra_permissions: [],
+  denied_permissions: [],
 });
 
 const ADMIN_USERS_FUNCTION = 'admin-users';
@@ -184,124 +201,238 @@ function StatusBadgeUser({ ativo }: { ativo: boolean }) {
 // ─── Permission Matrix Editor ─────────────────────────────────────────────────
 
 interface PermissionMatrixProps {
-  /** Currently active permissions (keys like "produtos:visualizar") */
-  value: string[];
-  /** Permissions inherited from the role (read-only display) */
+  /** Permissões individualmente concedidas (`user_permissions.allowed=true`). */
+  allow: string[];
+  /** Permissões individualmente revogadas (`user_permissions.allowed=false`). */
+  deny: string[];
+  /** Permissões herdadas do role padrão (somente leitura — origem da herança). */
   inheritedPermissions: string[];
-  onChange: (value: string[]) => void;
-  /** If true, the whole matrix is read-only */
+  onChange: (next: { allow: string[]; deny: string[] }) => void;
+  /** Se true, a matriz é totalmente somente leitura. */
   readOnly?: boolean;
   label?: string;
 }
 
 function PermissionMatrix({
-  value,
+  allow,
+  deny,
   inheritedPermissions,
   onChange,
   readOnly = false,
   label = 'Permissões complementares',
 }: PermissionMatrixProps) {
-  const inheritedSet = useMemo(
-    () => new Set(inheritedPermissions),
-    [inheritedPermissions],
-  );
-  const extraSet = useMemo(() => new Set(value), [value]);
+  const inheritedSet = useMemo(() => new Set(inheritedPermissions), [inheritedPermissions]);
+  const allowSet = useMemo(() => new Set(allow), [allow]);
+  const denySet = useMemo(() => new Set(deny), [deny]);
+  const [expanded, setExpanded] = useState<Set<ErpResource>>(new Set());
 
-  const toggle = (key: string) => {
-    if (readOnly) return;
-    if (extraSet.has(key)) {
-      onChange(value.filter((k) => k !== key));
-    } else {
-      onChange([...value, key]);
-    }
+  const stateOf = (key: string): PermissionOverrideState => {
+    if (denySet.has(key)) return 'deny';
+    if (allowSet.has(key)) return 'allow';
+    if (inheritedSet.has(key)) return 'inherited';
+    return 'none';
   };
+
+  /**
+   * Avança para o próximo estado tri-state. Regras:
+   *  - inherited → deny    (revoga acesso herdado)
+   *  - deny      → none*   (*remove a revogação; se ainda há herança, volta a inherited)
+   *  - allow     → none    (remove a concessão extra)
+   *  - none      → allow   (concede acesso individual)
+   *
+   * Para concretizar: limpamos a chave de allow/deny e adicionamos no destino correto.
+   */
+  const cycle = (resource: ErpResource, action: ErpAction) => {
+    if (readOnly) return;
+    const key = `${resource}:${action}`;
+    const current = stateOf(key);
+    const nextAllow = new Set(allowSet);
+    const nextDeny = new Set(denySet);
+    nextAllow.delete(key);
+    nextDeny.delete(key);
+
+    let target: PermissionOverrideState;
+    switch (current) {
+      case 'inherited':
+        target = 'deny';
+        break;
+      case 'deny':
+        target = 'none';
+        break;
+      case 'allow':
+        target = 'none';
+        break;
+      default:
+        target = 'allow';
+    }
+    if (target === 'allow') nextAllow.add(key);
+    if (target === 'deny') nextDeny.add(key);
+    onChange({ allow: Array.from(nextAllow), deny: Array.from(nextDeny) });
+  };
+
+  const toggleExpand = (resource: ErpResource) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(resource)) next.delete(resource);
+      else next.add(resource);
+      return next;
+    });
+  };
+
+  /** Conta overrides (allow + deny) por recurso para o resumo da linha. */
+  const overrideCountByResource = useMemo(() => {
+    const counts = new Map<ErpResource, { allow: number; deny: number }>();
+    const bump = (key: string, kind: 'allow' | 'deny') => {
+      const [resource] = key.split(':') as [ErpResource];
+      if (!ERP_RESOURCES.includes(resource)) return;
+      const cur = counts.get(resource) ?? { allow: 0, deny: 0 };
+      cur[kind] += 1;
+      counts.set(resource, cur);
+    };
+    allow.forEach((k) => bump(k, 'allow'));
+    deny.forEach((k) => bump(k, 'deny'));
+    return counts;
+  }, [allow, deny]);
 
   return (
     <div className="space-y-3">
-      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        {label}
-      </p>
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          {label}
+        </p>
+        <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+          <LegendDot variant="inherited" /> Herdado
+          <LegendDot variant="allow" /> Concedido
+          <LegendDot variant="deny" /> Revogado
+          <LegendDot variant="none" /> Sem acesso
+        </div>
+      </div>
       <div className="rounded-md border overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b bg-muted/50">
-              <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground w-full">
-                Módulo / Submódulo
-              </th>
-              {UI_ACTIONS.map((a) => (
-                <th
-                  key={a}
-                  className="px-3 py-2 text-center text-xs font-medium text-muted-foreground whitespace-nowrap w-24"
-                >
-                  {a.charAt(0).toUpperCase() + a.slice(1)}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {ERP_RESOURCES.map((resource, idx) => (
-              <tr
-                key={resource}
-                className={cn(
-                  'border-b last:border-0',
-                  idx % 2 === 0 ? 'bg-background' : 'bg-muted/20',
-                )}
-              >
-                <td className="px-3 py-2 text-sm text-foreground">
-                  {MODULE_LABELS[resource] ?? resource}
-                </td>
-                {UI_ACTIONS.map((action) => {
-                  const key = `${resource}:${action}`;
-                  const isInherited = inheritedSet.has(key);
-                  const isExtra = extraSet.has(key);
-                  const isActive = isInherited || isExtra;
+        {ERP_RESOURCES.map((resource, idx) => {
+          const actions = RESOURCE_ACTIONS[resource];
+          const counts = overrideCountByResource.get(resource);
+          const isExpanded = expanded.has(resource);
+          const inheritedForResource = actions.filter((a) =>
+            inheritedSet.has(`${resource}:${a}`),
+          ).length;
 
-                  return (
-                    <td key={action} className="px-3 py-2 text-center">
+          return (
+            <div
+              key={resource}
+              className={cn(
+                'border-b last:border-0',
+                idx % 2 === 0 ? 'bg-background' : 'bg-muted/20',
+              )}
+            >
+              <button
+                type="button"
+                className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-muted/40 transition-colors"
+                onClick={() => toggleExpand(resource)}
+                aria-expanded={isExpanded}
+              >
+                {isExpanded ? (
+                  <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                ) : (
+                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                )}
+                <span className="text-sm font-medium text-foreground flex-1">
+                  {resourceLabel(resource)}
+                </span>
+                <span className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground shrink-0">
+                  <span>
+                    {inheritedForResource}/{actions.length} herdadas
+                  </span>
+                  {counts && counts.allow > 0 && (
+                    <span className="rounded-full border border-primary/40 bg-primary/10 px-1.5 py-0.5 text-primary">
+                      +{counts.allow}
+                    </span>
+                  )}
+                  {counts && counts.deny > 0 && (
+                    <span className="rounded-full border border-destructive/40 bg-destructive/10 px-1.5 py-0.5 text-destructive">
+                      −{counts.deny}
+                    </span>
+                  )}
+                </span>
+              </button>
+              {isExpanded && (
+                <div className="grid gap-1.5 border-t bg-background/40 px-3 py-3 sm:grid-cols-2">
+                  {actions.map((action) => {
+                    const key = `${resource}:${action}`;
+                    const state = stateOf(key);
+                    return (
                       <button
+                        key={action}
                         type="button"
-                        disabled={readOnly || isInherited}
-                        onClick={() => toggle(key)}
-                        title={
-                          isInherited
-                            ? 'Herdado do role padrão'
-                            : isExtra
-                              ? 'Permissão complementar ativa — clique para remover'
-                              : 'Sem acesso — clique para conceder'
-                        }
+                        disabled={readOnly}
+                        onClick={() => cycle(resource, action)}
+                        title={titleFor(state)}
                         className={cn(
-                          'mx-auto flex h-6 w-6 items-center justify-center rounded',
-                          isInherited &&
-                            'cursor-default opacity-60',
-                          !isInherited && !isExtra && !readOnly &&
-                            'border border-dashed border-muted-foreground/30 hover:border-primary/50',
-                          isExtra && !isInherited &&
-                            'border border-primary/40 bg-primary/10 text-primary',
-                          isInherited &&
-                            'border border-muted-foreground/20 bg-muted/50 text-muted-foreground',
+                          'flex items-center justify-between gap-2 rounded-md border px-2.5 py-1.5 text-left text-xs transition-colors',
+                          state === 'inherited' &&
+                            'border-muted-foreground/30 bg-muted/40 text-muted-foreground',
+                          state === 'allow' &&
+                            'border-primary/50 bg-primary/10 text-primary',
+                          state === 'deny' &&
+                            'border-destructive/50 bg-destructive/10 text-destructive',
+                          state === 'none' &&
+                            'border-dashed border-muted-foreground/30 text-muted-foreground hover:border-primary/40',
+                          readOnly && 'cursor-default opacity-70',
                         )}
                       >
-                        {isActive && (
-                          <Check className="h-3 w-3" />
-                        )}
+                        <span className="truncate">{ACTION_LABELS[action]}</span>
+                        <span className="shrink-0">
+                          {state === 'inherited' && <Check className="h-3 w-3 opacity-60" />}
+                          {state === 'allow' && <Check className="h-3 w-3" />}
+                          {state === 'deny' && <X className="h-3 w-3" />}
+                        </span>
                       </button>
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
       {!readOnly && (
-        <p className="text-[11px] text-muted-foreground flex items-center gap-1">
-          <Info className="h-3 w-3" />
-          Células acinzentadas são herdadas do role padrão e não podem ser removidas aqui.
-          {` ${PERMISSION_HELP_TEXT.permissaoComplementar}`}
+        <p className="text-[11px] text-muted-foreground flex items-start gap-1.5">
+          <Info className="h-3 w-3 mt-0.5 shrink-0" />
+          <span>
+            Clique em uma ação para alternar entre <strong>concedido</strong>,{' '}
+            <strong>revogado</strong> e <strong>sem override</strong>.{' '}
+            {PERMISSION_HELP_TEXT.permissaoRevogada}
+          </span>
         </p>
       )}
     </div>
   );
+}
+
+function LegendDot({ variant }: { variant: PermissionOverrideState }) {
+  return (
+    <span
+      className={cn(
+        'inline-block h-2 w-2 rounded-full',
+        variant === 'inherited' && 'bg-muted-foreground/40',
+        variant === 'allow' && 'bg-primary',
+        variant === 'deny' && 'bg-destructive',
+        variant === 'none' && 'border border-dashed border-muted-foreground/40 bg-transparent',
+      )}
+    />
+  );
+}
+
+function titleFor(state: PermissionOverrideState): string {
+  switch (state) {
+    case 'inherited':
+      return 'Herdado do role padrão — clique para revogar';
+    case 'allow':
+      return 'Concedido individualmente — clique para remover';
+    case 'deny':
+      return 'Revogado individualmente — clique para remover a revogação';
+    default:
+      return 'Sem acesso — clique para conceder';
+  }
 }
 
 // ─── Role Catalog Section ─────────────────────────────────────────────────────
@@ -367,7 +498,8 @@ function RolesCatalog({ users }: { users: UserWithRoles[] }) {
                 {isExpanded && (
                   <div className="border-t px-4 pb-4 pt-3">
                     <PermissionMatrix
-                      value={[]}
+                      allow={[]}
+                      deny={[]}
                       inheritedPermissions={perms}
                       onChange={() => {}}
                       readOnly
@@ -449,6 +581,7 @@ function UserFormModal({
           ativo: user.ativo,
           role_padrao: user.role_padrao,
           extra_permissions: [...user.extra_permissions],
+          denied_permissions: [...(user.denied_permissions ?? [])],
         });
       } else {
         setForm(emptyForm());
@@ -514,7 +647,13 @@ function UserFormModal({
         cargo: form.cargo.trim(),
         ativo: form.ativo,
         role_padrao: form.role_padrao,
-        extra_permissions: form.extra_permissions,
+        // Novo shape `{ allow, deny }` — back-compat aceita também `string[]`.
+        // Edge function `admin-users` normaliza e atualiza `user_permissions`
+        // preservando histórico (allowed=false em vez de DELETE para revogações).
+        extra_permissions: {
+          allow: form.extra_permissions,
+          deny: form.denied_permissions,
+        },
       };
 
       if (isEdit && user) {
@@ -684,10 +823,15 @@ function UserFormModal({
             </div>
 
             <PermissionMatrix
-              value={form.extra_permissions}
+              allow={form.extra_permissions}
+              deny={form.denied_permissions}
               inheritedPermissions={inheritedPermissions}
-              onChange={(v) =>
-                setForm((f) => ({ ...f, extra_permissions: v }))
+              onChange={({ allow: nextAllow, deny: nextDeny }) =>
+                setForm((f) => ({
+                  ...f,
+                  extra_permissions: nextAllow,
+                  denied_permissions: nextDeny,
+                }))
               }
             />
           </div>
@@ -802,10 +946,14 @@ function UserRow({
               você
             </span>
           )}
-          {user.extra_permissions.length > 0 && (
-            <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[10px] text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-400">
+          {(user.extra_permissions.length + (user.denied_permissions?.length ?? 0)) > 0 && (
+            <span
+              className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[10px] text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-400"
+              title={`${user.extra_permissions.length} concedida(s), ${user.denied_permissions?.length ?? 0} revogada(s)`}
+            >
               <ShieldAlert className="h-2.5 w-2.5" />
-              {user.extra_permissions.length} exceção{user.extra_permissions.length > 1 ? 'ões' : ''}
+              {user.extra_permissions.length + (user.denied_permissions?.length ?? 0)} exceção
+              {user.extra_permissions.length + (user.denied_permissions?.length ?? 0) > 1 ? 'ões' : ''}
             </span>
           )}
         </div>
@@ -960,7 +1108,11 @@ export function UsuariosTab() {
       if (filterStatus === 'ativo' && !u.ativo) return false;
       if (filterStatus === 'inativo' && u.ativo) return false;
       if (filterRole !== 'todos' && u.role_padrao !== filterRole) return false;
-      if (filterExtra && u.extra_permissions.length === 0) return false;
+      if (
+        filterExtra &&
+        u.extra_permissions.length === 0 &&
+        (u.denied_permissions?.length ?? 0) === 0
+      ) return false;
       return true;
     });
   }, [users, search, filterStatus, filterRole, filterExtra]);
