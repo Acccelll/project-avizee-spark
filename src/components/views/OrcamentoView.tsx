@@ -40,6 +40,7 @@ import {
   Copy,
   ExternalLink,
   AlertTriangle,
+  GitBranch,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -146,7 +147,7 @@ export function OrcamentoView({ id }: Props) {
       // Toast com CTA contextual: usuário abre o pedido recém-criado em 1 clique.
       crossToast.success({
         title: "Pedido gerado!",
-        description: `OV ${result.ovNumero} criada a partir da cotação ${selected.numero}.`,
+        description: `OV ${result.ovNumero} criada a partir do orçamento ${selected.numero}.`,
         actionLabel: "Abrir pedido",
         action: { drawer: { type: "ordem_venda", id: result.ovId } },
       });
@@ -172,6 +173,18 @@ export function OrcamentoView({ id }: Props) {
     }
   };
 
+  const handleCriarRevisao = () =>
+    run("revisao", async () => {
+      const { data: novoId, error } = await supabase.rpc(
+        "criar_revisao_orcamento" as never,
+        { p_orcamento_id: selected.id } as never,
+      );
+      if (error) throw error;
+      toast.success("Revisão criada!");
+      invalidate(["orcamentos"]);
+      if (novoId) navigate(`/orcamentos/${novoId}`);
+    }).catch(() => {});
+
   const itemsSubtotal = items.reduce((s, i) => s + Number(i.valor_total || 0), 0);
   const kpiItens = items.length;
   const kpiQtd = items.reduce((s, i) => s + Number(i.quantidade || 0), 0);
@@ -180,7 +193,7 @@ export function OrcamentoView({ id }: Props) {
 
   // Publica slots do header padronizado (sempre — hook deve rodar incondicionalmente)
   usePublishDrawerSlots(`orcamento:${id}`, selected ? {
-    breadcrumb: `Cotação · ${selected.numero}`,
+    breadcrumb: `Orçamento · ${selected.numero}${selected.revisao ? ` (rev ${selected.revisao})` : ""}`,
     summary: (
       <RecordIdentityCard
         icon={FileText}
@@ -219,6 +232,11 @@ export function OrcamentoView({ id }: Props) {
             <ArrowRightCircle className="h-3.5 w-3.5" /> Gerar Pedido
           </Button>
         )}
+        {["aprovado", "rejeitado", "expirado", "convertido"].includes(normalizeOrcamentoStatus(selected.status)) && (
+          <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs" onClick={handleCriarRevisao} disabled={isAnyLocked}>
+            <GitBranch className="h-3.5 w-3.5" /> Criar revisão
+          </Button>
+        )}
         {normalizeOrcamentoStatus(selected.status) === "convertido" && linkedOV && (
           <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs" onClick={() => pushView("ordem_venda", linkedOV.id)}>
             <ExternalLink className="h-3.5 w-3.5" /> Ver Pedido {linkedOV.numero}
@@ -227,17 +245,17 @@ export function OrcamentoView({ id }: Props) {
         <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => { clearStack(); navigate(`/orcamentos/${id}?preview=1`); }}>
           <FileText className="h-3.5 w-3.5" /> PDF
         </Button>
-        <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs" aria-label="Editar cotação" onClick={() => { clearStack(); navigate(`/orcamentos/${id}`); }}>
+        <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs" aria-label="Editar orçamento" onClick={() => { clearStack(); navigate(`/orcamentos/${id}`); }}>
           <Edit className="h-3.5 w-3.5" /> Editar
         </Button>
         <Button
           variant="ghost" size="sm"
           className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
-          aria-label="Cancelar cotação"
+          aria-label="Cancelar orçamento"
           onClick={() => {
             if (linkedOV) {
-              toast.error("Não é possível cancelar uma cotação com pedido vinculado.", {
-                description: `Pedido ${linkedOV.numero} está vinculado a esta cotação.`,
+              toast.error("Não é possível cancelar um orçamento com pedido vinculado.", {
+                description: `Pedido ${linkedOV.numero} está vinculado a este orçamento.`,
               });
               return;
             }
@@ -253,7 +271,7 @@ export function OrcamentoView({ id }: Props) {
 
   if (loading) return <DetailLoading />;
   if (error) return <DetailError message={error.message} />;
-  if (!selected) return <DetailEmpty title="Cotação não encontrada" icon={FileText} />;
+  if (!selected) return <DetailEmpty title="Orçamento não encontrado" icon={FileText} />;
 
   return (
     <div className="space-y-4">
@@ -280,13 +298,13 @@ export function OrcamentoView({ id }: Props) {
           {isExpired && (
             <div className="flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/20 p-3 text-xs text-amber-800 dark:text-amber-400">
               <AlertTriangle className="h-4 w-4 shrink-0" />
-              <span>Esta cotação está expirada (validade: {formatDate(selected.validade)}).</span>
+              <span>Este orçamento está expirado (validade: {formatDate(selected.validade)}).</span>
             </div>
           )}
           {selected.status === "rejeitado" && (
             <div className="flex items-center gap-2 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-xs text-destructive">
               <AlertTriangle className="h-4 w-4 shrink-0" />
-              <span>Esta cotação foi rejeitada. Edite-a para reenviar.</span>
+              <span>Este orçamento foi rejeitado. Edite-o para reenviar.</span>
             </div>
           )}
           <div className="space-y-2">
@@ -525,7 +543,7 @@ export function OrcamentoView({ id }: Props) {
           try {
             const { error: updErr } = await supabase.from("orcamentos").update({ status: "cancelado" }).eq("id", id);
             if (updErr) throw updErr;
-            toast.success("Cotação cancelada com sucesso.");
+            toast.success("Orçamento cancelado com sucesso.");
             invalidate(["orcamentos"]);
             await reload();
           } catch (err: unknown) {
@@ -535,9 +553,9 @@ export function OrcamentoView({ id }: Props) {
             setDeleteConfirmOpen(false);
           }
         }}
-        title="Cancelar cotação"
-        description={`Tem certeza que deseja cancelar a cotação ${selected?.numero || ""}? Ela permanecerá no histórico e não poderá avançar no fluxo comercial.`}
-        confirmLabel="Cancelar cotação"
+        title="Cancelar orçamento"
+        description={`Tem certeza que deseja cancelar o orçamento ${selected?.numero || ""}? Ele permanecerá no histórico e não poderá avançar no fluxo comercial.`}
+        confirmLabel="Cancelar orçamento"
         confirmVariant="destructive"
       />
 
@@ -546,8 +564,8 @@ export function OrcamentoView({ id }: Props) {
         open={approveConfirmOpen}
         onClose={() => setApproveConfirmOpen(false)}
         onConfirm={handleApprove}
-        title="Aprovar cotação?"
-        description="A cotação ficará disponível para gerar uma Pedido."
+        title="Aprovar orçamento?"
+        description="O orçamento ficará disponível para gerar um Pedido."
         confirmLabel="Aprovar"
         confirmVariant="default"
         loading={locked("approve")}
@@ -563,7 +581,7 @@ export function OrcamentoView({ id }: Props) {
         }}
         onConfirm={handleConvertToOV}
         title="Gerar Pedido"
-        description={`Confirma a conversão da cotação ${selected?.numero} em Pedido?`}
+        description={`Confirma a conversão do orçamento ${selected?.numero} em Pedido?`}
         confirmLabel="Gerar Pedido"
         loading={locked("convert")}
         impacts={[
@@ -573,7 +591,7 @@ export function OrcamentoView({ id }: Props) {
             tone: "primary",
           },
           {
-            label: "Cotação muda para “convertido”",
+            label: "Orçamento muda para “convertido”",
             detail: `Nº ${selected?.numero}`,
             tone: "info",
           },
