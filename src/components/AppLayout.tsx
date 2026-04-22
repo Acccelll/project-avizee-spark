@@ -75,7 +75,7 @@ export function AppLayout() {
       </div>
 
       <div
-        className={`min-h-screen transition-[margin] duration-200 ${contentMarginCollapsed ? 'md:ml-[72px]' : 'md:ml-[240px]'}`}
+        className={`min-h-screen transition-[margin] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${contentMarginCollapsed ? 'md:ml-[72px]' : 'md:ml-[240px]'}`}
       >
         <AppHeader
           onOpenMobileMenu={() => setMobileMenuOpen(true)}
