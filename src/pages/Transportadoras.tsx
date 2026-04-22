@@ -71,16 +71,6 @@ interface ClienteVinculado {
   clientes: { nome_razao_social: string; cpf_cnpj: string } | null;
 }
 
-interface RemessaVinculada {
-  id: string;
-  codigo_rastreio: string | null;
-  status_transporte: string;
-  data_postagem: string | null;
-  previsao_entrega: string | null;
-  servico: string | null;
-  clientes: { nome_razao_social: string } | null;
-}
-
 const emptyForm: TransportadoraFormData = {
   nome_razao_social: "", nome_fantasia: "", cpf_cnpj: "", contato: "",
   telefone: "", email: "", logradouro: "", numero: "", complemento: "",

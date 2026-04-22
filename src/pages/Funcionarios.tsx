@@ -7,7 +7,6 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { FormModal } from "@/components/FormModal";
 import { FormModalFooter } from "@/components/FormModalFooter";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { ViewDrawerV2, ViewField, ViewSection } from "@/components/ViewDrawerV2";
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { StatCard } from "@/components/StatCard";
@@ -15,6 +14,7 @@ import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Edit, Trash2, DollarSign, Users, UserCheck, UserX, CalendarDays, FileText, AlertTriangle, CheckCircle2, HelpCircle, Loader2, Info } from "lucide-react";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
+import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
