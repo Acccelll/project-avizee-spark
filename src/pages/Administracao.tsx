@@ -168,7 +168,10 @@ interface UsuariosConfigRaw {
 
 /** Set of section keys that render actual content here — used to guard invalid ?tab= values */
 const VALID_SECTION_KEYS = new Set([
-  'empresa', 'dashboard', 'usuarios', 'email', 'integracoes', 'notificacoes', 'backup', 'fiscal', 'financeiro', 'auditoria',
+  // `auditoria` e `migracao` NÃO entram aqui: são atalhos externos tratados em
+  // `handleSectionChange` via `navigate(...)`. Se alguém colar `?tab=auditoria`
+  // direto, cai no fallback `empresa` em vez de disparar `navigate` em render.
+  'empresa', 'dashboard', 'usuarios', 'email', 'integracoes', 'notificacoes', 'backup', 'fiscal', 'financeiro',
 ]);
 
 const sideNavGroups: SideNavGroup[] = [
@@ -1825,33 +1828,13 @@ export default function Administracao() {
       case 'financeiro':
         return renderFinanceiro();
 
-      case 'auditoria':
-        // Redirect immediately — auditoria has its own full page
-        navigate('/auditoria', { replace: true });
-        return (
-          <Card>
-            <CardHeader>
-              <CardTitle>Auditoria</CardTitle>
-              <CardDescription>Rastreabilidade de alterações administrativas e operacionais.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground mb-4">
-                Redirecionando para o módulo de auditoria…
-              </p>
-              <Button variant="outline" onClick={() => navigate('/auditoria')} aria-label="Abrir auditoria completa">
-                <Shield className="mr-2 h-4 w-4" /> Abrir Auditoria Completa
-              </Button>
-            </CardContent>
-          </Card>
-        );
-
       default:
         // Fallback for any unknown section key — show empresa
         return renderEmpresa();
     }
   };
 
-  const showSaveButton = activeSection !== 'auditoria' && activeSection !== 'usuarios' && activeSection !== 'migracao' && activeSection !== 'dashboard';
+  const showSaveButton = activeSection !== 'usuarios' && activeSection !== 'dashboard';
   const sectionMeta = getSectionMeta(activeSection);
   const saveMeta = getSaveMeta();
 

@@ -30,11 +30,11 @@ const sectionResourcesMap: Partial<Record<NavSectionKey, ErpResource[]>> = {
  */
 export function useVisibleNavSections(): NavSection[] {
   const { isAdmin } = useIsAdmin();
-  const { roles, extraPermissions, permissionsLoaded } = useAuth();
+  const { roles, extraPermissions, deniedPermissions, permissionsLoaded } = useAuth();
   const { can } = useCan();
   const socialPermissions = useMemo(
-    () => getSocialPermissionFlags(roles, extraPermissions),
-    [roles, extraPermissions]
+    () => getSocialPermissionFlags(roles, extraPermissions, deniedPermissions),
+    [roles, extraPermissions, deniedPermissions]
   );
 
   return useMemo(() => {

@@ -39,10 +39,10 @@ import type { SocialAlerta, SocialConta, SocialDashboardConsolidado, SocialPost,
 const defaultRange = getDefaultDateRange(30);
 
 export default function Social() {
-  const { roles, extraPermissions } = useAuth();
+  const { roles, extraPermissions, deniedPermissions } = useAuth();
   const permissions = useMemo(
-    () => getSocialPermissionFlags(roles, extraPermissions),
-    [roles, extraPermissions]
+    () => getSocialPermissionFlags(roles, extraPermissions, deniedPermissions),
+    [roles, extraPermissions, deniedPermissions]
   );
 
   const [loading, setLoading] = useState(true);

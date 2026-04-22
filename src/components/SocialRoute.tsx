@@ -8,7 +8,7 @@ import { useAuthGate } from '@/hooks/useAuthGate';
 
 export function SocialRoute({ children }: { children: ReactNode }) {
   const gate = useAuthGate();
-  const { roles, extraPermissions } = useAuth();
+  const { roles, extraPermissions, deniedPermissions } = useAuth();
 
   if (gate.status === 'loading') {
     return <AuthLoadingScreen mode="permissions" />;
@@ -17,7 +17,7 @@ export function SocialRoute({ children }: { children: ReactNode }) {
     return <Navigate to="/login" replace />;
   }
 
-  const permissions = getSocialPermissionFlags(roles, extraPermissions);
+  const permissions = getSocialPermissionFlags(roles, extraPermissions, deniedPermissions);
   if (!permissions.canViewModule) {
     return (
       <AccessDenied

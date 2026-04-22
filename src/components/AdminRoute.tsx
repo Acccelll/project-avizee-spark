@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import { Navigate } from "react-router-dom";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { useCan } from "@/hooks/useCan";
 import { AuthLoadingScreen } from "@/components/auth/AuthLoadingScreen";
 import { AccessDenied } from "@/components/AccessDenied";
 import { useAuthGate } from "@/hooks/useAuthGate";
@@ -8,6 +9,11 @@ import { useAuthGate } from "@/hooks/useAuthGate";
 export function AdminRoute({ children }: { children: ReactNode }) {
   const gate = useAuthGate();
   const { isAdmin } = useIsAdmin();
+  const { can } = useCan();
+  // Aceita override individual via `user_permissions` — alinha o guard com
+  // `useVisibleNavSections`, que já mostra o item para quem tem
+  // `administracao:visualizar` mesmo sem o papel `admin`.
+  const canAccess = isAdmin || can("administracao:visualizar");
 
   if (gate.status === "loading") {
     return <AuthLoadingScreen mode="permissions" />;
@@ -15,7 +21,7 @@ export function AdminRoute({ children }: { children: ReactNode }) {
   if (gate.status === "unauthenticated") {
     return <Navigate to="/login" replace />;
   }
-  if (!isAdmin) {
+  if (!canAccess) {
     return (
       <AccessDenied
         fullPage
