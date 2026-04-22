@@ -11,7 +11,7 @@ import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { RelationalLink } from "@/components/ui/RelationalLink";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
-import { Search, Building2, Truck, Phone, FileText, Loader2, Users, UserCheck, UserX, Plus } from "lucide-react";
+import { Trash2, Search, Building2, MapPin, Truck, Star, Phone, FileText, Loader2, Users, UserCheck, UserX, Plus } from "lucide-react";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { useCnpjLookup } from "@/hooks/useCnpjLookup";

@@ -85,8 +85,8 @@ export default function Funcionarios() {
     filterAtivo: false,
     searchColumns: ["nome", "cpf", "cargo", "departamento"],
   });
+  const { pushView } = useRelationalNavigation();
   const [modalOpen, setModalOpen] = useState(false);
-  const [drawerOpen, setDrawerOpen] = useState(false);
   const [selected, setSelected] = useState<Funcionario | null>(null);
   const [mode, setMode] = useState<"create" | "edit">("create");
   const [form, setForm] = useState<FuncionarioForm>(emptyForm);
@@ -155,26 +155,7 @@ export default function Funcionarios() {
     setModalOpen(false);
   };
 
-  const openView = async (f: Funcionario) => {
-    setSelected(f); setDrawerOpen(true);
-    setFolhas([]); setLancamentos([]);
-    setLoadingFolhas(true); setLoadingLancamentos(true);
-    const targetId = f.id;
-    const [folhaResult, lancamentosResult] = await Promise.all([
-      supabase.from("folha_pagamento").select("*").eq("funcionario_id", f.id).order("competencia", { ascending: false }),
-      supabase.from("financeiro_lancamentos").select("id,descricao,valor,data_vencimento,data_pagamento,status").eq("funcionario_id", f.id).order("data_vencimento", { ascending: false }),
-    ]);
-    // Cancela aplicação se usuário trocou de registro durante o fetch
-    setSelected((curr) => {
-      if (curr?.id === targetId) {
-        setFolhas((folhaResult.data as unknown as FolhaPagamento[]) || []);
-        setLancamentos((lancamentosResult.data as unknown as FinanceiroLancamento[]) || []);
-      }
-      return curr;
-    });
-    setLoadingFolhas(false);
-    setLoadingLancamentos(false);
-  };
+  const openView = (f: Funcionario) => { pushView("funcionario", f.id); };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -552,210 +533,6 @@ export default function Funcionarios() {
         </form>
       </FormModal>
 
-      {/* View Drawer */}
-      {selected && (() => {
-        const ultimaFolha = folhas[0] ?? null;
-        const folhasPendentes = folhas.filter(f => !f.financeiro_gerado);
-        const lancamentosPendentes = lancamentos.filter(l => l.status === "aberto");
-
-        // Situação operacional
-        let situacao: { label: string; variant: "default" | "secondary" | "destructive" | "outline" } = { label: "Ativo", variant: "default" };
-        if (!selected.ativo) {
-          situacao = { label: "Desligado", variant: "secondary" };
-        } else if (folhas.length === 0) {
-          situacao = { label: "Sem folha registrada", variant: "outline" };
-        } else if (folhasPendentes.length > 0) {
-          situacao = { label: "Folha pendente", variant: "outline" };
-        } else if (lancamentosPendentes.length > 0) {
-          situacao = { label: "Financeiro pendente", variant: "outline" };
-        }
-
-        const drawerSummary = (
-          <div className="space-y-3">
-            {/* Sub-header: cargo · depto · tipo · situação */}
-            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-              {selected.cargo && <span className="font-medium text-foreground">{selected.cargo}</span>}
-              {selected.cargo && selected.departamento && <span>·</span>}
-              {selected.departamento && <span>{selected.departamento}</span>}
-              {(selected.cargo || selected.departamento) && selected.tipo_contrato && <span>·</span>}
-              {selected.tipo_contrato && <Badge variant="secondary" className="text-xs font-normal">{tipoContratoLabel[selected.tipo_contrato] || selected.tipo_contrato}</Badge>}
-              {situacao.label !== "Ativo" && (
-                <Badge variant={situacao.variant} className="text-xs font-normal gap-1">
-                  {(situacao.label === "Folha pendente" || situacao.label === "Financeiro pendente") && <AlertTriangle className="w-3 h-3" />}
-                  {situacao.label}
-                </Badge>
-              )}
-            </div>
-            {/* KPI strip */}
-            <div className="grid grid-cols-2 gap-2">
-              <div className="rounded-md border bg-muted/30 px-3 py-2">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Salário Base</p>
-                <p className="font-mono font-bold text-sm mt-0.5">{formatCurrency(Number(selected.salario_base))}</p>
-              </div>
-              <div className="rounded-md border bg-muted/30 px-3 py-2">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Admissão</p>
-                <p className="font-mono font-bold text-sm mt-0.5">{formatDate(selected.data_admissao)}</p>
-              </div>
-              <div className={`rounded-md border px-3 py-2 ${!ultimaFolha ? "bg-muted/20 border-dashed" : "bg-muted/30"}`}>
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Última Competência</p>
-                <p className="font-mono font-bold text-sm mt-0.5">{ultimaFolha ? ultimaFolha.competencia : <span className="text-muted-foreground font-normal text-xs">Sem registro</span>}</p>
-              </div>
-              <div className={`rounded-md border px-3 py-2 ${!ultimaFolha ? "bg-muted/20 border-dashed" : "bg-muted/30"}`}>
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Líquido Recente</p>
-                <p className="font-mono font-bold text-sm mt-0.5">{ultimaFolha ? formatCurrency(Number(ultimaFolha.valor_liquido)) : <span className="text-muted-foreground font-normal text-xs">—</span>}</p>
-              </div>
-            </div>
-          </div>
-        );
-
-        const tabResumo = (
-          <div className="space-y-4">
-            <ViewSection title="Identificação">
-              <div className="grid grid-cols-2 gap-4">
-                <ViewField label="Nome">{selected.nome}</ViewField>
-                <ViewField label="Status"><StatusBadge status={selected.ativo ? "ativo" : "inativo"} /></ViewField>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <ViewField label="CPF">{selected.cpf || "—"}</ViewField>
-                <ViewField label="Tipo de Contrato">{tipoContratoLabel[selected.tipo_contrato] || selected.tipo_contrato}</ViewField>
-              </div>
-            </ViewSection>
-
-            <ViewSection title="Estrutura">
-              <div className="grid grid-cols-2 gap-4">
-                <ViewField label="Cargo">{selected.cargo || "—"}</ViewField>
-                <ViewField label="Departamento">{selected.departamento || "—"}</ViewField>
-              </div>
-            </ViewSection>
-
-            <ViewSection title="Vínculo">
-              <div className="grid grid-cols-2 gap-4">
-                <ViewField label="Data de Admissão">{formatDate(selected.data_admissao)}</ViewField>
-                <ViewField label="Data de Desligamento">{selected.data_demissao ? formatDate(selected.data_demissao) : "—"}</ViewField>
-              </div>
-            </ViewSection>
-
-            <ViewSection title="Remuneração">
-              <ViewField label="Salário Base">
-                <span className="font-mono font-semibold text-lg">{formatCurrency(Number(selected.salario_base))}</span>
-              </ViewField>
-            </ViewSection>
-
-            {selected.observacoes && (
-              <ViewSection title="Observações">
-                <p className="text-sm text-foreground break-words">{selected.observacoes}</p>
-              </ViewSection>
-            )}
-          </div>
-        );
-
-        const tabFolha = (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h4 className="font-semibold text-sm">Competências da Folha</h4>
-              <Button size="sm" variant="outline" className="gap-1" onClick={() => {
-                setFolhaForm({ competencia: currentMonth, proventos: 0, descontos: 0, observacoes: "" });
-                setFolhaModalOpen(true);
-              }}>
-                <CalendarDays className="w-3 h-3" /> Registrar Folha
-              </Button>
-            </div>
-
-            {loadingFolhas ? (
-              <div className="flex justify-center py-4"><div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>
-            ) : folhas.length === 0 ? (
-              <div className="rounded-lg border border-dashed p-6 text-center space-y-1">
-                <FileText className="w-6 h-6 mx-auto text-muted-foreground/50" />
-                <p className="text-sm text-muted-foreground">Nenhum lançamento de folha registrado</p>
-                <p className="text-xs text-muted-foreground">Clique em "Registrar Folha" para iniciar</p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {folhas.map((f, idx) => {
-                  const isLatest = idx === 0;
-                  const statusMap: Record<string, { label: string; statusValue: string }> = {
-                    processada: { label: "Processada", statusValue: "aprovada" },
-                    pendente: { label: "Pendente", statusValue: "pendente" },
-                    pago: { label: "Paga", statusValue: "pago" },
-                    fechada: { label: "Fechada", statusValue: "fechada" },
-                  };
-                  const st = statusMap[f.status] ?? { label: f.status, statusValue: f.status };
-                  return (
-                    <div key={f.id} className={`rounded-lg border p-3 space-y-2 ${isLatest ? "border-primary/40 bg-primary/5" : "bg-accent/20"}`}>
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          {isLatest && <span className="text-[10px] font-semibold uppercase tracking-wider text-primary">Mais recente</span>}
-                          <span className="font-mono text-sm font-medium">{f.competencia}</span>
-                        </div>
-                        <div className="flex items-center gap-2 flex-wrap justify-end">
-                          <StatusBadge status={st.statusValue} label={st.label} />
-                          {f.financeiro_gerado ? (
-                            <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
-                              <CheckCircle2 className="w-3 h-3" /> Financeiro gerado
-                            </span>
-                          ) : (
-                            <Button size="sm" variant="outline" className="gap-1 text-xs h-6 px-2" onClick={() => handleFecharFolha(f)}>
-                              <DollarSign className="w-3 h-3" /> Gerar financeiro
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-4 gap-2 text-xs">
-                        <div><p className="text-muted-foreground">Base</p><p className="font-mono font-medium">{formatCurrency(Number(f.salario_base))}</p></div>
-                        <div><p className="text-muted-foreground">Proventos</p><p className="font-mono font-medium text-green-600 dark:text-green-400">{formatCurrency(Number(f.proventos))}</p></div>
-                        <div><p className="text-muted-foreground">Descontos</p><p className="font-mono font-medium text-destructive">{formatCurrency(Number(f.descontos))}</p></div>
-                        <div><p className="text-muted-foreground">Líquido</p><p className="font-mono font-bold">{formatCurrency(Number(f.valor_liquido))}</p></div>
-                      </div>
-                      {f.observacoes && <p className="text-xs text-muted-foreground border-t pt-1">{f.observacoes}</p>}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        );
-
-        const tabFinanceiro = (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h4 className="font-semibold text-sm">Lançamentos Financeiros</h4>
-              {lancamentos.length > 0 && (
-                <span className="text-xs text-muted-foreground">{lancamentos.length} registro{lancamentos.length !== 1 ? "s" : ""}</span>
-              )}
-            </div>
-
-            {loadingLancamentos ? (
-              <div className="flex justify-center py-4"><div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>
-            ) : lancamentos.length === 0 ? (
-              <div className="rounded-lg border border-dashed p-6 text-center space-y-1">
-                <DollarSign className="w-6 h-6 mx-auto text-muted-foreground/50" />
-                <p className="text-sm text-muted-foreground">Nenhum lançamento financeiro vinculado</p>
-                <p className="text-xs text-muted-foreground">Gere financeiro a partir de uma folha registrada</p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {(() => {
-                  const hoje = new Date();
-                  return lancamentos.map((l) => {
-                    const isPago = l.status === "pago" || l.status === "baixado";
-                    const isVencido = !isPago && new Date(l.data_vencimento) < hoje;
-                    return (
-                      <div key={l.id} className={`rounded-lg border p-3 space-y-1 ${isVencido ? "border-destructive/40 bg-destructive/5" : isPago ? "bg-muted/20" : "bg-accent/20"}`}>
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="text-sm font-medium leading-tight">{l.descricao}</p>
-                          <StatusBadge status={l.status} />
-                        </div>
-                        <div className="flex items-center justify-between text-xs text-muted-foreground">
-                          <div className="flex items-center gap-3">
-                            <span>Venc.: <span className={`font-medium ${isVencido ? "text-destructive" : "text-foreground"}`}>{formatDate(l.data_vencimento)}</span></span>
-                            {l.data_pagamento && <span>Pago: <span className="font-medium text-foreground">{formatDate(l.data_pagamento)}</span></span>}
-                          </div>
-                          <span className={`font-mono font-bold ${isPago ? "" : "text-foreground"}`}>{formatCurrency(Number(l.valor))}</span>
-                        </div>
-                      </div>
-                    );
-                  });
-                })()}
               </div>
             )}
           </div>
@@ -835,7 +612,7 @@ export default function Funcionarios() {
             actions={<>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Editar funcionário" onClick={() => { setDrawerOpen(false); openEdit(selected); }}>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Editar funcionário" onClick={() => { openEdit(selected); }}>
                     <Edit className="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>
@@ -864,7 +641,7 @@ export default function Funcionarios() {
       <ConfirmDialog
         open={confirmDeleteOpen}
         onClose={() => setConfirmDeleteOpen(false)}
-        onConfirm={() => { setConfirmDeleteOpen(false); setDrawerOpen(false); remove(selected!.id); }}
+        onConfirm={() => { setConfirmDeleteOpen(false); remove(selected!.id); }}
         title={selected && folhas.length > 0 ? "Inativar Funcionário" : "Confirmar exclusão"}
         confirmLabel={selected && folhas.length > 0 ? "Inativar" : "Excluir"}
       >
