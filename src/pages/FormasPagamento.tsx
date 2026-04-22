@@ -79,9 +79,9 @@ const emptyForm: FormaPagamentoForm = {
 };
 
 export default function FormasPagamento() {
+  const { pushView } = useRelationalNavigation();
   const { data, loading, create, update, remove } = useSupabaseCrud<FormaPagamento>({ table: "formas_pagamento", filterAtivo: false });
   const [modalOpen, setModalOpen] = useState(false);
-  const [drawerOpen, setDrawerOpen] = useState(false);
   const [selected, setSelected] = useState<FormaPagamento | null>(null);
   const [mode, setMode] = useState<"create" | "edit">("create");
   const { form, updateForm, reset, isDirty, markPristine } = useEditDirtyForm<FormaPagamentoForm>(emptyForm);
@@ -97,49 +97,6 @@ export default function FormasPagamento() {
 
   // Dynamic intervals
   const [newIntervalo, setNewIntervalo] = useState<number>(30);
-
-  // Related data for drawer
-  const [clientesVinculados, setClientesVinculados] = useState<ClienteVinculado[]>([]);
-  const [usoResumo, setUsoResumo] = useState<UsoResumo>({ lancamentos: 0, caixa: 0 });
-  const [loadingRelated, setLoadingRelated] = useState(false);
-
-  // Fetch related data whenever drawer opens with a selected item
-  useEffect(() => {
-    if (!selected || !drawerOpen || !supabase) {
-      setClientesVinculados([]);
-      setUsoResumo({ lancamentos: 0, caixa: 0 });
-      return;
-    }
-    let cancelled = false;
-    setLoadingRelated(true);
-    (async () => {
-      const [clientesRes, lancamentosRes, caixaRes] = await Promise.all([
-        supabase
-          .from("clientes")
-          .select("id, nome_razao_social, prazo_preferencial")
-          .eq("forma_pagamento_id", selected.id)
-          .eq("ativo", true)
-          .limit(50),
-        supabase
-          .from("financeiro_lancamentos")
-          .select("id", { count: "exact", head: true })
-          .eq("forma_pagamento", selected.tipo),
-        supabase
-          .from("caixa_movimentos")
-          .select("id", { count: "exact", head: true })
-          .eq("forma_pagamento", selected.tipo),
-      ]);
-      if (!cancelled) {
-        setClientesVinculados(clientesRes.data || []);
-        setUsoResumo({
-          lancamentos: lancamentosRes.count ?? 0,
-          caixa: caixaRes.count ?? 0,
-        });
-        setLoadingRelated(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [selected?.id, drawerOpen]);
 
   const closeModal = async () => {
     if (isDirty && !(await confirm())) return;
