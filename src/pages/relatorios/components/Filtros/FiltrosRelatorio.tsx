@@ -24,15 +24,6 @@ import type { ClienteRef, FornecedorRef, GrupoProdutoRef } from "../../hooks/use
 export type Agrupamento = "padrao" | "valor_desc" | "status" | "vencimento";
 export type DreCompetencia = "mes" | "trimestre" | "ano" | "personalizado";
 
-/** Fallback status options for financial-style reports (Financeiro, Aging). */
-const DEFAULT_STATUS_OPTIONS = [
-  { value: 'todos', label: 'Todos' },
-  { value: 'aberto', label: 'Em aberto' },
-  { value: 'vencido', label: 'Vencido' },
-  { value: 'pago', label: 'Pago/Confirmado' },
-  { value: 'pendente', label: 'Pendente' },
-];
-
 export interface FiltrosRelatorioState {
   clienteIds: string[];
   fornecedorIds: string[];
