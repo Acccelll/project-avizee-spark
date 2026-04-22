@@ -23,6 +23,10 @@ export interface CotacaoSummary {
   fornecedores_count: number;
   vencedor_nome: string | null;
   tem_vencedor: boolean;
+  /** IDs de fornecedores presentes em alguma proposta (para filtro). */
+  fornecedor_ids: string[];
+  /** Lista normalizada (lowercase) de nomes/códigos de produtos para busca textual. */
+  produtos_text: string;
 }
 
 export interface Proposta {

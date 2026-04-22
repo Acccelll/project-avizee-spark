@@ -73,7 +73,7 @@ export function useCotacoesCompra() {
     Promise.all([
       supabase
         .from("cotacoes_compra_itens")
-        .select("cotacao_compra_id")
+        .select("cotacao_compra_id, produtos(nome, codigo_interno, sku)")
         .in("cotacao_compra_id", ids),
       supabase
         .from("cotacoes_compra_propostas")
@@ -84,7 +84,8 @@ export function useCotacoesCompra() {
       for (const id of ids) {
         const cItens = (itens || []).filter((i: { cotacao_compra_id: string }) => i.cotacao_compra_id === id);
         const cPropostas = (propostas || []).filter((p: { cotacao_compra_id: string }) => p.cotacao_compra_id === id);
-        const fornUniq = new Set(cPropostas.map((p: { fornecedor_id: string }) => p.fornecedor_id)).size;
+        const fornecedorIds = [...new Set(cPropostas.map((p: { fornecedor_id: string }) => p.fornecedor_id))];
+        const fornUniq = fornecedorIds.length;
         const selecionadas = cPropostas.filter((p: { selecionado: boolean }) => p.selecionado);
         const vencIds = [...new Set(selecionadas.map((p: { fornecedor_id: string }) => p.fornecedor_id))];
         const vencNome =
@@ -96,11 +97,17 @@ export function useCotacoesCompra() {
             : vencIds.length > 1
             ? `${vencIds.length} fornecedores`
             : null;
+        const produtosText = (cItens as Array<{ produtos?: { nome?: string | null; codigo_interno?: string | null; sku?: string | null } | null }>)
+          .map((i) => [i.produtos?.nome, i.produtos?.codigo_interno, i.produtos?.sku].filter(Boolean).join(" "))
+          .join(" ")
+          .toLowerCase();
         map[id] = {
           itens_count: cItens.length,
           fornecedores_count: fornUniq,
           vencedor_nome: vencNome,
           tem_vencedor: selecionadas.length > 0,
+          fornecedor_ids: fornecedorIds,
+          produtos_text: produtosText,
         };
       }
       setSummaries(map);
