@@ -36,7 +36,7 @@ export default function CotacoesCompra() {
     openCreate, openEdit, openView,
     handleSubmit, addLocalItem, updateLocalItem, removeLocalItem,
     handleAddProposal, handleSelectProposal, handleDeleteProposal,
-    handleSendForApproval, handleApprove, handleReject, gerarPedido,
+    handleSendForApproval, handleApprove, handleReject, handleCancel, gerarPedido,
     produtoOptions, fornecedorOptions,
   } = useCotacoesCompra();
 
@@ -205,6 +205,7 @@ export default function CotacoesCompra() {
         onSendForApproval={handleSendForApproval}
         onApprove={handleApprove}
         onReject={handleReject}
+        onCancel={handleCancel}
         onGerarPedido={gerarPedido}
         onNavigatePedidos={() => navigate("/pedidos-compra")}
       />
