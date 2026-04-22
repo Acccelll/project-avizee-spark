@@ -6,11 +6,10 @@ import { PullToRefresh } from "@/components/ui/PullToRefresh";
 import { StatusBadge } from "@/components/StatusBadge";
 import { FormModal } from "@/components/FormModal";
 import { FormModalFooter } from "@/components/FormModalFooter";
-import { ViewField, ViewSection } from "@/components/ViewDrawerV2";
+import { ViewDrawerV2, ViewField, ViewSection } from "@/components/ViewDrawerV2";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { RelationalLink } from "@/components/ui/RelationalLink";
-import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -153,11 +152,18 @@ const GruposEconomicos = () => {
   }, [matrizIdsKey]);
 
   const [modalOpen, setModalOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [selected, setSelected] = useState<GrupoEconomico | null>(null);
   const [mode, setMode] = useState<"create" | "edit">("create");
   const [form, setForm] = useState(emptyForm);
   const [initialForm, setInitialForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [empresas, setEmpresas] = useState<ClienteDoGrupo[]>([]);
+  const [saldoConsolidado, setSaldoConsolidado] = useState(0);
+  const [titulosVencidos, setTitulosVencidos] = useState(0);
+  const [titulosAbertos, setTitulosAbertos] = useState(0);
+  const [matrizInfo, setMatrizInfo] = useState<ClienteDoGrupo | null>(null);
+  const [perEmpresaFinanceiro, setPerEmpresaFinanceiro] = useState<Record<string, { saldo: number; vencidos: number }>>({});
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   // modal-specific state for the improved edit form
@@ -258,8 +264,60 @@ const GruposEconomicos = () => {
   };
 
   const openView = async (g: GrupoEconomico) => {
-    // Drawer agora é unificado via stack relacional — abre GrupoEconomicoView.
-    pushView("grupo_economico", g.id);
+    setSelected(g);
+    setDrawerOpen(true);
+    setEmpresas([]);
+    setSaldoConsolidado(0);
+    setTitulosVencidos(0);
+    setTitulosAbertos(0);
+    setMatrizInfo(null);
+    setPerEmpresaFinanceiro({});
+
+    const { data: clientes } = await supabase
+      .from("clientes")
+      .select("id, nome_razao_social, nome_fantasia, cpf_cnpj, tipo_relacao_grupo, cidade, uf")
+      .eq("grupo_economico_id", g.id)
+      .eq("ativo", true);
+
+    const clientesList: ClienteDoGrupo[] = [...(clientes || [])];
+    clientesList.sort((a, b) => {
+      const orderA = relacaoOrder[a.tipo_relacao_grupo ?? "independente"] ?? DEFAULT_RELACAO_ORDER;
+      const orderB = relacaoOrder[b.tipo_relacao_grupo ?? "independente"] ?? DEFAULT_RELACAO_ORDER;
+      return orderA - orderB;
+    });
+    setEmpresas(clientesList);
+
+    const matriz =
+      (g.empresa_matriz_id ? clientesList.find((c) => c.id === g.empresa_matriz_id) : undefined) ??
+      clientesList.find((c) => c.tipo_relacao_grupo === "matriz") ??
+      null;
+    setMatrizInfo(matriz);
+
+    const clienteIds = clientesList.map((c) => c.id);
+    if (clienteIds.length > 0) {
+      const { data: titulos } = await supabase
+        .from("financeiro_lancamentos")
+        .select("valor, status, cliente_id")
+        .in("cliente_id", clienteIds)
+        .eq("tipo", "receber")
+        .eq("ativo", true)
+        .in("status", ["aberto", "vencido"]);
+
+      const tots = titulos || [];
+      setSaldoConsolidado(tots.reduce((s, t) => s + Number(t.valor || 0), 0));
+      setTitulosVencidos(tots.filter((t) => t.status === "vencido").length);
+      setTitulosAbertos(tots.filter((t) => t.status === "aberto").length);
+
+      const perEmp: Record<string, { saldo: number; vencidos: number }> = {};
+      for (const c of clientesList) {
+        const empTitulos = tots.filter((t) => t.cliente_id === c.id);
+        perEmp[c.id] = {
+          saldo: empTitulos.reduce((s, t) => s + Number(t.valor || 0), 0),
+          vencidos: empTitulos.filter((t) => t.status === "vencido").length,
+        };
+      }
+      setPerEmpresaFinanceiro(perEmp);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -289,6 +347,7 @@ const GruposEconomicos = () => {
     try {
       await remove(selected.id);
       setDeleteConfirmOpen(false);
+      setDrawerOpen(false);
     } catch (err: unknown) {
       console.error("[grupos-economicos] erro ao excluir:", err);
       toast.error(getUserFriendlyError(err));
