@@ -498,7 +498,8 @@ function RolesCatalog({ users }: { users: UserWithRoles[] }) {
                 {isExpanded && (
                   <div className="border-t px-4 pb-4 pt-3">
                     <PermissionMatrix
-                      value={[]}
+                      allow={[]}
+                      deny={[]}
                       inheritedPermissions={perms}
                       onChange={() => {}}
                       readOnly
@@ -815,10 +816,15 @@ function UserFormModal({
             </div>
 
             <PermissionMatrix
-              value={form.extra_permissions}
+              allow={form.extra_permissions}
+              deny={form.denied_permissions}
               inheritedPermissions={inheritedPermissions}
-              onChange={(v) =>
-                setForm((f) => ({ ...f, extra_permissions: v }))
+              onChange={({ allow: nextAllow, deny: nextDeny }) =>
+                setForm((f) => ({
+                  ...f,
+                  extra_permissions: nextAllow,
+                  denied_permissions: nextDeny,
+                }))
               }
             />
           </div>
