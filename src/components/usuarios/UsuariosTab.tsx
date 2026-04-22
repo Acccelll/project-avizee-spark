@@ -1108,6 +1108,7 @@ export function UsuariosTab() {
   // Toggle status confirm
   const [toggleTarget, setToggleTarget] = useState<UserWithRoles | null>(null);
   const [toggleLoading, setToggleLoading] = useState(false);
+  const [toggleMotivo, setToggleMotivo] = useState('');
 
   // Active sub-tab
   const [activeTab, setActiveTab] = useState<'usuarios' | 'roles'>('usuarios');
@@ -1204,6 +1205,7 @@ export function UsuariosTab() {
         payload: {
           id: toggleTarget.id,
           ativo: newStatus,
+          motivo: toggleMotivo.trim() || undefined,
         },
       });
 
@@ -1223,6 +1225,7 @@ export function UsuariosTab() {
     } finally {
       setToggleLoading(false);
       setToggleTarget(null);
+      setToggleMotivo('');
     }
   };
 
@@ -1466,7 +1469,10 @@ export function UsuariosTab() {
       {/* Toggle status confirm */}
       <ConfirmDialog
         open={toggleTarget !== null}
-        onClose={() => setToggleTarget(null)}
+        onClose={() => {
+          setToggleTarget(null);
+          setToggleMotivo('');
+        }}
         onConfirm={handleConfirmToggleStatus}
         loading={toggleLoading}
         title={
@@ -1481,7 +1487,26 @@ export function UsuariosTab() {
         }
         confirmLabel={toggleTarget?.ativo ? 'Inativar' : 'Reativar'}
         confirmVariant={toggleTarget?.ativo ? 'destructive' : 'default'}
-      />
+      >
+        <div className="space-y-1.5 px-1">
+          <Label htmlFor="toggle-motivo" className="text-xs">
+            Motivo {toggleTarget?.ativo ? '(opcional — registrado na auditoria)' : '(opcional)'}
+          </Label>
+          <Textarea
+            id="toggle-motivo"
+            value={toggleMotivo}
+            onChange={(e) => setToggleMotivo(e.target.value.slice(0, 500))}
+            placeholder={
+              toggleTarget?.ativo
+                ? 'Ex.: desligamento em 30/06.'
+                : 'Ex.: retorno após licença.'
+            }
+            rows={2}
+            className="resize-none text-sm"
+            disabled={toggleLoading}
+          />
+        </div>
+      </ConfirmDialog>
     </div>
   );
 }
