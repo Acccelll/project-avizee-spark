@@ -328,7 +328,7 @@ export function OrcamentoView({ id }: Props) {
             </div>
             {normalizeOrcamentoStatus(selected.status) === "convertido" && linkedOV && (
               <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Convertida em Pedido</span>
+                <span className="text-muted-foreground">Convertido em Pedido</span>
                 <RelationalLink onClick={() => pushView("ordem_venda", linkedOV.id)}>
                   {linkedOV.numero}
                 </RelationalLink>
@@ -523,7 +523,7 @@ export function OrcamentoView({ id }: Props) {
                 </div>
                 {normalizeOrcamentoStatus(selected.status) === "convertido" && linkedOV && (
                   <div className="flex justify-between items-center text-muted-foreground">
-                    <span>Convertida em Pedido</span>
+                    <span>Convertido em Pedido</span>
                     <RelationalLink onClick={() => pushView("ordem_venda", linkedOV.id)}>
                       {linkedOV.numero}
                     </RelationalLink>
