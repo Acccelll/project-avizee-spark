@@ -115,7 +115,7 @@ export function BackupSection() {
               <p className="text-[11px] uppercase text-muted-foreground">Status</p>
               <p className="text-sm font-medium flex items-center gap-1.5">
                 {draft.ultimoStatus === "sucesso" ? (
-                  <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                  <CheckCircle2 className="h-4 w-4 text-success" />
                 ) : draft.ultimoStatus === "falha" ? (
                   <AlertCircle className="h-4 w-4 text-destructive" />
                 ) : (
