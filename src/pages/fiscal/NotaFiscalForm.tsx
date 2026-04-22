@@ -15,6 +15,8 @@ import {
   FiscalSefazStatusBadge,
   FiscalInternalStatusBadge,
 } from "@/components/fiscal/FiscalStatusBadges";
+import { SefazAcoesPanel } from "@/pages/fiscal/components/SefazAcoesPanel";
+import type { NotaFiscal } from "@/types/domain";
 
 /**
  * Página de criação/edição de NF-e (Fase 4 do roadmap fiscal).
@@ -85,6 +87,7 @@ export default function NotaFiscalFormPage() {
   );
   const [statusSefaz, setStatusSefaz] = useState<string | null>(null);
   const [statusErp, setStatusErp] = useState<string | null>(null);
+  const [nfRow, setNfRow] = useState<NotaFiscalRow | null>(null);
 
   useEffect(() => {
     if (isCreate) return;
@@ -107,6 +110,7 @@ export default function NotaFiscalFormPage() {
       setDefaults(rowToFormDefaults(row));
       setStatusSefaz(row.status_sefaz);
       setStatusErp(row.status);
+      setNfRow(row);
       setLoading(false);
     })();
     return () => {
@@ -217,6 +221,18 @@ export default function NotaFiscalFormPage() {
           <CardTitle>{isCreate ? "Emissão" : "Edição"}</CardTitle>
         </CardHeader>
         <CardContent>
+          {!isCreate && nfRow && (
+            <div className="mb-4 rounded-lg border bg-muted/30 p-3">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Ações SEFAZ
+              </p>
+              <SefazAcoesPanel nf={nfRow as unknown as NotaFiscal} />
+              <p className="mt-2 text-xs text-muted-foreground">
+                Transmitir requer payload de itens completo (em construção).
+                Consultar/Cancelar/DANFE já operam quando há chave de acesso.
+              </p>
+            </div>
+          )}
           {loading ? (
             <div className="space-y-3">
               <Skeleton className="h-8 w-1/3" />
