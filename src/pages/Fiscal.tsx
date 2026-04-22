@@ -154,7 +154,7 @@ const Fiscal = () => {
   const [items, setItems] = useState<GridItem[]>([]);
   const [saving, setSaving] = useState(false);
   const [parcelas, setParcelas] = useState(1);
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [consultaSearch, setConsultaSearch] = useState("");
   const [itemContaContabil, setItemContaContabil] = useState<Record<number, string>>({});
   const xmlInputRef = useRef<HTMLInputElement>(null);
@@ -200,6 +200,18 @@ const Fiscal = () => {
   const [autoOpened, setAutoOpened] = useState(false);
 
   const openCreate = () => { setMode("create"); setForm({ ...emptyForm }); setItems([]); setSelected(null); setParcelas(1); setItemContaContabil({}); setItemFiscalData({}); setModalOpen(true); };
+
+  // Atalho rápido: ?new=1 abre o formulário de emissão.
+  useEffect(() => {
+    if (autoOpened) return;
+    if (searchParams.get("new") !== "1") return;
+    setAutoOpened(true);
+    openCreate();
+    const next = new URLSearchParams(searchParams);
+    next.delete("new");
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, autoOpened]);
 
   // Auto-abre o modal de NF de entrada pré-preenchida quando vem de PC.
   useEffect(() => {

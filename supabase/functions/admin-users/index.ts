@@ -3,15 +3,48 @@
 // The ALLOWED_ORIGIN env var MUST be set in production with the real application domain.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
-const allowedOrigin = Deno.env.get("ALLOWED_ORIGIN");
-if (!allowedOrigin) {
-  console.warn("[admin-users] ALLOWED_ORIGIN env var is not set. Requests will be rejected.");
+// Lista de origens permitidas. Pode ser estendida via env `ALLOWED_ORIGIN`
+// (lista separada por vírgula). Suporta:
+//  - lovableproject.com / lovable.app (preview e publicação Lovable)
+//  - sistema.avizee.com.br (custom domain atual)
+//  - localhost para desenvolvimento
+const STATIC_ALLOWED_PATTERNS: RegExp[] = [
+  /^https?:\/\/localhost(?::\d+)?$/i,
+  /^https?:\/\/127\.0\.0\.1(?::\d+)?$/i,
+  /\.lovableproject\.com$/i,
+  /\.lovable\.app$/i,
+  /\.lovable\.dev$/i,
+  /^https?:\/\/sistema\.avizee\.com\.br$/i,
+];
+
+const ENV_ALLOWED = (Deno.env.get("ALLOWED_ORIGIN") ?? "")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+function isOriginAllowed(origin: string | null): boolean {
+  if (!origin) return false;
+  if (ENV_ALLOWED.includes(origin)) return true;
+  try {
+    const url = new URL(origin);
+    if (STATIC_ALLOWED_PATTERNS.some((re) => re.test(origin) || re.test(url.host) || re.test(url.hostname))) {
+      return true;
+    }
+  } catch {
+    // ignore parse errors
+  }
+  return false;
 }
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": allowedOrigin ?? "",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+function buildCorsHeaders(origin: string | null): Record<string, string> {
+  const allow = origin && isOriginAllowed(origin) ? origin : "*";
+  return {
+    "Access-Control-Allow-Origin": allow,
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Vary": "Origin",
+  };
+}
 
 const INACTIVE_BAN_DURATION = "876000h";
 
@@ -25,7 +58,7 @@ class HttpError extends Error {
   }
 }
 
-function json(data: unknown, status = 200) {
+function json(data: unknown, status = 200, corsHeaders: Record<string, string> = {}) {
   return new Response(JSON.stringify(data), {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -222,21 +255,16 @@ async function listUsers(serviceClient: any) {
 }
 
 Deno.serve(async (req) => {
+  const origin = req.headers.get("origin");
+  const corsHeaders = buildCorsHeaders(origin);
+
   if (req.method === "OPTIONS") {
-    if (!allowedOrigin) {
-      return new Response(JSON.stringify({ error: "ALLOWED_ORIGIN env var is required" }), {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
     return new Response("ok", { headers: corsHeaders });
   }
 
-  if (!allowedOrigin) {
-    return new Response(JSON.stringify({ error: "ALLOWED_ORIGIN env var is required" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+  if (origin && !isOriginAllowed(origin)) {
+    console.warn("[admin-users] origin not allowed:", origin);
+    return json({ error: `Origem não permitida: ${origin}` }, 403, corsHeaders);
   }
 
   try {
@@ -250,7 +278,7 @@ Deno.serve(async (req) => {
     const { action, payload = {} } = await req.json();
 
     if (action === "list") {
-      return json({ users: await listUsers(serviceClient) });
+      return json({ users: await listUsers(serviceClient) }, 200, corsHeaders);
     }
 
     if (action === "create") {
@@ -334,7 +362,7 @@ Deno.serve(async (req) => {
         // Em modo fallback, devolve credenciais temporárias para o admin entregar manualmente
         tempPassword,
         recoveryLink,
-      });
+      }, 200, corsHeaders);
     }
 
     if (action === "update") {
@@ -361,7 +389,7 @@ Deno.serve(async (req) => {
         tipo: "user_update", cargo: cargo || null, ativo, extra_permissions: payload.extra_permissions ?? [],
       });
 
-      return json({ ok: true });
+      return json({ ok: true }, 200, corsHeaders);
     }
 
     if (action === "toggle-status") {
@@ -370,13 +398,13 @@ Deno.serve(async (req) => {
       if (!id) throw new HttpError(400, "Usuário inválido.");
       await setUserActiveStatus(serviceClient, id, ativo);
       await insertAudit(serviceClient, currentUser.id, id, null, { tipo: "status_change", ativo });
-      return json({ ok: true });
+      return json({ ok: true }, 200, corsHeaders);
     }
 
     throw new HttpError(400, "Ação inválida.");
   } catch (error) {
     console.error("[admin-users]", error);
-    if (error instanceof HttpError) return json({ error: error.message }, error.status);
-    return json({ error: error instanceof Error ? error.message : "Erro interno ao gerenciar usuários." }, 500);
+    if (error instanceof HttpError) return json({ error: error.message }, error.status, corsHeaders);
+    return json({ error: error instanceof Error ? error.message : "Erro interno ao gerenciar usuários." }, 500, corsHeaders);
   }
 });

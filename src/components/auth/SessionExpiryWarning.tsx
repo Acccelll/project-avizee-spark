@@ -33,7 +33,9 @@ export function SessionExpiryWarning() {
   const expireTimerRef = useRef<number | null>(null);
   const lastWarnedFor = useRef<number | null>(null);
 
-  const { value: keepalive } = useUserPreference<boolean>(user?.id, 'session_keepalive', true);
+  // Padrão: keepalive desligado e aviso 5 min antes da expiração.
+  // Em sessões de 1h isso faz o aviso aparecer ~55 min após o login.
+  const { value: keepalive } = useUserPreference<boolean>(user?.id, 'session_keepalive', false);
   const { value: warnMinutes } = useUserPreference<number>(user?.id, 'session_warn_minutes', 5);
 
   // Keepalive: refresh silencioso a cada 30 min enquanto a aba está visível.

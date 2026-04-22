@@ -1,10 +1,9 @@
-import { RefreshCw, CalendarRange } from 'lucide-react';
+import { RefreshCw, CalendarRange, Check, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useDashboardPeriod, type DashboardPeriod } from '@/contexts/DashboardPeriodContext';
-import { useSafeDateInput } from '@/lib/safeDateInput';
 
 interface DashboardHeaderProps {
   lastUpdated?: Date;
@@ -17,14 +16,14 @@ export function DashboardHeader({ lastUpdated, onRefresh, rightSlot }: Dashboard
   const {
     period,
     setPeriod,
-    customStart,
-    customEnd,
-    setCustomStart,
-    setCustomEnd,
+    customStartDraft,
+    customEndDraft,
+    setCustomStartDraft,
+    setCustomEndDraft,
+    applyCustomRange,
+    customRangeDirty,
+    customRangeInvalid,
   } = useDashboardPeriod();
-
-  const startInput = useSafeDateInput(customStart, setCustomStart);
-  const endInput = useSafeDateInput(customEnd, setCustomEnd);
 
   const now = new Date();
   const dateLabel = now.toLocaleDateString('pt-BR', {
@@ -79,29 +78,49 @@ export function DashboardHeader({ lastUpdated, onRefresh, rightSlot }: Dashboard
       </div>
 
       {period === 'custom' && (
-        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 rounded-lg border border-border/60 bg-muted/20 p-3">
-          <div>
-            <Label className="text-xs">Data inicial</Label>
-            <Input
-              type="date"
-              value={startInput.value}
-              onChange={startInput.onChange}
-              onBlur={startInput.onBlur}
-              aria-invalid={startInput.invalid || undefined}
-              className={`mt-1 h-8 text-sm ${startInput.invalid ? 'border-destructive' : ''}`}
-            />
+        <div className="mt-3 rounded-lg border border-border/60 bg-muted/20 p-3 space-y-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+            <div>
+              <Label className="text-xs">Data inicial</Label>
+              <Input
+                type="date"
+                value={customStartDraft}
+                onChange={(e) => setCustomStartDraft(e.target.value)}
+                aria-invalid={customRangeInvalid || undefined}
+                className={`mt-1 h-8 text-sm ${customRangeInvalid ? 'border-destructive' : ''}`}
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Data final</Label>
+              <Input
+                type="date"
+                value={customEndDraft}
+                onChange={(e) => setCustomEndDraft(e.target.value)}
+                aria-invalid={customRangeInvalid || undefined}
+                className={`mt-1 h-8 text-sm ${customRangeInvalid ? 'border-destructive' : ''}`}
+              />
+            </div>
+            <Button
+              size="sm"
+              className="h-8 gap-1.5"
+              onClick={() => applyCustomRange()}
+              disabled={customRangeInvalid || !customRangeDirty}
+              title={customRangeInvalid ? 'Datas inválidas' : !customRangeDirty ? 'Sem alterações' : 'Aplicar período'}
+            >
+              <Check className="h-3.5 w-3.5" />
+              Aplicar
+            </Button>
           </div>
-          <div>
-            <Label className="text-xs">Data final</Label>
-            <Input
-              type="date"
-              value={endInput.value}
-              onChange={endInput.onChange}
-              onBlur={endInput.onBlur}
-              aria-invalid={endInput.invalid || undefined}
-              className={`mt-1 h-8 text-sm ${endInput.invalid ? 'border-destructive' : ''}`}
-            />
-          </div>
+          {customRangeInvalid ? (
+            <p className="flex items-center gap-1.5 text-xs text-destructive">
+              <AlertCircle className="h-3 w-3" />
+              Verifique as datas: a data inicial deve ser anterior ou igual à data final.
+            </p>
+          ) : customRangeDirty ? (
+            <p className="text-xs text-muted-foreground">Clique em <strong>Aplicar</strong> para atualizar o dashboard.</p>
+          ) : (
+            <p className="text-xs text-muted-foreground">Período aplicado.</p>
+          )}
         </div>
       )}
     </div>

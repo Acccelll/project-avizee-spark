@@ -90,9 +90,11 @@ export const dashboardItem: NavLeafItem = {
 
 export const quickActions: QuickAction[] = [
   { id: 'nova-cotacao', title: 'Novo Orçamento', description: 'Criar proposta comercial', path: '/orcamentos/novo', shortcut: '⌘N' },
-  { id: 'novo-cliente', title: 'Novo Cliente', description: 'Cadastrar cliente rapidamente', path: '/clientes' },
-  { id: 'novo-produto', title: 'Novo Produto', description: 'Abrir cadastro de produto', path: '/produtos' },
-  { id: 'abrir-financeiro', title: 'Contas a Receber', description: 'Ir para o financeiro filtrado', path: '/financeiro?tipo=receber' },
+  { id: 'novo-cliente', title: 'Novo Cliente', description: 'Abrir formulário de cliente', path: '/clientes?new=1' },
+  { id: 'novo-produto', title: 'Novo Produto', description: 'Abrir formulário de produto', path: '/produtos?new=1' },
+  { id: 'novo-pedido-compra', title: 'Novo Pedido', description: 'Abrir pedido de compra', path: '/pedidos-compra/novo' },
+  { id: 'nova-nota-saida', title: 'Nova Nota', description: 'Emitir nota fiscal de saída', path: '/fiscal?tipo=saida&new=1' },
+  { id: 'baixa-financeira', title: 'Baixa Financeira', description: 'Abrir Lançamentos', path: '/financeiro' },
 ];
 
 export const navSections: NavSection[] = [

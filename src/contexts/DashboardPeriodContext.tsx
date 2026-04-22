@@ -1,4 +1,4 @@
-import { createContext, ReactNode, useContext, useMemo, useState } from "react";
+import { createContext, ReactNode, useCallback, useContext, useMemo, useState } from "react";
 
 const formatLocalDate = (date: Date): string => {
   const year = date.getFullYear();
@@ -12,19 +12,48 @@ export type DashboardPeriod = "today" | "week" | "month" | "30d" | "custom";
 interface DashboardPeriodContextValue {
   period: DashboardPeriod;
   setPeriod: (period: DashboardPeriod) => void;
+  /** Valor aplicado ao dashboard (alimenta `range`). */
   customStart: string;
   customEnd: string;
-  setCustomStart: (value: string) => void;
-  setCustomEnd: (value: string) => void;
+  /** Rascunho que o usuário está digitando no header. Não dispara queries. */
+  customStartDraft: string;
+  customEndDraft: string;
+  setCustomStartDraft: (value: string) => void;
+  setCustomEndDraft: (value: string) => void;
+  /** Aplica o rascunho ao range (validando que start <= end). Retorna true se aplicado. */
+  applyCustomRange: () => boolean;
+  /** Estado derivado: true quando draft difere do aplicado. */
+  customRangeDirty: boolean;
+  /** True quando o range em rascunho é inválido (start > end ou datas malformadas). */
+  customRangeInvalid: boolean;
   range: { dateFrom: string; dateTo: string };
 }
 
 const DashboardPeriodContext = createContext<DashboardPeriodContextValue | undefined>(undefined);
 
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const isValidIso = (s: string) => ISO_DATE_RE.test(s) && !Number.isNaN(new Date(`${s}T00:00:00`).getTime());
+
 export function DashboardPeriodProvider({ children }: { children: ReactNode }) {
   const [period, setPeriod] = useState<DashboardPeriod>("30d");
-  const [customStart, setCustomStart] = useState<string>(formatLocalDate(new Date()));
-  const [customEnd, setCustomEnd] = useState<string>(formatLocalDate(new Date()));
+  const today = formatLocalDate(new Date());
+  const [customStart, setCustomStart] = useState<string>(today);
+  const [customEnd, setCustomEnd] = useState<string>(today);
+  const [customStartDraft, setCustomStartDraft] = useState<string>(today);
+  const [customEndDraft, setCustomEndDraft] = useState<string>(today);
+
+  const customRangeDirty = customStartDraft !== customStart || customEndDraft !== customEnd;
+  const customRangeInvalid = useMemo(() => {
+    if (!isValidIso(customStartDraft) || !isValidIso(customEndDraft)) return true;
+    return customStartDraft > customEndDraft;
+  }, [customStartDraft, customEndDraft]);
+
+  const applyCustomRange = useCallback(() => {
+    if (customRangeInvalid) return false;
+    setCustomStart(customStartDraft);
+    setCustomEnd(customEndDraft);
+    return true;
+  }, [customRangeInvalid, customStartDraft, customEndDraft]);
 
   const range = useMemo(() => {
     const now = new Date();
@@ -55,7 +84,20 @@ export function DashboardPeriodProvider({ children }: { children: ReactNode }) {
   }, [customEnd, customStart, period]);
 
   return (
-    <DashboardPeriodContext.Provider value={{ period, setPeriod, customStart, customEnd, setCustomStart, setCustomEnd, range }}>
+    <DashboardPeriodContext.Provider value={{
+      period,
+      setPeriod,
+      customStart,
+      customEnd,
+      customStartDraft,
+      customEndDraft,
+      setCustomStartDraft,
+      setCustomEndDraft,
+      applyCustomRange,
+      customRangeDirty,
+      customRangeInvalid,
+      range,
+    }}>
       {children}
     </DashboardPeriodContext.Provider>
   );
