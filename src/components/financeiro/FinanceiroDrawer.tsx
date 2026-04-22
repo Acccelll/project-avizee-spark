@@ -112,13 +112,7 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
 
   const totalBaixado = baixasList.reduce((sum, b) => sum + Number(b.valor_pago || 0), 0);
 
-  const origemLabel = selected.nota_fiscal_id
-    ? "Nota Fiscal"
-    : selected.origem_tipo === "societario"
-    ? "Retirada de Sócio"
-    : selected.documento_pai_id
-    ? "Parcelamento"
-    : "Manual";
+  const origemLabel = getOrigemLabel(selected);
 
   const summary = (
     <DrawerSummaryGrid cols={4}>
