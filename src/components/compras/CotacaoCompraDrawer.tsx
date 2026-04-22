@@ -321,11 +321,18 @@ export function CotacaoCompraDrawer({
         selected ? (
           <DrawerStickyFooter
             left={
-              selected.status === "aguardando_aprovacao" && (
-                <Button variant="outline" size="sm" className="gap-2 text-destructive border-destructive/30 hover:text-destructive" disabled={rejectPending} onClick={() => runReject(() => onReject())}>
-                  <ThumbsDown className="h-4 w-4" /> Reprovar
-                </Button>
-              )
+              <>
+                {selected.status === "aguardando_aprovacao" && (
+                  <Button variant="outline" size="sm" className="gap-2 text-destructive border-destructive/30 hover:text-destructive" disabled={rejectPending} onClick={() => { setRejectMotivo(""); setRejectOpen(true); }}>
+                    <ThumbsDown className="h-4 w-4" /> Reprovar
+                  </Button>
+                )}
+                {!["convertida","cancelada","rejeitada"].includes(selected.status) && (
+                  <Button variant="outline" size="sm" className="gap-2 text-destructive border-destructive/30 hover:text-destructive" disabled={cancelPending} onClick={() => { setCancelMotivo(""); setCancelOpen(true); }}>
+                    <Ban className="h-4 w-4" /> Cancelar
+                  </Button>
+                )}
+              </>
             }
             right={
               <>
