@@ -1,9 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import {
   AlertTriangle,
-  ClipboardList,
-  Truck,
-  Package,
   FileText,
   Receipt,
 } from 'lucide-react';
@@ -20,13 +17,7 @@ interface AlertItem {
 
 interface AlertStripProps {
   titulosVencidos: number;
-  estoqueBaixo: number;
-  remessasAtrasadas: number;
-  /** Real count of compras with overdue delivery (use the dedicated count query, not a JS filter on a capped list). */
-  comprasAtrasadas: number;
   notasPendentes: number;
-  /** Real total count of OVs awaiting faturamento (not capped by the preview list). */
-  ovsPendentes: number;
 }
 
 const severityStyles = {
@@ -49,11 +40,7 @@ const severityStyles = {
 
 export function AlertStrip({
   titulosVencidos,
-  estoqueBaixo,
-  remessasAtrasadas,
-  comprasAtrasadas,
   notasPendentes,
-  ovsPendentes,
 }: AlertStripProps) {
   const navigate = useNavigate();
 
@@ -68,44 +55,12 @@ export function AlertStrip({
       href: buildDrilldownUrl({ kind: 'financeiro:vencidos' }),
     },
     {
-      id: 'estoque',
-      label: 'Estoque mínimo',
-      count: estoqueBaixo,
-      icon: Package,
-      severity: 'error',
-      href: buildDrilldownUrl({ kind: 'estoque:critico' }),
-    },
-    {
-      id: 'remessas',
-      label: 'Remessas atrasadas',
-      count: remessasAtrasadas,
-      icon: Truck,
-      severity: 'warning',
-      href: buildDrilldownUrl({ kind: 'logistica:remessas-atrasadas' }),
-    },
-    {
-      id: 'compras',
-      label: 'Compras em atraso',
-      count: comprasAtrasadas,
-      icon: ClipboardList,
-      severity: 'warning',
-      href: buildDrilldownUrl({ kind: 'compras:atrasadas' }),
-    },
-    {
       id: 'notas',
       label: 'Notas pendentes',
       count: notasPendentes,
       icon: FileText,
       severity: notasPendentes > 5 ? 'warning' : 'info',
       href: buildDrilldownUrl({ kind: 'fiscal:rascunho' }),
-    },
-    {
-      id: 'ovs',
-      label: 'Pedidos a faturar',
-      count: ovsPendentes,
-      icon: ClipboardList,
-      severity: 'info',
-      href: buildDrilldownUrl({ kind: 'pedidos:aguardando-faturamento' }),
     },
   ]
     .filter((item) => item.count > 0)

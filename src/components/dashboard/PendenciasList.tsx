@@ -31,12 +31,20 @@ function resolveBounds(rangeFrom?: string, rangeTo?: string) {
   const today = new Date();
   const sixtyAgo = new Date(today); sixtyAgo.setDate(today.getDate() - 60);
   const sevenAhead = new Date(today); sevenAhead.setDate(today.getDate() + 7);
-  const iso = (d: Date) => d.toISOString().slice(0, 10);
+  const iso = (d: Date) => {
+    // local date (YYYY-MM-DD) — avoids UTC off-by-one in BRT-3
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
   const lowerCap = iso(sixtyAgo);
   const upperCap = iso(sevenAhead);
   const lower = rangeFrom && rangeFrom > lowerCap ? rangeFrom : lowerCap;
   const upper = rangeTo && rangeTo < upperCap ? rangeTo : upperCap;
-  return { lower, upper };
+  const clamped =
+    (!!rangeFrom && rangeFrom < lowerCap) || (!!rangeTo && rangeTo > upperCap);
+  return { lower, upper, clamped };
 }
 
 async function fetchPendencias(rangeFrom?: string, rangeTo?: string): Promise<Pendencia[]> {
@@ -99,7 +107,9 @@ export function PendenciasList() {
     staleTime: 2 * 60 * 1000,
   });
 
-  const today = new Date().toISOString().slice(0, 10);
+  const todayDate = new Date();
+  const today = `${todayDate.getFullYear()}-${String(todayDate.getMonth() + 1).padStart(2, '0')}-${String(todayDate.getDate()).padStart(2, '0')}`;
+  const { clamped } = resolveBounds(range.dateFrom, range.dateTo);
 
   return (
     <div className="flex flex-col h-full">
@@ -110,6 +120,12 @@ export function PendenciasList() {
         </h3>
         <ScopeBadge scope={{ kind: 'fixed-window', janela: 'next-7d' }} />
       </div>
+
+      {clamped && (
+        <div className="mb-2 rounded-md border border-info/20 bg-info/5 px-2.5 py-1.5 text-[11px] text-info">
+          Janela limitada: mostrando próximos 7 dias e atrasados dos últimos 60 dias.
+        </div>
+      )}
 
       {isLoading ? (
         <div className="space-y-2">
