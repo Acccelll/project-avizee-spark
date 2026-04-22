@@ -1057,6 +1057,27 @@ export default function Configuracoes() {
         {/* Section content */}
         <div>{renderContent()}</div>
       </ModulePage>
+      {/* Pós-troca de senha: oferece encerrar sessões em outros dispositivos. */}
+      <AlertDialog open={showSignOutOthersDialog} onOpenChange={setShowSignOutOthersDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Encerrar sessões em outros dispositivos?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Sua senha foi alterada com sucesso. Por segurança, você pode encerrar todas as sessões ativas em outros navegadores e dispositivos. Sua sessão atual permanecerá ativa.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={signingOutOthers}>Manter sessões</AlertDialogCancel>
+            <AlertDialogAction onClick={handleSignOutOthers} disabled={signingOutOthers}>
+              {signingOutOthers ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Encerrando...</>
+              ) : (
+                'Encerrar outras sessões'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
