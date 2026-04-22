@@ -7,6 +7,9 @@
  * Actions:
  *   - assinar-e-enviar: Assina XML com certificado A1 e envia para SEFAZ via SOAP
  *   - parse-certificado: Extrai metadados (CNPJ, razão social, validade) do PFX
+ *   - assinar-e-enviar-vault: Igual ao assinar-e-enviar, porém lê o .pfx do
+ *     Storage privado `dbavizee/certificados/empresa.pfx` e a senha do secret
+ *     `CERTIFICADO_PFX_SENHA`. O cliente NÃO envia senha nem certificado.
  */
 
 import forge from "https://esm.sh/node-forge@1.3.1";
