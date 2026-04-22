@@ -21,6 +21,7 @@ import { Loader2, Tag, CheckCircle2 } from "lucide-react";
 import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { StatCard } from "@/components/StatCard";
+import { useEditDeepLink } from "@/hooks/useEditDeepLink";
 
 interface UnidadeMedida {
   id: string;
@@ -60,6 +61,12 @@ export default function UnidadesMedida() {
   const { saving, submit } = useSubmitLock();
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
   const [ativoFilters, setAtivoFilters] = useState<string[]>([]);
+
+  // Deep-link: abrir edição via ?editId=… (consistência com outras entidades de Cadastros).
+  useEditDeepLink<UnidadeMedida>({
+    table: "unidades_medida",
+    onLoad: (u) => openEdit(u),
+  });
 
   const closeModal = async () => {
     if (isDirty && !(await confirm())) return;

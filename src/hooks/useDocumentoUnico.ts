@@ -41,6 +41,19 @@ async function checkDocumentoUnico(
   const { count: countForn, error: errorForn } = await queryForn;
   if (errorForn) throw new Error(errorForn.message);
 
+  // Check transportadoras (CNPJ ou CPF — coluna cpf_cnpj)
+  let queryTransp = supabase
+    .from("transportadoras")
+    .select("id", { count: "exact", head: true })
+    .eq("cpf_cnpj", digits);
+
+  if (excludeId && excludeTable === "transportadoras") {
+    queryTransp = queryTransp.neq("id", excludeId);
+  }
+
+  const { count: countTransp, error: errorTransp } = await queryTransp;
+  if (errorTransp) throw new Error(errorTransp.message);
+
   // Check funcionarios (only CPF applies)
   let countFunc = 0;
   if (tipo === "cpf") {
@@ -56,7 +69,7 @@ async function checkDocumentoUnico(
     countFunc = count ?? 0;
   }
 
-  return (countClientes ?? 0) + (countForn ?? 0) + countFunc === 0;
+  return (countClientes ?? 0) + (countForn ?? 0) + (countTransp ?? 0) + countFunc === 0;
 }
 
 export interface UseDocumentoUnicoReturn {

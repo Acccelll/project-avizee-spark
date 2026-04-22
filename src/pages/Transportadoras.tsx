@@ -36,6 +36,7 @@ import { getUserFriendlyError } from "@/utils/errorMessages";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { transportadoraSchema, validateForm } from "@/lib/validationSchemas";
+import { useEditDeepLink } from "@/hooks/useEditDeepLink";
 
 interface Transportadora {
   id: string;
@@ -122,6 +123,12 @@ export default function Transportadoras() {
   const [loadingEditClientes, setLoadingEditClientes] = useState(false);
   const [vinculoClienteId, setVinculoClienteId] = useState("");
   const [savingVinculoCliente, setSavingVinculoCliente] = useState(false);
+
+  // Deep-link: abrir edição via ?editId=… (drawer "Editar" → modal).
+  useEditDeepLink<Transportadora>({
+    table: "transportadoras",
+    onLoad: (t) => openEdit(t),
+  });
 
   const loadModalContext = async (transportadoraId: string) => {
     setLoadingModalCtx(true);

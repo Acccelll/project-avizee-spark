@@ -15,6 +15,9 @@ import { useDetailFetch } from "@/hooks/useDetailFetch";
 import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSummaryCard";
 import { RecordIdentityCard } from "@/components/ui/RecordIdentityCard";
 import { DetailLoading, DetailError, DetailEmpty } from "@/components/ui/DetailStates";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { toast } from "sonner";
+import { getUserFriendlyError } from "@/utils/errorMessages";
 
 interface Props {
   id: string;
@@ -69,7 +72,8 @@ const relacaoOrder: Record<string, number> = {
 export function GrupoEconomicoView({ id }: Props) {
   const navigate = useNavigate();
   const { clearStack } = useRelationalNavigation();
-  const [, setDeleteOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const { data, loading, error } = useDetailFetch<GrupoDetail>(id, async (gId, signal) => {
     const { data: g, error: gErr } = await supabase
@@ -175,10 +179,10 @@ export function GrupoEconomicoView({ id }: Props) {
           variant="ghost"
           size="sm"
           className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
-          aria-label="Excluir grupo econômico"
+          aria-label="Inativar grupo econômico"
           onClick={() => setDeleteOpen(true)}
         >
-          <Trash2 className="h-3.5 w-3.5" /> Excluir
+          <Trash2 className="h-3.5 w-3.5" /> Inativar
         </Button>
       </>
     ) : undefined,
@@ -271,6 +275,35 @@ export function GrupoEconomicoView({ id }: Props) {
           )}
         </TabsContent>
       </Tabs>
+
+      <ConfirmDialog
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        loading={deleting}
+        onConfirm={async () => {
+          setDeleting(true);
+          try {
+            const { error } = await supabase
+              .from("grupos_economicos")
+              .update({ ativo: false })
+              .eq("id", id);
+            if (error) throw error;
+            toast.success("Grupo econômico inativado.");
+            setDeleteOpen(false);
+            clearStack();
+          } catch (err) {
+            toast.error(getUserFriendlyError(err));
+          } finally {
+            setDeleting(false);
+          }
+        }}
+        title="Inativar grupo econômico"
+        description={
+          empresas.length > 0
+            ? `Este grupo possui ${empresas.length} empresa(s) vinculada(s). Ao inativar, ele deixará de aparecer em novas seleções, mas as empresas continuam existindo.`
+            : `Tem certeza que deseja inativar "${grupo.nome}"? Você pode reativá-lo a qualquer momento.`
+        }
+      />
     </div>
   );
 }

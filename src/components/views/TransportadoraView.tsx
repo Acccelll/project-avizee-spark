@@ -17,6 +17,9 @@ import { useDetailFetch } from "@/hooks/useDetailFetch";
 import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSummaryCard";
 import { RecordIdentityCard } from "@/components/ui/RecordIdentityCard";
 import { DetailLoading, DetailError, DetailEmpty } from "@/components/ui/DetailStates";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { toast } from "sonner";
+import { getUserFriendlyError } from "@/utils/errorMessages";
 
 interface Props {
   id: string;
@@ -82,7 +85,8 @@ const REMESSA_STATUS: Record<string, { label: string; classes: string }> = {
 export function TransportadoraView({ id }: Props) {
   const navigate = useNavigate();
   const { clearStack } = useRelationalNavigation();
-  const [, setDeleteOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const { data, loading, error } = useDetailFetch<TransportadoraDetail>(id, async (tId, signal) => {
     const { data: t, error: tErr } = await supabase
@@ -175,10 +179,10 @@ export function TransportadoraView({ id }: Props) {
           variant="ghost"
           size="sm"
           className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
-          aria-label="Excluir transportadora"
+          aria-label="Inativar transportadora"
           onClick={() => setDeleteOpen(true)}
         >
-          <Trash2 className="h-3.5 w-3.5" /> Excluir
+          <Trash2 className="h-3.5 w-3.5" /> Inativar
         </Button>
       </>
     ) : undefined,
@@ -353,6 +357,35 @@ export function TransportadoraView({ id }: Props) {
           )}
         </TabsContent>
       </Tabs>
+
+      <ConfirmDialog
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        loading={deleting}
+        onConfirm={async () => {
+          setDeleting(true);
+          try {
+            const { error } = await supabase
+              .from("transportadoras")
+              .update({ ativo: false })
+              .eq("id", id);
+            if (error) throw error;
+            toast.success("Transportadora inativada.");
+            setDeleteOpen(false);
+            clearStack();
+          } catch (err) {
+            toast.error(getUserFriendlyError(err));
+          } finally {
+            setDeleting(false);
+          }
+        }}
+        title="Inativar transportadora"
+        description={
+          clientes.length > 0 || remessas.length > 0
+            ? `Esta transportadora possui ${clientes.length} cliente(s) vinculado(s) e ${remessas.length} remessa(s). Ao inativar, ela deixará de aparecer em novas seleções; o histórico será preservado.`
+            : `Tem certeza que deseja inativar "${transportadora.nome_razao_social}"? Você pode reativá-la a qualquer momento.`
+        }
+      />
     </div>
   );
 }

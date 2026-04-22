@@ -11,12 +11,15 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
   CreditCard, Edit, Trash2, Wallet, TrendingUp, Users,
-  Banknote, FileText, QrCode, CheckSquare, Building2,
+  Banknote, FileText, QrCode, ArrowLeftRight, HelpCircle,
 } from "lucide-react";
 import { useDetailFetch } from "@/hooks/useDetailFetch";
 import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSummaryCard";
 import { RecordIdentityCard } from "@/components/ui/RecordIdentityCard";
 import { DetailLoading, DetailError, DetailEmpty } from "@/components/ui/DetailStates";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { toast } from "sonner";
+import { getUserFriendlyError } from "@/utils/errorMessages";
 
 interface Props {
   id: string;
@@ -48,19 +51,20 @@ interface FormaDetail {
 }
 
 const tipoLabel: Record<string, string> = {
-  dinheiro: "Dinheiro", boleto: "Boleto", cartao: "Cartão",
-  pix: "PIX", cheque: "Cheque", deposito: "Depósito",
+  pix: "PIX", boleto: "Boleto", cartao: "Cartão",
+  dinheiro: "Dinheiro", transferencia: "Transferência", outro: "Outro",
 };
 
 const tipoIcon: Record<string, React.ElementType> = {
-  dinheiro: Banknote, boleto: FileText, cartao: CreditCard,
-  pix: QrCode, cheque: CheckSquare, deposito: Building2,
+  pix: QrCode, boleto: FileText, cartao: CreditCard,
+  dinheiro: Banknote, transferencia: ArrowLeftRight, outro: HelpCircle,
 };
 
 export function FormaPagamentoView({ id }: Props) {
   const navigate = useNavigate();
   const { clearStack } = useRelationalNavigation();
-  const [, setDeleteOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const { data, loading, error } = useDetailFetch<FormaDetail>(id, async (fId, signal) => {
     const { data: f, error: fErr } = await supabase
@@ -164,10 +168,10 @@ export function FormaPagamentoView({ id }: Props) {
           variant="ghost"
           size="sm"
           className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
-          aria-label="Excluir forma de pagamento"
+          aria-label="Inativar forma de pagamento"
           onClick={() => setDeleteOpen(true)}
         >
-          <Trash2 className="h-3.5 w-3.5" /> Excluir
+          <Trash2 className="h-3.5 w-3.5" /> Inativar
         </Button>
       </>
     ) : undefined,
@@ -307,6 +311,35 @@ export function FormaPagamentoView({ id }: Props) {
           )}
         </TabsContent>
       </Tabs>
+
+      <ConfirmDialog
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        loading={deleting}
+        onConfirm={async () => {
+          setDeleting(true);
+          try {
+            const { error } = await supabase
+              .from("formas_pagamento")
+              .update({ ativo: false })
+              .eq("id", id);
+            if (error) throw error;
+            toast.success("Forma de pagamento inativada.");
+            setDeleteOpen(false);
+            clearStack();
+          } catch (err) {
+            toast.error(getUserFriendlyError(err));
+          } finally {
+            setDeleting(false);
+          }
+        }}
+        title="Inativar forma de pagamento"
+        description={
+          usoLancamentos > 0 || clientes.length > 0
+            ? `Esta forma é usada em ${usoLancamentos} lançamento(s) e ${clientes.length} cliente(s). Ao inativar, ela deixará de aparecer em novas seleções, mas o histórico será preservado.`
+            : `Tem certeza que deseja inativar "${forma.descricao}"? Você pode reativá-la a qualquer momento.`
+        }
+      />
     </div>
   );
 }

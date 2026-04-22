@@ -24,6 +24,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { getUserFriendlyError } from "@/utils/errorMessages";
+import { useEditDeepLink } from "@/hooks/useEditDeepLink";
 
 interface GrupoEconomico {
   id: string;
@@ -148,6 +149,12 @@ const GruposEconomicos = () => {
   const [modalSaldo, setModalSaldo] = useState(0);
   const [modalVencidos, setModalVencidos] = useState(0);
   const [loadingSummary, setLoadingSummary] = useState(false);
+
+  // Deep-link: abrir edição via ?editId=… (drawer "Editar" → modal).
+  useEditDeepLink<GrupoEconomico>({
+    table: "grupos_economicos",
+    onLoad: (g) => openEdit(g),
+  });
 
   const filteredData = useMemo(() => {
     if (ativoFilters.length === 0) return data;

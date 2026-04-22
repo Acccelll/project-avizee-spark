@@ -10,7 +10,7 @@ import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { StatCard } from "@/components/StatCard";
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
 import {
-  Plus, X, FileText, Banknote, CreditCard, QrCode, CheckSquare,
+  Plus, X, FileText, Banknote, CreditCard, QrCode, ArrowLeftRight, HelpCircle,
   Building2, Wallet, AlertTriangle, Users, TrendingUp, CalendarDays, StickyNote,
   Info, CheckCircle, Ban,
 } from "lucide-react";
@@ -27,6 +27,7 @@ import { toast } from "sonner";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { Switch } from "@/components/ui/switch";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { useEditDeepLink } from "@/hooks/useEditDeepLink";
 
 interface FormaPagamento {
   id: string;
@@ -42,13 +43,13 @@ interface FormaPagamento {
 }
 
 const tipoLabel: Record<string, string> = {
-  dinheiro: "Dinheiro", boleto: "Boleto", cartao: "Cartão",
-  pix: "PIX", cheque: "Cheque", deposito: "Depósito",
+  pix: "PIX", boleto: "Boleto", cartao: "Cartão",
+  dinheiro: "Dinheiro", transferencia: "Transferência", outro: "Outro",
 };
 
 const tipoIcon: Record<string, React.ElementType> = {
-  dinheiro: Banknote, boleto: FileText, cartao: CreditCard,
-  pix: QrCode, cheque: CheckSquare, deposito: Building2,
+  pix: QrCode, boleto: FileText, cartao: CreditCard,
+  dinheiro: Banknote, transferencia: ArrowLeftRight, outro: HelpCircle,
 };
 
 interface FormaPagamentoForm {
@@ -77,6 +78,12 @@ export default function FormasPagamento() {
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
   const [searchTerm, setSearchTerm] = useState("");
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+
+  // Deep-link: abrir edição via ?editId=… (drawer "Editar" → modal).
+  useEditDeepLink<FormaPagamento>({
+    table: "formas_pagamento",
+    onLoad: (f) => openEdit(f),
+  });
 
   // Advanced filters
   const [ativoFilters, setAtivoFilters] = useState<string[]>([]);
@@ -359,12 +366,12 @@ export default function FormasPagamento() {
                   <Select value={form.tipo} onValueChange={(v) => updateForm({ tipo: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="dinheiro">Dinheiro</SelectItem>
+                      <SelectItem value="pix">PIX</SelectItem>
                       <SelectItem value="boleto">Boleto</SelectItem>
                       <SelectItem value="cartao">Cartão</SelectItem>
-                      <SelectItem value="pix">PIX</SelectItem>
-                      <SelectItem value="cheque">Cheque</SelectItem>
-                      <SelectItem value="deposito">Depósito</SelectItem>
+                      <SelectItem value="dinheiro">Dinheiro</SelectItem>
+                      <SelectItem value="transferencia">Transferência</SelectItem>
+                      <SelectItem value="outro">Outro</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
