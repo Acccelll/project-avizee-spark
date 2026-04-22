@@ -87,14 +87,14 @@ export function useDashboardComercialData(range: DashboardDateRange) {
           .select("valor_total")
           .eq("ativo", true)
           .eq("tipo", "saida")
-          .eq("status", "confirmada")
+          .in("status", ["confirmada", "importada"])
           .gte("data_emissao", inicioMesAtual),
         supabase
           .from("notas_fiscais")
           .select("valor_total")
           .eq("ativo", true)
           .eq("tipo", "saida")
-          .eq("status", "confirmada")
+          .in("status", ["confirmada", "importada"])
           .gte("data_emissao", inicioMesAnterior)
           .lt("data_emissao", fimMesAnterior),
         supabase
@@ -102,13 +102,13 @@ export function useDashboardComercialData(range: DashboardDateRange) {
           .select("data_emissao, valor_total")
           .eq("ativo", true)
           .eq("tipo", "saida")
-          .eq("status", "confirmada")
+          .in("status", ["confirmada", "importada"])
           .in("data_emissao", lastDays),
         (() => {
           let q = supabase
             .from("notas_fiscais_itens")
             .select("quantidade, valor_unitario, produtos(nome), notas_fiscais!inner(status, tipo, data_emissao)")
-            .eq("notas_fiscais.status", "confirmada")
+            .in("notas_fiscais.status", ["confirmada", "importada"])
             .eq("notas_fiscais.tipo", "saida")
             .gte("notas_fiscais.data_emissao", itensFrom);
           if (itensTo) q = q.lte("notas_fiscais.data_emissao", itensTo);
