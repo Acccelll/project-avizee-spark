@@ -63,6 +63,27 @@ export default function UnidadesMedida() {
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
   const [ativoFilters, setAtivoFilters] = useState<string[]>([]);
 
+  // KPI: contagem de produtos por código de unidade (relacionamento atualmente por TEXTO).
+  const [usageMap, setUsageMap] = useState<Record<string, number>>({});
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data: produtos, error } = await supabase
+        .from("produtos")
+        .select("unidade_medida")
+        .eq("ativo", true);
+      if (cancelled || error || !produtos) return;
+      const counts: Record<string, number> = {};
+      for (const p of produtos) {
+        const k = (p.unidade_medida || "").toString().trim().toUpperCase();
+        if (!k) continue;
+        counts[k] = (counts[k] || 0) + 1;
+      }
+      setUsageMap(counts);
+    })();
+    return () => { cancelled = true; };
+  }, [data]);
+
   // Deep-link: abrir edição via ?editId=… (consistência com outras entidades de Cadastros).
   useEditDeepLink<UnidadeMedida>({
     table: "unidades_medida",
