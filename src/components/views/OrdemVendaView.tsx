@@ -248,8 +248,7 @@ export function OrdemVendaView({ id }: Props) {
             <XCircle className="h-3.5 w-3.5" /> Cancelar
           </Button>
         )}
-        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-        {notasFiscais.map((nf: any) => (
+        {notasFiscais.map((nf) => (
           <Button key={nf.id} size="sm" variant="outline" className="h-8 gap-1.5 text-xs" onClick={() => pushView("nota_fiscal", nf.id)}>
             <FileText className="h-3.5 w-3.5" /> NF {nf.numero}
           </Button>
@@ -336,6 +335,11 @@ export function OrdemVendaView({ id }: Props) {
           <TabsTrigger value="itens" className="text-xs">Itens</TabsTrigger>
           <TabsTrigger value="logistica" className="text-xs">Logística</TabsTrigger>
           <TabsTrigger value="faturamento" className="text-xs">Faturamento</TabsTrigger>
+          {devolucoes.length > 0 && (
+            <TabsTrigger value="devolucoes" className="text-xs">
+              Devoluções <span className="ml-1 text-[10px] text-muted-foreground">({devolucoes.length})</span>
+            </TabsTrigger>
+          )}
           <TabsTrigger value="vinculos" className="text-xs">Vínculos</TabsTrigger>
         </TabsList>
 
@@ -453,8 +457,7 @@ export function OrdemVendaView({ id }: Props) {
                     </tr>
                   </thead>
                   <tbody>
-                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                    {items.map((i: any, idx: number) => (
+                    {items.map((i, idx: number) => (
                       <tr key={idx} className="border-b last:border-b-0 hover:bg-muted/20">
                         <td className="px-2 py-2">
                           <button
@@ -538,8 +541,7 @@ export function OrdemVendaView({ id }: Props) {
           {notasFiscais.length > 0 ? (
             <div className="space-y-2">
               <p className="text-[10px] uppercase font-semibold text-muted-foreground">Notas Fiscais Vinculadas</p>
-              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-              {notasFiscais.map((nf: any) => (
+              {notasFiscais.map((nf) => (
                 <div
                   key={nf.id}
                   className="flex items-center justify-between rounded-lg border px-3 py-2 hover:bg-muted/20"
@@ -551,7 +553,7 @@ export function OrdemVendaView({ id }: Props) {
                   <div className="flex items-center gap-2">
                     <span className="font-mono text-xs">{formatCurrency(nf.valor_total || 0)}</span>
                     <Badge variant="outline" className="text-[10px] px-1.5">
-                      {statusNFLabels[nf.status] || nf.status}
+                      {statusNFLabels[nf.status || ""] || nf.status || "—"}
                     </Badge>
                     <Button
                       size="sm"
@@ -587,8 +589,7 @@ export function OrdemVendaView({ id }: Props) {
           {lancamentos.length > 0 && (
             <div className="space-y-2 pt-1">
               <p className="text-[10px] uppercase font-semibold text-muted-foreground">Lançamentos Financeiros</p>
-              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-              {lancamentos.map((l: any) => (
+              {lancamentos.map((l) => (
                 <div
                   key={l.id}
                   className="flex items-center justify-between rounded-lg border px-3 py-2"
@@ -606,9 +607,9 @@ export function OrdemVendaView({ id }: Props) {
                     <span className="font-mono text-xs">{formatCurrency(l.valor)}</span>
                     <Badge
                       variant="outline"
-                      className={`text-[10px] px-1.5 ${statusFinanceiroColors[l.status] || ""}`}
+                      className={`text-[10px] px-1.5 ${statusFinanceiroColors[l.status || ""] || ""}`}
                     >
-                      {statusFinanceiroLabels[l.status] || l.status}
+                      {statusFinanceiroLabels[l.status || ""] || l.status || "—"}
                     </Badge>
                   </div>
                 </div>
@@ -616,6 +617,42 @@ export function OrdemVendaView({ id }: Props) {
             </div>
           )}
         </TabsContent>
+
+        {/* ── Devoluções ─────────────────────────────────── */}
+        {devolucoes.length > 0 && (
+          <TabsContent value="devolucoes" className="space-y-2 mt-3 text-sm">
+            <p className="text-[10px] uppercase font-semibold text-muted-foreground">
+              NFs de devolução referenciando este pedido
+            </p>
+            {devolucoes.map((d) => (
+              <div
+                key={d.id}
+                className="flex items-center justify-between rounded-lg border px-3 py-2 hover:bg-muted/20"
+              >
+                <div>
+                  <p className="font-mono text-xs font-medium">NF {d.numero}</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {formatDate(d.data_emissao)} · {d.tipo_operacao || "—"} · finalidade {d.finalidade_nfe || "—"}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-xs">{formatCurrency(d.valor_total || 0)}</span>
+                  <Badge variant="outline" className="text-[10px] px-1.5">
+                    {statusNFLabels[d.status || ""] || d.status || "—"}
+                  </Badge>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-6 w-6 p-0"
+                    onClick={() => pushView("nota_fiscal", d.id)}
+                  >
+                    <FileText className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </TabsContent>
+        )}
 
         {/* ── Vínculos / Histórico ──────────────────────── */}
         <TabsContent value="vinculos" className="space-y-4 mt-3 text-sm">
@@ -646,8 +683,7 @@ export function OrdemVendaView({ id }: Props) {
               </div>
             )}
 
-            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-            {notasFiscais.map((nf: any) => (
+            {notasFiscais.map((nf) => (
               <div key={nf.id} className="flex items-center justify-between rounded-lg border px-3 py-2">
                 <div>
                   <p className="text-[10px] text-muted-foreground uppercase font-semibold">Nota Fiscal</p>
@@ -656,7 +692,7 @@ export function OrdemVendaView({ id }: Props) {
                   </RelationalLink>
                 </div>
                 <Badge variant="outline" className="text-[10px] px-1.5">
-                  {statusNFLabels[nf.status] || nf.status}
+                  {statusNFLabels[nf.status || ""] || nf.status || "—"}
                 </Badge>
               </div>
             ))}
