@@ -150,20 +150,11 @@ const GruposEconomicos = () => {
   }, [matrizIdsKey]);
 
   const [modalOpen, setModalOpen] = useState(false);
-  const [drawerOpen, setDrawerOpen] = useState(false);
   const [selected, setSelected] = useState<GrupoEconomico | null>(null);
   const [mode, setMode] = useState<"create" | "edit">("create");
   const [form, setForm] = useState(emptyForm);
   const [initialForm, setInitialForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
-  const [empresas, setEmpresas] = useState<ClienteDoGrupo[]>([]);
-  const [saldoConsolidado, setSaldoConsolidado] = useState(0);
-  const [titulosVencidos, setTitulosVencidos] = useState(0);
-  const [titulosAbertos, setTitulosAbertos] = useState(0);
-  const [matrizInfo, setMatrizInfo] = useState<ClienteDoGrupo | null>(null);
-  const [perEmpresaFinanceiro, setPerEmpresaFinanceiro] = useState<Record<string, { saldo: number; vencidos: number }>>({});
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [deleting, setDeleting] = useState(false);
   // modal-specific state for the improved edit form
   const [clientesDisponiveis, setClientesDisponiveis] = useState<ClienteSimples[]>([]);
   const [loadingClientes, setLoadingClientes] = useState(false);
