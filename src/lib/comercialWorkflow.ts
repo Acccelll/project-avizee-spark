@@ -60,3 +60,47 @@ export function getPedidoStatusLabel(status?: string | null): string {
   const key = status || "";
   return statusPedido[key]?.label || key || "—";
 }
+
+/**
+ * Gate de cancelamento de pedido. Bloqueia se o pedido já está em
+ * estado terminal (`cancelada`/`faturada`) ou se possui NF ativa vinculada
+ * (NF não cancelada/denegada precisa ser revertida no Fiscal antes).
+ */
+export function canCancelarPedido(
+  pedido?: { status?: string | null } | null,
+  hasNFAtiva = false,
+): boolean {
+  if (!pedido) return false;
+  const status = pedido.status || "";
+  if (["cancelada", "faturada"].includes(status)) return false;
+  if (hasNFAtiva) return false;
+  return true;
+}
+
+/**
+ * Espelha (de forma client-side) a CHECK constraint
+ * `chk_ordens_venda_matriz_status` para falhar rápido na UI antes do
+ * roundtrip. Combinações inválidas retornam `false`.
+ *
+ * Matriz (status → status_faturamento permitidos):
+ *  - rascunho/pendente/aprovada/em_separacao/separado/em_transporte/entregue: aguardando
+ *  - em_separacao/separado: aguardando | parcial
+ *  - faturada_parcial: parcial
+ *  - faturada: faturado | total
+ *  - cancelada: qualquer (não bloqueia)
+ */
+export function validarTransicaoPedido(
+  to: string,
+  statusFaturamento?: string | null,
+): boolean {
+  const sf = statusFaturamento || "aguardando";
+  if (to === "cancelada") return true;
+  if (["faturada", "faturada_parcial"].includes(to)) {
+    return ["parcial", "total", "faturado"].includes(sf);
+  }
+  if (["em_separacao", "separado"].includes(to)) {
+    return ["aguardando", "parcial"].includes(sf);
+  }
+  // rascunho, pendente, aprovada, em_transporte, entregue
+  return sf === "aguardando" || sf === "parcial";
+}

@@ -22,6 +22,8 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useFaturarPedido } from "@/pages/comercial/hooks/useFaturarPedido";
 import { canFaturarPedido, getPedidoStatusLabel, statusFaturamentoLabels } from "@/lib/comercialWorkflow";
 import { statusPedido } from "@/lib/statusSchema";
+import { verificarEstoquePedido } from "@/utils/comercialStock";
+import type { StockShortfall } from "@/types/comercial";
 
 interface Pedido {
   id: string;
@@ -147,7 +149,7 @@ const Pedidos = () => {
 
   const { data: clientesList = [] } = useClientesRef();
   const [generatingNfId, setGeneratingNfId] = useState<string | null>(null);
-  const [insufficientStock, setInsufficientStock] = useState<{ produto: string; falta: number }[]>([]);
+  const [insufficientStock, setInsufficientStock] = useState<StockShortfall[]>([]);
   const [stockCheckPending, setStockCheckPending] = useState(false);
 
   // KPIs computed over the filtered list so they reflect what the user sees.
@@ -161,22 +163,9 @@ const Pedidos = () => {
     if (stockCheckPending || generatingNfId) return; // prevent double-click
     setStockCheckPending(true);
     try {
-      const { data: items } = await supabase
-        .from("ordens_venda_itens")
-        .select("*, produtos(nome, estoque_atual)")
-        .eq("ordem_venda_id", pedido.id);
-
-      const itemsWithShortfall = (items || [])
-        .filter((i) => {
-          const estoqueAtual = Number(i.produtos?.estoque_atual ?? 0);
-          return estoqueAtual < Number(i.quantidade);
-        })
-        .map((i) => ({
-          produto: i.produtos?.nome || `Produto ${i.produto_id}`,
-          falta: Number(i.quantidade) - Number(i.produtos?.estoque_atual ?? 0),
-        }));
-
-      setInsufficientStock(itemsWithShortfall);
+      // Util compartilhada com `OrdemVendaView`/scripts — evita duplicação.
+      const shortfall = await verificarEstoquePedido(pedido.id);
+      setInsufficientStock(shortfall);
       setGeneratingNfId(pedido.id);
     } finally {
       setStockCheckPending(false);

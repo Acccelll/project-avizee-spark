@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import { PageShell } from "@/components/PageShell";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { getPedidoStatusLabel } from "@/lib/comercialWorkflow";
 import { useSalvarPedido } from "@/pages/comercial/hooks/useSalvarPedido";
+import { useEditDirtyForm } from "@/hooks/useEditDirtyForm";
 
 const statusOptions = [
   { value: "pendente", label: "Pendente" },
@@ -55,11 +56,10 @@ const PedidoForm = () => {
   const { id } = useParams<{ id: string }>();
   const [loading, setLoading] = useState(true);
   const [pedido, setPedido] = useState<PedidoRecord | null>(null);
-  const baselineRef = useRef<PedidoEditForm | null>(null);
   const { confirm, dialog } = useConfirmDialog();
   const salvarPedido = useSalvarPedido();
   const saving = salvarPedido.isPending;
-  const [form, setForm] = useState<PedidoEditForm>({
+  const { form, updateForm, reset, markPristine, isDirty } = useEditDirtyForm<PedidoEditForm>({
     status: "",
     po_number: "",
     data_po_cliente: "",
@@ -67,10 +67,6 @@ const PedidoForm = () => {
     prazo_despacho_dias: "",
     observacoes: "",
   });
-  const isDirty = useMemo(() => {
-    if (!baselineRef.current) return false;
-    return JSON.stringify(form) !== JSON.stringify(baselineRef.current);
-  }, [form]);
 
   useEffect(() => {
     if (!id) return;
@@ -90,7 +86,7 @@ const PedidoForm = () => {
         }
         const typed = data as unknown as PedidoRecord;
         setPedido(typed);
-        setForm({
+        reset({
           status: typed.status || "pendente",
           po_number: typed.po_number || "",
           data_po_cliente: typed.data_po_cliente || "",
@@ -98,14 +94,6 @@ const PedidoForm = () => {
           prazo_despacho_dias: typed.prazo_despacho_dias != null ? String(typed.prazo_despacho_dias) : "",
           observacoes: typed.observacoes || "",
         });
-        baselineRef.current = {
-          status: typed.status || "pendente",
-          po_number: typed.po_number || "",
-          data_po_cliente: typed.data_po_cliente || "",
-          data_prometida_despacho: typed.data_prometida_despacho || "",
-          prazo_despacho_dias: typed.prazo_despacho_dias != null ? String(typed.prazo_despacho_dias) : "",
-          observacoes: typed.observacoes || "",
-        };
       } catch (err: unknown) {
         toast.error(getUserFriendlyError(err));
         navigate("/pedidos");
@@ -114,7 +102,7 @@ const PedidoForm = () => {
       }
     };
     load();
-  }, [id, navigate]);
+  }, [id, navigate, reset]);
 
   useEffect(() => {
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
@@ -140,7 +128,7 @@ const PedidoForm = () => {
           observacoes: form.observacoes || null,
         },
       });
-      baselineRef.current = { ...form };
+      markPristine();
       navigate("/pedidos");
     } catch {
       // erro já reportado via toast no hook
@@ -148,7 +136,7 @@ const PedidoForm = () => {
   };
 
   const set = (field: keyof PedidoEditForm, value: string) =>
-    setForm((prev) => ({ ...prev, [field]: value }));
+    updateForm({ [field]: value } as Partial<PedidoEditForm>);
 
   const handleCancel = async () => {
     if (isDirty) {

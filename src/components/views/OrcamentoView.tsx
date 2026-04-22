@@ -30,6 +30,7 @@ import { useConverterOrcamento } from "@/pages/comercial/hooks/useConverterOrcam
 import { useCrossModuleToast } from "@/hooks/useCrossModuleToast";
 import { CrossModuleActionDialog, type ImpactItem } from "@/components/CrossModuleActionDialog";
 import { canApproveOrcamento, canConvertOrcamento, canSendOrcamento, normalizeOrcamentoStatus } from "@/lib/comercialWorkflow";
+import type { OrcamentoDetail } from "@/types/comercial";
 import {
   Edit,
   Trash2,
@@ -47,15 +48,6 @@ import { toast } from "sonner";
 
 interface Props {
   id: string;
-}
-
-interface OrcamentoDetail {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  orcamento: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  items: any[];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  linkedOV: any | null;
 }
 
 export function OrcamentoView({ id }: Props) {
@@ -364,8 +356,7 @@ export function OrcamentoView({ id }: Props) {
                     <td colSpan={5} className="px-2 py-4 text-center text-muted-foreground text-xs">Nenhum item</td>
                   </tr>
                 )}
-                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                {items.map((i: any, idx: number) => (
+                {items.map((i, idx: number) => (
                   <tr key={idx} className="border-b last:border-b-0 hover:bg-muted/20">
                     <td className="px-2 py-2 font-mono text-[10px] text-muted-foreground">
                       {i.codigo_snapshot || i.produtos?.sku || "—"}

@@ -19,9 +19,10 @@ import { DetailLoading, DetailEmpty } from "@/components/ui/DetailStates";
 import { pagamentoLabels, freteTipoLabels } from "@/utils/comercial";
 import { useFaturarPedido } from "@/pages/comercial/hooks/useFaturarPedido";
 import { useCancelarPedido } from "@/pages/comercial/hooks/useCancelarPedido";
-import { canFaturarPedido, getPedidoStatusLabel, statusFaturamentoLabels } from "@/lib/comercialWorkflow";
+import { canFaturarPedido, canCancelarPedido as canCancelarPedidoFn, getPedidoStatusLabel, statusFaturamentoLabels } from "@/lib/comercialWorkflow";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import type { OVDetail, NotaFiscalListItem, LancamentoListItem, OrdemVendaItemWithProduto } from "@/types/comercial";
 import {
   FileOutput,
   DollarSign,
@@ -70,17 +71,6 @@ const statusNFLabels: Record<string, string> = {
   denegada: "Denegada",
 };
 
-interface OVDetail {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ov: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  items: any[];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  notasFiscais: any[];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  lancamentos: any[];
-}
-
 export function OrdemVendaView({ id }: Props) {
   const [generateNfOpen, setGenerateNfOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
@@ -112,39 +102,50 @@ export function OrdemVendaView({ id }: Props) {
         .abortSignal(signal),
       supabase
         .from("notas_fiscais")
-        .select("id, numero, status, valor_total, data_emissao")
+        .select("id, numero, status, valor_total, data_emissao, tipo_operacao, finalidade_nfe, nf_referenciada_id")
         .eq("ordem_venda_id", ov.id)
         .eq("ativo", true)
         .abortSignal(signal),
     ]);
 
     const nfList = nfs || [];
-    let lancamentos: unknown[] = [];
+    let lancamentos: LancamentoListItem[] = [];
+    let devolucoes: NotaFiscalListItem[] = [];
     if (nfList.length > 0) {
-      const nfIds = nfList.map((n: Record<string, unknown>) => n.id as string);
-      const { data: lanc } = await supabase
+      const nfIds = nfList.map((n) => n.id);
+      const [{ data: lanc }, { data: devs }] = await Promise.all([
+        supabase
         .from("financeiro_lancamentos")
         .select("id, descricao, valor, status, data_vencimento, data_pagamento, forma_pagamento, parcela_numero, parcela_total")
         .in("nota_fiscal_id", nfIds)
         .eq("ativo", true)
         .order("data_vencimento", { ascending: true })
-        .abortSignal(signal);
-      lancamentos = lanc || [];
+        .abortSignal(signal),
+        supabase
+          .from("notas_fiscais")
+          .select("id, numero, status, valor_total, data_emissao, tipo_operacao, finalidade_nfe, nf_referenciada_id")
+          .in("nf_referenciada_id", nfIds)
+          .eq("ativo", true)
+          .abortSignal(signal),
+      ]);
+      lancamentos = (lanc || []) as LancamentoListItem[];
+      devolucoes = (devs || []) as NotaFiscalListItem[];
     }
 
     return {
       ov,
-      items: itens || [],
-      notasFiscais: nfList,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      lancamentos: lancamentos as any[],
-    };
+      items: (itens || []) as OrdemVendaItemWithProduto[],
+      notasFiscais: nfList as NotaFiscalListItem[],
+      lancamentos,
+      devolucoes,
+    } as OVDetail;
   });
 
   const selected = data?.ov ?? null;
   const items = data?.items ?? [];
   const notasFiscais = data?.notasFiscais ?? [];
   const lancamentos = data?.lancamentos ?? [];
+  const devolucoes = data?.devolucoes ?? [];
 
   const handleGenerateNF = async () => {
     if (!selected) return;
@@ -170,19 +171,15 @@ export function OrdemVendaView({ id }: Props) {
     });
   };
 
-  const pesoTotal = items.reduce((s: number, i: Record<string, unknown>) => s + Number(i.peso_total || 0), 0);
-  const qtdTotal = items.reduce((s: number, i: Record<string, unknown>) => s + Number(i.quantidade || 0), 0);
+  const pesoTotal = items.reduce((s, i) => s + Number(i.peso_total || 0), 0);
+  const qtdTotal = items.reduce((s, i) => s + Number(i.quantidade || 0), 0);
   const canGenerateNF = canFaturarPedido(selected);
 
   // Gate de cancelamento: bloquear se já cancelado/faturado ou se houver NF ativa.
   const hasNFAtiva = notasFiscais.some(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (n: any) => !["cancelada", "denegada"].includes(n.status)
+    (n) => !["cancelada", "denegada"].includes(n.status || ""),
   );
-  const canCancelarPedido =
-    !!selected &&
-    !["cancelada", "faturada"].includes(selected.status || "") &&
-    !hasNFAtiva;
+  const canCancelarPedido = canCancelarPedidoFn(selected, hasNFAtiva);
 
   const handleCancelarPedido = async () => {
     if (!selected) return;
@@ -200,9 +197,8 @@ export function OrdemVendaView({ id }: Props) {
   // ou `autorizada` (status SEFAZ, aplicável quando integração emite NFe oficial).
   // Canceladas/denegadas continuam listadas mas não somam para faturamento.
   const valorFaturado = notasFiscais
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .filter((n: any) => ["confirmada", "autorizada"].includes(n.status))
-    .reduce((s: number, n: Record<string, unknown>) => s + Number(n.valor_total || 0), 0);
+    .filter((n) => ["confirmada", "autorizada"].includes(n.status || ""))
+    .reduce((s, n) => s + Number(n.valor_total || 0), 0);
   const valorPendente = Math.max(0, Number(selected?.valor_total || 0) - valorFaturado);
 
   // Publica slots no header padronizado
@@ -252,8 +248,7 @@ export function OrdemVendaView({ id }: Props) {
             <XCircle className="h-3.5 w-3.5" /> Cancelar
           </Button>
         )}
-        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-        {notasFiscais.map((nf: any) => (
+        {notasFiscais.map((nf) => (
           <Button key={nf.id} size="sm" variant="outline" className="h-8 gap-1.5 text-xs" onClick={() => pushView("nota_fiscal", nf.id)}>
             <FileText className="h-3.5 w-3.5" /> NF {nf.numero}
           </Button>
@@ -340,6 +335,11 @@ export function OrdemVendaView({ id }: Props) {
           <TabsTrigger value="itens" className="text-xs">Itens</TabsTrigger>
           <TabsTrigger value="logistica" className="text-xs">Logística</TabsTrigger>
           <TabsTrigger value="faturamento" className="text-xs">Faturamento</TabsTrigger>
+          {devolucoes.length > 0 && (
+            <TabsTrigger value="devolucoes" className="text-xs">
+              Devoluções <span className="ml-1 text-[10px] text-muted-foreground">({devolucoes.length})</span>
+            </TabsTrigger>
+          )}
           <TabsTrigger value="vinculos" className="text-xs">Vínculos</TabsTrigger>
         </TabsList>
 
@@ -457,8 +457,7 @@ export function OrdemVendaView({ id }: Props) {
                     </tr>
                   </thead>
                   <tbody>
-                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                    {items.map((i: any, idx: number) => (
+                    {items.map((i, idx: number) => (
                       <tr key={idx} className="border-b last:border-b-0 hover:bg-muted/20">
                         <td className="px-2 py-2">
                           <button
@@ -542,8 +541,7 @@ export function OrdemVendaView({ id }: Props) {
           {notasFiscais.length > 0 ? (
             <div className="space-y-2">
               <p className="text-[10px] uppercase font-semibold text-muted-foreground">Notas Fiscais Vinculadas</p>
-              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-              {notasFiscais.map((nf: any) => (
+              {notasFiscais.map((nf) => (
                 <div
                   key={nf.id}
                   className="flex items-center justify-between rounded-lg border px-3 py-2 hover:bg-muted/20"
@@ -555,7 +553,7 @@ export function OrdemVendaView({ id }: Props) {
                   <div className="flex items-center gap-2">
                     <span className="font-mono text-xs">{formatCurrency(nf.valor_total || 0)}</span>
                     <Badge variant="outline" className="text-[10px] px-1.5">
-                      {statusNFLabels[nf.status] || nf.status}
+                      {statusNFLabels[nf.status || ""] || nf.status || "—"}
                     </Badge>
                     <Button
                       size="sm"
@@ -591,8 +589,7 @@ export function OrdemVendaView({ id }: Props) {
           {lancamentos.length > 0 && (
             <div className="space-y-2 pt-1">
               <p className="text-[10px] uppercase font-semibold text-muted-foreground">Lançamentos Financeiros</p>
-              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-              {lancamentos.map((l: any) => (
+              {lancamentos.map((l) => (
                 <div
                   key={l.id}
                   className="flex items-center justify-between rounded-lg border px-3 py-2"
@@ -610,9 +607,9 @@ export function OrdemVendaView({ id }: Props) {
                     <span className="font-mono text-xs">{formatCurrency(l.valor)}</span>
                     <Badge
                       variant="outline"
-                      className={`text-[10px] px-1.5 ${statusFinanceiroColors[l.status] || ""}`}
+                      className={`text-[10px] px-1.5 ${statusFinanceiroColors[l.status || ""] || ""}`}
                     >
-                      {statusFinanceiroLabels[l.status] || l.status}
+                      {statusFinanceiroLabels[l.status || ""] || l.status || "—"}
                     </Badge>
                   </div>
                 </div>
@@ -620,6 +617,42 @@ export function OrdemVendaView({ id }: Props) {
             </div>
           )}
         </TabsContent>
+
+        {/* ── Devoluções ─────────────────────────────────── */}
+        {devolucoes.length > 0 && (
+          <TabsContent value="devolucoes" className="space-y-2 mt-3 text-sm">
+            <p className="text-[10px] uppercase font-semibold text-muted-foreground">
+              NFs de devolução referenciando este pedido
+            </p>
+            {devolucoes.map((d) => (
+              <div
+                key={d.id}
+                className="flex items-center justify-between rounded-lg border px-3 py-2 hover:bg-muted/20"
+              >
+                <div>
+                  <p className="font-mono text-xs font-medium">NF {d.numero}</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {formatDate(d.data_emissao)} · {d.tipo_operacao || "—"} · finalidade {d.finalidade_nfe || "—"}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-xs">{formatCurrency(d.valor_total || 0)}</span>
+                  <Badge variant="outline" className="text-[10px] px-1.5">
+                    {statusNFLabels[d.status || ""] || d.status || "—"}
+                  </Badge>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-6 w-6 p-0"
+                    onClick={() => pushView("nota_fiscal", d.id)}
+                  >
+                    <FileText className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </TabsContent>
+        )}
 
         {/* ── Vínculos / Histórico ──────────────────────── */}
         <TabsContent value="vinculos" className="space-y-4 mt-3 text-sm">
@@ -650,8 +683,7 @@ export function OrdemVendaView({ id }: Props) {
               </div>
             )}
 
-            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-            {notasFiscais.map((nf: any) => (
+            {notasFiscais.map((nf) => (
               <div key={nf.id} className="flex items-center justify-between rounded-lg border px-3 py-2">
                 <div>
                   <p className="text-[10px] text-muted-foreground uppercase font-semibold">Nota Fiscal</p>
@@ -660,7 +692,7 @@ export function OrdemVendaView({ id }: Props) {
                   </RelationalLink>
                 </div>
                 <Badge variant="outline" className="text-[10px] px-1.5">
-                  {statusNFLabels[nf.status] || nf.status}
+                  {statusNFLabels[nf.status || ""] || nf.status || "—"}
                 </Badge>
               </div>
             ))}
