@@ -5,7 +5,7 @@ import { RelationalLink } from "@/components/ui/RelationalLink";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Pencil, Briefcase, Percent, Wallet, ArrowDownRight } from "lucide-react";
+import { Pencil } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { useSocioParticipacoes, useSociosRetiradas } from "@/hooks/useSocios";
 import type { Socio, SocioParticipacao, SocioRetirada } from "@/types/domain";
@@ -208,8 +208,8 @@ export function SocioDrawer({ open, onClose, socio, onEdit }: Props) {
                       <td className="p-3">
                         {r.financeiro_lancamento_id ? (
                           <RelationalLink
-                            type="lancamento_financeiro"
-                            id={r.financeiro_lancamento_id}
+                            to={`/financeiro/${r.financeiro_lancamento_id}`}
+                            behavior="route"
                           >
                             Ver lançamento
                           </RelationalLink>
