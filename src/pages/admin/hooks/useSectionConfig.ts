@@ -10,7 +10,8 @@
  */
 
 import { useMemo } from "react";
-import { useAppConfig, type AppConfigChave } from "./useEmpresaConfig";
+import { useAppConfig } from "./useEmpresaConfig";
+import type { AppConfigChave } from "@/services/admin/empresa.service";
 import { useAuth } from "@/contexts/AuthContext";
 
 export interface SectionMeta {
