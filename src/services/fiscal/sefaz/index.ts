@@ -31,3 +31,4 @@ export { resolverUrlSefaz, UFS_SUPORTADAS } from "./sefazUrls.service";
 export type { SefazServico } from "./sefazUrls.service";
 
 export type { CRT, AmbienteSefaz, IndIEDest } from "./xmlBuilder.service";
+export { calcularIndIEDest } from "./xmlBuilder.service";
