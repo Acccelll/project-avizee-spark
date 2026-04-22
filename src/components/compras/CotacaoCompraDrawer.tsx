@@ -95,6 +95,7 @@ export function CotacaoCompraDrawer({
     }, 0);
   }, [drawerStats.selectedPropostas, viewItems]);
   return (
+    <>
     <ViewDrawerV2
       open={open}
       onClose={onClose}
