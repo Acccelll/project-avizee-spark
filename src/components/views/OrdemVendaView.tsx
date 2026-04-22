@@ -18,7 +18,11 @@ import { useDetailActions } from "@/hooks/useDetailActions";
 import { DetailLoading, DetailEmpty } from "@/components/ui/DetailStates";
 import { pagamentoLabels, freteTipoLabels } from "@/utils/comercial";
 import { useFaturarPedido } from "@/pages/comercial/hooks/useFaturarPedido";
+import { useCancelarPedido } from "@/pages/comercial/hooks/useCancelarPedido";
 import { canFaturarPedido, getPedidoStatusLabel, statusFaturamentoLabels } from "@/lib/comercialWorkflow";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   FileOutput,
   DollarSign,
@@ -31,6 +35,7 @@ import {
   Link2,
   AlertTriangle,
   Edit,
+  XCircle,
 } from "lucide-react";
 
 interface Props {
@@ -79,10 +84,14 @@ interface OVDetail {
 
 export function OrdemVendaView({ id }: Props) {
   const [generateNfOpen, setGenerateNfOpen] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelMotivo, setCancelMotivo] = useState("");
   const { pushView } = useRelationalNavigation();
   const navigate = useNavigate();
   const { run, locked } = useDetailActions();
   const faturarPedido = useFaturarPedido();
+  const cancelarPedido = useCancelarPedido();
+  const { confirm, dialog: confirmDialog } = useConfirmDialog();
   const crossToast = useCrossModuleToast();
 
   const { data, loading, reload } = useDetailFetch<OVDetail>(id, async (ovId, signal) => {
