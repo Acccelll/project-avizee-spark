@@ -4626,6 +4626,33 @@ export type Database = {
           },
         ]
       }
+      relatorios_favoritos: {
+        Row: {
+          criado_em: string
+          id: string
+          nome: string
+          params: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          criado_em?: string
+          id?: string
+          nome: string
+          params: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          criado_em?: string
+          id?: string
+          nome?: string
+          params?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       remessa_eventos: {
         Row: {
           created_at: string
