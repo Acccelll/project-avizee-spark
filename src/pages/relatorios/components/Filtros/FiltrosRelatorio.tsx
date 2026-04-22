@@ -47,6 +47,12 @@ export interface FiltrosRelatorioProps {
     highlightFilters?: Array<'periodo' | 'status' | 'tipo' | 'clientes' | 'fornecedores' | 'grupos'>;
     listLimitHints?: { clientes?: number; fornecedores?: number; grupos?: number };
   };
+  /**
+   * When true, hides the generic "Agrupamento" sort selector. Used by DRE,
+   * which has a fixed structural ordering (header/subtotal/dedução/resultado)
+   * that user-driven sort would break.
+   */
+  hideAgrupamento?: boolean;
   onChange: (partial: Partial<FiltrosRelatorioState>) => void;
 }
 
@@ -57,6 +63,7 @@ export function FiltrosRelatorio({
   fornecedores,
   grupos,
   semantics,
+  hideAgrupamento = false,
   onChange,
 }: FiltrosRelatorioProps) {
   const hints = semantics?.listLimitHints;
@@ -127,18 +134,20 @@ export function FiltrosRelatorio({
           </div>
         )}
 
-        <div className="space-y-1">
-          <Label className="text-xs">Agrupamento</Label>
-          <Select value={state.agrupamento} onValueChange={(v) => onChange({ agrupamento: v as Agrupamento })}>
-            <SelectTrigger className="h-9 w-[180px]"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="padrao">Padrão do relatório</SelectItem>
-              <SelectItem value="valor_desc">Maior valor primeiro</SelectItem>
-              <SelectItem value="status">Por status</SelectItem>
-              <SelectItem value="vencimento">Por vencimento/data</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        {!hideAgrupamento && (
+          <div className="space-y-1">
+            <Label className="text-xs">Agrupamento</Label>
+            <Select value={state.agrupamento} onValueChange={(v) => onChange({ agrupamento: v as Agrupamento })}>
+              <SelectTrigger className="h-9 w-[180px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="padrao">Padrão do relatório</SelectItem>
+                <SelectItem value="valor_desc">Maior valor primeiro</SelectItem>
+                <SelectItem value="status">Por status</SelectItem>
+                <SelectItem value="vencimento">Por vencimento/data</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
 
         {filters.showTipos && (
           <div className={`space-y-1 ${highlightFilters.includes('tipo') ? highlightClass : ''}`}>

@@ -587,6 +587,7 @@ export default function Relatorios() {
                           highlightFilters: semantics?.highlightFilters,
                           listLimitHints: { clientes: limits.clientes, fornecedores: limits.fornecedores },
                         }}
+                        hideAgrupamento={isDreReport}
                         onChange={(partial) => setFiltrosState(partial)}
                       />
                     </div>
