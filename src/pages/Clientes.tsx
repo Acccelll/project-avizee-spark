@@ -215,10 +215,9 @@ const Clientes = () => {
       grupo_economico_id: form.grupo_economico_id || null,
       caixa_postal: form.caixa_postal || null,
       forma_pagamento_id: form.forma_pagamento_id || null,
-      // Coluna textual legada mantida em sync para fallback visual.
-      forma_pagamento_padrao: form.forma_pagamento_id
-        ? formasPagamento.find((fp) => fp.id === form.forma_pagamento_id)?.descricao ?? null
-        : null,
+      // forma_pagamento_padrao DEPRECATED — leitura agora vem de join com formas_pagamento.
+      // Mantemos null para não criar drift; backfill histórico permanece intacto.
+      forma_pagamento_padrao: null,
       prazo_preferencial: form.prazo_preferencial || null,
     };
     try {

@@ -276,7 +276,7 @@ export function ClienteView({ id }: Props) {
              <div className="grid grid-cols-3 gap-4 text-sm">
                <div>
                  <p className="text-[10px] text-muted-foreground uppercase font-semibold">Forma de Pagto</p>
-                 <p className="font-medium">{selected.forma_pagamento_padrao || "Não definida"}</p>
+                 <p className="font-medium">{selected.formas_pagamento?.descricao || selected.forma_pagamento_padrao || "Não definida"}</p>
                </div>
                <div>
                  <p className="text-[10px] text-muted-foreground uppercase font-semibold">Prazo (dias)</p>
