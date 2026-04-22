@@ -1834,7 +1834,7 @@ export default function Administracao() {
     }
   };
 
-  const showSaveButton = activeSection !== 'auditoria' && activeSection !== 'usuarios' && activeSection !== 'migracao' && activeSection !== 'dashboard';
+  const showSaveButton = activeSection !== 'usuarios' && activeSection !== 'dashboard';
   const sectionMeta = getSectionMeta(activeSection);
   const saveMeta = getSaveMeta();
 
