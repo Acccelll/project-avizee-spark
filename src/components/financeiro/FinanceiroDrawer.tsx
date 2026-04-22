@@ -90,6 +90,8 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
 
   const origemLabel = selected.nota_fiscal_id
     ? "Nota Fiscal"
+    : selected.origem_tipo === "societario"
+    ? "Retirada de Sócio"
     : selected.documento_pai_id
     ? "Parcelamento"
     : "Manual";
@@ -281,6 +283,13 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
               {selected.nota_fiscal_id && (
                 <ViewField label="Nota Fiscal Vinculada">
                   <RelationalLink type="nota_fiscal" id={selected.nota_fiscal_id}>Ver NF vinculada</RelationalLink>
+                </ViewField>
+              )}
+              {selected.origem_tipo === "societario" && (
+                <ViewField label="Retirada de Sócio">
+                  <RelationalLink to="/socios-participacoes" behavior="route">
+                    Ver retirada vinculada
+                  </RelationalLink>
                 </ViewField>
               )}
               {selected.documento_pai_id && (
