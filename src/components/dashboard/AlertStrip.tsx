@@ -5,7 +5,6 @@ import {
   Truck,
   Package,
   FileText,
-  Users,
   Receipt,
 } from 'lucide-react';
 import { buildDrilldownUrl } from '@/lib/dashboard/drilldown';
@@ -104,7 +103,7 @@ export function AlertStrip({
       id: 'ovs',
       label: 'Pedidos a faturar',
       count: ovsPendentes,
-      icon: Users,
+      icon: ClipboardList,
       severity: 'info',
       href: buildDrilldownUrl({ kind: 'pedidos:aguardando-faturamento' }),
     },
