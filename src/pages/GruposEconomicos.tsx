@@ -96,6 +96,7 @@ const GruposEconomicos = () => {
   const [clienteCountMap, setClienteCountMap] = useState<Record<string, number>>({});
   const [matrizNomeMap, setMatrizNomeMap] = useState<Record<string, string>>({});
   const { confirm: confirmDiscard, dialog: discardDialog } = useConfirmDialog();
+  const { pushView } = useRelationalNavigation();
 
   const { data, loading, create, update, remove, fetchData } = useSupabaseCrud<GrupoEconomico>({
     table: "grupos_economicos",
@@ -288,7 +289,6 @@ const GruposEconomicos = () => {
     try {
       await remove(selected.id);
       setDeleteConfirmOpen(false);
-      setDrawerOpen(false);
     } catch (err: unknown) {
       console.error("[grupos-economicos] erro ao excluir:", err);
       toast.error(getUserFriendlyError(err));
