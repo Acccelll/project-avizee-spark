@@ -175,7 +175,7 @@ const DashboardContent = () => {
 
       <div className="space-y-4">
         {isVisible("kpis") && (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3" aria-live="polite" aria-atomic="false">
             {kpiCards.map((c) => (
               <SummaryCard key={c.id} {...c} density="compact" />
             ))}
@@ -184,8 +184,13 @@ const DashboardContent = () => {
 
         {isVisible("operational") && (
           <div>
-            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Indicadores operacionais</p>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Exceções operacionais
+              </p>
+              <ScopeBadge scope={{ kind: "snapshot" }} />
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4" aria-live="polite" aria-atomic="false">
               {operationalCards.map((c) => (
                 <SummaryCard key={c.id} {...c} density="compact" />
               ))}
@@ -255,6 +260,8 @@ const DashboardContent = () => {
               ticketMedio={ticketMedio}
               recentOrcamentos={recentOrcamentos}
               loading={loading}
+              faturamentoMesAtual={faturamento.mesAtual}
+              faturamentoMesAnterior={faturamento.mesAnterior}
             />
           </BlockErrorBoundary>}
           {isVisible("estoque") && <BlockErrorBoundary label="Estoque">
@@ -323,6 +330,34 @@ const DashboardContent = () => {
                             className="text-xs text-primary underline-offset-2 hover:underline"
                           >
                             Ver todos os títulos →
+                          </button>
+                        </div>
+                      )}
+                      {metricDrawer === "pagar" && (
+                        <div className="text-right">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setMetricDrawer(null);
+                              navigate(buildDrilldownUrl({ kind: "financeiro:pagar-aberto" }));
+                            }}
+                            className="text-xs text-primary underline-offset-2 hover:underline"
+                          >
+                            Ver todos os títulos →
+                          </button>
+                        </div>
+                      )}
+                      {metricDrawer === "saldo" && (
+                        <div className="text-right">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setMetricDrawer(null);
+                              navigate("/fluxo-caixa");
+                            }}
+                            className="text-xs text-primary underline-offset-2 hover:underline"
+                          >
+                            Abrir fluxo de caixa →
                           </button>
                         </div>
                       )}
