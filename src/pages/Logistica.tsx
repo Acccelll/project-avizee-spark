@@ -177,20 +177,21 @@ export default function Logistica() {
     ).length;
     const percentualNoPrazo = entregues > 0 ? Math.round((entreguesNoPrazo / entregues) * 100) : null;
 
-    // Tempo médio de entrega em dias (data_expedicao → previsao_entrega como proxy quando
-    // a data real de entrega não está disponível na interface atual)
+    // Tempo médio de entrega em dias — usa data REAL de entrega
+    // (vw_entregas_consolidadas.data_entrega_max). KPI fica null quando
+    // não há dado real para evitar números enganosos.
     const entregasComDias = entregas.filter(
       (e) =>
         e.status_logistico === "entregue" &&
         e.data_expedicao &&
-        e.previsao_entrega,
+        e.data_entrega,
     );
     const tempoMedioDias =
       entregasComDias.length > 0
         ? Math.round(
             entregasComDias.reduce((sum, e) => {
               const dias =
-                (new Date(e.previsao_entrega!).getTime() -
+                (new Date(e.data_entrega!).getTime() -
                   new Date(e.data_expedicao!).getTime()) /
                 (1000 * 60 * 60 * 24);
               return sum + Math.max(0, dias);
@@ -309,7 +310,11 @@ export default function Logistica() {
       return;
     }
     if (ENTREGA_STATUS_META[status]?.sensivel) {
-      const ok = window.confirm(`Confirmar alteração para "${ENTREGA_STATUS_META[status]?.label ?? status}"?`);
+      const ok = await confirm({
+        title: "Confirmar mudança de status",
+        description: `Alterar entrega para "${ENTREGA_STATUS_META[status]?.label ?? status}"? Status sensíveis afetam a visão consolidada.`,
+        confirmText: "Confirmar",
+      });
       if (!ok) return;
     }
     setUpdatingEntregaId(entrega.id);
@@ -339,7 +344,11 @@ export default function Logistica() {
   const updateRecebimentoStatus = async (recebimento: Recebimento, status: string) => {
     if (!canEdit) return;
     const source = getRecebimentoSourceMeta(recebimento.recebimento_real);
-    const ok = window.confirm(`Atualizar acompanhamento logístico para "${RECEBIMENTO_STATUS_META[status]?.label ?? status}"?\n\n${source.description}`);
+    const ok = await confirm({
+      title: "Confirmar atualização de recebimento",
+      description: `${RECEBIMENTO_STATUS_META[status]?.label ?? status}. ${source.description} A consolidação quantitativa permanece no módulo Compras.`,
+      confirmText: "Marcar recebido",
+    });
     if (!ok) return;
     setMarkingRecebimentoId(recebimento.id);
     // Guard: only allow transitions that are valid in the Compras domain.
@@ -380,9 +389,16 @@ export default function Logistica() {
 
   const handleRemessaStatusChange = async (remessa: Remessa, newStatus: string) => {
     try {
-      await updateRemessa(remessa.id, { status_transporte: newStatus });
-      if (remSelected?.id === remessa.id) setRemSelected({ ...remessa, status_transporte: newStatus });
-      toast.success(`Status atualizado para ${remessaStatusMap[newStatus]?.label ?? newStatus}`);
+      // Usa o hook canônico: para status com efeito em estoque
+      // (em_transito, entregue, cancelado) chama as RPCs do banco;
+      // para os demais faz update direto. Mantém a UX consistente.
+      await transicionarRemessa.mutateAsync({
+        remessaId: remessa.id,
+        novoStatus: newStatus as RemessaTransition,
+      });
+      if (remSelected?.id === remessa.id) {
+        setRemSelected({ ...remessa, status_transporte: newStatus });
+      }
     } catch (err: unknown) { toast.error(getUserFriendlyError(err)); }
   };
 

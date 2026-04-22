@@ -25,6 +25,7 @@ import { Save, Truck } from "lucide-react";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import type { Tables } from "@/integrations/supabase/types";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
+import { useBeforeUnloadGuard } from "@/hooks/useBeforeUnloadGuard";
 import { PageShell } from "@/components/PageShell";
 
 type Cliente = Tables<"clientes">;
@@ -87,6 +88,8 @@ export default function RemessaFormPage() {
   const [, forceRerender] = useState(0);
   const isDirty = JSON.stringify(form) !== JSON.stringify(baselineRef.current);
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
+  // Bloqueia fechar/recarregar a aba se houver mudanças não salvas.
+  useBeforeUnloadGuard(isDirty);
 
   // Lookup data
   const [clientes, setClientes] = useState<Cliente[]>([]);
