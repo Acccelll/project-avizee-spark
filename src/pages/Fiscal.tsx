@@ -27,7 +27,11 @@ import { parseNFeXml, type NFeData } from "@/lib/nfeXmlParser";
 import { DanfeViewer } from "@/components/DanfeViewer";
 import { DevolucaoDialog } from "@/components/fiscal/DevolucaoDialog";
 import { NotaFiscalDrawer } from "@/components/fiscal/NotaFiscalDrawer";
-import { confirmarNotaFiscal, estornarNotaFiscal, registrarEventoFiscal, verificarDuplicidadeChave, cancelarNotaFiscal } from "@/services/fiscal.service";
+import { registrarEventoFiscal, verificarDuplicidadeChave, cancelarNotaFiscal } from "@/services/fiscal.service";
+import {
+  useConfirmarNotaFiscal,
+  useEstornarNotaFiscal,
+} from "@/pages/fiscal/hooks/useNotaFiscalLifecycle";
 import { NotaFiscalEditModal } from "@/components/fiscal/NotaFiscalEditModal";
 import { useActionLock } from "@/hooks/useActionLock";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
@@ -191,6 +195,8 @@ const Fiscal = () => {
   const estornarLock = useActionLock();
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
   const invalidate = useInvalidateAfterMutation();
+  const confirmarMutation = useConfirmarNotaFiscal();
+  const estornarMutation = useEstornarNotaFiscal();
 
   // Contexto de origem vindo da URL (ex.: redirect de Pedido de Compra após receber).
   const pedidoCompraOriginId = searchParams.get("pedido_compra_id");
