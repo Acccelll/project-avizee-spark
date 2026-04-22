@@ -344,33 +344,15 @@ export default function Logistica() {
     setUpdatingEntregaId(null);
   };
 
-  const updateRecebimentoStatus = async (recebimento: Recebimento, status: string) => {
+  /**
+   * Abre o diálogo oficial de Compras (RegistrarRecebimentoDialog) para
+   * registrar quantitativamente o recebimento via RPC `registrar_recebimento_compra`.
+   * Isso elimina a divergência anterior em que a Logística apenas carimbava
+   * `data_entrega_real` no pedido sem criar `recebimentos_compra`.
+   */
+  const abrirRegistrarRecebimento = (recebimento: Recebimento) => {
     if (!canEdit) return;
-    const source = getRecebimentoSourceMeta(recebimento.recebimento_real);
-    const ok = await confirm({
-      title: "Confirmar atualização de recebimento",
-      description: `${RECEBIMENTO_STATUS_META[status]?.label ?? status}. ${source.description} A consolidação quantitativa permanece no módulo Compras.`,
-      confirmLabel: "Marcar recebido",
-    });
-    if (!ok) return;
-    setMarkingRecebimentoId(recebimento.id);
-    // Guard: only allow transitions that are valid in the Compras domain.
-    // Writing an arbitrary logistic status (e.g. "em_transito") to pedidos_compra.status
-    // would corrupt the purchasing workflow.  Only "recebido" is safe to propagate here.
-    const ALLOWED_FROM_LOGISTICA = ["recebido"];
-    if (!ALLOWED_FROM_LOGISTICA.includes(status)) {
-      toast.warning("Esta transição deve ser feita no módulo de Compras.");
-      setMarkingRecebimentoId(null);
-      return;
-    }
-    // Only set data_entrega_real; do not overwrite the Compras status lifecycle.
-    const { error } = await supabase
-      .from("pedidos_compra")
-      .update({ data_entrega_real: new Date().toISOString().slice(0, 10) })
-      .eq("id", recebimento.id);
-    if (error) { toast.error(getUserFriendlyError(error)); setMarkingRecebimentoId(null); return; }
-    toast.success(RECEBIMENTO_REGISTRO_MESSAGE);
-    setMarkingRecebimentoId(null);
+    setRecebimentoDialogPedido(recebimento);
   };
 
   const openViewRemessa = (r: Remessa) => { setRemSelected(r); setRemDrawerOpen(true); };
