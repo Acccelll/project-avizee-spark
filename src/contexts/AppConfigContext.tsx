@@ -1,6 +1,6 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { createContext, useContext, ReactNode } from 'react';
 import { useUserPreference } from '@/hooks/useUserPreference';
+import { useBrandingPreview } from '@/hooks/useBrandingPreview';
 import { useAuth } from './AuthContext';
 
 /**
@@ -48,28 +48,17 @@ const AppConfigContext = createContext<AppConfigContextValue | null>(null);
 export function AppConfigProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
 
-  const [cepEmpresa, setCepEmpresa] = useState<string | null>(null);
-  const [loadingCepEmpresa, setLoadingCepEmpresa] = useState(true);
-  const [branding, setBranding] = useState<AppConfigContextValue['branding']>({
-    logoUrl: null, simboloUrl: null, marcaTexto: null, marcaSubtitulo: null,
-  });
-
-  useEffect(() => {
-    if (!supabase) { setLoadingCepEmpresa(false); return; }
-    supabase.from('empresa_config').select('cep, logo_url, simbolo_url, marca_texto, marca_subtitulo').maybeSingle().then(({ data, error }) => {
-      if (!error) setCepEmpresa(data?.cep ? data.cep.replace(/\D/g, '') : null);
-      if (!error && data) {
-        const row = data as { logo_url?: string | null; simbolo_url?: string | null; marca_texto?: string | null; marca_subtitulo?: string | null };
-        setBranding({
-          logoUrl: row.logo_url ?? null,
-          simboloUrl: row.simbolo_url ?? null,
-          marcaTexto: row.marca_texto ?? null,
-          marcaSubtitulo: row.marca_subtitulo ?? null,
-        });
-      }
-      setLoadingCepEmpresa(false);
-    });
-  }, []);
+  // Branding e CEP da empresa vêm de uma única query cacheada (`useBrandingPreview`)
+  // — eliminando as 3-4 leituras concorrentes que existiam no boot.
+  const { branding: brandingPreview, loading: loadingBranding } = useBrandingPreview();
+  const cepEmpresa = brandingPreview.cep;
+  const loadingCepEmpresa = loadingBranding;
+  const branding = {
+    logoUrl: brandingPreview.logoUrl,
+    simboloUrl: brandingPreview.simboloUrl,
+    marcaTexto: brandingPreview.marcaTexto || null,
+    marcaSubtitulo: brandingPreview.marcaSubtitulo,
+  };
 
   const {
     value: sidebarCollapsed,
