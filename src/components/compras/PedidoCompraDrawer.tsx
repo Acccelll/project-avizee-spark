@@ -587,6 +587,8 @@ export function PedidoCompraDrawer({
   const canApproveReject = pedidoStatus === "aguardando_aprovacao" && !!isAdmin;
   const canEstornar = ["recebido", "parcialmente_recebido"].includes(pedidoStatus) && !!isAdmin;
   void perms;
+  void onReceive; // retido por retrocompatibilidade — recebimento agora é via diálogo abaixo
+  void receivePending;
 
   const drawerFooter =
     canReceive || canSend || canCancel || canSolicitarAprovacao || canApproveReject || canEstornar ? (
