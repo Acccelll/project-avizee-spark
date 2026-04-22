@@ -19,9 +19,10 @@ import { DetailLoading, DetailEmpty } from "@/components/ui/DetailStates";
 import { pagamentoLabels, freteTipoLabels } from "@/utils/comercial";
 import { useFaturarPedido } from "@/pages/comercial/hooks/useFaturarPedido";
 import { useCancelarPedido } from "@/pages/comercial/hooks/useCancelarPedido";
-import { canFaturarPedido, getPedidoStatusLabel, statusFaturamentoLabels } from "@/lib/comercialWorkflow";
+import { canFaturarPedido, canCancelarPedido as canCancelarPedidoFn, getPedidoStatusLabel, statusFaturamentoLabels } from "@/lib/comercialWorkflow";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import type { OVDetail, NotaFiscalListItem, LancamentoListItem, OrdemVendaItemWithProduto } from "@/types/comercial";
 import {
   FileOutput,
   DollarSign,
@@ -69,17 +70,6 @@ const statusNFLabels: Record<string, string> = {
   cancelada: "Cancelada",
   denegada: "Denegada",
 };
-
-interface OVDetail {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ov: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  items: any[];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  notasFiscais: any[];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  lancamentos: any[];
-}
 
 export function OrdemVendaView({ id }: Props) {
   const [generateNfOpen, setGenerateNfOpen] = useState(false);
