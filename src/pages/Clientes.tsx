@@ -80,6 +80,7 @@ interface ClienteFormData {
   grupo_economico_id: string;
   tipo_relacao_grupo: string;
   caixa_postal: string;
+  ativo: boolean;
 }
 
 const emptyCliente: ClienteFormData = {
@@ -87,7 +88,7 @@ const emptyCliente: ClienteFormData = {
   inscricao_estadual: "", email: "", telefone: "", celular: "", contato: "",
   prazo_padrao: 30, limite_credito: 0, forma_pagamento_id: "", prazo_preferencial: 0,
   logradouro: "", numero: "", complemento: "", bairro: "", cidade: "", uf: "", cep: "", pais: "Brasil",
-  observacoes: "", grupo_economico_id: "", tipo_relacao_grupo: "independente", caixa_postal: ""
+  observacoes: "", grupo_economico_id: "", tipo_relacao_grupo: "independente", caixa_postal: "", ativo: true,
 };
 
 const relacaoOptions = [
@@ -185,7 +186,8 @@ const Clientes = () => {
       bairro: c.bairro || "", cidade: c.cidade || "", uf: c.uf || "", cep: c.cep || "",
       pais: c.pais || "Brasil", observacoes: c.observacoes || "",
       grupo_economico_id: c.grupo_economico_id || "", tipo_relacao_grupo: c.tipo_relacao_grupo || "independente",
-      caixa_postal: c.caixa_postal || ""
+      caixa_postal: c.caixa_postal || "",
+      ativo: c.ativo !== false,
     });
     setIsDirty(false);
     setEnderecosCount(0); setComunicacoesCount(0);
