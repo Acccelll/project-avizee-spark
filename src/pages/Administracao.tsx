@@ -234,6 +234,8 @@ export default function Administracao() {
   const [empresaCreatedAt, setEmpresaCreatedAt] = useState<string | null>(null);
   const [logoUploading, setLogoUploading] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
+  const [simboloUploading, setSimboloUploading] = useState(false);
+  const simboloInputRef = useRef<HTMLInputElement>(null);
 
   const [emailErrors, setEmailErrors] = useState<Record<string, string>>({});
   const [emailLastSaved, setEmailLastSaved] = useState<{ at: string | null; by: string | null }>({ at: null, by: null });
@@ -436,6 +438,36 @@ export default function Administracao() {
     } finally {
       setLogoUploading(false);
       if (logoInputRef.current) logoInputRef.current.value = '';
+    }
+  };
+
+  const handleSimboloUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !supabase) return;
+    const allowed = ['image/png', 'image/jpeg', 'image/jpg', 'image/svg+xml', 'image/webp'];
+    if (!allowed.includes(file.type)) {
+      toast.error('Formato de imagem não suportado. Use PNG, JPEG, SVG ou WebP.');
+      return;
+    }
+    if (file.size > 1 * 1024 * 1024) {
+      toast.error('Arquivo muito grande. O tamanho máximo do símbolo é 1 MB.');
+      return;
+    }
+    setSimboloUploading(true);
+    try {
+      const ext = file.name.split('.').pop() ?? 'png';
+      const path = `logos/simbolo-empresa.${ext}`;
+      const { error: uploadError } = await supabase.storage.from('dbavizee').upload(path, file, { upsert: true, contentType: file.type });
+      if (uploadError) throw uploadError;
+      const { data: urlData } = supabase.storage.from('dbavizee').getPublicUrl(path);
+      updateSection('geral', { simboloUrl: urlData.publicUrl });
+      toast.success('Símbolo enviado com sucesso.');
+    } catch (err) {
+      console.error('[admin] Erro ao enviar símbolo:', err);
+      toast.error(getUserFriendlyError(err));
+    } finally {
+      setSimboloUploading(false);
+      if (simboloInputRef.current) simboloInputRef.current.value = '';
     }
   };
 
