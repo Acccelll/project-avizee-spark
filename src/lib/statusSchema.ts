@@ -83,6 +83,7 @@ export const statusPedidoCompra: Record<string, { label: string; color: string }
   aguardando_recebimento: { label: "Aguardando Recebimento", color: "warning" },
   parcialmente_recebido: { label: "Parcialmente Recebido", color: "warning" },
   recebido: { label: "Recebido", color: "success" },
+  rejeitado: { label: "Rejeitado", color: "destructive" },
   cancelado: { label: "Cancelado", color: "destructive" },
 };
 

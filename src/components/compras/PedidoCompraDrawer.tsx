@@ -101,6 +101,10 @@ export function PedidoCompraDrawer({
     if (pedidoStatus === "recebido") return { label: "Recebido", color: "success" };
     if (pedidoStatus === "parcialmente_recebido") return { label: "Recebimento Parcial", color: "warning" };
     if (pedidoStatus === "aguardando_recebimento") return { label: "Aguardando Recebimento", color: "warning" };
+    if (pedidoStatus === "aguardando_aprovacao") return { label: "Aguardando Aprovação", color: "warning" };
+    if (pedidoStatus === "aprovado") return { label: "Aprovado — aguardando envio", color: "info" };
+    if (pedidoStatus === "enviado_ao_fornecedor") return { label: "Enviado ao Fornecedor", color: "info" };
+    if (pedidoStatus === "rejeitado") return { label: "Rejeitado", color: "destructive" };
     if (pedidoStatus === "cancelado") return { label: "Cancelado", color: "destructive" };
     return { label: "Pendente", color: "secondary" };
   })();
