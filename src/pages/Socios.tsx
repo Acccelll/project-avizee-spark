@@ -152,7 +152,6 @@ export default function Socios() {
               value={`${kpis.soma.toFixed(2)}%`}
               icon={Percent}
               iconColor={Math.abs(kpis.soma - 100) > 0.01 ? "text-warning" : "text-success"}
-              hint={Math.abs(kpis.soma - 100) > 0.01 ? "Atenção: soma diferente de 100%" : "Composição completa"}
             />
           </>
         }
