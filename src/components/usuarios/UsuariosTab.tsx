@@ -946,10 +946,14 @@ function UserRow({
               você
             </span>
           )}
-          {user.extra_permissions.length > 0 && (
-            <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[10px] text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-400">
+          {(user.extra_permissions.length + (user.denied_permissions?.length ?? 0)) > 0 && (
+            <span
+              className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[10px] text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-400"
+              title={`${user.extra_permissions.length} concedida(s), ${user.denied_permissions?.length ?? 0} revogada(s)`}
+            >
               <ShieldAlert className="h-2.5 w-2.5" />
-              {user.extra_permissions.length} exceção{user.extra_permissions.length > 1 ? 'ões' : ''}
+              {user.extra_permissions.length + (user.denied_permissions?.length ?? 0)} exceção
+              {user.extra_permissions.length + (user.denied_permissions?.length ?? 0) > 1 ? 'ões' : ''}
             </span>
           )}
         </div>
