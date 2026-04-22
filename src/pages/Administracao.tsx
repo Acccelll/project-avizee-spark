@@ -168,7 +168,10 @@ interface UsuariosConfigRaw {
 
 /** Set of section keys that render actual content here — used to guard invalid ?tab= values */
 const VALID_SECTION_KEYS = new Set([
-  'empresa', 'dashboard', 'usuarios', 'email', 'integracoes', 'notificacoes', 'backup', 'fiscal', 'financeiro', 'auditoria',
+  // `auditoria` e `migracao` NÃO entram aqui: são atalhos externos tratados em
+  // `handleSectionChange` via `navigate(...)`. Se alguém colar `?tab=auditoria`
+  // direto, cai no fallback `empresa` em vez de disparar `navigate` em render.
+  'empresa', 'dashboard', 'usuarios', 'email', 'integracoes', 'notificacoes', 'backup', 'fiscal', 'financeiro',
 ]);
 
 const sideNavGroups: SideNavGroup[] = [
