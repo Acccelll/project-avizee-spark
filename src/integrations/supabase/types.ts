@@ -5951,6 +5951,7 @@ export type Database = {
             }
             Returns: string
           }
+      aprovar_orcamento: { Args: { p_id: string }; Returns: Json }
       aprovar_pedido: { Args: { p_pedido_id: string }; Returns: Json }
       cancelar_cotacao_compra: {
         Args: { p_id: string; p_motivo?: string }
@@ -5965,6 +5966,10 @@ export type Database = {
         Returns: undefined
       }
       cancelar_orcamento: {
+        Args: { p_id: string; p_motivo?: string }
+        Returns: Json
+      }
+      cancelar_pedido_venda: {
         Args: { p_id: string; p_motivo?: string }
         Returns: Json
       }
@@ -6023,6 +6028,7 @@ export type Database = {
         Args: { payload: Json; queue_name: string }
         Returns: number
       }
+      enviar_orcamento_aprovacao: { Args: { p_id: string }; Returns: Json }
       estornar_baixa_financeira: {
         Args: { p_baixa_id: string; p_motivo?: string }
         Returns: undefined

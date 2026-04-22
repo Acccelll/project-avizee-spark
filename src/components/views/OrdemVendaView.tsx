@@ -18,7 +18,10 @@ import { useDetailActions } from "@/hooks/useDetailActions";
 import { DetailLoading, DetailEmpty } from "@/components/ui/DetailStates";
 import { pagamentoLabels, freteTipoLabels } from "@/utils/comercial";
 import { useFaturarPedido } from "@/pages/comercial/hooks/useFaturarPedido";
+import { useCancelarPedido } from "@/pages/comercial/hooks/useCancelarPedido";
 import { canFaturarPedido, getPedidoStatusLabel, statusFaturamentoLabels } from "@/lib/comercialWorkflow";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   FileOutput,
   DollarSign,
@@ -31,6 +34,7 @@ import {
   Link2,
   AlertTriangle,
   Edit,
+  XCircle,
 } from "lucide-react";
 
 interface Props {
@@ -79,10 +83,13 @@ interface OVDetail {
 
 export function OrdemVendaView({ id }: Props) {
   const [generateNfOpen, setGenerateNfOpen] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelMotivo, setCancelMotivo] = useState("");
   const { pushView } = useRelationalNavigation();
   const navigate = useNavigate();
   const { run, locked } = useDetailActions();
   const faturarPedido = useFaturarPedido();
+  const cancelarPedido = useCancelarPedido();
   const crossToast = useCrossModuleToast();
 
   const { data, loading, reload } = useDetailFetch<OVDetail>(id, async (ovId, signal) => {
@@ -167,6 +174,28 @@ export function OrdemVendaView({ id }: Props) {
   const qtdTotal = items.reduce((s: number, i: Record<string, unknown>) => s + Number(i.quantidade || 0), 0);
   const canGenerateNF = canFaturarPedido(selected);
 
+  // Gate de cancelamento: bloquear se já cancelado/faturado ou se houver NF ativa.
+  const hasNFAtiva = notasFiscais.some(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (n: any) => !["cancelada", "denegada"].includes(n.status)
+  );
+  const canCancelarPedido =
+    !!selected &&
+    !["cancelada", "faturada"].includes(selected.status || "") &&
+    !hasNFAtiva;
+
+  const handleCancelarPedido = async () => {
+    if (!selected) return;
+    await run("cancel_pedido", async () => {
+      await cancelarPedido.mutateAsync({ id: selected.id, motivo: cancelMotivo.trim() || undefined });
+      setCancelOpen(false);
+      setCancelMotivo("");
+      await reload();
+    }).catch(() => {
+      // erro já tratado via toast
+    });
+  };
+
   // KPI Faturado: NFs com status interno `confirmada` (após confirmarNotaFiscal)
   // ou `autorizada` (status SEFAZ, aplicável quando integração emite NFe oficial).
   // Canceladas/denegadas continuam listadas mas não somam para faturamento.
@@ -210,6 +239,17 @@ export function OrdemVendaView({ id }: Props) {
         {canGenerateNF && (
           <Button size="sm" variant="default" className="h-8 gap-1.5 text-xs" onClick={() => setGenerateNfOpen(true)} disabled={locked("generate_nf")}>
             <FileOutput className="h-3.5 w-3.5" /> Gerar NF
+          </Button>
+        )}
+        {canCancelarPedido && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 gap-1.5 text-xs text-destructive border-destructive/40 hover:bg-destructive/10"
+            onClick={() => setCancelOpen(true)}
+            disabled={locked("cancel_pedido")}
+          >
+            <XCircle className="h-3.5 w-3.5" /> Cancelar
           </Button>
         )}
         {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
@@ -682,6 +722,44 @@ export function OrdemVendaView({ id }: Props) {
           },
         ] satisfies ImpactItem[]}
       />
+
+      {/* Dialog de cancelamento — coleta motivo opcional antes da confirmação. */}
+      {cancelOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm" onClick={() => setCancelOpen(false)}>
+          <div className="bg-card border rounded-xl shadow-lg p-5 max-w-md w-full mx-4 space-y-4" onClick={(e) => e.stopPropagation()}>
+            <div>
+              <h3 className="font-semibold text-base flex items-center gap-2">
+                <XCircle className="h-4 w-4 text-destructive" /> Cancelar pedido {selected.numero}
+              </h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                O cancelamento é registrado em auditoria. NFs ativas vinculadas precisam ser canceladas antes.
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Motivo (opcional)</Label>
+              <Input
+                value={cancelMotivo}
+                onChange={(e) => setCancelMotivo(e.target.value)}
+                placeholder="Ex: cliente desistiu, duplicidade, ..."
+                maxLength={500}
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => { setCancelOpen(false); setCancelMotivo(""); }}>
+                Voltar
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleCancelarPedido}
+                disabled={locked("cancel_pedido")}
+              >
+                {locked("cancel_pedido") ? "Cancelando..." : "Confirmar cancelamento"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

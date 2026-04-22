@@ -14,6 +14,7 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { PageShell } from "@/components/PageShell";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { getPedidoStatusLabel } from "@/lib/comercialWorkflow";
+import { useSalvarPedido } from "@/pages/comercial/hooks/useSalvarPedido";
 
 const statusOptions = [
   { value: "pendente", label: "Pendente" },
@@ -53,10 +54,11 @@ const PedidoForm = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [pedido, setPedido] = useState<PedidoRecord | null>(null);
   const baselineRef = useRef<PedidoEditForm | null>(null);
   const { confirm, dialog } = useConfirmDialog();
+  const salvarPedido = useSalvarPedido();
+  const saving = salvarPedido.isPending;
   const [form, setForm] = useState<PedidoEditForm>({
     status: "",
     po_number: "",
@@ -126,28 +128,22 @@ const PedidoForm = () => {
 
   const handleSave = async () => {
     if (!id) return;
-    setSaving(true);
     try {
-      const { error } = await supabase
-        .from("ordens_venda")
-        .update({
+      await salvarPedido.mutateAsync({
+        id,
+        patch: {
           status: form.status || null,
           po_number: form.po_number || null,
           data_po_cliente: form.data_po_cliente || null,
           data_prometida_despacho: form.data_prometida_despacho || null,
           prazo_despacho_dias: form.prazo_despacho_dias ? Number(form.prazo_despacho_dias) : null,
           observacoes: form.observacoes || null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", id);
-      if (error) throw error;
-      toast.success("Pedido atualizado com sucesso.");
+        },
+      });
       baselineRef.current = { ...form };
       navigate("/pedidos");
-    } catch (err: unknown) {
-      toast.error(getUserFriendlyError(err));
-    } finally {
-      setSaving(false);
+    } catch {
+      // erro já reportado via toast no hook
     }
   };
 
