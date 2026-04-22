@@ -11,6 +11,9 @@ import { RelationalLink } from "@/components/ui/RelationalLink";
 import { useActionLock } from "@/hooks/useActionLock";
 import { getPedidoCompraPermissions, isVencido } from "@/lib/drawerPermissions";
 import { canonicalPedidoStatus, pedidoCanReceive, pedidoRecebimentoLabel } from "./comprasStatus";
+import { RegistrarRecebimentoDialog } from "./RegistrarRecebimentoDialog";
+import { EstornarRecebimentoDialog } from "./EstornarRecebimentoDialog";
+import { useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -32,6 +35,8 @@ import {
   Clock,
   Truck,
   XCircle,
+  RotateCcw,
+  ExternalLink,
 } from "lucide-react";
 import { PedidoCompra, pedidoNumero } from "./pedidoCompraTypes";
 import type {
@@ -56,6 +61,7 @@ interface PedidoCompraDrawerProps {
   onSolicitarAprovacao?: (p: PedidoCompra) => void;
   onAprovar?: (p: PedidoCompra) => void;
   onRejeitar?: (p: PedidoCompra, motivo: string) => void;
+  onAfterRecebimentoChange?: () => void;
   isAdmin?: boolean;
   statusLabels: Record<string, string>;
 }
@@ -76,6 +82,7 @@ export function PedidoCompraDrawer({
   onSolicitarAprovacao,
   onAprovar,
   onRejeitar,
+  onAfterRecebimentoChange,
   isAdmin,
   statusLabels,
 }: PedidoCompraDrawerProps) {
@@ -83,6 +90,9 @@ export function PedidoCompraDrawer({
   const [cancelMotivo, setCancelMotivo] = useState("");
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectMotivo, setRejectMotivo] = useState("");
+  const [receberOpen, setReceberOpen] = useState(false);
+  const [estornoOpen, setEstornoOpen] = useState(false);
+  const navigate = useNavigate();
   const pedidoStatus = canonicalPedidoStatus(selected.status);
 
   const { pending: sendPending, run: runSend } = useActionLock();
@@ -398,6 +408,38 @@ export function PedidoCompraDrawer({
       <ViewSection title="Logística / Rastreamento">
         <LogisticaRastreioSection pedidoCompraId={selected.id} />
       </ViewSection>
+
+      {viewFinanceiro.length > 0 && (
+        <ViewSection title="Lançamentos Financeiros gerados">
+          <div className="space-y-2">
+            {viewFinanceiro.map((l) => (
+              <div
+                key={l.id}
+                className="flex items-center justify-between rounded-md bg-accent/20 px-3 py-2 text-sm"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-medium truncate">{l.descricao ?? "—"}</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    Venc. {formatDate(l.data_vencimento)}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0 ml-2">
+                  <StatusBadge status={String(l.status ?? "")} />
+                  <span className="font-mono font-medium text-xs">{formatCurrency(Number(l.valor ?? 0))}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-2 gap-1.5 text-xs"
+            onClick={() => navigate(`/financeiro?pedido_compra_id=${selected.id}`)}
+          >
+            <ExternalLink className="h-3 w-3" /> Abrir no Financeiro
+          </Button>
+        </ViewSection>
+      )}
     </div>
   );
 
@@ -543,10 +585,13 @@ export function PedidoCompraDrawer({
   const canCancel = ["rascunho", "aprovado", "enviado_ao_fornecedor", "aguardando_recebimento"].includes(pedidoStatus);
   const canSolicitarAprovacao = pedidoStatus === "rascunho" && !!onSolicitarAprovacao;
   const canApproveReject = pedidoStatus === "aguardando_aprovacao" && !!isAdmin;
+  const canEstornar = ["recebido", "parcialmente_recebido"].includes(pedidoStatus) && !!isAdmin;
   void perms;
+  void onReceive; // retido por retrocompatibilidade — recebimento agora é via diálogo abaixo
+  void receivePending;
 
   const drawerFooter =
-    canReceive || canSend || canCancel || canSolicitarAprovacao || canApproveReject ? (
+    canReceive || canSend || canCancel || canSolicitarAprovacao || canApproveReject || canEstornar ? (
       <DrawerStickyFooter
         left={
           canCancel && (
@@ -589,8 +634,18 @@ export function PedidoCompraDrawer({
                 <SendHorizontal className="w-4 h-4" /> Marcar como Enviado
               </Button>
             )}
+            {canEstornar && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2 text-warning border-warning/30 hover:bg-warning/10 hover:text-warning"
+                onClick={() => setEstornoOpen(true)}
+              >
+                <RotateCcw className="w-4 h-4" /> Estornar recebimento
+              </Button>
+            )}
             {canReceive && (
-              <Button size="sm" className="gap-2" disabled={receivePending} onClick={() => runReceive(() => onReceive(selected))}>
+              <Button size="sm" className="gap-2" disabled={receivePending} onClick={() => setReceberOpen(true)}>
                 <PackageCheck className="w-4 h-4" /> Registrar Recebimento
               </Button>
             )}
@@ -708,6 +763,20 @@ export function PedidoCompraDrawer({
           placeholder="Ex: valor acima do orçamento aprovado"
         />
       </ConfirmDialog>
+      <RegistrarRecebimentoDialog
+        open={receberOpen}
+        onClose={() => setReceberOpen(false)}
+        pedidoId={String(selected.id)}
+        pedidoNumero={pedidoNumero(selected)}
+        onSuccess={() => { onAfterRecebimentoChange?.(); }}
+      />
+      <EstornarRecebimentoDialog
+        open={estornoOpen}
+        onClose={() => setEstornoOpen(false)}
+        pedidoId={String(selected.id)}
+        pedidoNumero={pedidoNumero(selected)}
+        onSuccess={() => { onAfterRecebimentoChange?.(); }}
+      />
     </>
   );
 }
