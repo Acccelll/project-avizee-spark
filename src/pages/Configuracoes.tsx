@@ -230,11 +230,29 @@ export default function Configuracoes() {
       setNewPassword('');
       setConfirmPassword('');
       setPasswordChangedAt(new Date());
+      // Oferece encerrar sessões em outros dispositivos. A sessão atual permanece ativa.
+      setShowSignOutOthersDialog(true);
     } catch (err: unknown) {
       console.error('[perfil] password:', err);
       toast.error(getUserFriendlyError(err));
     }
     setChangingPassword(false);
+  };
+
+  const handleSignOutOthers = async () => {
+    setSigningOutOthers(true);
+    try {
+      // scope: 'others' invalida refresh tokens em outros dispositivos sem
+      // afetar a sessão atual.
+      const { error } = await supabase.auth.signOut({ scope: 'others' });
+      if (error) throw error;
+      toast.success('Sessões em outros dispositivos foram encerradas.');
+      setShowSignOutOthersDialog(false);
+    } catch (err: unknown) {
+      console.error('[perfil] signOut others:', err);
+      toast.error(getUserFriendlyError(err));
+    }
+    setSigningOutOthers(false);
   };
 
   const handleResetAppearance = async () => {
