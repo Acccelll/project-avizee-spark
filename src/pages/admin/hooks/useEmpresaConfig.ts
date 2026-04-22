@@ -15,6 +15,7 @@ import {
   type EmpresaConfig,
   type EmpresaConfigUpdate,
 } from "@/services/admin/empresa.service";
+import { BRANDING_QUERY_KEY } from "@/hooks/useBrandingPreview";
 
 const EMPRESA_KEY = ["admin", "empresa-config"] as const;
 const appConfigKey = (chave: AppConfigChave) =>
@@ -34,6 +35,9 @@ export function useEmpresaConfig() {
       saveEmpresaConfig(config),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: EMPRESA_KEY });
+      // Mantém branding global (logo/cores) consumido por toda a app
+      // sincronizado após edições do administrador.
+      queryClient.invalidateQueries({ queryKey: BRANDING_QUERY_KEY });
       toast.success("Configurações da empresa salvas com sucesso.");
     },
     onError: (err: Error) => {
