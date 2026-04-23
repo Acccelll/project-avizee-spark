@@ -1,106 +1,114 @@
 
 
-# Revisão Profunda — Fluxos de Autenticação e Acesso
+# Revisão Profunda — Navegação Global e Layout Base
 
-Análise baseada **exclusivamente** no estado real: `Login.tsx` (242 LOC), `Signup.tsx` (255 LOC), `ForgotPassword.tsx` (90 LOC), `ResetPassword.tsx` (164 LOC), `AuthContext.tsx` (252 LOC), `SessionExpiryWarning.tsx` (133 LOC), `ProtectedRoute.tsx`, `AdminRoute.tsx`, `PermissionRoute.tsx`, `SocialRoute.tsx`, `useAuthGate.ts`, `App.tsx`, e migration `20260409205921_*.sql` (trigger `handle_new_user`).
+Análise baseada **exclusivamente** no estado real: `AppLayout.tsx` (109 LOC), `AppSidebar.tsx` (185 LOC), `AppHeader.tsx` (250 LOC), `AppBreadcrumbs.tsx` (151 LOC), `MobileBottomNav.tsx` (94 LOC), `MobileMenu.tsx` (175 LOC), `MobileQuickActions.tsx` (55 LOC), `GlobalSearch.tsx` (227 LOC), `SidebarSection.tsx`, `SidebarFooter.tsx`, `lib/navigation.ts` (348 LOC), `useNavigationState.ts`, `useVisibleNavSections.ts`, `useSidebarBadges.ts`, `useGlobalHotkeys.ts`, `App.tsx` (router).
 
-> **Fato central**: a infraestrutura é sólida (gate único, splash com branding, `PermissionRoute` granular, `SessionExpiryWarning` com keepalive opt-in), mas **três incoerências grandes**: (1) cadastro cria conta no banco mas **não atribui role nenhum** — usuário fica logado e bate em 100% das telas com `AccessDenied`; (2) regras de senha **divergem entre 3 telas** (login=6, reset=6, change=8 + força); (3) **não há integração com o admin** após signup nem fluxo de aprovação, apesar do `INVITE_ONLY` existir.
+> **Fato central**: a fundação é boa (fonte única `navSections`, gate único `useVisibleNavSections`, hotkeys no shell, breadcrumbs com siblings). Mas há **três grupos de incoerências reais**: (1) **rotas existentes que não estão no menu nem em permission map** (`/funcionarios`, `/socios`, `/contas-bancarias`, `/fluxo-caixa`, `/conciliacao` → permissão `financeiro` mas a seção `financeiro` cobre só sub-itens listados); (2) **mobile e desktop divergem** em ações rápidas (`MobileQuickActions` repete `quickActions` que já existem no header) e em destinos das bottom tabs (`/orcamentos` em "Comercial" mas seção também tem `/pedidos`); (3) **breadcrumbs constroem segmentos sintéticos quebrados** para rotas com `:id` (ex: `/orcamentos/abc-123` vira "Dashboard › Orçamentos › abc-123" porque `getRouteLabel` cai no fallback "Orçamento" mas o segmento UUID aparece como label cru se o prefixo não for reconhecido).
 
 ---
 
 ## 1. Visão geral do módulo
 
-- **Rotas públicas**: `/login`, `/signup`, `/forgot-password`, `/reset-password`, `/orcamento-publico`. Todas envoltas em `LazyPage` com `ContentSpinner`.
-- **Provedores de auth ativos**: somente **email + senha** via `supabase.auth.signInWithPassword`. Nenhum `signInWithOAuth` no código — Google/Apple não estão habilitados, embora `cloud-auth-and-security` recomende como default.
-- **`AuthContext`** é fonte única: mantém `user`, `session`, `loading`, `permissionsLoaded`, `profile`, `roles`, `extraPermissions`, `deniedPermissions`. Faz fetch paralelo de `profiles` + `user_roles` + `user_permissions` em `INITIAL_SESSION`. Tem timeout de segurança (5s) que força `loading=false`. Detecta `SIGNED_OUT` involuntário via `manualSignOut` ref e dispara toast "Sessão expirou".
-- **Guards (4 níveis)**:
-  - `ProtectedRoute` — só sessão.
-  - `AdminRoute` — sessão + (role admin OR `administracao:visualizar`).
-  - `PermissionRoute` — sessão + `(resource:action)` granular, com `AccessDenied` `fullPage`.
-  - `SocialRoute` — sessão + flags do `getSocialPermissionFlags`.
-  - Todos consomem `useAuthGate` (loading | unauthenticated | authenticated) e exibem `AuthLoadingScreen` com branding.
-- **Trigger DB**: `handle_new_user` cria automaticamente `profiles(id, nome, email)`. **Não cria nenhuma linha em `user_roles`.**
-- **Reset de senha**: `ForgotPassword` chama `resetPasswordForEmail` com `redirectTo: ${origin}/reset-password`. `ResetPassword` valida sessão via `getSession()` e chama `updateUser({ password })`. Aceita também sessão ativa (não só recovery) — usado também para troca voluntária.
-- **Sessão**: `SessionExpiryWarning` lê `session.expires_at`, agenda warn (default 5 min) + dialog bloqueante na expiração. Keepalive opt-in via `useUserPreference('session_keepalive')` faz refresh a cada 30 min se a aba estiver visível.
-- **Pós-login**: `Login.handleLogin` faz `navigate('/', { replace: true })`. **Sempre para `/`**, ignorando deep-link de origem.
-- **`INVITE_ONLY`**: flag client-side (`VITE_INVITE_ONLY`). Bloqueia UI do `Signup` se `?invite=` ausente, mas **não há validação server-side**: chamar `supabase.auth.signUp` direto via API ignora a flag.
+- **Shell**: `AppLayout` monta uma única vez sob rotas autenticadas (`<Route element={<AppLayout />}>`). Hospeda `AppSidebar` (desktop), `AppHeader`, `MobileMenu`, `MobileBottomNav`, `MobileQuickActions`, `RelationalDrawerStack`, `GlobalSearch`, `GlobalShortcutsDialog` e registra `useGlobalHotkeys` uma única vez.
+- **Modos da sidebar**: `dynamic` (default; recolhida 72px, expande no hover via `onMouseEnter` no wrapper, conteúdo nunca empurrado), `fixed-collapsed`, `fixed-expanded`. Persistência via `useAppConfigContext` (`sidebarCollapsed`, `sidebarMode`).
+- **Header desktop**: breadcrumb + botão "Novo" (dropdown com `quickActions`) + busca + atalhos + notificações + avatar.
+- **Header mobile**: back button (se `pathname !== '/'`) + ícone+título da página + busca + atalhos + notificações + avatar.
+- **Bottom nav mobile**: 4 tabs (`Início`, `Comercial`, `Cadastros`, `Financeiro`) + botão `Menu`. Filtra tabs por `useVisibleSectionKeys()` mantendo "Início" sempre.
+- **MobileQuickActions**: FAB `+` flutuante (acima da bottom nav) que abre Drawer com `quickActions`.
+- **MobileMenu**: Drawer com busca, 3 atalhos (`quickActions.slice(0,3)`), todas as seções *exceto* as 3 cobertas por bottom tabs, e bloco de perfil/tema/sair.
+- **Navegação derivada**:
+  - `lib/navigation.ts` exporta `navSections` (fonte única, 9 seções), `flatNavItems`, `headerIcons`, `getRouteLabel`, `getNavSectionKey`, `quickActions`, `mobileBottomTabs`, `mobileMenuSections`.
+  - `useVisibleNavSections` filtra seções por `can(resource:visualizar)` ou role admin (com fallback granular para usuários sem roles reconhecidos).
+  - `useNavigationState` calcula `activeSectionKeys`, `isItemActive`, e gerencia colapso manual via `useUserPreference('sidebar_sections_state')` por usuário.
+  - `useSidebarBadges` deriva 3 contadores reais: `financeiro` (vencidos+vencer), `estoque` (baixo), `comercial` (orçamentos pendentes).
+- **Hotkeys globais**: Cmd+N (orçamento), Cmd+Shift+{N,C,P} (NF saída/cliente/produto), Cmd+/ (atalhos), Cmd+1..9 (rotas fixas), `?` (busca).
+- **Permissão x rota**: 7 guards em uso — `ProtectedRoute` (só sessão), `PermissionRoute resource=...`, `AdminRoute`, `SocialRoute`. Quase todas as rotas usam `PermissionRoute` granular.
 
 ---
 
 ## 2. Problemas encontrados
 
-### 2.1 Onboarding quebrado: signup não atribui role
+### 2.1 Mapa permissão × menu × rota (incoerências reais)
 
-1. **`handle_new_user` cria `profiles` mas não insere em `user_roles`.** Resultado: usuário recém-cadastrado loga, `AuthContext.roles=[]`, `useCan` retorna false para tudo, `useVisibleNavSections` filtra todas as seções — sidebar fica vazia, dashboard carrega mas `/produtos`, `/clientes`, etc. caem em `AccessDenied`. Onboarding é uma armadilha sem aviso.
-2. **Sem fluxo de aprovação/notificação ao admin.** O cadastro é livre (mesmo com `INVITE_ONLY=false`), mas não existe edge function ou trigger que avise o admin via `permission_audit` ou e-mail. Admin só descobre via lista de usuários.
-3. **`invite_token` é gravado em `raw_user_meta_data` e ignorado.** Nenhuma edge function consome o token; nenhuma tabela `invites` existe. Funcionalidade prometida pela UI, ausente no backend.
-4. **`INVITE_ONLY` é só client-side.** Usuário malicioso (ou Postman com a `anon key` que está em `client.ts`) cria conta sem convite. A flag dá falsa sensação de segurança.
+1. **`/funcionarios` está no menu (`Cadastros`)** mas a rota é `<ProtectedRoute>` sem permissão granular. Qualquer usuário autenticado entra. O item aparece para todos que veem a seção `cadastros` (que requer `produtos|clientes|fornecedores|...`), criando situação onde quem só tem `formas_pagamento:visualizar` vê "Funcionários" no menu.
+2. **`/socios` no menu Cadastros** com guard `PermissionRoute resource="socios"`. Mas `useVisibleNavSections` mapeia `cadastros` apenas para `['produtos','clientes','fornecedores','transportadoras','formas_pagamento']` — **`socios` não entra nessa lista**. Resultado: usuário com permissão *exclusivamente* a `socios` **não vê o menu Cadastros** (a seção fica oculta), mas tem acesso ao recurso. Quebra a regra "se vejo no menu, posso entrar".
+3. **`/socios-participacoes` mapeado em `financeiro`** (mapa: `['financeiro','socios']`) mas o item está listado dentro da seção `Financeiro` no `navSections`. Coerente, porém: o **mesmo recurso `socios`** aparece em duas seções distintas (Cadastros e Financeiro) — o usuário com permissão `socios` vê dois links para fluxos diferentes da mesma entidade, sem indicação de qual é "cadastro" vs "operação".
+4. **`/grupos-economicos` requer `clientes:visualizar`** (`<PermissionRoute resource="clientes">`), mas é um cadastro de natureza distinta. Quem perde permissão de Clientes mas precisa só de Grupos Econômicos fica travado. Acoplamento implícito não documentado.
+5. **`/configuracoes` aparece em rota como `<ProtectedRoute>`** (qualquer autenticado), mas o **footer da sidebar mostra "Configurações" sempre** mesmo para usuários sem nenhuma seção visível. Coerente com o conceito (todo usuário tem perfil), mas o footer também mostra "Sincronizado há Xs" baseado em badges que dependem de permissões — se `useSidebarAlerts` falha por RLS, o ícone fica perpetuamente "fora de sincronia".
+6. **`/auditoria` no submenu de Administração** + rota com `PermissionRoute resource="auditoria"`. Mas a seção `administracao` é mapeada apenas para `['administracao']`. **Quem tem `auditoria:visualizar` mas não `administracao:visualizar` não vê o menu**, mesmo podendo entrar via URL — exatamente o caso "compliance officer" descrito no roadmap recente do módulo Auditoria.
+7. **`/contas-bancarias`, `/fluxo-caixa`, `/contas-contabeis-plano`, `/conciliacao`** — todos exigem `financeiro:visualizar`. Usuário com role `vendedor` que precisa só ver Fluxo de Caixa não pode. Granularidade de permissão financeira insuficiente, mas isso reflete `permissions.ts`, não a navegação per se. **A coerência está OK; a granularidade é fraca.**
+8. **`/relatorios/workbook-gerencial` requer `workbook:visualizar`** e **`/relatorios/apresentacao-gerencial` requer `apresentacao:visualizar`**. Mas a seção `relatorios` no `useVisibleNavSections` é mapeada apenas para `['relatorios']`. Usuário com **só** `workbook:visualizar` (sem `relatorios`) **não vê o menu Relatórios** mas pode acessar via URL. Mesmo padrão do problema 6.
+9. **Rota `/unidades-medida` redireciona para `/produtos`** mas não está no menu. Item legado ressurgindo via deep-link sem aviso na UI.
+10. **Rota `/compras` redireciona para `/pedidos-compra`**; `/remessas` → `/logistica`; `/cotacoes` → `/orcamentos`; `/ordens-venda` → `/pedidos`; `/caixa` → `/financeiro`. Cinco redirects legados — corretos, mas nenhum toast/aviso "renomeado". Quem tem bookmark perde contexto silenciosamente.
 
-### 2.2 Inconsistência das regras de senha
+### 2.2 Mobile vs desktop divergem
 
-5. **Mínimo de senha varia por tela**:
-   - `Login.tsx` (linha 42): `password.length < 6` "Mínimo 6 caracteres"
-   - `Signup.tsx` (linha 37): `password.length < 6` "Mínimo 6 caracteres"  
-   - `ResetPassword.tsx` (linha 47): `password.length < 6` "Mínimo 6 caracteres"
-   - `useChangePassword.ts` (linha 38): **8 caracteres + maiúscula/minúscula + dígito**
-   
-   Usuário cria conta com senha de 6 chars, troca via `/reset-password` para 6 chars, mas em `Configurações → Segurança` é exigido 8+complexa. Quem trocar via link de e-mail nunca atinge a regra "forte" — política impossível de auditar.
-6. **Indicador de força só no Signup.** Nem em `ResetPassword` nem em `Configurações` (este último bate na regra dura, mas sem barra visual). UX inconsistente.
-7. **Sem HIBP / leaked password protection.** Não há configuração `password_hibp_enabled`. Recomendação explícita do guia da plataforma ignorada.
+11. **Bottom tab "Cadastros" leva para `/clientes`**, mas o usuário pode ter permissão a `produtos` mas não a `clientes`. Tab fica visível (pois `useVisibleSectionKeys` aceita `cadastros` se *qualquer* recurso filho passa) e leva para tela com `AccessDenied`. Mesma trincheira para "Financeiro" → `/financeiro?tipo=receber` (alguém com só `socios` veria a tab e bateria em AccessDenied).
+12. **Bottom tab "Comercial" → `/orcamentos`** mas a seção também tem `/pedidos`. Decisão arbitrária — sem indicação visual de que existem mais módulos comerciais por trás.
+13. **`MobileQuickActions` (FAB)** e **botão "Novo" no header desktop** usam **a mesma lista** `quickActions` (6 itens). Mobile não tem `MobileQuickActions` aberto via header — é apenas o FAB. Mas o **MobileMenu drawer** mostra `quickActions.slice(0, 3)` no topo: **três versões do mesmo conteúdo no mobile** (FAB com 6, drawer com 3, sem botão no header).
+14. **`MobileQuickActions.tsx` posiciona FAB em `bottom-[5.8rem]`** (acima da bottom nav). Em iPhone com `safe-area-inset-bottom`, o cálculo não soma o inset → FAB fica colado na bottom nav em alguns devices, sem `pb-[env(safe-area-inset-bottom)]` próprio.
+15. **Header mobile não tem botão "Novo"** — usuário precisa abrir bottom nav → menu/FAB. Inconsistente com desktop, onde ação de criação é primária.
+16. **`MobileMenu` mostra Atalhos com **`slice(0, 3)`** sem critério** — corta `nova-nota-saida`, `baixa-financeira`, `novo-pedido-compra`. Decisão arbitrária e silenciosa.
+17. **MobileMenu re-renderiza `BOTTOM_TAB_KEYS = new Set([...])` em cada call** (linha 18 — fora do componente, ok), mas duplicado em `lib/navigation.ts` (`BOTTOM_TAB_SECTION_KEYS`). Duas fontes para a mesma decisão.
 
-### 2.3 Login: redirect e UX
+### 2.3 Breadcrumbs e títulos contextuais
 
-8. **Pós-login sempre vai para `/`.** Se o usuário estava em `/produtos/123`, foi expulso para `/login` (sessão expirou) e logou de novo, **perde o contexto**. `ProtectedRoute` faz `<Navigate to="/login" replace />` sem `state={{ from: location }}` — Login não tem como retornar.
-9. **`useEffect` que detecta usuário já logado redireciona para `/`** mesmo quando o usuário chegou em `/login?next=/produtos`. Sem suporte a query param `next`.
-10. **Sem mensagem de "muitas tentativas".** Erro de rate limit do Supabase cai no `error.message` cru (em inglês). Lista de mapeamento manual cobre só "Invalid login credentials" e "Email not confirmed" — qualquer outro erro vaza string técnica.
-11. **`authLoading` mostra spinner full-screen sem branding** (`Loader2` simples), enquanto guards mostram `AuthLoadingScreen` com logo. Inconsistência visual no mesmo fluxo.
-12. **Toast "Login realizado com sucesso!"** dispara *antes* do `navigate('/')`. Em conexões lentas, toast aparece mas a rota ainda não trocou — pisca confusamente.
-13. **Botão Dev Login** (`showDevButton`) tree-shaka em prod, mas **vaza email/senha de dev** se alguém der `console.log(import.meta.env)` em build de dev. Aceitável, mas vale comentar.
+18. **Breadcrumbs montam segmentos sintéticos** dividindo `pathname.split('/')` e chamando `getRouteLabel(currentPath)` para cada um (linhas 80-85). Rota `/orcamentos/abc-123-uuid`:
+    - segmento `/orcamentos` → "Orçamentos" (OK)
+    - segmento `/orcamentos/abc-123-uuid` → cai em `if (pathname.startsWith('/orcamentos/')) return 'Orçamento'` (OK)
+    
+    Mas para `/cotacoes-compra/abc-123-uuid`: **não há fallback para `/cotacoes-compra/`** em `getRouteLabel`. Cai em `'ERP AviZee'`. Breadcrumb fica "Dashboard › Cotações de Compra › ERP AviZee".
+19. **Mesmo problema**: `/pedidos-compra/:id`, `/pedidos/:id`, `/fiscal/:id`, `/fiscal/:id/editar`, `/remessas/:id`. **Cinco rotas com `:id` sem fallback de label**. Todas vão render "ERP AviZee" no último segmento.
+20. **`/fiscal/:id/editar`** gera `[Dashboard, /fiscal, /fiscal/:id, /fiscal/:id/editar]`. O segmento intermediário `/fiscal/:id` produz `"Fiscal"` (via fallback `startsWith('/fiscal')`). Mas `getRouteLabel('/fiscal/:id/editar')` também cai no fallback `'Fiscal'`. **Dois segmentos com a mesma label** → "Dashboard › Fiscal › Fiscal › Fiscal". A guarda `lastItem.label !== contextualLabel` (linha 89) só evita o último duplicado, não os intermediários.
+21. **`siblingMap` indexa por path-base do menu** (linha 67-69). Para uma página de detalhe (`/orcamentos/123`), o segmento intermediário `/orcamentos` *tem* siblings (Orçamentos e Pedidos), mas o cabeçalho mostra dropdown apenas no penúltimo nível. A regra `siblings.length > 1` faz o dropdown aparecer só quando há >1 — para a maioria das seções com apenas 1 grupo (ex: Cadastros, Comercial), o dropdown aparece. Para a seção Comercial com 2 itens, OK. Mas o ícone só aparece no segundo item (`showIcon = index === 1`) — `/configuracoes/seguranca` (não existe; é `/configuracoes?tab=seguranca`) e outras tabs internas **não aparecem como segmento** (são query, não path).
+22. **`resolvePageTitle` cobre `?tab=` para `/administracao` e `?tipo=` para `/relatorios` e `/financeiro`**, mas **não cobre** `/fiscal?tipo=entrada` vs `/fiscal?tipo=saida` — ambos são entradas distintas no menu mas o título é apenas "Fiscal".
+23. **`headerIcons` deriva de `flatNavItems`**, mas dois ícones são "fixados": `'/configuracoes': Settings` e `'/fiscal': Receipt` (esse último já viria do `flatNavItems` se a entrada não tivesse `?tipo=...`). Hack porque `/fiscal` (sem query) é uma rota inexistente no menu — só `/fiscal?tipo=entrada|saida` aparece.
 
-### 2.4 Signup: validações e UX
+### 2.4 Sidebar e UX de seções
 
-14. **`handle_new_user` lê `raw_user_meta_data->>'full_name'`** mas o `Signup.tsx` envia `data: { nome }` (não `full_name`). Resultado: trigger usa **fallback `NEW.email`** como nome, e o nome digitado pelo usuário só é gravado depois pelo `useProfileForm` — se o usuário nunca abrir Configurações, fica com nome = email.
-15. **Sem confirmação de senha.** Único lugar com 2 campos é `/reset-password`. Signup permite typo silencioso.
-16. **`emailRedirectTo: window.location.origin`** redireciona para `/` após confirmação de e-mail. Como `/` é `ProtectedRoute`, o usuário recém-confirmado pode ver flicker de loading antes do `AuthContext` perceber a sessão.
-17. **`success` screen** mostra apenas "Verifique seu e-mail". Sem opção de reenviar e-mail de confirmação se não chegar. `supabase.auth.resend({ type: 'signup', email })` está disponível e não é usado.
-18. **`error.message` do Supabase é genericado**: qualquer falha (e-mail já existe, senha fraca, captcha) vira "Erro ao criar conta. Tente novamente." Usuário perde diagnóstico — caso comum "User already registered" deveria sugerir login.
-19. **Caps Lock indicator no Login, ausente no Signup e ResetPassword.** Inconsistência.
+24. **`SidebarSection` no modo colapsado**: clicar no ícone **expande a sidebar inteira** (`onExpandRail()`), em vez de navegar/exibir tooltip com submenu. Usuário com sidebar colapsada perde o "salto rápido" — precisa expandir, clicar, depois recolher manual. Sem flyout.
+25. **No modo `dynamic` (default)**, o hover *expande visualmente* (overlay), mas clicar em uma seção **navega** ou **toggle expand** dependendo de `directPath`. Com auto-collapse no `mouseLeave`, o usuário vê o menu sumir antes de a página carregar — flicker.
+26. **Favoritos vivem em localStorage** (`useFavoritos`) — não sincroniza entre devices. Para um ERP B2B com usuários multi-device, é regressão.
+27. **`SidebarSection` pinta dot no canto superior direito quando colapsado e há badge** (linhas 113-118). Mas não há tooltip explicando o número. Usuário colapsado vê dot vermelho/amarelo/azul sem contexto.
+28. **`SidebarFooter` mostra "Sincronizado há Xs"** (linha 24) com cor `bg-success` se < 60s. Não há indicação de "stale" prolongado (>5min) — fica muted-foreground/40 indistinguível do estado "nunca sincronizou".
+29. **Item ativo na sidebar usa classes `sidebar-item-active`** (CSS global), mas o **dashboard** usa o mesmo padrão enquanto **direct-link sections** (apenas Social hoje) usam classe diferente (`sidebar-item-active` no botão, sem barrinha lateral idêntica). Inconsistência visual sutil.
+30. **`useNavigationState.activeSectionKeys` permite múltiplas seções ativas simultaneamente** (`.filter(...)`). Cenário improvável (rotas não se sobrepõem), mas se acontecer, **duas seções aparecem destacadas** sem prioridade.
 
-### 2.5 Forgot/Reset password
+### 2.5 Header e área de busca
 
-20. **`ForgotPassword` exibe sempre tela de sucesso** mesmo quando `resetPasswordForEmail` falha — código (linhas 30-33): se `err`, dispara toast e **retorna sem `setSent`**, mas não há feedback visual no botão (volta a "Enviar link"). Comportamento errático: toast some, usuário tenta de novo.
-21. **`ResetPassword.useEffect`** roda `getSession()` **antes** de aguardar o Supabase consumir o hash de recovery. Em refreshes ou navegações estranhas, `getSession()` pode retornar null antes do parser do hash terminar — então o usuário é jogado para `/login` mesmo com link válido. Mitigação parcial via `hashHasRecovery`, mas hash é apagado pelo Supabase após primeira leitura.
-22. **`updateUser({ password })` não revalida que é sessão de recovery.** Se um atacante rouba a sessão (XSS) e abre `/reset-password`, troca a senha sem fornecer a antiga. `useChangePassword` cobre isso; `ResetPassword` não. Aceitável para fluxo de recovery, mas reset voluntário deveria seguir para `/configuracoes?tab=seguranca`.
-23. **Sucesso vai para `/` via "Acessar o sistema"**, mas a sessão de recovery é tecnicamente válida e o usuário pula a re-autenticação. Para recuperação isso é por design; o problema é que **não há toast/aviso recomendando logout em outros dispositivos** — `useChangePassword` tem essa funcionalidade (`signOutOthers`), `ResetPassword` não.
-24. **Link expira em "1 hora" (texto na UI)** — número hardcoded na cópia, não vem do Supabase. Se a config do projeto mudar para 24h, a UI mente.
+31. **`AppHeader` import do `useEffect`** está literalmente vazio: `void useEffect;` no fim do arquivo (linha 250) — comentário diz "mantido apenas pelo lint pré-existente". Dívida visível: lint regra mal calibrada ou import esquecido após refactor.
+32. **`primaryRole`** prioriza admin, depois `roles[0]`. Para `[financeiro, vendedor]`, mostra "Financeiro". Decisão arbitrária — sem explicação na UI nem em mem://.
+33. **Avatar mostra dot colorido por role** (4 cores), mas em hover/tooltip não há legenda. Usuário precisa abrir o dropdown para ver a label.
+34. **`Plus` ("Novo") sempre visível** mesmo se nenhuma das `quickActions` for permitida ao usuário. Não há filtro de `quickActions` por permissão (`/orcamentos/novo` requer `orcamentos:editar`).
+35. **`GlobalSearch` consulta 4 tabelas (`clientes`, `produtos`, `orcamentos`, `notas_fiscais`)** sem checar permissões. Usuário sem `orcamentos:visualizar` *vê resultados* na busca, clica e bate em AccessDenied. RLS provavelmente bloqueia o select, mas a UI não filtra explicitamente.
+36. **`GlobalSearch` mostra resultado "Orçamentos" linkando para `/orcamentos/${o.id}`** mas para Clientes/Produtos linka para a lista (`/clientes`, `/produtos`) — sem deep-link para a entidade. Inconsistência: orçamento abre detalhe, cliente não abre drawer.
+37. **`GlobalSearch` tem 3 listas separadas** (recentes, ações, navegação) + grupos de entidades. **A ordem** é: Recentes → Ações → Entidades → Navegação. Para usuário que digita "cli", o item "Clientes" (navegação) fica no fim depois de listas de clientes individuais. Hierarquia confusa.
+38. **`GlobalSearch.useEffect` para Cmd+K** registra `keydown` global, **e `useGlobalHotkeys` no AppLayout também**. Não conflita pois `useGlobalHotkeys` não captura Cmd+K, mas **dois listeners globais para hotkeys** convivem sem coordenação central.
 
-### 2.6 AuthContext, sessão e race conditions
+### 2.6 Hotkeys e atalhos
 
-25. **`safetyTimeout` de 5s força `loading=false`** sem `setUser(null)`. Se o Supabase realmente travar, o app monta `ProtectedRoute` com `user=null` e cai em `Navigate to="/login"`. Sem toast/erro — usuário vê tela de login do nada.
-26. **`onAuthStateChange` faz `await Promise.all([fetchProfile, fetchPermissions])` em `INITIAL_SESSION`** — se `user_roles` ou `user_permissions` retornar lento, **toda a aplicação espera**. Seria razoável mostrar dashboard com permissões otimistas + skeleton de menu.
-27. **`fetchProfile` falha silenciosamente** (`catch` só loga). Profile pode ficar `null`, e o header mostra "Usuário" — sem retry, sem aviso.
-28. **`SIGNED_OUT` involuntário dispara toast** — bom — mas **não limpa `manualSignOut`** se o evento chegar duplicado. `manualSignOut.current = false` é resetado *toda* invocação, então um logout manual seguido de evento duplicado pode disparar toast indevido.
-29. **`signOut` faz `window.location.assign('/login')`** — perde React Router state. Para deep-link "voltar para onde estava após login", inviabiliza o fluxo (combinado com problema 8).
+39. **`QUICK_NAV_ROUTES`** (Cmd+1..9) inclui `/relatorios` e `/configuracoes` — sem checar permissão. Cmd+8 leva para `/relatorios` mesmo se usuário não pode ver.
+40. **Hotkeys de criação (Cmd+N para orçamento, Cmd+Shift+N para NF)** não são exibidas em nenhum lugar visível além do `GlobalShortcutsDialog`. Usuário não descobre.
+41. **`GlobalShortcutsDialog` é separado da `GlobalSearch`** — busca tem dica "⌘K" no campo, atalhos têm dica "?" no campo. Mas Cmd+/ abre atalhos e `?` (sem mod) abre busca. **Confuso: dois acessos diferentes para conteúdos relacionados.**
+42. **Hotkey Cmd+/ abre Shortcuts**, mas em layouts de teclado não-US (BR ABNT2), `/` requer Shift. Sem fallback.
 
-### 2.7 SessionExpiryWarning
+### 2.7 AppLayout e responsividade
 
-30. **Warn aparece ~55 min em sessão de 1h** (default Supabase). Para usuários com `session_keepalive=true`, o keepalive renova silenciosamente e o warn nunca dispara — bom. Para os que não têm, o warn aparece sem contexto de qual aba/rota está ativa.
-31. **Dialog bloqueante após expirar** desabilita pointer-down e ESC, mas o **Sonner toast** continua acima. Não há trava em interações com a página atrás — o usuário ainda pode clicar em links via teclado (TAB → Enter) antes de ver o dialog se a renderização for lenta.
-32. **`expireTimerRef`** dispara um `setTimeout` baseado em `Date.now() - expires_at`. Se a aba ficou suspensa (laptop fechado), o timer não dispara no momento certo — `setTimeout` é throttled. Não há recheck no `visibilitychange`.
+43. **`md:ml-[72px]` vs `md:ml-[240px]` hardcoded** em `AppLayout` linha 78. Se algum dia a sidebar mudar de largura, há drift entre AppLayout, AppSidebar (`w-[72px]`/`w-[240px]`) e cálculo de margem. Sem CSS variable.
+44. **`max-w-[1600px]`** no `<main>` e no header. Acima de 1600 CSS px, há gap nas laterais. Sem indicação visual de que o conteúdo está centralizado — pode parecer bug em monitores 4K.
+45. **`pb-28` em `<main>` mobile** garante que conteúdo não fique sob bottom nav. Mas é fixo: se bottom nav crescer (ex: badge), vai sobrepor.
+46. **Não há indicação de "modo dynamic"** — usuário não sabe que sidebar vai expandir no hover. Sem onboarding/tooltip na primeira visita.
+47. **Modo `dynamic` + hover gera muito reflow** — a margem do conteúdo principal *não* muda (mantém 72px), mas o overlay sobe com z-50 sobre conteúdo. Para usuários com tremor/Parkinson, o hover-leave acidental colapsa rapidamente.
 
-### 2.8 Coerência guards × menu × deep-link
+### 2.8 Riscos estruturais
 
-33. **`PermissionRoute` falha com `AccessDenied`** mas **`useVisibleNavSections` esconde o item do menu**. Resultado: usuário sem permissão **nunca clica** num link, mas se cola URL, vê uma tela de "Acesso restrito" com `RequestAccessDialog`. Coerente, mas o título "Acesso restrito" + chip do recurso poderia explicar melhor "este recurso existe, peça acesso".
-34. **`AdminRoute` aceita role admin OR `administracao:visualizar`**, mas **`useIsAdmin` retorna isAdmin=false** para quem só tem `administracao:visualizar`. UI em telas que usam `useIsAdmin` (ex: badges, gating de seções) será inconsistente com o que o guard libera.
-35. **Guards diferentes mostram telas de loading diferentes**: `ProtectedRoute` → `mode="session"`, `AdminRoute`/`PermissionRoute`/`SocialRoute` → `mode="permissions"`. Diferença sutil, mas o usuário vê copy diferente no mesmo flicker.
-
-### 2.9 Riscos estruturais
-
-36. **Trigger `handle_new_user` não tem `INSERT INTO user_roles`** — toda nova conta é "fantasma" do ponto de vista de RBAC.
-37. **Sem fluxo de "reativar/desativar"** para usuários — `profiles` não tem coluna `ativo`, `signOut` global não desativa sessões. Se admin remove um usuário do `user_roles`, ele continua logado até expirar.
-38. **`auth.users.email` × `profiles.email`**: trigger criado na fase 9 do roadmap Configurações sincroniza, mas se trigger for desabilitado, divergência reaparece. Sem validação periódica.
-39. **`emailRedirectTo` é `window.location.origin`** — em ambientes preview vs prod, gera URLs diferentes. Se o usuário abre o link de signup em outro device, falha.
-40. **`SessionExpiryWarning` confia em `session.expires_at`** sem verificar drift de relógio cliente/servidor. Em laptops com horário desconfigurado, warn pode disparar 30 min cedo ou tarde.
+48. **`mobileBottomTabs` hardcoded** com 3 destinos específicos (`/orcamentos`, `/clientes`, `/financeiro?tipo=receber`). Adicionar/remover seção exige editar 3 lugares (`navSections`, `mobileBottomTabs`, `BOTTOM_TAB_SECTION_KEYS`).
+49. **`siblingMap` em `AppBreadcrumbs`** rebuilda em cada render mesmo memoizado por `[]` deps — **só calcula uma vez na vida do componente**. Mudança de `navSections` em runtime (ex: feature flag Social) **não atualiza siblings**.
+50. **Nenhuma rota tem fallback `<NotFound />` dentro do `AppLayout`** — a `*` rota está fora (linha 179), o que significa que NotFound **não tem sidebar/header** na UX. Acaba parecendo "log out involuntário".
+51. **`AppSidebar` recebe `onToggleCollapsed` que chama `saveSidebarCollapsed(!collapsed)`** — mas em modo `dynamic`, `collapsed` sempre depende do hover, e o usuário ainda pode clicar no botão de colapsar/expandir. Resultado: clicar **não tem efeito visível** porque o modo dinâmico ignora a preferência boolean. Botão fantasma.
+52. **`headerIcons` cobre `/fiscal` e `/configuracoes` manualmente**, mas a função fallback no `AppHeader.useMemo Icon` faz `Object.entries(headerIcons).find(([path]) => location.pathname.startsWith(path))`. Para `/orcamentos/abc-123`, encontra `/orcamentos`. Mas a ordem das entries não é determinística — em teoria pode bater `/` antes de `/orcamentos`. Há `path !== '/'` para mitigar, mas é frágil.
+53. **`useGlobalHotkeys` não tem documentação no `GlobalShortcutsDialog`** das hotkeys reais (precisei abrir o hook para ver). Se dialog não estiver sincronizado, há mentira no UI.
 
 ---
 
@@ -108,47 +116,55 @@ Análise baseada **exclusivamente** no estado real: `Login.tsx` (242 LOC), `Sign
 
 | # | Problema | Severidade | Impacto |
 |---|---|---|---|
-| 1 | Signup não cria role nenhum (item 1) | **Crítica** | Onboarding inutilizável sem intervenção de admin |
-| 2 | `INVITE_ONLY` puramente client-side (item 4) | **Crítica** | Falsa segurança, cadastro livre via API |
-| 3 | Regra de senha divergente entre 3 telas (item 5) | **Alta** | Política inauditável, usuário com senha 6 não passa em Configurações |
-| 4 | Pós-login não respeita rota de origem (itens 8-9, 29) | **Alta** | Sessão expirada = perda de contexto |
-| 5 | `handle_new_user` lê `full_name` mas form envia `nome` (item 14) | **Alta** | Todo usuário novo aparece com nome=email |
-| 6 | `error.message` cru em signup ("já registrado") (item 18) | Média | Usuário não sabe que deveria fazer login |
-| 7 | `ForgotPassword` falha sem feedback visual (item 20) | Média | Usuário re-clica sem entender |
-| 8 | `safetyTimeout` joga para login sem aviso (item 25) | Média | UX de queda do Supabase = "fui deslogado?" |
-| 9 | `useIsAdmin` × `AdminRoute` divergem (item 34) | Média | Inconsistência permissão visual vs guard |
-| 10 | Sem HIBP / sem reenvio de confirmação (itens 7, 17) | Baixa | Política de senha fraca + UX de recovery faltando |
+| 1 | Itens de menu × permissão de seção desalinhados (itens 2, 6, 8) | **Alta** | Usuários ficam invisíveis a menus, mas têm acesso via URL — pior UX de descoberta |
+| 2 | Bottom tab leva para tela com AccessDenied (item 11) | **Alta** | Tap → erro |
+| 3 | `/funcionarios` sem `PermissionRoute` (item 1) | **Alta** | Vazamento de cadastro de RH para qualquer autenticado |
+| 4 | Breadcrumbs vazam "ERP AviZee" em rotas `:id` sem fallback (itens 18-19) | **Alta** | Quebra visual em 5+ telas |
+| 5 | "Cadastros" mostra `socios` que não conta na visibilidade (item 2) | Média | Decisão de design quebrada |
+| 6 | Quick actions não filtradas por permissão (itens 34, 39) | Média | Atalhos inúteis para o usuário |
+| 7 | GlobalSearch não filtra por permissão (item 35) | Média | Resultados levam a AccessDenied |
+| 8 | Modo `dynamic` + botão de toggle = sem efeito (item 51) | Média | Botão fantasma |
+| 9 | NotFound fora do AppLayout (item 50) | Média | Parece logout |
+| 10 | `pageTitle` não distingue entrada vs saída fiscal (item 22) | Baixa | Header genérico |
+| 11 | `siblingMap` cacheado uma vez (item 49) | Baixa | Feature flag não atualiza siblings |
+| 12 | `void useEffect;` no AppHeader (item 31) | Baixa | Dívida visual |
 
 ---
 
 ## 4. Melhorias de UI/UX
 
-- **Login**: passar `state={{ from: location }}` no `<Navigate>` do `ProtectedRoute`; ler `location.state?.from?.pathname || '/'` no `handleLogin`. Suportar também `?next=`.
-- **Login**: trocar `Loader2` full-screen por `AuthLoadingScreen` com branding (consistência com guards).
-- **Login**: aguardar `navigate` antes de toast, ou eliminar o toast (redirecionamento já é confirmação).
-- **Signup**: campo "Confirmar senha" + indicador de força aplicado também a `/reset-password` e `/configuracoes/seguranca`.
-- **Signup**: tratar `error.message.includes('already registered')` → CTA "Já tem conta? Fazer login" inline.
-- **Signup**: adicionar botão "Reenviar e-mail de confirmação" na tela de sucesso, com cooldown de 60s.
-- **Signup**: `CapsLockIndicator` no campo de senha (paridade com Login).
-- **ForgotPassword**: estado de erro inline (não só toast); manter campo preenchido; mensagem "Se o e-mail existir, enviaremos o link" (evita user enumeration).
-- **ResetPassword**: ler "expira em X" do projeto (ou remover número da cópia); oferecer "Encerrar outras sessões" pós-sucesso (paridade com `useChangePassword`).
-- **AuthLoadingScreen**: unificar copy "Carregando sessão" entre `ProtectedRoute` (mode=session) e `Login.authLoading` (que hoje usa Loader2).
-- **AccessDenied** em `PermissionRoute`: trocar título para "Sem acesso a {recurso}" com CTA "Solicitar acesso ao admin" mais visível.
+- **Filtrar `quickActions` por permissão**: cada `QuickAction` ganha campo opcional `requires?: PermissionKey`. `AppHeader` e `MobileQuickActions` filtram via `can(...)` antes de renderizar.
+- **Filtrar `QUICK_NAV_ROUTES`** em `useGlobalHotkeys` por `useVisibleSectionKeys()`.
+- **Tornar `GlobalSearch` permission-aware**: cada `EntityResult` carrega `requiredPermission`; resultados sem permissão são omitidos (não dependem só de RLS). Resultados de Cliente/Produto deveriam abrir drawer via `pushView` (`useRelationalNavigation`) em vez de listar.
+- **Bottom tabs**: cada tab valida `can(resource:visualizar)` para o destino real, não só a presença da seção. Se não pode entrar em `/clientes`, redirecionar para `/produtos` ou `/fornecedores` (primeiro permitido).
+- **Sidebar collapsed**: adicionar **flyout** (popover) ao hover de cada seção colapsada com lista de subitens, em vez de expandir a sidebar inteira.
+- **Indicação de "modo dynamic"**: tooltip "Sidebar expande ao passar o mouse" na primeira sessão. Esconder o botão de toggle quando `sidebarMode === 'dynamic'` ou trocar para botão de "Mudar para fixo".
+- **`MobileMenu`**: remover slice arbitrário; mostrar todas as `quickActions` filtradas por permissão.
+- **`MobileQuickActions`**: somar `safe-area-inset-bottom` ao `bottom-[5.8rem]`.
+- **Breadcrumb**: melhorar `getRouteLabel` cobrindo todas as 7 rotas com `:id`. Adicionar fallback genérico "Detalhe" só quando nada bate.
+- **Resolver `/fiscal/:id/editar`**: detectar sufixo `/editar` e adicionar item explícito "Editar" no breadcrumb em vez de duplicar "Fiscal".
+- **`resolvePageTitle`**: cobrir `/fiscal?tipo=entrada` → "Notas de Entrada" e `/fiscal?tipo=saida` → "Notas de Saída".
+- **NotFound dentro do AppLayout**: rota catch-all aninhada em `<Route element={<AppLayout />}>` para preservar shell.
+- **Footer "Sincronizado"**: três estados visuais (recente <60s verde / 60s-5min amarelo / >5min ou nunca cinza com tooltip).
+- **Avatar**: tooltip mostrando role na hover (não só no dropdown).
+- **`primaryRole`**: documentar prioridade ou mostrar todas as roles como chips no dropdown.
 
 ---
 
 ## 5. Melhorias estruturais
 
-1. **Atualizar `handle_new_user`** para inserir role default (`vendedor`?) ou colocar usuário em "pendente" (nova coluna `profiles.status='pendente'`) e bloquear no `AuthContext` até admin ativar.
-2. **Criar tabela `invites(token, email, role, expires_at, used_at)`** + edge function `validate-invite` consumida no `signUp`. Deprecar `INVITE_ONLY` puramente client-side.
-3. **Centralizar regra de senha** em `src/lib/passwordPolicy.ts` com `MIN_LENGTH`, `requireMixedCase`, `requireDigit`, `validatePassword(value)`. Importar em Login/Signup/Reset/Change. Renderizar `PasswordStrengthIndicator` componente único.
-4. **Trocar `handle_new_user`** para ler `raw_user_meta_data->>'nome'` (case correto) ou mudar `Signup.tsx` para enviar `full_name`. Padronizar.
-5. **Habilitar `password_hibp_enabled`** via `configure_auth`.
-6. **Edge function `notify-admin-new-signup`** (acionada pelo trigger) que enfileira e-mail via pgmq para `ADMIN_EMAIL`.
-7. **Remover `window.location.assign` em `signOut`** quando não houver dependência do refresh (limpar contextos manualmente já feito; usar `navigate('/login', { replace: true })`).
-8. **Recheck de expiração no `visibilitychange`** em `SessionExpiryWarning` — se a aba volta visível e `expires_at < now`, dispara `setExpired(true)` imediatamente.
-9. **`fetchProfile` com retry** (1 retry após 1s) e fallback explícito no `AuthContext` para registrar erro em logger.
-10. **Atualizar `mem://auth/sincronizacao-sessao-inicial.md`** com o contrato pós-trigger.
+1. **Centralizar mapping seção→recursos × rotas reais**: `sectionResourcesMap` precisa cobrir TODOS os recursos cujas rotas estão na seção. Adicionar `socios` em `cadastros` e em `financeiro`; `auditoria` em `administracao`; `workbook`+`apresentacao` em `relatorios`. Ou inverter o cálculo: para cada seção, derivar resources do `flatNavItems` lendo a tabela de rotas em `App.tsx`.
+2. **Adicionar `<PermissionRoute resource="usuarios">` ou similar a `/funcionarios`**. Reutilizar `usuarios` ou criar recurso `funcionarios` em `ERP_RESOURCES`.
+3. **Substituir hardcoded `mobileBottomTabs`** por derivação de `navSections.slice(0, 3)` filtrada por permissão, ou marcar tabs em `navSections` com flag `mobileTab: true`. Eliminar `BOTTOM_TAB_SECTION_KEYS` duplicado.
+4. **Mover `sibling` derivation para `lib/navigation.ts`** como função pura `getSiblings(path)` — uma fonte só, testável.
+5. **Adicionar fallbacks de `getRouteLabel`** para cada prefixo `:id` real (`/cotacoes-compra/`, `/pedidos-compra/`, `/pedidos/`, `/fiscal/`, `/remessas/`).
+6. **Sincronizar favoritos no backend** (`user_preferences`) — já existe infraestrutura `useUserPreference`.
+7. **CSS variable para largura da sidebar** (`--sidebar-w-collapsed`, `--sidebar-w-expanded`) usada em `AppLayout` e `AppSidebar`. Elimina drift.
+8. **NotFound aninhado** dentro do `<Route element={<AppLayout />}>`.
+9. **Esconder/disable o botão de toggle de sidebar quando `sidebarMode === 'dynamic'`**.
+10. **`GlobalSearch` consultar via RPC unificada** (`global_search(term)`) que respeita RLS e retorna entidades + permissão de leitura, em vez de 4 selects separados não-tipados.
+11. **Atalho `Cmd+K`** centralizado em `useGlobalHotkeys` (remover listener de `GlobalSearch`).
+12. **Documentar em `mem://navegacao/regras-visibilidade.md`** o contrato "se está no menu, o usuário pode entrar" (e o oposto).
 
 ---
 
@@ -156,22 +172,23 @@ Análise baseada **exclusivamente** no estado real: `Login.tsx` (242 LOC), `Sign
 
 | Fase | Entrega | Dep. | Esforço | Impacto |
 |---|---|---|---|---|
-| 1 | Trigger `handle_new_user` insere role default ou marca `profiles.status='pendente'` | — | M | **Resolve crítico 1** |
-| 2 | Trigger lê `nome` (não `full_name`) ou Signup envia `full_name` | — | S | Nome real grava no signup |
-| 3 | `src/lib/passwordPolicy.ts` + componente `PasswordStrengthIndicator` único; aplicar em Login/Signup/Reset/Change | — | M | Política unificada |
-| 4 | `ProtectedRoute` passa `state.from`; `Login` lê e redireciona; `signOut` opcionalmente preserva path | — | S | Recupera contexto pós-expiração |
-| 5 | `Signup`: confirmar senha, reenviar e-mail, mensagem amigável "User already registered" → CTA login | Fase 3 | M | UX de cadastro decente |
-| 6 | `ForgotPassword` com mensagem neutra (anti-enumeration) e estado inline de erro | — | S | UX + segurança |
-| 7 | `ResetPassword`: oferecer "Encerrar outras sessões" pós-sucesso; remover número "1 hora" hardcoded | — | S | Paridade com Change Password |
-| 8 | `useIsAdmin` aceitar `administracao:visualizar` (alinhar com `AdminRoute`) | — | S | Coerência guard × hook |
-| 9 | `SessionExpiryWarning` recheck no `visibilitychange` | — | S | Não vaza pós-suspend |
-| 10 | Tabela `invites` + edge function `validate-invite` server-side; depreca `INVITE_ONLY` flag | Fase 1 | L | **Resolve crítico 2** |
-| 11 | `password_hibp_enabled=true` via configure_auth | — | S | Segurança baseline |
-| 12 | Edge function `notify-admin-new-signup` (pgmq) | Fase 1 | M | Admin sabe de cadastros novos |
-| 13 | `Login.authLoading` usa `AuthLoadingScreen` (branding consistente) | — | S | Coerência visual |
-| 14 | `mem://auth/onboarding-e-roles.md` documentando o novo fluxo | Fases 1, 10 | S | Governança |
+| 1 | Adicionar `socios`, `auditoria`, `workbook`, `apresentacao` ao `sectionResourcesMap` | — | S | Resolve crítico 1 |
+| 2 | `/funcionarios` com `PermissionRoute resource="usuarios"` (ou novo `funcionarios`) | — | S | Fecha vazamento de RH |
+| 3 | `getRouteLabel` cobre todas as rotas `:id`; tratar sufixo `/editar` em breadcrumbs | — | S | **Resolve crítico 4** |
+| 4 | `resolvePageTitle` cobre `/fiscal?tipo=entrada|saida` | — | S | Header preciso |
+| 5 | Filtrar `quickActions` por `requires?: PermissionKey` no header e mobile | — | M | Atalhos coerentes |
+| 6 | Filtrar `QUICK_NAV_ROUTES` em `useGlobalHotkeys` por permissões | — | S | Hotkeys coerentes |
+| 7 | Bottom tabs validam permissão do destino real; redirecionar para primeiro permitido | Fase 1 | M | Sem AccessDenied no tap |
+| 8 | NotFound dentro do AppLayout; hide/disable toggle no modo `dynamic` | — | S | UX consistente |
+| 9 | `MobileMenu`: remover slice; `MobileQuickActions` soma `safe-area-inset-bottom` | — | S | Mobile decente |
+| 10 | Sidebar collapsed: flyout de subitens em vez de expandir o painel inteiro | — | M | Power-user UX |
+| 11 | CSS variables para largura da sidebar; `siblingMap` movido para `lib/navigation.ts` | — | S | Eliminar drift |
+| 12 | Sincronizar favoritos via `useUserPreference` (backend) | — | M | Multi-device |
+| 13 | RPC `global_search(term)` retornando entidades autorizadas; consolidar Cmd+K | — | L | Permission-aware search |
+| 14 | `GlobalSearch` resultados de Cliente/Produto/Orçamento abrem drawer via `pushView` | Fase 13 | M | Coerência relacional |
+| 15 | `mem://navegacao/regras-visibilidade.md` documentando contrato menu↔permissão | Fases 1, 2 | S | Governança |
 
-**Quick wins (1 PR cada)**: 2, 4, 6, 7, 8, 9, 11, 13.
-**Refatoração estrutural**: 1, 3, 5, 12, 14.
-**Evolução de produto**: 10.
+**Quick wins (1 PR cada)**: 1, 2, 3, 4, 8, 9, 11, 15.
+**Refatoração estrutural**: 5, 6, 7, 10, 12, 14.
+**Evolução de produto**: 13.
 
