@@ -95,7 +95,13 @@ export function EstornarRecebimentoDialog({ open, onClose, pedidoId, pedidoNumer
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && !saving && onClose()}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className={
+        "max-w-2xl " +
+        "max-sm:!top-auto max-sm:!bottom-0 max-sm:!left-0 max-sm:!right-0 max-sm:!translate-x-0 max-sm:!translate-y-0 " +
+        "max-sm:w-full max-sm:max-w-full max-sm:rounded-b-none max-sm:rounded-t-2xl max-sm:border-x-0 max-sm:border-b-0 " +
+        "max-sm:max-h-[92vh] max-sm:overflow-y-auto max-sm:pb-[max(1rem,env(safe-area-inset-bottom))] " +
+        "max-sm:before:content-[''] max-sm:before:absolute max-sm:before:top-2 max-sm:before:left-1/2 max-sm:before:-translate-x-1/2 max-sm:before:h-1 max-sm:before:w-10 max-sm:before:rounded-full max-sm:before:bg-muted-foreground/30 max-sm:pt-6"
+      }>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <RotateCcw className="h-5 w-5 text-warning" /> Estornar recebimento — {pedidoNumero}
@@ -168,15 +174,15 @@ export function EstornarRecebimentoDialog({ open, onClose, pedidoId, pedidoNumer
           </div>
         )}
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={saving}>
+        <DialogFooter className="max-sm:flex-col-reverse max-sm:gap-2 max-sm:space-x-0">
+          <Button variant="outline" onClick={onClose} disabled={saving} className="max-sm:h-11 max-sm:w-full">
             Cancelar
           </Button>
           <Button
             variant="destructive"
             onClick={handleSubmit}
             disabled={saving || loading || !selectedCompraId || !motivo.trim()}
-            className="gap-2"
+            className="gap-2 max-sm:h-11 max-sm:w-full"
           >
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
             Estornar recebimento

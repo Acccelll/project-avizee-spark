@@ -320,15 +320,17 @@ export function PedidoCompraFormModal({
           </div>
         </div>
 
-        <div className="flex items-center justify-end rounded-lg bg-accent/50 p-4 gap-6">
-          <span className="text-sm text-muted-foreground">
-            Produtos: <span className="font-mono font-medium">{formatCurrency(valorProdutos)}</span>
-          </span>
-          <span className="text-sm text-muted-foreground">
-            Frete: <span className="font-mono font-medium">{formatCurrency(Number(form.frete_valor || 0))}</span>
-          </span>
-          <span className="ml-2 text-sm text-muted-foreground">TOTAL:</span>
-          <span className="text-lg font-bold font-mono text-primary">{formatCurrency(valorTotal)}</span>
+        <div className="rounded-lg bg-accent/50 p-4 space-y-2">
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <span className="text-muted-foreground">Produtos</span>
+            <span className="text-right font-mono font-medium">{formatCurrency(valorProdutos)}</span>
+            <span className="text-muted-foreground">Frete</span>
+            <span className="text-right font-mono font-medium">{formatCurrency(Number(form.frete_valor || 0))}</span>
+          </div>
+          <div className="flex items-center justify-between pt-2 border-t">
+            <span className="text-sm font-semibold uppercase tracking-wide">Total</span>
+            <span className="text-lg font-bold font-mono text-primary">{formatCurrency(valorTotal)}</span>
+          </div>
         </div>
 
         <div className="space-y-2">
@@ -339,9 +341,9 @@ export function PedidoCompraFormModal({
           />
         </div>
 
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button type="submit" disabled={saving || fornecedoresLoading || produtosLoading || !!dataEntregaError}>
+        <div className="flex justify-end gap-2 max-sm:flex-col-reverse">
+          <Button type="button" variant="outline" onClick={onClose} className="max-sm:h-11 max-sm:w-full">Cancelar</Button>
+          <Button type="submit" disabled={saving || fornecedoresLoading || produtosLoading || !!dataEntregaError} className="max-sm:h-11 max-sm:w-full">
             {saving ? "Salvando..." : mode === "edit" ? "Salvar Alterações" : "Criar Pedido"}
           </Button>
         </div>
