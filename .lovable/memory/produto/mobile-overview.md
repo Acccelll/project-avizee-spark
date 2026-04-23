@@ -17,9 +17,8 @@ ERP é hoje "mobile-capable" (não mobile-first): operação 80% rodável em cel
 - Bottom nav fixo (Início + Comercial + Cadastros + Financeiro + Menu); MobileMenu lista TODAS seções (sem filtrar duplicadas com bottom nav).
 
 **Backlog priorizado:**
-1. Bottom nav contextual por módulo ativo.
-2. ResponsiveDialog wrapper único (substituir Dialog/AlertDialog manuais).
-3. Lint/check automático de touch targets <44px.
+1. ResponsiveDialog wrapper único (substituir Dialog/AlertDialog manuais).
+2. Lint/check automático de touch targets <44px.
 
 **Resolvido recentemente:**
 - RelationalDrawerStack: limite efetivo 3 em mobile via `MAX_DRAWER_DEPTH_MOBILE` (provider escolhe via `useIsMobile`); breadcrumb encadeado já clicável (`DrawerStackBreadcrumb` ativo quando `total > 1`, sticky junto ao header).
@@ -29,3 +28,4 @@ ERP é hoje "mobile-capable" (não mobile-first): operação 80% rodável em cel
 - `<ScrollableTabsList>` (em `src/components/ui/scrollable-tabs.tsx`): wrapper sobre `TabsList` com `overflow-x-auto`, scrollbar oculta e fade-edges dinâmicos detectados via scroll. Aplicado em `Estoque`, `Logistica` e `Social`.
 - Auditoria mobile: filtros viraram `grid grid-cols-2` (full-width) em mobile, mantendo flex-wrap em desktop; `DataTable` recebeu `mobileStatusKey="criticidade"` + `mobileIdentifierKey="entidade"` para card mobile correto.
 - Social mobile: filtros (data início/fim + rede + tipo) viraram `grid grid-cols-2 md:flex` (full-width em <768px); `SocialContasTab` recebeu `mobileStatusKey="status_conexao"` + `mobileIdentifierKey="nome_conta"`; `SocialPostsTab` recebeu `mobileStatusKey="tipo_post"` + `mobileIdentifierKey="titulo_legenda"`. `ScrollableTabsList` já cobre as 6 tabs.
+- Bottom nav contextual: `MobileBottomNav` agora troca os atalhos centrais conforme `activeKey` da rota. Mapa `CONTEXTUAL_TABS_BY_SECTION` cobre comercial (Orçamentos/Pedidos), compras (Cotações/Pedidos), estoque (Estoque/Logística), financeiro (Lançamentos/Fluxo), fiscal (Entrada/Saída) e cadastros (Clientes/Produtos/Fornecedores). Início e Menu sempre fixos; tabs contextuais respeitam permissões e fallback para o conjunto global se nenhuma for permitida.
