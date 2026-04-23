@@ -724,6 +724,8 @@ const FluxoCaixa = () => {
               showColumnToggle={true}
               emptyTitle="Nenhum movimento encontrado"
               emptyDescription="Ajuste os filtros ou registre novos lançamentos."
+              mobileStatusKey="status"
+              mobileIdentifierKey="data_vencimento"
             />
           </>
         )}
