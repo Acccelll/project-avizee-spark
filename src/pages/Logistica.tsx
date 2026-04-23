@@ -49,7 +49,9 @@ import {
 import {
   Eye, AlertTriangle, Truck, Package, CheckCheck, ExternalLink, Loader2,
   Edit, Trash2, Plus, MapPin, Package as PackageIcon, Search, Clock, Timer,
+  ChevronDown,
 } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 // ─── Remessa types ───
 type Remessa = Tables<"remessas">;
