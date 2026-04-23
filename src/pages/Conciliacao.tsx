@@ -89,6 +89,11 @@ export default function Conciliacao() {
   const [showOFXPane, setShowOFXPane] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Mobile vincular bottom-sheet
+  const [vincularOpen, setVincularOpen] = useState(false);
+  const [vincularExtratoId, setVincularExtratoId] = useState<string | null>(null);
+  const [vincularSearch, setVincularSearch] = useState("");
+
   // Period filter state (independent of OFX)
   const [dataInicio, setDataInicio] = useState(searchParams.get("data_inicio") ?? defaultDataInicio());
   const [dataFim, setDataFim] = useState(searchParams.get("data_fim") ?? defaultDataFim());
