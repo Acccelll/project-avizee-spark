@@ -18,8 +18,8 @@ interface SidebarSectionProps {
   onNavigate: (path: string) => void;
   onToggleSection: () => void;
   onToggleFavorite: (path: string) => void;
-  /** Called when user clicks a collapsed-rail header — sidebar should expand itself */
-  onExpandRail: () => void;
+  /** @deprecated mantido por compatibilidade — flyout substitui expand do trilho */
+  onExpandRail?: () => void;
 }
 
 export function SidebarSection({
