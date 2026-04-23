@@ -77,6 +77,10 @@ export default function Relatorios() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [saveNameOpen, setSaveNameOpen] = useState(false);
   const [saveName, setSaveName] = useState('');
+  const [filtersSheetOpen, setFiltersSheetOpen] = useState(false);
+  const [tableExpanded, setTableExpanded] = useState(false);
+
+  const isMobile = useIsMobile();
 
   const { compactDensity, setCompactDensity } = useRelatorioDensity();
 
