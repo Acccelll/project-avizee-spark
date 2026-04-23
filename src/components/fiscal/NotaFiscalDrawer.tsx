@@ -14,8 +14,10 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
   Edit, CheckCircle, XCircle, ArrowLeftRight, FileText,
-  Package, DollarSign, AlertCircle, Copy, Clock, Download, File,
+  Package, DollarSign, AlertCircle, Copy, Clock, Download, File, MoreVertical,
 } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import {
