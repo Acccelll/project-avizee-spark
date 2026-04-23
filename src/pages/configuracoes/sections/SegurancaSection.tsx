@@ -11,7 +11,9 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { useAuth } from '@/contexts/AuthContext';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import { useChangePassword } from '../hooks/useChangePassword';
 import { getPasswordCriteria, getPasswordStrength } from '../utils/passwordPolicy';
@@ -19,6 +21,7 @@ import { getPasswordCriteria, getPasswordStrength } from '../utils/passwordPolic
 export function SegurancaSection() {
   const { user } = useAuth();
   const cp = useChangePassword();
+  const isMobile = useIsMobile();
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
