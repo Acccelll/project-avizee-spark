@@ -1,5 +1,8 @@
 import { useState } from "react";
-import { Send, Search, Ban, FileDown, Loader2 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
+import { Send, Search, Ban, FileDown, Loader2, ShieldAlert } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -14,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { useSefazAcoes } from "@/pages/fiscal/hooks/useSefazAcoes";
 import { SefazRetornoModal } from "@/pages/fiscal/components/SefazRetornoModal";
 import { gerarDanfePdf, type DanfeInput } from "@/services/fiscal/danfe.service";
+import { obterCertificadoConfigurado } from "@/services/fiscal/certificado.service";
 import { toast } from "sonner";
 import type { NotaFiscal } from "@/types/domain";
 import type { NFeData } from "@/services/fiscal/sefaz";
@@ -36,9 +40,16 @@ export function SefazAcoesPanel({ nf, buildNFeData, buildDanfeData }: SefazAcoes
   const [justificativa, setJustificativa] = useState("");
   const [gerandoDanfe, setGerandoDanfe] = useState(false);
 
+  const { data: certificado, isLoading: carregandoCert } = useQuery({
+    queryKey: ["certificado-digital"],
+    queryFn: obterCertificadoConfigurado,
+    staleTime: 60 * 60 * 1000,
+  });
+  const certificadoAusente = !carregandoCert && !certificado;
+
   const podeTransmitir = !["autorizada", "cancelada_sefaz", "denegada"].includes(
     nf.status_sefaz ?? "nao_enviada",
-  );
+  ) && !certificadoAusente;
   const podeConsultar = !!nf.chave_acesso;
   const podeCancelar = nf.status_sefaz === "autorizada";
   const podeDanfe = !!nf.chave_acesso;
@@ -70,7 +81,20 @@ export function SefazAcoesPanel({ nf, buildNFeData, buildDanfeData }: SefazAcoes
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="space-y-3">
+      {certificadoAusente && (
+        <Alert variant="destructive" className="border-warning/40 bg-warning/10 text-warning-foreground [&>svg]:text-warning">
+          <ShieldAlert className="h-4 w-4" />
+          <AlertTitle>Certificado digital não configurado</AlertTitle>
+          <AlertDescription className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <span>Configure o certificado digital antes de emitir NF-e.</span>
+            <Button asChild size="sm" variant="outline">
+              <Link to="/administracao">Ir para Administração &gt; Fiscal</Link>
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+      <div className="flex flex-wrap items-center gap-2">
       <Button
         size="sm"
         variant="default"
@@ -167,6 +191,7 @@ export function SefazAcoesPanel({ nf, buildNFeData, buildDanfeData }: SefazAcoes
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 }

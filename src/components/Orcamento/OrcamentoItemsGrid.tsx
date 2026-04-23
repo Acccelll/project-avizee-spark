@@ -271,7 +271,7 @@ export function OrcamentoItemsGrid({ items, onChange, produtos, precosEspeciais 
 
   const renderTable = (compact: boolean) => (
     <div className="overflow-x-auto min-h-[240px]">
-      <table className={`w-full ${compact ? 'min-w-[980px]' : 'min-w-[1150px]'}`}>
+      <table className={`w-full ${compact ? 'min-w-[860px]' : 'min-w-[1150px]'}`}>
           <thead>
             <tr className="bg-accent/50 border-b">
               <th className="w-8" />

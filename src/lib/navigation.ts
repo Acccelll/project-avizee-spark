@@ -66,6 +66,10 @@ export interface NavSection {
   directPath?: string;
   /** Sub-groups with leaf items. Leave empty (or omit) for direct-path sections. */
   items: NavSubgroup[];
+  /** Optional pill shown next to the section title (e.g. "Em breve"). */
+  badge?: string;
+  /** When true, the section is rendered but not clickable. */
+  disabled?: boolean;
 }
 
 export interface QuickAction {
@@ -197,13 +201,15 @@ export const navSections: NavSection[] = [
     ],
   },
 
-  ...(import.meta.env.VITE_FEATURE_SOCIAL === 'true' ? [{
+  {
     key: 'social' as NavSectionKey,
     title: 'Social',
     icon: Share2,
     directPath: '/social',
     items: [] as NavSubgroup[],
-  }] : []),
+    badge: import.meta.env.VITE_FEATURE_SOCIAL !== 'true' ? 'Em breve' : undefined,
+    disabled: import.meta.env.VITE_FEATURE_SOCIAL !== 'true',
+  },
 
   {
     key: 'relatorios',
