@@ -28,6 +28,8 @@ import { Badge } from "@/components/ui/badge";
 import { DanfeViewer } from "@/components/DanfeViewer";
 import { DevolucaoDialog } from "@/components/fiscal/DevolucaoDialog";
 import { NotaFiscalDrawer } from "@/components/fiscal/NotaFiscalDrawer";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ChevronDown } from "lucide-react";
 import { registrarEventoFiscal, cancelarNotaFiscal } from "@/services/fiscal.service";
 import {
   useConfirmarNotaFiscal,
