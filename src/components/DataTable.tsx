@@ -25,7 +25,6 @@ import {
   Settings2,
 } from 'lucide-react';
 import { buildExportFilename } from '@/lib/utils';
-import { exportarParaCsv, exportarParaExcel, exportarParaPdf, type ExportColumnDef } from '@/services/export.service';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
@@ -35,14 +34,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { TableSkeleton } from '@/components/ui/content-skeletons';
 import { EmptyState } from '@/components/ui/empty-state';
 import { NoResultsState } from '@/components/ui/NoResultsState';
 import { MobileCardList, type MobileCardField } from '@/components/ui/MobileCardList';
+import { useDataTablePrefs } from '@/hooks/useDataTablePrefs';
+import { useDataTableExport } from '@/hooks/useDataTableExport';
 
 export interface Column<T> {
   key: string;
@@ -160,7 +159,6 @@ export function DataTable<T extends Record<string, any>>({
   searchTerm,
 }: DataTableProps<T>) {
   const isMobile = useIsMobile();
-  const { user } = useAuth();
   const [deleteItem, setDeleteItem] = useState<T | null>(null);
   const [skipDeleteConfirm, setSkipDeleteConfirm] = useState(() => localStorage.getItem('datatable:skip-delete-confirm') === '1');
   // Estado local do checkbox dentro do dialog: só é persistido em localStorage no Confirmar.
@@ -168,13 +166,26 @@ export function DataTable<T extends Record<string, any>>({
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<SortDirection>(null);
   const [currentPage, setCurrentPage] = useState(0);
-  const [viewMode, setViewMode] = useState<'pagination' | 'infinite'>('pagination');
   const [visibleCount, setVisibleCount] = useState(pageSize);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [savedFilters, setSavedFilters] = useState<Array<{ name: string; rules: FilterRule[] }>>([]);
   const [filterName, setFilterName] = useState('');
   const [rules, setRules] = useState<FilterRule[]>([]);
-  const [hiddenKeys, setHiddenKeys] = useState<Set<string>>(() => new Set(columns.filter((c) => c.hidden).map((c) => c.key)));
+
+  // Persistência unificada (Supabase + localStorage migração) via hook.
+  const initialHiddenKeys = useMemo(
+    () => columns.filter((c) => c.hidden).map((c) => c.key),
+    // Apenas no primeiro render: defaults do schema de colunas.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+  const {
+    hiddenKeys: hiddenKeysArr,
+    viewMode,
+    setHiddenKeys: persistHiddenKeys,
+    setViewMode: persistViewMode,
+  } = useDataTablePrefs(moduleKey, initialHiddenKeys);
+  const hiddenKeys = useMemo(() => new Set(hiddenKeysArr), [hiddenKeysArr]);
   const hasActions = !!(onView || onEdit || onDelete || onDuplicate || renderInlineDetails);
 
   // Scroll-shadow + scroll-position: detect horizontal overflow in the table container
@@ -198,22 +209,16 @@ export function DataTable<T extends Record<string, any>>({
     };
   }, []);
 
+  // Hidratação dos resquícios legados (filter rules + saved filters) mantida em
+  // localStorage por enquanto — fluxos de filtro interno são opt-in e raramente
+  // usados; preferências de coluna/viewMode já vivem em `useDataTablePrefs`.
   useEffect(() => {
     if (!moduleKey) return;
-    const hiddenRaw = localStorage.getItem(getStorageKey(moduleKey, 'columns'));
     const ruleRaw = localStorage.getItem(getStorageKey(moduleKey, 'filters'));
     const savedRaw = localStorage.getItem(getStorageKey(moduleKey, 'saved-filters'));
-    const modeRaw = localStorage.getItem(getStorageKey(moduleKey, 'list-mode'));
-    if (hiddenRaw) setHiddenKeys(new Set(JSON.parse(hiddenRaw)));
     if (ruleRaw) setRules(JSON.parse(ruleRaw));
     if (savedRaw) setSavedFilters(JSON.parse(savedRaw));
-    if (modeRaw === 'infinite' || modeRaw === 'pagination') setViewMode(modeRaw);
   }, [moduleKey]);
-
-  useEffect(() => {
-    if (!moduleKey) return;
-    localStorage.setItem(getStorageKey(moduleKey, 'columns'), JSON.stringify([...hiddenKeys]));
-  }, [hiddenKeys, moduleKey]);
 
   useEffect(() => {
     if (!moduleKey) return;
@@ -225,34 +230,15 @@ export function DataTable<T extends Record<string, any>>({
     localStorage.setItem(getStorageKey(moduleKey, 'saved-filters'), JSON.stringify(savedFilters));
   }, [savedFilters, moduleKey]);
 
-  useEffect(() => {
-    if (!moduleKey || !user?.id) return;
-    try {
-      supabase.from('user_preferences').upsert(
-        {
-          user_id: user.id,
-          module_key: moduleKey,
-          columns_config: [...hiddenKeys],
-          updated_at: new Date().toISOString(),
-        } as never,
-        { onConflict: 'user_id,module_key' }
-      ).then(() => {});
-    } catch {
-      // Fallback silencioso - preferências ficam apenas no estado local
-    }
-  }, [hiddenKeys, moduleKey, user?.id]);
-
   const visibleColumns = columns.filter((c) => !hiddenKeys.has(c.key));
   const primaryColumn = visibleColumns[0] || { key: 'id', label: 'ID' };
   const secondaryColumns = visibleColumns.slice(1);
 
   const toggleColumnVisibility = (key: string) => {
-    setHiddenKeys((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
+    const next = new Set(hiddenKeys);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    void persistHiddenKeys([...next]);
   };
 
   const applyRule = (item: T, rule: FilterRule) => {
@@ -335,109 +321,12 @@ export function DataTable<T extends Record<string, any>>({
     });
   };
 
-  const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-  const escapeCSV = (value: unknown): string => {
-    if (value === undefined || value === null) return '';
-    const stringValue = String(value);
-    if (stringValue.includes(';') || stringValue.includes('"') || stringValue.includes('\n')) {
-      return `"${stringValue.replace(/"/g, '""')}"`;
-    }
-    return stringValue;
-  };
-
-  const buildExportRowsChunked = async (
-    toastId: string | number,
-    format: 'csv' | 'xlsx' | 'pdf',
-    chunkSize = 1000,
-  ) => {
-    const chunks: Array<Record<string, unknown>[]> = [];
-    const startedAt = Date.now();
-
-    for (let i = 0; i < sortedData.length; i += chunkSize) {
-      const chunk = sortedData.slice(i, i + chunkSize).map((row) => Object.fromEntries(visibleColumns.map((col) => [col.label, row[col.key]])));
-      chunks.push(chunk);
-
-      const processed = Math.min(i + chunk.length, sortedData.length);
-      const progress = Math.round((processed / sortedData.length) * 100);
-      const elapsed = Date.now() - startedAt;
-      const shouldShowEta = sortedData.length > 10000 && processed > 0;
-      const etaMs = shouldShowEta ? Math.max(0, Math.round((elapsed / processed) * (sortedData.length - processed))) : 0;
-      const etaSec = Math.ceil(etaMs / 1000);
-      const etaText = shouldShowEta ? ` · ETA ~${etaSec}s` : '';
-
-      toast.loading(`Exportando ${format.toUpperCase()}... ${progress}%${etaText}`, { id: toastId });
-      await sleep(0);
-    }
-
-    return chunks.flat();
-  };
-
-  const downloadBlob = (blob: Blob, fileName: string) => {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = fileName;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const exportData = async (format: 'csv' | 'xlsx' | 'pdf') => {
-    if (sortedData.length === 0) {
-      toast.warning('Nenhum dado para exportar.');
-      return;
-    }
-    const toastId = toast.loading(`Iniciando exportação ${format.toUpperCase()}... 0%`);
-
-    try {
-      // Build rows keyed by column key (export.service uses key→value mapping)
-      const rows = await (async () => {
-        const chunks: Array<Record<string, unknown>[]> = [];
-        const startedAt = Date.now();
-        const chunkSize = 1000;
-        for (let i = 0; i < sortedData.length; i += chunkSize) {
-          const chunk = sortedData
-            .slice(i, i + chunkSize)
-            .map((row) => Object.fromEntries(visibleColumns.map((col) => [col.key, row[col.key]])));
-          chunks.push(chunk);
-          const processed = Math.min(i + chunk.length, sortedData.length);
-          const progress = Math.round((processed / sortedData.length) * 100);
-          const elapsed = Date.now() - startedAt;
-          const showEta = sortedData.length > 10000 && processed > 0;
-          const etaMs = showEta ? Math.max(0, Math.round((elapsed / processed) * (sortedData.length - processed))) : 0;
-          const etaText = showEta ? ` · ETA ~${Math.ceil(etaMs / 1000)}s` : '';
-          toast.loading(`Exportando ${format.toUpperCase()}... ${progress}%${etaText}`, { id: toastId });
-          await sleep(0);
-        }
-        return chunks.flat();
-      })();
-
-      const columnsDef: ExportColumnDef[] = visibleColumns.map((c) => ({ key: c.key, label: c.label }));
-      const titulo = moduleKey || 'dados';
-
-      if (format === 'csv') {
-        exportarParaCsv({ titulo, rows, columns: columnsDef });
-        toast.success('Exportação CSV concluída', { id: toastId });
-        return;
-      }
-      if (format === 'xlsx') {
-        await exportarParaExcel({ titulo, rows, columns: columnsDef });
-        toast.success('Exportação XLSX concluída', { id: toastId });
-        return;
-      }
-      // PDF — use the centralised builder for proper tabular output
-      await exportarParaPdf({ titulo, rows, columns: columnsDef });
-      toast.success('Exportação PDF concluída', { id: toastId });
-    } catch (error) {
-      console.error('Erro ao exportar dados', error);
-      toast.error(`Falha ao exportar ${format.toUpperCase()}.`, {
-        id: toastId,
-        action: {
-          label: 'Tentar novamente',
-          onClick: () => { void exportData(format); },
-        },
-      });
-    }
-  };
+  // Exportação CSV/XLSX/PDF delegada ao hook compartilhado.
+  const { exportData } = useDataTableExport({
+    rows: sortedData,
+    columns: visibleColumns.map((c) => ({ key: c.key, label: c.label })),
+    titulo: moduleKey || 'dados',
+  });
 
   const deleteActionLabel = deleteBehavior === 'soft' ? 'Inativar' : 'Excluir permanentemente';
   const deleteDialogTitle = deleteBehavior === 'soft' ? 'Inativar registro' : 'Excluir registro';
@@ -645,7 +534,7 @@ export function DataTable<T extends Record<string, any>>({
                     </label>
                   ))}
                 </div>
-                <Button variant="ghost" size="sm" className="mt-2 w-full" onClick={() => setHiddenKeys(new Set(columns.filter((c) => c.hidden).map((c) => c.key)))}>
+                <Button variant="ghost" size="sm" className="mt-2 w-full" onClick={() => void persistHiddenKeys(columns.filter((c) => c.hidden).map((c) => c.key))}>
                   <RotateCcw className="h-3.5 w-3.5 mr-1" />Restaurar padrão
                 </Button>
                 <div className="mt-2 pt-2 border-t">
@@ -658,10 +547,7 @@ export function DataTable<T extends Record<string, any>>({
                           name="datatable-view-mode"
                           value={m}
                           checked={viewMode === m}
-                          onChange={() => {
-                            setViewMode(m);
-                            if (moduleKey) localStorage.setItem(getStorageKey(moduleKey, 'list-mode'), m);
-                          }}
+                          onChange={() => void persistViewMode(m)}
                           className="accent-primary"
                         />
                         {m === 'pagination' ? 'Paginação' : 'Scroll infinito'}
@@ -688,10 +574,7 @@ export function DataTable<T extends Record<string, any>>({
                         name="datatable-view-mode"
                         value={m}
                         checked={viewMode === m}
-                        onChange={() => {
-                          setViewMode(m);
-                          if (moduleKey) localStorage.setItem(getStorageKey(moduleKey, 'list-mode'), m);
-                        }}
+                        onChange={() => void persistViewMode(m)}
                         className="accent-primary"
                       />
                       {m === 'pagination' ? 'Paginação' : 'Scroll infinito'}
