@@ -595,6 +595,7 @@ const Estoque = () => {
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-[480px] p-0" align="start">
+                    {/* Largura responsiva: em mobile herda largura do trigger; em sm+ usa 480px fixos. */}
                       <Command>
                         <CommandInput placeholder="Buscar por nome, SKU ou código..." />
                         <CommandList>
