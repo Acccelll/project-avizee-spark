@@ -164,7 +164,7 @@ const App = () => (
                       <Route path="/configuracoes" element={<ProtectedRoute><LazyPage><Configuracoes /></LazyPage></ProtectedRoute>} />
                       <Route path="/administracao" element={<AdminRoute><LazyPage><Administracao /></LazyPage></AdminRoute>} />
                       <Route path="/migracao-dados" element={<AdminRoute><LazyPage><MigracaoDados /></LazyPage></AdminRoute>} />
-                      <Route path="/auditoria" element={<AdminRoute><LazyPage><Auditoria /></LazyPage></AdminRoute>} />
+                      <Route path="/auditoria" element={<PermissionRoute resource="auditoria"><LazyPage><Auditoria /></LazyPage></PermissionRoute>} />
                       {/* /perfil é alias legado: redireciona preservando ?tab= para a tela canônica /configuracoes */}
                       <Route path="/perfil" element={<PerfilRedirect />} />
                       <Route path="/contas-contabeis-plano" element={<PermissionRoute resource="financeiro"><LazyPage><ContasContabeis /></LazyPage></PermissionRoute>} />

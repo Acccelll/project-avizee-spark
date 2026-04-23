@@ -129,8 +129,8 @@ export function DashboardAdmin() {
               </Link>
             </Button>
             <Button asChild size="sm" variant="outline" className="gap-2">
-              <Link to="/auditoria">
-                Abrir auditoria administrativa
+              <Link to="/auditoria?origem=permission_audit&periodo=24h">
+                Abrir auditoria administrativa (24 h)
                 <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             </Button>
