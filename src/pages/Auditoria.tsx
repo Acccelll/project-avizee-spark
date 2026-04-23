@@ -11,7 +11,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
-import { ViewDrawer, ViewField, ViewSection } from "@/components/ViewDrawer";
+import { ViewDrawerV2, ViewField, ViewSection } from "@/components/ViewDrawerV2";
 import { SummaryCard } from "@/components/SummaryCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -632,7 +632,7 @@ export default function Auditoria() {
         )}
       </ModulePage>
 
-      <ViewDrawer
+      <ViewDrawerV2
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         title="Evento de Auditoria"
@@ -753,7 +753,7 @@ export default function Auditoria() {
             <DiffViewer payload={selected.payload} acao={selected.tipo_acao} />
           </div>
         )}
-      </ViewDrawer>
+      </ViewDrawerV2>
     </>
   );
 }
