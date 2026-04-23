@@ -252,6 +252,12 @@ const Fiscal = () => {
   }, [pedidoCompraOriginId, fornecedorOriginId, tipoOriginParam, autoOpened]);
 
   const openEdit = async (n: NotaFiscal) => {
+    // Mobile: form com itens dinâmicos não cabe em modal — navegar para página dedicada.
+    // Alinha com mem://produto/quando-drawer-quando-pagina.
+    if (isMobile) {
+      navigate(`/fiscal/${n.id}/editar`);
+      return;
+    }
     setMode("edit"); setSelected(n);
     setForm({
       tipo: n.tipo, numero: n.numero, serie: n.serie || "1", chave_acesso: n.chave_acesso || "",
