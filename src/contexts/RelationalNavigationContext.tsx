@@ -79,30 +79,36 @@ function decodeDrawerParam(value: string): ViewState | null {
   return { type, id };
 }
 
-const reducer = (state: State, action: Action): State => {
-  switch (action.type) {
-    case "set_stack":
-      return { ...state, stack: action.payload.slice(0, MAX_DRAWER_DEPTH) };
-    case "request_push":
-      if (state.stack.length < MAX_DRAWER_DEPTH) {
-        return { ...state, stack: [...state.stack, action.payload] };
+function makeReducer(getMaxDepth: () => number) {
+  return (state: State, action: Action): State => {
+    const limit = getMaxDepth();
+    switch (action.type) {
+      case "set_stack":
+        return { ...state, stack: action.payload.slice(0, limit) };
+      case "request_push":
+        if (state.stack.length < limit) {
+          return { ...state, stack: [...state.stack, action.payload] };
+        }
+        return { ...state, pendingPush: action.payload };
+      case "confirm_push": {
+        if (!state.pendingPush) return state;
+        const next = [...state.stack, state.pendingPush];
+        return { stack: next.slice(next.length - limit), pendingPush: null };
       }
-      return { ...state, pendingPush: action.payload };
-    case "confirm_push": {
-      if (!state.pendingPush) return state;
-      const next = [...state.stack, state.pendingPush];
-      return { stack: next.slice(next.length - MAX_DRAWER_DEPTH), pendingPush: null };
+      case "cancel_push":
+        return { ...state, pendingPush: null };
+      case "pop":
+        return { ...state, stack: state.stack.slice(0, -1) };
+      case "clear":
+        return { stack: [], pendingPush: null };
+      case "trim_to_limit":
+        if (state.stack.length <= action.payload) return state;
+        return { ...state, stack: state.stack.slice(state.stack.length - action.payload) };
+      default:
+        return state;
     }
-    case "cancel_push":
-      return { ...state, pendingPush: null };
-    case "pop":
-      return { ...state, stack: state.stack.slice(0, -1) };
-    case "clear":
-      return { stack: [], pendingPush: null };
-    default:
-      return state;
-  }
-};
+  };
+}
 
 const RelationalNavigationContext = createContext<RelationalNavigationContextType | undefined>(undefined);
 
