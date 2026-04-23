@@ -321,109 +321,12 @@ export function DataTable<T extends Record<string, any>>({
     });
   };
 
-  const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-  const escapeCSV = (value: unknown): string => {
-    if (value === undefined || value === null) return '';
-    const stringValue = String(value);
-    if (stringValue.includes(';') || stringValue.includes('"') || stringValue.includes('\n')) {
-      return `"${stringValue.replace(/"/g, '""')}"`;
-    }
-    return stringValue;
-  };
-
-  const buildExportRowsChunked = async (
-    toastId: string | number,
-    format: 'csv' | 'xlsx' | 'pdf',
-    chunkSize = 1000,
-  ) => {
-    const chunks: Array<Record<string, unknown>[]> = [];
-    const startedAt = Date.now();
-
-    for (let i = 0; i < sortedData.length; i += chunkSize) {
-      const chunk = sortedData.slice(i, i + chunkSize).map((row) => Object.fromEntries(visibleColumns.map((col) => [col.label, row[col.key]])));
-      chunks.push(chunk);
-
-      const processed = Math.min(i + chunk.length, sortedData.length);
-      const progress = Math.round((processed / sortedData.length) * 100);
-      const elapsed = Date.now() - startedAt;
-      const shouldShowEta = sortedData.length > 10000 && processed > 0;
-      const etaMs = shouldShowEta ? Math.max(0, Math.round((elapsed / processed) * (sortedData.length - processed))) : 0;
-      const etaSec = Math.ceil(etaMs / 1000);
-      const etaText = shouldShowEta ? ` · ETA ~${etaSec}s` : '';
-
-      toast.loading(`Exportando ${format.toUpperCase()}... ${progress}%${etaText}`, { id: toastId });
-      await sleep(0);
-    }
-
-    return chunks.flat();
-  };
-
-  const downloadBlob = (blob: Blob, fileName: string) => {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = fileName;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const exportData = async (format: 'csv' | 'xlsx' | 'pdf') => {
-    if (sortedData.length === 0) {
-      toast.warning('Nenhum dado para exportar.');
-      return;
-    }
-    const toastId = toast.loading(`Iniciando exportação ${format.toUpperCase()}... 0%`);
-
-    try {
-      // Build rows keyed by column key (export.service uses key→value mapping)
-      const rows = await (async () => {
-        const chunks: Array<Record<string, unknown>[]> = [];
-        const startedAt = Date.now();
-        const chunkSize = 1000;
-        for (let i = 0; i < sortedData.length; i += chunkSize) {
-          const chunk = sortedData
-            .slice(i, i + chunkSize)
-            .map((row) => Object.fromEntries(visibleColumns.map((col) => [col.key, row[col.key]])));
-          chunks.push(chunk);
-          const processed = Math.min(i + chunk.length, sortedData.length);
-          const progress = Math.round((processed / sortedData.length) * 100);
-          const elapsed = Date.now() - startedAt;
-          const showEta = sortedData.length > 10000 && processed > 0;
-          const etaMs = showEta ? Math.max(0, Math.round((elapsed / processed) * (sortedData.length - processed))) : 0;
-          const etaText = showEta ? ` · ETA ~${Math.ceil(etaMs / 1000)}s` : '';
-          toast.loading(`Exportando ${format.toUpperCase()}... ${progress}%${etaText}`, { id: toastId });
-          await sleep(0);
-        }
-        return chunks.flat();
-      })();
-
-      const columnsDef: ExportColumnDef[] = visibleColumns.map((c) => ({ key: c.key, label: c.label }));
-      const titulo = moduleKey || 'dados';
-
-      if (format === 'csv') {
-        exportarParaCsv({ titulo, rows, columns: columnsDef });
-        toast.success('Exportação CSV concluída', { id: toastId });
-        return;
-      }
-      if (format === 'xlsx') {
-        await exportarParaExcel({ titulo, rows, columns: columnsDef });
-        toast.success('Exportação XLSX concluída', { id: toastId });
-        return;
-      }
-      // PDF — use the centralised builder for proper tabular output
-      await exportarParaPdf({ titulo, rows, columns: columnsDef });
-      toast.success('Exportação PDF concluída', { id: toastId });
-    } catch (error) {
-      console.error('Erro ao exportar dados', error);
-      toast.error(`Falha ao exportar ${format.toUpperCase()}.`, {
-        id: toastId,
-        action: {
-          label: 'Tentar novamente',
-          onClick: () => { void exportData(format); },
-        },
-      });
-    }
-  };
+  // Exportação CSV/XLSX/PDF delegada ao hook compartilhado.
+  const { exportData } = useDataTableExport({
+    rows: sortedData,
+    columns: visibleColumns.map((c) => ({ key: c.key, label: c.label })),
+    titulo: moduleKey || 'dados',
+  });
 
   const deleteActionLabel = deleteBehavior === 'soft' ? 'Inativar' : 'Excluir permanentemente';
   const deleteDialogTitle = deleteBehavior === 'soft' ? 'Inativar registro' : 'Excluir registro';
