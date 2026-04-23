@@ -11,7 +11,7 @@ import { getUserFriendlyError } from '@/utils/errorMessages';
  * - Persiste em `profiles` e registra auditoria self-update.
  */
 export function useProfileForm() {
-  const { user, profile } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
   const [nome, setNome] = useState(profile?.nome || '');
   const [cargo, setCargo] = useState(profile?.cargo || '');
   const [saving, setSaving] = useState(false);
@@ -57,6 +57,13 @@ export function useProfileForm() {
       }
       setSavedAt(new Date());
       toast.success('Dados pessoais salvos com sucesso.');
+      // Fase 9: re-hidrata profile no AuthContext para que header, menus e
+      // demais consumidores reflitam o nome/cargo atualizados sem reload.
+      try {
+        await refreshProfile();
+      } catch (refreshErr) {
+        console.warn('[perfil] refreshProfile falhou:', refreshErr);
+      }
     } catch (err: unknown) {
       console.error('[perfil] save:', err);
       toast.error(getUserFriendlyError(err));
