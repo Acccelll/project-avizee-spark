@@ -1,16 +1,23 @@
 
 
-# Revisão Mobile — Cadastros
+# Revisão Mobile — Comercial
 
-Análise focada **exclusivamente em mobile (<768px)**, baseada nos arquivos reais: `Clientes.tsx`, `Fornecedores.tsx`, `Produtos.tsx`, `Transportadoras.tsx`, `Funcionarios.tsx`, `Socios.tsx`, `FormasPagamento.tsx`, `UnidadesMedida.tsx`, `ContasBancarias.tsx`, `ContasContabeis.tsx`, `GruposEconomicos.tsx`, `MigracaoDados.tsx`, e os wrappers `DataTable`, `MobileCardList`, `AdvancedFilterBar`, `FormModal`, `FormTabsList`, `ViewDrawerV2`.
+Análise focada **exclusivamente em mobile (<768px)**, com base nos arquivos reais: `Orcamentos.tsx`, `Pedidos.tsx`, `OrcamentoForm.tsx` (1.353 linhas), `PedidoForm.tsx`, `OrcamentoItemsGrid.tsx`, `OrcamentoView.tsx`, `OrdemVendaView.tsx`, `OrcamentoTotaisCard`, `OrcamentoCondicoesCard`, `FreteSimuladorCard`, `OrcamentoSidebarSummary`.
 
 ---
 
 ## 1. Visão geral da experiência mobile do módulo
 
-Cadastros é o módulo **mais visitado em mobile** (vendedor em campo abre cliente; comprador confere fornecedor; estoquista cria produto rápido). Hoje ele já se beneficia de 3 acertos: `DataTable` troca tabela por `MobileCardList` em `<768px`; `AdvancedFilterBar` empurra filtros para um `Drawer` bottom-sheet; `FormModal` vira fullscreen em `max-sm`. Mas **a partir do "Editar" tudo desmonta**: cada cadastro principal (Clientes/Fornecedores/Produtos/Transportadoras) abre um modal fullscreen com **6–7 abas em uma TabsList horizontal scrollável**, que em iPhone SE (375px) cabe ~2,5 abas visíveis e o usuário precisa **scrollar lateralmente um trilho de 24px de altura para descobrir as outras**. Forms internos usam `grid-cols-2` mesmo em mobile (CEP+Logradouro+Número numa só linha), apertando inputs a ~40% da largura útil.
+Comercial é o coração do ERP em mobile (vendedor cota em campo, gerente aprova no celular, comprador converte pedido). Hoje as **listas** já se beneficiam do `MobileCardList` recém-redesenhado, mas o **fluxo de criação/edição** é o mais hostil de todo o sistema:
 
-Cadastros "leves" (Funcionários, Sócios, Formas de Pagamento, Unidades, Contas Bancárias/Contábeis, Grupos Econômicos) variam: alguns têm 1 modal de tela só (ok), outros copiaram o pattern multi-aba sem necessidade. Quick-add (já existe `QuickAddClientModal`, `QuickAddProductModal`, `QuickAddSupplierModal`) é a **única** forma realmente mobile-friendly de criar — mas só está plugado dentro de Orçamento/Pedido/Pedido de Compra, **não** na própria página do cadastro como atalho FAB.
+- **`OrcamentoForm` (1.353 linhas)** monta TODA a página comercial em uma única coluna scrollável com 8 blocos verticais (Identificação → Cliente → Itens → Análise interna → Totais → Frete simulador → Condições → Observações). Em mobile, somente a "página real" (sem o sidebar resumo, que é `hidden lg:block`) chega facilmente a **6.000–7.500 px de scroll**.
+- **`OrcamentoItemsGrid`** força tabela horizontal com `min-w-[980px]` mesmo em mobile, exigindo overflow-x. Adicionar item, alterar qtd/preço, aplicar desconto, remover — tudo em inputs `h-7 text-xs` (campo de 28px). Botão "Tela cheia" abre Dialog ainda mais largo (`max-w-6xl w-[95vw]`) — em iPhone vira modal pixel-shift.
+- **`Orcamentos.tsx` (lista)**: 4 ações de fluxo (Visualizar/Enviar/Aprovar/Gerar Pedido) em botões `h-7` no canto direito do card mobile. A ação principal "Gerar Pedido" abre Dialog com 2 campos (PO + data) sem otimização touch.
+- **Conversão Orçamento → Pedido** exige: abrir lista → tap card → drawer view → footer "Gerar Pedido" → dialog com PO → confirmar. Em mobile são **5 toques + 2 modais empilhados**.
+- **`PedidoForm`** é mais leve (313 linhas, 3 cards) mas usa `grid-cols-2` mobile (Status + Data Despacho na mesma linha = inputs de 150px).
+- **`OrcamentoView` / `OrdemVendaView`** abrem em `ViewDrawerV2` (bottom-sheet em mobile, ok) mas internamente usam `Tabs` horizontais (Resumo/Itens/Frete/Vínculos/Faturamento) com mesmo problema do módulo Cadastros: trilho de tabs scrollável invisível.
+
+Resultado: **consultar funciona razoavelmente, criar/editar é praticamente desktop-only**. O fluxo crítico de venda em campo (vendedor montando orçamento no cliente) é **inviável** hoje.
 
 ---
 
@@ -18,156 +25,200 @@ Cadastros "leves" (Funcionários, Sócios, Formas de Pagamento, Unidades, Contas
 
 | # | Problema | Onde | Impacto |
 |---|---|---|---|
-| C1 | TabsList horizontal scrollável com 6–7 abas dentro de modal fullscreen | `Clientes.tsx:435`, `Fornecedores.tsx:441`, `Produtos.tsx:819`, `Transportadoras.tsx:489` | Usuário não vê a maioria das abas. Não há indicador "+3" nem stepper. Aba ativa pode ficar fora da viewport ao reabrir. |
-| C2 | `grid-cols-2 md:grid-cols-3` em forms — em mobile mantém 2 colunas espremidas, inputs ficam ~150px com label cortado | `Clientes.tsx:457,617` (e equivalentes em Fornecedores/Produtos) | CEP, número, complemento, UF, prazo viram ilegíveis. Usuário precisa zoom + pan. |
-| C3 | Botão "Consultar CNPJ" é `size="icon"` (40×40px) **ao lado** do `MaskedInput` num grid de 2-col → input tem ~110px e ícone ocupa 30% do campo | `Clientes.tsx:480`, `Fornecedores.tsx` | Touch errado garantido; usuário não percebe que é botão. |
-| C4 | `MobileCardList` mostra **apenas 1 ação** atrás do `MoreVertical` dropdown — tap no card abre `onRowClick` mas a maioria dos cadastros não passa `onRowClick`, só `onView`/`onEdit`/`onDelete`. Resultado: **o card inteiro não responde a tap**, só o ⋮ no canto | `DataTable.tsx:441` (passa `onItemClick={onRowClick}`) + páginas que não definem `onRowClick` | Em Clientes.tsx (linha 374) só tem `onView/onEdit/onDelete`, sem `onRowClick`. Card vira "leitura"; usuário precisa achar o ⋮ de 36px no canto direito. |
-| C5 | Modal de edição em fullscreen mobile **sem botão visível "Voltar"**: o `X` (DialogClose) padrão fica ~44px no canto superior direito; não há gesto de swipe-down para fechar (é Dialog, não Drawer) | `FormModal.tsx:87` (max-sm:rounded-none, mas continua Dialog) | Usuário "preso" no formulário. Em modais com isDirty + confirmOnDirty, o único caminho é o X. |
-| C6 | Footer do modal contém 2 botões (Cancelar/Salvar) em linha, mas `FormModalFooter` padrão usa `flex justify-end gap-2` → em telas <360px botões se sobrepõem ou Salvar fica clipped | `FormModalFooter.tsx` (não revisado mas usado por todos) | Em Galaxy A04 (360×800), o "Salvar" pode rolar fora. |
-| C7 | Quick-add (`QuickAddClientModal`, `QuickAddProductModal`, `QuickAddSupplierModal`) **não é exposto na página do cadastro em mobile** — só dentro de Orçamento/Pedido | grep: `QuickAddClientModal` em `OrcamentoForm`/`PedidoForm` apenas | Usuário em campo que quer cadastrar cliente novo é forçado ao modal pesado de 7 abas. |
-| C8 | `MultiSelect` de filtros (Status/Tipos/Grupos) usa `className="w-[130px]"`/`w-[200px]` — em mobile cabe num `Drawer` (ok), mas dentro do drawer ficam **lado-a-lado em flex-wrap**, quebrando em 2 linhas estreitas; selects de 200px viram 320px ocupando linha inteira sem hierarquia visual | `Clientes.tsx:368-370` + `AdvancedFilterBar.tsx:155-158` (children renderizados em `flex flex-col gap-3`) | OK no drawer (children empilham), mas widths fixos `w-[200px]` lutam contra `flex-col`. |
-| C9 | `MigracaoDados` tem **fluxo de 6 fases com Stepper desktop** (revisão pendente, mas inferido pela mem feature). Em mobile, stepper horizontal de 6 nós quebra; uploads de Excel via input file nativo + previews tabulares são impraticáveis | `MigracaoDados.tsx` (não revisado a fundo) | Migração só viável em desktop hoje. |
-| C10 | Cards do `MobileCardList` têm `px-4 py-3` (~76px altura) — para listagens com 200+ clientes o scroll é longo demais; `MobileCardList` **não virtualiza** (DataTable só virtualiza tbody, não cards mobile) | `MobileCardList.tsx` + `DataTable.tsx:633-672` | Lista de fornecedores/produtos com 1k+ items trava em mid-range Android. |
+| C1 | `OrcamentoItemsGrid` é **tabela horizontal `min-w-[980px]`** em mobile com inputs `h-7 text-xs` | `OrcamentoItemsGrid.tsx:273-369` | Adicionar/editar item exige pinch-zoom + pan lateral. Cada linha tem 6 colunas (código/descrição/qtd/unitário/%/subtotal/ações) impossíveis de operar com polegar. |
+| C2 | `OrcamentoForm` empilha 8 blocos full-page com totais ~6.000 px de scroll em mobile (sidebar resumo `hidden lg:block`) | `OrcamentoForm.tsx:916-1104` | Vendedor perde contexto do total enquanto rola para ajustar item/frete/desconto. Sem resumo flutuante mobile. |
+| C3 | Header sticky de ações no `OrcamentoForm` empilha 5+ botões (Salvar/Visualizar/PDF/Templates/⋯) que em mobile quebram em 3 linhas e ocupam ~140px antes do conteúdo | `OrcamentoForm.tsx:797-843` | Quase 1/4 da viewport tomada por barra de ações; "Salvar" pode ficar na 3ª linha. |
+| C4 | Diálogo "Gerar Pedido" abre por cima do drawer aberto, criando **modal-sobre-drawer** em mobile com 2 inputs `date` + texto longo + botão | `Orcamentos.tsx:391-400` + componente `CrossModuleActionDialog` | Empilhamento de overlays causa perda de scroll-lock e fechamento acidental por tap-outside. |
+| C5 | Lista de ações por linha em `Orcamentos`/`Pedidos` usa botões `h-7` (28px) lado a lado: Visualizar (icon), Enviar, Aprovar, Gerar Pedido | `Orcamentos.tsx:367-403`, `Pedidos.tsx:338-362` | Touch targets abaixo de 44px; em card mobile aparecem como `actions`/dropdown ⋮ que requer 2 taps para qualquer ação principal. |
+| C6 | `OrcamentoView`/`OrdemVendaView` em drawer mobile usam `Tabs` horizontais com 4-6 abas | `OrcamentoView.tsx`, `OrdemVendaView.tsx` | Mesmo problema crítico do Cadastros: trilho de tabs scrollável que esconde a maioria das abas em <375px. |
+| C7 | Templates dropdown + "Compartilhar com equipe" + "Salvar como meu" são acessíveis apenas via header (que já está espremido) — sem atalho mobile | `OrcamentoForm.tsx:803-828` | Funcionalidade-chave (reaproveitar combo de itens/condições) escondida atrás de 2 toques + modal de nome. |
+| C8 | `FreteSimuladorCard` renderiza tabela de cotações de transportadoras com colunas (transportadora/serviço/prazo/valor/selecionar) — em mobile vira scroll horizontal indecifrável | `FreteSimuladorCard.tsx` (não auditado a fundo) | Comparação de fretes — passo crítico antes de fechar — fica ilegível. |
+| C9 | `OrcamentoInternalAnalysisPanel` (margem/rentabilidade) renderiza painel denso com cenários, custos e gráficos no mesmo trilho de scroll do form | `OrcamentoForm.tsx:1038-1046` | Painel só interessa a admin/gestor; aparece para todos no meio do form, alongando scroll para vendedor que só quer fechar pedido. |
+| C10 | `OrcamentoItemsGrid` botão "Adicionar Item" fica no topo do bloco mas a edição acontece linha por linha → vendedor com 8 itens precisa scrollar até o final, tap "+", scrollar de volta para preencher | `OrcamentoItemsGrid.tsx:381` | UX de adicionar produto não funciona com keyboard aberto (50% da viewport). Sem FAB sticky de "+ Item". |
+| C11 | "Gerar PDF" e "Visualizar" em mobile abrem PDF inline (`OrcamentoPdfTemplate`) que é dimensionado para A4 — vira preview gigante com texto microscópico | `OrcamentoForm.tsx:801` + `OrcamentoPdfTemplate.tsx` | Confirmar antes de enviar ao cliente é impraticável. |
+| C12 | `PedidoForm` força `grid-cols-2` em "Status Operacional" (Status + Data Prometida + Prazo Despacho) e "PO Cliente" (PO + Data) em mobile | `PedidoForm.tsx:230, 266` | Inputs de 150px para `<Select>` de status com opções longas ("Em Separação", "Em Transporte") e `type="date"` ficam clipped. |
 
 ---
 
 ## 3. Problemas médios (atrapalham uso)
 
-- **M1** — `MobileCardList` mostra "label: valor" em pílulas pequenas (`text-[10px]` label + `text-xs` value). Para Cliente, "CONTATO: (11) 9999..." + "CPF/CNPJ: 12.345..." viram quase ilegíveis em <360px. Falta hierarquia clara: CNPJ deveria ser mono pequeno cinza abaixo do nome, contato deveria ser ação tap-to-call.
-- **M2** — Telefones nos cards são texto, não clicáveis (`tel:`). Cliente em mobile **deveria poder ligar/whatsapp direto** do card.
-- **M3** — `SummaryCard` repete 3-4 vezes no topo de cada cadastro (Total/Ativos/Inativos/Com grupo). Em mobile esses cards empilham consumindo ~280px antes da lista. Em Clientes especificamente, "Inativos" é métrica inútil para um vendedor.
-- **M4** — Tooltip `(Info ⓘ)` ao lado de labels (CPF/CNPJ, IE, Nome Fantasia) é hover-only; em mobile o tap muitas vezes não abre tooltip (depende do Radix). Texto explicativo fica inacessível.
-- **M5** — `formErrors` aparecem como `<p className="text-xs text-destructive">` abaixo do input — em mobile com keyboard aberto, o input pode subir e o erro ficar oculto atrás do teclado, sem auto-scroll-to-error.
-- **M6** — Tabs internas dentro do modal de edição (Comunicações, Entregas) **abrem listas/CRUD sub-cadastros dentro de modal já fullscreen**. Por exemplo `ClienteEnderecosTab` adiciona endereços com sub-form. Em mobile vira modal-dentro-de-modal-com-scroll-duplo.
-- **M7** — Botão "Novo Cliente" (`onAdd` no `ModulePage`) fica no header da página — quando usuário rola lista, precisa scroll-to-top. Não há FAB para criação rápida.
-- **M8** — Skeletons em mobile usam `h-20 rounded-xl border bg-card animate-pulse` × 5 — **não corresponde** ao layout real do `MobileCardList` (que mostra primary + 2 detail rows). Layout shift visível na hidratação.
-- **M9** — Página `Funcionarios` usa toggle `ativo` + botão `Excluir` (sem doutrina aplicada do `mem://produto/excluir-vs-inativar-vs-cancelar`). Em mobile, dois conceitos destrutivos viram confusão grave.
-- **M10** — Filtros chips ativos (`activeFilters`) renderizam como `Badge` flex-wrap — em mobile com 4 filtros ativos viram 2 linhas tomando 60px de altura útil.
+- **M1** — Banner contextual mobile do `OrcamentoForm` (linhas 887-912) é grid 2x2 com Orçamento/Total/Cliente/Itens — informação útil mas **não sticky**, então some assim que rola. Total deveria viver em footer flutuante permanente.
+- **M2** — `JustCreatedBanner` (mensagem "Adicione itens para concluir") aparece em mobile + scroll-into-view manual via DOM id — gesto não-natural em touch.
+- **M3** — Autocomplete de cliente (`AutocompleteSearch` + `ClientSelector` + botão "+") são 3 controles enfileirados num `flex gap-2` que em mobile viram 3 botões `h-10` lado a lado, deixando o input com ~60% da largura.
+- **M4** — `OrcamentoTotaisCard` mostra grid editável de Subtotal/Desconto/ST/IPI/Frete/Outras/Total. Em mobile cada campo tem `text-xs`; alterar desconto sem ver total atualizando em tempo real (sem feedback visual) confunde.
+- **M5** — `OrcamentoCondicoesCard` (Pagamento/Prazo Pagamento/Prazo Entrega/Modalidade/Frete tipo) tem 5+ selects que em mobile empilham em `grid-cols-2` apertados.
+- **M6** — Ações secundárias em `Orcamentos.tsx` (Duplicar, Reenviar e-mail, Aprovar manualmente) ficam no menu ⋮ desktop; em mobile, no card list, só aparecem 1-2 ações por vez.
+- **M7** — Rejeitar/Cancelar orçamento exige `ConfirmDialog` com motivo livre (Textarea); em mobile vira modal de altura 80vh com keyboard ocupando 50%.
+- **M8** — `subscribeComercial` (realtime) atualiza grid de pedidos/orçamentos sem feedback visual — usuário em campo não percebe que aprovação chegou.
+- **M9** — `Pedidos` tem `PullToRefresh`, mas `Orcamentos` não — inconsistência.
+- **M10** — Status badges com cor + texto + variação aparecem repetidos: card mostra 2 badges (status + faturamento) numa só linha estreita; nomes longos ("Aguardando Aprovação") truncam.
+- **M11** — `OrcamentoView` traz seções "Vínculos" / "Análise" / "Histórico" — em drawer mobile elas viram tabs, mas o conteúdo de cada uma é layout desktop (grids 3-col, tabelas).
+- **M12** — `useConverterOrcamento` mostra toast com "Abrir pedido" como ação — em mobile o toast bottom + bottom-nav + FAB criam fila de elementos sobrepostos.
 
 ---
 
 ## 4. Problemas leves (polimento)
 
-- **L1** — `text-[10px]` para labels nos cards é abaixo do mínimo legível (12px iOS HIG).
-- **L2** — Status chip dentro do card (`Status: Ativo`) é redundante com cor da borda esquerda que o card poderia ter.
-- **L3** — `MobileCardList` usa `space-y-2` (8px) entre cards — para lista longa, 4px seria suficiente e ganharia densidade.
-- **L4** — `Loader2` spinner no botão CNPJ permanece por 2-3s sem skeleton no form abaixo — usuário não sabe que vai vir auto-fill.
-- **L5** — `PullToRefresh` está em Clientes mas não em todos cadastros (Fornecedores sim, FormasPagamento não, ContasBancarias não).
-- **L6** — Paginação mobile (`<` `>`) usa `h-9 w-9` no rodapé — botões certos, mas sem indicador "Página 1 de 4" próximo.
-- **L7** — Counter "X de Y" no rodapé em `text-xs text-muted-foreground` quase invisível em mobile com pouca luz.
-- **L8** — `FormModalFooter` em modal fullscreen aplica `max-sm:pb-[max(0.75rem,env(safe-area-inset-bottom))]` — bom, mas o conteúdo scrollável acima não tem `pb-20` para evitar que o último input fique escondido atrás do footer sticky.
+- **L1** — Numero do orçamento em mono `text-xs` no card primary perde proeminência (deveria ser secundário, cliente principal).
+- **L2** — Validade vencida em mobile mostra duas linhas (data + badge "Vencida") — poderia ser apenas borda esquerda destacada do card.
+- **L3** — `formatCurrency` em mono na coluna Total desktop fica perfeito; em mobile sem alinhamento de colunas, mono fica desnecessário.
+- **L4** — "Autosave às HH:MM" só aparece desktop (banner `hidden md:flex`); mobile não tem indicador de save.
+- **L5** — `OrcamentoSidebarSummary` é `hidden lg:block` — mobile perde Save/Preview/PDF de acesso rápido (ficam só no header espremido).
+- **L6** — Skeletons em loading do form: nenhum (só um `animate-pulse` text). Alto layout shift na hidratação do form complexo.
+- **L7** — `MultiSelect` de filtros (status, validade, prazo, clientes) com `w-[180px]`–`w-[250px]` no `AdvancedFilterBar` — em mobile já cai em drawer, mas widths fixos brigam (mesma issue de Cadastros).
+- **L8** — Botão "Tela cheia" do `OrcamentoItemsGrid` em mobile não faz sentido (já é a tela inteira) mas continua visível.
 
 ---
 
 ## 5. Melhorias de layout
 
-1. **Forms mobile single-column**: quebrar TODA `grid grid-cols-2 md:grid-cols-3` em `grid grid-cols-1 md:grid-cols-3` (forçar 1-col em <md). Inputs voltam a ter largura útil.
-2. **CEP/CNPJ com botão Consultar full-width abaixo do input** em mobile — não inline `size="icon"`. Usar `FormSection` para agrupar `[Input full]` + `[Button "Consultar CNPJ" full]`.
-3. **Reduzir SummaryCards em mobile**: mostrar só 2 (Total, Ativos) em `grid-cols-2`, esconder Inativos/ComGrupo via `hidden md:block`. Ou virar carrossel horizontal scroll-snap.
-4. **MobileCardList: redesenhar layout do card** — primary em `text-base font-semibold`, identifier (CNPJ) em `text-xs font-mono text-muted-foreground` linha 2, contact actions (📞 WhatsApp) como ícones tap inline. Eliminar pílula "label:".
-5. **Footer sticky com gradient mask** acima — para FormModalFooter mobile, adicionar `box-shadow: 0 -4px 8px hsl(background)` + `pb-[env(safe-area-inset-bottom)]` no conteúdo scrollável (`pb-24`).
+1. **Dividir `OrcamentoForm` em fluxo por etapas mobile** (sem inventar componente: usar `Accordion` vertical já adotado em `FormTabsList`):
+   - **1. Cliente** (autocomplete + snapshot resumido)
+   - **2. Itens** (lista mobile-friendly, expandido por padrão)
+   - **3. Frete & Condições** (collapsible)
+   - **4. Totais & Observações** (collapsible)
+   - **5. Análise interna** (collapsible, oculto se sem permissão)
+   Reduz scroll percebido para ~1/4 do atual; vendedor preenche linearmente.
+2. **Itens como cards verticais** em mobile (não tabela): cada item vira card com:
+   - Linha 1: nome do produto (text-base, font-semibold)
+   - Linha 2: código + estoque (text-xs muted)
+   - Linha 3: [Qtd grande input] × [unitário grande input] = subtotal (mono à direita)
+   - Linha 4: [- desconto] [Duplicar] [Remover] (botões 36px+)
+   Drag-handle vira "Reordenar" via long-press. Sem overflow horizontal.
+3. **Footer sticky mobile com Total + Salvar** sempre visível no `OrcamentoForm` (mesmo padrão `OrcamentoSidebarSummary` mas inferior, full-width).
+4. **`PedidoForm` mobile single-column**: forçar `grid-cols-1 md:grid-cols-2` em todos os blocos.
+5. **`FreteSimuladorCard` mobile**: cotações como lista de cards verticais (transportadora + serviço linha 1, prazo + valor linha 2, "Selecionar" full-width).
+6. **`OrcamentoInternalAnalysisPanel` colapsado por padrão em mobile** + permissão: vendedor sem acesso nem vê.
+7. **`OrcamentoView`/`OrdemVendaView` drawer mobile**: tabs viram `Accordion` (mesmo padrão Cadastros), com seção Resumo expandida default.
 
 ---
 
 ## 6. Melhorias de navegação
 
-- **N1** — **FAB de criação** em todas as páginas de cadastro mobile: botão flutuante "+" `bottom-20 right-4` (acima do `MobileBottomNav`) que abre o **QuickAdd** correspondente (Cliente/Produto/Fornecedor) em vez do modal full. Para cadastros sem QuickAdd ainda (Transportadora, Funcionário), mantém `onAdd` original.
-- **N2** — Substituir `Dialog` fullscreen por `Drawer` (bottom-sheet swipe-to-close) em **modal de edição mobile** — preserva gesto nativo de fechar e oferece "voltar" intuitivo.
-- **N3** — **Tab navigation em mobile** vira **stepper segmentado** (atual: 1/7 · próximo) ou **menu accordion** (cada aba é uma seção colapsável vertical). Ambos funcionam melhor que TabsList horizontal em telas pequenas. Recomendação: **accordion vertical** — usuário vê todas as seções, expande a que precisa, contexto preservado.
-- **N4** — Header sticky no modal mobile com **breadcrumb mini** ("Clientes › Editar › Acme Corp") + back arrow físico `ChevronLeft` no canto esquerdo (não só X à direita).
+- **N1** — **Footer sticky de ações mobile** no `OrcamentoForm` substitui a barra de header empilhada: [💾 Salvar] [👁] [⋯] em 3 botões 44px.
+- **N2** — **Conversão Orçamento → Pedido em 1 tap** quando PO é opcional: botão "Gerar Pedido" no card mobile dispara direto se status=aprovado e PO não obrigatório; só pede PO via bottom-sheet quando admin marcar campo como exigido.
+- **N3** — **Drawer com back-arrow físico** (`<` à esquerda) além do X — mesma melhoria proposta para Cadastros.
+- **N4** — **Realtime feedback visual**: quando `subscribeComercial` invalidar, mostrar chip "↻ Atualizado agora" no topo da lista por 3s.
+- **N5** — **Templates como bottom-sheet em mobile** acessível via FAB secundário no `OrcamentoForm` (não enterrado em dropdown header).
+- **N6** — **Deep link `?step=itens`** no `OrcamentoForm` mobile abre direto na seção (similar ao `?tab=` proposto para Cadastros).
 
 ---
 
 ## 7. Melhorias de componentes
 
-- **`MobileCardList`**:
-  - Aceitar `onCardTap?: (item) => void` separado de `onItemClick` (default = abrir view); manter `actions` no canto.
-  - Suportar `actionsInline?: ReactNode[]` — array de até 3 ícones (📞 WhatsApp Eye) renderizados como botões 36px no rodapé do card.
-  - Suportar `virtualize?: boolean` (passa para `@tanstack/react-virtual` quando lista > 100).
-  - Layout primary + secondary + identifier em vez de "label: value".
-- **`AdvancedFilterBar` Drawer mobile**:
-  - Aplicar `space-y-3` aos children dentro do drawer e **forçar `w-full` em todo MultiSelect filho** (override widths fixos).
-  - Adicionar título de seção por filtro ("Status", "Tipos", "Grupos") acima de cada select dentro do drawer.
-- **`FormModal` mobile**:
-  - Prop nova `mobileVariant?: "dialog" | "drawer"` (default dialog para compat). Em "drawer" usa Sheet/Drawer com swipe-down + back arrow.
-  - Auto-aplicar `mobileVariant="drawer"` em forms com >3 tabs.
-- **`FormTabsList` mobile**:
-  - Detectar `useIsMobile()` e renderizar como `Accordion` (uma seção visível por vez, headers tappable) em vez de `TabsList`.
-  - Mostrar badge de erro/dirty por seção (ponto vermelho/amarelo).
-- **`FormModalFooter`**:
-  - Em mobile usar `flex-col-reverse gap-2` (Salvar full-width em cima, Cancelar abaixo).
-  - Padding extra para safe-area.
-- **Quick-add modals existentes**:
-  - Passar a ser exposto via FAB também na própria página `Clientes`/`Produtos`/`Fornecedores` (não só em Orçamento/Pedido).
+- **`OrcamentoItemsGrid`**:
+  - Detectar `useIsMobile()` e renderizar **`MobileItemsList`** (cards) em vez de tabela.
+  - Adicionar `Plus` como FAB sticky bottom-right dentro do bloco quando >2 itens (não só botão no topo).
+  - Tela-cheia hidden em mobile.
+  - Long-press no card de item abre bottom-sheet "Editar item" com inputs grandes (qtd/preço/desconto/justificativa).
+- **`OrcamentoForm`**:
+  - Wrapper `<MobileFormSteps>` que recebe seções e renderiza accordion mobile / cards desktop sem mudar markup interno.
+  - Footer sticky `<MobileFormFooter>` com Total + Salvar.
+- **`OrcamentoView` / `OrdemVendaView`**:
+  - Reaproveitar `FormTabsList` accordion pattern (já feito em Cadastros).
+  - Ações principais (Gerar Pedido / Aprovar / Faturar / Cancelar) em footer sticky do drawer com botão primário full-width.
+- **`FreteSimuladorCard`**:
+  - Variante `mobile-list` com cards de cotação (transportadora, serviço, prazo, R$, [Selecionar full-width 44px]).
+- **`OrcamentoTotaisCard`**:
+  - Em mobile, cada linha (Subtotal/Desconto/ST/IPI/Frete/Outras/Total) full-width com label esquerda + input/valor direita; Total destacado em chip grande.
+- **`Orcamentos`/`Pedidos`** (cards mobile):
+  - Ação primária do status atual vira **botão grande full-width** no rodapé do card (Enviar / Aprovar / Gerar Pedido / Faturar) — não mais 3 botões `h-7` apertados.
+  - Ações secundárias (Visualizar / Duplicar / Editar) ficam em `actionsInline` de `MobileCardList` (já implementado).
+- **`CrossModuleActionDialog`**:
+  - Em mobile virar `Drawer` bottom-sheet com 1 campo por vez, evitando empilhamento de overlays.
 
 ---
 
 ## 8. Melhorias de fluxo
 
-- **F1** — **Criação rápida via FAB** (Cliente: nome + CPF/CNPJ + telefone; Produto: nome + SKU + preço + unidade; Fornecedor: razão + CNPJ). Após salvar, banner "✓ Criado · [Editar completo]" no topo da lista por 6s.
-- **F2** — **Tap em telefone do card** dispara `tel:` ou `whatsapp://send?phone=`. Tap em e-mail dispara `mailto:`. Sem precisar abrir cadastro.
-- **F3** — **Editar abre direto na seção certa**: se vendedor tap "Comunicações", abrir já com accordion "Comunicações" expandido (deep link `?tab=comunicacoes`).
-- **F4** — **Ações destrutivas (inativar/excluir) ficam atrás de long-press** no card mobile — não no menu ⋮. Long-press → bottom-sheet com ações destrutivas separadas das construtivas.
-- **F5** — **Confirmar inativação** com bottom-sheet em vez de AlertDialog modal (mais touch-friendly).
-- **F6** — **Migração de dados** em mobile: bloquear acesso ou redirecionar para "Tela disponível em desktop" — não tentar fazer caber.
+- **F1** — **Vendedor cria orçamento em 4 toques**: FAB lista → bottom-sheet "Quick Cotação" (cliente + 1 item) → "Salvar e adicionar mais itens" → form completo já com cliente preenchido.
+- **F2** — **Aprovação em 1 toque** a partir do card (mobile only para admin): chip "Aprovar" full-width quando status=`pendente`. Sem abrir drawer.
+- **F3** — **Gerar Pedido em 1 toque** quando status=`aprovado` e PO não obrigatório (config). Toast com "Abrir pedido" navega ao OV em drawer.
+- **F4** — **Faturamento mobile**: do card de pedido, "Gerar NF" abre bottom-sheet com check estoque inline + confirmação. Hoje já existe `ConfirmDialog`, só falta adaptar para drawer.
+- **F5** — **Cancelar com motivo** em bottom-sheet com Textarea full-screen em vez de dialog modal.
+- **F6** — **Duplicar orçamento** como ação rápida no card (long-press abre menu com Duplicar + Excluir + Reenviar e-mail).
+- **F7** — **Edição de item via tap** (não inline): tap no card de item abre bottom-sheet com 4-5 campos grandes + Salvar — evita inputs `h-7` lado a lado.
 
 ---
 
 ## 9. Sugestões de redesign mobile (sem inventar sistema novo)
 
-Reaproveitando 100% dos componentes existentes (`Drawer`, `Sheet`, `Accordion`, `MobileCardList`, `QuickAddClientModal`, `useIsMobile`, `AdvancedFilterBar`, `FormSection`, `MobileBottomNav`):
+Reaproveitando 100% do que já existe (`Drawer`, `Accordion`, `MobileCardList`, `FormTabsList`, `MobileQuickAddFAB`, `ViewDrawerV2`, `useIsMobile`):
 
 ```text
-┌─ Lista (Clientes) ────────────┐
-│ Clientes              [⋯]    │ ← header simples
-│ ─────────────────────────────│
-│ [🔍 Buscar...]    [⚙ 2]     │ ← search + filter chip drawer
-│ [Tipo: PJ ✕] [Status: At ✕] │ ← chips ativos
+┌─ Lista (Orçamentos)──────────┐
+│ Orçamentos            [⋯]   │
+│ [🔍 Buscar...]    [⚙ 2]    │
+│ [Status: aprovado ✕]        │
 ├──────────────────────────────┤
-│ Acme Indústria S.A.          │ ← primary text-base
-│ 12.345.678/0001-90           │ ← identifier mono small
-│ [📞] [💬 Wpp] [✉] [👁]      │ ← inline actions 36px
+│ Acme Indústria S.A.          │ ← primary
+│ ORC-002342 · R$ 12.450       │ ← identifier+total
+│ Validade 15/05 · Aprovado    │
+│ ┌─────────────────────────┐ │
+│ │  Gerar Pedido  →        │ │ ← ação primária full-width
+│ └─────────────────────────┘ │
+│ [👁] [📋 Duplicar] [✉]      │ ← actionsInline
 ├──────────────────────────────┤
-│ Beta Comércio Ltda           │
-│ ...                          │
+│ Beta Comércio                │
+│ ORC-002341 · R$ 8.200        │
+│ Pendente aprovação           │
+│ ┌─────────────────────────┐ │
+│ │  Aprovar  ✓             │ │
+│ └─────────────────────────┘ │
+│ [👁] [✏] [✉]                │
 └──────────────────────────────┘
-                    [+] FAB → QuickAddCliente
+                    [+] FAB
 [bottom-nav ──────────────────]
 
-┌─ QuickAdd (bottom-sheet 60vh)┐
-│ ━━━ (drag handle)            │
-│ Novo Cliente              [X]│
+┌─ Form Orçamento (mobile) ────┐
+│ ← Novo Orçamento        [⋯] │ ← back arrow + menu
 ├──────────────────────────────┤
-│ Nome / Razão Social *        │
-│ [______________________]     │
-│ CPF/CNPJ                     │
-│ [_____________] [Consultar]  │ ← btn full-width
-│ Telefone                     │
-│ [______________________]     │
+│ ▼ 1. Cliente            ✓   │ ← Accordion section
+│   [Buscar cliente...]        │
+│   Acme Indústria · CNPJ...   │
 ├──────────────────────────────┤
-│ [Cancelar] [Salvar]          │ ← stack mobile
+│ ▼ 2. Itens (3)              │
+│   ┌─────────────────────┐   │
+│   │ Produto X       OK  │   │ ← card item
+│   │ COD-123 · est. 50   │   │
+│   │ 10 UN × R$ 50,00    │   │
+│   │       = R$ 500,00   │   │
+│   │ [✏] [📋] [🗑]       │   │
+│   └─────────────────────┘   │
+│   ┌─────────────────────┐   │
+│   │ Produto Y       ⚠   │   │
+│   │ ...                 │   │
+│   └─────────────────────┘   │
+│   [+ Adicionar item ]        │ ← full-width
+├──────────────────────────────┤
+│ ▶ 3. Frete & Condições       │ ← collapsed
+├──────────────────────────────┤
+│ ▶ 4. Totais & Observações    │
+├──────────────────────────────┤
+│ ▶ 5. Análise interna  (admin)│
+├──────────────────────────────┤
+│ Total                        │
+│ R$ 1.450,00                  │ ← sticky footer mobile
+│ [Cancelar] [💾 Salvar]      │
 └──────────────────────────────┘
 
-┌─ Editar (Drawer fullscreen)──┐
-│ ← Acme Indústria          [⋯]│ ← back arrow + menu
-│ 12.345.678/0001-90 · Ativo   │
+┌─ View Orçamento (Drawer)─────┐
+│ ← ORC-002342           [⋯] │
+│ Acme · Aprovado · R$ 12.450  │
 ├──────────────────────────────┤
-│ ▼ Dados Gerais         (1/7) │ ← Accordion section
-│   [campos preenchíveis]      │
+│ ▼ Resumo                    │
+│   ...                       │
 ├──────────────────────────────┤
-│ ▶ Contatos             (2/7) │ ← collapsed
+│ ▶ Itens (5)                 │
 ├──────────────────────────────┤
-│ ▶ Endereço             (3/7) │
+│ ▶ Frete                     │
 ├──────────────────────────────┤
-│ ▶ Entregas         (5) (4/7) │ ← badge count
+│ ▶ Vínculos (1 OV · 0 NF)    │
 ├──────────────────────────────┤
-│ ▶ Comercial            (5/7) │
-├──────────────────────────────┤
-│ ▶ Comunicações     (3) (6/7) │
-├──────────────────────────────┤
-│ ▶ Observações          (7/7) │
-├──────────────────────────────┤
-│ [Cancelar]   [Salvar ●]      │ ← sticky footer + dirty dot
+│ ┌─────────────────────────┐ │
+│ │ Gerar Pedido  →         │ │ ← footer sticky drawer
+│ └─────────────────────────┘ │
+│ [Editar] [PDF] [Cancelar]   │
 └──────────────────────────────┘
 ```
 
@@ -177,22 +228,23 @@ Reaproveitando 100% dos componentes existentes (`Drawer`, `Sheet`, `Accordion`, 
 
 | Fase | Escopo | Resolve | Esforço |
 |---|---|---|---|
-| **1** | `MobileCardList` redesign: layout primary + identifier + inline actions (📞 ✉ 👁); `actionsInline` prop opcional | C4, M1, M2, L1, L2 | M |
-| **2** | Forçar `grid-cols-1` em mobile em **todos** os forms de cadastros (`Clientes`, `Fornecedores`, `Produtos`, `Transportadoras`, `Funcionarios`); CEP/CNPJ com botão Consultar full-width abaixo | C2, C3 | M |
-| **3** | `FormTabsList` detecta mobile e renderiza como `Accordion` vertical com badges (count + dirty/erro por seção) | C1 | M |
-| **4** | `FormModal` ganha prop `mobileVariant` ("dialog"\|"drawer"); auto "drawer" em modais com >3 tabs; back arrow + breadcrumb sticky no header mobile | C5 | M |
-| **5** | `FormModalFooter` mobile: stack vertical (Salvar em cima full-width), safe-area pb, content area com `pb-24` para não esconder último input | C6, L8 | S |
-| **6** | FAB "+ Novo" em `/clientes`, `/produtos`, `/fornecedores` (mobile only) abrindo `QuickAdd*Modal` correspondente; banner "✓ Criado" pós-save | C7, M7, F1 | S |
-| **7** | Tap-to-call/Wpp/email em cards via `tel:`/`whatsapp://`/`mailto:`; ícones inline 36px touch-target | F2, M2 | XS |
-| **8** | Reduzir SummaryCards em mobile: `grid-cols-2` mostrando só Total + Ativos (esconder métricas secundárias) ou virar carrossel snap-x | M3 | XS |
-| **9** | `MobileCardList` virtualizado quando lista >100 (reusar `useVirtualizer` igual DataTable desktop); skeleton fiel ao layout do card | C10, M8 | S |
-| **10** | `AdvancedFilterBar` drawer: forçar `w-full` em MultiSelect children + título de seção por filtro | C8 | XS |
-| **11** | `MigracaoDados` em mobile: empty state "Disponível em desktop" com link de instrução, evita degradação | C9 | XS |
-| **12** | Auto-scroll-to-first-error em forms mobile com keyboard aberto; toast só após scroll | M5 | S |
-| **13** | Long-press no card mobile abre bottom-sheet de ações destrutivas (separado do menu ⋮); inativar com bottom-sheet em vez de AlertDialog | F4, F5 | M |
-| **14** | Documentar padrão em `mem://produto/cadastros-mobile.md` (FAB + accordion + cards) para replicar em futuros módulos | governança | XS |
+| **1** | `OrcamentoView`/`OrdemVendaView` em mobile: `Tabs` → `Accordion` (reaproveita padrão Cadastros); footer sticky com ação primária full-width | C6, M11, F2-F4 | M |
+| **2** | Cards mobile de `Orcamentos`/`Pedidos` ganham **ação primária full-width** baseada no status (Enviar/Aprovar/Gerar Pedido/Faturar); secundárias em `actionsInline` | C5, F2, F3, F4 | M |
+| **3** | `OrcamentoItemsGrid`: detectar `useIsMobile()` e renderizar `MobileItemsList` (cards verticais com inputs grandes); FAB "+ Item" sticky no bloco | C1, C10, F7 | L |
+| **4** | `OrcamentoForm` mobile vira fluxo accordion (Cliente / Itens / Frete & Cond / Totais & Obs / Análise) reusando `FormTabsList` accordion mode | C2, C9, M1, M2 | L |
+| **5** | Footer sticky mobile no `OrcamentoForm` com Total + Salvar (reusar `OrcamentoSidebarSummary` em variante bottom) | C2, C3, L4, L5 | S |
+| **6** | Header mobile compacto no `OrcamentoForm`: [← Voltar] [Título compacto] [⋯ menu com Visualizar/PDF/Templates/Duplicar/Reenviar] | C3, C7, C11 | S |
+| **7** | `PedidoForm` mobile single-column (`grid-cols-1 md:grid-cols-2`) em todos os blocos | C12 | XS |
+| **8** | `CrossModuleActionDialog` em mobile vira `Drawer` bottom-sheet (evita modal-sobre-drawer); cancelar/rejeitar com Textarea fullscreen | C4, M7 | S |
+| **9** | `FreteSimuladorCard` mobile: cotações como lista de cards verticais com "Selecionar" full-width | C8 | M |
+| **10** | `OrcamentoTotaisCard` e `OrcamentoCondicoesCard` mobile single-column com Total destacado em chip grande | M4, M5 | S |
+| **11** | `MobileQuickCotacaoFAB` na lista de Orçamentos: bottom-sheet com Cliente + 1 item + Salvar (e abre form completo se vendedor quiser refinar) | F1 | M |
+| **12** | Realtime feedback: chip "↻ Atualizado agora" 3s no topo da lista quando `subscribeComercial` invalidar; `PullToRefresh` em `Orcamentos` (paridade com Pedidos) | M8, M9 | XS |
+| **13** | Long-press em card de orçamento/pedido abre bottom-sheet com ações destrutivas/secundárias separadas (Duplicar / Cancelar / Reenviar e-mail) | F6, M6 | S |
+| **14** | Templates como bottom-sheet em mobile (FAB secundário no form ou ação no menu ⋯) | C7, N5 | XS |
+| **15** | Documentar padrão em `mem://produto/comercial-mobile.md`: form em accordion + footer sticky de total + cards de itens + ações primárias por status | governança | XS |
 
-**Quick wins (1 PR cada)**: 5, 7, 8, 10, 11.
-**Estruturais**: 1, 2, 3, 4, 6, 9, 13.
-**Cosméticos**: 12, 14.
+**Quick wins (1 PR cada)**: 5, 7, 12, 14.
+**Estruturais**: 1, 2, 3, 4, 6, 8, 9, 11, 13.
+**Cosméticos**: 10, 15.
 
