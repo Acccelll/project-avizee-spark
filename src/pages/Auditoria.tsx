@@ -421,12 +421,12 @@ export default function Auditoria() {
           </>
         }
         filters={
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-2 gap-2 md:flex md:flex-wrap">
             <Select
               value={origem}
               onValueChange={(v) => set({ origem: v === "todas" ? "" : v, page: 1 })}
             >
-              <SelectTrigger className="h-9 w-[170px]">
+              <SelectTrigger className="h-9 w-full md:w-[170px]">
                 <SelectValue placeholder="Origem" />
               </SelectTrigger>
               <SelectContent>
@@ -442,7 +442,7 @@ export default function Auditoria() {
                 set({ entidade: v === "todas" ? "" : v, page: 1 })
               }
             >
-              <SelectTrigger className="h-9 w-[200px]">
+              <SelectTrigger className="h-9 w-full md:w-[200px]">
                 <SelectValue placeholder="Entidade" />
               </SelectTrigger>
               <SelectContent className="max-h-72">
@@ -461,7 +461,7 @@ export default function Auditoria() {
                 set({ tipo_acao: v === "todas" ? "" : v, page: 1 })
               }
             >
-              <SelectTrigger className="h-9 w-[180px]">
+              <SelectTrigger className="h-9 w-full md:w-[180px]">
                 <SelectValue placeholder="Ação" />
               </SelectTrigger>
               <SelectContent className="max-h-72">
@@ -480,7 +480,7 @@ export default function Auditoria() {
                 set({ ator: v === "todos" ? "" : v, page: 1 })
               }
             >
-              <SelectTrigger className="h-9 w-[180px]">
+              <SelectTrigger className="h-9 w-full md:w-[180px]">
                 <SelectValue placeholder="Ator" />
               </SelectTrigger>
               <SelectContent className="max-h-72">
@@ -499,7 +499,7 @@ export default function Auditoria() {
                 set({ alvo: v === "todos" ? "" : v, page: 1 })
               }
             >
-              <SelectTrigger className="h-9 w-[170px]">
+              <SelectTrigger className="h-9 w-full md:w-[170px]">
                 <SelectValue placeholder="Alvo" />
               </SelectTrigger>
               <SelectContent className="max-h-72">
@@ -518,7 +518,7 @@ export default function Auditoria() {
                 set({ criticidade: v === "todas" ? "" : v, page: 1 })
               }
             >
-              <SelectTrigger className="h-9 w-[140px]">
+              <SelectTrigger className="h-9 w-full md:w-[140px]">
                 <SelectValue placeholder="Criticidade" />
               </SelectTrigger>
               <SelectContent>
@@ -533,20 +533,20 @@ export default function Auditoria() {
               value={ipAddress}
               onChange={(e) => set({ ip: e.target.value, page: 1 })}
               placeholder="IP"
-              className="h-9 w-[140px] font-mono text-xs"
+              className="h-9 w-full md:w-[140px] font-mono text-xs"
             />
             <Input
               value={registroId}
               onChange={(e) => set({ registro: e.target.value, page: 1 })}
               placeholder="ID do registro"
-              className="h-9 w-[200px] font-mono text-xs"
+              className="h-9 w-full md:w-[200px] font-mono text-xs col-span-2 md:col-span-1"
             />
 
             <Button
               variant="ghost"
               size="sm"
               onClick={() => clear()}
-              className="h-9"
+              className="h-9 col-span-2 md:col-span-1"
             >
               Limpar filtros
             </Button>
@@ -595,6 +595,8 @@ export default function Auditoria() {
           data={visibleRows}
           loading={isLoading}
           moduleKey="auditoria"
+          mobileStatusKey="criticidade"
+          mobileIdentifierKey="entidade"
           emptyTitle="Nenhum evento de auditoria encontrado"
           emptyDescription="Ajuste os filtros ou amplie o período consultado para ver os registros."
           onView={(r) => {

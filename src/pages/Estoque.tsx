@@ -9,7 +9,8 @@ import { EstoquePosicaoDrawer } from "@/components/estoque/EstoquePosicaoDrawer"
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { useAjustarEstoque } from "@/pages/estoque/hooks/useAjustarEstoque";
 import { useEstoquePosicao } from "@/pages/estoque/hooks/useEstoque";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollableTabsList } from "@/components/ui/scrollable-tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -469,7 +470,7 @@ const Estoque = () => {
         )}
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="mb-4">
+          <ScrollableTabsList className="mb-4">
             <TabsTrigger value="saldos" className="gap-1.5">
               <Package className="h-3.5 w-3.5" />Saldos
             </TabsTrigger>
@@ -479,7 +480,7 @@ const Estoque = () => {
             <TabsTrigger value="ajuste" className="gap-1.5">
               <SlidersHorizontal className="h-3.5 w-3.5" />Ajuste Manual
             </TabsTrigger>
-          </TabsList>
+          </ScrollableTabsList>
 
           {/* ── ABA SALDOS ─────────────────────────────────────── */}
           <TabsContent value="saldos">
