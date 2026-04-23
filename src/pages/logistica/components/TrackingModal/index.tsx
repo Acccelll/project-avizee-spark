@@ -60,7 +60,16 @@ export function TrackingModal({ open, onClose, codigoRastreio, remessaId }: Trac
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-lg">
+      <DialogContent
+        className={
+          "max-w-lg " +
+          // Mobile: bottom-sheet pattern (mesmo padrão do RegistrarRecebimentoDialog)
+          "max-sm:!top-auto max-sm:!bottom-0 max-sm:!left-0 max-sm:!right-0 max-sm:!translate-x-0 max-sm:!translate-y-0 " +
+          "max-sm:w-full max-sm:max-w-full max-sm:rounded-b-none max-sm:rounded-t-2xl max-sm:border-x-0 max-sm:border-b-0 " +
+          "max-sm:max-h-[92vh] max-sm:overflow-y-auto max-sm:pb-[max(1rem,env(safe-area-inset-bottom))] " +
+          "max-sm:before:content-[''] max-sm:before:absolute max-sm:before:top-2 max-sm:before:left-1/2 max-sm:before:-translate-x-1/2 max-sm:before:h-1 max-sm:before:w-10 max-sm:before:rounded-full max-sm:before:bg-muted-foreground/30 max-sm:pt-6"
+        }
+      >
         <DialogHeader>
           <DialogTitle>
             Rastreamento — <span className="font-mono text-sm">{codigoRastreio ?? "—"}</span>
@@ -92,7 +101,8 @@ export function TrackingModal({ open, onClose, codigoRastreio, remessaId }: Trac
         )}
 
         {!isLoading && eventos.length > 0 && (
-          <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+          // Em mobile o sheet inteiro já scrolla; remover scroll aninhado evita "scroll dentro de scroll".
+          <div className="space-y-2 max-h-80 sm:max-h-80 max-sm:max-h-none overflow-y-auto sm:overflow-y-auto max-sm:overflow-visible pr-1">
             {eventos.map((ev, i) => (
               <div key={i} className="flex gap-3 text-sm">
                 <div className="flex flex-col items-center gap-1 pt-0.5">

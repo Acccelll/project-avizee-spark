@@ -33,6 +33,7 @@ import { AlertTriangle, ArrowDownCircle, RotateCcw,
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { cn } from "@/lib/utils";
 import { getOrigemConfig, getTipoMovConfig, tipoMovConfig } from "@/components/estoque/estoqueMovimentacaoConfig";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 type ProdutoRow = Database["public"]["Tables"]["produtos"]["Row"];
 
@@ -81,6 +82,7 @@ const Estoque = () => {
   const { data, loading } = useSupabaseCrud<Movimento>({
     table: "estoque_movimentos", select: "*, produtos(nome, sku)", hasAtivo: false,
   });
+  const isMobile = useIsMobile();
   const produtosCrud = useSupabaseCrud<ProdutoPosicao>({ table: "produtos" });
   const ajustar = useAjustarEstoque();
   const saving = ajustar.isPending;
@@ -317,7 +319,7 @@ const Estoque = () => {
   ];
 
   const movColumns = [
-    { key: "produto", label: "Produto", render: (m: Movimento) => (
+    { key: "produto", label: "Produto", mobilePrimary: true, render: (m: Movimento) => (
       <div><span className="font-medium">{m.produtos?.nome ?? "—"}</span><br/><span className="text-xs text-muted-foreground font-mono">{m.produtos?.sku}</span></div>
     )},
     { key: "tipo", label: "Tipo", render: (m: Movimento) => {
@@ -348,7 +350,7 @@ const Estoque = () => {
   ];
 
   const posColumns = [
-    { key: "nome", label: "Produto", render: (p: ProdutoPosicao) => (
+    { key: "nome", label: "Produto", mobilePrimary: true, render: (p: ProdutoPosicao) => (
       <div><span className="font-medium">{p.nome}</span>{p.sku && <><br/><span className="text-xs text-muted-foreground font-mono">{p.sku}</span></>}</div>
     )},
     { key: "unidade", label: "Unid.", render: (p: ProdutoPosicao) => p.unidade_medida ?? "UN" },
@@ -379,7 +381,7 @@ const Estoque = () => {
         title="Estoque"
         subtitle="Central de saúde do estoque — saldos, rastreabilidade e ajustes controlados"
         headerActions={
-          <Button variant="outline" size="sm" className="gap-2" onClick={() => setActiveTab("ajuste")}>
+          <Button variant="outline" size="sm" className="gap-2 max-sm:hidden" onClick={() => setActiveTab("ajuste")} title="Atalho — em mobile use a tab abaixo">
             <SlidersHorizontal className="h-4 w-4" />
             Ajuste Manual
           </Button>
@@ -493,6 +495,26 @@ const Estoque = () => {
               moduleKey="estoque-saldos"
               showColumnToggle={true}
               onView={(p) => { setSelectedPosicao(p as ProdutoPosicao); setPosicaoDrawerOpen(true); }}
+              mobileStatusKey="situacao"
+              mobileIdentifierKey="estoque_atual"
+              mobilePrimaryAction={(p) => {
+                const sit = getSituacao(p as ProdutoPosicao);
+                if (sit !== "critico" && sit !== "zerado") return null;
+                return (
+                  <Button
+                    size="lg"
+                    variant="default"
+                    className="h-11 w-full gap-2 text-sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setForm((f) => ({ ...f, produto_id: p.id }));
+                      setActiveTab("ajuste");
+                    }}
+                  >
+                    <SlidersHorizontal className="h-4 w-4" /> Ajustar saldo
+                  </Button>
+                );
+              }}
               emptyTitle="Nenhum item encontrado"
               emptyDescription="Ajuste os filtros ou verifique se há produtos com estoque ou mínimo cadastrado."
             />
@@ -540,6 +562,8 @@ const Estoque = () => {
               moduleKey="estoque-movimentacoes"
               showColumnToggle={true}
               onView={(m) => { setSelected(m); setDrawerOpen(true); }}
+              mobileStatusKey="tipo"
+              mobileIdentifierKey="quantidade"
               emptyTitle="Nenhuma movimentação encontrada"
               emptyDescription="Ajuste os filtros de tipo, data ou busque por produto."
             />
@@ -575,7 +599,7 @@ const Estoque = () => {
                         variant="outline"
                         role="combobox"
                         aria-expanded={produtoSelectorOpen}
-                        className="w-full justify-between font-normal h-9 text-left"
+                        className="w-full justify-between font-normal h-9 max-sm:h-11 text-left"
                       >
                         {form.produto_id ? (() => {
                           const p = produtosCrud.data.find((x) => x.id === form.produto_id);
@@ -592,7 +616,10 @@ const Estoque = () => {
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 text-muted-foreground" />
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-[480px] p-0" align="start">
+                    <PopoverContent
+                      className="w-[var(--radix-popover-trigger-width)] sm:w-[480px] p-0"
+                      align="start"
+                    >
                       <Command>
                         <CommandInput placeholder="Buscar por nome, SKU ou código..." />
                         <CommandList>
@@ -638,7 +665,7 @@ const Estoque = () => {
                   <div className="space-y-2">
                     <Label>Tipo de Operação *</Label>
                      <Select value={form.tipo} onValueChange={(v) => setForm({ ...form, tipo: v as "entrada" | "saida" | "ajuste" })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="max-sm:h-11"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="entrada">Entrada — adicionar ao saldo</SelectItem>
                         <SelectItem value="saida">Saída — reduzir do saldo</SelectItem>
@@ -654,6 +681,8 @@ const Estoque = () => {
                       min="0"
                       value={form.quantidade || ""}
                       onChange={(e) => setForm({ ...form, quantidade: Number(e.target.value) })}
+                      className="max-sm:h-11"
+                      inputMode="decimal"
                       required
                     />
                   </div>
