@@ -345,7 +345,7 @@ const Fiscal = () => {
         // (Estoque, Financeiro, Pedidos) refletem a mudança imediatamente.
         await invalidate(INVALIDATION_KEYS.fiscalLifecycle);
       } catch (err: unknown) {
-        console.error('[fiscal] confirmar NF:', err);
+        logger.error('[fiscal] confirmar NF:', err);
         toast.error(getUserFriendlyError(err));
       }
     });
@@ -370,7 +370,7 @@ const Fiscal = () => {
         fetchData();
         await invalidate(INVALIDATION_KEYS.fiscalLifecycle);
       } catch (err: unknown) {
-        console.error('[fiscal] estornar NF:', err);
+        logger.error('[fiscal] estornar NF:', err);
         toast.error(getUserFriendlyError(err));
       }
     });
@@ -393,7 +393,7 @@ const Fiscal = () => {
       setModalOpen(false);
       fetchData();
     } catch (err: unknown) {
-      console.error('[fiscal] cancelar rascunho:', err);
+      logger.error('[fiscal] cancelar rascunho:', err);
       toast.error(getUserFriendlyError(err));
     }
   };
@@ -469,7 +469,7 @@ const Fiscal = () => {
       setModalOpen(false);
       fetchData();
     } catch (err: unknown) {
-      console.error('[fiscal] salvar e confirmar NF:', err);
+      logger.error('[fiscal] salvar e confirmar NF:', err);
       toast.error(getUserFriendlyError(err));
     }
     setSaving(false);
@@ -516,7 +516,7 @@ const Fiscal = () => {
         toast.success("XML importado com sucesso! Todos os itens foram vinculados.");
       }
     } catch (err: unknown) {
-      console.error("[fiscal] XML import:", err);
+      logger.error("[fiscal] XML import:", err);
       toast.error(`Erro ao importar XML: ${err instanceof Error ? err.message : String(err)}`);
     }
     if (xmlInputRef.current) xmlInputRef.current.value = "";
@@ -569,7 +569,7 @@ const Fiscal = () => {
         await supabase.from("notas_fiscais_itens").insert(itemsPayload as never);
       }
       toast.success("Nota fiscal salva!"); setModalOpen(false); fetchData();
-    } catch (err: unknown) { console.error('[fiscal] salvar NF:', err); toast.error(getUserFriendlyError(err)); }
+    } catch (err: unknown) { logger.error('[fiscal] salvar NF:', err); toast.error(getUserFriendlyError(err)); }
     setSaving(false);
   };
 
@@ -600,7 +600,7 @@ const Fiscal = () => {
       toast.success(`NF ${nf.numero} inativada.`);
       fetchData();
     } catch (err: unknown) {
-      console.error('[fiscal] inativar NF:', err);
+      logger.error('[fiscal] inativar NF:', err);
       toast.error(getUserFriendlyError(err));
     }
   };

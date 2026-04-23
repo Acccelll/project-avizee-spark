@@ -25,7 +25,6 @@ import {
   Presentation,
   Store,
   Briefcase,
-  PieChart,
 } from 'lucide-react';
 
 /** Canonical list of navSection keys. Add here first when introducing a new section. */
