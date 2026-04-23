@@ -178,6 +178,24 @@ export default function Relatorios() {
 
   const visibleColumns = useMemo(() => columns.filter((c) => !hiddenColumns.includes(c.key)), [columns, hiddenColumns]);
 
+  // Props mobile do DataTable derivadas de `semantics`/columns:
+  // - statusKey   → coluna de status/criticidade/faixa/classe (badge)
+  // - identifierKey → 1ª coluna textual não-status (cliente/fornecedor/produto)
+  const mobileTableProps = useMemo(() => {
+    if (!visibleColumns.length) return {};
+    const statusCandidates = ['status', 'criticidade', 'faixa', 'classe', 'tipo'];
+    const statusKey = semantics?.statusField && visibleColumns.some((c) => c.key === semantics.statusField)
+      ? semantics.statusField
+      : visibleColumns.find((c) => statusCandidates.includes(c.key))?.key;
+    const identifierKey = visibleColumns.find(
+      (c) => c.key !== statusKey && !statusCandidates.includes(c.key) && !['valor', 'valorTotal', 'quantidade', 'pedidos', 'posicao'].includes(c.key),
+    )?.key;
+    return {
+      mobileStatusKey: statusKey,
+      mobileIdentifierKey: identifierKey,
+    };
+  }, [visibleColumns, semantics?.statusField]);
+
   // Coluna virtual de ações (drill-down). Só é anexada quando há pelo menos
   // uma ação navegável declarada para o relatório atual.
   const visibleColumnsWithActions = useMemo(() => {
@@ -292,6 +310,8 @@ export default function Relatorios() {
   };
 
   const footerCols = (selectedMeta?.columns ?? []).filter((c) => c.footerTotal);
+
+  const activeFiltersCount = activeFilterChips.length;
 
   // ── Header secondary actions (Atualizar + Salvar/Carregar favoritos) ─────
   const headerActions = (
