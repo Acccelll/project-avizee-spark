@@ -832,6 +832,8 @@ export default function Conciliacao() {
                 ? "Escolha uma conta e um período para visualizar os lançamentos para conciliação."
                 : "Tente ajustar o período ou os filtros de busca."
             }
+            mobileStatusKey="statusConciliacao"
+            mobileIdentifierKey="descricao"
           />
         )}
 
