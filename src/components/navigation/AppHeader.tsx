@@ -28,6 +28,8 @@ const ROLE_DOT_COLORS: Record<AppRole, string> = {
   financeiro: 'bg-info',
   vendedor: 'bg-success',
   estoquista: 'bg-warning',
+  gestor_compras: 'bg-primary',
+  operador_logistico: 'bg-accent',
 };
 
 function primaryRole(roles: AppRole[]): AppRole | null {
