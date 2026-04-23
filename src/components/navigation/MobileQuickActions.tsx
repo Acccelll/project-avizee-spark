@@ -1,18 +1,29 @@
 import { Plus, X } from 'lucide-react';
+import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle, DrawerTrigger } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
 import { quickActions } from '@/lib/navigation';
+import { useCan } from '@/hooks/useCan';
+import type { Permission } from '@/utils/permissions';
 
 export function MobileQuickActions() {
   const navigate = useNavigate();
+  const { can } = useCan();
+  const allowed = useMemo(
+    () => quickActions.filter((a) => !a.requires || can(a.requires as Permission)),
+    [can],
+  );
+
+  if (allowed.length === 0) return null;
 
   return (
     <Drawer>
       <DrawerTrigger asChild>
         <Button
           size="icon"
-          className="fixed bottom-[5.8rem] right-4 z-40 h-14 w-14 rounded-full shadow-xl md:hidden"
+          className="fixed right-4 z-40 h-14 w-14 rounded-full shadow-xl md:hidden"
+          style={{ bottom: 'calc(5.8rem + env(safe-area-inset-bottom))' }}
           aria-label="Atalhos rápidos"
         >
           <Plus className="h-5 w-5" />
@@ -35,7 +46,7 @@ export function MobileQuickActions() {
           <DrawerDescription>Crie ou acesse as ações mais usadas com um toque.</DrawerDescription>
         </DrawerHeader>
         <div className="grid gap-2 px-4 pb-8">
-          {quickActions.map((action) => (
+          {allowed.map((action) => (
             <Button
               key={action.id}
               variant="secondary"

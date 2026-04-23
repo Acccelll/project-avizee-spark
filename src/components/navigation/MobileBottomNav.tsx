@@ -1,9 +1,45 @@
 import { Menu } from 'lucide-react';
 import { useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { mobileBottomTabs, getNavSectionKey, DASHBOARD_KEY } from '@/lib/navigation';
+import { mobileBottomTabs, getNavSectionKey, DASHBOARD_KEY, navSections, type NavSectionKey } from '@/lib/navigation';
 import { useVisibleSectionKeys } from '@/hooks/useVisibleNavSections';
+import { useCan } from '@/hooks/useCan';
+import type { Permission } from '@/utils/permissions';
 import { cn } from '@/lib/utils';
+
+/**
+ * Mapeia o path padrão de cada bottom tab para a permissão necessária.
+ * Quando o usuário não tem acesso ao destino padrão, caímos para o primeiro
+ * item da seção que ele pode acessar — evita o tap → AccessDenied.
+ */
+const TAB_PATH_PERMISSIONS: Record<string, Permission> = {
+  '/orcamentos': 'orcamentos:visualizar',
+  '/clientes': 'clientes:visualizar',
+  '/financeiro': 'financeiro:visualizar',
+};
+
+const PATH_PERMISSION_MAP: Record<string, Permission> = {
+  '/produtos': 'produtos:visualizar',
+  '/clientes': 'clientes:visualizar',
+  '/fornecedores': 'fornecedores:visualizar',
+  '/transportadoras': 'transportadoras:visualizar',
+  '/formas-pagamento': 'formas_pagamento:visualizar',
+  '/grupos-economicos': 'clientes:visualizar',
+  '/funcionarios': 'usuarios:visualizar',
+  '/socios': 'socios:visualizar',
+  '/orcamentos': 'orcamentos:visualizar',
+  '/pedidos': 'pedidos:visualizar',
+  '/financeiro': 'financeiro:visualizar',
+  '/fluxo-caixa': 'financeiro:visualizar',
+  '/contas-bancarias': 'financeiro:visualizar',
+  '/contas-contabeis-plano': 'financeiro:visualizar',
+  '/conciliacao': 'financeiro:visualizar',
+  '/socios-participacoes': 'socios:visualizar',
+};
+
+function basePath(p: string) {
+  return p.split('?')[0];
+}
 
 interface MobileBottomNavProps {
   onOpenMenu: () => void;
@@ -12,15 +48,32 @@ interface MobileBottomNavProps {
 export function MobileBottomNav({ onOpenMenu }: MobileBottomNavProps) {
   const location = useLocation();
   const navigate = useNavigate();
+  const { can } = useCan();
   const currentRoute = `${location.pathname}${location.search}`;
   const activeKey = getNavSectionKey(currentRoute);
   const visibleKeys = useVisibleSectionKeys();
 
   // Always keep "Início" visible; for the rest, only show tabs whose section is allowed.
-  const tabs = useMemo(
-    () => mobileBottomTabs.filter((tab) => tab.key === DASHBOARD_KEY || visibleKeys.has(tab.key)),
-    [visibleKeys],
-  );
+  // Adicionalmente, recalculamos o path destino por permissão real — se o destino
+  // padrão da tab não pode ser acessado, escolhe o primeiro item permitido da seção.
+  const tabs = useMemo(() => {
+    return mobileBottomTabs
+      .filter((tab) => tab.key === DASHBOARD_KEY || visibleKeys.has(tab.key as NavSectionKey))
+      .map((tab) => {
+        if (tab.key === DASHBOARD_KEY) return tab;
+        const defaultPerm = TAB_PATH_PERMISSIONS[basePath(tab.path)];
+        if (!defaultPerm || can(defaultPerm)) return tab;
+        // Procura o primeiro item da seção que o usuário pode acessar
+        const section = navSections.find((s) => s.key === tab.key);
+        if (!section) return tab;
+        const items = section.items.flatMap((g) => g.items);
+        const allowed = items.find((item) => {
+          const perm = PATH_PERMISSION_MAP[basePath(item.path)];
+          return !perm || can(perm);
+        });
+        return allowed ? { ...tab, path: allowed.path } : tab;
+      });
+  }, [visibleKeys, can]);
 
   return (
     <nav

@@ -28,7 +28,10 @@ export function AppSidebar({
   const location = useLocation();
   const navigate = useNavigate();
   const { favoritos, toggleFavorito, isFavorito } = useFavoritos();
-  const { branding } = useAppConfigContext();
+  const { branding, sidebarMode } = useAppConfigContext();
+  // No modo dinâmico, o estado do collapse é controlado por hover — o botão
+  // manual não tem efeito visível e seria um "ghost button". Escondemos.
+  const showCollapseToggle = sidebarMode !== 'dynamic';
 
   const symbolSrc = branding.simboloUrl || brandSimbolo;
   const logoSrc = branding.logoUrl || brandLogotipo;
@@ -51,7 +54,6 @@ export function AppSidebar({
     [navigate],
   );
 
-  const containerClasses = collapsed ? 'w-[72px]' : 'w-[240px]';
   const transitionClasses =
     'transition-[width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[width]';
   const dashboardActive = location.pathname === dashboardItem.path;
@@ -62,24 +64,26 @@ export function AppSidebar({
       className={[
         'fixed inset-y-0 left-0 z-50 flex h-screen flex-col overflow-hidden border-r border-border bg-card',
         transitionClasses,
-        containerClasses,
       ].join(' ')}
+      style={{ width: collapsed ? 'var(--sidebar-w-collapsed)' : 'var(--sidebar-w-expanded)' }}
     >
         {/* Brand */}
         <div className="flex h-14 items-center justify-between border-b border-border/60 px-2">
           {collapsed ? (
             <>
               <img src={symbolSrc} alt="Marca" className="h-8 w-8 object-contain ml-1" />
-              <Button
-                variant="ghost"
-                size="icon"
-                className="hidden h-7 w-7 md:inline-flex"
-                onClick={onToggleCollapsed}
-                aria-label="Expandir menu lateral"
-                title="Expandir menu lateral"
-              >
-                <ChevronRight className="h-3.5 w-3.5" />
-              </Button>
+              {showCollapseToggle && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="hidden h-7 w-7 md:inline-flex"
+                  onClick={onToggleCollapsed}
+                  aria-label="Expandir menu lateral"
+                  title="Expandir menu lateral"
+                >
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </Button>
+              )}
             </>
           ) : (
             <>
@@ -91,16 +95,18 @@ export function AppSidebar({
                   </span>
                 )}
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="hidden h-7 w-7 md:inline-flex"
-                onClick={onToggleCollapsed}
-                aria-label="Recolher menu lateral"
-                title="Recolher menu lateral"
-              >
-                <ChevronRight className="h-3.5 w-3.5 rotate-180" />
-              </Button>
+              {showCollapseToggle && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="hidden h-7 w-7 md:inline-flex"
+                  onClick={onToggleCollapsed}
+                  aria-label="Recolher menu lateral"
+                  title="Recolher menu lateral"
+                >
+                  <ChevronRight className="h-3.5 w-3.5 rotate-180" />
+                </Button>
+              )}
             </>
           )}
         </div>

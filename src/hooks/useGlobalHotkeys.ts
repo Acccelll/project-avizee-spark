@@ -1,5 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useCan } from '@/hooks/useCan';
+import type { Permission } from '@/utils/permissions';
 
 /**
  * useGlobalHotkeys
@@ -21,16 +23,17 @@ interface Options {
   onOpenShortcuts?: () => void;
 }
 
-const QUICK_NAV_ROUTES = [
-  '/',
-  '/orcamentos',
-  '/pedidos',
-  '/pedidos-compra',
-  '/estoque',
-  '/financeiro',
-  '/fiscal',
-  '/relatorios',
-  '/configuracoes',
+/** Cada slot de Cmd+1..9 carrega o caminho e a permissão necessária. */
+const QUICK_NAV_ROUTES: ReadonlyArray<{ path: string; permission?: Permission }> = [
+  { path: '/' },
+  { path: '/orcamentos', permission: 'orcamentos:visualizar' },
+  { path: '/pedidos', permission: 'pedidos:visualizar' },
+  { path: '/pedidos-compra', permission: 'compras:visualizar' },
+  { path: '/estoque', permission: 'estoque:visualizar' },
+  { path: '/financeiro', permission: 'financeiro:visualizar' },
+  { path: '/fiscal?tipo=saida', permission: 'faturamento_fiscal:visualizar' },
+  { path: '/relatorios', permission: 'relatorios:visualizar' },
+  { path: '/configuracoes' },
 ];
 
 function isEditableTarget(target: EventTarget | null) {
@@ -41,6 +44,7 @@ function isEditableTarget(target: EventTarget | null) {
 
 export function useGlobalHotkeys({ onOpenSearch, onOpenShortcuts }: Options = {}) {
   const navigate = useNavigate();
+  const { can } = useCan();
 
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
@@ -74,10 +78,10 @@ export function useGlobalHotkeys({ onOpenSearch, onOpenShortcuts }: Options = {}
       }
       if (mod && /^[1-9]$/.test(event.key)) {
         const index = Number(event.key) - 1;
-        const route = QUICK_NAV_ROUTES[index];
-        if (route) {
+        const target = QUICK_NAV_ROUTES[index];
+        if (target && (!target.permission || can(target.permission))) {
           event.preventDefault();
-          navigate(route);
+          navigate(target.path);
         }
         return;
       }
@@ -89,5 +93,5 @@ export function useGlobalHotkeys({ onOpenSearch, onOpenShortcuts }: Options = {}
 
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [navigate, onOpenSearch, onOpenShortcuts]);
+  }, [navigate, onOpenSearch, onOpenShortcuts, can]);
 }

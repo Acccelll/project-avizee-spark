@@ -131,7 +131,7 @@ const App = () => (
                       <Route path="/formas-pagamento" element={<PermissionRoute resource="formas_pagamento"><LazyPage><FormasPagamento /></LazyPage></PermissionRoute>} />
                       <Route path="/unidades-medida" element={<Navigate to="/produtos" replace />} />
                       <Route path="/grupos-economicos" element={<PermissionRoute resource="clientes"><LazyPage><GruposEconomicos /></LazyPage></PermissionRoute>} />
-                      <Route path="/funcionarios" element={<ProtectedRoute><LazyPage><Funcionarios /></LazyPage></ProtectedRoute>} />
+                      <Route path="/funcionarios" element={<PermissionRoute resource="usuarios"><LazyPage><Funcionarios /></LazyPage></PermissionRoute>} />
                       <Route path="/compras" element={<Navigate to="/pedidos-compra" replace />} />
                       <Route path="/cotacoes-compra" element={<PermissionRoute resource="compras"><LazyPage><CotacoesCompra /></LazyPage></PermissionRoute>} />
                       <Route path="/cotacoes-compra/:id" element={<PermissionRoute resource="compras"><LazyPage><CotacaoCompraForm /></LazyPage></PermissionRoute>} />
@@ -174,6 +174,8 @@ const App = () => (
                       <Route path="/social" element={<SocialRoute><LazyPage><Social /></LazyPage></SocialRoute>} />
                       <Route path="/socios" element={<PermissionRoute resource="socios"><LazyPage><Socios /></LazyPage></PermissionRoute>} />
                       <Route path="/socios-participacoes" element={<PermissionRoute resource="socios"><LazyPage><SociosParticipacoes /></LazyPage></PermissionRoute>} />
+                      {/* Catch-all dentro do shell — preserva sidebar/header em rotas inválidas */}
+                      <Route path="*" element={<LazyPage><NotFound /></LazyPage>} />
                     </Route>
 
                     <Route path="*" element={<LazyPage><NotFound /></LazyPage>} />

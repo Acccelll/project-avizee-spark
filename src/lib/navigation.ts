@@ -74,6 +74,8 @@ export interface QuickAction {
   description: string;
   path: string;
   shortcut?: string;
+  /** Permission key required to surface this action. When omitted, ação é pública. */
+  requires?: string;
 }
 
 export interface MobileBottomTab {
@@ -91,12 +93,12 @@ export const dashboardItem: NavLeafItem = {
 };
 
 export const quickActions: QuickAction[] = [
-  { id: 'nova-cotacao', title: 'Novo Orçamento', description: 'Criar proposta comercial', path: '/orcamentos/novo', shortcut: '⌘N' },
-  { id: 'novo-cliente', title: 'Novo Cliente', description: 'Abrir formulário de cliente', path: '/clientes?new=1' },
-  { id: 'novo-produto', title: 'Novo Produto', description: 'Abrir formulário de produto', path: '/produtos?new=1' },
-  { id: 'novo-pedido-compra', title: 'Novo Pedido', description: 'Abrir pedido de compra', path: '/pedidos-compra/novo' },
-  { id: 'nova-nota-saida', title: 'Nova Nota', description: 'Emitir nota fiscal de saída', path: '/fiscal?tipo=saida&new=1' },
-  { id: 'baixa-financeira', title: 'Baixa Financeira', description: 'Abrir baixa em lote no Financeiro', path: '/financeiro?baixa=lote' },
+  { id: 'nova-cotacao', title: 'Novo Orçamento', description: 'Criar proposta comercial', path: '/orcamentos/novo', shortcut: '⌘N', requires: 'orcamentos:editar' },
+  { id: 'novo-cliente', title: 'Novo Cliente', description: 'Abrir formulário de cliente', path: '/clientes?new=1', requires: 'clientes:editar' },
+  { id: 'novo-produto', title: 'Novo Produto', description: 'Abrir formulário de produto', path: '/produtos?new=1', requires: 'produtos:editar' },
+  { id: 'novo-pedido-compra', title: 'Novo Pedido', description: 'Abrir pedido de compra', path: '/pedidos-compra/novo', requires: 'compras:editar' },
+  { id: 'nova-nota-saida', title: 'Nova Nota', description: 'Emitir nota fiscal de saída', path: '/fiscal?tipo=saida&new=1', requires: 'faturamento_fiscal:editar' },
+  { id: 'baixa-financeira', title: 'Baixa Financeira', description: 'Abrir baixa em lote no Financeiro', path: '/financeiro?baixa=lote', requires: 'financeiro:baixar' },
 ];
 
 export const navSections: NavSection[] = [
@@ -309,12 +311,23 @@ export function getRouteLabel(pathname: string) {
   if (extraRouteLabels[pathname]) return extraRouteLabels[pathname];
   const exact = flatItemByPath.get(pathname);
   if (exact) return exact.title;
+  // Suffix `/editar` em qualquer rota → "Editar"
+  if (pathname.endsWith('/editar')) return 'Editar';
+  if (pathname.endsWith('/novo') || pathname.endsWith('/new')) return 'Novo';
+  // Detalhes por entidade
   if (pathname.startsWith('/orcamentos/')) return 'Orçamento';
   if (pathname.startsWith('/cotacoes/')) return 'Orçamento';
+  if (pathname.startsWith('/cotacoes-compra/')) return 'Cotação de Compra';
+  if (pathname.startsWith('/pedidos-compra/')) return 'Pedido de Compra';
+  if (pathname.startsWith('/pedidos/')) return 'Pedido';
   if (pathname.startsWith('/clientes/')) return 'Cliente';
   if (pathname.startsWith('/produtos/')) return 'Produto';
+  if (pathname.startsWith('/fornecedores/')) return 'Fornecedor';
+  if (pathname.startsWith('/remessas/')) return 'Remessa';
+  if (pathname.startsWith('/financeiro/')) return 'Lançamento';
+  if (pathname.startsWith('/fiscal/')) return 'Nota Fiscal';
   if (pathname.startsWith('/fiscal')) return 'Fiscal';
-  return 'ERP AviZee';
+  return 'Detalhe';
 }
 
 /**

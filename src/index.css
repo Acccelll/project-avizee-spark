@@ -56,6 +56,10 @@
     --sidebar-border: 40 33% 92%;
     --sidebar-ring: 2 100% 21%;
     --sidebar-muted: 220 9% 46%;
+
+    /* Larguras canônicas da sidebar — usadas por AppLayout e AppSidebar para evitar drift. */
+    --sidebar-w-collapsed: 72px;
+    --sidebar-w-expanded: 240px;
   }
 
   .dark {
