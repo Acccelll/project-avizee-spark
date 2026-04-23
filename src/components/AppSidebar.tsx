@@ -28,7 +28,10 @@ export function AppSidebar({
   const location = useLocation();
   const navigate = useNavigate();
   const { favoritos, toggleFavorito, isFavorito } = useFavoritos();
-  const { branding } = useAppConfigContext();
+  const { branding, sidebarMode } = useAppConfigContext();
+  // No modo dinâmico, o estado do collapse é controlado por hover — o botão
+  // manual não tem efeito visível e seria um "ghost button". Escondemos.
+  const showCollapseToggle = sidebarMode !== 'dynamic';
 
   const symbolSrc = branding.simboloUrl || brandSimbolo;
   const logoSrc = branding.logoUrl || brandLogotipo;
@@ -70,16 +73,18 @@ export function AppSidebar({
           {collapsed ? (
             <>
               <img src={symbolSrc} alt="Marca" className="h-8 w-8 object-contain ml-1" />
-              <Button
-                variant="ghost"
-                size="icon"
-                className="hidden h-7 w-7 md:inline-flex"
-                onClick={onToggleCollapsed}
-                aria-label="Expandir menu lateral"
-                title="Expandir menu lateral"
-              >
-                <ChevronRight className="h-3.5 w-3.5" />
-              </Button>
+              {showCollapseToggle && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="hidden h-7 w-7 md:inline-flex"
+                  onClick={onToggleCollapsed}
+                  aria-label="Expandir menu lateral"
+                  title="Expandir menu lateral"
+                >
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </Button>
+              )}
             </>
           ) : (
             <>
@@ -91,16 +96,18 @@ export function AppSidebar({
                   </span>
                 )}
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="hidden h-7 w-7 md:inline-flex"
-                onClick={onToggleCollapsed}
-                aria-label="Recolher menu lateral"
-                title="Recolher menu lateral"
-              >
-                <ChevronRight className="h-3.5 w-3.5 rotate-180" />
-              </Button>
+              {showCollapseToggle && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="hidden h-7 w-7 md:inline-flex"
+                  onClick={onToggleCollapsed}
+                  aria-label="Recolher menu lateral"
+                  title="Recolher menu lateral"
+                >
+                  <ChevronRight className="h-3.5 w-3.5 rotate-180" />
+                </Button>
+              )}
             </>
           )}
         </div>

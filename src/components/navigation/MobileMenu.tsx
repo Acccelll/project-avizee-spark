@@ -8,6 +8,8 @@ import { Separator } from '@/components/ui/separator';
 import { quickActions } from '@/lib/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useVisibleNavSections } from '@/hooks/useVisibleNavSections';
+import { useCan } from '@/hooks/useCan';
+import type { Permission } from '@/utils/permissions';
 
 interface MobileMenuProps {
   open: boolean;
@@ -22,6 +24,12 @@ export function MobileMenu({ open, onOpenChange, onOpenSearch }: MobileMenuProps
   const { theme, setTheme } = useTheme();
   const { profile, signOut } = useAuth();
   const visibleSections = useVisibleNavSections();
+  const { can } = useCan();
+
+  const allowedQuickActions = useMemo(
+    () => quickActions.filter((a) => !a.requires || can(a.requires as Permission)),
+    [can],
+  );
 
   const filteredSections = useMemo(
     () => visibleSections.filter((section) => !BOTTOM_TAB_KEYS.has(section.key)),
@@ -70,7 +78,10 @@ export function MobileMenu({ open, onOpenChange, onOpenSearch }: MobileMenuProps
             Atalhos rápidos
           </p>
           <div className="mb-4 space-y-0.5">
-            {quickActions.slice(0, 3).map((action) => (
+            {allowedQuickActions.length === 0 && (
+              <p className="px-3 py-2 text-xs text-muted-foreground">Nenhum atalho disponível para o seu perfil.</p>
+            )}
+            {allowedQuickActions.map((action) => (
               <button
                 key={action.id}
                 type="button"
