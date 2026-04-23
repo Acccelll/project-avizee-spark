@@ -772,6 +772,7 @@ const Produtos = () => {
           onDelete={(p) => remove(p.id)}
           deleteBehavior="soft"
           mobileIdentifierKey="codigo_interno"
+          mobileStatusKey="ativo"
         />
         </PullToRefresh>
       </ModulePage>

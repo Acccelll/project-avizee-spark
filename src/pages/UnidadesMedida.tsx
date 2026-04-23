@@ -283,6 +283,8 @@ export default function UnidadesMedida() {
           }}
           deleteBehavior="soft"
           moduleKey="unidades-medida"
+          mobileIdentifierKey="sigla"
+          mobileStatusKey="ativo"
           emptyTitle="Nenhuma unidade de medida encontrada"
           emptyDescription="Cadastre as unidades utilizadas nos seus produtos."
         />

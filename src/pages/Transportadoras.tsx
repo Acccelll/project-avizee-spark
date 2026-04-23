@@ -450,6 +450,8 @@ export default function Transportadoras() {
             onEdit={openEdit}
             onDelete={(t) => { setSelected(t); setDeleteConfirmOpen(true); }}
             deleteBehavior="soft"
+            mobileIdentifierKey="cpf_cnpj"
+            mobileStatusKey="ativo"
             emptyTitle="Nenhuma transportadora encontrada"
             emptyDescription="Tente ajustar os filtros ou cadastre uma nova transportadora."
           />
