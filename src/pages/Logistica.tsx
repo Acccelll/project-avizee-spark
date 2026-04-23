@@ -619,9 +619,16 @@ export default function Logistica() {
               <SummaryCard title="Atrasadas" value={formatNumber(entregasKpis.atrasadas)} icon={AlertTriangle} variationType={entregasKpis.atrasadas > 0 ? "negative" : "neutral"} variation="fora do prazo" />
               <SummaryCard title="Entregues" value={formatNumber(entregasKpis.entregues)} icon={CheckCheck} variationType="positive" variation="concluídas" />
             </div>
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-              <SummaryCard
-                title="% Entregas no Prazo"
+            {/* Métricas secundárias: visíveis sempre em desktop; collapsible em mobile para reduzir scroll. */}
+            <Collapsible defaultOpen={false} className="mb-6 md:!block">
+              <CollapsibleTrigger className="md:hidden flex items-center justify-between w-full px-3 py-2 rounded-md border bg-card text-xs font-medium text-muted-foreground mb-2 [&[data-state=open]>svg]:rotate-180">
+                <span>Mais métricas (% no prazo, tempo médio, pendentes)</span>
+                <ChevronDown className="h-4 w-4 transition-transform" />
+              </CollapsibleTrigger>
+              <CollapsibleContent forceMount className="data-[state=closed]:hidden md:!block md:data-[state=closed]:!block">
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                <SummaryCard
+                  title="% Entregas no Prazo"
                 value={entregasKpis.percentualNoPrazo !== null ? `${entregasKpis.percentualNoPrazo}%` : "—"}
                 icon={CheckCheck}
                 variationType={
@@ -655,7 +662,9 @@ export default function Logistica() {
                 variationType="neutral"
                 variation="aguardando saída"
               />
-            </div>
+              </div>
+              </CollapsibleContent>
+            </Collapsible>
             <AdvancedFilterBar searchValue={searchTerm} onSearchChange={setSearchTerm} searchPlaceholder="Buscar por pedido, cliente, transportadora ou rastreio..." activeFilters={activeEntregaFilters} onRemoveFilter={handleRemoveEntregaFilter} onClearAll={() => { setStatusFilters([]); setTransportadoraFilters([]); setPrazoFilters([]); setDataInicio(""); setDataFim(""); }} count={filteredEntregas.length}>
               <MultiSelect options={entregaStatusMultiOptions} selected={statusFilters} onChange={setStatusFilters} placeholder="Status" className="w-[180px]" />
               <MultiSelect options={transportadoraOptions} selected={transportadoraFilters} onChange={setTransportadoraFilters} placeholder="Transportadora" className="w-[200px]" />
