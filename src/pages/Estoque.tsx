@@ -381,8 +381,7 @@ const Estoque = () => {
         title="Estoque"
         subtitle="Central de saúde do estoque — saldos, rastreabilidade e ajustes controlados"
         headerActions={
-          // Em mobile, a tab "Ajuste Manual" já é visível abaixo — esconder o atalho do header evita linha dupla.
-          <Button variant="outline" size="sm" className="gap-2 max-sm:hidden" onClick={() => setActiveTab("ajuste")}>
+          <Button variant="outline" size="sm" className="gap-2 max-sm:hidden" onClick={() => setActiveTab("ajuste")} title="Atalho — em mobile use a tab abaixo">
             <SlidersHorizontal className="h-4 w-4" />
             Ajuste Manual
           </Button>
@@ -595,7 +594,6 @@ const Estoque = () => {
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 text-muted-foreground" />
                       </Button>
                     </PopoverTrigger>
-                    {/* Largura responsiva: em mobile herda do trigger; em sm+ usa 480px fixos. */}
                     <PopoverContent
                       className="w-[var(--radix-popover-trigger-width)] sm:w-[480px] p-0"
                       align="start"
