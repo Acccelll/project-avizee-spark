@@ -179,30 +179,67 @@ export default function CotacoesCompra() {
             ) : (
               <div className="space-y-2">
                 {localItems.map((item, idx) => (
-                  <div key={item._localId} className="flex items-center gap-3 rounded-lg border bg-card p-3">
-                    <span className="text-xs text-muted-foreground font-mono w-6">{idx + 1}.</span>
-                    <div className="flex-1 min-w-0">
+                  <div key={item._localId} className="rounded-lg border bg-card p-3">
+                    {/* Mobile: bloco vertical */}
+                    <div className="md:hidden space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] text-muted-foreground font-mono uppercase">Item {idx + 1}</span>
+                        <Button type="button" variant="ghost" size="icon" aria-label="Remover item" className="h-9 w-9 text-destructive" onClick={() => removeLocalItem(item._localId)}>
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
                       <AutocompleteSearch
                         options={produtoOptions}
                         value={item.produto_id}
                         onChange={(id) => updateLocalItem(item._localId, "produto_id", id)}
                         placeholder="Buscar produto..."
                       />
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <Label className="text-xs">Qtd</Label>
+                          <Input
+                            type="number" step="0.01" min="0.01"
+                            value={item.quantidade}
+                            onChange={(e) => updateLocalItem(item._localId, "quantidade", Number(e.target.value))}
+                            className="h-11 font-mono"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Unidade</Label>
+                          <Input
+                            value={item.unidade}
+                            onChange={(e) => updateLocalItem(item._localId, "unidade", e.target.value)}
+                            className="h-11 text-center" placeholder="UN"
+                          />
+                        </div>
+                      </div>
                     </div>
-                    <Input
-                      type="number" step="0.01" min="0.01"
-                      value={item.quantidade}
-                      onChange={(e) => updateLocalItem(item._localId, "quantidade", Number(e.target.value))}
-                      className="w-24 font-mono" placeholder="Qtd"
-                    />
-                    <Input
-                      value={item.unidade}
-                      onChange={(e) => updateLocalItem(item._localId, "unidade", e.target.value)}
-                      className="w-16 text-center" placeholder="UN"
-                    />
-                    <Button type="button" variant="ghost" size="icon" aria-label="Remover item" className="h-8 w-8 text-destructive" onClick={() => removeLocalItem(item._localId)}>
-                      <X className="h-4 w-4" />
-                    </Button>
+                    {/* Desktop: linha horizontal */}
+                    <div className="hidden md:flex items-center gap-3">
+                      <span className="text-xs text-muted-foreground font-mono w-6">{idx + 1}.</span>
+                      <div className="flex-1 min-w-0">
+                      <AutocompleteSearch
+                        options={produtoOptions}
+                        value={item.produto_id}
+                        onChange={(id) => updateLocalItem(item._localId, "produto_id", id)}
+                        placeholder="Buscar produto..."
+                      />
+                      </div>
+                      <Input
+                        type="number" step="0.01" min="0.01"
+                        value={item.quantidade}
+                        onChange={(e) => updateLocalItem(item._localId, "quantidade", Number(e.target.value))}
+                        className="w-24 font-mono" placeholder="Qtd"
+                      />
+                      <Input
+                        value={item.unidade}
+                        onChange={(e) => updateLocalItem(item._localId, "unidade", e.target.value)}
+                        className="w-16 text-center" placeholder="UN"
+                      />
+                      <Button type="button" variant="ghost" size="icon" aria-label="Remover item" className="h-8 w-8 text-destructive" onClick={() => removeLocalItem(item._localId)}>
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </div>
