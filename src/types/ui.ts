@@ -89,8 +89,6 @@ export const STATUS_VARIANT_MAP: Record<string, StatusVariant> = {
   // warning (extras)
   proximo_vencimento: "warning",
   recebido_parcial:   "warning",
-  em_separacao:       "warning",
-  aguardando_aprovacao: "warning",
 
   // destructive (extras)
   atrasado:           "destructive",
