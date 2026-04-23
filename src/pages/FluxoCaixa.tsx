@@ -79,6 +79,8 @@ const getEffectiveStatus = (l: Lancamento, hoje: Date): string =>
 
 const FluxoCaixa = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const isMobile = useIsMobile();
+  const [painelExpanded, setPainelExpanded] = useState<string | null>(null);
 
   const defaultDataInicio = () => { const d = new Date(); d.setDate(1); return d.toISOString().split("T")[0]; };
   const defaultDataFim = () => { const d = new Date(); d.setMonth(d.getMonth() + 1, 0); return d.toISOString().split("T")[0]; };
