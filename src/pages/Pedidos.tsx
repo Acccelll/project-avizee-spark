@@ -438,6 +438,20 @@ const Pedidos = () => {
           moduleKey="pedidos"
           showColumnToggle={true}
           onView={handleView}
+          mobilePrimaryAction={(p) => {
+            if (!canFaturarPedido(p)) return null;
+            return (
+              <Button
+                size="lg"
+                variant="default"
+                className="h-11 w-full gap-2 text-sm"
+                disabled={stockCheckPending || generatingNfId === p.id}
+                onClick={(e) => { e.stopPropagation(); handleRequestGenerateNF(p); }}
+              >
+                <FileOutput className="w-4 h-4" /> Gerar NF
+              </Button>
+            );
+          }}
           emptyTitle="Nenhum pedido encontrado"
           emptyDescription="Converta um orçamento aprovado em pedido ou ajuste os filtros aplicados."
         />

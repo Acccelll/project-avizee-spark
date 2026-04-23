@@ -537,6 +537,54 @@ const Orcamentos = () => {
             showColumnToggle={true}
             onView={(o) => pushView("orcamento", o.id)}
             onEdit={(o) => navigate(`/orcamentos/${o.id}`)}
+            mobilePrimaryAction={(o) => {
+              if (canConvertOrcamento(o.status)) {
+                return (
+                  <Button
+                    size="lg"
+                    variant="default"
+                    className="h-11 w-full gap-2 text-sm"
+                    disabled={convertLock.pending}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setPoNumberCliente("");
+                      setDataPoCliente("");
+                      setConvertingId(o.id);
+                    }}
+                  >
+                    <ArrowRightCircle className="w-4 h-4" /> Gerar Pedido
+                  </Button>
+                );
+              }
+              if (canApproveOrcamento(o.status)) {
+                return (
+                  <Button
+                    size="lg"
+                    variant="default"
+                    className="h-11 w-full gap-2 text-sm"
+                    disabled={!isAdmin || approveLock.pending}
+                    title={!isAdmin ? "Somente admins podem aprovar" : ""}
+                    onClick={(e) => { e.stopPropagation(); handleApprove(o); }}
+                  >
+                    <CheckCircle className="w-4 h-4" /> Aprovar
+                  </Button>
+                );
+              }
+              if (canSendOrcamento(o.status)) {
+                return (
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="h-11 w-full gap-2 text-sm"
+                    disabled={sendLock.pending}
+                    onClick={(e) => { e.stopPropagation(); handleSendForApproval(o); }}
+                  >
+                    <Send className="w-4 h-4" /> Enviar para aprovação
+                  </Button>
+                );
+              }
+              return null;
+            }}
             emptyTitle="Nenhum orçamento encontrado"
             emptyDescription="Crie um novo orçamento ou ajuste os filtros aplicados."
           />

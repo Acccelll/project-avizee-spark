@@ -138,6 +138,12 @@ interface DataTableProps<T> {
    * Recebe o item e retorna ReactNode (idealmente <ContactInlineActions />).
    */
   mobileInlineActions?: (item: T) => React.ReactNode;
+  /**
+   * Ação primária mobile — botão grande full-width renderizado no rodapé do card,
+   * acima dos `mobileInlineActions`. Use para a próxima ação esperada do fluxo
+   * (Aprovar / Gerar Pedido / Faturar / Enviar). Retorne `null` para ocultar.
+   */
+  mobilePrimaryAction?: (item: T) => React.ReactNode;
 }
 
 type SortDirection = 'asc' | 'desc' | null;
@@ -177,6 +183,7 @@ export function DataTable<T extends Record<string, any>>({
   exportPermission = 'relatorios:exportar',
   mobileIdentifierKey,
   mobileInlineActions,
+  mobilePrimaryAction,
 }: DataTableProps<T>) {
   const isMobile = useIsMobile();
   const [deleteItem, setDeleteItem] = useState<T | null>(null);
@@ -462,6 +469,7 @@ export function DataTable<T extends Record<string, any>>({
         fields={fields}
         onItemClick={onRowClick ?? onView ?? onEdit}
         actionsInline={mobileInlineActions}
+        primaryAction={mobilePrimaryAction}
         actions={(item) => (
           <div className="flex items-center gap-1">
             {selectable && (

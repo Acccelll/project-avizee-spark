@@ -18,6 +18,13 @@ interface MobileCardListProps<T extends { id?: string }> {
   actions?: (item: T) => ReactNode;
   /** Ícones de ação rápida (até 3) renderizados no rodapé do card (📞 Wpp ✉ 👁). Cada um é um botão 36px touch-friendly. */
   actionsInline?: (item: T) => ReactNode;
+  /**
+   * Ação primária mobile — botão grande full-width renderizado no rodapé do card,
+   * acima dos `actionsInline`. Use para a próxima ação esperada do fluxo
+   * (Aprovar / Gerar Pedido / Faturar / Enviar). Retorne `null` para ocultar
+   * em itens sem ação aplicável.
+   */
+  primaryAction?: (item: T) => ReactNode;
   /** Long-press abre bottom-sheet de ações destrutivas. */
   onLongPress?: (item: T) => void;
   /** Virtualiza lista quando items > 100 (default true). Desligue para listas curtas em containers sem altura definida. */
@@ -36,6 +43,7 @@ export function MobileCardList<T extends { id?: string }>({
   onItemClick,
   actions,
   actionsInline,
+  primaryAction,
   onLongPress,
   virtualize = true,
   className,
@@ -124,9 +132,24 @@ export function MobileCardList<T extends { id?: string }>({
             )}
           </div>
           {/* Ações rápidas inline (📞 Wpp ✉ etc) — rodapé tap-friendly */}
+          {primaryAction && (() => {
+            const node = primaryAction(item);
+            if (!node) return null;
+            return (
+              <div
+                className="mt-2 border-t border-border/40 pt-2"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {node}
+              </div>
+            );
+          })()}
           {actionsInline && (
             <div
-              className="mt-2 flex items-center gap-1.5 border-t border-border/40 pt-2"
+              className={cn(
+                "flex items-center gap-1.5 pt-2",
+                primaryAction ? "mt-1" : "mt-2 border-t border-border/40",
+              )}
               onClick={(e) => e.stopPropagation()}
             >
               {actionsInline(item)}
