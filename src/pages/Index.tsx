@@ -368,29 +368,33 @@ const DashboardContent = () => {
 
   return (
     <>
-      <DashboardHeader
-        lastUpdated={loadedAt}
-        onRefresh={loadData}
-        rightSlot={
-          <DashboardCustomizeMenu
-            prefs={prefs}
-            onToggle={toggleVisibility}
-            onMove={moveWidget}
-            onReset={resetLayout}
-          />
-        }
-      />
+      {isMobile ? (
+        <MobileDashboardHeader lastUpdated={loadedAt} onRefresh={loadData} />
+      ) : (
+        <DashboardHeader
+          lastUpdated={loadedAt}
+          onRefresh={loadData}
+          rightSlot={
+            <DashboardCustomizeMenu
+              prefs={prefs}
+              onToggle={toggleVisibility}
+              onMove={moveWidget}
+              onReset={resetLayout}
+            />
+          }
+        />
+      )}
 
-      <div className="mb-4 rounded-lg border border-border/60 bg-muted/10 px-4 py-3">
+      <div className="mb-3 rounded-lg border border-border/60 bg-muted/10 px-4 py-2.5 md:mb-4 md:py-3">
         <p className="text-sm font-medium text-foreground">
           {greeting}, {profile?.nome?.split(" ")[0] || "time"}.
         </p>
-        <p className="text-xs text-muted-foreground mt-0.5">
+        <p className="text-xs text-muted-foreground mt-0.5 leading-snug">
           {(vencimentosHoje.receber > 0 || vencimentosHoje.pagar > 0) ? (
             <button
               type="button"
               onClick={() => navigate(`/financeiro?venc=hoje`)}
-              className="hover:text-primary hover:underline transition-colors"
+              className="hover:text-primary hover:underline active:text-primary transition-colors text-left"
             >
               {formatVencimentosHoje(vencimentosHoje.receber, vencimentosHoje.pagar)}
             </button>
@@ -403,7 +407,7 @@ const DashboardContent = () => {
               <button
                 type="button"
                 onClick={() => navigate(buildDrilldownUrl({ kind: "pedidos:aguardando-faturamento" }))}
-                className="hover:text-primary hover:underline transition-colors"
+                className="hover:text-primary hover:underline active:text-primary transition-colors text-left"
               >
                 {backlogOVsCount} pedido{backlogOVsCount > 1 ? "s" : ""} aguardando faturamento.
               </button>
@@ -432,6 +436,8 @@ const DashboardContent = () => {
         payload={openMetric}
         onClose={() => setMetricDrawer(null)}
       />
+
+      <BackToTopButton />
     </>
   );
 };
