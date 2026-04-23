@@ -17,6 +17,8 @@ export function SocialContasTab({ contas, canManageAccounts, canSync, onSync, on
   return (
     <DataTable
       data={contas}
+      mobileStatusKey="status_conexao"
+      mobileIdentifierKey="nome_conta"
       columns={[
         { key: 'plataforma', label: 'Plataforma', render: (item: SocialConta) => socialPlatformLabel(item.plataforma) },
         { key: 'nome_conta', label: 'Conta' },
