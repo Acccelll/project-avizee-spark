@@ -1,9 +1,10 @@
 import { useEffect } from 'react';
-import { ArrowUpRight, Building2, Lock, Palette, User } from 'lucide-react';
+import { ArrowUpRight, Building2, Info, Lock, Palette, User } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ModulePage } from '@/components/ModulePage';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
@@ -24,14 +25,15 @@ import { EmpresaInfoSection } from './configuracoes/sections/EmpresaInfoSection'
 interface TabNavItem {
   key: string;
   label: string;
+  shortLabel: string;
   icon: typeof User;
 }
 
 const tabNavItems: TabNavItem[] = [
-  { key: 'perfil', label: 'Meu Perfil', icon: User },
-  { key: 'aparencia', label: 'Aparência', icon: Palette },
-  { key: 'seguranca', label: 'Segurança', icon: Lock },
-  { key: 'empresa', label: 'Empresa', icon: Building2 },
+  { key: 'perfil', label: 'Meu Perfil', shortLabel: 'Perfil', icon: User },
+  { key: 'aparencia', label: 'Aparência', shortLabel: 'Aparência', icon: Palette },
+  { key: 'seguranca', label: 'Segurança', shortLabel: 'Segurança', icon: Lock },
+  { key: 'empresa', label: 'Empresa', shortLabel: 'Empresa', icon: Building2 },
 ];
 
 const TAB_TITLES: Record<string, string> = {
@@ -84,7 +86,30 @@ export default function Configuracoes() {
 
   return (
     <ModulePage title="Configurações" subtitle="Preferências pessoais da sua conta.">
-      <Card className="mb-6 border-dashed bg-muted/30">
+      {/* Mobile: linha compacta com badge + popover. Desktop: card explicativo completo. */}
+      <div className="mb-4 flex items-center justify-between gap-2 md:hidden">
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className="gap-1.5 h-9">
+              <Info className="h-3.5 w-3.5" />
+              Escopo pessoal
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent side="bottom" align="start" className="w-[280px] text-xs">
+            Esta página altera apenas dados do seu usuário (perfil, aparência e segurança). Configurações globais da empresa ficam na Administração.
+          </PopoverContent>
+        </Popover>
+        {isAdmin && (
+          <Button asChild variant="ghost" size="sm" className="gap-1 h-9 text-xs">
+            <Link to="/administracao?tab=empresa">
+              <Building2 className="h-3.5 w-3.5" />
+              Globais
+              <ArrowUpRight className="h-3 w-3" />
+            </Link>
+          </Button>
+        )}
+      </div>
+      <Card className="mb-6 border-dashed bg-muted/30 hidden md:block">
         <CardContent className="pt-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="space-y-1.5">
@@ -108,7 +133,8 @@ export default function Configuracoes() {
         </CardContent>
       </Card>
 
-      <div role="tablist" aria-label="Seções de Configurações" className="flex gap-0 border-b overflow-x-auto mb-6 -mt-1">
+      <div className="relative mb-6 -mt-1">
+        <div role="tablist" aria-label="Seções de Configurações" className="flex gap-0 border-b overflow-x-auto scrollbar-thin">
         {tabNavItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeSection === item.key;
@@ -117,19 +143,24 @@ export default function Configuracoes() {
               key={item.key}
               role="tab"
               aria-selected={isActive}
+              tabIndex={isActive ? 0 : -1}
               onClick={() => setActiveSection(item.key)}
               className={cn(
-                'flex shrink-0 items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px',
+                'flex shrink-0 items-center gap-2 px-3 sm:px-4 py-3 text-sm font-medium transition-colors border-b-2 -mb-px min-h-11',
                 isActive
                   ? 'border-primary text-primary'
                   : 'border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground/30'
               )}
             >
               <Icon className="h-4 w-4 shrink-0" />
-              {item.label}
+              <span className="sm:hidden">{item.shortLabel}</span>
+              <span className="hidden sm:inline">{item.label}</span>
             </button>
           );
         })}
+        </div>
+        {/* Indicador visual de overflow horizontal — gradiente à direita em mobile */}
+        <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background to-transparent sm:hidden" aria-hidden="true" />
       </div>
 
       <div>{renderContent()}</div>

@@ -6,13 +6,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { useAuth } from '@/contexts/AuthContext';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { useProfileForm } from '../hooks/useProfileForm';
 import { ROLE_LABELS } from '../utils/passwordPolicy';
 
 export function MeuPerfilSection() {
   const { user, roles } = useAuth();
   const { nome, setNome, cargo, setCargo, saving, savedAt, dirty, save, validationError } = useProfileForm();
+  const isMobile = useIsMobile();
 
   const initials = nome.trim()
     ? nome.trim().split(/\s+/).filter(Boolean).map((w) => w[0]).slice(0, 2).join('').toUpperCase()
@@ -108,7 +111,7 @@ export function MeuPerfilSection() {
               <p className="text-xs text-muted-foreground">Exibido no sistema em contextos internos, quando aplicável.</p>
             </div>
           </div>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="hidden md:flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-xs text-muted-foreground">
               {savedAt
                 ? `Último salvamento: ${savedAt.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}`
@@ -119,10 +122,62 @@ export function MeuPerfilSection() {
               {dirty ? 'Salvar perfil' : 'Perfil atualizado'}
             </Button>
           </div>
+          {/* Mobile: status compacto inline; o botão real fica em sticky bar abaixo */}
+          <p className="md:hidden text-xs text-muted-foreground">
+            {savedAt
+              ? `Último: ${savedAt.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}`
+              : 'Sem alterações salvas.'}
+          </p>
         </CardContent>
       </Card>
 
-      <Card>
+      {/* Mobile: corporativos colapsado por padrão */}
+      <div className="md:hidden">
+        <Accordion type="single" collapsible>
+          <AccordionItem value="corporativos" className="border rounded-lg px-4">
+            <AccordionTrigger className="min-h-11 text-sm">
+              <span className="flex items-center gap-2">
+                <Shield className="h-4 w-4 text-muted-foreground" />
+                Dados corporativos e de acesso
+              </span>
+            </AccordionTrigger>
+            <AccordionContent>
+              <div className="space-y-4 pt-2">
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-1.5">
+                    <Mail className="h-3.5 w-3.5" />
+                    E-mail de acesso
+                  </Label>
+                  <div className="relative">
+                    <Input value={user?.email || ''} disabled className="bg-muted pr-9" />
+                    <Lock className="absolute right-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                  </div>
+                </div>
+                {roles.length > 0 && (
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-1.5">
+                      <Shield className="h-3.5 w-3.5" />
+                      Perfil de acesso
+                    </Label>
+                    <div className="flex flex-wrap gap-2">
+                      {roles.map((role) => (
+                        <Badge key={role} variant="secondary">
+                          {ROLE_LABELS[role] ?? role}
+                        </Badge>
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Gerenciado pelo administrador.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+      </div>
+
+      <Card className="hidden md:block">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Shield className="h-4 w-4 text-muted-foreground" />
@@ -166,6 +221,19 @@ export function MeuPerfilSection() {
           )}
         </CardContent>
       </Card>
+
+      {/* Sticky save bar mobile — aparece quando dirty */}
+      {isMobile && dirty && (
+        <>
+          <div className="h-20" aria-hidden="true" />
+          <div className="fixed bottom-0 left-0 right-0 z-30 border-t bg-background px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] shadow-[0_-4px_8px_-4px_rgba(0,0,0,0.08)]">
+            <Button onClick={save} disabled={saving} className="w-full min-h-11 gap-2">
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              Salvar perfil
+            </Button>
+          </div>
+        </>
+      )}
     </div>
   );
 }

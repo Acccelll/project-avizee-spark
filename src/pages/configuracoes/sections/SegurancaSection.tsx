@@ -11,7 +11,9 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { useAuth } from '@/contexts/AuthContext';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import { useChangePassword } from '../hooks/useChangePassword';
 import { getPasswordCriteria, getPasswordStrength } from '../utils/passwordPolicy';
@@ -19,6 +21,7 @@ import { getPasswordCriteria, getPasswordStrength } from '../utils/passwordPolic
 export function SegurancaSection() {
   const { user } = useAuth();
   const cp = useChangePassword();
+  const isMobile = useIsMobile();
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -107,7 +110,7 @@ export function SegurancaSection() {
             Para sua segurança, nunca exibimos nem armazenamos a senha atual neste formulário.
           </div>
 
-          <div className="space-y-2 max-w-sm">
+          <div className="space-y-2 w-full md:max-w-sm">
             <Label htmlFor="current-password">Senha atual</Label>
             <div className="relative">
               <Input
@@ -120,12 +123,12 @@ export function SegurancaSection() {
                 }}
                 placeholder="Sua senha atual"
                 autoComplete="current-password"
-                className={cn('pr-10', cp.errors.current ? 'border-destructive focus-visible:ring-destructive' : '')}
+                className={cn('pr-12 min-h-11', cp.errors.current ? 'border-destructive focus-visible:ring-destructive' : '')}
               />
               <button
                 type="button"
                 onClick={() => setShowCurrent((v) => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                className="absolute right-0 top-1/2 -translate-y-1/2 inline-flex items-center justify-center min-h-11 min-w-11 text-muted-foreground hover:text-foreground transition-colors"
                 aria-label={showCurrent ? 'Ocultar senha' : 'Mostrar senha'}
               >
                 {showCurrent ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -141,7 +144,7 @@ export function SegurancaSection() {
 
           <Separator />
 
-          <div className="space-y-2 max-w-sm">
+          <div className="space-y-2 w-full md:max-w-sm">
             <Label htmlFor="new-password">Nova senha</Label>
             <div className="relative">
               <Input
@@ -154,12 +157,12 @@ export function SegurancaSection() {
                 }}
                 placeholder="Mínimo 8 caracteres"
                 autoComplete="new-password"
-                className={cn('pr-10', cp.errors.new ? 'border-destructive focus-visible:ring-destructive' : '')}
+                className={cn('pr-12 min-h-11', cp.errors.new ? 'border-destructive focus-visible:ring-destructive' : '')}
               />
               <button
                 type="button"
                 onClick={() => setShowNew((v) => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                className="absolute right-0 top-1/2 -translate-y-1/2 inline-flex items-center justify-center min-h-11 min-w-11 text-muted-foreground hover:text-foreground transition-colors"
                 aria-label={showNew ? 'Ocultar senha' : 'Mostrar senha'}
               >
                 {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -200,7 +203,7 @@ export function SegurancaSection() {
             )}
           </div>
 
-          <div className="space-y-2 max-w-sm">
+          <div className="space-y-2 w-full md:max-w-sm">
             <Label htmlFor="confirm-password">Confirmar nova senha</Label>
             <div className="relative">
               <Input
@@ -213,12 +216,12 @@ export function SegurancaSection() {
                 }}
                 placeholder="Repita a nova senha"
                 autoComplete="new-password"
-                className={cn('pr-10', cp.errors.confirm ? 'border-destructive focus-visible:ring-destructive' : '')}
+                className={cn('pr-12 min-h-11', cp.errors.confirm ? 'border-destructive focus-visible:ring-destructive' : '')}
               />
               <button
                 type="button"
                 onClick={() => setShowConfirm((v) => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                className="absolute right-0 top-1/2 -translate-y-1/2 inline-flex items-center justify-center min-h-11 min-w-11 text-muted-foreground hover:text-foreground transition-colors"
                 aria-label={showConfirm ? 'Ocultar senha' : 'Mostrar senha'}
               >
                 {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -233,10 +236,10 @@ export function SegurancaSection() {
           </div>
 
           {(cp.newPassword || cp.confirmPassword) && (
-            <div className="rounded-lg border bg-muted/30 p-4 space-y-2 max-w-sm">
+            <div className="rounded-lg border bg-muted/30 p-3 md:p-4 space-y-1.5 w-full md:max-w-sm">
               <p className="text-xs font-medium text-foreground mb-1">Critérios da senha</p>
               {pwdCriteria.map(({ key, label, met }) => (
-                <div key={key} className={cn('flex items-center gap-2 text-xs', met ? 'text-success' : 'text-muted-foreground')}>
+                <div key={key} className={cn('flex items-center gap-2 text-[13px] md:text-xs', met ? 'text-success' : 'text-muted-foreground')}>
                   <Check className={cn('h-3.5 w-3.5 shrink-0', met ? 'opacity-100' : 'opacity-30')} />
                   {label}
                 </div>
@@ -244,7 +247,7 @@ export function SegurancaSection() {
             </div>
           )}
 
-          <div className="flex flex-col gap-2">
+          <div className="hidden md:flex flex-col gap-2">
             <div className="flex items-center gap-3">
               <Button onClick={cp.change} disabled={cp.changing || !canSubmit} className="gap-2">
                 {cp.changing ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
@@ -263,10 +266,31 @@ export function SegurancaSection() {
               </p>
             )}
           </div>
+
+          {/* Mobile: spacer para o sticky bar não cobrir conteúdo */}
+          {isMobile && cp.currentPassword && <div className="h-20" aria-hidden="true" />}
         </CardContent>
       </Card>
 
-      <div className="flex items-start gap-3 rounded-lg border border-dashed bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+      {/* Mobile: collapsible. Desktop: sempre visível. */}
+      <div className="md:hidden">
+        <Accordion type="single" collapsible>
+          <AccordionItem value="boas-praticas">
+            <AccordionTrigger className="min-h-11 text-sm">
+              <span className="flex items-center gap-2"><Info className="h-4 w-4" /> Boas práticas de segurança</span>
+            </AccordionTrigger>
+            <AccordionContent>
+              <ul className="space-y-1 text-xs text-muted-foreground">
+                <li>• Use uma senha única, diferente das usadas em outros serviços.</li>
+                <li>• Evite senhas óbvias como datas de nascimento ou sequências simples.</li>
+                <li>• Não compartilhe sua senha com outras pessoas.</li>
+                <li>• Em caso de suspeita de acesso não autorizado, altere a senha imediatamente.</li>
+              </ul>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+      </div>
+      <div className="hidden md:flex items-start gap-3 rounded-lg border border-dashed bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
         <Info className="mt-0.5 h-4 w-4 shrink-0" />
         <div className="space-y-1">
           <p className="font-medium text-foreground">Boas práticas de segurança</p>
@@ -278,6 +302,25 @@ export function SegurancaSection() {
           </ul>
         </div>
       </div>
+
+      {/* Sticky save bar mobile — aparece quando há senha atual digitada */}
+      {isMobile && cp.currentPassword && (
+        <div className="fixed bottom-0 left-0 right-0 z-30 border-t bg-background px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] shadow-[0_-4px_8px_-4px_rgba(0,0,0,0.08)]">
+          <Button
+            onClick={cp.change}
+            disabled={cp.changing || !canSubmit}
+            className="w-full min-h-11 gap-2"
+          >
+            {cp.changing ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+            {cp.changing ? 'Alterando...' : 'Alterar senha'}
+          </Button>
+          {!canSubmit && (
+            <p className="text-[11px] text-muted-foreground text-center mt-1.5">
+              {!cp.currentPassword ? 'Informe a senha atual.' : 'Atenda aos critérios acima.'}
+            </p>
+          )}
+        </div>
+      )}
 
       <AlertDialog open={cp.showSignOutOthers} onOpenChange={cp.setShowSignOutOthers}>
         <AlertDialogContent>
