@@ -13,7 +13,7 @@
  */
 
 import { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, Info, Loader2 } from 'lucide-react';
+import { AlertTriangle, ChevronLeft, ChevronRight, Info, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,6 +32,7 @@ import { FormModal } from '@/components/FormModal';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { TempPasswordDialog } from '@/components/usuarios/TempPasswordDialog';
 import { useAuth } from '@/contexts/AuthContext';
+import { useIsMobile } from '@/hooks/use-mobile';
 import {
   PERMISSION_HELP_TEXT,
   ROLE_LABELS,
@@ -64,9 +65,11 @@ export function UserFormModal({
   isLastAdmin,
 }: UserFormModalProps) {
   const { user: currentUser } = useAuth();
+  const isMobile = useIsMobile();
   const isEdit = Boolean(user);
   const [form, setForm] = useState<UserFormData>(emptyForm());
   const [saving, setSaving] = useState(false);
+  const [mobileStep, setMobileStep] = useState(0);
   const [confirmRoleChange, setConfirmRoleChange] = useState<AppRole | null>(null);
   const [roleChangeMotivo, setRoleChangeMotivo] = useState('');
   const [tempCredentials, setTempCredentials] = useState<{
@@ -83,6 +86,7 @@ export function UserFormModal({
 
   useEffect(() => {
     if (!open) return;
+    setMobileStep(0);
     if (user) {
       setForm({
         nome: user.nome,
@@ -211,24 +215,98 @@ export function UserFormModal({
 
   const title = isEdit ? `Editar usuário — ${user?.nome}` : 'Novo usuário';
 
-  const footerActions = (
+  // Stepper mobile: 4 passos (Auditoria só aparece em edit; em create vira 3 passos).
+  const totalSteps = isEdit ? 4 : 3;
+  const stepLabels = isEdit
+    ? ['Dados', 'Status', 'Acesso', 'Auditoria']
+    : ['Dados', 'Status', 'Acesso'];
+  const isLastStep = mobileStep === totalSteps - 1;
+  const isFirstStep = mobileStep === 0;
+
+  const footerActions = isMobile ? (
+    <div className="flex w-full items-center gap-2">
+      <Button
+        variant="outline"
+        onClick={isFirstStep ? onClose : () => setMobileStep((s) => s - 1)}
+        disabled={saving}
+        className="flex-1 min-h-11 gap-1"
+      >
+        {isFirstStep ? (
+          'Cancelar'
+        ) : (
+          <>
+            <ChevronLeft className="h-4 w-4" />
+            Voltar
+          </>
+        )}
+      </Button>
+      {isLastStep ? (
+        <Button
+          onClick={handleSave}
+          disabled={saving}
+          className="flex-1 min-h-11 gap-2"
+        >
+          {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+          {isEdit ? 'Salvar' : 'Criar'}
+        </Button>
+      ) : (
+        <Button
+          onClick={() => setMobileStep((s) => s + 1)}
+          disabled={saving}
+          className="flex-1 min-h-11 gap-1"
+        >
+          Próximo
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      )}
+    </div>
+  ) : (
     <div className="flex justify-end gap-2">
-      <Button variant="outline" onClick={onClose} disabled={saving} className="max-sm:flex-1 max-sm:min-h-11">
+      <Button variant="outline" onClick={onClose} disabled={saving}>
         Cancelar
       </Button>
-      <Button onClick={handleSave} disabled={saving} className="gap-2 max-sm:flex-1 max-sm:min-h-11">
+      <Button onClick={handleSave} disabled={saving} className="gap-2">
         {saving && <Loader2 className="h-4 w-4 animate-spin" />}
         {isEdit ? 'Salvar alterações' : 'Criar usuário'}
       </Button>
     </div>
   );
 
+  // Helper: define se o bloco é visível (sempre em desktop; só o passo ativo em mobile).
+  const blockVisible = (step: number) => !isMobile || mobileStep === step;
+
   return (
     <>
       <FormModal open={open} onClose={onClose} title={title} size="lg" footer={footerActions}>
         <div className="space-y-6 pt-2">
+          {/* Stepper progress (mobile only) */}
+          {isMobile && (
+            <div className="flex items-center gap-2 sticky top-0 z-10 -mx-1 px-1 py-2 bg-background/95 backdrop-blur border-b">
+              <span className="text-[11px] font-medium text-muted-foreground tabular-nums">
+                Passo {mobileStep + 1} de {totalSteps}
+              </span>
+              <span className="text-sm font-semibold truncate">
+                · {stepLabels[mobileStep]}
+              </span>
+              <div className="ml-auto flex gap-1" aria-hidden>
+                {Array.from({ length: totalSteps }).map((_, i) => (
+                  <span
+                    key={i}
+                    className={`h-1.5 w-6 rounded-full transition-colors ${
+                      i === mobileStep
+                        ? 'bg-primary'
+                        : i < mobileStep
+                          ? 'bg-primary/40'
+                          : 'bg-muted'
+                    }`}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Bloco 1 — Dados básicos */}
-          <div className="space-y-4">
+          <div className={`space-y-4 ${blockVisible(0) ? '' : 'hidden'}`}>
             <div className="flex items-center gap-2 text-sm font-semibold">
               <span className="flex h-5 w-5 items-center justify-center rounded bg-primary/10 text-primary text-[11px] font-bold">
                 1
@@ -275,10 +353,10 @@ export function UserFormModal({
             </div>
           </div>
 
-          <Separator />
+          <Separator className={isMobile ? 'hidden' : ''} />
 
           {/* Bloco 2 — Segurança e status */}
-          <div className="space-y-4">
+          <div className={`space-y-4 ${blockVisible(1) ? '' : 'hidden'}`}>
             <div className="flex items-center gap-2 text-sm font-semibold">
               <span className="flex h-5 w-5 items-center justify-center rounded bg-primary/10 text-primary text-[11px] font-bold">
                 2
@@ -306,10 +384,10 @@ export function UserFormModal({
             )}
           </div>
 
-          <Separator />
+          <Separator className={isMobile ? 'hidden' : ''} />
 
           {/* Bloco 3 — Acesso */}
-          <div className="space-y-4">
+          <div className={`space-y-4 ${blockVisible(2) ? '' : 'hidden'}`}>
             <div className="flex items-center gap-2 text-sm font-semibold">
               <span className="flex h-5 w-5 items-center justify-center rounded bg-primary/10 text-primary text-[11px] font-bold">
                 3
@@ -356,8 +434,8 @@ export function UserFormModal({
           {/* Bloco 4 — Auditoria (edit only) */}
           {isEdit && user && (
             <>
-              <Separator />
-              <div className="space-y-4">
+              <Separator className={isMobile ? 'hidden' : ''} />
+              <div className={`space-y-4 ${blockVisible(3) ? '' : 'hidden'}`}>
                 <div className="flex items-center gap-2 text-sm font-semibold">
                   <span className="flex h-5 w-5 items-center justify-center rounded bg-primary/10 text-primary text-[11px] font-bold">
                     4

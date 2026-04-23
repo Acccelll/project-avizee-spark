@@ -138,7 +138,7 @@ export function IntegracoesSection() {
             <div className="space-y-1.5 md:col-span-2">
               <Label>Certificado digital (Base64)</Label>
               <div className="space-y-2 rounded-md border bg-muted/20 p-3">
-                <div className="flex items-center justify-between gap-3">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <p className="text-xs text-muted-foreground">
                     Campo sensível. O conteúdo fica oculto por padrão para reduzir exposição acidental.
                   </p>
@@ -147,19 +147,20 @@ export function IntegracoesSection() {
                     size="sm"
                     variant="outline"
                     onClick={() => setShowCert((prev) => !prev)}
+                    className="max-sm:min-h-11 max-sm:w-full"
                   >
                     {showCert ? "Ocultar conteúdo" : "Mostrar conteúdo"}
                   </Button>
                 </div>
                 {showCert ? (
                   <Textarea
-                    rows={4}
+                    rows={3}
                     placeholder="Cole aqui o conteúdo Base64 (sem cabeçalhos PEM)."
                     value={draft.sefazCertificadoBase64}
                     onChange={(e) =>
                       update("sefazCertificadoBase64", e.target.value.trim())
                     }
-                    className="font-mono text-xs"
+                    className="font-mono text-xs max-sm:text-[11px] max-sm:leading-snug"
                   />
                 ) : (
                   <Input
@@ -169,7 +170,7 @@ export function IntegracoesSection() {
                     onChange={(e) =>
                       update("sefazCertificadoBase64", e.target.value.trim())
                     }
-                    className="font-mono text-xs"
+                    className="font-mono text-xs max-sm:h-11"
                   />
                 )}
               </div>
