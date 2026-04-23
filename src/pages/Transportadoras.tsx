@@ -502,7 +502,7 @@ export default function Transportadoras() {
 
             {/* ── TAB: DADOS GERAIS ─────────────────────────── */}
             <TabsContent value="dados-gerais" className="space-y-4 mt-0">
-          <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6">
             <div className="col-span-2 space-y-2">
               <Label>CNPJ</Label>
               <div className="flex gap-1">
@@ -565,7 +565,7 @@ export default function Transportadoras() {
             </div>
             <div>
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">Canais de comunicação</p>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label>Telefone</Label>
                   <MaskedInput mask="telefone" value={form.telefone} onChange={(v) => setForm({ ...form, telefone: v })} />
@@ -613,7 +613,7 @@ export default function Transportadoras() {
             {/* ── TAB: ENDEREÇO ─────────────────────────────── */}
             <TabsContent value="endereco" className="space-y-4 mt-0">
           <p className="text-xs text-muted-foreground mb-4">Informe o CEP para preenchimento automático do logradouro, bairro, cidade e UF.</p>
-          <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6">
             <div className="col-span-2 space-y-2">
               <Label>CEP</Label>
               <div className="flex gap-1">
