@@ -279,8 +279,34 @@ export function UserFormModal({
     <>
       <FormModal open={open} onClose={onClose} title={title} size="lg" footer={footerActions}>
         <div className="space-y-6 pt-2">
+          {/* Stepper progress (mobile only) */}
+          {isMobile && (
+            <div className="flex items-center gap-2 sticky top-0 z-10 -mx-1 px-1 py-2 bg-background/95 backdrop-blur border-b">
+              <span className="text-[11px] font-medium text-muted-foreground tabular-nums">
+                Passo {mobileStep + 1} de {totalSteps}
+              </span>
+              <span className="text-sm font-semibold truncate">
+                · {stepLabels[mobileStep]}
+              </span>
+              <div className="ml-auto flex gap-1" aria-hidden>
+                {Array.from({ length: totalSteps }).map((_, i) => (
+                  <span
+                    key={i}
+                    className={`h-1.5 w-6 rounded-full transition-colors ${
+                      i === mobileStep
+                        ? 'bg-primary'
+                        : i < mobileStep
+                          ? 'bg-primary/40'
+                          : 'bg-muted'
+                    }`}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Bloco 1 — Dados básicos */}
-          <div className="space-y-4">
+          <div className={`space-y-4 ${blockVisible(0) ? '' : 'hidden'}`}>
             <div className="flex items-center gap-2 text-sm font-semibold">
               <span className="flex h-5 w-5 items-center justify-center rounded bg-primary/10 text-primary text-[11px] font-bold">
                 1
