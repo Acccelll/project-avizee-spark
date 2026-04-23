@@ -32,6 +32,9 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PeriodFilter, type PeriodValue } from "@/components/filters/PeriodFilter";
+import { financialPeriods, type Period } from "@/components/filters/periodTypes";
+import { periodToFinancialRange } from "@/lib/periodFilter";
 
 type Periodicidade = "diaria" | "semanal" | "mensal";
 
