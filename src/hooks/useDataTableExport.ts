@@ -1,6 +1,8 @@
 import { useCallback } from 'react';
 import { toast } from 'sonner';
 import { exportarParaCsv, exportarParaExcel, exportarParaPdf, type ExportColumnDef } from '@/services/export.service';
+import { useCan } from '@/hooks/useCan';
+import type { PermissionKey } from '@/lib/permissions';
 
 /**
  * Hook que encapsula a exportação CSV/XLSX/PDF do DataTable, incluindo
@@ -13,6 +15,12 @@ export interface UseDataTableExportOptions<T> {
   titulo: string;
   /** Tamanho do chunk (linhas) — afeta granularidade do progresso. */
   chunkSize?: number;
+  /**
+   * Permissão necessária para exportar. Quando informada, o hook bloqueia a
+   * exportação para usuários sem o privilégio (ver mem://auth/papeis-de-usuario).
+   * Default sugerido nas chamadas: "relatorios:exportar".
+   */
+  permission?: PermissionKey;
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -22,9 +30,17 @@ export function useDataTableExport<T extends Record<string, unknown>>({
   columns,
   titulo,
   chunkSize = 1000,
+  permission,
 }: UseDataTableExportOptions<T>) {
+  const { can } = useCan();
   const exportData = useCallback(
     async (format: 'csv' | 'xlsx' | 'pdf') => {
+      if (permission && !can(permission)) {
+        toast.error('Sem permissão para exportar', {
+          description: 'Solicite acesso a um administrador para exportar dados deste módulo.',
+        });
+        return;
+      }
       if (rows.length === 0) {
         toast.warning('Nenhum dado para exportar.');
         return;
@@ -68,7 +84,7 @@ export function useDataTableExport<T extends Record<string, unknown>>({
         });
       }
     },
-    [rows, columns, titulo, chunkSize],
+    [rows, columns, titulo, chunkSize, permission, can],
   );
 
   return { exportData };
