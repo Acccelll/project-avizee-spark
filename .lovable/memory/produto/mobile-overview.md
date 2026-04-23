@@ -18,11 +18,14 @@ ERP é hoje "mobile-capable" (não mobile-first): operação 80% rodável em cel
 
 **Backlog priorizado:**
 1. Bottom nav contextual por módulo ativo.
-2. Revisão dedicada: Auditoria, Migração, Social.
-3. Tabs horizontais com overflow indicator global.
-4. ResponsiveDialog wrapper único (substituir Dialog/AlertDialog manuais).
+2. Revisão dedicada do módulo Social (cards/tabelas internas).
+3. ResponsiveDialog wrapper único (substituir Dialog/AlertDialog manuais).
+4. Lint/check automático de touch targets <44px.
 
 **Resolvido recentemente:**
 - RelationalDrawerStack: limite efetivo 3 em mobile via `MAX_DRAWER_DEPTH_MOBILE` (provider escolhe via `useIsMobile`); breadcrumb encadeado já clicável (`DrawerStackBreadcrumb` ativo quando `total > 1`, sticky junto ao header).
 - Sticky footer "salvar dirty" em todos cadastros: já provido transversalmente por `FormModal` + `FormModalFooter` (full-width `max-sm:w-full`, `min-h-11`, CTA em cima via `flex-col-reverse`) combinado com `DialogFooter` sticky+bottom-sheet em mobile.
 - Filtros bottom-sheet em Estoque, Logística e Compras: já provido por `AdvancedFilterBar` (Drawer bottom nativo do vaul com badge de contagem, "Limpar filtros" e "Ver resultados (N)").
+- Sticky footer mobile "salvar dirty" também em forms longos `PedidoForm` e `RemessaForm` (footer `md:hidden fixed bottom-0` com `flex-col-reverse`, CTA primário em cima, full-width `min-h-11`, safe-area). `OrcamentoForm` já tinha.
+- `<ScrollableTabsList>` (em `src/components/ui/scrollable-tabs.tsx`): wrapper sobre `TabsList` com `overflow-x-auto`, scrollbar oculta e fade-edges dinâmicos detectados via scroll. Aplicado em `Estoque`, `Logistica` e `Social`.
+- Auditoria mobile: filtros viraram `grid grid-cols-2` (full-width) em mobile, mantendo flex-wrap em desktop; `DataTable` recebeu `mobileStatusKey="criticidade"` + `mobileIdentifierKey="entidade"` para card mobile correto.
