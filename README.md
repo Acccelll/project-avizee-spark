@@ -38,6 +38,56 @@ npm run dev
 | `VITE_SUPABASE_PROJECT_ID`       | ID do projeto Supabase                | ✅          |
 | `VITE_DEV_EMAIL`                 | E-mail para auto-preenchimento (dev)  | ❌          |
 | `VITE_DEV_PASSWORD`              | Senha para auto-preenchimento (dev)   | ❌          |
+| `VITE_FEATURE_SOCIAL`            | Habilita o módulo Social (`true`/`false`) | ❌      |
+
+## Segurança / RLS
+
+O sistema opera atualmente em **modo single-tenant**: todas as tabelas críticas
+(`financeiro_lancamentos`, `clientes`, `fornecedores`, `compras`, `compras_itens`,
+`estoque_movimentos`, `financeiro_baixas`, `conciliacao_bancaria`, `notas_fiscais`,
+`notas_fiscais_itens`) possuem políticas RLS **permissivas para usuários
+autenticados** (`USING (true)`). Esses comportamentos estão documentados no
+catálogo do banco via `COMMENT ON TABLE`.
+
+A tabela `app_configuracoes` é uma exceção: leitura, escrita e atualização exigem
+role `admin` (verificada por `public.has_role(auth.uid(), 'admin')`).
+
+### Migração para multi-tenant
+
+Quando for necessário separar dados por empresa:
+
+1. Adicionar coluna `empresa_id uuid NOT NULL` em todas as tabelas listadas acima.
+2. Popular automaticamente via trigger `BEFORE INSERT` lendo `current_setting('app.empresa_id')`
+   ou `user_roles.empresa_id` do usuário autenticado.
+3. Substituir as policies `USING (true)` por `USING (empresa_id = ...)` —
+   manter o `has_role` para administração global.
+4. Reescrever views e RPCs (`vw_workbook_*`, `proximo_numero_*`, etc.) para
+   propagar o filtro de empresa.
+
+> **Nota sobre credenciais.** `VITE_SUPABASE_PUBLISHABLE_KEY` é a *anon key* do
+> Supabase — pública por design e protegida pelo RLS. Secrets reais
+> (service-role, senhas SMTP, certificados) ficam apenas em Edge Functions.
+
+## Deploy das Edge Functions
+
+As Edge Functions são deployadas via Supabase CLI. Para a função fiscal:
+
+```bash
+supabase functions deploy sefaz-proxy
+```
+
+### Variáveis de ambiente requeridas (Edge Functions)
+
+| Variável                    | Função(ões)     | Descrição                                                        |
+|-----------------------------|-----------------|------------------------------------------------------------------|
+| `ALLOWED_ORIGIN`            | `sefaz-proxy`   | Origem permitida no CORS (ex.: `https://sistema.avizee.com.br`). |
+| `SUPABASE_URL`              | `sefaz-proxy`   | URL do projeto Supabase (geralmente injetada pelo runtime).      |
+| `SUPABASE_SERVICE_ROLE_KEY` | `sefaz-proxy`   | Service-role para validar JWT e acessar Storage privado.         |
+| `CERTIFICADO_PFX_SENHA`     | `sefaz-proxy`   | Senha do certificado A1 armazenado em `dbavizee/certificados/`.  |
+
+Se a função não estiver deployada, o cliente recebe a mensagem amigável
+_"Serviço de emissão fiscal não está disponível. Contate o suporte técnico
+(sefaz-proxy não deployado)."_ em vez de um erro 404 cru.
 
 ## Estrutura de Pastas
 
