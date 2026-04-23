@@ -434,8 +434,8 @@ export function UserFormModal({
           {/* Bloco 4 — Auditoria (edit only) */}
           {isEdit && user && (
             <>
-              <Separator />
-              <div className="space-y-4">
+              <Separator className={isMobile ? 'hidden' : ''} />
+              <div className={`space-y-4 ${blockVisible(3) ? '' : 'hidden'}`}>
                 <div className="flex items-center gap-2 text-sm font-semibold">
                   <span className="flex h-5 w-5 items-center justify-center rounded bg-primary/10 text-primary text-[11px] font-bold">
                     4
