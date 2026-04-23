@@ -12,7 +12,7 @@
  * no fallback de pretty-print quando não conseguirmos extrair antes/depois.
  */
 
-import { ViewSection, ViewField } from "@/components/ViewDrawer";
+import { ViewSection, ViewField } from "@/components/ui/ViewField";
 import { Badge } from "@/components/ui/badge";
 
 type Json =

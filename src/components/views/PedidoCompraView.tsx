@@ -8,7 +8,7 @@ import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext"
 import { usePublishDrawerSlots } from "@/contexts/RelationalDrawerSlotsContext";
 import { LogisticaRastreioSection } from "@/components/logistica/LogisticaRastreioSection";
 import { Progress } from "@/components/ui/progress";
-import { ViewField, ViewSection } from "@/components/ViewDrawer";
+import { ViewField, ViewSection } from "@/components/ui/ViewField";
 import { Button } from "@/components/ui/button";
 import { useDetailFetch } from "@/hooks/useDetailFetch";
 import { DetailLoading, DetailError, DetailEmpty } from "@/components/ui/DetailStates";
