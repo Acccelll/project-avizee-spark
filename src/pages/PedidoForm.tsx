@@ -227,7 +227,7 @@ const PedidoForm = () => {
         {/* Status + Datas */}
         <div className="bg-card rounded-xl border shadow-soft p-5 space-y-4">
           <h3 className="font-semibold text-foreground">Status Operacional</h3>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label className="text-xs">Status</Label>
               <Select value={form.status} onValueChange={(v) => set("status", v)}>
@@ -263,7 +263,7 @@ const PedidoForm = () => {
         {/* PO do Cliente */}
         <div className="bg-card rounded-xl border shadow-soft p-5 space-y-4">
           <h3 className="font-semibold text-foreground">PO do Cliente</h3>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label className="text-xs">Número do PO</Label>
               <Input

@@ -1,8 +1,10 @@
 
-import { useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
+import { PullToRefresh } from "@/components/ui/PullToRefresh";
 import { StatusBadge } from "@/components/StatusBadge";
 import { SummaryCard } from "@/components/SummaryCard";
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
@@ -30,6 +32,8 @@ import { getUserFriendlyError } from "@/utils/errorMessages";
 import { useClientesRef } from "@/hooks/useReferenceCache";
 import { useActionLock } from "@/hooks/useActionLock";
 import { useUrlListState } from "@/hooks/useUrlListState";
+import { subscribeComercial } from "@/lib/realtime/comercialChannel";
+import { INVALIDATION_KEYS } from "@/services/_invalidationKeys";
 
 interface Orcamento {
   id: string;
@@ -118,6 +122,18 @@ const Orcamentos = () => {
   const [convertingId, setConvertingId] = useState<string | null>(null);
   const [poNumberCliente, setPoNumberCliente] = useState("");
   const [dataPoCliente, setDataPoCliente] = useState("");
+  const qc = useQueryClient();
+
+  // Realtime: invalida grid quando orçamentos mudam (aprovação/conversão em
+  // outras abas, RPCs ou triggers) — mantém a lista sincronizada sem refresh.
+  useEffect(() => {
+    return subscribeComercial(() => {
+      INVALIDATION_KEYS.conversaoOrcamento.forEach((key) => {
+        qc.invalidateQueries({ queryKey: [key] });
+      });
+      fetchData();
+    });
+  }, [qc, fetchData]);
 
   // Querystring CSV unificada com Pedidos/Financeiro (compatível com `buildDrilldownUrl`).
   const { value: filterState, set: setFilters } = useUrlListState({
@@ -512,17 +528,19 @@ const Orcamentos = () => {
           </div>
         </AdvancedFilterBar>
 
-        <DataTable
-          columns={columns}
-          data={filteredData}
-          loading={loading}
-          moduleKey="cotacoes"
-          showColumnToggle={true}
-          onView={(o) => pushView("orcamento", o.id)}
-          onEdit={(o) => navigate(`/orcamentos/${o.id}`)}
-          emptyTitle="Nenhum orçamento encontrado"
-          emptyDescription="Crie um novo orçamento ou ajuste os filtros aplicados."
-        />
+        <PullToRefresh onRefresh={fetchData}>
+          <DataTable
+            columns={columns}
+            data={filteredData}
+            loading={loading}
+            moduleKey="cotacoes"
+            showColumnToggle={true}
+            onView={(o) => pushView("orcamento", o.id)}
+            onEdit={(o) => navigate(`/orcamentos/${o.id}`)}
+            emptyTitle="Nenhum orçamento encontrado"
+            emptyDescription="Crie um novo orçamento ou ajuste os filtros aplicados."
+          />
+        </PullToRefresh>
       </ModulePage>
 
       <CrossModuleActionDialog
