@@ -8,8 +8,10 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { AutocompleteSearch } from '@/components/ui/AutocompleteSearch';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { formatCurrency } from '@/lib/format';
-import { Plus, Trash2, CheckCircle2, Trophy, Award, BarChart3 } from 'lucide-react';
+import { Plus, Trash2, CheckCircle2, Trophy, Award, BarChart3, Crown } from 'lucide-react';
 import type { CotacaoItem, Proposta, CotacaoCompra } from './cotacaoCompraTypes';
 
 interface FornecedorOption {
@@ -48,12 +50,63 @@ function ComparativoFornecedores({ viewItems, viewPropostas }: { viewItems: Cota
   const bestColTotal = Math.min(...colTotals.filter((t) => t > 0));
 
   return (
-    <div className="rounded-lg border overflow-hidden">
-      <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 border-b">
-        <BarChart3 className="h-3.5 w-3.5 text-muted-foreground" />
-        <span className="text-[10px] font-semibold uppercase text-muted-foreground">Comparativo de Fornecedores</span>
+    <>
+      {/* Mobile: cards verticais por fornecedor */}
+      <div className="md:hidden space-y-3">
+        <div className="flex items-center gap-2">
+          <BarChart3 className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-[10px] font-semibold uppercase text-muted-foreground">Comparativo de Fornecedores</span>
+        </div>
+        {supplierIds.map((sid, si) => {
+          const total = colTotals[si];
+          const isWinner = total > 0 && total === bestColTotal;
+          return (
+            <div key={sid} className={`rounded-lg border p-3 space-y-2 ${isWinner ? "border-emerald-500/40 bg-emerald-50/30 dark:bg-emerald-950/10" : "bg-card"}`}>
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold truncate">{supplierNames[si]}</p>
+                  {isWinner && (
+                    <span className="inline-flex items-center gap-1 mt-0.5 text-[10px] font-bold uppercase text-emerald-600 dark:text-emerald-400">
+                      <Crown className="h-3 w-3" /> Menor total
+                    </span>
+                  )}
+                </div>
+                <div className="text-right shrink-0">
+                  <p className={`font-mono text-base font-bold ${isWinner ? "text-emerald-600 dark:text-emerald-400" : "text-foreground"}`}>
+                    {total > 0 ? formatCurrency(total) : "—"}
+                  </p>
+                </div>
+              </div>
+              <div className="space-y-1 pt-1.5 border-t">
+                {viewItems.map((item) => {
+                  const p = viewPropostas.find((pp) => pp.item_id === item.id && pp.fornecedor_id === sid);
+                  return (
+                    <div key={item.id} className="flex items-center justify-between gap-2 text-xs">
+                      <span className="truncate text-muted-foreground flex-1 min-w-0">{item.produtos?.nome || "—"}</span>
+                      {p ? (
+                        <span className="font-mono shrink-0 inline-flex items-center gap-1">
+                          {p.selecionado && <Trophy className="h-3 w-3 text-primary" />}
+                          {formatCurrency(Number(p.preco_unitario))}
+                          {p.prazo_entrega_dias && <span className="text-muted-foreground">· {p.prazo_entrega_dias}d</span>}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground/40">—</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
       </div>
-      <div className="overflow-x-auto">
+      {/* Desktop: tabela matriz */}
+      <div className="hidden md:block rounded-lg border overflow-hidden">
+        <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 border-b">
+          <BarChart3 className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-[10px] font-semibold uppercase text-muted-foreground">Comparativo de Fornecedores</span>
+        </div>
+        <div className="overflow-x-auto">
         <table className="w-full text-xs">
           <thead>
             <tr className="border-b bg-muted/20">
@@ -113,8 +166,9 @@ function ComparativoFornecedores({ viewItems, viewPropostas }: { viewItems: Cota
             </tr>
           </tbody>
         </table>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 
