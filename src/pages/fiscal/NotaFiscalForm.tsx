@@ -247,6 +247,8 @@ export default function NotaFiscalFormPage() {
                     fornecedorId={nfRow.fornecedor_id}
                     pedidoCompraIdAtual={nfRow.pedido_compra_id}
                     disabled={readOnly}
+                    nfValorTotal={nfRow.valor_total}
+                    nfDataEmissao={nfRow.data_emissao}
                   />
                 </div>
               )}
