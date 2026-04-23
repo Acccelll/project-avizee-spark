@@ -13,13 +13,33 @@ export interface SpinnerProps {
   /** Accessible label for screen readers. Default: "Carregando". */
   label?: string;
   className?: string;
+  /**
+   * Inline mode — sem div wrapper. Renderiza apenas o anel,
+   * herdando cor (`currentColor`) para uso dentro de buttons/inputs.
+   */
+  inline?: boolean;
 }
 
 /**
  * Spinner padronizado do sistema. Substitui as 3 implementações ad-hoc
  * (Loader2 inline, border-b-2, border-4) garantindo aria-label consistente.
  */
-export function Spinner({ size = "md", label = "Carregando", className }: SpinnerProps) {
+export function Spinner({ size = "md", label = "Carregando", className, inline = false }: SpinnerProps) {
+  if (inline) {
+    return (
+      <span
+        role="status"
+        aria-label={label}
+        className={cn(
+          "inline-block animate-spin rounded-full border-current border-t-transparent align-[-0.125em]",
+          sizeMap[size],
+          className,
+        )}
+      >
+        <span className="sr-only">{label}</span>
+      </span>
+    );
+  }
   return (
     <div
       role="status"

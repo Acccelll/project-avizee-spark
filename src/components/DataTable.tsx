@@ -41,6 +41,7 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { TableSkeleton } from '@/components/ui/content-skeletons';
 import { EmptyState } from '@/components/ui/empty-state';
+import { NoResultsState } from '@/components/ui/NoResultsState';
 
 export interface Column<T> {
   key: string;
@@ -85,6 +86,18 @@ interface DataTableProps<T> {
   onSelectionChange?: (ids: string[]) => void;
   emptyTitle?: string;
   emptyDescription?: string;
+  /**
+   * Indica que filtros estão ativos. Quando true e a lista está vazia,
+   * o DataTable renderiza `<NoResultsState>` (com ação "Limpar filtros")
+   * em vez do `<EmptyState>` genérico.
+   */
+  hasActiveFilters?: boolean;
+  /** Contagem de filtros ativos exibida no chip do `NoResultsState`. */
+  activeFiltersCount?: number;
+  /** Callback para limpar todos os filtros. Habilita o botão "Limpar filtros". */
+  onClearFilters?: () => void;
+  /** Termo de busca atual (mostrado na descrição do `NoResultsState`). */
+  searchTerm?: string;
   showColumnToggle?: boolean;
   /**
    * Show the legacy internal "Advanced filters" popover.
@@ -140,6 +153,10 @@ export function DataTable<T extends Record<string, any>>({
   deleteBehavior = 'hard',
   virtualizeThreshold = 50,
   maxHeight = 600,
+  hasActiveFilters = false,
+  activeFiltersCount = 0,
+  onClearFilters,
+  searchTerm,
 }: DataTableProps<T>) {
   const isMobile = useIsMobile();
   const { user } = useAuth();
@@ -755,7 +772,15 @@ export function DataTable<T extends Record<string, any>>({
             ))}
           </div>
         ) : sortedData.length === 0 ? (
-          <EmptyState title={emptyTitle} description={emptyDescription} />
+          hasActiveFilters ? (
+            <NoResultsState
+              activeFiltersCount={activeFiltersCount}
+              searchTerm={searchTerm}
+              onClearFilters={onClearFilters}
+            />
+          ) : (
+            <EmptyState title={emptyTitle} description={emptyDescription} />
+          )
         ) : (
           <>
             {renderMobileCards()}
@@ -784,7 +809,15 @@ export function DataTable<T extends Record<string, any>>({
           {loading ? (
             <TableSkeleton rows={6} cols={Math.max(visibleColumns.length, 4)} />
           ) : sortedData.length === 0 ? (
-            <EmptyState title={emptyTitle} description={emptyDescription} />
+            hasActiveFilters ? (
+              <NoResultsState
+                activeFiltersCount={activeFiltersCount}
+                searchTerm={searchTerm}
+                onClearFilters={onClearFilters}
+              />
+            ) : (
+              <EmptyState title={emptyTitle} description={emptyDescription} />
+            )
           ) : (
             <>
               {/* "Deslize →" hint — shown only while the table has horizontal overflow and hasn't been scrolled yet */}

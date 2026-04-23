@@ -28,7 +28,7 @@ import {
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { EmptyState } from '@/components/EmptyState';
+import { EmptyState } from '@/components/ui/empty-state';
 import { StatCard } from '@/components/StatCard';
 import { useAuth } from '@/contexts/AuthContext';
 import { PERMISSION_HELP_TEXT } from '@/lib/permissions';
@@ -301,16 +301,14 @@ export function UsuariosTab() {
                 icon={Users}
                 title="Nenhum usuário cadastrado"
                 description="Todo usuário precisa de um role padrão obrigatório. Permissões complementares são exceções concedidas pelo administrador."
-                actionLabel="Criar primeiro usuário"
-                onAction={openCreate}
+                action={<Button onClick={openCreate}>Criar primeiro usuário</Button>}
               />
             ) : (
               <EmptyState
                 icon={Search}
                 title="Nenhum resultado encontrado"
                 description="Tente ajustar os filtros ou o termo de busca."
-                actionLabel="Limpar filtros"
-                onAction={clearFilters}
+                action={<Button variant="outline" onClick={clearFilters}>Limpar filtros</Button>}
               />
             )
           ) : (
