@@ -34,6 +34,7 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { cn } from "@/lib/utils";
 import { getOrigemConfig, getTipoMovConfig, tipoMovConfig } from "@/components/estoque/estoqueMovimentacaoConfig";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { EstoqueAjusteSheet } from "@/components/estoque/EstoqueAjusteSheet";
 
 type ProdutoRow = Database["public"]["Tables"]["produtos"]["Row"];
 
