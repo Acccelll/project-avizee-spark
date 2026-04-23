@@ -4429,6 +4429,7 @@ export type Database = {
           email: string | null
           id: string
           nome: string | null
+          status: string
           updated_at: string
         }
         Insert: {
@@ -4439,6 +4440,7 @@ export type Database = {
           email?: string | null
           id: string
           nome?: string | null
+          status?: string
           updated_at?: string
         }
         Update: {
@@ -4449,6 +4451,7 @@ export type Database = {
           email?: string | null
           id?: string
           nome?: string | null
+          status?: string
           updated_at?: string
         }
         Relationships: []
@@ -6708,6 +6711,7 @@ export type Database = {
           email: string | null
           id: string
           nome: string | null
+          status: string
           updated_at: string
         }
         SetofOptions: {

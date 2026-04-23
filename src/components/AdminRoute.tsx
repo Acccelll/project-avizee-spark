@@ -1,5 +1,5 @@
 import { ReactNode } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useCan } from "@/hooks/useCan";
 import { AuthLoadingScreen } from "@/components/auth/AuthLoadingScreen";
@@ -10,6 +10,7 @@ export function AdminRoute({ children }: { children: ReactNode }) {
   const gate = useAuthGate();
   const { isAdmin } = useIsAdmin();
   const { can } = useCan();
+  const location = useLocation();
   // Aceita override individual via `user_permissions` — alinha o guard com
   // `useVisibleNavSections`, que já mostra o item para quem tem
   // `administracao:visualizar` mesmo sem o papel `admin`.
@@ -19,7 +20,7 @@ export function AdminRoute({ children }: { children: ReactNode }) {
     return <AuthLoadingScreen mode="permissions" />;
   }
   if (gate.status === "unauthenticated") {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/login" replace state={{ from: location }} />;
   }
   if (!canAccess) {
     return (

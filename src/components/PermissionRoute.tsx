@@ -7,7 +7,7 @@
  */
 
 import { ReactNode } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { AuthLoadingScreen } from "@/components/auth/AuthLoadingScreen";
 import { AccessDenied } from "@/components/AccessDenied";
 import { useAuthGate } from "@/hooks/useAuthGate";
@@ -33,12 +33,13 @@ export function PermissionRoute({
 }: PermissionRouteProps) {
   const gate = useAuthGate();
   const { can } = useCan();
+  const location = useLocation();
 
   if (gate.status === "loading") {
     return <AuthLoadingScreen mode="permissions" />;
   }
   if (gate.status === "unauthenticated") {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
   if (!can(`${resource}:${action}`)) {

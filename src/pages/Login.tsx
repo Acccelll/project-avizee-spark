@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { Eye, EyeOff, Mail, Lock, Zap, Loader2, LogIn, AlertCircle, HelpCircle } from "lucide-react";
 import { CapsLockIndicator } from "@/components/auth/CapsLockIndicator";
+import { AuthLoadingScreen } from "@/components/auth/AuthLoadingScreen";
 import { ADMIN_EMAIL } from "@/constants/app";
 import { useBranding } from "@/hooks/useBranding";
 
@@ -26,13 +27,24 @@ export default function Login() {
   const [serverError, setServerError] = useState<string | null>(null);
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
   const branding = useBranding();
+
+  // Destino pós-login: prioriza state.from (deep-link via guards), depois ?next=, fallback "/".
+  type LocationState = { from?: { pathname?: string; search?: string; hash?: string } } | null;
+  const fromState = location.state as LocationState;
+  const fromPath = fromState?.from?.pathname
+    ? `${fromState.from.pathname}${fromState.from.search ?? ""}${fromState.from.hash ?? ""}`
+    : null;
+  const nextParam = searchParams.get("next");
+  const redirectTo = fromPath || (nextParam && nextParam.startsWith("/") ? nextParam : "/");
 
   useEffect(() => {
     if (!authLoading && user) {
-      navigate("/", { replace: true });
+      navigate(redirectTo, { replace: true });
     }
-  }, [authLoading, user, navigate]);
+  }, [authLoading, user, navigate, redirectTo]);
 
   const validate = () => {
     const newErrors: typeof errors = {};
@@ -58,16 +70,22 @@ export default function Login() {
     try {
       const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
       if (error) {
-        const msg =
-          error.message === "Invalid login credentials"
-            ? "E-mail ou senha inválidos. Verifique suas credenciais e tente novamente."
-            : error.message === "Email not confirmed"
-            ? "Confirme seu e-mail antes de fazer login. Verifique sua caixa de entrada."
-            : error.message;
+        const raw = (error.message || "").toLowerCase();
+        const status = (error as { status?: number }).status;
+        let msg = error.message;
+        if (raw.includes("invalid login credentials")) {
+          msg = "E-mail ou senha inválidos. Verifique suas credenciais e tente novamente.";
+        } else if (raw.includes("email not confirmed")) {
+          msg = "Confirme seu e-mail antes de fazer login. Verifique sua caixa de entrada.";
+        } else if (status === 429 || raw.includes("rate") || raw.includes("too many")) {
+          msg = "Muitas tentativas em pouco tempo. Aguarde alguns minutos e tente novamente.";
+        } else if (raw.includes("network") || raw.includes("fetch")) {
+          msg = "Erro de conexão com o servidor. Verifique sua internet e tente novamente.";
+        }
         setServerError(msg);
       } else {
-        toast.success("Login realizado com sucesso!");
-        navigate("/", { replace: true });
+        // Sem toast: o redirecionamento já é a confirmação visual.
+        navigate(redirectTo, { replace: true });
       }
     } catch {
       setServerError("Erro de conexão com o servidor. Verifique sua internet e tente novamente.");
@@ -76,14 +94,8 @@ export default function Login() {
   };
 
   if (authLoading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="w-8 h-8 text-primary animate-spin" />
-          <p className="text-sm text-muted-foreground">Verificando sessão…</p>
-        </div>
-      </div>
-    );
+    // Splash unificado com branding — coerência com ProtectedRoute/AdminRoute.
+    return <AuthLoadingScreen mode="session" />;
   }
 
   return (
