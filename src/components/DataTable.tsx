@@ -25,7 +25,6 @@ import {
   Settings2,
 } from 'lucide-react';
 import { buildExportFilename } from '@/lib/utils';
-import { exportarParaCsv, exportarParaExcel, exportarParaPdf, type ExportColumnDef } from '@/services/export.service';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
@@ -35,14 +34,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { TableSkeleton } from '@/components/ui/content-skeletons';
 import { EmptyState } from '@/components/ui/empty-state';
 import { NoResultsState } from '@/components/ui/NoResultsState';
 import { MobileCardList, type MobileCardField } from '@/components/ui/MobileCardList';
+import { useDataTablePrefs } from '@/hooks/useDataTablePrefs';
+import { useDataTableExport } from '@/hooks/useDataTableExport';
 
 export interface Column<T> {
   key: string;
