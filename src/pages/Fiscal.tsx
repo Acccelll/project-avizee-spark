@@ -854,6 +854,103 @@ const Fiscal = () => {
           showColumnToggle={true}
           onView={openView}
           onEdit={openEdit}
+          mobileStatusKey="status"
+          mobileIdentifierKey="parceiro"
+          mobilePrimaryAction={(n) => {
+            if (canConfirmFiscal(n.status)) {
+              return (
+                <Button
+                  size="sm"
+                  className="w-full min-h-11 gap-2"
+                  onClick={() => handleConfirmar(n)}
+                  aria-label={`Confirmar NF ${n.numero}`}
+                >
+                  <CheckCircle className="h-4 w-4" /> Confirmar NF
+                </Button>
+              );
+            }
+            if (["confirmada", "autorizada", "importada"].includes(n.status)) {
+              return (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="w-full min-h-11 gap-2"
+                  onClick={() => openDanfe(n)}
+                  aria-label={`Visualizar DANFE da NF ${n.numero}`}
+                >
+                  <FileText className="h-4 w-4" /> DANFE
+                </Button>
+              );
+            }
+            return (
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full min-h-11 gap-2"
+                onClick={() => openView(n)}
+                aria-label={`Ver detalhes da NF ${n.numero}`}
+              >
+                <Eye className="h-4 w-4" /> Ver detalhes
+              </Button>
+            );
+          }}
+          mobileInlineActions={(n) => {
+            const editable = ["pendente", "rascunho"].includes(n.status);
+            const canDevolucao = n.tipo === "saida" && (n.tipo_operacao || "normal") === "normal" && ["confirmada", "autorizada", "importada"].includes(n.status);
+            return (
+              <>
+                {editable && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="flex-1 min-h-11"
+                    onClick={() => navigate(`/fiscal/${n.id}`)}
+                    aria-label={`Editar NF ${n.numero}`}
+                  >
+                    <EditIcon className="h-4 w-4 mr-1.5" /> Editar
+                  </Button>
+                )}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="flex-1 min-h-11"
+                      aria-label="Mais ações"
+                    >
+                      <MoreVertical className="h-4 w-4 mr-1.5" /> Mais
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-52">
+                    <DropdownMenuItem onClick={() => openView(n)}>
+                      <Eye className="h-4 w-4 mr-2" /> Ver detalhes
+                    </DropdownMenuItem>
+                    {["confirmada", "autorizada", "importada"].includes(n.status) && (
+                      <DropdownMenuItem onClick={() => openDanfe(n)}>
+                        <FileText className="h-4 w-4 mr-2" /> DANFE
+                      </DropdownMenuItem>
+                    )}
+                    {canDevolucao && (
+                      <DropdownMenuItem onClick={() => openDevolucao(n)}>
+                        <ArrowLeftRight className="h-4 w-4 mr-2" /> Devolução
+                      </DropdownMenuItem>
+                    )}
+                    {canEstornarFiscal(n.status) && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onClick={() => handleEstornar(n)}
+                        >
+                          <XCircleIcon className="h-4 w-4 mr-2" /> Estornar
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </>
+            );
+          }}
         />
       </ModulePage>
 
