@@ -1,9 +1,22 @@
+/**
+ * Auditoria — trilha unificada (operacional + governança).
+ *
+ * Lê `v_admin_audit_unified` (UNION de `auditoria_logs` + `permission_audit`)
+ * via `useAdminAuditUnificada`, com filtros server-side, paginação por range
+ * e exportação Excel/PDF dos eventos da página atual.
+ *
+ * Filtros são serializados em URL via `useUrlListState` para deep-link.
+ */
+
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
 import { ViewDrawer, ViewField, ViewSection } from "@/components/ViewDrawer";
 import { SummaryCard } from "@/components/SummaryCard";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -16,29 +29,36 @@ import type { Period } from "@/components/filters/periodTypes";
 import { periodToDateFrom } from "@/lib/periodFilter";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  Shield,
-  Edit,
-  Trash2,
-  Plus,
+  ActionBadge,
+  CriticalityBadge,
+  DiffViewer,
+  OrigemBadge,
+  CRITICALITY_STYLE,
+  KNOWN_ACOES,
+  KNOWN_TABLES,
+  getAcaoMeta,
+  getCriticality,
+  getTableMeta,
+  summarizeUserAgent,
+} from "@/lib/audit";
+import {
+  ADMIN_AUDIT_PAGE_SIZE,
+  type AdminAuditRow,
+  useAdminAuditUnificada,
+} from "@/pages/admin/hooks/useAdminAuditUnificada";
+import { useUrlListState } from "@/hooks/useUrlListState";
+import { exportarParaExcel, exportarParaPdf } from "@/services/export.service";
+import {
   AlertTriangle,
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  Edit,
+  Plus,
+  Shield,
+  Trash2,
   User,
 } from "lucide-react";
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-interface AuditLog {
-  id: string;
-  tabela: string;
-  acao: string;
-  registro_id: string | null;
-  usuario_id: string | null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  dados_anteriores: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  dados_novos: any;
-  ip_address: string | null;
-  created_at: string;
-}
 
 interface Profile {
   id: string;
@@ -46,145 +66,6 @@ interface Profile {
   email: string | null;
   cargo: string | null;
 }
-
-// ─── Metadata maps ────────────────────────────────────────────────────────────
-
-/** Maps a DB table name → human-readable module / entity labels. */
-const TABLE_META: Record<string, { modulo: string; entidade: string }> = {
-  // Financeiro
-  financeiro_lancamentos: { modulo: "Financeiro", entidade: "Lançamentos" },
-  financeiro_baixas: { modulo: "Financeiro", entidade: "Baixas" },
-  contas_bancarias: { modulo: "Financeiro", entidade: "Contas Bancárias" },
-  contas_contabeis: { modulo: "Financeiro", entidade: "Contas Contábeis" },
-  formas_pagamento: { modulo: "Financeiro", entidade: "Formas de Pagamento" },
-  caixa_movimentos: { modulo: "Caixa", entidade: "Movimentos de Caixa" },
-  // Fiscal
-  notas_fiscais: { modulo: "Fiscal", entidade: "Notas Fiscais" },
-  notas_fiscais_itens: { modulo: "Fiscal", entidade: "Itens de NF" },
-  // Vendas
-  orcamentos: { modulo: "Vendas", entidade: "Orçamentos" },
-  orcamentos_itens: { modulo: "Vendas", entidade: "Itens de Orçamento" },
-  ordens_venda: { modulo: "Vendas", entidade: "Ordens de Venda" },
-  ordens_venda_itens: { modulo: "Vendas", entidade: "Itens de OV" },
-  // Compras
-  pedidos_compra: { modulo: "Compras", entidade: "Pedidos de Compra" },
-  pedidos_compra_itens: { modulo: "Compras", entidade: "Itens de Pedido" },
-  cotacoes_compra: { modulo: "Compras", entidade: "Cotações" },
-  cotacoes_compra_itens: { modulo: "Compras", entidade: "Itens de Cotação" },
-  cotacoes_compra_propostas: { modulo: "Compras", entidade: "Propostas" },
-  compras: { modulo: "Compras", entidade: "Compras" },
-  compras_itens: { modulo: "Compras", entidade: "Itens de Compra" },
-  // Estoque / Produtos
-  produtos: { modulo: "Estoque", entidade: "Produtos" },
-  grupos_produto: { modulo: "Estoque", entidade: "Grupos de Produto" },
-  produto_composicoes: { modulo: "Estoque", entidade: "Composições" },
-  produtos_fornecedores: { modulo: "Estoque", entidade: "Fornecedores do Produto" },
-  precos_especiais: { modulo: "Preços", entidade: "Preços Especiais" },
-  // Clientes / Fornecedores
-  clientes: { modulo: "Clientes", entidade: "Clientes" },
-  cliente_registros_comunicacao: { modulo: "Clientes", entidade: "Comunicações" },
-  cliente_transportadoras: { modulo: "Clientes", entidade: "Transportadoras do Cliente" },
-  fornecedores: { modulo: "Fornecedores", entidade: "Fornecedores" },
-  grupos_economicos: { modulo: "Clientes", entidade: "Grupos Econômicos" },
-  // Logística
-  remessas: { modulo: "Logística", entidade: "Remessas" },
-  remessa_eventos: { modulo: "Logística", entidade: "Eventos de Remessa" },
-  transportadoras: { modulo: "Logística", entidade: "Transportadoras" },
-  // RH
-  funcionarios: { modulo: "RH", entidade: "Funcionários" },
-  folha_pagamento: { modulo: "RH", entidade: "Folha de Pagamento" },
-  // Administração
-  profiles: { modulo: "Administração", entidade: "Usuários" },
-  user_roles: { modulo: "Administração", entidade: "Perfis de Acesso" },
-  empresa_config: { modulo: "Administração", entidade: "Configurações da Empresa" },
-  app_configuracoes: { modulo: "Administração", entidade: "Configurações do Sistema" },
-  bancos: { modulo: "Administração", entidade: "Bancos" },
-  // Importação
-  importacao_logs: { modulo: "Importação", entidade: "Logs de Importação" },
-  importacao_lotes: { modulo: "Importação", entidade: "Lotes de Importação" },
-};
-
-function getTableMeta(tabela: string) {
-  return TABLE_META[tabela] ?? { modulo: "Sistema", entidade: tabela };
-}
-
-// ─── Action labels ────────────────────────────────────────────────────────────
-
-const ACAO_META: Record<
-  string,
-  { label: string; color: string; icon: typeof Plus }
-> = {
-  INSERT: {
-    label: "Criação",
-    color:
-      "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
-    icon: Plus,
-  },
-  UPDATE: {
-    label: "Edição",
-    color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
-    icon: Edit,
-  },
-  DELETE: {
-    label: "Exclusão",
-    color: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
-    icon: Trash2,
-  },
-};
-
-function getAcaoMeta(acao: string) {
-  return (
-    ACAO_META[acao] ?? {
-      label: acao,
-      color: "bg-muted text-muted-foreground",
-      icon: Shield,
-    }
-  );
-}
-
-// ─── Criticality ──────────────────────────────────────────────────────────────
-
-type Criticality = "alta" | "media" | "baixa";
-
-const SENSITIVE_TABLES = new Set([
-  "profiles",
-  "user_roles",
-  "empresa_config",
-  "app_configuracoes",
-  "notas_fiscais",
-  "financeiro_lancamentos",
-  "financeiro_baixas",
-]);
-
-function getCriticality(log: AuditLog): Criticality {
-  if (log.acao === "DELETE") return "alta";
-  if (SENSITIVE_TABLES.has(log.tabela)) return "alta";
-  if (log.acao === "UPDATE") return "media";
-  return "baixa";
-}
-
-const CRITICALITY_STYLE: Record<
-  Criticality,
-  { label: string; badgeClass: string }
-> = {
-  alta: {
-    label: "Alta",
-    badgeClass:
-      "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border border-red-200 dark:border-red-800",
-  },
-  media: {
-    label: "Média",
-    badgeClass:
-      "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-800",
-  },
-  baixa: {
-    label: "Baixa",
-    badgeClass:
-      "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border border-green-200 dark:border-green-800",
-  },
-};
-
-// ─── Period options for audit (backward-looking) ──────────────────────────────
 
 const AUDIT_PERIODS: { value: Period; label: string }[] = [
   { value: "hoje", label: "Hoje" },
@@ -195,261 +76,253 @@ const AUDIT_PERIODS: { value: Period; label: string }[] = [
   { value: "todos", label: "Todos" },
 ];
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function ActionBadge({ acao }: { acao: string }) {
-  const meta = getAcaoMeta(acao);
-  return (
-    <span
-      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${meta.color}`}
-    >
-      {meta.label}
-    </span>
-  );
-}
-
-function CriticalityBadge({ log }: { log: AuditLog }) {
-  const crit = getCriticality(log);
-  const style = CRITICALITY_STYLE[crit];
-  return (
-    <span
-      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${style.badgeClass}`}
-    >
-      {style.label}
-    </span>
-  );
-}
-
-// ─── Before/After diff viewer ─────────────────────────────────────────────────
-
-function DiffViewer({
-  anterior,
-  novo,
-}: {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  anterior: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  novo: any;
-}) {
-  if (!anterior && !novo) return null;
-
-  // Collect all changed fields when both sides exist
-  if (anterior && novo) {
-    const allKeys = Array.from(
-      new Set([...Object.keys(anterior), ...Object.keys(novo)])
-    );
-    const changed = allKeys.filter(
-      (k) => JSON.stringify(anterior[k]) !== JSON.stringify(novo[k])
-    );
-
-    if (changed.length > 0) {
-      return (
-        <ViewSection title="Campos Alterados">
-          <div className="space-y-2">
-            {changed.map((key) => (
-              <div
-                key={key}
-                className="rounded-md border bg-muted/30 p-2 text-xs"
-              >
-                <span className="font-semibold text-muted-foreground uppercase tracking-wide">
-                  {key}
-                </span>
-                <div className="mt-1 flex flex-col gap-1">
-                  <div className="flex items-start gap-2">
-                    <span className="shrink-0 rounded bg-red-100 px-1 py-0.5 text-red-700 dark:bg-red-900/30 dark:text-red-400 font-mono text-[10px]">
-                      antes
-                    </span>
-                    <span className="font-mono break-all text-foreground/70">
-                      {anterior[key] === null || anterior[key] === undefined
-                        ? "—"
-                        : String(anterior[key])}
-                    </span>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <span className="shrink-0 rounded bg-green-100 px-1 py-0.5 text-green-700 dark:bg-green-900/30 dark:text-green-400 font-mono text-[10px]">
-                      depois
-                    </span>
-                    <span className="font-mono break-all">
-                      {novo[key] === null || novo[key] === undefined
-                        ? "—"
-                        : String(novo[key])}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </ViewSection>
-      );
-    }
-  }
-
-  // Fallback: render raw JSON blocks
-  return (
-    <>
-      {anterior && (
-        <ViewSection title="Dados Anteriores">
-          <pre className="rounded-lg bg-muted/50 border p-3 text-xs font-mono overflow-x-auto max-h-64 whitespace-pre-wrap">
-            {JSON.stringify(anterior, null, 2)}
-          </pre>
-        </ViewSection>
-      )}
-      {novo && (
-        <ViewSection title="Dados Novos">
-          <pre className="rounded-lg bg-muted/50 border p-3 text-xs font-mono overflow-x-auto max-h-64 whitespace-pre-wrap">
-            {JSON.stringify(novo, null, 2)}
-          </pre>
-        </ViewSection>
-      )}
-    </>
-  );
-}
-
-// ─── Page ─────────────────────────────────────────────────────────────────────
+const URL_SCHEMA = {
+  periodo: { type: "string" as const },
+  origem: { type: "string" as const },
+  entidade: { type: "string" as const },
+  tipo_acao: { type: "string" as const, aliases: ["acao"] },
+  ator: { type: "string" as const, aliases: ["usuario"] },
+  alvo: { type: "string" as const },
+  ip: { type: "string" as const },
+  registro: { type: "string" as const },
+  criticidade: { type: "string" as const },
+  q: { type: "string" as const },
+  page: { type: "number" as const },
+};
 
 export default function Auditoria() {
-  const [logs, setLogs] = useState<AuditLog[]>([]);
+  const navigate = useNavigate();
+  const { value, set, clear } = useUrlListState({ schema: URL_SCHEMA });
+
+  const period = (value.periodo || "30d") as Period;
+  const origem = (value.origem || "todas") as
+    | "todas"
+    | "permission_audit"
+    | "auditoria_logs";
+  const entidade = value.entidade || "todas";
+  const tipoAcao = value.tipo_acao || "todas";
+  const atorId = value.ator || "todos";
+  const targetUserId = value.alvo || "todos";
+  const ipAddress = value.ip || "";
+  const registroId = value.registro || "";
+  const criticidade = value.criticidade || "todas";
+  const searchTerm = value.q || "";
+  const page = value.page ?? 1;
+
+  const [searchInput, setSearchInput] = useState(searchTerm);
+  useEffect(() => setSearchInput(searchTerm), [searchTerm]);
+
+  // Debounce de busca
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (searchInput !== searchTerm) {
+        set({ q: searchInput, page: 1 });
+      }
+    }, 350);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchInput]);
+
+  const dateFrom = useMemo(() => {
+    if (period === "todos") return null;
+    return new Date(periodToDateFrom(period)).toISOString();
+  }, [period]);
+
+  const { rows, totalCount, totalPages, isLoading, isFetching } =
+    useAdminAuditUnificada({
+      dateFrom,
+      origem: origem === "todas" ? null : origem,
+      tipoAcao: tipoAcao === "todas" ? null : tipoAcao,
+      entidade: entidade === "todas" ? null : entidade,
+      atorId: atorId === "todos" ? null : atorId,
+      targetUserId: targetUserId === "todos" ? null : targetUserId,
+      ipAddress: ipAddress || null,
+      registroId: registroId || null,
+      page,
+    });
+
+  // Carrega profiles (lookup de nomes) — limitado mas adequado para o universo de atores
   const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selected, setSelected] = useState<AuditLog | null>(null);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-
-  // Filters
-  const [searchTerm, setSearchTerm] = useState("");
-  const [period, setPeriod] = useState<Period>("30d");
-  const [tabelaFilter, setTabelaFilter] = useState("todas");
-  const [acaoFilter, setAcaoFilter] = useState("todas");
-  const [usuarioFilter, setUsuarioFilter] = useState("todos");
-  const [criticalidadeFilter, setCriticalidadeFilter] = useState("todas");
-
-  // Load profiles (for user name lookup)
   useEffect(() => {
     supabase
       .from("profiles")
       .select("id, nome, email, cargo")
-      .then(({ data, error }) => {
-        if (!error) setProfiles(data || []);
-      });
+      .order("nome", { ascending: true })
+      .then(({ data }) => setProfiles(data ?? []));
   }, []);
 
-  // Load logs with period filter applied server-side
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      let query = supabase
-        .from("auditoria_logs")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(1000);
-
-      if (period !== "todos") {
-        const dateFrom = periodToDateFrom(period);
-        query = query.gte("created_at", dateFrom);
-      }
-
-      const { data, error } = await query;
-      if (!error) setLogs(data || []);
-      setLoading(false);
-    };
-    load();
-  }, [period]);
-
-  // Lookup helpers
   const profileMap = useMemo(
     () => new Map(profiles.map((p) => [p.id, p])),
-    [profiles]
+    [profiles],
   );
 
-  function getProfile(userId: string | null): Profile | null {
+  function getProfile(userId: string | null | undefined): Profile | null {
     if (!userId) return null;
     return profileMap.get(userId) ?? null;
   }
 
-  // Derived filter options
-  const tabelas = useMemo(() => {
-    const set = new Set(logs.map((l) => l.tabela));
-    return Array.from(set).sort();
-  }, [logs]);
-
-  const usuariosNosPeriodo = useMemo(() => {
-    const ids = new Set(logs.map((l) => l.usuario_id).filter((id): id is string => id !== null));
-    return profiles.filter((p) => ids.has(p.id));
-  }, [logs, profiles]);
-
-  // KPIs (over all loaded logs, not filtered)
-  const kpis = useMemo(() => {
-    const total = logs.length;
-    const inserts = logs.filter((l) => l.acao === "INSERT").length;
-    const updates = logs.filter((l) => l.acao === "UPDATE").length;
-    const deletes = logs.filter((l) => l.acao === "DELETE").length;
-    const sensiveis = logs.filter(
-      (l) => getCriticality(l) === "alta"
-    ).length;
-    return { total, inserts, updates, deletes, sensiveis };
-  }, [logs]);
-
-  // Client-side filtering
-  const filteredLogs = useMemo(() => {
-    const query = searchTerm.trim().toLowerCase();
-    return logs.filter((l) => {
-      if (tabelaFilter !== "todas" && l.tabela !== tabelaFilter) return false;
-      if (acaoFilter !== "todas" && l.acao !== acaoFilter) return false;
-      if (usuarioFilter !== "todos" && l.usuario_id !== usuarioFilter)
-        return false;
-      if (
-        criticalidadeFilter !== "todas" &&
-        getCriticality(l) !== criticalidadeFilter
-      )
-        return false;
-      if (!query) return true;
-      const profile = profileMap.get(l.usuario_id ?? "");
-      const searchable = [
-        l.tabela,
-        l.acao,
-        l.registro_id,
-        l.ip_address,
-        profile?.nome,
-        profile?.email,
-        getTableMeta(l.tabela).modulo,
-        getTableMeta(l.tabela).entidade,
+  // Filtro client-side adicional: criticidade + busca textual (na página)
+  const visibleRows = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase();
+    return rows.filter((r) => {
+      if (criticidade !== "todas") {
+        const crit = getCriticality({ acao: r.tipo_acao, entidade: r.entidade });
+        if (crit !== criticidade) return false;
+      }
+      if (!q) return true;
+      const ator = getProfile(r.ator_id);
+      const alvo = getProfile(r.target_user_id);
+      const meta = getTableMeta(r.entidade);
+      const hay = [
+        r.tipo_acao,
+        r.entidade,
+        r.entidade_id,
+        r.ip_address,
+        r.motivo,
+        ator?.nome,
+        ator?.email,
+        alvo?.nome,
+        alvo?.email,
+        meta.modulo,
+        meta.entidade,
       ]
         .filter(Boolean)
         .join(" ")
         .toLowerCase();
-      return searchable.includes(query);
+      return hay.includes(q);
     });
-  }, [logs, searchTerm, tabelaFilter, acaoFilter, usuarioFilter, criticalidadeFilter, profileMap]);
+  }, [rows, searchTerm, criticidade, profileMap]);
 
-  // ── Table columns ──────────────────────────────────────────────────────────
+  // KPIs (página atual)
+  const kpis = useMemo(() => {
+    const inserts = rows.filter((r) =>
+      ["INSERT", "permission_grant", "role_grant"].includes(r.tipo_acao ?? ""),
+    ).length;
+    const updates = rows.filter((r) =>
+      ["UPDATE", "config_update", "branding_update", "permission_update", "role_update"].includes(
+        r.tipo_acao ?? "",
+      ),
+    ).length;
+    const deletes = rows.filter((r) =>
+      ["DELETE", "permission_revoke", "role_revoke"].includes(r.tipo_acao ?? ""),
+    ).length;
+    const sensiveis = rows.filter(
+      (r) =>
+        getCriticality({ acao: r.tipo_acao, entidade: r.entidade }) === "alta",
+    ).length;
+    const atoresUnicos = new Set(
+      rows.map((r) => r.ator_id).filter((id): id is string => !!id),
+    ).size;
+    return { inserts, updates, deletes, sensiveis, atoresUnicos };
+  }, [rows]);
+
+  const [selected, setSelected] = useState<AdminAuditRow | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // Exportações (sobre a página atual)
+  const [exporting, setExporting] = useState(false);
+  function rowsForExport() {
+    return visibleRows.map((r) => {
+      const meta = getTableMeta(r.entidade);
+      const acaoMeta = getAcaoMeta(r.tipo_acao);
+      const ator = getProfile(r.ator_id);
+      const alvo = getProfile(r.target_user_id);
+      const crit = getCriticality({ acao: r.tipo_acao, entidade: r.entidade });
+      return {
+        "Data/Hora": r.created_at
+          ? new Date(r.created_at).toLocaleString("pt-BR")
+          : "",
+        Origem: r.origem === "permission_audit" ? "Governança" : "Operacional",
+        Ação: acaoMeta.label,
+        Módulo: meta.modulo,
+        Entidade: meta.entidade,
+        "Registro/Entidade ID": r.entidade_id ?? "",
+        Ator: ator?.nome ?? r.ator_id ?? "",
+        Alvo: alvo?.nome ?? r.target_user_id ?? "",
+        Motivo: r.motivo ?? "",
+        IP: r.ip_address ?? "",
+        Criticidade: CRITICALITY_STYLE[crit].label,
+      };
+    });
+  }
+  async function handleExportarExcel() {
+    setExporting(true);
+    try {
+      await exportarParaExcel({
+        titulo: "auditoria-trilha-unificada",
+        rows: rowsForExport(),
+      });
+    } finally {
+      setExporting(false);
+    }
+  }
+  async function handleExportarPdf() {
+    setExporting(true);
+    try {
+      await exportarParaPdf({
+        titulo: "Trilha de Auditoria",
+        rows: rowsForExport(),
+      });
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  const truncated = totalCount > rows.length && rows.length > 0;
+
+  // ── Colunas ───────────────────────────────────────────────────────────────
 
   const columns = [
     {
       key: "created_at",
       label: "Data/Hora",
       sortable: true,
-      render: (l: AuditLog) => (
+      render: (r: AdminAuditRow) => (
         <span className="text-xs font-mono whitespace-nowrap">
-          {new Date(l.created_at).toLocaleString("pt-BR")}
+          {r.created_at ? new Date(r.created_at).toLocaleString("pt-BR") : "—"}
         </span>
       ),
     },
     {
-      key: "usuario_id",
-      label: "Usuário",
-      render: (l: AuditLog) => {
-        const profile = getProfile(l.usuario_id);
-        return profile ? (
+      key: "origem",
+      label: "Origem",
+      render: (r: AdminAuditRow) =>
+        r.origem ? (
+          <OrigemBadge origem={r.origem as "permission_audit" | "auditoria_logs"} />
+        ) : null,
+    },
+    {
+      key: "ator_id",
+      label: "Ator",
+      render: (r: AdminAuditRow) => {
+        const p = getProfile(r.ator_id);
+        return p ? (
           <div className="flex flex-col gap-0.5 min-w-0">
-            <span className="text-sm font-medium truncate">{profile.nome}</span>
-            {profile.email && (
+            <span className="text-sm font-medium truncate">{p.nome}</span>
+            {p.email && (
               <span className="text-xs text-muted-foreground truncate">
-                {profile.email}
+                {p.email}
               </span>
             )}
           </div>
         ) : (
           <span className="text-xs text-muted-foreground font-mono">
-            {l.usuario_id ? l.usuario_id.substring(0, 8) + "…" : "—"}
+            {r.ator_id ? r.ator_id.slice(0, 8) + "…" : "—"}
+          </span>
+        );
+      },
+    },
+    {
+      key: "target_user_id",
+      label: "Alvo",
+      render: (r: AdminAuditRow) => {
+        if (!r.target_user_id) return <span className="text-muted-foreground">—</span>;
+        const p = getProfile(r.target_user_id);
+        return p ? (
+          <span className="text-sm">{p.nome}</span>
+        ) : (
+          <span className="text-xs text-muted-foreground font-mono">
+            {r.target_user_id.slice(0, 8) + "…"}
           </span>
         );
       },
@@ -457,8 +330,8 @@ export default function Auditoria() {
     {
       key: "modulo",
       label: "Módulo",
-      render: (l: AuditLog) => {
-        const { modulo } = getTableMeta(l.tabela);
+      render: (r: AdminAuditRow) => {
+        const { modulo } = getTableMeta(r.entidade);
         return (
           <Badge variant="secondary" className="text-xs whitespace-nowrap">
             {modulo}
@@ -469,71 +342,66 @@ export default function Auditoria() {
     {
       key: "entidade",
       label: "Entidade",
-      render: (l: AuditLog) => {
-        const { entidade } = getTableMeta(l.tabela);
-        return <span className="text-sm">{entidade}</span>;
-      },
-    },
-    {
-      key: "acao",
-      label: "Ação",
-      render: (l: AuditLog) => <ActionBadge acao={l.acao} />,
-    },
-    {
-      key: "registro_id",
-      label: "Registro",
-      render: (l: AuditLog) => (
-        <span className="font-mono text-xs text-muted-foreground">
-          {l.registro_id ? l.registro_id.substring(0, 8) + "…" : "—"}
-        </span>
+      render: (r: AdminAuditRow) => (
+        <span className="text-sm">{getTableMeta(r.entidade).entidade}</span>
       ),
+    },
+    {
+      key: "tipo_acao",
+      label: "Ação",
+      render: (r: AdminAuditRow) => <ActionBadge acao={r.tipo_acao} />,
     },
     {
       key: "criticidade",
       label: "Criticidade",
-      render: (l: AuditLog) => <CriticalityBadge log={l} />,
+      render: (r: AdminAuditRow) => (
+        <CriticalityBadge
+          level={getCriticality({ acao: r.tipo_acao, entidade: r.entidade })}
+        />
+      ),
     },
   ];
 
-  // ── Render ─────────────────────────────────────────────────────────────────
-
-  const selectedProfile = selected ? getProfile(selected.usuario_id) : null;
-  const selectedMeta = selected ? getTableMeta(selected.tabela) : null;
-  const selectedAcao = selected ? getAcaoMeta(selected.acao) : null;
-  const selectedCrit = selected ? getCriticality(selected) : null;
+  const selectedAtor = selected ? getProfile(selected.ator_id) : null;
+  const selectedAlvo = selected ? getProfile(selected.target_user_id) : null;
+  const selectedMeta = selected ? getTableMeta(selected.entidade) : null;
+  const selectedCrit = selected
+    ? getCriticality({ acao: selected.tipo_acao, entidade: selected.entidade })
+    : null;
 
   return (
-    <><ModulePage
+    <>
+      <ModulePage
         title="Trilha de Auditoria"
-        subtitle="Rastreamento de operações, investigação de alterações e governança operacional"
-        count={filteredLogs.length}
-        searchValue={searchTerm}
-        onSearchChange={setSearchTerm}
-        searchPlaceholder="Buscar por usuário, módulo, entidade, ação..."
+        subtitle="Trilha unificada — operações em tabelas (CRUD) e eventos de governança (papéis, permissões, configurações)"
+        count={totalCount}
+        searchValue={searchInput}
+        onSearchChange={setSearchInput}
+        searchPlaceholder="Buscar por ator, alvo, módulo, motivo, IP..."
         summaryCards={
           <>
             <SummaryCard
               title="Eventos no Período"
-              value={String(kpis.total)}
+              value={String(totalCount)}
               icon={Shield}
               variationType="neutral"
               variant="info"
             />
             <SummaryCard
-              title="Criações"
+              title="Criações / Concessões"
               value={String(kpis.inserts)}
               icon={Plus}
               variationType="positive"
               variant="success"
             />
             <SummaryCard
-              title="Edições"
+              title="Edições / Atualizações"
               value={String(kpis.updates)}
               icon={Edit}
               variationType="neutral"
             />
             <SummaryCard
-              title="Exclusões"
+              title="Exclusões / Revogações"
               value={String(kpis.deletes)}
               icon={Trash2}
               variationType="negative"
@@ -547,8 +415,8 @@ export default function Auditoria() {
               variant="warning"
             />
             <SummaryCard
-              title="Usuários Ativos"
-              value={String(usuariosNosPeriodo.length)}
+              title="Atores na Página"
+              value={String(kpis.atoresUnicos)}
               icon={User}
               variationType="neutral"
             />
@@ -556,42 +424,70 @@ export default function Auditoria() {
         }
         filters={
           <div className="flex flex-wrap gap-2">
-            <Select value={tabelaFilter} onValueChange={setTabelaFilter}>
-              <SelectTrigger className="h-9 w-[180px]">
-                <SelectValue placeholder="Entidade / Tabela" />
+            <Select
+              value={origem}
+              onValueChange={(v) => set({ origem: v === "todas" ? "" : v, page: 1 })}
+            >
+              <SelectTrigger className="h-9 w-[170px]">
+                <SelectValue placeholder="Origem" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="todas">Todas as origens</SelectItem>
+                <SelectItem value="permission_audit">Governança</SelectItem>
+                <SelectItem value="auditoria_logs">Operacional</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={entidade}
+              onValueChange={(v) =>
+                set({ entidade: v === "todas" ? "" : v, page: 1 })
+              }
+            >
+              <SelectTrigger className="h-9 w-[200px]">
+                <SelectValue placeholder="Entidade" />
+              </SelectTrigger>
+              <SelectContent className="max-h-72">
                 <SelectItem value="todas">Todas as entidades</SelectItem>
-                {tabelas.map((t) => (
+                {KNOWN_TABLES.map((t) => (
                   <SelectItem key={t} value={t}>
-                    {getTableMeta(t).entidade}{" "}
-                    <span className="text-muted-foreground text-xs">
-                      ({t})
-                    </span>
+                    {getTableMeta(t).entidade}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
 
-            <Select value={acaoFilter} onValueChange={setAcaoFilter}>
-              <SelectTrigger className="h-9 w-[140px]">
+            <Select
+              value={tipoAcao}
+              onValueChange={(v) =>
+                set({ tipo_acao: v === "todas" ? "" : v, page: 1 })
+              }
+            >
+              <SelectTrigger className="h-9 w-[180px]">
                 <SelectValue placeholder="Ação" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="max-h-72">
                 <SelectItem value="todas">Todas as ações</SelectItem>
-                <SelectItem value="INSERT">Criação</SelectItem>
-                <SelectItem value="UPDATE">Edição</SelectItem>
-                <SelectItem value="DELETE">Exclusão</SelectItem>
+                {KNOWN_ACOES.map((a) => (
+                  <SelectItem key={a.value} value={a.value}>
+                    {a.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
 
-            <Select value={usuarioFilter} onValueChange={setUsuarioFilter}>
+            <Select
+              value={atorId}
+              onValueChange={(v) =>
+                set({ ator: v === "todos" ? "" : v, page: 1 })
+              }
+            >
               <SelectTrigger className="h-9 w-[180px]">
-                <SelectValue placeholder="Usuário" />
+                <SelectValue placeholder="Ator" />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos os usuários</SelectItem>
-                {usuariosNosPeriodo.map((p) => (
+              <SelectContent className="max-h-72">
+                <SelectItem value="todos">Todos os atores</SelectItem>
+                {profiles.map((p) => (
                   <SelectItem key={p.id} value={p.id}>
                     {p.nome}
                   </SelectItem>
@@ -600,10 +496,31 @@ export default function Auditoria() {
             </Select>
 
             <Select
-              value={criticalidadeFilter}
-              onValueChange={setCriticalidadeFilter}
+              value={targetUserId}
+              onValueChange={(v) =>
+                set({ alvo: v === "todos" ? "" : v, page: 1 })
+              }
             >
-              <SelectTrigger className="h-9 w-[150px]">
+              <SelectTrigger className="h-9 w-[170px]">
+                <SelectValue placeholder="Alvo" />
+              </SelectTrigger>
+              <SelectContent className="max-h-72">
+                <SelectItem value="todos">Todos os alvos</SelectItem>
+                {profiles.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.nome}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={criticidade}
+              onValueChange={(v) =>
+                set({ criticidade: v === "todas" ? "" : v, page: 1 })
+              }
+            >
+              <SelectTrigger className="h-9 w-[140px]">
                 <SelectValue placeholder="Criticidade" />
               </SelectTrigger>
               <SelectContent>
@@ -613,119 +530,229 @@ export default function Auditoria() {
                 <SelectItem value="baixa">Baixa</SelectItem>
               </SelectContent>
             </Select>
+
+            <Input
+              value={ipAddress}
+              onChange={(e) => set({ ip: e.target.value, page: 1 })}
+              placeholder="IP"
+              className="h-9 w-[140px] font-mono text-xs"
+            />
+            <Input
+              value={registroId}
+              onChange={(e) => set({ registro: e.target.value, page: 1 })}
+              placeholder="ID do registro"
+              className="h-9 w-[200px] font-mono text-xs"
+            />
+
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => clear()}
+              className="h-9"
+            >
+              Limpar filtros
+            </Button>
           </div>
         }
         toolbarExtra={
-          <PeriodFilter
-            value={period}
-            onChange={setPeriod}
-            options={AUDIT_PERIODS}
-          />
+          <div className="flex items-center gap-2">
+            <PeriodFilter
+              value={period}
+              onChange={(p) => set({ periodo: p, page: 1 })}
+              options={AUDIT_PERIODS}
+            />
+            {isFetching && !isLoading && (
+              <span className="text-xs text-muted-foreground">Atualizando…</span>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportarExcel}
+              disabled={exporting || visibleRows.length === 0}
+            >
+              <Download className="h-4 w-4 mr-1" />
+              Excel
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportarPdf}
+              disabled={exporting || visibleRows.length === 0}
+            >
+              <Download className="h-4 w-4 mr-1" />
+              PDF
+            </Button>
+          </div>
         }
       >
+        {truncated && (
+          <div className="mb-3 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning-foreground">
+            Exibindo página {page} de {totalPages} ({rows.length} de {totalCount}{" "}
+            eventos no período). Refine os filtros ou navegue pelas páginas.
+          </div>
+        )}
+
         <DataTable
           columns={columns}
-          data={filteredLogs}
-          loading={loading}
+          data={visibleRows}
+          loading={isLoading}
           moduleKey="auditoria"
           emptyTitle="Nenhum evento de auditoria encontrado"
-          emptyDescription="Ajuste os filtros ou amplie o período consultado para ver os registros de auditoria."
-          onView={(l) => {
-            setSelected(l);
+          emptyDescription="Ajuste os filtros ou amplie o período consultado para ver os registros."
+          onView={(r) => {
+            setSelected(r);
             setDrawerOpen(true);
           }}
         />
+
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between mt-4 px-1">
+            <span className="text-sm text-muted-foreground">
+              Página {page} de {totalPages} — {totalCount} registros
+            </span>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => set({ page: Math.max(1, page - 1) })}
+                disabled={page <= 1}
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Anterior
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => set({ page: Math.min(totalPages, page + 1) })}
+                disabled={page >= totalPages}
+              >
+                Próxima
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
       </ModulePage>
 
-      {/* ── Detail drawer ─────────────────────────────────────────────────── */}
       <ViewDrawer
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         title="Evento de Auditoria"
         badge={
-          selected && selectedAcao ? (
-            <span
-              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${selectedAcao.color}`}
-            >
-              {selectedAcao.label}
-            </span>
-          ) : undefined
+          selected ? <ActionBadge acao={selected.tipo_acao} /> : undefined
         }
       >
         {selected && selectedMeta && selectedCrit && (
           <div className="space-y-5">
-            {/* Identification */}
             <ViewSection title="Identificação do Evento">
               <div className="grid grid-cols-2 gap-4">
                 <ViewField label="Data/Hora">
-                  {new Date(selected.created_at).toLocaleString("pt-BR")}
+                  {selected.created_at
+                    ? new Date(selected.created_at).toLocaleString("pt-BR")
+                    : "—"}
+                </ViewField>
+                <ViewField label="Origem">
+                  {selected.origem ? (
+                    <OrigemBadge
+                      origem={
+                        selected.origem as "permission_audit" | "auditoria_logs"
+                      }
+                    />
+                  ) : (
+                    "—"
+                  )}
                 </ViewField>
                 <ViewField label="Criticidade">
-                  <CriticalityBadge log={selected} />
+                  <CriticalityBadge level={selectedCrit} />
+                </ViewField>
+                <ViewField label="Ação">
+                  <ActionBadge acao={selected.tipo_acao} />
                 </ViewField>
                 <ViewField label="Módulo">
                   <Badge variant="secondary">{selectedMeta.modulo}</Badge>
                 </ViewField>
-                <ViewField label="Entidade">
-                  {selectedMeta.entidade}
-                </ViewField>
+                <ViewField label="Entidade">{selectedMeta.entidade}</ViewField>
                 <ViewField label="Tabela Técnica">
                   <Badge variant="outline" className="font-mono text-xs">
-                    {selected.tabela}
+                    {selected.entidade ?? "—"}
                   </Badge>
                 </ViewField>
                 <ViewField label="ID do Registro">
                   <span className="font-mono text-xs break-all">
-                    {selected.registro_id || "—"}
+                    {selected.entidade_id ?? "—"}
                   </span>
                 </ViewField>
               </div>
             </ViewSection>
 
-            {/* Responsible user */}
-            <ViewSection title="Usuário Responsável">
+            <ViewSection title="Ator (quem fez)">
               <div className="grid grid-cols-2 gap-4">
-                {selectedProfile ? (
+                {selectedAtor ? (
                   <>
-                    <ViewField label="Nome">
-                      {selectedProfile.nome}
-                    </ViewField>
-                    {selectedProfile.email && (
-                      <ViewField label="E-mail">
-                        {selectedProfile.email}
-                      </ViewField>
+                    <ViewField label="Nome">{selectedAtor.nome}</ViewField>
+                    {selectedAtor.email && (
+                      <ViewField label="E-mail">{selectedAtor.email}</ViewField>
                     )}
-                    {selectedProfile.cargo && (
-                      <ViewField label="Cargo">
-                        {selectedProfile.cargo}
-                      </ViewField>
+                    {selectedAtor.cargo && (
+                      <ViewField label="Cargo">{selectedAtor.cargo}</ViewField>
                     )}
                     <ViewField label="ID do Usuário">
                       <span className="font-mono text-xs break-all">
-                        {selected.usuario_id}
+                        {selected.ator_id}
                       </span>
                     </ViewField>
                   </>
                 ) : (
-                  <ViewField label="ID do Usuário" className="col-span-2">
+                  <ViewField label="ID do Ator" className="col-span-2">
                     <span className="font-mono text-xs break-all">
-                      {selected.usuario_id || "—"}
+                      {selected.ator_id ?? "—"}
                     </span>
                   </ViewField>
                 )}
-                <ViewField label="IP de Origem">
-                  <span className="font-mono">
-                    {selected.ip_address || "—"}
+              </div>
+            </ViewSection>
+
+            {(selected.target_user_id || selectedAlvo) && (
+              <ViewSection title="Alvo (sobre quem)">
+                <div className="grid grid-cols-2 gap-4">
+                  {selectedAlvo ? (
+                    <>
+                      <ViewField label="Nome">{selectedAlvo.nome}</ViewField>
+                      {selectedAlvo.email && (
+                        <ViewField label="E-mail">{selectedAlvo.email}</ViewField>
+                      )}
+                    </>
+                  ) : (
+                    <ViewField label="ID do Alvo" className="col-span-2">
+                      <span className="font-mono text-xs break-all">
+                        {selected.target_user_id}
+                      </span>
+                    </ViewField>
+                  )}
+                </div>
+              </ViewSection>
+            )}
+
+            {selected.motivo && (
+              <ViewSection title="Motivo">
+                <p className="text-sm whitespace-pre-wrap">{selected.motivo}</p>
+              </ViewSection>
+            )}
+
+            <ViewSection title="Origem da Requisição">
+              <div className="grid grid-cols-2 gap-4">
+                <ViewField label="IP">
+                  <span className="font-mono">{selected.ip_address ?? "—"}</span>
+                </ViewField>
+                <ViewField label="User-Agent">
+                  <span title={selected.user_agent ?? undefined}>
+                    {summarizeUserAgent(selected.user_agent)}
                   </span>
                 </ViewField>
               </div>
             </ViewSection>
 
-            {/* Changed fields diff */}
-            <DiffViewer
-              anterior={selected.dados_anteriores}
-              novo={selected.dados_novos}
-            />
+            <DiffViewer payload={selected.payload} acao={selected.tipo_acao} />
           </div>
         )}
       </ViewDrawer>
