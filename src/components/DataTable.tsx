@@ -159,7 +159,6 @@ export function DataTable<T extends Record<string, any>>({
   searchTerm,
 }: DataTableProps<T>) {
   const isMobile = useIsMobile();
-  const { user } = useAuth();
   const [deleteItem, setDeleteItem] = useState<T | null>(null);
   const [skipDeleteConfirm, setSkipDeleteConfirm] = useState(() => localStorage.getItem('datatable:skip-delete-confirm') === '1');
   // Estado local do checkbox dentro do dialog: só é persistido em localStorage no Confirmar.
@@ -167,13 +166,26 @@ export function DataTable<T extends Record<string, any>>({
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<SortDirection>(null);
   const [currentPage, setCurrentPage] = useState(0);
-  const [viewMode, setViewMode] = useState<'pagination' | 'infinite'>('pagination');
   const [visibleCount, setVisibleCount] = useState(pageSize);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [savedFilters, setSavedFilters] = useState<Array<{ name: string; rules: FilterRule[] }>>([]);
   const [filterName, setFilterName] = useState('');
   const [rules, setRules] = useState<FilterRule[]>([]);
-  const [hiddenKeys, setHiddenKeys] = useState<Set<string>>(() => new Set(columns.filter((c) => c.hidden).map((c) => c.key)));
+
+  // Persistência unificada (Supabase + localStorage migração) via hook.
+  const initialHiddenKeys = useMemo(
+    () => columns.filter((c) => c.hidden).map((c) => c.key),
+    // Apenas no primeiro render: defaults do schema de colunas.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+  const {
+    hiddenKeys: hiddenKeysArr,
+    viewMode,
+    setHiddenKeys: persistHiddenKeys,
+    setViewMode: persistViewMode,
+  } = useDataTablePrefs(moduleKey, initialHiddenKeys);
+  const hiddenKeys = useMemo(() => new Set(hiddenKeysArr), [hiddenKeysArr]);
   const hasActions = !!(onView || onEdit || onDelete || onDuplicate || renderInlineDetails);
 
   // Scroll-shadow + scroll-position: detect horizontal overflow in the table container
