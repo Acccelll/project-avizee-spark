@@ -455,29 +455,30 @@ const FluxoCaixa = () => {
         }
       >
         {/* ── Period + bank filters ── */}
-        <div className="flex flex-wrap items-end gap-4 mb-6 p-4 bg-card rounded-xl border">
-          <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground font-medium">Período de</Label>
-            <Input type="date" value={dataInicio} onChange={e => setDataInicio(e.target.value)} className="w-[160px]" />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground font-medium">até</Label>
-            <Input type="date" value={dataFim} onChange={e => setDataFim(e.target.value)} className="w-[160px]" />
+        <div className="flex flex-wrap items-end gap-3 sm:gap-4 mb-6 p-3 sm:p-4 bg-card rounded-xl border">
+          <div className="space-y-1 w-full md:w-auto">
+            <Label className="text-xs text-muted-foreground font-medium">Período</Label>
+            <PeriodFilter
+              value={periodValue}
+              onChange={handlePeriodChange}
+              options={financialPeriods}
+              mode="both"
+            />
           </div>
           <div className="space-y-1">
             <Label className="text-xs text-muted-foreground font-medium">Agrupamento</Label>
             <div className="flex gap-1">
               {(["diaria", "semanal", "mensal"] as Periodicidade[]).map(p => (
-                <Button key={p} size="sm" variant={periodicidade === p ? "default" : "outline"} onClick={() => setPeriodicidade(p)}>
+                <Button key={p} size="sm" variant={periodicidade === p ? "default" : "outline"} className="h-9 min-h-[36px]" onClick={() => setPeriodicidade(p)}>
                   {p === "diaria" ? "Diária" : p === "semanal" ? "Semanal" : "Mensal"}
                 </Button>
               ))}
             </div>
           </div>
-          <div className="space-y-1">
+          <div className="space-y-1 w-full md:w-auto">
             <Label className="text-xs text-muted-foreground font-medium">Conta / Banco</Label>
             <Select value={filterBanco} onValueChange={setFilterBanco}>
-              <SelectTrigger className="w-[200px] h-9">
+              <SelectTrigger className="w-full md:w-[200px] h-9">
                 <SelectValue placeholder="Todos" />
               </SelectTrigger>
               <SelectContent>
