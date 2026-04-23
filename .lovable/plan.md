@@ -1,110 +1,105 @@
 
 
-# Plano: Segurança, Robustez Fiscal, Feature Flag Social e Mobile do Orçamento
+# Revisão Mobile — Estoque & Logística
 
-Quatro frentes independentes mas agrupáveis em uma execução. Tudo segue padrões já existentes no projeto (memórias de design system, RBAC, mobile do Comercial).
-
----
-
-## Frente 1 — Segurança de credenciais
-
-**Limitação técnica:** não posso executar `git rm --cached .env` nem rotacionar chaves no dashboard Supabase — essas duas ações são **manuais do usuário** (documentadas no entregável, não executáveis pelo agente). O resto é código.
-
-1. **`.gitignore`**: confirmar que `.env` está listado (já está). Sem alteração de código.
-2. **`src/integrations/supabase/client.ts`**: adicionar comentário no topo (sem mexer na lógica — arquivo é gerado, mas o cabeçalho de comentário é seguro) explicando:
-   - `VITE_SUPABASE_PUBLISHABLE_KEY` é a anon key, **pública por design** (protegida por RLS).
-   - Secrets reais (service_role, certificados, senhas SMTP) ficam apenas em **Edge Functions** via `Deno.env.get()` e no Supabase Vault.
-3. **Instruções manuais** entregues ao usuário no chat após a execução:
-   - `git rm --cached .env && git commit -m "chore: untrack .env"`
-   - Rotacionar anon key em Supabase Dashboard → Project Settings → API → "Reset anon key" (e atualizar `.env` local).
+Análise focada em **<768px**, baseada em `src/pages/Estoque.tsx`, `src/pages/Logistica.tsx`, `EstoquePosicaoDrawer`, `EstoqueMovimentacaoDrawer`, `EntregaDrawer`, `RecebimentoDrawer`, `LogisticaRastreioSection`, `TrackingModal`. Os `DataTable` já caem para `MobileCardList`, mas **sem nenhum dos props mobile** (`mobileStatusKey`, `mobileIdentifierKey`, `mobilePrimaryAction`, `mobileInlineActions`) — todo o trabalho que existe em Comercial/Compras está ausente aqui.
 
 ---
 
-## Frente 2 — RLS permissiva: documentação + hardening
+## 1. Visão geral
 
-Migration **`audit_rls_permissiva`** (via tool de migração, com aprovação do usuário):
+Os dois módulos são funcionais no desktop e **degradam para listas cinzas no mobile**: status, atrasos, deltas (+/−) e códigos de rastreio são informações decisivas, mas viram texto small sem hierarquia. **Estoque/Saldos** tem 8 colunas (atual, reservado, disponível, mínimo, valor) que viram bullets indiferenciados num card. **Estoque/Ajuste Manual** é uma página inteira com `Popover` de produto largo `w-[480px]` + `grid-cols-2` para Tipo/Quantidade — em 390px o popover sai da tela e a operação mais sensível do módulo (ajuste auditável) fica frágil. **Logística/Entregas e Recebimentos** têm coluna "Ações" com 3-5 botões + `Select` de status `w-[180px]` que no card mobile só aparece truncado. **Drawer de Remessa** usa `grid-cols-4` no summary e form de evento `grid-cols-2` — quebra ou comprime em portrait.
 
-1. **`COMMENT ON TABLE`** em cada tabela crítica documentando o modo single-tenant. Lista verificada do plano:
-   `financeiro_lancamentos, clientes, fornecedores, compras, compras_itens, estoque_movimentos, financeiro_baixas, conciliacao_bancaria, notas_fiscais, notas_fiscais_itens`.
-2. **`app_configuracoes`**: dropar policies `USING (true)` existentes e criar `admin_only_config` com `EXISTS (SELECT 1 FROM public.user_roles WHERE user_id = auth.uid() AND role IN ('admin','superadmin'))`. Antes de gravar, vou inspecionar as policies atuais (`pg_policies`) para garantir que o nome do `DROP POLICY` está correto e que não quebro nenhum fluxo de leitura usado por `useAppConfig`.
-3. **`README.md`** ganha seção **"Segurança / RLS"** explicando:
-   - Modo atual: single-tenant, RLS permissiva para `authenticated`.
-   - Para multi-tenant: adicionar coluna `empresa_id` em todas as tabelas críticas, popular via trigger `BEFORE INSERT`, recriar policies com `WHERE empresa_id = current_setting('app.empresa_id')::uuid` ou via `user_roles.empresa_id`.
+## 2. Problemas críticos (bloqueiam uso real)
 
----
+- **C1 — Status invisível nas listas (Estoque & Logística)**: nenhum dos 5 `DataTable` (`estoque-saldos`, `estoque-movimentacoes`, `logistica-entregas`, `logistica-recebimentos`, `logistica-remessas`) passa `mobileStatusKey`. Em mobile o status (Em Trânsito / Atrasado / Crítico / Sem Estoque) fica enterrado como texto cinza no meio de detail-fields. Para um operador escaneando "o que está atrasado", é impossível.
+- **C2 — Coluna "Ações" das Entregas/Recebimentos vira lixo no card**: `acoes` tem 3-5 elementos (`Ver`, `Pedido/Compra`, `Rastrear`, `Select` de status w-180px, `Registrar recebimento`). O `MobileCardList` empilha tudo isso à direita do header — o `Select` de 180px estoura, e Rastrear/Registrar não viram CTA primário (são `ghost`).
+- **C3 — Ajuste Manual (Estoque/aba ajuste)**: `Popover` do seletor de produto com `PopoverContent w-[480px]` em viewport 390px **sai pela borda direita**. O grid `grid-cols-2` para Tipo + Quantidade comprime o `<Select>` de "Saída — reduzir do saldo" (cortado). É a operação mais sensível do módulo (RPC com auditoria) e está em formato 100% desktop.
+- **C4 — Saldos (`estoque-saldos`)**: 8 métricas (atual, reservado, disponível, mínimo, situação, valor) sem prioridade mobile. O DataTable cai em card sem `mobilePrimaryAction` ("Ajustar" rápido) e sem `mobileInlineActions` (`📊 Ver histórico`). Usuário em campo precisa abrir o drawer para descobrir saldo crítico.
+- **C5 — TrackingModal**: usa `Dialog` padrão, não bottom-sheet. Lista de eventos `max-h-80 overflow-y-auto` dentro de modal quadrado em 390px deixa pouca área útil; o modal inteiro tem altura ~75vh com scroll interno aninhado (modal scrolla + lista scrolla).
+- **C6 — `LogisticaRastreioSection`**: `grid-cols-2 md:grid-cols-4` para KPIs OK, mas a seção de remessas usa `flex` horizontal com Truck icon + dados + 2 botões `h-8` lado a lado — em 390px o nome da transportadora trunca em ~8 caracteres e os botões disputam espaço com o status pill.
 
-## Frente 3 — Robustez do `sefaz-proxy`
+## 3. Problemas médios (atrapalham uso)
 
-1. **`src/services/fiscal/sefaz/httpClient.service.ts`** — `enviarParaSefaz`:
-   - Detectar `FunctionsHttpError` via `error.context?.status === 404` e lançar mensagem amigável: *"Serviço de emissão fiscal não está disponível. Contate o suporte técnico (sefaz-proxy não deployado)."*
-   - Manter retry para erros transitórios (5xx/timeout); 404 não deve sofrer retry — falha imediata.
-2. **`supabase/functions/sefaz-proxy/index.ts`** — CORS:
-   - Trocar `allowedOrigin ?? ""` por `allowedOrigin ?? "*"` em todos os pontos onde a origem é montada.
-3. **`src/pages/fiscal/components/SefazAcoesPanel.tsx`** — banner de configuração ausente:
-   - Importar `obterCertificadoConfigurado` do service de certificados (vou localizar o módulo correto antes de codar).
-   - Renderizar `<Alert variant="warning">` com link `/administracao` quando o resultado for `null`.
-   - Botão "Transmitir SEFAZ" também fica desabilitado nesse caso (defesa em profundidade).
-4. **`README.md`** — nova seção **"Deploy das Edge Functions"** com:
-   - `supabase functions deploy sefaz-proxy`
-   - Env vars necessárias: `ALLOWED_ORIGIN`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `CERTIFICADO_PFX_SENHA`.
+- **M1 — KPIs duplicados em Logística/Entregas**: 4 cards na primeira linha + 3 cards na segunda (% no prazo, tempo médio, pendentes) = **7 cards consecutivos** antes da lista. Em mobile vira `grid-cols-2` e ocupa **~480px de altura** antes do primeiro item — usuário precisa rolar muito para chegar à lista.
+- **M2 — Filtros avançados de Logística**: 3 `MultiSelect` de 160-220px + 2 `Input type="date"` de 140px lado a lado no `AdvancedFilterBar`. Já colapsa em popover, mas dentro do popover ainda usa larguras fixas — input de data fica cortado em 360px.
+- **M3 — Drawer de Remessa**: `summary` é `grid grid-cols-4` (Status / Volumes / Peso / Frete) — V2 normalmente cai para 2x2 em mobile, mas o valor "Frete: R$ X,XX" com 6+ dígitos vaza a célula. Form de novo evento (`grid-cols-2`) comprime "Descrição" + "Local" em ~150px cada.
+- **M4 — Drawer de Posição (`EstoquePosicaoDrawer`)**: 4 tabs (Resumo, Movimentações, Vínculos, Reposição). Tab "Resumo" tem 2 `ViewSection` com `grid-cols-2`, mas labels "Necessidade de Reposição" e "Ponto de Reposição" quebram em 3 linhas em ≤390px.
+- **M5 — Aviso multi-remessa**: cada linha de Entregas com `exibicao_remessas==='multipla'` mostra texto "status reflete última remessa" e badge "X remessas" + `Select` desabilitado. No card mobile vira poluição visual sem hierarquia.
+- **M6 — Movimentações (`estoque-movimentacoes`)**: coluna "Motivo / Observação" pode ter 200+ chars; no card mobile vira detail-field truncado sem expansão. Faltam `mobileInlineActions` para "ver origem" (já existe RelationalLink no drawer, mas só aparece após tap).
+- **M7 — Aviso "Operação administrativa controlada"** (Ajuste): `flex` com ícone + 2 parágrafos = ocupa ~140px de altura antes do form. Em mobile competem com o teclado quando o usuário foca um campo.
+- **M8 — Header "Ajuste Manual" no `headerActions`** do `ModulePage`: em mobile o botão "Ajuste Manual" no header + a tab "Ajuste Manual" são redundantes e ocupam linha dupla.
 
----
+## 4. Problemas leves (polimento)
 
-## Frente 4 — Feature flag Social documentada
+- **L1 — Trigger de tabs** com ícone + label (`<Package /> Saldos`) — em 360px as 3 tabs de Estoque cabem, mas as 3 de Logística (Entregas/Recebimentos/Remessas) ficam grudadas sem ícone; padrão inconsistente.
+- **L2 — Banner azul "A lista exibe por padrão..."** (Saldos) com botão inline "Mostrar todos" — em mobile o botão quebra para 2ª linha sem alinhamento.
+- **L3 — Select de status na linha de Entrega** desabilita quando terminal — em mobile a UI não comunica claramente *por que* está desabilitado.
+- **L4 — Drawer de Movimentação**: alerta "ajuste manual" usa Tooltip — em touch só aparece após long-press não óbvio.
+- **L5 — Bulk "Atualizar Rastreios"**: botão no header — em mobile uma operação que itera N remessas com `toast.info` + `toast.success` polui a tela.
 
-1. **`.env.example`**: adicionar `VITE_FEATURE_SOCIAL=false` com comentário explicativo.
-2. **`src/lib/navigation.ts`**: substituir o spread condicional do item Social pelo objeto sempre presente com `badge: 'Em breve'` e `disabled: true` quando a flag não for `'true'`. Vou primeiro ler o arquivo para confirmar tipos `NavSectionKey`/`NavSubgroup` e estender a tipagem do item de navegação com `disabled?: boolean` e `badge?: string` se ainda não existirem.
-3. **`AppSidebar` / `SidebarSection`**: respeitar `disabled` aplicando `opacity-50 pointer-events-none` no item, mantendo o badge visível e bloqueando navegação. Vou inspecionar `SidebarSection.tsx` para fazer a alteração no ponto certo (item raiz, não nos subitens).
+## 5. Melhorias de layout
 
----
+- **Saldos como card com hierarquia clara**: em mobile, primary = nome do produto, identifier = SKU/Cód, status pill = `SituacaoEstoqueBadge`, primary metric grande = Saldo Atual (`Disponível: X · Mín: Y` em linha pequena abaixo), valor estoque oculto no card (visível só no drawer).
+- **Movimentações com delta destacado**: primary = produto, status pill = tipo (Entrada/Saída/Ajuste com cor), primary metric = `+/-quantidade` em mono large, identifier = data curta + origem.
+- **Entregas/Recebimentos**: primary = número do pedido/compra, identifier = cliente/fornecedor, status pill = status_logistico + sub-pill "Atrasada" quando aplicável, footer = primaryAction "Rastrear" (entrega com código) ou "Registrar Recebimento" (recebimento pendente), inline actions = `Ver` + `Pedido`.
+- **Remessas**: primary = código de rastreio mono, identifier = cliente · transportadora, status pill, primaryAction = "Rastrear Correios" quando aplicável.
+- **Logística KPIs**: em mobile, mostrar apenas 4 cards principais (Total / Em Trânsito / Atrasadas / Entregues). Os 3 secundários (%, tempo médio, pendentes) viram `Carousel` ou `Collapsible` "Ver mais métricas".
+- **Drawers**: trocar `grid-cols-4` do `DrawerSummaryGrid` para usar a quebra automática V2 (já é 2x2 em mobile); valores muito longos com `truncate` + tooltip no tap.
 
-## Frente 5 — Mobile do Orçamento (form + grid)
+## 6. Melhorias de navegação
 
-Já existe parte do trabalho mobile no Comercial (`mem://produto/comercial-mobile.md`). Esta frente complementa o que ainda estava pendente no `OrcamentoForm` raiz.
+- **Tabs de Estoque na ordem mobile**: `Saldos` → `Movimentações` → `Ajuste`. Ao abrir um item crítico no banner "Abaixo do Mínimo", oferecer ação "Ajustar" que pré-preenche `produto_id` e abre **bottom-sheet de ajuste rápido** (não muda de tab).
+- **Voltar consistente**: todos os drawers V2 já têm fechar — ok. O `RegistrarRecebimentoDialog` herda Dialog padrão; em mobile precisa virar bottom-sheet (mesmo patch já feito no Comercial/Compras).
+- **TrackingModal como bottom-sheet** (`max-sm:inset-x-0 max-sm:bottom-0 max-sm:rounded-t-xl`).
+- **Header `ModulePage` em mobile**: esconder o botão "Ajuste Manual" do header (redundante com a tab).
 
-1. **`src/components/Orcamento/OrcamentoItemsGrid.tsx`**:
-   - Já tem `renderMobileCards()` no padrão atual; vou **garantir** que `min-w-[980px]` foi removido do desktop e que o `useIsMobile` é a única chave de troca de layout (sem dupla guarda CSS+JS conflitante).
-   - Cada card mobile com:
-     - Linha 1: código + descrição (truncate com tooltip).
-     - Linha 2: qtd + unitário (grid 2 cols).
-     - Linha 3: desconto + subtotal.
-     - Rodapé: ações (duplicar, remover) com `min-h-[44px]`.
-   - Todos os inputs com `min-h-[44px]` em mobile.
-2. **`src/pages/OrcamentoForm.tsx`** — header de ações:
-   - Em mobile: deixar apenas **"Salvar"** + menu **"⋯ Mais"** (DropdownMenu) com Visualizar, PDF, Templates, etc.
-   - Desktop: layout atual permanece.
-3. **`src/pages/OrcamentoForm.tsx`** — footer sticky mobile:
-   - Componente `<div className="md:hidden fixed bottom-0 inset-x-0 bg-background border-t p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] z-40 flex items-center justify-between gap-3">` com **"Total: R$ X.XXX,XX"** à esquerda e botão **"Salvar"** à direita (h-11).
-   - Adicionar `pb-24 md:pb-0` no container do form para evitar conteúdo escondido atrás do footer.
+## 7. Melhorias de componentes
 
----
+- **`DataTable` props mobile** (5 tabelas): aplicar `mobileStatusKey`, `mobileIdentifierKey`, `mobilePrimaryAction`, `mobileInlineActions` — padrão já estabelecido em `mem://produto/comercial-mobile.md` e Compras.
+- **Ajuste Manual em mobile**: extrair o form da tab para um **`Sheet` bottom-sheet** com layout vertical (Produto autocomplete full-width, Tipo radio cards de 44px, Quantidade input 44px, preview do saldo em destaque, Categoria + Motivo). Tab continua existindo no desktop.
+- **Popover de produto**: trocar `w-[480px]` por `w-[var(--radix-popover-trigger-width)] sm:w-[480px]` para herdar largura do trigger no mobile.
+- **`EntregaDrawer` / `RecebimentoDrawer`**: footer sticky com **ação primária do estado atual** ("Rastrear", "Registrar Recebimento", "Marcar como Entregue") em destaque + secundárias num menu `⋯`.
+- **`TrackingModal`**: aplicar bottom-sheet pattern + remover scroll interno aninhado (deixar a página rolar).
+- **`LogisticaRastreioSection`**: cards verticais por remessa em mobile (status pill no topo, código rastreio mono, transportadora, ação primária "Rastrear" full-width).
+- **Form de evento no Drawer de Remessa**: `grid-cols-2` → `grid-cols-1 md:grid-cols-2`, inputs `h-11` em mobile.
 
-## Detalhes técnicos
+## 8. Melhorias de fluxo
 
-- **Migration**: usar a tool de migração (gera SQL e pede aprovação). `SET search_path = public` não se aplica a `COMMENT`/`POLICY` — sem necessidade aqui.
-- **Edge Function**: alterar `index.ts` do `sefaz-proxy` faz redeploy automático (não pedir ao usuário).
-- **Tipagem**: estender o tipo do item de navegação para `disabled?: boolean` e `badge?: string` no mesmo arquivo; verificar consumidores via `code--search_files` antes de mudar.
-- **Sem mexer em arquivos auto-gerados** (`types.ts`, `client.ts` lógica). Apenas o cabeçalho de comentário do `client.ts` será adicionado — risco baixo, mas se o arquivo for re-gerado o comentário some; vou alertar o usuário disso.
-- **Validação final**: `npx tsc --noEmit` ao fim.
+- **Entrada/Saída rápida** (Estoque): no banner "Abaixo do Mínimo" e nos cards de Saldos, oferecer FAB "+ Entrada" / "− Saída" que abre bottom-sheet pré-preenchido (apenas Quantidade + Motivo) — elimina ir até a tab Ajuste.
+- **Registrar Recebimento em 2 toques**: mobile primaryAction "Registrar" no card de Recebimento → bottom-sheet (mesma `RegistrarRecebimentoDialog` adaptada).
+- **Rastrear como CTA primário**: para Entregas com `codigo_rastreio` e para Remessas com código, `primaryAction` full-width 44px abre TrackingModal direto — elimina o tap em "Ver" → tab → botão.
+- **Atualizar status da entrega**: em mobile, em vez do `Select w-180px` na linha, oferecer "Próximo status" como botão único primário (avança 1 passo no fluxo). Status alternativos via long-press/menu `⋯`.
+- **Banner de itens críticos**: tornar tappable cada chip → abre bottom-sheet de ajuste rápido daquele item.
 
----
+## 9. Sugestões de redesign mobile (sem inventar sistema novo)
 
-## Roadmap de execução (uma rodada, ordem)
+Reaproveitar o padrão consolidado em **`mem://produto/comercial-mobile.md`** e **`mem://produto/compras-mobile.md`**:
 
-| # | Etapa | Arquivos |
-|---|---|---|
-| 1 | Comentário de segurança no `client.ts` | `src/integrations/supabase/client.ts` |
-| 2 | `.env.example` ganha `VITE_FEATURE_SOCIAL` | `.env.example` |
-| 3 | Migration `audit_rls_permissiva` (COMMENTs + policy `app_configuracoes`) | DB |
-| 4 | Hardening Edge Function CORS | `supabase/functions/sefaz-proxy/index.ts` |
-| 5 | `httpClient.service.ts` trata 404 amigavelmente | `src/services/fiscal/sefaz/httpClient.service.ts` |
-| 6 | `SefazAcoesPanel` banner de certificado ausente | `src/pages/fiscal/components/SefazAcoesPanel.tsx` |
-| 7 | `navigation.ts` Social com `badge`/`disabled` + `SidebarSection` respeita disabled | `src/lib/navigation.ts`, `src/components/sidebar/SidebarSection.tsx` |
-| 8 | `OrcamentoItemsGrid` confirmar mobile cards + 44px | `src/components/Orcamento/OrcamentoItemsGrid.tsx` |
-| 9 | `OrcamentoForm` header com "⋯ Mais" + footer sticky mobile | `src/pages/OrcamentoForm.tsx` |
-| 10 | README: seções "Segurança / RLS" + "Deploy das Edge Functions" | `README.md` |
-| 11 | Memória: atualizar `mem://produto/comercial-mobile.md` com footer sticky do form e mover constraints de RLS para `mem://security/rls-single-tenant.md` | memória |
-| 12 | Mensagem final: instruções manuais (rotação de anon key + `git rm --cached .env`) | chat |
+- **`MobileCardList` + `mobileStatusKey/mobileIdentifierKey/mobilePrimaryAction/mobileInlineActions`** já existentes em `DataTable`.
+- **`Sheet` bottom-sheet** para Ajuste rápido, RegistrarRecebimento, TrackingModal.
+- **`DrawerStickyFooter`** (V2) para CTA primário do estado.
+- **Tipo de movimento** (Entrada/Saída/Ajuste) usando `STATUS_VARIANT_MAP` para coerência cromática com o resto do ERP.
+- Documentar em **`mem://produto/estoque-logistica-mobile.md`** as decisões.
 
-**Validação:** `npx tsc --noEmit` após o passo 9.
+## 10. Roadmap de execução
+
+| # | Etapa | Resolve | Esforço |
+|---|---|---|---|
+| **1** | Aplicar `mobileStatusKey/mobileIdentifierKey/mobilePrimaryAction/mobileInlineActions` nos 5 DataTables (`estoque-saldos`, `estoque-movimentacoes`, `logistica-entregas`, `logistica-recebimentos`, `logistica-remessas`) | C1, C2, C4, M5 | M |
+| **2** | Popover de produto (Ajuste): largura responsiva (`w-trigger sm:w-[480px]`); inputs/selects do form com `h-11` em mobile | C3 (mitiga) | XS |
+| **3** | Extrair Ajuste Manual para `EstoqueAjusteSheet` (bottom-sheet em mobile, mantém tab no desktop); pré-preenchível por `produto_id` via banner crítico e por chip da lista | C3, fluxo | M |
+| **4** | `TrackingModal` em estilo bottom-sheet `max-sm` + remover scroll interno aninhado | C5 | S |
+| **5** | `LogisticaRastreioSection`: cards verticais em mobile com primaryAction "Rastrear" full-width 44px | C6 | S |
+| **6** | KPIs de Logística/Entregas: 4 cards principais sempre visíveis, 3 secundários em `Collapsible` "Mais métricas" no mobile | M1 | S |
+| **7** | Drawers `EntregaDrawer` + `RecebimentoDrawer`: footer com ação primária por estado + secundárias em menu `⋯` (mobile) | C2 (parte), fluxo | S |
+| **8** | Drawer Remessa: `grid-cols-4` summary com truncate seguro; form de evento `grid-cols-1 md:grid-cols-2` com `h-11` mobile | M3 | XS |
+| **9** | `RegistrarRecebimentoDialog` quando aberto a partir de Logística: confirmar bottom-sheet (já feito no patch Comercial — replicar se necessário) | fluxo | XS |
+| **10** | Esconder header `Ajuste Manual` em mobile (redundante com tab) | M8, L | XS |
+| **11** | Banner "Abaixo do Mínimo": cada chip com 44px de altura e ação direta "Ajustar" via bottom-sheet | fluxo | XS |
+| **12** | Documentar em `mem://produto/estoque-logistica-mobile.md` + atualizar `mem://index.md` | governança | XS |
+
+**Quick wins (alto valor, baixo risco)**: 1, 2, 6, 8, 10.
+**Estruturais (mudam fluxo)**: 3, 4, 5, 7, 11.
+**Polimento**: 9, 12.
 
