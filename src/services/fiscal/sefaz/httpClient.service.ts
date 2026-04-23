@@ -5,6 +5,7 @@
  */
 
 import { supabase } from "@/integrations/supabase/client";
+import { FunctionsHttpError } from "@supabase/supabase-js";
 
 export interface SefazResponse {
   sucesso: boolean;
@@ -66,6 +67,21 @@ export async function enviarParaSefaz(
       const { data, error } = await supabase.functions.invoke("sefaz-proxy", { body });
 
       if (error) {
+        // 404 = Edge Function não deployada → falha imediata e amigável (sem retry).
+        const status =
+          error instanceof FunctionsHttpError
+            ? (error.context as Response | undefined)?.status
+            : (error as { context?: { status?: number } }).context?.status;
+
+        if (status === 404) {
+          return {
+            sucesso: false,
+            erro:
+              "Serviço de emissão fiscal não está disponível. Contate o suporte técnico (sefaz-proxy não deployado).",
+            statusHttp: 404,
+          };
+        }
+
         ultimoErro = error.message ?? "Erro na Edge Function sefaz-proxy";
         if (tentativa < tentativas) {
           await new Promise((r) => setTimeout(r, 1000 * tentativa));

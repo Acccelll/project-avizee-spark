@@ -42,17 +42,21 @@ export function SidebarSection({
 
   // Direct-link section (Social, Relatórios) — no expand/collapse
   if (section.directPath) {
+    const isDisabled = Boolean(section.disabled);
     return (
       <button
         type="button"
         onClick={() => {
+          if (isDisabled) return;
           onNavigate(section.directPath!);
         }}
+        disabled={isDisabled}
+        aria-disabled={isDisabled || undefined}
         aria-current={isActive ? 'page' : undefined}
         className={`relative flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium transition ${
           isActive ? 'sidebar-item-active' : 'text-foreground hover:bg-accent'
-        } ${collapsed ? 'justify-center px-0' : ''}`}
-        title={collapsed ? section.title : undefined}
+        } ${collapsed ? 'justify-center px-0' : ''} ${isDisabled ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}`}
+        title={collapsed ? `${section.title}${section.badge ? ` — ${section.badge}` : ''}` : undefined}
         aria-label={collapsed ? `Abrir ${section.title}` : undefined}
       >
         {collapsed && isActive && (
@@ -60,6 +64,11 @@ export function SidebarSection({
         )}
         <section.icon className={`h-[18px] w-[18px] shrink-0 ${isActive ? 'text-primary' : ''}`} />
         {!collapsed && <span className="flex-1">{section.title}</span>}
+        {!collapsed && section.badge && (
+          <span className="ml-auto inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            {section.badge}
+          </span>
+        )}
       </button>
     );
   }

@@ -17,8 +17,11 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const allowedOrigin = Deno.env.get("ALLOWED_ORIGIN");
 
+// Em produção, ALLOWED_ORIGIN deve apontar para o domínio do app (ex.: https://sistema.avizee.com.br).
+// Em desenvolvimento ou quando a variável não está definida, fazemos fallback para "*"
+// para evitar bloqueio total de CORS — porém a Edge Function continua exigindo JWT válido.
 const corsHeaders = {
-  "Access-Control-Allow-Origin": allowedOrigin ?? "",
+  "Access-Control-Allow-Origin": allowedOrigin ?? "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
 };
