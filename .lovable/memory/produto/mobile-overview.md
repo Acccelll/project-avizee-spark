@@ -17,10 +17,12 @@ ERP é hoje "mobile-capable" (não mobile-first): operação 80% rodável em cel
 - Bottom nav fixo (Início + Comercial + Cadastros + Financeiro + Menu); MobileMenu lista TODAS seções (sem filtrar duplicadas com bottom nav).
 
 **Backlog priorizado:**
-1. Sticky footer dirty em forms de cadastros restantes (FormasPagamento, ContasBancarias, GruposEconomicos, Funcionarios edit).
-2. Filtros bottom-sheet em Estoque, Logística, Compras.
-3. Bottom nav contextual por módulo ativo.
-4. Revisão dedicada: Auditoria, Migração, Social.
+1. Bottom nav contextual por módulo ativo.
+2. Revisão dedicada: Auditoria, Migração, Social.
+3. Tabs horizontais com overflow indicator global.
+4. ResponsiveDialog wrapper único (substituir Dialog/AlertDialog manuais).
 
 **Resolvido recentemente:**
 - RelationalDrawerStack: limite efetivo 3 em mobile via `MAX_DRAWER_DEPTH_MOBILE` (provider escolhe via `useIsMobile`); breadcrumb encadeado já clicável (`DrawerStackBreadcrumb` ativo quando `total > 1`, sticky junto ao header).
+- Sticky footer "salvar dirty" em todos cadastros: já provido transversalmente por `FormModal` + `FormModalFooter` (full-width `max-sm:w-full`, `min-h-11`, CTA em cima via `flex-col-reverse`) combinado com `DialogFooter` sticky+bottom-sheet em mobile.
+- Filtros bottom-sheet em Estoque, Logística e Compras: já provido por `AdvancedFilterBar` (Drawer bottom nativo do vaul com badge de contagem, "Limpar filtros" e "Ver resultados (N)").
