@@ -39,6 +39,9 @@ import { UF_OPTIONS } from "@/constants/brasil";
 import { AddProdutoFornecedor } from "@/components/fornecedores/AddProdutoFornecedor";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
+import { QuickAddSupplierModal } from "@/components/QuickAddSupplierModal";
+import { MobileQuickAddFAB } from "@/components/MobileQuickAddFAB";
+import { ContactInlineActions } from "@/components/ui/MobileCardActions";
 
 const MAX_OBSERVACOES_LENGTH = 2000;
 const MAX_PRAZO_DAYS = 365;
