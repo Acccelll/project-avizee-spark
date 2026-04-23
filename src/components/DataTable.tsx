@@ -128,6 +128,16 @@ interface DataTableProps<T> {
    * (ex.: "financeiro:exportar"). Ver mem://produto/contrato-de-status.
    */
   exportPermission?: PermissionKey;
+  /**
+   * Marca a coluna usada como "identifier" (CNPJ, SKU, código) no card mobile.
+   * Renderizada em fonte mono cinza abaixo do título primário.
+   */
+  mobileIdentifierKey?: string;
+  /**
+   * Ações inline rápidas (📞 Wpp ✉ 👁) renderizadas no rodapé do card mobile.
+   * Recebe o item e retorna ReactNode (idealmente <ContactInlineActions />).
+   */
+  mobileInlineActions?: (item: T) => React.ReactNode;
 }
 
 type SortDirection = 'asc' | 'desc' | null;
@@ -165,6 +175,8 @@ export function DataTable<T extends Record<string, any>>({
   onClearFilters,
   searchTerm,
   exportPermission = 'relatorios:exportar',
+  mobileIdentifierKey,
+  mobileInlineActions,
 }: DataTableProps<T>) {
   const isMobile = useIsMobile();
   const [deleteItem, setDeleteItem] = useState<T | null>(null);
@@ -423,13 +435,23 @@ export function DataTable<T extends Record<string, any>>({
   // mapeando `mobilePrimary`/`mobileCard` (DataTable) para `primary` (MobileCardList).
   const renderMobileCards = () => {
     const primaryCol = visibleColumns.find((c) => c.mobilePrimary) ?? visibleColumns[0];
-    const cardCols = visibleColumns.filter((c) => c.mobileCard && c.key !== primaryCol?.key);
-    const fallbackCols = visibleColumns.filter((c) => c.key !== primaryCol?.key).slice(0, 3);
+    const identifierCol = mobileIdentifierKey
+      ? visibleColumns.find((c) => c.key === mobileIdentifierKey)
+      : undefined;
+    const cardCols = visibleColumns.filter(
+      (c) => c.mobileCard && c.key !== primaryCol?.key && c.key !== identifierCol?.key,
+    );
+    const fallbackCols = visibleColumns
+      .filter((c) => c.key !== primaryCol?.key && c.key !== identifierCol?.key)
+      .slice(0, 3);
     const detailCols = cardCols.length > 0 ? cardCols : fallbackCols;
 
     const fields: MobileCardField<T>[] = [
       ...(primaryCol
         ? [{ key: primaryCol.key, label: primaryCol.label, primary: true, render: primaryCol.render } as MobileCardField<T>]
+        : []),
+      ...(identifierCol
+        ? [{ key: identifierCol.key, label: identifierCol.label, identifier: true, render: identifierCol.render } as MobileCardField<T>]
         : []),
       ...detailCols.map((col) => ({ key: col.key, label: col.label, render: col.render }) as MobileCardField<T>),
     ];
@@ -438,7 +460,8 @@ export function DataTable<T extends Record<string, any>>({
       <MobileCardList<T>
         items={pagedData}
         fields={fields}
-        onItemClick={onRowClick}
+        onItemClick={onRowClick ?? onView ?? onEdit}
+        actionsInline={mobileInlineActions}
         actions={(item) => (
           <div className="flex items-center gap-1">
             {selectable && (

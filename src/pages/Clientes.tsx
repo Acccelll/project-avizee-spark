@@ -41,6 +41,10 @@ import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { ClienteEnderecosTab } from "./clientes/components/ClienteEnderecosTab";
 import { ClienteComunicacoesTab } from "./clientes/components/ClienteComunicacoesTab";
 import { ClienteTransportadorasTab } from "./clientes/components/ClienteTransportadorasTab";
+import { QuickAddClientModal } from "@/components/QuickAddClientModal";
+import { MobileQuickAddFAB } from "@/components/MobileQuickAddFAB";
+import { ContactInlineActions } from "@/components/ui/MobileCardActions";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface Cliente {
   id: string;tipo_pessoa: string;nome_razao_social: string;nome_fantasia: string;
@@ -139,6 +143,8 @@ const Clientes = () => {
 
   const [enderecosCount, setEnderecosCount] = useState(0);
   const [comunicacoesCount, setComunicacoesCount] = useState(0);
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     Promise.all([
@@ -351,8 +357,10 @@ const Clientes = () => {
           <>
             <SummaryCard title="Total de Clientes" value={data.length} icon={Users} />
             <SummaryCard title="Ativos" value={summaryAtivos} icon={UserCheck} variant="success" />
-            <SummaryCard title="Inativos" value={data.length - summaryAtivos} icon={User2} />
-            <SummaryCard title="Com Grupo Econômico" value={summaryComGrupo} icon={Building2} />
+            <div className="hidden md:contents">
+              <SummaryCard title="Inativos" value={data.length - summaryAtivos} icon={User2} />
+              <SummaryCard title="Com Grupo Econômico" value={summaryComGrupo} icon={Building2} />
+            </div>
           </>
         }
       >
@@ -381,9 +389,32 @@ const Clientes = () => {
             onEdit={openEdit}
             onDelete={(c) => remove(c.id)}
             deleteBehavior="soft"
+            mobileIdentifierKey="cpf_cnpj"
+            mobileInlineActions={(c: Cliente) => (
+              <ContactInlineActions
+                phone={c.celular || c.telefone}
+                whatsapp={c.celular || c.telefone}
+                email={c.email}
+                onView={() => openView(c)}
+              />
+            )}
           />
         </PullToRefresh>
       </ModulePage>
+
+      <MobileQuickAddFAB
+        onClick={() => setQuickAddOpen(true)}
+        label="Novo cliente"
+      />
+      <QuickAddClientModal
+        open={quickAddOpen}
+        onClose={() => setQuickAddOpen(false)}
+        onCreated={() => {
+          setQuickAddOpen(false);
+          fetchData();
+          toast.success("Cliente cadastrado com sucesso");
+        }}
+      />
 
       <FormModal
         open={modalOpen}

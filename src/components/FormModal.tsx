@@ -133,7 +133,7 @@ export function FormModal({
           )}
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3 max-sm:pb-24">
           {isCreate && createHint && (
             <div className="rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-foreground/80 flex items-start gap-2">
               <span aria-hidden="true">💡</span>
@@ -144,7 +144,7 @@ export function FormModal({
         </div>
 
         {footer && (
-          <div className="shrink-0 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 px-6 py-3 max-sm:pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          <div className="shrink-0 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 px-6 py-3 max-sm:pb-[max(0.75rem,env(safe-area-inset-bottom))] max-sm:shadow-[0_-4px_12px_-4px_hsl(var(--background))]">
             {footer}
           </div>
         )}

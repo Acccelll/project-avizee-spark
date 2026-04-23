@@ -35,6 +35,8 @@ import { useEditDirtyForm } from "@/hooks/useEditDirtyForm";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { produtoSchema, validateForm } from "@/lib/validationSchemas";
 import { useEditDeepLink } from "@/hooks/useEditDeepLink";
+import { QuickAddProductModal } from "@/components/QuickAddProductModal";
+import { MobileQuickAddFAB } from "@/components/MobileQuickAddFAB";
 
 type TipoItem = "produto" | "insumo";
 
@@ -769,6 +771,7 @@ const Produtos = () => {
           onEdit={openEdit}
           onDelete={(p) => remove(p.id)}
           deleteBehavior="soft"
+          mobileIdentifierKey="codigo_interno"
         />
         </PullToRefresh>
       </ModulePage>

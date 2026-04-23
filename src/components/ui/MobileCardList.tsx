@@ -6,6 +6,8 @@ export interface MobileCardField<T> {
   label: string;
   render?: (item: T) => ReactNode;
   primary?: boolean;
+  /** Marca como identificador secundário (CNPJ, SKU, código). Renderizado em mono cinza abaixo do primary. */
+  identifier?: boolean;
 }
 
 interface MobileCardListProps<T extends { id?: string }> {
@@ -13,6 +15,8 @@ interface MobileCardListProps<T extends { id?: string }> {
   fields: MobileCardField<T>[];
   onItemClick?: (item: T) => void;
   actions?: (item: T) => ReactNode;
+  /** Ícones de ação rápida (até 3) renderizados no rodapé do card (📞 Wpp ✉ 👁). Cada um é um botão 36px touch-friendly. */
+  actionsInline?: (item: T) => ReactNode;
   className?: string;
   emptyMessage?: string;
 }
@@ -26,6 +30,7 @@ export function MobileCardList<T extends { id?: string }>({
   fields,
   onItemClick,
   actions,
+  actionsInline,
   className,
   emptyMessage = "Nenhum item encontrado.",
 }: MobileCardListProps<T>) {
@@ -36,7 +41,8 @@ export function MobileCardList<T extends { id?: string }>({
   }
 
   const primaryField = fields.find((f) => f.primary) ?? fields[0];
-  const detailFields = fields.filter((f) => !f.primary);
+  const identifierField = fields.find((f) => f.identifier);
+  const detailFields = fields.filter((f) => !f.primary && !f.identifier);
 
   const renderValue = (item: T, field: MobileCardField<T>): ReactNode => {
     if (field.render) return field.render(item);
@@ -45,37 +51,42 @@ export function MobileCardList<T extends { id?: string }>({
   };
 
   return (
-    <div className={cn("space-y-2", className)}>
+    <div className={cn("space-y-1.5", className)}>
       {items.map((item, idx) => (
         <div
           key={item.id ?? idx}
           className={cn(
-            "relative rounded-xl border bg-card px-4 py-3 transition-colors active:bg-muted/50",
+            "relative rounded-xl border bg-card px-3.5 py-2.5 transition-colors active:bg-muted/60",
             onItemClick && "cursor-pointer",
           )}
           onClick={() => onItemClick?.(item)}
         >
           <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0 flex-1 space-y-1.5">
-              {/* Primary field */}
+            <div className="min-w-0 flex-1 space-y-1">
+              {/* Primary: title forte */}
               {primaryField && (
-                <div className="font-medium text-sm leading-snug">
+                <div className="font-semibold text-[15px] leading-snug truncate">
                   {renderValue(item, primaryField)}
                 </div>
               )}
-              {/* Detail fields */}
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                {detailFields.map((field) => (
-                  <div key={field.key} className="flex items-baseline gap-1 min-w-0">
-                    <span className="shrink-0 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                      {field.label}:
-                    </span>
-                    <span className="text-xs">{renderValue(item, field)}</span>
-                  </div>
-                ))}
-              </div>
+              {/* Identifier (CNPJ/SKU/código): mono cinza */}
+              {identifierField && (
+                <div className="font-mono text-xs text-muted-foreground truncate">
+                  {renderValue(item, identifierField)}
+                </div>
+              )}
+              {/* Detalhes secundários */}
+              {detailFields.length > 0 && (
+                <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 pt-0.5">
+                  {detailFields.map((field) => (
+                    <div key={field.key} className="text-xs text-muted-foreground min-w-0 truncate">
+                      {renderValue(item, field)}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-            {/* Actions slot */}
+            {/* Menu ⋮ no canto */}
             {actions && (
               <div
                 className="flex shrink-0 items-center"
@@ -85,6 +96,15 @@ export function MobileCardList<T extends { id?: string }>({
               </div>
             )}
           </div>
+          {/* Ações rápidas inline (📞 Wpp ✉ etc) — rodapé tap-friendly */}
+          {actionsInline && (
+            <div
+              className="mt-2 flex items-center gap-1.5 border-t border-border/40 pt-2"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {actionsInline(item)}
+            </div>
+          )}
         </div>
       ))}
     </div>
