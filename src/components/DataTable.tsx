@@ -42,6 +42,7 @@ import { toast } from 'sonner';
 import { TableSkeleton } from '@/components/ui/content-skeletons';
 import { EmptyState } from '@/components/ui/empty-state';
 import { NoResultsState } from '@/components/ui/NoResultsState';
+import { MobileCardList, type MobileCardField } from '@/components/ui/MobileCardList';
 
 export interface Column<T> {
   key: string;
