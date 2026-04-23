@@ -28,6 +28,9 @@ import type { Lancamento, ContaBancaria } from "@/types/domain";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import { displayDescricao } from "@/lib/displayLancamento";
 import { getEffectiveStatus as libGetEffectiveStatus } from "@/lib/financeiro";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ChevronDown, ChevronUp } from "lucide-react";
 
 type Periodicidade = "diaria" | "semanal" | "mensal";
 
