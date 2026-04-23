@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { StatusBadge } from "@/components/StatusBadge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { FormTabsList } from "@/components/FormTabsList";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { RelationalLink } from "@/components/ui/RelationalLink";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
@@ -340,18 +341,18 @@ export function OrdemVendaView({ id }: Props) {
 
       {/* Tabs */}
       <Tabs defaultValue="resumo" className="w-full">
-        <TabsList className="w-full justify-start mb-1">
-          <TabsTrigger value="resumo" className="text-xs">Resumo</TabsTrigger>
-          <TabsTrigger value="itens" className="text-xs">Itens</TabsTrigger>
-          <TabsTrigger value="logistica" className="text-xs">Logística</TabsTrigger>
-          <TabsTrigger value="faturamento" className="text-xs">Faturamento</TabsTrigger>
-          {devolucoes.length > 0 && (
-            <TabsTrigger value="devolucoes" className="text-xs">
-              Devoluções <span className="ml-1 text-[10px] text-muted-foreground">({devolucoes.length})</span>
-            </TabsTrigger>
-          )}
-          <TabsTrigger value="vinculos" className="text-xs">Vínculos</TabsTrigger>
-        </TabsList>
+        <FormTabsList
+          tabs={[
+            { value: "resumo", label: "Resumo" },
+            { value: "itens", label: "Itens", count: items.length },
+            { value: "logistica", label: "Logística" },
+            { value: "faturamento", label: "Faturamento", count: notasFiscais.length },
+            ...(devolucoes.length > 0
+              ? [{ value: "devolucoes", label: "Devoluções", count: devolucoes.length }]
+              : []),
+            { value: "vinculos", label: "Vínculos" },
+          ]}
+        />
 
         {/* ── Resumo ─────────────────────────────────────── */}
         <TabsContent value="resumo" className="space-y-4 mt-3 text-sm">

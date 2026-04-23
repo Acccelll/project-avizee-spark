@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { StatusBadge } from "@/components/StatusBadge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { FormTabsList } from "@/components/FormTabsList";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { RelationalLink } from "@/components/ui/RelationalLink";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
@@ -279,13 +280,15 @@ export function OrcamentoView({ id }: Props) {
 
       {/* Tabs */}
       <Tabs defaultValue="resumo" className="w-full">
-        <TabsList className="w-full grid grid-cols-5">
-          <TabsTrigger value="resumo" className="text-[10px]">Resumo</TabsTrigger>
-          <TabsTrigger value="itens" className="text-[10px]">Itens</TabsTrigger>
-          <TabsTrigger value="totais" className="text-[10px]">Totais</TabsTrigger>
-          <TabsTrigger value="condicoes" className="text-[10px]">Condições</TabsTrigger>
-          <TabsTrigger value="vinculos" className="text-[10px]">Vínculos</TabsTrigger>
-        </TabsList>
+        <FormTabsList
+          tabs={[
+            { value: "resumo", label: "Resumo" },
+            { value: "itens", label: "Itens", count: items.length },
+            { value: "totais", label: "Totais" },
+            { value: "condicoes", label: "Condições" },
+            { value: "vinculos", label: "Vínculos", count: linkedOV ? 1 : 0 },
+          ]}
+        />
 
         {/* --- RESUMO --- */}
         <TabsContent value="resumo" className="space-y-3 mt-3 text-sm">
