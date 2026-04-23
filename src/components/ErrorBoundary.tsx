@@ -1,5 +1,5 @@
 import { Component, ErrorInfo, ReactNode } from "react";
-import { AlertTriangle, RefreshCw, Home } from "lucide-react";
+import { AlertTriangle, RefreshCw, Home, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface Props {
@@ -27,6 +27,15 @@ export class ErrorBoundary extends Component<Props, State> {
 
   render() {
     if (this.state.hasError) {
+      const isDev = import.meta.env.DEV;
+      const errorMessage = this.state.error?.message ?? "";
+      const handleCopyDetails = () => {
+        if (this.state.error) {
+          void navigator.clipboard
+            ?.writeText(`${this.state.error.name}: ${errorMessage}\n${this.state.error.stack ?? ""}`)
+            .catch(() => {});
+        }
+      };
       return (
         <div className="min-h-screen flex items-center justify-center bg-background p-6">
           <div className="max-w-md w-full text-center space-y-6">
@@ -39,9 +48,9 @@ export class ErrorBoundary extends Component<Props, State> {
                 Ocorreu um erro inesperado. Tente recarregar a página ou volte ao Dashboard.
               </p>
             </div>
-            {this.state.error && (
+            {this.state.error && isDev && (
               <pre className="text-xs text-left bg-muted rounded-md p-3 overflow-auto max-h-32 text-muted-foreground">
-                {this.state.error.message}
+                {errorMessage}
               </pre>
             )}
             <div className="flex gap-3 justify-center">
@@ -53,6 +62,12 @@ export class ErrorBoundary extends Component<Props, State> {
                 <Home className="mr-2 h-4 w-4" />
                 Dashboard
               </Button>
+              {this.state.error && (
+                <Button onClick={handleCopyDetails} variant="ghost" size="sm">
+                  <Copy className="mr-2 h-4 w-4" />
+                  Copiar detalhes
+                </Button>
+              )}
             </div>
           </div>
         </div>
