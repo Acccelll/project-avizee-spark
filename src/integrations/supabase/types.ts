@@ -6609,6 +6609,15 @@ export type Database = {
       get_secret_gateway_key: { Args: never; Returns: string }
       get_secret_sefaz_password: { Args: never; Returns: string }
       get_secret_smtp_password: { Args: never; Returns: string }
+      global_search: {
+        Args: { max_per_category?: number; search_term: string }
+        Returns: {
+          category: string
+          entity_id: string
+          subtitle: string
+          title: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
