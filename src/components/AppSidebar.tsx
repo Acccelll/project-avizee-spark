@@ -54,7 +54,6 @@ export function AppSidebar({
     [navigate],
   );
 
-  const containerClasses = collapsed ? 'w-[72px]' : 'w-[240px]';
   const transitionClasses =
     'transition-[width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[width]';
   const dashboardActive = location.pathname === dashboardItem.path;
@@ -65,8 +64,8 @@ export function AppSidebar({
       className={[
         'fixed inset-y-0 left-0 z-50 flex h-screen flex-col overflow-hidden border-r border-border bg-card',
         transitionClasses,
-        containerClasses,
       ].join(' ')}
+      style={{ width: collapsed ? 'var(--sidebar-w-collapsed)' : 'var(--sidebar-w-expanded)' }}
     >
         {/* Brand */}
         <div className="flex h-14 items-center justify-between border-b border-border/60 px-2">
