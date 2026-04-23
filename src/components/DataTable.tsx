@@ -164,6 +164,7 @@ export function DataTable<T extends Record<string, any>>({
   activeFiltersCount = 0,
   onClearFilters,
   searchTerm,
+  exportPermission = 'relatorios:exportar',
 }: DataTableProps<T>) {
   const isMobile = useIsMobile();
   const [deleteItem, setDeleteItem] = useState<T | null>(null);
@@ -333,7 +334,7 @@ export function DataTable<T extends Record<string, any>>({
     rows: sortedData,
     columns: visibleColumns.map((c) => ({ key: c.key, label: c.label })),
     titulo: moduleKey || 'dados',
-    permission: 'relatorios:exportar',
+    permission: exportPermission,
   });
 
   const deleteActionLabel = deleteBehavior === 'soft' ? 'Inativar' : 'Excluir permanentemente';
