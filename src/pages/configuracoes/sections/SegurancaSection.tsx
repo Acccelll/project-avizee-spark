@@ -247,7 +247,7 @@ export function SegurancaSection() {
             </div>
           )}
 
-          <div className="flex flex-col gap-2 hidden md:flex">
+          <div className="hidden md:flex flex-col gap-2">
             <div className="flex items-center gap-3">
               <Button onClick={cp.change} disabled={cp.changing || !canSubmit} className="gap-2">
                 {cp.changing ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
