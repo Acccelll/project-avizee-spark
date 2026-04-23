@@ -125,29 +125,36 @@ export function LogisticaRastreioSection({ pedidoCompraId, notaFiscalId, remessa
     <div className="space-y-6">
       {remessas.map((r) => (
         <div key={r.id} className="border rounded-xl p-4 bg-card shadow-sm space-y-4">
-          <div className="flex justify-between items-start">
-            <div>
+          {/* Mobile: layout vertical com pill no topo + ações full-width abaixo. Desktop: side-by-side. */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-start">
+            <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <h4 className="font-semibold text-sm font-mono text-primary">{r.codigo_rastreio || "Sem código"}</h4>
+                <h4 className="font-semibold text-sm font-mono text-primary truncate">{r.codigo_rastreio || "Sem código"}</h4>
                 <StatusBadge status={r.status_transporte} />
               </div>
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="text-xs text-muted-foreground mt-1 truncate">
                 {r.transportadoras?.nome_razao_social || "Transportadora não informada"} • {r.servico || "Serviço padrão"}
               </p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 max-sm:w-full">
               {r.codigo_rastreio && (
-                <Button size="sm" variant="outline" className="h-8" onClick={() => handleRastrear(r)} disabled={trackingLoading === r.id}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 max-sm:h-11 max-sm:flex-1"
+                  onClick={() => handleRastrear(r)}
+                  disabled={trackingLoading === r.id}
+                >
                   <Search className="w-3.5 h-3.5 mr-1.5" />
                   {trackingLoading === r.id ? "Consultando..." : "Rastrear"}
                 </Button>
               )}
               {!r.codigo_rastreio && (
-                <span className="text-[10px] px-2 py-1 rounded border bg-muted text-muted-foreground">
+                <span className="text-[10px] px-2 py-1 rounded border bg-muted text-muted-foreground max-sm:flex-1 max-sm:text-center">
                   Remessa não rastreável (sem código)
                 </span>
               )}
-              <Button size="sm" variant="ghost" className="h-8" aria-label="Ir para Logística" onClick={() => navigate('/logistica')}>
+              <Button size="sm" variant="ghost" className="h-8 max-sm:h-11 shrink-0" aria-label="Ir para Logística" onClick={() => navigate('/logistica')}>
                 <ExternalLink className="w-3.5 h-3.5" />
               </Button>
             </div>
