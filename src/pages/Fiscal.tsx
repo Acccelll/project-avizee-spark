@@ -669,7 +669,16 @@ const Fiscal = () => {
     ? { title: "Notas de Saída", subtitle: "Notas fiscais de saída e faturamento", addLabel: "Nova NF de Saída", moduleKey: "notas-saida", parceiroLabel: "Cliente" }
     : { title: "Fiscal", subtitle: "Notas fiscais, faturas e documentos", addLabel: "Nova NF", moduleKey: "notas-fiscais", parceiroLabel: "Parceiro" };
 
-  const renderFiscalStatus = (n: NotaFiscal) => <FiscalInternalStatusBadge status={n.status} />;
+  // Em mobile, exibe ERP + SEFAZ empilhados como sub-pill no header do card (statusBadge).
+  const renderFiscalStatus = (n: NotaFiscal) =>
+    isMobile ? (
+      <div className="flex flex-col items-end gap-1">
+        <FiscalInternalStatusBadge status={n.status} />
+        <FiscalSefazStatusBadge status={n.status_sefaz || "nao_enviada"} className="text-[10px] px-1.5 py-0" />
+      </div>
+    ) : (
+      <FiscalInternalStatusBadge status={n.status} />
+    );
 
   const parceiroLabel = tipoConfig.parceiroLabel;
 
