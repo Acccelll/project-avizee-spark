@@ -251,7 +251,7 @@ const Financeiro = () => {
             type="button"
             onClick={() => {
               setStatusFilters(["aberto"]);
-              setPeriod({ preset: "hoje" });
+              setPeriod("hoje");
             }}
             className="md:hidden mb-3 w-full min-h-11 flex items-center justify-between gap-3 rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-left text-sm transition-colors active:bg-warning/20"
             aria-label={`Filtrar lançamentos que vencem hoje (${kpis.venceHoje})`}
