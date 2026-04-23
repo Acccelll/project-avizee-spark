@@ -1,8 +1,10 @@
 import { createContext, useContext, useCallback, useEffect, useMemo, useReducer, useRef, ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
 import { RelationalDrawerSlotsProvider } from "@/contexts/RelationalDrawerSlotsContext";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export const MAX_DRAWER_DEPTH = 5;
+export const MAX_DRAWER_DEPTH_MOBILE = 3;
 
 export type EntityType =
   | "produto"
@@ -49,12 +51,14 @@ type Action =
   | { type: "confirm_push" }
   | { type: "cancel_push" }
   | { type: "pop" }
-  | { type: "clear" };
+  | { type: "clear" }
+  | { type: "trim_to_limit"; payload: number };
 
 interface RelationalNavigationContextType {
   stack: ViewState[];
   canPush: boolean;
   pendingPush: ViewState | null;
+  maxDepth: number;
   pushView: (type: EntityType, id: string) => void;
   confirmPendingPush: () => void;
   cancelPendingPush: () => void;
@@ -75,41 +79,61 @@ function decodeDrawerParam(value: string): ViewState | null {
   return { type, id };
 }
 
-const reducer = (state: State, action: Action): State => {
-  switch (action.type) {
-    case "set_stack":
-      return { ...state, stack: action.payload.slice(0, MAX_DRAWER_DEPTH) };
-    case "request_push":
-      if (state.stack.length < MAX_DRAWER_DEPTH) {
-        return { ...state, stack: [...state.stack, action.payload] };
+function makeReducer(getMaxDepth: () => number) {
+  return (state: State, action: Action): State => {
+    const limit = getMaxDepth();
+    switch (action.type) {
+      case "set_stack":
+        return { ...state, stack: action.payload.slice(0, limit) };
+      case "request_push":
+        if (state.stack.length < limit) {
+          return { ...state, stack: [...state.stack, action.payload] };
+        }
+        return { ...state, pendingPush: action.payload };
+      case "confirm_push": {
+        if (!state.pendingPush) return state;
+        const next = [...state.stack, state.pendingPush];
+        return { stack: next.slice(next.length - limit), pendingPush: null };
       }
-      return { ...state, pendingPush: action.payload };
-    case "confirm_push": {
-      if (!state.pendingPush) return state;
-      const next = [...state.stack, state.pendingPush];
-      return { stack: next.slice(next.length - MAX_DRAWER_DEPTH), pendingPush: null };
+      case "cancel_push":
+        return { ...state, pendingPush: null };
+      case "pop":
+        return { ...state, stack: state.stack.slice(0, -1) };
+      case "clear":
+        return { stack: [], pendingPush: null };
+      case "trim_to_limit":
+        if (state.stack.length <= action.payload) return state;
+        return { ...state, stack: state.stack.slice(state.stack.length - action.payload) };
+      default:
+        return state;
     }
-    case "cancel_push":
-      return { ...state, pendingPush: null };
-    case "pop":
-      return { ...state, stack: state.stack.slice(0, -1) };
-    case "clear":
-      return { stack: [], pendingPush: null };
-    default:
-      return state;
-  }
-};
+  };
+}
 
 const RelationalNavigationContext = createContext<RelationalNavigationContextType | undefined>(undefined);
 
 export function RelationalNavigationProvider({ children }: { children: ReactNode }) {
   const [searchParams, setSearchParams] = useSearchParams();
+  const isMobile = useIsMobile();
+  const maxDepth = isMobile ? MAX_DRAWER_DEPTH_MOBILE : MAX_DRAWER_DEPTH;
+  const maxDepthRef = useRef(maxDepth);
+  maxDepthRef.current = maxDepth;
+
+  const reducer = useMemo(() => makeReducer(() => maxDepthRef.current), []);
 
   const [state, dispatch] = useReducer(reducer, undefined, () => {
     const drawerParams = searchParams.getAll("drawer");
     const parsed = drawerParams.map(decodeDrawerParam).filter(Boolean) as ViewState[];
-    return { stack: parsed.slice(0, MAX_DRAWER_DEPTH), pendingPush: null };
+    return { stack: parsed.slice(0, maxDepthRef.current), pendingPush: null };
   });
+
+  // Quando o limite muda (ex.: rotação de orientação), apara o stack se ultrapassar.
+  useEffect(() => {
+    if (state.stack.length > maxDepth) {
+      dispatch({ type: "trim_to_limit", payload: maxDepth });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [maxDepth]);
 
   const stackRef = useRef(state.stack);
   stackRef.current = state.stack;
@@ -170,15 +194,16 @@ export function RelationalNavigationProvider({ children }: { children: ReactNode
   const value = useMemo(
     () => ({
       stack: state.stack,
-      canPush: state.stack.length < MAX_DRAWER_DEPTH,
+      canPush: state.stack.length < maxDepth,
       pendingPush: state.pendingPush,
+      maxDepth,
       pushView,
       confirmPendingPush,
       cancelPendingPush,
       popView,
       clearStack,
     }),
-    [state.stack, state.pendingPush, pushView, confirmPendingPush, cancelPendingPush, popView, clearStack],
+    [state.stack, state.pendingPush, maxDepth, pushView, confirmPendingPush, cancelPendingPush, popView, clearStack],
   );
 
   return (

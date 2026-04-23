@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { useRelationalNavigation, EntityType, ViewState, MAX_DRAWER_DEPTH } from "@/contexts/RelationalNavigationContext";
+import { useRelationalNavigation, EntityType, ViewState } from "@/contexts/RelationalNavigationContext";
 import { useDrawerSlots } from "@/contexts/RelationalDrawerSlotsContext";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -187,8 +187,8 @@ const DrawerSlot = memo(function DrawerSlot({
 });
 
 export function RelationalDrawerStack() {
-  const { stack, pendingPush, confirmPendingPush, cancelPendingPush, popView, clearStack } = useRelationalNavigation();
-  const atLimit = stack.length >= MAX_DRAWER_DEPTH;
+  const { stack, pendingPush, confirmPendingPush, cancelPendingPush, popView, clearStack, maxDepth } = useRelationalNavigation();
+  const atLimit = stack.length >= maxDepth;
 
   return (
     <>
