@@ -3,6 +3,7 @@ import { ChevronDown, ChevronRight } from 'lucide-react';
 import type { NavSection } from '@/lib/navigation';
 import { BADGE_TONE_CLASS, type BadgeInfo } from '@/hooks/useSidebarBadges';
 import { SidebarSectionItem } from './SidebarSectionItem';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 interface SidebarSectionProps {
   section: NavSection;
@@ -45,10 +46,6 @@ export function SidebarSection({
       <button
         type="button"
         onClick={() => {
-          if (collapsed) {
-            onExpandRail();
-            return;
-          }
           onNavigate(section.directPath!);
         }}
         aria-current={isActive ? 'page' : undefined}
@@ -69,57 +66,104 @@ export function SidebarSection({
 
   const showChevron = !(section.key === 'administracao' && isInsideAdminModule);
 
+  // Colapsado: usar Popover flyout em vez de expandir o trilho inteiro.
+  if (collapsed) {
+    return (
+      <Popover>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            aria-label={`Abrir seção ${section.title}`}
+            title={section.title}
+            className={`relative flex w-full items-center justify-center gap-3 rounded-lg px-0 py-2 text-left text-sm font-medium transition ${
+              isActive ? 'sidebar-section-active' : 'text-foreground hover:bg-accent'
+            }`}
+          >
+            {isActive && (
+              <span aria-hidden className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r bg-primary" />
+            )}
+            <section.icon className={`h-[18px] w-[18px] shrink-0 ${isActive ? 'text-primary' : ''}`} />
+            {moduleBadgeCount > 0 && (
+              <span
+                aria-hidden
+                className={`absolute top-1 right-1 h-2 w-2 rounded-full ${BADGE_TONE_CLASS[moduleBadgeTone]}`}
+              />
+            )}
+          </button>
+        </PopoverTrigger>
+        <PopoverContent
+          side="right"
+          align="start"
+          sideOffset={8}
+          className="w-60 p-2"
+        >
+          <div className="mb-2 flex items-center gap-2 border-b border-border/40 px-2 pb-2">
+            <section.icon className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-semibold">{section.title}</span>
+            {moduleBadgeCount > 0 && (
+              <span
+                className={`ml-auto inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1.5 text-[10px] font-semibold ${BADGE_TONE_CLASS[moduleBadgeTone]}`}
+              >
+                {moduleBadgeCount}
+              </span>
+            )}
+          </div>
+          <div className="space-y-0.5">
+            {section.items.map((group) => (
+              <Fragment key={group.title}>
+                {section.items.length > 1 && (
+                  <p className="sidebar-group-label">{group.title}</p>
+                )}
+                {group.items.map((item) => (
+                  <SidebarSectionItem
+                    key={item.path}
+                    item={item}
+                    active={isItemActive(item.path)}
+                    badge={itemBadges[item.path]}
+                    starred={isFavorito(item.path)}
+                    onNavigate={onNavigate}
+                    onToggleFavorite={onToggleFavorite}
+                  />
+                ))}
+              </Fragment>
+            ))}
+          </div>
+        </PopoverContent>
+      </Popover>
+    );
+  }
+
   return (
     <div>
       <button
         type="button"
         onClick={() => {
-          if (collapsed) {
-            onExpandRail();
-            return;
-          }
           onToggleSection();
         }}
-        aria-expanded={!collapsed && isOpen}
+        aria-expanded={isOpen}
         aria-controls={`sidebar-section-${section.key}`}
         className={`relative flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium transition ${
           isActive ? 'sidebar-section-active' : 'text-foreground hover:bg-accent'
-        } ${collapsed ? 'justify-center px-0' : ''}`}
-        title={collapsed ? section.title : undefined}
-        aria-label={collapsed ? `Abrir seção ${section.title}` : undefined}
+        }`}
       >
-        {collapsed && isActive && (
-          <span aria-hidden className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r bg-primary" />
-        )}
         <section.icon className={`h-[18px] w-[18px] shrink-0 ${isActive ? 'text-primary' : ''}`} />
-        {!collapsed && (
-          <>
-            <span className="flex-1">{section.title}</span>
-            {moduleBadgeCount > 0 && (
-              <span
-                className={`ml-auto mr-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1.5 text-[10px] font-semibold ${BADGE_TONE_CLASS[moduleBadgeTone]}`}
-              >
-                {moduleBadgeCount}
-              </span>
-            )}
-            {showChevron &&
-              (isOpen ? (
-                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-              ) : (
-                <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
-              ))}
-          </>
-        )}
-        {/* Colapsado: dot discreto em vez de número grande */}
-        {collapsed && moduleBadgeCount > 0 && (
+        <span className="flex-1">{section.title}</span>
+        {moduleBadgeCount > 0 && (
           <span
-            aria-hidden
-            className={`absolute top-1 right-1 h-2 w-2 rounded-full ${BADGE_TONE_CLASS[moduleBadgeTone]}`}
-          />
+            className={`ml-auto mr-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1.5 text-[10px] font-semibold ${BADGE_TONE_CLASS[moduleBadgeTone]}`}
+          >
+            {moduleBadgeCount}
+          </span>
         )}
+        {showChevron &&
+          (isOpen ? (
+            <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+          ) : (
+            <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+          ))}
       </button>
 
-      {!collapsed && isOpen && (
+      {isOpen && (
         <div
           id={`sidebar-section-${section.key}`}
           className="ml-2 space-y-0.5 border-l border-border/50 pl-3 py-1"
