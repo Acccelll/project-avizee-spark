@@ -76,7 +76,7 @@ export function FormModalFooter({
         </div>
       )}
 
-      <div className="flex items-center gap-2 sm:gap-3 flex-wrap justify-end">
+      <div className="flex flex-col-reverse gap-2 max-sm:w-full sm:flex-row sm:items-center sm:gap-3 sm:flex-wrap sm:justify-end">
         {secondaryActions}
         <Button
           type="button"
@@ -84,6 +84,7 @@ export function FormModalFooter({
           onClick={onCancel}
           disabled={saving}
           aria-label={cancelLabel}
+          className="max-sm:w-full max-sm:h-11"
         >
           {cancelLabel}
         </Button>
@@ -94,6 +95,7 @@ export function FormModalFooter({
             onClick={onSaveAndNew}
             disabled={primaryDisabled}
             title={primaryDisabled && disabledReason ? disabledReason : undefined}
+            className="max-sm:w-full max-sm:h-11"
           >
             {saveAndNewLabel}
           </Button>
@@ -104,6 +106,7 @@ export function FormModalFooter({
           onClick={submitAsForm ? undefined : onSubmit}
           disabled={primaryDisabled}
           title={primaryDisabled && disabledReason ? disabledReason : undefined}
+          className="max-sm:w-full max-sm:h-11"
         >
           {saving && <Loader2 className="h-4 w-4 animate-spin" />}
           {label}
