@@ -103,7 +103,7 @@ export function FiscalBlock({ stats }: FiscalBlockProps) {
           return (
             <div
               key={item.label}
-              className="flex items-center gap-3 rounded-lg border border-border/40 px-3 py-2 hover:bg-muted/20 cursor-pointer"
+              className="flex items-center gap-3 rounded-lg border border-border/40 px-3 py-2.5 min-h-[44px] hover:bg-muted/20 active:bg-muted/40 transition-colors cursor-pointer"
               onClick={() => {
                 if (item.label === 'Pendentes de emissão') navigate(buildDrilldownUrl({ kind: 'fiscal:pendentes' }));
                 else navigate('/fiscal');

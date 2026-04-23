@@ -81,7 +81,7 @@ export function EstoqueBlock({ itensBaixoMinimo, valorTotalEstoque, totalProduto
               return (
                 <div
                   key={p.id}
-                  className="flex items-center justify-between rounded py-1.5 px-1 hover:bg-muted/20 cursor-pointer"
+                  className="flex items-center justify-between rounded py-2 px-1 min-h-[44px] hover:bg-muted/20 active:bg-muted/40 transition-colors cursor-pointer"
                   onClick={() => pushView('produto', p.id)}
                 >
                   <div className="min-w-0">

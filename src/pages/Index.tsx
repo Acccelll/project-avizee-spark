@@ -1,6 +1,9 @@
 import { Fragment, lazy, Suspense, useState, type ReactNode } from "react";
 import { SummaryCard } from "@/components/SummaryCard";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
+import { MobileDashboardHeader } from "@/components/dashboard/MobileDashboardHeader";
+import { MobileCollapsibleBlock } from "@/components/dashboard/MobileCollapsibleBlock";
+import { BackToTopButton } from "@/components/dashboard/BackToTopButton";
 import { AlertStrip } from "@/components/dashboard/AlertStrip";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { FinanceiroBlock } from "@/components/dashboard/FinanceiroBlock";
@@ -18,6 +21,7 @@ import { DashboardPeriodProvider } from "@/contexts/DashboardPeriodContext";
 import { useNavigate } from "react-router-dom";
 import { useMetas } from "@/hooks/useMetas";
 import { useInView } from "@/hooks/useInView";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDashboardData } from "@/pages/dashboard/hooks/useDashboardData";
 import { useDashboardKpis } from "@/pages/dashboard/hooks/useDashboardKpis";
@@ -26,6 +30,13 @@ import { useDashboardLayout, type WidgetId } from "@/hooks/useDashboardLayout";
 import { DashboardCustomizeMenu } from "@/components/dashboard/DashboardCustomizeMenu";
 import { buildDrilldownUrl } from "@/lib/dashboard/drilldown";
 import { ScopeBadge } from "@/components/dashboard/ScopeBadge";
+import {
+  ShoppingBag,
+  Package,
+  Truck,
+  FileText as FileTextIcon,
+  DollarSign,
+} from "lucide-react";
 
 const VendasChart = lazy(() =>
   import("@/components/dashboard/VendasChart").then((m) => ({ default: m.VendasChart })),
@@ -67,6 +78,7 @@ const DashboardContent = () => {
   const { metas } = useMetas();
   const { prefs, toggleVisibility, moveWidget, resetLayout } = useDashboardLayout(user?.id);
   const isVisible = (id: WidgetId) => !prefs.hidden.includes(id);
+  const isMobile = useIsMobile();
 
   const [metricDrawer, setMetricDrawer] = useState<KpiMetricKey | null>(null);
 
@@ -145,9 +157,15 @@ const DashboardContent = () => {
 
   const RENDERERS: Record<WidgetId, () => ReactNode> = {
     kpis: () => (
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3" aria-live="polite" aria-atomic="false">
+      <div
+        aria-live="polite"
+        aria-atomic="false"
+        className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:grid sm:grid-cols-3 sm:overflow-visible sm:px-0 sm:pb-0"
+      >
         {kpiCards.map((c) => (
-          <SummaryCard key={c.id} {...c} density="compact" />
+          <div key={c.id} className="min-w-[78%] snap-start sm:min-w-0">
+            <SummaryCard {...c} density="compact" />
+          </div>
         ))}
       </div>
     ),
@@ -159,9 +177,15 @@ const DashboardContent = () => {
           </p>
           <ScopeBadge scope={{ kind: "snapshot" }} />
         </div>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4" aria-live="polite" aria-atomic="false">
+        <div
+          aria-live="polite"
+          aria-atomic="false"
+          className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:grid sm:grid-cols-4 sm:overflow-visible sm:px-0 sm:pb-0"
+        >
           {operationalCards.map((c) => (
-            <SummaryCard key={c.id} {...c} density="compact" />
+            <div key={c.id} className="min-w-[60%] snap-start sm:min-w-0">
+              <SummaryCard {...c} density="compact" />
+            </div>
           ))}
         </div>
       </div>
@@ -174,20 +198,30 @@ const DashboardContent = () => {
     ),
     financeiro: () => (
       <BlockErrorBoundary label="Financeiro">
-        <FinanceiroBlock
-          totalReceber={stats.totalReceber}
-          totalPagar={stats.totalPagar}
-          contasVencidas={stats.contasVencidas}
-          saldoProjetado={saldoProjetado}
-          recebimentosHoje={vencimentosHoje.receber}
-          pagamentosHoje={vencimentosHoje.pagar}
-        />
+        <MobileCollapsibleBlock
+          title="Financeiro"
+          icon={DollarSign}
+          iconColor="text-primary"
+          summary={`Saldo: ${saldoProjetado >= 0 ? '+' : ''}${(saldoProjetado / 1000).toFixed(0)}k`}
+          defaultOpen
+        >
+          <FinanceiroBlock
+            totalReceber={stats.totalReceber}
+            totalPagar={stats.totalPagar}
+            contasVencidas={stats.contasVencidas}
+            saldoProjetado={saldoProjetado}
+            recebimentosHoje={vencimentosHoje.receber}
+            pagamentosHoje={vencimentosHoje.pagar}
+          />
+        </MobileCollapsibleBlock>
       </BlockErrorBoundary>
     ),
     acoes_rapidas: () => (
-      <BlockErrorBoundary label="Ações Rápidas">
-        <QuickActions />
-      </BlockErrorBoundary>
+      <div className="hidden md:block">
+        <BlockErrorBoundary label="Ações Rápidas">
+          <QuickActions />
+        </BlockErrorBoundary>
+      </div>
     ),
     vendas_chart: () => (
       <LazyInViewWidget fallback={<Skeleton className="h-[240px] w-full rounded-xl" />}>
@@ -215,40 +249,81 @@ const DashboardContent = () => {
     ),
     comercial: () => (
       <BlockErrorBoundary label="Comercial">
-        <ComercialBlock
-          cotacoesAbertas={stats.orcamentos}
-          pedidosPendentes={backlogOVsCount}
-          ticketMedio={ticketMedio}
-          recentOrcamentos={recentOrcamentos}
-          loading={loading}
-          faturamentoMesAtual={faturamento.mesAtual}
-          faturamentoMesAnterior={faturamento.mesAnterior}
-        />
+        <MobileCollapsibleBlock
+          title="Comercial"
+          icon={ShoppingBag}
+          iconColor="text-secondary"
+          summary={`${stats.orcamentos} orç · ${backlogOVsCount} ped`}
+        >
+          <ComercialBlock
+            cotacoesAbertas={stats.orcamentos}
+            pedidosPendentes={backlogOVsCount}
+            ticketMedio={ticketMedio}
+            recentOrcamentos={recentOrcamentos}
+            loading={loading}
+            faturamentoMesAtual={faturamento.mesAtual}
+            faturamentoMesAnterior={faturamento.mesAnterior}
+          />
+        </MobileCollapsibleBlock>
       </BlockErrorBoundary>
     ),
     estoque: () => (
       <BlockErrorBoundary label="Estoque">
-        <EstoqueBlock
-          itensBaixoMinimo={estoqueBaixo}
-          valorTotalEstoque={valorEstoque}
-          totalProdutosAtivos={stats.produtos}
-        />
+        <MobileCollapsibleBlock
+          title="Estoque"
+          icon={Package}
+          iconColor="text-info"
+          summary={
+            estoqueBaixo.length > 0
+              ? `${estoqueBaixo.length} crítico${estoqueBaixo.length > 1 ? 's' : ''}`
+              : `${stats.produtos} ativos`
+          }
+          defaultOpen={estoqueBaixo.length > 0}
+        >
+          <EstoqueBlock
+            itensBaixoMinimo={estoqueBaixo}
+            valorTotalEstoque={valorEstoque}
+            totalProdutosAtivos={stats.produtos}
+          />
+        </MobileCollapsibleBlock>
       </BlockErrorBoundary>
     ),
     logistica: () => (
       <LazyInViewWidget fallback={<Skeleton className="h-[220px] w-full rounded-xl" />}>
         <BlockErrorBoundary label="Logística">
-          <LogisticaBlock
-            comprasAguardando={comprasAguardando}
-            totalRemessasAtrasadas={remessasAtrasadas}
-          />
+          <MobileCollapsibleBlock
+            title="Logística"
+            icon={Truck}
+            iconColor="text-info"
+            summary={
+              remessasAtrasadas > 0
+                ? `${remessasAtrasadas} atrasada${remessasAtrasadas > 1 ? 's' : ''}`
+                : `${comprasAguardando.length} aguardando`
+            }
+          >
+            <LogisticaBlock
+              comprasAguardando={comprasAguardando}
+              totalRemessasAtrasadas={remessasAtrasadas}
+            />
+          </MobileCollapsibleBlock>
         </BlockErrorBoundary>
       </LazyInViewWidget>
     ),
     fiscal: () => (
       <LazyInViewWidget fallback={<Skeleton className="h-[220px] w-full rounded-xl" />}>
         <BlockErrorBoundary label="Fiscal">
-          <FiscalBlock stats={fiscalStats} />
+          <MobileCollapsibleBlock
+            title="Fiscal"
+            icon={FileTextIcon}
+            iconColor="text-secondary"
+            summary={
+              fiscalStats.pendentes > 0
+                ? `${fiscalStats.pendentes} pendente${fiscalStats.pendentes > 1 ? 's' : ''}`
+                : `${fiscalStats.emitidas} emitidas`
+            }
+          >
+            <FiscalBlock stats={fiscalStats} />
+          </MobileCollapsibleBlock>
         </BlockErrorBoundary>
       </LazyInViewWidget>
     ),
@@ -293,29 +368,33 @@ const DashboardContent = () => {
 
   return (
     <>
-      <DashboardHeader
-        lastUpdated={loadedAt}
-        onRefresh={loadData}
-        rightSlot={
-          <DashboardCustomizeMenu
-            prefs={prefs}
-            onToggle={toggleVisibility}
-            onMove={moveWidget}
-            onReset={resetLayout}
-          />
-        }
-      />
+      {isMobile ? (
+        <MobileDashboardHeader lastUpdated={loadedAt} onRefresh={loadData} />
+      ) : (
+        <DashboardHeader
+          lastUpdated={loadedAt}
+          onRefresh={loadData}
+          rightSlot={
+            <DashboardCustomizeMenu
+              prefs={prefs}
+              onToggle={toggleVisibility}
+              onMove={moveWidget}
+              onReset={resetLayout}
+            />
+          }
+        />
+      )}
 
-      <div className="mb-4 rounded-lg border border-border/60 bg-muted/10 px-4 py-3">
+      <div className="mb-3 rounded-lg border border-border/60 bg-muted/10 px-4 py-2.5 md:mb-4 md:py-3">
         <p className="text-sm font-medium text-foreground">
           {greeting}, {profile?.nome?.split(" ")[0] || "time"}.
         </p>
-        <p className="text-xs text-muted-foreground mt-0.5">
+        <p className="text-xs text-muted-foreground mt-0.5 leading-snug">
           {(vencimentosHoje.receber > 0 || vencimentosHoje.pagar > 0) ? (
             <button
               type="button"
               onClick={() => navigate(`/financeiro?venc=hoje`)}
-              className="hover:text-primary hover:underline transition-colors"
+              className="hover:text-primary hover:underline active:text-primary transition-colors text-left"
             >
               {formatVencimentosHoje(vencimentosHoje.receber, vencimentosHoje.pagar)}
             </button>
@@ -328,7 +407,7 @@ const DashboardContent = () => {
               <button
                 type="button"
                 onClick={() => navigate(buildDrilldownUrl({ kind: "pedidos:aguardando-faturamento" }))}
-                className="hover:text-primary hover:underline transition-colors"
+                className="hover:text-primary hover:underline active:text-primary transition-colors text-left"
               >
                 {backlogOVsCount} pedido{backlogOVsCount > 1 ? "s" : ""} aguardando faturamento.
               </button>
@@ -357,6 +436,8 @@ const DashboardContent = () => {
         payload={openMetric}
         onClose={() => setMetricDrawer(null)}
       />
+
+      <BackToTopButton />
     </>
   );
 };

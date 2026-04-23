@@ -77,8 +77,8 @@ export function AlertStrip({
 
   return (
     <div className="rounded-lg border border-border/60 bg-muted/10 px-3 py-2.5">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="mr-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+      <div className="flex items-center gap-2 md:flex-wrap overflow-x-auto md:overflow-visible -mx-1 px-1 snap-x snap-mandatory md:snap-none scrollbar-thin">
+        <span className="mr-1 hidden md:inline text-xs font-semibold uppercase tracking-wider text-muted-foreground shrink-0">
           Alertas
         </span>
         {items.map((item) => {
@@ -90,7 +90,7 @@ export function AlertStrip({
               onClick={() => navigate(item.href)}
               role="link"
               aria-label={`${item.label}: ${item.count}`}
-              className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-opacity hover:opacity-80 ${styles.badge}`}
+              className={`inline-flex shrink-0 snap-start cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-opacity hover:opacity-80 active:opacity-70 min-h-[36px] ${styles.badge}`}
             >
               <Icon className={`h-3 w-3 ${styles.icon}`} />
               <span>{item.label}</span>
