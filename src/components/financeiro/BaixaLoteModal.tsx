@@ -138,6 +138,7 @@ export function BaixaLoteModal({ open, onClose, selectedLancamentos, contasBanca
             <Button onClick={onClose} className="mt-2">Entendi</Button>
           </div>
         ) : (
+        <>
         <div className="space-y-4">
           <div className="rounded-lg border overflow-x-auto">
             <table className="w-full text-sm">
