@@ -32,6 +32,7 @@ export const ERP_RESOURCES = [
   "usuarios",
   "administracao",
   "socios",
+  "auditoria",
 ] as const;
 
 export const ERP_ACTIONS = [
@@ -92,6 +93,7 @@ export const RESOURCE_LABELS: Record<ErpResource, string> = {
   usuarios: "Usuários",
   administracao: "Administração",
   socios: "Sócios e Participações",
+  auditoria: "Auditoria",
 };
 
 /** Rótulos humanizados para ações ERP — uso em tooltips de botões bloqueados. */
@@ -331,6 +333,7 @@ export const RESOURCE_ACTIONS: Record<ErpResource, ErpAction[]> = {
   usuarios: ["visualizar", "criar", "editar", "excluir"],
   administracao: ["visualizar", "editar", "configurar"],
   socios: ["visualizar", "editar", "exportar"],
+  auditoria: ["visualizar", "exportar"],
 };
 
 /**
