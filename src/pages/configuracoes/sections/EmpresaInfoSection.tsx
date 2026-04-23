@@ -111,23 +111,53 @@ export function EmpresaInfoSection({ isAdmin }: Props) {
             <Skeleton className="h-4 w-1/3" />
           </div>
         ) : (
-          <div className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
-            <Field label="Razão social" value={empresa?.razao_social} />
-            <Field label="Nome fantasia" value={empresa?.nome_fantasia} />
-            <Field label="CNPJ" value={empresa?.cnpj} mono />
-            <Field label="E-mail" value={empresa?.email} />
-            <Field label="Telefone" value={empresa?.telefone} />
-            <Field
-              label="Cidade / UF"
-              value={empresa?.cidade && empresa?.uf ? `${empresa.cidade} / ${empresa.uf}` : empresa?.cidade || empresa?.uf}
-            />
-            <Field
-              label="Endereço"
-              value={[empresa?.logradouro, empresa?.numero, empresa?.bairro].filter(Boolean).join(', ') || null}
-              full
-            />
-            <Field label="CEP" value={empresa?.cep} mono />
-          </div>
+          <>
+            {/* Desktop: grid 2 colunas. Mobile: lista compacta dl */}
+            <div className="hidden sm:grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
+              <Field label="Razão social" value={empresa?.razao_social} />
+              <Field label="Nome fantasia" value={empresa?.nome_fantasia} />
+              <Field label="CNPJ" value={empresa?.cnpj} mono />
+              <Field label="E-mail" value={empresa?.email} />
+              <Field label="Telefone" value={empresa?.telefone} />
+              <Field
+                label="Cidade / UF"
+                value={empresa?.cidade && empresa?.uf ? `${empresa.cidade} / ${empresa.uf}` : empresa?.cidade || empresa?.uf}
+              />
+              <Field
+                label="Endereço"
+                value={[empresa?.logradouro, empresa?.numero, empresa?.bairro].filter(Boolean).join(', ') || null}
+                full
+              />
+              <Field label="CEP" value={empresa?.cep} mono />
+            </div>
+            <dl className="sm:hidden divide-y rounded-lg border">
+              {[
+                { label: 'Razão social', value: empresa?.razao_social, mono: false },
+                { label: 'Nome fantasia', value: empresa?.nome_fantasia, mono: false },
+                { label: 'CNPJ', value: empresa?.cnpj, mono: true },
+                { label: 'E-mail', value: empresa?.email, mono: false },
+                { label: 'Telefone', value: empresa?.telefone, mono: false },
+                {
+                  label: 'Cidade/UF',
+                  value: empresa?.cidade && empresa?.uf ? `${empresa.cidade}/${empresa.uf}` : empresa?.cidade || empresa?.uf,
+                  mono: false,
+                },
+                {
+                  label: 'Endereço',
+                  value: [empresa?.logradouro, empresa?.numero, empresa?.bairro].filter(Boolean).join(', ') || null,
+                  mono: false,
+                },
+                { label: 'CEP', value: empresa?.cep, mono: true },
+              ].map(({ label, value, mono }) => (
+                <div key={label} className="flex items-start justify-between gap-3 px-3 py-2.5">
+                  <dt className="text-xs uppercase tracking-wide text-muted-foreground shrink-0">{label}</dt>
+                  <dd className={mono ? 'font-mono text-xs text-right break-all' : 'text-xs text-right break-words'}>
+                    {value || <span className="text-muted-foreground">—</span>}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </>
         )}
 
         <Separator />
@@ -148,21 +178,21 @@ export function EmpresaInfoSection({ isAdmin }: Props) {
               {branding.corPrimaria && (
                 <span className="flex items-center gap-1.5">
                   <span
-                    className="h-5 w-5 rounded border"
+                    className="h-7 w-7 rounded border"
                     style={{ backgroundColor: branding.corPrimaria }}
                     aria-label={`Cor primária ${branding.corPrimaria}`}
                   />
-                  <span className="font-mono text-[11px] text-muted-foreground">{branding.corPrimaria}</span>
+                  <span className="font-mono text-xs text-muted-foreground">{branding.corPrimaria}</span>
                 </span>
               )}
               {branding.corSecundaria && (
                 <span className="flex items-center gap-1.5">
                   <span
-                    className="h-5 w-5 rounded border"
+                    className="h-7 w-7 rounded border"
                     style={{ backgroundColor: branding.corSecundaria }}
                     aria-label={`Cor secundária ${branding.corSecundaria}`}
                   />
-                  <span className="font-mono text-[11px] text-muted-foreground">{branding.corSecundaria}</span>
+                  <span className="font-mono text-xs text-muted-foreground">{branding.corSecundaria}</span>
                 </span>
               )}
             </div>
@@ -186,16 +216,23 @@ export function EmpresaInfoSection({ isAdmin }: Props) {
               ) : (
                 <ul className="space-y-1.5 text-sm">
                   {admins.map((a) => (
-                    <li key={a.id} className="flex items-center gap-2">
-                      <span className="text-foreground">{a.nome || 'Administrador'}</span>
-                      {a.email && (
+                    <li key={a.id}>
+                      {a.email ? (
                         <a
                           href={`mailto:${a.email}`}
-                          className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                          className="flex items-center justify-between gap-2 rounded-md border bg-card px-3 py-2 min-h-11 hover:bg-accent/30 transition-colors"
                         >
-                          <Mail className="h-3.5 w-3.5" />
-                          {a.email}
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-sm text-foreground truncate">{a.nome || 'Administrador'}</span>
+                            <span className="block text-xs text-primary truncate">{a.email}</span>
+                          </span>
+                          <Mail className="h-4 w-4 text-muted-foreground shrink-0" />
                         </a>
+                      ) : (
+                        <div className="flex items-center gap-2 px-3 py-2 text-sm">
+                          <span className="text-foreground">{a.nome || 'Administrador'}</span>
+                          <span className="text-xs text-muted-foreground">(sem e-mail)</span>
+                        </div>
                       )}
                     </li>
                   ))}
