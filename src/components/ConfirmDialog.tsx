@@ -49,6 +49,12 @@ export function ConfirmDialog({
         onEscapeKeyDown={(e) => {
           if (loading) e.preventDefault();
         }}
+        className={cn(
+          // Mobile: bottom-sheet style — keyboard does not cover footer
+          "max-sm:fixed max-sm:inset-x-0 max-sm:bottom-0 max-sm:top-auto max-sm:left-0 max-sm:translate-x-0 max-sm:translate-y-0",
+          "max-sm:max-w-none max-sm:w-full max-sm:rounded-t-2xl max-sm:rounded-b-none",
+          "max-sm:max-h-[92svh] max-sm:overflow-y-auto max-sm:pb-[max(env(safe-area-inset-bottom),1rem)]",
+        )}
       >
         <AlertDialogHeader>
           <div className="flex items-start gap-3.5">
@@ -68,8 +74,10 @@ export function ConfirmDialog({
           </div>
         </AlertDialogHeader>
         {children}
-        <AlertDialogFooter>
-          <AlertDialogCancel disabled={loading}>Cancelar</AlertDialogCancel>
+        <AlertDialogFooter className="max-sm:sticky max-sm:bottom-0 max-sm:bg-background max-sm:pt-3 max-sm:-mx-6 max-sm:px-6 max-sm:border-t max-sm:flex-col-reverse max-sm:gap-2">
+          <AlertDialogCancel disabled={loading} className="max-sm:w-full max-sm:min-h-11 max-sm:mt-0">
+            Cancelar
+          </AlertDialogCancel>
           <AlertDialogAction
             onClick={(e) => {
               // Não fechar automaticamente: deixa o caller decidir (suporta async).
@@ -78,6 +86,7 @@ export function ConfirmDialog({
             }}
             disabled={loading || confirmDisabled}
             className={cn(
+              "max-sm:w-full max-sm:min-h-11",
               isDestructive
                 ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
                 : "bg-primary text-primary-foreground hover:bg-primary/90",
