@@ -98,6 +98,26 @@ const FluxoCaixa = () => {
   const [dataInicio, setDataInicio] = useState(searchParams.get("data_inicio") ?? defaultDataInicio());
   const [dataFim, setDataFim] = useState(searchParams.get("data_fim") ?? defaultDataFim());
 
+  // Period filter (canonical) — drives dataInicio/dataFim. Defaults to "30d".
+  const [periodValue, setPeriodValue] = useState<PeriodValue>(() => {
+    if (searchParams.get("data_inicio") || searchParams.get("data_fim")) {
+      return { preset: null, from: searchParams.get("data_inicio"), to: searchParams.get("data_fim") };
+    }
+    return { preset: "30d" as Period };
+  });
+
+  const handlePeriodChange = useCallback((next: PeriodValue) => {
+    setPeriodValue(next);
+    if (next.preset) {
+      const range = periodToFinancialRange(next.preset);
+      setDataInicio(range.dateFrom);
+      if (range.dateTo) setDataFim(range.dateTo);
+    } else if (next.from || next.to) {
+      if (next.from) setDataInicio(next.from);
+      if (next.to) setDataFim(next.to);
+    }
+  }, []);
+
   // Movements filters
   const [movSearch, setMovSearch] = useState(searchParams.get("search") ?? "");
   const [movTipoFilters, setMovTipoFilters] = useState<string[]>(
