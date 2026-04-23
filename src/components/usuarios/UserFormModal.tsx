@@ -141,6 +141,14 @@ export function UserFormModal({
         toast.error('Informe um endereço de e-mail válido.');
         return;
       }
+      // Senha é opcional. Se preenchida, precisa atender à política única.
+      if (manualPassword) {
+        const result = validatePassword(manualPassword);
+        if (!result.valid) {
+          toast.error(result.error ?? 'Senha inválida.');
+          return;
+        }
+      }
     }
     if (isEdit && user?.id === currentUser?.id && !form.ativo) {
       toast.error('Você não pode inativar a própria conta.');
