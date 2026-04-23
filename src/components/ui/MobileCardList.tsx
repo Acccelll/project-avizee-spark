@@ -1,4 +1,5 @@
-import { type ReactNode } from "react";
+import { type ReactNode, useRef } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { cn } from "@/lib/utils";
 
 export interface MobileCardField<T> {
@@ -17,6 +18,10 @@ interface MobileCardListProps<T extends { id?: string }> {
   actions?: (item: T) => ReactNode;
   /** Ícones de ação rápida (até 3) renderizados no rodapé do card (📞 Wpp ✉ 👁). Cada um é um botão 36px touch-friendly. */
   actionsInline?: (item: T) => ReactNode;
+  /** Long-press abre bottom-sheet de ações destrutivas. */
+  onLongPress?: (item: T) => void;
+  /** Virtualiza lista quando items > 100 (default true). Desligue para listas curtas em containers sem altura definida. */
+  virtualize?: boolean;
   className?: string;
   emptyMessage?: string;
 }
@@ -31,6 +36,8 @@ export function MobileCardList<T extends { id?: string }>({
   onItemClick,
   actions,
   actionsInline,
+  onLongPress,
+  virtualize = true,
   className,
   emptyMessage = "Nenhum item encontrado.",
 }: MobileCardListProps<T>) {
@@ -50,17 +57,37 @@ export function MobileCardList<T extends { id?: string }>({
     return val != null ? String(val) : "—";
   };
 
-  return (
-    <div className={cn("space-y-1.5", className)}>
-      {items.map((item, idx) => (
-        <div
-          key={item.id ?? idx}
-          className={cn(
-            "relative rounded-xl border bg-card px-3.5 py-2.5 transition-colors active:bg-muted/60",
-            onItemClick && "cursor-pointer",
-          )}
-          onClick={() => onItemClick?.(item)}
-        >
+  const renderCard = (item: T, idx: number) => {
+    let pressTimer: ReturnType<typeof setTimeout> | null = null;
+    const startPress = () => {
+      if (!onLongPress) return;
+      pressTimer = setTimeout(() => onLongPress(item), 500);
+    };
+    const cancelPress = () => {
+      if (pressTimer) {
+        clearTimeout(pressTimer);
+        pressTimer = null;
+      }
+    };
+    return (
+      <div
+        key={item.id ?? idx}
+        className={cn(
+          "relative rounded-xl border bg-card px-3.5 py-2.5 transition-colors active:bg-muted/60",
+          onItemClick && "cursor-pointer",
+        )}
+        onClick={() => onItemClick?.(item)}
+        onTouchStart={startPress}
+        onTouchEnd={cancelPress}
+        onTouchMove={cancelPress}
+        onTouchCancel={cancelPress}
+        onContextMenu={(e) => {
+          if (onLongPress) {
+            e.preventDefault();
+            onLongPress(item);
+          }
+        }}
+      >
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0 flex-1 space-y-1">
               {/* Primary: title forte */}
@@ -105,8 +132,75 @@ export function MobileCardList<T extends { id?: string }>({
               {actionsInline(item)}
             </div>
           )}
-        </div>
-      ))}
+      </div>
+    );
+  };
+
+  // Virtualização ativa apenas para listas longas (>100 itens) — evita complexidade desnecessária
+  if (virtualize && items.length > 100) {
+    return (
+      <VirtualizedCardList
+        items={items}
+        renderCard={renderCard}
+        className={className}
+      />
+    );
+  }
+
+  return (
+    <div className={cn("space-y-1.5", className)}>
+      {items.map((item, idx) => renderCard(item, idx))}
+    </div>
+  );
+}
+
+function VirtualizedCardList<T>({
+  items,
+  renderCard,
+  className,
+}: {
+  items: T[];
+  renderCard: (item: T, idx: number) => ReactNode;
+  className?: string;
+}) {
+  const parentRef = useRef<HTMLDivElement>(null);
+  const virtualizer = useVirtualizer({
+    count: items.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 92,
+    overscan: 8,
+  });
+
+  return (
+    <div
+      ref={parentRef}
+      className={cn("max-h-[70vh] overflow-y-auto", className)}
+    >
+      <div
+        style={{
+          height: `${virtualizer.getTotalSize()}px`,
+          position: "relative",
+          width: "100%",
+        }}
+      >
+        {virtualizer.getVirtualItems().map((vRow) => (
+          <div
+            key={vRow.key}
+            data-index={vRow.index}
+            ref={virtualizer.measureElement}
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: "100%",
+              transform: `translateY(${vRow.start}px)`,
+              paddingBottom: 6,
+            }}
+          >
+            {renderCard(items[vRow.index], vRow.index)}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
