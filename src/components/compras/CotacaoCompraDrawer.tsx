@@ -127,7 +127,22 @@ export function CotacaoCompraDrawer({
       }
       summary={
         selected ? (
-          <CotacaoCompraHeaderSummary selected={selected} viewItems={viewItems} viewPropostas={viewPropostas} drawerStats={drawerStats} />
+          <div className="space-y-3">
+            <CotacaoCompraHeaderSummary selected={selected} viewItems={viewItems} viewPropostas={viewPropostas} drawerStats={drawerStats} />
+            {selected.status === "aprovada" && drawerStats.allItemsHaveSelected && cotacaoCanGeneratePedido(selected.status) && (
+              <div className="md:hidden sticky top-0 z-10 -mx-1">
+                <Button
+                  size="lg"
+                  className="w-full h-12 gap-2 shadow-md"
+                  disabled={gerarPending}
+                  onClick={() => runGerar(onGerarPedido)}
+                >
+                  <ShoppingCart className="h-4 w-4" /> Gerar Pedido de Compra
+                  <ChevronRight className="h-4 w-4 ml-auto" />
+                </Button>
+              </div>
+            )}
+          </div>
         ) : undefined
       }
       defaultTab={viewPropostas.length > 0 ? "propostas" : "resumo"}
