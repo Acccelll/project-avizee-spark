@@ -86,6 +86,18 @@ interface DataTableProps<T> {
   onSelectionChange?: (ids: string[]) => void;
   emptyTitle?: string;
   emptyDescription?: string;
+  /**
+   * Indica que filtros estão ativos. Quando true e a lista está vazia,
+   * o DataTable renderiza `<NoResultsState>` (com ação "Limpar filtros")
+   * em vez do `<EmptyState>` genérico.
+   */
+  hasActiveFilters?: boolean;
+  /** Contagem de filtros ativos exibida no chip do `NoResultsState`. */
+  activeFiltersCount?: number;
+  /** Callback para limpar todos os filtros. Habilita o botão "Limpar filtros". */
+  onClearFilters?: () => void;
+  /** Termo de busca atual (mostrado na descrição do `NoResultsState`). */
+  searchTerm?: string;
   showColumnToggle?: boolean;
   /**
    * Show the legacy internal "Advanced filters" popover.
