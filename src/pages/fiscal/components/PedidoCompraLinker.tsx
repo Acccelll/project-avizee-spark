@@ -21,6 +21,8 @@ interface PedidoOption {
   valor_total: number | null;
   status: string | null;
   fornecedor_nome: string | null;
+  data_pedido: string | null;
+  isSuggestion?: boolean;
 }
 
 interface PedidoCompraLinkerProps {
@@ -28,6 +30,10 @@ interface PedidoCompraLinkerProps {
   fornecedorId: string | null;
   pedidoCompraIdAtual: string | null;
   disabled?: boolean;
+  /** Valor total da NF — usado para sugerir pedidos com valor próximo (±0,01). */
+  nfValorTotal?: number | null;
+  /** Data de emissão da NF — usada para sugerir pedidos em janela de ±15 dias. */
+  nfDataEmissao?: string | null;
 }
 
 /**
