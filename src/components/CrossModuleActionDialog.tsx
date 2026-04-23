@@ -75,7 +75,17 @@ export function CrossModuleActionDialog({
         onEscapeKeyDown={(e) => {
           if (loading) e.preventDefault();
         }}
-        className="max-w-lg"
+        className={cn(
+          // Mobile: bottom-sheet (slide up, full width, rounded top)
+          "max-sm:!top-auto max-sm:!bottom-0 max-sm:!left-0 max-sm:!right-0 max-sm:!translate-x-0 max-sm:!translate-y-0",
+          "max-sm:w-full max-sm:max-w-full max-sm:rounded-b-none max-sm:rounded-t-2xl max-sm:border-x-0 max-sm:border-b-0",
+          "max-sm:max-h-[90vh] max-sm:overflow-y-auto max-sm:pb-[max(1rem,env(safe-area-inset-bottom))]",
+          // Mobile: handle visual no topo
+          "max-sm:before:content-[''] max-sm:before:absolute max-sm:before:top-2 max-sm:before:left-1/2 max-sm:before:-translate-x-1/2 max-sm:before:h-1 max-sm:before:w-10 max-sm:before:rounded-full max-sm:before:bg-muted-foreground/30",
+          "max-sm:pt-6",
+          // Desktop default
+          "max-w-lg",
+        )}
       >
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
@@ -118,15 +128,17 @@ export function CrossModuleActionDialog({
           </div>
         )}
 
-        <AlertDialogFooter>
-          <AlertDialogCancel disabled={loading}>{cancelLabel}</AlertDialogCancel>
+        <AlertDialogFooter className="max-sm:flex-col-reverse max-sm:gap-2 max-sm:space-x-0">
+          <AlertDialogCancel disabled={loading} className="max-sm:mt-0 max-sm:h-11 max-sm:w-full">
+            {cancelLabel}
+          </AlertDialogCancel>
           <AlertDialogAction
             onClick={(e) => {
               e.preventDefault();
               onConfirm();
             }}
             disabled={loading || confirmDisabled}
-            className="bg-primary text-primary-foreground hover:bg-primary/90"
+            className="bg-primary text-primary-foreground hover:bg-primary/90 max-sm:h-11 max-sm:w-full"
           >
             {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             {loading ? "Processando..." : confirmLabel}
