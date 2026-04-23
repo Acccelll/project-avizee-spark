@@ -12,6 +12,11 @@ export default defineConfig(({ mode }) => ({
       overlay: false,
     },
   },
+  esbuild: {
+    // Strip de console.* e debugger no bundle de produção.
+    // Logs críticos em dev devem usar `@/lib/logger` para preservar rastreabilidade.
+    drop: mode === "production" ? ["console", "debugger"] : [],
+  },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {
     alias: {
