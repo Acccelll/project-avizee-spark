@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { formatCurrency } from '@/lib/format';
 import { Skeleton } from '@/components/ui/skeleton';
+import type { FluxoCaixaFinanceiroRow } from '@/types/database-views';
 
 interface ChartPoint {
   mes: string;
@@ -30,8 +31,16 @@ export function FluxoCaixaChart({ embedded = false }: FluxoCaixaChartProps) {
       sixMonthsAgo.setDate(1);
       const dateFrom = sixMonthsAgo.toISOString().slice(0, 10);
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: rows } = await (supabase as any)
+      const { data: rows } = await (supabase as unknown as {
+        from: (t: string) => {
+          select: (cols: string) => {
+            gte: (col: string, val: string) => Promise<{
+              data: FluxoCaixaFinanceiroRow[] | null;
+              error: unknown;
+            }>;
+          };
+        };
+      })
         .from('vw_fluxo_caixa_financeiro')
         .select('tipo, valor, data_ref, categoria')
         .gte('data_ref', dateFrom);
@@ -39,7 +48,7 @@ export function FluxoCaixaChart({ embedded = false }: FluxoCaixaChartProps) {
       const realMap = new Map<string, { entradas_real: number; saidas_real: number }>();
       const prevMap = new Map<string, { entradas_prev: number; saidas_prev: number }>();
 
-      for (const r of (rows || []) as Array<{ tipo: string; valor: number | string; data_ref: string; categoria: string }>) {
+      for (const r of rows ?? []) {
         if (!r.data_ref) continue;
         const month = r.data_ref.slice(0, 7);
         const valor = Number(r.valor || 0);
