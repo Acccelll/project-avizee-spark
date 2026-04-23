@@ -28,6 +28,8 @@ import {
 } from "lucide-react";
 import { isFiscalReadOnly, isFiscalStructurallyLocked, canConfirmFiscal, getFiscalInternalStatus, getFiscalSefazStatus } from "@/lib/fiscalStatus";
 import { FiscalInternalStatusBadge, FiscalSefazStatusBadge } from "@/components/fiscal/FiscalStatusBadges";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ChevronDown } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
