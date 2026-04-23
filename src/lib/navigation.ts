@@ -309,12 +309,23 @@ export function getRouteLabel(pathname: string) {
   if (extraRouteLabels[pathname]) return extraRouteLabels[pathname];
   const exact = flatItemByPath.get(pathname);
   if (exact) return exact.title;
+  // Suffix `/editar` em qualquer rota → "Editar"
+  if (pathname.endsWith('/editar')) return 'Editar';
+  if (pathname.endsWith('/novo') || pathname.endsWith('/new')) return 'Novo';
+  // Detalhes por entidade
   if (pathname.startsWith('/orcamentos/')) return 'Orçamento';
   if (pathname.startsWith('/cotacoes/')) return 'Orçamento';
+  if (pathname.startsWith('/cotacoes-compra/')) return 'Cotação de Compra';
+  if (pathname.startsWith('/pedidos-compra/')) return 'Pedido de Compra';
+  if (pathname.startsWith('/pedidos/')) return 'Pedido';
   if (pathname.startsWith('/clientes/')) return 'Cliente';
   if (pathname.startsWith('/produtos/')) return 'Produto';
+  if (pathname.startsWith('/fornecedores/')) return 'Fornecedor';
+  if (pathname.startsWith('/remessas/')) return 'Remessa';
+  if (pathname.startsWith('/financeiro/')) return 'Lançamento';
+  if (pathname.startsWith('/fiscal/')) return 'Nota Fiscal';
   if (pathname.startsWith('/fiscal')) return 'Fiscal';
-  return 'ERP AviZee';
+  return 'Detalhe';
 }
 
 /**

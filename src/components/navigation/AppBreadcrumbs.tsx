@@ -52,6 +52,12 @@ export function resolvePageTitle(pathname: string, searchParams: URLSearchParams
     if (tipo === 'receber') return 'Contas a Receber';
   }
 
+  if (pathname === '/fiscal') {
+    const tipo = searchParams.get('tipo');
+    if (tipo === 'entrada') return 'Notas de Entrada';
+    if (tipo === 'saida') return 'Notas de Saída';
+  }
+
   return getRouteLabel(pathname);
 }
 
