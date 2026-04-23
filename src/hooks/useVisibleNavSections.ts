@@ -12,7 +12,7 @@ import type { ErpResource } from '@/lib/permissions';
  * Typed against ErpResource so adding/removing a resource is a compile-time check.
  */
 const sectionResourcesMap: Partial<Record<NavSectionKey, ErpResource[]>> = {
-  cadastros: ['produtos', 'clientes', 'fornecedores', 'transportadoras', 'formas_pagamento', 'socios'],
+  cadastros: ['produtos', 'clientes', 'fornecedores', 'transportadoras', 'formas_pagamento', 'socios', 'usuarios'],
   comercial: ['orcamentos', 'pedidos'],
   compras: ['compras'],
   estoque: ['estoque', 'logistica'],
