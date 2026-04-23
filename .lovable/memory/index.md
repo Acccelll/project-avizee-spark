@@ -1,0 +1,51 @@
+# Project Memory
+
+## Core
+- ERP AviZee (React, Vite, Tailwind, Supabase/Lovable Cloud).
+- Strict preservation: no stack migration, avoid complete refactors. Remove @ts-nocheck.
+- Database: RLS is mandatory. Enforce state/type integrity via `chk_` constraints.
+- RBAC via `user_permissions`. UI must use `can(resource, action)` for critical actions.
+- Security: All DB RPCs and triggers MUST set `search_path = public`.
+- Decompose God components. Separate UI state and prioritize strict domain typing.
+
+## Memories
+- [Invoicing and Tax](mem://features/faturamento-fiscal)
+- [Report Generation](mem://features/relatorios)
+- [External APIs](mem://integracoes/api-externas)
+- [RBAC Roles](mem://auth/papeis-de-usuario)
+- [Unified Logistics UI](mem://features/logistica-unificada)
+- [Data Fetching & State](mem://tech/padroes-de-desenvolvimento)
+- [Domain Typing](mem://tech/centralizacao-tipagem)
+- [Development Constraints](mem://constraints/diretrizes-de-desenvolvimento)
+- [Admin Configuration](mem://features/administracao)
+- [Admin User Management](mem://auth/gestao-de-usuarios-admin)
+- [Client/Supplier Rules](mem://features/cadastros-condicoes-comerciais)
+- [Managerial Workbook](mem://features/workbook-gerencial)
+- [Email Infrastructure](mem://integracoes/email-notificacoes)
+- [Managerial Presentation](mem://features/apresentacao-gerencial)
+- [DataTable Virtualization](mem://tech/performance-virtualizacao)
+- [Inventory Data Integrity](mem://tech/integridade-dados-estoque)
+- [Edge Functions CORS](mem://tech/infraestrutura-cors)
+- [Bank Reconciliation](mem://features/conciliacao-bancaria)
+- [DB Schema Integrity](mem://tech/integridade-dados-schema)
+- [Auth Initialization](mem://auth/sincronizacao-sessao-inicial)
+- [Products and Materials](mem://features/produtos-e-insumos)
+- [Financial Migrations](mem://features/financeiro-migracao-saldos)
+- [Write & Delete Restrictions](mem://security/restricoes-escrita-exclusao)
+- [Data Privacy Rules](mem://security/privacidade-dados-usuarios)
+- [SQL Function Security](mem://security/seguranca-funcoes-sql)
+- [Data Migration Rules](mem://constraints/migracao-dados-restricoes)
+- [Atomic Numbering](mem://tech/numeracao-atomica-documentos)
+- [Transactional Persistence](mem://tech/padroes-de-persistencia-transacional)
+- [Secret Management](mem://security/gestao-de-segredos-vault)
+- [User Preferences](mem://features/preferencias-de-usuario)
+- [Social Module Flags](mem://features/modulo-social-infraestrutura) — VITE_FEATURE_SOCIAL controla visibilidade; quando false o item aparece com badge "Em breve" e disabled
+- [Perfil x Configurações](mem://features/perfil-x-configuracoes)
+- [Design System Fontes Canônicas](mem://tech/design-system-fontes-canonicas)
+- [Contrato de Status](mem://produto/contrato-de-status)
+- [Excluir vs Inativar vs Cancelar](mem://produto/excluir-vs-inativar-vs-cancelar)
+- [Quando Drawer, Quando Página](mem://produto/quando-drawer-quando-pagina)
+- [Contrato de Períodos](mem://produto/contrato-de-periodos)
+- [Comercial Mobile](mem://produto/comercial-mobile)
+- [Compras Mobile](mem://produto/compras-mobile)
+- [RLS Single-Tenant](mem://security/rls-single-tenant) — Modo single-tenant; tabelas críticas com USING(true), exceto app_configuracoes (admin); checklist multi-tenant
