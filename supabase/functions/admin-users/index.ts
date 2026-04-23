@@ -472,6 +472,52 @@ Deno.serve(async (req) => {
       return json({ ok: true }, 200, corsHeaders);
     }
 
+    if (action === "resend-invite") {
+      const id = String(payload.id ?? "").trim();
+      const emailIn = String(payload.email ?? "").trim().toLowerCase();
+      if (!id && !emailIn) throw new HttpError(400, "Usuário inválido.");
+
+      // Resolve e-mail a partir do id se necessário
+      let email = emailIn;
+      if (!email && id) {
+        const { data: u, error: getErr } = await serviceClient.auth.admin.getUserById(id);
+        if (getErr) throw getErr;
+        email = u?.user?.email?.toLowerCase() ?? "";
+      }
+      if (!email) throw new HttpError(400, "Usuário sem e-mail cadastrado.");
+
+      let inviteSent = false;
+      let recoveryLink: string | null = null;
+      let tempPassword: string | null = null;
+
+      // 1) Tenta reenviar convite por e-mail (requer SMTP configurado)
+      try {
+        const inviteResult = await serviceClient.auth.admin.inviteUserByEmail(email);
+        if (inviteResult.error) throw inviteResult.error;
+        inviteSent = true;
+      } catch (inviteErr) {
+        console.warn("[admin-users] resend-invite: invite failed, generating recovery link", inviteErr);
+        // 2) Fallback: gera link de recuperação para o admin entregar manualmente
+        try {
+          const linkResult = await serviceClient.auth.admin.generateLink({ type: "recovery", email });
+          if (linkResult.error) throw linkResult.error;
+          recoveryLink = linkResult.data?.properties?.action_link ?? null;
+        } catch (linkErr) {
+          console.error("[admin-users] resend-invite: generateLink failed", linkErr);
+          // 3) Último recurso: senha temporária
+          tempPassword = `Tmp-${crypto.randomUUID().slice(0, 8)}-${Date.now().toString(36)}`;
+          const { error: pwErr } = await serviceClient.auth.admin.updateUserById(id, { password: tempPassword });
+          if (pwErr) throw pwErr;
+        }
+      }
+
+      await insertAudit(serviceClient, currentUser.id, id || email, null, {
+        tipo: "invite_resent", email, inviteSent, hasRecoveryLink: !!recoveryLink, hasTempPassword: !!tempPassword,
+      });
+
+      return json({ ok: true, inviteSent, recoveryLink, tempPassword }, 200, corsHeaders);
+    }
+
     throw new HttpError(400, "Ação inválida.");
   } catch (error) {
     console.error("[admin-users]", error);

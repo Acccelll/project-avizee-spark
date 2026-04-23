@@ -6,7 +6,9 @@
  * "é o próprio usuário", reload e confirmação fica no componente pai.
  */
 
-import { Edit2, MoreHorizontal, UserCheck, UserMinus } from 'lucide-react';
+import { Edit2, Mail, MoreHorizontal, UserCheck, UserMinus } from 'lucide-react';
+import { useState } from 'react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -16,7 +18,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { ShieldAlert } from 'lucide-react';
-import type { UserWithRoles } from './_shared';
+import { invokeAdminUsers, type UserWithRoles } from './_shared';
 import { RoleBadge, StatusBadgeUser } from './UserBadges';
 
 interface UserRowProps {
@@ -39,6 +41,37 @@ export function UserRow({
   );
   const exceptionCount =
     user.extra_permissions.length + (user.denied_permissions?.length ?? 0);
+  const [resending, setResending] = useState(false);
+
+  const handleResendInvite = async () => {
+    if (!user.email) {
+      toast.error('Usuário sem e-mail cadastrado.');
+      return;
+    }
+    setResending(true);
+    try {
+      const res = await invokeAdminUsers({
+        action: 'resend-invite',
+        payload: { id: user.id, email: user.email },
+      });
+      if (res?.inviteSent) {
+        toast.success(`Convite reenviado para ${user.email}.`);
+      } else if (res?.recoveryLink) {
+        await navigator.clipboard?.writeText(res.recoveryLink).catch(() => {});
+        toast.success('Link de recuperação copiado para a área de transferência.');
+      } else if (res?.tempPassword) {
+        await navigator.clipboard?.writeText(res.tempPassword).catch(() => {});
+        toast.success(`Senha temporária gerada e copiada: ${res.tempPassword}`);
+      } else {
+        toast.success('Convite processado.');
+      }
+    } catch (err) {
+      console.error('[usuarios] resend-invite failed', err);
+      toast.error('Não foi possível reenviar o convite.');
+    } finally {
+      setResending(false);
+    }
+  };
 
   return (
     <div className="relative flex flex-col gap-3 rounded-lg border p-4 transition-colors hover:bg-muted/30 sm:flex-row sm:items-center">
@@ -105,6 +138,14 @@ export function UserRow({
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={() => onEdit(user)} className="min-h-11 sm:min-h-0">
               <Edit2 className="mr-2 h-3.5 w-3.5" /> Editar
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={handleResendInvite}
+              disabled={resending || !user.email}
+              className="min-h-11 sm:min-h-0"
+            >
+              <Mail className="mr-2 h-3.5 w-3.5" />
+              {resending ? 'Reenviando…' : 'Reenviar convite'}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
