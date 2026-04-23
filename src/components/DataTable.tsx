@@ -809,7 +809,15 @@ export function DataTable<T extends Record<string, any>>({
           {loading ? (
             <TableSkeleton rows={6} cols={Math.max(visibleColumns.length, 4)} />
           ) : sortedData.length === 0 ? (
-            <EmptyState title={emptyTitle} description={emptyDescription} />
+            hasActiveFilters ? (
+              <NoResultsState
+                activeFiltersCount={activeFiltersCount}
+                searchTerm={searchTerm}
+                onClearFilters={onClearFilters}
+              />
+            ) : (
+              <EmptyState title={emptyTitle} description={emptyDescription} />
+            )
           ) : (
             <>
               {/* "Deslize →" hint — shown only while the table has horizontal overflow and hasn't been scrolled yet */}
