@@ -19,6 +19,8 @@ ERP é hoje "mobile-capable" (não mobile-first): operação 80% rodável em cel
 **Backlog priorizado:**
 1. Sticky footer dirty em forms de cadastros restantes (FormasPagamento, ContasBancarias, GruposEconomicos, Funcionarios edit).
 2. Filtros bottom-sheet em Estoque, Logística, Compras.
-3. RelationalDrawerStack: breadcrumb + limite 3 níveis em mobile.
-4. Bottom nav contextual por módulo ativo.
-5. Revisão dedicada: Auditoria, Migração, Social.
+3. Bottom nav contextual por módulo ativo.
+4. Revisão dedicada: Auditoria, Migração, Social.
+
+**Resolvido recentemente:**
+- RelationalDrawerStack: limite efetivo 3 em mobile via `MAX_DRAWER_DEPTH_MOBILE` (provider escolhe via `useIsMobile`); breadcrumb encadeado já clicável (`DrawerStackBreadcrumb` ativo quando `total > 1`, sticky junto ao header).
