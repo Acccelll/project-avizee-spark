@@ -122,6 +122,18 @@ const Orcamentos = () => {
   const [convertingId, setConvertingId] = useState<string | null>(null);
   const [poNumberCliente, setPoNumberCliente] = useState("");
   const [dataPoCliente, setDataPoCliente] = useState("");
+  const qc = useQueryClient();
+
+  // Realtime: invalida grid quando orçamentos mudam (aprovação/conversão em
+  // outras abas, RPCs ou triggers) — mantém a lista sincronizada sem refresh.
+  useEffect(() => {
+    return subscribeComercial(() => {
+      INVALIDATION_KEYS.conversaoOrcamento.forEach((key) => {
+        qc.invalidateQueries({ queryKey: [key] });
+      });
+      fetchData();
+    });
+  }, [qc, fetchData]);
 
   // Querystring CSV unificada com Pedidos/Financeiro (compatível com `buildDrilldownUrl`).
   const { value: filterState, set: setFilters } = useUrlListState({
@@ -516,17 +528,19 @@ const Orcamentos = () => {
           </div>
         </AdvancedFilterBar>
 
-        <DataTable
-          columns={columns}
-          data={filteredData}
-          loading={loading}
-          moduleKey="cotacoes"
-          showColumnToggle={true}
-          onView={(o) => pushView("orcamento", o.id)}
-          onEdit={(o) => navigate(`/orcamentos/${o.id}`)}
-          emptyTitle="Nenhum orçamento encontrado"
-          emptyDescription="Crie um novo orçamento ou ajuste os filtros aplicados."
-        />
+        <PullToRefresh onRefresh={fetchData}>
+          <DataTable
+            columns={columns}
+            data={filteredData}
+            loading={loading}
+            moduleKey="cotacoes"
+            showColumnToggle={true}
+            onView={(o) => pushView("orcamento", o.id)}
+            onEdit={(o) => navigate(`/orcamentos/${o.id}`)}
+            emptyTitle="Nenhum orçamento encontrado"
+            emptyDescription="Crie um novo orçamento ou ajuste os filtros aplicados."
+          />
+        </PullToRefresh>
       </ModulePage>
 
       <CrossModuleActionDialog
