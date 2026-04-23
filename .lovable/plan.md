@@ -1,55 +1,47 @@
 
+Implementar R3 (PeriodFilter global no header) e R4 (ItemsGrid consolidado) — os dois itens estruturais restantes do roadmap mobile.
 
-# Auditoria final — pendências mobile
+## Entrega 1 — R3: PeriodFilter global
 
-Conferência completa do roadmap mobile vs código atual.
+**Estado atual:**
+- `DashboardPeriodContext` já existe e é consumido pelo Dashboard (Index).
+- Outras páginas (Financeiro, Comercial, Compras, Fiscal, Auditoria, Social) usam `PeriodFilter` localmente, cada uma com seu próprio state.
+- O contrato `mem://produto/contrato-de-periodos.md` já define presets canônicos.
 
-## ✅ Tier A — concluído (100%)
+**Mudança:**
+1. Renomear `DashboardPeriodContext` → `GlobalPeriodContext` (manter export alias para não quebrar Index).
+2. Provider já está montado no `App.tsx` (verificar). Se não, montar.
+3. Adicionar um seletor compacto de período no `MobileDashboardHeader` (já existe) — confirmar que está OK.
+4. Adicionar slot opcional `<GlobalPeriodChip>` no `AppHeader` mobile que abre um popover com PeriodFilter, alterando o contexto global.
+5. Páginas continuam com seu PeriodFilter local (não migrar todas — risco alto). O global serve como **default** para novas telas e para o dashboard.
 
-| Item | Status |
-|---|---|
-| DataTables com `mobileStatusKey/mobileIdentifierKey` | ✅ 11 cadastros + Auditoria + Social |
-| Sticky save em forms longos | ✅ Orçamento, Pedido, Remessa |
-| Filtros bottom-sheet | ✅ AdvancedFilterBar (Estoque, Logística, Compras) |
-| RelationalDrawerStack mobile (limite 3 + breadcrumb) | ✅ |
-| Dialog responsivo por default | ✅ Bottom-sheet mobile + safe-area |
-| ScrollableTabsList | ✅ Estoque, Logística, Social |
-| Auditoria mobile | ✅ Filtros grid + DataTable card |
-| Social mobile | ✅ Filtros grid + DataTables card |
-| MobileMenu lista todas seções | ✅ |
-| Migração mobile (blocking screen) | ✅ Decisão de produto |
+Decisão: fazer R3 de forma **incremental e não-invasiva** — apenas expor o chip global no AppHeader mobile. Não migrar páginas existentes (escopo controlado).
 
-## ✅ Tier C — parcial
+## Entrega 2 — R4: ItemsGrid consolidado
 
-| Item | Status |
-|---|---|
-| Bottom nav contextual por módulo | ✅ CONTEXTUAL_TABS_BY_SECTION |
+**Estado atual:**
+- `OrcamentoForm`, `PedidoForm`, `RemessaForm`, NF-forms têm grids próprios de itens (produto + qtd + valor).
+- Cada um repete: cabeçalhos de coluna, linha por item, botão remover, total, scroll mobile.
 
-## ⚠️ Pendências reais remanescentes
+**Mudança:**
+1. Criar `src/components/forms/ItemsGrid.tsx` — wrapper genérico com:
+   - `columns: { key, label, render, width?, align?, mobileLabel? }[]`
+   - `items: T[]`
+   - `onRemove?: (index) => void`
+   - `onAdd?: () => void`
+   - `emptyMessage?: string`
+   - `footerSummary?: ReactNode` (totais)
+   - Renderiza tabela em desktop, cards empilhados em mobile.
+2. **NÃO migrar** os forms existentes nesta entrega — apenas disponibilizar o componente. Migração é arriscada e cada form tem regras específicas (pricing, descontos, vinculação a estoque). Documentar no JSDoc + memória como "padrão preferido para novos forms".
 
-| # | Item | Severidade | Justificativa |
-|---|---|---|---|
-| **R1** | `<ResponsiveDialog>` wrapper único com API uniforme (`primaryAction/secondaryAction`) | **Baixa** | Dialog já é responsivo; ganho marginal. Só compensa se houver decisão de migrar `AlertDialog` em massa. |
-| **R2** | Lint/check automático de touch targets <44px | **Baixa** | Ferramenta de DX, não UX visível. Trabalho pontual e isolado. |
-| **R3** | `PeriodFilter` global no header mobile | **Média** | Tier C2. Centralizaria o seletor de período no AppHeader mobile em vez de cada página. Estrutural. |
-| **R4** | Consolidar `<ItemsGrid>` único para grids de itens | **Média** | Tier C3. Hoje cada form (Orçamento/Pedido/Remessa/NF) tem sua própria grid de itens. Estrutural. |
-| **R5** | Sweep tipográfico residual (`text-[10px]/[11px]` em conteúdo) | **Baixa** | Polimento. |
-| **R6** | Toasts e strings longas truncadas em mobile | **Baixa** | Polimento. |
-
-## Recomendação
-
-**O Tier A (operacional crítico) está 100% fechado.** Restam apenas itens de polimento (R1, R2, R5, R6) e dois estruturais grandes (R3, R4) que merecem sprint dedicado.
-
-**Próxima entrega sugerida — pacote de polimento (R2 + R5 + R6):**
-- Script de lint que escaneia componentes em busca de `h-{<11}` em elementos clicáveis e reporta violações.
-- Sweep regex de `text-[10px]` e `text-[11px]` em `src/pages/**` e `src/components/**` (excluindo badges/labels intencionais), trocando por `text-xs` quando aplicável.
-- Sweep de `toast.success/error` com strings longas para garantir `description` em vez de `title` extenso.
-
-**Alternativa estrutural — R3 (PeriodFilter global):**
-- Mover `PeriodFilter` para `MobileDashboardHeader` + `AppHeader` mobile.
-- Criar `GlobalPeriodContext` consumido por todos os módulos com filtro temporal (Financeiro, Comercial, Compras, Fiscal, Auditoria, Social).
-- Manter override local em páginas que precisam de range diferente do global.
+## Arquivos
+- `src/contexts/DashboardPeriodContext.tsx` → adicionar export alias `GlobalPeriodContext` / `useGlobalPeriod`.
+- `src/components/navigation/GlobalPeriodChip.tsx` → NOVO (chip mobile que abre popover).
+- `src/components/AppHeader.tsx` ou equivalente → integrar chip mobile (read-only se não houver header mobile genérico).
+- `src/components/forms/ItemsGrid.tsx` → NOVO componente reutilizável.
+- `mem://produto/mobile-overview.md` → marcar R3/R4 como "infraestrutura disponível, migração on-demand".
 
 ## Sem mudança
-- Tier A já entregue, schema de banco, navegação desktop, comportamento desktop.
-
+- Forms existentes (Orçamento/Pedido/Remessa/NF) — não migrar agora.
+- Páginas com PeriodFilter local — não migrar agora.
+- Schema, RLS, edge functions.
