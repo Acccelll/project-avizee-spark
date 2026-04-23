@@ -31,11 +31,6 @@ export function MobileMenu({ open, onOpenChange, onOpenSearch }: MobileMenuProps
     [can],
   );
 
-  const filteredSections = useMemo(
-    () => visibleSections.filter((section) => !BOTTOM_TAB_KEYS.has(section.key)),
-    [visibleSections],
-  );
-
   const handleNavigate = (path: string) => {
     onOpenChange(false);
     navigate(path);
