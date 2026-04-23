@@ -70,6 +70,39 @@ export default function Signup() {
     }
     if (!validate()) return;
     setLoading(true);
+
+    // Validação server-side do convite (complementa INVITE_ONLY client-side).
+    // Se houver token, valida antes de criar a conta — impede bypass via API direta.
+    if (inviteToken) {
+      try {
+        const { data: inviteData, error: inviteError } = await supabase.functions.invoke(
+          "validate-invite",
+          { body: { token: inviteToken, email: email.trim() } },
+        );
+        if (inviteError || !inviteData?.valid) {
+          const reason = inviteData?.reason as string | undefined;
+          const map: Record<string, string> = {
+            not_found: "Convite inválido. Verifique o link recebido.",
+            already_used: "Este convite já foi utilizado.",
+            expired: "Este convite expirou. Solicite um novo ao administrador.",
+            email_mismatch: "Este convite é para outro e-mail.",
+          };
+          setServerError({ message: map[reason ?? ""] ?? "Não foi possível validar o convite." });
+          setLoading(false);
+          return;
+        }
+      } catch (err) {
+        console.error("[signup] invite validation failed", err);
+        setServerError({ message: "Não foi possível validar o convite. Tente novamente." });
+        setLoading(false);
+        return;
+      }
+    } else if (INVITE_ONLY) {
+      setServerError({ message: "Cadastro disponível apenas por convite." });
+      setLoading(false);
+      return;
+    }
+
     const { error } = await supabase.auth.signUp({
       email: email.trim(),
       password,
@@ -99,6 +132,11 @@ export default function Signup() {
       setSuccess(true);
       setResendCooldown(60);
       toast.success("Conta criada! Verifique seu e-mail para confirmar.");
+      // Fire-and-forget: notifica admin sobre novo cadastro pendente.
+      // Falha aqui não deve bloquear o fluxo do usuário.
+      void supabase.functions
+        .invoke("notify-admin-new-signup", { body: { email: email.trim(), nome: nome.trim() } })
+        .catch((err) => console.warn("[signup] admin notification failed", err));
     }
     setLoading(false);
   };
