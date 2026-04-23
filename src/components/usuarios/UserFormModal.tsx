@@ -353,10 +353,10 @@ export function UserFormModal({
             </div>
           </div>
 
-          <Separator />
+          <Separator className={isMobile ? 'hidden' : ''} />
 
           {/* Bloco 2 — Segurança e status */}
-          <div className="space-y-4">
+          <div className={`space-y-4 ${blockVisible(1) ? '' : 'hidden'}`}>
             <div className="flex items-center gap-2 text-sm font-semibold">
               <span className="flex h-5 w-5 items-center justify-center rounded bg-primary/10 text-primary text-[11px] font-bold">
                 2
@@ -384,10 +384,10 @@ export function UserFormModal({
             )}
           </div>
 
-          <Separator />
+          <Separator className={isMobile ? 'hidden' : ''} />
 
           {/* Bloco 3 — Acesso */}
-          <div className="space-y-4">
+          <div className={`space-y-4 ${blockVisible(2) ? '' : 'hidden'}`}>
             <div className="flex items-center gap-2 text-sm font-semibold">
               <span className="flex h-5 w-5 items-center justify-center rounded bg-primary/10 text-primary text-[11px] font-bold">
                 3
