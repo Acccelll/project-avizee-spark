@@ -172,6 +172,9 @@ export function UserFormModal({
         cargo: form.cargo.trim(),
         ativo: form.ativo,
         role_padrao: form.role_padrao,
+        // Senha definida pelo admin (opcional). Quando presente, a edge
+        // function pula o convite por e-mail e cria o usuário com esta senha.
+        password: !isEdit && manualPassword ? manualPassword : undefined,
         // Novo shape `{ allow, deny }` — back-compat aceita também `string[]`.
         // Edge function `admin-users` normaliza e atualiza `user_permissions`
         // preservando histórico (allowed=false em vez de DELETE para revogações).
