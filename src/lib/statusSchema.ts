@@ -2,7 +2,7 @@
 
 export const statusOrcamento: Record<string, { label: string; color: string }> = {
   rascunho: { label: "Rascunho", color: "secondary" },
-  pendente: { label: "Aguardando Aprovação", color: "info" },
+  pendente: { label: "Aguardando Aprovação", color: "warning" },
   aprovado: { label: "Aprovado", color: "success" },
   convertido: { label: "Convertido em Pedido", color: "success" },
   rejeitado: { label: "Rejeitado", color: "destructive" },
@@ -78,7 +78,7 @@ export const statusCotacaoCompra: Record<string, { label: string; color: string 
 export const statusPedidoCompra: Record<string, { label: string; color: string }> = {
   rascunho: { label: "Rascunho", color: "secondary" },
   aguardando_aprovacao: { label: "Aguardando Aprovação", color: "warning" },
-  aprovado: { label: "Aprovado", color: "info" },
+  aprovado: { label: "Aprovado", color: "success" },
   enviado_ao_fornecedor: { label: "Enviado ao Fornecedor", color: "info" },
   aguardando_recebimento: { label: "Aguardando Recebimento", color: "warning" },
   parcialmente_recebido: { label: "Parcialmente Recebido", color: "warning" },
