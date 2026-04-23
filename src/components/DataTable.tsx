@@ -209,22 +209,16 @@ export function DataTable<T extends Record<string, any>>({
     };
   }, []);
 
+  // Hidratação dos resquícios legados (filter rules + saved filters) mantida em
+  // localStorage por enquanto — fluxos de filtro interno são opt-in e raramente
+  // usados; preferências de coluna/viewMode já vivem em `useDataTablePrefs`.
   useEffect(() => {
     if (!moduleKey) return;
-    const hiddenRaw = localStorage.getItem(getStorageKey(moduleKey, 'columns'));
     const ruleRaw = localStorage.getItem(getStorageKey(moduleKey, 'filters'));
     const savedRaw = localStorage.getItem(getStorageKey(moduleKey, 'saved-filters'));
-    const modeRaw = localStorage.getItem(getStorageKey(moduleKey, 'list-mode'));
-    if (hiddenRaw) setHiddenKeys(new Set(JSON.parse(hiddenRaw)));
     if (ruleRaw) setRules(JSON.parse(ruleRaw));
     if (savedRaw) setSavedFilters(JSON.parse(savedRaw));
-    if (modeRaw === 'infinite' || modeRaw === 'pagination') setViewMode(modeRaw);
   }, [moduleKey]);
-
-  useEffect(() => {
-    if (!moduleKey) return;
-    localStorage.setItem(getStorageKey(moduleKey, 'columns'), JSON.stringify([...hiddenKeys]));
-  }, [hiddenKeys, moduleKey]);
 
   useEffect(() => {
     if (!moduleKey) return;
@@ -235,23 +229,6 @@ export function DataTable<T extends Record<string, any>>({
     if (!moduleKey) return;
     localStorage.setItem(getStorageKey(moduleKey, 'saved-filters'), JSON.stringify(savedFilters));
   }, [savedFilters, moduleKey]);
-
-  useEffect(() => {
-    if (!moduleKey || !user?.id) return;
-    try {
-      supabase.from('user_preferences').upsert(
-        {
-          user_id: user.id,
-          module_key: moduleKey,
-          columns_config: [...hiddenKeys],
-          updated_at: new Date().toISOString(),
-        } as never,
-        { onConflict: 'user_id,module_key' }
-      ).then(() => {});
-    } catch {
-      // Fallback silencioso - preferências ficam apenas no estado local
-    }
-  }, [hiddenKeys, moduleKey, user?.id]);
 
   const visibleColumns = columns.filter((c) => !hiddenKeys.has(c.key));
   const primaryColumn = visibleColumns[0] || { key: 'id', label: 'ID' };
