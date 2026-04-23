@@ -88,6 +88,7 @@ const Fornecedores = () => {
   const [selected, setSelected] = useState<Fornecedor | null>(null);
   const [mode, setMode] = useState<"create" | "edit">("create");
   const [form, setForm] = useState({ ...emptyForm });
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
   const docTipo = form.tipo_pessoa === "F" ? "cpf" : "cnpj";
   const { isUnique: docUnico, isLoading: docChecking } = useDocumentoUnico(
     docTipo,
@@ -350,7 +351,9 @@ const Fornecedores = () => {
           <>
             <SummaryCard title="Total de Fornecedores" value={data.length} icon={Users} />
             <SummaryCard title="Ativos" value={summaryAtivos} icon={UserCheck} variant="success" />
-            <SummaryCard title="Inativos" value={data.length - summaryAtivos} icon={UserX} />
+            <div className="hidden md:contents">
+              <SummaryCard title="Inativos" value={data.length - summaryAtivos} icon={UserX} />
+            </div>
           </>
         }
       >
@@ -391,9 +394,24 @@ const Fornecedores = () => {
             onEdit={openEdit}
             onDelete={(f) => remove(f.id)}
             deleteBehavior="soft"
+            mobileIdentifierKey="cpf_cnpj"
+            mobileInlineActions={(f: Fornecedor) => (
+              <ContactInlineActions
+                phone={f.celular || f.telefone}
+                whatsapp={f.celular || f.telefone}
+                email={f.email}
+                onView={() => openView(f)}
+              />
+            )}
           />
         </PullToRefresh>
       </ModulePage>
+      <MobileQuickAddFAB onClick={() => setQuickAddOpen(true)} label="Novo fornecedor" />
+      <QuickAddSupplierModal
+        open={quickAddOpen}
+        onClose={() => setQuickAddOpen(false)}
+        onCreated={() => { setQuickAddOpen(false); fetchData(); toast.success("Fornecedor cadastrado"); }}
+      />
 
       <FormModal
         open={modalOpen}

@@ -771,6 +771,7 @@ const Produtos = () => {
           onEdit={openEdit}
           onDelete={(p) => remove(p.id)}
           deleteBehavior="soft"
+          mobileIdentifierKey="codigo_interno"
         />
         </PullToRefresh>
       </ModulePage>
