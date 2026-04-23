@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import { getEntregaStatusCfg } from "@/pages/logistica/logisticaStatus";
+import { DrawerStickyFooter } from "@/components/ui/DrawerStickyFooter";
 
 /* ────────────────────────────────────────────────
    Types
@@ -526,6 +527,26 @@ export function EntregaDrawer({ open, onClose, entrega }: EntregaDrawerProps) {
         { value: "vinculos",    label: "Vínculos",    content: tabVinculos },
       ]}
       defaultTab="resumo"
+      variant="operational"
+      footerSticky
+      footer={
+        entrega.codigo_rastreio ? (
+          <DrawerStickyFooter
+            hint={atrasado ? "Entrega em atraso — verificar com transportadora." : undefined}
+            right={
+              <Button
+                size="lg"
+                className="h-11 min-w-[160px] gap-2"
+                onClick={handleRastrear}
+                disabled={trackingLoading || !remessa?.id}
+              >
+                <Search className="h-4 w-4" />
+                {trackingLoading ? "Consultando..." : "Rastrear Correios"}
+              </Button>
+            }
+          />
+        ) : undefined
+      }
     />
   );
 }
