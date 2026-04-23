@@ -48,12 +48,15 @@ export function PedidoCompraLinker({
   fornecedorId,
   pedidoCompraIdAtual,
   disabled,
+  nfValorTotal,
+  nfDataEmissao,
 }: PedidoCompraLinkerProps) {
   const qc = useQueryClient();
   const [pedidos, setPedidos] = useState<PedidoOption[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(pedidoCompraIdAtual);
   const [pending, setPending] = useState(false);
   const [loadingList, setLoadingList] = useState(false);
+  const [autoApplied, setAutoApplied] = useState(false);
 
   useEffect(() => {
     setSelectedId(pedidoCompraIdAtual);
@@ -70,7 +73,7 @@ export function PedidoCompraLinker({
       const { data, error } = await supabase
         .from("pedidos_compra")
         .select(
-          "id, numero, valor_total, status, fornecedores(nome_razao_social)",
+          "id, numero, valor_total, status, data_pedido, fornecedores(nome_razao_social)",
         )
         .eq("fornecedor_id", fornecedorId)
         .neq("status", "cancelado")
@@ -82,12 +85,13 @@ export function PedidoCompraLinker({
         setLoadingList(false);
         return;
       }
-      const opts: PedidoOption[] = (data ?? []).map((row) => {
+      const baseOpts: PedidoOption[] = (data ?? []).map((row) => {
         const r = row as unknown as {
           id: string;
           numero: string | null;
           valor_total: number | null;
           status: string | null;
+          data_pedido: string | null;
           fornecedores: { nome_razao_social: string } | null;
         };
         return {
@@ -95,16 +99,53 @@ export function PedidoCompraLinker({
           numero: r.numero,
           valor_total: r.valor_total,
           status: r.status,
+          data_pedido: r.data_pedido,
           fornecedor_nome: r.fornecedores?.nome_razao_social ?? null,
         };
       });
-      setPedidos(opts);
+
+      // Marcar sugestões: valor_total ≈ nfValorTotal (±0,01) e
+      // data_pedido ∈ [nfDataEmissao - 15d, nfDataEmissao]
+      const nfValor = typeof nfValorTotal === "number" ? nfValorTotal : null;
+      const nfData = nfDataEmissao ? new Date(nfDataEmissao) : null;
+      const lowerBound = nfData
+        ? new Date(nfData.getTime() - 15 * 24 * 60 * 60 * 1000)
+        : null;
+
+      const matches = (p: PedidoOption): boolean => {
+        if (nfValor !== null && p.valor_total !== null) {
+          if (Math.abs(Number(p.valor_total) - nfValor) > 0.01) return false;
+        }
+        if (lowerBound && nfData && p.data_pedido) {
+          const dp = new Date(p.data_pedido);
+          if (dp < lowerBound || dp > nfData) return false;
+        }
+        return nfValor !== null || lowerBound !== null;
+      };
+
+      const annotated = baseOpts.map((p) => ({ ...p, isSuggestion: matches(p) }));
+      // Sugestões primeiro, depois ordem original
+      annotated.sort((a, b) => Number(b.isSuggestion ?? false) - Number(a.isSuggestion ?? false));
+      setPedidos(annotated);
+
+      // Auto-seleciona quando há exatamente 1 sugestão e não há vínculo prévio
+      if (!pedidoCompraIdAtual && !autoApplied) {
+        const suggestions = annotated.filter((p) => p.isSuggestion);
+        if (suggestions.length === 1) {
+          setSelectedId(suggestions[0].id);
+          setAutoApplied(true);
+          toast.info(
+            `Pedido #${suggestions[0].numero ?? suggestions[0].id.slice(0, 8)} sugerido automaticamente.`,
+          );
+        }
+      }
       setLoadingList(false);
     })();
     return () => {
       cancelled = true;
     };
-  }, [fornecedorId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fornecedorId, nfValorTotal, nfDataEmissao]);
 
   const handleVincular = async () => {
     if (!selectedId) return;
