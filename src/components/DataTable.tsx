@@ -333,6 +333,7 @@ export function DataTable<T extends Record<string, any>>({
     rows: sortedData,
     columns: visibleColumns.map((c) => ({ key: c.key, label: c.label })),
     titulo: moduleKey || 'dados',
+    permission: 'relatorios:exportar',
   });
 
   const deleteActionLabel = deleteBehavior === 'soft' ? 'Inativar' : 'Excluir permanentemente';
