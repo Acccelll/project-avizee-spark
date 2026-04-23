@@ -443,13 +443,24 @@ const Estoque = () => {
               </div>
               <div className="flex flex-wrap gap-2">
                 {abaixoMinimo.slice(0, 8).map((p) => (
-                  <button
-                    key={p.id}
-                    className="text-xs bg-destructive/10 text-destructive px-2 py-0.5 rounded-full font-medium hover:bg-destructive/20 transition-colors"
-                    onClick={() => { setSelectedPosicao(p as ProdutoPosicao); setPosicaoDrawerOpen(true); }}
-                  >
-                    {p.nome} ({p.estoque_atual}/{p.estoque_minimo})
-                  </button>
+                  <div key={p.id} className="inline-flex items-stretch rounded-full overflow-hidden border border-destructive/30 bg-destructive/10 max-sm:min-h-[44px]">
+                    <button
+                      type="button"
+                      className="text-xs text-destructive px-3 py-1 max-sm:py-2 font-medium hover:bg-destructive/20 transition-colors text-left"
+                      onClick={() => { setSelectedPosicao(p as ProdutoPosicao); setPosicaoDrawerOpen(true); }}
+                      title="Ver posição"
+                    >
+                      {p.nome} <span className="font-mono opacity-80">({p.estoque_atual}/{p.estoque_minimo})</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="text-[11px] font-semibold text-destructive border-l border-destructive/30 px-3 py-1 hover:bg-destructive/20 transition-colors flex items-center gap-1"
+                      onClick={() => abrirAjusteRapido(p.id, "entrada")}
+                      title="Registrar entrada rápida"
+                    >
+                      <SlidersHorizontal className="h-3 w-3" /> Ajustar
+                    </button>
+                  </div>
                 ))}
                 {abaixoMinimo.length > 8 && <span className="text-xs text-muted-foreground">+{abaixoMinimo.length - 8} mais</span>}
               </div>
@@ -518,8 +529,7 @@ const Estoque = () => {
                     className="h-11 w-full gap-2 text-sm"
                     onClick={(e) => {
                       e.stopPropagation();
-                      setForm((f) => ({ ...f, produto_id: p.id }));
-                      setActiveTab("ajuste");
+                      abrirAjusteRapido(p.id, "entrada");
                     }}
                   >
                     <SlidersHorizontal className="h-4 w-4" /> Ajustar saldo
@@ -906,6 +916,13 @@ const Estoque = () => {
         confirmLabel="Confirmar"
         confirmVariant="default"
         loading={saving || pendingSubmit}
+      />
+
+      <EstoqueAjusteSheet
+        open={ajusteSheetOpen}
+        onClose={() => { setAjusteSheetOpen(false); setAjusteSheetProdutoId(null); }}
+        produtoId={ajusteSheetProdutoId}
+        tipoInicial={ajusteSheetTipo}
       />
     </>
   );
