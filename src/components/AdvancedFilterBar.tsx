@@ -153,7 +153,7 @@ export function AdvancedFilterBar({
               <DrawerDescription>Refine os resultados por critérios específicos.</DrawerDescription>
             </DrawerHeader>
             <div className="overflow-y-auto px-4 pb-4">
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-4 [&>*]:!w-full [&_button[role=combobox]]:!w-full [&_[data-radix-popper-content-wrapper]]:!w-full">
                 {children}
               </div>
             </div>
