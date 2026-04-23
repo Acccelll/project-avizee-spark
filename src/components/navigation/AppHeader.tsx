@@ -17,6 +17,8 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/AuthContext';
 import { headerIcons, quickActions } from '@/lib/navigation';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useCan } from '@/hooks/useCan';
+import type { Permission } from '@/utils/permissions';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ROLE_LABELS, type AppRole } from '@/lib/permissions';
 import { cn } from '@/lib/utils';
@@ -88,6 +90,11 @@ export function AppHeader({ onOpenMobileMenu: _onOpenMobileMenu, onOpenSearch, o
   const isMobile = useIsMobile();
   const { theme, setTheme } = useTheme();
   const { profile, signOut, roles } = useAuth();
+  const { can } = useCan();
+  const allowedQuickActions = useMemo(
+    () => quickActions.filter((a) => !a.requires || can(a.requires as Permission)),
+    [can],
+  );
 
   const initials = (profile?.nome || 'Admin')
     .split(' ')
@@ -186,7 +193,10 @@ export function AppHeader({ onOpenMobileMenu: _onOpenMobileMenu, onOpenSearch, o
               <DropdownMenuContent align="end" className="w-64">
                 <DropdownMenuLabel>Ações rápidas</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {quickActions.map((action) => (
+                {allowedQuickActions.length === 0 && (
+                  <p className="px-2 py-3 text-xs text-muted-foreground">Nenhuma ação rápida disponível para o seu perfil.</p>
+                )}
+                {allowedQuickActions.map((action) => (
                   <DropdownMenuItem key={action.id} onClick={() => navigate(action.path)} className="flex items-start justify-between gap-3">
                     <div className="space-y-0.5">
                       <p className="text-sm font-medium">{action.title}</p>
