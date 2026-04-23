@@ -155,19 +155,19 @@ export function RelatorioChart({
               {chartData.slice(0, 6).map((item, i) => (
                 <div
                   key={`${item.name}-${i}`}
-                  className="flex items-center justify-between rounded-lg border px-3 py-2.5"
+                  className="flex items-center justify-between gap-2 rounded-lg border px-3 py-2.5"
                 >
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
                     <div
-                      className="w-2.5 h-2.5 rounded-full"
+                      className="w-2.5 h-2.5 rounded-full flex-shrink-0"
                       style={{
                         backgroundColor:
                           CHART_COLORS[i % CHART_COLORS.length],
                       }}
                     />
-                    <span className="text-sm font-medium">{item.name}</span>
+                    <span className="text-sm font-medium truncate">{item.name}</span>
                   </div>
-                  <span className="text-sm font-mono font-semibold">
+                  <span className="text-sm font-mono font-semibold tabular-nums flex-shrink-0">
                     {formatValue(item.value)}
                   </span>
                 </div>

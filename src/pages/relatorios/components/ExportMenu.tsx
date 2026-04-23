@@ -15,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Download, FileText, FileSpreadsheet, FileDown, ChevronDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export interface ExportMenuProps {
   recordCount: number;
@@ -22,6 +23,8 @@ export interface ExportMenuProps {
   disabled?: boolean;
   loading?: boolean;
   pdfRowLimitHint?: number;
+  /** Quando true, o botão ocupa toda a largura (uso em sticky footer mobile). */
+  fullWidth?: boolean;
   onExportPdf: () => void;
   onExportExcel: () => void;
   onExportCsv: () => void;
@@ -33,6 +36,7 @@ export function ExportMenu({
   disabled,
   loading,
   pdfRowLimitHint,
+  fullWidth,
   onExportPdf,
   onExportExcel,
   onExportCsv,
@@ -41,14 +45,16 @@ export function ExportMenu({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
-          size="sm"
           disabled={disabled || loading}
-          className="gap-1.5"
+          className={cn(
+            "gap-1.5 min-h-11 sm:min-h-9 sm:h-9 sm:text-sm",
+            fullWidth && "w-full",
+          )}
           aria-label="Exportar relatório"
         >
-          <Download className="h-3.5 w-3.5" />
+          <Download className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
           {loading ? "Exportando..." : "Exportar"}
-          <ChevronDown className="h-3.5 w-3.5 opacity-70" />
+          <ChevronDown className="h-4 w-4 sm:h-3.5 sm:w-3.5 opacity-70" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-60">
