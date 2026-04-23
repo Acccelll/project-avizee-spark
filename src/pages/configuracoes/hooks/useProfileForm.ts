@@ -20,7 +20,8 @@ function validateProfileFields(nome: string, cargo: string): string | null {
  * Encapsula o formulário de "Dados pessoais editáveis":
  * - Sincroniza com `profile` na primeira carga (sem sobrescrever edições).
  * - Detecta `dirty` ignorando whitespace duplicado.
- * - Persiste em `profiles` e registra auditoria self-update.
+ * - Persiste via RPC `save_user_profile`, que faz update + auditoria
+ *   na mesma transação (fase 6 do roadmap). Auditoria nunca diverge do save.
  * - Valida nome (2-80 chars) e cargo (até 80 chars), com trim antes de salvar.
  */
 export function useProfileForm() {
@@ -57,31 +58,15 @@ export function useProfileForm() {
     setValidationError(null);
     setSaving(true);
     try {
-      const previousNome = profile?.nome || '';
-      const previousCargo = profile?.cargo || '';
-      const { error } = await supabase
-        .from('profiles')
-        .update({ nome: nomeTrim, cargo: cargoTrim })
-        .eq('id', user.id);
+      const { error } = await supabase.rpc('save_user_profile', {
+        p_nome: nomeTrim,
+        p_cargo: cargoTrim,
+      });
       if (error) throw error;
       // Espelha valores normalizados no estado local para que o dirty-check
       // não fique "sujo" após o save quando o usuário digitou com espaços.
       setNome(nomeTrim);
       setCargo(cargoTrim);
-      try {
-        await supabase.rpc('log_self_update_audit', {
-          p_tipo_acao: 'self_profile_update',
-          p_entidade: 'profiles',
-          p_entidade_id: user.id,
-          p_alteracao: {
-            antes: { nome: previousNome, cargo: previousCargo },
-            depois: { nome: nomeTrim, cargo: cargoTrim },
-          },
-          p_motivo: 'alteração pelo próprio usuário',
-        });
-      } catch (auditErr) {
-        console.warn('[perfil] auditoria self-update falhou:', auditErr);
-      }
       setSavedAt(new Date());
       toast.success('Dados pessoais salvos com sucesso.');
       // Fase 9: re-hidrata profile no AuthContext para que header, menus e
