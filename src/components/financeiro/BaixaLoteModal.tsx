@@ -126,6 +126,19 @@ export function BaixaLoteModal({ open, onClose, selectedLancamentos, contasBanca
           <DialogTitle>Confirmar Baixa — {selectedLancamentos.length} título(s)</DialogTitle>
           <DialogDescription>Revise os títulos selecionados e informe os dados do pagamento.</DialogDescription>
         </DialogHeader>
+        {selectedLancamentos.length === 0 ? (
+          <div className="py-8 text-center space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Nenhum título selecionado para baixa.
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Selecione um ou mais lançamentos na lista de Lançamentos e use o botão
+              <span className="font-semibold"> "Baixar selecionados"</span> para iniciar uma baixa em lote.
+            </p>
+            <Button onClick={onClose} className="mt-2">Entendi</Button>
+          </div>
+        ) : (
+        <>
         <div className="space-y-4">
           <div className="rounded-lg border overflow-x-auto">
             <table className="w-full text-sm">
@@ -339,6 +352,8 @@ export function BaixaLoteModal({ open, onClose, selectedLancamentos, contasBanca
             {processing ? "Processando..." : "Confirmar Baixa"}
           </Button>
         </DialogFooter>
+        </>
+        )}
       </DialogContent>
     </Dialog>
   );
