@@ -793,6 +793,53 @@ export default function OrcamentoForm() {
       title={isEdit ? `Editando Orçamento${numero ? ` — ${numero}` : ""}` : "Novo Orçamento"}
       subtitle={isEdit ? "Revisão e ajuste da proposta comercial" : "Criação e emissão da proposta comercial"}
       actions={
+        <>
+        {/* Mobile: Salvar + menu "Mais" */}
+        <div className="flex items-center gap-2 md:hidden">
+          <Button onClick={handleSave} disabled={saving} size="sm" className="gap-2">
+            <Save className="w-4 h-4" />
+            {saving ? "Salvando..." : "Salvar"}
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-1" aria-label="Mais ações">
+                <MoreHorizontal className="w-4 h-4" />
+                <span>Mais</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuItem onSelect={() => setPreviewOpen(true)}>
+                <Eye className="w-4 h-4 mr-2" />Visualizar
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={handleGeneratePdf}>
+                <FileText className="w-4 h-4 mr-2" />Gerar PDF
+              </DropdownMenuItem>
+              {templates.length > 0 && <DropdownMenuSeparator />}
+              {templates.length > 0 && <DropdownMenuLabel className="text-[10px] uppercase tracking-wider">Templates</DropdownMenuLabel>}
+              {templates.slice(0, 5).map((tpl) => (
+                <DropdownMenuItem key={tpl.id} onSelect={() => applyTemplate(tpl)}>
+                  <LayoutTemplate className="w-4 h-4 mr-2" />
+                  <span className="truncate">{tpl.nome}</span>
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => { setTemplateName(''); setTemplateDialogOpen('usuario'); }}>
+                <Wand2 className="w-4 h-4 mr-2" />Salvar como meu template
+              </DropdownMenuItem>
+              {isEdit && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onSelect={handleDuplicate}>
+                    <Copy className="w-4 h-4 mr-2" />Duplicar
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => setMailModalOpen(true)} disabled={!clienteSnapshot.email}>
+                    <Mail className="w-4 h-4 mr-2" />Reenviar por e-mail
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
         <div className="hidden items-center gap-2 md:flex md:flex-wrap">
           <Button onClick={handleSave} disabled={saving} className="gap-2">
             <Save className="w-4 h-4" />
