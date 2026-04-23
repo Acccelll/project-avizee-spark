@@ -51,10 +51,10 @@ function AccountMenuItems({
   return (
     <>
       <DropdownMenuItem onClick={() => navigate('/configuracoes')}>
-        <User className="mr-2 h-4 w-4" /> Meu perfil
+        <User className="mr-2 h-4 w-4" /> Minha conta
       </DropdownMenuItem>
       <DropdownMenuItem onClick={() => navigate('/configuracoes?tab=aparencia')}>
-        <Settings className="mr-2 h-4 w-4" /> Configurações
+        <Settings className="mr-2 h-4 w-4" /> Aparência
       </DropdownMenuItem>
       <DropdownMenuItem onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
         {theme === 'dark' ? <Sun className="mr-2 h-4 w-4" /> : <Moon className="mr-2 h-4 w-4" />}

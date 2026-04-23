@@ -281,7 +281,8 @@ const flatItemByPath = new Map<string, FlatNavItem>(
 
 /**
  * Icons indexed by route. Derived from the nav tree — the single source of truth.
- * Includes a fallback for `/perfil` and `/configuracoes` which are not in the menu.
+ * Includes a fallback for `/configuracoes` which is not in the menu.
+ * Note: `/perfil` is a legacy alias that redirects to `/configuracoes` — não registrar aqui.
  */
 export const headerIcons: Record<string, LucideIcon> = {
   ...Object.fromEntries(
@@ -290,13 +291,11 @@ export const headerIcons: Record<string, LucideIcon> = {
       .map((item) => [item.path.split('?')[0], item.icon as LucideIcon]),
   ),
   '/configuracoes': Settings,
-  '/perfil': User,
   '/fiscal': Receipt,
 };
 
 const extraRouteLabels: Record<string, string> = {
-  '/configuracoes': 'Configurações',
-  '/perfil': 'Meu Perfil',
+  '/configuracoes': 'Minha conta',
   '/fiscal': 'Fiscal',
 };
 
