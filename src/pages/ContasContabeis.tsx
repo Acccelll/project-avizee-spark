@@ -544,9 +544,9 @@ const ContasContabeis = () => {
         summaryCards={
           <>
             <SummaryCard title="Total de Contas" value={String(totalContas)} icon={BookOpen} />
-            <SummaryCard title="Analíticas" value={String(totalAnaliticas)} icon={FileText} iconColor="text-foreground" />
-            <SummaryCard title="Sintéticas" value={String(totalSinteticas)} icon={FolderTree} iconColor="text-primary" />
-            <SummaryCard title="Ativas" value={String(totalAtivas)} icon={GitBranch} iconColor="text-success" />
+            <SummaryCard title="Analíticas" value={String(totalAnaliticas)} icon={FileText} variant="default" />
+            <SummaryCard title="Sintéticas" value={String(totalSinteticas)} icon={FolderTree} variant="info" />
+            <SummaryCard title="Ativas" value={String(totalAtivas)} icon={GitBranch} variant="success" />
           </>
         }
       >

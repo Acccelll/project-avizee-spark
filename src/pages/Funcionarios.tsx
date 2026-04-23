@@ -290,8 +290,8 @@ export default function Funcionarios() {
         summaryCards={
           <>
             <SummaryCard title="Total de Funcionários" value={String(kpis.total)} icon={Users} />
-            <SummaryCard title="Ativos" value={String(kpis.ativos)} icon={UserCheck} iconColor="text-success" />
-            <SummaryCard title="Inativos" value={String(kpis.inativos)} icon={UserX} iconColor={kpis.inativos > 0 ? "text-destructive" : undefined} />
+            <SummaryCard title="Ativos" value={String(kpis.ativos)} icon={UserCheck} variant="success" />
+            <SummaryCard title="Inativos" value={String(kpis.inativos)} icon={UserX} variant={kpis.inativos > 0 ? "danger" : "default"} />
             <SummaryCard title="Folha Mensal" value={formatCurrency(kpis.totalSalarios)} icon={DollarSign} />
           </>
         }

@@ -323,13 +323,13 @@ const ContasBancarias = () => {
         summaryCards={
           <>
             <SummaryCard title="Total de Contas" value={String(contas.length)} icon={Building2} />
-            <SummaryCard title="Ativas" value={String(contasAtivas.length)} icon={CheckCircle} iconColor="text-success" />
+            <SummaryCard title="Ativas" value={String(contasAtivas.length)} icon={CheckCircle} variant="success" />
             <SummaryCard title="Inativas" value={String(contasInativas)} icon={Ban} />
             <SummaryCard
               title="Saldo Total"
               value={formatCurrency(saldoTotal)}
               icon={Wallet}
-              iconColor={saldoTotal >= 0 ? "text-success" : "text-destructive"}
+              variant={saldoTotal >= 0 ? "success" : "danger"}
             />
           </>
         }

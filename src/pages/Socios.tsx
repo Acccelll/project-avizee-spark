@@ -149,12 +149,12 @@ export default function Socios() {
         summaryCards={
           <>
             <SummaryCard title="Total de Sócios" value={String(kpis.total)} icon={Briefcase} />
-            <SummaryCard title="Ativos" value={String(kpis.ativos)} icon={UserCheck} iconColor="text-success" />
+            <SummaryCard title="Ativos" value={String(kpis.ativos)} icon={UserCheck} variant="success" />
             <SummaryCard
               title="Soma de participações"
               value={`${kpis.soma.toFixed(2)}%`}
               icon={Percent}
-              iconColor={Math.abs(kpis.soma - 100) > 0.01 ? "text-warning" : "text-success"}
+              variant={Math.abs(kpis.soma - 100) > 0.01 ? "warning" : "success"}
             />
           </>
         }

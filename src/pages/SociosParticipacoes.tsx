@@ -132,7 +132,7 @@ export default function SociosParticipacoes() {
             <SummaryCard title="Lucro base" value={formatCurrency(kpis.lucroBase)} icon={TrendingUp} />
             <SummaryCard title="Pró-labore mês" value={formatCurrency(kpis.proLabore)} icon={DollarSign} />
             <SummaryCard title="Bônus mês" value={formatCurrency(kpis.bonus)} icon={PieChart} />
-            <SummaryCard title="Saldo a distribuir" value={formatCurrency(kpis.saldo)} icon={DollarSign} iconColor={kpis.saldo < 0 ? "text-destructive" : "text-success"} />
+            <SummaryCard title="Saldo a distribuir" value={formatCurrency(kpis.saldo)} icon={DollarSign} variant={kpis.saldo < 0 ? "danger" : "success"} />
           </>
         }
       >
