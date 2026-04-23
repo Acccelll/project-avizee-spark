@@ -218,6 +218,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const hasRole = useCallback((role: AppRole) => roles.includes(role), [roles]);
 
+  const refreshProfile = useCallback(async () => {
+    const currentUser = userRef.current;
+    if (!currentUser) return;
+    await fetchProfile(currentUser.id);
+  }, []);
+
   const signOut = useCallback(async () => {
     if (!supabase) return;
     manualSignOut.current = true;
@@ -238,8 +244,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const contextValue = useMemo(
-    () => ({ user, session, loading, permissionsLoaded, profile, roles, extraPermissions, deniedPermissions, hasRole, signOut }),
-    [user, session, loading, permissionsLoaded, profile, roles, extraPermissions, deniedPermissions, hasRole, signOut]
+    () => ({ user, session, loading, permissionsLoaded, profile, roles, extraPermissions, deniedPermissions, hasRole, signOut, refreshProfile }),
+    [user, session, loading, permissionsLoaded, profile, roles, extraPermissions, deniedPermissions, hasRole, signOut, refreshProfile]
   );
 
   return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;
