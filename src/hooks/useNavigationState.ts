@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { isPathActive, type NavSection, type NavSectionKey } from '@/lib/navigation';
 import { useUserPreference } from '@/hooks/useUserPreference';
@@ -71,6 +71,11 @@ export function useNavigationState(visibleSections: NavSection[]): NavigationSta
     },
     [manualSections, saveManualSections],
   );
+
+  const lastPathnameRef = useRef(location.pathname);
+  useEffect(() => {
+    lastPathnameRef.current = location.pathname;
+  }, [location.pathname, activeSectionKeys]);
 
   const isInsideAdminModule =
     location.pathname === '/administracao' || location.pathname.startsWith('/administracao/');
