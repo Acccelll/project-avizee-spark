@@ -41,14 +41,14 @@ export function UserRow({
     user.extra_permissions.length + (user.denied_permissions?.length ?? 0);
 
   return (
-    <div className="flex flex-col gap-3 rounded-lg border p-4 transition-colors hover:bg-muted/30 sm:flex-row sm:items-center">
-      {/* Mobile: card inteiro tappable abre edição (padrão Comercial mobile). */}
+    <div className="relative flex flex-col gap-3 rounded-lg border p-4 transition-colors hover:bg-muted/30 sm:flex-row sm:items-center">
+      {/* Mobile: clique no corpo (não nas ações) abre edição. */}
       <button
         type="button"
         onClick={() => onEdit(user)}
-        className="sm:hidden absolute inset-0 z-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
+        className="absolute inset-0 z-0 sm:hidden rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         aria-label={`Editar usuário ${user.nome}`}
-        style={{ position: 'absolute' }}
+        tabIndex={-1}
       />
       <div className="min-w-0 flex-1 space-y-1 relative z-10 pointer-events-none sm:pointer-events-auto">
         <div className="flex flex-wrap items-center gap-2">
