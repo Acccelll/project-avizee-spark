@@ -97,9 +97,13 @@ export function useNavigationState(visibleSections: NavSection[]): NavigationSta
       if (key === 'administracao' && isInsideAdminModule) return false;
       const overrides = manualSections ?? {};
       if (key in overrides) return overrides[key];
-      return activeSectionKeys.includes(key);
+      // Por padrão, todos os submódulos começam recolhidos.
+      // O usuário expande manualmente; a preferência é persistida em
+      // `manualSections`. Navegar para uma rota interna não abre mais
+      // automaticamente o grupo.
+      return false;
     },
-    [manualSections, activeSectionKeys, isInsideAdminModule],
+    [manualSections, isInsideAdminModule],
   );
 
   const toggleSection = useCallback(
