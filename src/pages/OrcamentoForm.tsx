@@ -1149,32 +1149,44 @@ export default function OrcamentoForm() {
 
 
         {isMobile && (
-          <div className="rounded-2xl border bg-card p-4 shadow-sm lg:hidden">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Resumo</p>
-                <p className="mt-1 text-sm font-semibold">{clienteSnapshot.nome_razao_social || 'Sem cliente selecionado'}</p>
+          <>
+            {/* Spacer para evitar que o footer sticky cubra conteúdo final */}
+            <div aria-hidden className="h-32 lg:hidden" />
+            {/* Footer sticky mobile — Total + Salvar sempre visíveis */}
+            <div
+              className={cn(
+                "fixed inset-x-0 bottom-0 z-40 lg:hidden",
+                "bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80",
+                "border-t shadow-[0_-4px_12px_-4px_rgba(0,0,0,0.08)]",
+                "px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]",
+              )}
+            >
+              <div className="flex items-center justify-between gap-3 mb-2">
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Total</p>
+                  <p className="text-lg font-bold text-primary font-mono leading-tight truncate">
+                    {formatCurrency(valorTotal)}
+                  </p>
+                </div>
+                <div className="text-right text-[11px] text-muted-foreground leading-tight">
+                  <p>{items.filter(i => i.produto_id).length} item(ns)</p>
+                  {pesoTotal > 0 && <p>{pesoTotal.toFixed(2)} kg</p>}
+                </div>
               </div>
-              <div className="text-right">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Total</p>
-                <p className="mt-1 text-base font-semibold">{valorTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+              <div className="grid grid-cols-[1fr_auto_auto] gap-2">
+                <Button onClick={handleSave} disabled={saving} className="h-11 gap-2">
+                  <Save className="w-4 h-4" />
+                  {saving ? "Salvando..." : "Salvar"}
+                </Button>
+                <Button variant="outline" size="icon" onClick={() => setPreviewOpen(true)} className="h-11 w-11" aria-label="Visualizar">
+                  <Eye className="w-4 h-4" />
+                </Button>
+                <Button variant="secondary" size="icon" onClick={handleGeneratePdf} className="h-11 w-11" aria-label="Gerar PDF">
+                  <FileText className="w-4 h-4" />
+                </Button>
               </div>
             </div>
-            <div className="mt-3 grid grid-cols-3 gap-2 rounded-xl bg-accent/40 p-3 text-center text-xs">
-              <div>
-                <p className="font-semibold text-muted-foreground">Itens</p>
-                <p className="mt-1 text-sm font-semibold text-foreground">{items.filter(i => i.produto_id).length}</p>
-              </div>
-              <div>
-                <p className="font-semibold text-muted-foreground">Qtd.</p>
-                <p className="mt-1 text-sm font-semibold text-foreground">{quantidadeTotal}</p>
-              </div>
-              <div>
-                <p className="font-semibold text-muted-foreground">Peso</p>
-                <p className="mt-1 text-sm font-semibold text-foreground">{pesoTotal.toFixed(2)} kg</p>
-              </div>
-            </div>
-          </div>
+          </>
         )}
 
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
