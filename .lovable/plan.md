@@ -1,416 +1,169 @@
 
 
-# Revisão Transversal Final — ERP AviZee como Produto Único
+# Revisão Mobile — Dashboard
 
-Síntese consolidada das 8 revisões anteriores (Auth/Login, Navegação Global, Design System, e os módulos individuais) cruzada com o estado real atual: 49 páginas em `src/pages`, 4 fontes vivas de status (`statusSchema.ts`, `STATUS_VARIANT_MAP`, `comprasStatus.ts`, `StatusBadge.statusMeta`), 14 views relacionais, 4 roles RBAC, ~70 arquivos consumindo `StatusBadge`.
-
-> **Fato central**: cada módulo, isoladamente, está sólido. O atrito está nas **junturas**: status divergem entre módulos para o mesmo conceito (ex.: "cancelar" vs "cancelado" vs "rejeitado"), filtros de período usam 4 implementações paralelas, e a fronteira entre **excluir/inativar/cancelar/estornar** muda de regra a cada tela — usuário não consegue prever o efeito da ação antes de clicar.
+Análise baseada **exclusivamente** nos arquivos reais: `src/pages/Index.tsx`, `DashboardHeader`, `AlertStrip`, `QuickActions`, `FinanceiroBlock`, `ComercialBlock`, `EstoqueBlock`, `LogisticaBlock`, `FiscalBlock`, `PendenciasList`, `VendasChart`, `SummaryCard`, `MobileBottomNav`, `MobileQuickActions`. Viewport real do usuário = 1145px (desktop), portanto a análise abaixo refere-se ao comportamento que esses componentes **terão** em mobile (<768px) considerando classes Tailwind atuais.
 
 ---
 
-## 1. Visão geral do projeto
+## 1. Visão geral da experiência mobile
 
-**Stack consolidada** (não migra): React 18 + Vite 5 + Tailwind v3 + shadcn/ui + TanStack Query + Supabase via Lovable Cloud. Roteamento client-side; shell autenticado único (`AppLayout`); guards `Permission/Admin/Social/ProtectedRoute`.
+Em mobile o Dashboard hoje vira **um único trilho vertical de aproximadamente 9 blocos empilhados** (kpis → operational → alertas → financeiro → ações_rápidas → vendas_chart → pendências → comercial → estoque → logística → fiscal). Cada par lado-a-lado de desktop (`lg:grid-cols-2`) colapsa em duas linhas full-width. Resultado: **scroll vertical estimado ~2800–3500px** numa tela de 800px de altura, ou seja, **3,5–4,5 telas inteiras de rolagem só para chegar ao Fiscal**.
 
-**Módulos vivos** (15 áreas funcionais):
-- **Operacional**: Dashboard, Comercial (Orçamentos/Pedidos), Compras (Cotações/Pedidos de Compra), Logística (3 abas unificadas), Estoque, Fiscal (NFe/NFCe + SEFAZ proxy), Financeiro (a receber/pagar/baixas/conciliação).
-- **Cadastros**: Clientes (com Grupos Econômicos), Fornecedores, Transportadoras, Produtos/Insumos, Funcionários, Sócios, Formas de Pagamento, Unidades de Medida, Contas Bancárias/Contábeis.
-- **Analítico**: Relatórios (CSV/XLSX/PDF), Workbook Gerencial, Apresentação Gerencial, Auditoria (`v_admin_audit_unified`).
-- **Plataforma**: Administração, Configurações (4 abas), Migração de Dados (6 fases), Auth, Social (feature-flag).
+O shell mobile (`MobileBottomNav` + `MobileQuickActions` flutuante a 5,8rem do bottom) está bem resolvido — o problema está **dentro** do dashboard: blocos foram desenhados para grid 2-col com bastante espaço horizontal e, ao serem espremidos, mantêm padding/altura de desktop. Não há **nenhum tratamento específico** (`md:` / `sm:`) na maioria dos blocos para reduzir densidade em mobile.
 
-**Padrões consolidados** (já canônicos):
-- `ModulePage` + `DataTable` (com `useDataTablePrefs` + `useDataTableExport` recém-extraídos) + `AdvancedFilterBar` + `SummaryCard` + `StatusBadge` + `ViewDrawerV2`.
-- `useSupabaseCrud<T>` para CRUD genérico; RPCs para operações multi-tabela.
-- `RelationalDrawerStack` empilha drawers cross-módulo via `useRelationalNavigation.pushView`.
-- RLS estrito + `chk_*` constraints + `search_path = public` em RPCs.
-
-**Padrões NÃO consolidados** (origem dos atritos transversais):
-- Fontes de status, filtros de período, semântica de exclusão, forma de criar entidade rápida, padrão de aprovação/cancelamento.
+O usuário consegue executar tarefas (todos os botões funcionam, drawers abrem), mas o dashboard vira **uma página de "leitura longa"**, não a "ferramenta de ação rápida" pretendida.
 
 ---
 
-## 2. Principais inconsistências transversais
+## 2. Problemas críticos (bloqueiam uso real)
 
-### 2.1 Semântica de status fragmentada em 4 fontes
-
-| Fonte | Conteúdo | Uso real |
-|---|---|---|
-| `lib/statusSchema.ts` | 8 maps domínio-específicos com `{label, color}` (color = string genérica como "info", "secondary") | Importada em ~12 lugares para popular MultiSelects de filtro |
-| `types/ui.ts:STATUS_VARIANT_MAP` | 60+ chaves → `StatusVariant` (success/warning/etc) | **Single source de cor** consumida pelo `StatusBadge` (recém-unificado) |
-| `components/StatusBadge.tsx:statusMeta` | 50+ chaves → `{icon, label}` | Render do badge |
-| `components/compras/comprasStatus.ts` | Aliases (`finalizada→aprovada`, `recebido_parcial→parcialmente_recebido`) + helpers `cotacaoCanEdit`/`pedidoCanReceive` | Apenas Compras |
-
-**Inconsistências reais entre módulos para o mesmo conceito**:
-- "Aprovado": Orçamento usa `aprovado` (success), Pedido usa `aprovada` (success), Cotação de Compra usa `aprovada` (success), Pedido de Compra usa `aprovado` (info — não success!). **Quatro grafias, dois tons** para o mesmo conceito.
-- "Cancelado": Orçamento `cancelado` (destructive), Pedido `cancelada` (destructive), NF `cancelada` (destructive), Financeiro `cancelado` (**secondary, não destructive**). Financeiro foge do padrão.
-- "Faturado": Pedido `faturada` (success), STATUS_VARIANT_MAP `faturado` (primary). **Tom diferente** entre o schema legacy e o canônico.
-- "Pendente": Orçamento `pendente` (info), Pedido `pendente` (warning), NF `pendente` (warning), Financeiro `aberto` (warning — usa nome diferente). Mesmo conceito, 2 tons + 2 nomes.
-- "Em separação" (Pedido) vs "em_analise" (Cotação Compra) vs "em_transito" (Logística) — três status sequenciais "em movimento", sem padrão de prefixo.
-- `statusOrcamento.pendente.color = "info"` mas `STATUS_VARIANT_MAP.pendente = "warning"`. **Direta contradição** entre as duas fontes — sorte do `StatusBadge` consumir só STATUS_VARIANT_MAP.
-
-### 2.2 Excluir vs Inativar vs Cancelar vs Estornar — sem doutrina
-
-Cinco verbos com regras distintas por módulo, sem mapa global:
-
-| Ação | Onde aparece | Comportamento real | Cobertura RPC |
+| # | Problema | Onde | Por quê é crítico |
 |---|---|---|---|
-| **Excluir** (`remove`) | Cadastros simples (Funcionários, Formas Pgto, Unidades, Sócios, Contas Bancárias/Contábeis) | DELETE físico (com FK constraint, falha se em uso) | `useSupabaseCrud.remove` direto |
-| **Inativar** (toggle `ativo`) | Produtos, Clientes, Fornecedores, Transportadoras, Unidades, Funcionários | Soft delete via flag `ativo=false` | UPDATE direto |
-| **Cancelar** | Orçamento, Pedido, NF, Pedido de Compra, Cotação de Compra, Financeiro, Remessa | RPC dedicada por módulo (`cancelar_*`) com motivo | RPC mantém histórico |
-| **Estornar** | Apenas Financeiro (`processarEstorno`) | Cancela baixa, devolve título a `aberto`/`parcial` | RPC oficial |
-| **Rejeitar** | Apenas Orçamento e Cotação Compra | Status terminal alternativo a Aprovado | UPDATE direto |
-
-**Problemas concretos**:
-- `FormasPagamento` mostra **botão "Excluir" + texto "Considere inativar para preservar histórico"**. Se inativar é a recomendação, por que o botão padrão é Excluir?
-- `Funcionarios` tem **ambos**: campo `ativo` (toggle) e botão `Excluir` (remove). Sem guidance de quando usar cada.
-- `Produtos` só inativa (sem excluir). `Clientes` mesmo. **Decisão correta**, mas inconsistente com cadastros menores.
-- `Unidades` faz a coisa certa: confirma "inativar mesmo assim?" se em uso, evitando excluir. Mas a confirm só mostra count via consulta extra; outros cadastros nem checam.
-- Pedido cancelado **estorna estoque**? Sim, via trigger. Mas o usuário só descobre lendo o `labelMap` do `useTransicionarRemessa` (`"Cancelada (estoque revertido quando aplicável)"`). Não há aviso pré-confirmação no Pedido.
-- Financeiro `cancelado` é **muted/secondary**, não destructive — porque "cancelar lançamento não pago" foi tratado como neutro. Para usuário, "cancelado" é destrutivo em todo lugar; aqui é cinza.
-
-### 2.3 Filtros de período: 4 implementações paralelas
-
-| Componente | Onde | Períodos |
-|---|---|---|
-| `filters/PeriodFilter.tsx` | Não tem importadores na grep — código vivo, uso 0 | 6 presets |
-| `Estoque.tsx` (linhas 522-533) | Movimentação de estoque | 2 inputs `date` manuais + botão "Limpar Datas" |
-| `Pedidos.tsx` (linhas 411-420) | Pedidos | 2 inputs `date` manuais via URL params (`de`/`ate`) |
-| `Financeiro.tsx` + `Conciliacao.tsx` | Financeiro | `financialPeriods` próprio em `filters/periodTypes.ts` com ranges customizados |
-| `Dashboard` | KPIs e charts | Próprio `DashboardPeriodContext` |
-| `Auditoria.tsx` | Logs unificados | URL `de`/`ate` próprios |
-
-**Cinco implementações** para o mesmo conceito de "filtrar por período". Nenhuma consome `PeriodFilter`. O componente "oficial" está morto; cada tela inventou a sua. Resultado: comportamento de "ontem" é diferente entre Estoque e Pedidos.
-
-### 2.4 Drawer vs Detail vs Edit — três paradigmas para a mesma coisa
-
-| Padrão | Onde | Característica |
-|---|---|---|
-| **ViewDrawerV2** (canônico) | 14 views relacionais + Logística + Auditoria + KPI | Side panel com tabs internas, `pushView` empilha drawers |
-| **Detail page** (`/fiscal/:id`) | Apenas Fiscal (`FiscalDetail.tsx`) | Página inteira separada — não usa drawer |
-| **Edit page** (`/orcamentos/:id`, `/pedidos/:id`, `/fiscal/:id/editar`, `/cotacoes-compra/:id`, `/pedidos-compra/:id`, `/remessas/:id`) | 6 entidades operacionais | Página inteira de edição (não modal) — para forms longos com itens |
-
-**Conflitos reais**:
-- Clicar num Orçamento na grid abre **OrcamentoView (drawer)**. Clicar em "Editar" sai para `/orcamentos/:id` (página inteira). Quem está no drawer e quer editar precisa navegar e perde stack relacional.
-- Fiscal tem 3 paradigmas: grid → `FiscalDetail` (página) → `/fiscal/:id/editar` (página). Os outros módulos com forms longos (Orçamento, Pedido) só têm 2 (drawer + edit). **Fiscal é o outlier** — sem motivo claro.
-- `RemessaView` é drawer; `RemessaForm` é página. Coerente com Pedido. Mas `EntregaDrawer` é drawer e **não tem página de edição** — a edição acontece **dentro do drawer** (V2 variant `operational`). Padrão diferente do Orçamento sem documentação.
-
-### 2.5 Coerência de nomenclatura de entidades
-
-- **Orçamento** (UI/rotas) ↔ `orcamentos` (DB) — OK.
-- **Pedido** (UI) ↔ `ordens_venda` (DB). Aliases legados: `/ordens-venda` redireciona para `/pedidos`. `statusOrdemVenda` deprecated. **Funciona, mas a tabela ainda é `ordens_venda`**, então toda query SQL usa o nome antigo enquanto a UI fala "Pedido".
-- **Compra** (UI) ↔ `pedidos_compra` (DB). E `cotacoes_compra` separado.
-- **Remessa** (UI/legacy) e **Logística** (UI atual) ↔ `remessas` (DB). Confusão: o módulo se chama Logística mas a tabela é Remessas, e ainda existe rota `/remessas/:id` (form de edição) sob o módulo Logística.
-- **Funcionário** (UI/DB) ↔ não tem ligação com `usuarios` (auth). Funcionário é cadastro RH; Usuário é login. Mas a permissão de `/funcionarios` agora é `usuarios:visualizar` (recente correção) — acoplamento de permissão entre dois cadastros conceitualmente distintos.
-
-### 2.6 Criação rápida vs criação completa: dois fluxos paralelos
-
-- **Cliente**: `QuickAddClientModal` (recém-reescrito sobre FormModal) acessível de Orçamento/Pedido + grid completa em `/clientes`.
-- **Produto**: criação só em `/produtos` (form modal completo) — sem quick-add. Em Orçamento, se faltar produto, sai e volta.
-- **Fornecedor**: idem produto — só em `/fornecedores`.
-- **Forma de Pagamento**: criação só em `/formas-pagamento`. Em Orçamento/Pedido, dropdown lê e fica.
-- **Transportadora**: idem.
-
-**Inconsistência**: Cliente tem quick-add porque Orçamento/Pedido precisa muito; outros cadastros não. Mas em Pedido de Compra, faltando Fornecedor, mesma fricção — sem quick-add.
-
-### 2.7 Permissões: ações declaradas vs ações usadas
-
-`ERP_ACTIONS` declara 19 ações. Auditoria das matrizes:
-- `orcamentos:visualizar_rentabilidade` existe e é checada (vendedor não tem). OK.
-- `apresentacao:editar_comentarios`, `apresentacao:aprovar` declaradas — usadas em `ApresentacaoGerencial`.
-- `social:gerenciar_alertas`, `social:configurar`, `social:sincronizar` declaradas — usadas.
-- `pedidos:confirmar` declarada — **uso real**: nenhuma checagem `can('pedidos','confirmar')` na grep. Ação morta.
-- `compras:confirmar` declarada — mesmo destino, sem `can(...)` check encontrado.
-- `estoque:aprovar` declarada — sem uso encontrado.
-- `relatorios:exportar` é checada apenas em DataTable indireto via `useDataTableExport` (que **não verifica permissão** atualmente — exporta sem check).
-
-**Risco**: `useDataTableExport` é hook compartilhado; se `relatorios:exportar` deveria ser global, ele deveria gate-keep. Hoje não.
-
-### 2.8 Componentes legacy paralelos remanescentes
-
-Pós-cleanup do design system, **ainda restam**:
-- `pages/admin/Logs.tsx` ainda importava `ViewDrawer` (legado) — verificar se foi migrado em paralelo às outras 5 telas (foi marcado como done, mas grep ainda mostra `Auditoria.tsx` agora usa V2; bom).
-- `lib/statusSchema.ts` continua sendo a fonte para MultiSelects de filtro (porque expõe `statusToOptions`). `STATUS_VARIANT_MAP` não tem `toOptions`. **Duas fontes coexistem por motivo válido**, mas sem doutrina escrita.
-- `comprasStatus.ts` mistura aliases + helpers de transição + label maps. Para o resto do ERP, não há `pedidosStatus.ts`/`fiscalStatus.ts`/`financeiroStatus.ts` equivalentes — Compras tem privilégio. Outros módulos espalham helpers inline.
-- `as any` em 10 arquivos críticos: `ApresentacaoGerencial`, `OrcamentoPublico`, `MigracaoDados`, `FluxoCaixaChart`, `Orcamentos.tsx`, `RelatorioMigracaoFaturamento`, `ImportacaoStatusBadge`, `ClienteView`, `ReconciliacaoDetalhe`. **Dívida tipada visível**.
-
-### 2.9 Integrações ponta a ponta com pontos cegos
-
-- **Orçamento → Pedido → NF → Financeiro → Conciliação**: fluxo principal funciona, mas **rastreabilidade reversa é opaca**. Dado um lançamento financeiro, achar o pedido origem requer 2 cliques (drawer → relational link). Auditoria unificada (`v_admin_audit_unified`) ajuda mas é só log, não navegação.
-- **Pedido de Compra → Recebimento → Estoque → NF de Entrada (Fiscal entrada)**: fluxo separado. NF de entrada importada por XML não vincula automaticamente ao Pedido de Compra correspondente — `PedidoCompraLinker` no NotaFiscalForm é manual.
-- **Cotação Compra → Pedido de Compra → Cotação de outro fornecedor**: comparação de propostas na cotação ok; mas o pedido gerado **não mantém referência clicável** à cotação origem em todos os pontos (a `viewCotacao` no PedidoCompraDrawer só carrega numero/status).
-- **Logística → Remessa → Pedido**: status_transporte da remessa não dispara update no status do Pedido (Pedido fica em `entregue` apenas via processo separado).
-
-### 2.10 Governança de permissões
-
-- `useFavoritos` agora sincroniza via `useUserPreference` (recente). Bom.
-- `DataTable` usa `useDataTablePrefs` (recente). Bom.
-- Mas `useDashboardLayout` (widgets do Dashboard) usa **localStorage por user_id** (linha 25 de Index.tsx) — não sincroniza. Mais um ponto de inconsistência entre devices.
-- Roles têm 4 valores fixos (`admin/vendedor/financeiro/estoquista`) — sem perfil "gestor de compras", "operador logístico", "controle interno". ERPs reais precisam de mais granularidade ou de overrides bem usados.
-- Overrides via `user_permissions` existem (allow/deny), mas só admin gerencia. Não há "delegação temporária" (ex: vendedor de férias delega aprovação a colega).
-
-### 2.11 Pontos que bloqueiam escalabilidade
-
-- **`useSupabaseCrud` carrega lista inteira em memória** — para `clientes`, `produtos`, `fornecedores` com 10k+ registros, vai estourar. `DataTable` virtualiza render mas o array em memória continua todo. Sem paginação server-side nem cursor.
-- **GlobalSearch** consome RPC `global_search` (recém-criada) com limite 5 por categoria — escala para milhares.
-- **Exportação PDF/XLSX no client** (`useDataTableExport`) — para >50k linhas, navegador trava. Sem fallback para job server-side.
-- **Snapshots de cliente em Orçamento (`cliente_snapshot` JSON)** — boa decisão para histórico, mas sem indexação no JSON, busca por cliente em orçamentos antigos é lenta.
-- **`v_admin_audit_unified`** unifica 2 tabelas de log, mas se o volume crescer (cada operação registra), virtualização não basta — precisa de archival/partition.
+| C1 | Período/Refresh/Customize empilham em mobile, ocupando ~140px antes do primeiro KPI | `DashboardHeader` linha 62 (`flex-col gap-3 md:flex-row`) + `flex-wrap` na linha 83 | Saudação + título + 3 metadados (data, hora, range) + Select 175px + Atualizar + Customize = parede vertical antes de ver dado. Customizar widgets é raro; expor toda hora desperdiça topo da tela. |
+| C2 | Custom range expõe 2 inputs `date` + botão Aplicar em sub-card de ~110px adicional | `DashboardHeader` linha 109 | Em mobile inputs `type="date"` nativos ficam altos; o sub-painel cobre quase 1/4 da tela. |
+| C3 | Bloco `operational` força `grid-cols-2 sm:grid-cols-4` — em <640px mantém 2-col mas cada card tem altura de ~95px (4 cards = 200px de scroll) | `Index.tsx` linha 162, `SummaryCard density="compact"` | Mesmo compacto, 4 cards × 2 linhas = bloco quase do tamanho da viewport útil de um iPhone SE. |
+| C4 | `FinanceiroBlock` indicadores ficam `grid-cols-2` em mobile (4 indicadores × ~60px = 120px) **+** `FluxoCaixaChart` com `min-h-[120px]` **+** rodapé "Hoje" — bloco totaliza ~340–380px | `FinanceiroBlock` linhas 74, 116 | É o bloco mais alto sem ser o mais útil em mobile. Gráfico de fluxo de caixa em <375px fica ilegível. |
+| C5 | `ComercialBlock` tem 4 KPIs (`grid-cols-2 md:grid-cols-4` → 2-col em mobile, 4 cells × 2 linhas) + lista de últimos orçamentos + footer "Ver pedidos" — ~360–420px | `ComercialBlock` linhas 78, 113 | Cada KPI ocupa ~64px e o quarto ainda tem variação MoM. Excesso para mobile. |
+| C6 | `VendasChart` renderiza com `h-[200px]` fixo + tooltip Recharts não-touch friendly + barras clicáveis sem hit-area expandida | `Index.tsx` linha 197, `VendasChart.tsx` | Tap em barra estreita falha em telas <375px; tooltip aparece mas usuário precisa tocar de novo para drill. Sem indicação visual de "tap-to-drill" em touch. |
+| C7 | Lista de pendências com botão Eye `h-6 w-6` (24px) — abaixo do mínimo touch target Apple (44px) e Material (48px) | `PendenciasList` linha 188 | Cinco lançamentos com botão de 24px num gap de 1.5px entre linhas → toque errado garantido. |
+| C8 | `EstoqueBlock`/`LogisticaBlock` linhas internas com `py-1.5 px-1` clicáveis (`onClick={() => pushView(...)}`) sem touch target mínimo — ~32px de altura | `EstoqueBlock` linha 84, `LogisticaBlock` linha 105 | Listas inteiras viram área de toque ambígua; sem estado pressed visível. |
+| C9 | Hover-only states predominam (`hover:bg-muted/20`, `hover:opacity-80`, `hover:border-primary/30`) sem `active:` equivalente | Todos os blocos | Em touch não há hover; usuário nunca recebe feedback de "estou prestes a clicar". |
+| C10 | `MobileQuickActions` FAB conflita com a posição "Ver fluxo de caixa →" no rodapé do FinanceiroBlock + botão "Mostrar todas" no PendenciasList — FAB cobre conteúdo a 5.8rem do bottom | `MobileQuickActions` linha 26 | Ao rolar até o fim de qualquer bloco, FAB sobrepõe o último botão de ação. |
 
 ---
 
-## 3. Problemas críticos do sistema como produto
+## 3. Problemas médios (atrapalham uso)
 
-| # | Problema | Impacto produto | Origem |
+- **M1** — Saudação+vencimentos é texto contínuo (`<p>` linha 313) em mobile vira 3 linhas truncadas; "1 recebimento e 2 pagamentos vencendo hoje · 3 pedidos aguardando faturamento" é informação valiosa enterrada em parágrafo cinza.
+- **M2** — `ScopeBadge` (snapshot/global-range/fixed-window) aparece **8 vezes** no dashboard — em desktop é metadado útil; em mobile vira ruído pequeno e ilegível dentro dos headers `<h3>`.
+- **M3** — `AlertStrip` usa `flex-wrap` com pílulas cinza-text — em mobile com 2 alertas (Vencidos + Notas), pílulas quebram em 2 linhas + label "ALERTAS" em 1 linha = 3 linhas para 2 informações.
+- **M4** — `QuickActions` é grid `grid-cols-2 gap-2` com 6 botões altura ~70px = 220px de bloco. Em mobile já existe `MobileQuickActions` (FAB) com as mesmas ações. **Duplicação real**.
+- **M5** — `PendenciasList` mostra `INITIAL_VISIBLE = 5` + "Mostrar todas (N)" — bloco varia de 200px a 600px; sem max-height interno, expande indefinidamente.
+- **M6** — `FiscalBlock` lista 3-5 itens em cards `border` com `py-2` cada (~60px) = 180–300px; cada card tem ícone + label + sub + valor → poluído para a métrica simples que carrega.
+- **M7** — Tooltips Recharts (`VendasChart`, `FluxoCaixaChart`) abrem ao tap mas não somem ao tap-fora — ficam grudados.
+- **M8** — Status pílulas no `ComercialBlock` (`text-[10px] px-1.5`) + `mono leading-tight` ficam ilegíveis em telas <360px.
+- **M9** — `DashboardCustomizeMenu` aparece sempre, mesmo em mobile onde reordenar widgets é tarefa de desktop. Botão extra que rouba espaço do header.
+
+---
+
+## 4. Problemas leves (polimento)
+
+- **L1** — Saldo `mono` font para valores monetários em telas pequenas pode quebrar alinhamento.
+- **L2** — "Atualizado às HH:MM" no header — em mobile poderia ser tooltip/chip menor.
+- **L3** — Botões "Ver módulo →" repetem-se em 5 blocos; em mobile cada um ocupa linha própria por causa do `flex-wrap`.
+- **L4** — `LogisticaBlock` mostra "prévia — até 10 registros" (`text-[10px]`) que ninguém precisa em mobile.
+- **L5** — `BlockErrorBoundary` fallback não foi auditado para mobile (não testado neste review).
+- **L6** — Skeletons (`DashboardSkeleton`) estão dimensionados para grid desktop — em mobile mostram blocos largos demais por ~600ms.
+- **L7** — `DashboardCard` (wrapper de `vendas_chart` e `pendencias`) adiciona padding `p-3` extra dentro do card já com padding — duplicação de espaço.
+
+---
+
+## 5. Melhorias de layout (mobile)
+
+1. **Sticky header compacto < 60px** em mobile: linha única [Período chip] [↻] [⋯ Customize/Refresh]. Saudação + greeting line viram banner único de 1 linha no topo do scroll content (não sticky).
+2. **KPIs em carrossel horizontal de cards** em <640px (snap scroll, 1.2 cards visíveis), em vez de empilhar 3 em coluna. Mesma técnica para `operational` (mostra 4 cards num swipe horizontal de 60px de altura cada).
+3. **`AlertStrip` vira chip-row scrollável horizontal** com 1-tap drill-down, ficando logo abaixo do header (acima dos KPIs em mobile — alerta antes de número).
+4. **Esconder `QuickActions` block em mobile** (já há FAB `MobileQuickActions`). Adicionar `hidden md:block` no widget renderer.
+5. **`FinanceiroBlock` em mobile**: 4 indicadores numa única linha horizontal compacta scrollável + esconder `FluxoCaixaChart` (mover para drawer "Ver fluxo" via botão). Reduz altura ~340px → ~140px.
+6. **`ComercialBlock`/`EstoqueBlock`/`LogisticaBlock`/`FiscalBlock` viram "cards colapsáveis"** (`<details>`/Collapsible) com header sempre visível mostrando apenas 1 KPI principal + chip de alerta. Tap expande conteúdo. Default: financeiro/estoque expandidos; demais colapsados.
+7. **Período custom em mobile**: trocar 2 inputs `date` por `Drawer` bottom-sheet com calendário único (touch-first) ao invés do popover do `Select` + sub-card.
+8. **Densidade**: usar `density="compact"` já existente em todos os SummaryCards em <768px e reduzir `mt-1` interno; padding interno de 16px → 12px.
+
+---
+
+## 6. Melhorias de navegação
+
+- **N1** — Eliminar duplicação `QuickActions` block × FAB: em mobile, manter só FAB (já implementado).
+- **N2** — Adicionar **botão "Voltar ao topo"** flutuante depois do scroll passar de 600px (dashboard tem 3000+ px).
+- **N3** — Drawers abertos via `pushView` (Orçamento, Produto, Pedido_compra) já usam `RelationalDrawerStack`; verificar se em mobile o sheet ocupa 100vw (não revisado aqui).
+- **N4** — Header sticky em mobile permite trocar período sem scrollar de volta ao topo — hoje header rola junto.
+- **N5** — `DashboardCustomizeMenu` deve ficar `hidden md:flex`. Reordenar widgets é tarefa desktop.
+
+---
+
+## 7. Melhorias de componentes
+
+- **`SummaryCard` density="dense"** novo nível: `p-2`, `text-base` (em vez de `text-xl`), sem ícone box (ícone inline ao lado do título). Para uso em carrossel/linha horizontal.
+- **`AlertStrip` mobile mode**: prop opcional `compact` que renderiza como `overflow-x-auto` snap-scroll de chips com `min-w-[120px]`.
+- **`QuickActions`**: aceitar prop `hideOnMobile` (default false → mudar callsite em Index.tsx para true).
+- **`FinanceiroBlock`/`ComercialBlock`/etc**: aceitar prop `mobileCollapsible` (default false → true no Dashboard); quando true, renderiza header tappable que expande conteúdo. Reaproveita componente `Collapsible` do shadcn.
+- **`PendenciasList`**: aumentar botão `Eye` para `h-9 w-9` em mobile (touch target 36–44px); aumentar `py-1.5` para `py-2.5`; remover `INITIAL_VISIBLE` em mobile (mostrar 3 e botão "Ver todas" abre drawer).
+- **`VendasChart`/`FluxoCaixaChart`**: em mobile desativar bar-click drill-down (gera frustração) e adicionar chip "Ver detalhes" abaixo do gráfico que navega ao relatório.
+- **`DashboardHeader`**: extrair `MobileDashboardHeader` próprio com layout sticky mínimo (chip período + refresh + menu trigger) em vez de `flex-col` empilhado.
+
+---
+
+## 8. Melhorias de fluxo
+
+- **F1** — Reordenar widgets default em mobile (override `DEFAULT_ORDER` para `mobileDefault`): alertas → kpis → operacional → financeiro (colapsado) → pendências → comercial (colapsado) → estoque (colapsado) → logística (colapsado) → fiscal (colapsado) → vendas_chart (colapsado).
+- **F2** — Saudação vira **banner-action**: se `vencimentosHoje > 0` ou `backlogOVs > 0`, render como `<button>` full-width com ícone, não parágrafo.
+- **F3** — "Ver módulo →" de cada bloco deve ficar **dentro** do header colapsável (tap no header expande; ícone setinha pro módulo separado para drill-down direto).
+- **F4** — Persistência por device: `useDashboardLayout` (já em `useUserPreference`) deveria salvar **estado expandido/colapsado por widget em mobile** separado do desktop.
+
+---
+
+## 9. Sugestões de redesign mobile (sem inventar sistema novo)
+
+Reaproveitando 100% do que já existe (`SummaryCard`, `AlertStrip`, `Collapsible`, `Drawer`, `Sheet`, `MobileQuickActions`, `useDashboardLayout`):
+
+```text
+┌──────────────────────────────┐
+│ [Hoje ▾] [↻] [⋯]   ← sticky 52px
+├──────────────────────────────┤
+│ Bom dia, João                │
+│ ▸ 2 recebimentos vencem hoje │ ← banner-action 56px
+├──────────────────────────────┤
+│ ⚠ 3 vencidos · 5 pendentes  │ ← AlertStrip horizontal 44px
+├──────────────────────────────┤
+│ ◀ R$ 45k │ R$ 32k │ +R$ 13k ▶│ ← KPI carousel 88px
+├──────────────────────────────┤
+│ ◀ Estoque ⚠2│Backlog 5│... ▶│ ← Operational carousel 72px
+├──────────────────────────────┤
+│ 💰 Financeiro      R$ +13k ▼│ ← Collapsible, expandido
+│   [4 indicadores em linha]   │
+│   [Ver módulo financeiro →]  │
+├──────────────────────────────┤
+│ ⏰ Pendências (5)         ▼│ ← Collapsible, expandido
+│   • Cliente A  R$ 5.000  👁  │ ← Eye 36px
+├──────────────────────────────┤
+│ 🛒 Comercial    Tkt R$2.5k ▶│ ← Collapsido
+├──────────────────────────────┤
+│ 📦 Estoque      ⚠3 críticos▶│ ← Collapsido (com badge)
+├──────────────────────────────┤
+│ 🚚 Logística    ⚠2 atrasadas▶│
+├──────────────────────────────┤
+│ 📄 Fiscal       5 pendentes▶│
+├──────────────────────────────┤
+│ 📊 Vendas (mês)            ▶│ ← Chart só ao expandir
+└──────────────────────────────┘
+                          [+] FAB (já existe)
+                          [▲] Voltar ao topo
+[Bottom nav já existe ────────]
+```
+
+Resultado: scroll cai de ~3000px para **~1200px** com tudo colapsado, **~2200px** com 3-4 blocos expandidos. Usuário vê alertas + KPIs + ações imediatas sem rolar nada.
+
+---
+
+## 10. Roadmap de execução
+
+| Fase | Escopo | Resolve | Esforço |
 |---|---|---|---|
-| 1 | Mesmo conceito ("aprovado/cancelado/pendente") tem cor e grafia diferentes entre módulos | Usuário não confia na cor — precisa ler o texto sempre | 4 fontes de status sem doutrina |
-| 2 | "Excluir" vs "Inativar" vs "Cancelar" sem regra escrita | Risco de exclusão acidental + UI confusa em FormasPagamento | Sem `mem://` doutrinário |
-| 3 | 5 implementações paralelas de filtro de período | "Últimos 30 dias" significa coisas diferentes em telas diferentes | `PeriodFilter` órfão; cada tela fez o seu |
-| 4 | Fluxo Orçamento usa drawer p/ ver e página p/ editar; Fiscal usa só páginas; outros mistos | Curva de aprendizado por módulo | Sem padrão "quando drawer / quando página" |
-| 5 | Quick-add só existe para Cliente | Em Orçamento/Pedido, criar Produto/Fornecedor força sair e voltar | Decisão pontual sem expansão |
-| 6 | `pedidos:confirmar`, `compras:confirmar`, `estoque:aprovar` declaradas mas nunca checadas | False sense of governance | Permissões dead code |
-| 7 | `useDataTableExport` exporta sem checar `:exportar` | Vendedor exporta dados restritos | Hook agnóstico de permissão |
-| 8 | `useDashboardLayout` ainda em localStorage | Layout do dashboard sumiu ao trocar de device | Não migrado p/ `useUserPreference` |
-| 9 | Status `pendente` no schema legado é `info`, no STATUS_VARIANT_MAP é `warning` | Contradição direta entre fontes — bug latente | Não unificado |
-| 10 | NFe entrada por XML não auto-vincula ao Pedido de Compra | Re-trabalho manual em todo recebimento | Linker manual |
-| 11 | Status do Pedido não muda quando Remessa é entregue | Dashboard mostra Pedido como pendente embora entregue | Sem trigger cross-modular |
-| 12 | `useSupabaseCrud` carrega lista inteira | Quebra com 10k+ registros | Sem cursor/server pagination |
-| 13 | Exportação PDF/XLSX 100% client-side | Navegador trava em volumes grandes | Sem job background |
-| 14 | 10 arquivos com `as any` em paths críticos (Orçamento Público, Migração, Apresentação) | Type safety furada onde mais importa | Dívida não atacada |
-| 15 | 4 roles fixos sem "gestor de compras"/"operador logístico" | Cliente real precisa de mais perfis ou usa overrides ad-hoc | Granularidade RBAC |
+| **1** | Sticky `MobileDashboardHeader` (chip período + refresh + ⋯) substituindo `DashboardHeader` em <md; banner-action de saudação | C1, C2, M1, N4 | M |
+| **2** | `hidden md:block` no widget `acoes_rapidas` e no `DashboardCustomizeMenu` em mobile | M4, M9, N1, N5 | XS |
+| **3** | Carrossel horizontal `kpis` e `operational` em <md (snap-x, sem mexer em desktop) | C3 | S |
+| **4** | `Collapsible` em `FinanceiroBlock`, `ComercialBlock`, `EstoqueBlock`, `LogisticaBlock`, `FiscalBlock` com prop `defaultOpenMobile`; persistir estado por widget em `useDashboardLayout` | C4, C5, M6, F1, F4 | M |
+| **5** | Em mobile: ocultar `FluxoCaixaChart` dentro de `FinanceiroBlock` e adicionar botão "Ver fluxo" → navega `/fluxo-caixa` | C4 | XS |
+| **6** | Touch targets: `Eye` em PendenciasList → 36px; rows clicáveis em Estoque/Logística/Pendências → `min-h-[44px]`, `active:bg-muted/40` | C7, C8, C9 | S |
+| **7** | `AlertStrip` modo `compact` (chips horizontais scrollable) + reposicionar acima dos KPIs em mobile | M3, M2 | S |
+| **8** | `VendasChart` mobile: desativar bar-click drill-down, adicionar chip "Ver relatório de vendas →" abaixo do gráfico | C6, M7 | XS |
+| **9** | Custom range: trocar inputs `date` + sub-card por `Drawer` bottom-sheet em mobile | C2 | M |
+| **10** | Botão "Voltar ao topo" flutuante após scroll>600px (não cobrir FAB) + ajustar `bottom` do FAB para não cobrir rodapés de blocos | C10, N2 | XS |
+| **11** | Atualizar `DashboardSkeleton` para refletir layout mobile reduzido (carrossel + colapsados) | L6 | S |
+| **12** | Atualizar `mem://produto/contrato-de-status.md` ou criar `mem://produto/dashboard-mobile.md` documentando padrão de cards colapsáveis e carrosséis para futuros módulos | governança | XS |
 
----
-
-## 4. Melhorias prioritárias
-
-### 4.1 Doutrina (sem código, só decisão escrita)
-
-**Criar 4 documentos `mem://` que definem contratos transversais**:
-1. `mem://produto/contrato-de-status.md` — para cada conceito de domínio (aprovado, pendente, cancelado, faturado, em movimento), uma única grafia + variant. Tabela cruzando módulo×status. Regra: "novo status → adicionar primeiro aqui, depois em código".
-2. `mem://produto/excluir-vs-inativar-vs-cancelar.md` — árvore de decisão: entidade tem histórico operacional? → cancelar+motivo. Cadastro mestre referenciável? → inativar. Tabela puramente de configuração? → excluir físico permitido.
-3. `mem://produto/quando-drawer-quando-pagina.md` — regra: form com itens dinâmicos (linhas) → página. Visualização + edição inline simples → drawer V2 variant `edit`. Fluxos cross-relacionais → pushView no drawer.
-4. `mem://produto/contrato-de-periodos.md` — todo filtro de período usa `PeriodFilter` único; lista canônica de presets e regra para custom range.
-
-### 4.2 Unificações (código)
-
-- **`statusOrcamento.pendente` mudar `color` para "warning"** alinhando com `STATUS_VARIANT_MAP`. Auditar todas as 8 tabelas em `statusSchema.ts` contra o map canônico.
-- **`PeriodFilter` virar componente real consumido** em Estoque, Pedidos, Financeiro, Conciliação, Auditoria. Aceitar `mode="preset"|"range"|"both"`. Ranges customizados via popover.
-- **`useDataTableExport` receber `permission?: PermissionKey`** e gate por `useCan` antes de iniciar export. `relatorios:exportar` como default.
-- **`useDashboardLayout` migrar para `useUserPreference<DashboardPrefs>('dashboard_layout')`** com fallback localStorage e migração one-shot (mesmo padrão do `useFavoritos` recente).
-- **Quick-add expansão**: criar `QuickAddProductModal` (mínimo: nome, SKU, unidade, preço) + `QuickAddSupplierModal` (CNPJ via API + nome) e plugar em Orçamento/Pedido/Pedido de Compra.
-- **Status canônico Pedido de Compra `aprovado`**: trocar de `info` para `success` em `statusPedidoCompra` para alinhar com Orçamento/Pedido/Cotação.
-
-### 4.3 Integrações ponta a ponta
-
-- **Trigger DB ou edge function** que ao marcar Remessa como `entregue` atualiza Pedido associado para `entregue` (idempotente, com guarda anti-loop).
-- **NFe entrada XML auto-link** ao Pedido de Compra: ao importar XML, casar `chave_nfe` ↔ `pedidos_compra.fornecedor_id + valor_total + data_pedido` em janela ±15 dias; se ambíguo, sugere lista no `PedidoCompraLinker`.
-- **Botão "Ver origem" universal no drawer** de qualquer entidade derivada (Pedido → Orçamento; NF → Pedido; Lançamento Financeiro → NF/Pedido). Já existe parcial via RelationalLink; padronizar.
-
-### 4.4 Escalabilidade
-
-- **Server-side pagination em `useSupabaseCrud`**: adicionar `mode: "memory" | "cursor"` (default memory para compat, cursor para listas grandes). DataTable já tem `infiniteScroll`; falta o backend.
-- **Edge function `export-bulk`** para CSV/XLSX/PDF de >10k linhas — gera em background, salva em Storage, manda email/notificação com link. Hook `useDataTableExport` decide local vs remote por threshold.
-- **Particionar `auditoria_logs` por mês** (Postgres native partitioning) — view `v_admin_audit_unified` continua transparente.
-
-### 4.5 Governança de permissões
-
-- **Remover ações declaradas e não usadas** (`pedidos:confirmar`, `compras:confirmar`, `estoque:aprovar`) **OU implementá-las** onde fariam sentido (ex.: confirmar Pedido = passar de `aprovada` para `em_separacao`).
-- **Adicionar role `gestor_compras`** com: `compras:*`, `fornecedores:*`, `estoque:visualizar`, `relatorios:visualizar`.
-- **Adicionar role `operador_logistico`** com: `logistica:*`, `pedidos:visualizar`, `estoque:editar`.
-
-### 4.6 Type safety
-
-- **Eliminar `as any` em 10 arquivos**: criar tipos para `vw_fluxo_caixa_financeiro`, `orcamentos_public_view`, `slides_json` (Apresentação), `cliente_snapshot`. Usar Database['public']['Views'] do generated types.
-
----
-
-## 5. Prompt corretivo final "Para o Lovable"
-
-```
-Implemente as 12 correções transversais do ERP AviZee, em fases atômicas.
-NÃO faça refactor amplo; cada fase é um PR isolado.
-
-FASE 1 — Doutrina (criar 4 arquivos mem):
-1. mem/produto/contrato-de-status.md com tabela módulo×status e regra "novo status entra primeiro em STATUS_VARIANT_MAP".
-2. mem/produto/excluir-vs-inativar-vs-cancelar.md com árvore de decisão por tipo de entidade.
-3. mem/produto/quando-drawer-quando-pagina.md.
-4. mem/produto/contrato-de-periodos.md.
-Atualize mem/index.md com as 4 entradas em "Memories".
-
-FASE 2 — Unificar status:
-Em src/lib/statusSchema.ts, mude statusOrcamento.pendente.color de "info" para "warning"
-e statusPedidoCompra.aprovado.color de "info" para "success", para alinhar com STATUS_VARIANT_MAP.
-Não toque em mais nada.
-
-FASE 3 — PeriodFilter como fonte única:
-Refatore src/components/filters/PeriodFilter.tsx para aceitar:
-  mode: "preset" | "range" | "both" (default "both")
-  value: { preset?: string; from?: string; to?: string }
-  onChange: (next) => void
-Migre src/pages/Estoque.tsx (movimentação) e src/pages/Pedidos.tsx (filtros de emissão)
-para consumi-lo. Mantenha URL params (de/ate) em Pedidos.
-
-FASE 4 — useDataTableExport com permissão:
-Adicione prop opcional `permission?: PermissionKey` ao hook src/hooks/useDataTableExport.ts.
-Quando informado, useCan internamente e bloqueie export retornando toast.error
-"Sem permissão para exportar" + log analytics.
-Ajuste DataTable para passar a permissão "relatorios:exportar" por default;
-páginas que quiserem outra (ex: "financeiro:exportar") sobrescrevem.
-
-FASE 5 — useDashboardLayout migrar para useUserPreference:
-Em src/hooks/useDashboardLayout.ts, troque a persistência localStorage
-por useUserPreference<DashboardLayoutPrefs>("dashboard_layout") + migração
-one-shot do localStorage existente (mesmo padrão de useFavoritos.ts).
-
-FASE 6 — Remover permissões mortas:
-Em src/lib/permissions.ts, remova "confirmar" da lista RESOURCE_ACTIONS de
-pedidos e compras, e "aprovar" de estoque (todas declaradas, nenhuma usada).
-Verifique grep de can('pedidos','confirmar') etc antes de remover.
-
-FASE 7 — Quick-add Produto e Fornecedor:
-Crie src/components/QuickAddProductModal.tsx e
-src/components/QuickAddSupplierModal.tsx no mesmo padrão de
-QuickAddClientModal (FormModal + FormSection).
-Plugue em OrcamentoForm/PedidoForm (botão + ao lado do dropdown de Produto)
-e em PedidoCompraForm (Fornecedor).
-
-FASE 8 — Trigger Remessa→Pedido:
-Migration: criar trigger AFTER UPDATE em remessas.status_transporte
-que, quando muda para 'entregue', atualiza ordens_venda.status para 'entregue'
-para todos os pedidos vinculados (via tabela ponte ou JOIN).
-SET search_path = public; idempotente.
-
-FASE 9 — Eliminar 5 `as any` mais críticos:
-Criar tipos em src/types/database-views.ts para:
-  - vw_fluxo_caixa_financeiro
-  - orcamentos_public_view
-  - orcamentos_itens_public_view
-Substituir em FluxoCaixaChart.tsx e OrcamentoPublico.tsx.
-Não toque ApresentacaoGerencial / MigracaoDados nesta fase.
-
-FASE 10 — Roles adicionais:
-Migration: adicionar 'gestor_compras' e 'operador_logistico' ao enum app_role.
-Em src/lib/permissions.ts, expandir APP_ROLES, ROLE_LABELS, ROLE_DESCRIPTIONS
-e rolePermissionMatrix com as duas roles + permissões listadas no roadmap.
-
-FASE 11 — Quick-Win UI: NFe entrada auto-sugestão de Pedido de Compra:
-No PedidoCompraLinker (componente já existente em pages/fiscal/components),
-ao abrir, fazer query automática:
-  pedidos_compra WHERE fornecedor_id = nf.fornecedor_id
-                  AND ABS(valor_total - nf.valor_total) < 0.01
-                  AND data_pedido BETWEEN nf.data_emissao - 15d AND nf.data_emissao
-Se 1 resultado: pré-seleciona. Se >1: lista no topo do dropdown como "sugestões".
-
-FASE 12 — Cursor pagination opcional em useSupabaseCrud:
-Adicionar prop `mode?: "memory" | "cursor"` ao useSupabaseCrud.
-Default "memory" (sem breaking change). Quando "cursor", paginação server-side
-com .range() seguindo currentPage do DataTable (que já existe).
-Documentar no JSDoc quando usar cada modo.
-
-REGRAS DE EXECUÇÃO:
-- Cada fase é um PR. NÃO mistura.
-- Após cada fase, rodar `tsc --noEmit` e confirmar zero erros.
-- NÃO criar componentes novos fora dos especificados.
-- NÃO refatorar arquivos não citados.
-- Preservar 100% da API pública dos hooks/components alterados.
-- Ao terminar uma fase, atualizar mem/index.md se relevante.
-```
-
----
-
-## 6. Prompt corretivo final "Para o Copilot/Codex"
-
-```
-You are working on ERP AviZee (React 18 + Vite + Tailwind + Supabase via
-Lovable Cloud). Apply the following targeted fixes. Each task is independent
-and must be implemented as a separate commit.
-
-CONTEXT:
-- Status canonical map: src/types/ui.ts STATUS_VARIANT_MAP
-- Status icons/labels: src/components/StatusBadge.tsx statusMeta
-- Permissions: src/lib/permissions.ts (ERP_RESOURCES × ERP_ACTIONS)
-- Period filter (currently unused): src/components/filters/PeriodFilter.tsx
-- Generic CRUD hook: src/hooks/useSupabaseCrud.ts
-- User preferences sync: src/hooks/useUserPreference.ts
-
-TASK 1 — Align status colors:
-File: src/lib/statusSchema.ts
-- Change statusOrcamento.pendente.color from "info" to "warning"
-- Change statusPedidoCompra.aprovado.color from "info" to "success"
-Reason: STATUS_VARIANT_MAP marks both as warning/success respectively;
-legacy schema diverges. Single value change each.
-
-TASK 2 — Refactor PeriodFilter to be reusable:
-File: src/components/filters/PeriodFilter.tsx
-- Add props: mode ("preset" | "range" | "both", default "both"),
-  value ({ preset?: string; from?: string; to?: string }),
-  onChange ((next) => void)
-- Render preset chips OR date range inputs OR both based on mode.
-- Keep existing 6 presets: hoje, 7d, 15d, 30d, 90d, year.
-Then update src/pages/Estoque.tsx (lines ~520-535, replace inline date inputs)
-and src/pages/Pedidos.tsx (replace inline date inputs around lines 411-420,
-keep URL params de/ate sync).
-
-TASK 3 — Permission-gate exports:
-File: src/hooks/useDataTableExport.ts
-- Add optional prop: permission?: PermissionKey
-- When set, call useCan().can(resource, action) at export start.
-  If denied: toast.error("Sem permissão para exportar"), return early.
-File: src/components/DataTable.tsx — pass permission ?? "relatorios:exportar"
-to the hook.
-
-TASK 4 — Migrate dashboard layout to backend prefs:
-File: src/hooks/useDashboardLayout.ts
-- Replace localStorage.getItem/setItem("dashboard_layout_${userId}") with
-  useUserPreference<DashboardLayoutPrefs>("dashboard_layout")
-- Add one-shot migration effect: on first mount, if backend has default and
-  localStorage has data, write localStorage to backend and remove local key.
-Reference pattern: src/hooks/useFavoritos.ts (recent migration).
-
-TASK 5 — Remove dead permission actions:
-File: src/lib/permissions.ts
-- Verify with grep: no can('pedidos','confirmar'), can('compras','confirmar'),
-  can('estoque','aprovar') in src/.
-- Remove these from RESOURCE_ACTIONS arrays only (do not touch ERP_ACTIONS
-  enum — would need migration).
-
-TASK 6 — Quick-add modals for Product and Supplier:
-Mirror src/components/QuickAddClientModal.tsx pattern:
-- src/components/QuickAddProductModal.tsx — fields: nome, sku, unidade_medida,
-  preco_venda. On save: insert into produtos, return id, call onCreated.
-- src/components/QuickAddSupplierModal.tsx — fields: cnpj (with ViaCNPJ
-  lookup if available, see src/services for existing helper), nome_fantasia,
-  razao_social. On save: insert into fornecedores, return id.
-Both use FormModal + FormSection from existing wrappers.
-
-TASK 7 — Database trigger Remessa → Pedido:
-Create migration:
-  CREATE OR REPLACE FUNCTION sync_pedido_status_on_remessa_entregue()
-  RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
-  BEGIN
-    IF NEW.status_transporte = 'entregue' AND OLD.status_transporte <> 'entregue' THEN
-      UPDATE ordens_venda
-        SET status = 'entregue', updated_at = now()
-        WHERE id = NEW.pedido_id  -- adjust column name if different
-        AND status NOT IN ('entregue', 'cancelada');
-    END IF;
-    RETURN NEW;
-  END $$;
-  CREATE TRIGGER trg_remessa_entregue_sync
-    AFTER UPDATE OF status_transporte ON remessas
-    FOR EACH ROW EXECUTE FUNCTION sync_pedido_status_on_remessa_entregue();
-
-TASK 8 — Type the public views (eliminate `as any`):
-Create src/types/database-views.ts with explicit interfaces:
-  OrcamentoPublicView, OrcamentoItemPublicView, FluxoCaixaFinanceiroView.
-Replace `as any` casts in src/pages/OrcamentoPublico.tsx and
-src/components/dashboard/FluxoCaixaChart.tsx with these types.
-
-CONSTRAINTS:
-- Never modify src/integrations/supabase/{client,types}.ts
-- All new RPCs/functions must SET search_path = public
-- Do not introduce new dependencies
-- Do not change public APIs of existing hooks (only add optional props)
-- After each task, run `npx tsc --noEmit` and ensure zero errors
-- Preserve existing tests; add minimal new tests only if you change behavior
-```
+**Quick wins (1 PR cada)**: 2, 5, 8, 10.
+**Estruturais**: 1, 3, 4, 6, 7, 9.
+**Cosméticos**: 11, 12.
 
