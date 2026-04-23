@@ -224,7 +224,16 @@ export default function Signup() {
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <img src={branding.logoUrl} alt={branding.marcaTexto || "ERP"} className="h-16 mx-auto mb-5 object-contain" />
+          <img
+            src={branding.logoUrl}
+            alt={branding.marcaTexto || "ERP"}
+            width={211}
+            height={64}
+            fetchPriority="high"
+            decoding="async"
+            loading="eager"
+            className="h-16 mx-auto mb-5 object-contain"
+          />
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Criar Conta</h1>
           <p className="text-muted-foreground text-sm mt-1">Cadastre-se no sistema</p>
         </div>
