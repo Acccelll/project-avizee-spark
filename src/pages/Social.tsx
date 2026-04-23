@@ -220,11 +220,11 @@ export default function Social() {
           </>
         }
         filters={
-          <>
-            <Input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} className="w-[160px]" />
-            <Input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} className="w-[160px]" />
+          <div className="grid grid-cols-2 gap-2 w-full md:flex md:flex-wrap md:w-auto md:gap-3">
+            <Input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} className="w-full md:w-[160px]" />
+            <Input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} className="w-full md:w-[160px]" />
             <Select value={filtroRede} onValueChange={setFiltroRede}>
-              <SelectTrigger className="w-[170px]"><SelectValue placeholder="Rede" /></SelectTrigger>
+              <SelectTrigger className="w-full md:w-[170px]"><SelectValue placeholder="Rede" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos">Todas as redes</SelectItem>
                 <SelectItem value="instagram_business">Instagram</SelectItem>
@@ -232,7 +232,7 @@ export default function Social() {
               </SelectContent>
             </Select>
             <Select value={filtroTipoPost} onValueChange={setFiltroTipoPost}>
-              <SelectTrigger className="w-[170px]"><SelectValue placeholder="Tipo" /></SelectTrigger>
+              <SelectTrigger className="w-full md:w-[170px]"><SelectValue placeholder="Tipo" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos">Todos os tipos</SelectItem>
                 <SelectItem value="feed">Feed</SelectItem>
@@ -241,7 +241,7 @@ export default function Social() {
                 <SelectItem value="artigo">Artigo</SelectItem>
               </SelectContent>
             </Select>
-          </>
+          </div>
         }
       >
         <Tabs defaultValue="dashboard" className="space-y-4">

@@ -7,6 +7,8 @@ export function SocialPostsTab({ posts }: { posts: SocialPost[] }) {
   return (
     <DataTable
       data={posts}
+      mobileStatusKey="tipo_post"
+      mobileIdentifierKey="titulo_legenda"
       columns={[
         { key: 'plataforma', label: 'Rede', render: (item: SocialPost) => socialPlatformLabel(item.plataforma) },
         { key: 'data_publicacao', label: 'Publicação', render: (item: SocialPost) => formatDate(item.data_publicacao) },
