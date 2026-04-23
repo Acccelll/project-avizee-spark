@@ -319,7 +319,7 @@ const Estoque = () => {
   ];
 
   const movColumns = [
-    { key: "produto", label: "Produto", render: (m: Movimento) => (
+    { key: "produto", label: "Produto", mobilePrimary: true, render: (m: Movimento) => (
       <div><span className="font-medium">{m.produtos?.nome ?? "—"}</span><br/><span className="text-xs text-muted-foreground font-mono">{m.produtos?.sku}</span></div>
     )},
     { key: "tipo", label: "Tipo", render: (m: Movimento) => {
@@ -350,7 +350,7 @@ const Estoque = () => {
   ];
 
   const posColumns = [
-    { key: "nome", label: "Produto", render: (p: ProdutoPosicao) => (
+    { key: "nome", label: "Produto", mobilePrimary: true, render: (p: ProdutoPosicao) => (
       <div><span className="font-medium">{p.nome}</span>{p.sku && <><br/><span className="text-xs text-muted-foreground font-mono">{p.sku}</span></>}</div>
     )},
     { key: "unidade", label: "Unid.", render: (p: ProdutoPosicao) => p.unidade_medida ?? "UN" },
@@ -495,6 +495,26 @@ const Estoque = () => {
               moduleKey="estoque-saldos"
               showColumnToggle={true}
               onView={(p) => { setSelectedPosicao(p as ProdutoPosicao); setPosicaoDrawerOpen(true); }}
+              mobileStatusKey="situacao"
+              mobileIdentifierKey="estoque_atual"
+              mobilePrimaryAction={(p) => {
+                const sit = getSituacao(p as ProdutoPosicao);
+                if (sit !== "critico" && sit !== "zerado") return null;
+                return (
+                  <Button
+                    size="lg"
+                    variant="default"
+                    className="h-11 w-full gap-2 text-sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setForm((f) => ({ ...f, produto_id: p.id }));
+                      setActiveTab("ajuste");
+                    }}
+                  >
+                    <SlidersHorizontal className="h-4 w-4" /> Ajustar saldo
+                  </Button>
+                );
+              }}
               emptyTitle="Nenhum item encontrado"
               emptyDescription="Ajuste os filtros ou verifique se há produtos com estoque ou mínimo cadastrado."
             />
@@ -542,6 +562,8 @@ const Estoque = () => {
               moduleKey="estoque-movimentacoes"
               showColumnToggle={true}
               onView={(m) => { setSelected(m); setDrawerOpen(true); }}
+              mobileStatusKey="tipo"
+              mobileIdentifierKey="quantidade"
               emptyTitle="Nenhuma movimentação encontrada"
               emptyDescription="Ajuste os filtros de tipo, data ou busque por produto."
             />
