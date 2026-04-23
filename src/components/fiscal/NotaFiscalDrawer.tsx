@@ -326,7 +326,43 @@ export function NotaFiscalDrawer({
     <div className="space-y-4">
       {items.length > 0 ? (
         <>
-          <div className="rounded-lg border overflow-hidden">
+          {/* Mobile: lista de cards verticais */}
+          <div className="md:hidden space-y-2">
+            {items.map((i, idx) => (
+              <div key={idx} className="rounded-lg border bg-card p-3 space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    {i.produtos?.id ? (
+                      <RelationalLink type="produto" id={i.produtos.id}>
+                        <span className="font-medium text-sm truncate block">{i.produtos?.nome || "—"}</span>
+                      </RelationalLink>
+                    ) : (
+                      <span className="font-medium text-sm truncate block">{i.produtos?.nome || "—"}</span>
+                    )}
+                  </div>
+                  <span className="font-mono font-bold text-sm shrink-0">
+                    {formatCurrency(Number(i.quantidade) * Number(i.valor_unitario))}
+                  </span>
+                </div>
+                <div className="text-xs text-muted-foreground font-mono">
+                  {i.quantidade} × {formatCurrency(i.valor_unitario)}
+                </div>
+                {(i.cst || i.cfop || i.contas_contabeis) && (
+                  <div className="flex flex-wrap gap-1.5 pt-1 border-t border-border/40">
+                    {i.cst && <Badge variant="outline" className="text-[10px]">CST {i.cst}</Badge>}
+                    {i.cfop && <Badge variant="outline" className="text-[10px]">CFOP {i.cfop}</Badge>}
+                    {i.contas_contabeis && (
+                      <Badge variant="outline" className="text-[10px] truncate max-w-[180px]">
+                        {i.contas_contabeis.codigo}
+                      </Badge>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+          {/* Desktop: tabela */}
+          <div className="hidden md:block rounded-lg border overflow-hidden">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-muted/50 border-b">
