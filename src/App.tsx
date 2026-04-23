@@ -1,6 +1,6 @@
 import { lazy, Suspense } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes, Navigate, useParams } from "react-router-dom";
+import { BrowserRouter, Route, Routes, Navigate, useLocation, useParams } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -68,6 +68,16 @@ const SociosParticipacoes = lazy(() => import("./pages/SociosParticipacoes"));
 function CotacaoIdRedirect() {
   const { id } = useParams();
   return <Navigate to={`/orcamentos/${id}`} replace />;
+}
+
+/**
+ * Alias legado `/perfil` → `/configuracoes`.
+ * Preserva `?tab=` e demais query params para que deep-links externos
+ * (ex: `/perfil?tab=seguranca`) continuem funcionais sem chunk dedicado.
+ */
+function PerfilRedirect() {
+  const { search } = useLocation();
+  return <Navigate to={`/configuracoes${search}`} replace />;
 }
 
 // Per-route Suspense wrapper — shows loading spinner only in the content area
