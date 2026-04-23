@@ -222,6 +222,11 @@ export function PedidoCompraLinker({
                     {p.status}
                   </Badge>
                 )}
+                {p.isSuggestion && (
+                  <Badge variant="default" className="h-4 px-1 text-[10px]">
+                    sugestão
+                  </Badge>
+                )}
               </div>
             </SelectItem>
           ))}
