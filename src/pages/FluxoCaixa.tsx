@@ -35,6 +35,8 @@ import { cn } from "@/lib/utils";
 import { PeriodFilter, type PeriodValue } from "@/components/filters/PeriodFilter";
 import { financialPeriods, type Period } from "@/components/filters/periodTypes";
 import { periodToFinancialRange } from "@/lib/periodFilter";
+import { useQueryClient } from "@tanstack/react-query";
+import { useFluxoCaixaData } from "@/hooks/useFluxoCaixaData";
 
 type Periodicidade = "diaria" | "semanal" | "mensal";
 
@@ -85,18 +87,21 @@ const FluxoCaixa = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const isMobile = useIsMobile();
   const [painelExpanded, setPainelExpanded] = useState<string | null>(null);
+  const qc = useQueryClient();
 
   const defaultDataInicio = () => { const d = new Date(); d.setDate(1); return d.toISOString().split("T")[0]; };
   const defaultDataFim = () => { const d = new Date(); d.setMonth(d.getMonth() + 1, 0); return d.toISOString().split("T")[0]; };
 
-  const [lancamentos, setLancamentos] = useState<Lancamento[]>([]);
-  const [contasBancarias, setContasBancarias] = useState<ContaBancaria[]>([]);
-  const [loading, setLoading] = useState(true);
   const [periodicidade, setPeriodicidade] = useState<Periodicidade>((searchParams.get("periodicidade") as Periodicidade) ?? "diaria");
   const [filterBanco, setFilterBanco] = useState(searchParams.get("banco") ?? "todos");
   const [viewMode, setViewMode] = useState<"painel" | "movimentos">((searchParams.get("view") as "painel" | "movimentos") ?? "painel");
   const [dataInicio, setDataInicio] = useState(searchParams.get("data_inicio") ?? defaultDataInicio());
   const [dataFim, setDataFim] = useState(searchParams.get("data_fim") ?? defaultDataFim());
+
+  // React Query: invalidação cross-módulo automática (ver _invalidationKeys.ts → 'fluxo-caixa').
+  const { data: fluxoData, isLoading: loading } = useFluxoCaixaData(dataInicio, dataFim);
+  const lancamentos = fluxoData?.lancamentos ?? [];
+  const contasBancarias = fluxoData?.contasBancarias ?? [];
 
   // Period filter (canonical) — drives dataInicio/dataFim. Defaults to "30d".
   const [periodValue, setPeriodValue] = useState<PeriodValue>(() => {
@@ -156,21 +161,8 @@ const FluxoCaixa = () => {
   }, [dataInicio, dataFim, periodicidade, filterBanco, viewMode, movSearch, movTipoFilters, movStatusFilters]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const reload = useCallback(async () => {
-    setLoading(true);
-    const [{ data: lancs }, { data: contas }] = await Promise.all([
-      supabase.from("financeiro_lancamentos")
-        .select("id, tipo, valor, saldo_restante, valor_pago, status, data_vencimento, data_pagamento, conta_bancaria_id, descricao, forma_pagamento, nota_fiscal_id, documento_pai_id, observacoes, contas_bancarias(descricao, bancos(nome))")
-        .eq("ativo", true)
-        .gte("data_vencimento", dataInicio)
-        .lte("data_vencimento", dataFim),
-      supabase.from("contas_bancarias").select("*, bancos(nome)").eq("ativo", true),
-    ]);
-    setLancamentos((lancs as Lancamento[]) || []);
-    setContasBancarias((contas as ContaBancaria[]) || []);
-    setLoading(false);
-  }, [dataInicio, dataFim]);
-
-  useEffect(() => { reload(); }, [reload]);
+    await qc.invalidateQueries({ queryKey: ["fluxo-caixa"] });
+  }, [qc]);
 
   // ─── Analytical (painel) ─────────────────────────────────────────────────
   const filtered = useMemo(() => {
