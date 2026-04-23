@@ -18,6 +18,7 @@ import {
   cancelarNotaFiscalSefaz,
   registrarEventoFiscal,
 } from "@/services/fiscal.service";
+import { validarPreEmissao } from "@/services/fiscal/validadores/preEmissao.validator";
 import type { NotaFiscal } from "@/types/domain";
 
 /**
@@ -92,6 +93,30 @@ export function useSefazAcoes(): UseSefazAcoesReturn {
     async (nf, dadosNFe) => {
       if (nf.status_sefaz === "autorizada") {
         toast.error("NF já autorizada pela SEFAZ.");
+        return null;
+      }
+      // Pré-validação local antes de bater na SEFAZ — bloqueia rejeições
+      // óbvias (NCM/CFOP/dados cadastrais) economizando uma chamada autenticada.
+      const erros = validarPreEmissao(
+        {
+          cnpj_emitente: dadosNFe?.emitente?.cnpj ?? null,
+          destinatario_cnpj_cpf:
+            dadosNFe?.destinatario?.cnpj ?? dadosNFe?.destinatario?.cpf ?? null,
+          destinatario_nome: dadosNFe?.destinatario?.nome ?? null,
+        },
+        (dadosNFe?.itens ?? []).map((i) => ({
+          ncm: i.ncm,
+          cfop: i.cfop,
+          descricao: i.descricao,
+        })),
+      );
+      if (erros.length > 0) {
+        setUltimoRetorno({
+          motivo: `${erros.length} problema(s) de pré-emissão`,
+          erros: erros.map((e) => `${e.campo}: ${e.mensagem}`),
+        });
+        setModalAberto(true);
+        toast.error(`${erros.length} problema(s) antes da emissão`);
         return null;
       }
       setPending(true);

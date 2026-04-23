@@ -15,6 +15,13 @@ import {
   statusPosBaixa,
 } from "@/lib/financeiro";
 import { getUserFriendlyError } from "@/utils/errorMessages";
+import { logger } from "@/lib/logger";
+import type { Database } from "@/integrations/supabase/types";
+
+type LancamentoUpdate =
+  Database["public"]["Tables"]["financeiro_lancamentos"]["Update"];
+type BaixaInsert =
+  Database["public"]["Tables"]["financeiro_baixas"]["Insert"];
 
 export interface BaixaItemOverride {
   data_baixa?: string;
@@ -83,7 +90,7 @@ async function ensureUpdateLancamento(item: BaixaPlanItem, params: BaixaLotePara
   const dataPagamento = ovr.data_baixa ?? params.baixaDate;
   const formaPagamento = ovr.forma_pagamento ?? params.formaPagamento;
   const contaBancariaId = ovr.conta_bancaria_id ?? params.contaBancariaId;
-  const payload = {
+  const payload: LancamentoUpdate = {
     status: item.novoStatus,
     data_pagamento: item.novoStatus === "pago" ? dataPagamento : null,
     valor_pago: item.valor - item.novoSaldo,
@@ -95,8 +102,7 @@ async function ensureUpdateLancamento(item: BaixaPlanItem, params: BaixaLotePara
 
   const { data, error } = await supabase
     .from("financeiro_lancamentos")
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .update(payload as any)
+    .update(payload)
     .eq("id", item.id)
     .select("id")
     .maybeSingle();
@@ -109,17 +115,17 @@ async function ensureUpdateLancamento(item: BaixaPlanItem, params: BaixaLotePara
 
 async function ensureInsertBaixa(item: BaixaPlanItem, params: BaixaLoteParams) {
   const ovr = params.overrides?.[item.id] ?? {};
+  const payload: BaixaInsert = {
+    lancamento_id: item.id,
+    valor_pago: ovr.valor_pago ?? item.valorPago,
+    data_baixa: ovr.data_baixa ?? params.baixaDate,
+    forma_pagamento: ovr.forma_pagamento ?? params.formaPagamento,
+    conta_bancaria_id: ovr.conta_bancaria_id ?? params.contaBancariaId,
+    observacoes: ovr.observacoes ?? null,
+  };
   const { data, error } = await supabase
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .from("financeiro_baixas" as any)
-    .insert({
-      lancamento_id: item.id,
-      valor_pago: ovr.valor_pago ?? item.valorPago,
-      data_baixa: ovr.data_baixa ?? params.baixaDate,
-      forma_pagamento: ovr.forma_pagamento ?? params.formaPagamento,
-      conta_bancaria_id: ovr.conta_bancaria_id ?? params.contaBancariaId,
-      observacoes: ovr.observacoes ?? null,
-    })
+    .from("financeiro_baixas")
+    .insert(payload)
     .select("id")
     .maybeSingle();
 
@@ -142,8 +148,7 @@ async function processarBaixaLoteRpc(params: BaixaLoteParams): Promise<boolean |
     p_baixa_date: params.baixaDate,
     p_forma_pagamento: params.formaPagamento,
     p_conta_bancaria_id: params.contaBancariaId,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } as any);
+  });
 
   if (!error) return true;
 
@@ -182,7 +187,7 @@ export async function processarBaixaLote(params: BaixaLoteParams): Promise<boole
 
     return true;
   } catch (error) {
-    console.error("[financeiro] erro na baixa em lote:", error);
+    logger.error("[financeiro] erro na baixa em lote:", error);
     toast.error(getUserFriendlyError(error));
     return false;
   }
