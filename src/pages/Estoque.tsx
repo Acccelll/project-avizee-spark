@@ -577,7 +577,7 @@ const Estoque = () => {
                         variant="outline"
                         role="combobox"
                         aria-expanded={produtoSelectorOpen}
-                        className="w-full justify-between font-normal h-9 text-left"
+                        className="w-full justify-between font-normal h-9 max-sm:h-11 text-left"
                       >
                         {form.produto_id ? (() => {
                           const p = produtosCrud.data.find((x) => x.id === form.produto_id);
@@ -643,7 +643,7 @@ const Estoque = () => {
                   <div className="space-y-2">
                     <Label>Tipo de Operação *</Label>
                      <Select value={form.tipo} onValueChange={(v) => setForm({ ...form, tipo: v as "entrada" | "saida" | "ajuste" })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="max-sm:h-11"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="entrada">Entrada — adicionar ao saldo</SelectItem>
                         <SelectItem value="saida">Saída — reduzir do saldo</SelectItem>
@@ -659,6 +659,8 @@ const Estoque = () => {
                       min="0"
                       value={form.quantidade || ""}
                       onChange={(e) => setForm({ ...form, quantidade: Number(e.target.value) })}
+                      className="max-sm:h-11"
+                      inputMode="decimal"
                       required
                     />
                   </div>
