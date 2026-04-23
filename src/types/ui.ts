@@ -78,6 +78,26 @@ export const STATUS_VARIANT_MAP: Record<string, StatusVariant> = {
   inativo:            "muted",
   inativa:            "muted",
   simples:            "muted",
+  nao_faturado:       "muted",
+
+  // success (extras usados por StatusBadge)
+  no_prazo:           "success",
+  despachado:         "success",
+  recebido:           "success",
+  emitida:            "success",
+
+  // warning (extras)
+  proximo_vencimento: "warning",
+  recebido_parcial:   "warning",
+  em_separacao:       "warning",
+  aguardando_aprovacao: "warning",
+
+  // destructive (extras)
+  atrasado:           "destructive",
+
+  // info (extras — produto/insumo/importação têm tom info no design)
+  produto:            "info",
+  insumo:             "info",
 };
 
 /**
