@@ -18,8 +18,8 @@ ERP é hoje "mobile-capable" (não mobile-first): operação 80% rodável em cel
 
 **Backlog priorizado:**
 1. ResponsiveDialog wrapper único (substituir Dialog/AlertDialog manuais) — baixa prioridade, ganho marginal.
-2. PeriodFilter global no header mobile (Tier C2) — estrutural, sprint dedicado.
-3. ItemsGrid único para forms (Tier C3) — estrutural, sprint dedicado.
+2. Migração on-demand dos forms legados (Orçamento/Pedido/Remessa/NF) para `<ItemsGrid>` — disponível em `src/components/forms/ItemsGrid.tsx`, padrão preferido para novos forms; cada migração exige revisão das regras de pricing/desconto.
+3. Migração on-demand das páginas com PeriodFilter local para o `GlobalPeriodContext` — provider já no `AppLayout`, chip exposto no `AppHeader` mobile.
 
 **Resolvido recentemente:**
 - RelationalDrawerStack: limite efetivo 3 em mobile via `MAX_DRAWER_DEPTH_MOBILE` (provider escolhe via `useIsMobile`); breadcrumb encadeado já clicável (`DrawerStackBreadcrumb` ativo quando `total > 1`, sticky junto ao header).
@@ -31,3 +31,5 @@ ERP é hoje "mobile-capable" (não mobile-first): operação 80% rodável em cel
 - Social mobile: filtros (data início/fim + rede + tipo) viraram `grid grid-cols-2 md:flex` (full-width em <768px); `SocialContasTab` recebeu `mobileStatusKey="status_conexao"` + `mobileIdentifierKey="nome_conta"`; `SocialPostsTab` recebeu `mobileStatusKey="tipo_post"` + `mobileIdentifierKey="titulo_legenda"`. `ScrollableTabsList` já cobre as 6 tabs.
 - Bottom nav contextual: `MobileBottomNav` agora troca os atalhos centrais conforme `activeKey` da rota. Mapa `CONTEXTUAL_TABS_BY_SECTION` cobre comercial (Orçamentos/Pedidos), compras (Cotações/Pedidos), estoque (Estoque/Logística), financeiro (Lançamentos/Fluxo), fiscal (Entrada/Saída) e cadastros (Clientes/Produtos/Fornecedores). Início e Menu sempre fixos; tabs contextuais respeitam permissões e fallback para o conjunto global se nenhuma for permitida.
 - Lint de touch targets mobile (`scripts/lint-touch-targets.mjs`, alias `npm run lint:touch-targets`): escaneia `src/**` por elementos clicáveis (`Button`, `button`, `onClick`, `role="button"`, `<a>`, `<Link>`) com `h-1..h-10` (<44px), ignorando contextos seguros (Badge, Avatar, Icon, Loader, Skeleton, `aria-hidden`). Reporta arquivo:linha + trecho. Exit 1 quando há violações — pronto para integrar a CI.
+- **PeriodFilter global (R3)**: `DashboardPeriodContext` ganhou aliases `GlobalPeriodProvider` / `useGlobalPeriod`. Provider montado no `AppLayout` (envolve toda área autenticada). `<GlobalPeriodChip>` exposto no `AppHeader` mobile (popover com presets Hoje/Semana/Mês/30d + range customizado). Páginas legadas seguem com seu PeriodFilter local — chip global serve como default transversal e fonte de verdade para novas telas. Hook `useSafeGlobalPeriod` interno protege rotas sem provider.
+- **ItemsGrid consolidado (R4)**: `src/components/forms/ItemsGrid.tsx` — wrapper genérico com `columns/items/onRemove/onAdd/footerSummary/readOnly`. Renderiza tabela em desktop e cards empilhados em mobile (com `mobileLabel` opcional por coluna e `hideOnMobile` para ações). Padrão preferido para novos forms; OrcamentoForm/PedidoForm/RemessaForm/NF mantêm grid própria — migração on-demand para preservar regras de pricing.
