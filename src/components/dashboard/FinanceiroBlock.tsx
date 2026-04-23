@@ -112,9 +112,21 @@ export function FinanceiroBlock({
         </div>
       </div>
 
-      {/* Gráfico de fluxo de caixa — embedded (sem card wrapper) */}
-      <div className="min-h-[120px] px-4 py-3">
+      {/* Gráfico de fluxo de caixa — embedded (sem card wrapper). Em mobile,
+          escondemos o gráfico (ilegível em <375px) e oferecemos um atalho. */}
+      <div className="hidden md:block min-h-[120px] px-4 py-3">
         <FluxoCaixaChart embedded />
+      </div>
+      <div className="md:hidden border-t border-border/60 px-4 py-2">
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-9 w-full justify-center gap-1.5 text-xs"
+          onClick={() => navigate('/fluxo-caixa')}
+        >
+          <TrendingUp className="h-3.5 w-3.5" />
+          Ver fluxo de caixa
+        </Button>
       </div>
 
       {/* Vencimentos de hoje */}
