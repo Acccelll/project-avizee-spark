@@ -8,16 +8,17 @@ ERP é hoje "mobile-capable" (não mobile-first): operação 80% rodável em cel
 **Contratos transversais ativos:**
 - Toda DataTable com coluna de status DEVE passar `mobileStatusKey` + `mobileIdentifierKey` (DataTable agora avisa em dev se omitido).
 - Cadastros simples cobertos: clientes, produtos, fornecedores, transportadoras, funcionários, sócios, formas_pagamento, grupos-economicos, contas-bancarias, contas-contabeis, unidades-medida.
-- Bottom-sheet > Dialog em mobile para fluxos de decisão.
+- **`<Dialog>` é responsivo por default** — em mobile vira bottom-sheet (rounded-t, slide-from-bottom, drag handle, safe-area). Em desktop continua centralizado. Consumidores não precisam mais aplicar classes `max-sm:` manualmente. FormModal opta out via override (full-screen mobile para forms longos).
+- **`<DialogFooter>` é sticky+full-width em mobile** — botões viram `min-h-11 w-full`, empilhados (CTA primário em cima por `flex-col-reverse`).
+- ConfirmDialog (useConfirmDialog) já é bottom-sheet em mobile.
 - Drawer responsivo: edição complexa = página, não drawer (ver mem://produto/quando-drawer-quando-pagina).
 - Sticky footer "salvar quando dirty" em forms longos.
 - Touch target mínimo 44px (h-11) em ações primárias.
 - Bottom nav fixo (Início + Comercial + Cadastros + Financeiro + Menu); MobileMenu lista TODAS seções (sem filtrar duplicadas com bottom nav).
 
 **Backlog priorizado:**
-1. `<ResponsiveDialog>` wrapper único (Sheet em mobile, Dialog em desktop).
-2. Sticky footer dirty em forms de cadastros restantes.
-3. Filtros bottom-sheet em Estoque, Logística, Compras.
-4. RelationalDrawerStack: breadcrumb + limite 3 níveis em mobile.
-5. Bottom nav contextual por módulo ativo.
-6. Revisão dedicada: Auditoria, Migração, Social.
+1. Sticky footer dirty em forms de cadastros restantes (FormasPagamento, ContasBancarias, GruposEconomicos, Funcionarios edit).
+2. Filtros bottom-sheet em Estoque, Logística, Compras.
+3. RelationalDrawerStack: breadcrumb + limite 3 níveis em mobile.
+4. Bottom nav contextual por módulo ativo.
+5. Revisão dedicada: Auditoria, Migração, Social.
