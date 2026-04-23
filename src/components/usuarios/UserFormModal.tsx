@@ -65,9 +65,11 @@ export function UserFormModal({
   isLastAdmin,
 }: UserFormModalProps) {
   const { user: currentUser } = useAuth();
+  const isMobile = useIsMobile();
   const isEdit = Boolean(user);
   const [form, setForm] = useState<UserFormData>(emptyForm());
   const [saving, setSaving] = useState(false);
+  const [mobileStep, setMobileStep] = useState(0);
   const [confirmRoleChange, setConfirmRoleChange] = useState<AppRole | null>(null);
   const [roleChangeMotivo, setRoleChangeMotivo] = useState('');
   const [tempCredentials, setTempCredentials] = useState<{
@@ -84,6 +86,7 @@ export function UserFormModal({
 
   useEffect(() => {
     if (!open) return;
+    setMobileStep(0);
     if (user) {
       setForm({
         nome: user.nome,
