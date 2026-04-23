@@ -103,7 +103,16 @@ export default function Login() {
       <div className="w-full max-w-sm animate-fade-in">
         {/* Header */}
         <div className="text-center mb-10">
-          <img src={branding.logoUrl} alt={branding.marcaTexto || "ERP"} className="h-16 mx-auto mb-5 drop-shadow-sm object-contain" />
+          <img
+            src={branding.logoUrl}
+            alt={branding.marcaTexto || "ERP"}
+            width={211}
+            height={64}
+            fetchPriority="high"
+            decoding="async"
+            loading="eager"
+            className="h-16 mx-auto mb-5 drop-shadow-sm object-contain"
+          />
           {(branding.marcaTexto || branding.marcaSubtitulo) && (
             <h1 className="text-3xl font-bold text-foreground tracking-tight">
               {branding.marcaTexto}
