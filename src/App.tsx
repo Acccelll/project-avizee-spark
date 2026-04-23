@@ -43,7 +43,6 @@ const Configuracoes = lazy(() => import("./pages/Configuracoes"));
 const Administracao = lazy(() => import("./pages/Administracao"));
 const MigracaoDados = lazy(() => import("./pages/MigracaoDados"));
 const Auditoria = lazy(() => import("./pages/Auditoria"));
-const Perfil = lazy(() => import("./pages/Perfil"));
 const Signup = lazy(() => import("./pages/Signup"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
@@ -156,7 +155,8 @@ const App = () => (
                       <Route path="/administracao" element={<AdminRoute><LazyPage><Administracao /></LazyPage></AdminRoute>} />
                       <Route path="/migracao-dados" element={<AdminRoute><LazyPage><MigracaoDados /></LazyPage></AdminRoute>} />
                       <Route path="/auditoria" element={<AdminRoute><LazyPage><Auditoria /></LazyPage></AdminRoute>} />
-                      <Route path="/perfil" element={<ProtectedRoute><LazyPage><Perfil /></LazyPage></ProtectedRoute>} />
+                      {/* /perfil é alias legado: redireciona preservando ?tab= para a tela canônica /configuracoes */}
+                      <Route path="/perfil" element={<PerfilRedirect />} />
                       <Route path="/contas-contabeis-plano" element={<PermissionRoute resource="financeiro"><LazyPage><ContasContabeis /></LazyPage></PermissionRoute>} />
                       <Route path="/conciliacao" element={<PermissionRoute resource="financeiro"><LazyPage><Conciliacao /></LazyPage></PermissionRoute>} />
                       <Route path="/relatorios/workbook-gerencial" element={<PermissionRoute resource="workbook"><LazyPage><WorkbookGerencial /></LazyPage></PermissionRoute>} />
