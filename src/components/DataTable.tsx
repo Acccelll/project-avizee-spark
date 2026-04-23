@@ -772,7 +772,15 @@ export function DataTable<T extends Record<string, any>>({
             ))}
           </div>
         ) : sortedData.length === 0 ? (
-          <EmptyState title={emptyTitle} description={emptyDescription} />
+          hasActiveFilters ? (
+            <NoResultsState
+              activeFiltersCount={activeFiltersCount}
+              searchTerm={searchTerm}
+              onClearFilters={onClearFilters}
+            />
+          ) : (
+            <EmptyState title={emptyTitle} description={emptyDescription} />
+          )
         ) : (
           <>
             {renderMobileCards()}
