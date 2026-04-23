@@ -73,6 +73,11 @@ export function UserFormModal({
   const [mobileStep, setMobileStep] = useState(0);
   const [confirmRoleChange, setConfirmRoleChange] = useState<AppRole | null>(null);
   const [roleChangeMotivo, setRoleChangeMotivo] = useState('');
+  // Senha definida manualmente pelo admin no momento da criação.
+  // Se vazia, a edge function tenta convite por e-mail e cai para senha
+  // temporária no fallback (comportamento legado preservado).
+  const [manualPassword, setManualPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [tempCredentials, setTempCredentials] = useState<{
     userName: string;
     email: string;
