@@ -352,7 +352,8 @@ export function BaixaLoteModal({ open, onClose, selectedLancamentos, contasBanca
             {processing ? "Processando..." : "Confirmar Baixa"}
           </Button>
         </DialogFooter>
-        </>) }
+        </>
+        )}
       </DialogContent>
     </Dialog>
   );
