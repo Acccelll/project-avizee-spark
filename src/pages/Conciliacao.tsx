@@ -454,6 +454,7 @@ export default function Conciliacao() {
     },
     {
       key: "descricao",
+      mobilePrimary: true,
       label: "Descrição",
       sortable: true,
       render: (l) => <span className="text-sm">{l.descricao}</span>,
@@ -813,6 +814,8 @@ export default function Conciliacao() {
               loading={loadingLanc}
               moduleKey="conciliacao"
               showColumnToggle={true}
+              mobileStatusKey="statusConciliacao"
+              mobileIdentifierKey="data_vencimento"
             />
           </>
         ) : (
@@ -832,6 +835,8 @@ export default function Conciliacao() {
                 ? "Escolha uma conta e um período para visualizar os lançamentos para conciliação."
                 : "Tente ajustar o período ou os filtros de busca."
             }
+            mobileStatusKey="statusConciliacao"
+            mobileIdentifierKey="descricao"
           />
         )}
 

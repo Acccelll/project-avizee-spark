@@ -162,7 +162,7 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto max-sm:!inset-x-0 max-sm:!bottom-0 max-sm:!top-auto max-sm:!translate-x-0 max-sm:!translate-y-0 max-sm:!left-0 max-sm:!w-full max-sm:!max-w-full max-sm:rounded-t-2xl max-sm:rounded-b-none">
         <DialogHeader>
           <DialogTitle>Registrar Baixa</DialogTitle>
           <DialogDescription>
@@ -223,16 +223,16 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
             )}
 
             {/* Form */}
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
               <div className="space-y-1.5">
                 <Label className="text-xs">Valor a Pagar *</Label>
-                <Input type="number" step="0.01" min={0} max={saldoAtual} value={valorPago} onChange={(e) => setValorPago(Number(e.target.value))} />
+                <Input type="number" inputMode="decimal" step="0.01" min={0} max={saldoAtual} value={valorPago} onChange={(e) => setValorPago(Number(e.target.value))} className="h-11 sm:h-10 font-mono" />
                 <div className="flex flex-wrap gap-1 pt-0.5">
                   <button
                     type="button"
                     onClick={() => setValorPago(saldoAtual)}
                     disabled={isStatusBlocked}
-                    className="text-[10px] font-medium px-2 py-0.5 rounded-md border border-border bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                    className="text-xs font-medium px-3 min-h-11 sm:min-h-0 sm:py-0.5 rounded-md border border-border bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
                     aria-label="Preencher com saldo total"
                   >
                     Saldo total
@@ -241,7 +241,7 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
                     type="button"
                     onClick={() => setValorPago(Number((saldoAtual / 2).toFixed(2)))}
                     disabled={isStatusBlocked}
-                    className="text-[10px] font-medium px-2 py-0.5 rounded-md border border-border bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                    className="text-xs font-medium px-3 min-h-11 sm:min-h-0 sm:py-0.5 rounded-md border border-border bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
                     aria-label="Preencher com 50% do saldo"
                   >
                     50%
@@ -250,7 +250,7 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
                     type="button"
                     onClick={() => setValorPago(0)}
                     disabled={isStatusBlocked}
-                    className="text-[10px] font-medium px-2 py-0.5 rounded-md border border-border bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                    className="text-xs font-medium px-3 min-h-11 sm:min-h-0 sm:py-0.5 rounded-md border border-border bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
                     aria-label="Limpar valor"
                   >
                     Limpar
@@ -259,23 +259,23 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Desconto</Label>
-                <Input type="number" step="0.01" min={0} value={desconto} onChange={(e) => setDesconto(Number(e.target.value))} />
+                <Input type="number" inputMode="decimal" step="0.01" min={0} value={desconto} onChange={(e) => setDesconto(Number(e.target.value))} className="h-11 sm:h-10 font-mono" />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Juros</Label>
-                <Input type="number" step="0.01" min={0} value={juros} onChange={(e) => setJuros(Number(e.target.value))} />
+                <Input type="number" inputMode="decimal" step="0.01" min={0} value={juros} onChange={(e) => setJuros(Number(e.target.value))} className="h-11 sm:h-10 font-mono" />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Multa</Label>
-                <Input type="number" step="0.01" min={0} value={multa} onChange={(e) => setMulta(Number(e.target.value))} />
+                <Input type="number" inputMode="decimal" step="0.01" min={0} value={multa} onChange={(e) => setMulta(Number(e.target.value))} className="h-11 sm:h-10 font-mono" />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Abatimento</Label>
-                <Input type="number" step="0.01" min={0} value={abatimento} onChange={(e) => setAbatimento(Number(e.target.value))} />
+                <Input type="number" inputMode="decimal" step="0.01" min={0} value={abatimento} onChange={(e) => setAbatimento(Number(e.target.value))} className="h-11 sm:h-10 font-mono" />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Data de Baixa *</Label>
-                <Input type="date" value={dataBaixa} onChange={(e) => setDataBaixa(e.target.value)} />
+                <Input type="date" value={dataBaixa} onChange={(e) => setDataBaixa(e.target.value)} className="h-11 sm:h-10" />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Forma de Pagamento *</Label>
@@ -341,9 +341,9 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
           </div>
         )}
 
-        <DialogFooter>
+        <DialogFooter className="sticky bottom-0 -mx-6 -mb-6 px-6 py-3 bg-card border-t shadow-[0_-4px_8px_-4px_rgba(0,0,0,0.06)] sm:static sm:mx-0 sm:mb-0 sm:px-0 sm:py-0 sm:bg-transparent sm:border-0 sm:shadow-none">
           <Button variant="outline" onClick={onClose} disabled={saving} aria-label="Cancelar baixa">Cancelar</Button>
-          <Button onClick={handleSubmit} disabled={saving || isStatusBlocked || isExcessivo} aria-label="Confirmar registro de baixa">
+          <Button onClick={handleSubmit} disabled={saving || isStatusBlocked || isExcessivo} aria-label="Confirmar registro de baixa" className="h-11 sm:h-10">
             {saving ? "Processando..." : "Confirmar Baixa"}
           </Button>
         </DialogFooter>

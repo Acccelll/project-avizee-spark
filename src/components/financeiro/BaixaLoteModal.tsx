@@ -121,13 +121,13 @@ export function BaixaLoteModal({ open, onClose, selectedLancamentos, contasBanca
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto max-sm:!inset-x-0 max-sm:!bottom-0 max-sm:!top-auto max-sm:!translate-x-0 max-sm:!translate-y-0 max-sm:!left-0 max-sm:!w-full max-sm:!max-w-full max-sm:rounded-t-2xl max-sm:rounded-b-none">
         <DialogHeader>
           <DialogTitle>Confirmar Baixa — {selectedLancamentos.length} título(s)</DialogTitle>
           <DialogDescription>Revise os títulos selecionados e informe os dados do pagamento.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
-          <div className="rounded-lg border overflow-hidden">
+          <div className="rounded-lg border overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-muted/50">
@@ -271,15 +271,15 @@ export function BaixaLoteModal({ open, onClose, selectedLancamentos, contasBanca
               {Object.keys(overrides).length} título(s) com configuração individual — sobrescrevem os defaults abaixo.
             </p>
           )}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Data de Baixa *</Label>
-              <Input type="date" value={baixaDate} onChange={(e) => setBaixaDate(e.target.value)} required />
+              <Input type="date" value={baixaDate} onChange={(e) => setBaixaDate(e.target.value)} required className="h-11 sm:h-10" />
             </div>
             <div className="space-y-2">
               <Label>Tipo de Baixa</Label>
               <Select value={tipoBaixa} onValueChange={(v) => setTipoBaixa(v as "total" | "parcial")}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-11 sm:h-10"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="total">Total</SelectItem>
                   <SelectItem value="parcial">Parcial</SelectItem>
@@ -289,7 +289,7 @@ export function BaixaLoteModal({ open, onClose, selectedLancamentos, contasBanca
             <div className="space-y-2">
               <Label>Forma de Pagamento *</Label>
               <Select value={formaPagamento || "none"} onValueChange={(v) => setFormaPagamento(v === "none" ? "" : v)}>
-                <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                <SelectTrigger className="h-11 sm:h-10"><SelectValue placeholder="Selecione..." /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Selecione...</SelectItem>
                   <SelectItem value="dinheiro">Dinheiro</SelectItem>
@@ -304,7 +304,7 @@ export function BaixaLoteModal({ open, onClose, selectedLancamentos, contasBanca
             <div className="space-y-2">
               <Label>Conta Bancária *</Label>
               <Select value={contaBancaria || "none"} onValueChange={(v) => setContaBancaria(v === "none" ? "" : v)}>
-                <SelectTrigger><SelectValue placeholder="Selecione conta..." /></SelectTrigger>
+                <SelectTrigger className="h-11 sm:h-10"><SelectValue placeholder="Selecione conta..." /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Selecione...</SelectItem>
                   {contasBancarias.map(c => (
@@ -317,7 +317,7 @@ export function BaixaLoteModal({ open, onClose, selectedLancamentos, contasBanca
           {tipoBaixa === "parcial" && (
             <div className="space-y-2">
               <Label>Valor a Pagar *</Label>
-              <Input type="number" step="0.01" min={0.01} max={totalBaixa - 0.01}
+              <Input type="number" inputMode="decimal" step="0.01" min={0.01} max={totalBaixa - 0.01} className="h-11 sm:h-10 font-mono"
                 value={valorPagoBaixa} onChange={(e) => setValorPagoBaixa(Number(e.target.value))} />
               <p className="text-xs text-muted-foreground">Total: {formatCurrency(totalBaixa)} — Restante: {formatCurrency(Math.max(0, totalBaixa - valorPagoBaixa))}</p>
             </div>
@@ -333,9 +333,9 @@ export function BaixaLoteModal({ open, onClose, selectedLancamentos, contasBanca
             </div>
           )}
         </div>
-        <DialogFooter>
+        <DialogFooter className="sticky bottom-0 -mx-6 -mb-6 px-6 py-3 bg-card border-t shadow-[0_-4px_8px_-4px_rgba(0,0,0,0.06)] sm:static sm:mx-0 sm:mb-0 sm:px-0 sm:py-0 sm:bg-transparent sm:border-0 sm:shadow-none">
           <Button variant="outline" onClick={onClose} disabled={processing} aria-label="Cancelar baixa em lote">Cancelar</Button>
-          <Button onClick={handleConfirm} disabled={processing || !baixaDate} aria-label="Confirmar baixa em lote">
+          <Button onClick={handleConfirm} disabled={processing || !baixaDate} aria-label="Confirmar baixa em lote" className="h-11 sm:h-10">
             {processing ? "Processando..." : "Confirmar Baixa"}
           </Button>
         </DialogFooter>

@@ -27,6 +27,9 @@ import {
   List,
   CalendarDays,
   FileDown,
+  CreditCard,
+  Eye,
+  Pencil,
 } from "lucide-react";
 import { FinanceiroCalendar } from "@/components/financeiro/FinanceiroCalendar";
 import { BaixaParcialDialog } from "@/components/financeiro/BaixaParcialDialog";
@@ -212,18 +215,33 @@ const Financeiro = () => {
 
   return (
     <><ModulePage title="Lançamentos" subtitle="Gestão unificada de contas a pagar e receber" addLabel="Novo Lançamento" onAdd={openCreate}>
-        <div className="mb-4 flex items-center gap-3 flex-wrap">
+        <div className="mb-4 flex items-center gap-2 flex-wrap">
           <PeriodFilter value={period} onChange={setPeriod} options={financialPeriods} />
           <div className="flex gap-1 ml-auto rounded-lg border p-0.5">
-            <Button size="sm" variant={viewMode === "lista" ? "default" : "ghost"} className="h-7 gap-1.5 text-xs" onClick={() => setViewMode("lista")}>
-              <List className="h-3.5 w-3.5" /> Lista
+            <Button
+              size="sm"
+              variant={viewMode === "lista" ? "default" : "ghost"}
+              className="h-9 sm:h-7 gap-1.5 text-xs min-h-[36px] sm:min-h-0"
+              onClick={() => setViewMode("lista")}
+            >
+              <List className="h-4 w-4 sm:h-3.5 sm:w-3.5" /> Lista
             </Button>
-            <Button size="sm" variant={viewMode === "calendario" ? "default" : "ghost"} className="h-7 gap-1.5 text-xs" onClick={() => setViewMode("calendario")}>
-              <CalendarDays className="h-3.5 w-3.5" /> Calendário
+            <Button
+              size="sm"
+              variant={viewMode === "calendario" ? "default" : "ghost"}
+              className="h-9 sm:h-7 gap-1.5 text-xs min-h-[36px] sm:min-h-0"
+              onClick={() => setViewMode("calendario")}
+            >
+              <CalendarDays className="h-4 w-4 sm:h-3.5 sm:w-3.5" /> Calendário
             </Button>
           </div>
-          <Button size="sm" variant="outline" className="h-7 gap-1.5 text-xs" onClick={() => handleExportar("excel")}>
-            <FileDown className="h-3.5 w-3.5" /> Exportar
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-9 sm:h-7 gap-1.5 text-xs min-h-[36px] sm:min-h-0"
+            onClick={() => handleExportar("excel")}
+          >
+            <FileDown className="h-4 w-4 sm:h-3.5 sm:w-3.5" /> Exportar
           </Button>
         </div>
 
@@ -285,6 +303,54 @@ const Financeiro = () => {
                 setSelected(l);
                 setDrawerOpen(true);
               }}
+              mobileStatusKey="status"
+              mobileIdentifierKey="descricao"
+              mobilePrimaryAction={(l) => {
+                const es = getLancamentoStatus(l);
+                if (es === "pago" || es === "cancelado") return null;
+                return (
+                  <Button
+                    size="sm"
+                    className="w-full h-11 gap-2"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setBaixaParcialTarget(l);
+                      setBaixaParcialOpen(true);
+                    }}
+                  >
+                    <CreditCard className="h-4 w-4" /> Baixar
+                  </Button>
+                );
+              }}
+              mobileInlineActions={(l) => (
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-10 w-10 p-0"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelected(l);
+                      setDrawerOpen(true);
+                    }}
+                    aria-label="Ver detalhes"
+                  >
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-10 w-10 p-0"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openEdit(l);
+                    }}
+                    aria-label="Editar"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
             />
           </PullToRefresh>
         )}

@@ -28,6 +28,10 @@ import type { Lancamento, ContaBancaria } from "@/types/domain";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import { displayDescricao } from "@/lib/displayLancamento";
 import { getEffectiveStatus as libGetEffectiveStatus } from "@/lib/financeiro";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ChevronDown, ChevronUp } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 type Periodicidade = "diaria" | "semanal" | "mensal";
 
@@ -76,6 +80,8 @@ const getEffectiveStatus = (l: Lancamento, hoje: Date): string =>
 
 const FluxoCaixa = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const isMobile = useIsMobile();
+  const [painelExpanded, setPainelExpanded] = useState<string | null>(null);
 
   const defaultDataInicio = () => { const d = new Date(); d.setDate(1); return d.toISOString().split("T")[0]; };
   const defaultDataFim = () => { const d = new Date(); d.setMonth(d.getMonth() + 1, 0); return d.toISOString().split("T")[0]; };
@@ -277,6 +283,7 @@ const FluxoCaixa = () => {
     },
     {
       key: "descricao", label: "Descrição", sortable: true,
+      mobilePrimary: true,
       render: (l: Lancamento) => <span className="text-sm">{displayDescricao(l)}</span>,
     },
     {
@@ -541,7 +548,9 @@ const FluxoCaixa = () => {
             ) : grouped.length === 0 ? (
               <div className="text-center py-16 text-muted-foreground">Nenhum lançamento encontrado no período selecionado.</div>
             ) : (
-              <div className="bg-card rounded-xl border overflow-hidden mb-6">
+              <>
+              {/* Desktop: tabela 7 colunas */}
+              <div className="hidden md:block bg-card rounded-xl border overflow-hidden mb-6">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b bg-muted/30">
@@ -594,6 +603,101 @@ const FluxoCaixa = () => {
                   </tfoot>
                 </table>
               </div>
+              {/* Mobile: cards expandíveis por período */}
+              <div className="md:hidden space-y-2 mb-6">
+                {(() => {
+                  let saldoAcumPrev = 0;
+                  let saldoAcumReal = 0;
+                  return grouped.map(([key, g]) => {
+                    saldoAcumPrev += (g.prevReceber - g.prevPagar);
+                    saldoAcumReal += (g.realReceber - g.realPagar);
+                    const isExpanded = painelExpanded === key;
+                    const acumPrev = saldoAcumPrev;
+                    const acumReal = saldoAcumReal;
+                    return (
+                      <div
+                        key={key}
+                        className="rounded-lg border bg-card overflow-hidden"
+                      >
+                        <button
+                          type="button"
+                          className="w-full flex items-center justify-between gap-3 px-3 py-3 min-h-11 text-left hover:bg-muted/30 transition-colors"
+                          onClick={() => setPainelExpanded(isExpanded ? null : key)}
+                          aria-expanded={isExpanded}
+                        >
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold truncate">{key}</p>
+                            <p className="text-[11px] text-muted-foreground">
+                              {g.items.length} lançamento{g.items.length !== 1 ? "s" : ""}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className={cn(
+                              "text-base font-bold font-mono",
+                              acumPrev >= 0 ? "text-success" : "text-destructive",
+                            )}>
+                              {formatCurrency(acumPrev)}
+                            </span>
+                            {isExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                          </div>
+                        </button>
+                        {isExpanded && (
+                          <div className="px-3 pb-3 pt-1 border-t bg-muted/10 space-y-2">
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                              <div>
+                                <p className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wide">Entradas Prev.</p>
+                                <p className="font-mono font-semibold text-success">{formatCurrency(g.prevReceber)}</p>
+                              </div>
+                              <div>
+                                <p className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wide">Entradas Real.</p>
+                                <p className="font-mono text-success/80">{formatCurrency(g.realReceber)}</p>
+                              </div>
+                              <div>
+                                <p className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wide">Saídas Prev.</p>
+                                <p className="font-mono font-semibold text-destructive">{formatCurrency(g.prevPagar)}</p>
+                              </div>
+                              <div>
+                                <p className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wide">Saídas Real.</p>
+                                <p className="font-mono text-destructive/80">{formatCurrency(g.realPagar)}</p>
+                              </div>
+                              <div>
+                                <p className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wide">Saldo Previsto</p>
+                                <p className={cn("font-mono font-bold", acumPrev >= 0 ? "text-success" : "text-destructive")}>
+                                  {formatCurrency(acumPrev)}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wide">Saldo Realizado</p>
+                                <p className={cn("font-mono font-bold", acumReal >= 0 ? "text-success" : "text-destructive")}>
+                                  {formatCurrency(acumReal)}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  });
+                })()}
+                <div className="rounded-lg border-2 border-primary/30 bg-primary/5 px-3 py-3">
+                  <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">Total no período</p>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <p className="text-muted-foreground">Saldo Previsto</p>
+                      <p className={cn("font-mono font-bold text-base", totals.saldoPrevisto >= 0 ? "text-success" : "text-destructive")}>
+                        {formatCurrency(totals.saldoPrevisto)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Saldo Realizado</p>
+                      <p className={cn("font-mono font-bold text-base", totals.saldoRealizado >= 0 ? "text-success" : "text-destructive")}>
+                        {formatCurrency(totals.saldoRealizado)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              </>
             )}
           </>
         ) : (
@@ -620,6 +724,8 @@ const FluxoCaixa = () => {
               showColumnToggle={true}
               emptyTitle="Nenhum movimento encontrado"
               emptyDescription="Ajuste os filtros ou registre novos lançamentos."
+              mobileStatusKey="status"
+              mobileIdentifierKey="data_vencimento"
             />
           </>
         )}
