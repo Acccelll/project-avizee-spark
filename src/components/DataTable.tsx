@@ -41,6 +41,7 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { TableSkeleton } from '@/components/ui/content-skeletons';
 import { EmptyState } from '@/components/ui/empty-state';
+import { NoResultsState } from '@/components/ui/NoResultsState';
 
 export interface Column<T> {
   key: string;
