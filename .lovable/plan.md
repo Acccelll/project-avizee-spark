@@ -1,95 +1,110 @@
 
 
-# Revisão Mobile — Compras
+# Plano: Segurança, Robustez Fiscal, Feature Flag Social e Mobile do Orçamento
 
-Análise focada em **<768px**, baseada em `CotacoesCompra.tsx`, `PedidosCompra.tsx`, `CotacaoCompraDrawer`, `PedidoCompraDrawer`, `CotacaoCompraPropostasPanel` (comparativo + propostas/item), `CotacaoCompraItensTable`, `PedidoCompraTable`, `PedidoCompraFormModal`, `CotacaoCompraTable`.
+Quatro frentes independentes mas agrupáveis em uma execução. Tudo segue padrões já existentes no projeto (memórias de design system, RBAC, mobile do Comercial).
 
 ---
 
-## 1. Visão geral
+## Frente 1 — Segurança de credenciais
 
-O módulo está **operacional no desktop** mas **quebra na prática em mobile** em três pontos: (a) **comparativo de fornecedores** é uma tabela horizontal com 1 coluna por fornecedor — em 390px qualquer cotação com 3+ fornecedores estoura o viewport e exige scroll horizontal duplo (página + tabela interna); (b) **modal de criar/editar cotação** usa linhas com `flex` (produto + qtd + un + delete) que comprimem o autocomplete a ~40% da largura; (c) **PedidoFormModal** usa `ItemsGrid` baseado em `<table min-w-[700px]>` — inutilizável em celular. Drawers já têm footer sticky (V2) e os patches recentes do Comercial não foram replicados aqui.
+**Limitação técnica:** não posso executar `git rm --cached .env` nem rotacionar chaves no dashboard Supabase — essas duas ações são **manuais do usuário** (documentadas no entregável, não executáveis pelo agente). O resto é código.
 
-## 2. Problemas críticos (bloqueiam uso real)
+1. **`.gitignore`**: confirmar que `.env` está listado (já está). Sem alteração de código.
+2. **`src/integrations/supabase/client.ts`**: adicionar comentário no topo (sem mexer na lógica — arquivo é gerado, mas o cabeçalho de comentário é seguro) explicando:
+   - `VITE_SUPABASE_PUBLISHABLE_KEY` é a anon key, **pública por design** (protegida por RLS).
+   - Secrets reais (service_role, certificados, senhas SMTP) ficam apenas em **Edge Functions** via `Deno.env.get()` e no Supabase Vault.
+3. **Instruções manuais** entregues ao usuário no chat após a execução:
+   - `git rm --cached .env && git commit -m "chore: untrack .env"`
+   - Rotacionar anon key em Supabase Dashboard → Project Settings → API → "Reset anon key" (e atualizar `.env` local).
 
-- **C1 — Comparativo de fornecedores**: `ComparativoFornecedores` renderiza `<table>` com colunas fixas (`min-w-[100px]`) por fornecedor. Com 3 fornecedores + coluna produto = ~430px. Scroll horizontal aninhado torna a comparação ilegível.
-- **C2 — Cotação: linha de item no modal de criar/editar**: `flex items-center gap-3` com Autocomplete + Input qtd (`w-24`) + Input un (`w-16`) + delete = 4 elementos lado a lado em ≤390px. Autocomplete fica cortado, qtd/un viram colunas de 1 dígito.
-- **C3 — Pedido: `ItemsGrid` no `PedidoCompraFormModal`**: tabela com `min-w-[700px]` e inputs `h-8 text-xs` — não há fallback de cards. Adicionar item exige scroll horizontal + tap em campos de 32px de altura (abaixo do mínimo 44px).
-- **C4 — Tabelas de listagem (Cotações/Pedidos)** caem em `MobileCardList` automático mas **sem `mobileStatusKey`** — o status (informação mais crítica para decisão) vira texto cinza pequeno, não pill.
-- **C5 — `CotacaoCompraItensTable`** dentro do drawer: tabela de 5 colunas (#, Produto, Cód, Qtd, Un) sem alternativa mobile — coluna Produto trava em `max-w-[180px]`.
+---
 
-## 3. Problemas médios (atrapalham uso)
+## Frente 2 — RLS permissiva: documentação + hardening
 
-- **M1 — Painel "Propostas por item"**: cada proposta é uma linha `flex justify-between` com fornecedor à esquerda e {preço/un + total + prazo + 2 botões} à direita. Em 390px, o nome do fornecedor é truncado em ~10 caracteres e os botões de selecionar/excluir (`h-7 w-7` = 28px) ficam abaixo do mínimo touch.
-- **M2 — Form de adicionar proposta**: campos com `h-8` (32px) e Labels `text-xs` (12px). Difícil acertar com o dedo.
-- **M3 — Footer do drawer da cotação**: até 4 ações (Cancelar / Rejeitar / Aprovar / Gerar Pedido) em `flex-wrap`. Em portrait quebra em 2 linhas com botões de tamanhos diferentes — hierarquia perdida.
-- **M4 — Aba Decisão** (cotação): tabela 3 colunas "Produto / Fornecedor / Total" com `max-w-[120px]` e `[130px]` — fornecedor truncado, total apertado contra a borda.
-- **M5 — Aba Recebimento** (pedido): `LogisticaRastreioSection` + tabela de movimentos + grid de financeiro empilhados — scroll vertical >2.000px sem âncora de retorno.
-- **M6 — Modal de criar Cotação**: grid `grid-cols-2 md:grid-cols-4` para Número/Data/Validade/Status — em 390px funciona, mas o campo "Status" exibe texto longo ("Aguardando Aprovação") cortado num input disabled.
-- **M7 — Filtros de Cotações/Pedidos**: o componente compartilhado já colapsa, mas os chips de `activeFilters` em `flex-wrap` competem com o contador — em portrait empilham 3 linhas.
+Migration **`audit_rls_permissiva`** (via tool de migração, com aprovação do usuário):
 
-## 4. Problemas leves (polimento)
+1. **`COMMENT ON TABLE`** em cada tabela crítica documentando o modo single-tenant. Lista verificada do plano:
+   `financeiro_lancamentos, clientes, fornecedores, compras, compras_itens, estoque_movimentos, financeiro_baixas, conciliacao_bancaria, notas_fiscais, notas_fiscais_itens`.
+2. **`app_configuracoes`**: dropar policies `USING (true)` existentes e criar `admin_only_config` com `EXISTS (SELECT 1 FROM public.user_roles WHERE user_id = auth.uid() AND role IN ('admin','superadmin'))`. Antes de gravar, vou inspecionar as policies atuais (`pg_policies`) para garantir que o nome do `DROP POLICY` está correto e que não quebro nenhum fluxo de leitura usado por `useAppConfig`.
+3. **`README.md`** ganha seção **"Segurança / RLS"** explicando:
+   - Modo atual: single-tenant, RLS permissiva para `authenticated`.
+   - Para multi-tenant: adicionar coluna `empresa_id` em todas as tabelas críticas, popular via trigger `BEFORE INSERT`, recriar policies com `WHERE empresa_id = current_setting('app.empresa_id')::uuid` ou via `user_roles.empresa_id`.
 
-- **L1 — KPIs**: 2x2 (`grid-cols-2 lg:grid-cols-4`) com `SummaryCard` de altura razoável; números de 4-5 dígitos cabem mas o `variation` ("aguardando decisão") quebra em 3 linhas.
-- **L2 — Trophy/Award icons** (3px de margem) ao lado de preços ficam visualmente colados no mobile.
-- **L3 — `DrawerSummaryGrid cols={4}`** do pedido (Itens / Recebimento / Total / Cotação) — em mobile o grid V2 já cai para 2x2, mas valor "Recebido — aguardando envio" não cabe em 1 linha.
-- **L4 — `RegistrarRecebimentoDialog` / `EstornarRecebimentoDialog`**: não revisados como bottom-sheet (herdam `AlertDialog` padrão, mas o patch da Fase 8 do Comercial só atingiu `CrossModuleActionDialog`).
+---
 
-## 5. Melhorias de layout
+## Frente 3 — Robustez do `sefaz-proxy`
 
-- **Comparativo de fornecedores em mobile** (C1): substituir a matriz por **cards verticais por fornecedor** (1 card por fornecedor, contendo lista de itens com preço unitário, prazo e total da coluna). Adicionar pill "Menor total" no card vencedor. Manter a tabela apenas em `md:` para cima.
-- **`CotacaoCompraItensTable`** (C5): replicar padrão dos itens de Orçamento — `md:hidden` com cards verticais (Produto + código + qtd + unidade), `hidden md:block` mantém a tabela.
-- **Form de cotação** (C2): em mobile, cada item vira **bloco vertical**: Autocomplete em largura total, Qtd + Un em grid de 2 colunas, botão remover como ícone à direita do header do bloco com 44px.
-- **`ItemsGrid` (Pedido)** (C3): adicionar layout `md:hidden` em cards (já existe esse padrão em `OrcamentoItemsGrid` — replicar para `ItemsGrid` genérico ou criar variante `ItemsGrid` com `mobileLayout="cards"`).
-- **Footer do PedidoFormModal**: total + ações empilhados; o resumo "Produtos / Frete / Total" em `flex justify-end gap-6` quebra mal — virar grid 3 colunas com Total destacado em linha própria.
+1. **`src/services/fiscal/sefaz/httpClient.service.ts`** — `enviarParaSefaz`:
+   - Detectar `FunctionsHttpError` via `error.context?.status === 404` e lançar mensagem amigável: *"Serviço de emissão fiscal não está disponível. Contate o suporte técnico (sefaz-proxy não deployado)."*
+   - Manter retry para erros transitórios (5xx/timeout); 404 não deve sofrer retry — falha imediata.
+2. **`supabase/functions/sefaz-proxy/index.ts`** — CORS:
+   - Trocar `allowedOrigin ?? ""` por `allowedOrigin ?? "*"` em todos os pontos onde a origem é montada.
+3. **`src/pages/fiscal/components/SefazAcoesPanel.tsx`** — banner de configuração ausente:
+   - Importar `obterCertificadoConfigurado` do service de certificados (vou localizar o módulo correto antes de codar).
+   - Renderizar `<Alert variant="warning">` com link `/administracao` quando o resultado for `null`.
+   - Botão "Transmitir SEFAZ" também fica desabilitado nesse caso (defesa em profundidade).
+4. **`README.md`** — nova seção **"Deploy das Edge Functions"** com:
+   - `supabase functions deploy sefaz-proxy`
+   - Env vars necessárias: `ALLOWED_ORIGIN`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `CERTIFICADO_PFX_SENHA`.
 
-## 6. Melhorias de navegação
+---
 
-- **Tabs do drawer**: já são `FormTabsList`-compatíveis no V2; reforçar contador nas labels críticas (Propostas, Itens) já está parcialmente feito — adicionar contador em "Decisão" (`X/Y itens decididos`) e "Recebimento" (`X%`).
-- **Voltar a partir do PropostasPanel**: quando o usuário entra em "Adicionar proposta" (`addingProposal`), o form aparece dentro do card mas o usuário precisa rolar muito; converter em **bottom-sheet** quando mobile.
-- **Status sempre visível na lista**: aplicar `mobileStatusKey="status"` em `PedidoCompraTable` e `CotacaoCompraTable` (mesmo patch já feito no Comercial).
+## Frente 4 — Feature flag Social documentada
 
-## 7. Melhorias de componentes
+1. **`.env.example`**: adicionar `VITE_FEATURE_SOCIAL=false` com comentário explicativo.
+2. **`src/lib/navigation.ts`**: substituir o spread condicional do item Social pelo objeto sempre presente com `badge: 'Em breve'` e `disabled: true` quando a flag não for `'true'`. Vou primeiro ler o arquivo para confirmar tipos `NavSectionKey`/`NavSubgroup` e estender a tipagem do item de navegação com `disabled?: boolean` e `badge?: string` se ainda não existirem.
+3. **`AppSidebar` / `SidebarSection`**: respeitar `disabled` aplicando `opacity-50 pointer-events-none` no item, mantendo o badge visível e bloqueando navegação. Vou inspecionar `SidebarSection.tsx` para fazer a alteração no ponto certo (item raiz, não nos subitens).
 
-- **`ComparativoFornecedoresMobile`** (novo, dentro do mesmo arquivo, `md:hidden`): renderização em cards por fornecedor.
-- **`CotacaoCompraItensTable`**: bloco mobile com cards (`md:hidden`).
-- **`PropostasPanel`**: form de "Adicionar proposta" extraído — em mobile, abrir como bottom-sheet via `Sheet` (shadcn) em vez de inline.
-- **`ItemsGrid`** (genérico, `src/components/ui/ItemsGrid.tsx`): adicionar `renderMobileCards()` com `md:hidden` e botões de 44px. Beneficia Pedidos de Compra hoje e qualquer outro consumidor amanhã.
-- **`PedidoCompraTable` / `CotacaoCompraTable`**: passar `mobileStatusKey="status"`.
-- **Recebimento/Estorno dialogs**: aplicar mesmo tratamento bottom-sheet do `CrossModuleActionDialog`.
+---
 
-## 8. Melhorias de fluxo
+## Frente 5 — Mobile do Orçamento (form + grid)
 
-- **Decisão em 1 toque**: na aba Propostas mobile, cada proposta de item ganha um botão "Selecionar" (44px, cor primária) ocupando largura total quando não selecionada — elimina o ícone `CheckCircle2` de 28px.
-- **Aprovar/Rejeitar/Cancelar** (cotação e pedido): em mobile, footer empilha vertical com **ação primária do status atual em destaque** (ex: "Aprovar" se aguardando_aprovacao) e secundárias num menu `⋯` para reduzir competição visual.
-- **Recebimento rápido** (pedido): botão "Registrar Recebimento" como FAB-like sticky no rodapé quando o pedido está em `aguardando_recebimento`.
-- **Reduzir cliques na cotação → pedido**: quando `aprovada` e `allItemsHaveSelected`, mostrar CTA único "Gerar Pedido de Compra" no topo do drawer (banner sticky) além do footer.
+Já existe parte do trabalho mobile no Comercial (`mem://produto/comercial-mobile.md`). Esta frente complementa o que ainda estava pendente no `OrcamentoForm` raiz.
 
-## 9. Sugestões de redesign mobile (sem inventar sistema novo)
+1. **`src/components/Orcamento/OrcamentoItemsGrid.tsx`**:
+   - Já tem `renderMobileCards()` no padrão atual; vou **garantir** que `min-w-[980px]` foi removido do desktop e que o `useIsMobile` é a única chave de troca de layout (sem dupla guarda CSS+JS conflitante).
+   - Cada card mobile com:
+     - Linha 1: código + descrição (truncate com tooltip).
+     - Linha 2: qtd + unitário (grid 2 cols).
+     - Linha 3: desconto + subtotal.
+     - Rodapé: ações (duplicar, remover) com `min-h-[44px]`.
+   - Todos os inputs com `min-h-[44px]` em mobile.
+2. **`src/pages/OrcamentoForm.tsx`** — header de ações:
+   - Em mobile: deixar apenas **"Salvar"** + menu **"⋯ Mais"** (DropdownMenu) com Visualizar, PDF, Templates, etc.
+   - Desktop: layout atual permanece.
+3. **`src/pages/OrcamentoForm.tsx`** — footer sticky mobile:
+   - Componente `<div className="md:hidden fixed bottom-0 inset-x-0 bg-background border-t p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] z-40 flex items-center justify-between gap-3">` com **"Total: R$ X.XXX,XX"** à esquerda e botão **"Salvar"** à direita (h-11).
+   - Adicionar `pb-24 md:pb-0` no container do form para evitar conteúdo escondido atrás do footer.
 
-- Reaproveitar **`MobileCardList` + `mobileStatusKey`**, **`DrawerStickyFooter`**, **`Sheet`** (bottom-sheet) e **`renderMobileCards`** já presentes no projeto.
-- Padrão de **comparativo de fornecedores em mobile**: cards verticais com header "Fornecedor X — Total R$" + lista de itens.
-- Padrão de **inputs em form mobile**: altura mínima `h-11` (44px), labels `text-sm`.
-- Documentar em **`mem://produto/compras-mobile.md`** as decisões.
+---
 
-## 10. Roadmap de execução
+## Detalhes técnicos
 
-| # | Etapa | Resolve | Esforço |
-|---|---|---|---|
-| **1** | `mobileStatusKey="status"` em `PedidoCompraTable` + `CotacaoCompraTable` | C4 | XS |
-| **2** | `CotacaoCompraItensTable`: bloco `md:hidden` com cards verticais | C5 | S |
-| **3** | `ComparativoFornecedoresMobile` em `CotacaoCompraPropostasPanel` (cards por fornecedor, `md:hidden`); manter tabela em `md:` | C1, L2 | M |
-| **4** | `CotacaoCompraPropostasPanel`: cards por proposta verticais em mobile com botão "Selecionar" full-width 44px; form de adicionar como `Sheet` bottom-sheet | M1, M2 | M |
-| **5** | `ItemsGrid` (`src/components/ui/ItemsGrid.tsx`): adicionar `renderMobileCards()` `md:hidden` (espelhando `OrcamentoItemsGrid`); aplicar a `PedidoCompraFormModal` automaticamente | C3 | M |
-| **6** | `CotacoesCompra.tsx` form de criação: linha de item vira bloco vertical em mobile (Autocomplete full-width, Qtd/Un em grid 2 cols, remover com 44px) | C2 | S |
-| **7** | `PedidoCompraDrawer` + `CotacaoCompraDrawer` footers: empilhar vertical em mobile com ação primária destacada + secundárias em menu `⋯` | M3 | S |
-| **8** | Aba Decisão da cotação: cards verticais (Produto / Fornecedor / Total) em mobile no lugar da tabela 3 colunas | M4 | S |
-| **9** | `RegistrarRecebimentoDialog` + `EstornarRecebimentoDialog`: estilo bottom-sheet em `max-sm` (espelhando patch do `CrossModuleActionDialog`) | L4 | XS |
-| **10** | `PedidoCompraFormModal`: footer com totais em grid 3 colunas e Total em linha destacada | layout | XS |
-| **11** | Banner CTA sticky "Gerar Pedido" no topo do drawer da cotação quando `aprovada` + todos selecionados | fluxo | XS |
-| **12** | Documentar padrão em `mem://produto/compras-mobile.md` | governança | XS |
+- **Migration**: usar a tool de migração (gera SQL e pede aprovação). `SET search_path = public` não se aplica a `COMMENT`/`POLICY` — sem necessidade aqui.
+- **Edge Function**: alterar `index.ts` do `sefaz-proxy` faz redeploy automático (não pedir ao usuário).
+- **Tipagem**: estender o tipo do item de navegação para `disabled?: boolean` e `badge?: string` no mesmo arquivo; verificar consumidores via `code--search_files` antes de mudar.
+- **Sem mexer em arquivos auto-gerados** (`types.ts`, `client.ts` lógica). Apenas o cabeçalho de comentário do `client.ts` será adicionado — risco baixo, mas se o arquivo for re-gerado o comentário some; vou alertar o usuário disso.
+- **Validação final**: `npx tsc --noEmit` ao fim.
 
-**Quick wins (PRs independentes)**: 1, 9, 10.
-**Estruturais (alto impacto)**: 3, 4, 5.
-**Polimento**: 2, 6, 7, 8, 11, 12.
+---
+
+## Roadmap de execução (uma rodada, ordem)
+
+| # | Etapa | Arquivos |
+|---|---|---|
+| 1 | Comentário de segurança no `client.ts` | `src/integrations/supabase/client.ts` |
+| 2 | `.env.example` ganha `VITE_FEATURE_SOCIAL` | `.env.example` |
+| 3 | Migration `audit_rls_permissiva` (COMMENTs + policy `app_configuracoes`) | DB |
+| 4 | Hardening Edge Function CORS | `supabase/functions/sefaz-proxy/index.ts` |
+| 5 | `httpClient.service.ts` trata 404 amigavelmente | `src/services/fiscal/sefaz/httpClient.service.ts` |
+| 6 | `SefazAcoesPanel` banner de certificado ausente | `src/pages/fiscal/components/SefazAcoesPanel.tsx` |
+| 7 | `navigation.ts` Social com `badge`/`disabled` + `SidebarSection` respeita disabled | `src/lib/navigation.ts`, `src/components/sidebar/SidebarSection.tsx` |
+| 8 | `OrcamentoItemsGrid` confirmar mobile cards + 44px | `src/components/Orcamento/OrcamentoItemsGrid.tsx` |
+| 9 | `OrcamentoForm` header com "⋯ Mais" + footer sticky mobile | `src/pages/OrcamentoForm.tsx` |
+| 10 | README: seções "Segurança / RLS" + "Deploy das Edge Functions" | `README.md` |
+| 11 | Memória: atualizar `mem://produto/comercial-mobile.md` com footer sticky do form e mover constraints de RLS para `mem://security/rls-single-tenant.md` | memória |
+| 12 | Mensagem final: instruções manuais (rotação de anon key + `git rm --cached .env`) | chat |
+
+**Validação:** `npx tsc --noEmit` após o passo 9.
 
