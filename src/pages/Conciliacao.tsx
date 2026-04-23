@@ -872,7 +872,83 @@ export default function Conciliacao() {
 
             {showOFXPane && (
               <div className="p-4 border-t border-border/60">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+                {/* MOBILE: lista única vertical de transações OFX com ação "Vincular" → bottom-sheet */}
+                <div className="md:hidden space-y-2 mb-4">
+                  {extratoItems.map((item) => {
+                    const match = getMatch(item.id);
+                    const isPareado = !!match;
+                    const linked = match
+                      ? lancamentos.find((l) => l.id === match.lancamentoId)
+                      : null;
+                    return (
+                      <div
+                        key={item.id}
+                        className={`rounded-lg border p-3 space-y-2 ${
+                          isPareado
+                            ? "border-success/40 bg-success/5"
+                            : "border-destructive/30 bg-card"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium truncate">
+                              {item.descricao || "Sem descrição"}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {formatDate(item.data)}
+                            </p>
+                          </div>
+                          <div className="flex flex-col items-end gap-1 shrink-0">
+                            <span
+                              className={`text-sm font-mono font-semibold ${
+                                item.valor >= 0 ? "text-success" : "text-destructive"
+                              }`}
+                            >
+                              {formatCurrency(item.valor)}
+                            </span>
+                            {isPareado ? (
+                              <CheckCircle className="w-4 h-4 text-success" />
+                            ) : (
+                              <XCircle className="w-4 h-4 text-destructive/70" />
+                            )}
+                          </div>
+                        </div>
+                        {linked && (
+                          <p className="text-xs text-success bg-success/10 rounded px-2 py-1 truncate">
+                            ↔ {linked.descricao} · {formatCurrency(linked.valor)}
+                          </p>
+                        )}
+                        <div className="flex gap-2">
+                          {isPareado ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="flex-1 h-11"
+                              onClick={() => handleManualMatch(item.id, "")}
+                            >
+                              Desvincular
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              className="flex-1 h-11 gap-2"
+                              onClick={() => {
+                                setVincularExtratoId(item.id);
+                                setVincularSearch("");
+                                setVincularOpen(true);
+                              }}
+                            >
+                              <Search className="w-4 h-4" /> Vincular
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* DESKTOP: split OFX↔ERP original */}
+                <div className="hidden md:grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
                   {/* Left: extrato OFX */}
                   <div>
                     <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wider">
