@@ -821,8 +821,26 @@ const Fiscal = () => {
           <MultiSelect options={statusSefazOptions} selected={statusSefazFilters} onChange={setStatusSefazFilters} placeholder="Status SEFAZ" className="w-[180px]" />
         </AdvancedFilterBar>
 
+        {/* Banner mobile tappable: filtra para Pendentes em 1 toque */}
+        {isMobile && kpis.pendentes > 0 && (
+          <button
+            type="button"
+            onClick={() => setStatusFilters(["pendente"])}
+            className="md:hidden w-full mb-3 min-h-11 rounded-lg border border-warning/40 bg-warning/10 px-4 py-2.5 flex items-center justify-between gap-3 active:bg-warning/20 transition-colors"
+            aria-label={`Filtrar ${kpis.pendentes} notas pendentes`}
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <Clock className="h-4 w-4 shrink-0 text-warning" />
+              <span className="text-sm font-medium text-warning-foreground truncate">
+                {kpis.pendentes} {kpis.pendentes === 1 ? "nota pendente" : "notas pendentes"}
+              </span>
+            </div>
+            <span className="text-xs text-warning shrink-0">Filtrar →</span>
+          </button>
+        )}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <SummaryCard title="Total de NFs" value={String(kpis.total)} icon={FileText} variationType="neutral" variation="registros" />
+          {/* Total de NFs oculto em mobile (redundante com count da lista) */}
+          <SummaryCard className="hidden md:flex" title="Total de NFs" value={String(kpis.total)} icon={FileText} variationType="neutral" variation="registros" />
           <SummaryCard title="Valor Total" value={formatCurrency(kpis.valorTotal)} icon={DollarSign} variationType="neutral" variation="acumulado" />
           <SummaryCard title="Pendentes" value={String(kpis.pendentes)} icon={Clock} variationType={kpis.pendentes > 0 ? "negative" : "neutral"} variation="aguardando confirmação" />
           <SummaryCard title="Confirmadas" value={String(kpis.confirmadas)} icon={CheckCircle} variationType="positive" variation="processadas" />
