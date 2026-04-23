@@ -21,7 +21,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import { formatCurrency, formatDate } from "@/lib/format";
-import { FileText, DollarSign, CheckCircle, Clock } from "lucide-react";
+import { FileText, DollarSign, CheckCircle, Clock, ArrowLeftRight, MoreVertical, Eye, Edit as EditIcon, XCircle as XCircleIcon } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { DanfeViewer } from "@/components/DanfeViewer";
 import { DevolucaoDialog } from "@/components/fiscal/DevolucaoDialog";
@@ -135,6 +137,7 @@ interface DevolucaoItem extends NfItemRow { qtd_devolver: number; nome: string; 
 
 const Fiscal = () => {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const { data, loading, remove, fetchData } = useSupabaseCrud<NotaFiscal>({
     table: "notas_fiscais", select: "*, fornecedores(nome_razao_social, cpf_cnpj), clientes(nome_razao_social), ordens_venda(numero)"
@@ -666,7 +669,16 @@ const Fiscal = () => {
     ? { title: "Notas de Saída", subtitle: "Notas fiscais de saída e faturamento", addLabel: "Nova NF de Saída", moduleKey: "notas-saida", parceiroLabel: "Cliente" }
     : { title: "Fiscal", subtitle: "Notas fiscais, faturas e documentos", addLabel: "Nova NF", moduleKey: "notas-fiscais", parceiroLabel: "Parceiro" };
 
-  const renderFiscalStatus = (n: NotaFiscal) => <FiscalInternalStatusBadge status={n.status} />;
+  // Em mobile, exibe ERP + SEFAZ empilhados como sub-pill no header do card (statusBadge).
+  const renderFiscalStatus = (n: NotaFiscal) =>
+    isMobile ? (
+      <div className="flex flex-col items-end gap-1">
+        <FiscalInternalStatusBadge status={n.status} />
+        <FiscalSefazStatusBadge status={n.status_sefaz || "nao_enviada"} className="text-[10px] px-1.5 py-0" />
+      </div>
+    ) : (
+      <FiscalInternalStatusBadge status={n.status} />
+    );
 
   const parceiroLabel = tipoConfig.parceiroLabel;
 
@@ -818,8 +830,26 @@ const Fiscal = () => {
           <MultiSelect options={statusSefazOptions} selected={statusSefazFilters} onChange={setStatusSefazFilters} placeholder="Status SEFAZ" className="w-[180px]" />
         </AdvancedFilterBar>
 
+        {/* Banner mobile tappable: filtra para Pendentes em 1 toque */}
+        {isMobile && kpis.pendentes > 0 && (
+          <button
+            type="button"
+            onClick={() => setStatusFilters(["pendente"])}
+            className="md:hidden w-full mb-3 min-h-11 rounded-lg border border-warning/40 bg-warning/10 px-4 py-2.5 flex items-center justify-between gap-3 active:bg-warning/20 transition-colors"
+            aria-label={`Filtrar ${kpis.pendentes} notas pendentes`}
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <Clock className="h-4 w-4 shrink-0 text-warning" />
+              <span className="text-sm font-medium text-warning-foreground truncate">
+                {kpis.pendentes} {kpis.pendentes === 1 ? "nota pendente" : "notas pendentes"}
+              </span>
+            </div>
+            <span className="text-xs text-warning shrink-0">Filtrar →</span>
+          </button>
+        )}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <SummaryCard title="Total de NFs" value={String(kpis.total)} icon={FileText} variationType="neutral" variation="registros" />
+          {/* Total de NFs oculto em mobile (redundante com count da lista) */}
+          <SummaryCard className="hidden md:flex" title="Total de NFs" value={String(kpis.total)} icon={FileText} variationType="neutral" variation="registros" />
           <SummaryCard title="Valor Total" value={formatCurrency(kpis.valorTotal)} icon={DollarSign} variationType="neutral" variation="acumulado" />
           <SummaryCard title="Pendentes" value={String(kpis.pendentes)} icon={Clock} variationType={kpis.pendentes > 0 ? "negative" : "neutral"} variation="aguardando confirmação" />
           <SummaryCard title="Confirmadas" value={String(kpis.confirmadas)} icon={CheckCircle} variationType="positive" variation="processadas" />
@@ -833,6 +863,103 @@ const Fiscal = () => {
           showColumnToggle={true}
           onView={openView}
           onEdit={openEdit}
+          mobileStatusKey="status"
+          mobileIdentifierKey="parceiro"
+          mobilePrimaryAction={(n) => {
+            if (canConfirmFiscal(n.status)) {
+              return (
+                <Button
+                  size="sm"
+                  className="w-full min-h-11 gap-2"
+                  onClick={() => handleConfirmar(n)}
+                  aria-label={`Confirmar NF ${n.numero}`}
+                >
+                  <CheckCircle className="h-4 w-4" /> Confirmar NF
+                </Button>
+              );
+            }
+            if (["confirmada", "autorizada", "importada"].includes(n.status)) {
+              return (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="w-full min-h-11 gap-2"
+                  onClick={() => openDanfe(n)}
+                  aria-label={`Visualizar DANFE da NF ${n.numero}`}
+                >
+                  <FileText className="h-4 w-4" /> DANFE
+                </Button>
+              );
+            }
+            return (
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full min-h-11 gap-2"
+                onClick={() => openView(n)}
+                aria-label={`Ver detalhes da NF ${n.numero}`}
+              >
+                <Eye className="h-4 w-4" /> Ver detalhes
+              </Button>
+            );
+          }}
+          mobileInlineActions={(n) => {
+            const editable = ["pendente", "rascunho"].includes(n.status);
+            const canDevolucao = n.tipo === "saida" && (n.tipo_operacao || "normal") === "normal" && ["confirmada", "autorizada", "importada"].includes(n.status);
+            return (
+              <>
+                {editable && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="flex-1 min-h-11"
+                    onClick={() => navigate(`/fiscal/${n.id}`)}
+                    aria-label={`Editar NF ${n.numero}`}
+                  >
+                    <EditIcon className="h-4 w-4 mr-1.5" /> Editar
+                  </Button>
+                )}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="flex-1 min-h-11"
+                      aria-label="Mais ações"
+                    >
+                      <MoreVertical className="h-4 w-4 mr-1.5" /> Mais
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-52">
+                    <DropdownMenuItem onClick={() => openView(n)}>
+                      <Eye className="h-4 w-4 mr-2" /> Ver detalhes
+                    </DropdownMenuItem>
+                    {["confirmada", "autorizada", "importada"].includes(n.status) && (
+                      <DropdownMenuItem onClick={() => openDanfe(n)}>
+                        <FileText className="h-4 w-4 mr-2" /> DANFE
+                      </DropdownMenuItem>
+                    )}
+                    {canDevolucao && (
+                      <DropdownMenuItem onClick={() => openDevolucao(n)}>
+                        <ArrowLeftRight className="h-4 w-4 mr-2" /> Devolução
+                      </DropdownMenuItem>
+                    )}
+                    {canEstornarFiscal(n.status) && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onClick={() => handleEstornar(n)}
+                        >
+                          <XCircleIcon className="h-4 w-4 mr-2" /> Estornar
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </>
+            );
+          }}
         />
       </ModulePage>
 

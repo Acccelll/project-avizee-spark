@@ -14,8 +14,10 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
   Edit, CheckCircle, XCircle, ArrowLeftRight, FileText,
-  Package, DollarSign, AlertCircle, Copy, Clock, Download, File,
+  Package, DollarSign, AlertCircle, Copy, Clock, Download, File, MoreVertical,
 } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import {
@@ -148,6 +150,7 @@ export function NotaFiscalDrawer({
   const { pending: confirmarPending, run: runConfirmar } = useActionLock();
   const { pending: estornarPending, run: runEstornar } = useActionLock();
   const { pending: devolucaoPending, run: runDevolucao } = useActionLock();
+  const isMobile = useIsMobile();
 
   if (!open || !selected) return null;
 
@@ -323,7 +326,43 @@ export function NotaFiscalDrawer({
     <div className="space-y-4">
       {items.length > 0 ? (
         <>
-          <div className="rounded-lg border overflow-hidden">
+          {/* Mobile: lista de cards verticais */}
+          <div className="md:hidden space-y-2">
+            {items.map((i, idx) => (
+              <div key={idx} className="rounded-lg border bg-card p-3 space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    {i.produtos?.id ? (
+                      <RelationalLink type="produto" id={i.produtos.id}>
+                        <span className="font-medium text-sm truncate block">{i.produtos?.nome || "—"}</span>
+                      </RelationalLink>
+                    ) : (
+                      <span className="font-medium text-sm truncate block">{i.produtos?.nome || "—"}</span>
+                    )}
+                  </div>
+                  <span className="font-mono font-bold text-sm shrink-0">
+                    {formatCurrency(Number(i.quantidade) * Number(i.valor_unitario))}
+                  </span>
+                </div>
+                <div className="text-xs text-muted-foreground font-mono">
+                  {i.quantidade} × {formatCurrency(i.valor_unitario)}
+                </div>
+                {(i.cst || i.cfop || i.contas_contabeis) && (
+                  <div className="flex flex-wrap gap-1.5 pt-1 border-t border-border/40">
+                    {i.cst && <Badge variant="outline" className="text-[10px]">CST {i.cst}</Badge>}
+                    {i.cfop && <Badge variant="outline" className="text-[10px]">CFOP {i.cfop}</Badge>}
+                    {i.contas_contabeis && (
+                      <Badge variant="outline" className="text-[10px] truncate max-w-[180px]">
+                        {i.contas_contabeis.codigo}
+                      </Badge>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+          {/* Desktop: tabela */}
+          <div className="hidden md:block rounded-lg border overflow-hidden">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-muted/50 border-b">
@@ -829,12 +868,104 @@ export function NotaFiscalDrawer({
       tabs={[
         { value: "resumo", label: "Resumo", content: tabResumo },
         { value: "itens", label: `Itens (${items.length})`, content: tabItens },
-        { value: "fiscal", label: "Fiscal", content: tabFiscal },
-        { value: "arquivos", label: "Arquivos", content: tabArquivos },
-        { value: "eventos", label: `Eventos (${eventos.length})`, content: tabEventos },
-        { value: "vinculos", label: "Vínculos", content: tabVinculos },
+        ...(isMobile
+          ? [
+              {
+                value: "mais",
+                label: "Mais",
+                content: (
+                  <div className="space-y-6">
+                    <div>
+                      <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">Fiscal</h3>
+                      {tabFiscal}
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">Arquivos</h3>
+                      {tabArquivos}
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">Eventos ({eventos.length})</h3>
+                      {tabEventos}
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">Vínculos</h3>
+                      {tabVinculos}
+                    </div>
+                  </div>
+                ),
+              },
+            ]
+          : [
+              { value: "fiscal", label: "Fiscal", content: tabFiscal },
+              { value: "arquivos", label: "Arquivos", content: tabArquivos },
+              { value: "eventos", label: `Eventos (${eventos.length})`, content: tabEventos },
+              { value: "vinculos", label: "Vínculos", content: tabVinculos },
+            ]),
       ]}
       footer={
+        isMobile ? (
+          <DrawerStickyFooter
+            right={
+              <div className="flex items-center gap-2 w-full">
+                {canConfirmar ? (
+                  <Button
+                    size="sm"
+                    className="flex-1 min-h-11 gap-2"
+                    disabled={confirmarPending}
+                    onClick={() => runConfirmar(() => { onConfirmar(selected); onClose(); })}
+                  >
+                    <CheckCircle className="h-4 w-4" /> Confirmar NF
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1 min-h-11 gap-2"
+                    onClick={() => onDanfe(selected)}
+                  >
+                    <FileText className="h-4 w-4" /> DANFE
+                  </Button>
+                )}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="min-h-11 min-w-11 px-3"
+                      aria-label="Mais ações"
+                    >
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" side="top" className="w-56">
+                    {canConfirmar && (
+                      <DropdownMenuItem onClick={() => onDanfe(selected)}>
+                        <FileText className="h-4 w-4 mr-2" /> DANFE
+                      </DropdownMenuItem>
+                    )}
+                    {canDevolucao && (
+                      <DropdownMenuItem onClick={() => runDevolucao(() => { onDevolucao(selected); onClose(); })}>
+                        <ArrowLeftRight className="h-4 w-4 mr-2" /> Devolução
+                      </DropdownMenuItem>
+                    )}
+                    {canEstornar && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          disabled={estornarPending}
+                          onClick={() => runEstornar(() => { onEstornar(selected); onClose(); })}
+                        >
+                          <XCircle className="h-4 w-4 mr-2" /> Estornar
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            }
+          />
+        ) : (
         <DrawerStickyFooter
           left={
             canEstornar && (
@@ -868,6 +999,7 @@ export function NotaFiscalDrawer({
             </>
           }
         />
+        )
       }
     />
   );

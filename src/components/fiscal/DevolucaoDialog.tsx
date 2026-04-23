@@ -107,7 +107,59 @@ export function DevolucaoDialog({ open, onOpenChange, devolucaoNF, devolucaoIten
             </div>
           </div>
 
-          <div className="rounded-lg border overflow-hidden">
+          {/* Mobile: cards verticais com stepper */}
+          <div className="md:hidden space-y-2">
+            {devolucaoItens.map((item, idx) => (
+              <div key={idx} className="rounded-lg border bg-card p-3 space-y-2">
+                <div className="font-medium text-sm">{item.nome}</div>
+                <div className="text-xs text-muted-foreground">
+                  Qtd original: <span className="font-mono">{item.quantidade}</span> · Unit:{" "}
+                  <span className="font-mono">{formatCurrency(Number(item.valor_unitario))}</span>
+                </div>
+                <div className="flex items-center gap-2 pt-1">
+                  <span className="text-xs font-medium text-muted-foreground flex-1">Devolver:</span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="min-h-11 min-w-11"
+                    onClick={() => setDevolucaoItens(devolucaoItens.map((it, i) => i === idx ? { ...it, qtd_devolver: Math.max(0, it.qtd_devolver - 1) } : it))}
+                  >
+                    −
+                  </Button>
+                  <Input
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    max={item.quantidade}
+                    className="h-11 w-16 text-center font-mono"
+                    value={item.qtd_devolver}
+                    onChange={(e) => {
+                      const val = Math.min(Number(e.target.value), item.quantidade);
+                      setDevolucaoItens(devolucaoItens.map((it, i) => i === idx ? { ...it, qtd_devolver: Math.max(0, val) } : it));
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="min-h-11 min-w-11"
+                    onClick={() => setDevolucaoItens(devolucaoItens.map((it, i) => i === idx ? { ...it, qtd_devolver: Math.min(it.quantidade, it.qtd_devolver + 1) } : it))}
+                  >
+                    +
+                  </Button>
+                </div>
+                <div className="text-right text-sm font-mono font-semibold pt-1 border-t border-border/40">
+                  Subtotal: {formatCurrency((item.qtd_devolver || 0) * Number(item.valor_unitario))}
+                </div>
+              </div>
+            ))}
+            <div className="rounded-lg bg-muted/30 border p-3 flex justify-between items-center">
+              <span className="text-sm font-semibold">Total da Devolução</span>
+              <span className="font-mono font-bold text-primary">{formatCurrency(valorTotalDevolucao)}</span>
+            </div>
+          </div>
+          <div className="hidden md:block rounded-lg border overflow-hidden">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-muted/50">
