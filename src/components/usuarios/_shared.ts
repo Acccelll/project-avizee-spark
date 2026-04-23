@@ -13,7 +13,14 @@ import type { Database } from '@/integrations/supabase/types';
 
 export type AppRole = Database['public']['Enums']['app_role'];
 
-export const ALL_ROLES: AppRole[] = ['admin', 'vendedor', 'financeiro', 'estoquista'];
+export const ALL_ROLES: AppRole[] = [
+  'admin',
+  'vendedor',
+  'financeiro',
+  'estoquista',
+  'gestor_compras',
+  'operador_logistico',
+];
 
 export const ROLE_COLORS: Record<AppRole, string> = {
   admin: 'bg-destructive/10 text-destructive border-destructive/30',
@@ -22,6 +29,10 @@ export const ROLE_COLORS: Record<AppRole, string> = {
     'bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-700',
   estoquista:
     'bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-700',
+  gestor_compras:
+    'bg-indigo-100 text-indigo-700 border-indigo-300 dark:bg-indigo-900/30 dark:text-indigo-400 dark:border-indigo-700',
+  operador_logistico:
+    'bg-cyan-100 text-cyan-700 border-cyan-300 dark:bg-cyan-900/30 dark:text-cyan-400 dark:border-cyan-700',
   user: 'bg-muted text-muted-foreground border-muted-foreground/30',
   viewer: 'bg-muted text-muted-foreground border-muted-foreground/30',
 };

@@ -8,7 +8,14 @@
  * DB foi descontinuada (migration). Apenas `user_permissions` (overrides
  * individuais, com suporte a allowed=false para revogação) permanece no DB.
  */
-export const APP_ROLES = ["admin", "vendedor", "financeiro", "estoquista"] as const;
+export const APP_ROLES = [
+  "admin",
+  "vendedor",
+  "financeiro",
+  "estoquista",
+  "gestor_compras",
+  "operador_logistico",
+] as const;
 export type AppRole = (typeof APP_ROLES)[number];
 
 export const ERP_RESOURCES = [
@@ -69,6 +76,8 @@ export const ROLE_LABELS: Record<AppRole, string> = {
   vendedor: "Vendedor",
   financeiro: "Financeiro",
   estoquista: "Estoquista",
+  gestor_compras: "Gestor de Compras",
+  operador_logistico: "Operador Logístico",
 };
 
 /** Rótulos humanizados para recursos ERP — uso em UI (AccessDenied, tooltips, modais). */
@@ -134,6 +143,10 @@ export const ROLE_DESCRIPTIONS: Record<AppRole, string> = {
   vendedor: "Acesso a clientes, orçamentos, pedidos e logística.",
   financeiro: "Acesso ao módulo financeiro, compras, faturamento e relatórios.",
   estoquista: "Acesso a produtos, estoque, compras e logística.",
+  gestor_compras:
+    "Acesso a compras, fornecedores, estoque (consulta) e relatórios.",
+  operador_logistico:
+    "Acesso à logística, pedidos (consulta) e movimentação de estoque.",
 };
 
 /** Textos de apoio padronizados para telas de governança/acesso. */
@@ -197,6 +210,32 @@ const rolePermissionMatrix: Record<AppRole, PermissionKey[]> = {
     "compras:visualizar",
     "logistica:visualizar",
     "logistica:editar",
+  ],
+  gestor_compras: [
+    "dashboard:visualizar",
+    "compras:visualizar",
+    "compras:criar",
+    "compras:editar",
+    "compras:aprovar",
+    "compras:cancelar",
+    "fornecedores:visualizar",
+    "fornecedores:criar",
+    "fornecedores:editar",
+    "fornecedores:exportar",
+    "produtos:visualizar",
+    "estoque:visualizar",
+    "relatorios:visualizar",
+    "relatorios:exportar",
+  ],
+  operador_logistico: [
+    "dashboard:visualizar",
+    "logistica:visualizar",
+    "logistica:editar",
+    "logistica:exportar",
+    "pedidos:visualizar",
+    "estoque:visualizar",
+    "estoque:editar",
+    "transportadoras:visualizar",
   ],
 };
 
