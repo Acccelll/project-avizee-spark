@@ -13,6 +13,8 @@ import {
 import { flatNavItems, quickActions } from '@/lib/navigation';
 import { supabase } from '@/integrations/supabase/client';
 import { useDebounce } from '@/hooks/useDebounce';
+import { useCan } from '@/hooks/useCan';
+import { useRelationalNavigation, type EntityType } from '@/contexts/RelationalNavigationContext';
 
 interface GlobalSearchProps {
   open: boolean;
@@ -22,11 +24,26 @@ interface GlobalSearchProps {
 type EntityCategory = 'Clientes' | 'Produtos' | 'Orçamentos' | 'Notas';
 interface EntityResult {
   id: string;
+  entityId: string;
+  entityType: EntityType;
   title: string;
   subtitle: string;
-  path: string;
   category: EntityCategory;
 }
+
+const CATEGORY_LABEL: Record<string, EntityCategory> = {
+  cliente: 'Clientes',
+  produto: 'Produtos',
+  orcamento: 'Orçamentos',
+  nota_fiscal: 'Notas',
+};
+
+const CATEGORY_PERMISSION: Record<string, string> = {
+  cliente: 'clientes:visualizar',
+  produto: 'produtos:visualizar',
+  orcamento: 'orcamentos:visualizar',
+  nota_fiscal: 'faturamento_fiscal:visualizar',
+};
 
 const RECENT_KEY = 'erp:global-search:recent';
 
@@ -51,6 +68,8 @@ function highlight(text: string, term: string) {
 
 export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
   const navigate = useNavigate();
+  const { can } = useCan();
+  const { pushView } = useRelationalNavigation();
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 300);
   const [entityResults, setEntityResults] = useState<EntityResult[]>([]);
@@ -83,26 +102,33 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
     const term = debouncedSearch.trim();
     let active = true;
 
-    Promise.all([
-      supabase.from('clientes').select('id, nome_razao_social, cpf_cnpj').eq('ativo', true).ilike('nome_razao_social', `%${term}%`).limit(4),
-      supabase.from('produtos').select('id, nome, codigo_interno').eq('ativo', true).ilike('nome', `%${term}%`).limit(4),
-      supabase.from('orcamentos').select('id, numero, status').eq('ativo', true).ilike('numero', `%${term}%`).limit(4),
-      supabase.from('notas_fiscais').select('id, numero, status, tipo').eq('ativo', true).ilike('numero', `%${term}%`).limit(4),
-    ]).then(([clientes, produtos, orcamentos, notas]) => {
-      if (!active) return;
-      const merged: EntityResult[] = [
-        ...(clientes.data || []).map((c: any) => ({ id: `cli-${c.id}`, title: c.nome_razao_social, subtitle: c.cpf_cnpj || 'Cliente', path: '/clientes', category: 'Clientes' as const })),
-        ...(produtos.data || []).map((p: any) => ({ id: `pro-${p.id}`, title: p.nome, subtitle: p.codigo_interno || 'Produto', path: '/produtos', category: 'Produtos' as const })),
-        ...(orcamentos.data || []).map((o: any) => ({ id: `orc-${o.id}`, title: `Orçamento #${o.numero}`, subtitle: o.status || 'Orçamento', path: `/orcamentos/${o.id}`, category: 'Orçamentos' as const })),
-        ...(notas.data || []).map((n: any) => ({ id: `nf-${n.id}`, title: `NF #${n.numero}`, subtitle: `${n.tipo || 'nota'} · ${n.status || ''}`, path: '/fiscal', category: 'Notas' as const })),
-      ];
-      setEntityResults(merged);
-    });
+    // RPC unificada que respeita RLS — uma chamada em vez de 4 selects.
+    supabase
+      .rpc('global_search', { search_term: term, max_per_category: 4 })
+      .then(({ data, error }) => {
+        if (!active || error || !data) return;
+        const merged: EntityResult[] = (data as Array<{ category: string; entity_id: string; title: string; subtitle: string }>)
+          .filter((row) => {
+            // Filtra por permissão no front, mesmo que a RLS já barrasse —
+            // evita mostrar resultados que abririam um drawer com erro.
+            const perm = CATEGORY_PERMISSION[row.category];
+            return perm ? can(perm as never) : true;
+          })
+          .map((row) => ({
+            id: `${row.category}-${row.entity_id}`,
+            entityId: row.entity_id,
+            entityType: row.category as EntityType,
+            title: row.title,
+            subtitle: row.subtitle,
+            category: CATEGORY_LABEL[row.category] ?? 'Clientes',
+          }));
+        setEntityResults(merged);
+      });
 
     return () => {
       active = false;
     };
-  }, [debouncedSearch]);
+  }, [debouncedSearch, can]);
 
   const navigationResults = useMemo(
     () =>
@@ -157,6 +183,17 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
     navigate(path);
   };
 
+  const handleSelectEntity = (entity: EntityResult) => {
+    persistRecent(search);
+    onOpenChange(false);
+    // Notas fiscais não estão na lista de drawers — fallback para a tela.
+    if (entity.entityType === 'nota_fiscal') {
+      navigate('/fiscal');
+      return;
+    }
+    pushView(entity.entityType, entity.entityId);
+  };
+
   return (
     <CommandDialog open={open} onOpenChange={onOpenChange}>
       <CommandInput placeholder="Buscar módulos, registros e ações..." value={search} onValueChange={setSearch} />
@@ -197,7 +234,7 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
             <CommandSeparator />
             <CommandGroup heading={category}>
               {items.map((item) => (
-                <CommandItem key={item.id} onSelect={() => handleSelect(item.path)}>
+                <CommandItem key={item.id} onSelect={() => handleSelectEntity(item)}>
                   <Search className="mr-2 h-4 w-4" />
                   <div className="flex flex-col">
                     <span>{highlight(item.title, search)}</span>
