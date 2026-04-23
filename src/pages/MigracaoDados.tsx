@@ -56,8 +56,11 @@ import { Link2 } from "lucide-react";
 import { AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { Monitor } from "lucide-react";
 
 export default function MigracaoDados() {
+  const isMobile = useIsMobile();
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState("todos");
   const [statusFilter, setStatusFilter] = useState("todos");
@@ -322,6 +325,36 @@ export default function MigracaoDados() {
   };
 
   return (
+    isMobile ? (
+      <PageShell
+        title={
+          <span className="flex items-center gap-3">
+            <span className="p-2 bg-primary/10 rounded-lg">
+              <Database className="h-6 w-6 text-primary" />
+            </span>
+            Migração de Dados
+          </span>
+        }
+        subtitle="Central de importação, saneamento e carga de dados legados."
+      >
+        <div className="flex flex-col items-center justify-center text-center py-16 px-6 gap-4">
+          <div className="p-4 rounded-full bg-muted">
+            <Monitor className="h-10 w-10 text-muted-foreground" />
+          </div>
+          <div className="space-y-2 max-w-sm">
+            <h2 className="text-lg font-semibold">Disponível apenas em desktop</h2>
+            <p className="text-sm text-muted-foreground">
+              A migração de dados envolve upload de planilhas, mapeamento de colunas e
+              previews tabulares densos. Para garantir precisão, este módulo está
+              disponível somente em telas maiores.
+            </p>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Acesse pelo computador em <span className="font-mono">/migracao-dados</span>
+          </p>
+        </div>
+      </PageShell>
+    ) :
     <PageShell
       title={
         <span className="flex items-center gap-3">
