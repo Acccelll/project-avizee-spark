@@ -479,7 +479,7 @@ const Fornecedores = () => {
               </span>
             )}
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <div className="space-y-1.5">
               <Label>Tipo de Pessoa</Label>
               <Select value={form.tipo_pessoa} onValueChange={(v) => updateForm({ tipo_pessoa: v })}>
@@ -608,7 +608,7 @@ const Fornecedores = () => {
             </div>
             <div>
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Canais de comunicação</p>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="col-span-2 md:col-span-3 space-y-1.5">
                   <div className="flex items-center gap-1">
                     <Mail className="h-3.5 w-3.5 text-muted-foreground" />
@@ -643,7 +643,7 @@ const Fornecedores = () => {
           <p className="text-xs text-muted-foreground mb-3">
             Informe o CEP para preenchimento automático do logradouro, bairro, cidade e UF.
           </p>
-          <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6">
             <div className="col-span-2 md:col-span-2 space-y-1.5">
               <Label>CEP</Label>
               <div className="relative">
@@ -718,7 +718,7 @@ const Fornecedores = () => {
           <p className="text-xs text-muted-foreground mb-3">
             Condições comerciais padrão deste fornecedor. Aplicadas automaticamente em cotações e pedidos de compra. Podem ser sobrescritas por operação.
           </p>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
             <div className="col-span-2 md:col-span-2 space-y-1.5">
               <div className="flex items-center gap-1">
                 <Label>Prazo Padrão (dias)</Label>

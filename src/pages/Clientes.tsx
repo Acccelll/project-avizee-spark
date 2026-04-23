@@ -485,7 +485,7 @@ const Clientes = () => {
 
             {/* DADOS GERAIS */}
             <TabsContent value="dados-gerais" className="space-y-4 mt-0">
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 <div className="space-y-1.5">
                   <Label>Tipo de Pessoa</Label>
                   <Select value={form.tipo_pessoa} onValueChange={(v) => updateForm({ tipo_pessoa: v })}>
@@ -605,7 +605,7 @@ const Clientes = () => {
                 </div>
                 <div>
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Canais de comunicação</p>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="col-span-2 md:col-span-3 space-y-1.5">
                       <div className="flex items-center gap-1">
                         <Mail className="h-3.5 w-3.5 text-muted-foreground" />
@@ -645,7 +645,7 @@ const Clientes = () => {
               <p className="text-xs text-muted-foreground mb-3">
                 Informe o CEP para preenchimento automático do logradouro, bairro, cidade e UF.
               </p>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 <div className="space-y-1.5">
                   <Label>CEP</Label>
                   <div className="relative">
@@ -719,7 +719,7 @@ const Clientes = () => {
               <p className="text-xs text-muted-foreground mb-3">
                 Condições aplicadas por padrão em orçamentos e pedidos. Podem ser sobrescritas individualmente por operação.
               </p>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-3">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-3">
                 <div className="col-span-2 space-y-1.5">
                   <div className="flex items-center gap-1">
                     <Label>Forma de Pagamento Padrão</Label>

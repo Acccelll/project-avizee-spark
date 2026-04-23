@@ -834,7 +834,7 @@ const Produtos = () => {
             <h3 className="font-semibold text-sm flex items-center gap-2">
               <Package className="w-4 h-4" /> Identificação
             </h3>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="col-span-2 space-y-2">
                 <Label>Nome *</Label>
                 <Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} required placeholder="Nome do produto" />
@@ -938,7 +938,7 @@ const Produtos = () => {
             <h3 className="font-semibold text-sm flex items-center gap-2 border-t pt-3">
               <TrendingUp className="w-4 h-4" /> Comercial
             </h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               {!form.eh_composto ? (
                 <div className="space-y-2">
                   <Label>Preço de Custo</Label>
@@ -1118,7 +1118,7 @@ const Produtos = () => {
                     <Trash2 className="w-4 h-4" />
                   </Button>
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <div className="space-y-1">
                     <Label className="text-xs">Cód. Fornecedor (De/Para)</Label>
                     <Input className="h-9 font-mono" value={forn.referencia_fornecedor} onChange={(e) => updateFornecedor(idx, "referencia_fornecedor", e.target.value)} placeholder="Ex: REF-ABC" />
