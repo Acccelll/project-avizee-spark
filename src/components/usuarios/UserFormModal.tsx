@@ -13,7 +13,7 @@
  */
 
 import { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, ChevronLeft, ChevronRight, Info, Loader2 } from 'lucide-react';
+import { AlertTriangle, ChevronLeft, ChevronRight, Eye, EyeOff, Info, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -39,6 +39,7 @@ import {
   getRolePermissions,
 } from '@/lib/permissions';
 import { getUserFriendlyError } from '@/utils/errorMessages';
+import { validatePassword, PASSWORD_MIN_LENGTH } from '@/lib/passwordPolicy';
 import {
   ALL_ROLES,
   emptyForm,
