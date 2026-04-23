@@ -16,6 +16,13 @@ interface MobileCardListProps<T extends { id?: string }> {
   fields: MobileCardField<T>[];
   onItemClick?: (item: T) => void;
   actions?: (item: T) => ReactNode;
+  /**
+   * Pill de status renderizada no canto superior direito do card,
+   * antes do menu `actions`. Use para destacar o estado do registro
+   * (status do orçamento, pedido, etc.) — substitui a renderização
+   * como detail-field cinza.
+   */
+  statusBadge?: (item: T) => ReactNode;
   /** Ícones de ação rápida (até 3) renderizados no rodapé do card (📞 Wpp ✉ 👁). Cada um é um botão 36px touch-friendly. */
   actionsInline?: (item: T) => ReactNode;
   /**
@@ -42,6 +49,7 @@ export function MobileCardList<T extends { id?: string }>({
   fields,
   onItemClick,
   actions,
+  statusBadge,
   actionsInline,
   primaryAction,
   onLongPress,
@@ -122,12 +130,13 @@ export function MobileCardList<T extends { id?: string }>({
               )}
             </div>
             {/* Menu ⋮ no canto */}
-            {actions && (
+            {(statusBadge || actions) && (
               <div
-                className="flex shrink-0 items-center"
+                className="flex shrink-0 items-center gap-1.5"
                 onClick={(e) => e.stopPropagation()}
               >
-                {actions(item)}
+                {statusBadge?.(item)}
+                {actions?.(item)}
               </div>
             )}
           </div>
