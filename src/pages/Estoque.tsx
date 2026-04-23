@@ -107,6 +107,16 @@ const Estoque = () => {
   const [pendingSubmit, setPendingSubmit] = useState(false);
   const [showTodosProdutos, setShowTodosProdutos] = useState(false);
   const [produtoSelectorOpen, setProdutoSelectorOpen] = useState(false);
+  // Bottom-sheet de ajuste rápido (mobile-first; pré-preenchível pelo banner crítico ou pelos cards)
+  const [ajusteSheetOpen, setAjusteSheetOpen] = useState(false);
+  const [ajusteSheetProdutoId, setAjusteSheetProdutoId] = useState<string | null>(null);
+  const [ajusteSheetTipo, setAjusteSheetTipo] = useState<"entrada" | "saida" | "ajuste">("entrada");
+
+  const abrirAjusteRapido = (produtoId: string, tipo: "entrada" | "saida" | "ajuste" = "entrada") => {
+    setAjusteSheetProdutoId(produtoId);
+    setAjusteSheetTipo(tipo);
+    setAjusteSheetOpen(true);
+  };
   // Saldos filters
   const [searchPosicao, setSearchPosicao] = useState("");
   const [situacaoFilters, setSituacaoFilters] = useState<string[]>([]);
