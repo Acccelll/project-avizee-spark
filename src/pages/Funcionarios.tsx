@@ -9,7 +9,7 @@ import { FormModalFooter } from "@/components/FormModalFooter";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
-import { StatCard } from "@/components/StatCard";
+import { SummaryCard } from "@/components/SummaryCard";
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Edit, Trash2, DollarSign, Users, UserCheck, UserX, CalendarDays, FileText, AlertTriangle, CheckCircle2, HelpCircle, Loader2, Info } from "lucide-react";
@@ -289,10 +289,10 @@ export default function Funcionarios() {
         onAdd={openCreate}
         summaryCards={
           <>
-            <StatCard title="Total de Funcionários" value={String(kpis.total)} icon={Users} />
-            <StatCard title="Ativos" value={String(kpis.ativos)} icon={UserCheck} iconColor="text-success" />
-            <StatCard title="Inativos" value={String(kpis.inativos)} icon={UserX} iconColor={kpis.inativos > 0 ? "text-destructive" : undefined} />
-            <StatCard title="Folha Mensal" value={formatCurrency(kpis.totalSalarios)} icon={DollarSign} />
+            <SummaryCard title="Total de Funcionários" value={String(kpis.total)} icon={Users} />
+            <SummaryCard title="Ativos" value={String(kpis.ativos)} icon={UserCheck} variant="success" />
+            <SummaryCard title="Inativos" value={String(kpis.inativos)} icon={UserX} variant={kpis.inativos > 0 ? "danger" : "default"} />
+            <SummaryCard title="Folha Mensal" value={formatCurrency(kpis.totalSalarios)} icon={DollarSign} />
           </>
         }
       >

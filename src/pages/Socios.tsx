@@ -4,7 +4,7 @@ import { DataTable } from "@/components/DataTable";
 import { StatusBadge } from "@/components/StatusBadge";
 import { FormModal } from "@/components/FormModal";
 import { FormModalFooter } from "@/components/FormModalFooter";
-import { StatCard } from "@/components/StatCard";
+import { SummaryCard } from "@/components/SummaryCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -148,13 +148,13 @@ export default function Socios() {
         onAdd={openCreate}
         summaryCards={
           <>
-            <StatCard title="Total de Sócios" value={String(kpis.total)} icon={Briefcase} />
-            <StatCard title="Ativos" value={String(kpis.ativos)} icon={UserCheck} iconColor="text-success" />
-            <StatCard
+            <SummaryCard title="Total de Sócios" value={String(kpis.total)} icon={Briefcase} />
+            <SummaryCard title="Ativos" value={String(kpis.ativos)} icon={UserCheck} variant="success" />
+            <SummaryCard
               title="Soma de participações"
               value={`${kpis.soma.toFixed(2)}%`}
               icon={Percent}
-              iconColor={Math.abs(kpis.soma - 100) > 0.01 ? "text-warning" : "text-success"}
+              variant={Math.abs(kpis.soma - 100) > 0.01 ? "warning" : "success"}
             />
           </>
         }

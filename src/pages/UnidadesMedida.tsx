@@ -21,7 +21,7 @@ import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect
 import { Loader2, Tag, CheckCircle2, Package } from "lucide-react";
 import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
-import { StatCard } from "@/components/StatCard";
+import { SummaryCard } from "@/components/SummaryCard";
 import { useEditDeepLink } from "@/hooks/useEditDeepLink";
 
 interface UnidadeMedida {
@@ -224,17 +224,17 @@ export default function UnidadesMedida() {
         onAdd={openCreate}
         summaryCards={
           <>
-            <StatCard
+            <SummaryCard
               title="Total"
               value={String(kpis.total)}
               icon={Tag}
             />
-            <StatCard
+            <SummaryCard
               title="Ativas"
               value={String(kpis.ativas)}
               icon={CheckCircle2}
             />
-            <StatCard
+            <SummaryCard
               title="Em uso por produtos"
               value={String(kpis.emUso)}
               icon={Package}

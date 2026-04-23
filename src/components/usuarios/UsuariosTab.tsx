@@ -29,7 +29,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { StatCard } from '@/components/StatCard';
+import { SummaryCard } from '@/components/SummaryCard';
 import { useAuth } from '@/contexts/AuthContext';
 import { PERMISSION_HELP_TEXT } from '@/lib/permissions';
 import {
@@ -244,26 +244,16 @@ export function UsuariosTab() {
 
       {/* Summary stats */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:gap-4">
-        <StatCard title="Total de usuários" value={String(stats.total)} icon={Users} />
-        <StatCard
-          title="Ativos"
-          value={String(stats.ativos)}
-          icon={UserCheck}
-          iconColor="text-emerald-600"
-        />
-        <StatCard
-          title="Administradores"
-          value={String(stats.admins)}
-          icon={Shield}
-          iconColor="text-destructive"
-        />
-        <StatCard
+        <SummaryCard title="Total de usuários" value={String(stats.total)} icon={Users} />
+        <SummaryCard title="Ativos" value={String(stats.ativos)} icon={UserCheck} variant="success" />
+        <SummaryCard title="Administradores" value={String(stats.admins)} icon={Shield} variant="danger" />
+        <SummaryCard
           title="Com exceções"
           value={String(stats.comExtras)}
           icon={ShieldAlert}
-          iconColor="text-warning"
-          change={stats.comExtras > 0 ? 'Permissões complementares ativas' : undefined}
-          changeType="neutral"
+          variant="warning"
+          variation={stats.comExtras > 0 ? 'Permissões complementares ativas' : undefined}
+          variationType="neutral"
         />
       </div>
 

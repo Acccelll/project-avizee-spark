@@ -7,7 +7,7 @@ import { FormModal } from "@/components/FormModal";
 import { FormModalFooter } from "@/components/FormModalFooter";
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
-import { StatCard } from "@/components/StatCard";
+import { SummaryCard } from "@/components/SummaryCard";
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
 import {
   Plus, X, FileText, Banknote, CreditCard, QrCode, ArrowLeftRight, HelpCircle,
@@ -266,10 +266,10 @@ export default function FormasPagamento() {
         onAdd={openCreate}
         summaryCards={
           <>
-            <StatCard title="Total" value={String(data.length)} icon={CreditCard} />
-            <StatCard title="Ativas" value={String(summaryAtivos)} icon={CheckCircle} iconColor="text-success" />
-            <StatCard title="Inativas" value={String(data.length - summaryAtivos)} icon={Ban} />
-            <StatCard title="Geram Financeiro" value={String(summaryGeraFin)} icon={Wallet} iconColor="text-primary" />
+            <SummaryCard title="Total" value={String(data.length)} icon={CreditCard} />
+            <SummaryCard title="Ativas" value={String(summaryAtivos)} icon={CheckCircle} variant="success" />
+            <SummaryCard title="Inativas" value={String(data.length - summaryAtivos)} icon={Ban} />
+            <SummaryCard title="Geram Financeiro" value={String(summaryGeraFin)} icon={Wallet} variant="info" />
           </>
         }
       >

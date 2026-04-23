@@ -42,6 +42,7 @@ import { toast } from 'sonner';
 import { TableSkeleton } from '@/components/ui/content-skeletons';
 import { EmptyState } from '@/components/ui/empty-state';
 import { NoResultsState } from '@/components/ui/NoResultsState';
+import { MobileCardList, type MobileCardField } from '@/components/ui/MobileCardList';
 
 export interface Column<T> {
   key: string;
@@ -520,66 +521,40 @@ export function DataTable<T extends Record<string, any>>({
     );
   };
 
-  // Mobile card layout
+  // Mobile card layout — delega ao componente compartilhado MobileCardList,
+  // mapeando `mobilePrimary`/`mobileCard` (DataTable) para `primary` (MobileCardList).
   const renderMobileCards = () => {
-    // Determine which columns to show in cards
     const primaryCol = visibleColumns.find((c) => c.mobilePrimary) ?? visibleColumns[0];
     const cardCols = visibleColumns.filter((c) => c.mobileCard && c.key !== primaryCol?.key);
-    // Fallback: if no mobileCard columns tagged, show first 3 non-primary visible columns
     const fallbackCols = visibleColumns.filter((c) => c.key !== primaryCol?.key).slice(0, 3);
     const detailCols = cardCols.length > 0 ? cardCols : fallbackCols;
 
+    const fields: MobileCardField<T>[] = [
+      ...(primaryCol
+        ? [{ key: primaryCol.key, label: primaryCol.label, primary: true, render: primaryCol.render } as MobileCardField<T>]
+        : []),
+      ...detailCols.map((col) => ({ key: col.key, label: col.label, render: col.render }) as MobileCardField<T>),
+    ];
+
     return (
-      <div className="space-y-2">
-        {pagedData.map((item, idx) => (
-          <div
-            key={item.id ?? `row-${idx}`}
-            className={cn(
-              'relative rounded-xl border bg-card px-4 py-3 transition-colors active:bg-muted/50',
-              selectable && selectedIds.includes(item.id) && 'border-primary bg-primary/5',
-              (onRowClick || onView) && 'cursor-pointer',
+      <MobileCardList<T>
+        items={pagedData}
+        fields={fields}
+        onItemClick={onRowClick}
+        actions={(item) => (
+          <div className="flex items-center gap-1">
+            {selectable && (
+              <Checkbox
+                checked={selectedIds.includes(item.id)}
+                onCheckedChange={() => toggleSelect(item.id)}
+                onClick={(e) => e.stopPropagation()}
+                aria-label="Selecionar item"
+              />
             )}
-            onClick={() => { onRowClick?.(item); }}
-            onDoubleClick={onView ? () => onView(item) : undefined}
-          >
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0 flex-1 space-y-1.5">
-                {/* Primary field */}
-                {primaryCol && (
-                  <div className="font-medium text-sm leading-snug">
-                    {primaryCol.render ? primaryCol.render(item) : item[primaryCol.key]}
-                  </div>
-                )}
-                {/* Detail fields */}
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                  {detailCols.map((col) => (
-                    <div key={col.key} className="flex items-baseline gap-1 min-w-0">
-                      <span className="shrink-0 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                        {col.label}:
-                      </span>
-                      <span className="text-xs">
-                        {col.render ? col.render(item) : item[col.key] ?? '—'}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              {/* Actions */}
-              <div className="flex shrink-0 items-center gap-1">
-                {selectable && (
-                  <Checkbox
-                    checked={selectedIds.includes(item.id)}
-                    onCheckedChange={() => toggleSelect(item.id)}
-                    onClick={(e) => e.stopPropagation()}
-                    aria-label="Selecionar item"
-                  />
-                )}
-                {renderMobileActions(item)}
-              </div>
-            </div>
+            {renderMobileActions(item)}
           </div>
-        ))}
-      </div>
+        )}
+      />
     );
   };
 

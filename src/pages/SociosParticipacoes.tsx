@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { ModulePage } from "@/components/ModulePage";
-import { StatCard } from "@/components/StatCard";
+import { SummaryCard } from "@/components/SummaryCard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -129,10 +129,10 @@ export default function SociosParticipacoes() {
         subtitle="Apuração mensal, retiradas e geração financeira"
         summaryCards={
           <>
-            <StatCard title="Lucro base" value={formatCurrency(kpis.lucroBase)} icon={TrendingUp} />
-            <StatCard title="Pró-labore mês" value={formatCurrency(kpis.proLabore)} icon={DollarSign} />
-            <StatCard title="Bônus mês" value={formatCurrency(kpis.bonus)} icon={PieChart} />
-            <StatCard title="Saldo a distribuir" value={formatCurrency(kpis.saldo)} icon={DollarSign} iconColor={kpis.saldo < 0 ? "text-destructive" : "text-success"} />
+            <SummaryCard title="Lucro base" value={formatCurrency(kpis.lucroBase)} icon={TrendingUp} />
+            <SummaryCard title="Pró-labore mês" value={formatCurrency(kpis.proLabore)} icon={DollarSign} />
+            <SummaryCard title="Bônus mês" value={formatCurrency(kpis.bonus)} icon={PieChart} />
+            <SummaryCard title="Saldo a distribuir" value={formatCurrency(kpis.saldo)} icon={DollarSign} variant={kpis.saldo < 0 ? "danger" : "success"} />
           </>
         }
       >
