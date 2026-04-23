@@ -48,4 +48,5 @@
 - [Contrato de Períodos](mem://produto/contrato-de-periodos)
 - [Comercial Mobile](mem://produto/comercial-mobile)
 - [Compras Mobile](mem://produto/compras-mobile)
+- [Estoque & Logística Mobile](mem://produto/estoque-logistica-mobile) — DataTable mobile props, EstoqueAjusteSheet (bottom-sheet pré-preenchível), footers operacionais e CTA primário por estado
 - [RLS Single-Tenant](mem://security/rls-single-tenant) — Modo single-tenant; tabelas críticas com USING(true), exceto app_configuracoes (admin); checklist multi-tenant
