@@ -280,6 +280,7 @@ const FluxoCaixa = () => {
     },
     {
       key: "descricao", label: "Descrição", sortable: true,
+      mobilePrimary: true,
       render: (l: Lancamento) => <span className="text-sm">{displayDescricao(l)}</span>,
     },
     {
