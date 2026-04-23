@@ -29,6 +29,8 @@ interface AuthContextType {
   deniedPermissions: PermissionKey[];
   hasRole: (role: AppRole) => boolean;
   signOut: () => Promise<void>;
+  /** Re-busca o profile do usuário atual (útil após edição em Configurações). */
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -42,6 +44,7 @@ const AuthContext = createContext<AuthContextType>({
   deniedPermissions: [],
   hasRole: () => false,
   signOut: async () => {},
+  refreshProfile: async () => {},
 });
 
 export const useAuth = () => useContext(AuthContext);
