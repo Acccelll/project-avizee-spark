@@ -962,7 +962,7 @@ export default function OrcamentoForm() {
         </>
       }
     >
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-12 pb-24 md:pb-0">
         <div className="lg:col-span-8 space-y-5">
           {/* Identificação do Orçamento */}
           <div className="bg-card rounded-xl border shadow-soft p-5">
@@ -1409,6 +1409,21 @@ export default function OrcamentoForm() {
       </Dialog>
 
       {confirmActionDialog}
+
+      {/* Footer sticky mobile com Total + Salvar */}
+      <div
+        className="md:hidden fixed bottom-0 inset-x-0 bg-background/95 backdrop-blur border-t z-40 px-3 py-3 flex items-center justify-between gap-3"
+        style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}
+      >
+        <div className="min-w-0">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground leading-none">Total</p>
+          <p className="mt-0.5 text-base font-bold text-primary tabular-nums">{formatCurrency(valorTotal)}</p>
+        </div>
+        <Button onClick={handleSave} disabled={saving} className="h-11 px-6 gap-2">
+          <Save className="w-4 h-4" />
+          {saving ? "Salvando..." : "Salvar"}
+        </Button>
+      </div>
     </PageShell>
   );
 }
