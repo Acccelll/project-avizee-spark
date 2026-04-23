@@ -1,8 +1,10 @@
 import { createContext, useContext, useCallback, useEffect, useMemo, useReducer, useRef, ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
 import { RelationalDrawerSlotsProvider } from "@/contexts/RelationalDrawerSlotsContext";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export const MAX_DRAWER_DEPTH = 5;
+export const MAX_DRAWER_DEPTH_MOBILE = 3;
 
 export type EntityType =
   | "produto"
@@ -49,12 +51,14 @@ type Action =
   | { type: "confirm_push" }
   | { type: "cancel_push" }
   | { type: "pop" }
-  | { type: "clear" };
+  | { type: "clear" }
+  | { type: "trim_to_limit"; payload: number };
 
 interface RelationalNavigationContextType {
   stack: ViewState[];
   canPush: boolean;
   pendingPush: ViewState | null;
+  maxDepth: number;
   pushView: (type: EntityType, id: string) => void;
   confirmPendingPush: () => void;
   cancelPendingPush: () => void;
