@@ -6698,6 +6698,25 @@ export type Database = {
         Args: { p_itens: Json; p_produto_id: string }
         Returns: undefined
       }
+      save_user_profile: {
+        Args: { p_cargo: string; p_nome: string }
+        Returns: {
+          ativo: boolean
+          avatar_url: string | null
+          cargo: string | null
+          created_at: string
+          email: string | null
+          id: string
+          nome: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "profiles"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       set_principal_endereco: {
         Args: { p_cliente_id: string; p_endereco_id: string }
         Returns: undefined
