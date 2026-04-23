@@ -31,6 +31,7 @@ import { getEffectiveStatus as libGetEffectiveStatus } from "@/lib/financeiro";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown, ChevronUp } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 type Periodicidade = "diaria" | "semanal" | "mensal";
 
