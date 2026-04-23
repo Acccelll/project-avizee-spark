@@ -131,7 +131,7 @@ const App = () => (
                       <Route path="/formas-pagamento" element={<PermissionRoute resource="formas_pagamento"><LazyPage><FormasPagamento /></LazyPage></PermissionRoute>} />
                       <Route path="/unidades-medida" element={<Navigate to="/produtos" replace />} />
                       <Route path="/grupos-economicos" element={<PermissionRoute resource="clientes"><LazyPage><GruposEconomicos /></LazyPage></PermissionRoute>} />
-                      <Route path="/funcionarios" element={<ProtectedRoute><LazyPage><Funcionarios /></LazyPage></ProtectedRoute>} />
+                      <Route path="/funcionarios" element={<PermissionRoute resource="usuarios"><LazyPage><Funcionarios /></LazyPage></PermissionRoute>} />
                       <Route path="/compras" element={<Navigate to="/pedidos-compra" replace />} />
                       <Route path="/cotacoes-compra" element={<PermissionRoute resource="compras"><LazyPage><CotacoesCompra /></LazyPage></PermissionRoute>} />
                       <Route path="/cotacoes-compra/:id" element={<PermissionRoute resource="compras"><LazyPage><CotacaoCompraForm /></LazyPage></PermissionRoute>} />
