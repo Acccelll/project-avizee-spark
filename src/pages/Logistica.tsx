@@ -462,7 +462,7 @@ export default function Logistica() {
 
   // ─── Columns ───
   const entregaColumns = [
-    { key: "numero_pedido", label: "Pedido", sortable: true, render: (item: Entrega) => (
+    { key: "numero_pedido", label: "Pedido", sortable: true, mobilePrimary: true, render: (item: Entrega) => (
       <div className="inline-flex flex-col items-start gap-0.5">
         <span className="font-mono text-xs font-semibold text-primary">{item.numero_pedido}</span>
         {item.exibicao_remessas === "multipla" && (
@@ -513,7 +513,7 @@ export default function Logistica() {
   ];
 
   const recebimentosColumns = [
-    { key: "numero_compra", label: "Compra", sortable: true, render: (item: Recebimento) => <span className="font-mono text-xs font-semibold text-primary">{item.numero_compra}</span> },
+    { key: "numero_compra", label: "Compra", sortable: true, mobilePrimary: true, render: (item: Recebimento) => <span className="font-mono text-xs font-semibold text-primary">{item.numero_compra}</span> },
     { key: "fornecedor", label: "Fornecedor", render: (item: Recebimento) => <span className="font-medium text-sm">{item.fornecedor}</span> },
     { key: "status_logistico", label: "Status", sortable: true, render: (item: Recebimento) => {
       const cfg = getRecebimentoStatusCfg(item.status_logistico);
@@ -560,7 +560,7 @@ export default function Logistica() {
   ];
 
   const remessaColumns = [
-    { key: "codigo_rastreio", label: "Rastreio", render: (r: Remessa) => <span className="font-mono text-xs">{r.codigo_rastreio || "—"}</span> },
+    { key: "codigo_rastreio", label: "Rastreio", mobilePrimary: true, render: (r: Remessa) => <span className="font-mono text-xs">{r.codigo_rastreio || "—"}</span> },
     { key: "cliente_id", label: "Cliente", render: (r: Remessa) => clienteMapLookup[r.cliente_id ?? ""] ?? "—" },
     { key: "transportadora_id", label: "Transportadora", render: (r: Remessa) => transpMapLookup[r.transportadora_id ?? ""] ?? "—" },
     { key: "data_postagem", label: "Postagem", render: (r: Remessa) => r.data_postagem ? format(new Date(r.data_postagem + "T00:00:00"), "dd/MM/yyyy") : "—" },
@@ -675,7 +675,26 @@ export default function Logistica() {
                 <Input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} className="h-9 w-[140px] text-xs" title="Prev. entrega até" />
               </div>
             </AdvancedFilterBar>
-            <DataTable columns={entregaColumns} data={filteredEntregas} loading={loading} moduleKey="logistica-entregas" showColumnToggle emptyTitle="Nenhuma entrega encontrada" emptyDescription="Tente ajustar os filtros de status ou período." />
+            <DataTable
+              columns={entregaColumns}
+              data={filteredEntregas}
+              loading={loading}
+              moduleKey="logistica-entregas"
+              showColumnToggle
+              onView={(e) => setSelectedEntrega(e as Entrega)}
+              mobileStatusKey="status_logistico"
+              mobileIdentifierKey="cliente"
+              mobilePrimaryAction={(item) => {
+                if (!item.codigo_rastreio) return null;
+                return (
+                  <Button size="lg" variant="default" className="h-11 w-full gap-2 text-sm" onClick={(e) => { e.stopPropagation(); abrirRastreioEntrega(item); }}>
+                    <Search className="w-4 h-4" /> Rastrear entrega
+                  </Button>
+                );
+              }}
+              emptyTitle="Nenhuma entrega encontrada"
+              emptyDescription="Tente ajustar os filtros de status ou período."
+            />
           </TabsContent>
 
           {/* ── Tab: Recebimentos ── */}
@@ -699,7 +718,26 @@ export default function Logistica() {
                 <Input type="date" value={dataFimReceb} onChange={(e) => setDataFimReceb(e.target.value)} className="h-9 w-[140px] text-xs" title="Prev. entrega até" />
               </div>
             </AdvancedFilterBar>
-            <DataTable columns={recebimentosColumns} data={filteredRecebimentos} loading={loading} moduleKey="logistica-recebimentos" showColumnToggle emptyTitle="Nenhum recebimento encontrado" emptyDescription="Tente ajustar os filtros de status ou período." />
+            <DataTable
+              columns={recebimentosColumns}
+              data={filteredRecebimentos}
+              loading={loading}
+              moduleKey="logistica-recebimentos"
+              showColumnToggle
+              onView={(r) => setSelectedRecebimento(r as Recebimento)}
+              mobileStatusKey="status_logistico"
+              mobileIdentifierKey="fornecedor"
+              mobilePrimaryAction={(item) => {
+                if (!canEdit || item.status_logistico === "recebido") return null;
+                return (
+                  <Button size="lg" variant="default" className="h-11 w-full gap-2 text-sm" onClick={(e) => { e.stopPropagation(); abrirRegistrarRecebimento(item); }}>
+                    <CheckCheck className="w-4 h-4" /> Registrar recebimento
+                  </Button>
+                );
+              }}
+              emptyTitle="Nenhum recebimento encontrado"
+              emptyDescription="Tente ajustar os filtros de status ou período."
+            />
           </TabsContent>
 
           {/* ── Tab: Remessas ── */}
@@ -708,7 +746,26 @@ export default function Logistica() {
               <MultiSelect options={remStatusOptions} selected={remStatusFilters} onChange={setRemStatusFilters} placeholder="Status" className="w-[180px]" />
               <MultiSelect options={remTranspOptions} selected={remTranspFilters} onChange={setRemTranspFilters} placeholder="Transportadoras" className="w-[220px]" />
             </AdvancedFilterBar>
-            <DataTable columns={remessaColumns} data={filteredRemessas} loading={remessasLoading} onView={openViewRemessa} onEdit={(r) => navigate(`/remessas/${r.id}`)} emptyTitle="Nenhuma remessa encontrada" emptyDescription="Tente ajustar os filtros ou crie uma nova remessa." />
+            <DataTable
+              columns={remessaColumns}
+              data={filteredRemessas}
+              loading={remessasLoading}
+              onView={openViewRemessa}
+              onEdit={(r) => navigate(`/remessas/${r.id}`)}
+              moduleKey="logistica-remessas"
+              mobileStatusKey="status_transporte"
+              mobileIdentifierKey="cliente_id"
+              mobilePrimaryAction={(r) => {
+                if (!r.codigo_rastreio) return null;
+                return (
+                  <Button size="lg" variant="default" className="h-11 w-full gap-2 text-sm" onClick={(e) => { e.stopPropagation(); setTrackingTarget({ codigo: r.codigo_rastreio!, remessaId: r.id }); }}>
+                    <Search className="w-4 h-4" /> Rastrear Correios
+                  </Button>
+                );
+              }}
+              emptyTitle="Nenhuma remessa encontrada"
+              emptyDescription="Tente ajustar os filtros ou crie uma nova remessa."
+            />
           </TabsContent>
         </Tabs>
       </ModulePage>
@@ -753,11 +810,12 @@ export default function Logistica() {
           <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" aria-label="Excluir remessa" onClick={() => { setRemDrawerOpen(false); removeRemessa(remSelected.id); }}><Trash2 className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Excluir</TooltipContent></Tooltip>
         </> : undefined}
         summary={remSelected ? (
-          <div className="grid grid-cols-4 gap-3">
+          {/* Mobile: 2x2 com truncate. Desktop: linha única. */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {remSummaryItems.map((s, i) => (
-              <div key={i} className="rounded-lg border bg-card p-3 text-center space-y-1">
+              <div key={i} className="rounded-lg border bg-card p-3 text-center space-y-1 min-w-0">
                 <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">{s.label}</p>
-                <p className="font-semibold text-sm">{s.value}</p>
+                <p className="font-semibold text-sm truncate" title={s.value}>{s.value}</p>
               </div>
             ))}
           </div>
@@ -808,11 +866,11 @@ export default function Logistica() {
                 )}
                 <div className="rounded-lg border bg-card p-3 space-y-3">
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Novo Evento</p>
-                  <div className="grid grid-cols-2 gap-3">
-                    <Input placeholder="Descrição do evento *" value={eventoForm.descricao} onChange={e => setEventoForm({ ...eventoForm, descricao: e.target.value })} />
-                    <Input placeholder="Local (opcional)" value={eventoForm.local} onChange={e => setEventoForm({ ...eventoForm, local: e.target.value })} />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <Input placeholder="Descrição do evento *" value={eventoForm.descricao} onChange={e => setEventoForm({ ...eventoForm, descricao: e.target.value })} className="max-sm:h-11" />
+                    <Input placeholder="Local (opcional)" value={eventoForm.local} onChange={e => setEventoForm({ ...eventoForm, local: e.target.value })} className="max-sm:h-11" />
                   </div>
-                  <Button size="sm" onClick={handleAddEvento} disabled={savingEvento}><Plus className="h-3.5 w-3.5 mr-1" />{savingEvento ? "Salvando..." : "Adicionar"}</Button>
+                  <Button size="sm" onClick={handleAddEvento} disabled={savingEvento} className="max-sm:h-11 max-sm:w-full"><Plus className="h-3.5 w-3.5 mr-1" />{savingEvento ? "Salvando..." : "Adicionar"}</Button>
                 </div>
                 {eventos.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-6">Nenhum evento registrado</p>
