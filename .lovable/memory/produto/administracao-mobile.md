@@ -25,7 +25,8 @@ type: design
 - `SectionShell`: barra Salvar com layout dual:
   - Desktop: inline no fim do conteúdo.
   - Mobile: `fixed bottom-0 z-30` com `pb-[max(0.5rem,env(safe-area-inset-bottom))]` e `min-h-11`. Container do shell ganha `max-sm:pb-24` para o conteúdo não ficar atrás.
-- `UserFormModal`: usa `FormModal footer` prop (já com sticky+safe-area embutido); botões `max-sm:flex-1 max-sm:min-h-11`.
+- `UserFormModal`: stepper mobile (4 passos em edit, 3 em create) com indicador sticky no topo (Passo X de N + dots de progresso). Footer com Voltar/Próximo/Salvar `min-h-11`. Em desktop mantém scroll único + Cancelar/Salvar. Cada bloco usa `hidden` para ficar isolado por passo em mobile.
+- `IntegracoesSection` SEFAZ: Textarea `rows={3}` em mobile (vs 4 desktop), `text-[11px] leading-snug`. Botão "Mostrar/Ocultar conteúdo" `w-full min-h-11` em mobile, alinhado abaixo da legenda em vez de inline.
 
 ## KPIs e skeletons
 - `DashboardAdmin`: SummaryCards `grid-cols-2 sm:grid-cols-2 lg:grid-cols-4`.
