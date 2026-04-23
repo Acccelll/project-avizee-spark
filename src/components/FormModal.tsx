@@ -85,6 +85,9 @@ export function FormModal({
           sizeMap[size],
           "max-h-[90dvh] overflow-hidden p-0 flex flex-col",
           "max-sm:inset-x-0 max-sm:bottom-0 max-sm:top-0 max-sm:m-0 max-sm:max-h-none max-sm:max-w-none max-sm:translate-x-0 max-sm:translate-y-0 max-sm:rounded-none max-sm:border-x-0",
+          // FormModal vai full-screen em mobile — esconde o drag handle do
+          // bottom-sheet (DialogContent default), pois aqui não é arrastável.
+          "[&>[aria-hidden='true']:first-child]:max-sm:hidden",
         )}
       >
         <DialogHeader className="shrink-0 bg-background px-6 pt-5 pb-3.5 pr-12 space-y-2">
