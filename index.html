@@ -9,6 +9,9 @@
     
     <meta property="og:type" content="website" />
     <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <!-- Preload LCP image (login/signup logo) so the browser discovers it during HTML parse,
+         before the JS bundle resolves the React tree. Vite rewrites this href to the hashed asset. -->
+    <link rel="preload" as="image" href="/src/assets/brand-logotipo.png" fetchpriority="high">
     <meta property="og:title" content="Sistema AviZee">
   <meta name="twitter:title" content="Sistema AviZee">
   <meta property="og:description" content="ERP AviZee - Sistema de Gestão Empresarial">
