@@ -280,7 +280,6 @@ export const RESOURCE_ACTIONS: Record<ErpResource, ErpAction[]> = {
     "aprovar",
     "cancelar",
     "exportar",
-    "confirmar",
   ],
   compras: [
     "visualizar",
@@ -289,9 +288,8 @@ export const RESOURCE_ACTIONS: Record<ErpResource, ErpAction[]> = {
     "excluir",
     "aprovar",
     "cancelar",
-    "confirmar",
   ],
-  estoque: ["visualizar", "editar", "exportar", "aprovar"],
+  estoque: ["visualizar", "editar", "exportar"],
   logistica: ["visualizar", "editar", "exportar"],
   financeiro: [
     "visualizar",

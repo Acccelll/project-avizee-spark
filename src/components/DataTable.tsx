@@ -42,6 +42,7 @@ import { NoResultsState } from '@/components/ui/NoResultsState';
 import { MobileCardList, type MobileCardField } from '@/components/ui/MobileCardList';
 import { useDataTablePrefs } from '@/hooks/useDataTablePrefs';
 import { useDataTableExport } from '@/hooks/useDataTableExport';
+import type { PermissionKey } from '@/lib/permissions';
 
 export interface Column<T> {
   key: string;
@@ -121,6 +122,12 @@ interface DataTableProps<T> {
    * @default 600
    */
   maxHeight?: number;
+  /**
+   * Permissão necessária para exportar via menu do DataTable.
+   * Default: "relatorios:exportar". Páginas podem sobrescrever
+   * (ex.: "financeiro:exportar"). Ver mem://produto/contrato-de-status.
+   */
+  exportPermission?: PermissionKey;
 }
 
 type SortDirection = 'asc' | 'desc' | null;
@@ -157,6 +164,7 @@ export function DataTable<T extends Record<string, any>>({
   activeFiltersCount = 0,
   onClearFilters,
   searchTerm,
+  exportPermission = 'relatorios:exportar',
 }: DataTableProps<T>) {
   const isMobile = useIsMobile();
   const [deleteItem, setDeleteItem] = useState<T | null>(null);
@@ -326,6 +334,7 @@ export function DataTable<T extends Record<string, any>>({
     rows: sortedData,
     columns: visibleColumns.map((c) => ({ key: c.key, label: c.label })),
     titulo: moduleKey || 'dados',
+    permission: exportPermission,
   });
 
   const deleteActionLabel = deleteBehavior === 'soft' ? 'Inativar' : 'Excluir permanentemente';
