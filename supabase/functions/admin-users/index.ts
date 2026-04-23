@@ -326,6 +326,18 @@ Deno.serve(async (req) => {
       const cargo = String(payload.cargo ?? "").trim();
       const ativo = payload.ativo !== false;
       const rolePadrao = normalizeRole(payload.role_padrao);
+      // Senha opcional definida pelo admin. Se vier, valida estrutura mínima
+      // (mesma régua de `src/lib/passwordPolicy.ts`) e pula o convite por
+      // e-mail — o admin assume a entrega da senha pessoalmente.
+      const manualPassword = typeof payload.password === "string" ? payload.password : "";
+      if (manualPassword) {
+        const okLen = manualPassword.length >= 8;
+        const okCase = /[A-Z]/.test(manualPassword) && /[a-z]/.test(manualPassword);
+        const okDigit = /\d/.test(manualPassword);
+        if (!okLen || !okCase || !okDigit) {
+          throw new HttpError(400, "Senha não atende à política mínima (8+ chars, maiúscula, minúscula, número).");
+        }
+      }
 
       if (!nome || !email) throw new HttpError(400, "Nome e e-mail são obrigatórios.");
       console.log("[admin-users] create: starting", { email, nome, rolePadrao });
@@ -342,7 +354,21 @@ Deno.serve(async (req) => {
       let recoveryLink: string | null = null;
       let inviteSent = false;
 
-      try {
+      if (manualPassword) {
+        // Caminho direto: admin definiu a senha. Cria usuário já confirmado.
+        const createResult = await serviceClient.auth.admin.createUser({
+          email,
+          password: manualPassword,
+          email_confirm: true,
+          user_metadata: { full_name: nome },
+        });
+        if (createResult.error || !createResult.data?.user) {
+          console.error("[admin-users] create: createUser with manual password failed", createResult.error);
+          throw createResult.error ?? new Error("Falha ao criar usuário com a senha informada.");
+        }
+        targetUser = createResult.data.user;
+        console.log("[admin-users] create: user created with admin-provided password", { userId: targetUser.id });
+      } else try {
         const inviteResult = await serviceClient.auth.admin.inviteUserByEmail(email, { data: { full_name: nome } });
         if (inviteResult.error) throw inviteResult.error;
         if (!inviteResult.data?.user) throw new Error("Resposta vazia ao convidar usuário.");

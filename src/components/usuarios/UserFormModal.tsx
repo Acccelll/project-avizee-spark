@@ -13,7 +13,7 @@
  */
 
 import { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, ChevronLeft, ChevronRight, Info, Loader2 } from 'lucide-react';
+import { AlertTriangle, ChevronLeft, ChevronRight, Eye, EyeOff, Info, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -39,6 +39,7 @@ import {
   getRolePermissions,
 } from '@/lib/permissions';
 import { getUserFriendlyError } from '@/utils/errorMessages';
+import { validatePassword, PASSWORD_MIN_LENGTH } from '@/lib/passwordPolicy';
 import {
   ALL_ROLES,
   emptyForm,
@@ -72,6 +73,11 @@ export function UserFormModal({
   const [mobileStep, setMobileStep] = useState(0);
   const [confirmRoleChange, setConfirmRoleChange] = useState<AppRole | null>(null);
   const [roleChangeMotivo, setRoleChangeMotivo] = useState('');
+  // Senha definida manualmente pelo admin no momento da criação.
+  // Se vazia, a edge function tenta convite por e-mail e cai para senha
+  // temporária no fallback (comportamento legado preservado).
+  const [manualPassword, setManualPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [tempCredentials, setTempCredentials] = useState<{
     userName: string;
     email: string;
@@ -87,6 +93,8 @@ export function UserFormModal({
   useEffect(() => {
     if (!open) return;
     setMobileStep(0);
+    setManualPassword('');
+    setShowPassword(false);
     if (user) {
       setForm({
         nome: user.nome,
@@ -133,6 +141,14 @@ export function UserFormModal({
         toast.error('Informe um endereço de e-mail válido.');
         return;
       }
+      // Senha é opcional. Se preenchida, precisa atender à política única.
+      if (manualPassword) {
+        const result = validatePassword(manualPassword);
+        if (!result.valid) {
+          toast.error(result.error ?? 'Senha inválida.');
+          return;
+        }
+      }
     }
     if (isEdit && user?.id === currentUser?.id && !form.ativo) {
       toast.error('Você não pode inativar a própria conta.');
@@ -156,6 +172,9 @@ export function UserFormModal({
         cargo: form.cargo.trim(),
         ativo: form.ativo,
         role_padrao: form.role_padrao,
+        // Senha definida pelo admin (opcional). Quando presente, a edge
+        // function pula o convite por e-mail e cria o usuário com esta senha.
+        password: !isEdit && manualPassword ? manualPassword : undefined,
         // Novo shape `{ allow, deny }` — back-compat aceita também `string[]`.
         // Edge function `admin-users` normaliza e atualiza `user_permissions`
         // preservando histórico (allowed=false em vez de DELETE para revogações).
@@ -350,6 +369,34 @@ export function UserFormModal({
                   placeholder="Ex.: Analista Comercial"
                 />
               </div>
+              {!isEdit && (
+                <div className="space-y-1.5 sm:col-span-2">
+                  <Label>Senha inicial (opcional)</Label>
+                  <div className="relative">
+                    <Input
+                      value={manualPassword}
+                      onChange={(e) => setManualPassword(e.target.value)}
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder={`Mínimo ${PASSWORD_MIN_LENGTH} caracteres, com maiúscula, minúscula e número`}
+                      autoComplete="new-password"
+                      className="pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                      tabIndex={-1}
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                    <Info className="h-3 w-3" />
+                    Se em branco, o sistema envia convite por e-mail ou gera uma senha temporária.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
