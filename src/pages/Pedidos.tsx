@@ -438,6 +438,7 @@ const Pedidos = () => {
           moduleKey="pedidos"
           showColumnToggle={true}
           onView={handleView}
+          mobileStatusKey="status"
           mobilePrimaryAction={(p) => {
             if (!canFaturarPedido(p)) return null;
             return (

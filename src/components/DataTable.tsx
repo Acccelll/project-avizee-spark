@@ -144,6 +144,12 @@ interface DataTableProps<T> {
    * (Aprovar / Gerar Pedido / Faturar / Enviar). Retorne `null` para ocultar.
    */
   mobilePrimaryAction?: (item: T) => React.ReactNode;
+  /**
+   * Coluna a ser extraída e renderizada como pill de status no canto
+   * superior direito do card mobile (em vez de aparecer como detail-field).
+   * Tipicamente uma coluna que renderiza `<StatusBadge />`.
+   */
+  mobileStatusKey?: string;
 }
 
 type SortDirection = 'asc' | 'desc' | null;
@@ -184,6 +190,7 @@ export function DataTable<T extends Record<string, any>>({
   mobileIdentifierKey,
   mobileInlineActions,
   mobilePrimaryAction,
+  mobileStatusKey,
 }: DataTableProps<T>) {
   const isMobile = useIsMobile();
   const [deleteItem, setDeleteItem] = useState<T | null>(null);
@@ -445,11 +452,23 @@ export function DataTable<T extends Record<string, any>>({
     const identifierCol = mobileIdentifierKey
       ? visibleColumns.find((c) => c.key === mobileIdentifierKey)
       : undefined;
+    const statusCol = mobileStatusKey
+      ? visibleColumns.find((c) => c.key === mobileStatusKey)
+      : undefined;
     const cardCols = visibleColumns.filter(
-      (c) => c.mobileCard && c.key !== primaryCol?.key && c.key !== identifierCol?.key,
+      (c) =>
+        c.mobileCard &&
+        c.key !== primaryCol?.key &&
+        c.key !== identifierCol?.key &&
+        c.key !== statusCol?.key,
     );
     const fallbackCols = visibleColumns
-      .filter((c) => c.key !== primaryCol?.key && c.key !== identifierCol?.key)
+      .filter(
+        (c) =>
+          c.key !== primaryCol?.key &&
+          c.key !== identifierCol?.key &&
+          c.key !== statusCol?.key,
+      )
       .slice(0, 3);
     const detailCols = cardCols.length > 0 ? cardCols : fallbackCols;
 
@@ -470,6 +489,14 @@ export function DataTable<T extends Record<string, any>>({
         onItemClick={onRowClick ?? onView ?? onEdit}
         actionsInline={mobileInlineActions}
         primaryAction={mobilePrimaryAction}
+        statusBadge={
+          statusCol
+            ? (item) =>
+                statusCol.render
+                  ? statusCol.render(item)
+                  : String((item as Record<string, unknown>)[statusCol.key] ?? "")
+            : undefined
+        }
         actions={(item) => (
           <div className="flex items-center gap-1">
             {selectable && (

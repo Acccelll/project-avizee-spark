@@ -537,6 +537,7 @@ const Orcamentos = () => {
             showColumnToggle={true}
             onView={(o) => pushView("orcamento", o.id)}
             onEdit={(o) => navigate(`/orcamentos/${o.id}`)}
+            mobileStatusKey="status"
             mobilePrimaryAction={(o) => {
               if (canConvertOrcamento(o.status)) {
                 return (
