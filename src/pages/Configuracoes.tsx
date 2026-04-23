@@ -1,9 +1,10 @@
 import { useEffect } from 'react';
-import { ArrowUpRight, Building2, Lock, Palette, User } from 'lucide-react';
+import { ArrowUpRight, Building2, Info, Lock, Palette, User } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ModulePage } from '@/components/ModulePage';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
@@ -24,14 +25,15 @@ import { EmpresaInfoSection } from './configuracoes/sections/EmpresaInfoSection'
 interface TabNavItem {
   key: string;
   label: string;
+  shortLabel: string;
   icon: typeof User;
 }
 
 const tabNavItems: TabNavItem[] = [
-  { key: 'perfil', label: 'Meu Perfil', icon: User },
-  { key: 'aparencia', label: 'Aparência', icon: Palette },
-  { key: 'seguranca', label: 'Segurança', icon: Lock },
-  { key: 'empresa', label: 'Empresa', icon: Building2 },
+  { key: 'perfil', label: 'Meu Perfil', shortLabel: 'Perfil', icon: User },
+  { key: 'aparencia', label: 'Aparência', shortLabel: 'Aparência', icon: Palette },
+  { key: 'seguranca', label: 'Segurança', shortLabel: 'Segurança', icon: Lock },
+  { key: 'empresa', label: 'Empresa', shortLabel: 'Empresa', icon: Building2 },
 ];
 
 const TAB_TITLES: Record<string, string> = {
