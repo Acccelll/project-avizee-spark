@@ -805,8 +805,14 @@ const Fiscal = () => {
     <><ModulePage title={tipoConfig.title} subtitle={tipoConfig.subtitle} addLabel={tipoConfig.addLabel} onAdd={openCreate}
         headerActions={<>
           <input ref={xmlInputRef} type="file" accept=".xml" className="hidden" onChange={handleXmlImport} />
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => xmlInputRef.current?.click()}>
-            <Upload className="h-3.5 w-3.5" /> Importar XML
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 min-h-11 md:min-h-9 px-3"
+            onClick={() => xmlInputRef.current?.click()}
+            aria-label="Importar XML de NF-e"
+          >
+            <Upload className="h-4 w-4 md:h-3.5 md:w-3.5" /> <span className="hidden xs:inline">Importar </span>XML
           </Button>
         </>}
       >
