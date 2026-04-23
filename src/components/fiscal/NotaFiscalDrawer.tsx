@@ -150,6 +150,7 @@ export function NotaFiscalDrawer({
   const { pending: confirmarPending, run: runConfirmar } = useActionLock();
   const { pending: estornarPending, run: runEstornar } = useActionLock();
   const { pending: devolucaoPending, run: runDevolucao } = useActionLock();
+  const isMobile = useIsMobile();
 
   if (!open || !selected) return null;
 
