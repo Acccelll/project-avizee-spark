@@ -7,6 +7,7 @@ import {
   type AppRole,
   type PermissionKey,
 } from "@/lib/permissions";
+import { logger } from "@/lib/logger";
 
 /** Re-export para preservar imports existentes (`import type { AppRole } from "@/contexts/AuthContext"`). */
 export type { AppRole };
@@ -76,7 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data } = await supabase.from("profiles").select("*").eq("id", userId).single();
       if (data) setProfile(data);
     } catch (err) {
-      console.error("[auth] Failed to fetch profile", err);
+      logger.error("[auth] Failed to fetch profile", err);
     }
   };
 
@@ -90,7 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setRoles(validRoles);
       }
     } catch (err) {
-      console.error("[auth] Failed to fetch roles", err);
+      logger.error("[auth] Failed to fetch roles", err);
       setRoles([]);
     }
   };
@@ -112,7 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setExtraPermissions(allow);
       setDeniedPermissions(deny);
     } catch (err) {
-      console.error("[auth] Failed to fetch extra permissions", err);
+      logger.error("[auth] Failed to fetch extra permissions", err);
       setExtraPermissions([]);
       setDeniedPermissions([]);
     }

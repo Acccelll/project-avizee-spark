@@ -62,7 +62,6 @@ const WorkbookGerencial = lazy(() => import("./pages/WorkbookGerencial"));
 const ApresentacaoGerencial = lazy(() => import("./pages/ApresentacaoGerencial"));
 const Social = lazy(() => import("./pages/Social"));
 const Socios = lazy(() => import("./pages/Socios"));
-const SociosParticipacoes = lazy(() => import("./pages/SociosParticipacoes"));
 
 // Redirect component that properly maps :id param
 function CotacaoIdRedirect() {
@@ -173,7 +172,8 @@ const App = () => (
                       <Route path="/relatorios/apresentacao-gerencial" element={<PermissionRoute resource="apresentacao"><LazyPage><ApresentacaoGerencial /></LazyPage></PermissionRoute>} />
                       <Route path="/social" element={<SocialRoute><LazyPage><Social /></LazyPage></SocialRoute>} />
                       <Route path="/socios" element={<PermissionRoute resource="socios"><LazyPage><Socios /></LazyPage></PermissionRoute>} />
-                      <Route path="/socios-participacoes" element={<PermissionRoute resource="socios"><LazyPage><SociosParticipacoes /></LazyPage></PermissionRoute>} />
+                      {/* Alias legado: redireciona preservando deep-links externos para a aba de Participações dentro de /socios */}
+                      <Route path="/socios-participacoes" element={<PermissionRoute resource="socios"><Navigate to="/socios?tab=participacoes" replace /></PermissionRoute>} />
                       {/* Catch-all dentro do shell — preserva sidebar/header em rotas inválidas */}
                       <Route path="*" element={<LazyPage><NotFound /></LazyPage>} />
                     </Route>

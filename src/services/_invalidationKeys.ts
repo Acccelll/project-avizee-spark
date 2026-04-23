@@ -24,6 +24,7 @@ export const INVALIDATION_KEYS = {
     "estoque-produtos",
     "estoque-movimentacoes",
     "contas_bancarias",
+    "fluxo-caixa",
   ],
   /** Faturamento de pedido (gera NF). */
   faturamentoPedido: [
@@ -34,6 +35,7 @@ export const INVALIDATION_KEYS = {
     "financeiro_lancamentos",
     "estoque-produtos",
     "estoque-movimentacoes",
+    "fluxo-caixa",
   ],
   /** Conversão Orçamento → Pedido. */
   conversaoOrcamento: [
@@ -49,6 +51,7 @@ export const INVALIDATION_KEYS = {
     "estoque-movimentacoes",
     "financeiro_lancamentos",
     "notas_fiscais",
+    "fluxo-caixa",
   ],
   /** Geração de pedido de compra a partir de cotação. */
   geracaoPedidoCompra: [
@@ -60,6 +63,7 @@ export const INVALIDATION_KEYS = {
     "financeiro_lancamentos",
     "financeiro_baixas",
     "contas_bancarias",
+    "fluxo-caixa",
   ],
   /** Sócios e participações — apuração, retiradas e financeiro vinculado. */
   socios: [
