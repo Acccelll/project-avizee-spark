@@ -110,3 +110,12 @@ export function useDashboardPeriod() {
   }
   return context;
 }
+
+/**
+ * Aliases globais — o contexto nasceu para o Dashboard, mas é hoje a fonte
+ * canônica de período transversal. Novos consumidores devem importar
+ * `GlobalPeriodProvider` / `useGlobalPeriod` para deixar a intenção explícita.
+ * (Ver `mem://produto/contrato-de-periodos.md`.)
+ */
+export const GlobalPeriodProvider = DashboardPeriodProvider;
+export const useGlobalPeriod = useDashboardPeriod;

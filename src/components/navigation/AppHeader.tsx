@@ -22,6 +22,7 @@ import type { Permission } from '@/utils/permissions';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ROLE_LABELS, type AppRole } from '@/lib/permissions';
 import { cn } from '@/lib/utils';
+import { GlobalPeriodChip } from './GlobalPeriodChip';
 
 const ROLE_DOT_COLORS: Record<AppRole, string> = {
   admin: 'bg-destructive',
@@ -145,6 +146,7 @@ export function AppHeader({ onOpenMobileMenu: _onOpenMobileMenu, onOpenSearch, o
             </div>
 
             <div className="flex items-center gap-1.5">
+              <GlobalPeriodChip className="hidden xs:inline-flex" />
               <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full" onClick={onOpenSearch} aria-label="Abrir busca global" title="Buscar">
                 <Search className="h-4 w-4" />
               </Button>
