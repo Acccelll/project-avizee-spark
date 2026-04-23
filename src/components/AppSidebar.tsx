@@ -122,10 +122,7 @@ export function AppSidebar({
           >
             <Search className="h-4 w-4 shrink-0" />
             {!collapsed && (
-              <>
-                <span className="flex-1 truncate text-left">Buscar...</span>
-                <span className="text-[10px] font-medium text-muted-foreground/70">⌘K</span>
-              </>
+              <span className="flex-1 truncate text-left">Buscar...</span>
             )}
           </button>
         </div>
