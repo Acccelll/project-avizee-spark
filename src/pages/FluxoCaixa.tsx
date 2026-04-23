@@ -32,6 +32,9 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PeriodFilter, type PeriodValue } from "@/components/filters/PeriodFilter";
+import { financialPeriods, type Period } from "@/components/filters/periodTypes";
+import { periodToFinancialRange } from "@/lib/periodFilter";
 
 type Periodicidade = "diaria" | "semanal" | "mensal";
 
@@ -94,6 +97,26 @@ const FluxoCaixa = () => {
   const [viewMode, setViewMode] = useState<"painel" | "movimentos">((searchParams.get("view") as "painel" | "movimentos") ?? "painel");
   const [dataInicio, setDataInicio] = useState(searchParams.get("data_inicio") ?? defaultDataInicio());
   const [dataFim, setDataFim] = useState(searchParams.get("data_fim") ?? defaultDataFim());
+
+  // Period filter (canonical) — drives dataInicio/dataFim. Defaults to "30d".
+  const [periodValue, setPeriodValue] = useState<PeriodValue>(() => {
+    if (searchParams.get("data_inicio") || searchParams.get("data_fim")) {
+      return { preset: null, from: searchParams.get("data_inicio"), to: searchParams.get("data_fim") };
+    }
+    return { preset: "30d" as Period };
+  });
+
+  const handlePeriodChange = useCallback((next: PeriodValue) => {
+    setPeriodValue(next);
+    if (next.preset) {
+      const range = periodToFinancialRange(next.preset);
+      setDataInicio(range.dateFrom);
+      if (range.dateTo) setDataFim(range.dateTo);
+    } else if (next.from || next.to) {
+      if (next.from) setDataInicio(next.from);
+      if (next.to) setDataFim(next.to);
+    }
+  }, []);
 
   // Movements filters
   const [movSearch, setMovSearch] = useState(searchParams.get("search") ?? "");
@@ -432,29 +455,30 @@ const FluxoCaixa = () => {
         }
       >
         {/* ── Period + bank filters ── */}
-        <div className="flex flex-wrap items-end gap-4 mb-6 p-4 bg-card rounded-xl border">
-          <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground font-medium">Período de</Label>
-            <Input type="date" value={dataInicio} onChange={e => setDataInicio(e.target.value)} className="w-[160px]" />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground font-medium">até</Label>
-            <Input type="date" value={dataFim} onChange={e => setDataFim(e.target.value)} className="w-[160px]" />
+        <div className="flex flex-wrap items-end gap-3 sm:gap-4 mb-6 p-3 sm:p-4 bg-card rounded-xl border">
+          <div className="space-y-1 w-full md:w-auto">
+            <Label className="text-xs text-muted-foreground font-medium">Período</Label>
+            <PeriodFilter
+              value={periodValue}
+              onChange={handlePeriodChange}
+              options={financialPeriods}
+              mode="both"
+            />
           </div>
           <div className="space-y-1">
             <Label className="text-xs text-muted-foreground font-medium">Agrupamento</Label>
             <div className="flex gap-1">
               {(["diaria", "semanal", "mensal"] as Periodicidade[]).map(p => (
-                <Button key={p} size="sm" variant={periodicidade === p ? "default" : "outline"} onClick={() => setPeriodicidade(p)}>
+                <Button key={p} size="sm" variant={periodicidade === p ? "default" : "outline"} className="h-9 min-h-[36px]" onClick={() => setPeriodicidade(p)}>
                   {p === "diaria" ? "Diária" : p === "semanal" ? "Semanal" : "Mensal"}
                 </Button>
               ))}
             </div>
           </div>
-          <div className="space-y-1">
+          <div className="space-y-1 w-full md:w-auto">
             <Label className="text-xs text-muted-foreground font-medium">Conta / Banco</Label>
             <Select value={filterBanco} onValueChange={setFilterBanco}>
-              <SelectTrigger className="w-[200px] h-9">
+              <SelectTrigger className="w-full md:w-[200px] h-9">
                 <SelectValue placeholder="Todos" />
               </SelectTrigger>
               <SelectContent>

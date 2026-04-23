@@ -285,7 +285,7 @@ const Financeiro = () => {
         </AdvancedFilterBar>
 
         {viewMode === "calendario" ? (
-          <FinanceiroCalendar data={filteredData} />
+          <FinanceiroCalendar data={filteredData} onBaixaSuccess={invalidateAfterBaixa} />
         ) : (
           <PullToRefresh onRefresh={fetchData}>
             <DataTable

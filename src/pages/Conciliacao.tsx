@@ -34,6 +34,8 @@ import { getOrigemKey, getOrigemLabel } from "@/lib/financeiro";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { Info, CalendarPlus, FileUp } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Search } from "lucide-react";
 
 interface LancamentoComStatus extends Lancamento {
   statusConciliacao: string;
@@ -86,6 +88,11 @@ export default function Conciliacao() {
   const [loadingLanc, setLoadingLanc] = useState(false);
   const [showOFXPane, setShowOFXPane] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Mobile vincular bottom-sheet
+  const [vincularOpen, setVincularOpen] = useState(false);
+  const [vincularExtratoId, setVincularExtratoId] = useState<string | null>(null);
+  const [vincularSearch, setVincularSearch] = useState("");
 
   // Period filter state (independent of OFX)
   const [dataInicio, setDataInicio] = useState(searchParams.get("data_inicio") ?? defaultDataInicio());
@@ -865,7 +872,83 @@ export default function Conciliacao() {
 
             {showOFXPane && (
               <div className="p-4 border-t border-border/60">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+                {/* MOBILE: lista única vertical de transações OFX com ação "Vincular" → bottom-sheet */}
+                <div className="md:hidden space-y-2 mb-4">
+                  {extratoItems.map((item) => {
+                    const match = getMatch(item.id);
+                    const isPareado = !!match;
+                    const linked = match
+                      ? lancamentos.find((l) => l.id === match.lancamentoId)
+                      : null;
+                    return (
+                      <div
+                        key={item.id}
+                        className={`rounded-lg border p-3 space-y-2 ${
+                          isPareado
+                            ? "border-success/40 bg-success/5"
+                            : "border-destructive/30 bg-card"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium truncate">
+                              {item.descricao || "Sem descrição"}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {formatDate(item.data)}
+                            </p>
+                          </div>
+                          <div className="flex flex-col items-end gap-1 shrink-0">
+                            <span
+                              className={`text-sm font-mono font-semibold ${
+                                item.valor >= 0 ? "text-success" : "text-destructive"
+                              }`}
+                            >
+                              {formatCurrency(item.valor)}
+                            </span>
+                            {isPareado ? (
+                              <CheckCircle className="w-4 h-4 text-success" />
+                            ) : (
+                              <XCircle className="w-4 h-4 text-destructive/70" />
+                            )}
+                          </div>
+                        </div>
+                        {linked && (
+                          <p className="text-xs text-success bg-success/10 rounded px-2 py-1 truncate">
+                            ↔ {linked.descricao} · {formatCurrency(linked.valor)}
+                          </p>
+                        )}
+                        <div className="flex gap-2">
+                          {isPareado ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="flex-1 h-11"
+                              onClick={() => handleManualMatch(item.id, "")}
+                            >
+                              Desvincular
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              className="flex-1 h-11 gap-2"
+                              onClick={() => {
+                                setVincularExtratoId(item.id);
+                                setVincularSearch("");
+                                setVincularOpen(true);
+                              }}
+                            >
+                              <Search className="w-4 h-4" /> Vincular
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* DESKTOP: split OFX↔ERP original */}
+                <div className="hidden md:grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
                   {/* Left: extrato OFX */}
                   <div>
                     <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wider">
@@ -1025,6 +1108,142 @@ export default function Conciliacao() {
           </div>
         )}
       </ModulePage>
+
+      {/* Bottom-sheet mobile: vincular lançamento ao extrato OFX (filtrado por valor±data) */}
+      <Sheet open={vincularOpen} onOpenChange={setVincularOpen}>
+        <SheetContent
+          side="bottom"
+          className="max-h-[88svh] overflow-y-auto rounded-t-2xl pb-[max(env(safe-area-inset-bottom),1rem)]"
+        >
+          <SheetHeader>
+            <SheetTitle className="text-left">Vincular lançamento</SheetTitle>
+          </SheetHeader>
+          {(() => {
+            const extrato = extratoItems.find((e) => e.id === vincularExtratoId);
+            if (!extrato) return null;
+            // Sugestões pré-filtradas por valor (±0.05) e data (±3 dias).
+            const valorAbs = Math.abs(extrato.valor);
+            const extratoDate = new Date(extrato.data);
+            const candidatos = lancamentos.filter((l) => {
+              if (usedLancamentoIds.has(l.id)) return false;
+              const valorMatch = Math.abs(Math.abs(l.valor) - valorAbs) < 0.05;
+              const lancDate = new Date(l.data_vencimento);
+              const diffDays = Math.abs(
+                (extratoDate.getTime() - lancDate.getTime()) / (1000 * 60 * 60 * 24),
+              );
+              return valorMatch || diffDays <= 3;
+            });
+            const term = vincularSearch.trim().toLowerCase();
+            const filtrados = term
+              ? candidatos.filter((l) =>
+                  (l.descricao ?? "").toLowerCase().includes(term),
+                )
+              : candidatos;
+            const todos = lancamentos.filter(
+              (l) => !usedLancamentoIds.has(l.id),
+            );
+            return (
+              <div className="mt-3 space-y-3">
+                <div className="rounded-lg border bg-muted/30 p-3 text-sm">
+                  <p className="font-medium truncate">{extrato.descricao || "Sem descrição"}</p>
+                  <div className="flex items-center justify-between mt-1 text-xs">
+                    <span className="text-muted-foreground">{formatDate(extrato.data)}</span>
+                    <span
+                      className={`font-mono font-semibold ${
+                        extrato.valor >= 0 ? "text-success" : "text-destructive"
+                      }`}
+                    >
+                      {formatCurrency(extrato.valor)}
+                    </span>
+                  </div>
+                </div>
+                <Input
+                  placeholder="Buscar por descrição..."
+                  value={vincularSearch}
+                  onChange={(e) => setVincularSearch(e.target.value)}
+                  className="h-11"
+                />
+                <div className="space-y-2 max-h-[55svh] overflow-y-auto">
+                  {filtrados.length > 0 ? (
+                    <>
+                      <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
+                        Sugestões ({filtrados.length})
+                      </p>
+                      {filtrados.map((l) => (
+                        <button
+                          key={l.id}
+                          type="button"
+                          className="w-full text-left rounded-lg border p-3 min-h-11 hover:bg-muted/30 active:bg-muted/50 transition-colors"
+                          onClick={() => {
+                            handleManualMatch(extrato.id, l.id);
+                            setVincularOpen(false);
+                          }}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-medium truncate">{l.descricao}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {formatDate(l.data_vencimento)} ·{" "}
+                                {l.tipo === "receber" ? "A Receber" : "A Pagar"}
+                              </p>
+                            </div>
+                            <span className="text-sm font-mono font-semibold shrink-0">
+                              {formatCurrency(l.valor)}
+                            </span>
+                          </div>
+                        </button>
+                      ))}
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      Nenhuma sugestão por valor/data. Veja todos abaixo.
+                    </p>
+                  )}
+                  {todos.length > filtrados.length && (
+                    <>
+                      <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider pt-2">
+                        Todos os disponíveis ({todos.length})
+                      </p>
+                      {todos
+                        .filter((l) => !filtrados.find((f) => f.id === l.id))
+                        .filter(
+                          (l) =>
+                            !term ||
+                            (l.descricao ?? "").toLowerCase().includes(term),
+                        )
+                        .slice(0, 50)
+                        .map((l) => (
+                          <button
+                            key={l.id}
+                            type="button"
+                            className="w-full text-left rounded-lg border p-3 min-h-11 hover:bg-muted/30 active:bg-muted/50 transition-colors"
+                            onClick={() => {
+                              handleManualMatch(extrato.id, l.id);
+                              setVincularOpen(false);
+                            }}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-medium truncate">{l.descricao}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {formatDate(l.data_vencimento)} ·{" "}
+                                  {l.tipo === "receber" ? "A Receber" : "A Pagar"}
+                                </p>
+                              </div>
+                              <span className="text-sm font-mono font-semibold shrink-0">
+                                {formatCurrency(l.valor)}
+                              </span>
+                            </div>
+                          </button>
+                        ))}
+                    </>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+        </SheetContent>
+      </Sheet>
     </>
   );
 }
