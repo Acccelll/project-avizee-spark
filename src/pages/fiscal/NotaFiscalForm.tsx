@@ -58,6 +58,7 @@ interface NotaFiscalRow {
   status: string | null;
   status_sefaz: string | null;
   pedido_compra_id: string | null;
+  valor_total: number | null;
 }
 
 function rowToFormDefaults(row: NotaFiscalRow): Partial<NFeFormData> {
@@ -247,6 +248,8 @@ export default function NotaFiscalFormPage() {
                     fornecedorId={nfRow.fornecedor_id}
                     pedidoCompraIdAtual={nfRow.pedido_compra_id}
                     disabled={readOnly}
+                    nfValorTotal={nfRow.valor_total}
+                    nfDataEmissao={nfRow.data_emissao}
                   />
                 </div>
               )}
