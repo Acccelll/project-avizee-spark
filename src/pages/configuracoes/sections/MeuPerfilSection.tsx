@@ -12,7 +12,7 @@ import { ROLE_LABELS } from '../utils/passwordPolicy';
 
 export function MeuPerfilSection() {
   const { user, roles } = useAuth();
-  const { nome, setNome, cargo, setCargo, saving, savedAt, dirty, save } = useProfileForm();
+  const { nome, setNome, cargo, setCargo, saving, savedAt, dirty, save, validationError } = useProfileForm();
 
   const initials = nome.trim()
     ? nome.trim().split(/\s+/).filter(Boolean).map((w) => w[0]).slice(0, 2).join('').toUpperCase()
@@ -86,11 +86,25 @@ export function MeuPerfilSection() {
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label>Nome completo</Label>
-              <Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Seu nome" />
+              <Input
+                value={nome}
+                onChange={(e) => setNome(e.target.value)}
+                placeholder="Seu nome"
+                maxLength={80}
+                aria-invalid={!!validationError && nome.trim().length < 2}
+              />
+              {validationError && nome.trim().length < 2 && (
+                <p className="text-xs text-destructive">{validationError}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Cargo</Label>
-              <Input value={cargo} onChange={(e) => setCargo(e.target.value)} placeholder="Ex: Gerente Comercial" />
+              <Input
+                value={cargo}
+                onChange={(e) => setCargo(e.target.value)}
+                placeholder="Ex: Gerente Comercial"
+                maxLength={80}
+              />
               <p className="text-xs text-muted-foreground">Exibido no sistema em contextos internos, quando aplicável.</p>
             </div>
           </div>

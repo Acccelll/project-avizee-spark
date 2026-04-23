@@ -4,11 +4,24 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { getUserFriendlyError } from '@/utils/errorMessages';
 
+const NOME_MIN = 2;
+const NOME_MAX = 80;
+const CARGO_MAX = 80;
+
+function validateProfileFields(nome: string, cargo: string): string | null {
+  const nomeTrim = nome.trim();
+  if (nomeTrim.length < NOME_MIN) return `Informe um nome com pelo menos ${NOME_MIN} caracteres.`;
+  if (nomeTrim.length > NOME_MAX) return `O nome deve ter no máximo ${NOME_MAX} caracteres.`;
+  if (cargo.trim().length > CARGO_MAX) return `O cargo deve ter no máximo ${CARGO_MAX} caracteres.`;
+  return null;
+}
+
 /**
  * Encapsula o formulário de "Dados pessoais editáveis":
  * - Sincroniza com `profile` na primeira carga (sem sobrescrever edições).
  * - Detecta `dirty` ignorando whitespace duplicado.
  * - Persiste em `profiles` e registra auditoria self-update.
+ * - Valida nome (2-80 chars) e cargo (até 80 chars), com trim antes de salvar.
  */
 export function useProfileForm() {
   const { user, profile, refreshProfile } = useAuth();
@@ -16,6 +29,7 @@ export function useProfileForm() {
   const [cargo, setCargo] = useState(profile?.cargo || '');
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
   const appliedRef = useRef(false);
 
   useEffect(() => {
@@ -32,15 +46,28 @@ export function useProfileForm() {
 
   const save = async () => {
     if (!user) return;
+    const nomeTrim = nome.trim();
+    const cargoTrim = cargo.trim();
+    const err = validateProfileFields(nomeTrim, cargoTrim);
+    if (err) {
+      setValidationError(err);
+      toast.error(err);
+      return;
+    }
+    setValidationError(null);
     setSaving(true);
     try {
       const previousNome = profile?.nome || '';
       const previousCargo = profile?.cargo || '';
       const { error } = await supabase
         .from('profiles')
-        .update({ nome, cargo })
+        .update({ nome: nomeTrim, cargo: cargoTrim })
         .eq('id', user.id);
       if (error) throw error;
+      // Espelha valores normalizados no estado local para que o dirty-check
+      // não fique "sujo" após o save quando o usuário digitou com espaços.
+      setNome(nomeTrim);
+      setCargo(cargoTrim);
       try {
         await supabase.rpc('log_self_update_audit', {
           p_tipo_acao: 'self_profile_update',
@@ -48,7 +75,7 @@ export function useProfileForm() {
           p_entidade_id: user.id,
           p_alteracao: {
             antes: { nome: previousNome, cargo: previousCargo },
-            depois: { nome, cargo },
+            depois: { nome: nomeTrim, cargo: cargoTrim },
           },
           p_motivo: 'alteração pelo próprio usuário',
         });
@@ -71,5 +98,5 @@ export function useProfileForm() {
     setSaving(false);
   };
 
-  return { nome, setNome, cargo, setCargo, saving, savedAt, dirty, save };
+  return { nome, setNome, cargo, setCargo, saving, savedAt, dirty, save, validationError };
 }
