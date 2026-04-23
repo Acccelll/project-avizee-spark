@@ -1108,6 +1108,142 @@ export default function Conciliacao() {
           </div>
         )}
       </ModulePage>
+
+      {/* Bottom-sheet mobile: vincular lançamento ao extrato OFX (filtrado por valor±data) */}
+      <Sheet open={vincularOpen} onOpenChange={setVincularOpen}>
+        <SheetContent
+          side="bottom"
+          className="max-h-[88svh] overflow-y-auto rounded-t-2xl pb-[max(env(safe-area-inset-bottom),1rem)]"
+        >
+          <SheetHeader>
+            <SheetTitle className="text-left">Vincular lançamento</SheetTitle>
+          </SheetHeader>
+          {(() => {
+            const extrato = extratoItems.find((e) => e.id === vincularExtratoId);
+            if (!extrato) return null;
+            // Sugestões pré-filtradas por valor (±0.05) e data (±3 dias).
+            const valorAbs = Math.abs(extrato.valor);
+            const extratoDate = new Date(extrato.data);
+            const candidatos = lancamentos.filter((l) => {
+              if (usedLancamentoIds.has(l.id)) return false;
+              const valorMatch = Math.abs(Math.abs(l.valor) - valorAbs) < 0.05;
+              const lancDate = new Date(l.data_vencimento);
+              const diffDays = Math.abs(
+                (extratoDate.getTime() - lancDate.getTime()) / (1000 * 60 * 60 * 24),
+              );
+              return valorMatch || diffDays <= 3;
+            });
+            const term = vincularSearch.trim().toLowerCase();
+            const filtrados = term
+              ? candidatos.filter((l) =>
+                  (l.descricao ?? "").toLowerCase().includes(term),
+                )
+              : candidatos;
+            const todos = lancamentos.filter(
+              (l) => !usedLancamentoIds.has(l.id),
+            );
+            return (
+              <div className="mt-3 space-y-3">
+                <div className="rounded-lg border bg-muted/30 p-3 text-sm">
+                  <p className="font-medium truncate">{extrato.descricao || "Sem descrição"}</p>
+                  <div className="flex items-center justify-between mt-1 text-xs">
+                    <span className="text-muted-foreground">{formatDate(extrato.data)}</span>
+                    <span
+                      className={`font-mono font-semibold ${
+                        extrato.valor >= 0 ? "text-success" : "text-destructive"
+                      }`}
+                    >
+                      {formatCurrency(extrato.valor)}
+                    </span>
+                  </div>
+                </div>
+                <Input
+                  placeholder="Buscar por descrição..."
+                  value={vincularSearch}
+                  onChange={(e) => setVincularSearch(e.target.value)}
+                  className="h-11"
+                />
+                <div className="space-y-2 max-h-[55svh] overflow-y-auto">
+                  {filtrados.length > 0 ? (
+                    <>
+                      <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
+                        Sugestões ({filtrados.length})
+                      </p>
+                      {filtrados.map((l) => (
+                        <button
+                          key={l.id}
+                          type="button"
+                          className="w-full text-left rounded-lg border p-3 min-h-11 hover:bg-muted/30 active:bg-muted/50 transition-colors"
+                          onClick={() => {
+                            handleManualMatch(extrato.id, l.id);
+                            setVincularOpen(false);
+                          }}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-medium truncate">{l.descricao}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {formatDate(l.data_vencimento)} ·{" "}
+                                {l.tipo === "receber" ? "A Receber" : "A Pagar"}
+                              </p>
+                            </div>
+                            <span className="text-sm font-mono font-semibold shrink-0">
+                              {formatCurrency(l.valor)}
+                            </span>
+                          </div>
+                        </button>
+                      ))}
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      Nenhuma sugestão por valor/data. Veja todos abaixo.
+                    </p>
+                  )}
+                  {todos.length > filtrados.length && (
+                    <>
+                      <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider pt-2">
+                        Todos os disponíveis ({todos.length})
+                      </p>
+                      {todos
+                        .filter((l) => !filtrados.find((f) => f.id === l.id))
+                        .filter(
+                          (l) =>
+                            !term ||
+                            (l.descricao ?? "").toLowerCase().includes(term),
+                        )
+                        .slice(0, 50)
+                        .map((l) => (
+                          <button
+                            key={l.id}
+                            type="button"
+                            className="w-full text-left rounded-lg border p-3 min-h-11 hover:bg-muted/30 active:bg-muted/50 transition-colors"
+                            onClick={() => {
+                              handleManualMatch(extrato.id, l.id);
+                              setVincularOpen(false);
+                            }}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-medium truncate">{l.descricao}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {formatDate(l.data_vencimento)} ·{" "}
+                                  {l.tipo === "receber" ? "A Receber" : "A Pagar"}
+                                </p>
+                              </div>
+                              <span className="text-sm font-mono font-semibold shrink-0">
+                                {formatCurrency(l.valor)}
+                              </span>
+                            </div>
+                          </button>
+                        ))}
+                    </>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+        </SheetContent>
+      </Sheet>
     </>
   );
 }
