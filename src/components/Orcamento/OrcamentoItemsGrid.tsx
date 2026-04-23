@@ -370,18 +370,136 @@ export function OrcamentoItemsGrid({ items, onChange, produtos, precosEspeciais 
     </div>
   );
 
+  const renderMobileCards = () => (
+    <div className="md:hidden divide-y">
+      {items.length === 0 ? (
+        <div className="text-center text-muted-foreground py-10 text-sm">Nenhum item adicionado</div>
+      ) : items.map((item, idx) => {
+        const prod = produtos.find((p) => p.id === item.produto_id);
+        const lowStock = item.quantidade > 0 && prod != null && (prod.estoque_atual ?? 0) < item.quantidade;
+        const hasSpecial = precosEspeciais?.some((p) => p.produto_id === item.produto_id);
+        const specialRecord = precosEspeciais?.find((p) => p.produto_id === item.produto_id);
+        const precoEfetivoReferencia =
+          specialRecord && Number(specialRecord.preco_especial) > 0
+            ? Number(specialRecord.preco_especial)
+            : (prod?.preco_venda || 0);
+        const isUnlinked = Boolean(item._unlinked);
+        return (
+          <div
+            key={item.id ?? `mcard-${item.produto_id || "new"}-${idx}`}
+            className={`p-3 space-y-2 ${isUnlinked ? "bg-destructive/5" : lowStock ? "bg-warning/5" : ""}`}
+          >
+            {/* Header: # + status + ações */}
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-[11px] font-mono text-muted-foreground shrink-0">#{idx + 1}</span>
+                {isUnlinked ? (
+                  <span className="inline-flex items-center gap-1 text-[11px] text-destructive font-semibold"><AlertTriangle className="h-3 w-3" />Não vinculado</span>
+                ) : lowStock ? (
+                  <span className="inline-flex items-center gap-1 text-[11px] text-warning"><AlertTriangle className="h-3 w-3" />Estoque baixo</span>
+                ) : item.produto_id ? (
+                  <span className="inline-flex items-center gap-1 text-[11px] text-success"><CheckCircle2 className="h-3 w-3" />OK</span>
+                ) : null}
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                {item.produto_id && (
+                  <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setDetailProductId(item.produto_id)} aria-label="Detalhes do produto">
+                    <Info className="h-4 w-4" />
+                  </Button>
+                )}
+                <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => duplicateItem(idx)} aria-label="Duplicar item">
+                  <Copy className="h-4 w-4" />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => removeItem(idx)} aria-label="Remover item">
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Produto */}
+            <div>
+              <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Produto</label>
+              <AutocompleteSearch
+                options={getProductOptions()}
+                value={item.produto_id}
+                onChange={(val) => updateItem(idx, "produto_id", val)}
+                placeholder="Buscar produto..."
+                className="w-full"
+                onCreateNew={() => window.open('/produtos', '_blank')}
+                createNewLabel="Produto não encontrado? Cadastrar"
+              />
+              {hasSpecial && <p className="text-[11px] text-primary mt-1 flex items-center gap-1"><Tag className="h-3 w-3" />Preço especial aplicado</p>}
+            </div>
+
+            {/* Qtd / Unitário / % */}
+            <div className="grid grid-cols-3 gap-2">
+              <div>
+                <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Qtd ({item.unidade || 'UN'})</label>
+                <Input
+                  type="number"
+                  inputMode="decimal"
+                  className="h-10 text-right"
+                  value={item.quantidade || ""}
+                  onChange={(e) => updateItem(idx, "quantidade", Number(e.target.value))}
+                />
+              </div>
+              <div>
+                <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Unitário</label>
+                <Input
+                  type="number"
+                  inputMode="decimal"
+                  className="h-10 text-right"
+                  value={item.valor_unitario || ""}
+                  onChange={(e) => updateItem(idx, "valor_unitario", Number(e.target.value))}
+                />
+              </div>
+              <div>
+                <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Desc. %</label>
+                <Input
+                  type="number"
+                  inputMode="decimal"
+                  className="h-10 text-right"
+                  value={item.desconto_percentual || 0}
+                  onChange={(e) => updateItem(idx, "desconto_percentual", Number(e.target.value))}
+                />
+              </div>
+            </div>
+
+            {hasSpecial && item.valor_unitario !== precoEfetivoReferencia && (
+              <Input
+                placeholder="Justificativa do preço alterado"
+                className={`h-10 text-sm ${!item.override_justificativa ? 'border-destructive' : ''}`}
+                value={item.override_justificativa || ''}
+                onChange={(e) => updateItem(idx, 'override_justificativa', e.target.value)}
+              />
+            )}
+
+            {/* Subtotal grande */}
+            <div className="flex items-baseline justify-between pt-1 border-t">
+              <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Subtotal</span>
+              <span className="text-base font-bold text-primary tabular-nums">{formatCurrency(item.valor_total || 0)}</span>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+
   return (
     <div className="bg-card rounded-xl border shadow-soft overflow-hidden">
       <div className="flex items-center justify-between p-4 border-b flex-wrap gap-2">
         <h3 className="font-semibold text-foreground">Itens do Orçamento</h3>
         <div className="flex items-center gap-2 flex-wrap">
           <div className="rounded-md border bg-muted/30 px-2 py-1 text-xs font-medium">Parcial: {formatCurrency(subtotal)}</div>
-          <Button size="sm" variant="outline" onClick={() => setImportOpen(true)} className="gap-1"><Upload className="h-3.5 w-3.5" />Importar texto</Button>
-          <Button size="sm" variant="outline" onClick={() => setExpandedOpen(true)} className="gap-1"><Maximize2 className="h-3.5 w-3.5" />Tela cheia</Button>
+          <Button size="sm" variant="outline" onClick={() => setImportOpen(true)} className="gap-1"><Upload className="h-3.5 w-3.5" /><span className="hidden sm:inline">Importar texto</span></Button>
+          <Button size="sm" variant="outline" onClick={() => setExpandedOpen(true)} className="gap-1 hidden md:inline-flex"><Maximize2 className="h-3.5 w-3.5" />Tela cheia</Button>
           <Button size="sm" onClick={addItem} className="gap-1.5"><Plus className="w-4 h-4" />Adicionar Item</Button>
         </div>
       </div>
-      {renderTable(true)}
+      {/* Mobile: cards verticais */}
+      {renderMobileCards()}
+      {/* Desktop: tabela compacta */}
+      <div className="hidden md:block">{renderTable(true)}</div>
 
       <Dialog open={expandedOpen} onOpenChange={setExpandedOpen}>
         <DialogContent className="max-w-6xl w-[95vw]">
