@@ -42,6 +42,7 @@ import { NoResultsState } from '@/components/ui/NoResultsState';
 import { MobileCardList, type MobileCardField } from '@/components/ui/MobileCardList';
 import { useDataTablePrefs } from '@/hooks/useDataTablePrefs';
 import { useDataTableExport } from '@/hooks/useDataTableExport';
+import type { PermissionKey } from '@/lib/permissions';
 
 export interface Column<T> {
   key: string;
@@ -121,6 +122,12 @@ interface DataTableProps<T> {
    * @default 600
    */
   maxHeight?: number;
+  /**
+   * Permissão necessária para exportar via menu do DataTable.
+   * Default: "relatorios:exportar". Páginas podem sobrescrever
+   * (ex.: "financeiro:exportar"). Ver mem://produto/contrato-de-status.
+   */
+  exportPermission?: PermissionKey;
 }
 
 type SortDirection = 'asc' | 'desc' | null;
