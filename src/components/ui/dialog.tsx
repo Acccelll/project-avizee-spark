@@ -38,12 +38,12 @@ const DialogContent = React.forwardRef<
       className={cn(
         // Mobile (<sm): bottom-sheet — ancorado embaixo, full-width, cantos
         // arredondados no topo, slide vertical, suporta safe-area do iOS.
-        "fixed inset-x-0 bottom-0 z-50 flex w-full max-h-[92svh] flex-col gap-0 overflow-hidden border bg-background p-0 shadow-xl duration-200",
+        "fixed left-0 right-0 bottom-0 z-50 flex w-full max-h-[92svh] flex-col gap-0 overflow-hidden border bg-background p-0 shadow-xl duration-200",
         "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
         "data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
         "rounded-t-2xl rounded-b-none pb-[max(env(safe-area-inset-bottom),0.5rem)]",
         // Desktop (>=sm): centralizado, max-width contido, rounded em todos os cantos.
-        "sm:left-[50%] sm:top-[50%] sm:bottom-auto sm:inset-x-auto sm:max-w-lg sm:max-h-[85dvh] sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-lg sm:pb-0",
+        "sm:left-1/2 sm:right-auto sm:top-1/2 sm:bottom-auto sm:w-full sm:max-w-lg sm:max-h-[85dvh] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-lg sm:pb-0",
         "sm:data-[state=closed]:slide-out-to-bottom-0 sm:data-[state=open]:slide-in-from-bottom-0 sm:data-[state=closed]:zoom-out-[0.98] sm:data-[state=open]:zoom-in-[0.98]",
         className,
       )}
