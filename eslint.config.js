@@ -24,6 +24,11 @@ export default tseslint.config(
         "warn",
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_" },
       ],
+      // Bloqueia novos `as any`. Mantido como `warn` para não quebrar build com
+      // 100+ casts existentes — novos aparecem visíveis no editor/CI.
+      "@typescript-eslint/no-explicit-any": "warn",
+      // catches sem corpo escondem falhas silenciosas.
+      "no-empty": ["error", { allowEmptyCatch: false }],
     },
   },
 );

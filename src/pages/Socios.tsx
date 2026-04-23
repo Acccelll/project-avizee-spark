@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -45,14 +46,24 @@ const emptyForm: SocioForm = {
 
 export default function Socios() {
   const { socios, loading, create, update, remove } = useSocios();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabFromUrl = searchParams.get("tab");
   const [modalOpen, setModalOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerSocio, setDrawerSocio] = useState<Socio | null>(null);
   const [selected, setSelected] = useState<Socio | null>(null);
   const [mode, setMode] = useState<"create" | "edit">("create");
   const [form, setForm] = useState<SocioForm>(emptyForm);
-  const [activeTab, setActiveTab] = useState("identificacao");
+  const [activeTab, setActiveTab] = useState(tabFromUrl ?? "identificacao");
   const { saving, submit } = useSubmitLock();
+
+  // Mantém aba sincronizada com URL (deep links externos como /socios?tab=participacoes).
+  const handleTabChange = (next: string) => {
+    setActiveTab(next);
+    const sp = new URLSearchParams(searchParams);
+    if (next === "identificacao") sp.delete("tab"); else sp.set("tab", next);
+    setSearchParams(sp, { replace: true });
+  };
 
   const { participacoes, create: createPart, remove: removePart } = useSocioParticipacoes(selected?.id);
   const [novaPart, setNovaPart] = useState({ percentual: 0, vigencia_inicio: new Date().toISOString().split("T")[0], vigencia_fim: "" });
@@ -203,7 +214,7 @@ export default function Socios() {
           />
         }
       >
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <Tabs value={activeTab} onValueChange={handleTabChange}>
           <TabsList className={mode === "edit" ? "grid w-full grid-cols-2" : "grid w-full grid-cols-1"}>
             <TabsTrigger value="identificacao">Cadastro</TabsTrigger>
             {mode === "edit" && <TabsTrigger value="participacoes">Participações</TabsTrigger>}

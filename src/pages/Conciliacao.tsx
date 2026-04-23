@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { ModulePage } from "@/components/ModulePage";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -121,24 +122,25 @@ export default function Conciliacao() {
     }, { replace: true });
   }, [dataInicio, dataFim, searchTerm, statusConcFilters, tipoFilters]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ─── Load contas bancárias ───────────────────────────────────────────────
+  // ─── Load contas bancárias (React Query, raramente muda) ──────────────────
+  const { data: contasQuery } = useQuery({
+    queryKey: ["contas_bancarias", "ativas"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("contas_bancarias")
+        .select("id, descricao, bancos(nome)")
+        .eq("ativo", true);
+      return (data ?? []).map((d) => ({
+        id: d.id,
+        nome: (d as { id: string; descricao: string; bancos?: { nome: string } | null }).descricao,
+        banco: (d as { id: string; descricao: string; bancos?: { nome: string } | null }).bancos?.nome,
+      })) as ContaBancariaDropdown[];
+    },
+    staleTime: Infinity,
+  });
   useEffect(() => {
-    supabase
-      .from("contas_bancarias")
-      .select("id, descricao, bancos(nome)")
-      .eq("ativo", true)
-      .then(({ data }) => {
-        if (data) {
-          setContasBancarias(
-            data.map((d) => ({
-              id: d.id,
-              nome: (d as { id: string; descricao: string; bancos?: { nome: string } | null }).descricao,
-              banco: (d as { id: string; descricao: string; bancos?: { nome: string } | null }).bancos?.nome,
-            })),
-          );
-        }
-      });
-  }, []);
+    if (contasQuery) setContasBancarias(contasQuery);
+  }, [contasQuery]);
 
   // ─── Load lancamentos based on account + period ───────────────────────────
   const loadLancamentosFromPeriod = useCallback(async (from: string, to: string, contaId: string) => {

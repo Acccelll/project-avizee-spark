@@ -1,5 +1,8 @@
-/* eslint-disable @typescript-eslint/no-explicit-any -- Supabase update type workaround */
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
+
+type NotaFiscalEventoInsert =
+  Database["public"]["Tables"]["nota_fiscal_eventos"]["Insert"];
 
 // ── Event logging ──────────────────────────────────────────────────────────────
 
@@ -9,18 +12,19 @@ export async function registrarEventoFiscal(params: {
   status_anterior?: string;
   status_novo?: string;
   descricao?: string;
-  payload_resumido?: Record<string, any>;
+  payload_resumido?: Record<string, unknown>;
 }) {
   const { data: { user } } = await supabase.auth.getUser();
-  await supabase.from("nota_fiscal_eventos").insert({
+  const payload: NotaFiscalEventoInsert = {
     nota_fiscal_id: params.nota_fiscal_id,
     tipo_evento: params.tipo_evento,
     status_anterior: params.status_anterior || null,
     status_novo: params.status_novo || null,
     descricao: params.descricao || null,
-    payload_resumido: params.payload_resumido || null,
+    payload_resumido: (params.payload_resumido ?? null) as NotaFiscalEventoInsert["payload_resumido"],
     usuario_id: user?.id || null,
-  } as any);
+  };
+  await supabase.from("nota_fiscal_eventos").insert(payload);
 }
 
 /**
@@ -29,10 +33,10 @@ export async function registrarEventoFiscal(params: {
  * Para NF autorizada na SEFAZ, use `cancelarNotaFiscalSefaz`.
  */
 export async function cancelarNotaFiscal(nfId: string, motivo: string): Promise<void> {
-  const { error } = await supabase.rpc("cancelar_nota_fiscal" as never, {
+  const { error } = await supabase.rpc("cancelar_nota_fiscal", {
     p_nf_id: nfId,
     p_motivo: motivo,
-  } as never);
+  });
   if (error) throw error;
 }
 
@@ -45,11 +49,11 @@ export async function cancelarNotaFiscalSefaz(
   protocolo: string,
   motivo: string,
 ): Promise<void> {
-  const { error } = await supabase.rpc("cancelar_nota_fiscal_sefaz" as never, {
+  const { error } = await supabase.rpc("cancelar_nota_fiscal_sefaz", {
     p_nf_id: nfId,
     p_protocolo: protocolo,
     p_motivo: motivo,
-  } as never);
+  });
   if (error) throw error;
 }
 
@@ -62,11 +66,11 @@ export async function inutilizarNotaFiscal(
   protocolo: string,
   motivo: string,
 ): Promise<void> {
-  const { error } = await supabase.rpc("inutilizar_nota_fiscal" as never, {
+  const { error } = await supabase.rpc("inutilizar_nota_fiscal", {
     p_nf_id: nfId,
     p_protocolo: protocolo,
     p_motivo: motivo,
-  } as never);
+  });
   if (error) throw error;
 }
 

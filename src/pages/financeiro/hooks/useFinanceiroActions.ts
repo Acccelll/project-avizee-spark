@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Lancamento } from "@/types/domain";
 import type { LancamentoForm } from "@/pages/financeiro/types";
 import { useGerarParcelas } from "@/pages/financeiro/hooks/useBaixaFinanceira";
+import { logger } from "@/lib/logger";
 
 type LancamentoWritePayload = Partial<Lancamento>;
 
@@ -102,7 +103,7 @@ export function useFinanceiroActions({ filteredData, getLancamentoStatus, create
 
         onSuccess();
       } catch (error) {
-        console.error("[financeiro] erro ao salvar:", error);
+        logger.error("[financeiro] erro ao salvar:", error);
         toast.error(getUserFriendlyError(error));
       } finally {
         setSaving(false);

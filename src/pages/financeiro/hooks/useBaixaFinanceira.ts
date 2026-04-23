@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { getUserFriendlyError } from "@/utils/errorMessages";
+import { logger } from "@/lib/logger";
 
 export interface RegistrarBaixaParams {
   lancamentoId: string;
@@ -37,7 +38,7 @@ export function useRegistrarBaixa() {
       toast.success("Baixa registrada com sucesso");
     },
     onError: (error) => {
-      console.error("[financeiro] erro ao registrar baixa:", error);
+      logger.error("[financeiro] erro ao registrar baixa:", error);
       toast.error(getUserFriendlyError(error));
     },
   });
@@ -62,7 +63,7 @@ export function useEstornarBaixa() {
       toast.success("Baixa estornada com sucesso");
     },
     onError: (error) => {
-      console.error("[financeiro] erro ao estornar baixa:", error);
+      logger.error("[financeiro] erro ao estornar baixa:", error);
       toast.error(getUserFriendlyError(error));
     },
   });
@@ -107,7 +108,7 @@ export function useGerarParcelas() {
       toast.success(`${vars.numParcelas} parcelas geradas com sucesso`);
     },
     onError: (error) => {
-      console.error("[financeiro] erro ao gerar parcelas:", error);
+      logger.error("[financeiro] erro ao gerar parcelas:", error);
       toast.error(getUserFriendlyError(error));
     },
   });
@@ -133,7 +134,7 @@ export function useGerarFinanceiroFolha() {
       toast.success(count > 0 ? `${count} lançamentos gerados` : "Nenhum lançamento novo a gerar");
     },
     onError: (error) => {
-      console.error("[financeiro] erro ao gerar financeiro da folha:", error);
+      logger.error("[financeiro] erro ao gerar financeiro da folha:", error);
       toast.error(getUserFriendlyError(error));
     },
   });
