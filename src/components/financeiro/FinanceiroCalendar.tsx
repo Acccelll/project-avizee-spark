@@ -5,6 +5,12 @@ import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { getEffectiveStatus } from "@/services/financeiro.service";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
+import { CreditCard } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { BaixaParcialDialog } from "@/components/financeiro/BaixaParcialDialog";
+import { useFinanceiroAuxiliares } from "@/pages/financeiro/hooks/useFinanceiroAuxiliares";
 
 interface Lancamento {
   id: string;
@@ -16,14 +22,21 @@ interface Lancamento {
   status: string;
   clientes?: { nome_razao_social: string } | null;
   fornecedores?: { nome_razao_social: string } | null;
+  // Allow extra fields used elsewhere — kept loose for the sheet pass-through.
+  [key: string]: unknown;
 }
 
 interface Props {
   data: Lancamento[];
+  onBaixaSuccess?: () => void;
 }
 
-export function FinanceiroCalendar({ data }: Props) {
+export function FinanceiroCalendar({ data, onBaixaSuccess }: Props) {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const isMobile = useIsMobile();
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [baixaTarget, setBaixaTarget] = useState<Lancamento | null>(null);
+  const { contasBancarias } = useFinanceiroAuxiliares();
 
   const eventsByDate = useMemo(() => {
     const map = new Map<string, Lancamento[]>();
@@ -72,6 +85,74 @@ export function FinanceiroCalendar({ data }: Props) {
     return { receber, pagar, vencido };
   }, [eventsByDate, hoje]);
 
+  const handleSelectDate = (date: Date | undefined) => {
+    setSelectedDate(date);
+    if (isMobile && date) setSheetOpen(true);
+  };
+
+  const renderItemList = (items: Lancamento[], compact = false) => (
+    <div className="space-y-2">
+      {items.map((l) => {
+        const es = getEffectiveStatus(l.status, l.data_vencimento, hoje);
+        const podeBaixar = es !== "pago" && es !== "cancelado";
+        return (
+          <div
+            key={l.id}
+            className="rounded-lg border p-3 space-y-2"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">{l.descricao}</p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {l.tipo === "receber"
+                    ? l.clientes?.nome_razao_social
+                    : l.fornecedores?.nome_razao_social || "—"}
+                </p>
+              </div>
+              <div className="flex flex-col items-end gap-1 shrink-0">
+                <Badge
+                  variant="outline"
+                  className={
+                    l.tipo === "receber"
+                      ? "border-success/40 text-success bg-success/5"
+                      : "border-destructive/40 text-destructive bg-destructive/5"
+                  }
+                >
+                  {l.tipo === "receber" ? "Receber" : "Pagar"}
+                </Badge>
+                <span className="text-sm font-mono font-semibold whitespace-nowrap">
+                  {formatCurrency(Number(l.valor))}
+                </span>
+              </div>
+            </div>
+            {!compact && podeBaixar && (
+              <Button
+                size="sm"
+                className="w-full h-11 gap-2"
+                onClick={() => {
+                  setBaixaTarget(l);
+                }}
+              >
+                <CreditCard className="h-4 w-4" /> Baixar
+              </Button>
+            )}
+          </div>
+        );
+      })}
+      <div className="border-t pt-2 mt-2 text-right">
+        <span className="text-sm font-semibold">
+          Total:{" "}
+          {formatCurrency(
+            items.reduce(
+              (s, l) => s + Number(l.saldo_restante ?? l.valor ?? 0),
+              0
+            )
+          )}
+        </span>
+      </div>
+    </div>
+  );
+
   return (
     <div className="grid gap-6 lg:grid-cols-[auto_1fr]">
       <Card>
@@ -79,7 +160,7 @@ export function FinanceiroCalendar({ data }: Props) {
           <Calendar
             mode="single"
             selected={selectedDate}
-            onSelect={setSelectedDate}
+            onSelect={handleSelectDate}
             className={cn("p-3 pointer-events-auto")}
             modifiers={modifiers}
             modifiersClassNames={{
@@ -104,7 +185,8 @@ export function FinanceiroCalendar({ data }: Props) {
         </CardContent>
       </Card>
 
-      <Card>
+      {/* Desktop side panel */}
+      <Card className="max-md:hidden">
         <CardHeader className="pb-3">
           <CardTitle className="text-base">
             {selectedDate
@@ -120,54 +202,48 @@ export function FinanceiroCalendar({ data }: Props) {
                 : "Clique em um dia no calendário para ver os títulos."}
             </p>
           ) : (
-            <div className="space-y-2">
-              {selectedItems.map((l) => (
-                <div
-                  key={l.id}
-                  className="flex items-center justify-between rounded-lg border p-3"
-                >
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">
-                      {l.descricao}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {l.tipo === "receber"
-                        ? l.clientes?.nome_razao_social
-                        : l.fornecedores?.nome_razao_social || "—"}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 ml-3">
-                    <Badge
-                      variant="outline"
-                      className={
-                        l.tipo === "receber"
-                          ? "border-success/40 text-success bg-success/5"
-                          : "border-destructive/40 text-destructive bg-destructive/5"
-                      }
-                    >
-                      {l.tipo === "receber" ? "Receber" : "Pagar"}
-                    </Badge>
-                    <span className="text-sm font-mono font-semibold whitespace-nowrap">
-                      {formatCurrency(Number(l.valor))}
-                    </span>
-                  </div>
-                </div>
-              ))}
-              <div className="border-t pt-2 mt-2 text-right">
-                <span className="text-sm font-semibold">
-                  Total:{" "}
-                  {formatCurrency(
-                    selectedItems.reduce(
-                      (s, l) => s + Number(l.saldo_restante ?? l.valor ?? 0),
-                      0
-                    )
-                  )}
-                </span>
-              </div>
-            </div>
+            renderItemList(selectedItems, true)
           )}
         </CardContent>
       </Card>
+
+      {/* Mobile: bottom-sheet com lista + ação "Baixar" por linha */}
+      <Sheet open={sheetOpen && isMobile} onOpenChange={setSheetOpen}>
+        <SheetContent
+          side="bottom"
+          className="max-h-[85svh] overflow-y-auto rounded-t-2xl pb-[max(env(safe-area-inset-bottom),1rem)]"
+        >
+          <SheetHeader>
+            <SheetTitle className="text-left">
+              {selectedDate
+                ? `Vencimentos em ${selectedDate.toLocaleDateString("pt-BR")}`
+                : "Vencimentos"}
+            </SheetTitle>
+          </SheetHeader>
+          <div className="mt-3">
+            {selectedItems.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-6 text-center">
+                Nenhum vencimento nesta data.
+              </p>
+            ) : (
+              renderItemList(selectedItems)
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Baixa parcial — chamada a partir do calendário (desktop ou mobile) */}
+      <BaixaParcialDialog
+        open={!!baixaTarget}
+        onClose={() => setBaixaTarget(null)}
+        lancamento={baixaTarget as never}
+        contasBancarias={contasBancarias}
+        onSuccess={() => {
+          setBaixaTarget(null);
+          setSheetOpen(false);
+          onBaixaSuccess?.();
+        }}
+      />
     </div>
   );
 }
