@@ -17,7 +17,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
-  Loader2,
   Search,
   Shield,
   ShieldAlert,
@@ -28,6 +27,7 @@ import {
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { SummaryCard } from '@/components/SummaryCard';
 import { useAuth } from '@/contexts/AuthContext';
@@ -208,18 +208,25 @@ export function UsuariosTab() {
 
   if (loading) {
     return (
-      <Card>
-        <CardContent className="flex items-center justify-center py-12">
-          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-          Carregando usuários...
-        </CardContent>
-      </Card>
+      <div className="space-y-6">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-24 rounded-lg" />
+          ))}
+        </div>
+        <div className="space-y-2">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-20 rounded-lg" />
+          ))}
+        </div>
+      </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <Card className="border-primary/20 bg-primary/5">
+      {/* Card de orientação: oculto em mobile (ruído de >280px) */}
+      <Card className="hidden md:block border-primary/20 bg-primary/5">
         <CardContent className="pt-6">
           <div className="grid gap-3 md:grid-cols-3">
             <div className="rounded-md border bg-background/70 p-3">

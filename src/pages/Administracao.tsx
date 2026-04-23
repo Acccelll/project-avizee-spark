@@ -10,10 +10,18 @@
  * a `?tab=` interna nem disparam render-time side-effects.
  */
 
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Building2, Database, HardDrive, Mail, Plug, Bell, Receipt, Shield, Users, Wallet, KeyRound } from "lucide-react";
+import { Building2, Database, HardDrive, Mail, Menu, Plug, Bell, Receipt, Shield, Users, Wallet, KeyRound } from "lucide-react";
 import { ModulePage } from "@/components/ModulePage";
+import { Button } from "@/components/ui/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { AdminSidebar, type SideNavGroup } from "@/pages/admin/components/AdminSidebar";
 import { DashboardAdmin } from "@/pages/admin/components/DashboardAdmin";
 import { UsuariosTab } from "@/components/usuarios/UsuariosTab";
@@ -87,6 +95,16 @@ export default function Administracao() {
   const [searchParams, setSearchParams] = useSearchParams();
   const rawTab = searchParams.get("tab") || "empresa";
   const activeSection = VALID_SECTION_KEYS.has(rawTab) ? rawTab : "empresa";
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+  // Encontra o item ativo para exibir título no header sticky mobile.
+  const activeItem = useMemo(() => {
+    for (const g of sideNavGroups) {
+      const found = g.items.find((i) => i.key === activeSection);
+      if (found) return found;
+    }
+    return null;
+  }, [activeSection]);
 
   // Atalhos externos: redireciona em useEffect — nunca em render.
   useEffect(() => {
@@ -105,16 +123,55 @@ export default function Administracao() {
       next.set("tab", key);
       return next;
     });
+    // Em mobile, fecha o Sheet após selecionar.
+    setMobileNavOpen(false);
   };
 
   return (
     <ModulePage title="Administração" subtitle="Governança, parâmetros globais e gestão do sistema.">
       <div className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
         <AdminSidebar groups={sideNavGroups} activeKey={activeSection} onSelect={handleSectionChange} />
-        <div className="space-y-4">
+        <div className="space-y-4 min-w-0">
+          {/* Header sticky mobile com nome da seção e gatilho do Sheet */}
+          <div className="lg:hidden sticky top-0 z-20 -mx-4 px-4 py-2 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85 flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-10 gap-1.5"
+              onClick={() => setMobileNavOpen(true)}
+              aria-label="Abrir menu de administração"
+            >
+              <Menu className="h-4 w-4" />
+              Menu
+            </Button>
+            {activeItem && (
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <activeItem.icon className="h-4 w-4 text-muted-foreground shrink-0" />
+                <span className="text-sm font-medium truncate">{activeItem.label}</span>
+              </div>
+            )}
+          </div>
           <SectionContent section={activeSection} />
         </div>
       </div>
+
+      {/* Sheet lateral com a navegação completa em mobile */}
+      <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
+        <SheetContent side="left" className="w-[85vw] max-w-sm overflow-y-auto pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <SheetHeader>
+            <SheetTitle>Administração</SheetTitle>
+            <SheetDescription>Selecione uma seção</SheetDescription>
+          </SheetHeader>
+          <div className="mt-4">
+            <AdminSidebar
+              groups={sideNavGroups}
+              activeKey={activeSection}
+              onSelect={handleSectionChange}
+              inSheet
+            />
+          </div>
+        </SheetContent>
+      </Sheet>
     </ModulePage>
   );
 }

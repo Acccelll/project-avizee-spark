@@ -16,7 +16,7 @@
  */
 
 import { useMemo, useState } from 'react';
-import { Check, ChevronDown, ChevronRight, Info, X } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, Info, Smartphone, X } from 'lucide-react';
 import {
   ACTION_LABELS,
   ERP_RESOURCES,
@@ -27,6 +27,8 @@ import {
   type PermissionOverrideState,
 } from '@/lib/permissions';
 import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { resourceLabel } from './_shared';
 
 interface PermissionMatrixProps {
@@ -50,6 +52,10 @@ export function PermissionMatrix({
   readOnly = false,
   label = 'Permissões complementares',
 }: PermissionMatrixProps) {
+  const isMobile = useIsMobile();
+  // Em mobile, força modo somente-leitura. Edição complexa não é viável
+  // por toque (120 toggles ~28px com ciclo de 4 estados).
+  const effectiveReadOnly = readOnly || isMobile;
   const inheritedSet = useMemo(() => new Set(inheritedPermissions), [inheritedPermissions]);
   const allowSet = useMemo(() => new Set(allow), [allow]);
   const denySet = useMemo(() => new Set(deny), [deny]);
@@ -63,7 +69,7 @@ export function PermissionMatrix({
   };
 
   const cycle = (resource: ErpResource, action: ErpAction) => {
-    if (readOnly) return;
+    if (effectiveReadOnly) return;
     const key = `${resource}:${action}`;
     const current = stateOf(key);
     const nextAllow = new Set(allowSet);
@@ -116,6 +122,16 @@ export function PermissionMatrix({
 
   return (
     <div className="space-y-3">
+      {isMobile && !readOnly && (
+        <Alert>
+          <Smartphone className="h-4 w-4" />
+          <AlertDescription className="text-xs">
+            A edição da matriz de permissões é otimizada para telas maiores.
+            No mobile você pode <strong>visualizar</strong> as permissões;
+            para conceder/revogar exceções, abra esta tela em desktop.
+          </AlertDescription>
+        </Alert>
+      )}
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           {label}
@@ -146,7 +162,7 @@ export function PermissionMatrix({
             >
               <button
                 type="button"
-                className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-muted/40 transition-colors"
+                className="flex w-full items-center gap-3 px-3 py-2.5 sm:py-2 min-h-11 sm:min-h-0 text-left hover:bg-muted/40 transition-colors"
                 onClick={() => toggleExpand(resource)}
                 aria-expanded={isExpanded}
               >
@@ -183,11 +199,11 @@ export function PermissionMatrix({
                       <button
                         key={action}
                         type="button"
-                        disabled={readOnly}
+                        disabled={effectiveReadOnly}
                         onClick={() => cycle(resource, action)}
                         title={titleFor(state)}
                         className={cn(
-                          'flex items-center justify-between gap-2 rounded-md border px-2.5 py-1.5 text-left text-xs transition-colors',
+                          'flex items-center justify-between gap-2 rounded-md border px-2.5 py-2 sm:py-1.5 text-left text-xs transition-colors',
                           state === 'inherited' &&
                             'border-muted-foreground/30 bg-muted/40 text-muted-foreground',
                           state === 'allow' &&
@@ -196,7 +212,7 @@ export function PermissionMatrix({
                             'border-destructive/50 bg-destructive/10 text-destructive',
                           state === 'none' &&
                             'border-dashed border-muted-foreground/30 text-muted-foreground hover:border-primary/40',
-                          readOnly && 'cursor-default opacity-70',
+                          effectiveReadOnly && 'cursor-default opacity-70',
                         )}
                       >
                         <span className="truncate">{ACTION_LABELS[action]}</span>
@@ -214,7 +230,7 @@ export function PermissionMatrix({
           );
         })}
       </div>
-      {!readOnly && (
+      {!effectiveReadOnly && (
         <p className="text-[11px] text-muted-foreground flex items-start gap-1.5">
           <Info className="h-3 w-3 mt-0.5 shrink-0" />
           <span>

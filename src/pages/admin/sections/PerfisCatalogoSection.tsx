@@ -13,12 +13,16 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Shield, Grid3x3, Loader2 } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Shield, Grid3x3, Smartphone } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { RolesCatalog } from "@/components/usuarios/RolesCatalog";
 import { PermissaoMatrix } from "@/pages/admin/components/PermissaoMatrix";
 import { invokeAdminUsers, type UserWithRoles } from "@/components/usuarios/_shared";
 
 export function PerfisCatalogoSection() {
+  const isMobile = useIsMobile();
   const [users, setUsers] = useState<UserWithRoles[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -54,27 +58,40 @@ export function PerfisCatalogoSection() {
         <CardContent>
           <Tabs defaultValue="catalogo">
             <TabsList className="mb-4">
-              <TabsTrigger value="catalogo" className="gap-1.5">
+              <TabsTrigger value="catalogo" className="gap-1.5 min-h-10">
                 <Shield className="h-3.5 w-3.5" />
                 Por perfil
               </TabsTrigger>
-              <TabsTrigger value="matriz" className="gap-1.5">
+              <TabsTrigger value="matriz" className="gap-1.5 min-h-10">
                 <Grid3x3 className="h-3.5 w-3.5" />
-                Matriz consolidada
+                <span className="hidden sm:inline">Matriz consolidada</span>
+                <span className="sm:hidden">Matriz</span>
               </TabsTrigger>
             </TabsList>
             <TabsContent value="catalogo">
               {loading ? (
-                <div className="flex items-center justify-center gap-2 py-8 text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Carregando perfis…
+                <div className="space-y-2">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <Skeleton key={i} className="h-16 rounded-lg" />
+                  ))}
                 </div>
               ) : (
                 <RolesCatalog users={users} />
               )}
             </TabsContent>
             <TabsContent value="matriz">
-              <PermissaoMatrix />
+              {isMobile ? (
+                <Alert>
+                  <Smartphone className="h-4 w-4" />
+                  <AlertDescription className="text-xs">
+                    A matriz consolidada (recursos × perfis) é otimizada para
+                    telas maiores. Use a aba <strong>Por perfil</strong> em mobile
+                    ou abra esta tela em desktop para ver o cruzamento completo.
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                <PermissaoMatrix />
+              )}
             </TabsContent>
           </Tabs>
         </CardContent>

@@ -211,9 +211,21 @@ export function UserFormModal({
 
   const title = isEdit ? `Editar usuário — ${user?.nome}` : 'Novo usuário';
 
+  const footerActions = (
+    <div className="flex justify-end gap-2">
+      <Button variant="outline" onClick={onClose} disabled={saving} className="max-sm:flex-1 max-sm:min-h-11">
+        Cancelar
+      </Button>
+      <Button onClick={handleSave} disabled={saving} className="gap-2 max-sm:flex-1 max-sm:min-h-11">
+        {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+        {isEdit ? 'Salvar alterações' : 'Criar usuário'}
+      </Button>
+    </div>
+  );
+
   return (
     <>
-      <FormModal open={open} onClose={onClose} title={title} size="lg">
+      <FormModal open={open} onClose={onClose} title={title} size="lg" footer={footerActions}>
         <div className="space-y-6 pt-2">
           {/* Bloco 1 — Dados básicos */}
           <div className="space-y-4">
@@ -395,16 +407,6 @@ export function UserFormModal({
             </>
           )}
 
-          {/* Actions */}
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" onClick={onClose} disabled={saving}>
-              Cancelar
-            </Button>
-            <Button onClick={handleSave} disabled={saving} className="gap-2">
-              {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-              {isEdit ? 'Salvar alterações' : 'Criar usuário'}
-            </Button>
-          </div>
         </div>
       </FormModal>
 

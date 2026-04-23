@@ -41,18 +41,26 @@ export function UserRow({
     user.extra_permissions.length + (user.denied_permissions?.length ?? 0);
 
   return (
-    <div className="flex flex-col gap-3 rounded-lg border p-4 transition-colors hover:bg-muted/30 sm:flex-row sm:items-center">
-      <div className="min-w-0 flex-1 space-y-1">
+    <div className="relative flex flex-col gap-3 rounded-lg border p-4 transition-colors hover:bg-muted/30 sm:flex-row sm:items-center">
+      {/* Mobile: clique no corpo (não nas ações) abre edição. */}
+      <button
+        type="button"
+        onClick={() => onEdit(user)}
+        className="absolute inset-0 z-0 sm:hidden rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        aria-label={`Editar usuário ${user.nome}`}
+        tabIndex={-1}
+      />
+      <div className="min-w-0 flex-1 space-y-1 relative z-10 pointer-events-none sm:pointer-events-auto">
         <div className="flex flex-wrap items-center gap-2">
           <p className="text-sm font-medium truncate">{user.nome}</p>
           {isCurrentUser && (
-            <span className="text-[10px] border rounded-full px-1.5 py-0.5 text-muted-foreground">
+            <span className="text-[11px] border rounded-full px-1.5 py-0.5 text-muted-foreground">
               você
             </span>
           )}
           {exceptionCount > 0 && (
             <span
-              className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[10px] text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-400"
+              className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[11px] text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-400"
               title={`${user.extra_permissions.length} concedida(s), ${
                 user.denied_permissions?.length ?? 0
               } revogada(s)`}
@@ -66,16 +74,17 @@ export function UserRow({
         {user.cargo && <p className="text-xs text-muted-foreground">{user.cargo}</p>}
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 shrink-0">
+      <div className="flex flex-wrap items-center gap-2 shrink-0 relative z-10 pointer-events-none sm:pointer-events-auto">
         <RoleBadge role={user.role_padrao} />
         <StatusBadgeUser ativo={user.ativo} />
       </div>
 
-      <div className="flex items-center gap-1 shrink-0">
+      <div className="flex items-center gap-1 shrink-0 relative z-10">
+        {/* Botão Edit dedicado só em desktop — em mobile o card todo é tappable. */}
         <Button
           variant="ghost"
           size="sm"
-          className="h-8 w-8 p-0"
+          className="hidden sm:inline-flex h-8 w-8 p-0"
           onClick={() => onEdit(user)}
           title="Editar usuário"
         >
@@ -83,19 +92,28 @@ export function UserRow({
         </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-              <MoreHorizontal className="h-3.5 w-3.5" />
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-11 w-11 p-0 sm:h-8 sm:w-8"
+              aria-label="Mais ações"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <MoreHorizontal className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => onEdit(user)}>
+            <DropdownMenuItem onClick={() => onEdit(user)} className="min-h-11 sm:min-h-0">
               <Edit2 className="mr-2 h-3.5 w-3.5" /> Editar
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={() => onToggleStatus(user)}
               disabled={!canToggle}
-              className={!user.ativo ? 'text-emerald-600' : 'text-destructive'}
+              className={
+                (!user.ativo ? 'text-emerald-600' : 'text-destructive') +
+                ' min-h-11 sm:min-h-0'
+              }
             >
               {user.ativo ? (
                 <>
