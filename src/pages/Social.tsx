@@ -5,7 +5,8 @@ import { ModulePage } from '@/components/ModulePage';
 import { AccessDenied } from '@/components/AccessDenied';
 import { getUserFriendlyError } from '@/utils/errorMessages';
 import { SummaryCard } from '@/components/SummaryCard';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent, TabsTrigger } from '@/components/ui/tabs';
+import { ScrollableTabsList } from '@/components/ui/scrollable-tabs';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
@@ -244,14 +245,14 @@ export default function Social() {
         }
       >
         <Tabs defaultValue="dashboard" className="space-y-4">
-          <TabsList>
+          <ScrollableTabsList>
             <TabsTrigger value="contas">Contas conectadas</TabsTrigger>
             <TabsTrigger value="metricas">Métricas gerais</TabsTrigger>
             <TabsTrigger value="posts">Postagens</TabsTrigger>
             <TabsTrigger value="dashboard">Dashboard social</TabsTrigger>
             <TabsTrigger value="relatorios">Relatórios</TabsTrigger>
             <TabsTrigger value="alertas">Alertas</TabsTrigger>
-          </TabsList>
+          </ScrollableTabsList>
 
           <TabsContent value="contas">
             <SocialContasTab contas={contas} canManageAccounts={permissions.canManageAccounts} canSync={permissions.canSync} onSync={handleSync} onDisable={handleDesativarConta} />

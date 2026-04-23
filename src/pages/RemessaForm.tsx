@@ -338,7 +338,7 @@ export default function RemessaFormPage() {
               </CardContent>
             </Card>
 
-            <div className="flex justify-end gap-3 pb-6">
+            <div className="hidden md:flex justify-end gap-3 pb-6">
               <Button type="button" variant="outline" onClick={handleCancel}>
                 Cancelar
               </Button>
@@ -347,6 +347,25 @@ export default function RemessaFormPage() {
                 {isSaving ? "Salvando..." : isNew ? "Criar Remessa" : "Salvar Alterações"}
               </Button>
             </div>
+
+            {/* Spacer mobile para não cobrir conteúdo com o footer sticky */}
+            {(isDirty || isNew) && <div className="h-24 md:hidden" aria-hidden />}
+
+            {/* Footer sticky mobile — sempre visível em new; em edit só quando dirty */}
+            {(isDirty || isNew) && (
+              <div
+                className="md:hidden fixed bottom-0 inset-x-0 bg-background/95 backdrop-blur border-t z-40 px-3 py-3 flex flex-col-reverse gap-2"
+                style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}
+              >
+                <Button type="button" variant="outline" onClick={handleCancel} className="w-full min-h-11">
+                  Cancelar
+                </Button>
+                <Button type="submit" disabled={isSaving} className="w-full min-h-11">
+                  <Save className="h-4 w-4 mr-1.5" />
+                  {isSaving ? "Salvando..." : isNew ? "Criar Remessa" : "Salvar Alterações"}
+                </Button>
+              </div>
+            )}
           </form>
         )}
       {confirmDialog}

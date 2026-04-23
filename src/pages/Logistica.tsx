@@ -3,7 +3,8 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollableTabsList } from "@/components/ui/scrollable-tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -602,11 +603,11 @@ export default function Logistica() {
         )}
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="mb-4">
+          <ScrollableTabsList className="mb-4">
             <TabsTrigger value="entregas">Entregas</TabsTrigger>
             <TabsTrigger value="recebimentos">Recebimentos</TabsTrigger>
             <TabsTrigger value="remessas">Remessas</TabsTrigger>
-          </TabsList>
+          </ScrollableTabsList>
 
           {/* ── Tab: Entregas ── */}
           <TabsContent value="entregas">
