@@ -3,7 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { getUserFriendlyError } from '@/utils/errorMessages';
-import { getPasswordCriteria } from '../utils/passwordPolicy';
+import { getPasswordCriteriaWithMatch, PASSWORD_MIN_LENGTH } from '@/lib/passwordPolicy';
 
 export interface PasswordErrors {
   current?: string;
@@ -31,11 +31,11 @@ export function useChangePassword() {
   const [signingOutOthers, setSigningOutOthers] = useState(false);
 
   const change = async () => {
-    const criteria = getPasswordCriteria(newPassword, confirmPassword);
+    const criteria = getPasswordCriteriaWithMatch(newPassword, confirmPassword);
     const [lengthOk, caseOk, digitOk, matchOk] = criteria.map((c) => c.met);
     const next: PasswordErrors = {};
     if (!currentPassword) next.current = 'Informe a senha atual';
-    if (!newPassword || !lengthOk) next.new = 'A senha deve ter pelo menos 8 caracteres';
+    if (!newPassword || !lengthOk) next.new = `A senha deve ter pelo menos ${PASSWORD_MIN_LENGTH} caracteres`;
     else if (!caseOk) next.new = 'Use letras maiúsculas e minúsculas';
     else if (!digitOk) next.new = 'Inclua ao menos um número';
     if (newPassword && confirmPassword && !matchOk) next.confirm = 'As senhas não coincidem';

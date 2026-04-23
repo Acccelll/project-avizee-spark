@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -6,9 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
-import { UserPlus, Eye, EyeOff, Mail, Lock, User, CheckCircle2, ShieldAlert } from "lucide-react";
+import { UserPlus, Eye, EyeOff, Mail, Lock, User, CheckCircle2, ShieldAlert, AlertCircle, Send } from "lucide-react";
 import { ADMIN_EMAIL, INVITE_ONLY } from "@/constants/app";
 import { useBranding } from "@/hooks/useBranding";
+import { CapsLockIndicator } from "@/components/auth/CapsLockIndicator";
+import { PasswordStrengthIndicator } from "@/components/auth/PasswordStrengthIndicator";
+import { validatePassword } from "@/lib/passwordPolicy";
 
 export default function Signup() {
   const [searchParams] = useSearchParams();
@@ -17,10 +20,15 @@ export default function Signup() {
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [errors, setErrors] = useState<{ nome?: string; email?: string; password?: string }>({});
+  const [errors, setErrors] = useState<{ nome?: string; email?: string; password?: string; confirm?: string }>({});
+  const [serverError, setServerError] = useState<{ message: string; suggestLogin?: boolean } | null>(null);
+  const [resending, setResending] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const cooldownTimer = useRef<number | null>(null);
   const branding = useBranding();
 
   const blockedByInvite = useMemo(
@@ -28,19 +36,34 @@ export default function Signup() {
     [inviteToken],
   );
 
+  useEffect(() => {
+    if (resendCooldown <= 0) {
+      if (cooldownTimer.current) window.clearInterval(cooldownTimer.current);
+      return;
+    }
+    cooldownTimer.current = window.setInterval(() => {
+      setResendCooldown((s) => Math.max(0, s - 1));
+    }, 1000);
+    return () => {
+      if (cooldownTimer.current) window.clearInterval(cooldownTimer.current);
+    };
+  }, [resendCooldown]);
+
   const validate = () => {
     const e: typeof errors = {};
     if (!nome.trim()) e.nome = "Informe seu nome";
     if (!email.trim()) e.email = "Informe seu e-mail";
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) e.email = "E-mail inválido";
-    if (!password) e.password = "Informe uma senha";
-    else if (password.length < 6) e.password = "Mínimo 6 caracteres";
+    const pwd = validatePassword(password);
+    if (!pwd.valid) e.password = pwd.error;
+    if (password && confirmPassword !== password) e.confirm = "As senhas não coincidem";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+    setServerError(null);
     if (blockedByInvite) {
       toast.error("Cadastro disponível apenas por convite.");
       return;
@@ -51,18 +74,47 @@ export default function Signup() {
       email: email.trim(),
       password,
       options: {
-        data: { nome: nome.trim(), invite_token: inviteToken || undefined },
+        // Envia tanto `nome` (campo nativo do form) quanto `full_name` (chave esperada
+        // pelo trigger anterior) — a função handle_new_user lê ambas.
+        data: { nome: nome.trim(), full_name: nome.trim(), invite_token: inviteToken || undefined },
         emailRedirectTo: window.location.origin,
       },
     });
     if (error) {
       console.error('[signup]', error);
-      toast.error("Erro ao criar conta. Tente novamente.");
+      const raw = (error.message || "").toLowerCase();
+      if (raw.includes("already registered") || raw.includes("user already") || raw.includes("already exists")) {
+        setServerError({
+          message: "Este e-mail já está cadastrado. Faça login ou recupere sua senha.",
+          suggestLogin: true,
+        });
+      } else if (raw.includes("password") && (raw.includes("weak") || raw.includes("pwned") || raw.includes("compromised"))) {
+        setServerError({ message: "Senha fraca ou comprometida em vazamentos conhecidos. Use uma senha mais forte." });
+      } else if (raw.includes("rate") || raw.includes("too many")) {
+        setServerError({ message: "Muitas tentativas. Aguarde alguns minutos e tente novamente." });
+      } else {
+        setServerError({ message: error.message || "Erro ao criar conta. Tente novamente." });
+      }
     } else {
       setSuccess(true);
+      setResendCooldown(60);
       toast.success("Conta criada! Verifique seu e-mail para confirmar.");
     }
     setLoading(false);
+  };
+
+  const handleResend = async () => {
+    if (resendCooldown > 0 || resending) return;
+    setResending(true);
+    const { error } = await supabase.auth.resend({ type: "signup", email: email.trim() });
+    if (error) {
+      console.error('[signup-resend]', error);
+      toast.error("Não foi possível reenviar. Tente novamente em instantes.");
+    } else {
+      toast.success("E-mail de confirmação reenviado.");
+      setResendCooldown(60);
+    }
+    setResending(false);
   };
 
   if (success) {
@@ -73,13 +125,30 @@ export default function Signup() {
             <CheckCircle2 className="h-7 w-7 text-success" />
           </div>
           <h2 className="text-xl font-bold mb-2">Verifique seu e-mail</h2>
-          <p className="text-muted-foreground text-sm mb-6">
+          <p className="text-muted-foreground text-sm mb-2">
             Enviamos um link de confirmação para <strong className="text-foreground">{email}</strong>.
             Clique no link para ativar sua conta.
           </p>
-          <Link to="/login">
-            <Button variant="outline" className="gap-2">Voltar ao Login</Button>
-          </Link>
+          <p className="text-muted-foreground text-xs mb-6">
+            Não recebeu? Verifique a pasta de spam.
+          </p>
+          <div className="flex flex-col gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="gap-2"
+              onClick={handleResend}
+              disabled={resending || resendCooldown > 0}
+            >
+              <Send className="h-4 w-4" />
+              {resendCooldown > 0
+                ? `Reenviar em ${resendCooldown}s`
+                : resending ? "Reenviando..." : "Reenviar e-mail de confirmação"}
+            </Button>
+            <Link to="/login">
+              <Button variant="ghost" className="w-full">Voltar ao Login</Button>
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -135,6 +204,23 @@ export default function Signup() {
           className="bg-card border border-border/70 rounded-2xl p-8 space-y-5 shadow-[0_4px_24px_rgba(0,0,0,0.07)] border-t-2 border-t-primary/80"
           noValidate
         >
+          {serverError && (
+            <Alert variant="destructive" className="py-2.5">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription className="text-xs leading-snug ml-1">
+                {serverError.message}
+                {serverError.suggestLogin && (
+                  <>
+                    {" "}
+                    <Link to="/login" className="font-medium underline underline-offset-2">
+                      Ir para login
+                    </Link>
+                  </>
+                )}
+              </AlertDescription>
+            </Alert>
+          )}
+
           <div className="space-y-2">
             <Label htmlFor="nome">Nome completo</Label>
             <div className="relative">
@@ -188,9 +274,9 @@ export default function Signup() {
               <Input
                 id="password"
                 type={showPassword ? "text" : "password"}
-                placeholder="Mínimo 6 caracteres"
+                placeholder="Mínimo 8 caracteres com letras e número"
                 value={password}
-                onChange={(e) => { setPassword(e.target.value); setErrors((p) => ({ ...p, password: undefined })); }}
+                onChange={(e) => { setPassword(e.target.value); setErrors((p) => ({ ...p, password: undefined })); setServerError(null); }}
                 className={`pl-9 pr-10 ${errors.password ? "border-destructive" : ""}`}
                 autoComplete="new-password"
                 aria-invalid={!!errors.password}
@@ -211,26 +297,31 @@ export default function Signup() {
                 {errors.password}
               </p>
             )}
-            {password.length > 0 && (() => {
-              const strength = password.length >= 12 ? 4 : password.length >= 9 ? 3 : password.length >= 6 ? 2 : 1;
-              const label = strength <= 1 ? "Fraca" : strength === 2 ? "Razoável" : strength === 3 ? "Boa" : "Forte";
-              const color = strength <= 1 ? "bg-destructive" : strength === 2 ? "bg-warning" : "bg-success";
-              return (
-                <div className="space-y-1 mt-1">
-                  <div className="flex gap-1">
-                    {[1, 2, 3, 4].map((level) => (
-                      <div
-                        key={level}
-                        className={`h-1 flex-1 rounded-full transition-colors ${level <= strength ? color : "bg-muted"}`}
-                      />
-                    ))}
-                  </div>
-                  <p className="text-[10px] text-muted-foreground">
-                    Senha <span className="font-medium text-foreground">{label}</span>
-                  </p>
-                </div>
-              );
-            })()}
+            <CapsLockIndicator />
+            <PasswordStrengthIndicator password={password} confirm={confirmPassword} />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="confirmPassword">Confirmar senha</Label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                id="confirmPassword"
+                type={showPassword ? "text" : "password"}
+                placeholder="Repita a senha"
+                value={confirmPassword}
+                onChange={(e) => { setConfirmPassword(e.target.value); setErrors((p) => ({ ...p, confirm: undefined })); }}
+                className={`pl-9 ${errors.confirm ? "border-destructive" : ""}`}
+                autoComplete="new-password"
+                aria-invalid={!!errors.confirm}
+                aria-describedby={errors.confirm ? "confirm-error" : undefined}
+              />
+            </div>
+            {errors.confirm && (
+              <p id="confirm-error" role="alert" className="text-xs text-destructive">
+                {errors.confirm}
+              </p>
+            )}
           </div>
 
           <Button type="submit" className="w-full gap-2" disabled={loading}>

@@ -5,8 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Lock, Eye, EyeOff, CheckCircle2, ShieldCheck } from "lucide-react";
+import { Lock, Eye, EyeOff, CheckCircle2, ShieldCheck, LogOut } from "lucide-react";
 import { useBranding } from "@/hooks/useBranding";
+import { CapsLockIndicator } from "@/components/auth/CapsLockIndicator";
+import { PasswordStrengthIndicator } from "@/components/auth/PasswordStrengthIndicator";
+import { validatePassword } from "@/lib/passwordPolicy";
 
 export default function ResetPassword() {
   const [password, setPassword] = useState("");
@@ -14,6 +17,8 @@ export default function ResetPassword() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [signingOutOthers, setSigningOutOthers] = useState(false);
+  const [othersDone, setOthersDone] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
   const [errors, setErrors] = useState<{ password?: string; confirm?: string }>({});
   const navigate = useNavigate();
@@ -43,8 +48,8 @@ export default function ResetPassword() {
 
   const validate = () => {
     const e: typeof errors = {};
-    if (!password) e.password = "Informe a nova senha";
-    else if (password.length < 6) e.password = "Mínimo 6 caracteres";
+    const pwd = validatePassword(password);
+    if (!pwd.valid) e.password = pwd.error;
     if (password !== confirmPassword) e.confirm = "As senhas não coincidem";
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -57,12 +62,34 @@ export default function ResetPassword() {
     const { error } = await supabase.auth.updateUser({ password });
     if (error) {
       console.error('[reset-password]', error);
-      toast.error("Erro ao atualizar senha. Tente novamente.");
+      const raw = (error.message || "").toLowerCase();
+      if (raw.includes("pwned") || raw.includes("compromised")) {
+        toast.error("Esta senha apareceu em vazamentos conhecidos. Escolha outra.");
+      } else if (raw.includes("weak") || raw.includes("short")) {
+        toast.error("Senha não atende à política mínima. Use uma senha mais forte.");
+      } else if (raw.includes("same") || raw.includes("different")) {
+        toast.error("A nova senha precisa ser diferente da senha atual.");
+      } else {
+        toast.error("Erro ao atualizar senha. Tente novamente.");
+      }
     } else {
       setSuccess(true);
       toast.success("Senha alterada com sucesso. Faça login com a nova senha.");
     }
     setLoading(false);
+  };
+
+  const handleSignOutOthers = async () => {
+    setSigningOutOthers(true);
+    const { error } = await supabase.auth.signOut({ scope: 'others' });
+    if (error) {
+      console.error('[reset-password] signOut others:', error);
+      toast.error("Não foi possível encerrar outras sessões. Tente novamente.");
+    } else {
+      setOthersDone(true);
+      toast.success("Sessões em outros dispositivos foram encerradas.");
+    }
+    setSigningOutOthers(false);
   };
 
   if (checkingSession) {
@@ -84,9 +111,26 @@ export default function ResetPassword() {
           <p className="text-muted-foreground text-sm mb-6">
             Sua senha foi redefinida com sucesso. Você já pode acessar o sistema.
           </p>
-          <Button onClick={() => navigate("/")} className="gap-2">
-            <ShieldCheck className="h-4 w-4" /> Acessar o sistema
-          </Button>
+          <div className="flex flex-col gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="gap-2 w-full"
+              onClick={handleSignOutOthers}
+              disabled={signingOutOthers || othersDone}
+            >
+              <LogOut className="h-4 w-4" />
+              {othersDone
+                ? "Outras sessões encerradas ✓"
+                : signingOutOthers ? "Encerrando..." : "Encerrar outras sessões"}
+            </Button>
+            <Button onClick={() => navigate("/")} className="gap-2 w-full">
+              <ShieldCheck className="h-4 w-4" /> Acessar o sistema
+            </Button>
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-4 leading-snug">
+            Recomendamos encerrar sessões em outros dispositivos como precaução de segurança.
+          </p>
         </div>
       </div>
     );
@@ -117,7 +161,7 @@ export default function ResetPassword() {
               <Input
                 id="password"
                 type={showPassword ? "text" : "password"}
-                placeholder="Mínimo 6 caracteres"
+                placeholder="Mínimo 8 caracteres com letras e número"
                 value={password}
                 onChange={(e) => { setPassword(e.target.value); setErrors((p) => ({ ...p, password: undefined })); }}
                 className={`pl-9 pr-10 ${errors.password ? "border-destructive" : ""}`}
@@ -134,6 +178,8 @@ export default function ResetPassword() {
               </button>
             </div>
             {errors.password && <p className="text-xs text-destructive">{errors.password}</p>}
+            <CapsLockIndicator />
+            <PasswordStrengthIndicator password={password} confirm={confirmPassword} />
           </div>
 
           <div className="space-y-2">

@@ -4,8 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { toast } from "sonner";
-import { ArrowLeft, Mail, Send, CheckCircle2 } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ArrowLeft, Mail, Send, CheckCircle2, AlertCircle } from "lucide-react";
 import { useBranding } from "@/hooks/useBranding";
 
 export default function ForgotPassword() {
@@ -13,10 +13,12 @@ export default function ForgotPassword() {
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
+  const [serverError, setServerError] = useState<string | null>(null);
   const branding = useBranding();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setServerError(null);
     if (!email.trim()) { setError("Informe seu e-mail"); return; }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setError("E-mail inválido"); return; }
     
@@ -24,8 +26,20 @@ export default function ForgotPassword() {
     const { error: err } = await supabase.auth.resetPasswordForEmail(email.trim(), {
       redirectTo: `${window.location.origin}/reset-password`,
     });
-    if (err) { console.error('[forgot-password]', err); toast.error("Erro ao enviar e-mail de recuperação. Tente novamente."); }
-    else setSent(true);
+    if (err) {
+      console.error('[forgot-password]', err);
+      const raw = (err.message || "").toLowerCase();
+      if (raw.includes("rate") || raw.includes("too many")) {
+        setServerError("Muitas tentativas. Aguarde alguns minutos antes de solicitar novamente.");
+      } else {
+        // Mensagem neutra (anti-enumeration): mesmo em erro técnico, mostramos a tela de
+        // sucesso depois — só erros de rate/conexão sobem para o usuário.
+        setSent(true);
+      }
+    } else {
+      // Anti-enumeration: confirmamos envio mesmo se o e-mail não existir.
+      setSent(true);
+    }
     setLoading(false);
   };
 
@@ -36,12 +50,12 @@ export default function ForgotPassword() {
           <div className="w-14 h-14 rounded-full bg-success/10 flex items-center justify-center mx-auto mb-4">
             <CheckCircle2 className="h-7 w-7 text-success" />
           </div>
-          <h2 className="text-xl font-bold mb-2">E-mail enviado</h2>
+          <h2 className="text-xl font-bold mb-2">Verifique seu e-mail</h2>
           <p className="text-muted-foreground text-sm mb-2">
-            Enviamos um link de recuperação para <strong className="text-foreground">{email}</strong>.
+            Se <strong className="text-foreground">{email}</strong> estiver cadastrado, você receberá um link de recuperação em instantes.
           </p>
           <p className="text-muted-foreground text-xs mb-6">
-            Se não encontrar, verifique a pasta de spam. O link expira em 1 hora.
+            Verifique também a pasta de spam. O link tem validade limitada por segurança.
           </p>
           <Link to="/login"><Button variant="outline" className="gap-2"><ArrowLeft className="h-4 w-4" /> Voltar ao Login</Button></Link>
         </div>
@@ -59,6 +73,12 @@ export default function ForgotPassword() {
         </div>
 
         <form onSubmit={handleSubmit} className="bg-card border rounded-xl p-6 space-y-4 shadow-sm">
+          {serverError && (
+            <Alert variant="destructive" className="py-2.5">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription className="text-xs leading-snug ml-1">{serverError}</AlertDescription>
+            </Alert>
+          )}
           <div className="space-y-2">
             <Label htmlFor="email">E-mail cadastrado</Label>
             <div className="relative">
@@ -68,7 +88,7 @@ export default function ForgotPassword() {
                 type="email"
                 placeholder="seu@email.com"
                 value={email}
-                onChange={(e) => { setEmail(e.target.value); setError(""); }}
+                onChange={(e) => { setEmail(e.target.value); setError(""); setServerError(null); }}
                 className={`pl-9 ${error ? "border-destructive" : ""}`}
                 autoComplete="email"
                 autoFocus

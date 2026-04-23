@@ -103,9 +103,26 @@ export function SessionExpiryWarning() {
       setExpired(true);
     }
 
+    // Recheck no `visibilitychange`: setTimeout é throttled em abas suspensas
+    // (laptop fechado), então o timer pode disparar tarde. Quando a aba volta
+    // a ficar visível, comparamos `expires_at` com `Date.now()` e disparamos
+    // o estado expirado imediatamente se necessário.
+    const onVisibility = () => {
+      if (document.visibilityState !== 'visible') return;
+      const remaining = expiresAtMs - Date.now();
+      if (remaining <= 0) {
+        toast.dismiss(TOAST_ID);
+        setExpired(true);
+      } else if (remaining <= warnBeforeMs) {
+        triggerWarn();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+
     return () => {
       if (warnTimerRef.current) window.clearTimeout(warnTimerRef.current);
       if (expireTimerRef.current) window.clearTimeout(expireTimerRef.current);
+      document.removeEventListener('visibilitychange', onVisibility);
     };
   }, [session?.expires_at, signOut, warnMinutes]);
 
