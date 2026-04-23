@@ -235,12 +235,10 @@ export function DataTable<T extends Record<string, any>>({
   const secondaryColumns = visibleColumns.slice(1);
 
   const toggleColumnVisibility = (key: string) => {
-    setHiddenKeys((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
+    const next = new Set(hiddenKeys);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    void persistHiddenKeys([...next]);
   };
 
   const applyRule = (item: T, rule: FilterRule) => {
