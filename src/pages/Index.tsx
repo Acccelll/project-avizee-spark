@@ -1,6 +1,9 @@
 import { Fragment, lazy, Suspense, useState, type ReactNode } from "react";
 import { SummaryCard } from "@/components/SummaryCard";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
+import { MobileDashboardHeader } from "@/components/dashboard/MobileDashboardHeader";
+import { MobileCollapsibleBlock } from "@/components/dashboard/MobileCollapsibleBlock";
+import { BackToTopButton } from "@/components/dashboard/BackToTopButton";
 import { AlertStrip } from "@/components/dashboard/AlertStrip";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { FinanceiroBlock } from "@/components/dashboard/FinanceiroBlock";
@@ -18,6 +21,7 @@ import { DashboardPeriodProvider } from "@/contexts/DashboardPeriodContext";
 import { useNavigate } from "react-router-dom";
 import { useMetas } from "@/hooks/useMetas";
 import { useInView } from "@/hooks/useInView";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDashboardData } from "@/pages/dashboard/hooks/useDashboardData";
 import { useDashboardKpis } from "@/pages/dashboard/hooks/useDashboardKpis";
@@ -26,6 +30,13 @@ import { useDashboardLayout, type WidgetId } from "@/hooks/useDashboardLayout";
 import { DashboardCustomizeMenu } from "@/components/dashboard/DashboardCustomizeMenu";
 import { buildDrilldownUrl } from "@/lib/dashboard/drilldown";
 import { ScopeBadge } from "@/components/dashboard/ScopeBadge";
+import {
+  ShoppingBag,
+  Package,
+  Truck,
+  FileText as FileTextIcon,
+  DollarSign,
+} from "lucide-react";
 
 const VendasChart = lazy(() =>
   import("@/components/dashboard/VendasChart").then((m) => ({ default: m.VendasChart })),
