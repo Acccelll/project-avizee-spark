@@ -13,6 +13,7 @@ import { ContrastDevTool } from './accessibility/ContrastDevTool';
 import { useGlobalHotkeys } from '@/hooks/useGlobalHotkeys';
 import { GlobalSearch } from './navigation/GlobalSearch';
 import { GlobalShortcutsDialog } from './navigation/GlobalShortcutsDialog';
+import { GlobalPeriodProvider } from '@/contexts/DashboardPeriodContext';
 
 /**
  * AppLayout
@@ -59,6 +60,7 @@ export function AppLayout() {
   }, [isMobile]);
 
   return (
+    <GlobalPeriodProvider>
     <div className="min-h-screen bg-background">
       <SkipLink />
 
@@ -110,5 +112,6 @@ export function AppLayout() {
 
       {import.meta.env.DEV && <ContrastDevTool />}
     </div>
+    </GlobalPeriodProvider>
   );
 }
