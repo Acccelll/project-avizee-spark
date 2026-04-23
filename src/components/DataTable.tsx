@@ -534,7 +534,7 @@ export function DataTable<T extends Record<string, any>>({
                     </label>
                   ))}
                 </div>
-                <Button variant="ghost" size="sm" className="mt-2 w-full" onClick={() => setHiddenKeys(new Set(columns.filter((c) => c.hidden).map((c) => c.key)))}>
+                <Button variant="ghost" size="sm" className="mt-2 w-full" onClick={() => void persistHiddenKeys(columns.filter((c) => c.hidden).map((c) => c.key))}>
                   <RotateCcw className="h-3.5 w-3.5 mr-1" />Restaurar padrão
                 </Button>
                 <div className="mt-2 pt-2 border-t">
@@ -547,10 +547,7 @@ export function DataTable<T extends Record<string, any>>({
                           name="datatable-view-mode"
                           value={m}
                           checked={viewMode === m}
-                          onChange={() => {
-                            setViewMode(m);
-                            if (moduleKey) localStorage.setItem(getStorageKey(moduleKey, 'list-mode'), m);
-                          }}
+                          onChange={() => void persistViewMode(m)}
                           className="accent-primary"
                         />
                         {m === 'pagination' ? 'Paginação' : 'Scroll infinito'}
@@ -577,10 +574,7 @@ export function DataTable<T extends Record<string, any>>({
                         name="datatable-view-mode"
                         value={m}
                         checked={viewMode === m}
-                        onChange={() => {
-                          setViewMode(m);
-                          if (moduleKey) localStorage.setItem(getStorageKey(moduleKey, 'list-mode'), m);
-                        }}
+                        onChange={() => void persistViewMode(m)}
                         className="accent-primary"
                       />
                       {m === 'pagination' ? 'Paginação' : 'Scroll infinito'}
