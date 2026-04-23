@@ -15,7 +15,13 @@ import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, Calendar } from "lucide-react";
+import { ChevronLeft, Calendar, MoreVertical } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export interface ReportHeaderProps {
   categoryLabel?: string;
@@ -44,6 +50,61 @@ export function ReportHeader({
   onBack,
   actions,
 }: ReportHeaderProps) {
+  const isMobile = useIsMobile();
+
+  if (isMobile) {
+    return (
+      <div className="space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onBack}
+            className="gap-1 -ml-2 min-h-11 px-2"
+            aria-label="Voltar para lista de relatórios"
+          >
+            <ChevronLeft className="h-5 w-5" />
+            <span className="text-sm">Voltar</span>
+          </Button>
+          {actions && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="min-h-11 min-w-11"
+                  aria-label="Mais ações"
+                >
+                  <MoreVertical className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="end"
+                className="w-[calc(100vw-2rem)] max-w-xs p-2 flex flex-col gap-1"
+              >
+                {actions}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
+        <div className="min-w-0">
+          <h2 className="text-lg font-semibold text-foreground leading-tight truncate">
+            {title}
+          </h2>
+          {periodLabel && (
+            <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Calendar className="h-3 w-3 flex-shrink-0" />
+              <span className="truncate">{periodLabel}</span>
+              {recordCount != null && (
+                <span className="ml-1 flex-shrink-0">· {recordCount} reg</span>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-3">
       {/* Linha 1: voltar + breadcrumb + chip período */}

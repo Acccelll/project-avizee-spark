@@ -9,6 +9,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Input } from '@/components/ui/input';
 import { EmptyState } from '@/components/ui/empty-state';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { DataTable } from '@/components/DataTable';
 import { PreviewModal } from '@/components/ui/PreviewModal';
 import { PeriodoFilter } from '@/pages/relatorios/components/Filtros/PeriodoFilter';
@@ -30,8 +33,9 @@ import { useRelatorioExport } from '@/pages/relatorios/hooks/useRelatorioExport'
 import { useActiveFilterChips } from '@/pages/relatorios/hooks/useActiveFilterChips';
 import { useRelatorioDrillDown } from '@/pages/relatorios/hooks/useRelatorioDrillDown';
 import { RowActionsMenu } from '@/pages/relatorios/components/RowActionsMenu';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
-import { BookmarkPlus, BookOpen, Columns, Hash, Eye, Trash2, RefreshCcw, Rows3, SearchX } from 'lucide-react';
+import { BookmarkPlus, BookOpen, Columns, Hash, Eye, Trash2, RefreshCcw, Rows3, SearchX, SlidersHorizontal, ChevronDown } from 'lucide-react';
 import { filtrarPorStatus, sortarRows } from '@/utils/relatorios';
 import { reportConfigs, reportCategoryMeta, reportRuntimeSemantics } from '@/config/relatoriosConfig';
 import { formatCurrency, formatNumber, formatDate } from '@/lib/format';
@@ -73,6 +77,10 @@ export default function Relatorios() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [saveNameOpen, setSaveNameOpen] = useState(false);
   const [saveName, setSaveName] = useState('');
+  const [filtersSheetOpen, setFiltersSheetOpen] = useState(false);
+  const [tableExpanded, setTableExpanded] = useState(false);
+
+  const isMobile = useIsMobile();
 
   const { compactDensity, setCompactDensity } = useRelatorioDensity();
 
@@ -169,6 +177,24 @@ export default function Relatorios() {
   }, [sortedRows, isQtyReport, tipo]);
 
   const visibleColumns = useMemo(() => columns.filter((c) => !hiddenColumns.includes(c.key)), [columns, hiddenColumns]);
+
+  // Props mobile do DataTable derivadas de `semantics`/columns:
+  // - statusKey   → coluna de status/criticidade/faixa/classe (badge)
+  // - identifierKey → 1ª coluna textual não-status (cliente/fornecedor/produto)
+  const mobileTableProps = useMemo(() => {
+    if (!visibleColumns.length) return {};
+    const statusCandidates = ['status', 'criticidade', 'faixa', 'classe', 'tipo'];
+    const statusKey = semantics?.statusField && visibleColumns.some((c) => c.key === semantics.statusField)
+      ? semantics.statusField
+      : visibleColumns.find((c) => statusCandidates.includes(c.key))?.key;
+    const identifierKey = visibleColumns.find(
+      (c) => c.key !== statusKey && !statusCandidates.includes(c.key) && !['valor', 'valorTotal', 'quantidade', 'pedidos', 'posicao'].includes(c.key),
+    )?.key;
+    return {
+      mobileStatusKey: statusKey,
+      mobileIdentifierKey: identifierKey,
+    };
+  }, [visibleColumns, semantics?.statusField]);
 
   // Coluna virtual de ações (drill-down). Só é anexada quando há pelo menos
   // uma ação navegável declarada para o relatório atual.
@@ -285,6 +311,8 @@ export default function Relatorios() {
 
   const footerCols = (selectedMeta?.columns ?? []).filter((c) => c.footerTotal);
 
+  const activeFiltersCount = activeFilterChips.length;
+
   // ── Header secondary actions (Atualizar + Salvar/Carregar favoritos) ─────
   const headerActions = (
     <>
@@ -378,7 +406,8 @@ export default function Relatorios() {
                   </span>
                 </div>
               )}
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+              {/* KPIs — 2x2 em mobile, denso */}
+              <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
                 {kpiCards.map((kpi) => (
                   <SummaryCard
                     key={kpi.title}
@@ -393,8 +422,8 @@ export default function Relatorios() {
                 ))}
               </div>
 
-              {/* ── Filtros + ações de view/export ── */}
-              <Card>
+              {/* ── Filtros + ações (desktop expandido) ── */}
+              <Card className="hidden md:block">
                 <CardContent className="pt-5 pb-4 space-y-4">
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div className="flex-1 min-w-0 space-y-3">
@@ -489,10 +518,116 @@ export default function Relatorios() {
                 </CardContent>
               </Card>
 
-              {/* ── Resultado: tabela + chart ── */}
+              {/* ── Mobile: barra única "Filtros (n) + Atualizar" ── */}
+              <div className="flex items-center gap-2 md:hidden">
+                <Sheet open={filtersSheetOpen} onOpenChange={setFiltersSheetOpen}>
+                  <SheetTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="flex-1 min-h-11 gap-2 justify-start"
+                      aria-label="Abrir filtros do relatório"
+                    >
+                      <SlidersHorizontal className="h-4 w-4" />
+                      Filtros
+                      {activeFiltersCount > 0 && (
+                        <Badge variant="secondary" className="ml-auto">
+                          {activeFiltersCount}
+                        </Badge>
+                      )}
+                    </Button>
+                  </SheetTrigger>
+                  <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto p-0">
+                    <SheetHeader className="sticky top-0 bg-background border-b px-4 py-3 z-10">
+                      <SheetTitle className="text-base">Filtros do relatório</SheetTitle>
+                    </SheetHeader>
+                    <div className="px-4 py-4 space-y-4">
+                      {selectedMeta.filters.showDateRange && (
+                        <PeriodoFilter
+                          dataInicio={dataInicio}
+                          dataFim={dataFim}
+                          axisLabel={selectedMeta.timeAxis?.label ?? reportMeta?.timeAxis?.label}
+                          onChange={({ dataInicio: di, dataFim: df }) => { setDataInicio(di); setDataFim(df); }}
+                        />
+                      )}
+                      <FiltrosRelatorio
+                        filters={selectedMeta.filters}
+                        state={filtrosState}
+                        clientes={clientes}
+                        fornecedores={fornecedores}
+                        grupos={grupos}
+                        semantics={{
+                          statusMeaning: semantics?.statusMeaning,
+                          typeMeaning: semantics?.typeMeaning,
+                          highlightFilters: semantics?.highlightFilters,
+                          listLimitHints: { clientes: limits.clientes, fornecedores: limits.fornecedores },
+                        }}
+                        hideAgrupamento={isDreReport}
+                        onChange={(partial) => setFiltrosState(partial)}
+                      />
+                    </div>
+                    <div className="sticky bottom-0 bg-background border-t px-4 py-3 flex gap-2">
+                      {activeFiltersCount > 0 && (
+                        <Button
+                          variant="outline"
+                          className="flex-1 min-h-11"
+                          onClick={() => { handleClearAllFilters(); }}
+                        >
+                          Limpar
+                        </Button>
+                      )}
+                      <Button
+                        className="flex-1 min-h-11"
+                        onClick={() => setFiltersSheetOpen(false)}
+                      >
+                        Aplicar
+                      </Button>
+                    </div>
+                  </SheetContent>
+                </Sheet>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="min-h-11 min-w-11"
+                  onClick={() => refetch()}
+                  disabled={isLoading}
+                  aria-label="Atualizar dados"
+                >
+                  <RefreshCcw className={cn('h-4 w-4', isLoading && 'animate-spin')} />
+                </Button>
+              </div>
+
+              {/* ── Mobile: Chart primeiro (insight central) ── */}
+              <div className="md:hidden">
+                {isLoading ? (
+                  <Card>
+                    <CardContent className="p-4 space-y-3">
+                      <Skeleton className="h-5 w-32" />
+                      <Skeleton className="h-56 w-full" />
+                      <div className="space-y-2">
+                        {Array.from({ length: 4 }).map((_, i) => (
+                          <Skeleton key={i} className="h-10 w-full" />
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  !isDreReport && (
+                    <RelatorioChart
+                      chartData={resultado?.chartData ?? []}
+                      chartType={selectedMeta.chartType ?? 'bar'}
+                      isQuantityReport={isQtyReport}
+                      contextLabel={semantics?.periodAxisLabel ? `Resumo por ${semantics.periodAxisLabel}` : undefined}
+                      importance={selectedMeta.chartType === 'pie' ? 'central' : 'complementar'}
+                      onDataPointClick={handleChartDrillDown}
+                    />
+                  )
+                )}
+              </div>
+
+              {/* ── Resultado: tabela + chart (mobile e desktop) ── */}
               <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
                 <Card>
-                  <CardHeader className="pb-3">
+                  <CardHeader className="pb-3 hidden md:block">
                     <CardTitle className="text-base">{resultado?.title || 'Relatório'}</CardTitle>
                     <CardDescription>{resultado?.subtitle}</CardDescription>
                   </CardHeader>
@@ -506,7 +641,13 @@ export default function Relatorios() {
                       />
                     )}
 
-                    {isLoading && <div className="p-6 text-sm text-muted-foreground animate-pulse">Carregando {selectedMeta.title}…</div>}
+                    {isLoading && (
+                      <div className="p-4 space-y-2">
+                        {Array.from({ length: 6 }).map((_, i) => (
+                          <Skeleton key={i} className="h-10 w-full" />
+                        ))}
+                      </div>
+                    )}
                     {isError && !isLoading && (
                       <div className="m-4 rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">
                         Não foi possível carregar os dados desse relatório. Revise filtros e tente novamente.
@@ -522,18 +663,56 @@ export default function Relatorios() {
                             KPIs refletem o universo total do banco; totais abaixo refletem apenas registros visíveis.
                           </div>
                         )}
-                        <DataTable
-                          columns={visibleColumnsWithActions}
-                          data={sortedRows}
-                          loading={isLoading}
-                          moduleKey={`relatorios-${tipo}`}
-                          // Drill-down: clique em linha aciona a ação primária quando única;
-                          // múltiplas ações ficam acessíveis pelo menu na coluna "Ações".
-                          onRowClick={handleRowClick}
-                          emptyTitle={`Nenhum registro em ${selectedMeta.title}`}
-                          emptyDescription="Ajuste o período e os filtros para encontrar registros relevantes."
-                        />
-                        <ReportResultFooter rows={sortedRows} cols={footerCols.map((c) => ({ ...c, emphasize: c.format === 'currency' }))} />
+                        {/* Mobile: Collapsible — tabela colapsada por padrão */}
+                        {isMobile ? (
+                          <Collapsible open={tableExpanded} onOpenChange={setTableExpanded}>
+                            <CollapsibleTrigger asChild>
+                              <button
+                                type="button"
+                                className="w-full flex items-center justify-between px-4 py-3 border-b text-sm font-medium hover:bg-muted/50 active:bg-muted min-h-12"
+                                aria-label={tableExpanded ? 'Ocultar registros' : 'Ver registros'}
+                              >
+                                <span>
+                                  {tableExpanded ? 'Ocultar' : 'Ver'} registros
+                                  <span className="ml-1 text-muted-foreground">({sortedRows.length})</span>
+                                </span>
+                                <ChevronDown
+                                  className={cn(
+                                    'h-4 w-4 transition-transform text-muted-foreground',
+                                    tableExpanded && 'rotate-180',
+                                  )}
+                                />
+                              </button>
+                            </CollapsibleTrigger>
+                            <CollapsibleContent>
+                              <DataTable
+                                columns={visibleColumnsWithActions}
+                                data={sortedRows}
+                                loading={isLoading}
+                                moduleKey={`relatorios-${tipo}`}
+                                onRowClick={handleRowClick}
+                                emptyTitle={`Nenhum registro em ${selectedMeta.title}`}
+                                emptyDescription="Ajuste o período e os filtros para encontrar registros relevantes."
+                                {...mobileTableProps}
+                              />
+                              <ReportResultFooter rows={sortedRows} cols={footerCols.map((c) => ({ ...c, emphasize: c.format === 'currency' }))} />
+                            </CollapsibleContent>
+                          </Collapsible>
+                        ) : (
+                          <>
+                            <DataTable
+                              columns={visibleColumnsWithActions}
+                              data={sortedRows}
+                              loading={isLoading}
+                              moduleKey={`relatorios-${tipo}`}
+                              onRowClick={handleRowClick}
+                              emptyTitle={`Nenhum registro em ${selectedMeta.title}`}
+                              emptyDescription="Ajuste o período e os filtros para encontrar registros relevantes."
+                              {...mobileTableProps}
+                            />
+                            <ReportResultFooter rows={sortedRows} cols={footerCols.map((c) => ({ ...c, emphasize: c.format === 'currency' }))} />
+                          </>
+                        )}
                       </>
                     )}
                     {showEmpty && (
@@ -544,7 +723,7 @@ export default function Relatorios() {
                         description="Ajuste o período ou remova filtros para encontrar registros. As exportações refletirão o mesmo resultado vazio."
                         action={
                           activeFilterChips.length > 0 ? (
-                            <Button variant="outline" size="sm" onClick={handleClearAllFilters} className="gap-1.5">
+                            <Button variant="outline" onClick={handleClearAllFilters} className="gap-1.5 min-h-11 sm:min-h-9 sm:h-9 sm:text-sm">
                               Limpar filtros
                             </Button>
                           ) : undefined
@@ -554,13 +733,31 @@ export default function Relatorios() {
                   </CardContent>
                 </Card>
 
-                <RelatorioChart
-                  chartData={resultado?.chartData ?? []}
-                  chartType={selectedMeta.chartType ?? 'bar'}
-                  isQuantityReport={isQtyReport}
-                  contextLabel={semantics?.periodAxisLabel ? `Resumo por ${semantics.periodAxisLabel}` : undefined}
-                  importance={selectedMeta.chartType === 'pie' ? 'central' : 'complementar'}
-                  onDataPointClick={handleChartDrillDown}
+                {/* Chart desktop (mobile já renderizado acima) */}
+                <div className="hidden md:block">
+                  <RelatorioChart
+                    chartData={resultado?.chartData ?? []}
+                    chartType={selectedMeta.chartType ?? 'bar'}
+                    isQuantityReport={isQtyReport}
+                    contextLabel={semantics?.periodAxisLabel ? `Resumo por ${semantics.periodAxisLabel}` : undefined}
+                    importance={selectedMeta.chartType === 'pie' ? 'central' : 'complementar'}
+                    onDataPointClick={handleChartDrillDown}
+                  />
+                </div>
+              </div>
+
+              {/* ── Mobile: sticky footer com Exportar (CTA principal) ── */}
+              <div className="md:hidden sticky bottom-0 -mx-4 px-4 py-3 bg-card border-t shadow-[0_-4px_8px_-4px_rgba(0,0,0,0.08)] z-20">
+                <ExportMenu
+                  recordCount={sortedRows.length}
+                  columnCount={visibleColumns.length}
+                  disabled={!hasExportableData}
+                  loading={isExporting}
+                  pdfRowLimitHint={PDF_ROW_LIMIT}
+                  onExportPdf={handleExportPdf}
+                  onExportExcel={handleExportXlsx}
+                  onExportCsv={handleExportCsv}
+                  fullWidth
                 />
               </div>
             </>

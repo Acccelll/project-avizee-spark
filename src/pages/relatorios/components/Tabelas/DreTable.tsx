@@ -20,8 +20,8 @@ export function DreTable({ rows }: DreTableProps) {
   }
 
   return (
-    <div className="p-4">
-      <table className="w-full text-sm">
+    <div className="p-2 sm:p-4">
+      <table className="w-full text-sm tabular-nums">
         <tbody>
           {rows.map((row, i) => (
             <tr
@@ -32,19 +32,19 @@ export function DreTable({ rows }: DreTableProps) {
                   : row.tipo === "subtotal"
                   ? "bg-muted/50 font-semibold border-t"
                   : row.tipo === "resultado"
-                  ? "bg-primary/10 font-bold text-lg border-t-2 border-primary/30"
+                  ? "bg-primary/10 font-bold text-base sm:text-lg border-t-2 border-primary/30"
                   : "text-muted-foreground"
               }
             >
               <td
-                className={`px-4 py-3 ${
+                className={`px-2 sm:px-4 py-2.5 sm:py-3 ${
                   row.tipo === "deducao" ? "pl-8" : ""
                 }`}
               >
                 {row.linha}
               </td>
               <td
-                className={`px-4 py-3 text-right font-mono ${
+                className={`px-2 sm:px-4 py-2.5 sm:py-3 text-right font-mono whitespace-nowrap ${
                   row.valor < 0 ? "text-destructive" : ""
                 }`}
               >
