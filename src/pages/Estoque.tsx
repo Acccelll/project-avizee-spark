@@ -33,6 +33,7 @@ import { AlertTriangle, ArrowDownCircle, RotateCcw,
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { cn } from "@/lib/utils";
 import { getOrigemConfig, getTipoMovConfig, tipoMovConfig } from "@/components/estoque/estoqueMovimentacaoConfig";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 type ProdutoRow = Database["public"]["Tables"]["produtos"]["Row"];
 
@@ -81,6 +82,7 @@ const Estoque = () => {
   const { data, loading } = useSupabaseCrud<Movimento>({
     table: "estoque_movimentos", select: "*, produtos(nome, sku)", hasAtivo: false,
   });
+  const isMobile = useIsMobile();
   const produtosCrud = useSupabaseCrud<ProdutoPosicao>({ table: "produtos" });
   const ajustar = useAjustarEstoque();
   const saving = ajustar.isPending;
