@@ -34,3 +34,14 @@ type: design
 
 ## Fluxo
 - Editar em mobile sempre navega para `/fiscal/:id` (página) — não abre `NotaFiscalEditModal`. Alinha com `mem://produto/quando-drawer-quando-pagina`.
+
+## DanfeViewer mobile
+- `DialogContent` vira bottom-sheet (`max-sm:fixed inset-x-0 bottom-0 rounded-t-2xl max-h-[92svh]`) com safe-area inferior.
+- Emitente/Destinatário em `grid-cols-1 sm:grid-cols-2`.
+- Lista de itens vira **cards verticais** em mobile (`sm:hidden`); tabela HTML preservada para `sm:block`.
+- Grid de impostos secundários: `grid-cols-3 sm:grid-cols-5` para evitar squish em mobile.
+
+## FormModal de NF (Fiscal.tsx + NotaFiscalEditModal)
+- Bloco "Frete, Impostos e Despesas" envolto em `Collapsible` em mobile (`md:hidden` no trigger; `md:!block` no content), colapsado por padrão.
+- Inputs numéricos: `h-11 md:h-8` + `inputMode="decimal"` para abrir teclado numérico no celular.
+- Padrão reutilizável para qualquer bloco fiscal "avançado" que polui form mobile.

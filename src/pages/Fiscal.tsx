@@ -28,6 +28,8 @@ import { Badge } from "@/components/ui/badge";
 import { DanfeViewer } from "@/components/DanfeViewer";
 import { DevolucaoDialog } from "@/components/fiscal/DevolucaoDialog";
 import { NotaFiscalDrawer } from "@/components/fiscal/NotaFiscalDrawer";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ChevronDown } from "lucide-react";
 import { registrarEventoFiscal, cancelarNotaFiscal } from "@/services/fiscal.service";
 import {
   useConfirmarNotaFiscal,
@@ -1010,13 +1012,33 @@ const Fiscal = () => {
               </div>
             </div>
           )}
-          <div className="space-y-3"><Label className="text-sm font-semibold">Frete, Impostos e Despesas</Label>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {[{ label: "Frete", key: "frete_valor" }, { label: "ICMS", key: "icms_valor" }, { label: "IPI", key: "ipi_valor" }, { label: "PIS", key: "pis_valor" }, { label: "COFINS", key: "cofins_valor" }, { label: "ICMS-ST", key: "icms_st_valor" }, { label: "Desconto", key: "desconto_valor" }, { label: "Outras Despesas", key: "outras_despesas" }].map(({ label, key }) => (
-                <div key={key} className="space-y-1"><Label className="text-xs">{label}</Label><Input type="number" step="0.01" value={String(form[key] ?? "")} onChange={(e) => setForm({ ...form, [key]: Number(e.target.value) })} className="h-8 text-xs" /></div>
-              ))}
-            </div>
-          </div>
+          <Collapsible defaultOpen={false} className="space-y-3 md:[&]:!block">
+            <CollapsibleTrigger
+              type="button"
+              className="flex w-full items-center justify-between gap-2 rounded-lg border bg-muted/30 px-3 py-2.5 text-left min-h-11 md:hidden"
+            >
+              <span className="text-sm font-semibold">Frete, Impostos e Despesas</span>
+              <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform data-[state=open]:rotate-180" />
+            </CollapsibleTrigger>
+            <Label className="hidden md:block text-sm font-semibold">Frete, Impostos e Despesas</Label>
+            <CollapsibleContent forceMount className="md:!block data-[state=closed]:hidden md:data-[state=closed]:!block">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {[{ label: "Frete", key: "frete_valor" }, { label: "ICMS", key: "icms_valor" }, { label: "IPI", key: "ipi_valor" }, { label: "PIS", key: "pis_valor" }, { label: "COFINS", key: "cofins_valor" }, { label: "ICMS-ST", key: "icms_st_valor" }, { label: "Desconto", key: "desconto_valor" }, { label: "Outras Despesas", key: "outras_despesas" }].map(({ label, key }) => (
+                  <div key={key} className="space-y-1">
+                    <Label className="text-xs">{label}</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      inputMode="decimal"
+                      value={String(form[key] ?? "")}
+                      onChange={(e) => setForm({ ...form, [key]: Number(e.target.value) })}
+                      className="h-11 md:h-8 text-sm md:text-xs"
+                    />
+                  </div>
+                ))}
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="space-y-2"><Label>Forma de Pagamento</Label>
               <Select value={form.forma_pagamento} onValueChange={(v) => setForm({ ...form, forma_pagamento: v })}><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger><SelectContent><SelectItem value="dinheiro">Dinheiro</SelectItem><SelectItem value="boleto">Boleto</SelectItem><SelectItem value="cartao">Cartão</SelectItem><SelectItem value="pix">PIX</SelectItem><SelectItem value="transferencia">Transferência</SelectItem></SelectContent></Select>

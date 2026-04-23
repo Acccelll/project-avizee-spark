@@ -28,6 +28,8 @@ import {
 } from "lucide-react";
 import { isFiscalReadOnly, isFiscalStructurallyLocked, canConfirmFiscal, getFiscalInternalStatus, getFiscalSefazStatus } from "@/lib/fiscalStatus";
 import { FiscalInternalStatusBadge, FiscalSefazStatusBadge } from "@/components/fiscal/FiscalStatusBadges";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ChevronDown } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -689,34 +691,46 @@ export function NotaFiscalEditModal({
 
           {/* ── 4. Frete, Impostos e Despesas ────────────────────── */}
           {!rules.isStructurallyLocked && !rules.isFullyLocked && (
-            <div>
-              <SectionHeader title="Frete, Impostos e Despesas" />
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {[
-                  { label: "Frete", key: "frete_valor" },
-                  { label: "ICMS", key: "icms_valor" },
-                  { label: "IPI", key: "ipi_valor" },
-                  { label: "PIS", key: "pis_valor" },
-                  { label: "COFINS", key: "cofins_valor" },
-                  { label: "ICMS-ST", key: "icms_st_valor" },
-                  { label: "Desconto", key: "desconto_valor" },
-                  { label: "Outras Despesas", key: "outras_despesas" },
-                ].map(({ label, key }) => (
-                  <div key={key} className="space-y-1">
-                    <Label className="text-xs">{label}</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={form[key]}
-                      onChange={(e) =>
-                        setForm({ ...form, [key]: Number(e.target.value) })
-                      }
-                      className="h-8 text-xs"
-                    />
-                  </div>
-                ))}
+            <Collapsible defaultOpen={false}>
+              <CollapsibleTrigger
+                type="button"
+                className="flex w-full items-center justify-between gap-2 rounded-lg border bg-muted/30 px-3 py-2.5 text-left min-h-11 md:hidden"
+              >
+                <span className="text-sm font-semibold">Frete, Impostos e Despesas</span>
+                <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform data-[state=open]:rotate-180" />
+              </CollapsibleTrigger>
+              <div className="hidden md:block">
+                <SectionHeader title="Frete, Impostos e Despesas" />
               </div>
-            </div>
+              <CollapsibleContent forceMount className="md:!block data-[state=closed]:hidden md:data-[state=closed]:!block mt-3 md:mt-0">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {[
+                    { label: "Frete", key: "frete_valor" },
+                    { label: "ICMS", key: "icms_valor" },
+                    { label: "IPI", key: "ipi_valor" },
+                    { label: "PIS", key: "pis_valor" },
+                    { label: "COFINS", key: "cofins_valor" },
+                    { label: "ICMS-ST", key: "icms_st_valor" },
+                    { label: "Desconto", key: "desconto_valor" },
+                    { label: "Outras Despesas", key: "outras_despesas" },
+                  ].map(({ label, key }) => (
+                    <div key={key} className="space-y-1">
+                      <Label className="text-xs">{label}</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        inputMode="decimal"
+                        value={form[key]}
+                        onChange={(e) =>
+                          setForm({ ...form, [key]: Number(e.target.value) })
+                        }
+                        className="h-11 md:h-8 text-sm md:text-xs"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
           )}
 
           {/* ── 5. Resumo de Totais ───────────────────────────────── */}

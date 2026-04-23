@@ -1,9 +1,9 @@
-import { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { FileText, Building2, Truck, DollarSign, Package } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface DanfeItem {
   produto_id?: string;
@@ -61,7 +61,15 @@ export function DanfeViewer({ open, onClose, data }: DanfeViewerProps) {
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent
+        className={cn(
+          "max-w-3xl max-h-[90vh] overflow-y-auto",
+          // Mobile: bottom-sheet — full-width, sem padding lateral apertado
+          "max-sm:fixed max-sm:inset-x-0 max-sm:bottom-0 max-sm:top-auto max-sm:left-0 max-sm:translate-x-0 max-sm:translate-y-0",
+          "max-sm:max-w-none max-sm:w-full max-sm:rounded-t-2xl max-sm:rounded-b-none",
+          "max-sm:max-h-[92svh] max-sm:pb-[max(env(safe-area-inset-bottom),1rem)]",
+        )}
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="w-5 h-5" />
@@ -95,7 +103,7 @@ export function DanfeViewer({ open, onClose, data }: DanfeViewerProps) {
         )}
 
         {/* Emitente / Destinatário */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           {data.emitente && (
             <div className="border rounded-lg p-3 space-y-1">
               <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1"><Building2 className="w-3 h-3" /> EMITENTE</p>
@@ -119,7 +127,26 @@ export function DanfeViewer({ open, onClose, data }: DanfeViewerProps) {
         {/* Itens */}
         <div>
           <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1 mb-2"><Package className="w-3 h-3" /> ITENS ({data.itens.length})</p>
-          <div className="border rounded-lg overflow-hidden">
+          {/* Mobile: lista de cards */}
+          <div className="sm:hidden space-y-2">
+            {data.itens.map((item, idx) => (
+              <div key={idx} className="border rounded-lg p-3 space-y-1.5">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] text-muted-foreground">Item {idx + 1}</p>
+                    <p className="text-sm font-medium leading-tight">{item.descricao || "—"}</p>
+                  </div>
+                  <p className="font-mono font-semibold text-sm whitespace-nowrap">{formatCurrency(item.quantidade * item.valor_unitario)}</p>
+                </div>
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span className="font-mono">{item.quantidade} × {formatCurrency(item.valor_unitario)}</span>
+                  {item.cfop && <span className="font-mono bg-muted px-1.5 py-0.5 rounded">CFOP {item.cfop}</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+          {/* Desktop: tabela */}
+          <div className="hidden sm:block border rounded-lg overflow-hidden">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-muted/50 text-xs uppercase text-muted-foreground">
@@ -170,7 +197,7 @@ export function DanfeViewer({ open, onClose, data }: DanfeViewerProps) {
               <p className="font-mono font-bold text-primary">{formatCurrency(data.valor_total)}</p>
             </div>
           </div>
-          <div className="grid grid-cols-5 gap-2 mt-2">
+          <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mt-2">
             {[
               { label: "ICMS", value: data.icms_valor },
               { label: "IPI", value: data.ipi_valor },
@@ -190,7 +217,7 @@ export function DanfeViewer({ open, onClose, data }: DanfeViewerProps) {
         {(data.forma_pagamento || data.observacoes) && (
           <>
             <Separator />
-            <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm">
               {data.forma_pagamento && (
                 <div>
                   <p className="text-xs text-muted-foreground">Forma de Pagamento</p>
