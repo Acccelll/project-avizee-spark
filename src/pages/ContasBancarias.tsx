@@ -370,6 +370,8 @@ const ContasBancarias = () => {
           onView={(c) => { setSelected(c); setDrawerOpen(true); }}
           onEdit={openEdit}
           onDelete={handleDelete}
+          mobileIdentifierKey="agencia_conta"
+          mobileStatusKey="ativo"
           emptyTitle="Nenhuma conta bancária encontrada"
           emptyDescription="Cadastre uma nova conta ou ajuste os filtros de busca."
         />

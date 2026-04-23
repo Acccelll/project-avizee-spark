@@ -404,6 +404,8 @@ const GruposEconomicos = () => {
             onEdit={openEdit}
             onDelete={(g) => remove(g.id)}
             deleteBehavior="soft"
+            mobileIdentifierKey="qtd_clientes"
+            mobileStatusKey="ativo"
           />
         </PullToRefresh>
       </ModulePage>

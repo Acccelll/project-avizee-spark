@@ -268,6 +268,25 @@ export function DataTable<T extends Record<string, any>>({
   const primaryColumn = visibleColumns[0] || { key: 'id', label: 'ID' };
   const secondaryColumns = visibleColumns.slice(1);
 
+  // Dev-only: avisa quando uma DataTable provavelmente tem coluna de status
+  // (ex.: `ativo`, `status`, `situacao`) mas o consumidor não passou
+  // `mobileStatusKey` — em mobile o status vira detail-field cinza em vez
+  // de pill. Ver mem://produto/mobile-overview.
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    if (mobileStatusKey) return;
+    const STATUS_HINTS = /^(status|situacao|criticidade|ativo|tipo)$/i;
+    const candidate = columns.find((c) => STATUS_HINTS.test(c.key));
+    if (candidate && columns.length >= 4) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[DataTable:${moduleKey ?? "?"}] Coluna "${candidate.key}" parece status mas mobileStatusKey não foi definido — em mobile o badge não vai destacar.`,
+      );
+    }
+    // só checa uma vez por moduleKey
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [moduleKey]);
+
   const toggleColumnVisibility = (key: string) => {
     const next = new Set(hiddenKeys);
     if (next.has(key)) next.delete(key);

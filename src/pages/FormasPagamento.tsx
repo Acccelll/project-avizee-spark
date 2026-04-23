@@ -315,6 +315,8 @@ export default function FormasPagamento() {
           onEdit={openEdit}
           onDelete={(f) => { setSelected(f); setDeleteConfirmOpen(true); }}
           deleteBehavior="soft"
+          mobileIdentifierKey="tipo"
+          mobileStatusKey="ativo"
         />
       </ModulePage>
 

@@ -395,6 +395,7 @@ const Fornecedores = () => {
             onDelete={(f) => remove(f.id)}
             deleteBehavior="soft"
             mobileIdentifierKey="cpf_cnpj"
+            mobileStatusKey="ativo"
             mobileInlineActions={(f: Fornecedor) => (
               <ContactInlineActions
                 phone={f.celular || f.telefone}

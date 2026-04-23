@@ -623,6 +623,8 @@ const ContasContabeis = () => {
               onView={(c) => { setSelected(c); setDrawerOpen(true); }}
               onEdit={openEdit}
               onDelete={(c) => handleDelete(c)}
+              mobileIdentifierKey="codigo"
+              mobileStatusKey="ativo"
               emptyTitle="Nenhuma conta encontrada"
               emptyDescription="Tente ajustar os filtros ou cadastre uma nova conta contábil."
             />

@@ -332,6 +332,8 @@ export default function Funcionarios() {
             onEdit={openEdit}
             onDelete={(f) => remove(f.id)}
             deleteBehavior="soft"
+            mobileIdentifierKey="cargo"
+            mobileStatusKey="ativo"
           />
         </PullToRefresh>
       </ModulePage>

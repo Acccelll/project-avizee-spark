@@ -390,6 +390,7 @@ const Clientes = () => {
             onDelete={(c) => remove(c.id)}
             deleteBehavior="soft"
             mobileIdentifierKey="cpf_cnpj"
+            mobileStatusKey="ativo"
             mobileInlineActions={(c: Cliente) => (
               <ContactInlineActions
                 phone={c.celular || c.telefone}

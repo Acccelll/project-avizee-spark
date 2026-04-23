@@ -183,6 +183,8 @@ export default function Socios() {
             setDrawerSocio(s);
             setDrawerOpen(true);
           }}
+          mobileIdentifierKey="cpf"
+          mobileStatusKey="ativo"
         />
       </ModulePage>
 
