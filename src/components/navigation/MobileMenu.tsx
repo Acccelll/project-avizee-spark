@@ -31,11 +31,6 @@ export function MobileMenu({ open, onOpenChange, onOpenSearch }: MobileMenuProps
     [can],
   );
 
-  const filteredSections = useMemo(
-    () => visibleSections.filter((section) => !BOTTOM_TAB_KEYS.has(section.key)),
-    [visibleSections],
-  );
-
   const handleNavigate = (path: string) => {
     onOpenChange(false);
     navigate(path);
@@ -98,11 +93,16 @@ export function MobileMenu({ open, onOpenChange, onOpenSearch }: MobileMenuProps
           </div>
 
           {/* Módulos — lista única */}
-          {filteredSections.map((section) => (
+          {visibleSections.map((section) => (
             <Fragment key={section.key}>
-              <p className="px-2 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                {section.title}
-              </p>
+              <div className="flex items-baseline gap-2 px-2 pb-1 pt-3">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  {section.title}
+                </p>
+                {BOTTOM_TAB_KEYS.has(section.key) && (
+                  <span className="text-[10px] text-muted-foreground/70">• também na barra inferior</span>
+                )}
+              </div>
               <div className="mb-1 space-y-0.5">
                 {section.directPath ? (
                   <button
