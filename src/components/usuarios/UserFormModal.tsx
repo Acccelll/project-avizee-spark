@@ -215,17 +215,65 @@ export function UserFormModal({
 
   const title = isEdit ? `Editar usuário — ${user?.nome}` : 'Novo usuário';
 
-  const footerActions = (
+  // Stepper mobile: 4 passos (Auditoria só aparece em edit; em create vira 3 passos).
+  const totalSteps = isEdit ? 4 : 3;
+  const stepLabels = isEdit
+    ? ['Dados', 'Status', 'Acesso', 'Auditoria']
+    : ['Dados', 'Status', 'Acesso'];
+  const isLastStep = mobileStep === totalSteps - 1;
+  const isFirstStep = mobileStep === 0;
+
+  const footerActions = isMobile ? (
+    <div className="flex w-full items-center gap-2">
+      <Button
+        variant="outline"
+        onClick={isFirstStep ? onClose : () => setMobileStep((s) => s - 1)}
+        disabled={saving}
+        className="flex-1 min-h-11 gap-1"
+      >
+        {isFirstStep ? (
+          'Cancelar'
+        ) : (
+          <>
+            <ChevronLeft className="h-4 w-4" />
+            Voltar
+          </>
+        )}
+      </Button>
+      {isLastStep ? (
+        <Button
+          onClick={handleSave}
+          disabled={saving}
+          className="flex-1 min-h-11 gap-2"
+        >
+          {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+          {isEdit ? 'Salvar' : 'Criar'}
+        </Button>
+      ) : (
+        <Button
+          onClick={() => setMobileStep((s) => s + 1)}
+          disabled={saving}
+          className="flex-1 min-h-11 gap-1"
+        >
+          Próximo
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      )}
+    </div>
+  ) : (
     <div className="flex justify-end gap-2">
-      <Button variant="outline" onClick={onClose} disabled={saving} className="max-sm:flex-1 max-sm:min-h-11">
+      <Button variant="outline" onClick={onClose} disabled={saving}>
         Cancelar
       </Button>
-      <Button onClick={handleSave} disabled={saving} className="gap-2 max-sm:flex-1 max-sm:min-h-11">
+      <Button onClick={handleSave} disabled={saving} className="gap-2">
         {saving && <Loader2 className="h-4 w-4 animate-spin" />}
         {isEdit ? 'Salvar alterações' : 'Criar usuário'}
       </Button>
     </div>
   );
+
+  // Helper: define se o bloco é visível (sempre em desktop; só o passo ativo em mobile).
+  const blockVisible = (step: number) => !isMobile || mobileStep === step;
 
   return (
     <>
