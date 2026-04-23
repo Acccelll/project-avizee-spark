@@ -1,8 +1,10 @@
 
-import { useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
+import { PullToRefresh } from "@/components/ui/PullToRefresh";
 import { StatusBadge } from "@/components/StatusBadge";
 import { SummaryCard } from "@/components/SummaryCard";
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
@@ -30,6 +32,8 @@ import { getUserFriendlyError } from "@/utils/errorMessages";
 import { useClientesRef } from "@/hooks/useReferenceCache";
 import { useActionLock } from "@/hooks/useActionLock";
 import { useUrlListState } from "@/hooks/useUrlListState";
+import { subscribeComercial } from "@/lib/realtime/comercialChannel";
+import { INVALIDATION_KEYS } from "@/services/_invalidationKeys";
 
 interface Orcamento {
   id: string;
