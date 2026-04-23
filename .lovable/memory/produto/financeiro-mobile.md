@@ -23,3 +23,7 @@ type: design
 ## Touch targets
 - Toggle Lista/Calendário, Exportar, Lançar: `h-9 sm:h-7 min-h-[36px]`.
 - Chips e ações primárias em sheets: `min-h-11`.
+
+## Banner mobile e KPIs
+- "Vence Hoje" em mobile aparece como banner tappable acima dos KPIs (`md:hidden`, `min-h-11`, variant warning) — ao tocar, aplica `statusFilters=["aberto"]` + `period="hoje"`. O card duplicado dentro do grid é ocultado via `className="hidden md:flex"`.
+- `BaixaLoteModal` exibe empty state quando aberto sem seleção (atalho Dashboard `?baixa=lote`) com instrução para selecionar títulos primeiro.
