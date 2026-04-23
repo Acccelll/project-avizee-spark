@@ -52,6 +52,7 @@ import {
 import { FiscalInternalStatusBadge, FiscalSefazStatusBadge } from "@/components/fiscal/FiscalStatusBadges";
 import type { NotaFiscal as NotaFiscalDomain } from "@/types/domain";
 import { CertificadoValidadeAlert } from "@/components/fiscal/CertificadoValidadeAlert";
+import { logger } from "@/lib/logger";
 
 /**
  * Tipo canônico re-exportado de @/types/domain para preservar compat. local.
