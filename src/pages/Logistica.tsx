@@ -810,7 +810,6 @@ export default function Logistica() {
           <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" aria-label="Excluir remessa" onClick={() => { setRemDrawerOpen(false); removeRemessa(remSelected.id); }}><Trash2 className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Excluir</TooltipContent></Tooltip>
         </> : undefined}
         summary={remSelected ? (
-          {/* Mobile: 2x2 com truncate. Desktop: linha única. */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {remSummaryItems.map((s, i) => (
               <div key={i} className="rounded-lg border bg-card p-3 text-center space-y-1 min-w-0">
