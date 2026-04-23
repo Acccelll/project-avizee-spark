@@ -139,14 +139,14 @@ export function MobileMenu({ open, onOpenChange, onOpenSearch }: MobileMenuProps
               onClick={() => handleNavigate('/configuracoes')}
               className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition hover:bg-accent"
             >
-              <User className="h-4 w-4 text-muted-foreground" /> Meu perfil
+              <User className="h-4 w-4 text-muted-foreground" /> Minha conta
             </button>
             <button
               type="button"
               onClick={() => handleNavigate('/configuracoes?tab=aparencia')}
               className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition hover:bg-accent"
             >
-              <Settings className="h-4 w-4 text-muted-foreground" /> Configurações
+              <Settings className="h-4 w-4 text-muted-foreground" /> Aparência
             </button>
             <button
               type="button"

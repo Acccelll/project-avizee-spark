@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { ArrowUpRight, Building2, Lock, Palette, User } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
@@ -33,6 +34,13 @@ const tabNavItems: TabNavItem[] = [
   { key: 'empresa', label: 'Empresa', icon: Building2 },
 ];
 
+const TAB_TITLES: Record<string, string> = {
+  perfil: 'Meu Perfil',
+  aparencia: 'Aparência',
+  seguranca: 'Segurança',
+  empresa: 'Empresa',
+};
+
 export default function Configuracoes() {
   const { hasRole } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -48,6 +56,16 @@ export default function Configuracoes() {
     else next.set('tab', key);
     setSearchParams(next, { replace: true });
   };
+
+  // Fase 8: document.title dinâmico por aba ativa, para refletir o contexto
+  // na aba do navegador e em históricos. Restaura o título genérico no unmount.
+  useEffect(() => {
+    const previous = document.title;
+    document.title = `${TAB_TITLES[activeSection] ?? 'Configurações'} · ERP AviZee`;
+    return () => {
+      document.title = previous;
+    };
+  }, [activeSection]);
 
   const renderContent = () => {
     switch (activeSection) {

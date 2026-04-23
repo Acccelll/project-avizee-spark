@@ -1,6 +1,6 @@
 import { lazy, Suspense } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes, Navigate, useParams } from "react-router-dom";
+import { BrowserRouter, Route, Routes, Navigate, useLocation, useParams } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -43,7 +43,6 @@ const Configuracoes = lazy(() => import("./pages/Configuracoes"));
 const Administracao = lazy(() => import("./pages/Administracao"));
 const MigracaoDados = lazy(() => import("./pages/MigracaoDados"));
 const Auditoria = lazy(() => import("./pages/Auditoria"));
-const Perfil = lazy(() => import("./pages/Perfil"));
 const Signup = lazy(() => import("./pages/Signup"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
@@ -69,6 +68,16 @@ const SociosParticipacoes = lazy(() => import("./pages/SociosParticipacoes"));
 function CotacaoIdRedirect() {
   const { id } = useParams();
   return <Navigate to={`/orcamentos/${id}`} replace />;
+}
+
+/**
+ * Alias legado `/perfil` → `/configuracoes`.
+ * Preserva `?tab=` e demais query params para que deep-links externos
+ * (ex: `/perfil?tab=seguranca`) continuem funcionais sem chunk dedicado.
+ */
+function PerfilRedirect() {
+  const { search } = useLocation();
+  return <Navigate to={`/configuracoes${search}`} replace />;
 }
 
 // Per-route Suspense wrapper — shows loading spinner only in the content area
@@ -156,7 +165,8 @@ const App = () => (
                       <Route path="/administracao" element={<AdminRoute><LazyPage><Administracao /></LazyPage></AdminRoute>} />
                       <Route path="/migracao-dados" element={<AdminRoute><LazyPage><MigracaoDados /></LazyPage></AdminRoute>} />
                       <Route path="/auditoria" element={<AdminRoute><LazyPage><Auditoria /></LazyPage></AdminRoute>} />
-                      <Route path="/perfil" element={<ProtectedRoute><LazyPage><Perfil /></LazyPage></ProtectedRoute>} />
+                      {/* /perfil é alias legado: redireciona preservando ?tab= para a tela canônica /configuracoes */}
+                      <Route path="/perfil" element={<PerfilRedirect />} />
                       <Route path="/contas-contabeis-plano" element={<PermissionRoute resource="financeiro"><LazyPage><ContasContabeis /></LazyPage></PermissionRoute>} />
                       <Route path="/conciliacao" element={<PermissionRoute resource="financeiro"><LazyPage><Conciliacao /></LazyPage></PermissionRoute>} />
                       <Route path="/relatorios/workbook-gerencial" element={<PermissionRoute resource="workbook"><LazyPage><WorkbookGerencial /></LazyPage></PermissionRoute>} />
