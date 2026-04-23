@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { isPathActive, type NavSection, type NavSectionKey } from '@/lib/navigation';
 import { useUserPreference } from '@/hooks/useUserPreference';
@@ -71,22 +71,6 @@ export function useNavigationState(visibleSections: NavSection[]): NavigationSta
     },
     [manualSections, saveManualSections],
   );
-
-  // Auto-clear manual "closed" overrides when navigating into the section.
-  const lastPathnameRef = useRef(location.pathname);
-  useEffect(() => {
-    if (lastPathnameRef.current === location.pathname) return;
-    lastPathnameRef.current = location.pathname;
-    if (activeSectionKeys.length === 0) return;
-    const current = manualSections ?? {};
-    const overridesToClear = activeSectionKeys.filter((key) => current[key] === false);
-    if (overridesToClear.length === 0) return;
-    setManualSections((prev) => {
-      const next = { ...prev };
-      for (const key of overridesToClear) delete next[key];
-      return next;
-    });
-  }, [location.pathname, activeSectionKeys, manualSections, setManualSections]);
 
   const isInsideAdminModule =
     location.pathname === '/administracao' || location.pathname.startsWith('/administracao/');
