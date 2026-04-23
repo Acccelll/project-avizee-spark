@@ -152,7 +152,7 @@ export function PendenciasList() {
             return (
               <div
                 key={p.id}
-                className="flex items-center gap-2 rounded py-1.5 px-1 hover:bg-muted/20"
+                className="flex items-center gap-2 rounded py-2 px-1 min-h-[44px] hover:bg-muted/20 active:bg-muted/40 transition-colors"
               >
                 <div
                   className={cn(
@@ -185,7 +185,7 @@ export function PendenciasList() {
                 <Button
                   size="icon"
                   variant="ghost"
-                  className="h-6 w-6 shrink-0"
+                  className="h-9 w-9 shrink-0 md:h-6 md:w-6"
                   title="Abrir no módulo financeiro"
                   aria-label={`Abrir lançamento ${p.descricao} no financeiro`}
                   onClick={() => navigate(`/financeiro/${p.id}`)}
