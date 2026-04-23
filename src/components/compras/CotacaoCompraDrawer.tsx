@@ -248,6 +248,27 @@ export function CotacaoCompraDrawer({
                           <Trophy className="h-3 w-3" /> {drawerStats.selectedPropostas.length === 1 ? "Fornecedor Selecionado" : "Fornecedores Selecionados"}
                         </p>
                         <div className="rounded-lg border overflow-hidden">
+                          {/* Mobile: cards verticais */}
+                          <div className="md:hidden divide-y">
+                            {drawerStats.selectedPropostas.map((p) => {
+                              const item = viewItems.find((i) => i.id === p.item_id);
+                              return (
+                                <div key={p.id} className="p-3 space-y-1">
+                                  <p className="font-medium text-sm">{item?.produtos?.nome || "—"}</p>
+                                  <div className="flex items-center justify-between gap-2">
+                                    <span className="text-xs text-muted-foreground truncate">{p.fornecedores?.nome_razao_social || "—"}</span>
+                                    <span className="font-mono text-sm font-semibold shrink-0">{item ? formatCurrency(Number(p.preco_unitario) * item.quantidade) : "—"}</span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                            <div className="bg-muted/30 p-3 flex items-center justify-between">
+                              <span className="text-xs font-semibold uppercase text-muted-foreground">Total aprovado</span>
+                              <span className="font-mono text-base font-bold text-primary">{formatCurrency(totalAprovado)}</span>
+                            </div>
+                          </div>
+                          {/* Desktop: tabela */}
+                          <div className="hidden md:block">
                           <table className="w-full text-sm">
                             <thead>
                               <tr className="bg-muted/50 border-b">
@@ -275,6 +296,7 @@ export function CotacaoCompraDrawer({
                               </tr>
                             </tbody>
                           </table>
+                          </div>
                         </div>
                       </div>
                     ) : (
@@ -321,15 +343,16 @@ export function CotacaoCompraDrawer({
       footer={
         selected ? (
           <DrawerStickyFooter
+            className="max-sm:flex-col"
             left={
               <>
                 {selected.status === "aguardando_aprovacao" && (
-                  <Button variant="outline" size="sm" className="gap-2 text-destructive border-destructive/30 hover:text-destructive" disabled={rejectPending} onClick={() => { setRejectMotivo(""); setRejectOpen(true); }}>
+                  <Button variant="outline" size="sm" className="gap-2 text-destructive border-destructive/30 hover:text-destructive max-sm:h-11 max-sm:w-full" disabled={rejectPending} onClick={() => { setRejectMotivo(""); setRejectOpen(true); }}>
                     <ThumbsDown className="h-4 w-4" /> Reprovar
                   </Button>
                 )}
                 {!["convertida","cancelada","rejeitada"].includes(selected.status) && (
-                  <Button variant="outline" size="sm" className="gap-2 text-destructive border-destructive/30 hover:text-destructive" disabled={cancelPending} onClick={() => { setCancelMotivo(""); setCancelOpen(true); }}>
+                  <Button variant="outline" size="sm" className="gap-2 text-destructive border-destructive/30 hover:text-destructive max-sm:h-11 max-sm:w-full" disabled={cancelPending} onClick={() => { setCancelMotivo(""); setCancelOpen(true); }}>
                     <Ban className="h-4 w-4" /> Cancelar
                   </Button>
                 )}
@@ -338,27 +361,27 @@ export function CotacaoCompraDrawer({
             right={
               <>
                 {(selected.status === "aberta" || selected.status === "em_analise") && drawerStats.allItemsHaveSelected && (
-                  <Button variant="outline" size="sm" className="gap-2" disabled={sendPending} onClick={() => runSend(() => onSendForApproval())}>
+                  <Button variant="outline" size="sm" className="gap-2 max-sm:h-11 max-sm:w-full" disabled={sendPending} onClick={() => runSend(() => onSendForApproval())}>
                     <Send className="h-4 w-4" /> Enviar para Aprovação
                   </Button>
                 )}
                 {(selected.status === "aberta" || selected.status === "em_analise") && drawerStats.allItemsHaveSelected && (
-                  <Button size="sm" className="gap-2" disabled={approvePending} onClick={() => runApprove(() => onApprove())}>
+                  <Button size="sm" className="gap-2 max-sm:h-11 max-sm:w-full" disabled={approvePending} onClick={() => runApprove(() => onApprove())}>
                     <ThumbsUp className="h-4 w-4" /> Aprovar
                   </Button>
                 )}
                 {selected.status === "aguardando_aprovacao" && (
-                  <Button size="sm" className="gap-2" disabled={approvePending} onClick={() => runApprove(() => onApprove())}>
+                  <Button size="sm" className="gap-2 max-sm:h-11 max-sm:w-full" disabled={approvePending} onClick={() => runApprove(() => onApprove())}>
                     <ThumbsUp className="h-4 w-4" /> Aprovar
                   </Button>
                 )}
                 {cotacaoCanGeneratePedido(selected.status) && (
-                  <Button size="sm" className="gap-2" disabled={gerarPending} onClick={() => runGerar(() => onGerarPedido())}>
+                  <Button size="sm" className="gap-2 max-sm:h-11 max-sm:w-full" disabled={gerarPending} onClick={() => runGerar(() => onGerarPedido())}>
                     <ClipboardList className="h-4 w-4" /> Gerar Pedido de Compra
                   </Button>
                 )}
                 {selected.status === "convertida" && (
-                  <Button variant="outline" size="sm" className="gap-2" onClick={onNavigatePedidos}>
+                  <Button variant="outline" size="sm" className="gap-2 max-sm:h-11 max-sm:w-full" onClick={onNavigatePedidos}>
                     <ChevronRight className="h-4 w-4" /> Ver Pedidos de Compra
                   </Button>
                 )}

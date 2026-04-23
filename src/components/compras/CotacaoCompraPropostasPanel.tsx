@@ -8,8 +8,10 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { AutocompleteSearch } from '@/components/ui/AutocompleteSearch';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { formatCurrency } from '@/lib/format';
-import { Plus, Trash2, CheckCircle2, Trophy, Award, BarChart3 } from 'lucide-react';
+import { Plus, Trash2, CheckCircle2, Trophy, Award, BarChart3, Crown } from 'lucide-react';
 import type { CotacaoItem, Proposta, CotacaoCompra } from './cotacaoCompraTypes';
 
 interface FornecedorOption {
@@ -48,12 +50,63 @@ function ComparativoFornecedores({ viewItems, viewPropostas }: { viewItems: Cota
   const bestColTotal = Math.min(...colTotals.filter((t) => t > 0));
 
   return (
-    <div className="rounded-lg border overflow-hidden">
-      <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 border-b">
-        <BarChart3 className="h-3.5 w-3.5 text-muted-foreground" />
-        <span className="text-[10px] font-semibold uppercase text-muted-foreground">Comparativo de Fornecedores</span>
+    <>
+      {/* Mobile: cards verticais por fornecedor */}
+      <div className="md:hidden space-y-3">
+        <div className="flex items-center gap-2">
+          <BarChart3 className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-[10px] font-semibold uppercase text-muted-foreground">Comparativo de Fornecedores</span>
+        </div>
+        {supplierIds.map((sid, si) => {
+          const total = colTotals[si];
+          const isWinner = total > 0 && total === bestColTotal;
+          return (
+            <div key={sid} className={`rounded-lg border p-3 space-y-2 ${isWinner ? "border-emerald-500/40 bg-emerald-50/30 dark:bg-emerald-950/10" : "bg-card"}`}>
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold truncate">{supplierNames[si]}</p>
+                  {isWinner && (
+                    <span className="inline-flex items-center gap-1 mt-0.5 text-[10px] font-bold uppercase text-emerald-600 dark:text-emerald-400">
+                      <Crown className="h-3 w-3" /> Menor total
+                    </span>
+                  )}
+                </div>
+                <div className="text-right shrink-0">
+                  <p className={`font-mono text-base font-bold ${isWinner ? "text-emerald-600 dark:text-emerald-400" : "text-foreground"}`}>
+                    {total > 0 ? formatCurrency(total) : "—"}
+                  </p>
+                </div>
+              </div>
+              <div className="space-y-1 pt-1.5 border-t">
+                {viewItems.map((item) => {
+                  const p = viewPropostas.find((pp) => pp.item_id === item.id && pp.fornecedor_id === sid);
+                  return (
+                    <div key={item.id} className="flex items-center justify-between gap-2 text-xs">
+                      <span className="truncate text-muted-foreground flex-1 min-w-0">{item.produtos?.nome || "—"}</span>
+                      {p ? (
+                        <span className="font-mono shrink-0 inline-flex items-center gap-1">
+                          {p.selecionado && <Trophy className="h-3 w-3 text-primary" />}
+                          {formatCurrency(Number(p.preco_unitario))}
+                          {p.prazo_entrega_dias && <span className="text-muted-foreground">· {p.prazo_entrega_dias}d</span>}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground/40">—</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
       </div>
-      <div className="overflow-x-auto">
+      {/* Desktop: tabela matriz */}
+      <div className="hidden md:block rounded-lg border overflow-hidden">
+        <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 border-b">
+          <BarChart3 className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-[10px] font-semibold uppercase text-muted-foreground">Comparativo de Fornecedores</span>
+        </div>
+        <div className="overflow-x-auto">
         <table className="w-full text-xs">
           <thead>
             <tr className="border-b bg-muted/20">
@@ -113,8 +166,9 @@ function ComparativoFornecedores({ viewItems, viewPropostas }: { viewItems: Cota
             </tr>
           </tbody>
         </table>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 
@@ -123,6 +177,36 @@ export function CotacaoCompraPropostasPanel({
   addingProposal, setAddingProposal, proposalForm, setProposalForm,
   onSelectProposal, onDeleteProposal, onAddProposal,
 }: CotacaoCompraPropostasPanelProps) {
+  const isMobile = useIsMobile();
+  const canEdit = selected.status !== "aprovada" && selected.status !== "convertida" && selected.status !== "cancelada";
+  const canSelect = selected.status !== "aprovada" && selected.status !== "convertida";
+  const proposalFormContent = (
+    <div className="space-y-3">
+      <div className="space-y-1.5">
+        <Label className="text-sm">Fornecedor</Label>
+        <AutocompleteSearch
+          options={fornecedorOptions}
+          value={proposalForm.fornecedor_id}
+          onChange={(id) => setProposalForm({ ...proposalForm, fornecedor_id: id })}
+          placeholder="Selecionar fornecedor..."
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <div className="space-y-1">
+          <Label className="text-sm">Preço Unitário</Label>
+          <Input type="number" step="0.01" value={proposalForm.preco_unitario} onChange={(e) => setProposalForm({ ...proposalForm, preco_unitario: Number(e.target.value) })} className="h-11 font-mono" />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-sm">Prazo (dias)</Label>
+          <Input type="number" value={proposalForm.prazo_entrega_dias} onChange={(e) => setProposalForm({ ...proposalForm, prazo_entrega_dias: e.target.value })} className="h-11 font-mono" />
+        </div>
+      </div>
+      <div className="space-y-1">
+        <Label className="text-sm">Observações</Label>
+        <Input value={proposalForm.observacoes} onChange={(e) => setProposalForm({ ...proposalForm, observacoes: e.target.value })} className="h-11" placeholder="Condições, validade da proposta..." />
+      </div>
+    </div>
+  );
   return (
     <div className="space-y-4">
       {viewItems.length === 0 && (
@@ -159,46 +243,59 @@ export function CotacaoCompraPropostasPanel({
               {itemPropostas.length === 0 ? (
                 <p className="text-xs text-muted-foreground italic">Nenhuma proposta cadastrada.</p>
               ) : (
-                <div className="space-y-1.5">
+                <div className="space-y-2">
                   {itemPropostas.map((p) => {
                     const isBest = Number(p.preco_unitario) === bestPrice;
                     const totalProposta = Number(p.preco_unitario) * item.quantidade;
                     return (
                       <div
                         key={p.id}
-                        className={`flex items-center justify-between rounded-lg border px-3 py-2 text-sm ${
+                        className={`rounded-lg border p-3 text-sm md:flex md:items-center md:justify-between md:py-2 ${
                           p.selecionado ? "border-primary bg-primary/5 ring-1 ring-primary/20" : isBest ? "border-emerald-500/30 bg-emerald-50/50 dark:bg-emerald-950/20" : ""
                         }`}
                       >
-                        <div className="flex items-center gap-2 min-w-0">
-                          {p.selecionado && <Trophy className="h-3.5 w-3.5 text-primary flex-shrink-0" />}
-                          {isBest && !p.selecionado && <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">MENOR</span>}
-                          <span className="truncate font-medium">{p.fornecedores?.nome_razao_social || "—"}</span>
+                        <div className="flex items-start justify-between gap-2 md:items-center md:gap-2 md:min-w-0 md:flex-1">
+                          <div className="flex items-center gap-2 min-w-0">
+                            {p.selecionado && <Trophy className="h-4 w-4 text-primary flex-shrink-0" />}
+                            {isBest && !p.selecionado && <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">MENOR</span>}
+                            <span className="truncate font-medium">{p.fornecedores?.nome_razao_social || "—"}</span>
+                          </div>
+                          {/* Desktop trash on right; mobile shows in actions row below */}
+                          {canEdit && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive md:hidden" aria-label="Remover proposta" onClick={() => onDeleteProposal(p.id!)}>
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Remover</TooltipContent>
+                            </Tooltip>
+                          )}
                         </div>
-                        <div className="flex items-center gap-3 flex-shrink-0">
-                          <div className="text-right">
+                        <div className="mt-2 md:mt-0 flex items-center justify-between gap-3 md:flex-shrink-0">
+                          <div className="text-left md:text-right">
                             <p className="font-mono font-semibold">
                               {formatCurrency(Number(p.preco_unitario))}<span className="text-muted-foreground">/un</span>
                             </p>
                             <p className="text-[10px] text-muted-foreground font-mono">Total: {formatCurrency(totalProposta)}</p>
                           </div>
                           {p.prazo_entrega_dias && <Badge variant="secondary" className="text-[10px]">{p.prazo_entrega_dias}d</Badge>}
-                          <div className="flex gap-1">
-                            {!p.selecionado && selected.status !== "aprovada" && selected.status !== "convertida" && (
+                          <div className="hidden md:flex gap-1">
+                            {!p.selecionado && canSelect && (
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Selecionar proposta" onClick={() => onSelectProposal(p.id!, item.id)}>
-                                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                                  <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Selecionar proposta" onClick={() => onSelectProposal(p.id!, item.id)}>
+                                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
                                   </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>Selecionar</TooltipContent>
                               </Tooltip>
                             )}
-                            {selected.status !== "aprovada" && selected.status !== "convertida" && (
+                            {canEdit && (
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" aria-label="Remover proposta" onClick={() => onDeleteProposal(p.id!)}>
-                                    <Trash2 className="h-3.5 w-3.5" />
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" aria-label="Remover proposta" onClick={() => onDeleteProposal(p.id!)}>
+                                    <Trash2 className="h-4 w-4" />
                                   </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>Remover</TooltipContent>
@@ -206,15 +303,31 @@ export function CotacaoCompraPropostasPanel({
                             )}
                           </div>
                         </div>
+                        {/* Mobile: botão Selecionar full-width 44px */}
+                        {!p.selecionado && canSelect && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            className="md:hidden mt-2 w-full h-11 gap-1.5"
+                            onClick={() => onSelectProposal(p.id!, item.id)}
+                          >
+                            <CheckCircle2 className="h-4 w-4" /> Selecionar este fornecedor
+                          </Button>
+                        )}
+                        {p.selecionado && (
+                          <p className="md:hidden mt-2 text-[11px] font-semibold text-primary uppercase flex items-center gap-1">
+                            <Trophy className="h-3 w-3" /> Selecionado
+                          </p>
+                        )}
                       </div>
                     );
                   })}
                 </div>
               )}
 
-              {selected.status !== "aprovada" && selected.status !== "convertida" && selected.status !== "cancelada" && (
+              {canEdit && (
                 <>
-                  {addingProposal === item.id ? (
+                  {addingProposal === item.id && !isMobile ? (
                     <div className="rounded-lg border border-dashed p-3 space-y-3 bg-muted/30">
                       <div className="space-y-2">
                         <Label className="text-xs">Fornecedor</Label>
@@ -246,7 +359,7 @@ export function CotacaoCompraPropostasPanel({
                     </div>
                   ) : (
                     <Button
-                      type="button" variant="outline" size="sm" className="w-full gap-1.5 text-xs"
+                      type="button" variant="outline" size="sm" className="w-full gap-1.5 text-xs max-sm:h-11 max-sm:text-sm"
                       onClick={() => { setAddingProposal(item.id); setProposalForm({ fornecedor_id: "", preco_unitario: 0, prazo_entrega_dias: "", observacoes: "" }); }}
                     >
                       <Plus className="h-3 w-3" /> Adicionar Proposta
@@ -258,6 +371,19 @@ export function CotacaoCompraPropostasPanel({
           </Card>
         );
       })}
+      {/* Bottom-sheet mobile: form de adicionar proposta */}
+      <Sheet open={isMobile && !!addingProposal} onOpenChange={(o) => !o && setAddingProposal(null)}>
+        <SheetContent side="bottom" className="rounded-t-2xl pb-[max(1rem,env(safe-area-inset-bottom))] max-h-[92vh] overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Nova Proposta</SheetTitle>
+          </SheetHeader>
+          <div className="mt-4">{proposalFormContent}</div>
+          <div className="mt-4 flex flex-col-reverse gap-2">
+            <Button type="button" variant="outline" className="h-11 w-full" onClick={() => setAddingProposal(null)}>Cancelar</Button>
+            <Button type="button" className="h-11 w-full" onClick={() => addingProposal && onAddProposal(addingProposal)} disabled={!proposalForm.fornecedor_id}>Salvar Proposta</Button>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

@@ -593,12 +593,13 @@ export function PedidoCompraDrawer({
   const drawerFooter =
     canReceive || canSend || canCancel || canSolicitarAprovacao || canApproveReject || canEstornar ? (
       <DrawerStickyFooter
+        className="max-sm:flex-col"
         left={
           canCancel && (
             <Button
               variant="outline"
               size="sm"
-              className="gap-2 text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
+              className="gap-2 text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive max-sm:h-11 max-sm:w-full"
               disabled={cancelPending}
               onClick={() => setCancelConfirmOpen(true)}
             >
@@ -609,7 +610,7 @@ export function PedidoCompraDrawer({
         right={
           <>
             {canSolicitarAprovacao && (
-              <Button variant="outline" size="sm" className="gap-2" disabled={solicitarPending} onClick={() => runSolicitar(() => onSolicitarAprovacao!(selected))}>
+              <Button variant="outline" size="sm" className="gap-2 max-sm:h-11 max-sm:w-full" disabled={solicitarPending} onClick={() => runSolicitar(() => onSolicitarAprovacao!(selected))}>
                 <Clock className="w-4 h-4" /> Solicitar aprovação
               </Button>
             )}
@@ -618,19 +619,19 @@ export function PedidoCompraDrawer({
                 <Button
                   variant="outline"
                   size="sm"
-                  className="gap-2 text-destructive border-destructive/30 hover:text-destructive"
+                  className="gap-2 text-destructive border-destructive/30 hover:text-destructive max-sm:h-11 max-sm:w-full"
                   disabled={rejeitarPending}
                   onClick={() => { setRejectMotivo(""); setRejectOpen(true); }}
                 >
                   <XCircle className="w-4 h-4" /> Rejeitar
                 </Button>
-                <Button size="sm" className="gap-2" disabled={aprovarPending} onClick={() => runAprovar(() => onAprovar!(selected))}>
+                <Button size="sm" className="gap-2 max-sm:h-11 max-sm:w-full" disabled={aprovarPending} onClick={() => runAprovar(() => onAprovar!(selected))}>
                   <CheckCircle2 className="w-4 h-4" /> Aprovar
                 </Button>
               </>
             )}
             {canSend && (
-              <Button variant="outline" size="sm" className="gap-2" disabled={sendPending} onClick={() => runSend(() => onSend(selected))}>
+              <Button variant="outline" size="sm" className="gap-2 max-sm:h-11 max-sm:w-full" disabled={sendPending} onClick={() => runSend(() => onSend(selected))}>
                 <SendHorizontal className="w-4 h-4" /> Marcar como Enviado
               </Button>
             )}
@@ -638,14 +639,14 @@ export function PedidoCompraDrawer({
               <Button
                 variant="outline"
                 size="sm"
-                className="gap-2 text-warning border-warning/30 hover:bg-warning/10 hover:text-warning"
+                className="gap-2 text-warning border-warning/30 hover:bg-warning/10 hover:text-warning max-sm:h-11 max-sm:w-full"
                 onClick={() => setEstornoOpen(true)}
               >
                 <RotateCcw className="w-4 h-4" /> Estornar recebimento
               </Button>
             )}
             {canReceive && (
-              <Button size="sm" className="gap-2" disabled={receivePending} onClick={() => setReceberOpen(true)}>
+              <Button size="sm" className="gap-2 max-sm:h-11 max-sm:w-full" disabled={receivePending} onClick={() => setReceberOpen(true)}>
                 <PackageCheck className="w-4 h-4" /> Registrar Recebimento
               </Button>
             )}

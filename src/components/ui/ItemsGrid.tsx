@@ -92,12 +92,75 @@ export function ItemsGrid<TProd extends ItemsGridProdutoBase>({
       <div className="flex items-center justify-between p-4 border-b">
         <h3 className="font-semibold text-foreground">{title}</h3>
         {!readOnly && (
-          <Button type="button" size="sm" onClick={addItem} className="gap-1.5">
+          <Button type="button" size="sm" onClick={addItem} className="gap-1.5 max-sm:h-11">
             <Plus className="w-4 h-4" /> Adicionar
           </Button>
         )}
       </div>
-      <div className="overflow-x-auto">
+      {/* Mobile: cards verticais (md:hidden) */}
+      <div className="md:hidden p-3 space-y-3">
+        {items.length === 0 ? (
+          <p className="text-center text-muted-foreground py-6 text-sm">Nenhum item adicionado</p>
+        ) : items.map((item, idx) => (
+          <div key={idx} className="rounded-lg border bg-background p-3 space-y-2.5">
+            <div className="flex items-start justify-between gap-2">
+              <span className="text-[10px] font-mono text-muted-foreground uppercase mt-1">Item {idx + 1}</span>
+              {!readOnly && (
+                <Button type="button" variant="ghost" size="icon" className="h-9 w-9 shrink-0" aria-label="Remover item" onClick={() => removeItem(idx)}>
+                  <Trash2 className="w-4 h-4 text-destructive" />
+                </Button>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">Produto</label>
+              {readOnly ? (
+                <p className="text-sm">{item.descricao}</p>
+              ) : (
+                <AutocompleteSearch
+                  options={produtoOptions}
+                  value={item.produto_id}
+                  onChange={(id) => updateItem(idx, "produto_id", id)}
+                  placeholder="Buscar produto..."
+                />
+              )}
+              {item.codigo && (
+                <p className="text-[11px] font-mono text-muted-foreground">Cód.: {item.codigo}</p>
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground">Qtd.</label>
+                <Input
+                  className={`h-11 text-right font-mono${itemErrors[idx] ? " border-destructive" : ""}`}
+                  type="number"
+                  value={item.quantidade || ""}
+                  onChange={(e) => updateItem(idx, "quantidade", Number(e.target.value))}
+                  readOnly={readOnly}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground">Unitário</label>
+                <Input className="h-11 text-right font-mono" type="number" step="0.01" value={item.valor_unitario || ""} onChange={(e) => updateItem(idx, "valor_unitario", Number(e.target.value))} readOnly={readOnly} />
+              </div>
+            </div>
+            {itemErrors[idx] && (
+              <p className="text-[11px] text-destructive">{itemErrors[idx]}</p>
+            )}
+            <div className="flex items-center justify-between pt-1.5 border-t">
+              <span className="text-xs font-semibold uppercase text-muted-foreground">Total</span>
+              <span className="font-mono text-sm font-semibold">R$ {item.valor_total.toFixed(2)}</span>
+            </div>
+          </div>
+        ))}
+        {items.length > 0 && (
+          <div className="flex items-center justify-between rounded-lg bg-accent/40 px-3 py-2.5">
+            <span className="text-xs font-semibold uppercase text-muted-foreground">Total geral</span>
+            <span className="font-mono text-base font-bold text-primary">R$ {total.toFixed(2)}</span>
+          </div>
+        )}
+      </div>
+      {/* Desktop: tabela */}
+      <div className="hidden md:block overflow-x-auto">
         <table className="w-full min-w-[700px]">
           <thead>
             <tr className="bg-accent/50 border-b">

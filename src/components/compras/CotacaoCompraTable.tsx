@@ -118,6 +118,7 @@ export function CotacaoCompraTable({ data, loading, summaries, onView, onEdit }:
       showColumnToggle={true}
       onView={onView}
       onEdit={onEdit}
+      mobileStatusKey="status"
       emptyTitle="Nenhuma cotação de compra encontrada"
       emptyDescription="Tente ajustar os filtros ou crie uma nova cotação de compra."
     />
