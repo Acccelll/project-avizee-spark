@@ -105,27 +105,6 @@ export function DrawerActionBar({
         );
       })}
 
-      {destructive && (() => {
-        const Icon = destructive.icon;
-        return (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-destructive hover:text-destructive"
-                aria-label={destructive.tooltip}
-                disabled={destructive.pending || destructive.disabled}
-                onClick={destructive.onClick}
-              >
-                <Icon className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{destructive.tooltip}</TooltipContent>
-          </Tooltip>
-        );
-      })()}
-
       {primary && (() => {
         const Icon = primary.icon;
         return (
@@ -140,6 +119,30 @@ export function DrawerActionBar({
             {Icon && <Icon className="h-3.5 w-3.5" />}
             {primary.label}
           </Button>
+        );
+      })()}
+
+      {destructive && (() => {
+        const Icon = destructive.icon;
+        return (
+          <>
+            <Separator orientation="vertical" className="h-6 mx-1" />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                  aria-label={destructive.tooltip}
+                  disabled={destructive.pending || destructive.disabled}
+                  onClick={destructive.onClick}
+                >
+                  <Icon className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{destructive.tooltip}</TooltipContent>
+            </Tooltip>
+          </>
         );
       })()}
     </div>
