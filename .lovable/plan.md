@@ -1,127 +1,108 @@
 
 
-# Revisão Mobile — Administração
+# Revisão Mobile — Configurações (`/configuracoes`)
 
-Análise focada em **<768px**, baseada em `src/pages/Administracao.tsx`, `AdminSidebar.tsx`, `UsuariosTab.tsx`, `UserFilters.tsx`, `UserRow.tsx`, `UserFormModal.tsx`, `PermissionMatrix.tsx`, `PerfisCatalogoSection.tsx`, `EmpresaSection.tsx`, `IntegracoesSection.tsx`, `SectionShell.tsx`, `DashboardAdmin.tsx`. O módulo **nunca recebeu refactor mobile** — é o último grande módulo ainda 100% desktop-first.
+Análise focada em **<768px**, baseada em `Configuracoes.tsx`, `MeuPerfilSection.tsx`, `AparenciaSection.tsx`, `SegurancaSection.tsx`, `EmpresaInfoSection.tsx`. **Importante:** os "campos técnicos (SMTP, API)" e "teste de conexão" mencionados ficam em `/administracao` (`IntegracoesSection`, `EmpresaSection`) e não nesta tela — `/configuracoes` é exclusivamente pessoal (perfil, aparência, segurança e visualização de empresa). Esta revisão respeita esse escopo e trata apenas das 4 abas reais. A separação pessoal × global já existe e funciona; o foco mobile é **encurtar formulários, melhorar leitura e tornar as ações principais alcançáveis**.
 
 ---
 
 ## 1. Visão geral
 
-Administração é, por natureza, um módulo **operacional/desktop** — densidade alta, edição complexa, formulários longos. Mas hoje no mobile **bloqueia completamente** três fluxos críticos:
+`/configuracoes` é uma tela de **preferências**, não operacional. Em mobile é razoavelmente usável (não há tabelas, gráficos nem matrizes), mas tem três focos de fricção:
 
-- **Sidebar agrupada** (`AdminSidebar`, `lg:w-60`): em mobile ela cai como **bloco vertical empilhado no topo**, com **4 grupos × 2-6 itens = ~12 botões antes de qualquer conteúdo**. O usuário rola 600-700px só para passar do sumário e chegar à seção ativa. Não há collapsible nem `Sheet`.
-- **Matriz de permissões** (`PermissionMatrix`): grid de **15+ recursos × 8 ações = 120 toggles** em `sm:grid-cols-2` (1 col em mobile). Botões `text-xs px-2.5 py-1.5` (~28px de altura) com ciclo `inherited→deny→none→allow→none` por **tap**, sem long-press, sem confirmação. Inviável para edição real.
-- **`UserFormModal`** (`size="lg"`) com 4 blocos sequenciais (Dados / Segurança / Acesso + Matrix / Auditoria) num `Dialog` que vira full-screen em mobile mas com **scroll vertical de >2000px** quando expande recursos.
-- **Lista de usuários (`UserRow`)**: cards `flex-col sm:flex-row` razoáveis, mas os botões ⋯ e Edit têm `h-8 w-8` (32px — abaixo de touch target). `RoleBadge` + `StatusBadge` quebram em nova linha.
-- **`SectionShell`** com header (Card) + conteúdo (Cards) + barra "salvar" `flex-col sm:flex-row` no final. Em formulários longos (Empresa = 478 linhas, ~10 inputs em 4 cards), o botão Salvar fica perdido no fim, sem sticky.
-- **`DashboardAdmin`**: `SummaryCard`s `grid-cols-1 md:grid-cols-2 lg:grid-cols-4` = 4 cards empilhados em mobile (~320px só de KPIs); timeline de eventos com barra horizontal pode estourar.
-- **Sem navegação contextual mobile**: usuário não tem indicação visual de "qual seção estou" enquanto rola — sidebar fica acima, fora do viewport.
+- **Tabs horizontais com 4 itens + ícones** — em 360px ficam apertadas mas cabem com scroll horizontal (já tem `overflow-x-auto`).
+- **`AparenciaSection` muito longa** (~290 linhas, 6 grupos separados por `Separator`) — vira um único scroll vertical de >1500px sem ancoragem nem sticky.
+- **`SegurancaSection` formulário de senha** com 3 campos + critérios + força — funciona, mas inputs `max-w-sm` ficam estreitos demais em mobile e o botão "Alterar senha" fica perdido no fim sem sticky.
+- Os atalhos para **Administração** (3 botões "Ir para configurações globais") aparecem em 3 cards distintos — bom para não confundir, mas o card de "Escopo pessoal" ocupa muito espaço útil em mobile.
+
+Não há bloqueios de uso reais — Configurações é uma das melhores telas mobile do sistema hoje. Os ajustes são todos de **redução de carga visual** e **alcance de polegar**.
 
 ## 2. Problemas críticos (bloqueiam uso real)
 
-- **C1 — Sidebar empilhada no topo**: `grid lg:grid-cols-[240px_minmax(0,1fr)]` em mobile vira `grid-cols-1`, jogando a sidebar **inteira** acima do conteúdo. 4 grupos × labels uppercase + 12 itens com `py-2 px-2.5` + separadores = ~600px de altura. Cada troca de seção exige scroll-to-top + tap + scroll-back. Pior UX possível.
-- **C2 — `PermissionMatrix` impraticável em mobile**: grid de 15 recursos × 8 ações com toggles `text-xs` ~28px de altura, ciclo de 4 estados por tap único, sem feedback claro. Editar um único usuário requer dezenas de toques precisos. **Deve ser bloqueado para edição mobile** com mensagem explicativa.
-- **C3 — `UserFormModal` longo demais**: `FormModal size="lg"` em mobile é full-screen mas o conteúdo tem 4 blocos sequenciais (Dados / Segurança / Acesso + Matrix com 15+ recursos / Auditoria) = scroll vertical >2000px. Botões "Cancelar/Salvar" ficam só no fim, sem sticky footer (FormModal já tem footer prop mas o modal **não usa** — mete os botões inline).
-- **C4 — Sem contexto de seção ativa**: ao rolar a sidebar para baixo e chegar no conteúdo, perde-se a referência de "qual seção". Não há header sticky com nome da seção. Para voltar à navegação, scroll-to-top.
-- **C5 — Touch targets < 44px** em todo o módulo: AdminSidebar `py-2 px-2.5` (~36px), UserRow ações `h-8 w-8` (32px), PermissionMatrix toggles ~28px, UserFilters botões `h-9` (36px). Falham consistentemente.
-- **C6 — Edição de seções de configuração (Empresa, Integrações, Email, Notificações, Backup, Fiscal, Financeiro) sem sticky save**: `EmpresaSection` tem 10+ inputs em 4 cards (~1500px). O `SectionShell` põe a barra Salvar no final do scroll. Usuário muda 1 campo → precisa rolar 1500px para salvar.
+Não há problemas críticos — a tela é navegável e completável em mobile.
 
 ## 3. Problemas médios (atrapalham uso)
 
-- **M1 — `UsuariosTab` summary 4 KPIs empilhados** em mobile (`grid-cols-2 md:grid-cols-4` — duas linhas de 2 cards = razoável, mas o card de orientação acima `grid md:grid-cols-3` quebra em 3 linhas verticais antes mesmo dos KPIs).
-- **M2 — `UserFilters`**: search full-width OK, mas 2 selects `w-36`/`w-44` + 2 botões viram `flex-wrap` — em 360px = 4 linhas de filtros. Selects `h-9` (36px) e botões idem, abaixo do touch target.
-- **M3 — `PerfisCatalogoSection` Tabs + `RolesCatalog` + `PermissaoMatrix`**: matriz cruzando recursos x roles = tabela larga; em mobile força scroll horizontal sem indicação. Tabs de "Catálogo" e "Matriz" funcionam, mas conteúdo é desktop-only.
-- **M4 — `DashboardAdmin` SummaryCards** `grid-cols-1` em mobile (4 cards empilhados ~320px de altura). Deveria ser `grid-cols-2` (2x2).
-- **M5 — Itens externos (Migração / Auditoria)** dentro da sidebar agrupada têm ícone `ArrowUpRight` mas em mobile, num menu já compacto, são confundidos com seções internas. Ao tappar saem do módulo sem aviso.
-- **M6 — `UserRow` ações ocultas no `⋯`**: a ação principal "Editar" tem botão dedicado (`h-8 w-8`) **e** está duplicada no menu. Em mobile só o tap no card todo deveria abrir edição.
-- **M7 — `IntegracoesSection`** com Textarea de certificado SEFAZ em base64 (~60 linhas). Em mobile, área de texto enorme, com toggle "Mostrar/Ocultar" pequeno e validação reativa.
-- **M8 — Sem skeletons reais** em `UsuariosTab` (mostra `<Loader2 /> Carregando…` num card centralizado), `PerfisCatalogoSection` idem, `EmpresaSection` (carrega via hooks mas não mostra skeleton dos campos).
-- **M9 — `ToggleStatusDialog` e `TempPasswordDialog`** em mobile são `Dialog` com `max-w-md` — viram full-screen sem usar bottom-sheet, sem touch targets enlarged.
-- **M10 — `PermissionMatrix` legenda no header** com 4 dots + labels em `flex-wrap`: em 360px ocupa 2 linhas e pode passar despercebida.
+- **M1 — Card "Escopo pessoal" ocupa espaço útil**: `Configuracoes.tsx` linhas 79-101, antes das tabs, há um Card explicativo grande (`pt-6`, texto longo + botão/badge). Em mobile consome ~180px do topo antes do usuário ver as tabs. Útil em desktop, ruído em mobile.
+- **M2 — `AparenciaSection` é um único scroll de 6 grupos**: Aparência geral, Leitura, Acessibilidade, Sessão, Menu lateral, Branding global, Restaurar — separados só por `<Separator />`. Sem âncoras nem agrupamento colapsável, o usuário rola muito para encontrar "Tamanho da fonte" ou "Sessão".
+- **M3 — Slider de fonte difícil de tocar**: `<Input type="range">` nativo (linhas 111-124) tem touch target ~20px de altura. Em iOS/Android o "polegar" do slider é pequeno e fácil de errar.
+- **M4 — Trio de cards "Modo do menu lateral"** (`grid-cols-3` em desktop, vira `grid-cols-1` em mobile, linha 193): 3 botões grandes empilhados ocupam ~240px, e em mobile o conceito "menu lateral" não se aplica (mobile usa bottom nav / drawer). Deveria ficar **oculto em mobile** com nota explicativa.
+- **M5 — `SegurancaSection` inputs com `max-w-sm`** (linhas 110, 144, 203): em mobile 360px, `max-w-sm` (24rem = 384px) acaba ficando confortável, mas em telas 320px corta. Para formulário, `w-full` em mobile é mais natural.
+- **M6 — Botão "Alterar senha" sem sticky**: o usuário preenche 3 campos + valida 5 critérios + força, mas o botão fica no fim do scroll. Em mobile, após digitar a confirmação com teclado virtual aberto, o botão pode ficar fora da viewport.
+- **M7 — `MeuPerfilSection` 3 cards grandes** (Avatar+identidade, Dados editáveis, Dados corporativos read-only) — soma ~900px de scroll. O 3º card é puro read-only e poderia colapsar em mobile.
+- **M8 — `EmpresaInfoSection` Field grid** `sm:grid-cols-2`: em <640px vira 1 coluna, ficando ~10 linhas de "label + value" empilhadas (~600px). Os pares "Cidade/UF", "CEP", "Telefone" são curtos e poderiam ser apresentados como `dl` compacto inline.
+- **M9 — Tabs horizontais com label + ícone em 360px**: "Meu Perfil", "Aparência", "Segurança", "Empresa" + ícone + `gap-2 px-4 py-2.5` = força scroll horizontal. Aceitável, mas sem indicador visual (chevron/gradient) de que há mais à direita.
+- **M10 — Touch targets de toggles `Switch`**: o componente `Switch` shadcn em mobile tem ~24px de altura. Em "Reduzir animações" e "Manter sessão ativa" funciona, mas a área tocável poderia ser o card inteiro (clicar em qualquer lugar do `rounded-lg border p-4`).
+- **M11 — Color preview branding read-only** em `AparenciaSection` (linhas 224-262): bloco grande com 2 swatches + botão "Gerenciar branding global". Em mobile, ocupa ~180px só para mostrar 2 cores — informação pouco acionável aqui.
+- **M12 — `AlertDialog` "Restaurar padrão"** em mobile usa `Dialog` clássico, sem bottom-sheet nem touch targets enlarged.
 
 ## 4. Problemas leves (polimento)
 
-- **L1 — `ModulePage` subtitle** "Governança, parâmetros globais e gestão do sistema." quebra em 3 linhas em 360px.
-- **L2 — Card de "orientação" (3 boxes role/complementar/revogada)** em `UsuariosTab` ocupa ~280px mobile — útil em desktop, ruído em mobile.
-- **L3 — `UserRow`** badge "exceções" `text-[10px]` (10px é abaixo do recomendado 11-12px para legibilidade mobile).
-- **L4 — `EmpresaSection`** preview de logo + color pickers customizados — funciona mas exige precisão de mouse para escolher cores exatas (color picker nativo mobile cobre tela inteira).
-- **L5 — `UserFormModal` "Bloco 4 — Auditoria"** com 3 cards de timestamp — informação raramente consultada em mobile, deveria estar colapsada.
-- **L6 — Toasts** longos como "Usuário criado e convite enviado por e-mail." cortam em mobile.
+- **L1 — Subtítulo do `ModulePage`** "Preferências pessoais da sua conta." é curto e ok.
+- **L2 — Avatar `h-16 w-16`** em `MeuPerfilSection` ok, mas o nome "{user?.email}" pode quebrar em emails longos sem `truncate` aparente nos breakpoints menores.
+- **L3 — Critérios de senha** (linhas 235-244): 5 itens com `text-xs` (12px) — leitura no limite em mobile.
+- **L4 — Mensagem "Aplicação imediata no seu perfil"** em `AparenciaSection` (linhas 40-48): bloco informativo de ~80px, útil mas redundante com o pattern visual de auto-save.
+- **L5 — `EmpresaInfoSection` "Identidade visual"** com swatches + textos `font-mono text-[11px]` — abaixo do recomendado para mobile (12px+).
+- **L6 — Lista de admins (não-admin)**: `<a href="mailto:">` com ícone pequeno (`h-3.5`) — touch target abaixo de 44px.
+- **L7 — Tabs roleplay**: `aria-selected` ok, mas falta `tabIndex` e gestão de foco para teclado/leitor de tela em swipe.
 
 ## 5. Melhorias de layout
 
-- **Sidebar mobile = `Sheet` lateral**: trocar a sidebar empilhada por um `Sheet` lateral (left) acionado por botão "Menu Admin" sticky no topo do conteúdo. Em desktop (`lg+`) mantém o grid `[240px_1fr]`.
-- **Header sticky com nome da seção**: bar mobile sticky `top-0 z-20` com `[← Menu]` + título da seção ativa + ações secundárias em `⋯`. Resolve C4 e dá ponto de retorno consistente.
-- **Sticky save bar mobile**: nas seções de configuração (`SectionShell` quando `onSave` presente), sticky bottom bar com `safe-area-inset-bottom` contendo "Salvar". Resolve C6.
-- **`PermissionMatrix` mobile read-only by default**: em mobile, render apenas em modo visualização — lista compacta de recursos com contagem de overrides. Edição mostra Alert: *"A matriz de permissões é otimizada para edição em telas maiores. No mobile você pode visualizar; para editar use desktop."* Permite edição "quick toggle" só de allow/deny via tap longo + ConfirmDialog (raro).
-- **`UserFormModal` multi-step em mobile**: dividir em **Steps** ("Dados" → "Acesso" → "Permissões" → "Revisão"). Cada step cabe sem scroll, com sticky footer "Voltar / Próximo / Salvar". Permissions Step em mobile = link "Ver matriz completa (desktop)" + lista read-only de permissões herdadas do role escolhido.
-- **`UsuariosTab` filtros como bottom-sheet**: substituir `UserFilters` inline por botão "Filtros (n)" abrindo `Sheet` mobile com inputs full-width `h-11`.
-- **`UserRow` mobile**: card inteiro tappable abre detalhe (sheet ou navega para `/administracao/usuarios/:id`); ações secundárias (Inativar/Reativar) num único `⋯` `min-h-11 min-w-11`.
-- **`DashboardAdmin` KPIs `grid-cols-2`** em mobile (2x2). Timeline com chart full-width.
-- **Itens externos da sidebar destacados**: no `Sheet` mobile, mover "Migração" e "Auditoria" para um grupo separado no fim com ícone `ArrowUpRight` proeminente e label "Sai da Administração".
-- **Esconder card de "orientação"** em mobile (`hidden md:block`) ou colapsar em accordion "Como funcionam permissões?".
+### Tabs mobile
+- Deslocar para **scrollable underline tabs** com indicador de overflow (gradient/sombra à direita) sinalizando que há mais abas — já tem `overflow-x-auto`, falta o feedback visual.
+- Em telas <640px, considerar **só ícone + label curta** ("Perfil / Aparência / Segurança / Empresa") sem o "Meu" para economizar espaço.
 
-## 6. Melhorias de navegação
+### Card "Escopo pessoal" (topo)
+- Em mobile (`md:hidden` invertido), **colapsar em uma única linha**: `Badge` "Escopo pessoal" + ícone `Info` que abre tooltip/sheet com a explicação completa. Recupera ~140px do topo.
 
-- **Botão fixo "Menu Admin" sticky top mobile** que abre o `Sheet` da sidebar (substitui o bloco empilhado).
-- **Voltar do modal**: `UserFormModal` em mobile com header `[← Voltar] Editar usuário` em vez de X no canto.
-- **Breadcrumb mobile**: em seções, sub-header pequeno `Administração / Empresa` linkando de volta.
-- **Atalho de seção via URL**: já funciona (`?tab=`); manter, e o `Sheet` reflete o `activeKey` ao abrir.
+### `MeuPerfilSection`
+- Card identidade: manter (é o cabeçalho da seção).
+- Card "Dados editáveis": adicionar **sticky save bar mobile** (`fixed bottom-0` com `safe-area-inset-bottom`) que aparece **só quando `dirty=true`**.
+- Card "Dados corporativos e de acesso": **`<details>`/`Accordion` colapsado por padrão em mobile** — usuário expande quando precisa ver o e-mail/perfil.
 
-## 7. Melhorias de componentes
+### `AparenciaSection` (maior ganho)
+- Refatorar os 6 grupos como **`Accordion type="multiple"`** em mobile (em desktop continua tudo aberto via `Separator`). Cada grupo vira um item recolhível, acelerando navegação.
+- Esconder em mobile: o bloco "Comportamento do menu lateral" (M4) — mostrar apenas uma nota: *"Configurações do menu lateral aplicam-se ao desktop."* com link para abrir em desktop.
+- Slider de fonte: substituir `<Input type="range">` nativo por **`Slider` shadcn** (padrão Radix) com `min-h-11` no thumb e marcas visuais maiores (Padrão / Médio / Grande / Máximo).
+- Cards de toggle (Reduzir animações, Manter sessão ativa): tornar o **card inteiro tappable** (`role="button"` no wrapper) — toque em qualquer lugar alterna o switch.
+- Bloco "Cores institucionais": em mobile, reduzir para 1 linha compacta com 2 swatches + botão pequeno "Editar (admin)".
+- Botão "Restaurar padrão" no fim: trocar `AlertDialog` por **`Drawer` bottom-sheet** em mobile.
 
-- **`AdminSidebar`**: detectar `useIsMobile()` e renderizar dentro de um `<Sheet side="left">` controlado por estado externo (botão no header sticky). Items com `min-h-11`, ícones `h-5 w-5`.
-- **`SectionShell`**: aceitar prop `mobileStickyFooter` que renderiza a barra de salvar como sticky bottom em mobile (`fixed bottom-0 left-0 right-0 z-30 border-t bg-background pb-[env(safe-area-inset-bottom)]`).
-- **`PermissionMatrix`**: nova prop `mobileMode?: 'view-only' | 'allow-edit'`; em mobile força `view-only` por padrão. Render compacto com lista de recursos + contagem allow/deny e expand para ver detalhes (sem botões cycle).
-- **`UserFormModal`**: branching `useIsMobile()` → renderizar como `Sheet` bottom full-height com **stepper** (`Step 1 de 4`) em vez de modal scroll-único; sticky footer com Voltar/Próximo/Salvar `min-h-11`.
-- **`UserFilters`**: em mobile, search full-width sempre visível + botão único "Filtros (n)" abrindo `Sheet`.
-- **`UserRow`**: mobile compacto — card tappable abre menu de ações em `Sheet`; remover botão Edit dedicado (deduplicação).
-- **`DashboardAdmin`**: `grid-cols-2` em mobile para SummaryCards.
-- **`PerfisCatalogoSection`**: em mobile, `PermissaoMatrix` (cross-table) é substituída por accordion "Por role" — lista cada role com permissões herdadas em chips, sem grid horizontal.
-- **`ToggleStatusDialog`/`TempPasswordDialog`**: em mobile usar `Drawer` (bottom-sheet) em vez de `Dialog`.
-- **Skeletons reais** (`Skeleton` shadcn) substituindo `Loader2 + texto`.
+### `SegurancaSection`
+- Card "Dados de acesso" ok — read-only e curto.
+- Card "Alterar senha":
+  - Inputs **`w-full` em mobile**, removendo `max-w-sm` no breakpoint mobile.
+  - **Sticky bottom action bar** com botão "Alterar senha" `min-h-11` enquanto o usuário digita.
+  - Critérios da senha + força: agrupar num **bloco compacto inline** (não em card separado) — economiza ~120px.
+  - Botões `Eye/EyeOff` (`absolute right-3`): aumentar área tocável para `min-w-11 min-h-11` (botão maior, ícone do mesmo tamanho).
+- "Boas práticas de segurança" no fim: colapsar em accordion `<details>` em mobile.
 
-## 8. Melhorias de fluxo
+### `EmpresaInfoSection`
+- Substituir o grid de Fields por **lista compacta `dl`**: cada item em uma linha (`label · valor`), com `Razão social` em destaque acima.
+- Cards "Identidade visual" e "Para alterar dados, fale com admin": manter, mas com swatches `h-7 w-7` e códigos `text-xs` (não `text-[11px]`).
+- Lista de admins: cada item em **card tappable** (`min-h-11`) que abre direto o `mailto:` — não exigir tap preciso no link pequeno.
 
-- **Visualizar usuário em 1 toque**: tap no card → sheet com dados, role, permissões herdadas (read-only). Edição completa no desktop.
-- **Inativar/Reativar usuário em mobile**: 1 tap no card → sheet de ações → "Inativar" com `Drawer` de confirmação. Resolve uso real comum no mobile (admin precisa revogar acesso urgente do celular).
-- **Ver dashboard de segurança no mobile**: KPIs 2x2 + timeline visível sem scroll excessivo. Drill-down para `/auditoria` (já externo).
-- **Editar configuração**: em mobile, recomendar via toast amarelo no topo das seções editáveis: *"Edição completa otimizada para desktop"*. Permitir mudanças simples (toggles, inputs únicos), mas não esperar formulários longos.
-- **Trocar de seção**: tap no botão Menu sticky → Sheet → seleciona → fecha → conteúdo carrega (sem scroll-to-top manual).
+### Geral
+- **Sticky save em qualquer aba com `dirty`**: padronizar a barra inferior (`fixed bottom-0 left-0 right-0 z-30 bg-background border-t pb-[env(safe-area-inset-bottom)]`) — já estabelecida em `mem://produto/administracao-mobile.md`.
+- **Skeletons** em `EmpresaInfoSection` já existem ✓; padronizar `MeuPerfilSection` e `AparenciaSection` (que hoje renderizam "vazio" enquanto carregam).
+- **Touch targets**: garantir `min-h-11` em todos os botões/triggers de seção (Tabs, Switch wrappers, links externos).
 
-## 9. Sugestões de redesign mobile (sem inventar sistema novo)
-
-Reutilizar padrões consolidados:
-
-- **`Sheet`** lateral para sidebar e bottom para filtros/ações (já usado em Comercial/Financeiro/Fiscal/Relatórios).
-- **`Drawer` bottom-sheet** para confirmações destrutivas (já padronizado em `mem://produto/comercial-mobile.md`).
-- **Sticky header/footer com `safe-area-inset`** (já em `FormModal.tsx` linha 147).
-- **`useIsMobile()`** hook para branching condicional.
-- **`Skeleton`** shadcn em todos os loadings.
-- **`min-h-11 min-w-11`** como mínimo de touch target.
-- **Stepper em mobile** para forms longos (já há padrão em `mem://produto/quando-drawer-quando-pagina.md`: form com itens dinâmicos vai para página).
-- Documentar em **`mem://produto/administracao-mobile.md`**.
-
-## 10. Roadmap de execução
+## 6. Roadmap de execução
 
 | # | Etapa | Resolve | Esforço |
 |---|---|---|---|
-| **1** | `AdminSidebar` mobile como `Sheet` lateral; botão "Menu Admin" sticky no topo do conteúdo com nome da seção ativa; itens com `min-h-11` | C1, C4, C5 | M |
-| **2** | `PermissionMatrix` modo `view-only` em mobile com Alert "edição otimizada para desktop"; lista compacta com contagem allow/deny, sem ciclo cycle | C2 | M |
-| **3** | `UserFormModal` em mobile como `Sheet` bottom full-height com stepper de 4 passos (Dados / Status / Acesso / Auditoria); sticky footer Voltar/Próximo/Salvar `min-h-11`; passo Permissões = read-only herdado + link "Editar matriz no desktop" | C3 | L |
-| **4** | `SectionShell` com prop `mobileStickyFooter`: em mobile, barra Salvar `fixed bottom-0` com safe-area; aplicar nas 7 seções editáveis (Empresa, Email, Integrações, Notificações, Backup, Fiscal, Financeiro) | C6 | S |
-| **5** | `UserFilters` mobile como `Sheet` bottom: search full-width + botão "Filtros (n)" abre sheet com inputs `h-11` | M2, C5 | S |
-| **6** | `UserRow` mobile: card tappable → bottom-sheet com ações; remover botão Edit dedicado; ações `min-h-11 min-w-11` | M6, C5 | S |
-| **7** | `DashboardAdmin` KPIs `grid-cols-2` em mobile; timeline full-width | M4 | XS |
-| **8** | `PerfisCatalogoSection` mobile: substituir `PermissaoMatrix` (grid cross-table) por accordion "Por role" com chips de permissões herdadas | M3 | M |
-| **9** | `ToggleStatusDialog` e `TempPasswordDialog` em mobile como `Drawer` bottom-sheet com botões `min-h-11` | M9 | S |
-| **10** | Skeletons reais (`Skeleton` shadcn) em `UsuariosTab`, `PerfisCatalogoSection`, `EmpresaSection` substituindo `Loader2 + texto` | M8 | XS |
-| **11** | Polimento: ocultar card de "orientação" em mobile (`hidden md:block`); colapsar Auditoria do `UserFormModal`; itens externos (Migração/Auditoria) destacados no Sheet com label "Sai da Administração"; subtitle truncate; badge `text-[11px]` | L1, L2, L5, M5, L3 | XS |
-| **12** | `IntegracoesSection`: Textarea SEFAZ em mobile com altura reduzida + `monospace text-xs`; toggle Mostrar/Ocultar `min-h-11` | M7 | XS |
-| **13** | Documentar em `mem://produto/administracao-mobile.md` + atualizar `mem://index.md` | governança | XS |
+| **1** | `Configuracoes.tsx`: card "Escopo pessoal" colapsado em mobile (badge + tooltip/sheet com explicação); tabs com indicador de overflow horizontal e labels mais curtas em <640px | M1, M9 | XS |
+| **2** | `AparenciaSection`: converter os 6 grupos em `Accordion type="multiple"` em mobile (todos abertos em desktop); ocultar bloco "Menu lateral" em mobile com nota; substituir slider nativo por `Slider` shadcn `min-h-11` | M2, M3, M4 | M |
+| **3** | `AparenciaSection`: cards de toggle (Reduzir animações, Manter sessão) inteiramente tappable; bloco "Cores institucionais" em 1 linha compacta em mobile; `AlertDialog` "Restaurar padrão" como `Drawer` bottom-sheet em mobile | M10, M11, M12 | S |
+| **4** | `SegurancaSection`: inputs `w-full` em mobile; sticky bottom save bar com "Alterar senha" `min-h-11` quando há `currentPassword`; critérios + força inline compactos; áreas tocáveis Eye/EyeOff `min-h-11 min-w-11`; "Boas práticas" em accordion mobile | M5, M6, L3, L6 | S |
+| **5** | `MeuPerfilSection`: sticky save bar mobile aparece quando `dirty=true`; card "Dados corporativos" em `Accordion` colapsado por padrão em mobile; truncate no email longo | M7, L2 | S |
+| **6** | `EmpresaInfoSection`: substituir grid de Fields por lista `dl` compacta; tipografia `text-xs` (≥12px) em vez de `text-[11px]`; cards de admin tappable inteiros (`min-h-11`) com `mailto:` | M8, L5, L6 | S |
+| **7** | Polimento: subtítulo do `AlertDialog` "Restaurar" curto; padronizar Skeletons em `MeuPerfilSection` e `AparenciaSection` durante load | L1, L4 | XS |
+| **8** | Documentar em `mem://produto/configuracoes-mobile.md` (padrão accordion para sections com 4+ grupos, sticky save em forms pessoais, tappable card-toggle pattern) + atualizar `mem://index.md` | governança | XS |
 
-**Quick wins (alto valor, baixo risco)**: 4, 5, 6, 7, 9, 10, 11, 12.
-**Estruturais (mudam fluxo)**: 1, 2, 3, 8.
-**Polimento**: 13.
+**Quick wins (alto valor, baixo risco)**: 1, 3, 4, 5, 6, 7.
+**Estrutural (muda fluxo de leitura)**: 2 (Accordion em Aparência).
+**Polimento + governança**: 7, 8.
+
+> **Fora de escopo desta tela**: SMTP, API e "teste de conexão" — esses ficam em `/administracao` (`IntegracoesSection` + `EmpresaSection`). A revisão mobile dessas seções já foi feita no roadmap de Administração (etapa 12 — Textarea SEFAZ + toggle `min-h-11`). Se quiser aprofundar UX de "teste de conexão SMTP" especificamente, é um plano à parte focado em `IntegracoesSection`.
 
