@@ -4,8 +4,11 @@ import { RelationalLink } from "@/components/ui/RelationalLink";
 import { Badge } from "@/components/ui/badge";
 import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSummaryCard";
 import { DrawerStatusBanner } from "@/components/ui/DrawerStatusBanner";
+import { DrawerStickyFooter } from "@/components/ui/DrawerStickyFooter";
+import { Button } from "@/components/ui/button";
 import { formatDate, formatNumber } from "@/lib/format";
-import { AlertTriangle, Package, Truck } from "lucide-react";
+import { AlertTriangle, Package, Truck, ClipboardCheck, ExternalLink } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import type { Recebimento } from "@/pages/logistica/hooks/useRecebimentos";
 import { getRecebimentoSourceMeta, getRecebimentoStatusCfg } from "@/pages/logistica/logisticaStatus";
 
@@ -28,6 +31,7 @@ function isAtrasado(recebimento: Recebimento) {
 }
 
 export function RecebimentoDrawer({ open, onClose, recebimento: r }: RecebimentoDrawerProps) {
+  const navigate = useNavigate();
   if (!r) return <ViewDrawerV2 open={open} onClose={onClose} title="" />;
 
   const cfg = getRecebimentoStatusCfg(r.status_logistico);
@@ -244,6 +248,29 @@ export function RecebimentoDrawer({ open, onClose, recebimento: r }: Recebimento
         { value: "vinculos",    label: "Vínculos",     content: tabVinculos },
       ]}
       defaultTab="resumo"
+      variant="operational"
+      footerSticky
+      footer={
+        r.status_logistico !== "recebido" && r.status_logistico !== "cancelado" ? (
+          <DrawerStickyFooter
+            hint={atrasado ? "Pedido em atraso — registre o recebimento o quanto antes." : undefined}
+            right={
+              <Button
+                size="lg"
+                className="h-11 min-w-[180px] gap-2"
+                onClick={() => {
+                  onClose();
+                  navigate(`/compras?recebimento=${r.id}`);
+                }}
+              >
+                <ClipboardCheck className="h-4 w-4" />
+                Registrar recebimento
+                <ExternalLink className="h-3 w-3 opacity-70" />
+              </Button>
+            }
+          />
+        ) : undefined
+      }
     />
   );
 }
