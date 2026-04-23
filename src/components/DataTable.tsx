@@ -153,6 +153,10 @@ export function DataTable<T extends Record<string, any>>({
   deleteBehavior = 'hard',
   virtualizeThreshold = 50,
   maxHeight = 600,
+  hasActiveFilters = false,
+  activeFiltersCount = 0,
+  onClearFilters,
+  searchTerm,
 }: DataTableProps<T>) {
   const isMobile = useIsMobile();
   const { user } = useAuth();
