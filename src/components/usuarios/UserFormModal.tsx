@@ -93,6 +93,8 @@ export function UserFormModal({
   useEffect(() => {
     if (!open) return;
     setMobileStep(0);
+    setManualPassword('');
+    setShowPassword(false);
     if (user) {
       setForm({
         nome: user.nome,
