@@ -29,6 +29,8 @@ interface AuthContextType {
   deniedPermissions: PermissionKey[];
   hasRole: (role: AppRole) => boolean;
   signOut: () => Promise<void>;
+  /** Re-busca o profile do usuário atual (útil após edição em Configurações). */
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -42,6 +44,7 @@ const AuthContext = createContext<AuthContextType>({
   deniedPermissions: [],
   hasRole: () => false,
   signOut: async () => {},
+  refreshProfile: async () => {},
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -215,6 +218,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const hasRole = useCallback((role: AppRole) => roles.includes(role), [roles]);
 
+  const refreshProfile = useCallback(async () => {
+    const currentUser = userRef.current;
+    if (!currentUser) return;
+    await fetchProfile(currentUser.id);
+  }, []);
+
   const signOut = useCallback(async () => {
     if (!supabase) return;
     manualSignOut.current = true;
@@ -235,8 +244,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const contextValue = useMemo(
-    () => ({ user, session, loading, permissionsLoaded, profile, roles, extraPermissions, deniedPermissions, hasRole, signOut }),
-    [user, session, loading, permissionsLoaded, profile, roles, extraPermissions, deniedPermissions, hasRole, signOut]
+    () => ({ user, session, loading, permissionsLoaded, profile, roles, extraPermissions, deniedPermissions, hasRole, signOut, refreshProfile }),
+    [user, session, loading, permissionsLoaded, profile, roles, extraPermissions, deniedPermissions, hasRole, signOut, refreshProfile]
   );
 
   return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;

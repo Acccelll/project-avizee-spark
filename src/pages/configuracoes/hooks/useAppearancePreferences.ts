@@ -5,6 +5,17 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useUserPreference } from '@/hooks/useUserPreference';
 import { useAppConfigContext } from '@/contexts/AppConfigContext';
 import { APPEARANCE_DEFAULTS } from '../utils/passwordPolicy';
+import type { SidebarMode } from '@/contexts/AppConfigContext';
+
+/** Snapshot de preferências de aparência usado para a ação "Desfazer". */
+interface AppearanceSnapshot {
+  theme: string;
+  densidade: string;
+  fontScale: number;
+  reduceMotion: boolean;
+  sidebarMode: SidebarMode;
+  menuCompacto: boolean;
+}
 
 /**
  * Centraliza todas as preferências de aparência pessoais:
@@ -38,6 +49,15 @@ export function useAppearancePreferences() {
   const markSaved = () => setSavedAt(new Date());
 
   const reset = async () => {
+    // Fase 7: tira snapshot ANTES de resetar para permitir desfazer em até ~8s.
+    const snapshot: AppearanceSnapshot = {
+      theme: theme || 'system',
+      densidade,
+      fontScale: fontScale ?? APPEARANCE_DEFAULTS.fontScale,
+      reduceMotion: reduceMotion ?? APPEARANCE_DEFAULTS.reduceMotion,
+      sidebarMode: sidebarMode || 'dynamic',
+      menuCompacto: sidebarMode !== 'fixed-expanded',
+    };
     setTheme(APPEARANCE_DEFAULTS.theme);
     setDensidade(APPEARANCE_DEFAULTS.densidade);
     const results = await Promise.allSettled([
@@ -56,8 +76,39 @@ export function useAppearancePreferences() {
     const failed = results.filter((r) => r.status === 'rejected').length;
     if (failed > 0) {
       toast.warning(`Algumas preferências (${failed}) não puderam ser salvas. Tente novamente.`);
+      return;
+    }
+    toast.success('Preferências de aparência restauradas ao padrão.', {
+      duration: 8000,
+      action: {
+        label: 'Desfazer',
+        onClick: () => { void restoreSnapshot(snapshot); },
+      },
+    });
+  };
+
+  /** Restaura um snapshot anterior — usado pelo toast "Desfazer". */
+  const restoreSnapshot = async (snap: AppearanceSnapshot) => {
+    setTheme(snap.theme);
+    setDensidade(snap.densidade);
+    const results = await Promise.allSettled([
+      saveThemePref(snap.theme),
+      saveDensidadePref(snap.densidade),
+      saveFontScale(snap.fontScale),
+      saveReduceMotion(snap.reduceMotion),
+      saveSidebarMode(snap.sidebarMode),
+      saveMenuCompacto(snap.menuCompacto),
+    ]);
+    document.documentElement.dataset.density =
+      snap.densidade === 'compacta' ? 'compact' : 'comfortable';
+    document.documentElement.style.setProperty('--base-font-size', `${snap.fontScale}px`);
+    document.documentElement.classList.toggle('reduce-motion', snap.reduceMotion);
+    setSavedAt(new Date());
+    const failed = results.filter((r) => r.status === 'rejected').length;
+    if (failed > 0) {
+      toast.warning('Não foi possível desfazer todas as alterações.');
     } else {
-      toast.success('Preferências de aparência restauradas ao padrão.');
+      toast.success('Preferências anteriores restauradas.');
     }
   };
 

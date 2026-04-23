@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { MeuPerfilSection } from './configuracoes/sections/MeuPerfilSection';
 import { AparenciaSection } from './configuracoes/sections/AparenciaSection';
 import { SegurancaSection } from './configuracoes/sections/SegurancaSection';
+import { EmpresaInfoSection } from './configuracoes/sections/EmpresaInfoSection';
 
 /**
  * Configurações pessoais — orquestrador.
@@ -29,6 +30,7 @@ const tabNavItems: TabNavItem[] = [
   { key: 'perfil', label: 'Meu Perfil', icon: User },
   { key: 'aparencia', label: 'Aparência', icon: Palette },
   { key: 'seguranca', label: 'Segurança', icon: Lock },
+  { key: 'empresa', label: 'Empresa', icon: Building2 },
 ];
 
 export default function Configuracoes() {
@@ -55,6 +57,8 @@ export default function Configuracoes() {
         return <AparenciaSection isAdmin={isAdmin} />;
       case 'seguranca':
         return <SegurancaSection />;
+      case 'empresa':
+        return <EmpresaInfoSection isAdmin={isAdmin} />;
       default:
         return null;
     }
