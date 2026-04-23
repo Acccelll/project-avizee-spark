@@ -28,7 +28,8 @@ import {
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { EmptyState } from '@/components/EmptyState';
+import { EmptyState } from '@/components/ui/empty-state';
+import { Button } from '@/components/ui/button';
 import { StatCard } from '@/components/StatCard';
 import { useAuth } from '@/contexts/AuthContext';
 import { PERMISSION_HELP_TEXT } from '@/lib/permissions';
