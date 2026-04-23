@@ -9,7 +9,6 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { ModulePage } from "@/components/ModulePage";
 import { DataTable } from "@/components/DataTable";
 import { ViewDrawer, ViewField, ViewSection } from "@/components/ViewDrawer";
@@ -91,7 +90,6 @@ const URL_SCHEMA = {
 };
 
 export default function Auditoria() {
-  const navigate = useNavigate();
   const { value, set, clear } = useUrlListState({ schema: URL_SCHEMA });
 
   const period = (value.periodo || "30d") as Period;
