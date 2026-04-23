@@ -304,7 +304,26 @@ const PedidoForm = () => {
             </span>
           )}
         </div>
+
+        {/* Spacer mobile para não cobrir conteúdo com o footer sticky */}
+        {isDirty && <div className="h-24 md:hidden" aria-hidden />}
       </div>
+
+      {/* Footer sticky mobile — só aparece quando há alterações pendentes */}
+      {isDirty && (
+        <div
+          className="md:hidden fixed bottom-0 inset-x-0 bg-background/95 backdrop-blur border-t z-40 px-3 py-3 flex flex-col-reverse gap-2"
+          style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}
+        >
+          <Button variant="outline" onClick={handleCancel} className="w-full min-h-11">
+            Cancelar
+          </Button>
+          <Button onClick={handleSave} disabled={saving} className="w-full min-h-11 gap-2">
+            <Save className="w-4 h-4" />
+            {saving ? "Salvando..." : "Salvar Alterações"}
+          </Button>
+        </div>
+      )}
       {dialog}
     </PageShell>
   );
