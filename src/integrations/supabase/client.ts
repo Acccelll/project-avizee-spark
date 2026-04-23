@@ -18,6 +18,12 @@ const SUPABASE_PUBLISHABLE_KEY = (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY 
 
 export const isSupabaseConfigured = Boolean(SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY);
 
+if (!isSupabaseConfigured && typeof window !== "undefined") {
+  // Diagnóstico: se cair no fallback "placeholder", o .env não foi injetado pelo Vite.
+  // Force um rebuild (editar qualquer arquivo) ou hard refresh para corrigir.
+  console.error("[supabase] VITE_SUPABASE_URL/KEY ausentes — usando placeholder. Faça hard refresh.");
+}
+
 export const supabase = createClient<Database>(
   SUPABASE_URL || "https://placeholder.supabase.co",
   SUPABASE_PUBLISHABLE_KEY || "placeholder",
