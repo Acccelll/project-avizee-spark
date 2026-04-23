@@ -183,6 +183,6 @@ export function ViewDrawerV2({
 }
 
 /* Re-export ViewField and ViewSection for convenience */
-export { ViewField, ViewSection } from "@/components/ViewDrawer";
+export { ViewField, ViewSection } from "@/components/ui/ViewField";
 export { DrawerStickyFooter } from "@/components/ui/DrawerStickyFooter";
 export { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSummaryCard";
