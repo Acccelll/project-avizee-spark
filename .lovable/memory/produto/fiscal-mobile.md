@@ -34,6 +34,8 @@ type: design
 
 ## Fluxo
 - Editar em mobile sempre navega para `/fiscal/:id` (página) — não abre `NotaFiscalEditModal`. Alinha com `mem://produto/quando-drawer-quando-pagina`.
+- `openEdit` em `Fiscal.tsx` faz `if (isMobile) navigate('/fiscal/:id/editar')` antes de hidratar o form do modal — modal só abre em desktop.
+- Botão "Importar XML" no header: `min-h-11 md:min-h-9` + ícone `h-4` em mobile para touch target real.
 
 ## DanfeViewer mobile
 - `DialogContent` vira bottom-sheet (`max-sm:fixed inset-x-0 bottom-0 rounded-t-2xl max-h-[92svh]`) com safe-area inferior.
