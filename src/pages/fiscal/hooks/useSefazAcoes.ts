@@ -100,14 +100,12 @@ export function useSefazAcoes(): UseSefazAcoesReturn {
       const erros = validarPreEmissao(
         {
           cnpj_emitente: dadosNFe?.emitente?.cnpj ?? null,
-          destinatario_cnpj_cpf:
-            dadosNFe?.destinatario?.cnpj ?? dadosNFe?.destinatario?.cpf ?? null,
-          destinatario_nome: dadosNFe?.destinatario?.nome ?? null,
+          destinatario_cnpj_cpf: dadosNFe?.destinatario?.cpfCnpj ?? null,
+          destinatario_nome: dadosNFe?.destinatario?.razaoSocial ?? null,
         },
         (dadosNFe?.itens ?? []).map((i) => ({
-          ncm: i.ncm,
-          cfop: i.cfop,
-          descricao: i.descricao,
+          ncm: (i as { ncm?: string | null }).ncm ?? null,
+          cfop: (i as { cfop?: string | null }).cfop ?? null,
         })),
       );
       if (erros.length > 0) {

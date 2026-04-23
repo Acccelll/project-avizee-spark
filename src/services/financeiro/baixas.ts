@@ -140,7 +140,9 @@ async function processarBaixaLoteRpc(params: BaixaLoteParams): Promise<boolean |
   if (params.overrides && Object.keys(params.overrides).length > 0) {
     return null;
   }
-  const { error } = await supabase.rpc("financeiro_processar_baixa_lote", {
+  // Assinatura legada da RPC ainda usa argumentos individuais; tipos gerados
+  // declaram apenas `p_items: Json`. Cast minimalista até regerar os types.
+  const args = {
     p_selected_ids: params.selectedIds,
     p_tipo_baixa: params.tipoBaixa,
     p_valor_pago_baixa: params.valorPagoBaixa,
@@ -148,7 +150,8 @@ async function processarBaixaLoteRpc(params: BaixaLoteParams): Promise<boolean |
     p_baixa_date: params.baixaDate,
     p_forma_pagamento: params.formaPagamento,
     p_conta_bancaria_id: params.contaBancariaId,
-  });
+  } as unknown as { p_items: never };
+  const { error } = await supabase.rpc("financeiro_processar_baixa_lote", args);
 
   if (!error) return true;
 
