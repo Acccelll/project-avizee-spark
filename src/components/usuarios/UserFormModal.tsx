@@ -369,6 +369,34 @@ export function UserFormModal({
                   placeholder="Ex.: Analista Comercial"
                 />
               </div>
+              {!isEdit && (
+                <div className="space-y-1.5 sm:col-span-2">
+                  <Label>Senha inicial (opcional)</Label>
+                  <div className="relative">
+                    <Input
+                      value={manualPassword}
+                      onChange={(e) => setManualPassword(e.target.value)}
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder={`Mínimo ${PASSWORD_MIN_LENGTH} caracteres, com maiúscula, minúscula e número`}
+                      autoComplete="new-password"
+                      className="pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                      tabIndex={-1}
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                    <Info className="h-3 w-3" />
+                    Se em branco, o sistema envia convite por e-mail ou gera uma senha temporária.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
