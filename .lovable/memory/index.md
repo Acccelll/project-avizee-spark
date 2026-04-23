@@ -49,4 +49,5 @@
 - [Comercial Mobile](mem://produto/comercial-mobile)
 - [Compras Mobile](mem://produto/compras-mobile)
 - [Estoque & Logística Mobile](mem://produto/estoque-logistica-mobile) — DataTable mobile props, EstoqueAjusteSheet (bottom-sheet pré-preenchível), footers operacionais e CTA primário por estado
+- [Financeiro Mobile](mem://produto/financeiro-mobile) — DataTable mobile, bottom-sheets para Baixa/ConfirmDialog, Calendário tap→sheet, Conciliação vertical com vincular filtrado
 - [RLS Single-Tenant](mem://security/rls-single-tenant) — Modo single-tenant; tabelas críticas com USING(true), exceto app_configuracoes (admin); checklist multi-tenant
