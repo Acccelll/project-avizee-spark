@@ -4,7 +4,7 @@ import { DataTable } from "@/components/DataTable";
 import { StatusBadge } from "@/components/StatusBadge";
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
-import { StatCard } from "@/components/StatCard";
+import { SummaryCard } from "@/components/SummaryCard";
 import { ContaContabilDrawer } from "@/components/financeiro/ContaContabilDrawer";
 import { ContaContabilEditModal } from "@/components/financeiro/ContaContabilEditModal";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
@@ -543,10 +543,10 @@ const ContasContabeis = () => {
         onAdd={openCreate}
         summaryCards={
           <>
-            <StatCard title="Total de Contas" value={String(totalContas)} icon={BookOpen} />
-            <StatCard title="Analíticas" value={String(totalAnaliticas)} icon={FileText} iconColor="text-foreground" />
-            <StatCard title="Sintéticas" value={String(totalSinteticas)} icon={FolderTree} iconColor="text-primary" />
-            <StatCard title="Ativas" value={String(totalAtivas)} icon={GitBranch} iconColor="text-success" />
+            <SummaryCard title="Total de Contas" value={String(totalContas)} icon={BookOpen} />
+            <SummaryCard title="Analíticas" value={String(totalAnaliticas)} icon={FileText} iconColor="text-foreground" />
+            <SummaryCard title="Sintéticas" value={String(totalSinteticas)} icon={FolderTree} iconColor="text-primary" />
+            <SummaryCard title="Ativas" value={String(totalAtivas)} icon={GitBranch} iconColor="text-success" />
           </>
         }
       >

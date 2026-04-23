@@ -6,7 +6,7 @@ import { FormModalFooter } from "@/components/FormModalFooter";
 import { ContaBancariaDrawer } from "@/components/financeiro/ContaBancariaDrawer";
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
-import { StatCard } from "@/components/StatCard";
+import { SummaryCard } from "@/components/SummaryCard";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -322,10 +322,10 @@ const ContasBancarias = () => {
         onAdd={openCreate}
         summaryCards={
           <>
-            <StatCard title="Total de Contas" value={String(contas.length)} icon={Building2} />
-            <StatCard title="Ativas" value={String(contasAtivas.length)} icon={CheckCircle} iconColor="text-success" />
-            <StatCard title="Inativas" value={String(contasInativas)} icon={Ban} />
-            <StatCard
+            <SummaryCard title="Total de Contas" value={String(contas.length)} icon={Building2} />
+            <SummaryCard title="Ativas" value={String(contasAtivas.length)} icon={CheckCircle} iconColor="text-success" />
+            <SummaryCard title="Inativas" value={String(contasInativas)} icon={Ban} />
+            <SummaryCard
               title="Saldo Total"
               value={formatCurrency(saldoTotal)}
               icon={Wallet}
