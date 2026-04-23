@@ -1,4 +1,19 @@
-import { Menu } from 'lucide-react';
+import {
+  Menu,
+  LayoutDashboard,
+  FileText,
+  ClipboardList,
+  ShoppingCart,
+  Warehouse,
+  Truck,
+  Wallet,
+  DollarSign,
+  Receipt,
+  Users,
+  Package,
+  Store,
+  type LucideIcon,
+} from 'lucide-react';
 import { useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { mobileBottomTabs, getNavSectionKey, DASHBOARD_KEY, navSections, type NavSectionKey } from '@/lib/navigation';
@@ -41,6 +56,47 @@ function basePath(p: string) {
   return p.split('?')[0];
 }
 
+/**
+ * Tabs contextuais por seção ativa. Quando o usuário está dentro de uma das
+ * seções abaixo, o bottom nav troca para atalhos internos da seção (mantendo
+ * Início + Menu fixos pelo componente). Sem entrada aqui = comportamento global.
+ */
+type ContextualTab = {
+  key: string;
+  title: string;
+  icon: LucideIcon;
+  path: string;
+  permission?: Permission;
+};
+
+const CONTEXTUAL_TABS_BY_SECTION: Partial<Record<NavSectionKey, ContextualTab[]>> = {
+  comercial: [
+    { key: 'orcamentos', title: 'Orçamentos', icon: FileText, path: '/orcamentos', permission: 'orcamentos:visualizar' },
+    { key: 'pedidos', title: 'Pedidos', icon: ClipboardList, path: '/pedidos', permission: 'pedidos:visualizar' },
+  ],
+  compras: [
+    { key: 'cotacoes-compra', title: 'Cotações', icon: ShoppingCart, path: '/cotacoes-compra' },
+    { key: 'pedidos-compra', title: 'Pedidos', icon: ClipboardList, path: '/pedidos-compra' },
+  ],
+  estoque: [
+    { key: 'estoque', title: 'Estoque', icon: Warehouse, path: '/estoque' },
+    { key: 'logistica', title: 'Logística', icon: Truck, path: '/logistica' },
+  ],
+  financeiro: [
+    { key: 'lancamentos', title: 'Lançamentos', icon: Wallet, path: '/financeiro', permission: 'financeiro:visualizar' },
+    { key: 'fluxo-caixa', title: 'Fluxo', icon: DollarSign, path: '/fluxo-caixa', permission: 'financeiro:visualizar' },
+  ],
+  fiscal: [
+    { key: 'nf-entrada', title: 'Entrada', icon: Receipt, path: '/fiscal?tipo=entrada' },
+    { key: 'nf-saida', title: 'Saída', icon: Receipt, path: '/fiscal?tipo=saida' },
+  ],
+  cadastros: [
+    { key: 'clientes', title: 'Clientes', icon: Users, path: '/clientes', permission: 'clientes:visualizar' },
+    { key: 'produtos', title: 'Produtos', icon: Package, path: '/produtos', permission: 'produtos:visualizar' },
+    { key: 'fornecedores', title: 'Fornecedores', icon: Store, path: '/fornecedores', permission: 'fornecedores:visualizar' },
+  ],
+};
+
 interface MobileBottomNavProps {
   onOpenMenu: () => void;
 }
@@ -53,27 +109,40 @@ export function MobileBottomNav({ onOpenMenu }: MobileBottomNavProps) {
   const activeKey = getNavSectionKey(currentRoute);
   const visibleKeys = useVisibleSectionKeys();
 
-  // Always keep "Início" visible; for the rest, only show tabs whose section is allowed.
-  // Adicionalmente, recalculamos o path destino por permissão real — se o destino
-  // padrão da tab não pode ser acessado, escolhe o primeiro item permitido da seção.
+  // Sempre inclui "Início" no começo. Quando o usuário está dentro de uma seção
+  // com tabs contextuais definidas, troca os atalhos para itens da própria seção
+  // (filtrados por permissão). Caso contrário, usa o conjunto global padrão.
   const tabs = useMemo(() => {
+    const dashboardTab = mobileBottomTabs.find((t) => t.key === DASHBOARD_KEY)!;
+
+    const contextual =
+      activeKey !== DASHBOARD_KEY && activeKey !== 'menu'
+        ? CONTEXTUAL_TABS_BY_SECTION[activeKey as NavSectionKey]
+        : undefined;
+
+    if (contextual && visibleKeys.has(activeKey as NavSectionKey)) {
+      const allowed = contextual.filter((tab) => !tab.permission || can(tab.permission));
+      if (allowed.length) {
+        return [dashboardTab, ...allowed.map((tab) => ({ key: tab.key, title: tab.title, icon: tab.icon, path: tab.path }))];
+      }
+    }
+
     return mobileBottomTabs
       .filter((tab) => tab.key === DASHBOARD_KEY || visibleKeys.has(tab.key as NavSectionKey))
       .map((tab) => {
         if (tab.key === DASHBOARD_KEY) return tab;
         const defaultPerm = TAB_PATH_PERMISSIONS[basePath(tab.path)];
         if (!defaultPerm || can(defaultPerm)) return tab;
-        // Procura o primeiro item da seção que o usuário pode acessar
         const section = navSections.find((s) => s.key === tab.key);
         if (!section) return tab;
         const items = section.items.flatMap((g) => g.items);
-        const allowed = items.find((item) => {
+        const allowedLeaf = items.find((item) => {
           const perm = PATH_PERMISSION_MAP[basePath(item.path)];
           return !perm || can(perm);
         });
-        return allowed ? { ...tab, path: allowed.path } : tab;
+        return allowedLeaf ? { ...tab, path: allowedLeaf.path } : tab;
       });
-  }, [visibleKeys, can]);
+  }, [activeKey, visibleKeys, can]);
 
   return (
     <nav
@@ -86,7 +155,14 @@ export function MobileBottomNav({ onOpenMenu }: MobileBottomNavProps) {
       >
         {tabs.map((tab) => {
           const Icon = tab.icon;
-          const active = activeKey === tab.key;
+          const tabBase = basePath(tab.path);
+          const currentBase = basePath(currentRoute);
+          // Tab "Início" só fica ativa em /. Tabs contextuais ficam ativas no path exato.
+          // Tabs globais (cadastros/comercial/...) ficam ativas pela seção (activeKey).
+          const isContextualTab = tab.key !== DASHBOARD_KEY && !mobileBottomTabs.some((t) => t.key === tab.key);
+          const active = isContextualTab
+            ? currentBase === tabBase || currentBase.startsWith(`${tabBase}/`)
+            : activeKey === tab.key;
           return (
             <button
               key={tab.key}
