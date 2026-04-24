@@ -25,52 +25,111 @@ export default function ResetPassword() {
   const branding = useBranding();
 
   useEffect(() => {
-    // O Supabase processa o hash (#access_token=...&type=recovery) de forma assíncrona
-    // e dispara o evento PASSWORD_RECOVERY quando a sessão temporária é criada.
-    // Precisamos AGUARDAR esse evento (ou uma sessão já existente) antes de decidir
-    // mostrar a tela ou redirecionar — caso contrário disparamos "link inválido"
-    // antes do hash ser consumido, e o usuário acaba clicando no link 2x e
-    // gastando o token de uso único.
+    // O hash de recovery pode ser processado antes OU depois do efeito montar.
+    // Se depender apenas de um único onAuthStateChange, existe uma janela de corrida:
+    // o evento pode disparar antes do listener, getSession() ainda retornar null,
+    // e a tela ficar presa em "Validando link...". O usuário então clica de novo no
+    // e-mail e o token de uso único passa a aparecer como expirado/inválido.
     let mounted = true;
+    let settled = false;
+    let recoveryEventSeen = false;
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
     const hashHasRecovery =
-      window.location.hash.includes("type=recovery") ||
-      window.location.hash.includes("access_token");
+      hashParams.get("type") === "recovery" || hashParams.has("access_token");
+    const hashError = hashParams.get("error_description");
+
+    const clearPendingTimers = (timers: Array<number>) => {
+      timers.forEach((timer) => window.clearTimeout(timer));
+    };
+
+    const finishSuccess = (timers: Array<number>) => {
+      if (!mounted || settled) return;
+      settled = true;
+      clearPendingTimers(timers);
+      setCheckingSession(false);
+    };
+
+    const finishInvalid = (timers: Array<number>) => {
+      if (!mounted || settled) return;
+      settled = true;
+      clearPendingTimers(timers);
+      toast.error("Link de recuperação inválido ou expirado");
+      navigate("/login", { replace: true });
+    };
+
+    const timers: number[] = [];
+
+    if (hashError) {
+      finishInvalid(timers);
+      return () => {
+        mounted = false;
+      };
+    }
 
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (!mounted) return;
-      if (event === "PASSWORD_RECOVERY" || (session && hashHasRecovery)) {
-        setCheckingSession(false);
+      if (event === "PASSWORD_RECOVERY") {
+        recoveryEventSeen = true;
+      }
+      if (event === "PASSWORD_RECOVERY" || session) {
+        finishSuccess(timers);
       }
     });
 
-    // Fallback: se já existe sessão (ex.: troca voluntária de senha) ou se após
-    // 4s nenhum evento chegou e também não há hash de recovery, decidimos.
-    (async () => {
-      const { data } = await supabase.auth.getSession();
-      if (!mounted) return;
-      if (data.session) {
-        setCheckingSession(false);
+    const initialAccessToken = supabase.auth.getSession().then(({ data }) => data.session?.access_token ?? null);
+
+    const checkSession = async () => {
+      const [sessionResult, initialToken] = await Promise.all([
+        supabase.auth.getSession(),
+        initialAccessToken,
+      ]);
+      const session = sessionResult.data.session;
+      if (!mounted || settled) return;
+
+      if (!session) return;
+
+      if (hashHasRecovery) {
+        const currentHash = window.location.hash;
+        const hashStillHasRecovery =
+          currentHash.includes("type=recovery") || currentHash.includes("access_token");
+        const sessionChanged = session.access_token !== initialToken;
+
+        if (!recoveryEventSeen && hashStillHasRecovery && !sessionChanged) {
+          return;
+        }
+      }
+
+      if (session) {
+        finishSuccess(timers);
+      }
+    };
+
+    void checkSession();
+
+    const pollSession = window.setInterval(() => {
+      void checkSession();
+    }, 250);
+    timers.push(pollSession);
+
+    const failSafe = window.setTimeout(() => {
+      if (hashHasRecovery) {
+        finishInvalid(timers);
         return;
       }
-      if (!hashHasRecovery) {
-        // Espera curta para o onAuthStateChange disparar antes de desistir
-        setTimeout(() => {
-          if (!mounted) return;
-          supabase.auth.getSession().then(({ data: d2 }) => {
-            if (!mounted) return;
-            if (!d2.session) {
-              toast.error("Link de recuperação inválido ou expirado");
-              navigate("/login");
-            } else {
-              setCheckingSession(false);
-            }
-          });
-        }, 1500);
-      }
-    })();
+
+      void supabase.auth.getSession().then(({ data }) => {
+        if (data.session) {
+          finishSuccess(timers);
+        } else {
+          finishInvalid(timers);
+        }
+      });
+    }, 5000);
+    timers.push(failSafe);
 
     return () => {
       mounted = false;
+      clearPendingTimers(timers);
       sub.subscription.unsubscribe();
     };
   }, [navigate]);
