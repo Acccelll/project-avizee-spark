@@ -72,7 +72,7 @@ export function useFreteSimulador({
 
   const [caixas, setCaixas] = useState<CaixaEmbalagem[]>([]);
   const [gerenciarCaixasOpen, setGerenciarCaixasOpen] = useState(false);
-  const [novaCaixa, setNovaCaixa] = useState({ nome: '', altura: '', largura: '', comprimento: '' });
+  const [novaCaixa, setNovaCaixa] = useState({ nome: '', altura: '', largura: '', comprimento: '', peso: '' });
   const [salvandoCaixa, setSalvandoCaixa] = useState(false);
 
   // Load CEP and boxes
@@ -288,11 +288,12 @@ export function useFreteSimulador({
       const nova: CaixaEmbalagem = {
         id: crypto.randomUUID(), nome: novaCaixa.nome.trim(),
         altura_cm: Number(novaCaixa.altura), largura_cm: Number(novaCaixa.largura), comprimento_cm: Number(novaCaixa.comprimento),
+        peso_kg: novaCaixa.peso ? Number(String(novaCaixa.peso).replace(',', '.')) : null,
       };
       const atualizadas = [...caixas, nova];
       await salvarCaixasEmbalagem(atualizadas);
       setCaixas(atualizadas);
-      setNovaCaixa({ nome: '', altura: '', largura: '', comprimento: '' });
+      setNovaCaixa({ nome: '', altura: '', largura: '', comprimento: '', peso: '' });
       toast.success(`Caixa "${nova.nome}" cadastrada.`);
     } catch { toast.error('Erro ao salvar caixa.'); }
     finally { setSalvandoCaixa(false); }
