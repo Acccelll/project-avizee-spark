@@ -429,8 +429,8 @@ export default function OrcamentoForm() {
         const fallback = descricaoForma ?? c.forma_pagamento_padrao ?? null;
         if (fallback) setValue('pagamento', fallback);
       }
-      if (c.prazo_preferencial && !prazoPagamento) setValue('prazoPagamento', `${c.prazo_preferencial} dias`);
-      if (c.prazo_padrao && !prazoPagamento && !c.prazo_preferencial) setValue('prazoPagamento', `${c.prazo_padrao} dias`);
+      if (c.prazo_preferencial && !prazoPagamento) setValue('prazoPagamento', `${c.prazo_preferencial} DDL`);
+      if (c.prazo_padrao && !prazoPagamento && !c.prazo_preferencial) setValue('prazoPagamento', `${c.prazo_padrao} DDL`);
 
       // Load special prices for this client (only active and within validity period)
       const today = new Date().toISOString().slice(0, 10);
@@ -1009,6 +1009,20 @@ export default function OrcamentoForm() {
                 <div className="relative">
                   <Input
                     {...register('numero')}
+                    onBlur={async (e) => {
+                      const val = e.target.value?.trim();
+                      if (!val) return;
+                      // Não revalida se for o próprio número do orçamento em edição
+                      const { data: existente } = await supabase
+                        .from('orcamentos')
+                        .select('id')
+                        .eq('numero', val)
+                        .neq('id', id || '00000000-0000-0000-0000-000000000000')
+                        .maybeSingle();
+                      if (existente) {
+                        toast.error('Este número de orçamento já está em uso. Escolha outro.');
+                      }
+                    }}
                     className={`font-mono pr-8 ${fieldErrors.numero ? "border-destructive" : numero ? "border-success" : ""}`}
                   />
                   {numero && !fieldErrors.numero && <CheckCircle2 className="h-4 w-4 text-success absolute right-2 top-1/2 -translate-y-1/2" />}
