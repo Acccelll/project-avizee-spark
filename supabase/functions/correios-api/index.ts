@@ -42,9 +42,13 @@ async function autenticarCorreios(opts: {
   // Preferred: CWS Access Key flow (Basic Auth where user = CORREIOS_USER and pass = Access Key).
   // The Correios gateway returns "GTW-014 ... Utilize 'Authorization: Basic'" when Bearer is sent.
   if (apiKey && user) {
-    const basicKey = btoa(`${user}:${apiKey}`);
+    // Sanitize user: if it looks like a CPF/CNPJ with punctuation, strip non-digits.
+    const userDigits = user.replace(/\D/g, "");
+    const looksLikeDoc = !user.includes("@") && userDigits.length >= 11 && userDigits.length <= 14;
+    const userToTry = looksLikeDoc ? userDigits : user.trim();
+    const basicKey = btoa(`${userToTry}:${apiKey}`);
     console.log(
-      `[correios-auth-key] user_len=${user.length} user_prefix=${user.slice(0, 3)}*** key_len=${apiKey.length} key_prefix=${apiKey.slice(0, 8)}*** contrato=${contrato || "(none)"} cartao=${cartao || "(none)"}`,
+      `[correios-auth-key] user_raw_len=${user.length} user_used_len=${userToTry.length} user_prefix=${userToTry.slice(0, 3)}*** sanitized=${looksLikeDoc} key_len=${apiKey.length} key_prefix=${apiKey.slice(0, 8)}*** contrato=${contrato || "(none)"} cartao=${cartao || "(none)"}`,
     );
     const attempts: Array<{ url: string; body: Record<string, string> }> = [];
     if (contrato) {
@@ -74,7 +78,7 @@ async function autenticarCorreios(opts: {
         });
         const txt = await res.text();
         if (!res.ok) {
-          console.warn(`[correios-auth-key] ${ep.url} → ${res.status}: ${txt.slice(0, 300)}`);
+          console.warn(`[correios-auth-key] ${ep.url} → ${res.status} headers=${res.headers.get("www-authenticate") || "-"} body=${txt.slice(0, 500) || "(empty)"}`);
           continue;
         }
         const data = JSON.parse(txt);
