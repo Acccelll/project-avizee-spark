@@ -25,24 +25,53 @@ export default function ResetPassword() {
   const branding = useBranding();
 
   useEffect(() => {
-    // Valida via getSession(): o Supabase consome o hash automaticamente,
-    // então a presença de `window.location.hash` não é confiável após reload.
-    // Aceita tanto sessão de recovery quanto qualquer sessão ativa (fluxo de
-    // troca voluntária de senha).
+    // O Supabase processa o hash (#access_token=...&type=recovery) de forma assíncrona
+    // e dispara o evento PASSWORD_RECOVERY quando a sessão temporária é criada.
+    // Precisamos AGUARDAR esse evento (ou uma sessão já existente) antes de decidir
+    // mostrar a tela ou redirecionar — caso contrário disparamos "link inválido"
+    // antes do hash ser consumido, e o usuário acaba clicando no link 2x e
+    // gastando o token de uso único.
     let mounted = true;
+    const hashHasRecovery =
+      window.location.hash.includes("type=recovery") ||
+      window.location.hash.includes("access_token");
+
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!mounted) return;
+      if (event === "PASSWORD_RECOVERY" || (session && hashHasRecovery)) {
+        setCheckingSession(false);
+      }
+    });
+
+    // Fallback: se já existe sessão (ex.: troca voluntária de senha) ou se após
+    // 4s nenhum evento chegou e também não há hash de recovery, decidimos.
     (async () => {
       const { data } = await supabase.auth.getSession();
       if (!mounted) return;
-      const hashHasRecovery = window.location.hash.includes("type=recovery");
-      if (!data.session && !hashHasRecovery) {
-        toast.error("Link de recuperação inválido ou expirado");
-        navigate("/login");
+      if (data.session) {
+        setCheckingSession(false);
         return;
       }
-      setCheckingSession(false);
+      if (!hashHasRecovery) {
+        // Espera curta para o onAuthStateChange disparar antes de desistir
+        setTimeout(() => {
+          if (!mounted) return;
+          supabase.auth.getSession().then(({ data: d2 }) => {
+            if (!mounted) return;
+            if (!d2.session) {
+              toast.error("Link de recuperação inválido ou expirado");
+              navigate("/login");
+            } else {
+              setCheckingSession(false);
+            }
+          });
+        }, 1500);
+      }
     })();
+
     return () => {
       mounted = false;
+      sub.subscription.unsubscribe();
     };
   }, [navigate]);
 
