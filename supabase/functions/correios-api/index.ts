@@ -36,7 +36,7 @@ async function autenticarCorreios(opts: {
   cartao?: string;
   user?: string;
   pass?: string;
-}): Promise<string | null> {
+}): Promise<{ token: string; nuDR?: string; nuContrato?: string } | null> {
   const { apiKey, contrato, cartao, user, pass } = opts;
 
   // Preferred: CWS Access Key flow (Basic Auth where user = CORREIOS_USER and pass = Access Key).
@@ -87,8 +87,10 @@ async function autenticarCorreios(opts: {
         const data = JSON.parse(txt);
         if (data?.token) {
           const apisAuth = (data?.cartaoPostagem?.apis || data?.contrato?.apis || data?.apis || []).map((a: { api: number }) => a.api);
-          console.log(`[correios-auth-key] OK via ${ep.url} apis=${JSON.stringify(apisAuth)} paths=${JSON.stringify((data?.paths || []).slice(0, 8))}`);
-          return data.token as string;
+          const dr = data?.cartaoPostagem?.dr ?? data?.contrato?.dr;
+          const nuContrato = data?.cartaoPostagem?.contrato ?? data?.contrato?.numero;
+          console.log(`[correios-auth-key] OK via ${ep.url} apis=${JSON.stringify(apisAuth)} dr=${dr} contrato=${nuContrato}`);
+          return { token: data.token as string, nuDR: dr != null ? String(dr) : undefined, nuContrato: nuContrato ? String(nuContrato) : undefined };
         }
       } catch (e) {
         console.warn(`[correios-auth-key] ${ep.url} threw`, e);
@@ -120,7 +122,11 @@ async function autenticarCorreios(opts: {
           continue;
         }
         const data = await res.json();
-        if (data?.token) return data.token as string;
+          if (data?.token) {
+            const dr = data?.cartaoPostagem?.dr ?? data?.contrato?.dr;
+            const nuContrato = data?.cartaoPostagem?.contrato ?? data?.contrato?.numero;
+            return { token: data.token as string, nuDR: dr != null ? String(dr) : undefined, nuContrato: nuContrato ? String(nuContrato) : undefined };
+          }
       } catch (e) {
         console.warn(`[correios-auth-legacy] ${ep.url} threw`, e);
       }
@@ -176,16 +182,16 @@ Deno.serve(async (req) => {
       let authError: string | null = null;
 
       // 1) Authenticate with modern REST API
-      let token: string | null = null;
+      let auth: { token: string; nuDR?: string; nuContrato?: string } | null = null;
       if (apiKey || (correiosUser && correiosPass)) {
-        token = await autenticarCorreios({
+        auth = await autenticarCorreios({
           apiKey: apiKey || undefined,
           contrato: contrato || undefined,
           cartao: cartaoPostagem || undefined,
           user: correiosUser || undefined,
           pass: correiosPass || undefined,
         });
-        if (!token) {
+        if (!auth) {
           authError = "Falha ao autenticar nos Correios. Verifique CORREIOS_API_KEY, CORREIOS_CONTRATO e CORREIOS_CARTAO_POSTAGEM.";
           console.error("[correios-cotacao]", authError);
         }
@@ -193,7 +199,10 @@ Deno.serve(async (req) => {
         authError = "Credenciais dos Correios não configuradas (CORREIOS_API_KEY ou CORREIOS_USER/CORREIOS_PASS).";
       }
 
-      if (token) {
+      if (auth) {
+        const token = auth.token;
+        const nuDR = auth.nuDR || "72"; // fallback DR-SP
+        const nuContratoFinal = auth.nuContrato || contrato || cartaoPostagem;
         const pesoGramas = Math.max(Math.round(peso * 1000), 300);
         const seen = new Set<string>();
         for (const svc of services) {
@@ -208,7 +217,7 @@ Deno.serve(async (req) => {
               largura: String(largura),
               altura: String(altura),
               tpObjeto: "2",
-              ...(cartaoPostagem ? { nuContrato: cartaoPostagem, nuRequisicao: "1" } : {}),
+              ...(nuContratoFinal ? { nuContrato: nuContratoFinal, nuDR, nuRequisicao: "1" } : {}),
             });
             const precoUrl = `https://api.correios.com.br/preco/v1/nacional/${svc.codigo}?${precoQS}`;
             const precoRes = await fetch(precoUrl, {
