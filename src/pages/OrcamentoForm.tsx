@@ -1482,19 +1482,43 @@ export default function OrcamentoForm() {
 
       {confirmActionDialog}
 
-      {/* Footer sticky mobile com Total + Salvar */}
+      {/* Footer sticky mobile consolidado — posicionado acima do MobileBottomNav (~64px + safe-area) */}
       <div
-        className="md:hidden fixed bottom-0 inset-x-0 bg-background/95 backdrop-blur border-t z-40 px-3 py-3 flex items-center justify-between gap-3"
-        style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}
+        className={cn(
+          "md:hidden fixed inset-x-0 z-30",
+          "bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/85",
+          "border-t shadow-[0_-4px_12px_-4px_rgba(0,0,0,0.10)]",
+          "px-3 pt-2.5 pb-2.5",
+        )}
+        style={{
+          // MobileBottomNav ≈ 64px + safe-area; deixar o footer logo acima dele
+          bottom: "calc(64px + env(safe-area-inset-bottom))",
+        }}
       >
-        <div className="min-w-0">
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground leading-none">Total</p>
-          <p className="mt-0.5 text-base font-bold text-primary tabular-nums">{formatCurrency(valorTotal)}</p>
+        <div className="flex items-center justify-between gap-3 mb-2">
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground leading-none">Total</p>
+            <p className="mt-0.5 text-base font-bold text-primary font-mono leading-tight truncate">
+              {formatCurrency(valorTotal)}
+            </p>
+          </div>
+          <div className="text-right text-[10px] text-muted-foreground leading-tight">
+            <p>{items.filter(i => i.produto_id).length} item(ns)</p>
+            {pesoTotal > 0 && <p>{pesoTotal.toFixed(2)} kg</p>}
+          </div>
         </div>
-        <Button onClick={handleSave} disabled={saving} className="h-11 px-6 gap-2">
-          <Save className="w-4 h-4" />
-          {saving ? "Salvando..." : "Salvar"}
-        </Button>
+        <div className="grid grid-cols-[1fr_auto_auto] gap-2">
+          <Button onClick={handleSave} disabled={saving} className="h-11 gap-2">
+            <Save className="w-4 h-4" />
+            {saving ? "Salvando..." : isEdit && status !== "rascunho" ? "Salvar Alt." : "Salvar"}
+          </Button>
+          <Button variant="outline" size="icon" onClick={() => setPreviewOpen(true)} className="h-11 w-11" aria-label="Visualizar">
+            <Eye className="w-4 h-4" />
+          </Button>
+          <Button variant="secondary" size="icon" onClick={handleGeneratePdf} className="h-11 w-11" aria-label="Gerar PDF">
+            <FileText className="w-4 h-4" />
+          </Button>
+        </div>
       </div>
     </PageShell>
   );
