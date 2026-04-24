@@ -14,6 +14,7 @@ export interface CaixaEmbalagem {
   altura_cm: number;
   largura_cm: number;
   comprimento_cm: number;
+  peso_kg?: number | null;
 }
 
 const CAIXAS_CONFIG_KEY = 'frete:caixas_embalagem';
