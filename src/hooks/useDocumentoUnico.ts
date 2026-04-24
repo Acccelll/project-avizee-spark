@@ -7,6 +7,14 @@ export type DocumentoTable = "clientes" | "fornecedores" | "transportadoras" | "
 const CPF_LENGTH = 11;
 const CNPJ_LENGTH = 14;
 
+/**
+ * Verifica se um documento (CPF/CNPJ) está disponível para uso.
+ *
+ * Política: o mesmo documento PODE existir em tabelas diferentes
+ * (ex.: o mesmo CNPJ pode ser cliente e fornecedor — caso comum).
+ * A unicidade é exigida apenas DENTRO da mesma tabela. Quando estamos
+ * editando, o próprio registro (`excludeId`) é desconsiderado.
+ */
 async function checkDocumentoUnico(
   tipo: TipoDocumento,
   valor: string,
@@ -15,61 +23,31 @@ async function checkDocumentoUnico(
 ): Promise<boolean> {
   const digits = valor.replace(/\D/g, "");
 
-  // Check clientes
-  let queryClientes = supabase
-    .from("clientes")
-    .select("id", { count: "exact", head: true })
-    .eq("cpf_cnpj", digits);
+  // A unicidade é validada apenas dentro da MESMA tabela. Sem `excludeTable`
+  // não há como saber qual escopo aplicar — assume disponível e deixa a UI
+  // decidir (ex.: cadastro novo passa `excludeTable` da entidade alvo).
+  if (!excludeTable) return true;
 
-  if (excludeId && excludeTable === "clientes") {
-    queryClientes = queryClientes.neq("id", excludeId);
-  }
-
-  const { count: countClientes, error: errorClientes } = await queryClientes;
-  if (errorClientes) throw new Error(errorClientes.message);
-
-  // Check fornecedores
-  let queryForn = supabase
-    .from("fornecedores")
-    .select("id", { count: "exact", head: true })
-    .eq("cpf_cnpj", digits);
-
-  if (excludeId && excludeTable === "fornecedores") {
-    queryForn = queryForn.neq("id", excludeId);
-  }
-
-  const { count: countForn, error: errorForn } = await queryForn;
-  if (errorForn) throw new Error(errorForn.message);
-
-  // Check transportadoras (CNPJ ou CPF — coluna cpf_cnpj)
-  let queryTransp = supabase
-    .from("transportadoras")
-    .select("id", { count: "exact", head: true })
-    .eq("cpf_cnpj", digits);
-
-  if (excludeId && excludeTable === "transportadoras") {
-    queryTransp = queryTransp.neq("id", excludeId);
-  }
-
-  const { count: countTransp, error: errorTransp } = await queryTransp;
-  if (errorTransp) throw new Error(errorTransp.message);
-
-  // Check funcionarios (only CPF applies)
-  let countFunc = 0;
-  if (tipo === "cpf") {
-    let queryFunc = supabase
+  if (excludeTable === "funcionarios") {
+    if (tipo !== "cpf") return true;
+    let q = supabase
       .from("funcionarios")
       .select("id", { count: "exact", head: true })
       .eq("cpf", digits);
-    if (excludeId && excludeTable === "funcionarios") {
-      queryFunc = queryFunc.neq("id", excludeId);
-    }
-    const { count, error } = await queryFunc;
+    if (excludeId) q = q.neq("id", excludeId);
+    const { count, error } = await q;
     if (error) throw new Error(error.message);
-    countFunc = count ?? 0;
+    return (count ?? 0) === 0;
   }
 
-  return (countClientes ?? 0) + (countForn ?? 0) + (countTransp ?? 0) + countFunc === 0;
+  let q = supabase
+    .from(excludeTable)
+    .select("id", { count: "exact", head: true })
+    .eq("cpf_cnpj", digits);
+  if (excludeId) q = q.neq("id", excludeId);
+  const { count, error } = await q;
+  if (error) throw new Error(error.message);
+  return (count ?? 0) === 0;
 }
 
 export interface UseDocumentoUnicoReturn {
