@@ -86,7 +86,8 @@ async function autenticarCorreios(opts: {
         }
         const data = JSON.parse(txt);
         if (data?.token) {
-          console.log(`[correios-auth-key] OK via ${ep.url}`);
+          const apisAuth = (data?.cartaoPostagem?.apis || data?.contrato?.apis || data?.apis || []).map((a: { api: number }) => a.api);
+          console.log(`[correios-auth-key] OK via ${ep.url} apis=${JSON.stringify(apisAuth)} paths=${JSON.stringify((data?.paths || []).slice(0, 8))}`);
           return data.token as string;
         }
       } catch (e) {
