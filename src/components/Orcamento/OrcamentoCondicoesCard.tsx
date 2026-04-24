@@ -51,11 +51,27 @@ export function OrcamentoCondicoesCard({ form, onChange }: Props) {
         </div>
         <div className="space-y-1.5">
           <Label className="text-xs h-4 flex items-center">Prazo</Label>
-          <Input value={form.prazo_pagamento} onChange={(e) => onChange("prazo_pagamento", e.target.value)} placeholder="Ex: 30/60/90 dias" />
+          <Input
+            value={form.prazo_pagamento}
+            onChange={(e) => onChange("prazo_pagamento", e.target.value)}
+            onBlur={(e) => {
+              const v = e.target.value.trim();
+              if (v && /^[\d/]+$/.test(v)) onChange("prazo_pagamento", `${v} DDL`);
+            }}
+            placeholder="Ex: 30/60/90 DDL"
+          />
         </div>
         <div className="space-y-1.5">
           <Label className="text-xs h-4 flex items-center">Prazo de Entrega</Label>
-          <Input value={form.prazo_entrega} onChange={(e) => onChange("prazo_entrega", e.target.value)} placeholder="Ex: 12 dias úteis" />
+          <Input
+            value={form.prazo_entrega}
+            onChange={(e) => onChange("prazo_entrega", e.target.value)}
+            onBlur={(e) => {
+              const v = e.target.value.trim();
+              if (v && /^\d+$/.test(v)) onChange("prazo_entrega", `${v} dias úteis`);
+            }}
+            placeholder="Ex: 12 dias úteis"
+          />
         </div>
         <div className="space-y-1.5">
           <Label className="text-xs h-4 flex items-center">Frete</Label>
