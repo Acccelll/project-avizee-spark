@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, isSupabaseConfigured } from '@/integrations/supabase/client';
 import fallbackLogo from '@/assets/brand-logotipo.png';
 import fallbackSimbolo from '@/assets/brand-simbolo.png';
 
@@ -40,7 +40,7 @@ const DEFAULT_BRANDING: BrandingPreview = {
 };
 
 async function fetchBranding(): Promise<BrandingPreview> {
-  if (!supabase) return DEFAULT_BRANDING;
+  if (!isSupabaseConfigured) return DEFAULT_BRANDING;
   const { data, error } = await supabase
     .from('empresa_config')
     .select('logo_url, simbolo_url, marca_texto, marca_subtitulo, nome_fantasia, cor_primaria, cor_secundaria, cep')

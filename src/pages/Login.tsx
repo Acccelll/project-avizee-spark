@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Link, useLocation, useSearchParams } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, isSupabaseConfigured } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -61,8 +61,8 @@ export default function Login() {
     setServerError(null);
     if (!validate()) return;
 
-    if (!supabase) {
-      setServerError("Serviço de autenticação não disponível. Contate o administrador do sistema.");
+    if (!isSupabaseConfigured) {
+      setServerError("O serviço de autenticação não foi carregado neste ambiente. Atualize a página e tente novamente.");
       return;
     }
 
