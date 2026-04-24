@@ -7,7 +7,7 @@ import { styles, Header, Footer } from './_brand.tsx'
 
 interface Props { token: string; siteName?: string }
 
-export const ReauthenticationEmail = ({ token, siteName = 'AviZee' }: Props) => (
+export const ReauthenticationEmail = ({ token, siteName = 'AviZee ERP' }: Props) => (
   <Html lang="pt-BR" dir="ltr">
     <Head />
     <Preview>Seu código de verificação</Preview>
