@@ -43,6 +43,9 @@ async function autenticarCorreios(opts: {
   // The Correios gateway returns "GTW-014 ... Utilize 'Authorization: Basic'" when Bearer is sent.
   if (apiKey && user) {
     const basicKey = btoa(`${user}:${apiKey}`);
+    console.log(
+      `[correios-auth-key] user_len=${user.length} user_prefix=${user.slice(0, 3)}*** key_len=${apiKey.length} key_prefix=${apiKey.slice(0, 8)}*** contrato=${contrato || "(none)"} cartao=${cartao || "(none)"}`,
+    );
     const attempts: Array<{ url: string; body: Record<string, string> }> = [];
     if (contrato) {
       attempts.push({
