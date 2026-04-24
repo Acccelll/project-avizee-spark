@@ -1421,7 +1421,14 @@ export default function OrcamentoForm() {
                 if (!clienteSnapshot.email || !id) return;
                 try {
                   const { enviarOrcamentoPorEmail } = await import('@/services/orcamentos.service');
-                  await enviarOrcamentoPorEmail(id, clienteSnapshot.email, emailTemplate);
+                  const pdfBlob = await buildPdfBlob();
+                  await enviarOrcamentoPorEmail(id, clienteSnapshot.email, emailTemplate, {
+                    numeroOrcamento: numero,
+                    clienteNome: clienteSnapshot.nome_razao_social,
+                    validade: validade ? formatDate(validade) : undefined,
+                    valorTotal: formatCurrency(valorTotal),
+                    pdfBlob: pdfBlob ?? undefined,
+                  });
                   setMailModalOpen(false);
                 } catch (err: unknown) {
                   toast.error(getUserFriendlyError(err));
