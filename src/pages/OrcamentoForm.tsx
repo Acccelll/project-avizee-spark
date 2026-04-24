@@ -1390,18 +1390,7 @@ export default function OrcamentoForm() {
         </DialogContent>
       </Dialog>
 
-      {isMobile && (
-        <div className="fixed inset-x-0 bottom-[4.9rem] z-30 border-t border-border bg-background/95 px-3 py-3 backdrop-blur md:hidden">
-          <div className="grid grid-cols-3 gap-2">
-            <Button variant="outline" onClick={() => setPreviewOpen(true)} className="h-11 rounded-xl text-xs">Preview</Button>
-            <Button variant="secondary" onClick={handleGeneratePdf} className="h-11 rounded-xl text-xs">PDF</Button>
-            <Button onClick={handleSave} disabled={saving} className="h-11 rounded-xl text-xs">
-              {saving ? 'Salvando...' : isEdit && status !== "rascunho" ? 'Salvar Alt.' : 'Salvar'}
-            </Button>
-          </div>
-        </div>
-      )}
-
+      {/* (footer mobile único renderizado abaixo) */}
 
       <Dialog open={restoreDraftOpen} onOpenChange={setRestoreDraftOpen}>
         <DialogContent className="max-w-md">
