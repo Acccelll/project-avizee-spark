@@ -57,7 +57,7 @@ async function autenticarCorreios(opts: {
     if (contrato) {
       attempts.push({
         url: "https://api.correios.com.br/token/v1/autentica/contrato",
-        body: { numero: contrato, ...(cartao ? { cartaoPostagem: cartao } : {}) },
+        body: { numero: contrato },
       });
     }
     if (cartao) {
@@ -230,9 +230,10 @@ Deno.serve(async (req) => {
             clearTimeout(timeout);
 
             if (precoItem?.txErro || precoRes.status >= 400) {
-              console.warn(`[correios-cotacao] ${svc.nome} preço erro:`, precoItem?.txErro || precoRes.status);
+              console.warn(`[correios-cotacao] ${svc.nome} (${svc.codigo}) preço erro status=${precoRes.status} body=${JSON.stringify(precoData).slice(0, 500)}`);
               continue;
             }
+            console.log(`[correios-cotacao] ${svc.nome} (${svc.codigo}) preço OK:`, JSON.stringify(precoItem).slice(0, 300));
 
             const valorStr = (precoItem?.pcFinal || precoItem?.pcBase || "0").toString().replace(",", ".");
             const valor = parseFloat(valorStr);
