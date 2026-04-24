@@ -123,7 +123,10 @@ export default function OrcamentoForm() {
   const [restoreDraftOpen, setRestoreDraftOpen] = useState(false);
   const [templateName, setTemplateName] = useState("");
   const [templateDialogOpen, setTemplateDialogOpen] = useState<null | "usuario" | "equipe">(null);
-  const [layoutTemplate, setLayoutTemplate] = useState<'simples' | 'completo' | 'logo'>('completo');
+  const [layoutTemplate, setLayoutTemplate] = useState<'classico' | 'marca'>('marca');
+  const [previewZoom, setPreviewZoom] = useState<number>(0); // 0 = auto-fit
+  const previewStageRef = useRef<HTMLDivElement>(null);
+  const [autoScale, setAutoScale] = useState<number>(1);
   const { confirm: confirmAction, dialog: confirmActionDialog } = useConfirmDialog();
 
   const {
