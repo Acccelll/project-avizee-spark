@@ -1440,15 +1440,27 @@ export default function OrcamentoForm() {
       <Dialog open={mailModalOpen} onOpenChange={setMailModalOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Reenviar orçamento por e-mail</DialogTitle>
-            <DialogDescription>Edite a mensagem antes de enviar.</DialogDescription>
+            <DialogTitle>Enviar orçamento por e-mail</DialogTitle>
+            <DialogDescription>
+              O cliente receberá um e-mail do <strong>Sistema ERP AviZee</strong> contendo:
+              <br />• Botão para visualização <strong>online</strong> do orçamento (link público)
+              <br />• Link para baixar o <strong>PDF</strong> anexo (válido por 30 dias)
+              <br />• A mensagem personalizada abaixo
+            </DialogDescription>
           </DialogHeader>
           {clienteSnapshot.email ? (
-            <p className="text-sm text-muted-foreground">Enviando para: <span className="font-medium text-foreground">{clienteSnapshot.email}</span></p>
+            <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm">
+              <span className="text-muted-foreground">Destinatário: </span>
+              <span className="font-medium">{clienteSnapshot.nome_razao_social}</span>
+              <span className="text-muted-foreground"> · {clienteSnapshot.email}</span>
+            </div>
           ) : (
             <p className="text-sm text-destructive">Cliente não possui e-mail cadastrado.</p>
           )}
-          <Textarea value={emailTemplate} onChange={(e) => setEmailTemplate(e.target.value)} className="min-h-32" />
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Mensagem</Label>
+            <Textarea value={emailTemplate} onChange={(e) => setEmailTemplate(e.target.value)} className="min-h-32" />
+          </div>
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setMailModalOpen(false)}>Cancelar</Button>
             <Button
@@ -1470,7 +1482,7 @@ export default function OrcamentoForm() {
                   toast.error(getUserFriendlyError(err));
                 }
               }}
-            >Enviar</Button>
+            >Enviar e-mail</Button>
           </div>
         </DialogContent>
       </Dialog>
