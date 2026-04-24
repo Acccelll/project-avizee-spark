@@ -31,6 +31,7 @@ export interface UseFreteSimuladorProps {
   valorMercadoria: number;
   simulacaoId?: string | null;
   onSelect: (payload: FreteSelecaoPayload) => void;
+  onEmbalagemPesoChange?: (pesoEmbalagemTotal: number) => void;
 }
 
 export function useFreteSimulador({
@@ -41,6 +42,7 @@ export function useFreteSimulador({
   valorMercadoria,
   simulacaoId: simulacaoIdProp,
   onSelect,
+  onEmbalagemPesoChange,
 }: UseFreteSimuladorProps) {
   const [volumes, setVolumes] = useState(1);
   const [alturaCm, setAlturaCm] = useState(15);
@@ -75,6 +77,12 @@ export function useFreteSimulador({
   const [novaCaixa, setNovaCaixa] = useState({ nome: '', altura: '', largura: '', comprimento: '', peso: '' });
   const [salvandoCaixa, setSalvandoCaixa] = useState(false);
   const [editandoCaixaId, setEditandoCaixaId] = useState<string | null>(null);
+  const [pesoCaixaUnit, setPesoCaixaUnit] = useState<number>(0);
+
+  // Notifica o pai sempre que o peso de embalagem total (peso da caixa × volumes) mudar
+  useEffect(() => {
+    onEmbalagemPesoChange?.(pesoCaixaUnit * volumes);
+  }, [pesoCaixaUnit, volumes, onEmbalagemPesoChange]);
 
   // Load CEP and boxes
   useEffect(() => {
@@ -279,6 +287,7 @@ export function useFreteSimulador({
     setAlturaCm(caixa.altura_cm);
     setLarguraCm(caixa.largura_cm);
     setComprimentoCm(caixa.comprimento_cm);
+    setPesoCaixaUnit(caixa.peso_kg ?? 0);
   };
 
   const handleAdicionarCaixa = async () => {
@@ -357,7 +366,7 @@ export function useFreteSimulador({
     transpForm, setTranspForm, transpFormFor, manualForm, setManualForm,
     // Caixas
     caixas, gerenciarCaixasOpen, setGerenciarCaixasOpen, novaCaixa, setNovaCaixa, salvandoCaixa,
-    editandoCaixaId,
+    editandoCaixaId, pesoCaixaUnit, setPesoCaixaUnit,
     // Handlers
     handleConsultarCorreios, handleSalvarTransportadora, handleSalvarManual,
     handleRemoverOpcao, handleSelecionarOpcao,

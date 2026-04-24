@@ -25,6 +25,7 @@ interface FreteSimuladorCardProps {
   valorMercadoria: number;
   simulacaoId?: string | null;
   onSelect: (payload: FreteSelecaoPayload) => void;
+  onEmbalagemPesoChange?: (peso: number) => void;
 }
 
 export function FreteSimuladorCard(props: FreteSimuladorCardProps) {
