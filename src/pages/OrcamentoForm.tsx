@@ -25,7 +25,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Save, Eye, FileText, Copy, Plus, Search, Wand2, RefreshCw, CheckCircle2, AlertTriangle, CalendarDays, Clock, MoreHorizontal, LayoutTemplate, Mail, ChevronDown, ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
+import { Save, Eye, FileText, Copy, Plus, Search, Wand2, RefreshCw, CheckCircle2, AlertTriangle, CalendarDays, Clock, MoreHorizontal, LayoutTemplate, Mail, ChevronDown, ZoomIn, ZoomOut, Maximize2, Minimize2 } from "lucide-react";
 import { PageShell } from "@/components/PageShell";
 import { JustCreatedBanner } from "@/components/JustCreatedBanner";
 import { QuickAddClientModal } from "@/components/QuickAddClientModal";
@@ -125,6 +125,7 @@ export default function OrcamentoForm() {
   const [templateDialogOpen, setTemplateDialogOpen] = useState<null | "usuario" | "equipe">(null);
   const [layoutTemplate, setLayoutTemplate] = useState<'classico' | 'marca'>('marca');
   const [previewZoom, setPreviewZoom] = useState<number>(0); // 0 = auto-fit
+  const [previewFullscreen, setPreviewFullscreen] = useState(false);
   const previewStageRef = useRef<HTMLDivElement>(null);
   const [autoScale, setAutoScale] = useState<number>(1);
   const { confirm: confirmAction, dialog: confirmActionDialog } = useConfirmDialog();
@@ -1263,7 +1264,13 @@ export default function OrcamentoForm() {
         )}
 
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-        <DialogContent className="max-w-[1200px] w-[96vw] h-[96vh] max-h-[96vh] overflow-hidden p-0 flex flex-col">
+        <DialogContent
+          className={
+            previewFullscreen
+              ? "max-w-none w-screen h-screen sm:rounded-none border-0 overflow-hidden p-0 flex flex-col top-0 left-0 translate-x-0 translate-y-0"
+              : "max-w-[1200px] w-[96vw] h-[96vh] max-h-[96vh] overflow-hidden p-0 flex flex-col"
+          }
+        >
           <DialogHeader className="sr-only">
             <DialogTitle>Pré-visualização do Orçamento</DialogTitle>
             <DialogDescription>Visualize como o orçamento será impresso ou enviado ao cliente.</DialogDescription>
@@ -1292,10 +1299,17 @@ export default function OrcamentoForm() {
                 <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setPreviewZoom((z) => Math.min(2, (z || autoScale) + 0.1))} aria-label="Aumentar zoom">
                   <ZoomIn className="w-3.5 h-3.5" />
                 </Button>
-                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setPreviewZoom(0)} aria-label="Ajustar">
-                  <Maximize2 className="w-3.5 h-3.5" />
-                </Button>
               </div>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setPreviewFullscreen((v) => !v)}
+                aria-label={previewFullscreen ? "Sair de tela cheia" : "Expandir para tela cheia"}
+                title={previewFullscreen ? "Sair de tela cheia" : "Tela cheia"}
+              >
+                {previewFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+              </Button>
               <Button size="sm" variant="outline" onClick={() => setPreviewOpen(false)} className="h-8">Fechar</Button>
               <Button size="sm" onClick={handleGeneratePdf} className="gap-1.5 h-8"><FileText className="w-3.5 h-3.5" />Baixar PDF</Button>
             </div>
