@@ -129,16 +129,19 @@ export default function OrcamentoForm() {
   const [autoScale, setAutoScale] = useState<number>(1);
   const { confirm: confirmAction, dialog: confirmActionDialog } = useConfirmDialog();
 
-  // Auto-fit do preview A4 ao container do stage
+  // Auto-fit do preview A4 ao container do stage (largura E altura)
   useEffect(() => {
     if (!previewOpen) return;
     const el = previewStageRef.current;
     if (!el) return;
-    const A4_WIDTH_PX = 794; // 210mm @ 96dpi
+    const A4_WIDTH_PX = 794;  // 210mm @ 96dpi
+    const A4_HEIGHT_PX = 1123; // 297mm @ 96dpi
+    const PAD = 32; // padding interno do stage
     const compute = () => {
-      const w = el.clientWidth - 48; // padding p-6
-      const s = Math.min(1.2, Math.max(0.4, w / A4_WIDTH_PX));
-      setAutoScale(s);
+      const w = Math.max(0, el.clientWidth - PAD);
+      const h = Math.max(0, el.clientHeight - PAD);
+      const s = Math.min(w / A4_WIDTH_PX, h / A4_HEIGHT_PX);
+      setAutoScale(Math.min(1.2, Math.max(0.35, s)));
     };
     compute();
     const ro = new ResizeObserver(compute);
