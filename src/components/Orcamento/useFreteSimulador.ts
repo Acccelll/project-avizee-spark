@@ -79,6 +79,11 @@ export function useFreteSimulador({
   const [editandoCaixaId, setEditandoCaixaId] = useState<string | null>(null);
   const [pesoCaixaUnit, setPesoCaixaUnit] = useState<number>(0);
 
+  // Notifica o pai sempre que o peso de embalagem total (peso da caixa × volumes) mudar
+  useEffect(() => {
+    onEmbalagemPesoChange?.(pesoCaixaUnit * volumes);
+  }, [pesoCaixaUnit, volumes, onEmbalagemPesoChange]);
+
   // Load CEP and boxes
   useEffect(() => {
     getEmpresaCepOrigem()
