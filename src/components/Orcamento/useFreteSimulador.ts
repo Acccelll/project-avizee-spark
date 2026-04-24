@@ -31,6 +31,7 @@ export interface UseFreteSimuladorProps {
   valorMercadoria: number;
   simulacaoId?: string | null;
   onSelect: (payload: FreteSelecaoPayload) => void;
+  onEmbalagemPesoChange?: (pesoEmbalagemTotal: number) => void;
 }
 
 export function useFreteSimulador({
@@ -41,6 +42,7 @@ export function useFreteSimulador({
   valorMercadoria,
   simulacaoId: simulacaoIdProp,
   onSelect,
+  onEmbalagemPesoChange,
 }: UseFreteSimuladorProps) {
   const [volumes, setVolumes] = useState(1);
   const [alturaCm, setAlturaCm] = useState(15);
