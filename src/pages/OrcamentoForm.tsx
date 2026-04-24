@@ -1263,7 +1263,7 @@ export default function OrcamentoForm() {
         )}
 
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-        <DialogContent className="max-w-[1100px] w-[95vw] max-h-[95vh] overflow-hidden p-0 flex flex-col">
+        <DialogContent className="max-w-[1200px] w-[96vw] h-[96vh] max-h-[96vh] overflow-hidden p-0 flex flex-col">
           <DialogHeader className="sr-only">
             <DialogTitle>Pré-visualização do Orçamento</DialogTitle>
             <DialogDescription>Visualize como o orçamento será impresso ou enviado ao cliente.</DialogDescription>
@@ -1300,17 +1300,24 @@ export default function OrcamentoForm() {
               <Button size="sm" onClick={handleGeneratePdf} className="gap-1.5 h-8"><FileText className="w-3.5 h-3.5" />Baixar PDF</Button>
             </div>
           </div>
-          {/* Stage A4 com auto-fit */}
-          <div ref={previewStageRef} className="flex-1 overflow-auto bg-muted/40 p-6">
+          {/* Stage A4 com auto-fit (largura + altura) */}
+          <div ref={previewStageRef} className="flex-1 overflow-auto bg-muted/40 p-4">
             <div
-              className="mx-auto bg-white shadow-2xl"
+              className="mx-auto"
               style={{
-                width: "210mm",
-                transform: `scale(${previewZoom || autoScale})`,
-                transformOrigin: "top center",
-                marginBottom: `calc(297mm * ${(previewZoom || autoScale) - 1} * -1)`,
+                width: `calc(210mm * ${previewZoom || autoScale})`,
+                height: `calc(297mm * ${previewZoom || autoScale})`,
               }}
             >
+              <div
+                className="bg-white shadow-2xl"
+                style={{
+                  width: "210mm",
+                  height: "297mm",
+                  transform: `scale(${previewZoom || autoScale})`,
+                  transformOrigin: "top left",
+                }}
+              >
               {layoutTemplate === 'marca' ? (
                 <OrcamentoPdfTemplateBrand
                   ref={pdfRef} numero={numero} data={dataOrcamento} cliente={clienteSnapshot}
@@ -1334,6 +1341,7 @@ export default function OrcamentoForm() {
                   empresa={empresaConfig || undefined}
                 />
               )}
+              </div>
             </div>
           </div>
         </DialogContent>
