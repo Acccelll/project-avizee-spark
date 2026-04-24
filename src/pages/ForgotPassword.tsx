@@ -8,6 +8,15 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ArrowLeft, Mail, Send, CheckCircle2, AlertCircle } from "lucide-react";
 import { useBranding } from "@/hooks/useBranding";
 
+const getResetPasswordRedirectUrl = () => {
+  const configuredAppUrl = (import.meta.env.VITE_APP_URL as string | undefined)?.trim();
+  const baseUrl = configuredAppUrl && /^https?:\/\//.test(configuredAppUrl)
+    ? configuredAppUrl
+    : window.location.origin;
+
+  return new URL("/reset-password", baseUrl).toString();
+};
+
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
@@ -24,7 +33,7 @@ export default function ForgotPassword() {
     
     setLoading(true);
     const { error: err } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: `${window.location.origin}/reset-password`,
+      redirectTo: getResetPasswordRedirectUrl(),
     });
     if (err) {
       console.error('[forgot-password]', err);
