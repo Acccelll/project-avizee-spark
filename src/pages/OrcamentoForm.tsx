@@ -233,6 +233,7 @@ export default function OrcamentoForm() {
   const [freteAlturaCm, setFreteAlturaCm] = useState<number>(15);
   const [freteLarguraCm, setFreteLarguraCm] = useState<number>(10);
   const [freteComprimentoCm, setFreteComprimentoCm] = useState<number>(30);
+  const [pesoEmbalagemTotal, setPesoEmbalagemTotal] = useState<number>(0);
 
   const [scenarioConfig, setScenarioConfig] = useState<RentabilidadeScenarioConfig>({
     freteSimulado: 0,
@@ -251,7 +252,8 @@ export default function OrcamentoForm() {
   const valorTotal = totalProdutos - desconto + impostoSt + impostoIpi + freteValor + outrasDespesas;
   const valorSimulado = Math.max(0, valorTotal - simDescontoGeral + simFreteSeguro);
   const quantidadeTotal = items.reduce((sum, i) => sum + (i.quantidade || 0), 0);
-  const pesoTotal = items.reduce((sum, i) => sum + (i.peso_total || 0), 0);
+  const pesoTotalItens = items.reduce((sum, i) => sum + (i.peso_total || 0), 0);
+  const pesoTotal = pesoTotalItens + (pesoEmbalagemTotal || 0);
   const internalAccess = useMemo(() => getOrcamentoInternalAccess(roles, extraPermissions), [roles, extraPermissions]);
 
   const productCostMap = useMemo(() => {
@@ -1158,6 +1160,7 @@ export default function OrcamentoForm() {
             pesoTotal={pesoTotal}
             valorMercadoria={totalProdutos}
             simulacaoId={freteSimulacaoId}
+            onEmbalagemPesoChange={setPesoEmbalagemTotal}
             onSelect={(payload: FreteSelecaoPayload) => {
               setValue('freteValor', payload.freteValor);
               // freteTipo guarda apenas modalidade (CIF/FOB/sem_frete); descrição vai para servicoFrete.
