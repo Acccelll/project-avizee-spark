@@ -738,6 +738,31 @@ export default function OrcamentoForm() {
     requestAnimationFrame(() => requestAnimationFrame(() => { capture(); }));
   };
 
+  // Gera o PDF como Blob (sem download) — usado para anexar em e-mail.
+  const buildPdfBlob = async (): Promise<Blob | null> => {
+    setPreviewOpen(true);
+    return new Promise((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(async () => {
+        try {
+          if (!pdfRef.current) return resolve(null);
+          const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
+            import("html2canvas"),
+            import("jspdf"),
+          ]);
+          const canvas = await html2canvas(pdfRef.current, { scale: 2, useCORS: true, backgroundColor: "#fff" });
+          const imgData = canvas.toDataURL("image/png");
+          const pdf = new jsPDF("p", "mm", "a4");
+          const pdfWidth = pdf.internal.pageSize.getWidth();
+          const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+          pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+          resolve(pdf.output("blob"));
+        } catch {
+          resolve(null);
+        }
+      }));
+    });
+  };
+
   const handleTotalChange = (field: string, value: number) => {
     const fieldMap: Record<string, keyof OrcamentoFormValues> = {
       desconto: 'desconto',
@@ -1239,6 +1264,42 @@ export default function OrcamentoForm() {
                 <h4 className="font-semibold">Ações Comerciais</h4>
                 <Button variant="outline" size="sm" onClick={() => setMailModalOpen(true)}>Reenviar por e-mail</Button>
               </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    if (!id) return;
+                    try {
+                      const { ensurePublicToken } = await import('@/services/orcamentos.service');
+                      const token = await ensurePublicToken(id);
+                      const link = `${window.location.origin}/orcamento-publico?token=${token}`;
+                      await navigator.clipboard.writeText(link);
+                      toast.success('Link público copiado!');
+                    } catch (err: unknown) {
+                      toast.error(getUserFriendlyError(err));
+                    }
+                  }}
+                >
+                  Copiar link público
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    if (!id) return;
+                    try {
+                      const { ensurePublicToken } = await import('@/services/orcamentos.service');
+                      const token = await ensurePublicToken(id);
+                      window.open(`${window.location.origin}/orcamento-publico?token=${token}`, '_blank');
+                    } catch (err: unknown) {
+                      toast.error(getUserFriendlyError(err));
+                    }
+                  }}
+                >
+                  Abrir link público
+                </Button>
+              </div>
               <div className="space-y-1.5 text-sm text-muted-foreground">
                 <p>• Criado em: <span className="text-foreground font-medium">{formatDate(dataOrcamento)}</span></p>
                 {validade && <p>• Validade: <span className={`font-medium ${new Date(validade) < new Date(new Date().toDateString()) ? "text-destructive" : "text-foreground"}`}>{formatDate(validade)}</span></p>}
@@ -1396,7 +1457,14 @@ export default function OrcamentoForm() {
                 if (!clienteSnapshot.email || !id) return;
                 try {
                   const { enviarOrcamentoPorEmail } = await import('@/services/orcamentos.service');
-                  await enviarOrcamentoPorEmail(id, clienteSnapshot.email, emailTemplate);
+                  const pdfBlob = await buildPdfBlob();
+                  await enviarOrcamentoPorEmail(id, clienteSnapshot.email, emailTemplate, {
+                    numeroOrcamento: numero,
+                    clienteNome: clienteSnapshot.nome_razao_social,
+                    validade: validade ? formatDate(validade) : undefined,
+                    valorTotal: formatCurrency(valorTotal),
+                    pdfBlob: pdfBlob ?? undefined,
+                  });
                   setMailModalOpen(false);
                 } catch (err: unknown) {
                   toast.error(getUserFriendlyError(err));

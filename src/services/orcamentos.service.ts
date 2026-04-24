@@ -71,29 +71,69 @@ export async function convertToPedido(
 export async function enviarOrcamentoPorEmail(
   orcamentoId: string,
   emailDestino: string,
-  mensagem: string
+  mensagem: string,
+  extras?: {
+    numeroOrcamento?: string;
+    clienteNome?: string;
+    validade?: string;
+    valorTotal?: string;
+    vendedorNome?: string;
+    pdfBlob?: Blob;
+  }
 ): Promise<void> {
   const token = await ensurePublicToken(orcamentoId);
   const linkPublico = `${window.location.origin}/orcamento-publico?token=${token}`;
 
+  // Upload do PDF (se fornecido) e geração de URL assinada (válida por 30 dias)
+  let linkPdf: string | undefined;
+  if (extras?.pdfBlob) {
+    try {
+      const filename = `${orcamentoId}/orcamento-${extras.numeroOrcamento ?? orcamentoId}-${Date.now()}.pdf`;
+      const { error: uploadError } = await supabase.storage
+        .from("orcamentos-pdf")
+        .upload(filename, extras.pdfBlob, {
+          contentType: "application/pdf",
+          upsert: true,
+        });
+      if (uploadError) throw uploadError;
+      const { data: signed } = await supabase.storage
+        .from("orcamentos-pdf")
+        .createSignedUrl(filename, 60 * 60 * 24 * 30);
+      linkPdf = signed?.signedUrl;
+    } catch (err) {
+      console.warn("Falha ao anexar PDF ao e-mail:", err);
+    }
+  }
+
   try {
-    const { error } = await supabase.rpc('enqueue_email' as never, {
-      queue_name: 'transactional_emails',
-      payload: {
-        to: emailDestino,
-        subject: 'Orçamento disponível para visualização',
-        html: `<p>${mensagem.replace(/\n/g, '<br>')}</p><p><a href="${linkPublico}">Clique aqui para visualizar o orçamento</a></p>`,
-        label: 'orcamento',
-        message_id: `orcamento-${orcamentoId}-${Date.now()}`,
+    const { error } = await supabase.functions.invoke("send-transactional-email", {
+      body: {
+        templateName: "orcamento-disponivel",
+        recipientEmail: emailDestino,
+        idempotencyKey: `orcamento-${orcamentoId}-${Date.now()}`,
+        templateData: {
+          numeroOrcamento: extras?.numeroOrcamento,
+          clienteNome: extras?.clienteNome,
+          validade: extras?.validade,
+          valorTotal: extras?.valorTotal,
+          vendedorNome: extras?.vendedorNome,
+          mensagem,
+          linkPublico,
+          linkPdf,
+        },
       },
-    } as never);
+    });
     if (error) throw error;
-    toast.success('E-mail enfileirado para envio.');
+    toast.success("E-mail enviado para o cliente.");
   } catch {
-    const assunto = encodeURIComponent('Orçamento disponível para visualização');
-    const corpo = encodeURIComponent(`${mensagem}\n\n${linkPublico}`);
+    const assunto = encodeURIComponent(
+      `Orçamento ${extras?.numeroOrcamento ?? ""} disponível`.trim(),
+    );
+    const corpo = encodeURIComponent(
+      `${mensagem}\n\nVisualizar online: ${linkPublico}${linkPdf ? `\nBaixar PDF: ${linkPdf}` : ""}`,
+    );
     window.open(`mailto:${emailDestino}?subject=${assunto}&body=${corpo}`);
-    toast.info('E-mail aberto no cliente de e-mail padrão.');
+    toast.info("E-mail aberto no cliente de e-mail padrão.");
   }
 }
 
