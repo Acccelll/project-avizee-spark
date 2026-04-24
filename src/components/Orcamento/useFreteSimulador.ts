@@ -74,6 +74,7 @@ export function useFreteSimulador({
   const [gerenciarCaixasOpen, setGerenciarCaixasOpen] = useState(false);
   const [novaCaixa, setNovaCaixa] = useState({ nome: '', altura: '', largura: '', comprimento: '', peso: '' });
   const [salvandoCaixa, setSalvandoCaixa] = useState(false);
+  const [editandoCaixaId, setEditandoCaixaId] = useState<string | null>(null);
 
   // Load CEP and boxes
   useEffect(() => {
@@ -285,18 +286,44 @@ export function useFreteSimulador({
     if (!novaCaixa.altura || !novaCaixa.largura || !novaCaixa.comprimento) { toast.error('Preencha todas as dimensões.'); return; }
     setSalvandoCaixa(true);
     try {
-      const nova: CaixaEmbalagem = {
-        id: crypto.randomUUID(), nome: novaCaixa.nome.trim(),
-        altura_cm: Number(novaCaixa.altura), largura_cm: Number(novaCaixa.largura), comprimento_cm: Number(novaCaixa.comprimento),
+      const dadosBase = {
+        nome: novaCaixa.nome.trim(),
+        altura_cm: Number(novaCaixa.altura),
+        largura_cm: Number(novaCaixa.largura),
+        comprimento_cm: Number(novaCaixa.comprimento),
         peso_kg: novaCaixa.peso ? Number(String(novaCaixa.peso).replace(',', '.')) : null,
       };
-      const atualizadas = [...caixas, nova];
+      let atualizadas: CaixaEmbalagem[];
+      if (editandoCaixaId) {
+        atualizadas = caixas.map((c) => (c.id === editandoCaixaId ? { ...c, ...dadosBase } : c));
+      } else {
+        atualizadas = [...caixas, { id: crypto.randomUUID(), ...dadosBase }];
+      }
       await salvarCaixasEmbalagem(atualizadas);
       setCaixas(atualizadas);
       setNovaCaixa({ nome: '', altura: '', largura: '', comprimento: '', peso: '' });
-      toast.success(`Caixa "${nova.nome}" cadastrada.`);
+      setEditandoCaixaId(null);
+      toast.success(editandoCaixaId ? `Caixa "${dadosBase.nome}" atualizada.` : `Caixa "${dadosBase.nome}" cadastrada.`);
     } catch { toast.error('Erro ao salvar caixa.'); }
     finally { setSalvandoCaixa(false); }
+  };
+
+  const handleEditarCaixa = (id: string) => {
+    const caixa = caixas.find((c) => c.id === id);
+    if (!caixa) return;
+    setEditandoCaixaId(id);
+    setNovaCaixa({
+      nome: caixa.nome,
+      altura: String(caixa.altura_cm ?? ''),
+      largura: String(caixa.largura_cm ?? ''),
+      comprimento: String(caixa.comprimento_cm ?? ''),
+      peso: caixa.peso_kg != null ? String(caixa.peso_kg) : '',
+    });
+  };
+
+  const handleCancelarEdicaoCaixa = () => {
+    setEditandoCaixaId(null);
+    setNovaCaixa({ nome: '', altura: '', largura: '', comprimento: '', peso: '' });
   };
 
   const handleRemoverCaixa = async (id: string) => {
@@ -304,6 +331,8 @@ export function useFreteSimulador({
       const atualizadas = caixas.filter((c) => c.id !== id);
       await salvarCaixasEmbalagem(atualizadas);
       setCaixas(atualizadas);
+      if (editandoCaixaId === id) handleCancelarEdicaoCaixa();
+      toast.success('Caixa removida.');
     } catch { toast.error('Erro ao remover caixa.'); }
   };
 
@@ -328,10 +357,12 @@ export function useFreteSimulador({
     transpForm, setTranspForm, transpFormFor, manualForm, setManualForm,
     // Caixas
     caixas, gerenciarCaixasOpen, setGerenciarCaixasOpen, novaCaixa, setNovaCaixa, salvandoCaixa,
+    editandoCaixaId,
     // Handlers
     handleConsultarCorreios, handleSalvarTransportadora, handleSalvarManual,
     handleRemoverOpcao, handleSelecionarOpcao,
     handleSelecionarCaixa, handleAdicionarCaixa, handleRemoverCaixa,
+    handleEditarCaixa, handleCancelarEdicaoCaixa,
   };
 }
 
