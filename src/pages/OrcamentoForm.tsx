@@ -220,12 +220,6 @@ export default function OrcamentoForm() {
   const [simPagamento, setSimPagamento] = useState('');
   const [mailModalOpen, setMailModalOpen] = useState(false);
   const [emailTemplate, setEmailTemplate] = useState('Olá, segue orçamento atualizado para sua análise.');
-  const [emailDestino, setEmailDestino] = useState('');
-  const [emailAssunto, setEmailAssunto] = useState('');
-  const [mailPhase, setMailPhase] = useState<'compose' | 'sending' | 'success'>('compose');
-  const [mailStep, setMailStep] = useState<'pdf' | 'upload' | 'email' | null>(null);
-  const [mailPublicLink, setMailPublicLink] = useState<string>('');
-  const [ultimoEnvioEmail, setUltimoEnvioEmail] = useState<string | null>(null);
   const [empresaConfig, setEmpresaConfig] = useState<Record<string, string> | null>(null);
   const [lastAutoSaveAt, setLastAutoSaveAt] = useState<string | null>(null);
 
