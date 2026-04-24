@@ -32,6 +32,7 @@ export default function ResetPassword() {
     // e-mail e o token de uso único passa a aparecer como expirado/inválido.
     let mounted = true;
     let settled = false;
+    let recoveryEventSeen = false;
     const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
     const hashHasRecovery =
       hashParams.get("type") === "recovery" || hashParams.has("access_token");
@@ -67,15 +68,38 @@ export default function ResetPassword() {
 
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (!mounted) return;
+      if (event === "PASSWORD_RECOVERY") {
+        recoveryEventSeen = true;
+      }
       if (event === "PASSWORD_RECOVERY" || session) {
         finishSuccess(timers);
       }
     });
 
+    const initialAccessToken = supabase.auth.getSession().then(({ data }) => data.session?.access_token ?? null);
+
     const checkSession = async () => {
-      const { data } = await supabase.auth.getSession();
+      const [sessionResult, initialToken] = await Promise.all([
+        supabase.auth.getSession(),
+        initialAccessToken,
+      ]);
+      const session = sessionResult.data.session;
       if (!mounted || settled) return;
-      if (data.session) {
+
+      if (!session) return;
+
+      if (hashHasRecovery) {
+        const currentHash = window.location.hash;
+        const hashStillHasRecovery =
+          currentHash.includes("type=recovery") || currentHash.includes("access_token");
+        const sessionChanged = session.access_token !== initialToken;
+
+        if (!recoveryEventSeen && hashStillHasRecovery && !sessionChanged) {
+          return;
+        }
+      }
+
+      if (session) {
         finishSuccess(timers);
       }
     };
