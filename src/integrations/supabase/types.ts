@@ -3426,6 +3426,7 @@ export type Database = {
           servico_frete: string | null
           status: string | null
           transportadora_id: string | null
+          ultimo_envio_email: string | null
           updated_at: string
           validade: string | null
           valor_total: number | null
@@ -3468,6 +3469,7 @@ export type Database = {
           servico_frete?: string | null
           status?: string | null
           transportadora_id?: string | null
+          ultimo_envio_email?: string | null
           updated_at?: string
           validade?: string | null
           valor_total?: number | null
@@ -3510,6 +3512,7 @@ export type Database = {
           servico_frete?: string | null
           status?: string | null
           transportadora_id?: string | null
+          ultimo_envio_email?: string | null
           updated_at?: string
           validade?: string | null
           valor_total?: number | null
@@ -5838,6 +5841,33 @@ export type Database = {
       }
     }
     Views: {
+      empresa_config_public_view: {
+        Row: {
+          bairro: string | null
+          cep: string | null
+          cidade: string | null
+          cnpj: string | null
+          complemento: string | null
+          cor_primaria: string | null
+          cor_secundaria: string | null
+          email: string | null
+          inscricao_estadual: string | null
+          inscricao_municipal: string | null
+          logo_url: string | null
+          logradouro: string | null
+          marca_subtitulo: string | null
+          marca_texto: string | null
+          nome_fantasia: string | null
+          numero: string | null
+          razao_social: string | null
+          simbolo_url: string | null
+          site: string | null
+          telefone: string | null
+          uf: string | null
+          whatsapp: string | null
+        }
+        Relationships: []
+      }
       orcamentos_itens_public_view: {
         Row: {
           codigo_snapshot: string | null
@@ -5881,13 +5911,23 @@ export type Database = {
           ativo: boolean | null
           cliente_snapshot: Json | null
           data_orcamento: string | null
+          desconto: number | null
           frete_tipo: string | null
+          frete_valor: number | null
           id: string | null
+          imposto_ipi: number | null
+          imposto_st: number | null
+          modalidade: string | null
           numero: string | null
           observacoes: string | null
+          outras_despesas: number | null
+          pagamento: string | null
+          peso_total: number | null
           prazo_entrega: string | null
           prazo_pagamento: string | null
           public_token: string | null
+          quantidade_total: number | null
+          servico_frete: string | null
           status: string | null
           validade: string | null
           valor_total: number | null
@@ -5896,13 +5936,23 @@ export type Database = {
           ativo?: boolean | null
           cliente_snapshot?: Json | null
           data_orcamento?: string | null
+          desconto?: number | null
           frete_tipo?: string | null
+          frete_valor?: number | null
           id?: string | null
+          imposto_ipi?: number | null
+          imposto_st?: number | null
+          modalidade?: string | null
           numero?: string | null
           observacoes?: string | null
+          outras_despesas?: number | null
+          pagamento?: string | null
+          peso_total?: number | null
           prazo_entrega?: string | null
           prazo_pagamento?: string | null
           public_token?: string | null
+          quantidade_total?: number | null
+          servico_frete?: string | null
           status?: string | null
           validade?: string | null
           valor_total?: number | null
@@ -5911,13 +5961,23 @@ export type Database = {
           ativo?: boolean | null
           cliente_snapshot?: Json | null
           data_orcamento?: string | null
+          desconto?: number | null
           frete_tipo?: string | null
+          frete_valor?: number | null
           id?: string | null
+          imposto_ipi?: number | null
+          imposto_st?: number | null
+          modalidade?: string | null
           numero?: string | null
           observacoes?: string | null
+          outras_despesas?: number | null
+          pagamento?: string | null
+          peso_total?: number | null
           prazo_entrega?: string | null
           prazo_pagamento?: string | null
           public_token?: string | null
+          quantidade_total?: number | null
+          servico_frete?: string | null
           status?: string | null
           validade?: string | null
           valor_total?: number | null

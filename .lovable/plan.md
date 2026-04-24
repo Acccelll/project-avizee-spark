@@ -1,87 +1,98 @@
-# Plano de correção da pré-visualização do orçamento
 
-## O que será corrigido
+## Diagnóstico
 
-1. Fazer o botão de expandir funcionar de verdade na pré-visualização.
-2. Melhorar a área de preview para mostrar a página inteira com melhor uso do espaço.
-3. Corrigir o layout mobile para que os botões não fiquem cobertos pelo resumo nem pela navegação inferior.
+### 1. Link público pobre vs. PDF
+A `OrcamentoPublico.tsx` mostra apenas: cabeçalho com nome da empresa em texto, dados do cliente, tabela simplificada de itens (sem peso, sem desconto por linha, sem variação destacada), totais resumidos e ações. **Faltam vs. o PDF (`OrcamentoPdfTemplateBrand`)**:
+- Logo da empresa (hoje só nome em texto)
+- Endereço/contato completo da empresa (telefone, e-mail, IE, endereço completo)
+- Coluna de **peso** e **peso total**
+- Detalhamento de **descontos, ST, IPI, frete e outras despesas** (hoje só `valor_total`)
+- **Subtotal** dos produtos antes de impostos/descontos
+- Modalidade, condições de frete completas
+- Visual menos institucional (sem cores da marca, sem rodapé com identificação)
 
-## Diagnóstico confirmado
+### 2. Fluxo de e-mail confuso (bug real)
+No `OrcamentoForm.tsx` (linhas 742-764, 1466-1485):
+- O botão "Enviar e-mail" do dialog chama `buildPdfBlob()`.
+- `buildPdfBlob` faz `setPreviewOpen(true)` para forçar o `OrcamentoPdfTemplate` a renderizar no DOM (porque ele só existe dentro do `<Dialog open={previewOpen}>`).
+- Resultado visível ao usuário: o **dialog de pré-visualização do PDF abre por cima do dialog de e-mail**, fica aberto durante a captura, e o e-mail é enviado "às escondidas" enquanto o usuário pensa que precisa fechar a preview.
+- Pior: o usuário não tem nenhum feedback claro do progresso (gerar PDF, fazer upload, criar URL assinada, enfileirar e-mail) — tudo acontece em silêncio com o preview ocupando a tela.
 
-- O `OrcamentoForm` tem hoje três barras fixas diferentes em mobile, todas no rodapé. Isso causa a sobreposição vista no print.
-- O modal de preview usa um `DialogContent` customizado para fullscreen, mas ele ainda herda comportamentos do dialog base e não redefine completamente o layout para mobile/desktop.
-- Há um warning de React no preview: `Function components cannot be given refs`. Isso indica que o `ref={pdfRef}` está sendo passado para um componente que nem sempre está preparado corretamente no fluxo real do preview/PDF, e isso pode comprometer a captura/exportação.
-- O preview atual usa um stage com `overflow-auto`, porém a toolbar e o container não estão otimizados para aproveitar a altura disponível nem para separar bem zoom, auto-fit e fullscreen.
+---
 
-## Implementação proposta
+## Plano de execução (2 entregas)
 
-### 1) Reestruturar o modal de preview em `src/pages/OrcamentoForm.tsx`
+### A) Link público — paridade visual com o PDF + logo
 
-- Ajustar o `DialogContent` para ter dois modos bem definidos:
-  - modo janela
-  - modo tela cheia real
-- No modo tela cheia:
-  - ocupar toda a viewport com classes consistentes para desktop e mobile
-  - remover offsets herdados do dialog padrão
-  - usar container interno com `min-h-0` para o stage realmente expandir
-- Ao abrir o preview e ao alternar fullscreen:
-  - recalcular auto-fit
-  - resetar para `previewZoom = 0` quando necessário para encaixar a página inteira
+Reescrever `src/pages/OrcamentoPublico.tsx`:
 
-### 2) Melhorar a experiência da pré-visualização
+1. **Carregar branding via `useBrandingPreview`** (hook já existente) para ter `logoUrl`, `marcaTexto`, `corPrimaria`, `corSecundaria`, ou usar `empresa_config.logo_url` direto (a página é anônima — vou conferir se a view expõe a URL do logo; caso negativo, leio `empresa_config` que já é lido hoje).
+2. **Cabeçalho institucional** com:
+   - Logo da empresa à esquerda (fallback para texto se ausente).
+   - Razão social, CNPJ, IE, endereço completo, telefone, e-mail à direita.
+   - Faixa colorida no topo usando `corPrimaria` (igual ao header do e-mail).
+3. **Bloco do orçamento** (número, data, validade, status) com badge de status usando o `STATUS_VARIANT_MAP` (cores consistentes com o ERP).
+4. **Bloco do cliente** (mantém o atual, mas reorganiza em duas colunas: identificação | endereço).
+5. **Tabela de itens enriquecida**: `#`, Código, Descrição (+variação em pill), Qtd, Un., Peso unit., Peso total, Valor unit., **Desc. %**, Valor total. Em mobile, colapsa em cards (1 item por card) — segue padrão `comercial-mobile`.
+6. **Totais detalhados** (mesma quebra do PDF):
+   - Subtotal produtos
+   - (–) Desconto
+   - (+) ICMS-ST, IPI, Frete, Outras despesas
+   - **Total geral** em destaque
+   - Peso total, Quantidade total
+7. **Condições comerciais** completas: pagamento, prazo de pagamento, prazo de entrega, modalidade frete, tipo frete, serviço de frete, observações.
+8. **Rodapé institucional** com razão social + CNPJ + "Documento gerado eletronicamente".
+9. **Ações de aprovação** (manter as atuais — botões verde/vermelho), com bloqueio quando expirado/já respondido.
+10. **Botão "Baixar PDF"** no topo, opcional: gera o PDF no cliente reusando `OrcamentoPdfTemplateBrand`. _Se for complexo demais para a primeira iteração, deixo como evolução; o e-mail já entrega o link assinado._
+11. **Atualizar `orcamentos_public_view`** se necessário (via migration) para expor as colunas faltantes: `peso_total`, `quantidade_total`, `desconto`, `imposto_st`, `imposto_ipi`, `frete_valor`, `outras_despesas`, `modalidade`, `servico_frete`. E `orcamentos_itens_public_view` para `peso_unitario`, `peso_total`, `desconto_percentual`. Conferir o que já existe antes de criar a migration.
 
-- Separar toolbar e stage de forma mais robusta:
-  - toolbar fixa no topo do dialog
-  - stage usando toda a altura restante
-- Refinar o auto-fit para trabalhar com a área útil real do stage, descontando toolbar e paddings.
-- Ajustar o wrapper da folha A4 para centralização estável, inclusive em fullscreen.
-- Melhorar responsividade da toolbar do preview:
-  - no desktop, manter controles completos
-  - no mobile, evitar compressão dos botões em uma única linha; quebrar em 2 linhas ou reorganizar controles
-- Garantir que o preview clássico continue mostrando o documento inteiro sem corte horizontal desnecessário.
+### B) Fluxo de envio por e-mail — simplificar e dar feedback
 
-### 3) Corrigir a causa do warning de `ref`
+1. **Renderizar o template PDF off-screen** (sempre montado, fora do `Dialog`):
+   - Mover `<OrcamentoPdfTemplateBrand ref={pdfRef} ... />` para fora do `<Dialog open={previewOpen}>` em um wrapper `position: absolute; left: -10000px; top: 0` (off-screen mas no DOM).
+   - O Dialog de preview passa a apenas exibir uma cópia ou referenciar o mesmo nó via portal/visual.
+   - Resultado: `buildPdfBlob()` não precisa mais abrir o preview para conseguir capturar.
+2. **Refatorar `buildPdfBlob`** para não tocar em `setPreviewOpen`. Apenas captura o nó off-screen.
+3. **Reformular o dialog "Enviar orçamento por e-mail"** com 3 fases visuais e barra de progresso:
+   - **Fase 1 — Composição** (estado padrão): destinatário (com possibilidade de **editar/adicionar e-mail** e adicionar **CC** opcional), assunto editável (default: `Orçamento {numero} — AviZee`), mensagem editável, checkbox "Anexar PDF (link de download válido por 30 dias)" marcado por padrão, preview compacto do que o cliente verá (cartão miniatura com logo + botão "Visualizar online" + link "Baixar PDF").
+   - **Fase 2 — Enviando** (após clicar): stepper visual com 3 etapas: ① Gerando PDF → ② Subindo para armazenamento → ③ Enviando e-mail. Cada etapa muda de spinner para check. Botão "Cancelar" desabilitado.
+   - **Fase 3 — Sucesso**: ícone de check, "E-mail enviado para fulano@x.com", mostra o link público copiável e botão "Fechar". Toast cross-module também.
+4. **Botão "Reenviar por e-mail"** muda label conforme contexto:
+   - Se o orçamento **nunca foi enviado** (sem registro em `email_send_log` para esse orçamento): "Enviar por e-mail".
+   - Se já foi enviado: "Reenviar por e-mail" + tooltip mostrando data do último envio.
+   - _Nota: para detectar isso de forma barata uso a coluna `ultimo_envio_email` no `orcamentos` (criar via migration) atualizada pela própria função `enviarOrcamentoPorEmail` no sucesso._
+5. **Persistir mensagem padrão** em `app_configuracoes.geral.email_orcamento_template` (já contemplado pelo padrão Admin) com placeholders `{cliente}`, `{numero}`, `{validade}`, `{valor}` interpolados antes do envio. Cair em hardcoded se não configurado.
+6. **Ajustar `enviarOrcamentoPorEmail`** em `src/services/orcamentos.service.ts` para:
+   - Aceitar `assunto` opcional (passar para o template via `templateData.assunto` — exige acréscimo no template `orcamento-disponivel.tsx` na função `subject`).
+   - Aceitar `cc` opcional (a edge function `send-transactional-email` precisa suportar; vou conferir e estender se necessário).
+   - Atualizar `orcamentos.ultimo_envio_email = now()` ao concluir.
+   - Emitir callbacks de progresso (via parâmetro `onStep?: (step: 'pdf'|'upload'|'email'|'done') => void`) para alimentar o stepper da UI.
 
-- Revisar o fluxo de `pdfRef` no `OrcamentoForm` e nos templates:
-  - `OrcamentoPdfTemplate.tsx`
-  - `OrcamentoPdfTemplateBrand.tsx`
-- Garantir que o `ref` chegue sempre em um elemento DOM válido usado pela geração do PDF.
-- Se necessário, mover o `ref` para um wrapper HTML no próprio `OrcamentoForm` em vez de depender do componente de template.
+### C) Detalhes técnicos a confirmar durante a execução
+- Conferir colunas reais de `orcamentos_public_view` e `orcamentos_itens_public_view` (não tenho a definição em mãos) e estender via migration apenas o que faltar.
+- Conferir `empresa_config.logo_url` está exposto para `anon` (a query atual em `OrcamentoPublico.tsx` já lê `empresa_config` direto — preciso garantir GRANT ou criar uma `empresa_config_public_view` segura com apenas as colunas institucionais).
+- Conferir suporte a `cc` no `send-transactional-email`; se não houver, adicionar opcional sem quebrar template existente.
 
-### 4) Corrigir o mobile do formulário de orçamento
+---
 
-- Consolidar os rodapés fixos mobile em uma única barra sticky, seguindo o padrão já documentado do módulo Comercial.
-- Remover os footers duplicados hoje existentes no final do `OrcamentoForm`.
-- Reposicionar essa barra para respeitar:
-  - `env(safe-area-inset-bottom)`
-  - altura da navegação inferior global (`MobileBottomNav`)
-- Ajustar o spacer final da página para refletir a altura real do footer + bottom nav.
-- Garantir que os botões de ação permaneçam tocáveis e nunca fiquem atrás do resumo ou da navegação.
+## Arquivos impactados
 
-## Arquivos previstos
+**Edição:**
+- `src/pages/OrcamentoPublico.tsx` (reescrita visual)
+- `src/pages/OrcamentoForm.tsx` (mover PDF off-screen, novo dialog em 3 fases, label dinâmico)
+- `src/services/orcamentos.service.ts` (callbacks de progresso, assunto/cc, atualizar `ultimo_envio_email`)
+- `supabase/functions/_shared/transactional-email-templates/orcamento-disponivel.tsx` (assunto dinâmico, eventual cc)
+- `supabase/functions/send-transactional-email/index.ts` (suporte a `cc` se ausente — só se necessário)
 
-- `src/pages/OrcamentoForm.tsx`
-- `src/components/Orcamento/OrcamentoPdfTemplate.tsx`
-- `src/components/Orcamento/OrcamentoPdfTemplateBrand.tsx`
+**Criação:**
+- Migration: estender `orcamentos_public_view` / `orcamentos_itens_public_view` se faltarem colunas; criar `empresa_config_public_view` com GRANT para `anon`; adicionar coluna `ultimo_envio_email TIMESTAMPTZ` em `orcamentos`.
 
-## Detalhes técnicos
+---
 
-- O dialog base usa comportamento de bottom-sheet em mobile; por isso o fullscreen do preview precisa sobrescrever esse layout de forma explícita.
-- O ajuste mobile deve convergir para este padrão:
+## Confirmações antes de executar
 
-```text
-[conteúdo rolável]
-[spacer calculado]
-[footer fixo do orçamento]
-[bottom nav global do app]
-```
+1. **Botão "Baixar PDF" no link público** (item A.10): incluir agora ou deixar para próxima iteração? (gera o PDF no navegador do cliente — útil mas adiciona ~200KB de bundle no público).
+2. **Campo CC opcional no envio**: incluir ou manter apenas destinatário único?
+3. **Stepper de 3 fases** vs. uma barra de progresso simples + texto: qual prefere?
 
-- O footer fixo do orçamento deve existir uma única vez.
-- O `pdfRef` deve apontar para um `div` real que encapsula o conteúdo A4 renderizado.
-
-## Resultado esperado
-
-- O botão de expandir passa a alternar corretamente entre janela e tela cheia.
-- A pré-visualização mostra a folha inteira com melhor encaixe.
-- No mobile, os botões não ficam mais escondidos nem sobrepostos pela barra inferior/resumo.
-- A geração de PDF fica mais estável, sem warning de ref no console.
+Posso aplicar?
