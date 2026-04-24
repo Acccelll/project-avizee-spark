@@ -7,6 +7,7 @@ const FALLBACK_SUPABASE_URL = "https://cpvdncsxzostovdduhci.supabase.co";
 const FALLBACK_SUPABASE_PUBLISHABLE_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNwdmRuY3N4em9zdG92ZGR1aGNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3NTgwNzEsImV4cCI6MjA5MTMzNDA3MX0.EJG--zZ-iFZg8iE4GoBwtZPaE-sW1aEl6ByGBvX1jQ4";
 const FALLBACK_SUPABASE_PROJECT_ID = "cpvdncsxzostovdduhci";
+const FALLBACK_APP_URL = "https://sistema.avizee.com.br";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
@@ -21,6 +22,9 @@ export default defineConfig(({ mode }) => ({
     ),
     "import.meta.env.VITE_SUPABASE_PROJECT_ID": JSON.stringify(
       process.env.VITE_SUPABASE_PROJECT_ID || FALLBACK_SUPABASE_PROJECT_ID,
+    ),
+    "import.meta.env.VITE_APP_URL": JSON.stringify(
+      process.env.VITE_APP_URL || FALLBACK_APP_URL,
     ),
   },
   server: {
