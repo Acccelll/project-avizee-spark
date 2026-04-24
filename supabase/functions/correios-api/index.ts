@@ -42,13 +42,16 @@ async function autenticarCorreios(opts: {
   // Preferred: CWS Access Key flow (Basic Auth where user = CORREIOS_USER and pass = Access Key).
   // The Correios gateway returns "GTW-014 ... Utilize 'Authorization: Basic'" when Bearer is sent.
   if (apiKey && user) {
-    // Sanitize user: if it looks like a CPF/CNPJ with punctuation, strip non-digits.
-    const userDigits = user.replace(/\D/g, "");
-    const looksLikeDoc = !user.includes("@") && userDigits.length >= 11 && userDigits.length <= 14;
-    const userToTry = looksLikeDoc ? userDigits : user.trim();
-    const basicKey = btoa(`${userToTry}:${apiKey}`);
+    // Sanitize: strip whitespace/CR/LF that may have leaked into the secret values.
+    const cleanUser = user.replace(/[\s\r\n]+/g, "").trim();
+    const cleanKey = apiKey.replace(/[\s\r\n]+/g, "").trim();
+    const userDigits = cleanUser.replace(/\D/g, "");
+    const looksLikeDoc = !cleanUser.includes("@") && userDigits.length >= 11 && userDigits.length <= 14;
+    const userToTry = looksLikeDoc ? userDigits : cleanUser;
+    const credPair = `${userToTry}:${cleanKey}`;
+    const basicKey = btoa(credPair);
     console.log(
-      `[correios-auth-key] user_raw_len=${user.length} user_used_len=${userToTry.length} user_prefix=${userToTry.slice(0, 3)}*** sanitized=${looksLikeDoc} key_len=${apiKey.length} key_prefix=${apiKey.slice(0, 8)}*** contrato=${contrato || "(none)"} cartao=${cartao || "(none)"}`,
+      `[correios-auth-key] user_raw_len=${user.length} user_clean_len=${cleanUser.length} user_used_len=${userToTry.length} user_prefix=${userToTry.slice(0, 3)}*** key_raw_len=${apiKey.length} key_clean_len=${cleanKey.length} key_prefix=${cleanKey.slice(0, 8)}*** key_suffix=***${cleanKey.slice(-4)} pair_len=${credPair.length} basic_len=${basicKey.length} contrato=${contrato || "(none)"} cartao=${cartao || "(none)"}`,
     );
     const attempts: Array<{ url: string; body: Record<string, string> }> = [];
     if (contrato) {
