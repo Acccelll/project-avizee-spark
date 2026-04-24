@@ -714,16 +714,16 @@ export default function OrcamentoForm() {
   };
 
   const handleGeneratePdf = async () => {
-    setPreviewOpen(true);
-    // Aguardar a renderização do preview antes de capturar o PDF.
+    // Captura a partir do template renderizado off-screen (sempre montado).
     const capture = async () => {
-      if (!pdfRef.current) return;
+      const node = offscreenPdfRef.current;
+      if (!node) return;
       try {
         const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
           import("html2canvas"),
           import("jspdf"),
         ]);
-        const canvas = await html2canvas(pdfRef.current, { scale: 2, useCORS: true, backgroundColor: "#fff" });
+        const canvas = await html2canvas(node, { scale: 2, useCORS: true, backgroundColor: "#fff" });
         const imgData = canvas.toDataURL("image/png");
         const pdf = new jsPDF("p", "mm", "a4");
         const pdfWidth = pdf.internal.pageSize.getWidth();
@@ -739,22 +739,22 @@ export default function OrcamentoForm() {
         toast.error(getUserFriendlyError(err));
       }
     };
-    // Usar requestAnimationFrame duplo para garantir que o DOM foi pintado antes da captura.
     requestAnimationFrame(() => requestAnimationFrame(() => { capture(); }));
   };
 
   // Gera o PDF como Blob (sem download) — usado para anexar em e-mail.
+  // Captura o template renderizado OFF-SCREEN, sem abrir o preview.
   const buildPdfBlob = async (): Promise<Blob | null> => {
-    setPreviewOpen(true);
     return new Promise((resolve) => {
       requestAnimationFrame(() => requestAnimationFrame(async () => {
         try {
-          if (!pdfRef.current) return resolve(null);
+          const node = offscreenPdfRef.current;
+          if (!node) return resolve(null);
           const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
             import("html2canvas"),
             import("jspdf"),
           ]);
-          const canvas = await html2canvas(pdfRef.current, { scale: 2, useCORS: true, backgroundColor: "#fff" });
+          const canvas = await html2canvas(node, { scale: 2, useCORS: true, backgroundColor: "#fff" });
           const imgData = canvas.toDataURL("image/png");
           const pdf = new jsPDF("p", "mm", "a4");
           const pdfWidth = pdf.internal.pageSize.getWidth();
