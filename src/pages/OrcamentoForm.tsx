@@ -738,6 +738,31 @@ export default function OrcamentoForm() {
     requestAnimationFrame(() => requestAnimationFrame(() => { capture(); }));
   };
 
+  // Gera o PDF como Blob (sem download) — usado para anexar em e-mail.
+  const buildPdfBlob = async (): Promise<Blob | null> => {
+    setPreviewOpen(true);
+    return new Promise((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(async () => {
+        try {
+          if (!pdfRef.current) return resolve(null);
+          const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
+            import("html2canvas"),
+            import("jspdf"),
+          ]);
+          const canvas = await html2canvas(pdfRef.current, { scale: 2, useCORS: true, backgroundColor: "#fff" });
+          const imgData = canvas.toDataURL("image/png");
+          const pdf = new jsPDF("p", "mm", "a4");
+          const pdfWidth = pdf.internal.pageSize.getWidth();
+          const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+          pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+          resolve(pdf.output("blob"));
+        } catch {
+          resolve(null);
+        }
+      }));
+    });
+  };
+
   const handleTotalChange = (field: string, value: number) => {
     const fieldMap: Record<string, keyof OrcamentoFormValues> = {
       desconto: 'desconto',
