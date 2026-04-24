@@ -39,8 +39,10 @@ async function autenticarCorreios(opts: {
 }): Promise<string | null> {
   const { apiKey, contrato, cartao, user, pass } = opts;
 
-  // Preferred: CWS Access Key flow
-  if (apiKey) {
+  // Preferred: CWS Access Key flow (Basic Auth where user = CORREIOS_USER and pass = Access Key).
+  // The Correios gateway returns "GTW-014 ... Utilize 'Authorization: Basic'" when Bearer is sent.
+  if (apiKey && user) {
+    const basicKey = btoa(`${user}:${apiKey}`);
     const attempts: Array<{ url: string; body: Record<string, string> }> = [];
     if (contrato) {
       attempts.push({
@@ -61,7 +63,7 @@ async function autenticarCorreios(opts: {
         const res = await fetch(ep.url, {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${apiKey}`,
+            Authorization: `Basic ${basicKey}`,
             "Content-Type": "application/json",
             Accept: "application/json",
           },
@@ -69,16 +71,16 @@ async function autenticarCorreios(opts: {
         });
         const txt = await res.text();
         if (!res.ok) {
-          console.warn(`[correios-auth] ${ep.url} → ${res.status}: ${txt.slice(0, 300)}`);
+          console.warn(`[correios-auth-key] ${ep.url} → ${res.status}: ${txt.slice(0, 300)}`);
           continue;
         }
         const data = JSON.parse(txt);
         if (data?.token) {
-          console.log(`[correios-auth] OK via ${ep.url}`);
+          console.log(`[correios-auth-key] OK via ${ep.url}`);
           return data.token as string;
         }
       } catch (e) {
-        console.warn(`[correios-auth] ${ep.url} threw`, e);
+        console.warn(`[correios-auth-key] ${ep.url} threw`, e);
       }
     }
   }
