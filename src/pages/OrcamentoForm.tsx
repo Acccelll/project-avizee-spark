@@ -429,8 +429,8 @@ export default function OrcamentoForm() {
         const fallback = descricaoForma ?? c.forma_pagamento_padrao ?? null;
         if (fallback) setValue('pagamento', fallback);
       }
-      if (c.prazo_preferencial && !prazoPagamento) setValue('prazoPagamento', `${c.prazo_preferencial} dias`);
-      if (c.prazo_padrao && !prazoPagamento && !c.prazo_preferencial) setValue('prazoPagamento', `${c.prazo_padrao} dias`);
+      if (c.prazo_preferencial && !prazoPagamento) setValue('prazoPagamento', `${c.prazo_preferencial} DDL`);
+      if (c.prazo_padrao && !prazoPagamento && !c.prazo_preferencial) setValue('prazoPagamento', `${c.prazo_padrao} DDL`);
 
       // Load special prices for this client (only active and within validity period)
       const today = new Date().toISOString().slice(0, 10);
