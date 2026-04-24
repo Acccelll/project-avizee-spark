@@ -62,6 +62,7 @@ const WorkbookGerencial = lazy(() => import("./pages/WorkbookGerencial"));
 const ApresentacaoGerencial = lazy(() => import("./pages/ApresentacaoGerencial"));
 const Social = lazy(() => import("./pages/Social"));
 const Socios = lazy(() => import("./pages/Socios"));
+const Unsubscribe = lazy(() => import("./pages/Unsubscribe"));
 
 // Redirect component that properly maps :id param
 function CotacaoIdRedirect() {
@@ -115,6 +116,7 @@ const App = () => (
                   <Routes>
                     {/* Public / unauthenticated */}
                     <Route path="/orcamento-publico" element={<LazyPage><OrcamentoPublico /></LazyPage>} />
+                    <Route path="/email-unsubscribe" element={<LazyPage><Unsubscribe /></LazyPage>} />
                     <Route path="/login" element={<LazyPage><Login /></LazyPage>} />
                     <Route path="/signup" element={<LazyPage><Signup /></LazyPage>} />
                     <Route path="/forgot-password" element={<LazyPage><ForgotPassword /></LazyPage>} />
