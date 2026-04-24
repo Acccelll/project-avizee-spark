@@ -24,42 +24,96 @@ interface FreteOption {
 }
 
 /**
- * Authenticate against the modern Correios REST API.
- * Returns a Bearer token usable on /preco/v1 and /prazo/v1 endpoints.
- * Tries cartaopostagem first (most common), then contrato.
+ * Authenticate against the modern Correios REST API using a CWS Access Key
+ * (Chave de Acesso). The Access Key authorizes /token/v1/autentica/contrato,
+ * which returns a Bearer token usable on /preco/v2 and /prazo/v1 endpoints.
+ *
+ * Fallback: if only legacy USER/PASS are present, try Basic Auth.
  */
-async function autenticarCorreios(user: string, pass: string, cartao?: string): Promise<string | null> {
-  const basic = btoa(`${user}:${pass}`);
-  const endpoints = [
-    {
-      url: "https://api.correios.com.br/token/v1/autentica/cartaopostagem",
-      body: cartao ? { numero: cartao } : null,
-    },
-    { url: "https://api.correios.com.br/token/v1/autentica", body: null },
-  ];
+async function autenticarCorreios(opts: {
+  apiKey?: string;
+  contrato?: string;
+  cartao?: string;
+  user?: string;
+  pass?: string;
+}): Promise<string | null> {
+  const { apiKey, contrato, cartao, user, pass } = opts;
 
-  for (const ep of endpoints) {
-    try {
-      const res = await fetch(ep.url, {
-        method: "POST",
-        headers: {
-          Authorization: `Basic ${basic}`,
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: ep.body ? JSON.stringify(ep.body) : undefined,
+  // Preferred: CWS Access Key flow
+  if (apiKey) {
+    const attempts: Array<{ url: string; body: Record<string, string> }> = [];
+    if (contrato) {
+      attempts.push({
+        url: "https://api.correios.com.br/token/v1/autentica/contrato",
+        body: { numero: contrato, ...(cartao ? { cartaoPostagem: cartao } : {}) },
       });
-      if (!res.ok) {
+    }
+    if (cartao) {
+      attempts.push({
+        url: "https://api.correios.com.br/token/v1/autentica/cartaopostagem",
+        body: { numero: cartao },
+      });
+    }
+    attempts.push({ url: "https://api.correios.com.br/token/v1/autentica", body: {} });
+
+    for (const ep of attempts) {
+      try {
+        const res = await fetch(ep.url, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: Object.keys(ep.body).length ? JSON.stringify(ep.body) : undefined,
+        });
         const txt = await res.text();
-        console.warn(`[correios-auth] ${ep.url} → ${res.status}: ${txt.slice(0, 200)}`);
-        continue;
+        if (!res.ok) {
+          console.warn(`[correios-auth] ${ep.url} → ${res.status}: ${txt.slice(0, 300)}`);
+          continue;
+        }
+        const data = JSON.parse(txt);
+        if (data?.token) {
+          console.log(`[correios-auth] OK via ${ep.url}`);
+          return data.token as string;
+        }
+      } catch (e) {
+        console.warn(`[correios-auth] ${ep.url} threw`, e);
       }
-      const data = await res.json();
-      if (data?.token) return data.token as string;
-    } catch (e) {
-      console.warn(`[correios-auth] ${ep.url} threw`, e);
     }
   }
+
+  // Legacy fallback: Basic Auth (user + senha de componente)
+  if (user && pass) {
+    const basic = btoa(`${user}:${pass}`);
+    const legacyEndpoints: Array<{ url: string; body: Record<string, string> | null }> = [
+      { url: "https://api.correios.com.br/token/v1/autentica/cartaopostagem", body: cartao ? { numero: cartao } : null },
+      { url: "https://api.correios.com.br/token/v1/autentica", body: null },
+    ];
+    for (const ep of legacyEndpoints) {
+      try {
+        const res = await fetch(ep.url, {
+          method: "POST",
+          headers: {
+            Authorization: `Basic ${basic}`,
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: ep.body ? JSON.stringify(ep.body) : undefined,
+        });
+        if (!res.ok) {
+          const txt = await res.text();
+          console.warn(`[correios-auth-legacy] ${ep.url} → ${res.status}: ${txt.slice(0, 200)}`);
+          continue;
+        }
+        const data = await res.json();
+        if (data?.token) return data.token as string;
+      } catch (e) {
+        console.warn(`[correios-auth-legacy] ${ep.url} threw`, e);
+      }
+    }
+  }
+
   return null;
 }
 
@@ -93,6 +147,8 @@ Deno.serve(async (req) => {
       const correiosUser = Deno.env.get("CORREIOS_USER") || "";
       const correiosPass = Deno.env.get("CORREIOS_PASS") || "";
       const cartaoPostagem = Deno.env.get("CORREIOS_CARTAO_POSTAGEM") || "";
+      const apiKey = Deno.env.get("CORREIOS_API_KEY") || "";
+      const contrato = Deno.env.get("CORREIOS_CONTRATO") || "";
 
       const services = [
         { codigo: "03220", nome: "SEDEX" },   // SEDEX CONTRATO AG
@@ -107,14 +163,20 @@ Deno.serve(async (req) => {
 
       // 1) Authenticate with modern REST API
       let token: string | null = null;
-      if (correiosUser && correiosPass) {
-        token = await autenticarCorreios(correiosUser, correiosPass, cartaoPostagem || undefined);
+      if (apiKey || (correiosUser && correiosPass)) {
+        token = await autenticarCorreios({
+          apiKey: apiKey || undefined,
+          contrato: contrato || undefined,
+          cartao: cartaoPostagem || undefined,
+          user: correiosUser || undefined,
+          pass: correiosPass || undefined,
+        });
         if (!token) {
-          authError = "Falha ao autenticar nos Correios. Verifique CORREIOS_USER, CORREIOS_PASS e o Cartão de Postagem.";
+          authError = "Falha ao autenticar nos Correios. Verifique CORREIOS_API_KEY, CORREIOS_CONTRATO e CORREIOS_CARTAO_POSTAGEM.";
           console.error("[correios-cotacao]", authError);
         }
       } else {
-        authError = "Credenciais dos Correios não configuradas (CORREIOS_USER/CORREIOS_PASS).";
+        authError = "Credenciais dos Correios não configuradas (CORREIOS_API_KEY ou CORREIOS_USER/CORREIOS_PASS).";
       }
 
       if (token) {
