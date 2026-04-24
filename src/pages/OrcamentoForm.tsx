@@ -998,7 +998,7 @@ export default function OrcamentoForm() {
         </>
       }
     >
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-12 pb-24 md:pb-0">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-12 pb-40 lg:pb-0">
         <div className="lg:col-span-8 space-y-5">
           {/* Identificação do Orçamento */}
           <div className="bg-card rounded-xl border shadow-soft p-5">
@@ -1233,46 +1233,7 @@ export default function OrcamentoForm() {
       </div>
 
 
-        {isMobile && (
-          <>
-            {/* Spacer para evitar que o footer sticky cubra conteúdo final */}
-            <div aria-hidden className="h-32 lg:hidden" />
-            {/* Footer sticky mobile — Total + Salvar sempre visíveis */}
-            <div
-              className={cn(
-                "fixed inset-x-0 bottom-0 z-40 lg:hidden",
-                "bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80",
-                "border-t shadow-[0_-4px_12px_-4px_rgba(0,0,0,0.08)]",
-                "px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]",
-              )}
-            >
-              <div className="flex items-center justify-between gap-3 mb-2">
-                <div className="min-w-0 flex-1">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Total</p>
-                  <p className="text-lg font-bold text-primary font-mono leading-tight truncate">
-                    {formatCurrency(valorTotal)}
-                  </p>
-                </div>
-                <div className="text-right text-[11px] text-muted-foreground leading-tight">
-                  <p>{items.filter(i => i.produto_id).length} item(ns)</p>
-                  {pesoTotal > 0 && <p>{pesoTotal.toFixed(2)} kg</p>}
-                </div>
-              </div>
-              <div className="grid grid-cols-[1fr_auto_auto] gap-2">
-                <Button onClick={handleSave} disabled={saving} className="h-11 gap-2">
-                  <Save className="w-4 h-4" />
-                  {saving ? "Salvando..." : "Salvar"}
-                </Button>
-                <Button variant="outline" size="icon" onClick={() => setPreviewOpen(true)} className="h-11 w-11" aria-label="Visualizar">
-                  <Eye className="w-4 h-4" />
-                </Button>
-                <Button variant="secondary" size="icon" onClick={handleGeneratePdf} className="h-11 w-11" aria-label="Gerar PDF">
-                  <FileText className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-          </>
-        )}
+        {/* Footer sticky mobile consolidado — único, acima do MobileBottomNav */}
 
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
         <DialogContent
