@@ -142,13 +142,24 @@ export default function OrcamentoForm() {
       const w = Math.max(0, el.clientWidth - PAD);
       const h = Math.max(0, el.clientHeight - PAD);
       const s = Math.min(w / A4_WIDTH_PX, h / A4_HEIGHT_PX);
-      setAutoScale(Math.min(1.2, Math.max(0.35, s)));
+      if (Number.isFinite(s) && s > 0) {
+        setAutoScale(Math.min(1.5, Math.max(0.25, s)));
+      }
     };
-    compute();
+    // Pequeno delay para o dialog terminar a animação de abertura/fullscreen
+    const t = window.setTimeout(compute, 50);
     const ro = new ResizeObserver(compute);
     ro.observe(el);
-    return () => ro.disconnect();
-  }, [previewOpen]);
+    return () => {
+      window.clearTimeout(t);
+      ro.disconnect();
+    };
+  }, [previewOpen, previewFullscreen]);
+
+  // Ao alternar para fullscreen, voltar para auto-fit para enquadrar tudo
+  useEffect(() => {
+    if (previewOpen) setPreviewZoom(0);
+  }, [previewFullscreen, previewOpen]);
 
   const {
     register,
