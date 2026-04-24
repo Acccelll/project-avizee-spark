@@ -25,7 +25,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Save, Eye, FileText, Copy, Plus, Search, Wand2, RefreshCw, CheckCircle2, AlertTriangle, CalendarDays, Clock, MoreHorizontal, LayoutTemplate, Mail, ChevronDown, ZoomIn, ZoomOut, Maximize2, Minimize2 } from "lucide-react";
+import { Save, Eye, FileText, Copy, Plus, Search, Wand2, RefreshCw, CheckCircle2, AlertTriangle, CalendarDays, Clock, MoreHorizontal, LayoutTemplate, Mail, ChevronDown, ZoomIn, ZoomOut, Maximize2, Minimize2, Loader2, FileText as FileTextIcon, UploadCloud, Send } from "lucide-react";
 import { PageShell } from "@/components/PageShell";
 import { JustCreatedBanner } from "@/components/JustCreatedBanner";
 import { QuickAddClientModal } from "@/components/QuickAddClientModal";
@@ -108,6 +108,7 @@ export default function OrcamentoForm() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const pdfRef = useRef<HTMLDivElement>(null);
+  const offscreenPdfRef = useRef<HTMLDivElement>(null);
   const isEdit = !!id;
   const isMobile = useIsMobile();
   const { user, roles, extraPermissions } = useAuth();
@@ -220,6 +221,10 @@ export default function OrcamentoForm() {
   const [simPagamento, setSimPagamento] = useState('');
   const [mailModalOpen, setMailModalOpen] = useState(false);
   const [emailTemplate, setEmailTemplate] = useState('Olá, segue orçamento atualizado para sua análise.');
+  // Stepper de envio de e-mail: idle → pdf → upload → email → done
+  type MailStep = 'idle' | 'pdf' | 'upload' | 'email' | 'done';
+  const [mailStep, setMailStep] = useState<MailStep>('idle');
+  const [mailError, setMailError] = useState<string | null>(null);
   const [empresaConfig, setEmpresaConfig] = useState<Record<string, string> | null>(null);
   const [lastAutoSaveAt, setLastAutoSaveAt] = useState<string | null>(null);
 
