@@ -24,10 +24,51 @@ interface FreteOption {
 }
 
 /**
+ * Authenticate against the modern Correios REST API.
+ * Returns a Bearer token usable on /preco/v1 and /prazo/v1 endpoints.
+ * Tries cartaopostagem first (most common), then contrato.
+ */
+async function autenticarCorreios(user: string, pass: string, cartao?: string): Promise<string | null> {
+  const basic = btoa(`${user}:${pass}`);
+  const endpoints = [
+    {
+      url: "https://api.correios.com.br/token/v1/autentica/cartaopostagem",
+      body: cartao ? { numero: cartao } : null,
+    },
+    { url: "https://api.correios.com.br/token/v1/autentica", body: null },
+  ];
+
+  for (const ep of endpoints) {
+    try {
+      const res = await fetch(ep.url, {
+        method: "POST",
+        headers: {
+          Authorization: `Basic ${basic}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: ep.body ? JSON.stringify(ep.body) : undefined,
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        console.warn(`[correios-auth] ${ep.url} → ${res.status}: ${txt.slice(0, 200)}`);
+        continue;
+      }
+      const data = await res.json();
+      if (data?.token) return data.token as string;
+    } catch (e) {
+      console.warn(`[correios-auth] ${ep.url} threw`, e);
+    }
+  }
+  return null;
+}
+
+/**
  * Correios API Edge Function
  * Supports ?action=cotacao_multi for shipping quotes.
- * Uses Correios public calculator (no auth needed for basic quotes)
- * or authenticated API when CORREIOS_USER / CORREIOS_PASS secrets are set.
+ * Uses the modern Correios REST API (api.correios.com.br) — the legacy
+ * CalcPrecoPrazo SOAP endpoint was discontinued in 2024.
+ * Requires CORREIOS_USER / CORREIOS_PASS (and optionally CORREIOS_CARTAO_POSTAGEM).
  */
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -51,67 +92,103 @@ Deno.serve(async (req) => {
 
       const correiosUser = Deno.env.get("CORREIOS_USER") || "";
       const correiosPass = Deno.env.get("CORREIOS_PASS") || "";
+      const cartaoPostagem = Deno.env.get("CORREIOS_CARTAO_POSTAGEM") || "";
 
-      // Service codes: SEDEX (04014), PAC (04510), SEDEX 10 (40215), SEDEX 12 (40169)
       const services = [
-        { codigo: "04014", nome: "SEDEX" },
-        { codigo: "04510", nome: "PAC" },
+        { codigo: "03220", nome: "SEDEX" },   // SEDEX CONTRATO AG
+        { codigo: "03298", nome: "PAC" },     // PAC CONTRATO AG
+        { codigo: "04014", nome: "SEDEX" },   // fallback varejo
+        { codigo: "04510", nome: "PAC" },     // fallback varejo
       ];
 
       let results: FreteOption[] = [];
       let usedFallback = false;
+      let authError: string | null = null;
 
-      for (const svc of services) {
-        try {
-          const calcUrl = new URL("https://ws.correios.com.br/calculador/CalcPrecoPrazo.aspx");
-          calcUrl.searchParams.set("nCdEmpresa", correiosUser);
-          calcUrl.searchParams.set("sDsSenha", correiosPass);
-          calcUrl.searchParams.set("nCdServico", svc.codigo);
-          calcUrl.searchParams.set("sCepOrigem", cepOrigem);
-          calcUrl.searchParams.set("sCepDestino", cepDestino);
-          calcUrl.searchParams.set("nVlPeso", String(Math.max(peso, 0.3)));
-          calcUrl.searchParams.set("nCdFormato", "1");
-          calcUrl.searchParams.set("nVlComprimento", String(comprimento));
-          calcUrl.searchParams.set("nVlAltura", String(altura));
-          calcUrl.searchParams.set("nVlLargura", String(largura));
-          calcUrl.searchParams.set("nVlDiametro", "0");
-          calcUrl.searchParams.set("sCdMaoPropria", "N");
-          calcUrl.searchParams.set("nVlValorDeclarado", "0");
-          calcUrl.searchParams.set("sCdAvisoRecebimento", "N");
-          calcUrl.searchParams.set("StrRetorno", "xml");
+      // 1) Authenticate with modern REST API
+      let token: string | null = null;
+      if (correiosUser && correiosPass) {
+        token = await autenticarCorreios(correiosUser, correiosPass, cartaoPostagem || undefined);
+        if (!token) {
+          authError = "Falha ao autenticar nos Correios. Verifique CORREIOS_USER, CORREIOS_PASS e o Cartão de Postagem.";
+          console.error("[correios-cotacao]", authError);
+        }
+      } else {
+        authError = "Credenciais dos Correios não configuradas (CORREIOS_USER/CORREIOS_PASS).";
+      }
 
-          const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 8000);
-          const res = await fetch(calcUrl.toString(), { signal: controller.signal });
-          clearTimeout(timeout);
-          const xml = await res.text();
+      if (token) {
+        const pesoGramas = Math.max(Math.round(peso * 1000), 300);
+        const seen = new Set<string>();
+        for (const svc of services) {
+          if (seen.has(svc.nome)) continue; // já obtido por código contratado
+          try {
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 10000);
+            // Preço
+            const precoRes = await fetch("https://api.correios.com.br/preco/v2/nacional", {
+              method: "POST",
+              signal: controller.signal,
+              headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+                Accept: "application/json",
+              },
+              body: JSON.stringify({
+                idLote: "1",
+                parametrosProduto: [
+                  {
+                    coProduto: svc.codigo,
+                    cepOrigem,
+                    cepDestino,
+                    psObjeto: String(pesoGramas),
+                    tpObjeto: "2", // pacote
+                    comprimento: String(comprimento),
+                    largura: String(largura),
+                    altura: String(altura),
+                    ...(cartaoPostagem ? { nuContrato: cartaoPostagem } : {}),
+                  },
+                ],
+              }),
+            });
+            const precoData = await precoRes.json();
+            const precoItem = Array.isArray(precoData) ? precoData[0] : precoData?.[0] ?? precoData;
+            clearTimeout(timeout);
 
-          const valorMatch = xml.match(/<Valor>([\d.,]+)<\/Valor>/);
-          const prazoMatch = xml.match(/<PrazoEntrega>(\d+)<\/PrazoEntrega>/);
-          const erroMatch = xml.match(/<MsgErro><!\[CDATA\[(.*?)\]\]><\/MsgErro>/) ||
-                           xml.match(/<MsgErro>(.*?)<\/MsgErro>/);
+            if (precoItem?.txErro || precoRes.status >= 400) {
+              console.warn(`[correios-cotacao] ${svc.nome} preço erro:`, precoItem?.txErro || precoRes.status);
+              continue;
+            }
 
-          const valorStr = valorMatch?.[1]?.replace(".", "").replace(",", ".") || "0";
-          const valor = parseFloat(valorStr);
-          const prazo = parseInt(prazoMatch?.[1] || "0");
-          const erro = erroMatch?.[1]?.trim() || undefined;
+            const valorStr = (precoItem?.pcFinal || precoItem?.pcBase || "0").toString().replace(",", ".");
+            const valor = parseFloat(valorStr);
 
-          results.push({
-            servico: svc.nome,
-            codigo: svc.codigo,
-            valor,
-            prazo,
-            erro: erro && erro.length > 0 ? erro : undefined,
-          });
-        } catch (svcErr) {
-          console.error(`[correios-cotacao] ${svc.nome} error:`, svcErr);
-          results.push({
-            servico: svc.nome,
-            codigo: svc.codigo,
-            valor: 0,
-            prazo: 0,
-            erro: `Erro ao consultar ${svc.nome}`,
-          });
+            // Prazo
+            const prazoRes = await fetch("https://api.correios.com.br/prazo/v1/nacional", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+                Accept: "application/json",
+              },
+              body: JSON.stringify({
+                idLote: "1",
+                parametrosPrazo: [
+                  { coProduto: svc.codigo, cepOrigem, cepDestino, dtEvento: new Date().toISOString().slice(0, 10).replace(/-/g, "/") },
+                ],
+              }),
+            });
+            const prazoData = await prazoRes.json();
+            const prazoItem = Array.isArray(prazoData) ? prazoData[0] : prazoData?.[0] ?? prazoData;
+            const prazo = parseInt(prazoItem?.prazoEntrega || "0", 10) || 0;
+
+            if (valor > 0) {
+              results.push({ servico: svc.nome, codigo: svc.codigo, valor, prazo });
+              seen.add(svc.nome);
+            }
+          } catch (svcErr) {
+            console.error(`[correios-cotacao] ${svc.nome} error:`, svcErr);
+          }
         }
       }
 
@@ -119,22 +196,16 @@ Deno.serve(async (req) => {
       const allErrored = results.every((r) => !!r.erro || r.valor <= 0);
       if (allErrored) {
         usedFallback = true;
-        // Simple distance-based estimate using CEP regions
         const pesoCalc = Math.max(peso, 0.3);
         const baseSedex = 25 + pesoCalc * 12;
         const basePac = 18 + pesoCalc * 7;
         results = [
-          { servico: "SEDEX (estimativa)", codigo: "04014", valor: Math.round(baseSedex * 100) / 100, prazo: 3 },
-          { servico: "PAC (estimativa)", codigo: "04510", valor: Math.round(basePac * 100) / 100, prazo: 8 },
+          { servico: "SEDEX (estimativa)", codigo: "04014", valor: Math.round(baseSedex * 100) / 100, prazo: 3, erro: authError ?? undefined },
+          { servico: "PAC (estimativa)", codigo: "04510", valor: Math.round(basePac * 100) / 100, prazo: 8, erro: authError ?? undefined },
         ];
       }
 
-      const response: Record<string, unknown> = {};
-      if (usedFallback) {
-        (response as any).warning = "fallback_estimativa";
-      }
-
-      return new Response(JSON.stringify(usedFallback ? results : results), {
+      return new Response(JSON.stringify(results), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
