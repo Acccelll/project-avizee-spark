@@ -1243,39 +1243,78 @@ export default function OrcamentoForm() {
         )}
 
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-        <DialogContent className="max-w-4xl max-h-[95vh] overflow-y-auto p-0">
+        <DialogContent className="max-w-[1100px] w-[95vw] max-h-[95vh] overflow-hidden p-0 flex flex-col">
           <DialogHeader className="sr-only">
             <DialogTitle>Pré-visualização do Orçamento</DialogTitle>
-            <DialogDescription>
-              Visualize como o orçamento será impresso ou enviado ao cliente.
-            </DialogDescription>
+            <DialogDescription>Visualize como o orçamento será impresso ou enviado ao cliente.</DialogDescription>
           </DialogHeader>
-          <div className="p-4 border-b flex justify-between items-center sticky top-0 bg-card z-10">
-            <h3 className="font-semibold">Pré-visualização do Orçamento</h3>
-            <div className="flex gap-2">
-              <Select value={layoutTemplate} onValueChange={(v: 'simples' | 'completo' | 'logo') => setLayoutTemplate(v)}>
-                <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+          {/* Toolbar */}
+          <div className="flex items-center justify-between gap-3 px-4 py-3 border-b bg-card">
+            <div className="flex items-center gap-2 min-w-0">
+              <FileText className="w-4 h-4 text-muted-foreground shrink-0" />
+              <h3 className="font-semibold text-sm truncate">Pré-visualização — {(numero || "").replace(/^ORC/i, "ORC ")}</h3>
+            </div>
+            <div className="flex items-center gap-2">
+              <Select value={layoutTemplate} onValueChange={(v: 'classico' | 'marca') => setLayoutTemplate(v)}>
+                <SelectTrigger className="h-8 w-[160px] text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="simples">Simples</SelectItem>
-                  <SelectItem value="completo">Completo</SelectItem>
-                  <SelectItem value="logo">Com logo</SelectItem>
+                  <SelectItem value="marca">Marca AviZee</SelectItem>
+                  <SelectItem value="classico">Clássico (laranja)</SelectItem>
                 </SelectContent>
               </Select>
-              <Button size="sm" variant="outline" onClick={() => setPreviewOpen(false)}>Fechar</Button>
-              <Button size="sm" onClick={handleGeneratePdf} className="gap-1.5"><FileText className="w-3.5 h-3.5" />Baixar PDF</Button>
+              <div className="flex items-center gap-0.5 border rounded-md h-8 px-1">
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setPreviewZoom((z) => Math.max(0.4, (z || autoScale) - 0.1))} aria-label="Diminuir zoom">
+                  <ZoomOut className="w-3.5 h-3.5" />
+                </Button>
+                <button type="button" onClick={() => setPreviewZoom(0)} className="text-[11px] tabular-nums px-1.5 min-w-[42px] text-center hover:text-primary" title="Ajustar à tela">
+                  {Math.round((previewZoom || autoScale) * 100)}%
+                </button>
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setPreviewZoom((z) => Math.min(2, (z || autoScale) + 0.1))} aria-label="Aumentar zoom">
+                  <ZoomIn className="w-3.5 h-3.5" />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setPreviewZoom(0)} aria-label="Ajustar">
+                  <Maximize2 className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+              <Button size="sm" variant="outline" onClick={() => setPreviewOpen(false)} className="h-8">Fechar</Button>
+              <Button size="sm" onClick={handleGeneratePdf} className="gap-1.5 h-8"><FileText className="w-3.5 h-3.5" />Baixar PDF</Button>
             </div>
           </div>
-          <div className="flex justify-center p-4 bg-muted/30">
-            <OrcamentoPdfTemplate
-              ref={pdfRef} numero={numero} data={dataOrcamento} cliente={clienteSnapshot}
-              items={items.filter(i => i.produto_id)} totalProdutos={totalProdutos}
-              desconto={desconto} impostoSt={impostoSt} impostoIpi={impostoIpi}
-              freteValor={freteValor} outrasDespesas={outrasDespesas} valorTotal={valorTotal}
-              quantidadeTotal={quantidadeTotal} pesoTotal={pesoTotal} pagamento={pagamento}
-              prazoPagamento={prazoPagamento} prazoEntrega={prazoEntrega} freteTipo={freteTipo}
-              modalidade={modalidade} observacoes={`${observacoes}\nTemplate: ${layoutTemplate}`}
-              empresa={empresaConfig || undefined}
-            />
+          {/* Stage A4 com auto-fit */}
+          <div ref={previewStageRef} className="flex-1 overflow-auto bg-muted/40 p-6">
+            <div
+              className="mx-auto bg-white shadow-2xl"
+              style={{
+                width: "210mm",
+                transform: `scale(${previewZoom || autoScale})`,
+                transformOrigin: "top center",
+                marginBottom: `calc(297mm * ${(previewZoom || autoScale) - 1} * -1)`,
+              }}
+            >
+              {layoutTemplate === 'marca' ? (
+                <OrcamentoPdfTemplateBrand
+                  ref={pdfRef} numero={numero} data={dataOrcamento} cliente={clienteSnapshot}
+                  items={items.filter(i => i.produto_id)} totalProdutos={totalProdutos}
+                  desconto={desconto} impostoSt={impostoSt} impostoIpi={impostoIpi}
+                  freteValor={freteValor} outrasDespesas={outrasDespesas} valorTotal={valorTotal}
+                  quantidadeTotal={quantidadeTotal} pesoTotal={pesoTotal} pagamento={pagamento}
+                  prazoPagamento={prazoPagamento} prazoEntrega={prazoEntrega} freteTipo={freteTipo}
+                  modalidade={modalidade} observacoes={observacoes}
+                  empresa={empresaConfig || undefined}
+                />
+              ) : (
+                <OrcamentoPdfTemplate
+                  ref={pdfRef} numero={numero} data={dataOrcamento} cliente={clienteSnapshot}
+                  items={items.filter(i => i.produto_id)} totalProdutos={totalProdutos}
+                  desconto={desconto} impostoSt={impostoSt} impostoIpi={impostoIpi}
+                  freteValor={freteValor} outrasDespesas={outrasDespesas} valorTotal={valorTotal}
+                  quantidadeTotal={quantidadeTotal} pesoTotal={pesoTotal} pagamento={pagamento}
+                  prazoPagamento={prazoPagamento} prazoEntrega={prazoEntrega} freteTipo={freteTipo}
+                  modalidade={modalidade} observacoes={observacoes}
+                  empresa={empresaConfig || undefined}
+                />
+              )}
+            </div>
           </div>
         </DialogContent>
       </Dialog>
