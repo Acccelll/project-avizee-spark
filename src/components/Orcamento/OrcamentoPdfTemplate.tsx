@@ -98,134 +98,139 @@ export const OrcamentoPdfTemplate = forwardRef<HTMLDivElement, Props>(({
       color: "#151514", background: "#fff", boxSizing: "border-box",
     }}>
       {/* Header */}
-      <div style={{ display: "flex", border: `1px solid ${BORDER}`, marginBottom: "4px" }}>
-        {/* Logo + dados empresa */}
-        <div style={{ display: "flex", flex: 1, alignItems: "center", padding: "8px 10px", gap: "12px" }}>
+      <div style={{ display: "flex", border: `1px solid ${BORDER}`, marginBottom: "6px", minHeight: "130px" }}>
+        {/* Coluna 1: Logo */}
+        <div style={{ flex: "0 0 38%", display: "flex", alignItems: "center", justifyContent: "center", padding: "10px", borderRight: `1px solid ${BORDER}` }}>
           <img
             src={empresa?.logo_url || "/images/logoavizee.png"}
             alt={empresa?.nome_fantasia || "AviZee"}
-            style={{ height: "60px", objectFit: "contain" }}
+            style={{ maxHeight: "110px", maxWidth: "100%", objectFit: "contain" }}
           />
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: "13px", fontWeight: 700, marginBottom: "3px" }}>{empresaNome}</div>
-            <div style={{ fontSize: "9px", lineHeight: 1.55, color: "#222" }}>
-              {enderecoLinha}<br />
-              {foneLinha}<br />
-              {cidadeLinha}<br />
-              {cnpjLinha}
-            </div>
+        </div>
+        {/* Coluna 2: Empresa em 2 blocos verticais */}
+        <div style={{ flex: "0 0 40%", display: "flex", flexDirection: "column", borderRight: `1px solid ${BORDER}` }}>
+          <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "8px 10px", borderBottom: `1px solid ${BORDER}` }}>
+            <div style={{ fontSize: "14px", fontWeight: 700, textAlign: "center", lineHeight: 1.25 }}>{empresaNome}</div>
+          </div>
+          <div style={{ flex: 1, padding: "8px 12px", fontSize: "10px", lineHeight: 1.7, color: "#222" }}>
+            {enderecoLinha}<br />
+            {cidadeLinha}<br />
+            {cnpjLinha}<br />
+            {foneLinha}
           </div>
         </div>
-        {/* Coluna direita: Orçamento / Data */}
-        <div style={{ flex: "0 0 22%", borderLeft: `1px solid ${BORDER}`, display: "flex", flexDirection: "column" }}>
-          <div style={{ textAlign: "center", fontSize: "10px", fontWeight: 700, padding: "4px 6px" }}>Orçamento</div>
-          <div style={{ textAlign: "center", fontSize: "13px", fontFamily: "'Roboto Mono', monospace", padding: "4px 6px", borderTop: `1px solid ${BORDER}` }}>{numero}</div>
-          <div style={{ textAlign: "center", fontSize: "10px", fontWeight: 700, padding: "4px 6px", borderTop: `1px solid ${BORDER}` }}>Data</div>
-          <div style={{ textAlign: "center", fontSize: "11px", padding: "4px 6px", borderTop: `1px solid ${BORDER}` }}>{formatDate(data)}</div>
+        {/* Coluna 3: Orçamento / Data */}
+        <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+          <div style={{ flex: 1, textAlign: "center", fontSize: "11px", fontWeight: 700, padding: "6px", display: "flex", alignItems: "center", justifyContent: "center" }}>Orçamento</div>
+          <div style={{ flex: 1, textAlign: "center", fontSize: "14px", fontFamily: "'Roboto Mono', monospace", fontWeight: 700, padding: "6px", borderTop: `1px solid ${BORDER}`, display: "flex", alignItems: "center", justifyContent: "center" }}>{numero}</div>
+          <div style={{ flex: 1, textAlign: "center", fontSize: "11px", fontWeight: 700, padding: "6px", borderTop: `1px solid ${BORDER}`, display: "flex", alignItems: "center", justifyContent: "center" }}>Data</div>
+          <div style={{ flex: 1, textAlign: "center", fontSize: "12px", padding: "6px", borderTop: `1px solid ${BORDER}`, display: "flex", alignItems: "center", justifyContent: "center" }}>{formatDate(data)}</div>
         </div>
       </div>
 
       {/* Cliente */}
-      <div style={{ border: `1px solid ${BORDER}`, padding: "8px 12px", marginBottom: "10px", fontSize: "9.5px", lineHeight: 1.9 }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", columnGap: "16px" }}>
+      <div style={{ border: `1px solid ${BORDER}`, padding: "10px 14px", marginBottom: "10px", fontSize: "11px", lineHeight: 2 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", columnGap: "24px" }}>
           <div><b>Cod.Cliente:</b> <span style={{ fontFamily: "'Roboto Mono', monospace" }}>{cliente.codigo || "—"}</span></div>
-          <div></div>
           <div><b>Fantasia:</b> {cliente.nome_fantasia || "—"}</div>
           <div style={{ gridColumn: "span 2" }}><b>Cliente:</b> {cliente.nome_razao_social}</div>
-          <div></div>
           <div style={{ gridColumn: "span 2" }}><b>Endereço:</b> {cliente.logradouro}{cliente.numero ? `, ${cliente.numero}` : ""}</div>
           <div><b>Bairro:</b> {cliente.bairro || "—"}</div>
-          <div><b>Cidade:</b> {cliente.cidade || "—"}</div>
-          <div><b>UF:</b> {cliente.uf || "—"}</div>
-          <div><b>CEP:</b> {cliente.cep || "—"}</div>
+          <div><b>Cidade:</b> {cliente.cidade || "—"} &nbsp; <b>UF:</b> {cliente.uf || "—"} &nbsp; <b>CEP:</b> {cliente.cep || "—"}</div>
           <div><b>CNPJ/CPF:</b> <span style={{ fontFamily: "'Roboto Mono', monospace" }}>{cliente.cpf_cnpj || "—"}</span></div>
           <div><b>I.E:</b> {cliente.inscricao_estadual || "—"}</div>
-          <div><b>Email:</b> {cliente.email || "—"}</div>
-          <div><b>Fone:</b> {cliente.telefone || "—"}</div>
-          <div><b>Celular:</b> {cliente.celular || "—"}</div>
+          <div style={{ gridColumn: "span 2" }}><b>Email:</b> {cliente.email || "—"}</div>
+          <div><b>Fone:</b> {cliente.telefone || "—"} &nbsp; <b>Celular:</b> {cliente.celular || "—"}</div>
           <div><b>Contato:</b> {cliente.contato || "—"}</div>
         </div>
       </div>
 
       {/* Items Table */}
-      <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: "8px", fontSize: "9px", border: `1px solid ${BORDER}` }}>
+      <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: "8px", fontSize: "10px", border: `1px solid ${BORDER}` }}>
         <thead>
           <tr style={{ background: ORANGE, color: "#fff" }}>
-            <th style={{ textAlign: "center", padding: "6px 6px", fontWeight: 700 }}>Código</th>
-            <th style={{ textAlign: "center", padding: "6px 6px", fontWeight: 700 }}>Descrição do Material</th>
-            <th style={{ textAlign: "center", padding: "6px 6px", fontWeight: 700 }}>Variação</th>
-            <th style={{ textAlign: "center", padding: "6px 6px", fontWeight: 700 }}>Qtd.</th>
-            <th style={{ textAlign: "center", padding: "6px 6px", fontWeight: 700 }}>Un.</th>
-            <th style={{ textAlign: "center", padding: "6px 6px", fontWeight: 700 }}>Unit.</th>
-            <th style={{ textAlign: "center", padding: "6px 6px", fontWeight: 700 }}>Total</th>
+            <th style={{ textAlign: "center", padding: "8px 6px", fontWeight: 700, borderRight: "1px solid #fff" }}>Código</th>
+            <th style={{ textAlign: "center", padding: "8px 6px", fontWeight: 700, borderRight: "1px solid #fff" }}>Descrição do Material</th>
+            <th style={{ textAlign: "center", padding: "8px 6px", fontWeight: 700, borderRight: "1px solid #fff" }}>Variação</th>
+            <th style={{ textAlign: "center", padding: "8px 6px", fontWeight: 700, borderRight: "1px solid #fff" }}>Qtd.</th>
+            <th style={{ textAlign: "center", padding: "8px 6px", fontWeight: 700, borderRight: "1px solid #fff" }}>Un.</th>
+            <th style={{ textAlign: "center", padding: "8px 6px", fontWeight: 700, borderRight: "1px solid #fff" }}>Unit.</th>
+            <th style={{ textAlign: "center", padding: "8px 6px", fontWeight: 700 }}>Total</th>
           </tr>
         </thead>
         <tbody>
           {paddedItems.map((item, idx) => (
             <tr key={idx}>
-              <td style={{ padding: "4px 8px", fontFamily: "'Roboto Mono', monospace" }}>{item.codigo_snapshot}</td>
-              <td style={{ padding: "4px 8px" }}>{item.descricao_snapshot}</td>
-              <td style={{ padding: "4px 8px", textAlign: "center" }}>{item.variacao}</td>
-              <td style={{ padding: "4px 8px", textAlign: "center", fontFamily: "'Roboto Mono', monospace" }}>{item.quantidade || ""}</td>
-              <td style={{ padding: "4px 8px", textAlign: "center" }}>{item.unidade}</td>
-              <td style={{ padding: "4px 8px", textAlign: "right", fontFamily: "'Roboto Mono', monospace" }}>{item.valor_unitario ? fmtMoney(item.valor_unitario) : ""}</td>
-              <td style={{ padding: "4px 8px", textAlign: "right", fontFamily: "'Roboto Mono', monospace" }}>{item.valor_total ? fmtMoney(item.valor_total) : ""}</td>
+              <td style={{ padding: "5px 8px", fontFamily: "'Roboto Mono', monospace" }}>{item.codigo_snapshot}</td>
+              <td style={{ padding: "5px 8px" }}>{item.descricao_snapshot}</td>
+              <td style={{ padding: "5px 8px", textAlign: "center" }}>{item.variacao}</td>
+              <td style={{ padding: "5px 8px", textAlign: "center", fontFamily: "'Roboto Mono', monospace" }}>{item.quantidade || ""}</td>
+              <td style={{ padding: "5px 8px", textAlign: "center" }}>{item.unidade}</td>
+              <td style={{ padding: "5px 8px", textAlign: "right", fontFamily: "'Roboto Mono', monospace" }}>{item.valor_unitario ? fmtMoney(item.valor_unitario) : ""}</td>
+              <td style={{ padding: "5px 8px", textAlign: "right", fontFamily: "'Roboto Mono', monospace" }}>{item.valor_total ? fmtMoney(item.valor_total) : ""}</td>
             </tr>
           ))}
         </tbody>
       </table>
 
       {/* Totals + Conditions (mesma moldura) */}
-      <table style={{ width: "100%", borderCollapse: "collapse", border: `1px solid ${BORDER}`, fontSize: "9px", marginBottom: "10px" }}>
+      <table style={{ width: "100%", borderCollapse: "collapse", border: `1px solid ${BORDER}`, fontSize: "10px", marginBottom: "10px" }}>
         <thead>
           <tr>
             {["Total Produtos", "(-)Desconto", "(+)Imposto S.T.", "(+)Imposto IPI", "(+)Frete", "(+)Outras desp."].map((label) => (
-              <th key={label} style={{ border: `1px solid ${BORDER_LIGHT}`, padding: "4px 6px", textAlign: "center", fontWeight: 600, fontSize: "8.5px" }}>{label}</th>
+              <th key={label} style={{ border: `1px solid ${BORDER_LIGHT}`, padding: "6px 4px", textAlign: "center", fontWeight: 600, fontSize: "9.5px", lineHeight: 1.2 }}>{label}</th>
             ))}
-            <th style={{ border: `1px solid ${BORDER_LIGHT}`, padding: "4px 6px", textAlign: "center", fontWeight: 700, background: ORANGE, color: "#fff", fontSize: "9px" }}>Valor Total</th>
+            <th style={{ border: `1px solid ${BORDER_LIGHT}`, padding: "6px 4px", textAlign: "center", fontWeight: 700, background: ORANGE, color: "#fff", fontSize: "13px", lineHeight: 1.2 }}>Valor Total</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td style={{ border: `1px solid ${BORDER_LIGHT}`, padding: "5px 6px", textAlign: "center", fontWeight: 700, fontFamily: "'Roboto Mono', monospace" }}>{fmtMoney(totalProdutos)}</td>
-            <td style={{ border: `1px solid ${BORDER_LIGHT}`, padding: "5px 6px", textAlign: "center", fontWeight: 700, fontFamily: "'Roboto Mono', monospace" }}>{fmtMoney(desconto)}</td>
-            <td style={{ border: `1px solid ${BORDER_LIGHT}`, padding: "5px 6px", textAlign: "center", fontWeight: 700, fontFamily: "'Roboto Mono', monospace" }}>{fmtMoney(impostoSt)}</td>
-            <td style={{ border: `1px solid ${BORDER_LIGHT}`, padding: "5px 6px", textAlign: "center", fontWeight: 700, fontFamily: "'Roboto Mono', monospace" }}>{fmtMoney(impostoIpi)}</td>
-            <td style={{ border: `1px solid ${BORDER_LIGHT}`, padding: "5px 6px", textAlign: "center", fontWeight: 700, fontFamily: "'Roboto Mono', monospace" }}>{fmtMoney(freteValor)}</td>
-            <td style={{ border: `1px solid ${BORDER_LIGHT}`, padding: "5px 6px", textAlign: "center", fontWeight: 700, fontFamily: "'Roboto Mono', monospace" }}>{fmtMoney(outrasDespesas)}</td>
-            <td style={{ border: `1px solid ${BORDER_LIGHT}`, padding: "5px 6px", textAlign: "center", fontWeight: 700, fontFamily: "'Roboto Mono', monospace", background: ORANGE, color: "#fff", fontSize: "10px" }}>{fmtMoney(valorTotal)}</td>
+            <td style={{ border: `1px solid ${BORDER_LIGHT}`, padding: "10px 6px", textAlign: "center", fontWeight: 700, fontFamily: "'Roboto Mono', monospace", fontSize: "11px" }}>{fmtMoney(totalProdutos)}</td>
+            <td style={{ border: `1px solid ${BORDER_LIGHT}`, padding: "10px 6px", textAlign: "center", fontWeight: 700, fontFamily: "'Roboto Mono', monospace", fontSize: "11px" }}>{fmtMoney(desconto)}</td>
+            <td style={{ border: `1px solid ${BORDER_LIGHT}`, padding: "10px 6px", textAlign: "center", fontWeight: 700, fontFamily: "'Roboto Mono', monospace", fontSize: "11px" }}>{fmtMoney(impostoSt)}</td>
+            <td style={{ border: `1px solid ${BORDER_LIGHT}`, padding: "10px 6px", textAlign: "center", fontWeight: 700, fontFamily: "'Roboto Mono', monospace", fontSize: "11px" }}>{fmtMoney(impostoIpi)}</td>
+            <td style={{ border: `1px solid ${BORDER_LIGHT}`, padding: "10px 6px", textAlign: "center", fontWeight: 700, fontFamily: "'Roboto Mono', monospace", fontSize: "11px" }}>{fmtMoney(freteValor)}</td>
+            <td style={{ border: `1px solid ${BORDER_LIGHT}`, padding: "10px 6px", textAlign: "center", fontWeight: 700, fontFamily: "'Roboto Mono', monospace", fontSize: "11px" }}>{fmtMoney(outrasDespesas)}</td>
+            <td style={{ border: `1px solid ${BORDER_LIGHT}`, padding: "10px 6px", textAlign: "center", fontWeight: 700, fontFamily: "'Roboto Mono', monospace", background: ORANGE, color: "#fff", fontSize: "13px" }}>{fmtMoney(valorTotal)}</td>
           </tr>
           <tr>
-            <td colSpan={2} style={{ border: `1px solid ${BORDER_LIGHT}`, padding: "5px 8px" }}>
-              <span style={{ color: "#444" }}>Quantidade:</span> <b>{quantidadeTotal}</b>
+            <td colSpan={2} style={{ border: `1px solid ${BORDER_LIGHT}`, padding: "8px 10px", fontSize: "10px" }}>
+              <div style={{ color: "#444", fontSize: "9px", marginBottom: "2px" }}>Quantidade</div>
+              <b style={{ fontSize: "11px" }}>{quantidadeTotal}</b>
             </td>
-            <td colSpan={2} style={{ border: `1px solid ${BORDER_LIGHT}`, padding: "5px 8px", textAlign: "center" }}>
-              <span style={{ color: "#444" }}>Peso:</span> <b>{pesoTotal.toFixed(2)}</b>
+            <td colSpan={2} style={{ border: `1px solid ${BORDER_LIGHT}`, padding: "8px 10px", fontSize: "10px" }}>
+              <div style={{ color: "#444", fontSize: "9px", marginBottom: "2px" }}>Peso</div>
+              <b style={{ fontSize: "11px" }}>{pesoTotal.toFixed(2)}</b>
             </td>
-            <td colSpan={2} style={{ border: `1px solid ${BORDER_LIGHT}`, padding: "5px 8px", textAlign: "center" }}>
-              <span style={{ color: "#444" }}>Pagamento:</span> <b>{paymentLabel[pagamento] || pagamento || "—"}</b>
+            <td colSpan={2} style={{ border: `1px solid ${BORDER_LIGHT}`, padding: "8px 10px", fontSize: "10px" }}>
+              <div style={{ color: "#444", fontSize: "9px", marginBottom: "2px" }}>Pagamento</div>
+              <b style={{ fontSize: "11px" }}>{paymentLabel[pagamento] || pagamento || "—"}</b>
             </td>
-            <td style={{ border: `1px solid ${BORDER_LIGHT}`, padding: "5px 8px", textAlign: "right" }}>
-              <span style={{ color: "#444" }}>Prazo:</span> <b>{prazoPagamento || "—"}</b>
+            <td style={{ border: `1px solid ${BORDER_LIGHT}`, padding: "8px 10px", fontSize: "10px" }}>
+              <div style={{ color: "#444", fontSize: "9px", marginBottom: "2px" }}>Prazo</div>
+              <b style={{ fontSize: "11px" }}>{prazoPagamento || "—"}</b>
             </td>
           </tr>
           <tr>
-            <td colSpan={3} style={{ border: `1px solid ${BORDER_LIGHT}`, padding: "5px 8px" }}>
-              <span style={{ color: "#444" }}>Prazo de Entrega:</span> <b>{prazoEntrega || "—"}</b>
+            <td colSpan={3} style={{ border: `1px solid ${BORDER_LIGHT}`, padding: "8px 10px", fontSize: "10px" }}>
+              <div style={{ color: "#444", fontSize: "9px", marginBottom: "2px" }}>Prazo de Entrega</div>
+              <b style={{ fontSize: "11px" }}>{prazoEntrega || "—"}</b>
             </td>
-            <td colSpan={3} style={{ border: `1px solid ${BORDER_LIGHT}`, padding: "5px 8px", textAlign: "center" }}>
-              <span style={{ color: "#444" }}>Frete:</span> <b>{freteTipo || "—"}</b>
+            <td colSpan={2} style={{ border: `1px solid ${BORDER_LIGHT}`, padding: "8px 10px", fontSize: "10px" }}>
+              <div style={{ color: "#444", fontSize: "9px", marginBottom: "2px" }}>Frete</div>
+              <b style={{ fontSize: "11px" }}>{freteTipo || "—"}</b>
             </td>
-            <td style={{ border: `1px solid ${BORDER_LIGHT}`, padding: "5px 8px", textAlign: "right" }}>
-              <span style={{ color: "#444" }}>Tipo:</span> <b>{modalidade || "—"}</b>
+            <td colSpan={2} style={{ border: `1px solid ${BORDER_LIGHT}`, padding: "8px 10px", fontSize: "10px" }}>
+              <div style={{ color: "#444", fontSize: "9px", marginBottom: "2px" }}>Tipo</div>
+              <b style={{ fontSize: "11px" }}>{modalidade || "—"}</b>
             </td>
           </tr>
         </tbody>
       </table>
 
       {/* Observações */}
-      <div style={{ fontWeight: 700, fontSize: "10px", marginBottom: "4px" }}>OBSERVAÇÕES</div>
-      <div style={{ border: `1px solid ${BORDER}`, padding: "8px 10px", fontSize: "9.5px", whiteSpace: "pre-wrap", minHeight: "60px", color: "#222" }}>
+      <div style={{ fontWeight: 700, fontSize: "11px", marginBottom: "4px" }}>OBSERVAÇÕES</div>
+      <div style={{ border: `1px solid ${BORDER}`, padding: "10px 12px", fontSize: "10.5px", whiteSpace: "pre-wrap", minHeight: "70px", color: "#222", lineHeight: 1.6 }}>
         {observacoes || ""}
       </div>
     </div>
