@@ -7,7 +7,12 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, Plus, Trash2, Box, Settings2 } from 'lucide-react';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Loader2, Plus, Trash2, Box, Settings2, Pencil, X, Check } from 'lucide-react';
+import { useState } from 'react';
 import type { CaixaEmbalagem } from '@/services/freteSimulacao.service';
 
 interface FreteSimuladorFormProps {
@@ -25,16 +30,22 @@ interface FreteSimuladorFormProps {
   novaCaixa: { nome: string; altura: string; largura: string; comprimento: string; peso: string };
   setNovaCaixa: (v: { nome: string; altura: string; largura: string; comprimento: string; peso: string }) => void;
   salvandoCaixa: boolean;
+  editandoCaixaId: string | null;
   onSelecionarCaixa: (id: string) => void;
   onAdicionarCaixa: () => void;
   onRemoverCaixa: (id: string) => void;
+  onEditarCaixa: (id: string) => void;
+  onCancelarEdicaoCaixa: () => void;
 }
 
 export function FreteSimuladorForm({
   volumes, setVolumes, alturaCm, setAlturaCm, larguraCm, setLarguraCm,
   comprimentoCm, setComprimentoCm, caixas, gerenciarCaixasOpen, setGerenciarCaixasOpen,
-  novaCaixa, setNovaCaixa, salvandoCaixa, onSelecionarCaixa, onAdicionarCaixa, onRemoverCaixa,
+  novaCaixa, setNovaCaixa, salvandoCaixa, editandoCaixaId,
+  onSelecionarCaixa, onAdicionarCaixa, onRemoverCaixa, onEditarCaixa, onCancelarEdicaoCaixa,
 }: FreteSimuladorFormProps) {
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const caixaPendenteExclusao = caixas.find((c) => c.id === confirmDeleteId);
   return (
     <div>
       <div className="flex items-center justify-between mb-2">
@@ -62,39 +73,66 @@ export function FreteSimuladorForm({
                 {caixas.length === 0 ? 'Cadastrar caixas' : 'Gerenciar'}
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-md max-h-[85vh] flex flex-col p-0 gap-0">
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2 px-6 pt-6 pb-2">
+            <DialogContent className="max-w-md h-[85vh] sm:h-[80vh] flex flex-col p-0 gap-0 overflow-hidden">
+              <DialogHeader className="shrink-0 border-b px-6 py-4">
+                <DialogTitle className="flex items-center gap-2">
                   <Box className="h-4 w-4" />
                   Caixas de Embalagem
                 </DialogTitle>
               </DialogHeader>
-              <ScrollArea className="flex-1 px-6">
-                <div className="space-y-4 py-2">
+              <ScrollArea className="flex-1 min-h-0">
+                <div className="px-6 py-3">
                   {caixas.length > 0 ? (
                     <div className="space-y-1.5">
-                      {caixas.map((c) => (
-                        <div key={c.id} className="flex items-center justify-between rounded-md border px-3 py-2 text-sm gap-2">
-                          <div className="min-w-0 flex-1">
-                            <div className="font-medium truncate">{c.nome}</div>
-                            <div className="text-xs text-muted-foreground">
-                              {c.altura_cm} × {c.largura_cm} × {c.comprimento_cm} cm
-                              {c.peso_kg ? ` · ${c.peso_kg.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 3 })} kg` : ''}
+                      {caixas.map((c) => {
+                        const ativo = editandoCaixaId === c.id;
+                        return (
+                          <div
+                            key={c.id}
+                            className={`flex items-center justify-between rounded-md border px-3 py-2 text-sm gap-2 transition-colors ${ativo ? 'border-primary bg-primary/5' : 'hover:bg-accent/40 cursor-pointer'}`}
+                            onClick={() => !ativo && onEditarCaixa(c.id)}
+                          >
+                            <div className="min-w-0 flex-1">
+                              <div className="font-medium truncate">{c.nome}</div>
+                              <div className="text-xs text-muted-foreground">
+                                {c.altura_cm} × {c.largura_cm} × {c.comprimento_cm} cm
+                                {c.peso_kg ? ` · ${c.peso_kg.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 3 })} kg` : ''}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-0.5 shrink-0">
+                              <Button
+                                variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                onClick={(e) => { e.stopPropagation(); onEditarCaixa(c.id); }}
+                                title="Editar caixa"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(c.id); }}
+                                title="Remover caixa"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
                             </div>
                           </div>
-                          <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => onRemoverCaixa(c.id)} title="Remover caixa">
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   ) : (
-                    <p className="text-xs text-muted-foreground">Nenhuma caixa cadastrada.</p>
+                    <p className="text-xs text-muted-foreground py-4 text-center">Nenhuma caixa cadastrada.</p>
                   )}
                 </div>
               </ScrollArea>
-              <div className="border-t px-6 py-4 bg-background">
-                  <p className="text-xs font-medium mb-2">Nova caixa</p>
+              <div className="shrink-0 border-t px-6 py-3 bg-muted/30">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-medium">{editandoCaixaId ? 'Editar caixa' : 'Nova caixa'}</p>
+                    {editandoCaixaId && (
+                      <Button variant="ghost" size="sm" className="h-6 px-2 text-xs gap-1" onClick={onCancelarEdicaoCaixa}>
+                        <X className="h-3 w-3" /> Cancelar
+                      </Button>
+                    )}
+                  </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div className="col-span-2 space-y-1">
                       <Label className="text-xs">Nome / Identificação*</Label>
@@ -117,11 +155,37 @@ export function FreteSimuladorForm({
                       <Input type="number" min={0} step="0.001" placeholder="0,000" value={novaCaixa.peso} onChange={(e) => setNovaCaixa({ ...novaCaixa, peso: e.target.value })} className="h-8 text-sm" />
                     </div>
                   </div>
-                  <Button size="sm" onClick={onAdicionarCaixa} disabled={salvandoCaixa} className="mt-3 gap-1.5">
-                    {salvandoCaixa ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
-                    Adicionar caixa
+                  <Button size="sm" onClick={onAdicionarCaixa} disabled={salvandoCaixa} className="mt-3 gap-1.5 w-full sm:w-auto">
+                    {salvandoCaixa
+                      ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      : editandoCaixaId
+                        ? <Check className="h-3.5 w-3.5" />
+                        : <Plus className="h-3.5 w-3.5" />}
+                    {editandoCaixaId ? 'Salvar alterações' : 'Adicionar caixa'}
                   </Button>
               </div>
+              <AlertDialog open={!!confirmDeleteId} onOpenChange={(open) => !open && setConfirmDeleteId(null)}>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Remover caixa</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Tem certeza que deseja remover a caixa <strong>{caixaPendenteExclusao?.nome}</strong>? Esta ação não pode ser desfeita.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      onClick={() => {
+                        if (confirmDeleteId) onRemoverCaixa(confirmDeleteId);
+                        setConfirmDeleteId(null);
+                      }}
+                    >
+                      Remover
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </DialogContent>
           </Dialog>
         </div>
