@@ -1264,6 +1264,42 @@ export default function OrcamentoForm() {
                 <h4 className="font-semibold">Ações Comerciais</h4>
                 <Button variant="outline" size="sm" onClick={() => setMailModalOpen(true)}>Reenviar por e-mail</Button>
               </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    if (!id) return;
+                    try {
+                      const { ensurePublicToken } = await import('@/services/orcamentos.service');
+                      const token = await ensurePublicToken(id);
+                      const link = `${window.location.origin}/orcamento-publico?token=${token}`;
+                      await navigator.clipboard.writeText(link);
+                      toast.success('Link público copiado!');
+                    } catch (err: unknown) {
+                      toast.error(getUserFriendlyError(err));
+                    }
+                  }}
+                >
+                  Copiar link público
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    if (!id) return;
+                    try {
+                      const { ensurePublicToken } = await import('@/services/orcamentos.service');
+                      const token = await ensurePublicToken(id);
+                      window.open(`${window.location.origin}/orcamento-publico?token=${token}`, '_blank');
+                    } catch (err: unknown) {
+                      toast.error(getUserFriendlyError(err));
+                    }
+                  }}
+                >
+                  Abrir link público
+                </Button>
+              </div>
               <div className="space-y-1.5 text-sm text-muted-foreground">
                 <p>• Criado em: <span className="text-foreground font-medium">{formatDate(dataOrcamento)}</span></p>
                 {validade && <p>• Validade: <span className={`font-medium ${new Date(validade) < new Date(new Date().toDateString()) ? "text-destructive" : "text-foreground"}`}>{formatDate(validade)}</span></p>}
