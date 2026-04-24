@@ -162,11 +162,12 @@ Deno.serve(async (req) => {
       const apiKey = Deno.env.get("CORREIOS_API_KEY") || "";
       const contrato = Deno.env.get("CORREIOS_CONTRATO") || "";
 
+      // Códigos contratuais primeiro (cartão de postagem), varejo como fallback
       const services = [
-        { codigo: "03220", nome: "SEDEX" },   // SEDEX CONTRATO AG
-        { codigo: "03298", nome: "PAC" },     // PAC CONTRATO AG
-        { codigo: "04014", nome: "SEDEX" },   // fallback varejo
-        { codigo: "04510", nome: "PAC" },     // fallback varejo
+        { codigo: "03220", nome: "SEDEX" },
+        { codigo: "03298", nome: "PAC" },
+        { codigo: "04014", nome: "SEDEX" },
+        { codigo: "04510", nome: "PAC" },
       ];
 
       let results: FreteOption[] = [];
@@ -197,65 +198,56 @@ Deno.serve(async (req) => {
         for (const svc of services) {
           if (seen.has(svc.nome)) continue; // já obtido por código contratado
           try {
-            const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 10000);
-            // Preço
-            const precoRes = await fetch("https://api.correios.com.br/preco/v2/nacional", {
-              method: "POST",
-              signal: controller.signal,
+            // Preço — endpoint GET v1 (querystring). Aceita parâmetros simples por código.
+            const precoQS = new URLSearchParams({
+              cepDestino,
+              cepOrigem,
+              psObjeto: String(pesoGramas),
+              comprimento: String(comprimento),
+              largura: String(largura),
+              altura: String(altura),
+              tpObjeto: "2",
+              ...(cartaoPostagem ? { nuContrato: cartaoPostagem, nuRequisicao: "1" } : {}),
+            });
+            const precoUrl = `https://api.correios.com.br/preco/v1/nacional/${svc.codigo}?${precoQS}`;
+            const precoRes = await fetch(precoUrl, {
+              method: "GET",
               headers: {
                 Authorization: `Bearer ${token}`,
-                "Content-Type": "application/json",
                 Accept: "application/json",
               },
-              body: JSON.stringify({
-                idLote: "1",
-                parametrosProduto: [
-                  {
-                    coProduto: svc.codigo,
-                    cepOrigem,
-                    cepDestino,
-                    psObjeto: String(pesoGramas),
-                    tpObjeto: "2", // pacote
-                    comprimento: String(comprimento),
-                    largura: String(largura),
-                    altura: String(altura),
-                    ...(cartaoPostagem ? { nuContrato: cartaoPostagem } : {}),
-                  },
-                ],
-              }),
             });
-            const precoData = await precoRes.json();
-            const precoItem = Array.isArray(precoData) ? precoData[0] : precoData?.[0] ?? precoData;
-            clearTimeout(timeout);
-
-            if (precoItem?.txErro || precoRes.status >= 400) {
-              console.warn(`[correios-cotacao] ${svc.nome} (${svc.codigo}) preço erro status=${precoRes.status} body=${JSON.stringify(precoData).slice(0, 500)}`);
+            const precoTxt = await precoRes.text();
+            if (!precoRes.ok) {
+              console.warn(`[correios-cotacao] ${svc.nome} (${svc.codigo}) PRECO status=${precoRes.status} body=${precoTxt.slice(0, 400)}`);
               continue;
             }
-            console.log(`[correios-cotacao] ${svc.nome} (${svc.codigo}) preço OK:`, JSON.stringify(precoItem).slice(0, 300));
+            let precoItem: Record<string, unknown> = {};
+            try { precoItem = JSON.parse(precoTxt); } catch { /* ignore */ }
+            console.log(`[correios-cotacao] ${svc.nome} (${svc.codigo}) PRECO OK:`, JSON.stringify(precoItem).slice(0, 300));
 
-            const valorStr = (precoItem?.pcFinal || precoItem?.pcBase || "0").toString().replace(",", ".");
+            const valorStr = ((precoItem?.pcFinal as string) || (precoItem?.pcBase as string) || "0").toString().replace(",", ".");
             const valor = parseFloat(valorStr);
 
-            // Prazo
-            const prazoRes = await fetch("https://api.correios.com.br/prazo/v1/nacional", {
-              method: "POST",
+            // Prazo — também GET v1 por código
+            const prazoQS = new URLSearchParams({ cepDestino, cepOrigem });
+            const prazoUrl = `https://api.correios.com.br/prazo/v1/nacional/${svc.codigo}?${prazoQS}`;
+            const prazoRes = await fetch(prazoUrl, {
+              method: "GET",
               headers: {
                 Authorization: `Bearer ${token}`,
-                "Content-Type": "application/json",
                 Accept: "application/json",
               },
-              body: JSON.stringify({
-                idLote: "1",
-                parametrosPrazo: [
-                  { coProduto: svc.codigo, cepOrigem, cepDestino, dtEvento: new Date().toISOString().slice(0, 10).replace(/-/g, "/") },
-                ],
-              }),
             });
-            const prazoData = await prazoRes.json();
-            const prazoItem = Array.isArray(prazoData) ? prazoData[0] : prazoData?.[0] ?? prazoData;
-            const prazo = parseInt(prazoItem?.prazoEntrega || "0", 10) || 0;
+            const prazoTxt = await prazoRes.text();
+            let prazoItem: Record<string, unknown> = {};
+            try { prazoItem = JSON.parse(prazoTxt); } catch { /* ignore */ }
+            if (!prazoRes.ok) {
+              console.warn(`[correios-cotacao] ${svc.nome} (${svc.codigo}) PRAZO status=${prazoRes.status} body=${prazoTxt.slice(0, 300)}`);
+            } else {
+              console.log(`[correios-cotacao] ${svc.nome} (${svc.codigo}) PRAZO OK:`, JSON.stringify(prazoItem).slice(0, 200));
+            }
+            const prazo = parseInt((prazoItem?.prazoEntrega as string) || "0", 10) || 0;
 
             if (valor > 0) {
               results.push({ servico: svc.nome, codigo: svc.codigo, valor, prazo });
