@@ -15,8 +15,13 @@ import type { Database } from "./types";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 const SUPABASE_PUBLISHABLE_KEY = (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY) as string;
+const isPlaceholderConfig =
+  !SUPABASE_URL ||
+  !SUPABASE_PUBLISHABLE_KEY ||
+  SUPABASE_URL.includes("placeholder.supabase.co") ||
+  SUPABASE_PUBLISHABLE_KEY === "placeholder";
 
-export const isSupabaseConfigured = Boolean(SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY);
+export const isSupabaseConfigured = !isPlaceholderConfig;
 
 if (!isSupabaseConfigured && typeof window !== "undefined") {
   // Diagnóstico: se cair no fallback "placeholder", o .env não foi injetado pelo Vite.
