@@ -142,13 +142,24 @@ export default function OrcamentoForm() {
       const w = Math.max(0, el.clientWidth - PAD);
       const h = Math.max(0, el.clientHeight - PAD);
       const s = Math.min(w / A4_WIDTH_PX, h / A4_HEIGHT_PX);
-      setAutoScale(Math.min(1.2, Math.max(0.35, s)));
+      if (Number.isFinite(s) && s > 0) {
+        setAutoScale(Math.min(1.5, Math.max(0.25, s)));
+      }
     };
-    compute();
+    // Pequeno delay para o dialog terminar a animação de abertura/fullscreen
+    const t = window.setTimeout(compute, 50);
     const ro = new ResizeObserver(compute);
     ro.observe(el);
-    return () => ro.disconnect();
-  }, [previewOpen]);
+    return () => {
+      window.clearTimeout(t);
+      ro.disconnect();
+    };
+  }, [previewOpen, previewFullscreen]);
+
+  // Ao alternar para fullscreen, voltar para auto-fit para enquadrar tudo
+  useEffect(() => {
+    if (previewOpen) setPreviewZoom(0);
+  }, [previewFullscreen, previewOpen]);
 
   const {
     register,
@@ -987,7 +998,7 @@ export default function OrcamentoForm() {
         </>
       }
     >
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-12 pb-24 md:pb-0">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-12 pb-40 lg:pb-0">
         <div className="lg:col-span-8 space-y-5">
           {/* Identificação do Orçamento */}
           <div className="bg-card rounded-xl border shadow-soft p-5">
@@ -1222,100 +1233,82 @@ export default function OrcamentoForm() {
       </div>
 
 
-        {isMobile && (
-          <>
-            {/* Spacer para evitar que o footer sticky cubra conteúdo final */}
-            <div aria-hidden className="h-32 lg:hidden" />
-            {/* Footer sticky mobile — Total + Salvar sempre visíveis */}
-            <div
-              className={cn(
-                "fixed inset-x-0 bottom-0 z-40 lg:hidden",
-                "bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80",
-                "border-t shadow-[0_-4px_12px_-4px_rgba(0,0,0,0.08)]",
-                "px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]",
-              )}
-            >
-              <div className="flex items-center justify-between gap-3 mb-2">
-                <div className="min-w-0 flex-1">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Total</p>
-                  <p className="text-lg font-bold text-primary font-mono leading-tight truncate">
-                    {formatCurrency(valorTotal)}
-                  </p>
-                </div>
-                <div className="text-right text-[11px] text-muted-foreground leading-tight">
-                  <p>{items.filter(i => i.produto_id).length} item(ns)</p>
-                  {pesoTotal > 0 && <p>{pesoTotal.toFixed(2)} kg</p>}
-                </div>
-              </div>
-              <div className="grid grid-cols-[1fr_auto_auto] gap-2">
-                <Button onClick={handleSave} disabled={saving} className="h-11 gap-2">
-                  <Save className="w-4 h-4" />
-                  {saving ? "Salvando..." : "Salvar"}
-                </Button>
-                <Button variant="outline" size="icon" onClick={() => setPreviewOpen(true)} className="h-11 w-11" aria-label="Visualizar">
-                  <Eye className="w-4 h-4" />
-                </Button>
-                <Button variant="secondary" size="icon" onClick={handleGeneratePdf} className="h-11 w-11" aria-label="Gerar PDF">
-                  <FileText className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-          </>
-        )}
+        {/* Footer sticky mobile consolidado — único, acima do MobileBottomNav */}
 
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
         <DialogContent
-          className={
+          className={cn(
+            // Reset total do dialog base (que é bottom-sheet em mobile)
+            "p-0 gap-0 border bg-background overflow-hidden flex flex-col",
+            "rounded-none sm:rounded-lg",
             previewFullscreen
-              ? "max-w-none w-screen h-screen sm:rounded-none border-0 overflow-hidden p-0 flex flex-col top-0 left-0 translate-x-0 translate-y-0"
-              : "max-w-[1200px] w-[96vw] h-[96vh] max-h-[96vh] overflow-hidden p-0 flex flex-col"
-          }
+              ? // Tela cheia real — viewport inteira em qualquer breakpoint
+                "fixed inset-0 left-0 right-0 top-0 bottom-0 max-w-none w-screen h-[100dvh] max-h-[100dvh] sm:max-w-none sm:max-h-[100dvh] sm:left-0 sm:top-0 sm:translate-x-0 sm:translate-y-0 sm:rounded-none border-0"
+              : // Janela — ocupa quase toda a tela em desktop, full em mobile
+                "fixed inset-0 left-0 right-0 top-0 bottom-0 max-w-none w-screen h-[100dvh] max-h-[100dvh] sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-[min(1280px,96vw)] sm:h-[min(960px,94vh)] sm:max-w-[1280px] sm:max-h-[94vh]",
+          )}
         >
           <DialogHeader className="sr-only">
             <DialogTitle>Pré-visualização do Orçamento</DialogTitle>
             <DialogDescription>Visualize como o orçamento será impresso ou enviado ao cliente.</DialogDescription>
           </DialogHeader>
+
           {/* Toolbar */}
-          <div className="flex items-center justify-between gap-3 px-4 py-3 border-b bg-card">
-            <div className="flex items-center gap-2 min-w-0">
-              <FileText className="w-4 h-4 text-muted-foreground shrink-0" />
-              <h3 className="font-semibold text-sm truncate">Pré-visualização — {(numero || "").replace(/^ORC/i, "ORC ")}</h3>
+          <div className="shrink-0 border-b bg-card">
+            <div className="flex items-center justify-between gap-2 px-3 py-2 sm:px-4 sm:py-3">
+              <div className="flex items-center gap-2 min-w-0">
+                <FileText className="w-4 h-4 text-muted-foreground shrink-0" />
+                <h3 className="font-semibold text-xs sm:text-sm truncate">
+                  Pré-visualização — {(numero || "").replace(/^ORC/i, "ORC ")}
+                </h3>
+              </div>
+              {/* Controles principais — sempre visíveis */}
+              <div className="flex items-center gap-1.5 shrink-0">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-9 w-9"
+                  onClick={() => setPreviewFullscreen((v) => !v)}
+                  aria-label={previewFullscreen ? "Sair de tela cheia" : "Expandir para tela cheia"}
+                  title={previewFullscreen ? "Sair de tela cheia" : "Tela cheia"}
+                >
+                  {previewFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setPreviewOpen(false)} className="h-9 hidden sm:inline-flex">
+                  Fechar
+                </Button>
+                <Button size="sm" onClick={handleGeneratePdf} className="gap-1.5 h-9">
+                  <FileText className="w-4 h-4" />
+                  <span className="hidden sm:inline">Baixar PDF</span>
+                  <span className="sm:hidden">PDF</span>
+                </Button>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
+            {/* Linha secundária — modelo + zoom */}
+            <div className="flex items-center justify-between gap-2 px-3 pb-2 sm:px-4 sm:pb-3 flex-wrap">
               <Select value={layoutTemplate} onValueChange={(v: 'classico' | 'marca') => setLayoutTemplate(v)}>
-                <SelectTrigger className="h-8 w-[160px] text-xs"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-8 w-[180px] text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="marca">Marca AviZee</SelectItem>
                   <SelectItem value="classico">Clássico (laranja)</SelectItem>
                 </SelectContent>
               </Select>
-              <div className="flex items-center gap-0.5 border rounded-md h-8 px-1">
-                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setPreviewZoom((z) => Math.max(0.4, (z || autoScale) - 0.1))} aria-label="Diminuir zoom">
+              <div className="flex items-center gap-0.5 border rounded-md h-8 px-1 bg-background">
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setPreviewZoom((z) => Math.max(0.3, (z || autoScale) - 0.1))} aria-label="Diminuir zoom">
                   <ZoomOut className="w-3.5 h-3.5" />
                 </Button>
-                <button type="button" onClick={() => setPreviewZoom(0)} className="text-[11px] tabular-nums px-1.5 min-w-[42px] text-center hover:text-primary" title="Ajustar à tela">
+                <button type="button" onClick={() => setPreviewZoom(0)} className="text-[11px] tabular-nums px-1.5 min-w-[44px] text-center hover:text-primary" title="Ajustar à tela">
                   {Math.round((previewZoom || autoScale) * 100)}%
                 </button>
                 <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setPreviewZoom((z) => Math.min(2, (z || autoScale) + 0.1))} aria-label="Aumentar zoom">
                   <ZoomIn className="w-3.5 h-3.5" />
                 </Button>
               </div>
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => setPreviewFullscreen((v) => !v)}
-                aria-label={previewFullscreen ? "Sair de tela cheia" : "Expandir para tela cheia"}
-                title={previewFullscreen ? "Sair de tela cheia" : "Tela cheia"}
-              >
-                {previewFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => setPreviewOpen(false)} className="h-8">Fechar</Button>
-              <Button size="sm" onClick={handleGeneratePdf} className="gap-1.5 h-8"><FileText className="w-3.5 h-3.5" />Baixar PDF</Button>
             </div>
           </div>
+
           {/* Stage A4 com auto-fit (largura + altura) */}
-          <div ref={previewStageRef} className="flex-1 overflow-auto bg-muted/40 p-4">
+          <div ref={previewStageRef} className="flex-1 min-h-0 overflow-auto bg-muted/40 p-4">
             <div
               className="mx-auto"
               style={{
@@ -1324,6 +1317,7 @@ export default function OrcamentoForm() {
               }}
             >
               <div
+                ref={pdfRef}
                 className="bg-white shadow-2xl"
                 style={{
                   width: "210mm",
@@ -1332,33 +1326,33 @@ export default function OrcamentoForm() {
                   transformOrigin: "top left",
                 }}
               >
-              {layoutTemplate === 'marca' ? (
-                <OrcamentoPdfTemplateBrand
-                  ref={pdfRef} numero={numero} data={dataOrcamento} cliente={clienteSnapshot}
-                  items={items.filter(i => i.produto_id)} totalProdutos={totalProdutos}
-                  desconto={desconto} impostoSt={impostoSt} impostoIpi={impostoIpi}
-                  freteValor={freteValor} outrasDespesas={outrasDespesas} valorTotal={valorTotal}
-                  quantidadeTotal={quantidadeTotal} pesoTotal={pesoTotal} pagamento={pagamento}
-                  prazoPagamento={prazoPagamento} prazoEntrega={prazoEntrega}
-                  freteTipo={servicoFrete || freteTipo}
-                  modalidade={freteTipo || modalidade}
-                  observacoes={observacoes}
-                  empresa={empresaConfig || undefined}
-                />
-              ) : (
-                <OrcamentoPdfTemplate
-                  ref={pdfRef} numero={numero} data={dataOrcamento} cliente={clienteSnapshot}
-                  items={items.filter(i => i.produto_id)} totalProdutos={totalProdutos}
-                  desconto={desconto} impostoSt={impostoSt} impostoIpi={impostoIpi}
-                  freteValor={freteValor} outrasDespesas={outrasDespesas} valorTotal={valorTotal}
-                  quantidadeTotal={quantidadeTotal} pesoTotal={pesoTotal} pagamento={pagamento}
-                  prazoPagamento={prazoPagamento} prazoEntrega={prazoEntrega}
-                  freteTipo={servicoFrete || freteTipo}
-                  modalidade={freteTipo || modalidade}
-                  observacoes={observacoes}
-                  empresa={empresaConfig || undefined}
-                />
-              )}
+                {layoutTemplate === 'marca' ? (
+                  <OrcamentoPdfTemplateBrand
+                    numero={numero} data={dataOrcamento} cliente={clienteSnapshot}
+                    items={items.filter(i => i.produto_id)} totalProdutos={totalProdutos}
+                    desconto={desconto} impostoSt={impostoSt} impostoIpi={impostoIpi}
+                    freteValor={freteValor} outrasDespesas={outrasDespesas} valorTotal={valorTotal}
+                    quantidadeTotal={quantidadeTotal} pesoTotal={pesoTotal} pagamento={pagamento}
+                    prazoPagamento={prazoPagamento} prazoEntrega={prazoEntrega}
+                    freteTipo={servicoFrete || freteTipo}
+                    modalidade={freteTipo || modalidade}
+                    observacoes={observacoes}
+                    empresa={empresaConfig || undefined}
+                  />
+                ) : (
+                  <OrcamentoPdfTemplate
+                    numero={numero} data={dataOrcamento} cliente={clienteSnapshot}
+                    items={items.filter(i => i.produto_id)} totalProdutos={totalProdutos}
+                    desconto={desconto} impostoSt={impostoSt} impostoIpi={impostoIpi}
+                    freteValor={freteValor} outrasDespesas={outrasDespesas} valorTotal={valorTotal}
+                    quantidadeTotal={quantidadeTotal} pesoTotal={pesoTotal} pagamento={pagamento}
+                    prazoPagamento={prazoPagamento} prazoEntrega={prazoEntrega}
+                    freteTipo={servicoFrete || freteTipo}
+                    modalidade={freteTipo || modalidade}
+                    observacoes={observacoes}
+                    empresa={empresaConfig || undefined}
+                  />
+                )}
               </div>
             </div>
           </div>
@@ -1396,18 +1390,7 @@ export default function OrcamentoForm() {
         </DialogContent>
       </Dialog>
 
-      {isMobile && (
-        <div className="fixed inset-x-0 bottom-[4.9rem] z-30 border-t border-border bg-background/95 px-3 py-3 backdrop-blur md:hidden">
-          <div className="grid grid-cols-3 gap-2">
-            <Button variant="outline" onClick={() => setPreviewOpen(true)} className="h-11 rounded-xl text-xs">Preview</Button>
-            <Button variant="secondary" onClick={handleGeneratePdf} className="h-11 rounded-xl text-xs">PDF</Button>
-            <Button onClick={handleSave} disabled={saving} className="h-11 rounded-xl text-xs">
-              {saving ? 'Salvando...' : isEdit && status !== "rascunho" ? 'Salvar Alt.' : 'Salvar'}
-            </Button>
-          </div>
-        </div>
-      )}
-
+      {/* (footer mobile único renderizado abaixo) */}
 
       <Dialog open={restoreDraftOpen} onOpenChange={setRestoreDraftOpen}>
         <DialogContent className="max-w-md">
@@ -1499,19 +1482,43 @@ export default function OrcamentoForm() {
 
       {confirmActionDialog}
 
-      {/* Footer sticky mobile com Total + Salvar */}
+      {/* Footer sticky mobile consolidado — posicionado acima do MobileBottomNav (~64px + safe-area) */}
       <div
-        className="md:hidden fixed bottom-0 inset-x-0 bg-background/95 backdrop-blur border-t z-40 px-3 py-3 flex items-center justify-between gap-3"
-        style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}
+        className={cn(
+          "md:hidden fixed inset-x-0 z-30",
+          "bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/85",
+          "border-t shadow-[0_-4px_12px_-4px_rgba(0,0,0,0.10)]",
+          "px-3 pt-2.5 pb-2.5",
+        )}
+        style={{
+          // MobileBottomNav ≈ 64px + safe-area; deixar o footer logo acima dele
+          bottom: "calc(64px + env(safe-area-inset-bottom))",
+        }}
       >
-        <div className="min-w-0">
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground leading-none">Total</p>
-          <p className="mt-0.5 text-base font-bold text-primary tabular-nums">{formatCurrency(valorTotal)}</p>
+        <div className="flex items-center justify-between gap-3 mb-2">
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground leading-none">Total</p>
+            <p className="mt-0.5 text-base font-bold text-primary font-mono leading-tight truncate">
+              {formatCurrency(valorTotal)}
+            </p>
+          </div>
+          <div className="text-right text-[10px] text-muted-foreground leading-tight">
+            <p>{items.filter(i => i.produto_id).length} item(ns)</p>
+            {pesoTotal > 0 && <p>{pesoTotal.toFixed(2)} kg</p>}
+          </div>
         </div>
-        <Button onClick={handleSave} disabled={saving} className="h-11 px-6 gap-2">
-          <Save className="w-4 h-4" />
-          {saving ? "Salvando..." : "Salvar"}
-        </Button>
+        <div className="grid grid-cols-[1fr_auto_auto] gap-2">
+          <Button onClick={handleSave} disabled={saving} className="h-11 gap-2">
+            <Save className="w-4 h-4" />
+            {saving ? "Salvando..." : isEdit && status !== "rascunho" ? "Salvar Alt." : "Salvar"}
+          </Button>
+          <Button variant="outline" size="icon" onClick={() => setPreviewOpen(true)} className="h-11 w-11" aria-label="Visualizar">
+            <Eye className="w-4 h-4" />
+          </Button>
+          <Button variant="secondary" size="icon" onClick={handleGeneratePdf} className="h-11 w-11" aria-label="Gerar PDF">
+            <FileText className="w-4 h-4" />
+          </Button>
+        </div>
       </div>
     </PageShell>
   );
