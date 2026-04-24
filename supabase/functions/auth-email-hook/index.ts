@@ -17,12 +17,12 @@ const corsHeaders = {
 }
 
 const EMAIL_SUBJECTS: Record<string, string> = {
-  signup: 'Confirm your email',
-  invite: "You've been invited",
-  magiclink: 'Your login link',
-  recovery: 'Reset your password',
-  email_change: 'Confirm your new email',
-  reauthentication: 'Your verification code',
+  signup: 'Confirme seu e-mail',
+  invite: 'Você foi convidado para o AviZee ERP',
+  magiclink: 'Seu link de acesso',
+  recovery: 'Redefinição de senha',
+  email_change: 'Confirme seu novo e-mail',
+  reauthentication: 'Seu código de verificação',
 }
 
 // Template mapping
@@ -37,6 +37,7 @@ const EMAIL_TEMPLATES: Record<string, React.ComponentType<any>> = {
 
 // Configuration
 const SITE_NAME = "AviZee ERP"
+const FROM_NAME = "AviZee-ERP"
 const SENDER_DOMAIN = "notify.avizee.com.br"
 const ROOT_DOMAIN = "avizee.com.br"
 const FROM_DOMAIN = "avizee.com.br" // Domain shown in From address (may be root or sender subdomain)
@@ -256,7 +257,7 @@ async function handleWebhook(req: Request): Promise<Response> {
       run_id,
       message_id: messageId,
       to: payload.data.email,
-      from: `${SITE_NAME} <noreply@${FROM_DOMAIN}>`,
+      from: `${FROM_NAME} <noreply@${FROM_DOMAIN}>`,
       sender_domain: SENDER_DOMAIN,
       subject: EMAIL_SUBJECTS[emailType] || 'Notification',
       html,
