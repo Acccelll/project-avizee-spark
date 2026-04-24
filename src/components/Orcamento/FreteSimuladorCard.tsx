@@ -34,10 +34,10 @@ export function FreteSimuladorCard(props: FreteSimuladorCardProps) {
     clienteTransp, cepDestinoClean, canSimulate,
     opcoesCorreios, opcoesTransp, opcoesManual,
     transpForm, setTranspForm, transpFormFor, manualForm, setManualForm,
-    caixas, gerenciarCaixasOpen, setGerenciarCaixasOpen, novaCaixa, setNovaCaixa, salvandoCaixa,
+    caixas, gerenciarCaixasOpen, setGerenciarCaixasOpen, novaCaixa, setNovaCaixa, salvandoCaixa, editandoCaixaId,
     handleConsultarCorreios, handleSalvarTransportadora, handleSalvarManual,
     handleRemoverOpcao, handleSelecionarOpcao,
-    handleSelecionarCaixa, handleAdicionarCaixa, handleRemoverCaixa,
+    handleSelecionarCaixa, handleAdicionarCaixa, handleRemoverCaixa, handleEditarCaixa, handleCancelarEdicaoCaixa,
   } = useFreteSimulador(props);
 
   return (
@@ -77,8 +77,9 @@ export function FreteSimuladorCard(props: FreteSimuladorCardProps) {
           larguraCm={larguraCm} setLarguraCm={setLarguraCm}
           comprimentoCm={comprimentoCm} setComprimentoCm={setComprimentoCm}
           caixas={caixas} gerenciarCaixasOpen={gerenciarCaixasOpen} setGerenciarCaixasOpen={setGerenciarCaixasOpen}
-          novaCaixa={novaCaixa} setNovaCaixa={setNovaCaixa} salvandoCaixa={salvandoCaixa}
+          novaCaixa={novaCaixa} setNovaCaixa={setNovaCaixa} salvandoCaixa={salvandoCaixa} editandoCaixaId={editandoCaixaId}
           onSelecionarCaixa={handleSelecionarCaixa} onAdicionarCaixa={handleAdicionarCaixa} onRemoverCaixa={handleRemoverCaixa}
+          onEditarCaixa={handleEditarCaixa} onCancelarEdicaoCaixa={handleCancelarEdicaoCaixa}
         />
 
         <Separator />
