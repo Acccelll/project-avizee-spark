@@ -62,26 +62,21 @@ export const OrcamentoPdfTemplateBrand = forwardRef<HTMLDivElement, Props>(({
       fontFamily: "'Montserrat', sans-serif", fontSize: "10.5px",
       color: INK, background: "#fff", boxSizing: "border-box",
     }}>
-      {/* HEADER — barra escura com logo + número */}
-      <div style={{ background: INK, color: CREAM, padding: "14mm 12mm 10mm", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      {/* HEADER — base creme, leve, com acento lateral terracota */}
+      <div style={{ background: CREAM, color: INK, padding: "12mm 12mm 8mm", display: "flex", alignItems: "center", justifyContent: "space-between", borderLeft: `6px solid ${ORANGE}`, borderBottom: `1px solid ${BORDER}` }}>
         <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-          <div style={{ background: CREAM, padding: "8px 12px", borderRadius: "4px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <img src={empresa?.logo_url || "/images/logoavizee.png"} alt={empresa?.nome_fantasia || "AviZee"} style={{ maxHeight: "44px", maxWidth: "150px", objectFit: "contain", display: "block" }} />
-          </div>
-          <div>
-            <div style={{ fontSize: "9px", letterSpacing: "2px", color: ORANGE, fontWeight: 600 }}>PROPOSTA COMERCIAL</div>
-            <div style={{ fontSize: "20px", fontWeight: 700, letterSpacing: "0.5px", marginTop: "2px" }}>Orçamento</div>
+          <img src={empresa?.logo_url || "/images/logoavizee.png"} alt={empresa?.nome_fantasia || "AviZee"} style={{ maxHeight: "46px", maxWidth: "160px", objectFit: "contain", display: "block" }} />
+          <div style={{ borderLeft: `1px solid ${BORDER}`, paddingLeft: "14px" }}>
+            <div style={{ fontSize: "9px", letterSpacing: "2px", color: ORANGE, fontWeight: 700 }}>PROPOSTA COMERCIAL</div>
+            <div style={{ fontSize: "22px", fontWeight: 700, letterSpacing: "0.3px", marginTop: "2px", color: WINE }}>Orçamento</div>
           </div>
         </div>
         <div style={{ textAlign: "right" }}>
-          <div style={{ fontSize: "9px", letterSpacing: "1.5px", color: "#cdbfa3", fontWeight: 500 }}>Nº</div>
-          <div style={{ fontSize: "26px", fontWeight: 700, color: CREAM, ...tabular, lineHeight: 1 }}>{numeroDisplay}</div>
-          <div style={{ fontSize: "10px", marginTop: "6px", color: "#cdbfa3" }}>Emitido em <span style={{ color: CREAM, fontWeight: 600 }}>{formatDate(data)}</span></div>
+          <div style={{ fontSize: "9px", letterSpacing: "1.5px", color: "#9b8a64", fontWeight: 500 }}>Nº DO DOCUMENTO</div>
+          <div style={{ fontSize: "30px", fontWeight: 700, color: WINE, ...tabular, lineHeight: 1, marginTop: "2px" }}>{numeroDisplay}</div>
+          <div style={{ fontSize: "10px", marginTop: "5px", color: "#5c4f33" }}>Emitido em <span style={{ color: INK, fontWeight: 700 }}>{formatDate(data)}</span></div>
         </div>
       </div>
-
-      {/* Faixa fina laranja */}
-      <div style={{ height: "4px", background: ORANGE }} />
 
       {/* Conteúdo */}
       <div style={{ padding: "8mm 12mm 12mm" }}>
@@ -119,14 +114,14 @@ export const OrcamentoPdfTemplateBrand = forwardRef<HTMLDivElement, Props>(({
           <div style={{ fontSize: "8px", letterSpacing: "1.5px", color: WINE, fontWeight: 700, marginBottom: "4px", paddingLeft: "2px" }}>ITENS DO ORÇAMENTO</div>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "10px", border: `1px solid ${BORDER}` }}>
             <thead>
-              <tr style={{ background: INK, color: CREAM }}>
-                <th style={{ padding: "7px 8px", textAlign: "left", fontWeight: 700, fontSize: "9px", letterSpacing: "0.5px", width: "11%", background: INK, color: CREAM }}>CÓDIGO</th>
-                <th style={{ padding: "7px 8px", textAlign: "left", fontWeight: 700, fontSize: "9px", letterSpacing: "0.5px", background: INK, color: CREAM }}>DESCRIÇÃO</th>
-                <th style={{ padding: "7px 8px", textAlign: "center", fontWeight: 700, fontSize: "9px", letterSpacing: "0.5px", width: "10%", background: INK, color: CREAM }}>VARIAÇÃO</th>
-                <th style={{ padding: "7px 8px", textAlign: "center", fontWeight: 700, fontSize: "9px", letterSpacing: "0.5px", width: "6%", background: INK, color: CREAM }}>QTD</th>
-                <th style={{ padding: "7px 8px", textAlign: "center", fontWeight: 700, fontSize: "9px", letterSpacing: "0.5px", width: "6%", background: INK, color: CREAM }}>UN</th>
-                <th style={{ padding: "7px 8px", textAlign: "right", fontWeight: 700, fontSize: "9px", letterSpacing: "0.5px", width: "13%", background: INK, color: CREAM }}>UNITÁRIO</th>
-                <th style={{ padding: "7px 8px", textAlign: "right", fontWeight: 700, fontSize: "9px", letterSpacing: "0.5px", width: "14%", background: INK, color: CREAM }}>TOTAL</th>
+              <tr style={{ background: CREAM, color: WINE, borderBottom: `2px solid ${WINE}` }}>
+                <th style={{ padding: "8px 8px", textAlign: "left", fontWeight: 700, fontSize: "9px", letterSpacing: "0.6px", width: "11%", color: WINE }}>CÓDIGO</th>
+                <th style={{ padding: "8px 8px", textAlign: "left", fontWeight: 700, fontSize: "9px", letterSpacing: "0.6px", color: WINE }}>DESCRIÇÃO</th>
+                <th style={{ padding: "8px 8px", textAlign: "center", fontWeight: 700, fontSize: "9px", letterSpacing: "0.6px", width: "10%", color: WINE }}>VARIAÇÃO</th>
+                <th style={{ padding: "8px 8px", textAlign: "center", fontWeight: 700, fontSize: "9px", letterSpacing: "0.6px", width: "6%", color: WINE }}>QTD</th>
+                <th style={{ padding: "8px 8px", textAlign: "center", fontWeight: 700, fontSize: "9px", letterSpacing: "0.6px", width: "6%", color: WINE }}>UN</th>
+                <th style={{ padding: "8px 8px", textAlign: "right", fontWeight: 700, fontSize: "9px", letterSpacing: "0.6px", width: "13%", color: WINE }}>UNITÁRIO</th>
+                <th style={{ padding: "8px 8px", textAlign: "right", fontWeight: 700, fontSize: "9px", letterSpacing: "0.6px", width: "14%", color: WINE }}>TOTAL</th>
               </tr>
             </thead>
             <tbody>
@@ -162,19 +157,19 @@ export const OrcamentoPdfTemplateBrand = forwardRef<HTMLDivElement, Props>(({
               <div><span style={{ color: "#7a6a48" }}>Qtd / Peso</span><br /><b style={tabular}>{quantidadeTotal} / {pesoTotal.toFixed(2)} kg</b></div>
             </div>
           </div>
-          {/* Direita: card valor total */}
-          <div style={{ background: INK, color: CREAM, padding: "10px 14px", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+          {/* Direita: card valor total — claro com destaque terracota */}
+          <div style={{ background: "#fff", border: `1px solid ${BORDER}`, borderTop: `3px solid ${ORANGE}`, padding: "10px 14px", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
             <div style={{ fontSize: "9.5px", lineHeight: 1.7 }}>
-              <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "#cdbfa3" }}>Total Produtos</span><span style={tabular}>{fmtMoney(totalProdutos)}</span></div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "#cdbfa3" }}>(−) Desconto</span><span style={tabular}>{fmtMoney(desconto)}</span></div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "#cdbfa3" }}>(+) ST</span><span style={tabular}>{fmtMoney(impostoSt)}</span></div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "#cdbfa3" }}>(+) IPI</span><span style={tabular}>{fmtMoney(impostoIpi)}</span></div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "#cdbfa3" }}>(+) Frete</span><span style={tabular}>{fmtMoney(freteValor)}</span></div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "#cdbfa3" }}>(+) Outras</span><span style={tabular}>{fmtMoney(outrasDespesas)}</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "#7a6a48" }}>Total Produtos</span><span style={{ ...tabular, color: INK }}>{fmtMoney(totalProdutos)}</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "#7a6a48" }}>(−) Desconto</span><span style={{ ...tabular, color: INK }}>{fmtMoney(desconto)}</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "#7a6a48" }}>(+) ST</span><span style={{ ...tabular, color: INK }}>{fmtMoney(impostoSt)}</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "#7a6a48" }}>(+) IPI</span><span style={{ ...tabular, color: INK }}>{fmtMoney(impostoIpi)}</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "#7a6a48" }}>(+) Frete</span><span style={{ ...tabular, color: INK }}>{fmtMoney(freteValor)}</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "#7a6a48" }}>(+) Outras</span><span style={{ ...tabular, color: INK }}>{fmtMoney(outrasDespesas)}</span></div>
             </div>
-            <div style={{ borderTop: `1px solid ${ORANGE}`, marginTop: "8px", paddingTop: "8px", display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-              <span style={{ fontSize: "10px", letterSpacing: "1.5px", color: ORANGE, fontWeight: 700 }}>VALOR TOTAL</span>
-              <span style={{ fontSize: "20px", fontWeight: 700, color: CREAM, ...tabular }}>{fmtMoney(valorTotal)}</span>
+            <div style={{ background: CREAM, marginTop: "8px", padding: "8px 10px", borderLeft: `3px solid ${WINE}`, display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+              <span style={{ fontSize: "10px", letterSpacing: "1.5px", color: WINE, fontWeight: 700 }}>VALOR TOTAL</span>
+              <span style={{ fontSize: "22px", fontWeight: 700, color: WINE, ...tabular }}>{fmtMoney(valorTotal)}</span>
             </div>
           </div>
         </div>

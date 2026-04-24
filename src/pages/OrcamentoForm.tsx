@@ -129,16 +129,19 @@ export default function OrcamentoForm() {
   const [autoScale, setAutoScale] = useState<number>(1);
   const { confirm: confirmAction, dialog: confirmActionDialog } = useConfirmDialog();
 
-  // Auto-fit do preview A4 ao container do stage
+  // Auto-fit do preview A4 ao container do stage (largura E altura)
   useEffect(() => {
     if (!previewOpen) return;
     const el = previewStageRef.current;
     if (!el) return;
-    const A4_WIDTH_PX = 794; // 210mm @ 96dpi
+    const A4_WIDTH_PX = 794;  // 210mm @ 96dpi
+    const A4_HEIGHT_PX = 1123; // 297mm @ 96dpi
+    const PAD = 32; // padding interno do stage
     const compute = () => {
-      const w = el.clientWidth - 48; // padding p-6
-      const s = Math.min(1.2, Math.max(0.4, w / A4_WIDTH_PX));
-      setAutoScale(s);
+      const w = Math.max(0, el.clientWidth - PAD);
+      const h = Math.max(0, el.clientHeight - PAD);
+      const s = Math.min(w / A4_WIDTH_PX, h / A4_HEIGHT_PX);
+      setAutoScale(Math.min(1.2, Math.max(0.35, s)));
     };
     compute();
     const ro = new ResizeObserver(compute);
@@ -1260,7 +1263,7 @@ export default function OrcamentoForm() {
         )}
 
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-        <DialogContent className="max-w-[1100px] w-[95vw] max-h-[95vh] overflow-hidden p-0 flex flex-col">
+        <DialogContent className="max-w-[1200px] w-[96vw] h-[96vh] max-h-[96vh] overflow-hidden p-0 flex flex-col">
           <DialogHeader className="sr-only">
             <DialogTitle>Pré-visualização do Orçamento</DialogTitle>
             <DialogDescription>Visualize como o orçamento será impresso ou enviado ao cliente.</DialogDescription>
@@ -1297,17 +1300,24 @@ export default function OrcamentoForm() {
               <Button size="sm" onClick={handleGeneratePdf} className="gap-1.5 h-8"><FileText className="w-3.5 h-3.5" />Baixar PDF</Button>
             </div>
           </div>
-          {/* Stage A4 com auto-fit */}
-          <div ref={previewStageRef} className="flex-1 overflow-auto bg-muted/40 p-6">
+          {/* Stage A4 com auto-fit (largura + altura) */}
+          <div ref={previewStageRef} className="flex-1 overflow-auto bg-muted/40 p-4">
             <div
-              className="mx-auto bg-white shadow-2xl"
+              className="mx-auto"
               style={{
-                width: "210mm",
-                transform: `scale(${previewZoom || autoScale})`,
-                transformOrigin: "top center",
-                marginBottom: `calc(297mm * ${(previewZoom || autoScale) - 1} * -1)`,
+                width: `calc(210mm * ${previewZoom || autoScale})`,
+                height: `calc(297mm * ${previewZoom || autoScale})`,
               }}
             >
+              <div
+                className="bg-white shadow-2xl"
+                style={{
+                  width: "210mm",
+                  height: "297mm",
+                  transform: `scale(${previewZoom || autoScale})`,
+                  transformOrigin: "top left",
+                }}
+              >
               {layoutTemplate === 'marca' ? (
                 <OrcamentoPdfTemplateBrand
                   ref={pdfRef} numero={numero} data={dataOrcamento} cliente={clienteSnapshot}
@@ -1331,6 +1341,7 @@ export default function OrcamentoForm() {
                   empresa={empresaConfig || undefined}
                 />
               )}
+              </div>
             </div>
           </div>
         </DialogContent>
