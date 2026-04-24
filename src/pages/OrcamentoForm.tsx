@@ -1325,8 +1325,10 @@ export default function OrcamentoForm() {
                   desconto={desconto} impostoSt={impostoSt} impostoIpi={impostoIpi}
                   freteValor={freteValor} outrasDespesas={outrasDespesas} valorTotal={valorTotal}
                   quantidadeTotal={quantidadeTotal} pesoTotal={pesoTotal} pagamento={pagamento}
-                  prazoPagamento={prazoPagamento} prazoEntrega={prazoEntrega} freteTipo={freteTipo}
-                  modalidade={modalidade} observacoes={observacoes}
+                  prazoPagamento={prazoPagamento} prazoEntrega={prazoEntrega}
+                  freteTipo={servicoFrete || freteTipo}
+                  modalidade={freteTipo || modalidade}
+                  observacoes={observacoes}
                   empresa={empresaConfig || undefined}
                 />
               ) : (
@@ -1336,8 +1338,10 @@ export default function OrcamentoForm() {
                   desconto={desconto} impostoSt={impostoSt} impostoIpi={impostoIpi}
                   freteValor={freteValor} outrasDespesas={outrasDespesas} valorTotal={valorTotal}
                   quantidadeTotal={quantidadeTotal} pesoTotal={pesoTotal} pagamento={pagamento}
-                  prazoPagamento={prazoPagamento} prazoEntrega={prazoEntrega} freteTipo={freteTipo}
-                  modalidade={modalidade} observacoes={observacoes}
+                  prazoPagamento={prazoPagamento} prazoEntrega={prazoEntrega}
+                  freteTipo={servicoFrete || freteTipo}
+                  modalidade={freteTipo || modalidade}
+                  observacoes={observacoes}
                   empresa={empresaConfig || undefined}
                 />
               )}
