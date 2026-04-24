@@ -39,7 +39,7 @@ export const styles = {
   },
   logo: {
     margin: '0 auto',
-    height: '64px',
+    height: '120px',
     width: 'auto',
   },
   body: { padding: '32px' },
