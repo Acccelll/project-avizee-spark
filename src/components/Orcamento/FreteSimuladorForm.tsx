@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Loader2, Plus, Trash2, Box, Settings2 } from 'lucide-react';
 import type { CaixaEmbalagem } from '@/services/freteSimulacao.service';
 
@@ -22,8 +23,8 @@ interface FreteSimuladorFormProps {
   caixas: CaixaEmbalagem[];
   gerenciarCaixasOpen: boolean;
   setGerenciarCaixasOpen: (v: boolean) => void;
-  novaCaixa: { nome: string; altura: string; largura: string; comprimento: string };
-  setNovaCaixa: (v: { nome: string; altura: string; largura: string; comprimento: string }) => void;
+  novaCaixa: { nome: string; altura: string; largura: string; comprimento: string; peso: string };
+  setNovaCaixa: (v: { nome: string; altura: string; largura: string; comprimento: string; peso: string }) => void;
   salvandoCaixa: boolean;
   onSelecionarCaixa: (id: string) => void;
   onAdicionarCaixa: () => void;
@@ -62,35 +63,38 @@ export function FreteSimuladorForm({
                 {caixas.length === 0 ? 'Cadastrar caixas' : 'Gerenciar'}
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-md">
+            <DialogContent className="max-w-md max-h-[85vh] flex flex-col p-0 gap-0">
               <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
+                <DialogTitle className="flex items-center gap-2 px-6 pt-6 pb-2">
                   <Box className="h-4 w-4" />
                   Caixas de Embalagem
                 </DialogTitle>
               </DialogHeader>
-              <div className="space-y-4">
-                {caixas.length > 0 ? (
-                  <div className="space-y-1.5">
-                    {caixas.map((c) => (
-                      <div key={c.id} className="flex items-center justify-between rounded-md border px-3 py-2 text-sm">
-                        <div>
-                          <span className="font-medium">{c.nome}</span>
-                          <span className="ml-2 text-xs text-muted-foreground">
-                            {c.altura_cm} × {c.largura_cm} × {c.comprimento_cm} cm
-                          </span>
+              <ScrollArea className="flex-1 px-6">
+                <div className="space-y-4 py-2">
+                  {caixas.length > 0 ? (
+                    <div className="space-y-1.5">
+                      {caixas.map((c) => (
+                        <div key={c.id} className="flex items-center justify-between rounded-md border px-3 py-2 text-sm gap-2">
+                          <div className="min-w-0 flex-1">
+                            <div className="font-medium truncate">{c.nome}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {c.altura_cm} × {c.largura_cm} × {c.comprimento_cm} cm
+                              {c.peso_kg ? ` · ${c.peso_kg.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 3 })} kg` : ''}
+                            </div>
+                          </div>
+                          <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => onRemoverCaixa(c.id)} title="Remover caixa">
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
                         </div>
-                        <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => onRemoverCaixa(c.id)} title="Remover caixa">
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-xs text-muted-foreground">Nenhuma caixa cadastrada.</p>
-                )}
-                <Separator />
-                <div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">Nenhuma caixa cadastrada.</p>
+                  )}
+                </div>
+              </ScrollArea>
+              <div className="border-t px-6 py-4 bg-background">
                   <p className="text-xs font-medium mb-2">Nova caixa</p>
                   <div className="grid grid-cols-2 gap-2">
                     <div className="col-span-2 space-y-1">
@@ -109,12 +113,15 @@ export function FreteSimuladorForm({
                       <Label className="text-xs">Comprimento (cm)*</Label>
                       <Input type="number" min={0} placeholder="0" value={novaCaixa.comprimento} onChange={(e) => setNovaCaixa({ ...novaCaixa, comprimento: e.target.value })} className="h-8 text-sm" />
                     </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Peso (kg)</Label>
+                      <Input type="number" min={0} step="0.001" placeholder="0,000" value={novaCaixa.peso} onChange={(e) => setNovaCaixa({ ...novaCaixa, peso: e.target.value })} className="h-8 text-sm" />
+                    </div>
                   </div>
                   <Button size="sm" onClick={onAdicionarCaixa} disabled={salvandoCaixa} className="mt-3 gap-1.5">
                     {salvandoCaixa ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
                     Adicionar caixa
                   </Button>
-                </div>
               </div>
             </DialogContent>
           </Dialog>
