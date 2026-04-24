@@ -1,47 +1,104 @@
+## Objetivo
 
-Implementar R3 (PeriodFilter global no header) e R4 (ItemsGrid consolidado) — os dois itens estruturais restantes do roadmap mobile.
+Adequar visualmente o PDF de orçamento gerado em `src/components/Orcamento/OrcamentoPdfTemplate.tsx` ao **modelo de referência** enviado (`Modelo.pdf`), mantendo formato A4 retrato e a mesma pipeline de geração (`html2canvas` + `jsPDF` em `OrcamentoForm.tsx`, sem alterações nessa pipeline).
 
-## Entrega 1 — R3: PeriodFilter global
+A geração já é A4 (`new jsPDF("p", "mm", "a4")` com largura `210mm` no template). O ajuste é puramente de **layout/estilo**.
 
-**Estado atual:**
-- `DashboardPeriodContext` já existe e é consumido pelo Dashboard (Index).
-- Outras páginas (Financeiro, Comercial, Compras, Fiscal, Auditoria, Social) usam `PeriodFilter` localmente, cada uma com seu próprio state.
-- O contrato `mem://produto/contrato-de-periodos.md` já define presets canônicos.
+## Diferenças entre layout atual e o modelo
 
-**Mudança:**
-1. Renomear `DashboardPeriodContext` → `GlobalPeriodContext` (manter export alias para não quebrar Index).
-2. Provider já está montado no `App.tsx` (verificar). Se não, montar.
-3. Adicionar um seletor compacto de período no `MobileDashboardHeader` (já existe) — confirmar que está OK.
-4. Adicionar slot opcional `<GlobalPeriodChip>` no `AppHeader` mobile que abre um popover com PeriodFilter, alterando o contexto global.
-5. Páginas continuam com seu PeriodFilter local (não migrar todas — risco alto). O global serve como **default** para novas telas e para o dashboard.
+| Bloco | Atual | Modelo (alvo) |
+|---|---|---|
+| Header | Logo pequena + texto bordô (#690500), título "ORÇAMENTO" no canto direito sem caixa | Caixa com borda fina envolvendo tudo. Logo grande à esquerda, dados da empresa centralizados ao lado. À direita, **3 células empilhadas** (Orçamento / nº / Data) com bordas |
+| Cliente | Caixa cantos arredondados, grid 3 col com labels em negrito | Caixa retangular (sem cantos arredondados), labels alinhados à direita do título, grid claro 3-colunas com mais espaço entre linhas |
+| Tabela itens (header) | Fundo bege `#f0e8d8`, texto preto | **Fundo laranja sólido `#C9743A`, texto branco em negrito** |
+| Tabela itens (linhas) | Borda inferior bege | Linhas mais limpas; border externo na tabela toda |
+| Totais | Caixa arredondada com 7 sub-blocos centralizados, "Valor Total" em fundo creme com texto bordô | **Faixa de células com bordas (estilo tabela)**, todos os 7 valores. Última célula "Valor Total" com **fundo laranja sólido + texto branco em negrito** |
+| Condições comerciais | Caixa separada arredondada com 2 grids | **Continuação direta da tabela de totais** (mesma borda/estilo), 2 linhas com Quantidade/Peso/Pagamento/Prazo + Prazo Entrega/Frete/Tipo |
+| Observações | Caixa arredondada com título bordô | Título "OBSERVAÇÕES" em negrito **fora** da caixa, e abaixo uma **caixa retangular vazia** apenas com borda fina |
+| Paleta | Bordô `#690500` como destaque + bege `#f0e8d8` | **Laranja terracota `#C9743A`** (cor da logo Avizee no modelo) como único destaque, sobre branco/preto |
+| Cantos | Vários `borderRadius: 4px` | Tudo retangular, sem cantos arredondados |
 
-Decisão: fazer R3 de forma **incremental e não-invasiva** — apenas expor o chip global no AppHeader mobile. Não migrar páginas existentes (escopo controlado).
+## Plano de implementação
 
-## Entrega 2 — R4: ItemsGrid consolidado
+### 1. Refazer `src/components/Orcamento/OrcamentoPdfTemplate.tsx`
 
-**Estado atual:**
-- `OrcamentoForm`, `PedidoForm`, `RemessaForm`, NF-forms têm grids próprios de itens (produto + qtd + valor).
-- Cada um repete: cabeçalhos de coluna, linha por item, botão remover, total, scroll mobile.
+Substituir o `return (...)` do componente mantendo:
+- A mesma assinatura de props (`Props`) e o `forwardRef<HTMLDivElement, Props>`.
+- O mesmo cálculo `paddedItems` (mínimo 10 linhas).
+- Os helpers `formatDate` e `paymentLabel`.
+- Os mesmos campos de empresa/cliente já lidos.
 
-**Mudança:**
-1. Criar `src/components/forms/ItemsGrid.tsx` — wrapper genérico com:
-   - `columns: { key, label, render, width?, align?, mobileLabel? }[]`
-   - `items: T[]`
-   - `onRemove?: (index) => void`
-   - `onAdd?: () => void`
-   - `emptyMessage?: string`
-   - `footerSummary?: ReactNode` (totais)
-   - Renderiza tabela em desktop, cards empilhados em mobile.
-2. **NÃO migrar** os forms existentes nesta entrega — apenas disponibilizar o componente. Migração é arriscada e cada form tem regras específicas (pricing, descontos, vinculação a estoque). Documentar no JSDoc + memória como "padrão preferido para novos forms".
+Mudanças visuais a aplicar (todas inline-style, para que `html2canvas` capture corretamente):
 
-## Arquivos
-- `src/contexts/DashboardPeriodContext.tsx` → adicionar export alias `GlobalPeriodContext` / `useGlobalPeriod`.
-- `src/components/navigation/GlobalPeriodChip.tsx` → NOVO (chip mobile que abre popover).
-- `src/components/AppHeader.tsx` ou equivalente → integrar chip mobile (read-only se não houver header mobile genérico).
-- `src/components/forms/ItemsGrid.tsx` → NOVO componente reutilizável.
-- `mem://produto/mobile-overview.md` → marcar R3/R4 como "infraestrutura disponível, migração on-demand".
+**Container raiz**
+- Manter `width: 210mm`, `minHeight: 297mm`.
+- Reduzir padding para `8mm 10mm` (mais próximo das margens do modelo).
+- Trocar fonte principal para algo mais "documental": manter `Montserrat` mas com `fontSize: 10px` base.
+- Definir constante local `const ORANGE = "#C9743A";` e `const BORDER = "#5a5a5a";` para reutilização.
 
-## Sem mudança
-- Forms existentes (Orçamento/Pedido/Remessa/NF) — não migrar agora.
-- Páginas com PeriodFilter local — não migrar agora.
-- Schema, RLS, edge functions.
+**Header (substituir bloco atual)**
+- `<div>` externo com `border: 1px solid ${BORDER}` envolvendo tudo.
+- Layout flex 3 colunas: 
+  - Coluna esquerda (logo): `flex: "0 0 25%"`, padding interno, `<img>` com `height: 60px`.
+  - Coluna central (dados empresa): `flex: 1`, padding interno, `border-left: 1px solid ${BORDER}`. Nome em negrito 13px no topo, depois endereço/fone/CNPJ em 9px.
+  - Coluna direita (Orçamento/Data): `flex: "0 0 18%"`, `border-left: 1px solid ${BORDER}`, dividido em 4 linhas alternando label+valor (label centralizado em 9px com fundo branco; valor centralizado em 11px). Linhas separadas por `borderTop: 1px solid ${BORDER}`.
+
+**Bloco Cliente (substituir)**
+- `<div>` com `border: 1px solid ${BORDER}`, sem `borderRadius`, padding `8px 12px`, `marginTop: 6px`.
+- Manter o mesmo grid 3 colunas, mas:
+  - Labels alinhados à direita seguidos de `:` e valor à esquerda (usar `display: grid; grid-template-columns: auto 1fr auto 1fr auto 1fr` por linha, ou manter grid atual com label `text-align: right`).
+  - Aumentar `lineHeight` para `1.9` e usar negrito apenas no label.
+
+**Tabela de itens (ajustar)**
+- Envolver `<table>` em `border: 1px solid ${BORDER}`.
+- `<thead><tr>` com `background: ${ORANGE}`, `color: #fff`, `fontWeight: 700`, padding `6px 8px`.
+- Remover `borderBottom` bege das linhas; usar apenas borda `#e0e0e0` muito fina ou nenhuma (modelo tem linhas "soltas").
+- Alinhamentos: Código (left), Descrição (left), Variação (center), Qtd (center), Un (center), Unit (right), Total (right).
+- Remover ícone "R$" duplicado quando vazio (já está OK no atual; só revalidar).
+
+**Bloco Totais (refazer como tabela contínua)**
+- Substituir o grid atual por uma `<table>` real com `border-collapse: collapse; border: 1px solid ${BORDER}; width: 100%`.
+- Linha 1: 7 `<th>` com label cinza pequeno (Total Produtos, (-)Desconto, (+)Imposto S.T., (+)Imposto IPI, (+)Frete, (+)Outras desp., **Valor Total**). A célula "Valor Total" com `background: ${ORANGE}; color: #fff`.
+- Linha 2: 7 `<td>` com os valores em negrito. A célula "Valor Total" também com `background: ${ORANGE}; color: #fff; fontWeight: 700`.
+- Cada célula com `border: 1px solid ${BORDER}` e padding `4px 6px`.
+
+**Bloco Condições comerciais (anexar à tabela de totais)**
+- Logo abaixo, sem espaço, outra `<table>` com mesma borda externa.
+- Linha 1 (4 colunas com colspan): `Quantidade: X` | `Peso: X,XX` | `Pagamento: X` | `Prazo: X`.
+- Linha 2 (3 colunas): `Prazo de Entrega: X` (colspan 2) | `Frete: X` (colspan 2) | `Tipo: X` (colspan 2). Ajustar colspans para somar 7 e alinhar com tabela acima.
+- Labels em peso normal cinza, valores em negrito preto.
+
+**Observações (ajustar)**
+- Título `OBSERVAÇÕES` em negrito 10px **fora** da caixa, com `marginTop: 8px; marginBottom: 4px`.
+- Caixa abaixo: `border: 1px solid ${BORDER}`, `minHeight: 50px`, padding `6px 8px`, `whiteSpace: pre-wrap`, sem cor de fundo nem cantos arredondados.
+
+**Remoções**
+- Remover todas as ocorrências de `borderRadius` no template.
+- Remover destaques bordô `#690500` (substituir pelo `ORANGE`).
+- Remover o background `#fffaed` do bloco "Valor Total" antigo.
+
+### 2. Não tocar em `src/pages/OrcamentoForm.tsx`
+
+A pipeline de geração (`html2canvas` com `scale: 2` + `jsPDF` em A4 retrato) já produz uma página A4 corretamente; não há mudança de comportamento necessária. O nome do arquivo, o `previewOpen` e o fluxo de download permanecem.
+
+### 3. Validação visual
+
+Após a aplicação:
+- Abrir um orçamento existente, clicar em "Gerar PDF".
+- Conferir no PDF gerado:
+  - Header em caixa com 3 colunas (logo / dados empresa / Orçamento+Data).
+  - Tabela de itens com header laranja e texto branco.
+  - Faixa de totais com "Valor Total" laranja sólido, texto branco.
+  - Bloco de condições logo abaixo, sem espaço, mesma moldura.
+  - "OBSERVAÇÕES" em negrito acima de uma caixa vazia.
+  - Conteúdo cabe em 1 página A4 com até ~10 itens (já é o caso pelo padding de linhas).
+
+## Itens **fora** do escopo
+
+- Substituir `html2canvas` por uma biblioteca PDF nativa (ex.: `pdfmake`/`react-pdf`). Mantém-se o pipeline atual.
+- Mudanças na pipeline de envio por e-mail/token público.
+- Alterar o template usado em `OrcamentoView.tsx` (esse é a tela web, não o PDF).
+
+## Arquivos afetados
+
+- `src/components/Orcamento/OrcamentoPdfTemplate.tsx` — único arquivo modificado (somente o JSX retornado e constantes locais de cor).
