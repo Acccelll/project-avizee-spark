@@ -327,6 +327,11 @@ export function OrcamentoItemsGrid({ items, onChange, produtos, precosEspeciais 
                       {item.produto_id && <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => setDetailProductId(item.produto_id)}><Info className="h-3 w-3" /></Button>}
                     </div>
                     {hasSpecial && <p className="text-[11px] text-primary mt-1">Preço especial para este cliente aplicado.</p>}
+                    {item.variacao && (
+                      <p className="text-[11px] text-muted-foreground italic mt-0.5 truncate" title={item.variacao}>
+                        Variação: {item.variacao}
+                      </p>
+                    )}
                   </td>
                   <td className="px-2 py-1.5">
                     <div className="flex items-center gap-1">
@@ -439,6 +444,11 @@ export function OrcamentoItemsGrid({ items, onChange, produtos, precosEspeciais 
                 createNewLabel="Produto não encontrado? Cadastrar"
               />
               {hasSpecial && <p className="text-[11px] text-primary mt-1 flex items-center gap-1"><Tag className="h-3 w-3" />Preço especial aplicado</p>}
+              {item.variacao && (
+                <p className="text-[11px] text-muted-foreground italic mt-1">
+                  Variação: {item.variacao}
+                </p>
+              )}
             </div>
 
             {/* Qtd / Unitário / % */}
