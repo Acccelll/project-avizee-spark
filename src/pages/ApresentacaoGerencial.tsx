@@ -11,11 +11,15 @@ import {
   atualizarStatusEditorial,
   downloadApresentacao,
   downloadBlob,
+  executarCadenciaAgora,
   gerarApresentacao,
   incluirTemplateApresentacao,
+  listarApresentacaoCadencias,
   listarApresentacaoGeracoes,
   listarApresentacaoTemplates,
   listarComentarios,
+  removerApresentacaoCadencia,
+  salvarApresentacaoCadencia,
 } from '@/services/apresentacaoService';
 import { ApresentacaoGeracaoDialog } from '@/components/apresentacao/ApresentacaoGeracaoDialog';
 import { ApresentacaoSlidesPreview } from '@/components/apresentacao/ApresentacaoSlidesPreview';
@@ -23,6 +27,7 @@ import { ApresentacaoHistoricoTable } from '@/components/apresentacao/Apresentac
 import { ApresentacaoComentariosEditor } from '@/components/apresentacao/ApresentacaoComentariosEditor';
 import { ApresentacaoTemplateManager } from '@/components/apresentacao/ApresentacaoTemplateManager';
 import { ApresentacaoAprovacaoBar } from '@/components/apresentacao/ApresentacaoAprovacaoBar';
+import { ApresentacaoCadenciaManager } from '@/components/apresentacao/ApresentacaoCadenciaManager';
 import type { ApresentacaoGeracao, SlideCodigo } from '@/types/apresentacao';
 
 export default function ApresentacaoGerencial() {
@@ -41,6 +46,7 @@ export default function ApresentacaoGerencial() {
   const { data: templates = [] } = useQuery({ queryKey: ['apresentacao-templates'], queryFn: listarApresentacaoTemplates, enabled: canVisualizar });
   const { data: geracoes = [], refetch, isLoading } = useQuery({ queryKey: ['apresentacao-geracoes'], queryFn: listarApresentacaoGeracoes, enabled: canVisualizar });
   const { data: comentarios = [] } = useQuery({ queryKey: ['apresentacao-comentarios', selectedGeracaoId], queryFn: () => listarComentarios(selectedGeracaoId!), enabled: !!selectedGeracaoId });
+  const { data: cadencias = [] } = useQuery({ queryKey: ['apresentacao-cadencias'], queryFn: listarApresentacaoCadencias, enabled: canVisualizar });
 
   const selectedGeracao = useMemo<ApresentacaoGeracao | null>(() => geracoes.find((g) => g.id === selectedGeracaoId) ?? null, [geracoes, selectedGeracaoId]);
   const selectedSlides = useMemo<SlideCodigo[]>(() => (selectedGeracao?.slides_json as any)?.ativos ?? [], [selectedGeracao]);
@@ -77,6 +83,15 @@ export default function ApresentacaoGerencial() {
       queryClient.invalidateQueries({ queryKey: ['apresentacao-templates'] });
     },
     onError: (err) => toast.error(`Falha ao incluir template: ${err instanceof Error ? err.message : String(err)}`),
+  });
+
+  const cadenciaSaveMutation = useMutation({
+    mutationFn: salvarApresentacaoCadencia,
+    onSuccess: () => {
+      toast.success('Cadência salva.');
+      queryClient.invalidateQueries({ queryKey: ['apresentacao-cadencias'] });
+    },
+    onError: (err) => toast.error(`Falha ao salvar cadência: ${err instanceof Error ? err.message : String(err)}`),
   });
 
   if (!canVisualizar) {
@@ -120,6 +135,23 @@ export default function ApresentacaoGerencial() {
               }}
             />
           )}
+
+          <ApresentacaoCadenciaManager
+            cadencias={cadencias}
+            templates={templates}
+            canManage={canIncluirTemplate}
+            isSaving={cadenciaSaveMutation.isPending}
+            onSave={async (input) => { await cadenciaSaveMutation.mutateAsync(input); }}
+            onRemove={async (id) => {
+              await removerApresentacaoCadencia(id);
+              queryClient.invalidateQueries({ queryKey: ['apresentacao-cadencias'] });
+            }}
+            onRunNow={async (id) => {
+              await executarCadenciaAgora(id);
+              queryClient.invalidateQueries({ queryKey: ['apresentacao-cadencias'] });
+              queryClient.invalidateQueries({ queryKey: ['apresentacao-geracoes'] });
+            }}
+          />
 
           <ApresentacaoSlidesPreview
             activeSlides={selectedSlides.length ? selectedSlides : undefined}
