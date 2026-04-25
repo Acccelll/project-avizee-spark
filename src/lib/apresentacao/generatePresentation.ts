@@ -1,3 +1,4 @@
+import pptxgen from 'pptxgenjs';
 import JSZip from 'jszip';
 import { APRESENTACAO_SLIDES_MAP } from './slideDefinitions';
 import { buildAutomaticComment } from './commentRules';
@@ -6,42 +7,12 @@ import { pickEditedComment } from './utils';
 import { apresentacaoTheme } from './theme';
 import { defaultSlideLayout } from './layouts';
 import { formatMoneyCompact, formatPercentOne } from './numberFormat';
-import { getSeverityColor } from './colorRules';
 
-const EMU = 914400;
+const T = apresentacaoTheme.colors;
+const FONT = apresentacaoTheme.typography.fontFamily;
 
-function esc(value: string): string {
-  return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
-
-function emu(inches: number): number {
-  return Math.round(inches * EMU);
-}
-
-function hex(value: string): string {
-  return value.replace('#', '').toUpperCase();
-}
-
-function contentTypes(slideCount: number): string {
-  const slideOverrides = Array.from({ length: slideCount }, (_, i) => `<Override PartName="/ppt/slides/slide${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/>`).join('');
-  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/><Override PartName="/ppt/slideLayouts/slideLayout1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml"/><Override PartName="/ppt/slideMasters/slideMaster1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideMaster+xml"/><Override PartName="/ppt/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>${slideOverrides}</Types>`;
-}
-
-function baseXml(slideCount: number): Record<string, string> {
-  const slideEntries = Array.from({ length: slideCount }, (_, i) => `<p:sldId id="${256 + i}" r:id="rId${i + 2}"/>`).join('');
-  const relEntries = Array.from({ length: slideCount }, (_, i) => `<Relationship Id="rId${i + 2}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide${i + 1}.xml"/>`).join('');
-  return {
-    '[Content_Types].xml': contentTypes(slideCount),
-    '_rels/.rels': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="ppt/presentation.xml"/></Relationships>`,
-    'docProps/app.xml': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"><Application>AviZee ERP</Application></Properties>`,
-    'docProps/core.xml': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title>Apresentação Gerencial</dc:title></cp:coreProperties>`,
-    'ppt/presentation.xml': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><p:presentation xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:sldMasterIdLst><p:sldMasterId id="2147483648" r:id="rId1"/></p:sldMasterIdLst><p:sldIdLst>${slideEntries}</p:sldIdLst><p:sldSz cx="12192000" cy="6858000" type="wide"/><p:notesSz cx="6858000" cy="9144000"/></p:presentation>`,
-    'ppt/_rels/presentation.xml.rels': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster" Target="slideMasters/slideMaster1.xml"/>${relEntries}</Relationships>`,
-    'ppt/slideMasters/slideMaster1.xml': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><p:sldMaster xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:cSld><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/></p:spTree></p:cSld><p:sldLayoutIdLst><p:sldLayoutId id="1" r:id="rId1"/></p:sldLayoutIdLst></p:sldMaster>`,
-    'ppt/slideMasters/_rels/slideMaster1.xml.rels': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme" Target="../theme/theme1.xml"/></Relationships>`,
-    'ppt/slideLayouts/slideLayout1.xml': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><p:sldLayout xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" type="blank"><p:cSld><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/></p:spTree></p:cSld></p:sldLayout>`,
-    'ppt/theme/theme1.xml': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" name="AviZee"><a:themeElements><a:clrScheme name="AviZee"><a:dk1><a:srgbClr val="${apresentacaoTheme.colors.text}"/></a:dk1><a:lt1><a:srgbClr val="${apresentacaoTheme.colors.white}"/></a:lt1><a:accent1><a:srgbClr val="${apresentacaoTheme.colors.primary}"/></a:accent1><a:accent2><a:srgbClr val="${apresentacaoTheme.colors.secondary}"/></a:accent2><a:accent3><a:srgbClr val="${apresentacaoTheme.colors.accent}"/></a:accent3></a:clrScheme><a:fontScheme name="AviZee"><a:majorFont><a:latin typeface="${apresentacaoTheme.typography.fontFamily}"/></a:majorFont><a:minorFont><a:latin typeface="${apresentacaoTheme.typography.fontFamily}"/></a:minorFont></a:fontScheme><a:fmtScheme name="Office"/></a:themeElements></a:theme>`,
-  };
+function prettyLabel(key: string): string {
+  return key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 function formatValue(value: unknown, key = ''): string {
@@ -57,10 +28,6 @@ function formatValue(value: unknown, key = ''): string {
   return String(value);
 }
 
-function prettyLabel(key: string): string {
-  return key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
 function flatPairs(dados: Record<string, unknown>): Array<{ key: string; value: unknown }> {
   return Object.entries(dados)
     .filter(([k, v]) => !['indisponivel', 'motivo'].includes(k) && !Array.isArray(v) && typeof v !== 'object')
@@ -74,145 +41,222 @@ function findArrayRows(dados: Record<string, unknown>): Array<Record<string, unk
   return [];
 }
 
-function shapeBox(id: number, name: string, x: number, y: number, w: number, h: number, fill = apresentacaoTheme.colors.white, line = 'D1D5DB', radius = false): string {
-  return `<p:sp><p:nvSpPr><p:cNvPr id="${id}" name="${esc(name)}"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="${emu(x)}" y="${emu(y)}"/><a:ext cx="${emu(w)}" cy="${emu(h)}"/></a:xfrm><a:prstGeom prst="${radius ? 'roundRect' : 'rect'}"><a:avLst/></a:prstGeom><a:solidFill><a:srgbClr val="${hex(fill)}"/></a:solidFill><a:ln w="12700"><a:solidFill><a:srgbClr val="${hex(line)}"/></a:solidFill></a:ln></p:spPr><p:txBody><a:bodyPr/><a:lstStyle/><a:p/></p:txBody></p:sp>`;
+function numericPairs(dados: Record<string, unknown>): Array<{ key: string; value: number }> {
+  return flatPairs(dados).filter((p) => typeof p.value === 'number') as Array<{ key: string; value: number }>;
 }
 
-function shapeText(id: number, name: string, x: number, y: number, w: number, h: number, lines: string[], opts?: { size?: number; bold?: boolean; color?: string }): string {
-  const size = Math.round((opts?.size ?? apresentacaoTheme.typography.bodySize) * 100);
-  const bold = opts?.bold ? ' b="1"' : '';
-  const color = hex(opts?.color ?? apresentacaoTheme.colors.text);
-  const paragraphs = lines.map((line) => `<a:p><a:r><a:rPr sz="${size}"${bold}><a:solidFill><a:srgbClr val="${color}"/></a:solidFill></a:rPr><a:t>${esc(line)}</a:t></a:r></a:p>`).join('');
-  return `<p:sp><p:nvSpPr><p:cNvPr id="${id}" name="${esc(name)}"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="${emu(x)}" y="${emu(y)}"/><a:ext cx="${emu(w)}" cy="${emu(h)}"/></a:xfrm></p:spPr><p:txBody><a:bodyPr wrap="square"/><a:lstStyle/>${paragraphs || '<a:p/>'}</p:txBody></p:sp>`;
-}
-
-function unavailablePanel(idStart: number, motivo: string): string[] {
-  const c = getSeverityColor('warning');
-  return [
-    shapeBox(idStart, 'UnavailableBox', defaultSlideLayout.chart.x, defaultSlideLayout.chart.y, defaultSlideLayout.chart.w, defaultSlideLayout.chart.h, 'FFF7ED', hex(c), true),
-    shapeText(idStart + 1, 'UnavailableTitle', defaultSlideLayout.chart.x + 0.3, defaultSlideLayout.chart.y + 0.4, defaultSlideLayout.chart.w - 0.6, 0.5, ['Dados indisponíveis nesta fase'], { size: 18, bold: true, color: hex(c) }),
-    shapeText(idStart + 2, 'UnavailableBody', defaultSlideLayout.chart.x + 0.3, defaultSlideLayout.chart.y + 1.0, defaultSlideLayout.chart.w - 0.6, 1.2, [motivo || 'Este slide não possui base confiável no modo atual.'], { size: 12, color: apresentacaoTheme.colors.muted }),
-  ];
-}
-
-function renderCards(idStart: number, dados: Record<string, unknown>): string[] {
-  const pairs = flatPairs(dados).slice(0, 4);
-  if (!pairs.length) return unavailablePanel(idStart, 'Sem indicadores para exibição.');
-  const cards: string[] = [];
-  const cardW = 4.1;
-  const cardH = 1.35;
-  pairs.forEach((pair, idx) => {
-    const col = idx % 2;
-    const row = Math.floor(idx / 2);
-    const x = defaultSlideLayout.chart.x + col * (cardW + 0.25);
-    const y = defaultSlideLayout.chart.y + row * (cardH + 0.25);
-    const base = idStart + idx * 2;
-    cards.push(shapeBox(base, `Card${idx + 1}`, x, y, cardW, cardH, 'EEF2FF', 'C7D2FE', true));
-    cards.push(shapeText(base + 1, `CardText${idx + 1}`, x + 0.2, y + 0.18, cardW - 0.4, cardH - 0.3, [prettyLabel(pair.key), formatValue(pair.value, pair.key)], { size: 12, color: apresentacaoTheme.colors.primary, bold: true }));
+function addHeader(slide: pptxgen.Slide, titulo: string, subtitulo: string) {
+  slide.addShape('rect', { x: 0, y: 0, w: 13.33, h: 0.9, fill: { color: 'F1F5F9' }, line: { color: 'F1F5F9' } });
+  slide.addText(titulo, {
+    x: defaultSlideLayout.title.x, y: defaultSlideLayout.title.y, w: defaultSlideLayout.title.w, h: defaultSlideLayout.title.h,
+    fontSize: 22, bold: true, color: T.primary, fontFace: FONT,
   });
-  return cards;
-}
-
-function renderTable(idStart: number, dados: Record<string, unknown>): string[] {
-  const rows = findArrayRows(dados);
-  const shapes: string[] = [shapeBox(idStart, 'TableArea', defaultSlideLayout.chart.x, defaultSlideLayout.chart.y, defaultSlideLayout.chart.w, defaultSlideLayout.chart.h, 'FFFFFF', 'CBD5E1', true)];
-  if (rows.length) {
-    const cols = Object.keys(rows[0]).slice(0, 3);
-    shapes.push(shapeText(idStart + 1, 'TableHeader', defaultSlideLayout.chart.x + 0.2, defaultSlideLayout.chart.y + 0.15, defaultSlideLayout.chart.w - 0.4, 0.4, [cols.map(prettyLabel).join('  |  ')], { size: 12, bold: true, color: apresentacaoTheme.colors.primary }));
-    const lineRows = rows.slice(0, 6).map((r) => cols.map((c) => formatValue(r[c], c)).join('  |  '));
-    shapes.push(shapeText(idStart + 2, 'TableRows', defaultSlideLayout.chart.x + 0.2, defaultSlideLayout.chart.y + 0.6, defaultSlideLayout.chart.w - 0.4, defaultSlideLayout.chart.h - 0.8, lineRows, { size: 11 }));
-    return shapes;
+  if (subtitulo) {
+    slide.addText(subtitulo, {
+      x: defaultSlideLayout.subtitle.x, y: defaultSlideLayout.subtitle.y, w: defaultSlideLayout.subtitle.w, h: defaultSlideLayout.subtitle.h,
+      fontSize: 12, color: T.muted, fontFace: FONT,
+    });
   }
-
-  const pairs = flatPairs(dados).slice(0, 8).map((p) => `${prettyLabel(p.key)}: ${formatValue(p.value, p.key)}`);
-  shapes.push(shapeText(idStart + 1, 'TableFallback', defaultSlideLayout.chart.x + 0.2, defaultSlideLayout.chart.y + 0.3, defaultSlideLayout.chart.w - 0.4, defaultSlideLayout.chart.h - 0.5, pairs.length ? pairs : ['Sem dados tabulares para exibição.'], { size: 12 }));
-  return shapes;
 }
 
-function renderRanking(idStart: number, dados: Record<string, unknown>): string[] {
-  const rows = findArrayRows(dados);
-  const items = rows.slice(0, 5).map((r, idx) => {
-    const name = String(r.nome ?? r.label ?? r.estado ?? `Item ${idx + 1}`);
-    const valKey = Object.keys(r).find((k) => typeof r[k] === 'number') ?? 'valor';
-    const value = formatValue(r[valKey], valKey);
-    return `${idx + 1}. ${name} — ${value}`;
+function addFooter(slide: pptxgen.Slide, codigo: string, periodo: string) {
+  slide.addText(`${codigo} · ${periodo}`, {
+    x: 0.5, y: 6.95, w: 12.2, h: 0.25, fontSize: 9, color: T.muted, fontFace: FONT,
   });
-  const lines = items.length ? items : flatPairs(dados).slice(0, 5).map((p, idx) => `${idx + 1}. ${prettyLabel(p.key)} — ${formatValue(p.value, p.key)}`);
-  return [
-    shapeBox(idStart, 'RankingBox', defaultSlideLayout.chart.x, defaultSlideLayout.chart.y, defaultSlideLayout.chart.w, defaultSlideLayout.chart.h, 'FFFFFF', 'D1D5DB', true),
-    shapeText(idStart + 1, 'RankingText', defaultSlideLayout.chart.x + 0.25, defaultSlideLayout.chart.y + 0.25, defaultSlideLayout.chart.w - 0.5, defaultSlideLayout.chart.h - 0.4, lines.length ? lines : ['Sem ranking disponível.'], { size: 12 }),
-  ];
 }
 
-function renderSeries(idStart: number, dados: Record<string, unknown>): string[] {
-  const numerics = flatPairs(dados)
-    .filter((p) => typeof p.value === 'number')
-    .slice(0, 6) as Array<{ key: string; value: number }>;
-  if (!numerics.length) return unavailablePanel(idStart, 'Sem série numérica para visualização.');
-  const max = Math.max(...numerics.map((n) => Math.abs(n.value)), 1);
-  const lines = numerics.map((n) => {
-    const bars = Math.max(1, Math.round((Math.abs(n.value) / max) * 16));
-    return `${prettyLabel(n.key)} ${'█'.repeat(bars)} ${formatValue(n.value, n.key)}`;
+function addCommentary(slide: pptxgen.Slide, comment: string) {
+  const c = defaultSlideLayout.commentary;
+  slide.addShape('roundRect', { x: c.x, y: c.y, w: c.w, h: c.h, fill: { color: 'ECFEFF' }, line: { color: '67E8F9' }, rectRadius: 0.08 });
+  slide.addText('Comentário executivo', { x: c.x + 0.2, y: c.y + 0.2, w: c.w - 0.4, h: 0.4, fontSize: 12, bold: true, color: T.primary, fontFace: FONT });
+  slide.addText(comment || 'Sem comentário adicional.', { x: c.x + 0.2, y: c.y + 0.65, w: c.w - 0.4, h: c.h - 0.85, fontSize: 11, color: T.text, fontFace: FONT, valign: 'top' });
+}
+
+function addUnavailable(slide: pptxgen.Slide, motivo: string) {
+  const c = defaultSlideLayout.chart;
+  slide.addShape('roundRect', { x: c.x, y: c.y, w: c.w, h: c.h, fill: { color: 'FFF7ED' }, line: { color: 'D97706' }, rectRadius: 0.08 });
+  slide.addText('Dados indisponíveis nesta fase', { x: c.x + 0.3, y: c.y + 0.4, w: c.w - 0.6, h: 0.5, fontSize: 18, bold: true, color: 'D97706', fontFace: FONT });
+  slide.addText(motivo || 'Este slide não possui base confiável no modo atual.', {
+    x: c.x + 0.3, y: c.y + 1.0, w: c.w - 0.6, h: 1.2, fontSize: 12, color: T.muted, fontFace: FONT, valign: 'top',
   });
-  return [
-    shapeBox(idStart, 'SeriesBox', defaultSlideLayout.chart.x, defaultSlideLayout.chart.y, defaultSlideLayout.chart.w, defaultSlideLayout.chart.h, 'FFFFFF', 'D1D5DB', true),
-    shapeText(idStart + 1, 'SeriesText', defaultSlideLayout.chart.x + 0.25, defaultSlideLayout.chart.y + 0.25, defaultSlideLayout.chart.w - 0.5, defaultSlideLayout.chart.h - 0.5, lines, { size: 11 }),
-  ];
 }
 
-function renderCover(slide: SlideData, data: ApresentacaoDataBundle): string[] {
-  const periodo = `${data.periodo.competenciaInicial} a ${data.periodo.competenciaFinal}`;
-  return [
-    shapeBox(10, 'CoverBand', 0, 0, 13.33, 1.3, apresentacaoTheme.colors.primary, apresentacaoTheme.colors.primary),
-    shapeText(11, 'CoverBrand', 0.6, 0.35, 6, 0.6, ['AviZee | Apresentação Gerencial'], { size: 14, color: apresentacaoTheme.colors.white, bold: true }),
-    shapeText(12, 'CoverTitle', 0.7, 2.0, 11.5, 1.1, [slide.titulo], { size: 36, color: apresentacaoTheme.colors.primary, bold: true }),
-    shapeText(13, 'CoverSubtitle', 0.7, 3.2, 11.5, 0.8, [slide.subtitulo || 'Resumo executivo do período'], { size: 18, color: apresentacaoTheme.colors.muted }),
-    shapeText(14, 'CoverPeriod', 0.7, 4.3, 11.5, 0.6, [`Período: ${periodo}`], { size: 14, color: apresentacaoTheme.colors.secondary, bold: true }),
-  ];
+function renderCover(slide: pptxgen.Slide, def: SlideData, periodo: string) {
+  slide.background = { color: T.white };
+  slide.addShape('rect', { x: 0, y: 0, w: 13.33, h: 1.3, fill: { color: T.primary }, line: { color: T.primary } });
+  slide.addText('AviZee | Apresentação Gerencial', { x: 0.6, y: 0.35, w: 6, h: 0.6, fontSize: 14, bold: true, color: T.white, fontFace: FONT });
+  slide.addText(def.titulo, { x: 0.7, y: 2.0, w: 11.5, h: 1.1, fontSize: 36, bold: true, color: T.primary, fontFace: FONT });
+  slide.addText(def.subtitulo || 'Resumo executivo do período', { x: 0.7, y: 3.2, w: 11.5, h: 0.8, fontSize: 18, color: T.muted, fontFace: FONT });
+  slide.addText(`Período: ${periodo}`, { x: 0.7, y: 4.3, w: 11.5, h: 0.6, fontSize: 14, bold: true, color: T.secondary, fontFace: FONT });
 }
 
-function renderClosing(slide: SlideData, comment: string, metadata?: Record<string, unknown>): string[] {
+function renderClosing(slide: pptxgen.Slide, def: SlideData, comment: string, metadata?: Record<string, unknown>) {
+  const c = defaultSlideLayout.chart;
+  slide.addShape('roundRect', { x: c.x, y: 2.0, w: 8.8, h: 2.7, fill: { color: 'F8FAFC' }, line: { color: 'CBD5E1' }, rectRadius: 0.08 });
+  slide.addText(def.titulo || 'Encerramento', { x: c.x + 0.3, y: 2.3, w: 8.2, h: 0.7, fontSize: 24, bold: true, color: T.primary, fontFace: FONT });
+  slide.addText(comment || 'Obrigado. Próximos passos na sequência da agenda executiva.', { x: c.x + 0.3, y: 3.0, w: 8.2, h: 1.5, fontSize: 13, color: T.text, fontFace: FONT, valign: 'top' });
   const metaKeys = metadata ? Object.keys(metadata).slice(0, 3) : [];
   const metaLine = metaKeys.length ? `Base: ${metaKeys.join(', ')}` : 'Base: parâmetros da geração';
-  return [
-    shapeBox(10, 'ClosingMain', defaultSlideLayout.chart.x, 2.0, 8.8, 2.7, 'F8FAFC', 'CBD5E1', true),
-    shapeText(11, 'ClosingTitle', defaultSlideLayout.chart.x + 0.3, 2.3, 8.2, 0.7, [slide.titulo || 'Encerramento'], { size: 24, bold: true, color: apresentacaoTheme.colors.primary }),
-    shapeText(12, 'ClosingBody', defaultSlideLayout.chart.x + 0.3, 3.0, 8.2, 1.5, [comment || 'Obrigado. Próximos passos na sequência da agenda executiva.'], { size: 13 }),
-    shapeText(13, 'ClosingMeta', 0.6, 6.7, 12.2, 0.35, [metaLine], { size: 10, color: apresentacaoTheme.colors.muted }),
-  ];
+  slide.addText(metaLine, { x: 0.6, y: 6.7, w: 12.2, h: 0.35, fontSize: 10, color: T.muted, fontFace: FONT });
 }
 
-function slideXml(slide: SlideData, data: ApresentacaoDataBundle, comment: string, metadata?: Record<string, unknown>): string {
-  const def = APRESENTACAO_SLIDES_MAP.get(slide.codigo);
-  const content: string[] = [];
-  content.push(shapeBox(2, 'HeaderBand', 0, 0, 13.33, 0.9, 'F1F5F9', 'F1F5F9'));
-  content.push(shapeText(3, 'Title', defaultSlideLayout.title.x, defaultSlideLayout.title.y, defaultSlideLayout.title.w, defaultSlideLayout.title.h, [slide.titulo], { size: 22, bold: true, color: apresentacaoTheme.colors.primary }));
-  content.push(shapeText(4, 'Subtitle', defaultSlideLayout.subtitle.x, defaultSlideLayout.subtitle.y, defaultSlideLayout.subtitle.w, defaultSlideLayout.subtitle.h, [slide.subtitulo || ''], { size: 12, color: apresentacaoTheme.colors.muted }));
+function renderCards(slide: pptxgen.Slide, dados: Record<string, unknown>) {
+  const pairs = flatPairs(dados).slice(0, 4);
+  if (!pairs.length) { addUnavailable(slide, 'Sem indicadores para exibição.'); return; }
+  const cardW = 4.1, cardH = 1.35;
+  pairs.forEach((p, idx) => {
+    const col = idx % 2, row = Math.floor(idx / 2);
+    const x = defaultSlideLayout.chart.x + col * (cardW + 0.25);
+    const y = defaultSlideLayout.chart.y + row * (cardH + 0.25);
+    slide.addShape('roundRect', { x, y, w: cardW, h: cardH, fill: { color: 'EEF2FF' }, line: { color: 'C7D2FE' }, rectRadius: 0.08 });
+    slide.addText(prettyLabel(p.key), { x: x + 0.2, y: y + 0.18, w: cardW - 0.4, h: 0.4, fontSize: 11, color: T.muted, fontFace: FONT });
+    slide.addText(formatValue(p.value, p.key), { x: x + 0.2, y: y + 0.55, w: cardW - 0.4, h: 0.7, fontSize: 22, bold: true, color: T.primary, fontFace: FONT });
+  });
+}
 
-  if (slide.codigo === 'cover') {
-    content.push(...renderCover(slide, data));
-  } else if (slide.codigo === 'closing') {
-    content.push(...renderClosing(slide, comment, metadata));
-  } else if (slide.indisponivel) {
-    content.push(...unavailablePanel(20, String(slide.dados.motivo ?? 'não automatizado no modo fechado')));
-  } else if (def?.chartType === 'cards') {
-    content.push(...renderCards(20, slide.dados));
-  } else if (def?.chartType === 'tabela') {
-    content.push(...renderTable(20, slide.dados));
-  } else if (def?.chartType === 'barra_horizontal') {
-    content.push(...renderRanking(20, slide.dados));
-  } else if (def?.chartType === 'coluna' || def?.chartType === 'linha' || def?.chartType === 'stacked' || def?.chartType === 'waterfall' || def?.chartType === 'donut') {
-    content.push(...renderSeries(20, slide.dados));
-  } else {
-    content.push(...renderTable(20, slide.dados));
+function renderTable(slide: pptxgen.Slide, dados: Record<string, unknown>) {
+  const c = defaultSlideLayout.chart;
+  const rows = findArrayRows(dados);
+  if (rows.length) {
+    const cols = Object.keys(rows[0]).slice(0, 4);
+    const header = cols.map((k) => ({ text: prettyLabel(k), options: { bold: true, color: T.white, fill: { color: T.primary }, fontFace: FONT, fontSize: 11 } }));
+    const body = rows.slice(0, 8).map((r) => cols.map((k) => ({
+      text: formatValue(r[k], k),
+      options: { fontSize: 10, color: T.text, fontFace: FONT },
+    })));
+    slide.addTable([header, ...body], { x: c.x, y: c.y, w: c.w, colW: cols.map(() => c.w / cols.length), border: { type: 'solid', color: 'E5E7EB', pt: 0.5 } });
+    return;
   }
+  const pairs = flatPairs(dados).slice(0, 8);
+  if (!pairs.length) { addUnavailable(slide, 'Sem dados tabulares para exibição.'); return; }
+  const tbl = pairs.map((p) => [
+    { text: prettyLabel(p.key), options: { bold: true, fontSize: 11, color: T.text, fontFace: FONT } },
+    { text: formatValue(p.value, p.key), options: { fontSize: 11, color: T.primary, fontFace: FONT, align: 'right' as const } },
+  ]);
+  slide.addTable(tbl, { x: c.x, y: c.y, w: c.w, colW: [c.w * 0.6, c.w * 0.4], border: { type: 'solid', color: 'E5E7EB', pt: 0.5 } });
+}
 
-  content.push(shapeBox(100, 'CommentBox', defaultSlideLayout.commentary.x, defaultSlideLayout.commentary.y, defaultSlideLayout.commentary.w, defaultSlideLayout.commentary.h, 'ECFEFF', '67E8F9', true));
-  content.push(shapeText(101, 'CommentTitle', defaultSlideLayout.commentary.x + 0.2, defaultSlideLayout.commentary.y + 0.2, defaultSlideLayout.commentary.w - 0.4, 0.4, ['Comentário executivo'], { size: 12, bold: true, color: apresentacaoTheme.colors.primary }));
-  content.push(shapeText(102, 'CommentBody', defaultSlideLayout.commentary.x + 0.2, defaultSlideLayout.commentary.y + 0.65, defaultSlideLayout.commentary.w - 0.4, defaultSlideLayout.commentary.h - 0.85, [comment || 'Sem comentário adicional.'], { size: 11 }));
-  content.push(shapeText(103, 'Footer', 0.5, 6.95, 12.2, 0.25, [`${slide.codigo} · ${data.periodo.competenciaInicial}–${data.periodo.competenciaFinal}`], { size: 9, color: apresentacaoTheme.colors.muted }));
+function renderColumnOrLine(slide: pptxgen.Slide, dados: Record<string, unknown>, kind: 'coluna' | 'linha') {
+  const c = defaultSlideLayout.chart;
+  const arrayRows = findArrayRows(dados);
+  let labels: string[] = []; let values: number[] = []; let serieName = 'Valor';
+  if (arrayRows.length) {
+    const sample = arrayRows[0];
+    const labelKey = Object.keys(sample).find((k) => typeof sample[k] === 'string') ?? 'label';
+    const valKey = Object.keys(sample).find((k) => typeof sample[k] === 'number') ?? 'valor';
+    labels = arrayRows.slice(0, 12).map((r) => String(r[labelKey] ?? ''));
+    values = arrayRows.slice(0, 12).map((r) => Number(r[valKey] ?? 0));
+    serieName = prettyLabel(valKey);
+  } else {
+    const nums = numericPairs(dados).slice(0, 12);
+    if (!nums.length) { addUnavailable(slide, 'Sem série numérica para visualização.'); return; }
+    labels = nums.map((n) => prettyLabel(n.key));
+    values = nums.map((n) => n.value);
+  }
+  const type = kind === 'coluna' ? 'bar' : 'line';
+  slide.addChart(type as never, [{ name: serieName, labels, values }], {
+    x: c.x, y: c.y, w: c.w, h: c.h,
+    barDir: kind === 'coluna' ? 'col' : undefined,
+    chartColors: [T.primary, T.secondary, T.accent],
+    showLegend: false, showValue: false, showCatAxisTitle: false,
+    catAxisLabelFontSize: 9, valAxisLabelFontSize: 9, catAxisLabelFontFace: FONT, valAxisLabelFontFace: FONT,
+  });
+}
 
-  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><p:sld xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:cSld><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>${content.join('')}</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>`;
+function renderHorizontalBar(slide: pptxgen.Slide, dados: Record<string, unknown>) {
+  const c = defaultSlideLayout.chart;
+  const rows = findArrayRows(dados);
+  let labels: string[]; let values: number[];
+  if (rows.length) {
+    const sample = rows[0];
+    const labelKey = Object.keys(sample).find((k) => typeof sample[k] === 'string') ?? 'nome';
+    const valKey = Object.keys(sample).find((k) => typeof sample[k] === 'number') ?? 'valor';
+    labels = rows.slice(0, 8).map((r) => String(r[labelKey] ?? r.estado ?? r.nome ?? ''));
+    values = rows.slice(0, 8).map((r) => Number(r[valKey] ?? 0));
+  } else {
+    const nums = numericPairs(dados).slice(0, 8);
+    if (!nums.length) { addUnavailable(slide, 'Sem ranking disponível.'); return; }
+    labels = nums.map((n) => prettyLabel(n.key));
+    values = nums.map((n) => n.value);
+  }
+  slide.addChart('bar' as never, [{ name: 'Valor', labels, values }], {
+    x: c.x, y: c.y, w: c.w, h: c.h,
+    barDir: 'bar',
+    chartColors: [T.secondary],
+    showLegend: false, showValue: true, dataLabelFontSize: 9, dataLabelFontFace: FONT,
+    catAxisLabelFontSize: 9, valAxisLabelFontSize: 9, catAxisLabelFontFace: FONT, valAxisLabelFontFace: FONT,
+  });
+}
+
+function renderDonut(slide: pptxgen.Slide, dados: Record<string, unknown>) {
+  const c = defaultSlideLayout.chart;
+  const rows = findArrayRows(dados);
+  let labels: string[]; let values: number[];
+  if (rows.length) {
+    const sample = rows[0];
+    const labelKey = Object.keys(sample).find((k) => typeof sample[k] === 'string') ?? 'nome';
+    const valKey = Object.keys(sample).find((k) => typeof sample[k] === 'number') ?? 'valor';
+    labels = rows.slice(0, 6).map((r) => String(r[labelKey] ?? ''));
+    values = rows.slice(0, 6).map((r) => Number(r[valKey] ?? 0));
+  } else {
+    const nums = numericPairs(dados).slice(0, 6);
+    if (!nums.length) { addUnavailable(slide, 'Sem composição para visualização.'); return; }
+    labels = nums.map((n) => prettyLabel(n.key));
+    values = nums.map((n) => Math.abs(n.value));
+  }
+  slide.addChart('doughnut' as never, [{ name: 'Composição', labels, values }], {
+    x: c.x, y: c.y, w: c.w, h: c.h,
+    chartColors: [T.primary, T.secondary, T.accent, T.warning, T.danger, '7C3AED'],
+    showLegend: true, legendPos: 'r', legendFontSize: 9, legendFontFace: FONT,
+    dataLabelFontSize: 9, dataLabelFontFace: FONT, showPercent: true,
+  });
+}
+
+function renderStackedOrWaterfall(slide: pptxgen.Slide, dados: Record<string, unknown>) {
+  const c = defaultSlideLayout.chart;
+  const rows = findArrayRows(dados);
+  if (!rows.length) {
+    const nums = numericPairs(dados);
+    if (!nums.length) { addUnavailable(slide, 'Sem dados para o gráfico empilhado.'); return; }
+    slide.addChart('bar' as never, [{ name: 'Impacto', labels: nums.map((n) => prettyLabel(n.key)), values: nums.map((n) => n.value) }], {
+      x: c.x, y: c.y, w: c.w, h: c.h,
+      barDir: 'col', chartColors: [T.secondary],
+      showLegend: false, showValue: true, dataLabelFontSize: 9, dataLabelFontFace: FONT,
+      catAxisLabelFontSize: 9, valAxisLabelFontSize: 9, catAxisLabelFontFace: FONT, valAxisLabelFontFace: FONT,
+    });
+    return;
+  }
+  const sample = rows[0];
+  const labelKey = Object.keys(sample).find((k) => typeof sample[k] === 'string') ?? 'label';
+  const valueKeys = Object.keys(sample).filter((k) => typeof sample[k] === 'number');
+  const labels = rows.map((r) => String(r[labelKey] ?? ''));
+  const series = valueKeys.map((vk) => ({ name: prettyLabel(vk), labels, values: rows.map((r) => Number(r[vk] ?? 0)) }));
+  slide.addChart('bar' as never, series, {
+    x: c.x, y: c.y, w: c.w, h: c.h,
+    barDir: 'col', barGrouping: 'stacked',
+    chartColors: [T.primary, T.secondary, T.accent, T.warning, T.danger],
+    showLegend: true, legendPos: 'b', legendFontSize: 9, legendFontFace: FONT,
+    catAxisLabelFontSize: 9, valAxisLabelFontSize: 9, catAxisLabelFontFace: FONT, valAxisLabelFontFace: FONT,
+  });
+}
+
+function renderSlideBody(slide: pptxgen.Slide, slideData: SlideData) {
+  const def = APRESENTACAO_SLIDES_MAP.get(slideData.codigo);
+  if (slideData.indisponivel) {
+    addUnavailable(slide, String(slideData.dados.motivo ?? 'não automatizado no modo fechado'));
+    return;
+  }
+  switch (def?.chartType) {
+    case 'cards': renderCards(slide, slideData.dados); return;
+    case 'tabela': renderTable(slide, slideData.dados); return;
+    case 'barra_horizontal': renderHorizontalBar(slide, slideData.dados); return;
+    case 'donut': renderDonut(slide, slideData.dados); return;
+    case 'stacked':
+    case 'waterfall': renderStackedOrWaterfall(slide, slideData.dados); return;
+    case 'linha': renderColumnOrLine(slide, slideData.dados, 'linha'); return;
+    case 'coluna': renderColumnOrLine(slide, slideData.dados, 'coluna'); return;
+    default: renderTable(slide, slideData.dados);
+  }
 }
 
 export async function generatePresentation(
@@ -221,7 +265,6 @@ export async function generatePresentation(
   options?: { slideOrder?: SlideCodigo[]; metadata?: Record<string, unknown> },
 ): Promise<Blob> {
   const order = options?.slideOrder?.length ? options.slideOrder : (Object.keys(data.slides) as SlideCodigo[]);
-
   const slides: SlideData[] = order.map((codigo) => {
     const def = APRESENTACAO_SLIDES_MAP.get(codigo);
     const dadosSlide = data.slides[codigo] ?? {};
@@ -236,14 +279,39 @@ export async function generatePresentation(
     };
   });
 
-  const zip = new JSZip();
-  const files = baseXml(slides.length);
-  Object.entries(files).forEach(([path, content]) => zip.file(path, content));
-
-  slides.forEach((slide, index) => {
-    const comment = pickEditedComment(slide.comentarioAutomatico, slide.comentarioEditado);
-    zip.file(`ppt/slides/slide${index + 1}.xml`, slideXml(slide, data, comment, options?.metadata));
+  const pres = new pptxgen();
+  pres.layout = 'LAYOUT_WIDE';
+  pres.title = 'Apresentação Gerencial';
+  pres.company = 'AviZee ERP';
+  pres.defineSlideMaster({
+    title: 'AVIZEE_MASTER',
+    background: { color: T.white },
   });
 
-  return zip.generateAsync({ type: 'blob' });
+  const periodo = `${data.periodo.competenciaInicial} a ${data.periodo.competenciaFinal}`;
+
+  slides.forEach((s) => {
+    const slide = pres.addSlide({ masterName: 'AVIZEE_MASTER' });
+    const comment = pickEditedComment(s.comentarioAutomatico, s.comentarioEditado);
+    if (s.codigo === 'cover') {
+      renderCover(slide, s, periodo);
+    } else if (s.codigo === 'closing') {
+      renderClosing(slide, s, comment, options?.metadata);
+    } else {
+      addHeader(slide, s.titulo, s.subtitulo);
+      renderSlideBody(slide, s);
+      addCommentary(slide, comment);
+      addFooter(slide, s.codigo, periodo);
+    }
+  });
+
+  // pptxgenjs in browsers returns a Blob via .write({ outputType: 'blob' })
+  // In node it returns a Buffer. We normalize both to Blob.
+  const out = await (pres as unknown as { write: (opts: { outputType: string }) => Promise<unknown> }).write({ outputType: 'arraybuffer' });
+  const buf = out as ArrayBuffer | Uint8Array;
+  const ab = buf instanceof ArrayBuffer ? buf : (buf as Uint8Array).buffer.slice((buf as Uint8Array).byteOffset, (buf as Uint8Array).byteOffset + (buf as Uint8Array).byteLength);
+  return new Blob([ab as ArrayBuffer], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' });
 }
+
+// JSZip is re-exported only to keep tests that load the resulting package working.
+export { JSZip as __unzip };
