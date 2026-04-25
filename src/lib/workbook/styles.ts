@@ -60,3 +60,68 @@ export function getOrCreate(wb: ExcelJS.Workbook, name: string): ExcelJS.Workshe
   }
   return wb.addWorksheet(name);
 }
+
+/**
+ * Aplica data bars (barras nativas do Excel via conditional formatting) num intervalo.
+ * Renderizado pelo próprio Excel/LibreOffice ao abrir o arquivo.
+ */
+export function addDataBar(
+  ws: ExcelJS.Worksheet,
+  range: string,
+  color: string = COLORS.HEADER_BG,
+) {
+  ws.addConditionalFormatting({
+    ref: range,
+    rules: [
+      {
+        type: 'dataBar',
+        priority: 1,
+        cfvo: [{ type: 'min' }, { type: 'max' }],
+        color: { argb: color },
+        gradient: true,
+        showValue: true,
+      } as unknown as ExcelJS.ConditionalFormattingRule,
+    ],
+  });
+}
+
+/**
+ * Aplica color scale (heatmap) num intervalo — útil para Δ% e variações.
+ * Verde (positivo) → Branco (zero) → Vermelho (negativo).
+ */
+export function addColorScale(
+  ws: ExcelJS.Worksheet,
+  range: string,
+  invert: boolean = false,
+) {
+  const min = invert ? COLORS.POSITIVE : COLORS.NEGATIVE;
+  const max = invert ? COLORS.NEGATIVE : COLORS.POSITIVE;
+  ws.addConditionalFormatting({
+    ref: range,
+    rules: [
+      {
+        type: 'colorScale',
+        priority: 1,
+        cfvo: [{ type: 'min' }, { type: 'percentile', value: 50 }, { type: 'max' }],
+        color: [
+          { argb: min },
+          { argb: 'FFFFFFFF' },
+          { argb: max },
+        ],
+      } as unknown as ExcelJS.ConditionalFormattingRule,
+    ],
+  });
+}
+
+/**
+ * Renderiza um sparkline textual (▁▂▃▄▅▆▇█) numa célula — funciona em qualquer Excel.
+ * Útil para Capa Executiva onde data bars não cabem em uma célula única.
+ */
+export function sparkline(values: number[]): string {
+  if (!values.length) return '';
+  const blocks = ['▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'];
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min || 1;
+  return values.map(v => blocks[Math.min(7, Math.floor(((v - min) / range) * 8))]).join('');
+}

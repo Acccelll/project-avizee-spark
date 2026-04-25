@@ -1,5 +1,5 @@
 import ExcelJS from 'exceljs';
-import { applyNumberFormat, FORMATS, getOrCreate, setColumnWidths, styleHeaderRow, styleTotalRow, COLORS } from '../styles';
+import { applyNumberFormat, FORMATS, getOrCreate, setColumnWidths, styleHeaderRow, styleTotalRow, COLORS, addDataBar, addColorScale } from '../styles';
 import type { WorkbookRawData } from '../fetchWorkbookData';
 import { monthLabel, monthRange, priorYearMonth, variation } from '../comparators';
 
@@ -108,6 +108,17 @@ export function buildDre(
     ws.getRow(r).getCell(headers.length).numFmt = FORMATS.PCT;
   }
   styleTotalRow(ws, 7, headers.length);
+
+  // Visualização: data bars na coluna Total Real (linhas 2-7)
+  // e color scales nas colunas Δ vs Budget % e Δ vs PY %
+  if (data.dre.length > 0 && months.length > 0) {
+    const totalRealCol = String.fromCharCode(64 + (headers.length - 3));
+    const deltaBudgetCol = String.fromCharCode(64 + (headers.length - 1));
+    const deltaPyCol = String.fromCharCode(64 + headers.length);
+    addDataBar(ws, `${totalRealCol}2:${totalRealCol}7`, COLORS.HEADER_BG);
+    addColorScale(ws, `${deltaBudgetCol}2:${deltaBudgetCol}7`);
+    addColorScale(ws, `${deltaPyCol}2:${deltaPyCol}7`);
+  }
 
   if (months.length === 0 || data.dre.length === 0) {
     ws.addRow([]);

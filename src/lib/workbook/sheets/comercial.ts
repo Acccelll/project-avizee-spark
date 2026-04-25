@@ -1,5 +1,5 @@
 import ExcelJS from 'exceljs';
-import { applyNumberFormat, FORMATS, getOrCreate, setColumnWidths, styleHeaderRow, styleTotalRow, COLORS } from '../styles';
+import { applyNumberFormat, FORMATS, getOrCreate, setColumnWidths, styleHeaderRow, styleTotalRow, COLORS, addDataBar } from '../styles';
 import type { WorkbookRawData } from '../fetchWorkbookData';
 import { monthLabel, monthRange } from '../comparators';
 
@@ -44,6 +44,8 @@ export function buildVendasVendedor(wb: ExcelJS.Workbook, data: WorkbookRawData)
     ws.getRow(ws.rowCount).getCell(3).numFmt = FORMATS.CURRENCY;
     ws.getRow(ws.rowCount).getCell(4).numFmt = FORMATS.CURRENCY;
   }
+  // Data bar no faturamento (excluindo linha TOTAL)
+  if (linhas.length > 1) addDataBar(ws, `C2:C${ws.rowCount - 1}`, COLORS.HEADER_BG);
 }
 
 /** Aba 10_Vendas_Cliente_ABC — top 50 com curva ABC. */
@@ -64,6 +66,8 @@ export function buildVendasClienteAbc(wb: ExcelJS.Workbook, data: WorkbookRawDat
       ws.getRow(r).getCell(4).numFmt = FORMATS.PCT;
       ws.getRow(r).getCell(5).numFmt = FORMATS.PCT;
     }
+    addDataBar(ws, `C2:C${ws.rowCount}`, COLORS.HEADER_BG);
+    addDataBar(ws, `E2:E${ws.rowCount}`, COLORS.POSITIVE);
   }
 }
 
@@ -132,6 +136,10 @@ export function buildOrcamentosFunil(wb: ExcelJS.Workbook, data: WorkbookRawData
     ws.getRow(r).getCell(6).numFmt = FORMATS.PCT;
     ws.getRow(r).getCell(7).numFmt = FORMATS.CURRENCY;
     ws.getRow(r).getCell(8).numFmt = FORMATS.CURRENCY;
+  }
+  if (data.orcamentosFunil.length > 0) {
+    addDataBar(ws, `F2:F${ws.rowCount}`, COLORS.POSITIVE); // conversão
+    addDataBar(ws, `G2:G${ws.rowCount}`, COLORS.HEADER_BG); // valor aprovado
   }
   if (data.orcamentosFunil.length === 0) emptyMessage(ws, 'Sem orçamentos no período.');
 }

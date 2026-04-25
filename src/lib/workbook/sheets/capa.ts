@@ -1,5 +1,5 @@
 import ExcelJS from 'exceljs';
-import { COLORS, FORMATS, getOrCreate } from '../styles';
+import { COLORS, FORMATS, getOrCreate, sparkline } from '../styles';
 import type { WorkbookRawData } from '../fetchWorkbookData';
 import { monthRange, indexByCompetencia } from '../comparators';
 
@@ -101,7 +101,39 @@ export async function buildCapa(
   }
 
   // Sumário (índice das abas)
-  const indexRow = row + 4;
+  // Tendências (sparklines) — visualização compacta da evolução mensal
+  const trendsRow = row + 2;
+  ws.getCell(`A${trendsRow}`).value = 'Tendências do período';
+  ws.getCell(`A${trendsRow}`).font = { bold: true, size: 14, color: { argb: COLORS.HEADER_BG } };
+
+  const recSeries = months.map(m => recByMonth[m] ?? 0);
+  const despSeries = months.map(m => despByMonth[m] ?? 0);
+  const resSeries = months.map((_, i) => recSeries[i] - despSeries[i]);
+  const fatSeries = months.map(m => fatByMonth[m] ?? 0);
+
+  const trends: Array<[string, number[], string]> = [
+    ['Receita', recSeries, COLORS.POSITIVE],
+    ['Despesa', despSeries, COLORS.NEGATIVE],
+    ['Resultado', resSeries, COLORS.HEADER_BG],
+    ['Faturamento', fatSeries, COLORS.HEADER_BG],
+  ];
+  trends.forEach(([label, series, color], i) => {
+    const r = trendsRow + 1 + i;
+    ws.getCell(`A${r}`).value = label;
+    ws.getCell(`A${r}`).font = { size: 10, color: { argb: COLORS.MUTED } };
+    const sparkCell = ws.getCell(`B${r}`);
+    sparkCell.value = sparkline(series);
+    sparkCell.font = { name: 'Consolas', size: 16, color: { argb: color } };
+    sparkCell.alignment = { vertical: 'middle' };
+    ws.mergeCells(`B${r}:E${r}`);
+    const totalCell = ws.getCell(`F${r}`);
+    totalCell.value = series.reduce((a, b) => a + b, 0);
+    totalCell.numFmt = FORMATS.CURRENCY;
+    totalCell.font = { bold: true, size: 11 };
+    ws.getRow(r).height = 22;
+  });
+
+  const indexRow = trendsRow + trends.length + 3;
   ws.getCell(`A${indexRow}`).value = 'Índice';
   ws.getCell(`A${indexRow}`).font = { bold: true, size: 14, color: { argb: COLORS.HEADER_BG } };
 
