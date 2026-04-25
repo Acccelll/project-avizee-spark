@@ -45,6 +45,7 @@ const SECAO_ACCENT: Record<SlideSecao, string> = {
   pessoas: 'bg-amber-600',
   comercial: 'bg-emerald-600',
   operacoes: 'bg-purple-600',
+  risco: 'bg-rose-600',
   marketing: 'bg-pink-600',
   encerramento: 'bg-slate-600',
 };
