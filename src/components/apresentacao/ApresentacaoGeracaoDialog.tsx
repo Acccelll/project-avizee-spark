@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { ApresentacaoModoGeracao, ApresentacaoTemplate, SlideConfigItem } from '@/types/apresentacao';
-import { APRESENTACAO_SLIDES_V2 } from '@/lib/apresentacao/slideDefinitions';
+import { APRESENTACAO_SLIDES_V2, SECAO_LABELS, SECAO_ORDEM, type SlideSecao } from '@/lib/apresentacao/slideDefinitions';
 
 interface Props {
   open: boolean;
@@ -39,6 +39,27 @@ export function ApresentacaoGeracaoDialog({ open, onOpenChange, templates, onGer
     order: s.order,
   })), [enabledSlides]);
 
+  const optionalBySection = useMemo(() => {
+    const map = new Map<SlideSecao, typeof APRESENTACAO_SLIDES_V2>();
+    APRESENTACAO_SLIDES_V2.filter((s) => s.optional).forEach((s) => {
+      const arr = map.get(s.secao) ?? [];
+      arr.push(s);
+      map.set(s.secao, arr);
+    });
+    return SECAO_ORDEM.filter((sec) => map.has(sec)).map((sec) => ({ secao: sec, slides: map.get(sec)! }));
+  }, []);
+
+  const totalEnabled = slideConfig.filter((s) => s.enabled).length;
+
+  const toggleSection = (secao: SlideSecao, value: boolean) => {
+    const codes = optionalBySection.find((g) => g.secao === secao)?.slides.map((s) => s.codigo) ?? [];
+    setEnabledSlides((prev) => {
+      const next = { ...prev };
+      codes.forEach((c) => { next[c] = value; });
+      return next;
+    });
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl">
@@ -70,18 +91,40 @@ export function ApresentacaoGeracaoDialog({ open, onOpenChange, templates, onGer
             Exigir revisão/aprovação antes da geração final
           </label>
           <div className="rounded-md border p-3">
-            <p className="text-sm font-medium mb-2">Slides opcionais</p>
-            <div className="grid md:grid-cols-2 gap-1 max-h-52 overflow-auto">
-              {APRESENTACAO_SLIDES_V2.filter((s) => s.optional).map((s) => (
-                <label key={s.codigo} className="text-xs flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={enabledSlides[s.codigo] === true}
-                    onChange={(e) => setEnabledSlides((prev) => ({ ...prev, [s.codigo]: e.target.checked }))}
-                  />
-                  {s.titulo}
-                </label>
-              ))}
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-medium">Slides opcionais por seção</p>
+              <span className="text-xs text-muted-foreground">{totalEnabled} slides selecionados</span>
+            </div>
+            <div className="grid gap-3 max-h-72 overflow-auto pr-1">
+              {optionalBySection.map(({ secao, slides }) => {
+                const allOn = slides.every((s) => enabledSlides[s.codigo] === true);
+                return (
+                  <div key={secao} className="rounded border bg-muted/30 p-2">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{SECAO_LABELS[secao]}</p>
+                      <button
+                        type="button"
+                        className="text-[10px] text-primary hover:underline"
+                        onClick={() => toggleSection(secao, !allOn)}
+                      >
+                        {allOn ? 'Desmarcar todos' : 'Selecionar todos'}
+                      </button>
+                    </div>
+                    <div className="grid md:grid-cols-2 gap-1">
+                      {slides.map((s) => (
+                        <label key={s.codigo} className="text-xs flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={enabledSlides[s.codigo] === true}
+                            onChange={(e) => setEnabledSlides((prev) => ({ ...prev, [s.codigo]: e.target.checked }))}
+                          />
+                          {s.titulo}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
