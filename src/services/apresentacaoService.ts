@@ -10,7 +10,7 @@ import type {
   SlideConfigItem,
 } from '@/types/apresentacao';
 import { fetchPresentationData } from '@/lib/apresentacao/fetchPresentationData';
-import { generatePresentation } from '@/lib/apresentacao/generatePresentation';
+import { generatePresentation, type PresentationBranding } from '@/lib/apresentacao/generatePresentation';
 import { buildAutomaticComments } from '@/lib/apresentacao/commentRules';
 import { APRESENTACAO_SLIDES_MAP } from '@/lib/apresentacao/slideDefinitions';
 import { hashPayload } from '@/lib/apresentacao/utils';
@@ -191,6 +191,80 @@ export async function gerarApresentacao(params: ApresentacaoParametros, userId?:
   }
 }
 
+async function fetchPresentationBranding(): Promise<PresentationBranding> {
+  const branding: PresentationBranding = {};
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data } = await (supabase as any)
+      .from('app_configuracoes')
+      .select('valor')
+      .eq('chave', 'geral')
+      .maybeSingle();
+    const valor = (data?.valor ?? {}) as Record<string, unknown>;
+    const logoUrl = (valor.logoUrl ?? valor.logo_url) as string | undefined;
+    branding.corPrimariaHex = (valor.corPrimaria ?? valor.cor_primaria) as string | undefined;
+    branding.corSecundariaHex = (valor.corSecundaria ?? valor.cor_secundaria) as string | undefined;
+
+    if (logoUrl) {
+      try {
+        const absUrl = logoUrl.startsWith('http') ? logoUrl : `${window.location.origin}${logoUrl.startsWith('/') ? '' : '/'}${logoUrl}`;
+        const resp = await fetch(absUrl);
+        if (resp.ok) {
+          const blob = await resp.blob();
+          const dataUrl = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(String(reader.result));
+            reader.onerror = () => reject(reader.error);
+            reader.readAsDataURL(blob);
+          });
+          branding.logoDataUrl = dataUrl;
+        }
+      } catch {
+        /* logo opcional */
+      }
+    }
+  } catch {
+    /* configuração opcional */
+  }
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: emp } = await (supabase as any)
+      .from('empresa_config')
+      .select('nome_fantasia, razao_social, cor_primaria, cor_secundaria, logo_url')
+      .maybeSingle();
+    if (emp) {
+      branding.empresaNome = branding.empresaNome ?? (emp.nome_fantasia || emp.razao_social) ?? undefined;
+      branding.corPrimariaHex = branding.corPrimariaHex ?? emp.cor_primaria ?? undefined;
+      branding.corSecundariaHex = branding.corSecundariaHex ?? emp.cor_secundaria ?? undefined;
+      if (!branding.logoDataUrl && emp.logo_url) {
+        try {
+          const absUrl = String(emp.logo_url).startsWith('http')
+            ? String(emp.logo_url)
+            : `${window.location.origin}${String(emp.logo_url).startsWith('/') ? '' : '/'}${emp.logo_url}`;
+          const resp = await fetch(absUrl);
+          if (resp.ok) {
+            const blob = await resp.blob();
+            const dataUrl = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(String(reader.result));
+              reader.onerror = () => reject(reader.error);
+              reader.readAsDataURL(blob);
+            });
+            branding.logoDataUrl = dataUrl;
+          }
+        } catch {
+          /* opcional */
+        }
+      }
+    }
+  } catch {
+    /* opcional */
+  }
+
+  return branding;
+}
+
 async function gerarArquivoFinal(geracaoId: string, active: SlideCodigo[], bundle: Awaited<ReturnType<typeof fetchPresentationData>>, hash: string) {
   const comentarios = await listarComentarios(geracaoId);
   const comentarioMap = comentarios.reduce((acc, c) => {
@@ -198,9 +272,12 @@ async function gerarArquivoFinal(geracaoId: string, active: SlideCodigo[], bundl
     return acc;
   }, {} as Partial<Record<SlideCodigo, string | undefined>>);
 
+  const branding = await fetchPresentationBranding();
+
   const blob = await generatePresentation(bundle, comentarioMap as Partial<Record<string, string>>, {
     slideOrder: active,
     metadata: { geracaoId, hash, geradoEm: new Date().toISOString(), origem: 'erp-avizee-v2' },
+    branding,
   });
 
   const arquivoPath = `apresentacoes/apresentacao_${geracaoId}.pptx`;

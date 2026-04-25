@@ -11,6 +11,20 @@ import { formatMoneyCompact, formatPercentOne } from './numberFormat';
 const T = apresentacaoTheme.colors;
 const FONT = apresentacaoTheme.typography.fontFamily;
 
+export interface PresentationBranding {
+  /** Data URL or absolute URL/path to logo image. */
+  logoDataUrl?: string;
+  empresaNome?: string;
+  corPrimariaHex?: string; // 6-char hex without '#'
+  corSecundariaHex?: string;
+}
+
+function sanitizeHex(value?: string): string | undefined {
+  if (!value) return undefined;
+  const v = value.trim().replace(/^#/, '');
+  return /^[0-9A-Fa-f]{6}$/.test(v) ? v.toUpperCase() : undefined;
+}
+
 function prettyLabel(key: string): string {
   return key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
@@ -81,13 +95,26 @@ function addUnavailable(slide: pptxgen.Slide, motivo: string) {
   });
 }
 
-function renderCover(slide: pptxgen.Slide, def: SlideData, periodo: string) {
+function renderCover(slide: pptxgen.Slide, def: SlideData, periodo: string, branding: PresentationBranding | undefined, primaryHex: string, secondaryHex: string) {
   slide.background = { color: T.white };
-  slide.addShape('rect', { x: 0, y: 0, w: 13.33, h: 1.3, fill: { color: T.primary }, line: { color: T.primary } });
-  slide.addText('AviZee | Apresentação Gerencial', { x: 0.6, y: 0.35, w: 6, h: 0.6, fontSize: 14, bold: true, color: T.white, fontFace: FONT });
-  slide.addText(def.titulo, { x: 0.7, y: 2.0, w: 11.5, h: 1.1, fontSize: 36, bold: true, color: T.primary, fontFace: FONT });
+  slide.addShape('rect', { x: 0, y: 0, w: 13.33, h: 1.3, fill: { color: primaryHex }, line: { color: primaryHex } });
+  const empresa = branding?.empresaNome || 'AviZee';
+  slide.addText(`${empresa} | Apresentação Gerencial`, { x: 0.6, y: 0.35, w: 8.5, h: 0.6, fontSize: 14, bold: true, color: T.white, fontFace: FONT });
+
+  if (branding?.logoDataUrl) {
+    try {
+      slide.addImage({ data: branding.logoDataUrl, x: 11.6, y: 0.2, w: 1.5, h: 0.9, sizing: { type: 'contain', w: 1.5, h: 0.9 } });
+    } catch {
+      // fallback ignored — image format unsupported in pptxgenjs
+    }
+  }
+
+  slide.addText(def.titulo, { x: 0.7, y: 2.0, w: 11.5, h: 1.1, fontSize: 36, bold: true, color: primaryHex, fontFace: FONT });
   slide.addText(def.subtitulo || 'Resumo executivo do período', { x: 0.7, y: 3.2, w: 11.5, h: 0.8, fontSize: 18, color: T.muted, fontFace: FONT });
-  slide.addText(`Período: ${periodo}`, { x: 0.7, y: 4.3, w: 11.5, h: 0.6, fontSize: 14, bold: true, color: T.secondary, fontFace: FONT });
+  slide.addText(`Período: ${periodo}`, { x: 0.7, y: 4.3, w: 11.5, h: 0.6, fontSize: 14, bold: true, color: secondaryHex, fontFace: FONT });
+
+  // Accent bar at bottom using brand colors
+  slide.addShape('rect', { x: 0, y: 6.95, w: 13.33, h: 0.3, fill: { color: secondaryHex }, line: { color: secondaryHex } });
 }
 
 function renderClosing(slide: pptxgen.Slide, def: SlideData, comment: string, metadata?: Record<string, unknown>) {
@@ -262,7 +289,7 @@ function renderSlideBody(slide: pptxgen.Slide, slideData: SlideData) {
 export async function generatePresentation(
   data: ApresentacaoDataBundle,
   comentariosEditados: Partial<Record<string, string>>,
-  options?: { slideOrder?: SlideCodigo[]; metadata?: Record<string, unknown> },
+  options?: { slideOrder?: SlideCodigo[]; metadata?: Record<string, unknown>; branding?: PresentationBranding },
 ): Promise<Blob> {
   const order = options?.slideOrder?.length ? options.slideOrder : (Object.keys(data.slides) as SlideCodigo[]);
   const slides: SlideData[] = order.map((codigo) => {
@@ -282,7 +309,11 @@ export async function generatePresentation(
   const pres = new pptxgen();
   pres.layout = 'LAYOUT_WIDE';
   pres.title = 'Apresentação Gerencial';
-  pres.company = 'AviZee ERP';
+  pres.company = options?.branding?.empresaNome ? `${options.branding.empresaNome} ERP` : 'AviZee ERP';
+
+  const primaryHex = sanitizeHex(options?.branding?.corPrimariaHex) ?? T.primary;
+  const secondaryHex = sanitizeHex(options?.branding?.corSecundariaHex) ?? T.secondary;
+
   pres.defineSlideMaster({
     title: 'AVIZEE_MASTER',
     background: { color: T.white },
@@ -294,7 +325,7 @@ export async function generatePresentation(
     const slide = pres.addSlide({ masterName: 'AVIZEE_MASTER' });
     const comment = pickEditedComment(s.comentarioAutomatico, s.comentarioEditado);
     if (s.codigo === 'cover') {
-      renderCover(slide, s, periodo);
+      renderCover(slide, s, periodo, options?.branding, primaryHex, secondaryHex);
     } else if (s.codigo === 'closing') {
       renderClosing(slide, s, comment, options?.metadata);
     } else {
