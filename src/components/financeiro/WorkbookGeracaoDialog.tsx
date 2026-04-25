@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { WorkbookParametrosCard } from './WorkbookParametrosCard';
+import { WORKBOOK_SHEET_GROUPS } from '@/lib/workbook/templateMap';
 import type { WorkbookTemplate, WorkbookModoGeracao } from '@/types/workbook';
 
 interface WorkbookGeracaoDialogProps {
@@ -21,6 +22,7 @@ interface WorkbookGeracaoDialogProps {
     competenciaInicial: string;
     competenciaFinal: string;
     modoGeracao: WorkbookModoGeracao;
+    abasSelecionadas: string[];
   }) => Promise<void>;
   isGenerating: boolean;
 }
@@ -39,9 +41,12 @@ export function WorkbookGeracaoDialog({
   const [competenciaFinal, setCompetenciaFinal] = useState(currentMonth);
   const [modoGeracao, setModoGeracao] = useState<WorkbookModoGeracao>('dinamico');
   const [templateId, setTemplateId] = useState(templates[0]?.id ?? '');
+  const [abasSelecionadas, setAbasSelecionadas] = useState<string[]>(
+    WORKBOOK_SHEET_GROUPS.filter((g) => g.defaultEnabled).map((g) => g.id),
+  );
 
   const handleGerar = async () => {
-    await onGerar({ templateId, competenciaInicial, competenciaFinal, modoGeracao });
+    await onGerar({ templateId, competenciaInicial, competenciaFinal, modoGeracao, abasSelecionadas });
   };
 
   return (
@@ -59,10 +64,12 @@ export function WorkbookGeracaoDialog({
           modoGeracao={modoGeracao}
           templateId={templateId}
           templates={templates}
+          abasSelecionadas={abasSelecionadas}
           onCompetenciaInicialChange={setCompetenciaInicial}
           onCompetenciaFinalChange={setCompetenciaFinal}
           onModoGeracaoChange={setModoGeracao}
           onTemplateChange={setTemplateId}
+          onAbasChange={setAbasSelecionadas}
         />
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isGenerating}>

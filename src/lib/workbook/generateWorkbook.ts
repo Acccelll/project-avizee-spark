@@ -11,7 +11,7 @@ import ExcelJS from 'exceljs';
 import { fetchWorkbookData } from './fetchWorkbookData';
 import { fillRawSheets } from './fillRawSheets';
 import { buildVisualSheets } from './buildVisualSheets';
-import { VISUAL_SHEET_NAMES } from './templateMap';
+import { VISUAL_SHEET_NAMES, RAW_SHEET_NAMES } from './templateMap';
 import { hashParametros } from './utils';
 import type { WorkbookParametros } from '@/types/workbook';
 // V2 — abas analíticas modulares
@@ -84,7 +84,11 @@ async function loadTemplate(): Promise<ExcelJS.Workbook> {
 
 export async function generateWorkbook(options: GenerateWorkbookOptions): Promise<Blob> {
   const { parametros, geracaoId } = options;
-  const { competenciaInicial, competenciaFinal, modoGeracao } = parametros;
+  const { competenciaInicial, competenciaFinal, modoGeracao, abasSelecionadas } = parametros;
+
+  // Se nada selecionado → tudo (compatibilidade retroativa)
+  const selecionados = new Set(abasSelecionadas?.length ? abasSelecionadas : ['capa', 'financeiro', 'comercial', 'operacional', 'logistica_fiscal', 'raw']);
+  const incluir = (g: string) => selecionados.has(g);
 
   // 1. Load template
   const workbook = await loadTemplate();
@@ -102,18 +106,35 @@ export async function generateWorkbook(options: GenerateWorkbookOptions): Promis
   buildVisualSheets(workbook, data, competenciaInicial, competenciaFinal);
 
   // 4b. Build V2 analytical sheets
-  await buildCapa(workbook, data, competenciaInicial, competenciaFinal, modoGeracao);
-  buildDre(workbook, data, competenciaInicial, competenciaFinal);
-  buildCaixaEvolutivo(workbook, data, competenciaInicial, competenciaFinal);
-  buildVendasVendedor(workbook, data);
-  buildVendasClienteAbc(workbook, data);
-  buildVendasRegiao(workbook, data, competenciaInicial, competenciaFinal);
-  buildOrcamentosFunil(workbook, data, competenciaInicial, competenciaFinal);
-  buildComprasFornecedor(workbook, data);
-  buildEstoqueGiro(workbook, data);
-  buildEstoqueCritico(workbook, data);
-  buildLogistica(workbook, data, competenciaInicial, competenciaFinal);
-  buildFiscal(workbook, data, competenciaInicial, competenciaFinal);
+  if (incluir('capa')) await buildCapa(workbook, data, competenciaInicial, competenciaFinal, modoGeracao);
+  if (incluir('financeiro')) {
+    buildDre(workbook, data, competenciaInicial, competenciaFinal);
+    buildCaixaEvolutivo(workbook, data, competenciaInicial, competenciaFinal);
+  }
+  if (incluir('comercial')) {
+    buildVendasVendedor(workbook, data);
+    buildVendasClienteAbc(workbook, data);
+    buildVendasRegiao(workbook, data, competenciaInicial, competenciaFinal);
+    buildOrcamentosFunil(workbook, data, competenciaInicial, competenciaFinal);
+  }
+  if (incluir('operacional')) {
+    buildComprasFornecedor(workbook, data);
+    buildEstoqueGiro(workbook, data);
+    buildEstoqueCritico(workbook, data);
+  }
+  if (incluir('logistica_fiscal')) {
+    buildLogistica(workbook, data, competenciaInicial, competenciaFinal);
+    buildFiscal(workbook, data, competenciaInicial, competenciaFinal);
+  }
+
+  // Remove RAW sheets se usuário desmarcou — mantém Parâmetros para auditoria
+  if (!incluir('raw')) {
+    for (const name of Object.values(RAW_SHEET_NAMES)) {
+      if (name === RAW_SHEET_NAMES.PARAMETROS) continue;
+      const ws = workbook.getWorksheet(name);
+      if (ws) workbook.removeWorksheet(ws.id);
+    }
+  }
 
   // Reordena: Capa primeiro (sheet ordering via positions)
   const capa = workbook.getWorksheet('00_Capa');
