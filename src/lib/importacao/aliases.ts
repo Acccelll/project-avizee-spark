@@ -128,6 +128,9 @@ export const FIELD_ALIASES: Record<string, string> = {
   'COND. PAGAMENTO': 'forma_pagamento_padrao',
   'COND PAGAMENTO': 'forma_pagamento_padrao',
   'CONDICAO PAGAMENTO': 'forma_pagamento_padrao',
+  'PAGT': 'prazo_padrao',
+  'PAGTO': 'prazo_padrao',
+  'COND PAGT': 'prazo_padrao',
 
   // --- Estoque ---
   'CODIGO PRODUTO': 'codigo_produto',
