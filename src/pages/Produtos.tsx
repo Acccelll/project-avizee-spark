@@ -45,7 +45,7 @@ interface Produto {
   grupo_id: string;unidade_medida: string;preco_custo: number;preco_venda: number;
   estoque_atual: number;estoque_minimo: number;ncm: string;cst: string;cfop_padrao: string;
   peso: number;eh_composto: boolean;ativo: boolean;created_at: string;updated_at?: string;tipo_item: TipoItem;
-  variacoes?: string[] | null;
+  variacoes?: string | string[] | null;
 }
 
 type ProdutoFormData = Omit<Produto, "id" | "estoque_atual" | "created_at" | "updated_at"> & { id?: string; variacoes_texto: string };
@@ -208,7 +208,11 @@ const Produtos = () => {
     setMode("edit");
     setEditingProduct(p);
     setFormErrors({});
-    const variacoesArr = Array.isArray(p.variacoes) ? p.variacoes as string[] : [];
+    // `produtos.variacoes` é text no banco, mas dados antigos podem ter chegado como array.
+    // Normalizamos para o input CSV usado no formulário.
+    const variacoesTexto = Array.isArray(p.variacoes)
+      ? (p.variacoes as string[]).join(", ")
+      : (typeof p.variacoes === "string" ? p.variacoes : "");
     resetForm({
       id: p.id,
       nome: p.nome, sku: p.sku || "", codigo_interno: p.codigo_interno || "", descricao: p.descricao || "",
@@ -217,7 +221,7 @@ const Produtos = () => {
       peso: p.peso || 0, eh_composto: p.eh_composto || false,
       grupo_id: p.grupo_id || "",
       tipo_item: p.tipo_item || "produto",
-      variacoes_texto: variacoesArr.join(", "),
+      variacoes_texto: variacoesTexto,
       ativo: p.ativo !== false,
     });
     const [compRes, fornRes] = await Promise.all([
@@ -319,11 +323,17 @@ const Produtos = () => {
     if (fornDups.length !== new Set(fornDups).size) { toast.error("Fornecedor duplicado: o mesmo fornecedor não pode ser vinculado duas vezes"); return; }
 
     await submit(async () => {
-      const variacoesArr = form.variacoes_texto
-        ? form.variacoes_texto.split(",").map(v => v.trim()).filter(Boolean)
+      // Persistimos como texto canônico (CSV) para casar com a coluna `variacoes text` do banco
+      // e com o snapshot `orcamentos_itens.variacao`. O front converte para chips só na exibição.
+      const variacoesTexto = form.variacoes_texto
+        ? form.variacoes_texto
+            .split(",")
+            .map((v) => v.trim())
+            .filter(Boolean)
+            .join(", ")
         : null;
       const { variacoes_texto: _vt, ...rest } = form;
-      const payload = { ...rest, variacoes: variacoesArr, preco_custo: form.eh_composto ? custoComposto : form.preco_custo };
+      const payload = { ...rest, variacoes: variacoesTexto, preco_custo: form.eh_composto ? custoComposto : form.preco_custo };
       let produtoId: string;
       if (mode === "create") {
         const result = await create(payload);
