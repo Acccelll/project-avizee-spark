@@ -6423,6 +6423,67 @@ export type Database = {
         }
         Relationships: []
       }
+      vw_apresentacao_capital_giro: {
+        Row: {
+          capital_giro_liquido: number | null
+          competencia: string | null
+          cp_aberto: number | null
+          cr_aberto: number | null
+        }
+        Relationships: []
+      }
+      vw_apresentacao_confronto_trimestral: {
+        Row: {
+          ano: string | null
+          despesa: number | null
+          receita: number | null
+          resultado: number | null
+          trimestre: string | null
+        }
+        Relationships: []
+      }
+      vw_apresentacao_dre_waterfall: {
+        Row: {
+          competencia: string | null
+          ordem: number | null
+          rotulo: string | null
+          tipo: string | null
+          valor: number | null
+        }
+        Relationships: []
+      }
+      vw_apresentacao_highlights: {
+        Row: {
+          backorder_pedidos: number | null
+          backorder_valor: number | null
+          caixa_total: number | null
+          competencia: string | null
+          despesa: number | null
+          faturamento: number | null
+          resultado: number | null
+          rol: number | null
+        }
+        Relationships: []
+      }
+      vw_apresentacao_lucro_top10: {
+        Row: {
+          dimensao: string | null
+          posicao: number | null
+          rotulo: string | null
+          valor: number | null
+        }
+        Relationships: []
+      }
+      vw_apresentacao_social_evolucao: {
+        Row: {
+          alcance: number | null
+          competencia: string | null
+          engajamento: number | null
+          plataforma: string | null
+          seguidores: number | null
+        }
+        Relationships: []
+      }
       vw_conciliacao_eventos_financeiros: {
         Row: {
           baixa_id: string | null
