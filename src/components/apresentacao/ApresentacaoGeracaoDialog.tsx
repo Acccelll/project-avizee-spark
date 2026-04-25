@@ -74,6 +74,18 @@ export function ApresentacaoGeracaoDialog({ open, onOpenChange, templates, onGer
   }, []);
 
   const totalEnabled = slideConfig.filter((s) => s.enabled).length;
+  const requiredCount = APRESENTACAO_SLIDES_V2.filter((s) => s.required).length;
+  const optionalCount = APRESENTACAO_SLIDES_V2.filter((s) => s.optional).length;
+  const optionalEnabled = totalEnabled - requiredCount;
+
+  const coverageBySection = useMemo(() => {
+    return SECAO_ORDEM.map((sec) => {
+      const all = APRESENTACAO_SLIDES_V2.filter((s) => s.secao === sec);
+      if (all.length === 0) return null;
+      const enabled = all.filter((s) => s.required || enabledSlides[s.codigo] === true).length;
+      return { secao: sec, enabled, total: all.length };
+    }).filter((g): g is { secao: SlideSecao; enabled: number; total: number } => g !== null);
+  }, [enabledSlides]);
 
   const toggleSection = (secao: SlideSecao, value: boolean) => {
     const codes = optionalBySection.find((g) => g.secao === secao)?.slides.map((s) => s.codigo) ?? [];
@@ -117,7 +129,17 @@ export function ApresentacaoGeracaoDialog({ open, onOpenChange, templates, onGer
           <div className="rounded-md border p-3">
             <div className="flex items-center justify-between mb-2">
               <p className="text-sm font-medium">Slides opcionais por seção</p>
-              <span className="text-xs text-muted-foreground">{totalEnabled} slides selecionados</span>
+              <span className="text-xs text-muted-foreground">
+                {totalEnabled} de {requiredCount + optionalCount} slides ({requiredCount} fixos + {optionalEnabled}/{optionalCount} opcionais)
+              </span>
+            </div>
+            <div className="mb-3 flex flex-wrap gap-1">
+              {coverageBySection.map(({ secao, enabled, total }) => (
+                <Badge key={secao} variant={enabled === total ? 'default' : enabled > 0 ? 'secondary' : 'outline'} className="text-[10px] gap-1">
+                  <span className={`inline-block h-1.5 w-1.5 rounded-full ${SECAO_ACCENT[secao]}`} />
+                  {SECAO_LABELS[secao]} {enabled}/{total}
+                </Badge>
+              ))}
             </div>
             <div className="grid gap-3 max-h-72 overflow-auto pr-1">
               {optionalBySection.map(({ secao, slides }) => {
@@ -125,7 +147,10 @@ export function ApresentacaoGeracaoDialog({ open, onOpenChange, templates, onGer
                 return (
                   <div key={secao} className="rounded border bg-muted/30 p-2">
                     <div className="flex items-center justify-between mb-1">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{SECAO_LABELS[secao]}</p>
+                      <div className="flex items-center gap-2">
+                        <span className={`inline-block h-2 w-2 rounded-full ${SECAO_ACCENT[secao]}`} />
+                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{SECAO_LABELS[secao]}</p>
+                      </div>
                       <button
                         type="button"
                         className="text-[10px] text-primary hover:underline"
@@ -135,16 +160,20 @@ export function ApresentacaoGeracaoDialog({ open, onOpenChange, templates, onGer
                       </button>
                     </div>
                     <div className="grid md:grid-cols-2 gap-1">
-                      {slides.map((s) => (
-                        <label key={s.codigo} className="text-xs flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={enabledSlides[s.codigo] === true}
-                            onChange={(e) => setEnabledSlides((prev) => ({ ...prev, [s.codigo]: e.target.checked }))}
-                          />
-                          {s.titulo}
-                        </label>
-                      ))}
+                      {slides.map((s) => {
+                        const Icon = CHART_ICON[s.chartType] ?? FileText;
+                        return (
+                          <label key={s.codigo} className="text-xs flex items-center gap-2 rounded px-1 py-0.5 hover:bg-background/60 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={enabledSlides[s.codigo] === true}
+                              onChange={(e) => setEnabledSlides((prev) => ({ ...prev, [s.codigo]: e.target.checked }))}
+                            />
+                            <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                            <span className="truncate">{s.titulo}</span>
+                          </label>
+                        );
+                      })}
                     </div>
                   </div>
                 );
