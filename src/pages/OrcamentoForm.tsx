@@ -387,7 +387,24 @@ export default function OrcamentoForm() {
             if (orc.largura_cm != null) setFreteLarguraCm(orc.largura_cm);
             if (orc.comprimento_cm != null) setFreteComprimentoCm(orc.comprimento_cm);
             const { data: itensData } = await supabase.from("orcamentos_itens").select("*").eq("orcamento_id", id);
-            if (itensData) setItems(itensData);
+            if (itensData) {
+              // Defesa em profundidade: se o snapshot `variacao` estiver vazio mas o produto
+              // vinculado tiver `variacoes` cadastradas, usamos esse texto para exibir ao cliente.
+              const produtosMap = new Map((produtosRes.data || []).map((p) => [p.id, p]));
+              const hidratado = itensData.map((it) => {
+                const variacaoSnapshot = (it as { variacao?: string | null }).variacao;
+                if (variacaoSnapshot && String(variacaoSnapshot).trim()) return it;
+                const prod = produtosMap.get(it.produto_id);
+                const raw = prod ? (prod as { variacoes?: unknown }).variacoes : null;
+                const fallback = Array.isArray(raw)
+                  ? (raw as string[]).join(", ")
+                  : typeof raw === "string"
+                    ? raw
+                    : "";
+                return fallback ? { ...it, variacao: fallback } : it;
+              });
+              setItems(hidratado);
+            }
           } else {
             toast.error("Orçamento não encontrado.", { description: `Nenhum orçamento com ID ${id}.` });
           }

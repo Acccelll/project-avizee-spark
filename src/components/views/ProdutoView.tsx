@@ -297,6 +297,30 @@ export function ProdutoView({ id }: Props) {
             <p className="text-sm capitalize">{selected.tipo_item || "produto"}</p>
             </div>
           </div>
+          {(() => {
+            const raw = (selected as { variacoes?: unknown }).variacoes;
+            const items: string[] = Array.isArray(raw)
+              ? (raw as string[])
+              : typeof raw === "string" && raw
+                ? raw.split(",").map((v) => v.trim()).filter(Boolean)
+                : [];
+            if (items.length === 0) return null;
+            return (
+              <div className="pt-1 border-t">
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Variações</span>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {items.map((v, i) => (
+                    <span
+                      key={i}
+                      className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-primary/10 text-primary border border-primary/20 font-medium"
+                    >
+                      {v}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
           {selected.descricao && (
             <div className="pt-1 border-t">
               <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Descrição</span>

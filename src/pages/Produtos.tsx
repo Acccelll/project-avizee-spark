@@ -45,7 +45,7 @@ interface Produto {
   grupo_id: string;unidade_medida: string;preco_custo: number;preco_venda: number;
   estoque_atual: number;estoque_minimo: number;ncm: string;cst: string;cfop_padrao: string;
   peso: number;eh_composto: boolean;ativo: boolean;created_at: string;updated_at?: string;tipo_item: TipoItem;
-  variacoes?: string[] | null;
+  variacoes?: string | string[] | null;
 }
 
 type ProdutoFormData = Omit<Produto, "id" | "estoque_atual" | "created_at" | "updated_at"> & { id?: string; variacoes_texto: string };
@@ -208,7 +208,11 @@ const Produtos = () => {
     setMode("edit");
     setEditingProduct(p);
     setFormErrors({});
-    const variacoesArr = Array.isArray(p.variacoes) ? p.variacoes as string[] : [];
+    // `produtos.variacoes` é text no banco, mas dados antigos podem ter chegado como array.
+    // Normalizamos para o input CSV usado no formulário.
+    const variacoesTexto = Array.isArray(p.variacoes)
+      ? (p.variacoes as string[]).join(", ")
+      : (typeof p.variacoes === "string" ? p.variacoes : "");
     resetForm({
       id: p.id,
       nome: p.nome, sku: p.sku || "", codigo_interno: p.codigo_interno || "", descricao: p.descricao || "",
@@ -217,7 +221,7 @@ const Produtos = () => {
       peso: p.peso || 0, eh_composto: p.eh_composto || false,
       grupo_id: p.grupo_id || "",
       tipo_item: p.tipo_item || "produto",
-      variacoes_texto: variacoesArr.join(", "),
+      variacoes_texto: variacoesTexto,
       ativo: p.ativo !== false,
     });
     const [compRes, fornRes] = await Promise.all([
@@ -319,11 +323,17 @@ const Produtos = () => {
     if (fornDups.length !== new Set(fornDups).size) { toast.error("Fornecedor duplicado: o mesmo fornecedor não pode ser vinculado duas vezes"); return; }
 
     await submit(async () => {
-      const variacoesArr = form.variacoes_texto
-        ? form.variacoes_texto.split(",").map(v => v.trim()).filter(Boolean)
+      // Persistimos como texto canônico (CSV) para casar com a coluna `variacoes text` do banco
+      // e com o snapshot `orcamentos_itens.variacao`. O front converte para chips só na exibição.
+      const variacoesTexto = form.variacoes_texto
+        ? form.variacoes_texto
+            .split(",")
+            .map((v) => v.trim())
+            .filter(Boolean)
+            .join(", ")
         : null;
       const { variacoes_texto: _vt, ...rest } = form;
-      const payload = { ...rest, variacoes: variacoesArr, preco_custo: form.eh_composto ? custoComposto : form.preco_custo };
+      const payload = { ...rest, variacoes: variacoesTexto, preco_custo: form.eh_composto ? custoComposto : form.preco_custo };
       let produtoId: string;
       if (mode === "create") {
         const result = await create(payload);
@@ -487,6 +497,38 @@ const Produtos = () => {
       render: (p: Produto) => (
         <span className="text-xs text-muted-foreground">{p.unidade_medida || "UN"}</span>
       ),
+    },
+    {
+      key: "variacoes",
+      label: "Variações",
+      render: (p: Produto) => {
+        const raw = p.variacoes;
+        const items: string[] = Array.isArray(raw)
+          ? raw
+          : typeof raw === "string" && raw
+            ? raw.split(",").map((v) => v.trim()).filter(Boolean)
+            : [];
+        if (items.length === 0) {
+          return <span className="text-xs text-muted-foreground">—</span>;
+        }
+        const visiveis = items.slice(0, 2);
+        const restantes = items.length - visiveis.length;
+        return (
+          <div className="flex flex-wrap items-center gap-1" title={items.join(", ")}>
+            {visiveis.map((v, i) => (
+              <span
+                key={i}
+                className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-primary/10 text-primary border border-primary/20 font-medium"
+              >
+                {v}
+              </span>
+            ))}
+            {restantes > 0 && (
+              <span className="text-[10px] text-muted-foreground">+{restantes}</span>
+            )}
+          </div>
+        );
+      },
     },
     {
       key: "estoque_atual",
