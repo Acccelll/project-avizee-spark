@@ -374,6 +374,50 @@ export type Database = {
         }
         Relationships: []
       }
+      budgets_mensais: {
+        Row: {
+          categoria: string
+          centro_custo_id: string | null
+          competencia: string
+          created_at: string
+          created_by: string | null
+          id: string
+          observacoes: string | null
+          updated_at: string
+          valor: number
+        }
+        Insert: {
+          categoria: string
+          centro_custo_id?: string | null
+          competencia: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          observacoes?: string | null
+          updated_at?: string
+          valor?: number
+        }
+        Update: {
+          categoria?: string
+          centro_custo_id?: string | null
+          competencia?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          observacoes?: string | null
+          updated_at?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budgets_mensais_centro_custo_id_fkey"
+            columns: ["centro_custo_id"]
+            isOneToOne: false
+            referencedRelation: "centros_custo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cadastros_pendencias_migracao: {
         Row: {
           campo: string | null
@@ -953,6 +997,20 @@ export type Database = {
             foreignKeyName: "compras_itens_produto_id_fkey"
             columns: ["produto_id"]
             isOneToOne: false
+            referencedRelation: "vw_workbook_estoque_critico"
+            referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "compras_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_estoque_giro"
+            referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "compras_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
             referencedRelation: "vw_workbook_estoque_posicao"
             referencedColumns: ["produto_id"]
           },
@@ -1283,6 +1341,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "produtos"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cotacoes_compra_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_estoque_critico"
+            referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "cotacoes_compra_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_estoque_giro"
+            referencedColumns: ["produto_id"]
           },
           {
             foreignKeyName: "cotacoes_compra_itens_produto_id_fkey"
@@ -1629,6 +1701,20 @@ export type Database = {
             foreignKeyName: "estoque_movimentos_produto_id_fkey"
             columns: ["produto_id"]
             isOneToOne: false
+            referencedRelation: "vw_workbook_estoque_critico"
+            referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "estoque_movimentos_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_estoque_giro"
+            referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "estoque_movimentos_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
             referencedRelation: "vw_workbook_estoque_posicao"
             referencedColumns: ["produto_id"]
           },
@@ -1725,6 +1811,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "produtos"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fechamento_estoque_saldos_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_estoque_critico"
+            referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "fechamento_estoque_saldos_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_estoque_giro"
+            referencedColumns: ["produto_id"]
           },
           {
             foreignKeyName: "fechamento_estoque_saldos_produto_id_fkey"
@@ -3350,6 +3450,20 @@ export type Database = {
             foreignKeyName: "notas_fiscais_itens_produto_id_fkey"
             columns: ["produto_id"]
             isOneToOne: false
+            referencedRelation: "vw_workbook_estoque_critico"
+            referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "notas_fiscais_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_estoque_giro"
+            referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "notas_fiscais_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
             referencedRelation: "vw_workbook_estoque_posicao"
             referencedColumns: ["produto_id"]
           },
@@ -3653,6 +3767,20 @@ export type Database = {
             foreignKeyName: "orcamentos_itens_produto_id_fkey"
             columns: ["produto_id"]
             isOneToOne: false
+            referencedRelation: "vw_workbook_estoque_critico"
+            referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "orcamentos_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_estoque_giro"
+            referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "orcamentos_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
             referencedRelation: "vw_workbook_estoque_posicao"
             referencedColumns: ["produto_id"]
           },
@@ -3876,6 +4004,20 @@ export type Database = {
             foreignKeyName: "ordens_venda_itens_produto_id_fkey"
             columns: ["produto_id"]
             isOneToOne: false
+            referencedRelation: "vw_workbook_estoque_critico"
+            referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "ordens_venda_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_estoque_giro"
+            referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "ordens_venda_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
             referencedRelation: "vw_workbook_estoque_posicao"
             referencedColumns: ["produto_id"]
           },
@@ -4039,6 +4181,20 @@ export type Database = {
             foreignKeyName: "pedidos_compra_itens_produto_id_fkey"
             columns: ["produto_id"]
             isOneToOne: false
+            referencedRelation: "vw_workbook_estoque_critico"
+            referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "pedidos_compra_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_estoque_giro"
+            referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "pedidos_compra_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
             referencedRelation: "vw_workbook_estoque_posicao"
             referencedColumns: ["produto_id"]
           },
@@ -4149,6 +4305,20 @@ export type Database = {
             foreignKeyName: "precos_especiais_produto_id_fkey"
             columns: ["produto_id"]
             isOneToOne: false
+            referencedRelation: "vw_workbook_estoque_critico"
+            referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "precos_especiais_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_estoque_giro"
+            referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "precos_especiais_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
             referencedRelation: "vw_workbook_estoque_posicao"
             referencedColumns: ["produto_id"]
           },
@@ -4191,6 +4361,20 @@ export type Database = {
             foreignKeyName: "produto_composicoes_produto_filho_id_fkey"
             columns: ["produto_filho_id"]
             isOneToOne: false
+            referencedRelation: "vw_workbook_estoque_critico"
+            referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "produto_composicoes_produto_filho_id_fkey"
+            columns: ["produto_filho_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_estoque_giro"
+            referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "produto_composicoes_produto_filho_id_fkey"
+            columns: ["produto_filho_id"]
+            isOneToOne: false
             referencedRelation: "vw_workbook_estoque_posicao"
             referencedColumns: ["produto_id"]
           },
@@ -4200,6 +4384,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "produtos"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "produto_composicoes_produto_pai_id_fkey"
+            columns: ["produto_pai_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_estoque_critico"
+            referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "produto_composicoes_produto_pai_id_fkey"
+            columns: ["produto_pai_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_estoque_giro"
+            referencedColumns: ["produto_id"]
           },
           {
             foreignKeyName: "produto_composicoes_produto_pai_id_fkey"
@@ -4260,6 +4458,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "produtos"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "produto_identificadores_legacy_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_estoque_critico"
+            referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "produto_identificadores_legacy_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_estoque_giro"
+            referencedColumns: ["produto_id"]
           },
           {
             foreignKeyName: "produto_identificadores_legacy_produto_id_fkey"
@@ -4449,6 +4661,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "produtos"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "produtos_fornecedores_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_estoque_critico"
+            referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "produtos_fornecedores_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_estoque_giro"
+            referencedColumns: ["produto_id"]
           },
           {
             foreignKeyName: "produtos_fornecedores_produto_id_fkey"
@@ -4656,6 +4882,20 @@ export type Database = {
             foreignKeyName: "recebimentos_compra_itens_produto_id_fkey"
             columns: ["produto_id"]
             isOneToOne: false
+            referencedRelation: "vw_workbook_estoque_critico"
+            referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "recebimentos_compra_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_estoque_giro"
+            referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "recebimentos_compra_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
             referencedRelation: "vw_workbook_estoque_posicao"
             referencedColumns: ["produto_id"]
           },
@@ -4775,6 +5015,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "produtos"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "remessa_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_estoque_critico"
+            referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "remessa_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_estoque_giro"
+            referencedColumns: ["produto_id"]
           },
           {
             foreignKeyName: "remessa_itens_produto_id_fkey"
@@ -6412,12 +6666,97 @@ export type Database = {
         }
         Relationships: []
       }
+      vw_workbook_caixa_evolutivo: {
+        Row: {
+          competencia: string | null
+          conta_bancaria_id: string | null
+          conta_descricao: string | null
+          saldo_final: number | null
+          saldo_inicial: number | null
+          variacao_mes: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "caixa_movimentos_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "contas_bancarias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "caixa_movimentos_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_bancos_saldo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vw_workbook_compras_fornecedor: {
+        Row: {
+          competencia: string | null
+          fornecedor_id: string | null
+          fornecedor_nome: string | null
+          gasto_total: number | null
+          lead_time_medio_dias: number | null
+          qtd_pedidos: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pedidos_compra_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "fornecedores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vw_workbook_despesa_mensal: {
         Row: {
           competencia: string | null
           quantidade: number | null
           total_despesa: number | null
           total_pago: number | null
+        }
+        Relationships: []
+      }
+      vw_workbook_dre_mensal: {
+        Row: {
+          competencia: string | null
+          deducoes: number | null
+          despesa_operacional: number | null
+          ebitda: number | null
+          fopag: number | null
+          receita_bruta: number | null
+          receita_liquida: number | null
+        }
+        Relationships: []
+      }
+      vw_workbook_estoque_critico: {
+        Row: {
+          codigo: string | null
+          deficit: number | null
+          estoque_atual: number | null
+          estoque_minimo: number | null
+          grupo_nome: string | null
+          nome: string | null
+          preco_custo: number | null
+          produto_id: string | null
+          valor_reposicao: number | null
+        }
+        Relationships: []
+      }
+      vw_workbook_estoque_giro: {
+        Row: {
+          cobertura_dias: number | null
+          codigo: string | null
+          estoque_atual: number | null
+          giro_90d: number | null
+          grupo_nome: string | null
+          nome: string | null
+          produto_id: string | null
+          saidas_90d: number | null
+          valor_estoque: number | null
         }
         Relationships: []
       }
@@ -6450,6 +6789,44 @@ export type Database = {
         }
         Relationships: []
       }
+      vw_workbook_fiscal_resumo: {
+        Row: {
+          cofins: number | null
+          competencia: string | null
+          icms: number | null
+          ipi: number | null
+          pis: number | null
+          qtd_canceladas: number | null
+          qtd_confirmadas: number | null
+          qtd_rascunho: number | null
+          tipo: string | null
+          valor_confirmado: number | null
+        }
+        Relationships: []
+      }
+      vw_workbook_logistica_resumo: {
+        Row: {
+          competencia: string | null
+          devolucoes: number | null
+          entregues_atraso: number | null
+          entregues_no_prazo: number | null
+          frete_total: number | null
+          qtd_remessas: number | null
+        }
+        Relationships: []
+      }
+      vw_workbook_orcamentos_funil: {
+        Row: {
+          abertos: number | null
+          aprovados: number | null
+          competencia: string | null
+          perdidos: number | null
+          total: number | null
+          valor_aprovado: number | null
+          valor_total: number | null
+        }
+        Relationships: []
+      }
       vw_workbook_receita_mensal: {
         Row: {
           competencia: string | null
@@ -6458,6 +6835,54 @@ export type Database = {
           total_receita: number | null
         }
         Relationships: []
+      }
+      vw_workbook_vendas_cliente_abc: {
+        Row: {
+          cliente_id: string | null
+          cliente_nome: string | null
+          curva_abc: string | null
+          faturamento: number | null
+          participacao: number | null
+          participacao_acum: number | null
+          qtd_nfs: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notas_fiscais_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vw_workbook_vendas_regiao: {
+        Row: {
+          competencia: string | null
+          faturamento: number | null
+          qtd_nfs: number | null
+          uf: string | null
+        }
+        Relationships: []
+      }
+      vw_workbook_vendas_vendedor: {
+        Row: {
+          competencia: string | null
+          faturamento: number | null
+          qtd_pedidos: number | null
+          ticket_medio: number | null
+          vendedor_id: string | null
+          vendedor_nome: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ordens_venda_vendedor_id_fkey"
+            columns: ["vendedor_id"]
+            isOneToOne: false
+            referencedRelation: "funcionarios"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Functions: {
