@@ -2,13 +2,35 @@ import { supabase } from '@/integrations/supabase/client';
 import type { ApresentacaoDataBundle, ApresentacaoModoGeracao, SlideCodigo } from '@/types/apresentacao';
 import { APRESENTACAO_SLIDES_MAP } from './slideDefinitions';
 
-async function queryView(viewName: string, iniYM: string, fimYM: string) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const q = (supabase as any).from(viewName).select('*');
-  const filtered = q.gte?.('competencia', iniYM)?.lte?.('competencia', fimYM);
-  const { data, error } = await (filtered ?? q);
-  if (error) throw error;
-  return data ?? [];
+/**
+ * Apresentação V3 — fetcher reutiliza views vw_workbook_* já existentes
+ * em produção + 6 views vw_apresentacao_* específicas (highlights,
+ * confronto trimestral, waterfall DRE, lucro top10, social, capital de giro).
+ */
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyRow = any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const sb = supabase as any;
+
+async function viewByComp(name: string, iniYM: string, fimYM: string) {
+  try {
+    const { data, error } = await sb.from(name).select('*').gte('competencia', iniYM).lte('competencia', fimYM);
+    if (error) throw error;
+    return data ?? [];
+  } catch {
+    return [];
+  }
+}
+
+async function viewAll(name: string) {
+  try {
+    const { data, error } = await sb.from(name).select('*');
+    if (error) throw error;
+    return data ?? [];
+  } catch {
+    return [];
+  }
 }
 
 function monthRange(iniYM: string, fimYM: string): string[] {
@@ -28,63 +50,37 @@ function monthRange(iniYM: string, fimYM: string): string[] {
   return out;
 }
 
-const viewMap: Record<SlideCodigo, string> = {
-  cover: '',
-  highlights_financeiros: 'vw_apresentacao_highlights_financeiros',
-  faturamento: 'vw_apresentacao_faturamento',
-  despesas: 'vw_apresentacao_despesas',
-  rol_caixa: 'vw_apresentacao_rol_caixa',
-  receita_vs_despesa: 'vw_apresentacao_receita_vs_despesa',
-  fopag: 'vw_apresentacao_fopag',
-  fluxo_caixa: 'vw_apresentacao_fluxo_caixa',
-  lucro_produto_cliente: 'vw_apresentacao_lucro_produto_cliente',
-  variacao_estoque: 'vw_apresentacao_variacao_estoque',
-  venda_estado: 'vw_apresentacao_venda_estado',
-  redes_sociais: 'vw_apresentacao_redes_sociais',
-  bridge_ebitda: 'vw_apresentacao_bridge_ebitda',
-  bridge_lucro_liquido: 'vw_apresentacao_bridge_lucro_liquido',
-  dre_gerencial: 'vw_apresentacao_dre_gerencial',
-  capital_giro: 'vw_apresentacao_capital_giro',
-  balanco_gerencial: 'vw_apresentacao_balanco_gerencial',
-  resultado_financeiro: 'vw_apresentacao_resultado_financeiro',
-  tributos: 'vw_apresentacao_tributos',
-  aging_consolidado: 'vw_apresentacao_aging_consolidado',
-  debt: 'vw_apresentacao_debt',
-  bancos_detalhado: 'vw_apresentacao_bancos_detalhado',
-  backorder: 'vw_apresentacao_backorder',
-  top_clientes: 'vw_apresentacao_top_clientes',
-  top_fornecedores: 'vw_apresentacao_top_fornecedores',
-  inadimplencia: 'vw_apresentacao_inadimplencia',
-  performance_comercial_canal: 'vw_apresentacao_performance_comercial_canal',
-  closing: '',
-};
+const ALL_SLIDES: SlideCodigo[] = [
+  'cover', 'highlights_financeiros', 'faturamento', 'despesas', 'rol_caixa',
+  'receita_vs_despesa', 'fopag', 'fluxo_caixa', 'lucro_produto_cliente',
+  'variacao_estoque', 'venda_estado', 'redes_sociais', 'bridge_ebitda',
+  'bridge_lucro_liquido', 'dre_gerencial', 'capital_giro', 'balanco_gerencial',
+  'resultado_financeiro', 'tributos', 'aging_consolidado', 'debt',
+  'bancos_detalhado', 'backorder', 'top_clientes', 'top_fornecedores',
+  'inadimplencia', 'performance_comercial_canal', 'closing',
+];
 
 async function fetchClosedSnapshotData(iniYM: string, fimYM: string, slidesList: SlideCodigo[]) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: fechamentoData, error: fechamentoError } = await (supabase as any)
+  const { data: fechamentoData, error: fechamentoError } = await sb
     .from('fechamentos_mensais')
     .select('id, competencia, status')
     .gte('competencia', `${iniYM}-01`)
     .lte('competencia', `${fimYM}-31`)
     .eq('status', 'fechado');
   if (fechamentoError) throw fechamentoError;
-  const fechamentos = (fechamentoData ?? []).map((f: Record<string, unknown>) => ({ id: String(f.id), competencia: String(f.competencia).slice(0, 7) }));
+  const fechamentos = (fechamentoData ?? []).map((f: AnyRow) => ({ id: String(f.id), competencia: String(f.competencia).slice(0, 7) }));
   const expected = monthRange(iniYM, fimYM);
-  const missing = expected.filter((m) => !fechamentos.some((f) => f.competencia === m));
+  const missing = expected.filter((m) => !fechamentos.some((f: { competencia: string }) => f.competencia === m));
   if (missing.length) throw new Error(`Modo fechado sem cobertura completa: ${missing.join(', ')}`);
 
-  const fechamentoIds = fechamentos.map((f) => f.id);
-  const competenciaByFechamentoId = new Map(fechamentos.map((f) => [f.id, f.competencia]));
+  const fechamentoIds = fechamentos.map((f: { id: string }) => f.id);
+  const competenciaByFechamentoId = new Map(fechamentos.map((f: { id: string; competencia: string }) => [f.id, f.competencia]));
 
   const [finRes, caixaRes, estoqueRes, fopagRes] = await Promise.all([
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (supabase as any).from('fechamento_financeiro_saldos').select('*').in('fechamento_id', fechamentoIds),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (supabase as any).from('fechamento_caixa_saldos').select('*').in('fechamento_id', fechamentoIds),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (supabase as any).from('fechamento_estoque_saldos').select('*').in('fechamento_id', fechamentoIds),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (supabase as any).from('fechamento_fopag_resumo').select('*').in('fechamento_id', fechamentoIds),
+    sb.from('fechamento_financeiro_saldos').select('*').in('fechamento_id', fechamentoIds),
+    sb.from('fechamento_caixa_saldos').select('*').in('fechamento_id', fechamentoIds),
+    sb.from('fechamento_estoque_saldos').select('*').in('fechamento_id', fechamentoIds),
+    sb.from('fechamento_fopag_resumo').select('*').in('fechamento_id', fechamentoIds),
   ]);
 
   const fin = finRes.data ?? [];
@@ -92,9 +88,9 @@ async function fetchClosedSnapshotData(iniYM: string, fimYM: string, slidesList:
   const estoque = estoqueRes.data ?? [];
   const fopag = fopagRes.data ?? [];
 
-  const byComp = (rows: Record<string, unknown>[]) => {
-    const map = new Map<string, Record<string, unknown>[]>();
-    rows.forEach((row: Record<string, unknown>) => {
+  const byComp = (rows: AnyRow[]) => {
+    const map = new Map<string, AnyRow[]>();
+    rows.forEach((row: AnyRow) => {
       const fechamentoId = String(row.fechamento_id ?? '');
       const comp = String(competenciaByFechamentoId.get(fechamentoId) ?? '');
       if (!comp) return;
@@ -104,11 +100,10 @@ async function fetchClosedSnapshotData(iniYM: string, fimYM: string, slidesList:
     return map;
   };
 
-  const finMap = byComp(fin as Record<string, unknown>[]);
-  const caixaMap = byComp(caixa as Record<string, unknown>[]);
-  const estoqueMap = byComp(estoque as Record<string, unknown>[]);
-  const fopagMap = byComp(fopag as Record<string, unknown>[]);
-
+  const finMap = byComp(fin);
+  const caixaMap = byComp(caixa);
+  const estoqueMap = byComp(estoque);
+  const fopagMap = byComp(fopag);
   const selectedComp = fimYM;
   const slides = {} as Record<SlideCodigo, Record<string, unknown>>;
 
@@ -117,95 +112,266 @@ async function fetchClosedSnapshotData(iniYM: string, fimYM: string, slidesList:
       slides[codigo] = { competencia: selectedComp, indisponivel: false };
       continue;
     }
-
     if (['rol_caixa', 'fluxo_caixa', 'bancos_detalhado'].includes(codigo)) {
       const rows = caixaMap.get(selectedComp) ?? [];
-      if (!rows.length) {
-        slides[codigo] = { indisponivel: true, motivo: 'snapshot caixa indisponível' };
-        continue;
-      }
-      const total = rows.reduce((acc, r: Record<string, unknown>) => acc + Number(r.saldo_final ?? 0), 0);
-      slides[codigo] = {
-        competencia: selectedComp,
-        valor_atual: total,
-        total_entradas: rows.reduce((acc, r: Record<string, unknown>) => acc + Number(r.total_entradas ?? 0), 0),
-        total_saidas: rows.reduce((acc, r: Record<string, unknown>) => acc + Number(r.total_saidas ?? 0), 0),
-      };
+      if (!rows.length) { slides[codigo] = { indisponivel: true, motivo: 'snapshot caixa indisponível' }; continue; }
+      const total = rows.reduce((acc, r: AnyRow) => acc + Number(r.saldo_final ?? 0), 0);
+      slides[codigo] = { competencia: selectedComp, valor_atual: total };
       continue;
     }
-
     if (codigo === 'variacao_estoque') {
       const rows = estoqueMap.get(selectedComp) ?? [];
-      if (!rows.length) {
-        slides[codigo] = { indisponivel: true, motivo: 'snapshot estoque indisponível' };
-        continue;
-      }
-      slides[codigo] = {
-        competencia: selectedComp,
-        valor_atual: rows.reduce((acc: number, r: Record<string, unknown>) => acc + Number(r.valor_total ?? 0), 0),
-        quantidade_itens: rows.length,
-        custo_unitario_medio: rows.length
-          ? rows.reduce((acc: number, r: Record<string, unknown>) => acc + Number(r.custo_unitario ?? 0), 0) / rows.length
-          : 0,
-      };
+      if (!rows.length) { slides[codigo] = { indisponivel: true, motivo: 'snapshot estoque indisponível' }; continue; }
+      slides[codigo] = { competencia: selectedComp, valor_atual: rows.reduce((a, r: AnyRow) => a + Number(r.valor_total ?? 0), 0), quantidade_itens: rows.length };
       continue;
     }
-
     if (codigo === 'fopag') {
       const rows = fopagMap.get(selectedComp) ?? [];
-      if (!rows.length) {
-        slides[codigo] = { indisponivel: true, motivo: 'snapshot fopag indisponível' };
-        continue;
-      }
-      slides[codigo] = {
-        competencia: selectedComp,
-        valor_atual: rows.reduce((acc: number, r: Record<string, unknown>) => acc + Number(r.valor_liquido ?? 0), 0),
-        funcionarios: rows.length,
-      };
+      if (!rows.length) { slides[codigo] = { indisponivel: true, motivo: 'snapshot fopag indisponível' }; continue; }
+      slides[codigo] = { competencia: selectedComp, valor_atual: rows.reduce((a, r: AnyRow) => a + Number(r.valor_liquido ?? 0), 0), funcionarios: rows.length };
       continue;
     }
-
-    if (codigo === 'aging_consolidado') {
+    if (codigo === 'aging_consolidado' || codigo === 'capital_giro') {
       const rows = finMap.get(selectedComp) ?? [];
-      if (!rows.length) {
-        slides[codigo] = { indisponivel: true, motivo: 'snapshot financeiro indisponível' };
-        continue;
-      }
-      const receita = rows.filter((r: Record<string, unknown>) => r.tipo === 'receber').reduce((a: number, r: Record<string, unknown>) => a + Number(r.saldo_aberto ?? 0), 0);
-      const despesa = rows.filter((r: Record<string, unknown>) => r.tipo === 'pagar').reduce((a: number, r: Record<string, unknown>) => a + Number(r.saldo_aberto ?? 0), 0);
-      slides[codigo] = {
-        competencia: selectedComp,
-        cr_aberto: receita,
-        cp_aberto: despesa,
-        valor_atual: receita + despesa,
-      };
+      if (!rows.length) { slides[codigo] = { indisponivel: true, motivo: 'snapshot financeiro indisponível' }; continue; }
+      const cr = rows.filter((r: AnyRow) => r.tipo === 'receber').reduce((a, r: AnyRow) => a + Number(r.saldo_aberto ?? 0), 0);
+      const cp = rows.filter((r: AnyRow) => r.tipo === 'pagar').reduce((a, r: AnyRow) => a + Number(r.saldo_aberto ?? 0), 0);
+      slides[codigo] = codigo === 'capital_giro'
+        ? { contas_receber: cr, contas_pagar: cp, valor_atual: cr - cp }
+        : { cr_aberto: cr, cp_aberto: cp, valor_atual: cr + cp };
       continue;
     }
-
-    if (codigo === 'capital_giro') {
-      const rows = finMap.get(selectedComp) ?? [];
-      if (!rows.length) {
-        slides[codigo] = { indisponivel: true, motivo: 'snapshot financeiro indisponível' };
-        continue;
-      }
-      const contasReceber = rows.filter((r: Record<string, unknown>) => r.tipo === 'receber').reduce((a: number, r: Record<string, unknown>) => a + Number(r.saldo_aberto ?? 0), 0);
-      const contasPagar = rows.filter((r: Record<string, unknown>) => r.tipo === 'pagar').reduce((a: number, r: Record<string, unknown>) => a + Number(r.saldo_aberto ?? 0), 0);
-      slides[codigo] = {
-        competencia: selectedComp,
-        contas_receber: contasReceber,
-        contas_pagar: contasPagar,
-        valor_atual: contasReceber - contasPagar,
-      };
-      continue;
-    }
-
-    if (['highlights_financeiros', 'receita_vs_despesa', 'despesas', 'faturamento', 'inadimplencia', 'balanco_gerencial', 'debt'].includes(codigo)) {
-      slides[codigo] = { indisponivel: true, motivo: 'não automatizado no modo fechado' };
-      continue;
-    }
-
-    // Demais slides dependem de bases não snapshotadas atualmente
     slides[codigo] = { indisponivel: true, motivo: 'não automatizado no modo fechado' };
+  }
+  return slides;
+}
+
+async function buildDynamicSlides(iniYM: string, fimYM: string, slidesList: SlideCodigo[]) {
+  const slides = {} as Record<SlideCodigo, Record<string, unknown>>;
+  const yearStart = `${iniYM.slice(0, 4)}-01`;
+  const yearEnd = `${fimYM.slice(0, 4)}-12`;
+
+  const [
+    highlights, faturamento, despesa, dreMensal, caixaEvol, bancos,
+    estoquePos, vendasRegiao, vendasABC, vendasVendedor, funil,
+    fornecedores, fiscal, confronto, waterfall, lucroTop, social, capitalGiro,
+  ] = await Promise.all([
+    viewByComp('vw_apresentacao_highlights', yearStart, yearEnd),
+    viewByComp('vw_workbook_faturamento_mensal', yearStart, yearEnd),
+    viewByComp('vw_workbook_despesa_mensal', yearStart, yearEnd),
+    viewByComp('vw_workbook_dre_mensal', iniYM, fimYM),
+    viewByComp('vw_workbook_caixa_evolutivo', iniYM, fimYM),
+    viewAll('vw_workbook_bancos_saldo'),
+    viewAll('vw_workbook_estoque_posicao'),
+    viewByComp('vw_workbook_vendas_regiao', iniYM, fimYM),
+    viewAll('vw_workbook_vendas_cliente_abc'),
+    viewByComp('vw_workbook_vendas_vendedor', iniYM, fimYM),
+    viewByComp('vw_workbook_orcamentos_funil', iniYM, fimYM),
+    viewByComp('vw_workbook_compras_fornecedor', iniYM, fimYM),
+    viewByComp('vw_workbook_fiscal_resumo', iniYM, fimYM),
+    viewAll('vw_apresentacao_confronto_trimestral'),
+    viewByComp('vw_apresentacao_dre_waterfall', iniYM, fimYM),
+    viewAll('vw_apresentacao_lucro_top10'),
+    viewByComp('vw_apresentacao_social_evolucao', iniYM, fimYM),
+    viewByComp('vw_apresentacao_capital_giro', iniYM, fimYM),
+  ]);
+
+  // FOPAG: agrega snapshots por competência (formato YYYY-MM-DD)
+  let fopagAgg: Array<{ competencia: string; valor_liquido_total: number; headcount: number }> = [];
+  try {
+    const { data: fopagRows } = await sb.from('fechamento_fopag_resumo').select('competencia, valor_liquido')
+      .gte('competencia', `${iniYM}-01`).lte('competencia', `${fimYM}-31`);
+    const map = new Map<string, { total: number; count: number }>();
+    (fopagRows ?? []).forEach((r: AnyRow) => {
+      const ym = String(r.competencia).slice(0, 7);
+      const cur = map.get(ym) ?? { total: 0, count: 0 };
+      cur.total += Number(r.valor_liquido || 0);
+      cur.count += 1;
+      map.set(ym, cur);
+    });
+    fopagAgg = Array.from(map.entries()).map(([k, v]) => ({ competencia: k, valor_liquido_total: v.total, headcount: v.count }));
+  } catch { /* segue */ }
+
+  // Aging — totais
+  const [agingCRRes, agingCPRes] = await Promise.all([
+    sb.from('vw_workbook_aging_cr').select('saldo_aberto, data_vencimento').gt('saldo_aberto', 0).then((r: AnyRow) => r.data ?? []).catch(() => []),
+    sb.from('vw_workbook_aging_cp').select('saldo_aberto, data_vencimento').gt('saldo_aberto', 0).then((r: AnyRow) => r.data ?? []).catch(() => []),
+  ]);
+  const totalCR = agingCRRes.reduce((a: number, r: AnyRow) => a + Number(r.saldo_aberto || 0), 0);
+  const totalCP = agingCPRes.reduce((a: number, r: AnyRow) => a + Number(r.saldo_aberto || 0), 0);
+  const today = new Date();
+  const atrasoCR = agingCRRes.filter((r: AnyRow) => new Date(r.data_vencimento) < today).reduce((a: number, r: AnyRow) => a + Number(r.saldo_aberto || 0), 0);
+
+  const lastHL = highlights[highlights.length - 1];
+  const prevHL = highlights[highlights.length - 2];
+  const lastFat = faturamento.find((f: AnyRow) => f.competencia === fimYM) ?? faturamento[faturamento.length - 1];
+  const prevFat = faturamento.find((f: AnyRow) => f.competencia === iniYM);
+  const lastDesp = despesa.find((d: AnyRow) => d.competencia === fimYM) ?? despesa[despesa.length - 1];
+  const prevDesp = despesa.find((d: AnyRow) => d.competencia === iniYM);
+  const lastDRE = dreMensal[dreMensal.length - 1];
+  const lastFopag = fopagAgg[fopagAgg.length - 1];
+  const lastFiscal = fiscal[fiscal.length - 1];
+  const lastCG = capitalGiro[capitalGiro.length - 1];
+  const lastFunil = funil[funil.length - 1];
+
+  const builders: Partial<Record<SlideCodigo, () => Record<string, unknown>>> = {
+    cover: () => ({ competencia: fimYM }),
+    closing: () => ({ competencia: fimYM, total_slides: slidesList.length }),
+
+    highlights_financeiros: () => lastHL ? {
+      faturamento: Number(lastHL.faturamento || 0),
+      despesa: Number(lastHL.despesa || 0),
+      resultado: Number(lastHL.resultado || 0),
+      caixa: Number(lastHL.caixa_total || 0),
+      rol: Number(lastHL.rol || 0),
+      backorder: Number(lastHL.backorder_valor || 0),
+      valor_atual: Number(lastHL.resultado || 0),
+      valor_anterior: prevHL ? Number(prevHL.resultado || 0) : 0,
+    } : { indisponivel: true, motivo: 'sem dados de highlights no período' },
+
+    faturamento: () => lastFat ? {
+      serie: faturamento.map((f: AnyRow) => ({ competencia: f.competencia, valor: Number(f.total_faturado) })),
+      valor_atual: Number(lastFat.total_faturado || 0),
+      valor_anterior: prevFat ? Number(prevFat.total_faturado || 0) : 0,
+      quantidade_nfs: Number(lastFat.quantidade_nfs || 0),
+    } : { indisponivel: true, motivo: 'sem faturamento no período' },
+
+    despesas: () => lastDesp ? {
+      serie: despesa.map((d: AnyRow) => ({ competencia: d.competencia, valor: Number(d.total_despesa) })),
+      valor_atual: Number(lastDesp.total_despesa || 0),
+      valor_anterior: prevDesp ? Number(prevDesp.total_despesa || 0) : 0,
+      total_pago: Number(lastDesp.total_pago || 0),
+    } : { indisponivel: true, motivo: 'sem despesa no período' },
+
+    rol_caixa: () => lastDRE ? {
+      rol: Number(lastDRE.receita_liquida || 0),
+      caixa_total: Number(lastHL?.caixa_total || 0),
+      valor_atual: Number(lastHL?.caixa_total || 0),
+      cobertura_pct: Number(lastDRE.receita_liquida) > 0 ? (Number(lastHL?.caixa_total || 0) / Number(lastDRE.receita_liquida)) * 100 : 0,
+    } : { indisponivel: true, motivo: 'sem DRE no período' },
+
+    receita_vs_despesa: () => ({
+      serie: faturamento.map((f: AnyRow) => {
+        const d = despesa.find((x: AnyRow) => x.competencia === f.competencia);
+        return { competencia: f.competencia, receita: Number(f.total_faturado || 0), despesa: Number(d?.total_despesa || 0) };
+      }),
+      valor_atual: Number(lastFat?.total_faturado || 0) - Number(lastDesp?.total_despesa || 0),
+      confronto_trimestral: confronto,
+    }),
+
+    fopag: () => lastFopag ? {
+      valor_atual: lastFopag.valor_liquido_total,
+      headcount: lastFopag.headcount,
+      serie: fopagAgg,
+    } : { indisponivel: true, motivo: 'sem snapshot FOPAG no período' },
+
+    fluxo_caixa: () => caixaEvol.length ? {
+      serie: caixaEvol.map((c: AnyRow) => ({ competencia: c.competencia, saldo: Number(c.saldo_final), variacao: Number(c.variacao_mes) })),
+      valor_atual: Number(caixaEvol[caixaEvol.length - 1].saldo_final),
+    } : { indisponivel: true, motivo: 'sem evolução de caixa' },
+
+    bancos_detalhado: () => bancos.length ? {
+      contas: bancos.slice(0, 10),
+      valor_atual: bancos.reduce((a: number, b: AnyRow) => a + Number(b.saldo_atual || 0), 0),
+    } : { indisponivel: true, motivo: 'sem saldos bancários' },
+
+    lucro_produto_cliente: () => lucroTop.length ? {
+      top_produtos: lucroTop.filter((r: AnyRow) => r.dimensao === 'produto').slice(0, 10),
+      top_clientes: lucroTop.filter((r: AnyRow) => r.dimensao === 'cliente').slice(0, 10),
+    } : { indisponivel: true, motivo: 'sem ranking de lucro' },
+
+    variacao_estoque: () => estoquePos.length ? {
+      valor_atual: estoquePos.reduce((a: number, r: AnyRow) => a + Number(r.valor_total || 0), 0),
+      quantidade_itens: estoquePos.length,
+    } : { indisponivel: true, motivo: 'sem posição de estoque' },
+
+    venda_estado: () => vendasRegiao.length ? {
+      ranking: [...vendasRegiao].sort((a: AnyRow, b: AnyRow) => Number(b.faturamento) - Number(a.faturamento)).slice(0, 10),
+      valor_atual: vendasRegiao.reduce((a: number, r: AnyRow) => a + Number(r.faturamento || 0), 0),
+    } : { indisponivel: true, motivo: 'sem vendas por região' },
+
+    redes_sociais: () => social.length ? {
+      serie: social,
+      total_seguidores: social.reduce((a: number, r: AnyRow) => a + Number(r.seguidores || 0), 0),
+      valor_atual: social.reduce((a: number, r: AnyRow) => a + Number(r.seguidores || 0), 0),
+    } : { indisponivel: true, motivo: 'sem métricas sociais' },
+
+    bridge_ebitda: () => waterfall.length ? { steps: waterfall, valor_atual: Number(lastDRE?.ebitda || 0) } : { indisponivel: true, motivo: 'sem DRE para waterfall' },
+    bridge_lucro_liquido: () => waterfall.length ? { steps: waterfall, valor_atual: Number(lastDRE?.ebitda || 0) } : { indisponivel: true, motivo: 'sem DRE' },
+
+    dre_gerencial: () => lastDRE ? {
+      receita_bruta: Number(lastDRE.receita_bruta || 0),
+      deducoes: Number(lastDRE.deducoes || 0),
+      receita_liquida: Number(lastDRE.receita_liquida || 0),
+      fopag: Number(lastDRE.fopag || 0),
+      despesa_operacional: Number(lastDRE.despesa_operacional || 0),
+      ebitda: Number(lastDRE.ebitda || 0),
+      valor_atual: Number(lastDRE.ebitda || 0),
+    } : { indisponivel: true, motivo: 'sem DRE no período' },
+
+    capital_giro: () => lastCG ? {
+      contas_receber: Number(lastCG.cr_aberto || 0),
+      contas_pagar: Number(lastCG.cp_aberto || 0),
+      valor_atual: Number(lastCG.capital_giro_liquido || 0),
+    } : { indisponivel: true, motivo: 'sem aging para capital de giro' },
+
+    balanco_gerencial: () => ({ indisponivel: true, motivo: 'balanço gerencial requer plano de contas — fase 2' }),
+
+    resultado_financeiro: () => lastDRE ? { valor_atual: Number(lastDRE.ebitda || 0) } : { indisponivel: true, motivo: 'sem DRE' },
+
+    tributos: () => lastFiscal ? {
+      icms: Number(lastFiscal.icms || 0),
+      pis: Number(lastFiscal.pis || 0),
+      cofins: Number(lastFiscal.cofins || 0),
+      ipi: Number(lastFiscal.ipi || 0),
+      valor_atual: Number(lastFiscal.icms || 0) + Number(lastFiscal.pis || 0) + Number(lastFiscal.cofins || 0) + Number(lastFiscal.ipi || 0),
+    } : { indisponivel: true, motivo: 'sem resumo fiscal no período' },
+
+    aging_consolidado: () => (totalCR + totalCP) > 0 ? {
+      cr_aberto: totalCR, cp_aberto: totalCP, valor_atual: totalCR + totalCP,
+    } : { indisponivel: true, motivo: 'sem aging em aberto' },
+
+    debt: () => ({ indisponivel: true, motivo: 'requer cadastro de empréstimos — fase 2' }),
+
+    backorder: () => lastHL ? {
+      qtd_pedidos_pendentes: Number(lastHL.backorder_pedidos || 0),
+      valor_backorder: Number(lastHL.backorder_valor || 0),
+      valor_atual: Number(lastHL.backorder_valor || 0),
+    } : { indisponivel: true, motivo: 'sem dados de carteira' },
+
+    top_clientes: () => vendasABC.length ? {
+      ranking: vendasABC.slice(0, 10),
+      cliente_lider: vendasABC[0]?.cliente_nome,
+      valor_lider: Number(vendasABC[0]?.faturamento || 0),
+      valor_atual: Number(vendasABC[0]?.faturamento || 0),
+    } : { indisponivel: true, motivo: 'sem ranking ABC' },
+
+    top_fornecedores: () => fornecedores.length ? {
+      ranking: fornecedores.slice(0, 10),
+      fornecedor_lider: fornecedores[0]?.fornecedor_nome,
+      valor_lider: Number(fornecedores[0]?.gasto_total || 0),
+      valor_atual: Number(fornecedores[0]?.gasto_total || 0),
+    } : { indisponivel: true, motivo: 'sem ranking de fornecedores' },
+
+    inadimplencia: () => totalCR > 0 ? {
+      valor_inadimplente: atrasoCR,
+      pct_inadimplencia: (atrasoCR / totalCR) * 100,
+      total_cr: totalCR,
+      valor_atual: atrasoCR,
+    } : { indisponivel: true, motivo: 'sem CR aberto' },
+
+    performance_comercial_canal: () => vendasVendedor.length ? {
+      ranking: vendasVendedor.slice(0, 10),
+      vendedor_lider: vendasVendedor[0]?.vendedor_nome,
+      valor_atual: vendasVendedor.reduce((a: number, r: AnyRow) => a + Number(r.faturamento || 0), 0),
+      funil_aprovados: lastFunil ? Number(lastFunil.aprovados || 0) : 0,
+      funil_total: lastFunil ? Number(lastFunil.total || 0) : 0,
+    } : { indisponivel: true, motivo: 'sem performance por vendedor' },
+  };
+
+  for (const codigo of slidesList) {
+    const builder = builders[codigo];
+    slides[codigo] = builder ? builder() : { indisponivel: true, motivo: 'slide não mapeado' };
   }
 
   return slides;
@@ -219,28 +385,11 @@ export async function fetchPresentationData(
 ): Promise<ApresentacaoDataBundle> {
   const iniYM = competenciaInicial.slice(0, 7);
   const fimYM = competenciaFinal.slice(0, 7);
-  const slidesList = requestedSlides?.length ? requestedSlides : Object.keys(viewMap) as SlideCodigo[];
+  const slidesList = requestedSlides?.length ? requestedSlides : ALL_SLIDES;
 
   const slides = modoGeracao === 'fechado'
     ? await fetchClosedSnapshotData(iniYM, fimYM, slidesList)
-    : ({} as ApresentacaoDataBundle['slides']);
-
-  if (modoGeracao === 'dinamico') {
-    for (const codigo of slidesList) {
-      const viewName = viewMap[codigo];
-      if (!viewName) {
-        slides[codigo] = { competencia: fimYM, indisponivel: false };
-        continue;
-      }
-
-      try {
-        const rows = await queryView(viewName, iniYM, fimYM);
-        slides[codigo] = rows[0] ?? { indisponivel: true, motivo: 'Sem dados para o período' };
-      } catch {
-        slides[codigo] = { indisponivel: true, motivo: 'não automatizado nesta fase' };
-      }
-    }
-  }
+    : await buildDynamicSlides(iniYM, fimYM, slidesList);
 
   const missingCritical: SlideCodigo[] = [];
   for (const codigo of slidesList) {
