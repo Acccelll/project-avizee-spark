@@ -259,3 +259,83 @@ export function downloadBlob(blob: Blob, filename: string): void {
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
+
+// ===================== Cadência mensal automática (F1) =====================
+
+export interface ApresentacaoCadencia {
+  id: string;
+  nome: string;
+  template_id: string | null;
+  modo_geracao: ApresentacaoModoGeracao;
+  dia_do_mes: number;
+  exigir_revisao: boolean;
+  destinatarios_emails: string[];
+  ativo: boolean;
+  ultima_execucao_em: string | null;
+  ultima_execucao_status: string | null;
+  ultima_execucao_geracao_id: string | null;
+  observacoes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type ApresentacaoCadenciaDraft = Omit<
+  ApresentacaoCadencia,
+  'id' | 'created_at' | 'updated_at' | 'ultima_execucao_em' | 'ultima_execucao_status' | 'ultima_execucao_geracao_id'
+>;
+
+export async function listarApresentacaoCadencias(): Promise<ApresentacaoCadencia[]> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase as any)
+    .from('apresentacao_cadencia')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as ApresentacaoCadencia[];
+}
+
+export async function salvarApresentacaoCadencia(input: Partial<ApresentacaoCadenciaDraft> & { id?: string }): Promise<ApresentacaoCadencia> {
+  const payload = {
+    nome: input.nome,
+    template_id: input.template_id ?? null,
+    modo_geracao: input.modo_geracao ?? 'fechado',
+    dia_do_mes: input.dia_do_mes ?? 5,
+    exigir_revisao: input.exigir_revisao ?? true,
+    destinatarios_emails: input.destinatarios_emails ?? [],
+    ativo: input.ativo ?? true,
+    observacoes: input.observacoes ?? null,
+  };
+  if (input.id) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase as any)
+      .from('apresentacao_cadencia')
+      .update({ ...payload, updated_at: new Date().toISOString() })
+      .eq('id', input.id)
+      .select('*')
+      .single();
+    if (error) throw error;
+    return data as ApresentacaoCadencia;
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase as any)
+    .from('apresentacao_cadencia')
+    .insert(payload)
+    .select('*')
+    .single();
+  if (error) throw error;
+  return data as ApresentacaoCadencia;
+}
+
+export async function removerApresentacaoCadencia(id: string): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase as any).from('apresentacao_cadencia').delete().eq('id', id);
+  if (error) throw error;
+}
+
+export async function executarCadenciaAgora(cadenciaId: string): Promise<unknown> {
+  const { data, error } = await supabase.functions.invoke('apresentacao-cadencia-runner', {
+    body: { force: true, cadenciaId },
+  });
+  if (error) throw error;
+  return data;
+}
