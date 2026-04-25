@@ -138,6 +138,16 @@ export function OrcamentoItemsGrid({ items, onChange, produtos, precosEspeciais 
         item.descricao_snapshot = prod.nome;
         item.unidade = prod.unidade_medida || "UN";
           item.peso_unitario = prod.peso || 0;
+          // Snapshot da variação a partir do cadastro do produto (somente leitura no PDF/preview).
+          {
+            const rawVariacoes = (prod as { variacoes?: unknown }).variacoes;
+            const variacoesArr: string[] = Array.isArray(rawVariacoes)
+              ? (rawVariacoes as string[])
+              : typeof rawVariacoes === "string" && rawVariacoes
+                ? (rawVariacoes as string).split(",").map((s) => s.trim()).filter(Boolean)
+                : [];
+            item.variacao = variacoesArr.join(", ");
+          }
           item.custo_base_padrao = prod.preco_custo ?? null;
           item.usa_custo_simulado = false;
           item.custo_simulado = null;
