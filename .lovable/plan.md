@@ -1,194 +1,207 @@
 
-# Revisão e proposta de melhoria — Workbook Gerencial
+# Revisão e melhorias — Apresentação Gerencial (V3)
 
-## 1. Diagnóstico do estado atual
+## 1. Diagnóstico atual (com base no código + banco + PPTX referência)
 
-O módulo `/relatorios/workbook-gerencial` (ver `src/lib/workbook/`) hoje gera 9 abas, todas concentradas em **Financeiro**:
-
-| Aba atual | Conteúdo | Limitação |
-|---|---|---|
-| Confronto | Receita × Despesa × Resultado mensal | Sem PY (ano anterior) nem Budget; sem totais trimestrais (1Q/2Q…) |
-| Caixa | Saldo atual por conta bancária | Snapshot único — não traz evolução mensal "Disponível/Bloqueado/Inicial/Final" como no anexo |
-| Despesa | Total + acumulado + variação m/m | Sem quebra por categoria/centro de custo |
-| FOPAG | Folha por funcionário × mês | Sem encargos, sem total por departamento |
-| Faturamento NFs | Total mensal + acumulado | Sem comparativo PY, sem "Limite Fat." (Simples Nacional) |
-| Estoque | Saldo atual material vs produto | Snapshot único, sem giro/cobertura/curva ABC |
-| Aging CR / CP | Faixas de vencimento por mês | OK, mas isolado das abas comerciais |
-| Parâmetros | Hash + metadados | OK |
-
-**O que está faltando (vs. o anexo `Financeiro_workbook_2026-4.xlsx` e os domínios do ERP):**
-
-1. **Comparativos** — o anexo trabalha com 3 colunas paralelas: **PY (ano anterior real) | CY (ano corrente real) | Budget**, com colunas de "Variação Budget %", "Variação 2025" e "Variação Mês Anterior". Hoje o workbook só mostra o período pedido, sem nenhum comparador.
-2. **Trimestralização e YTD** — o anexo agrega 1Q/2Q/3Q/4Q e YTD; nosso Confronto só tem mensal.
-3. **Caixa evolutivo** — anexo mostra "Disponível / Bloqueado / Inicial / Final / Caixa Livre" mês a mês; nosso Caixa só fotografa o presente.
-4. **Áreas inexistentes** apesar dos dados estarem no banco:
-   - **Comercial**: orçamentos, taxa de conversão, ticket médio, top vendedores, top clientes, mix por região;
-   - **Compras / Suprimentos**: pedidos vs recebidos, lead time, OTIF, top fornecedores, savings de cotação;
-   - **Estoque analítico**: giro, cobertura (dias), curva ABC, ruptura, ajustes/perdas;
-   - **Logística**: entregas no prazo, frete % faturamento, devoluções, ocorrências;
-   - **Fiscal**: NFs emitidas/canceladas, base ICMS/PIS/COFINS, limite Simples;
-   - **DRE gerencial**: receita bruta → líquida → margem bruta → EBITDA → resultado;
-   - **KPIs executivos** (capa): MRR/ARR equivalente, runway de caixa, DSO, DPO, ciclo de conversão.
-5. **Gráficos nativos Excel** — hoje só temos tabelas. O anexo usa colunas/linhas combinadas (Receita vs Despesa, evolução de caixa, etc.). `exceljs` suporta `wb.addChart()` e referências de range.
-6. **Capa executiva** — falta uma "Sheet 0" com sumário, período, empresa, logo, KPIs principais e índice clicável.
-7. **Budget** — não existe tabela `budgets_mensais` no banco; precisa ser criada para alimentar a coluna Budget.
-8. **Modo Fechado** — atualmente só financeiro tem snapshot em `fechamento_*_saldos`. Estender para comercial/estoque/compras quando a competência estiver fechada.
+### Problemas estruturais encontrados
+1. **Modo dinâmico está “quebrado em silêncio”**: `fetchPresentationData.ts` consulta 26 views `vw_apresentacao_*` que **não existem no banco** (consultei `information_schema.views` — zero matches). O `try/catch` engole o erro e marca todos os slides como "não automatizado nesta fase". Resultado: a apresentação sai praticamente vazia em modo dinâmico.
+2. **Duplicação de pipeline com Workbook**: o Workbook V2 já tem 18 views `vw_workbook_*` ricas (DRE, ABC, vendedor, região, funil, fornecedor, fiscal, logística, estoque crítico/giro, aging). A apresentação ignora tudo isso e tenta inventar suas próprias views.
+3. **Render PPTX é só "texto sobre retângulos"** — `renderSeries` desenha barras com caracteres `█`, `renderTable` concatena colunas com ` | `. **Não há um único gráfico nativo do PowerPoint.** Comparado ao PPTX anexo do cliente (linhas, barras agrupadas, colunas comparativas reais), o output é visualmente pobre.
+4. **Cobertura por área é só "financeiro"**: 12 slides obrigatórios são todos finanças/caixa/FOPAG. Comercial, compras, estoque, logística, fiscal, RH e social estão como **opcionais** e, na prática, sempre indisponíveis.
+5. **PPTX referência mostra padrão concreto que não está sendo seguido**:
+   - Capa com logo + data-base
+   - Highlights com cards numéricos coloridos
+   - Faturamento ME×ME com tabela ao lado de gráfico
+   - Variação 12 meses como linha contínua
+   - Despesas com comparativo de ano anterior + ranking de fornecedores no comentário
+   - Receita×Caixa lado a lado (4 séries)
+   - Confronto trimestral (1Q/2Q/3Q/4Q)
+   - FOPAG mensal empilhado por categoria
+   - Fluxo de caixa em tabela 4 colunas (Disponível, ACT+Bgt, Total Final, Saldo final)
+   - Top 10 lucro por produto e por cliente lado a lado
+   - Estoque produtos×materiais (12 meses)
+   - Venda por estado (mapa/ranking)
+   - Redes sociais (linha LinkedIn vs Instagram)
+6. **Comentários executivos são genéricos** ("Valor atual R$ X e variação Y%"). O PPTX real tem comentários ricos: "Limite de faturamento ME 360k. 318.7k para atingir", "Maiores desembolsos: 1º Agrozootec 5.1k…". Faltam regras com contexto.
+7. **`viewMap` em `fetchPresentationData.ts` referencia views inexistentes** mas o tipo `Record<SlideCodigo, string>` esconde isso porque o build não valida existência no banco.
+8. **Sem suporte a comparativo Δ vs PY e Δ vs Budget** já existente no Workbook (tabela `budgets_mensais` foi criada na fase 1 do Workbook V2 e ainda não é usada na apresentação).
 
 ---
 
-## 2. Arquitetura proposta
+## 2. Estratégia da V3 — três pilares
 
-### 2.1 Nova estrutura de abas (V2 do template)
+### Pilar A — Reuso do pipeline Workbook
+Apresentação e Workbook devem **compartilhar a camada de dados**. Em vez de criar 26 views novas, refatoramos `fetchPresentationData` para reutilizar `fetchWorkbookData()` + as views `vw_workbook_*` que já existem e estão em produção. Cada slide vira uma "projeção" do `WorkbookRawData`.
 
-**Capa & navegação**
-- `00_Capa` — logo da empresa, período, modo (Dinâmico/Fechado), 8 KPIs (Receita CY, Resultado CY, Margem %, Caixa Final, DSO, DPO, Cobertura Estoque, Limite Fiscal), sumário com hyperlinks para cada aba
-- `01_DRE` — DRE gerencial com PY | CY | Budget | Δ% | YTD
+### Pilar B — Gráficos nativos PowerPoint
+Substituir `renderSeries` (barras de texto) por **chart parts XML reais** (`ppt/charts/chart1.xml`) usando o schema `c:lineChart`, `c:barChart`, `c:doughnutChart` do OOXML. Isso permite que ao abrir no PowerPoint o usuário possa editar cores, dados e até copiar para Word/Excel.
 
-**Visão financeira**
-- `02_Confronto` — Receita / Despesa / Resultado mensal **com 3 blocos: 24 / 25 / 26** + colunas trimestrais (1Q–4Q) (igual à página 2 do anexo)
-- `03_Caixa_Evolutivo` — Disponível / Bloqueado / Saldo Inicial / Final / Caixa Livre / Variação por mês (igual à página 3)
-- `04_Caixa_Posicao` — saldo atual por conta + projeção 30/60/90 dias
-- `05_Despesa_Categoria` — quebra por centro de custo / categoria contábil
-- `06_FOPAG` — funcionário × mês + totais por departamento + encargos
-- `07_Aging_CR` / `08_Aging_CP` — mantém atual + indicadores DSO/DPO
-
-**Visão comercial**
-- `09_Faturamento` — NF mensal × PY × Budget × Limite Simples
-- `10_Vendas_Vendedor` — ranking + ticket médio + conversão
-- `11_Vendas_Cliente` — top 20 + curva ABC
-- `12_Vendas_Regiao` — mapa por UF/cidade
-- `13_Orcamentos_Funil` — abertos / aprovados / perdidos + taxa de conversão
-
-**Visão compras & estoque**
-- `14_Compras_Fornecedor` — top fornecedores + lead time + OTIF
-- `15_Cotacoes_Savings` — economia gerada por cotação
-- `16_Estoque_Posicao` — material × produto × valor (atual)
-- `17_Estoque_Giro` — giro + cobertura (dias) + ABC
-- `18_Estoque_Critico` — itens em ruptura ou abaixo do mínimo
-
-**Visão logística & fiscal**
-- `19_Logistica` — entregas no prazo, frete % faturamento, devoluções
-- `20_Fiscal` — NFs emitidas/canceladas, bases tributárias, limite Simples
-
-**Sistema (ocultas por padrão)**
-- `RAW_*` — todas as fontes brutas (mantém esquema atual + novas)
-- `Parametros` — hash, geração, fórmulas, modo
-
-### 2.2 Padrão visual de cada aba (inspirado no anexo)
-
-Cada aba "visual" terá 4 zonas:
-
-```
-┌────────────────────────────────────────────────────┐
-│ Título + período + modo                            │
-├──────────┬──────────┬──────────┬──────────────────┤
-│ KPI 1    │ KPI 2    │ KPI 3    │ KPI 4 (cards)    │
-├──────────┴──────────┴──────────┴──────────────────┤
-│ Tabela mensal (PY | CY | Budget | Δ% | Δ vs PY)   │
-│ + linha de totais trimestrais e YTD               │
-├────────────────────────────────────────────────────┤
-│ Gráfico nativo Excel (coluna/linha combinada)     │
-└────────────────────────────────────────────────────┘
-```
-
-### 2.3 Backend — novas views e tabelas
-
-**Migrations a criar:**
-
-1. `vw_workbook_dre_mensal` — agrupa receita líquida, deduções, CMV, despesas operacionais, EBITDA por competência
-2. `vw_workbook_caixa_evolutivo` — saldo inicial/final/disponível/bloqueado por mês, derivado de `caixa_movimentos` + `contas_bancarias`
-3. `vw_workbook_vendas_vendedor` — agrega `notas_fiscais`/`ordens_venda` por vendedor
-4. `vw_workbook_vendas_cliente_abc` — curva ABC com classe A/B/C
-5. `vw_workbook_orcamentos_funil` — abertos, aprovados, perdidos por mês
-6. `vw_workbook_compras_fornecedor` — gasto + lead time médio (`pedidos_compra` vs `recebimentos_compra`)
-7. `vw_workbook_estoque_giro` — giro = CMV/estoque médio, cobertura = estoque/consumo médio
-8. `vw_workbook_estoque_critico` — itens com estoque ≤ mínimo
-9. `vw_workbook_logistica` — % no prazo, devoluções (`remessas` + `remessa_eventos`)
-10. `vw_workbook_fiscal_resumo` — NFs por status, bases ICMS/PIS/COFINS/ISS, somatório anual p/ Simples
-
-**Nova tabela `budgets_mensais`** (com RLS):
-```sql
-create table public.budgets_mensais (
-  id uuid primary key default gen_random_uuid(),
-  empresa_id uuid,
-  competencia date not null,        -- primeiro dia do mês
-  categoria text not null,          -- 'receita' | 'despesa' | 'fopag' | etc.
-  centro_custo_id uuid null,
-  valor numeric(14,2) not null default 0,
-  observacoes text,
-  created_at timestamptz default now(),
-  updated_at timestamptz default now(),
-  unique(empresa_id, competencia, categoria, centro_custo_id)
-);
-```
-+ RLS (apenas roles `admin`/`financeiro` podem inserir/editar; todos autenticados leem).
-
-**Tela auxiliar:** `/financeiro/budget` (formulário simples por competência × categoria, reaproveita `useSupabaseCrud`). Sem essa tela, a coluna Budget vem zerada e o workbook degrada graciosamente.
-
-### 2.4 Camada de geração (frontend)
-
-Refatorar `src/lib/workbook/`:
-
-- `fetchWorkbookData.ts` — ampliar `WorkbookRawData` com 10 novos blocos (vendas, compras, estoque analítico, logística, fiscal, dre, budget, caixa evolutivo, orçamentos funil, vendedor)
-- `buildVisualSheets.ts` — quebrar em **um arquivo por área** dentro de `src/lib/workbook/sheets/`:
-  - `sheets/capa.ts`, `sheets/dre.ts`, `sheets/confronto.ts`, `sheets/caixaEvolutivo.ts`, `sheets/comercial.ts`, `sheets/compras.ts`, `sheets/estoque.ts`, `sheets/logistica.ts`, `sheets/fiscal.ts`
-  - cada um exporta `build<Area>(wb, data, ctx)` com `ctx = { months, monthsPY, budget, empresa, logo }`
-- `lib/workbook/charts.ts` — helper `addColumnLineChart(ws, { range, position, title })` usando `exceljs` charts
-- `lib/workbook/styles.ts` — paleta consistente (azul `#1F4E79` cabeçalho, verde positivo, vermelho negativo, formato `R$ #.##0,00` e `0,0%`)
-- `lib/workbook/comparators.ts` — `computeVariation(cy, py)`, `computeBudgetVar(cy, budget)`, `aggregateQuarter(months)`, `aggregateYTD(months)`
-
-### 2.5 Capa com logo
-
-- Buscar logo de `app_configuracoes.geral.logo_url` (já existente) ou `empresa_config.logo_path`
-- Fazer `fetch` da imagem → `arrayBuffer` → `wb.addImage({ buffer, extension: 'png' })`
-- Inserir em `00_Capa` `range A1:C5`
-
-### 2.6 UI de geração (`WorkbookGeracaoDialog`)
-
-Adicionar:
-- **Seleção de abas** (checkboxes agrupados por área) — hoje o tipo `WorkbookParametros` já tem `abasSelecionadas`, mas o dialog não expõe
-- **Toggle "Incluir comparativo PY"** e **"Incluir Budget"** (desabilita se não houver dados)
-- **Toggle "Incluir gráficos"** (gráficos pesam ~30% no tamanho do arquivo)
-- Pré-visualização do número de abas que serão geradas
-- Estimativa de tempo (baseado em `meses × abas`)
-
-### 2.7 Histórico e versionamento
-
-- Adicionar coluna `template_versao` em `workbook_geracoes` para distinguir V1/V2 e permitir reproduzir versões antigas
-- Botão "Comparar com geração anterior" (download de ambas para diff manual)
+### Pilar C — Cobertura corporativa de fato
+Mover todos os slides de "todas as áreas" para **obrigatórios na V3**, organizados em seções, com fallback gracioso quando não há dados (em vez de simplesmente esconder).
 
 ---
 
-## 3. Plano de execução por fases
+## 3. Nova estrutura de slides — 7 seções, 32 slides
 
-**Fase 1 — Fundação (sem quebra)**
-- Criar migrations das 10 views novas + tabela `budgets_mensais` com RLS
-- Refatorar `buildVisualSheets.ts` em `sheets/*.ts` (mantendo abas atuais)
-- Adicionar `charts.ts` e `comparators.ts`
-- Acrescentar capa `00_Capa` com logo + KPIs
+```
+SEÇÃO 1 — ABERTURA (2 slides)
+  01 Capa (logo, data-base, autor, período)
+  02 Sumário executivo (Highlights — 6 cards: ROL, Caixa, Receita, Despesa, Resultado, NPS/Backorder)
 
-**Fase 2 — Comparativos PY/Budget**
-- Estender `Confronto` para 3 blocos anuais + trimestres (espelha página 2 do anexo)
-- Estender `Faturamento NFs` com PY + Limite Simples
-- Adicionar `01_DRE` com PY|CY|Budget|Δ%
+SEÇÃO 2 — FINANCEIRO (8 slides) [vw_workbook_dre_mensal, faturamento, despesa, caixa]
+  03 Faturamento mensal (col + tabela ME×ME atual×PY)
+  04 Variação faturamento 12 meses (linha contínua)
+  05 Despesas mensais (col + Δ vs PY + top fornecedores no comentário)
+  06 Receita vs Caixa (4 séries lado a lado, atual×PY)
+  07 Receita vs Despesa — Confronto trimestral (1Q–4Q + YTD)
+  08 DRE Gerencial (waterfall: Receita → Deduções → RL → FOPAG → OpEx → EBITDA)
+  09 Fluxo de caixa (tabela 12m + linha de saldo)
+  10 Bancos detalhado (saldos por conta + variação)
 
-**Fase 3 — Comercial + Estoque analítico**
-- Abas 09–13 (comercial) e 16–18 (estoque)
-- Gráficos nativos em cada aba
+SEÇÃO 3 — PESSOAS (1 slide) [vw_workbook_fopag/fechamento_fopag]
+  11 FOPAG mensal (barra empilhada por categoria + retiradas + headcount)
 
-**Fase 4 — Compras, Logística, Fiscal**
-- Abas 14–15 + 19 + 20
+SEÇÃO 4 — COMERCIAL (5 slides) [vendas_vendedor, vendas_cliente_abc, vendas_regiao, orcamentos_funil]
+  12 Top 10 Lucro por Produto e por Cliente (2 rankings lado a lado)
+  13 Vendas por estado (ranking + bandeirinhas UF)
+  14 Curva ABC de clientes (Pareto: barras + linha acumulada)
+  15 Performance por vendedor (ranking + Δ vs mês anterior)
+  16 Funil de orçamentos (cards: leads → cotados → aprovados → conversão %)
 
-**Fase 5 — UX**
-- Dialog com seleção de abas + toggles
-- Tela `/financeiro/budget` para alimentar a coluna Budget
-- Comparação de gerações no histórico
+SEÇÃO 5 — COMPRAS / ESTOQUE (3 slides) [compras_fornecedor, estoque_giro, estoque_critico]
+  17 Top fornecedores + lead time médio
+  18 Variação de estoque (produtos × materiais, 12 meses)
+  19 Estoque crítico (itens abaixo do mínimo, dias de cobertura)
+
+SEÇÃO 6 — LOGÍSTICA / FISCAL (3 slides) [logistica_resumo, fiscal_resumo]
+  20 Logística & SLA (OTIF, prazos médios, devoluções)
+  21 Backorder / Carteira (pedidos pendentes, valor, idade)
+  22 Tributos do período (ICMS, PIS, COFINS, IPI — col empilhado)
+
+SEÇÃO 7 — RISCO E RECEBÍVEIS (3 slides) [aging_cr/cp]
+  23 Aging consolidado CR + CP (stacked bar por bucket)
+  24 Inadimplência (cards: % atraso, valor, top devedores)
+  25 Capital de giro (CR − CP, dias de giro)
+
+SEÇÃO 8 — MARKETING / SOCIAL (1 slide) [social_metricas_snapshot]
+  26 Redes sociais (linha Instagram vs LinkedIn — novos seguidores 12m)
+
+SEÇÃO 9 — FECHAMENTO (1 slide)
+  27 Encerramento + próximos passos + assinatura editorial
+```
+
+> Todos os 27 viram **required**. Slides sem dados ainda renderizam, mas mostram painel "indisponível" elegante (já existe `unavailablePanel`). O usuário continua podendo desligar opcionalmente no diálogo de geração via `slideConfig`.
 
 ---
 
-## 4. Confirmações antes de seguir para a Fase 1
+## 4. Mudanças técnicas concretas
 
-1. **Escopo da V2**: posso seguir com o catálogo completo das 21 abas (capa + 20) ou prefere começar por um subconjunto (ex.: só Capa + DRE + Confronto comparativo + 1 aba comercial) para validar visual antes de expandir?
-2. **Budget**: aprova a criação da tabela `budgets_mensais` + tela `/financeiro/budget`? Sem isso a coluna Budget fica zerada (degradação graciosa).
-3. **Gráficos nativos no Excel**: aprova ativar (arquivo ~30% maior) ou prefere manter só tabelas e deixar gráficos para a Apresentação Gerencial?
-4. **Logo**: usar logo de `app_configuracoes.geral.logo_url` ou prefere campo dedicado em `empresa_config`?
+### 4.1 Banco de dados — uma migration nova
+**`supabase/migrations/<ts>_apresentacao_v3_views.sql`**
+
+Criar 6 views novas que **não existem ainda** e são específicas da apresentação (combinam várias `vw_workbook_*` em formato de slide):
+
+- `vw_apresentacao_highlights` — agrega 6 KPIs do período (uma linha)
+- `vw_apresentacao_confronto_trimestral` — pivota receita/despesa/resultado em 1Q/2Q/3Q/4Q + YTD + PY
+- `vw_apresentacao_dre_waterfall` — uma linha por step do waterfall (label, valor, cor)
+- `vw_apresentacao_lucro_top10` — top 10 lucro por produto e por cliente
+- `vw_apresentacao_social_evolucao` — série mensal de seguidores LinkedIn/Instagram a partir de `social_metricas_snapshot`
+- `vw_apresentacao_capital_giro` — CR – CP, dias de giro (a partir de aging)
+
+Todas com `SET search_path = public`, sem RLS (são views; segurança herdada das tabelas-base).
+
+### 4.2 Refatorar `src/lib/apresentacao/fetchPresentationData.ts`
+
+- **Remover** o `viewMap` com 26 views fantasmas.
+- **Reusar** `fetchWorkbookData()` (já existe e está testado) para obter o `WorkbookRawData`.
+- **Adicionar** um adapter `mapWorkbookToSlides(raw, requestedSlides)` que projeta o raw em `Record<SlideCodigo, dados>`.
+- Manter o caminho `fechado` que já lê de `fechamentos_mensais` (snapshots).
+- Remover o `try/catch` que mascara erros — qualquer falha deve subir, com fallback `indisponivel:true` apenas quando a view retornar vazia.
+
+### 4.3 Novo módulo `src/lib/apresentacao/sheets/` (espelho do Workbook)
+
+Criar um arquivo por seção, cada um exportando `buildSlide(codigo, dados): SlideRenderSpec`:
+
+```
+src/lib/apresentacao/sheets/
+  financeiro.ts     (slides 03–10)
+  pessoas.ts        (slide 11)
+  comercial.ts      (slides 12–16)
+  estoque.ts        (slides 17–19)
+  logistica.ts      (slides 20–22)
+  risco.ts          (slides 23–25)
+  marketing.ts      (slide 26)
+```
+
+Cada `SlideRenderSpec` declara: layout (cards | tabela | grafico_nativo + tipo), `chartPayload` (categories/series), `headerKpis`, `commentsAuto`.
+
+### 4.4 Renderizador PPTX — gráficos nativos OOXML
+
+Refatorar `generatePresentation.ts` para suportar **chart parts** reais:
+
+- Novo helper `chartPartXml(spec: ChartPayload): { partXml, relsXml }` que emite `<c:chartSpace>` com `c:lineChart` / `c:barChart` / `c:doughnutChart` conforme o `ChartKind` já tipado em `src/lib/apresentacao/charts.ts`.
+- Adicionar entradas em `[Content_Types].xml` para `application/vnd.openxmlformats-officedocument.drawingml.chart+xml`.
+- Cada slide com gráfico ganha `ppt/charts/chartN.xml` + `ppt/slides/_rels/slideN.xml.rels` referenciando o chart.
+- Manter `renderCards`, `renderRanking`, `renderTable` para slides sem gráfico (texto+tabela).
+- **NÃO** quebrar os testes existentes (`generatePresentation.test.ts`) — adicionar testes novos para chart parts.
+
+### 4.5 Comentários executivos com regras de negócio
+
+Estender `commentRules.ts` com geradores específicos por slide, espelhando o tom do PPTX referência:
+
+- **Faturamento**: "Limite de faturamento ME 360k. R$ X para atingir." (quando regime tributário = ME)
+- **Despesas**: anexar top 3 fornecedores do mês a partir de `compras_fornecedor`
+- **Receita×Caixa**: anexar top 3 clientes que pagaram no período
+- **Aging**: alertar buckets > 90 dias com %
+- **Estoque crítico**: listar até 3 SKUs com cobertura < 7 dias
+- **Vendedor**: nomear o líder + variação vs mês anterior
+- **Funil**: % conversão e principal gargalo (etapa com maior queda)
+
+Cada regra retorna `ExecutiveComment[]` (estrutura já existe) com severidade adequada.
+
+### 4.6 Diálogo de geração
+
+Atualizar `ApresentacaoGeracaoDialog.tsx`:
+- Agrupar slides opcionais por **seção** (não lista flat) com checkbox "selecionar tudo da seção"
+- Adicionar toggle "Comparar com ano anterior" (PY) e "Comparar com Budget"
+- Adicionar campo "Empresa" (se mais de uma) — hoje fica null
+- Preview de cobertura (X/27 slides terão dados, Y indisponíveis) **antes** de gerar, usando uma chamada leve a `fetchPresentationData` em modo dry-run
+
+### 4.7 Preview no app
+
+Atualizar `ApresentacaoSlidesPreview.tsx` para:
+- Agrupar por seção com headers
+- Mostrar miniatura visual aproximada de cada slide (não só "Aguardando dados")
+- Indicar via badge se o slide tem chart nativo ou texto
+
+### 4.8 Histórico
+
+`ApresentacaoHistoricoTable.tsx` ganha colunas para:
+- Cobertura (24/27)
+- Seções incluídas (badges)
+- Modo (dinâmico/fechado)
+- Hash de auditoria (8 chars)
+
+---
+
+## 5. Fases de execução sugeridas
+
+| Fase | Escopo | Entrega |
+|------|--------|---------|
+| **F1 — Fundação de dados** | Migration com 6 views novas + reescrita de `fetchPresentationData` para consumir `vw_workbook_*` | Modo dinâmico volta a funcionar de fato |
+| **F2 — Cobertura corporativa** | Mover todos os 27 slides para required, criar `sheets/` por seção, adapter `mapWorkbookToSlides` | Apresentação cobre todas as áreas |
+| **F3 — Gráficos nativos** | Refatorar `generatePresentation` com `chartPartXml`, suportar line/bar/doughnut/stacked/waterfall | PPTX abre no PowerPoint com gráficos editáveis |
+| **F4 — Comentários ricos** | Estender `commentRules` com regras por slide (top fornecedores, líder de vendas, gargalo de funil etc.) | Comentários iguais ao PPTX referência |
+| **F5 — UX do diálogo + Preview** | Agrupamento por seção, toggle PY/Budget, dry-run de cobertura, preview visual | Usuário sabe o que vai sair antes de gerar |
+| **F6 — Workflow editorial** | Seções de aprovação por seção (não global), comentários por slide com diff automático×editado, histórico de versões | Apresentação vira documento revisável |
+
+---
+
+## 6. Pontos que precisam de decisão antes da F1
+
+1. **Logo / data-base**: o PPTX usa logo na capa. Hoje a apresentação não tem. Devo puxar do `app_configuracoes.geral.logo_url`?
+2. **Limite ME (regime tributário)**: o comentário "limite ME 360k" depende de saber o regime fiscal da empresa. Está em `empresa_config`?
+3. **Backorder / Carteira**: existe tabela `ordens_venda` com status "backorder"? Confirmar antes da F2.
+4. **Social**: `social_metricas_snapshot` já tem histórico mensal de seguidores ou só snapshots pontuais?
+
+Posso seguir direto com a F1 (correção crítica do modo dinâmico) e abrir issues separadas para os 4 pontos acima conforme apareçam, ou prefere que eu pergunte tudo antes via `ask_questions`?
