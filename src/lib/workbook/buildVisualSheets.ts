@@ -7,6 +7,7 @@ import ExcelJS from 'exceljs';
 import { VISUAL_SHEET_NAMES } from './templateMap';
 import type { WorkbookRawData } from './fetchWorkbookData';
 import { priorYearMonth, variation, aggregateQuarter } from './comparators';
+import { addDataBar, addColorScale, COLORS } from './styles';
 
 const MESES_PT = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 
@@ -134,6 +135,19 @@ export function buildVisualSheets(
     wsConf.getRow(r).getCell(confHeaders.length).numFmt = '0.0%;[Red](0.0%);-';
   }
   for (let c = 2; c <= confHeaders.length; c++) wsConf.getColumn(c).width = 12;
+
+  // Visual: data bars no YTD e color scales nos Δ%
+  const colLetter = (n: number) => {
+    let s = '';
+    while (n > 0) { const r = (n - 1) % 26; s = String.fromCharCode(65 + r) + s; n = Math.floor((n - 1) / 26); }
+    return s;
+  };
+  const ytdCol = colLetter(confHeaders.length - 3);
+  const dBudgetCol = colLetter(confHeaders.length - 1);
+  const dPyCol = colLetter(confHeaders.length);
+  addDataBar(wsConf, `${ytdCol}2:${ytdCol}4`, COLORS.HEADER_BG);
+  addColorScale(wsConf, `${dBudgetCol}2:${dBudgetCol}4`);
+  addColorScale(wsConf, `${dPyCol}2:${dPyCol}4`);
 
   // ── CAIXA ──
   const wsCaixa = getOrCreate(wb, VISUAL_SHEET_NAMES.CAIXA);
