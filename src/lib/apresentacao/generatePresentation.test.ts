@@ -57,6 +57,8 @@ describe('generatePresentation', () => {
     };
 
     const blob = await generatePresentation(bundle, {});
+    // eslint-disable-next-line no-console
+    console.log('blob debug', { size: blob.size, type: blob.type, ctor: blob.constructor.name });
     const zip = await unzip(blob);
     const xml = (await allSlideXml(zip))[0];
     expect(xml).toContain('Dados indisponíveis nesta fase');
