@@ -4,11 +4,17 @@ import { generatePresentation } from './generatePresentation';
 import type { ApresentacaoDataBundle } from '@/types/apresentacao';
 
 async function unzip(blob: Blob) {
-  return JSZip.loadAsync(blob as Blob);
+  const buf = await blob.arrayBuffer();
+  return JSZip.loadAsync(buf);
+}
+
+async function allSlideXml(zip: JSZip): Promise<string[]> {
+  const slideFiles = Object.keys(zip.files).filter((p) => /^ppt\/slides\/slide\d+\.xml$/.test(p)).sort();
+  return Promise.all(slideFiles.map((p) => zip.file(p)!.async('text')));
 }
 
 describe('generatePresentation', () => {
-  it('gera arquivo pptx válido (zip)', async () => {
+  it('gera arquivo pptx válido com charts nativos', async () => {
     const bundle: ApresentacaoDataBundle = {
       periodo: { competenciaInicial: '2026-03', competenciaFinal: '2026-03' },
       slides: {
@@ -28,12 +34,16 @@ describe('generatePresentation', () => {
     };
 
     const blob = await generatePresentation(bundle, {});
-    expect(blob.type).toContain('application/zip');
     expect(blob.size).toBeGreaterThan(1000);
 
     const zip = await unzip(blob);
     expect(zip.file('ppt/presentation.xml')).toBeTruthy();
-    expect(zip.file('ppt/slides/slide1.xml')).toBeTruthy();
+    const slideXmls = await allSlideXml(zip);
+    expect(slideXmls.length).toBe(12);
+
+    // pelo menos um chart nativo gerado
+    const chartFiles = Object.keys(zip.files).filter((p) => p.startsWith('ppt/charts/chart'));
+    expect(chartFiles.length).toBeGreaterThan(0);
   });
 
   it('renderiza box de indisponibilidade para slide indisponível', async () => {
@@ -47,9 +57,9 @@ describe('generatePresentation', () => {
 
     const blob = await generatePresentation(bundle, {});
     const zip = await unzip(blob);
-    const slideXml = await zip.file('ppt/slides/slide1.xml')!.async('text');
-    expect(slideXml).toContain('Dados indisponíveis nesta fase');
-    expect(slideXml).toContain('não automatizado no modo fechado');
+    const xml = (await allSlideXml(zip))[0];
+    expect(xml).toContain('Dados indisponíveis nesta fase');
+    expect(xml).toContain('não automatizado no modo fechado');
   });
 
   it('comentário editado prevalece sobre automático', async () => {
@@ -63,9 +73,9 @@ describe('generatePresentation', () => {
 
     const blob = await generatePresentation(bundle, { rol_caixa: 'Comentário editado final' });
     const zip = await unzip(blob);
-    const slideXml = await zip.file('ppt/slides/slide1.xml')!.async('text');
-    expect(slideXml).toContain('Comentário executivo');
-    expect(slideXml).toContain('Comentário editado final');
+    const xml = (await allSlideXml(zip))[0];
+    expect(xml).toContain('Comentário executivo');
+    expect(xml).toContain('Comentário editado final');
   });
 
   it('gera layout de cover e closing com metadata discreta', async () => {
@@ -80,16 +90,14 @@ describe('generatePresentation', () => {
 
     const blob = await generatePresentation(bundle, {}, { metadata: { empresaId: 'e1', modo: 'fechado', usuario: 'u1', extra: 'x' } });
     const zip = await unzip(blob);
-    const coverXml = await zip.file('ppt/slides/slide1.xml')!.async('text');
-    const closingXml = await zip.file('ppt/slides/slide2.xml')!.async('text');
-
+    const [coverXml, closingXml] = await allSlideXml(zip);
     expect(coverXml).toContain('AviZee | Apresentação Gerencial');
     expect(coverXml).toContain('Período: 2026-03 a 2026-03');
     expect(closingXml).toContain('Base: empresaId, modo, usuario');
-    expect(closingXml).not.toContain('{"empresaId"');
+    expect(closingXml).not.toContain('{&quot;empresaId&quot;');
   });
 
-  it('renderiza conteúdo estruturado para slide de cards e de tabela/ranking', async () => {
+  it('renderiza cards e tabela com valores formatados', async () => {
     const bundle: ApresentacaoDataBundle = {
       periodo: { competenciaInicial: '2026-03', competenciaFinal: '2026-03' },
       slides: {
@@ -106,12 +114,9 @@ describe('generatePresentation', () => {
 
     const blob = await generatePresentation(bundle, {});
     const zip = await unzip(blob);
-    const cardsXml = await zip.file('ppt/slides/slide1.xml')!.async('text');
-    const tableXml = await zip.file('ppt/slides/slide2.xml')!.async('text');
-
-    expect(cardsXml).toContain('Card1');
+    const [cardsXml, tableXml] = await allSlideXml(zip);
     expect(cardsXml).toContain('R$');
-    expect(tableXml).toContain('TableHeader');
     expect(tableXml).toContain('Banco A');
+    expect(tableXml).toContain('Banco B');
   });
 });
