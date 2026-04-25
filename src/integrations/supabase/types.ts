@@ -47,6 +47,68 @@ export type Database = {
         }
         Relationships: []
       }
+      apresentacao_cadencia: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          created_by: string | null
+          destinatarios_emails: string[]
+          dia_do_mes: number
+          exigir_revisao: boolean
+          id: string
+          modo_geracao: string
+          nome: string
+          observacoes: string | null
+          template_id: string | null
+          ultima_execucao_em: string | null
+          ultima_execucao_geracao_id: string | null
+          ultima_execucao_status: string | null
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          created_by?: string | null
+          destinatarios_emails?: string[]
+          dia_do_mes?: number
+          exigir_revisao?: boolean
+          id?: string
+          modo_geracao?: string
+          nome: string
+          observacoes?: string | null
+          template_id?: string | null
+          ultima_execucao_em?: string | null
+          ultima_execucao_geracao_id?: string | null
+          ultima_execucao_status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          created_by?: string | null
+          destinatarios_emails?: string[]
+          dia_do_mes?: number
+          exigir_revisao?: boolean
+          id?: string
+          modo_geracao?: string
+          nome?: string
+          observacoes?: string | null
+          template_id?: string | null
+          ultima_execucao_em?: string | null
+          ultima_execucao_geracao_id?: string | null
+          ultima_execucao_status?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "apresentacao_cadencia_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "apresentacao_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       apresentacao_comentarios: {
         Row: {
           comentario_automatico: string | null
@@ -88,6 +150,7 @@ export type Database = {
       apresentacao_geracoes: {
         Row: {
           arquivo_path: string | null
+          cadencia_id: string | null
           competencia_final: string | null
           competencia_inicial: string | null
           created_at: string
@@ -105,6 +168,7 @@ export type Database = {
         }
         Insert: {
           arquivo_path?: string | null
+          cadencia_id?: string | null
           competencia_final?: string | null
           competencia_inicial?: string | null
           created_at?: string
@@ -122,6 +186,7 @@ export type Database = {
         }
         Update: {
           arquivo_path?: string | null
+          cadencia_id?: string | null
           competencia_final?: string | null
           competencia_inicial?: string | null
           created_at?: string
@@ -138,6 +203,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "apresentacao_geracoes_cadencia_id_fkey"
+            columns: ["cadencia_id"]
+            isOneToOne: false
+            referencedRelation: "apresentacao_cadencia"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "apresentacao_geracoes_template_id_fkey"
             columns: ["template_id"]
