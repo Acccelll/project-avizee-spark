@@ -14,6 +14,14 @@ import { buildVisualSheets } from './buildVisualSheets';
 import { VISUAL_SHEET_NAMES } from './templateMap';
 import { hashParametros } from './utils';
 import type { WorkbookParametros } from '@/types/workbook';
+// V2 — abas analíticas modulares
+import { buildCapa } from './sheets/capa';
+import { buildDre } from './sheets/dre';
+import { buildVendasVendedor, buildVendasClienteAbc, buildVendasRegiao, buildOrcamentosFunil } from './sheets/comercial';
+import {
+  buildComprasFornecedor, buildEstoqueGiro, buildEstoqueCritico,
+  buildLogistica, buildFiscal, buildCaixaEvolutivo,
+} from './sheets/operacional';
 
 export interface GenerateWorkbookOptions {
   parametros: WorkbookParametros;
@@ -92,6 +100,24 @@ export async function generateWorkbook(options: GenerateWorkbookOptions): Promis
 
   // 4. Build visual/analytical sheets from data
   buildVisualSheets(workbook, data, competenciaInicial, competenciaFinal);
+
+  // 4b. Build V2 analytical sheets
+  await buildCapa(workbook, data, competenciaInicial, competenciaFinal, modoGeracao);
+  buildDre(workbook, data, competenciaInicial, competenciaFinal);
+  buildCaixaEvolutivo(workbook, data, competenciaInicial, competenciaFinal);
+  buildVendasVendedor(workbook, data);
+  buildVendasClienteAbc(workbook, data);
+  buildVendasRegiao(workbook, data, competenciaInicial, competenciaFinal);
+  buildOrcamentosFunil(workbook, data, competenciaInicial, competenciaFinal);
+  buildComprasFornecedor(workbook, data);
+  buildEstoqueGiro(workbook, data);
+  buildEstoqueCritico(workbook, data);
+  buildLogistica(workbook, data, competenciaInicial, competenciaFinal);
+  buildFiscal(workbook, data, competenciaInicial, competenciaFinal);
+
+  // Reordena: Capa primeiro
+  const capa = workbook.getWorksheet('00_Capa');
+  if (capa) capa.orderNo = 0;
 
   // 5. Update Parâmetros visual sheet
   const wsParam = workbook.getWorksheet(VISUAL_SHEET_NAMES.PARAMETROS);

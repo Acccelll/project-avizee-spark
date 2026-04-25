@@ -6,6 +6,7 @@
 import ExcelJS from 'exceljs';
 import { VISUAL_SHEET_NAMES } from './templateMap';
 import type { WorkbookRawData } from './fetchWorkbookData';
+import { priorYearMonth, variation, aggregateQuarter } from './comparators';
 
 const MESES_PT = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 
@@ -83,14 +84,39 @@ export function buildVisualSheets(
   // ── CONFRONTO ──
   const wsConf = getOrCreate(wb, VISUAL_SHEET_NAMES.CONFRONTO);
   wsConf.getColumn(1).width = 14;
-  const confHeaders = ['Confronto', ...months.map(monthLabel)];
+  const confHeaders = ['Confronto', ...months.map(monthLabel), '1Q', '2Q', '3Q', '4Q', 'YTD', 'Δ vs PY %'];
   wsConf.addRow(confHeaders);
   styleHeader(wsConf, 1, confHeaders.length);
-  wsConf.addRow(['Receita', ...months.map(m => toMil(recByMonth[m]))]);
-  wsConf.addRow(['Despesa', ...months.map(m => toMil(-(despByMonth[m])))]);
-  const resRow = wsConf.addRow(['RESULTADO', ...months.map(m => toMil(recByMonth[m] - despByMonth[m]))]);
+
+  // PY indices
+  const recPyIdx: Record<string, number> = {};
+  const despPyIdx: Record<string, number> = {};
+  for (const r of data.receita) recPyIdx[r.competencia] = (recPyIdx[r.competencia] ?? 0) + r.total_receita;
+  for (const d of data.despesa) despPyIdx[d.competencia] = (despPyIdx[d.competencia] ?? 0) + d.total_despesa;
+
+  // Build helper that produces the trailing comparator columns for a series
+  const trailing = (cyVals: number[], pyTotal: number) => {
+    const q = aggregateQuarter(cyVals);
+    const ytd = q.ytd;
+    return [q.q1, q.q2, q.q3, q.q4, ytd, variation(ytd, pyTotal)];
+  };
+
+  const recValues = months.map(m => toMil(recByMonth[m]));
+  const despValues = months.map(m => toMil(-(despByMonth[m])));
+  const resValues = months.map(m => toMil(recByMonth[m] - despByMonth[m]));
+
+  const recPyTotal = months.reduce((s, m) => s + (recPyIdx[priorYearMonth(m)] ?? 0), 0) / 1000;
+  const despPyTotal = months.reduce((s, m) => s + (despPyIdx[priorYearMonth(m)] ?? 0), 0) / 1000;
+  const resPyTotal = recPyTotal - despPyTotal;
+
+  wsConf.addRow(['Receita', ...recValues, ...trailing(recValues, recPyTotal)]);
+  wsConf.addRow(['Despesa', ...despValues, ...trailing(despValues, -despPyTotal)]);
+  const resRow = wsConf.addRow(['RESULTADO', ...resValues, ...trailing(resValues, resPyTotal)]);
   resRow.font = { bold: true };
-  for (let r = 2; r <= 4; r++) numFmt(wsConf, r, 2, confHeaders.length);
+  for (let r = 2; r <= 4; r++) {
+    numFmt(wsConf, r, 2, confHeaders.length - 1);
+    wsConf.getRow(r).getCell(confHeaders.length).numFmt = '0.0%;[Red](0.0%);-';
+  }
   for (let c = 2; c <= confHeaders.length; c++) wsConf.getColumn(c).width = 12;
 
   // ── CAIXA ──
