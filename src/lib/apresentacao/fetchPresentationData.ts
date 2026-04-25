@@ -192,11 +192,16 @@ async function buildDynamicSlides(iniYM: string, fimYM: string, slidesList: Slid
     fopagAgg = Array.from(map.entries()).map(([k, v]) => ({ competencia: k, valor_liquido_total: v.total, headcount: v.count }));
   } catch { /* segue */ }
 
-  // Aging — totais
-  const [agingCRRes, agingCPRes] = await Promise.all([
-    sb.from('vw_workbook_aging_cr').select('saldo_aberto, data_vencimento').gt('saldo_aberto', 0).then((r: AnyRow) => r.data ?? []).catch(() => []),
-    sb.from('vw_workbook_aging_cp').select('saldo_aberto, data_vencimento').gt('saldo_aberto', 0).then((r: AnyRow) => r.data ?? []).catch(() => []),
-  ]);
+  // Aging — totais (filtro de saldo > 0 aplicado em memória para resiliência)
+  const safeAging = async (table: string): Promise<AnyRow[]> => {
+    try {
+      const { data } = await sb.from(table).select('saldo_aberto, data_vencimento');
+      return (data ?? []).filter((r: AnyRow) => Number(r.saldo_aberto || 0) > 0);
+    } catch {
+      return [];
+    }
+  };
+  const [agingCRRes, agingCPRes] = await Promise.all([safeAging('vw_workbook_aging_cr'), safeAging('vw_workbook_aging_cp')]);
   const totalCR = agingCRRes.reduce((a: number, r: AnyRow) => a + Number(r.saldo_aberto || 0), 0);
   const totalCP = agingCPRes.reduce((a: number, r: AnyRow) => a + Number(r.saldo_aberto || 0), 0);
   const today = new Date();
