@@ -3,9 +3,17 @@ import JSZip from 'jszip';
 import { generatePresentation } from './generatePresentation';
 import type { ApresentacaoDataBundle } from '@/types/apresentacao';
 
+function blobToArrayBuffer(blob: Blob): Promise<ArrayBuffer> {
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => resolve(fr.result as ArrayBuffer);
+    fr.onerror = () => reject(fr.error);
+    fr.readAsArrayBuffer(blob);
+  });
+}
+
 async function unzip(blob: Blob) {
-  // jsdom's Blob.arrayBuffer() can return empty data; Response handles it correctly.
-  const buf = await new Response(blob).arrayBuffer();
+  const buf = await blobToArrayBuffer(blob);
   return JSZip.loadAsync(buf);
 }
 
@@ -57,8 +65,6 @@ describe('generatePresentation', () => {
     };
 
     const blob = await generatePresentation(bundle, {});
-    // eslint-disable-next-line no-console
-    console.log('blob debug', { size: blob.size, type: blob.type, ctor: blob.constructor.name });
     const zip = await unzip(blob);
     const xml = (await allSlideXml(zip))[0];
     expect(xml).toContain('Dados indisponíveis nesta fase');
