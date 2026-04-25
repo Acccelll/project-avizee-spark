@@ -310,5 +310,7 @@ export async function generatePresentation(
   if (out instanceof Blob) return out;
   // Fallback for plain node: wrap the buffer
   const buf = out as Uint8Array;
-  return new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' });
+  const ab = new ArrayBuffer(buf.byteLength);
+  new Uint8Array(ab).set(buf);
+  return new Blob([ab], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' });
 }
