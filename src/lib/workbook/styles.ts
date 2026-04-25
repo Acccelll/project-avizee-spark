@@ -80,7 +80,7 @@ export function addDataBar(
         color: { argb: color },
         gradient: true,
         showValue: true,
-      } as ExcelJS.DataBarRule,
+      } as unknown as ExcelJS.ConditionalFormattingRule,
     ],
   });
 }
@@ -108,7 +108,7 @@ export function addColorScale(
           { argb: 'FFFFFFFF' },
           { argb: max },
         ],
-      } as ExcelJS.ColorScaleRule,
+      } as unknown as ExcelJS.ConditionalFormattingRule,
     ],
   });
 }
