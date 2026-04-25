@@ -15,6 +15,20 @@ export interface WorkbookRawData {
   estoque: Array<{ produto_nome: string; sku: string; grupo_nome: string; quantidade: number; custo_unitario: number; valor_total: number }>;
   agingCR: Array<{ id: string; data_vencimento: string; valor: number; valor_pago: number; saldo_aberto: number; status: string; cliente_id: string; descricao: string }>;
   agingCP: Array<{ id: string; data_vencimento: string; valor: number; valor_pago: number; saldo_aberto: number; status: string; fornecedor_id: string; descricao: string }>;
+  // V2 — analytical extensions
+  dre: Array<{ competencia: string; receita_bruta: number; deducoes: number; receita_liquida: number; fopag: number; despesa_operacional: number; ebitda: number }>;
+  caixaEvolutivo: Array<{ competencia: string; conta_descricao: string; saldo_inicial: number; saldo_final: number; variacao_mes: number }>;
+  vendasVendedor: Array<{ competencia: string; vendedor_nome: string; qtd_pedidos: number; faturamento: number; ticket_medio: number }>;
+  vendasClienteAbc: Array<{ cliente_nome: string; faturamento: number; qtd_nfs: number; participacao: number; participacao_acum: number; curva_abc: string }>;
+  vendasRegiao: Array<{ competencia: string; uf: string; qtd_nfs: number; faturamento: number }>;
+  orcamentosFunil: Array<{ competencia: string; abertos: number; aprovados: number; perdidos: number; total: number; valor_aprovado: number; valor_total: number }>;
+  comprasFornecedor: Array<{ competencia: string; fornecedor_nome: string; qtd_pedidos: number; gasto_total: number; lead_time_medio_dias: number }>;
+  estoqueGiro: Array<{ codigo: string; nome: string; grupo_nome: string; estoque_atual: number; saidas_90d: number; cobertura_dias: number; giro_90d: number; valor_estoque: number }>;
+  estoqueCritico: Array<{ codigo: string; nome: string; grupo_nome: string; estoque_atual: number; estoque_minimo: number; deficit: number; preco_custo: number; valor_reposicao: number }>;
+  logistica: Array<{ competencia: string; qtd_remessas: number; entregues_no_prazo: number; entregues_atraso: number; devolucoes: number; frete_total: number }>;
+  fiscal: Array<{ competencia: string; tipo: string; qtd_confirmadas: number; qtd_canceladas: number; qtd_rascunho: number; valor_confirmado: number; icms: number; pis: number; cofins: number; ipi: number }>;
+  budget: Array<{ competencia: string; categoria: string; centro_custo_id: string | null; valor: number }>;
+  empresa: { razao_social: string; nome_fantasia: string; cnpj: string; logo_url: string | null } | null;
 }
 
 export async function fetchWorkbookData(
@@ -32,15 +46,25 @@ async function fetchDynamicModeData(compIni: string, compFim: string): Promise<W
   // Normalize competencia range (YYYY-MM)
   const iniYM = compIni.slice(0, 7);
   const fimYM = compFim.slice(0, 7);
+  // Compute prior-year range for PY comparison
+  const [yi, mi] = iniYM.split('-').map(Number);
+  const [yf, mf] = fimYM.split('-').map(Number);
+  const pyIniYM = `${yi - 1}-${String(mi).padStart(2, '0')}`;
+  const pyFimYM = `${yf - 1}-${String(mf).padStart(2, '0')}`;
+  const fullIniYM = pyIniYM; // fetch from PY start so comparators have data
 
   // Use views for aggregated data
-  const [receitaRes, despesaRes, fatRes, caixaRes, estoqueRes, agingCRRes, agingCPRes, fopagRes] = await Promise.all([
+  const [
+    receitaRes, despesaRes, fatRes, caixaRes, estoqueRes, agingCRRes, agingCPRes, fopagRes,
+    dreRes, caixaEvoRes, vendVendRes, vendAbcRes, vendRegRes, orcFunilRes,
+    comprasForRes, estGiroRes, estCritRes, logRes, fiscalRes, budgetRes, empresaRes,
+  ] = await Promise.all([
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (supabase as any).from('vw_workbook_receita_mensal').select('*').gte('competencia', iniYM).lte('competencia', fimYM),
+    (supabase as any).from('vw_workbook_receita_mensal').select('*').gte('competencia', fullIniYM).lte('competencia', fimYM),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (supabase as any).from('vw_workbook_despesa_mensal').select('*').gte('competencia', iniYM).lte('competencia', fimYM),
+    (supabase as any).from('vw_workbook_despesa_mensal').select('*').gte('competencia', fullIniYM).lte('competencia', fimYM),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (supabase as any).from('vw_workbook_faturamento_mensal').select('*').gte('competencia', iniYM).lte('competencia', fimYM),
+    (supabase as any).from('vw_workbook_faturamento_mensal').select('*').gte('competencia', fullIniYM).lte('competencia', fimYM),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (supabase as any).from('vw_workbook_bancos_saldo').select('*'),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -53,6 +77,32 @@ async function fetchDynamicModeData(compIni: string, compFim: string): Promise<W
       .select('competencia, salario_base, proventos, descontos, valor_liquido, funcionarios(nome)')
       .gte('competencia', iniYM)
       .lte('competencia', fimYM),
+    // V2 ──────────────────────────────────────────────
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (supabase as any).from('vw_workbook_dre_mensal').select('*').gte('competencia', fullIniYM).lte('competencia', fimYM),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (supabase as any).from('vw_workbook_caixa_evolutivo').select('*').gte('competencia', fullIniYM).lte('competencia', fimYM),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (supabase as any).from('vw_workbook_vendas_vendedor').select('*').gte('competencia', iniYM).lte('competencia', fimYM),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (supabase as any).from('vw_workbook_vendas_cliente_abc').select('*').limit(50),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (supabase as any).from('vw_workbook_vendas_regiao').select('*').gte('competencia', iniYM).lte('competencia', fimYM),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (supabase as any).from('vw_workbook_orcamentos_funil').select('*').gte('competencia', iniYM).lte('competencia', fimYM),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (supabase as any).from('vw_workbook_compras_fornecedor').select('*').gte('competencia', iniYM).lte('competencia', fimYM),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (supabase as any).from('vw_workbook_estoque_giro').select('*').order('valor_estoque', { ascending: false }).limit(100),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (supabase as any).from('vw_workbook_estoque_critico').select('*').order('deficit', { ascending: false }).limit(100),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (supabase as any).from('vw_workbook_logistica_resumo').select('*').gte('competencia', iniYM).lte('competencia', fimYM),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (supabase as any).from('vw_workbook_fiscal_resumo').select('*').gte('competencia', iniYM).lte('competencia', fimYM),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (supabase as any).from('budgets_mensais').select('competencia, categoria, centro_custo_id, valor').gte('competencia', `${iniYM}-01`).lte('competencia', `${fimYM}-31`),
+    supabase.from('empresa_config').select('razao_social, nome_fantasia, cnpj, logo_url').limit(1).maybeSingle(),
   ]);
 
   const receita = (receitaRes.data ?? []).map((r: Record<string, unknown>) => ({
@@ -123,7 +173,82 @@ async function fetchDynamicModeData(compIni: string, compFim: string): Promise<W
     descricao: String(r.descricao ?? ''),
   }));
 
-  return { receita, despesa, faturamento, fopag, caixa, estoque, agingCR, agingCP };
+  // V2 mappers
+  const numField = <T extends Record<string, unknown>>(r: T, k: string) => Number(r[k] ?? 0);
+  const strField = <T extends Record<string, unknown>>(r: T, k: string) => String(r[k] ?? '');
+
+  const dre = (dreRes.data ?? []).map((r: Record<string, unknown>) => ({
+    competencia: strField(r, 'competencia'), receita_bruta: numField(r, 'receita_bruta'), deducoes: numField(r, 'deducoes'),
+    receita_liquida: numField(r, 'receita_liquida'), fopag: numField(r, 'fopag'),
+    despesa_operacional: numField(r, 'despesa_operacional'), ebitda: numField(r, 'ebitda'),
+  }));
+  const caixaEvolutivo = (caixaEvoRes.data ?? []).map((r: Record<string, unknown>) => ({
+    competencia: strField(r, 'competencia'), conta_descricao: strField(r, 'conta_descricao'),
+    saldo_inicial: numField(r, 'saldo_inicial'), saldo_final: numField(r, 'saldo_final'),
+    variacao_mes: numField(r, 'variacao_mes'),
+  }));
+  const vendasVendedor = (vendVendRes.data ?? []).map((r: Record<string, unknown>) => ({
+    competencia: strField(r, 'competencia'), vendedor_nome: strField(r, 'vendedor_nome'),
+    qtd_pedidos: numField(r, 'qtd_pedidos'), faturamento: numField(r, 'faturamento'), ticket_medio: numField(r, 'ticket_medio'),
+  }));
+  const vendasClienteAbc = (vendAbcRes.data ?? []).map((r: Record<string, unknown>) => ({
+    cliente_nome: strField(r, 'cliente_nome'), faturamento: numField(r, 'faturamento'), qtd_nfs: numField(r, 'qtd_nfs'),
+    participacao: numField(r, 'participacao'), participacao_acum: numField(r, 'participacao_acum'), curva_abc: strField(r, 'curva_abc'),
+  }));
+  const vendasRegiao = (vendRegRes.data ?? []).map((r: Record<string, unknown>) => ({
+    competencia: strField(r, 'competencia'), uf: strField(r, 'uf'), qtd_nfs: numField(r, 'qtd_nfs'), faturamento: numField(r, 'faturamento'),
+  }));
+  const orcamentosFunil = (orcFunilRes.data ?? []).map((r: Record<string, unknown>) => ({
+    competencia: strField(r, 'competencia'), abertos: numField(r, 'abertos'), aprovados: numField(r, 'aprovados'),
+    perdidos: numField(r, 'perdidos'), total: numField(r, 'total'), valor_aprovado: numField(r, 'valor_aprovado'), valor_total: numField(r, 'valor_total'),
+  }));
+  const comprasFornecedor = (comprasForRes.data ?? []).map((r: Record<string, unknown>) => ({
+    competencia: strField(r, 'competencia'), fornecedor_nome: strField(r, 'fornecedor_nome'),
+    qtd_pedidos: numField(r, 'qtd_pedidos'), gasto_total: numField(r, 'gasto_total'),
+    lead_time_medio_dias: numField(r, 'lead_time_medio_dias'),
+  }));
+  const estoqueGiro = (estGiroRes.data ?? []).map((r: Record<string, unknown>) => ({
+    codigo: strField(r, 'codigo'), nome: strField(r, 'nome'), grupo_nome: strField(r, 'grupo_nome'),
+    estoque_atual: numField(r, 'estoque_atual'), saidas_90d: numField(r, 'saidas_90d'),
+    cobertura_dias: numField(r, 'cobertura_dias'), giro_90d: numField(r, 'giro_90d'), valor_estoque: numField(r, 'valor_estoque'),
+  }));
+  const estoqueCritico = (estCritRes.data ?? []).map((r: Record<string, unknown>) => ({
+    codigo: strField(r, 'codigo'), nome: strField(r, 'nome'), grupo_nome: strField(r, 'grupo_nome'),
+    estoque_atual: numField(r, 'estoque_atual'), estoque_minimo: numField(r, 'estoque_minimo'),
+    deficit: numField(r, 'deficit'), preco_custo: numField(r, 'preco_custo'), valor_reposicao: numField(r, 'valor_reposicao'),
+  }));
+  const logistica = (logRes.data ?? []).map((r: Record<string, unknown>) => ({
+    competencia: strField(r, 'competencia'), qtd_remessas: numField(r, 'qtd_remessas'),
+    entregues_no_prazo: numField(r, 'entregues_no_prazo'), entregues_atraso: numField(r, 'entregues_atraso'),
+    devolucoes: numField(r, 'devolucoes'), frete_total: numField(r, 'frete_total'),
+  }));
+  const fiscal = (fiscalRes.data ?? []).map((r: Record<string, unknown>) => ({
+    competencia: strField(r, 'competencia'), tipo: strField(r, 'tipo'),
+    qtd_confirmadas: numField(r, 'qtd_confirmadas'), qtd_canceladas: numField(r, 'qtd_canceladas'),
+    qtd_rascunho: numField(r, 'qtd_rascunho'), valor_confirmado: numField(r, 'valor_confirmado'),
+    icms: numField(r, 'icms'), pis: numField(r, 'pis'), cofins: numField(r, 'cofins'), ipi: numField(r, 'ipi'),
+  }));
+  const budget = (budgetRes.data ?? []).map((r: Record<string, unknown>) => ({
+    competencia: strField(r, 'competencia').slice(0, 7),
+    categoria: strField(r, 'categoria'),
+    centro_custo_id: r.centro_custo_id ? String(r.centro_custo_id) : null,
+    valor: numField(r, 'valor'),
+  }));
+  const empresaData = empresaRes.data as Record<string, unknown> | null;
+  const empresa = empresaData
+    ? {
+        razao_social: String(empresaData.razao_social ?? ''),
+        nome_fantasia: String(empresaData.nome_fantasia ?? ''),
+        cnpj: String(empresaData.cnpj ?? ''),
+        logo_url: empresaData.logo_url ? String(empresaData.logo_url) : null,
+      }
+    : null;
+
+  return {
+    receita, despesa, faturamento, fopag, caixa, estoque, agingCR, agingCP,
+    dre, caixaEvolutivo, vendasVendedor, vendasClienteAbc, vendasRegiao, orcamentosFunil,
+    comprasFornecedor, estoqueGiro, estoqueCritico, logistica, fiscal, budget, empresa,
+  };
 }
 
 async function fetchClosedModeData(compIni: string, compFim: string): Promise<WorkbookRawData> {
@@ -245,5 +370,9 @@ async function fetchClosedModeData(compIni: string, compFim: string): Promise<Wo
     receita, despesa, faturamento, fopag, caixa, estoque,
     agingCR: mapAging(agingCRRes.data, 'cliente_id') as WorkbookRawData['agingCR'],
     agingCP: mapAging(agingCPRes.data, 'fornecedor_id') as WorkbookRawData['agingCP'],
+    // Modo fechado não dispõe de snapshots V2 — retorna vazio com graceful degradation.
+    dre: [], caixaEvolutivo: [], vendasVendedor: [], vendasClienteAbc: [], vendasRegiao: [],
+    orcamentosFunil: [], comprasFornecedor: [], estoqueGiro: [], estoqueCritico: [],
+    logistica: [], fiscal: [], budget: [], empresa: null,
   };
 }
