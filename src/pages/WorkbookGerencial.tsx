@@ -40,6 +40,7 @@ export default function WorkbookGerencial() {
       competenciaInicial: string;
       competenciaFinal: string;
       modoGeracao: WorkbookModoGeracao;
+      abasSelecionadas: string[];
     }) => {
       const { blob, geracaoId } = await gerarWorkbook(
         {
@@ -47,7 +48,7 @@ export default function WorkbookGerencial() {
           competenciaInicial: params.competenciaInicial + '-01',
           competenciaFinal: params.competenciaFinal + '-01',
           modoGeracao: params.modoGeracao,
-          abasSelecionadas: [],
+          abasSelecionadas: params.abasSelecionadas,
         },
         undefined
       );
