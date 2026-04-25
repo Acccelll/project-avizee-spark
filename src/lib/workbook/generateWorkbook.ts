@@ -115,9 +115,15 @@ export async function generateWorkbook(options: GenerateWorkbookOptions): Promis
   buildLogistica(workbook, data, competenciaInicial, competenciaFinal);
   buildFiscal(workbook, data, competenciaInicial, competenciaFinal);
 
-  // Reordena: Capa primeiro
+  // Reordena: Capa primeiro (sheet ordering via positions)
   const capa = workbook.getWorksheet('00_Capa');
-  if (capa) capa.orderNo = 0;
+  if (capa && workbook.worksheets[0] !== capa) {
+    const idx = workbook.worksheets.indexOf(capa);
+    if (idx > 0) {
+      workbook.worksheets.splice(idx, 1);
+      workbook.worksheets.unshift(capa);
+    }
+  }
 
   // 5. Update Parâmetros visual sheet
   const wsParam = workbook.getWorksheet(VISUAL_SHEET_NAMES.PARAMETROS);
