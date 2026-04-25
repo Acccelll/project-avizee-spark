@@ -59,6 +59,7 @@ const Funcionarios = lazy(() => import("./pages/Funcionarios"));
 const OrcamentoPublico = lazy(() => import("./pages/OrcamentoPublico"));
 const Conciliacao = lazy(() => import("./pages/Conciliacao"));
 const WorkbookGerencial = lazy(() => import("./pages/WorkbookGerencial"));
+const Budget = lazy(() => import("./pages/Budget"));
 const ApresentacaoGerencial = lazy(() => import("./pages/ApresentacaoGerencial"));
 const Social = lazy(() => import("./pages/Social"));
 const Socios = lazy(() => import("./pages/Socios"));
@@ -171,6 +172,7 @@ const App = () => (
                       <Route path="/contas-contabeis-plano" element={<PermissionRoute resource="financeiro"><LazyPage><ContasContabeis /></LazyPage></PermissionRoute>} />
                       <Route path="/conciliacao" element={<PermissionRoute resource="financeiro"><LazyPage><Conciliacao /></LazyPage></PermissionRoute>} />
                       <Route path="/relatorios/workbook-gerencial" element={<PermissionRoute resource="workbook"><LazyPage><WorkbookGerencial /></LazyPage></PermissionRoute>} />
+                      <Route path="/financeiro/budget" element={<PermissionRoute resource="financeiro"><LazyPage><Budget /></LazyPage></PermissionRoute>} />
                       <Route path="/relatorios/apresentacao-gerencial" element={<PermissionRoute resource="apresentacao"><LazyPage><ApresentacaoGerencial /></LazyPage></PermissionRoute>} />
                       <Route path="/social" element={<SocialRoute><LazyPage><Social /></LazyPage></SocialRoute>} />
                       <Route path="/socios" element={<PermissionRoute resource="socios"><LazyPage><Socios /></LazyPage></PermissionRoute>} />
