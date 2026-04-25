@@ -499,6 +499,38 @@ const Produtos = () => {
       ),
     },
     {
+      key: "variacoes",
+      label: "Variações",
+      render: (p: Produto) => {
+        const raw = p.variacoes;
+        const items: string[] = Array.isArray(raw)
+          ? raw
+          : typeof raw === "string" && raw
+            ? raw.split(",").map((v) => v.trim()).filter(Boolean)
+            : [];
+        if (items.length === 0) {
+          return <span className="text-xs text-muted-foreground">—</span>;
+        }
+        const visiveis = items.slice(0, 2);
+        const restantes = items.length - visiveis.length;
+        return (
+          <div className="flex flex-wrap items-center gap-1" title={items.join(", ")}>
+            {visiveis.map((v, i) => (
+              <span
+                key={i}
+                className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-primary/10 text-primary border border-primary/20 font-medium"
+              >
+                {v}
+              </span>
+            ))}
+            {restantes > 0 && (
+              <span className="text-[10px] text-muted-foreground">+{restantes}</span>
+            )}
+          </div>
+        );
+      },
+    },
+    {
       key: "estoque_atual",
       mobileCard: true,
       label: "Estoque",
