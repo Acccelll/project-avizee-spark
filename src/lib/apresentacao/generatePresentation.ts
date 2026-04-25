@@ -305,13 +305,10 @@ export async function generatePresentation(
     }
   });
 
-  // pptxgenjs in browsers returns a Blob via .write({ outputType: 'blob' })
-  // In node it returns a Buffer. We normalize both to Blob.
-  const out = await (pres as unknown as { write: (opts: { outputType: string }) => Promise<unknown> }).write({ outputType: 'arraybuffer' });
-  const buf = out as ArrayBuffer | Uint8Array;
-  const ab = buf instanceof ArrayBuffer ? buf : (buf as Uint8Array).buffer.slice((buf as Uint8Array).byteOffset, (buf as Uint8Array).byteOffset + (buf as Uint8Array).byteLength);
-  return new Blob([ab as ArrayBuffer], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' });
+  // pptxgenjs writes a Blob in browser/jsdom and a Buffer in raw node. Both work for our consumers.
+  const out = await (pres as unknown as { write: (opts: { outputType: string }) => Promise<unknown> }).write({ outputType: 'blob' });
+  if (out instanceof Blob) return out;
+  // Fallback for plain node: wrap the buffer
+  const buf = out as Uint8Array;
+  return new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' });
 }
-
-// JSZip is re-exported only to keep tests that load the resulting package working.
-export { JSZip as __unzip };
