@@ -4,7 +4,10 @@ import { generatePresentation } from './generatePresentation';
 import type { ApresentacaoDataBundle } from '@/types/apresentacao';
 
 async function unzip(blob: Blob) {
-  const buf = await blob.arrayBuffer();
+  const buf = typeof (blob as { arrayBuffer?: unknown }).arrayBuffer === 'function'
+    ? await blob.arrayBuffer()
+    // jsdom polyfill fallback
+    : await new Response(blob).arrayBuffer();
   return JSZip.loadAsync(buf);
 }
 
