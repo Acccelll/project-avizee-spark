@@ -1,0 +1,135 @@
+import ExcelJS from 'exceljs';
+import { COLORS, FORMATS, getOrCreate } from '../styles';
+import type { WorkbookRawData } from '../fetchWorkbookData';
+import { monthRange, indexByCompetencia } from '../comparators';
+
+/** Aba 00_Capa — sumário executivo com KPIs principais. */
+export async function buildCapa(
+  wb: ExcelJS.Workbook,
+  data: WorkbookRawData,
+  competenciaInicial: string,
+  competenciaFinal: string,
+  modo: string,
+): Promise<void> {
+  const ws = getOrCreate(wb, '00_Capa');
+  ws.views = [{ showGridLines: false }];
+  for (let c = 1; c <= 6; c++) ws.getColumn(c).width = 22;
+
+  // Header band
+  ws.mergeCells('A1:F1');
+  const titleCell = ws.getCell('A1');
+  titleCell.value = data.empresa?.nome_fantasia || data.empresa?.razao_social || 'Workbook Gerencial';
+  titleCell.font = { bold: true, size: 24, color: { argb: COLORS.COVER_FG } };
+  titleCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+  titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.COVER_BG } };
+  ws.getRow(1).height = 50;
+
+  ws.mergeCells('A2:F2');
+  const sub = ws.getCell('A2');
+  sub.value = `Workbook Gerencial · Período ${competenciaInicial.slice(0, 7)} a ${competenciaFinal.slice(0, 7)} · Modo ${modo}`;
+  sub.font = { italic: true, color: { argb: COLORS.MUTED }, size: 11 };
+  sub.alignment = { horizontal: 'left', indent: 1 };
+
+  // Logo (best-effort)
+  if (data.empresa?.logo_url) {
+    try {
+      const resp = await fetch(data.empresa.logo_url);
+      if (resp.ok) {
+        const buf = await resp.arrayBuffer();
+        const ext = data.empresa.logo_url.toLowerCase().endsWith('.jpg') || data.empresa.logo_url.toLowerCase().endsWith('.jpeg') ? 'jpeg' : 'png';
+        const id = wb.addImage({ buffer: buf as ExcelJS.Buffer, extension: ext as 'png' | 'jpeg' });
+        ws.addImage(id, { tl: { col: 5.1, row: 0.1 }, ext: { width: 120, height: 50 } });
+      }
+    } catch {
+      // logo fetch failed - silent fallback
+    }
+  }
+
+  // KPIs
+  const months = monthRange(competenciaInicial, competenciaFinal);
+  const recByMonth = indexByCompetencia(data.receita, r => r.total_receita);
+  const despByMonth = indexByCompetencia(data.despesa, d => d.total_despesa);
+  const fatByMonth = indexByCompetencia(data.faturamento, f => f.total_faturado);
+
+  const totalReceita = months.reduce((s, m) => s + (recByMonth[m] ?? 0), 0);
+  const totalDespesa = months.reduce((s, m) => s + (despByMonth[m] ?? 0), 0);
+  const totalFat = months.reduce((s, m) => s + (fatByMonth[m] ?? 0), 0);
+  const resultado = totalReceita - totalDespesa;
+  const margem = totalReceita ? resultado / totalReceita : 0;
+  const caixaFinal = data.caixa.reduce((s, c) => s + c.saldo_atual, 0);
+  const ebitdaTot = data.dre.reduce((s, d) => s + d.ebitda, 0);
+  const estoqueValor = data.estoqueGiro.reduce((s, e) => s + e.valor_estoque, 0);
+  const cobMedia = data.estoqueGiro.length
+    ? data.estoqueGiro.reduce((s, e) => s + (e.cobertura_dias || 0), 0) / data.estoqueGiro.length
+    : 0;
+
+  const kpis: Array<[string, number, string]> = [
+    ['Receita', totalReceita, FORMATS.CURRENCY],
+    ['Despesa', totalDespesa, FORMATS.CURRENCY],
+    ['Resultado', resultado, FORMATS.CURRENCY],
+    ['Margem %', margem, FORMATS.PCT],
+    ['Faturamento NFs', totalFat, FORMATS.CURRENCY],
+    ['EBITDA', ebitdaTot, FORMATS.CURRENCY],
+    ['Caixa Final', caixaFinal, FORMATS.CURRENCY],
+    ['Estoque Valor', estoqueValor, FORMATS.CURRENCY],
+    ['Cobertura média (dias)', cobMedia, '0.0'],
+    ['Clientes ativos', data.vendasClienteAbc.length, FORMATS.INT],
+  ];
+
+  let row = 4;
+  ws.getCell(`A${row}`).value = 'KPIs Executivos';
+  ws.getCell(`A${row}`).font = { bold: true, size: 14, color: { argb: COLORS.HEADER_BG } };
+  row += 1;
+
+  let col = 1;
+  for (const [label, value, fmt] of kpis) {
+    const labelCell = ws.getCell(row, col);
+    const valueCell = ws.getCell(row + 1, col);
+    labelCell.value = label;
+    labelCell.font = { size: 9, color: { argb: COLORS.MUTED } };
+    labelCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.KPI_BG } };
+    labelCell.alignment = { horizontal: 'left', indent: 1, vertical: 'middle' };
+    valueCell.value = value;
+    valueCell.numFmt = fmt;
+    valueCell.font = { bold: true, size: 14 };
+    valueCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.KPI_BG } };
+    valueCell.alignment = { horizontal: 'left', indent: 1, vertical: 'middle' };
+    ws.getRow(row).height = 18;
+    ws.getRow(row + 1).height = 26;
+    col++;
+    if (col > 5) { col = 1; row += 3; }
+  }
+
+  // Sumário (índice das abas)
+  const indexRow = row + 4;
+  ws.getCell(`A${indexRow}`).value = 'Índice';
+  ws.getCell(`A${indexRow}`).font = { bold: true, size: 14, color: { argb: COLORS.HEADER_BG } };
+
+  const links: Array<[string, string]> = [
+    ['01_DRE', 'DRE Gerencial'],
+    ['02_Confronto', 'Confronto Receita × Despesa'],
+    ['Caixa', 'Posição de Caixa'],
+    ['03_Caixa_Evolutivo', 'Caixa Evolutivo'],
+    ['Despesa', 'Despesa Mensal'],
+    ['FOPAG', 'Folha de Pagamento'],
+    ['Faturamento NFs', 'Faturamento Notas Fiscais'],
+    ['09_Vendas_Vendedor', 'Vendas por Vendedor'],
+    ['10_Vendas_Cliente_ABC', 'Curva ABC de Clientes'],
+    ['11_Vendas_Regiao', 'Vendas por Região'],
+    ['12_Orcamentos_Funil', 'Funil de Orçamentos'],
+    ['13_Compras_Fornecedor', 'Compras por Fornecedor'],
+    ['Estoque', 'Estoque (resumo)'],
+    ['16_Estoque_Giro', 'Estoque · Giro & Cobertura'],
+    ['17_Estoque_Critico', 'Estoque Crítico'],
+    ['19_Logistica', 'Logística'],
+    ['20_Fiscal', 'Fiscal'],
+    ['Aging CR', 'Aging Contas a Receber'],
+    ['Aging CP', 'Aging Contas a Pagar'],
+  ];
+  links.forEach((l, i) => {
+    const r = indexRow + 1 + i;
+    const cell = ws.getCell(`A${r}`);
+    cell.value = { text: l[1], hyperlink: `#'${l[0]}'!A1` };
+    cell.font = { color: { argb: 'FF1F4E79' }, underline: true };
+  });
+}
