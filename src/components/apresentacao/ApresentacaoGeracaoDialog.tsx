@@ -1,12 +1,36 @@
 import { useMemo, useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, BarChart3, LineChart, PieChart, Table as TableIcon, LayoutGrid, TrendingUp, Layers, AlignLeft, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import type { ApresentacaoModoGeracao, ApresentacaoTemplate, SlideConfigItem } from '@/types/apresentacao';
 import { APRESENTACAO_SLIDES_V2, SECAO_LABELS, SECAO_ORDEM, type SlideSecao } from '@/lib/apresentacao/slideDefinitions';
+
+const CHART_ICON: Record<string, typeof BarChart3> = {
+  coluna: BarChart3,
+  linha: LineChart,
+  barra_horizontal: AlignLeft,
+  donut: PieChart,
+  tabela: TableIcon,
+  cards: LayoutGrid,
+  texto: FileText,
+  waterfall: TrendingUp,
+  stacked: Layers,
+};
+
+const SECAO_ACCENT: Record<SlideSecao, string> = {
+  capa: 'bg-slate-500',
+  financeiro: 'bg-blue-600',
+  pessoas: 'bg-amber-600',
+  comercial: 'bg-emerald-600',
+  operacoes: 'bg-purple-600',
+  risco: 'bg-rose-600',
+  marketing: 'bg-pink-600',
+  encerramento: 'bg-slate-600',
+};
 
 interface Props {
   open: boolean;
