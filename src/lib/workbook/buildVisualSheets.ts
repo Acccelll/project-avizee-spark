@@ -84,9 +84,20 @@ export function buildVisualSheets(
   // ── CONFRONTO ──
   const wsConf = getOrCreate(wb, VISUAL_SHEET_NAMES.CONFRONTO);
   wsConf.getColumn(1).width = 14;
-  const confHeaders = ['Confronto', ...months.map(monthLabel), '1Q', '2Q', '3Q', '4Q', 'YTD', 'Δ vs PY %'];
+  const confHeaders = ['Confronto', ...months.map(monthLabel), '1Q', '2Q', '3Q', '4Q', 'YTD', 'Budget YTD', 'Δ vs Budget %', 'Δ vs PY %'];
   wsConf.addRow(confHeaders);
   styleHeader(wsConf, 1, confHeaders.length);
+
+  // Index budget (R$ mil) by competencia + categoria
+  const budgetIdx: Record<string, Record<string, number>> = {};
+  for (const b of data.budget) {
+    const ym = b.competencia.slice(0, 7);
+    const cat = b.categoria.toLowerCase();
+    budgetIdx[ym] ??= {};
+    budgetIdx[ym][cat] = (budgetIdx[ym][cat] ?? 0) + b.valor;
+  }
+  const budgetTotal = (keys: string[]) =>
+    months.reduce((s, m) => s + keys.reduce((a, k) => a + (budgetIdx[m]?.[k] ?? 0), 0), 0) / 1000;
 
   // PY indices
   const recPyIdx: Record<string, number> = {};
@@ -95,10 +106,10 @@ export function buildVisualSheets(
   for (const d of data.despesa) despPyIdx[d.competencia] = (despPyIdx[d.competencia] ?? 0) + d.total_despesa;
 
   // Build helper that produces the trailing comparator columns for a series
-  const trailing = (cyVals: number[], pyTotal: number) => {
+  const trailing = (cyVals: number[], pyTotal: number, budgetYtd: number) => {
     const q = aggregateQuarter(cyVals);
     const ytd = q.ytd;
-    return [q.q1, q.q2, q.q3, q.q4, ytd, variation(ytd, pyTotal)];
+    return [q.q1, q.q2, q.q3, q.q4, ytd, budgetYtd, variation(ytd, budgetYtd), variation(ytd, pyTotal)];
   };
 
   const recValues = months.map(m => toMil(recByMonth[m]));
@@ -109,12 +120,17 @@ export function buildVisualSheets(
   const despPyTotal = months.reduce((s, m) => s + (despPyIdx[priorYearMonth(m)] ?? 0), 0) / 1000;
   const resPyTotal = recPyTotal - despPyTotal;
 
-  wsConf.addRow(['Receita', ...recValues, ...trailing(recValues, recPyTotal)]);
-  wsConf.addRow(['Despesa', ...despValues, ...trailing(despValues, -despPyTotal)]);
-  const resRow = wsConf.addRow(['RESULTADO', ...resValues, ...trailing(resValues, resPyTotal)]);
+  const recBudgetYtd = budgetTotal(['receita']);
+  const despBudgetYtd = -(budgetTotal(['despesa', 'despesa_op', 'despesa_operacional', 'fopag', 'deducao', 'deducoes']));
+  const resBudgetYtd = recBudgetYtd + despBudgetYtd; // despBudgetYtd já é negativo
+
+  wsConf.addRow(['Receita', ...recValues, ...trailing(recValues, recPyTotal, recBudgetYtd)]);
+  wsConf.addRow(['Despesa', ...despValues, ...trailing(despValues, -despPyTotal, despBudgetYtd)]);
+  const resRow = wsConf.addRow(['RESULTADO', ...resValues, ...trailing(resValues, resPyTotal, resBudgetYtd)]);
   resRow.font = { bold: true };
   for (let r = 2; r <= 4; r++) {
-    numFmt(wsConf, r, 2, confHeaders.length - 1);
+    numFmt(wsConf, r, 2, confHeaders.length - 2);
+    wsConf.getRow(r).getCell(confHeaders.length - 1).numFmt = '0.0%;[Red](0.0%);-';
     wsConf.getRow(r).getCell(confHeaders.length).numFmt = '0.0%;[Red](0.0%);-';
   }
   for (let c = 2; c <= confHeaders.length; c++) wsConf.getColumn(c).width = 12;
