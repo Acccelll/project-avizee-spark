@@ -30,6 +30,7 @@ import { ApresentacaoComentariosEditor } from '@/components/apresentacao/Apresen
 import { ApresentacaoTemplateManager } from '@/components/apresentacao/ApresentacaoTemplateManager';
 import { ApresentacaoAprovacaoBar } from '@/components/apresentacao/ApresentacaoAprovacaoBar';
 import { ApresentacaoCadenciaManager } from '@/components/apresentacao/ApresentacaoCadenciaManager';
+import { ApresentacaoTelemetriaPanel } from '@/components/apresentacao/ApresentacaoTelemetriaPanel';
 import type { ApresentacaoGeracao, SlideCodigo } from '@/types/apresentacao';
 
 export default function ApresentacaoGerencial() {
@@ -133,6 +134,8 @@ export default function ApresentacaoGerencial() {
             }}
             onAprovarGerar={async () => { await aprovarMutation.mutateAsync(); }}
           />
+
+          {(canAprovar || canIncluirTemplate) && <ApresentacaoTelemetriaPanel />}
 
           {canIncluirTemplate && (
             <ApresentacaoTemplateManager
