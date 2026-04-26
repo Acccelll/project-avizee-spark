@@ -414,7 +414,7 @@ export function NotaFiscalDrawer({
           </div>
         </>
       ) : (
-        <EmptyState icon={Package} title="Nenhum item registrado" />
+        <DetailEmpty icon={Package} title="Nenhum item registrado" className="py-8" />
       )}
     </div>
   );
