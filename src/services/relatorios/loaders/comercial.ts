@@ -130,7 +130,8 @@ export async function loadFaturamento(filtros: FiltroRelatorio): Promise<Relator
 
   const byMonth = new Map<string, number>();
   rows.forEach(r => {
-    const m = r.data.slice(0, 7);
+    const m = (r.data ?? "").slice(0, 7);
+    if (!m) return;
     byMonth.set(m, (byMonth.get(m) || 0) + r.valorTotal);
   });
 

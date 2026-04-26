@@ -53,7 +53,7 @@ export function useEstornarBaixa() {
     mutationFn: async ({ baixaId, motivo }: { baixaId: string; motivo?: string }) => {
       const { error } = await supabase.rpc("estornar_baixa_financeira", {
         p_baixa_id: baixaId,
-        p_motivo: motivo ?? null,
+        p_motivo: motivo,
       });
       if (error) throw error;
     },
