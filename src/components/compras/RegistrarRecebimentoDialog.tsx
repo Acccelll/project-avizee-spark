@@ -122,13 +122,12 @@ export function RegistrarRecebimentoDialog({ open, onClose, pedidoId, pedidoNume
     }
     setSaving(true);
     try {
-      const { error } = await supabase.rpc("receber_compra", {
+      await receberCompra({
         p_pedido_id: pedidoId,
         p_data_recebimento: dataRecebimento,
         p_itens: payload as never,
         p_observacoes: observacoes.trim() || null,
       });
-      if (error) throw error;
       toast.success("Recebimento registrado.");
       onSuccess?.();
       onClose();
