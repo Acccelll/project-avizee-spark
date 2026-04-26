@@ -17,6 +17,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
+import { PeriodFilter, type PeriodValue } from "@/components/filters/PeriodFilter";
+import { periodToDateFrom, periodToDateTo } from "@/lib/periodFilter";
+import type { Period } from "@/components/filters/periodTypes";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { formatCurrency, formatDate, calculateDaysBetween } from "@/lib/format";
@@ -170,6 +173,17 @@ const Orcamentos = () => {
   };
   const setDataInicio = (v: string) => setFilters({ de: v });
   const setDataFim = (v: string) => setFilters({ ate: v });
+
+  const periodValue: PeriodValue = { preset: null, from: dataInicio || null, to: dataFim || null };
+  const handlePeriodChange = (next: PeriodValue) => {
+    if (next.preset) {
+      const from = periodToDateFrom(next.preset as Period);
+      const to = periodToDateTo(next.preset as Period) ?? new Date().toISOString().slice(0, 10);
+      setFilters({ de: from, ate: to });
+      return;
+    }
+    setFilters({ de: next.from || "", ate: next.to || "" });
+  };
   const setHistoricoFilter = (v: string) => setFilters({ historico: v === "todos" ? "" : v });
   const { data: clientesList = [] } = useClientesRef();
   const { isAdmin } = useIsAdmin();
@@ -509,23 +523,7 @@ const Orcamentos = () => {
             placeholder="Clientes"
             className="w-[250px]"
           />
-          <div className="flex items-center gap-2">
-            <Input
-              type="date"
-              value={dataInicio}
-              onChange={(e) => setDataInicio(e.target.value)}
-              className="h-9 w-[140px] text-xs"
-              title="Emissão desde"
-            />
-            <span className="text-xs text-muted-foreground">até</span>
-            <Input
-              type="date"
-              value={dataFim}
-              onChange={(e) => setDataFim(e.target.value)}
-              className="h-9 w-[140px] text-xs"
-              title="Emissão até"
-            />
-          </div>
+          <PeriodFilter mode="both" value={periodValue} onChange={handlePeriodChange} />
         </AdvancedFilterBar>
 
         <PullToRefresh onRefresh={fetchData}>
