@@ -39,76 +39,56 @@ const WARN_ONLY = process.argv.includes("--warn");
 
 /**
  * Extrai { tableName: Set<colName> } a partir de types.ts.
- * Estratégia: procurar blocos `<table>: { Row: { ... } }` dentro de
- * `Tables: {`. Como o arquivo é gerado, a indentação e formato são
- * estáveis o suficiente para parser baseado em linha.
+ *
+ * O arquivo é gerado pelo Supabase com indentação fixa de 2 espaços:
+ *   - 6 espaços  → cabeçalho da tabela (`nome: {`)
+ *   - 8 espaços  → bloco interno (`Row: {` / `Insert:` / `Update:` / `Relationships:`)
+ *   - 10 espaços → declaração de coluna (`nome: tipo` ou `nome?: tipo`)
+ *
+ * O parser consome as três indentações como contexto e ignora qualquer
+ * outra coisa, o que evita falsos positivos de chaves dentro de tipos.
  */
 function parseTablesFromTypes(source) {
   const lines = source.split("\n");
   const tables = new Map();
 
-  let inTables = false;
-  let depth = 0; // profundidade de chaves dentro do bloco Tables
   let currentTable = null;
-  let currentTableDepth = 0;
   let inRow = false;
-  let rowDepth = 0;
 
-  for (const rawLine of lines) {
-    const line = rawLine;
-    const trimmed = line.trim();
+  const RE_TABLE = /^ {6}([a-zA-Z_][a-zA-Z0-9_]*):\s*\{$/;
+  const RE_ROW_OPEN = /^ {8}Row:\s*\{$/;
+  const RE_ROW_CLOSE = /^ {8}\}$/;
+  const RE_COLUMN = /^ {10}([a-zA-Z_][a-zA-Z0-9_]*)\??:\s/;
+  const RE_TABLE_CLOSE = /^ {6}\}$/;
 
-    if (!inTables) {
-      if (/^\s*Tables:\s*\{/.test(line)) {
-        inTables = true;
-        depth = 1;
-      }
-      continue;
-    }
-
-    // Conta chaves para sair do bloco Tables corretamente.
-    const opens = (line.match(/\{/g) || []).length;
-    const closes = (line.match(/\}/g) || []).length;
-
+  for (const line of lines) {
     if (currentTable === null) {
-      // Procura cabeçalho de tabela: `nome_tabela: {`
-      const m = trimmed.match(/^([a-zA-Z_][a-zA-Z0-9_]*):\s*\{$/);
-      if (m && depth === 1) {
+      const m = line.match(RE_TABLE);
+      if (m) {
         currentTable = m[1];
-        currentTableDepth = depth;
         tables.set(currentTable, new Set());
-        depth += opens - closes;
-        continue;
-      }
-    } else if (!inRow) {
-      if (/^\s*Row:\s*\{/.test(line)) {
-        inRow = true;
-        rowDepth = depth + opens - closes;
-        depth += opens - closes;
-        continue;
-      }
-    } else {
-      // Dentro de Row: capturar `nomeColuna:` no nível imediato.
-      // Aceitar apenas linhas no nível raiz do Row (depth atual = rowDepth)
-      const colMatch = trimmed.match(/^([a-zA-Z_][a-zA-Z0-9_]*):\s/);
-      if (colMatch && depth === rowDepth) {
-        tables.get(currentTable).add(colMatch[1]);
-      }
-      const newDepth = depth + opens - closes;
-      if (newDepth < rowDepth) {
-        inRow = false;
-      }
-      depth = newDepth;
-      // Quando saímos da tabela inteira, reset.
-      if (depth <= currentTableDepth) {
-        currentTable = null;
-        inRow = false;
       }
       continue;
     }
 
-    depth += opens - closes;
-    if (depth <= 0) break; // saiu de Tables
+    if (!inRow) {
+      if (RE_ROW_OPEN.test(line)) {
+        inRow = true;
+      } else if (RE_TABLE_CLOSE.test(line)) {
+        currentTable = null;
+      }
+      continue;
+    }
+
+    // Dentro de Row
+    if (RE_ROW_CLOSE.test(line)) {
+      inRow = false;
+      continue;
+    }
+    const m = line.match(RE_COLUMN);
+    if (m) {
+      tables.get(currentTable).add(m[1]);
+    }
   }
 
   return tables;
