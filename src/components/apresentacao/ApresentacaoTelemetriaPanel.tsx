@@ -41,7 +41,7 @@ export function ApresentacaoTelemetriaPanel() {
           <div className="grid md:grid-cols-2 gap-4">
             <div>
               <p className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1">
-                <TrendingUp className="h-3 w-3 text-emerald-600" /> Top 5 mais usados
+                <TrendingUp className="h-3 w-3 text-primary" /> Top 5 mais usados
               </p>
               <ul className="space-y-1">
                 {top.map((s) => (
@@ -57,7 +57,7 @@ export function ApresentacaoTelemetriaPanel() {
             </div>
             <div>
               <p className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1">
-                <TrendingDown className="h-3 w-3 text-rose-600" /> Menos usados
+                <TrendingDown className="h-3 w-3 text-destructive" /> Menos usados
               </p>
               <ul className="space-y-1">
                 {bottom.map((s) => (
