@@ -515,6 +515,7 @@ const Clientes = () => {
                       <TooltipTrigger asChild>
                         <Button
                           type="button" variant="outline" size="icon" className="shrink-0"
+                          aria-label="Buscar dados do CNPJ"
                           disabled={cnpjLoading || form.tipo_pessoa !== "J"}
                           onClick={async () => {
                             const result = await buscarCnpj(form.cpf_cnpj);
