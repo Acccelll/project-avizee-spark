@@ -1132,12 +1132,12 @@ export default function OrcamentoForm() {
                       clientes={clientes}
                       onSelect={(c) => handleClienteChange(c.id)}
                       trigger={
-                        <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" title="Ver lista completa">
+                        <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" aria-label="Ver lista completa de clientes" title="Ver lista completa">
                           <Search className="h-4 w-4" />
                         </Button>
                       }
                     />
-                    <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" onClick={() => setQuickAddOpen(true)} title="Cadastrar novo cliente">
+                    <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" onClick={() => setQuickAddOpen(true)} aria-label="Cadastrar novo cliente" title="Cadastrar novo cliente">
                       <Plus className="h-4 w-4" />
                     </Button>
                   </div>
