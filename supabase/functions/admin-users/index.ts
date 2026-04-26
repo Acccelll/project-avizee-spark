@@ -343,7 +343,7 @@ Deno.serve(async (req) => {
       }
 
       if (!nome || !email) throw new HttpError(400, "Nome e e-mail são obrigatórios.");
-      log.log("create: starting", { email, nome, rolePadrao });
+      log.info("create: starting", { email, nome, rolePadrao });
 
       const existingUsersResult = await serviceClient.auth.admin.listUsers({ page: 1, perPage: 1000 });
       if (existingUsersResult.error) throw existingUsersResult.error;
@@ -370,14 +370,14 @@ Deno.serve(async (req) => {
           throw createResult.error ?? new Error("Falha ao criar usuário com a senha informada.");
         }
         targetUser = createResult.data.user;
-        log.log("create: user created with admin-provided password", { userId: targetUser.id });
+        log.info("create: user created with admin-provided password", { userId: targetUser.id });
       } else try {
         const inviteResult = await serviceClient.auth.admin.inviteUserByEmail(email, { data: { full_name: nome } });
         if (inviteResult.error) throw inviteResult.error;
         if (!inviteResult.data?.user) throw new Error("Resposta vazia ao convidar usuário.");
         targetUser = inviteResult.data.user;
         inviteSent = true;
-        log.log("create: invite sent successfully", { userId: targetUser.id });
+        log.info("create: invite sent successfully", { userId: targetUser.id });
       } catch (inviteErr) {
         log.warn("create: invite failed, falling back to createUser", inviteErr);
         // Fallback: cria usuário diretamente com senha temporária
@@ -523,7 +523,7 @@ Deno.serve(async (req) => {
 
     throw new HttpError(400, "Ação inválida.");
   } catch (error) {
-    log.error("", error);
+    log.error("request failed", error);
     if (error instanceof HttpError) return json({ error: error.message }, error.status, corsHeaders);
     return json({ error: error instanceof Error ? error.message : "Erro interno ao gerenciar usuários." }, 500, corsHeaders);
   }
