@@ -18,6 +18,8 @@ import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSumm
 import { RecordIdentityCard } from "@/components/ui/RecordIdentityCard";
 import { DetailLoading, DetailError, DetailEmpty } from "@/components/ui/DetailStates";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { PermanentDeleteDialog } from "@/components/PermanentDeleteDialog";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { toast } from "sonner";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 
@@ -63,8 +65,10 @@ const tipoIcon: Record<string, React.ElementType> = {
 export function FormaPagamentoView({ id }: Props) {
   const navigate = useNavigate();
   const { clearStack } = useRelationalNavigation();
+  const { isAdmin } = useIsAdmin();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [permDeleteOpen, setPermDeleteOpen] = useState(false);
 
   const { data, loading, error } = useDetailFetch<FormaDetail>(id, async (fId, signal) => {
     const { data: f, error: fErr } = await supabase
@@ -173,6 +177,17 @@ export function FormaPagamentoView({ id }: Props) {
         >
           <Trash2 className="h-3.5 w-3.5" /> Inativar
         </Button>
+        {isAdmin && forma.ativo === false && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+            aria-label="Excluir forma de pagamento permanentemente"
+            onClick={() => setPermDeleteOpen(true)}
+          >
+            <Trash2 className="h-3.5 w-3.5" /> Excluir definitivamente
+          </Button>
+        )}
       </>
     ) : undefined,
   });
@@ -341,6 +356,21 @@ export function FormaPagamentoView({ id }: Props) {
             ? `Esta forma é usada em ${usoLancamentos} lançamento(s) e ${clientes.length} cliente(s). Ao inativar, ela deixará de aparecer em novas seleções, mas o histórico será preservado.`
             : `Tem certeza que deseja inativar "${forma.descricao}"? Você pode reativá-la a qualquer momento.`
         }
+      />
+
+      <PermanentDeleteDialog
+        open={permDeleteOpen}
+        onClose={() => setPermDeleteOpen(false)}
+        table="formas_pagamento"
+        id={id}
+        entityLabel="forma de pagamento"
+        recordName={forma.descricao}
+        warning={
+          usoLancamentos > 0 || clientes.length > 0
+            ? `Em uso em ${usoLancamentos} lançamento(s) e ${clientes.length} cliente(s). A exclusão será bloqueada se houver referências.`
+            : undefined
+        }
+        onDeleted={() => clearStack()}
       />
     </div>
   );
