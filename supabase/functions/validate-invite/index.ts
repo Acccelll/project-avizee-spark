@@ -1,7 +1,3 @@
-import { createLogger } from "../_shared/logger.ts";
-
-const moduleLog = createLogger("validate-invite");
-
 /**
  * `validate-invite` — valida o token de convite no momento do signup.
  *
@@ -19,6 +15,9 @@ const moduleLog = createLogger("validate-invite");
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { createLogger } from "../_shared/logger.ts";
+
+const moduleLog = createLogger("validate-invite");
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": Deno.env.get("ALLOWED_ORIGIN") ?? "*",
