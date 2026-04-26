@@ -20,6 +20,14 @@
     "src/pages/financeiro/hooks/useFinanceiroActions.ts",
     "src/pages/financeiro/hooks/useFinanceiroFiltros.ts",
     "src/pages/financeiro/components/FinanceiroLancamentoForm.tsx",
-    "src/pages/financeiro/config/financeiroColumns.tsx"
+    "src/pages/financeiro/config/financeiroColumns.tsx",
+    "src/pages/financeiro/hooks/useBaixaFinanceira.ts",
+    "src/services/financeiro/calculosFinanceiros.service.ts",
+    "src/services/financeiro/baixas.ts",
+    "src/services/financeiro/estornos.ts",
+    "src/services/financeiro/cancelamentos.ts",
+    "src/services/financeiro/index.ts",
+    "src/lib/workbook/comparators.ts",
+    "src/types/rpc.ts"
   ]
 }
