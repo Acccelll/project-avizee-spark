@@ -1048,5 +1048,25 @@ export function NotaFiscalDrawer({
         )
       }
     />
+    {selected && (
+      <PermanentDeleteDialog
+        open={permDeleteOpen}
+        onClose={() => setPermDeleteOpen(false)}
+        table="notas_fiscais"
+        id={selected.id}
+        entityLabel={selected.tipo === "entrada" ? "nota fiscal de entrada" : "nota fiscal de saída"}
+        recordName={`NF ${selected.numero}${selected.serie ? ` · Série ${selected.serie}` : ""}`}
+        warning={
+          (lancamentos.length > 0 || movimentos.length > 0 || eventos.length > 0)
+            ? `Esta NF possui ${lancamentos.length} lançamento(s) financeiro(s), ${movimentos.length} movimento(s) de estoque e ${eventos.length} evento(s) fiscal(is) vinculados. A exclusão será bloqueada pelo banco se houver referências ativas — nesse caso, mantenha a NF apenas inativa.`
+            : undefined
+        }
+        onDeleted={() => {
+          onPermanentlyDeleted?.();
+          onClose();
+        }}
+      />
+    )}
+    </>
   );
 }
