@@ -343,7 +343,7 @@ Deno.serve(async (req) => {
       }
 
       if (!nome || !email) throw new HttpError(400, "Nome e e-mail são obrigatórios.");
-      console.log("[admin-users] create: starting", { email, nome, rolePadrao });
+      log.log("create: starting", { email, nome, rolePadrao });
 
       const existingUsersResult = await serviceClient.auth.admin.listUsers({ page: 1, perPage: 1000 });
       if (existingUsersResult.error) throw existingUsersResult.error;
@@ -366,20 +366,20 @@ Deno.serve(async (req) => {
           user_metadata: { full_name: nome },
         });
         if (createResult.error || !createResult.data?.user) {
-          console.error("[admin-users] create: createUser with manual password failed", createResult.error);
+          log.error("create: createUser with manual password failed", createResult.error);
           throw createResult.error ?? new Error("Falha ao criar usuário com a senha informada.");
         }
         targetUser = createResult.data.user;
-        console.log("[admin-users] create: user created with admin-provided password", { userId: targetUser.id });
+        log.log("create: user created with admin-provided password", { userId: targetUser.id });
       } else try {
         const inviteResult = await serviceClient.auth.admin.inviteUserByEmail(email, { data: { full_name: nome } });
         if (inviteResult.error) throw inviteResult.error;
         if (!inviteResult.data?.user) throw new Error("Resposta vazia ao convidar usuário.");
         targetUser = inviteResult.data.user;
         inviteSent = true;
-        console.log("[admin-users] create: invite sent successfully", { userId: targetUser.id });
+        log.log("create: invite sent successfully", { userId: targetUser.id });
       } catch (inviteErr) {
-        console.warn("[admin-users] create: invite failed, falling back to createUser", inviteErr);
+        log.warn("create: invite failed, falling back to createUser", inviteErr);
         // Fallback: cria usuário diretamente com senha temporária
         tempPassword = `Tmp-${crypto.randomUUID().slice(0, 8)}-${Date.now().toString(36)}`;
         const createResult = await serviceClient.auth.admin.createUser({
@@ -389,7 +389,7 @@ Deno.serve(async (req) => {
           user_metadata: { full_name: nome },
         });
         if (createResult.error || !createResult.data?.user) {
-          console.error("[admin-users] create: createUser fallback failed", createResult.error);
+          log.error("create: createUser fallback failed", createResult.error);
           throw createResult.error ?? new Error("Falha ao criar usuário (fallback).");
         }
         targetUser = createResult.data.user;
@@ -403,7 +403,7 @@ Deno.serve(async (req) => {
             recoveryLink = linkResult.data?.properties?.action_link ?? null;
           }
         } catch (linkErr) {
-          console.warn("[admin-users] create: generateLink failed", linkErr);
+          log.warn("create: generateLink failed", linkErr);
         }
       }
 
@@ -411,7 +411,7 @@ Deno.serve(async (req) => {
 
       const { error: profileError } = await serviceClient.from("profiles").upsert({ id: targetUser.id, nome, email, cargo: cargo || null, updated_at: now }, { onConflict: "id" });
       if (profileError) {
-        console.error("[admin-users] create: profile upsert failed", profileError);
+        log.error("create: profile upsert failed", profileError);
         throw profileError;
       }
 
@@ -499,14 +499,14 @@ Deno.serve(async (req) => {
         if (inviteResult.error) throw inviteResult.error;
         inviteSent = true;
       } catch (inviteErr) {
-        console.warn("[admin-users] resend-invite: invite failed, generating recovery link", inviteErr);
+        log.warn("resend-invite: invite failed, generating recovery link", inviteErr);
         // 2) Fallback: gera link de recuperação para o admin entregar manualmente
         try {
           const linkResult = await serviceClient.auth.admin.generateLink({ type: "recovery", email });
           if (linkResult.error) throw linkResult.error;
           recoveryLink = linkResult.data?.properties?.action_link ?? null;
         } catch (linkErr) {
-          console.error("[admin-users] resend-invite: generateLink failed", linkErr);
+          log.error("resend-invite: generateLink failed", linkErr);
           // 3) Último recurso: senha temporária
           tempPassword = `Tmp-${crypto.randomUUID().slice(0, 8)}-${Date.now().toString(36)}`;
           const { error: pwErr } = await serviceClient.auth.admin.updateUserById(id, { password: tempPassword });
@@ -523,7 +523,7 @@ Deno.serve(async (req) => {
 
     throw new HttpError(400, "Ação inválida.");
   } catch (error) {
-    console.error("[admin-users]", error);
+    log.error("", error);
     if (error instanceof HttpError) return json({ error: error.message }, error.status, corsHeaders);
     return json({ error: error instanceof Error ? error.message : "Erro interno ao gerenciar usuários." }, 500, corsHeaders);
   }
