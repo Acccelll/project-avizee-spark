@@ -15,7 +15,11 @@ import { useViaCep } from "@/hooks/useViaCep";
 import { useCnpjLookup } from "@/hooks/useCnpjLookup";
 import { useDocumentoUnico } from "@/hooks/useDocumentoUnico";
 import { useEditDeepLink } from "@/hooks/useEditDeepLink";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  listProdutosDoFornecedor,
+  listComprasDoFornecedor,
+  deleteProdutoFornecedor,
+} from "@/services/fornecedores.service";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -113,36 +117,22 @@ const Fornecedores = () => {
   const loadFornContext = async (fornecedorId: string, token?: number) => {
     setLoadingFornContext(true);
     try {
-      const [{ data: pf, error: pfErr }, { data: compras, error: comprasErr }] = await Promise.all([
-        supabase
-          .from("produtos_fornecedores")
-          .select("id, lead_time_dias, preco_compra, eh_principal, produtos(nome)")
-          .eq("fornecedor_id", fornecedorId)
-          .order("eh_principal", { ascending: false })
-          .limit(5),
-        supabase
-          .from("compras")
-          .select("id, data_compra, valor_total")
-          .eq("fornecedor_id", fornecedorId)
-          .eq("ativo", true)
-          .order("data_compra", { ascending: false })
-          .limit(20),
+      const [pf, compras] = await Promise.all([
+        listProdutosDoFornecedor(fornecedorId, 5),
+        listComprasDoFornecedor(fornecedorId, 20),
       ]);
-      if (pfErr) throw pfErr;
-      if (comprasErr) throw comprasErr;
       if (token !== undefined && token !== loadTokenRef.current) return;
-      setModalProdutosForn(((pf || []) as Array<{id: string; lead_time_dias: number | null; preco_compra: number | null; eh_principal: boolean | null; produtos: {nome: string} | null}>).map((p) => ({
+      setModalProdutosForn(pf.map((p) => ({
         id: p.id,
         produto_nome: p.produtos?.nome || "—",
         preco_compra: p.preco_compra,
         lead_time_dias: p.lead_time_dias,
         eh_principal: p.eh_principal,
       })));
-      const comprasList = (compras || []) as Array<{id: string; data_compra: string | null; valor_total: number | null}>;
       setModalComprasForn({
-        count: comprasList.length,
-        ultima: comprasList[0]?.data_compra || null,
-        total: comprasList.reduce((s, c) => s + Number(c.valor_total || 0), 0),
+        count: compras.length,
+        ultima: compras[0]?.data_compra || null,
+        total: compras.reduce((s, c) => s + Number(c.valor_total || 0), 0),
       });
     } catch (err) {
       console.error("[fornecedores] erro ao carregar contexto:", err);
@@ -809,10 +799,13 @@ const Fornecedores = () => {
                         {p.lead_time_dias != null && <span className="text-[10px] text-muted-foreground">{p.lead_time_dias}d</span>}
                         <Button type="button" size="icon" variant="ghost" className="h-6 w-6 text-destructive" aria-label="Remover vínculo"
                           onClick={async () => {
-                            const { error } = await supabase.from("produtos_fornecedores").delete().eq("id", p.id);
-                            if (error) { toast.error(getUserFriendlyError(error)); return; }
-                            toast.success("Vínculo removido");
-                            loadFornContext(selected.id);
+                            try {
+                              await deleteProdutoFornecedor(p.id);
+                              toast.success("Vínculo removido");
+                              loadFornContext(selected.id);
+                            } catch (err) {
+                              toast.error(getUserFriendlyError(err));
+                            }
                           }}
                         ><Trash2 className="w-3 h-3" /></Button>
                       </div>
