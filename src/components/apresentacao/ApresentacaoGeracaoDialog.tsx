@@ -123,7 +123,7 @@ export function ApresentacaoGeracaoDialog({ open, onOpenChange, templates, onGer
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl">
+      <DialogContent className="max-w-4xl max-h-[92vh] overflow-y-auto p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle>Gerar Apresentação Gerencial (V2)</DialogTitle>
           <DialogDescription>Configure período, modo e slides opcionais antes de gerar.</DialogDescription>
@@ -136,7 +136,7 @@ export function ApresentacaoGeracaoDialog({ open, onOpenChange, templates, onGer
               <SelectContent>{templates.map((t) => <SelectItem key={t.id} value={t.id}>{t.nome} ({t.versao})</SelectItem>)}</SelectContent>
             </Select>
           </div>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <div className="grid gap-1"><Label>Competência inicial</Label><Input type="month" value={competenciaInicial} onChange={(e) => setCompetenciaInicial(e.target.value)} /></div>
             <div className="grid gap-1"><Label>Competência final</Label><Input type="month" value={competenciaFinal} onChange={(e) => setCompetenciaFinal(e.target.value)} /></div>
           </div>
@@ -166,7 +166,7 @@ export function ApresentacaoGeracaoDialog({ open, onOpenChange, templates, onGer
                 </Badge>
               ))}
             </div>
-            <div className="grid gap-3 max-h-72 overflow-auto pr-1">
+            <div className="grid gap-3 max-h-[50vh] sm:max-h-72 overflow-auto pr-1">
               {optionalBySection.map(({ secao, slides }) => {
                 const allOn = slides.every((s) => enabledSlides[s.codigo] === true);
                 return (
@@ -178,17 +178,17 @@ export function ApresentacaoGeracaoDialog({ open, onOpenChange, templates, onGer
                       </div>
                       <button
                         type="button"
-                        className="text-[10px] text-primary hover:underline"
+                        className="text-[11px] text-primary hover:underline px-2 py-1 -mr-2"
                         onClick={() => toggleSection(secao, !allOn)}
                       >
                         {allOn ? 'Desmarcar todos' : 'Selecionar todos'}
                       </button>
                     </div>
-                    <div className="grid md:grid-cols-2 gap-1">
+                    <div className="grid sm:grid-cols-2 gap-1">
                       {slides.map((s) => {
                         const Icon = CHART_ICON[s.chartType] ?? FileText;
                         return (
-                          <label key={s.codigo} className="text-xs flex items-center gap-2 rounded px-1 py-0.5 hover:bg-background/60 cursor-pointer">
+                          <label key={s.codigo} className="text-xs flex items-center gap-2 rounded px-2 py-1.5 hover:bg-background/60 cursor-pointer">
                             <input
                               type="checkbox"
                               checked={enabledSlides[s.codigo] === true}
@@ -206,9 +206,9 @@ export function ApresentacaoGeracaoDialog({ open, onOpenChange, templates, onGer
             </div>
           </div>
         </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isGenerating}>Cancelar</Button>
-          <Button disabled={isGenerating || !templateId} onClick={() => onGerar({ templateId, competenciaInicial, competenciaFinal, modoGeracao, slideConfig, exigirRevisao })}>
+        <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isGenerating} className="w-full sm:w-auto">Cancelar</Button>
+          <Button disabled={isGenerating || !templateId} className="w-full sm:w-auto" onClick={() => onGerar({ templateId, competenciaInicial, competenciaFinal, modoGeracao, slideConfig, exigirRevisao })}>
             {isGenerating ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Gerando...</> : 'Gerar apresentação'}
           </Button>
         </DialogFooter>
