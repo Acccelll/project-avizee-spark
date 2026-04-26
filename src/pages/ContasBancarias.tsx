@@ -29,7 +29,14 @@ import {
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/format";
 import { getUserFriendlyError } from "@/utils/errorMessages";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  listBancosAtivos,
+  listContasBancarias,
+  getContaInUseCounts,
+  createContaBancaria,
+  updateContaBancaria,
+  inativarContaBancaria,
+} from "@/services/contasBancarias.service";
 import { useEditDirtyForm } from "@/hooks/useEditDirtyForm";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
@@ -87,13 +94,15 @@ const ContasBancarias = () => {
 
   const fetchData = async () => {
     setLoading(true);
-    const [{ data: b }, { data: c }] = await Promise.all([
-      supabase.from("bancos").select("*").eq("ativo", true).order("nome"),
-      supabase.from("contas_bancarias").select("*, bancos(nome, tipo)").order("created_at", { ascending: false }),
-    ]);
-    setBancos(b || []);
-    setContas(c || []);
-    setLoading(false);
+    try {
+      const [b, c] = await Promise.all([listBancosAtivos(), listContasBancarias()]);
+      setBancos(b);
+      setContas(c as ContaBancaria[]);
+    } catch (err) {
+      toast.error(getUserFriendlyError(err));
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { fetchData(); }, []);
@@ -182,19 +191,17 @@ const ContasBancarias = () => {
       ativo: c.ativo,
     });
     setModalOpen(true);
-    let cancelled = false;
-    const [{ count: lCount }, { count: bCount }, { count: cCount }] = await Promise.all([
-      supabase.from("financeiro_lancamentos").select("id", { count: "exact", head: true }).eq("conta_bancaria_id", c.id).eq("ativo", true),
-      supabase.from("financeiro_baixas").select("id", { count: "exact", head: true }).eq("conta_bancaria_id", c.id),
-      supabase.from("caixa_movimentos").select("id", { count: "exact", head: true }).eq("conta_bancaria_id", c.id),
-    ]);
-    if (cancelled) return;
-    setInUseCounts({ lancamentos: lCount ?? 0, baixas: bCount ?? 0, caixaMovs: cCount ?? 0 });
+    try {
+      const counts = await getContaInUseCounts(c.id);
+      setInUseCounts(counts);
+    } catch (err) {
+      toast.error(getUserFriendlyError(err));
+    }
   };
 
   const persistCreate = async () => {
     await submit(async () => {
-      const { error } = await supabase.from("contas_bancarias").insert({
+      await createContaBancaria({
         banco_id: form.banco_id,
         descricao: form.descricao,
         agencia: form.agencia || null,
@@ -202,7 +209,6 @@ const ContasBancarias = () => {
         titular: form.titular || null,
         saldo_atual: form.saldo_atual,
       });
-      if (error) throw error;
       toast.success("Conta criada com sucesso!");
       markPristine();
       setModalOpen(false);
@@ -213,15 +219,14 @@ const ContasBancarias = () => {
   const persistUpdate = async () => {
     if (!selected) return;
     await submit(async () => {
-      const { error } = await supabase.from("contas_bancarias").update({
+      await updateContaBancaria(selected.id, {
         descricao: form.descricao.trim(),
         banco_id: form.banco_id,
         agencia: form.agencia.trim() || null,
         conta: form.conta.trim() || null,
         titular: form.titular.trim() || null,
         ativo: form.ativo,
-      }).eq("id", selected.id);
-      if (error) throw error;
+      });
       toast.success("Conta bancária atualizada com sucesso!");
       markPristine();
       setModalOpen(false);
@@ -243,10 +248,13 @@ const ContasBancarias = () => {
   };
 
   const handleDelete = async (c: ContaBancaria) => {
-    const { error } = await supabase.from("contas_bancarias").update({ ativo: false }).eq("id", c.id);
-    if (error) { toast.error(getUserFriendlyError(error)); return; }
-    toast.success("Conta removida!");
-    fetchData();
+    try {
+      await inativarContaBancaria(c.id);
+      toast.success("Conta removida!");
+      fetchData();
+    } catch (err) {
+      toast.error(getUserFriendlyError(err));
+    }
   };
 
   const willDeactivate = mode === "edit" && selected && !form.ativo && selected.ativo;
