@@ -576,7 +576,11 @@ export function PedidoCompraDrawer({
             {viewEstoque.length !== 1 ? "s" : ""}.
           </p>
         ) : (
-          <p className="text-sm text-muted-foreground">Nenhuma movimentação de estoque registrada.</p>
+          <DetailEmpty
+            icon={Boxes}
+            title="Nenhuma movimentação de estoque registrada"
+            className="py-6"
+          />
         )}
       </ViewSection>
     </div>
