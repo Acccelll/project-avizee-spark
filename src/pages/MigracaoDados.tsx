@@ -379,10 +379,10 @@ export default function MigracaoDados() {
       <div className="flex flex-col gap-6">
 
         {/* Aviso de Segurança */}
-        <Alert className="bg-amber-50 border-amber-200">
-          <AlertTriangle className="h-4 w-4 text-amber-600" />
-          <AlertTitle className="text-amber-800 font-bold">Atenção — Módulo de Carga Inicial Controlada</AlertTitle>
-          <AlertDescription className="text-amber-700 text-xs space-y-1">
+        <Alert className="bg-warning/10 border-warning/30">
+          <AlertTriangle className="h-4 w-4 text-warning" />
+          <AlertTitle className="text-warning font-bold">Atenção — Módulo de Carga Inicial Controlada</AlertTitle>
+          <AlertDescription className="text-warning text-xs space-y-1">
             <p>
               Esta área é destinada exclusivamente para a migração de dados de sistemas legados.
               A importação pode causar duplicidade se SKUs, CPFs ou CNPJs não forem conferidos previamente.
@@ -440,7 +440,7 @@ export default function MigracaoDados() {
               order={1}
               title="Cadastros-base"
               description="— importe primeiro"
-              colorClass="bg-blue-100 text-blue-700"
+              colorClass="bg-info/15 text-info"
             >
               <ImportacaoTipoCard
                 type="produtos"
@@ -479,7 +479,7 @@ export default function MigracaoDados() {
               order={2}
               title="Posição inicial / Saldos"
               description="— recomendado após cadastros-base"
-              colorClass="bg-orange-100 text-orange-700"
+              colorClass="bg-warning/15 text-warning"
             >
               <ImportacaoTipoCard
                 type="estoque_inicial"
@@ -510,7 +510,7 @@ export default function MigracaoDados() {
               order={2.5}
               title="Vínculos e Auxiliares"
               description="— enriquecimento relacional"
-              colorClass="bg-teal-100 text-teal-700"
+              colorClass="bg-accent text-accent-foreground"
             >
               <ImportacaoTipoCard
                 type="produtos_fornecedores"
@@ -560,7 +560,7 @@ export default function MigracaoDados() {
               order={3}
               title="Histórico / Documentos"
               description="— recomendado após cadastros e saldos"
-              colorClass="bg-purple-100 text-purple-700"
+              colorClass="bg-secondary/15 text-secondary"
             >
               <ImportacaoTipoCard
                 type="faturamento"
@@ -695,7 +695,7 @@ export default function MigracaoDados() {
                   <h4 className="text-sm font-bold tracking-tight">
                     Lotes pendentes de conferência / staging
                   </h4>
-                  <span className="inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-amber-100 text-amber-700 text-[10px] font-bold">
+                  <span className="inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-warning/15 text-warning text-[10px] font-bold">
                     {kpiMetrics.totalPendenciasConferencia}
                   </span>
                 </div>
@@ -757,7 +757,7 @@ export default function MigracaoDados() {
                   <div className={cn(
                     "flex items-center justify-center h-8 w-8 rounded-full border-2 font-bold text-sm transition-colors",
                     step === s ? "bg-primary text-primary-foreground border-primary" :
-                    step > s ? "bg-emerald-500 text-white border-emerald-500" : "border-muted-foreground/30 text-muted-foreground"
+                    step > s ? "bg-success text-success-foreground border-success" : "border-muted-foreground/30 text-muted-foreground"
                   )}>
                     {step > s ? <CheckCircle2 className="h-5 w-5" /> : s}
                   </div>
@@ -792,7 +792,7 @@ export default function MigracaoDados() {
 
               {step === 2 && (
                 <div className="space-y-4">
-                  <div className="bg-amber-50 border border-amber-200 p-3 rounded-md text-sm text-amber-800">
+                  <div className="bg-warning/10 border border-warning/30 p-3 rounded-md text-sm text-warning">
                     Mapeie as colunas da sua planilha para os campos correspondentes no sistema.
                   </div>
                   <MapeamentoColunasForm
@@ -813,17 +813,17 @@ export default function MigracaoDados() {
                     <div className="space-y-4">
                       {hookFaturamento.matchCounts && (
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                          <div className="p-3 rounded-md border bg-emerald-50 border-emerald-200">
-                            <div className="text-xs text-emerald-700">Vinculáveis</div>
-                            <div className="text-xl font-bold text-emerald-700">{hookFaturamento.matchCounts.vinculado}</div>
+                          <div className="p-3 rounded-md border bg-success/10 border-success/30">
+                            <div className="text-xs text-success">Vinculáveis</div>
+                            <div className="text-xl font-bold text-success">{hookFaturamento.matchCounts.vinculado}</div>
                           </div>
-                          <div className="p-3 rounded-md border bg-amber-50 border-amber-200">
-                            <div className="text-xs text-amber-700">Duvidosos</div>
-                            <div className="text-xl font-bold text-amber-700">{hookFaturamento.matchCounts.duvidoso}</div>
+                          <div className="p-3 rounded-md border bg-warning/10 border-warning/30">
+                            <div className="text-xs text-warning">Duvidosos</div>
+                            <div className="text-xl font-bold text-warning">{hookFaturamento.matchCounts.duvidoso}</div>
                           </div>
-                          <div className="p-3 rounded-md border bg-red-50 border-red-200">
-                            <div className="text-xs text-red-700">Não vinculados</div>
-                            <div className="text-xl font-bold text-red-700">{hookFaturamento.matchCounts.nao_vinculado}</div>
+                          <div className="p-3 rounded-md border bg-destructive/10 border-destructive/30">
+                            <div className="text-xs text-destructive">Não vinculados</div>
+                            <div className="text-xl font-bold text-destructive">{hookFaturamento.matchCounts.nao_vinculado}</div>
                           </div>
                           <div className="p-3 rounded-md border bg-muted/50">
                             <div className="text-xs text-muted-foreground">Criar como descontinuados</div>
@@ -851,8 +851,8 @@ export default function MigracaoDados() {
               {step === 4 && (
                 <div className="space-y-4">
                   <div className="flex flex-col items-center justify-center py-6 text-center space-y-3">
-                    <div className="p-4 bg-emerald-100 rounded-full">
-                      <CheckCircle2 className="h-12 w-12 text-emerald-600" />
+                    <div className="p-4 bg-success/15 rounded-full">
+                      <CheckCircle2 className="h-12 w-12 text-success" />
                     </div>
                     <div>
                       <h3 className="text-xl font-bold">Tudo pronto!</h3>
@@ -892,7 +892,7 @@ export default function MigracaoDados() {
                   Próximo <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               ) : (
-                <Button onClick={handleFinalize} disabled={isProcessing} className="bg-emerald-600 hover:bg-emerald-700">
+                <Button onClick={handleFinalize} disabled={isProcessing} className="bg-success text-success-foreground hover:bg-success/90">
                   Confirmar Carga Final
                 </Button>
               )}
@@ -921,7 +921,7 @@ export default function MigracaoDados() {
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Revisar mais uma vez</AlertDialogCancel>
-              <AlertDialogAction onClick={onConfirmCarga} className="bg-emerald-600 hover:bg-emerald-700">
+              <AlertDialogAction onClick={onConfirmCarga} className="bg-success text-success-foreground hover:bg-success/90">
                 Confirmar Carga
               </AlertDialogAction>
             </AlertDialogFooter>
