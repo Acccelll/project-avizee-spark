@@ -857,6 +857,7 @@ export function NotaFiscalDrawer({
   // ── Render ────────────────────────────────────────────────────────────────────
 
   return (
+    <>
     <ViewDrawerV2
       open={open}
       onClose={onClose}
