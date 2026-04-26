@@ -1,3 +1,7 @@
+import { createLogger } from "../_shared/logger.ts";
+
+const moduleLog = createLogger("validate-invite");
+
 /**
  * `validate-invite` — valida o token de convite no momento do signup.
  *
