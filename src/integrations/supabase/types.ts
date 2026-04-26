@@ -219,6 +219,80 @@ export type Database = {
           },
         ]
       }
+      apresentacao_preferencias: {
+        Row: {
+          created_at: string
+          exigir_revisao_padrao: boolean
+          id: string
+          ultima_competencia_final: string | null
+          ultima_competencia_inicial: string | null
+          ultimo_modo_geracao: string | null
+          ultimo_template_id: string | null
+          ultimos_slides_codigos: string[]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          exigir_revisao_padrao?: boolean
+          id?: string
+          ultima_competencia_final?: string | null
+          ultima_competencia_inicial?: string | null
+          ultimo_modo_geracao?: string | null
+          ultimo_template_id?: string | null
+          ultimos_slides_codigos?: string[]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          exigir_revisao_padrao?: boolean
+          id?: string
+          ultima_competencia_final?: string | null
+          ultima_competencia_inicial?: string | null
+          ultimo_modo_geracao?: string | null
+          ultimo_template_id?: string | null
+          ultimos_slides_codigos?: string[]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      apresentacao_slide_telemetria: {
+        Row: {
+          acao: string
+          created_at: string
+          geracao_id: string | null
+          id: string
+          slide_codigo: string
+          user_id: string | null
+        }
+        Insert: {
+          acao: string
+          created_at?: string
+          geracao_id?: string | null
+          id?: string
+          slide_codigo: string
+          user_id?: string | null
+        }
+        Update: {
+          acao?: string
+          created_at?: string
+          geracao_id?: string | null
+          id?: string
+          slide_codigo?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "apresentacao_slide_telemetria_geracao_id_fkey"
+            columns: ["geracao_id"]
+            isOneToOne: false
+            referencedRelation: "apresentacao_geracoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       apresentacao_templates: {
         Row: {
           arquivo_path: string | null
@@ -6543,6 +6617,16 @@ export type Database = {
           posicao: number | null
           rotulo: string | null
           valor: number | null
+        }
+        Relationships: []
+      }
+      vw_apresentacao_slide_uso: {
+        Row: {
+          slide_codigo: string | null
+          total_desselecionado: number | null
+          total_gerado: number | null
+          total_selecionado: number | null
+          ultimo_uso_em: string | null
         }
         Relationships: []
       }

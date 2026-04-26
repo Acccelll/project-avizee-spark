@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Loader2, BarChart3, LineChart, PieChart, Table as TableIcon, LayoutGrid, TrendingUp, Layers, AlignLeft, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import type { ApresentacaoModoGeracao, ApresentacaoTemplate, SlideConfigItem } from '@/types/apresentacao';
 import { APRESENTACAO_SLIDES_V2, SECAO_LABELS, SECAO_ORDEM, type SlideSecao } from '@/lib/apresentacao/slideDefinitions';
+import { carregarPreferenciasApresentacao } from '@/services/apresentacaoService';
 
 const CHART_ICON: Record<string, typeof BarChart3> = {
   coluna: BarChart3,
@@ -56,6 +57,30 @@ export function ApresentacaoGeracaoDialog({ open, onOpenChange, templates, onGer
   const [modoGeracao, setModoGeracao] = useState<ApresentacaoModoGeracao>('dinamico');
   const [exigirRevisao, setExigirRevisao] = useState(true);
   const [enabledSlides, setEnabledSlides] = useState<Record<string, boolean>>({});
+  const [prefsLoaded, setPrefsLoaded] = useState(false);
+
+  // Carrega últimas preferências do usuário ao abrir o diálogo
+  useEffect(() => {
+    if (!open || prefsLoaded) return;
+    let cancelled = false;
+    void carregarPreferenciasApresentacao().then((prefs) => {
+      if (cancelled || !prefs) { setPrefsLoaded(true); return; }
+      if (prefs.ultimo_template_id && templates.some((t) => t.id === prefs.ultimo_template_id)) {
+        setTemplateId(prefs.ultimo_template_id);
+      }
+      if (prefs.ultimo_modo_geracao) setModoGeracao(prefs.ultimo_modo_geracao);
+      if (prefs.ultima_competencia_inicial) setCompetenciaInicial(prefs.ultima_competencia_inicial);
+      if (prefs.ultima_competencia_final) setCompetenciaFinal(prefs.ultima_competencia_final);
+      setExigirRevisao(prefs.exigir_revisao_padrao);
+      if (prefs.ultimos_slides_codigos?.length) {
+        const map: Record<string, boolean> = {};
+        prefs.ultimos_slides_codigos.forEach((c) => { map[c] = true; });
+        setEnabledSlides(map);
+      }
+      setPrefsLoaded(true);
+    });
+    return () => { cancelled = true; };
+  }, [open, prefsLoaded, templates]);
 
   const slideConfig = useMemo<SlideConfigItem[]>(() => APRESENTACAO_SLIDES_V2.map((s) => ({
     codigo: s.codigo,
