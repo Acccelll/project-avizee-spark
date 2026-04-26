@@ -66,7 +66,7 @@ Hoje só ~5 specs existem. Lotes prioritários:
 - Medir chunk inicial via `npm run build` e quebrar quem passar de ~250kb gzip.
 
 ### 11. Componentes novos sugeridos (reaproveitáveis)
-- **`<ConfirmDestructiveDialog>`** — Wrapper sobre `AlertDialog` que aplica a árvore de decisão de `mem://produto/excluir-vs-inativar-vs-cancelar` (exige motivo, lista efeitos colaterais, badge de ação terminal). Hoje cada tela faz à mão.
+- ✅ **`<ConfirmDestructiveDialog>`** — Implementado em `src/components/ConfirmDestructiveDialog.tsx` + hook `useConfirmDestructive`. Aplica a árvore de `mem://produto/excluir-vs-inativar-vs-cancelar` (motivo obrigatório, lista de efeitos colaterais, badge "Ação terminal"). Migração das telas que ainda usam `window.confirm`/`ConfirmDialog` para ações terminais é incremental.
 - **`<HealthBadge>`** — pequeno indicador (verde/amarelo/vermelho) para status de integrações (Sefaz, SMTP, Correios, AI Gateway), consumindo um endpoint único `/integracoes/health`.
 - **`<AsyncJobStatus>`** — visualizador unificado de jobs assíncronos (importação, geração de workbook, envio de e-mail) — substitui `ImportacaoTimeline` + `ApresentacaoHistoricoTable` por um shell comum.
 - **`<DiffViewer>`** — para auditoria (`/auditoria`): mostra diffs antes/depois de updates, hoje renderizados como JSON cru.
