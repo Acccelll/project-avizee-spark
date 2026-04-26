@@ -2,6 +2,7 @@
 // IMPORTANT: This function uses service role key and MUST NOT be accessed from arbitrary origins.
 // The ALLOWED_ORIGIN env var MUST be set in production with the real application domain.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { createLogger } from "../_shared/logger.ts";
 
 // Lista de origens permitidas. Pode ser estendida via env `ALLOWED_ORIGIN`
 // (lista separada por vírgula). Suporta:
@@ -301,8 +302,10 @@ Deno.serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  const log = createLogger("admin-users", req);
+
   if (origin && !isOriginAllowed(origin)) {
-    console.warn("[admin-users] origin not allowed:", origin);
+    log.warn("origin not allowed", { origin });
     return json({ error: `Origem não permitida: ${origin}` }, 403, corsHeaders);
   }
 
