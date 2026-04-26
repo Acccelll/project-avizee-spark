@@ -16,6 +16,8 @@ import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSumm
 import { RecordIdentityCard } from "@/components/ui/RecordIdentityCard";
 import { DetailLoading, DetailError, DetailEmpty } from "@/components/ui/DetailStates";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { PermanentDeleteDialog } from "@/components/PermanentDeleteDialog";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { toast } from "sonner";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 
@@ -72,8 +74,10 @@ const relacaoOrder: Record<string, number> = {
 export function GrupoEconomicoView({ id }: Props) {
   const navigate = useNavigate();
   const { clearStack } = useRelationalNavigation();
+  const { isAdmin } = useIsAdmin();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [permDeleteOpen, setPermDeleteOpen] = useState(false);
 
   const { data, loading, error } = useDetailFetch<GrupoDetail>(id, async (gId, signal) => {
     const { data: g, error: gErr } = await supabase
@@ -184,6 +188,17 @@ export function GrupoEconomicoView({ id }: Props) {
         >
           <Trash2 className="h-3.5 w-3.5" /> Inativar
         </Button>
+        {isAdmin && grupo.ativo === false && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+            aria-label="Excluir grupo econômico permanentemente"
+            onClick={() => setPermDeleteOpen(true)}
+          >
+            <Trash2 className="h-3.5 w-3.5" /> Excluir definitivamente
+          </Button>
+        )}
       </>
     ) : undefined,
   });
@@ -303,6 +318,21 @@ export function GrupoEconomicoView({ id }: Props) {
             ? `Este grupo possui ${empresas.length} empresa(s) vinculada(s). Ao inativar, ele deixará de aparecer em novas seleções, mas as empresas continuam existindo.`
             : `Tem certeza que deseja inativar "${grupo.nome}"? Você pode reativá-lo a qualquer momento.`
         }
+      />
+
+      <PermanentDeleteDialog
+        open={permDeleteOpen}
+        onClose={() => setPermDeleteOpen(false)}
+        table="grupos_economicos"
+        id={id}
+        entityLabel="grupo econômico"
+        recordName={grupo.nome}
+        warning={
+          empresas.length > 0
+            ? `Existem ${empresas.length} empresa(s) vinculada(s) a este grupo. A exclusão será bloqueada se houver referências.`
+            : undefined
+        }
+        onDeleted={() => clearStack()}
       />
     </div>
   );
