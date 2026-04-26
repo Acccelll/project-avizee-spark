@@ -322,10 +322,8 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
       if (mode === "create") {
         // Numeração crítica: sem fallback Date.now (violaria atomicidade
         // do SEQUENCE — risco de duplicidade entre usuários).
-        const { data: rpcNumero, error: rpcErr } = await supabase.rpc("proximo_numero_pedido_compra");
-        if (rpcErr || !rpcNumero) {
-          throw new Error("Não foi possível gerar o número do pedido. Tente novamente.");
-        }
+        const rpcNumero = await proximoNumeroPedidoCompra();
+        if (!rpcNumero) throw new Error("Não foi possível gerar o número do pedido. Tente novamente.");
         const { data: newP, error } = await supabase.from("pedidos_compra")
           .insert({ numero: rpcNumero, ...payload })
           .select()
@@ -420,13 +418,12 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
     let entradaOk = false;
     try {
       const hoje = todayISO();
-      const { error } = await supabase.rpc("receber_compra", {
-        p_pedido_id: p.id,
+      await receberCompra({
+        p_pedido_id: String(p.id),
         p_data_recebimento: hoje,
         p_itens: payloadItens as unknown as never,
         p_observacoes: null,
       });
-      if (error) throw error;
 
       entradaOk = true;
       // Toast simples — usuário já será redirecionado para /fiscal logo abaixo,
@@ -477,10 +474,9 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
     }
   };
 
-  const aprovarPedido = async (p: PedidoCompra) => {
+  const aprovarPedidoFn = async (p: PedidoCompra) => {
     try {
-      const { error } = await supabase.rpc("aprovar_pedido", { p_pedido_id: String(p.id) });
-      if (error) throw error;
+      await aprovarPedido({ p_pedido_id: String(p.id) });
       toast.success("Pedido aprovado.");
       setDrawerOpen(false);
       await refreshAll();
@@ -490,14 +486,13 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
     }
   };
 
-  const rejeitarPedido = async (p: PedidoCompra, motivo: string) => {
+  const rejeitarPedidoFn = async (p: PedidoCompra, motivo: string) => {
     if (!motivo.trim()) {
       toast.error("Informe o motivo da rejeição.");
       return;
     }
     try {
-      const { error } = await supabase.rpc("rejeitar_pedido", { p_pedido_id: String(p.id), p_motivo: motivo });
-      if (error) throw error;
+      await rejeitarPedido({ p_pedido_id: String(p.id), p_motivo: motivo });
       toast.success("Pedido rejeitado.");
       setDrawerOpen(false);
       await refreshAll();
@@ -520,15 +515,14 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
     }
   };
 
-  const cancelarPedido = async (p: PedidoCompra, motivo?: string) => {
+  const cancelarPedidoFn = async (p: PedidoCompra, motivo?: string) => {
     const motivoTrim = (motivo ?? "").trim();
     if (!motivoTrim) {
       toast.error("Informe o motivo do cancelamento.");
       return;
     }
     try {
-      const { error } = await supabase.rpc("cancelar_pedido_compra", { p_id: String(p.id), p_motivo: motivoTrim });
-      if (error) throw error;
+      await cancelarPedidoCompra({ p_id: String(p.id), p_motivo: motivoTrim });
       toast.success("Pedido de compra cancelado.");
       setDrawerOpen(false);
       await refreshAll();
