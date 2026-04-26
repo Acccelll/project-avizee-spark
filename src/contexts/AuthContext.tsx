@@ -22,7 +22,12 @@ interface AuthContextType {
   loading: boolean;
   /** True once the initial roles + permissions fetches for the current user have settled (success or error). */
   permissionsLoaded: boolean;
-  profile: { nome: string; email: string; cargo: string; avatar_url: string } | null;
+  profile: {
+    nome: string | null;
+    email: string | null;
+    cargo: string | null;
+    avatar_url: string | null;
+  } | null;
   roles: AppRole[];
   /** Permissões individuais concedidas (allowed=true). */
   extraPermissions: PermissionKey[];
