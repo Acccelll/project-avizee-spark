@@ -18,6 +18,7 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { createLogger } from "../_shared/logger.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": Deno.env.get("ALLOWED_ORIGIN") ?? "*",
@@ -38,6 +39,7 @@ Deno.serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  const log = createLogger("apresentacao-cadencia-runner", req);
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
@@ -59,9 +61,10 @@ Deno.serve(async (req) => {
 
   const { data: cadencias, error } = await query;
   if (error) {
-    console.error("[cadencia-runner] erro listando cadências", error);
+    log.error("listing cadencias failed", error);
     return new Response(JSON.stringify({ ok: false, error: error.message }), { status: 500, headers: corsHeaders });
   }
+  log.info("cadencias loaded", { count: cadencias?.length ?? 0, force: !!body.force, cadenciaId: body.cadenciaId ?? null });
 
   const resultados: Array<Record<string, unknown>> = [];
 
@@ -126,7 +129,7 @@ Deno.serve(async (req) => {
           p_html: html,
           p_template: "apresentacao_cadencia",
         });
-        if (queueError) console.error("[cadencia-runner] queue_email", to, queueError);
+        if (queueError) log.error("queue_email failed", { to, error: queueError });
       }
 
       await supabase
@@ -140,7 +143,7 @@ Deno.serve(async (req) => {
 
       resultados.push({ cadencia_id: cad.id, status: "criado", geracao_id: geracao.id, destinatarios: destinatarios.length });
     } catch (err) {
-      console.error("[cadencia-runner] falha cadência", cad.id, err);
+      log.error("cadencia processing failed", { cadencia_id: cad.id, error: err instanceof Error ? err.message : String(err) });
       await supabase
         .from("apresentacao_cadencia")
         .update({
