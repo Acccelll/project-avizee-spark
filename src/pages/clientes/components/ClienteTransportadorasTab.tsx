@@ -1,5 +1,11 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  listTransportadorasVinculadas,
+  listTransportadorasAtivas,
+  vincularTransportadora,
+  desvincularTransportadora,
+  type TransportadoraVinculoView,
+} from "@/services/clientes.service";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
@@ -10,23 +16,7 @@ import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 
 interface TransportadoraBasic { id: string; nome_razao_social: string; }
 
-interface VinculoRow {
-  id: string;
-  transportadora_id: string;
-  transportadora_nome: string;
-  prioridade: number | null;
-  modalidade: string | null;
-  prazo_medio: string | null;
-}
-
-interface ClienteTransportadoraRow {
-  id: string;
-  transportadora_id: string;
-  transportadoras?: { nome_razao_social: string } | null;
-  prioridade: number | null;
-  modalidade: string | null;
-  prazo_medio: string | null;
-}
+type VinculoRow = TransportadoraVinculoView;
 
 interface Props {
   clienteId: string;
@@ -44,21 +34,7 @@ export function ClienteTransportadorasTab({ clienteId }: Props) {
   const loadVinculos = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("cliente_transportadoras")
-        .select("id, transportadora_id, prioridade, modalidade, prazo_medio, transportadoras(nome_razao_social)")
-        .eq("cliente_id", clienteId)
-        .eq("ativo", true)
-        .order("prioridade");
-      if (error) throw error;
-      setVinculos(((data || []) as ClienteTransportadoraRow[]).map((ct) => ({
-        id: ct.id,
-        transportadora_id: ct.transportadora_id,
-        transportadora_nome: ct.transportadoras?.nome_razao_social || "—",
-        prioridade: ct.prioridade,
-        modalidade: ct.modalidade,
-        prazo_medio: ct.prazo_medio,
-      })));
+      setVinculos(await listTransportadorasVinculadas(clienteId));
     } catch (err) {
       console.error("[clientes] erro ao carregar transportadoras:", err);
     } finally {
@@ -67,12 +43,9 @@ export function ClienteTransportadorasTab({ clienteId }: Props) {
   };
 
   useEffect(() => {
-    supabase
-      .from("transportadoras")
-      .select("id, nome_razao_social")
-      .eq("ativo", true)
-      .order("nome_razao_social")
-      .then(({ data }) => setTransportadoras((data || []) as TransportadoraBasic[]));
+    listTransportadorasAtivas()
+      .then((data) => setTransportadoras(data as TransportadoraBasic[]))
+      .catch((err) => console.error("[clientes] erro ao carregar transportadoras:", err));
   }, []);
 
   useEffect(() => { void loadVinculos(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [clienteId]);
@@ -84,11 +57,7 @@ export function ClienteTransportadorasTab({ clienteId }: Props) {
     }
     setSavingVinculo(true);
     try {
-      const { error } = await supabase.from("cliente_transportadoras").insert({
-        cliente_id: clienteId, transportadora_id: vinculoTranspId,
-        prioridade: vinculoPrioridade, ativo: true,
-      });
-      if (error) throw error;
+      await vincularTransportadora(clienteId, vinculoTranspId, vinculoPrioridade);
       setVinculoTranspId("");
       setVinculoPrioridade(vinculos.length + 2);
       await loadVinculos();
@@ -109,8 +78,7 @@ export function ClienteTransportadorasTab({ clienteId }: Props) {
     });
     if (!ok) return;
     try {
-      const { error } = await supabase.from("cliente_transportadoras").update({ ativo: false }).eq("id", vinculoId);
-      if (error) throw error;
+      await desvincularTransportadora(vinculoId);
       await loadVinculos();
       toast.success("Vínculo removido");
     } catch (err) {
