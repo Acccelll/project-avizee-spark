@@ -23,6 +23,9 @@ import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect
 import { Card, CardContent } from "@/components/ui/card";
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
+import { PeriodFilter, type PeriodValue } from "@/components/filters/PeriodFilter";
+import { periodToDateFrom, periodToDateTo } from "@/lib/periodFilter";
+import type { Period } from "@/components/filters/periodTypes";
 import { toast } from "sonner";
 import { formatNumber, formatCurrency } from "@/lib/format";
 import type { Database } from "@/integrations/supabase/types";
@@ -569,19 +572,21 @@ const Estoque = () => {
                 placeholder="Tipo de Movimento"
                 className="w-[200px]"
               />
-              <div className="flex items-end gap-2">
-                <div className="space-y-1">
-                  <Label className="text-[10px] uppercase font-bold text-muted-foreground">De</Label>
-                  <Input type="date" value={dataInicio} onChange={e => setDataInicio(e.target.value)} className="h-9 w-36 text-xs" />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-[10px] uppercase font-bold text-muted-foreground">Até</Label>
-                  <Input type="date" value={dataFim} onChange={e => setDataFim(e.target.value)} className="h-9 w-36 text-xs" />
-                </div>
-                {(dataInicio || dataFim) && (
-                  <Button size="sm" variant="ghost" className="h-9 text-xs" onClick={() => { setDataInicio(""); setDataFim(""); }}>Limpar Datas</Button>
-                )}
-              </div>
+              <PeriodFilter
+                mode="both"
+                value={{ preset: null, from: dataInicio || null, to: dataFim || null }}
+                onChange={(next: PeriodValue) => {
+                  if (next.preset) {
+                    const from = periodToDateFrom(next.preset as Period);
+                    const to = periodToDateTo(next.preset as Period) ?? new Date().toISOString().slice(0, 10);
+                    setDataInicio(from);
+                    setDataFim(to);
+                    return;
+                  }
+                  setDataInicio(next.from || "");
+                  setDataFim(next.to || "");
+                }}
+              />
             </AdvancedFilterBar>
             <DataTable
               columns={movColumns}
