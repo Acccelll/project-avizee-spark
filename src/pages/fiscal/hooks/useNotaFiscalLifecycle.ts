@@ -34,7 +34,7 @@ export function useEstornarNotaFiscal() {
     mutationFn: async ({ nfId, motivo }: { nfId: string; motivo?: string }) => {
       const { error } = await supabase.rpc("estornar_nota_fiscal", {
         p_nf_id: nfId,
-        p_motivo: motivo ?? null,
+        p_motivo: motivo,
       });
       if (error) throw error;
     },
