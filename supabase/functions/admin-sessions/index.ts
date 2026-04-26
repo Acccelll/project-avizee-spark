@@ -81,7 +81,6 @@ Deno.serve(async (req) => {
     await requireAdmin(serviceClient, req);
 
     const { action, userId } = await req.json();
-    const log = createLogger("admin-sessions", req).child({ action });
 
     if (action === "metrics") {
       const { data: usersData, error: usersError } =
