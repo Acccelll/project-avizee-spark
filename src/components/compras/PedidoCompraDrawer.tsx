@@ -4,6 +4,7 @@ import { ViewDrawerV2, DrawerStickyFooter } from "@/components/ViewDrawerV2";
 import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSummaryCard";
 import { DrawerStatusBanner } from "@/components/ui/DrawerStatusBanner";
 import { EmptyState } from "@/components/ui/empty-state";
+import { DetailEmpty } from "@/components/ui/DetailStates";
 import { ViewField, ViewSection } from "@/components/ui/ViewField";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -397,12 +398,15 @@ export function PedidoCompraDrawer({
           </p>
         </ViewSection>
       ) : (
-        <div className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
-          <Boxes className="h-8 w-8 mx-auto mb-2 opacity-30" />
-          {["recebido", "parcialmente_recebido"].includes(pedidoStatus)
-            ? "Movimentações de estoque não encontradas."
-            : "Nenhum recebimento registrado ainda."}
-        </div>
+        <DetailEmpty
+          icon={Boxes}
+          title={
+            ["recebido", "parcialmente_recebido"].includes(pedidoStatus)
+              ? "Movimentações de estoque não encontradas"
+              : "Nenhum recebimento registrado ainda"
+          }
+          className="py-8"
+        />
       )}
 
       <ViewSection title="Logística / Rastreamento">
@@ -572,7 +576,11 @@ export function PedidoCompraDrawer({
             {viewEstoque.length !== 1 ? "s" : ""}.
           </p>
         ) : (
-          <p className="text-sm text-muted-foreground">Nenhuma movimentação de estoque registrada.</p>
+          <DetailEmpty
+            icon={Boxes}
+            title="Nenhuma movimentação de estoque registrada"
+            className="py-6"
+          />
         )}
       </ViewSection>
     </div>

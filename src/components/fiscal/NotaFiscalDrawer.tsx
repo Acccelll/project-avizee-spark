@@ -5,6 +5,7 @@ import { getNotaFiscalPermissions } from "@/lib/drawerPermissions";
 import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSummaryCard";
 import { DrawerStatusBanner, type DrawerStatusTone } from "@/components/ui/DrawerStatusBanner";
 import { EmptyState } from "@/components/ui/empty-state";
+import { DetailEmpty } from "@/components/ui/DetailStates";
 import { RelationalLink } from "@/components/ui/RelationalLink";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -547,10 +548,11 @@ export function NotaFiscalDrawer({
         {loadingExtra ? (
           <p className="text-xs text-muted-foreground py-2">Carregando...</p>
         ) : anexos.length === 0 ? (
-          <div className="rounded-lg border bg-muted/20 p-4 flex items-center gap-3 text-muted-foreground">
-            <File className="h-4 w-4 shrink-0" />
-            <p className="text-xs">Nenhum anexo vinculado a esta nota fiscal.</p>
-          </div>
+          <DetailEmpty
+            icon={File}
+            title="Nenhum anexo vinculado a esta nota fiscal"
+            className="py-6"
+          />
         ) : (
           <div className="space-y-2">
             {anexos.map((anexo) => (
@@ -632,13 +634,12 @@ export function NotaFiscalDrawer({
       {loadingExtra ? (
         <p className="text-xs text-muted-foreground py-2">Carregando...</p>
       ) : eventos.length === 0 ? (
-        <div className="rounded-lg border bg-muted/20 p-4 flex items-center gap-3 text-muted-foreground">
-          <Clock className="h-4 w-4 shrink-0" />
-          <p className="text-xs">
-            Nenhum evento registrado — eventos são gerados ao confirmar, estornar
-            ou cancelar a NF.
-          </p>
-        </div>
+        <DetailEmpty
+          icon={Clock}
+          title="Nenhum evento registrado"
+          message="Eventos são gerados ao confirmar, estornar ou cancelar a NF."
+          className="py-6"
+        />
       ) : (
         <TimelineList
           items={eventos.map((ev) => ({
@@ -692,14 +693,22 @@ export function NotaFiscalDrawer({
         {loadingExtra ? (
           <p className="text-xs text-muted-foreground py-2">Carregando...</p>
         ) : lancamentos.length === 0 ? (
-          <div className="rounded-lg border bg-muted/20 p-3 text-xs text-muted-foreground flex items-center gap-2">
-            <DollarSign className="h-4 w-4 shrink-0" />
-            {selected.gera_financeiro === false
-              ? "Esta NF não gera lançamentos financeiros (configuração desmarcada)."
-              : selected.status === "pendente"
-              ? "Lançamentos financeiros serão gerados ao confirmar a nota."
-              : "Nenhum lançamento financeiro vinculado a esta NF."}
-          </div>
+          <DetailEmpty
+            icon={DollarSign}
+            title={
+              selected.gera_financeiro === false
+                ? "NF não gera lançamentos financeiros"
+                : selected.status === "pendente"
+                ? "Lançamentos serão gerados na confirmação"
+                : "Nenhum lançamento vinculado a esta NF"
+            }
+            message={
+              selected.gera_financeiro === false
+                ? "Configuração de geração financeira está desmarcada."
+                : undefined
+            }
+            className="py-6"
+          />
         ) : (
           <div className="space-y-2">
             <div className="rounded-lg border overflow-hidden">
@@ -745,12 +754,15 @@ export function NotaFiscalDrawer({
           {loadingExtra ? (
             <p className="text-xs text-muted-foreground py-2">Carregando...</p>
           ) : movimentos.length === 0 ? (
-            <div className="rounded-lg border bg-muted/20 p-3 text-xs text-muted-foreground flex items-center gap-2">
-              <Package className="h-4 w-4 shrink-0" />
-              {selected.status === "pendente"
-                ? "Movimentos de estoque serão gerados ao confirmar a nota."
-                : "Nenhum movimento de estoque vinculado a esta NF."}
-            </div>
+            <DetailEmpty
+              icon={Package}
+              title={
+                selected.status === "pendente"
+                  ? "Movimentos serão gerados na confirmação"
+                  : "Nenhum movimento de estoque vinculado a esta NF"
+              }
+              className="py-6"
+            />
           ) : (
             <div className="rounded-lg border overflow-hidden">
               <table className="w-full text-xs">

@@ -333,7 +333,7 @@ export function FornecedorView({ id }: Props) {
               <p className="text-xs text-muted-foreground italic leading-relaxed bg-muted/20 rounded-lg p-3">{selected.observacoes}</p>
             </div>
           ) : (
-            <p className="text-xs text-muted-foreground text-center py-4 border rounded-xl border-dashed">Sem observações registradas</p>
+            <DetailEmpty title="Sem observações registradas" className="py-6" />
           )}
           {(selected.contato || selected.email || selected.telefone || selected.celular) && (
             <div className="space-y-2">
