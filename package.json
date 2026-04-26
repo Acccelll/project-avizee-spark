@@ -12,7 +12,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck:core": "tsc -p tsconfig.strict-core.json",
-    "lint:touch-targets": "node scripts/lint-touch-targets.mjs"
+    "lint:touch-targets": "node scripts/lint-touch-targets.mjs",
+    "check:schema-drift": "node scripts/check-schema-drift.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
