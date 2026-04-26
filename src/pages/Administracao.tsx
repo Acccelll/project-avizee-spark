@@ -12,7 +12,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Building2, Database, HardDrive, Mail, Menu, Plug, Bell, Receipt, Shield, Users, Wallet, KeyRound } from "lucide-react";
+import { Activity, Building2, Database, HardDrive, Mail, Menu, Plug, Bell, Receipt, Shield, Users, Wallet, KeyRound } from "lucide-react";
 import { ModulePage } from "@/components/ModulePage";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,6 +33,7 @@ import { BackupSection } from "@/pages/admin/sections/BackupSection";
 import { FiscalSection } from "@/pages/admin/sections/FiscalSection";
 import { FinanceiroSection } from "@/pages/admin/sections/FinanceiroSection";
 import { PerfisCatalogoSection } from "@/pages/admin/sections/PerfisCatalogoSection";
+import { SaudeSistemaSection } from "@/pages/admin/sections/SaudeSistemaSection";
 
 /** Seções renderizadas internamente (não inclui atalhos externos). */
 const VALID_SECTION_KEYS = new Set([
@@ -46,6 +47,7 @@ const VALID_SECTION_KEYS = new Set([
   "backup",
   "fiscal",
   "financeiro",
+  "saude",
 ]);
 
 const sideNavGroups: SideNavGroup[] = [
@@ -79,6 +81,7 @@ const sideNavGroups: SideNavGroup[] = [
     key: "dados",
     label: "Dados & Auditoria",
     items: [
+      { key: "saude", label: "Saúde do sistema", icon: Activity },
       { key: "migracao", label: "Migração de Dados", icon: Database, behavior: "external" },
       { key: "auditoria", label: "Auditoria", icon: Shield, behavior: "external" },
     ],
@@ -198,6 +201,8 @@ function SectionContent({ section }: { section: string }) {
       return <FiscalSection />;
     case "financeiro":
       return <FinanceiroSection />;
+    case "saude":
+      return <SaudeSistemaSection />;
     default:
       return <EmpresaSection />;
   }
