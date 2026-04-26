@@ -6,6 +6,7 @@ import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSumm
 import { DrawerStatusBanner, type DrawerStatusTone } from "@/components/ui/DrawerStatusBanner";
 import { EmptyState } from "@/components/ui/empty-state";
 import { DetailEmpty } from "@/components/ui/DetailStates";
+import { Skeleton } from "@/components/ui/skeleton";
 import { RelationalLink } from "@/components/ui/RelationalLink";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -546,7 +547,10 @@ export function NotaFiscalDrawer({
       {/* Real attachments from nota_fiscal_anexos */}
       <ViewSection title="Anexos">
         {loadingExtra ? (
-          <p className="text-xs text-muted-foreground py-2">Carregando...</p>
+          <div className="space-y-2 py-1" aria-busy="true" aria-label="Carregando anexos">
+            <Skeleton tone="card" className="h-12 w-full" />
+            <Skeleton tone="card" className="h-12 w-full" />
+          </div>
         ) : anexos.length === 0 ? (
           <DetailEmpty
             icon={File}
@@ -632,7 +636,11 @@ export function NotaFiscalDrawer({
   const tabEventos = (
     <div className="space-y-4">
       {loadingExtra ? (
-        <p className="text-xs text-muted-foreground py-2">Carregando...</p>
+        <div className="space-y-2 py-1" aria-busy="true" aria-label="Carregando eventos">
+          <Skeleton tone="card" className="h-10 w-full" />
+          <Skeleton tone="card" className="h-10 w-3/4" />
+          <Skeleton tone="card" className="h-10 w-2/3" />
+        </div>
       ) : eventos.length === 0 ? (
         <DetailEmpty
           icon={Clock}
@@ -691,7 +699,10 @@ export function NotaFiscalDrawer({
 
       <ViewSection title="Impacto Financeiro">
         {loadingExtra ? (
-          <p className="text-xs text-muted-foreground py-2">Carregando...</p>
+          <div className="space-y-2 py-1" aria-busy="true" aria-label="Carregando lançamentos">
+            <Skeleton tone="card" className="h-9 w-full" />
+            <Skeleton tone="card" className="h-9 w-full" />
+          </div>
         ) : lancamentos.length === 0 ? (
           <DetailEmpty
             icon={DollarSign}
@@ -752,7 +763,10 @@ export function NotaFiscalDrawer({
       {selected.movimenta_estoque !== false && (
         <ViewSection title="Impacto em Estoque">
           {loadingExtra ? (
-            <p className="text-xs text-muted-foreground py-2">Carregando...</p>
+            <div className="space-y-2 py-1" aria-busy="true" aria-label="Carregando movimentos de estoque">
+              <Skeleton tone="card" className="h-9 w-full" />
+              <Skeleton tone="card" className="h-9 w-full" />
+            </div>
           ) : movimentos.length === 0 ? (
             <DetailEmpty
               icon={Package}

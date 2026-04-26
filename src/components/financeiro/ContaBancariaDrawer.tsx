@@ -5,6 +5,7 @@ import { RelationalLink } from "@/components/ui/RelationalLink";
 import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSummaryCard";
 import { DrawerActionBar } from "@/components/ui/DrawerActionBar";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Edit,
   Trash2,
@@ -299,7 +300,11 @@ export function ContaBancariaDrawer({
           content: (
             <div className="space-y-4">
               {loading ? (
-                <p className="text-sm text-muted-foreground text-center py-6">Carregando...</p>
+                <div className="space-y-2 py-2" aria-busy="true" aria-label="Carregando movimentações">
+                  <Skeleton tone="card" className="h-10 w-full" />
+                  <Skeleton tone="card" className="h-10 w-full" />
+                  <Skeleton tone="card" className="h-10 w-3/4" />
+                </div>
               ) : lancamentos.length === 0 && baixas.length === 0 && caixaMovs.length === 0 ? (
                 <EmptyState
                   icon={Clock}

@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrency, formatDate } from "@/lib/format";
 import {
   AlertCircle,
@@ -170,7 +171,7 @@ export function PedidoCompraFormModal({
                     {viewCotacao.numero}
                   </p>
                 ) : selected.cotacao_compra_id ? (
-                  <p className="font-mono text-xs text-muted-foreground mt-0.5">Carregando...</p>
+                  <Skeleton tone="card" className="h-4 w-20 mt-1" aria-label="Carregando cotação" />
                 ) : (
                   <p className="text-xs text-muted-foreground mt-0.5">Avulso</p>
                 )}
