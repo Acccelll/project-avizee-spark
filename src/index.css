@@ -78,6 +78,20 @@
     --accent-foreground: 40 33% 92%;
     --destructive: 0 62% 30%;
     --destructive-foreground: 40 33% 92%;
+
+    /* Tokens semânticos no dark — ajustados para contraste AA sobre fundo escuro.
+       Mantemos o matiz original e elevamos a luminância para que o texto colorido
+       (usado em badges com bg-success/10, bg-warning/10, bg-info/10) permaneça
+       legível sem perder a identidade da cor. */
+    --success: 160 55% 55%;
+    --success-foreground: 60 4% 8%;
+
+    --warning: 38 92% 60%;
+    --warning-foreground: 60 4% 8%;
+
+    --info: 217 85% 68%;
+    --info-foreground: 60 4% 8%;
+
     --border: 60 3% 20%;
     --input: 60 3% 20%;
     --ring: 2 100% 30%;
