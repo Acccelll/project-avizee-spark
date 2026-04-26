@@ -138,7 +138,7 @@ export function useConciliacaoBancaria(
         descricao: e.descricao,
       }));
       const { data, error } = await supabase.rpc('sugerir_conciliacao_bancaria', {
-        p_conta_id: contaId || null,
+        p_conta_id: contaId || (null as unknown as string),
         p_extrato: payload as unknown as never,
       });
       if (error) throw error;
