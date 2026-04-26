@@ -79,7 +79,7 @@ export interface RawFluxoItem {
 }
 
 export interface RawComprasItem {
-  numero: string;
+  numero: string | null;
   data_compra: string | null;
   data_entrega_prevista: string | null;
   data_entrega_real: string | null;
