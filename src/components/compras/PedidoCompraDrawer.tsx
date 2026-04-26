@@ -272,7 +272,7 @@ export function PedidoCompraDrawer({
           )}
         </>
       ) : (
-        <EmptyState icon={FileText} title="Nenhum item cadastrado" />
+        <DetailEmpty icon={FileText} title="Nenhum item cadastrado" className="py-8" />
       )}
     </div>
   );
