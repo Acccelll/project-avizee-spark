@@ -59,10 +59,10 @@ export function ReconciliacaoDetalhe({ lote, isOpen, onClose }: ReconciliacaoDet
   };
 
   const metrics = [
-    { label: "Lidos", value: lote.total_registros, color: "text-blue-600" },
-    { label: "Válidos", value: lote.registros_sucesso, color: "text-emerald-600" },
-    { label: "Com Erro", value: lote.registros_erro, color: "text-rose-600" },
-    { label: "Importados", value: lote.registros_sucesso, color: "text-blue-700" },
+    { label: "Lidos", value: lote.total_registros, color: "text-info" },
+    { label: "Válidos", value: lote.registros_sucesso, color: "text-success" },
+    { label: "Com Erro", value: lote.registros_erro, color: "text-destructive" },
+    { label: "Importados", value: lote.registros_sucesso, color: "text-info" },
   ];
 
   return (

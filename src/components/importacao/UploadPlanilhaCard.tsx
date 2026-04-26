@@ -16,8 +16,8 @@ export function UploadPlanilhaCard({ onFileChange, fileName, isProcessing }: Upl
       <CardHeader className="text-center">
         <div className="flex justify-center mb-2">
           {fileName ? (
-            <div className="p-3 bg-emerald-100 rounded-full">
-              <FileCheck className="h-8 w-8 text-emerald-600" />
+            <div className="p-3 bg-success/15 rounded-full">
+              <FileCheck className="h-8 w-8 text-success" />
             </div>
           ) : (
             <div className="p-3 bg-primary/10 rounded-full">

@@ -22,22 +22,22 @@ export type ImportacaoCriticidade =
   | "fiscal";
 
 const STATUS_CONFIG: Record<CardImportStatus, { label: string; dotClass: string; icon: React.ElementType }> = {
-  nunca_importado: { label: "Nunca importado", dotClass: "bg-slate-300", icon: Clock },
-  pronto: { label: "Pronto para importar", dotClass: "bg-blue-400", icon: Clock },
-  processando: { label: "Em processamento", dotClass: "bg-amber-400 animate-pulse", icon: Loader2 },
-  erro_recente: { label: "Erro recente", dotClass: "bg-rose-500", icon: AlertCircle },
-  pendente_conferencia: { label: "Pendente de conferência", dotClass: "bg-amber-500", icon: AlertTriangle },
-  concluido: { label: "Concluído", dotClass: "bg-emerald-500", icon: CheckCircle2 },
-  concluido_com_alertas: { label: "Concluído com alertas", dotClass: "bg-yellow-400", icon: AlertTriangle },
+  nunca_importado: { label: "Nunca importado", dotClass: "bg-muted-foreground/40", icon: Clock },
+  pronto: { label: "Pronto para importar", dotClass: "bg-info", icon: Clock },
+  processando: { label: "Em processamento", dotClass: "bg-warning animate-pulse", icon: Loader2 },
+  erro_recente: { label: "Erro recente", dotClass: "bg-destructive", icon: AlertCircle },
+  pendente_conferencia: { label: "Pendente de conferência", dotClass: "bg-warning", icon: AlertTriangle },
+  concluido: { label: "Concluído", dotClass: "bg-success", icon: CheckCircle2 },
+  concluido_com_alertas: { label: "Concluído com alertas", dotClass: "bg-warning/70", icon: AlertTriangle },
 };
 
 const CRITICIDADE_CONFIG: Record<ImportacaoCriticidade, { label: string; className: string }> = {
-  estrutural: { label: "Impacto estrutural", className: "bg-violet-50 text-violet-700 border-violet-200" },
-  cadastral: { label: "Impacto cadastral", className: "bg-blue-50 text-blue-700 border-blue-200" },
-  operacional: { label: "Impacto operacional", className: "bg-orange-50 text-orange-700 border-orange-200" },
-  financeiro: { label: "Impacto financeiro", className: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-  historico: { label: "Impacto histórico", className: "bg-purple-50 text-purple-700 border-purple-200" },
-  fiscal: { label: "Impacto fiscal", className: "bg-rose-50 text-rose-700 border-rose-200" },
+  estrutural: { label: "Impacto estrutural", className: "bg-accent text-accent-foreground border-border" },
+  cadastral: { label: "Impacto cadastral", className: "bg-info/10 text-info border-info/30" },
+  operacional: { label: "Impacto operacional", className: "bg-warning/10 text-warning border-warning/30" },
+  financeiro: { label: "Impacto financeiro", className: "bg-success/10 text-success border-success/30" },
+  historico: { label: "Impacto histórico", className: "bg-secondary/15 text-secondary border-secondary/30" },
+  fiscal: { label: "Impacto fiscal", className: "bg-destructive/10 text-destructive border-destructive/30" },
 };
 
 interface ImportacaoTipoCardProps {
@@ -133,8 +133,8 @@ export function ImportacaoTipoCard({
               )}
               {summary.pendingCount !== undefined && summary.pendingCount > 0 && (
                 <div className="flex justify-between">
-                  <span className="text-amber-600 font-medium">Aguardando conferência:</span>
-                  <span className="font-bold text-amber-600">{summary.pendingCount}</span>
+                  <span className="text-warning font-medium">Aguardando conferência:</span>
+                  <span className="font-bold text-warning">{summary.pendingCount}</span>
                 </div>
               )}
               {summary.nextAction && (

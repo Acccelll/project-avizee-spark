@@ -25,13 +25,13 @@ export function ImportacaoTimeline({ logs }: ImportacaoTimelineProps) {
   }
 
   return (
-    <div className="relative space-y-4 before:absolute before:inset-0 before:ml-5 before:-translate-x-px before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-200 before:to-transparent">
+    <div className="relative space-y-4 before:absolute before:inset-0 before:ml-5 before:-translate-x-px before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-border before:to-transparent">
       {logs.map((log) => (
         <div key={log.id} className="relative flex items-start gap-4">
           <div className={cn(
-            "flex items-center justify-center w-10 h-10 rounded-full border-4 border-white z-10 shrink-0 shadow-sm",
-            log.nivel === "info" ? "bg-blue-500 text-white" :
-            log.nivel === "warning" ? "bg-amber-500 text-white" : "bg-rose-500 text-white"
+            "flex items-center justify-center w-10 h-10 rounded-full border-4 border-background z-10 shrink-0 shadow-sm",
+            log.nivel === "info" ? "bg-info text-info-foreground" :
+            log.nivel === "warning" ? "bg-warning text-warning-foreground" : "bg-destructive text-destructive-foreground"
           )}>
             {log.nivel === "info" ? <Info className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
           </div>
@@ -39,8 +39,8 @@ export function ImportacaoTimeline({ logs }: ImportacaoTimelineProps) {
             <div className="flex items-center gap-2 mb-1">
               <span className={cn(
                 "text-[10px] font-bold uppercase tracking-wider",
-                log.nivel === "error" ? "text-rose-600" :
-                log.nivel === "warning" ? "text-amber-600" : "text-muted-foreground"
+                log.nivel === "error" ? "text-destructive" :
+                log.nivel === "warning" ? "text-warning" : "text-muted-foreground"
               )}>
                 {log.nivel}
               </span>

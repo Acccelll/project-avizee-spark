@@ -93,7 +93,7 @@ export function UserRow({
           )}
           {exceptionCount > 0 && (
             <span
-              className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[11px] text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-400"
+              className="inline-flex items-center gap-1 rounded-full border border-warning/30 bg-warning/10 px-1.5 py-0.5 text-[11px] text-warning"
               title={`${user.extra_permissions.length} concedida(s), ${
                 user.denied_permissions?.length ?? 0
               } revogada(s)`}
@@ -152,7 +152,7 @@ export function UserRow({
               onClick={() => onToggleStatus(user)}
               disabled={!canToggle}
               className={
-                (!user.ativo ? 'text-emerald-600' : 'text-destructive') +
+                (!user.ativo ? 'text-success' : 'text-destructive') +
                 ' min-h-11 sm:min-h-0'
               }
             >

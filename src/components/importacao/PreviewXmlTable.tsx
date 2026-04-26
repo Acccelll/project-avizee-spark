@@ -26,11 +26,11 @@ export function PreviewXmlTable({ data }: PreviewXmlTableProps) {
         </TableHeader>
         <TableBody>
           {data.map((item, i) => (
-            <TableRow key={i} className={cn(item.status === "erro" && "bg-rose-50/50", item.status === "duplicado" && "bg-amber-50/50")}>
+            <TableRow key={i} className={cn(item.status === "erro" && "bg-destructive/5", item.status === "duplicado" && "bg-warning/5")}>
               <TableCell className="text-center">
-                {item.status === "valido" && <CheckCircle2 className="h-5 w-5 text-emerald-500 mx-auto" />}
-                {item.status === "erro" && <XCircle className="h-5 w-5 text-rose-500 mx-auto" />}
-                {item.status === "duplicado" && <AlertCircle className="h-5 w-5 text-amber-500 mx-auto" />}
+                {item.status === "valido" && <CheckCircle2 className="h-5 w-5 text-success mx-auto" />}
+                {item.status === "erro" && <XCircle className="h-5 w-5 text-destructive mx-auto" />}
+                {item.status === "duplicado" && <AlertCircle className="h-5 w-5 text-warning mx-auto" />}
                 {item.status === "pendente" && <FileCode className="h-5 w-5 text-muted-foreground mx-auto animate-pulse" />}
               </TableCell>
               <TableCell className="max-w-[150px] truncate text-xs font-mono">{item.fileName}</TableCell>
@@ -51,8 +51,8 @@ export function PreviewXmlTable({ data }: PreviewXmlTableProps) {
               <TableCell>
                 <span className={cn(
                   "text-[10px] font-medium",
-                  item.status === "erro" ? "text-rose-600" :
-                  item.status === "duplicado" ? "text-amber-600" : "text-emerald-600"
+                  item.status === "erro" ? "text-destructive" :
+                  item.status === "duplicado" ? "text-warning" : "text-success"
                 )}>
                   {item.error || "NF-e válida para importação"}
                 </span>

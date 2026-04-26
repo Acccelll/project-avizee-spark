@@ -19,11 +19,11 @@ export function ReconciliacaoIndicadores({ lotes }: ReconciliacaoIndicadoresProp
   }, {} as Record<string, { count: number; imported: number; errors: number; pending: number }>);
 
   const cards = [
-    { title: "Cadastros-base", type: ["produtos", "clientes", "fornecedores"], icon: Users, color: "text-blue-600", bg: "bg-blue-50" },
-    { title: "Estoque", type: ["estoque_inicial"], icon: Warehouse, color: "text-orange-600", bg: "bg-orange-50" },
-    { title: "Faturamento", type: ["faturamento"], icon: FileText, color: "text-purple-600", bg: "bg-purple-50" },
-    { title: "Financeiro", type: ["financeiro_aberto"], icon: DollarSign, color: "text-emerald-600", bg: "bg-emerald-50" },
-    { title: "Compras XML", type: ["compras_xml"], icon: ShoppingCart, color: "text-rose-600", bg: "bg-rose-50" },
+    { title: "Cadastros-base", type: ["produtos", "clientes", "fornecedores"], icon: Users, color: "text-info", bg: "bg-info/10" },
+    { title: "Estoque", type: ["estoque_inicial"], icon: Warehouse, color: "text-warning", bg: "bg-warning/10" },
+    { title: "Faturamento", type: ["faturamento"], icon: FileText, color: "text-secondary", bg: "bg-secondary/10" },
+    { title: "Financeiro", type: ["financeiro_aberto"], icon: DollarSign, color: "text-success", bg: "bg-success/10" },
+    { title: "Compras XML", type: ["compras_xml"], icon: ShoppingCart, color: "text-destructive", bg: "bg-destructive/10" },
   ];
 
   return (
@@ -46,12 +46,12 @@ export function ReconciliacaoIndicadores({ lotes }: ReconciliacaoIndicadoresProp
               <div className="text-xl font-bold">{formatNumber(typeStats.imported)}</div>
               <div className="space-y-0.5 text-[10px] text-muted-foreground">
                 {typeStats.errors > 0 ? (
-                  <p className="text-rose-500 font-medium">{formatNumber(typeStats.errors)} inconsistências</p>
+                  <p className="text-destructive font-medium">{formatNumber(typeStats.errors)} inconsistências</p>
                 ) : (
                   <p>Sem inconsistências</p>
                 )}
                 {typeStats.pending > 0 && (
-                  <p className="text-amber-600 font-medium">{typeStats.pending} pendente(s) de conferência</p>
+                  <p className="text-warning font-medium">{typeStats.pending} pendente(s) de conferência</p>
                 )}
               </div>
             </CardContent>

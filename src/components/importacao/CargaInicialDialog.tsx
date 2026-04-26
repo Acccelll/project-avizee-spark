@@ -69,7 +69,7 @@ export function CargaInicialDialog({ onCompleted }: Props) {
             <div className="border rounded-lg p-4 bg-muted/30 space-y-2 text-xs">
               <div className="font-semibold text-sm">Abas detectadas: {resumo.abasDetectadas.join(", ")}</div>
               {resumo.abasFaltantes.length > 0 && (
-                <div className="text-amber-700">Faltantes: {resumo.abasFaltantes.join(", ")}</div>
+                <div className="text-warning">Faltantes: {resumo.abasFaltantes.join(", ")}</div>
               )}
               <div className="grid grid-cols-2 md:grid-cols-5 gap-2 pt-2">
                 {Object.entries(resumo.contagens).map(([k, v]) => (
@@ -83,7 +83,7 @@ export function CargaInicialDialog({ onCompleted }: Props) {
           )}
 
           {resultado && (
-            <Alert className={resultado.erro ? "border-destructive" : "border-green-500"}>
+            <Alert className={resultado.erro ? "border-destructive" : "border-success"}>
               {resultado.erro
                 ? <AlertTriangle className="h-4 w-4" />
                 : <CheckCircle2 className="h-4 w-4" />}

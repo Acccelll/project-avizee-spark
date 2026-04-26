@@ -22,7 +22,7 @@ export function ImportacaoStatusBadge({ status, className }: ImportacaoStatusBad
     <Badge
       variant={config.variant as any}
       className={cn(
-        status.toLowerCase() === 'concluido' && "bg-emerald-100 text-emerald-800 hover:bg-emerald-200 border-emerald-200",
+        status.toLowerCase() === 'concluido' && "bg-success/15 text-success hover:bg-success/25 border-success/30",
         status.toLowerCase() === 'processando' && "animate-pulse",
         className
       )}

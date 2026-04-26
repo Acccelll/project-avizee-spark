@@ -28,12 +28,12 @@ export function PreviewFaturamentoTable({ data }: PreviewFaturamentoTableProps) 
         </TableHeader>
         <TableBody>
           {data.map((nf, i) => (
-            <TableRow key={i} className={cn(nf.status === "erro" && "bg-rose-50/50")}>
+            <TableRow key={i} className={cn(nf.status === "erro" && "bg-destructive/5")}>
               <TableCell className="text-center">
                 {nf.status === "valido" ? (
-                  <CheckCircle2 className="h-5 w-5 text-emerald-500 mx-auto" />
+                  <CheckCircle2 className="h-5 w-5 text-success mx-auto" />
                 ) : (
-                  <XCircle className="h-5 w-5 text-rose-500 mx-auto" />
+                  <XCircle className="h-5 w-5 text-destructive mx-auto" />
                 )}
               </TableCell>
               <TableCell className="font-bold">{nf.numero}</TableCell>
@@ -52,7 +52,7 @@ export function PreviewFaturamentoTable({ data }: PreviewFaturamentoTableProps) 
               </TableCell>
               <TableCell>
                 {nf.status === "erro" && (
-                  <div className="flex flex-col gap-1 text-[10px] text-rose-600">
+                  <div className="flex flex-col gap-1 text-[10px] text-destructive">
                     {Array.from(new Set(nf.errors)).map((err, idx) => (
                       <div key={idx} className="flex items-center gap-1">
                         <AlertCircle className="h-3 w-3" />
@@ -61,7 +61,7 @@ export function PreviewFaturamentoTable({ data }: PreviewFaturamentoTableProps) 
                     ))}
                   </div>
                 )}
-                {nf.status === "valido" && <span className="text-[10px] text-emerald-600 font-medium">Validada</span>}
+                {nf.status === "valido" && <span className="text-[10px] text-success font-medium">Validada</span>}
               </TableCell>
             </TableRow>
           ))}

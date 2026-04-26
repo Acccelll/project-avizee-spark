@@ -11,19 +11,19 @@ interface Props {
 }
 
 function StatusCell({ row }: { row: PreviewFinanceiroLinha }) {
-  if (!row._valid) return <XCircle className="h-4 w-4 text-rose-500" aria-label="Erro" />;
-  if (row._duplicado) return <FileWarning className="h-4 w-4 text-amber-500" aria-label="Duplicado" />;
+  if (!row._valid) return <XCircle className="h-4 w-4 text-destructive" aria-label="Erro" />;
+  if (row._duplicado) return <FileWarning className="h-4 w-4 text-warning" aria-label="Duplicado" />;
   if (row._match === "pendente" && row.origem !== "FOPAG")
-    return <AlertTriangle className="h-4 w-4 text-amber-500" aria-label="Pendente vínculo" />;
-  return <CheckCircle2 className="h-4 w-4 text-emerald-500" aria-label="OK" />;
+    return <AlertTriangle className="h-4 w-4 text-warning" aria-label="Pendente vínculo" />;
+  return <CheckCircle2 className="h-4 w-4 text-success" aria-label="OK" />;
 }
 
 function MatchBadge({ via }: { via: PreviewFinanceiroLinha["_match"] }) {
   const map: Record<string, { label: string; cls: string }> = {
-    codigo_legado: { label: "código", cls: "bg-emerald-100 text-emerald-700" },
-    cpf_cnpj: { label: "doc.", cls: "bg-emerald-100 text-emerald-700" },
-    nome: { label: "nome", cls: "bg-blue-100 text-blue-700" },
-    pendente: { label: "pendente", cls: "bg-amber-100 text-amber-700" },
+    codigo_legado: { label: "código", cls: "bg-success/15 text-success" },
+    cpf_cnpj: { label: "doc.", cls: "bg-success/15 text-success" },
+    nome: { label: "nome", cls: "bg-info/15 text-info" },
+    pendente: { label: "pendente", cls: "bg-warning/15 text-warning" },
   };
   const m = map[via];
   return <span className={`text-[10px] px-1.5 py-0.5 rounded ${m.cls}`}>{m.label}</span>;
@@ -60,8 +60,8 @@ function FinanceiroBlock({ rows, label }: { rows: PreviewFinanceiroLinha[]; labe
               <TableCell className="font-mono text-[11px]">{r.conta_contabil_codigo ?? "—"}</TableCell>
               <TableCell className="text-right font-mono text-xs">{formatCurrency(r.valor)}</TableCell>
               <TableCell className="text-xs">{r.titulo ?? "—"}</TableCell>
-              <TableCell className="text-[10px] text-amber-700">
-                {r._errors.length > 0 && <div className="text-rose-600">{r._errors.join("; ")}</div>}
+              <TableCell className="text-[10px] text-warning">
+                {r._errors.length > 0 && <div className="text-destructive">{r._errors.join("; ")}</div>}
                 {r._warnings.length > 0 && <div>{r._warnings.join("; ")}</div>}
               </TableCell>
             </TableRow>
@@ -92,7 +92,7 @@ export function PreviewConciliacaoTabs({ preview }: Props) {
       </div>
 
       {preview.abasFaltantes.length > 0 && (
-        <div className="bg-amber-50 border border-amber-200 rounded-md p-3 text-xs text-amber-800 flex items-start gap-2">
+        <div className="bg-warning/10 border border-warning/30 rounded-md p-3 text-xs text-warning flex items-start gap-2">
           <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
           <span>Abas não encontradas na planilha: <strong>{preview.abasFaltantes.join(", ")}</strong>. O fluxo segue, mas verifique se o arquivo está completo.</span>
         </div>
@@ -162,7 +162,7 @@ export function PreviewConciliacaoTabs({ preview }: Props) {
               </TableHeader>
               <TableBody>
                 {preview.reconciliacao.detalhes.map((d, i) => (
-                  <TableRow key={i} className={d.encontrado ? "" : "bg-amber-50/50"}>
+                  <TableRow key={i} className={d.encontrado ? "" : "bg-warning/5"}>
                     <TableCell className="text-xs">{d.fc.data_vencimento ? format(parseISO(d.fc.data_vencimento), "dd/MM/yyyy") : "—"}</TableCell>
                     <TableCell className="text-xs">{d.fc.tipo_raw}</TableCell>
                     <TableCell className="text-xs">{d.fc.nome_abreviado ?? "—"}</TableCell>
@@ -170,8 +170,8 @@ export function PreviewConciliacaoTabs({ preview }: Props) {
                     <TableCell className="text-xs">{d.fc.status ?? "—"}</TableCell>
                     <TableCell className="text-xs">
                       {d.encontrado
-                        ? <span className="text-emerald-600">✓ bate com CR/CP/FOPAG</span>
-                        : <span className="text-amber-700">⚠ {d.divergencia}</span>}
+                        ? <span className="text-success">✓ bate com CR/CP/FOPAG</span>
+                        : <span className="text-warning">⚠ {d.divergencia}</span>}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -232,9 +232,9 @@ function SummaryCard({
 }) {
   const cls =
     tone === "warn"
-      ? "border-amber-300 bg-amber-50"
+      ? "border-warning/40 bg-warning/10"
       : tone === "ok"
-        ? "border-emerald-300 bg-emerald-50/40"
+        ? "border-success/40 bg-success/10"
         : "bg-card";
   return (
     <div className={`rounded-md border p-3 ${cls}`}>
