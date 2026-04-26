@@ -161,11 +161,14 @@ function findFromCalls(content) {
   return out;
 }
 
-/** Extrai a string passada a `.select("...")` que segue um `.from`. */
-function extractFollowingSelect(content, fromIndex) {
-  // Considera apenas a janela da próxima ~2000 chars para evitar
-  // pegar selects de outras chamadas no mesmo arquivo.
-  const window = content.slice(fromIndex, fromIndex + 2000);
+/**
+ * Extrai a string passada a `.select("...")` que segue um `.from`.
+ * A janela termina no PRÓXIMO `.from(` para não vazar selects de outras
+ * cadeias no mesmo arquivo (caso comum: várias queries num service).
+ */
+function extractFollowingSelect(content, fromIndex, nextFromIndex) {
+  const end = nextFromIndex ?? Math.min(content.length, fromIndex + 2000);
+  const window = content.slice(fromIndex, end);
   const m = window.match(/\.select\(\s*["'`]([\s\S]*?)["'`]\s*[,)]/);
   return m ? m[1] : null;
 }
@@ -187,13 +190,15 @@ function main() {
     if (file.includes("/integrations/supabase/")) continue;
     const content = readFileSync(file, "utf8");
     const calls = findFromCalls(content);
-    for (const { table, index } of calls) {
+    for (let i = 0; i < calls.length; i++) {
+      const { table, index } = calls[i];
+      const nextIndex = calls[i + 1]?.index;
       if (!tables.has(table)) {
         unknownTables.set(table, (unknownTables.get(table) || 0) + 1);
         continue;
       }
       const validCols = tables.get(table);
-      const selectStr = extractFollowingSelect(content, index);
+      const selectStr = extractFollowingSelect(content, index, nextIndex);
       if (!selectStr || selectStr.trim() === "*") continue;
       const cols = parseSelectColumns(selectStr);
       for (const col of cols) {
