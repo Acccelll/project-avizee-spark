@@ -18,6 +18,8 @@ import { RecordIdentityCard } from "@/components/ui/RecordIdentityCard";
 import { DetailLoading, DetailError, DetailEmpty } from "@/components/ui/DetailStates";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { PermanentDeleteDialog } from "@/components/PermanentDeleteDialog";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { toast } from "sonner";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 
@@ -73,8 +75,10 @@ const tipoContratoLabel: Record<string, string> = {
 export function FuncionarioView({ id }: Props) {
   const navigate = useNavigate();
   const { clearStack } = useRelationalNavigation();
+  const { isAdmin } = useIsAdmin();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [permDeleteOpen, setPermDeleteOpen] = useState(false);
 
   const { data, loading, error } = useDetailFetch<FuncionarioDetail>(id, async (fId, signal) => {
     const { data: f, error: fErr } = await supabase
@@ -184,6 +188,17 @@ export function FuncionarioView({ id }: Props) {
         >
           <Trash2 className="h-3.5 w-3.5" /> Inativar
         </Button>
+        {isAdmin && funcionario.ativo === false && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+            aria-label="Excluir funcionário permanentemente"
+            onClick={() => setPermDeleteOpen(true)}
+          >
+            <Trash2 className="h-3.5 w-3.5" /> Excluir definitivamente
+          </Button>
+        )}
       </>
     ) : undefined,
   });
