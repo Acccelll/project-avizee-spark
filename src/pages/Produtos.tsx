@@ -1001,13 +1001,13 @@ const Produtos = () => {
               </div>
               <div className="space-y-2">
                 <Label className="text-xs text-muted-foreground">Lucro Bruto</Label>
-                <div className={`h-9 flex items-center font-mono text-sm font-semibold border rounded-md px-3 ${lucroBruto >= 0 ? "text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30" : "text-destructive bg-destructive/5"}`}>
+                <div className={`h-9 flex items-center font-mono text-sm font-semibold border rounded-md px-3 ${lucroBruto >= 0 ? "text-success bg-success/10 dark:bg-emerald-950/30" : "text-destructive bg-destructive/5"}`}>
                   {formatCurrency(lucroBruto)}
                 </div>
               </div>
               <div className="space-y-2">
                 <Label className="text-xs text-muted-foreground">Margem</Label>
-                <div className={`h-9 flex items-center font-mono text-sm font-semibold border rounded-md px-3 ${margemPercent >= 0 ? "text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30" : "text-destructive bg-destructive/5"}`}>
+                <div className={`h-9 flex items-center font-mono text-sm font-semibold border rounded-md px-3 ${margemPercent >= 0 ? "text-success bg-success/10 dark:bg-emerald-950/30" : "text-destructive bg-destructive/5"}`}>
                   {custoParaCalculo > 0 ? `${margemPercent.toFixed(1)}%` : "—"}
                 </div>
               </div>
@@ -1054,7 +1054,7 @@ const Produtos = () => {
                 <Label>Estoque Mínimo</Label>
                 <Input type="number" min="0" value={form.estoque_minimo} onChange={(e) => setForm({ ...form, estoque_minimo: Number(e.target.value) })} />
                 {Number(form.estoque_minimo) === 0 && (
-                  <p className="text-xs text-amber-600 flex items-center gap-1">
+                  <p className="text-xs text-warning flex items-center gap-1">
                     <AlertCircle className="w-3 h-3" /> Sem estoque mínimo definido — produto sem controle de reposição.
                   </p>
                 )}
@@ -1074,7 +1074,7 @@ const Produtos = () => {
             <h3 className="font-semibold text-sm flex items-center gap-2">
               <FileText className="w-4 h-4" /> Dados Fiscais
               {fiscalCompleto && (
-                <span className="ml-1 text-xs text-emerald-600 font-normal flex items-center gap-1">
+                <span className="ml-1 text-xs text-success font-normal flex items-center gap-1">
                   <CheckCircle2 className="w-3 h-3" /> Completo
                 </span>
               )}

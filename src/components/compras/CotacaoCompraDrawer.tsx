@@ -189,7 +189,7 @@ export function CotacaoCompraDrawer({
                         </div>
                       )}
                       {drawerStats.selectedSupplierName && (
-                        <div className="flex items-start gap-2 rounded-lg border border-emerald-500/30 bg-emerald-50/50 dark:bg-emerald-950/20 px-3 py-2 text-xs text-emerald-700 dark:text-emerald-400">
+                        <div className="flex items-start gap-2 rounded-lg border border-success/30 bg-success/10/50 dark:bg-emerald-950/20 px-3 py-2 text-xs text-success dark:text-success">
                           <Trophy className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
                           Fornecedor selecionado: <strong className="ml-1">{drawerStats.selectedSupplierName}</strong>
                         </div>
@@ -242,7 +242,7 @@ export function CotacaoCompraDrawer({
                       </div>
                     )}
                     {selected.status === "aprovada" && (
-                      <div className="flex items-start gap-2 rounded-lg border border-emerald-500/30 bg-emerald-50/50 dark:bg-emerald-950/20 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-400">
+                      <div className="flex items-start gap-2 rounded-lg border border-success/30 bg-success/10/50 dark:bg-emerald-950/20 px-4 py-3 text-sm text-success dark:text-success">
                         <ThumbsUp className="h-4 w-4 mt-0.5 flex-shrink-0" />
                         <div><p className="font-semibold">Cotação aprovada</p><p className="text-xs mt-0.5 opacity-80">Pronta para conversão em Pedido de Compra.</p></div>
                       </div>
@@ -326,7 +326,7 @@ export function CotacaoCompraDrawer({
                       <div className="space-y-2 text-sm">
                         <div className="flex items-center justify-between">
                           <span className="text-muted-foreground">Itens com proposta selecionada</span>
-                          <span className={`font-mono font-semibold ${drawerStats.allItemsHaveSelected ? "text-emerald-600 dark:text-emerald-400" : ""}`}>
+                          <span className={`font-mono font-semibold ${drawerStats.allItemsHaveSelected ? "text-success dark:text-success" : ""}`}>
                             {drawerStats.selectedPropostas.length} / {viewItems.length}
                           </span>
                         </div>
@@ -344,7 +344,7 @@ export function CotacaoCompraDrawer({
                     </div>
 
                     {!["aprovada", "convertida", "rejeitada", "cancelada"].includes(selected.status) && drawerStats.allItemsHaveSelected && (
-                      <div className="flex items-start gap-2 rounded-lg border border-emerald-500/30 bg-emerald-50/50 dark:bg-emerald-950/20 px-3 py-2 text-xs text-emerald-700 dark:text-emerald-400">
+                      <div className="flex items-start gap-2 rounded-lg border border-success/30 bg-success/10/50 dark:bg-emerald-950/20 px-3 py-2 text-xs text-success dark:text-success">
                         <Info className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
                         Todos os itens têm fornecedor selecionado. Envie para aprovação ou aprove diretamente.
                       </div>

@@ -41,12 +41,12 @@ const CHART_LABEL: Record<ChartType, string> = {
 
 const SECAO_ACCENT: Record<SlideSecao, string> = {
   capa: 'bg-slate-500',
-  financeiro: 'bg-blue-600',
-  pessoas: 'bg-amber-600',
-  comercial: 'bg-emerald-600',
-  operacoes: 'bg-purple-600',
-  risco: 'bg-rose-600',
-  marketing: 'bg-pink-600',
+  financeiro: 'bg-info',
+  pessoas: 'bg-warning',
+  comercial: 'bg-success',
+  operacoes: 'bg-accent',
+  risco: 'bg-destructive',
+  marketing: 'bg-accent',
   encerramento: 'bg-slate-600',
 };
 
@@ -124,7 +124,7 @@ export function ApresentacaoSlidesPreview({
                       ) : hasData ? (
                         <Badge variant="secondary" className="h-5 text-[10px]">Dados disponíveis</Badge>
                       ) : (
-                        <Badge variant="outline" className="h-5 text-[10px] text-amber-700 border-amber-300">Indisponível nesta fase</Badge>
+                        <Badge variant="outline" className="h-5 text-[10px] text-warning border-warning/30">Indisponível nesta fase</Badge>
                       )}
                     </div>
                   </div>

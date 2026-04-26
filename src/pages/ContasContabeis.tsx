@@ -41,9 +41,9 @@ interface ContaContabil {
 }
 
 const NATUREZA_STYLES: Record<string, string> = {
-  devedora: "border-blue-500/40 text-blue-700 dark:text-blue-400 bg-blue-50/60 dark:bg-blue-950/30",
-  credora:  "border-emerald-500/40 text-emerald-700 dark:text-emerald-400 bg-emerald-50/60 dark:bg-emerald-950/30",
-  mista:    "border-violet-500/40 text-violet-700 dark:text-violet-400 bg-violet-50/60 dark:bg-violet-950/30",
+  devedora: "border-info/40 text-info dark:text-info bg-info/10/60 dark:bg-blue-950/30",
+  credora:  "border-success/40 text-success dark:text-success bg-success/10/60 dark:bg-emerald-950/30",
+  mista:    "border-accent/40 text-accent-foreground dark:text-accent-foreground bg-accent/30/60 dark:bg-violet-950/30",
 };
 
 // ---------------------------------------------------------------------------
@@ -464,7 +464,7 @@ const ContasContabeis = () => {
       label: "Lançamento",
       render: (c: ContaContabil) =>
         c.aceita_lancamento ? (
-          <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+          <span className="inline-flex items-center gap-1 text-xs font-medium text-success dark:text-success">
             <CheckCircle2 className="w-3.5 h-3.5" /> Aceita
           </span>
         ) : (

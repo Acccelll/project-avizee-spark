@@ -271,7 +271,7 @@ export function TransportadoraView({ id }: Props) {
                     <tr key={c.id} className={idx % 2 === 0 ? "bg-muted/20" : ""}>
                       <td className="px-3 py-2 text-xs">
                         <div className="flex items-center gap-1.5">
-                          {c.prioridade === 1 && <Star className="h-3 w-3 text-amber-500 shrink-0" />}
+                          {c.prioridade === 1 && <Star className="h-3 w-3 text-warning shrink-0" />}
                           <RelationalLink type="cliente" id={c.cliente_id}>
                             {c.clientes?.nome_razao_social || "—"}
                           </RelationalLink>

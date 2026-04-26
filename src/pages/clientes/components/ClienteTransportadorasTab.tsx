@@ -162,7 +162,7 @@ export function ClienteTransportadorasTab({ clienteId }: Props) {
                 {vinculos.map((ct) => (
                   <div key={ct.id} className="flex items-center justify-between py-1.5 px-2 rounded-md hover:bg-muted/30 transition-colors border-b last:border-b-0 group">
                     <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                      {ct.prioridade === 1 && <Star className="h-3 w-3 text-amber-500 shrink-0" />}
+                      {ct.prioridade === 1 && <Star className="h-3 w-3 text-warning shrink-0" />}
                       <span className="text-xs font-medium text-foreground truncate">{ct.transportadora_nome}</span>
                     </div>
                     <div className="flex items-center gap-2 shrink-0 ml-2">

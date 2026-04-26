@@ -5,10 +5,10 @@ import { DataTable } from '@/components/DataTable';
 import type { ApresentacaoGeracao } from '@/types/apresentacao';
 
 const STATUS_ICON: Record<string, React.ReactNode> = {
-  concluido: <CheckCircle2 className="h-4 w-4 text-green-600" />,
-  erro: <XCircle className="h-4 w-4 text-red-600" />,
-  gerando: <Loader2 className="h-4 w-4 animate-spin text-blue-600" />,
-  pendente: <Clock className="h-4 w-4 text-yellow-600" />,
+  concluido: <CheckCircle2 className="h-4 w-4 text-success" />,
+  erro: <XCircle className="h-4 w-4 text-destructive" />,
+  gerando: <Loader2 className="h-4 w-4 animate-spin text-info" />,
+  pendente: <Clock className="h-4 w-4 text-warning" />,
 };
 
 export function ApresentacaoHistoricoTable({

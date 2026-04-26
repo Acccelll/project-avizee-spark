@@ -42,7 +42,7 @@ export function CotacaoCompraHeaderSummary({ selected, viewItems, drawerStats }:
           <p className="text-[10px] text-muted-foreground uppercase font-semibold flex items-center justify-center gap-1">
             <TrendingDown className="h-3 w-3" /> Melhor Total
           </p>
-          <p className="text-sm font-bold font-mono mt-0.5 text-emerald-600 dark:text-emerald-400 leading-tight">
+          <p className="text-sm font-bold font-mono mt-0.5 text-success dark:text-success leading-tight">
             {drawerStats.bestTotal > 0 ? formatCurrency(drawerStats.bestTotal) : "—"}
           </p>
         </div>
@@ -59,13 +59,13 @@ export function CotacaoCompraHeaderSummary({ selected, viewItems, drawerStats }:
               return (
                 <div key={step.key} className="flex items-center flex-1 min-w-0">
                   <div className="flex flex-col items-center gap-0.5 min-w-0">
-                    <div className={`h-2 w-2 rounded-full shrink-0 ${isActive ? "bg-primary" : isPast ? "bg-emerald-500" : "bg-muted-foreground/25"}`} />
-                    <span className={`text-[9px] font-medium truncate max-w-[48px] ${isActive ? "text-primary" : isPast ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground/50"}`}>
+                    <div className={`h-2 w-2 rounded-full shrink-0 ${isActive ? "bg-primary" : isPast ? "bg-success" : "bg-muted-foreground/25"}`} />
+                    <span className={`text-[9px] font-medium truncate max-w-[48px] ${isActive ? "text-primary" : isPast ? "text-success dark:text-success" : "text-muted-foreground/50"}`}>
                       {step.label}
                     </span>
                   </div>
                   {i < FLOW_STEPS.length - 1 && (
-                    <div className={`flex-1 h-px mx-1 ${isPast || isActive ? "bg-emerald-500/40" : "bg-muted-foreground/15"}`} />
+                    <div className={`flex-1 h-px mx-1 ${isPast || isActive ? "bg-success/40" : "bg-muted-foreground/15"}`} />
                   )}
                 </div>
               );
