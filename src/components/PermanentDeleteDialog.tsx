@@ -76,6 +76,13 @@ export function PermanentDeleteDialog({
                 "Não é possível excluir: o registro está referenciado em outras tabelas (histórico, vínculos). Mantenha-o inativo.",
               );
             }
+            // Trigger fiscal de proteção (notas_fiscais): só permite DELETE em rascunho/nao_enviada.
+            const msg = (error as { message?: string }).message || "";
+            if (table === "notas_fiscais" && /DELETE bloqueado/i.test(msg)) {
+              throw new Error(
+                "Exclusão bloqueada por exigência fiscal: notas que já foram canceladas, inutilizadas ou enviadas à SEFAZ devem ser preservadas no banco. Apenas rascunhos não enviados podem ser removidos definitivamente.",
+              );
+            }
             throw error;
           }
           toast.success(`${entityLabel.charAt(0).toUpperCase()}${entityLabel.slice(1)} excluída(o) permanentemente.`);
