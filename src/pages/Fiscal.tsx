@@ -1127,6 +1127,7 @@ const Fiscal = () => {
         onEstornar={handleEstornar}
         onDevolucao={openDevolucao}
         onDanfe={(nf) => { setDrawerOpen(false); openDanfe(nf); }}
+        onPermanentlyDeleted={() => { setDrawerOpen(false); fetchData(); }}
       />
 
       {/* Devolução Dialog */}

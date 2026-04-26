@@ -1,6 +1,9 @@
 import { ViewDrawerV2, ViewField, ViewSection, DrawerStickyFooter } from "@/components/ViewDrawerV2";
 import { useDrawerData } from "@/hooks/useDrawerData";
 import { useActionLock } from "@/hooks/useActionLock";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { PermanentDeleteDialog } from "@/components/PermanentDeleteDialog";
+import { useState } from "react";
 import { getNotaFiscalPermissions } from "@/lib/drawerPermissions";
 import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSummaryCard";
 import { DrawerStatusBanner, type DrawerStatusTone } from "@/components/ui/DrawerStatusBanner";
@@ -104,6 +107,8 @@ interface NotaFiscalDrawerProps {
   onEstornar: (nf: NotaFiscal) => void;
   onDevolucao: (nf: NotaFiscal) => void;
   onDanfe: (nf: NotaFiscal) => void;
+  /** Chamado após exclusão permanente bem-sucedida (admin). */
+  onPermanentlyDeleted?: () => void;
 }
 
 // ── Component ──────────────────────────────────────────────────────────────────
@@ -111,6 +116,7 @@ interface NotaFiscalDrawerProps {
 export function NotaFiscalDrawer({
   open, onClose, selected,
   onEdit, onDelete, onConfirmar, onEstornar, onDevolucao, onDanfe,
+  onPermanentlyDeleted,
 }: NotaFiscalDrawerProps) {
   const selectedId = selected?.id ?? null;
 
@@ -152,6 +158,8 @@ export function NotaFiscalDrawer({
   const { pending: estornarPending, run: runEstornar } = useActionLock();
   const { pending: devolucaoPending, run: runDevolucao } = useActionLock();
   const isMobile = useIsMobile();
+  const { isAdmin } = useIsAdmin();
+  const [permDeleteOpen, setPermDeleteOpen] = useState(false);
 
   if (!open || !selected) return null;
 
@@ -849,6 +857,7 @@ export function NotaFiscalDrawer({
   // ── Render ────────────────────────────────────────────────────────────────────
 
   return (
+    <>
     <ViewDrawerV2
       open={open}
       onClose={onClose}
@@ -888,6 +897,18 @@ export function NotaFiscalDrawer({
           >
             <XCircle className="h-3.5 w-3.5" /> Inativar
           </Button>
+          {isAdmin && ["cancelada", "cancelada_sefaz", "rejeitada"].includes(selected.status) && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 text-destructive border-destructive/30 hover:text-destructive hover:bg-destructive/10"
+              aria-label="Excluir nota fiscal permanentemente"
+              title="Exclusão definitiva — disponível apenas para administradores em notas já inativas/canceladas"
+              onClick={() => setPermDeleteOpen(true)}
+            >
+              <XCircle className="h-3.5 w-3.5" /> Excluir definitivamente
+            </Button>
+          )}
         </>
       }
       tabs={[
@@ -1027,5 +1048,25 @@ export function NotaFiscalDrawer({
         )
       }
     />
+    {selected && (
+      <PermanentDeleteDialog
+        open={permDeleteOpen}
+        onClose={() => setPermDeleteOpen(false)}
+        table="notas_fiscais"
+        id={selected.id}
+        entityLabel={selected.tipo === "entrada" ? "nota fiscal de entrada" : "nota fiscal de saída"}
+        recordName={`NF ${selected.numero}${selected.serie ? ` · Série ${selected.serie}` : ""}`}
+        warning={
+          (lancamentos.length > 0 || movimentos.length > 0 || eventos.length > 0)
+            ? `Esta NF possui ${lancamentos.length} lançamento(s) financeiro(s), ${movimentos.length} movimento(s) de estoque e ${eventos.length} evento(s) fiscal(is) vinculados. A exclusão será bloqueada pelo banco se houver referências ativas — nesse caso, mantenha a NF apenas inativa.`
+            : undefined
+        }
+        onDeleted={() => {
+          onPermanentlyDeleted?.();
+          onClose();
+        }}
+      />
+    )}
+    </>
   );
 }
