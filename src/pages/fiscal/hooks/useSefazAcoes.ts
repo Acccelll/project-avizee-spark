@@ -123,7 +123,7 @@ export function useSefazAcoes(): UseSefazAcoesReturn {
         const url = resolverUrlSefaz(cfg.uf, cfg.ambiente, "autorizacao");
         const result = await autorizarNFe(
           { ...dadosNFe, ambiente: cfg.ambiente },
-          { tipo: "A1", conteudo: "", senha: "" },
+          { tipo: "A1" },
           url,
         );
         const proxima_status = result.sucesso ? "autorizada" : "rejeitada";
