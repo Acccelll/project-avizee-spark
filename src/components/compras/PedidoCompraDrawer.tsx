@@ -4,6 +4,7 @@ import { ViewDrawerV2, DrawerStickyFooter } from "@/components/ViewDrawerV2";
 import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSummaryCard";
 import { DrawerStatusBanner } from "@/components/ui/DrawerStatusBanner";
 import { EmptyState } from "@/components/ui/empty-state";
+import { DetailEmpty } from "@/components/ui/DetailStates";
 import { ViewField, ViewSection } from "@/components/ui/ViewField";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { StatusBadge } from "@/components/StatusBadge";
