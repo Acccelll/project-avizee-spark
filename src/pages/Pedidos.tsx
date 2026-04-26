@@ -14,7 +14,6 @@ import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { useClientesRef } from "@/hooks/useReferenceCache";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
 import { PeriodFilter, type PeriodValue } from "@/components/filters/PeriodFilter";
 import { periodToDateFrom, periodToDateTo } from "@/lib/periodFilter";
