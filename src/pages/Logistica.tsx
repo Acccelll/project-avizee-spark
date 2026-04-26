@@ -19,7 +19,6 @@ import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect
 import { ViewDrawerV2 } from "@/components/ViewDrawerV2";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { EmptyState } from "@/components/ui/empty-state";
-import { History } from "lucide-react";
 import { useCan } from "@/hooks/useCan";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
@@ -52,7 +51,7 @@ import {
 import {
   Eye, AlertTriangle, Truck, Package, CheckCheck, ExternalLink, Loader2,
   Edit, Trash2, Plus, MapPin, Package as PackageIcon, Search, Clock, Timer,
-  ChevronDown,
+  ChevronDown, History,
 } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
