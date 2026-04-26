@@ -50,9 +50,9 @@ const COST_SOURCE_LABEL: Record<InternalCostSource, string> = {
 };
 
 function marginClass(status: MarginStatus) {
-  if (status === "saudavel") return "bg-emerald-100 text-emerald-700";
-  if (status === "atencao") return "bg-amber-100 text-amber-700";
-  return "bg-red-100 text-red-700";
+  if (status === "saudavel") return "bg-success/15 text-success";
+  if (status === "atencao") return "bg-warning/15 text-warning";
+  return "bg-destructive/15 text-destructive";
 }
 
 const percentFmt = new Intl.NumberFormat("pt-BR", { style: "percent", minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -194,8 +194,8 @@ export function OrcamentoInternalAnalysisPanel({
                 <td className="p-2 text-right">{scenario.lucroTotal == null ? "—" : formatCurrency(scenario.lucroTotal)}</td>
                 <td className="p-2 text-right">{base.margemPercentual == null ? "—" : percentFmt.format(base.margemPercentual)}</td>
                 <td className="p-2 text-right">{scenario.margemPercentual == null ? "—" : percentFmt.format(scenario.margemPercentual)}</td>
-                <td className={`p-2 text-right ${itemDeltaLucro < 0 ? "text-red-600" : "text-emerald-600"}`}>{formatCurrency(itemDeltaLucro)}</td>
-                <td className={`p-2 text-right ${itemDeltaMargem < 0 ? "text-red-600" : "text-emerald-600"}`}>{percentFmt.format(itemDeltaMargem)}</td>
+                <td className={`p-2 text-right ${itemDeltaLucro < 0 ? "text-destructive" : "text-success"}`}>{formatCurrency(itemDeltaLucro)}</td>
+                <td className={`p-2 text-right ${itemDeltaMargem < 0 ? "text-destructive" : "text-success"}`}>{percentFmt.format(itemDeltaMargem)}</td>
                 <td className="p-2"><Badge variant="secondary" className={marginClass(scenario.margemStatus)}>{MARGIN_LABEL[scenario.margemStatus]}</Badge></td>
                 <td className="p-2 text-center"><Button variant="ghost" size="sm" className="h-8" onClick={() => updateItem(idx, { usar_cenario: false, custo_simulado: null, preco_simulado_unitario: null, desconto_simulado_percentual: null, frete_rateado_simulado_unitario: null, imposto_rateado_simulado_unitario: null, outros_custos_simulados_unitario: null, observacao_interna_margem: "" })}><RotateCcw className="h-3.5 w-3.5" /></Button></td>
               </tr>
@@ -227,9 +227,9 @@ export function OrcamentoInternalAnalysisPanel({
       </div>
 
       {!!topAlerts.length && (
-        <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs space-y-1">
+        <div className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-xs space-y-1">
           {topAlerts.map((alert) => (
-            <p key={alert} className="flex items-center gap-1.5 text-amber-900"><TriangleAlert className="h-3.5 w-3.5" />{alert}</p>
+            <p key={alert} className="flex items-center gap-1.5 text-warning"><TriangleAlert className="h-3.5 w-3.5" />{alert}</p>
           ))}
         </div>
       )}
@@ -257,8 +257,8 @@ export function OrcamentoInternalAnalysisPanel({
             <div className="rounded-lg border bg-background p-3"><p className="text-xs text-muted-foreground">Venda Cenário</p><p className="font-semibold">{formatCurrency(scenarioAnalysis.resumo.vendaTotalLiquida)}</p></div>
             <div className="rounded-lg border bg-background p-3"><p className="text-xs text-muted-foreground">Lucro Base</p><p className="font-semibold">{formatCurrency(baseAnalysis.resumo.lucroLiquidoEstimado)}</p></div>
             <div className="rounded-lg border bg-background p-3"><p className="text-xs text-muted-foreground">Lucro Cenário</p><p className="font-semibold">{formatCurrency(scenarioAnalysis.resumo.lucroLiquidoEstimado)}</p></div>
-            <div className="rounded-lg border bg-background p-3"><p className="text-xs text-muted-foreground">Impacto Lucro</p><p className={`font-semibold ${lucroDelta < 0 ? "text-red-600" : "text-emerald-600"}`}>{formatCurrency(lucroDelta)}</p></div>
-            <div className="rounded-lg border bg-background p-3"><p className="text-xs text-muted-foreground">Impacto Margem</p><p className={`font-semibold ${margemDelta < 0 ? "text-red-600" : "text-emerald-600"}`}>{percentFmt.format(margemDelta)}</p></div>
+            <div className="rounded-lg border bg-background p-3"><p className="text-xs text-muted-foreground">Impacto Lucro</p><p className={`font-semibold ${lucroDelta < 0 ? "text-destructive" : "text-success"}`}>{formatCurrency(lucroDelta)}</p></div>
+            <div className="rounded-lg border bg-background p-3"><p className="text-xs text-muted-foreground">Impacto Margem</p><p className={`font-semibold ${margemDelta < 0 ? "text-destructive" : "text-success"}`}>{percentFmt.format(margemDelta)}</p></div>
             <div className="rounded-lg border bg-background p-3"><p className="text-xs text-muted-foreground">Itens alterados</p><p className="font-semibold">{changedIndexes.length}</p></div>
             <div className="rounded-lg border bg-background p-3"><p className="text-xs text-muted-foreground">Cenário ativo</p><p className="font-semibold">{scenarioActive ? "Sim" : "Não"}</p></div>
           </div>

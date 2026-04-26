@@ -103,8 +103,8 @@ function ValidadeBadge({ validade, status }: { validade: string | null; status: 
   if (vs === "proxima") {
     return (
       <span className="inline-flex flex-col items-start gap-0.5">
-        <span className="text-xs text-amber-600 font-medium">{formatDate(validade)}</span>
-        <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-amber-50 text-amber-600 border-amber-200 gap-1">
+        <span className="text-xs text-warning font-medium">{formatDate(validade)}</span>
+        <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-warning/10 text-warning border-warning/30 gap-1">
           <Clock className="h-2.5 w-2.5" />{daysLeft}d restantes
         </Badge>
       </span>
