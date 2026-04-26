@@ -25,7 +25,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { MaskedInput } from "@/components/ui/MaskedInput";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Switch } from "@/components/ui/switch";
-import { supabase } from "@/integrations/supabase/client";
+import { listGruposEconomicosAtivos, listFormasPagamentoAtivas } from "@/services/clientes.service";
 import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import {
@@ -147,13 +147,12 @@ const Clientes = () => {
   const isMobile = useIsMobile();
 
   useEffect(() => {
-    Promise.all([
-      supabase.from("grupos_economicos").select("id, nome").eq("ativo", true).order("nome"),
-      supabase.from("formas_pagamento").select("id, descricao").eq("ativo", true).order("descricao"),
-    ]).then(([{ data: g }, { data: fp }]) => {
-      setGrupos((g as GrupoEconomico[]) || []);
-      setFormasPagamento((fp || []) as FormaPagamentoBasic[]);
-    });
+    Promise.all([listGruposEconomicosAtivos(), listFormasPagamentoAtivas()])
+      .then(([g, fp]) => {
+        setGrupos(g as GrupoEconomico[]);
+        setFormasPagamento(fp as FormaPagamentoBasic[]);
+      })
+      .catch((err) => console.error("[clientes] erro ao carregar lookups:", err));
   }, []);
 
   useEditDeepLink<Cliente>({

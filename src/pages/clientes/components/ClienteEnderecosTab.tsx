@@ -1,5 +1,11 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  listEnderecosEntrega,
+  createEnderecoEntrega,
+  updateEnderecoEntrega,
+  setEnderecoPrincipal,
+  softDeleteEnderecoEntrega,
+} from "@/services/clientes.service";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -65,14 +71,7 @@ export function ClienteEnderecosTab({ clienteId, fallbackEndereco, onCountChange
   const load = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("clientes_enderecos_entrega")
-        .select("*")
-        .eq("cliente_id", clienteId)
-        .eq("ativo", true)
-        .order("principal", { ascending: false });
-      if (error) throw error;
-      const list = (data || []) as EnderecoEntrega[];
+      const list = (await listEnderecosEntrega(clienteId)) as unknown as EnderecoEntrega[];
       setEnderecos(list);
       onCountChange?.(list.length);
     } catch (err) {
@@ -89,22 +88,10 @@ export function ClienteEnderecosTab({ clienteId, fallbackEndereco, onCountChange
     setSaving(true);
     try {
       if (editId) {
-        if (form.principal) {
-          await supabase
-            .from("clientes_enderecos_entrega")
-            .update({ principal: false })
-            .eq("cliente_id", clienteId)
-            .neq("id", editId);
-        }
-        const { error } = await supabase.from("clientes_enderecos_entrega").update(form).eq("id", editId);
-        if (error) throw error;
+        await updateEnderecoEntrega(editId, { ...form, cliente_id: clienteId });
         toast.success("Endereço atualizado");
       } else {
-        if (form.principal) {
-          await supabase.from("clientes_enderecos_entrega").update({ principal: false }).eq("cliente_id", clienteId);
-        }
-        const { error } = await supabase.from("clientes_enderecos_entrega").insert({ ...form, cliente_id: clienteId });
-        if (error) throw error;
+        await createEnderecoEntrega({ ...form, cliente_id: clienteId });
         toast.success("Endereço de entrega adicionado");
       }
       setDialogOpen(false);
@@ -119,11 +106,7 @@ export function ClienteEnderecosTab({ clienteId, fallbackEndereco, onCountChange
 
   const handleSetPrincipal = async (enderecoId: string) => {
     try {
-      const { error } = await supabase.rpc("set_principal_endereco", {
-        p_cliente_id: clienteId,
-        p_endereco_id: enderecoId,
-      });
-      if (error) throw error;
+      await setEnderecoPrincipal(clienteId, enderecoId);
       await load();
       toast.success("Endereço principal definido");
     } catch (err) {
@@ -141,7 +124,7 @@ export function ClienteEnderecosTab({ clienteId, fallbackEndereco, onCountChange
     });
     if (!ok) return;
     try {
-      await supabase.from("clientes_enderecos_entrega").update({ ativo: false }).eq("id", enderecoId);
+      await softDeleteEnderecoEntrega(enderecoId);
       await load();
       toast.success("Endereço removido");
     } catch (err) {

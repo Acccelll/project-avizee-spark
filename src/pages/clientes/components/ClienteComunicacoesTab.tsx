@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  listRegistrosComunicacao,
+  createRegistroComunicacao,
+} from "@/services/clientes.service";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -63,14 +66,7 @@ export function ClienteComunicacoesTab({ clienteId, onCountChange }: Props) {
   const load = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("cliente_registros_comunicacao")
-        .select("*")
-        .eq("cliente_id", clienteId)
-        .order("data_registro", { ascending: false })
-        .limit(50);
-      if (error) throw error;
-      const list = (data || []) as unknown as ComunicacaoCliente[];
+      const list = (await listRegistrosComunicacao(clienteId)) as unknown as ComunicacaoCliente[];
       setComunicacoes(list);
       onCountChange?.(list.length);
     } catch (err) {
@@ -86,7 +82,7 @@ export function ClienteComunicacoesTab({ clienteId, onCountChange }: Props) {
     if (!form.assunto.trim()) { toast.error("Assunto é obrigatório"); return; }
     setSaving(true);
     try {
-      const { error } = await supabase.from("cliente_registros_comunicacao").insert({
+      await createRegistroComunicacao({
         cliente_id: clienteId,
         tipo: form.tipo,
         assunto: form.assunto,
@@ -97,7 +93,6 @@ export function ClienteComunicacoesTab({ clienteId, onCountChange }: Props) {
         data_registro: new Date().toISOString().split("T")[0],
         data_hora: new Date().toISOString(),
       });
-      if (error) throw error;
       setDialogOpen(false);
       setForm({ ...emptyComunicacaoForm });
       await load();
