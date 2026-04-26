@@ -16,9 +16,10 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Layers, Search, X } from 'lucide-react';
+import { Layers, Search, SearchX, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
 import { cn } from '@/lib/utils';
 import {
   reportConfigs,
@@ -147,8 +148,14 @@ export function RelatorioCatalogo({ onSelect }: RelatorioCatalogoProps) {
         )}
         <div className="space-y-4">
           {filteredGroups.length === 0 && (
-            <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-              Nenhum relatório encontrado para "{search}".
+            <div className="rounded-lg border border-dashed">
+              <EmptyState
+                variant="noResults"
+                icon={SearchX}
+                title="Nenhum relatório encontrado"
+                description={`Nenhum resultado para "${search}". Tente outro termo.`}
+                className="py-8"
+              />
             </div>
           )}
           {filteredGroups.map((group) => (
