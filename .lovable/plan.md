@@ -68,7 +68,7 @@ Gaps menores ainda em aberto:
 
 ### 11. Componentes novos sugeridos (reaproveitáveis)
 - ✅ **`<ConfirmDestructiveDialog>`** — Implementado em `src/components/ConfirmDestructiveDialog.tsx` + hook `useConfirmDestructive`. Aplica a árvore de `mem://produto/excluir-vs-inativar-vs-cancelar` (motivo obrigatório, lista de efeitos colaterais, badge "Ação terminal"). Migração das telas que ainda usam `window.confirm`/`ConfirmDialog` para ações terminais é incremental.
-- **`<HealthBadge>`** — pequeno indicador (verde/amarelo/vermelho) para status de integrações (Sefaz, SMTP, Correios, AI Gateway), consumindo um endpoint único `/integracoes/health`.
+- ✅ **`<HealthBadge>`** — Implementado em `src/components/HealthBadge.tsx`. 5 estados (`healthy`/`degraded`/`down`/`unknown`/`checking`), tooltip opcional com detalhes (latência, última checagem) e modo `compact` para tabelas densas. Próximo passo: endpoint `/integracoes/health` (ou equivalente) consolidando Sefaz/SMTP/Correios/AI Gateway para alimentar o painel de saúde (#6).
 - **`<AsyncJobStatus>`** — visualizador unificado de jobs assíncronos (importação, geração de workbook, envio de e-mail) — substitui `ImportacaoTimeline` + `ApresentacaoHistoricoTable` por um shell comum.
 - **`<DiffViewer>`** — para auditoria (`/auditoria`): mostra diffs antes/depois de updates, hoje renderizados como JSON cru.
 
