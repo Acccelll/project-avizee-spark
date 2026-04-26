@@ -8,7 +8,8 @@ import {
 } from "@/components/ui/table";
 import { ImportacaoStatusBadge } from "./ImportacaoStatusBadge";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal, Eye, Trash2, CheckCircle2 } from "lucide-react";
+import { MoreHorizontal, Eye, Trash2, CheckCircle2, Inbox } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   DropdownMenu,
   DropdownMenuContent,
