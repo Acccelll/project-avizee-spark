@@ -57,3 +57,4 @@
 - [Security Definer Views](mem://security/security-definer-views) — 4 views mantidas DEFINER intencional (públicas + audit unified); demais analíticas com `security_invoker=on`
 - [ConfirmDestructiveDialog](mem://tech/confirm-destructive-dialog) — Wrapper para ações terminais (Cancelar/Excluir/Estornar) com motivo + efeitos colaterais; ConfirmDialog continua para confirmações simples
 - [HealthBadge](mem://tech/health-badge) — Indicador de saúde de integrações externas (5 estados: healthy/degraded/down/unknown/checking) com tooltip de detalhes
+- [Painel Saúde do Sistema](mem://features/painel-saude-sistema) — Aba /administracao?tab=saude consolidando integrações (e-mail/auditoria/permissões) via v_admin_audit_unified + email_send_log
