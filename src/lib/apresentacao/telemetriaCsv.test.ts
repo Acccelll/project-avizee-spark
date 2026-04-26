@@ -53,9 +53,12 @@ describe('buildTelemetriaCsv', () => {
       },
     ];
     const csv = buildTelemetriaCsv(rows);
-    const linha = csv.split('\n')[1];
-    // Primeiro campo precisa estar entre aspas e ter aspas duplicadas
-    expect(linha.startsWith('"a;b""c\nd";')).toBe(true);
+    // Como o próprio valor contém \n, não dá para splitar por \n.
+    // Verificamos que o campo problemático foi escapado conforme RFC 4180
+    // (aspas envolvendo o valor e aspas internas duplicadas).
+    expect(csv).toContain('"a;b""c\nd"');
+    // E que ainda há separador `;` logo após o campo escapado
+    expect(csv).toContain('"a;b""c\nd";');
   });
 
   it('lida com lista vazia retornando apenas o header', () => {
