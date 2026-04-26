@@ -30,14 +30,14 @@ export function StatusBadgeUser({ ativo }: { ativo: boolean }) {
       className={cn(
         'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium',
         ativo
-          ? 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+          ? 'border-success/30 bg-success/10 text-success'
           : 'border-muted-foreground/30 bg-muted/50 text-muted-foreground',
       )}
     >
       <span
         className={cn(
           'h-1.5 w-1.5 rounded-full',
-          ativo ? 'bg-emerald-500' : 'bg-muted-foreground/50',
+          ativo ? 'bg-success' : 'bg-muted-foreground/50',
         )}
       />
       {ativo ? 'Ativo' : 'Inativo'}

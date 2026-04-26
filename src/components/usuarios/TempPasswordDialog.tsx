@@ -73,7 +73,7 @@ export function TempPasswordDialog({
       <DialogContent className="sm:max-w-md" onEscapeKeyDown={(e) => !acknowledged && e.preventDefault()}>
         <DialogHeader>
           <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-warning/15 text-warning">
               <ShieldAlert className="h-5 w-5" />
             </div>
             <div className="flex-1 min-w-0">
@@ -122,7 +122,7 @@ export function TempPasswordDialog({
                 onClick={() => handleCopy("password", tempPassword)}
                 aria-label="Copiar senha"
               >
-                {copied === "password" ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
+                {copied === "password" ? <Check className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
               </Button>
             </div>
           </div>
@@ -144,13 +144,13 @@ export function TempPasswordDialog({
                   onClick={() => handleCopy("link", recoveryLink)}
                   aria-label="Copiar link"
                 >
-                  {copied === "link" ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
+                  {copied === "link" ? <Check className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
                 </Button>
               </div>
             </div>
           )}
 
-          <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
+          <div className="flex items-start gap-2 rounded-md border border-warning/30 bg-warning/10 p-3 text-xs text-warning">
             <ShieldAlert className="h-4 w-4 shrink-0 mt-0.5" />
             <p>
               Estas credenciais não serão exibidas novamente. O conteúdo da
