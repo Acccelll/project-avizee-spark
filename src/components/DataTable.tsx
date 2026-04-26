@@ -200,6 +200,7 @@ export function DataTable<T extends Record<string, any>>({
   mobileInlineActions,
   mobilePrimaryAction,
   mobileStatusKey,
+  rowAccent,
 }: DataTableProps<T>) {
   const isMobile = useIsMobile();
   const [deleteItem, setDeleteItem] = useState<T | null>(null);
