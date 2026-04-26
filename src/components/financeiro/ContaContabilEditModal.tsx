@@ -525,9 +525,9 @@ export function ContaContabilEditModal({
             </div>
 
             {inativarComVinculos && (
-              <Alert className="mt-3 py-2 border-amber-300 bg-amber-50 dark:bg-amber-950/20">
-                <AlertTriangle className="h-4 w-4 text-amber-600" />
-                <AlertDescription className="text-xs text-amber-800 dark:text-amber-300">
+              <Alert className="mt-3 py-2 border-warning/30 bg-warning/10">
+                <AlertTriangle className="h-4 w-4 text-warning" />
+                <AlertDescription className="text-xs text-warning dark:text-warning">
                   <strong>Atenção:</strong> esta conta possui {totalVinculos} vínculo
                   {totalVinculos > 1 ? "s" : ""} ativo{totalVinculos > 1 ? "s" : ""} no ERP
                   ({vinculos?.lancamentos ? `${vinculos.lancamentos} lançamento(s)` : ""}

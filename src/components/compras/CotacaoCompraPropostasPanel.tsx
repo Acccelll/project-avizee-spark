@@ -61,18 +61,18 @@ function ComparativoFornecedores({ viewItems, viewPropostas }: { viewItems: Cota
           const total = colTotals[si];
           const isWinner = total > 0 && total === bestColTotal;
           return (
-            <div key={sid} className={`rounded-lg border p-3 space-y-2 ${isWinner ? "border-emerald-500/40 bg-emerald-50/30 dark:bg-emerald-950/10" : "bg-card"}`}>
+            <div key={sid} className={`rounded-lg border p-3 space-y-2 ${isWinner ? "border-success/40 bg-success/20" : "bg-card"}`}>
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold truncate">{supplierNames[si]}</p>
                   {isWinner && (
-                    <span className="inline-flex items-center gap-1 mt-0.5 text-[10px] font-bold uppercase text-emerald-600 dark:text-emerald-400">
+                    <span className="inline-flex items-center gap-1 mt-0.5 text-[10px] font-bold uppercase text-success dark:text-success">
                       <Crown className="h-3 w-3" /> Menor total
                     </span>
                   )}
                 </div>
                 <div className="text-right shrink-0">
-                  <p className={`font-mono text-base font-bold ${isWinner ? "text-emerald-600 dark:text-emerald-400" : "text-foreground"}`}>
+                  <p className={`font-mono text-base font-bold ${isWinner ? "text-success dark:text-success" : "text-foreground"}`}>
                     {total > 0 ? formatCurrency(total) : "—"}
                   </p>
                 </div>
@@ -136,12 +136,12 @@ function ComparativoFornecedores({ viewItems, viewPropostas }: { viewItems: Cota
                     const p = viewPropostas.find((pp) => pp.item_id === item.id && pp.fornecedor_id === sid);
                     const isBestRow = p && Number(p.preco_unitario) === bestRow;
                     return (
-                      <td key={sid} className={`px-3 py-2 text-right ${p?.selecionado ? "bg-primary/5 font-semibold" : isBestRow ? "text-emerald-600 dark:text-emerald-400" : ""}`}>
+                      <td key={sid} className={`px-3 py-2 text-right ${p?.selecionado ? "bg-primary/5 font-semibold" : isBestRow ? "text-success dark:text-success" : ""}`}>
                         {p ? (
                           <div>
                             <div className="flex items-center justify-end gap-1">
                               {p.selecionado && <Trophy className="h-3 w-3 text-primary" />}
-                              {isBestRow && !p.selecionado && <Award className="h-3 w-3 text-emerald-500" />}
+                              {isBestRow && !p.selecionado && <Award className="h-3 w-3 text-success" />}
                               <span className="font-mono">{formatCurrency(Number(p.preco_unitario))}</span>
                             </div>
                             {p.prazo_entrega_dias && <span className="text-muted-foreground text-[10px]">{p.prazo_entrega_dias}d</span>}
@@ -158,9 +158,9 @@ function ComparativoFornecedores({ viewItems, viewPropostas }: { viewItems: Cota
             <tr className="border-t bg-muted/30 font-semibold">
               <td className="px-3 py-2 text-muted-foreground text-[10px] uppercase">Total</td>
               {colTotals.map((total, si) => (
-                <td key={supplierIds[si]} className={`px-3 py-2 text-right font-mono ${total > 0 && total === bestColTotal ? "text-emerald-600 dark:text-emerald-400" : ""}`}>
+                <td key={supplierIds[si]} className={`px-3 py-2 text-right font-mono ${total > 0 && total === bestColTotal ? "text-success dark:text-success" : ""}`}>
                   {total > 0 ? formatCurrency(total) : "—"}
-                  {total > 0 && total === bestColTotal && <div className="text-[9px] font-normal text-emerald-500 uppercase">menor</div>}
+                  {total > 0 && total === bestColTotal && <div className="text-[9px] font-normal text-success uppercase">menor</div>}
                 </td>
               ))}
             </tr>
@@ -251,13 +251,13 @@ export function CotacaoCompraPropostasPanel({
                       <div
                         key={p.id}
                         className={`rounded-lg border p-3 text-sm md:flex md:items-center md:justify-between md:py-2 ${
-                          p.selecionado ? "border-primary bg-primary/5 ring-1 ring-primary/20" : isBest ? "border-emerald-500/30 bg-emerald-50/50 dark:bg-emerald-950/20" : ""
+                          p.selecionado ? "border-primary bg-primary/5 ring-1 ring-primary/20" : isBest ? "border-success/30 bg-success/20" : ""
                         }`}
                       >
                         <div className="flex items-start justify-between gap-2 md:items-center md:gap-2 md:min-w-0 md:flex-1">
                           <div className="flex items-center gap-2 min-w-0">
                             {p.selecionado && <Trophy className="h-4 w-4 text-primary flex-shrink-0" />}
-                            {isBest && !p.selecionado && <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">MENOR</span>}
+                            {isBest && !p.selecionado && <span className="text-[10px] font-bold text-success dark:text-success">MENOR</span>}
                             <span className="truncate font-medium">{p.fornecedores?.nome_razao_social || "—"}</span>
                           </div>
                           {/* Desktop trash on right; mobile shows in actions row below */}
@@ -285,7 +285,7 @@ export function CotacaoCompraPropostasPanel({
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Selecionar proposta" onClick={() => onSelectProposal(p.id!, item.id)}>
-                                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                                    <CheckCircle2 className="h-4 w-4 text-success" />
                                   </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>Selecionar</TooltipContent>

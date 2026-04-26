@@ -24,12 +24,12 @@ const CHART_ICON: Record<string, typeof BarChart3> = {
 
 const SECAO_ACCENT: Record<SlideSecao, string> = {
   capa: 'bg-slate-500',
-  financeiro: 'bg-blue-600',
-  pessoas: 'bg-amber-600',
-  comercial: 'bg-emerald-600',
-  operacoes: 'bg-purple-600',
-  risco: 'bg-rose-600',
-  marketing: 'bg-pink-600',
+  financeiro: 'bg-info',
+  pessoas: 'bg-warning',
+  comercial: 'bg-success',
+  operacoes: 'bg-accent',
+  risco: 'bg-destructive',
+  marketing: 'bg-accent',
   encerramento: 'bg-slate-600',
 };
 

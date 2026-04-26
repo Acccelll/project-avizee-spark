@@ -57,7 +57,7 @@ export function FreteSimuladorCard(props: FreteSimuladorCardProps) {
         {props.pesoTotal <= 0 && <p className="text-xs text-muted-foreground mt-1">Adicione itens com peso para simular o frete.</p>}
 
         {desatualizado && opcoes.length > 0 && (
-          <div className="flex items-center gap-1.5 text-xs text-amber-600 bg-amber-50 rounded-md px-2 py-1 mt-2">
+          <div className="flex items-center gap-1.5 text-xs text-warning bg-warning/10 rounded-md px-2 py-1 mt-2">
             <AlertTriangle className="h-3 w-3" /> Simulação desatualizada. Itens ou destino mudaram.
           </div>
         )}
@@ -97,7 +97,7 @@ export function FreteSimuladorCard(props: FreteSimuladorCardProps) {
             <Button size="sm" variant="outline" onClick={handleConsultarCorreios} disabled={loadingCorreios || !canSimulate} className="gap-2">
               {loadingCorreios ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Package className="h-3.5 w-3.5" />}
               {loadingCorreios ? 'Consultando...' : desatualizado ? 'Reconsultar Correios' : 'Consultar Correios'}
-              {desatualizado && !loadingCorreios && <RefreshCw className="h-3.5 w-3.5 text-amber-500" />}
+              {desatualizado && !loadingCorreios && <RefreshCw className="h-3.5 w-3.5 text-warning" />}
             </Button>
             {opcoesCorreios.length > 0 && <FreteOpcoesList opcoes={opcoesCorreios} opcaoSelecionadaId={opcaoSelecionadaId} onSelect={handleSelecionarOpcao} onRemove={handleRemoverOpcao} />}
             {opcoesCorreios.length === 0 && !loadingCorreios && <p className="text-xs text-muted-foreground">Clique em "Consultar Correios" para buscar opções de frete.</p>}

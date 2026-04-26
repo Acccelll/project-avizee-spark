@@ -612,7 +612,7 @@ export default function Logistica() {
 
           {/* ── Tab: Entregas ── */}
           <TabsContent value="entregas">
-            <div className="mb-4 rounded-md border border-blue-300/40 bg-blue-500/5 px-3 py-2 text-xs text-muted-foreground">
+            <div className="mb-4 rounded-md border border-info/30/40 bg-info/5 px-3 py-2 text-xs text-muted-foreground">
               Entregas é uma visão consolidada por pedido. Quando houver múltiplas remessas, o status exibido reflete somente a última atualização — gerencie com precisão na aba <strong>Remessas</strong>.
             </div>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">

@@ -257,7 +257,7 @@ const Fornecedores = () => {
   {
     key: "tipo_pessoa", label: "Tipo",
     render: (f: Fornecedor) => (
-      <span className={`text-xs font-semibold ${f.tipo_pessoa === "F" ? "text-blue-600 dark:text-blue-400" : "text-violet-600 dark:text-violet-400"}`}>
+      <span className={`text-xs font-semibold ${f.tipo_pessoa === "F" ? "text-info dark:text-info" : "text-accent-foreground dark:text-accent-foreground"}`}>
         {f.tipo_pessoa === "F" ? "PF" : "PJ"}
       </span>
     ),
@@ -464,7 +464,7 @@ const Fornecedores = () => {
             <User2 className="w-4 h-4 text-primary/70" />
             <h3 className="font-semibold text-sm">Identificação</h3>
             {form.cpf_cnpj && form.nome_razao_social.length >= MIN_NOME_RAZAO_SOCIAL_LENGTH && (
-              <span className="ml-auto flex items-center gap-1 text-xs text-emerald-600 font-medium">
+              <span className="ml-auto flex items-center gap-1 text-xs text-success font-medium">
                 <CheckCircle2 className="h-3.5 w-3.5" />
                 Dados fiscais preenchidos
               </span>
@@ -702,7 +702,7 @@ const Fornecedores = () => {
           <div className="flex items-center gap-2 pb-1">
             <ShoppingCart className="w-4 h-4 text-primary/70" />
             <h3 className="font-semibold text-sm">Condições de Compra</h3>
-            <span className="ml-auto text-xs bg-blue-50 text-blue-600 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:border-blue-800 rounded-full px-2 py-0.5 leading-none">
+            <span className="ml-auto text-xs bg-info/10 text-info border border-info/30 dark:text-info dark:border-info rounded-full px-2 py-0.5 leading-none">
               Aplica-se a compras e financeiro
             </span>
           </div>

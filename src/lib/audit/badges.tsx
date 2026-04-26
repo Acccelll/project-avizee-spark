@@ -1,6 +1,6 @@
 /**
  * Badges semânticas para auditoria — usam tokens do design system
- * em vez de cores hardcoded (`bg-red-100` etc).
+ * em vez de cores hardcoded (`bg-destructive/15` etc).
  */
 
 import {

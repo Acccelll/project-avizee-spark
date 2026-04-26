@@ -434,7 +434,7 @@ const ContasBancarias = () => {
                 <Switch id="edit-ativo" checked={form.ativo} onCheckedChange={(checked) => updateForm({ ativo: checked })} />
               </div>
               {willDeactivate && inUse && (
-                <Alert className="border-amber-500/40 bg-amber-500/5 text-amber-800 dark:text-amber-300 [&>svg]:text-amber-600">
+                <Alert className="border-warning/40 bg-warning/5 text-warning dark:text-warning [&>svg]:text-warning">
                   <AlertTriangle className="h-4 w-4" />
                   <AlertDescription className="text-xs space-y-1">
                     <p className="font-semibold">Esta conta está em uso no sistema</p>
@@ -460,7 +460,7 @@ const ContasBancarias = () => {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
-              <ShieldAlert className="h-5 w-5 text-amber-500" />
+              <ShieldAlert className="h-5 w-5 text-warning" />
               Confirmar inativação da conta
             </AlertDialogTitle>
             <AlertDialogDescription className="sr-only">Confirmar inativação</AlertDialogDescription>
@@ -481,7 +481,7 @@ const ContasBancarias = () => {
             <AlertDialogCancel onClick={() => setConfirmInactivate(false)}>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={async () => { await persistUpdate(); setConfirmInactivate(false); }}
-              className="bg-amber-600 hover:bg-amber-700 text-white"
+              className="bg-warning hover:bg-warning text-white"
             >
               Confirmar inativação
             </AlertDialogAction>

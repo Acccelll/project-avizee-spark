@@ -51,7 +51,7 @@ export function CotacaoCompraTable({ data, loading, summaries, onView, onEdit }:
           <div className="space-y-0.5">
             <span className="text-sm font-mono font-semibold">{s.fornecedores_count}</span>
             {s.vencedor_nome ? (
-              <p className="text-[10px] text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5 mt-0.5">
+              <p className="text-[10px] text-success dark:text-success flex items-center gap-0.5 mt-0.5">
                 <Trophy className="h-2.5 w-2.5 shrink-0" />
                 <span className="truncate max-w-[110px]">{s.vencedor_nome}</span>
               </p>
@@ -102,7 +102,7 @@ export function CotacaoCompraTable({ data, loading, summaries, onView, onEdit }:
         }
         return (
           <span className="inline-flex items-center gap-1 text-xs">
-            <CheckCircle2 className="h-3 w-3 text-emerald-500" /> {formatDate(c.data_validade)}
+            <CheckCircle2 className="h-3 w-3 text-success" /> {formatDate(c.data_validade)}
           </span>
         );
       },

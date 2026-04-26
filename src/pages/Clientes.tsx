@@ -280,7 +280,7 @@ const Clientes = () => {
       render: (c: Cliente) => <span className="font-mono text-xs">{c.cpf_cnpj || "—"}</span> },
     { key: "tipo_pessoa", label: "Tipo",
       render: (c: Cliente) => (
-        <span className={`text-xs font-semibold ${c.tipo_pessoa === "F" ? "text-blue-600 dark:text-blue-400" : "text-violet-600 dark:text-violet-400"}`}>
+        <span className={`text-xs font-semibold ${c.tipo_pessoa === "F" ? "text-info dark:text-info" : "text-accent-foreground dark:text-accent-foreground"}`}>
           {c.tipo_pessoa === "F" ? "PF" : "PJ"}
         </span>
       ),

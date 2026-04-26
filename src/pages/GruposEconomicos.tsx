@@ -69,8 +69,8 @@ function getRiskInfo(titulosVencidos: number, saldoConsolidado: number) {
   if (titulosVencidos > 0)
     return { label: "Risco", Icon: ShieldAlert, colorClass: "bg-destructive/10 text-destructive", badgeClass: "border-destructive/50 text-destructive" };
   if (saldoConsolidado > 0)
-    return { label: "Atenção", Icon: AlertTriangle, colorClass: "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400", badgeClass: "border-yellow-500/50 text-yellow-600 dark:text-yellow-400" };
-  return { label: "Saudável", Icon: CheckCircle2, colorClass: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400", badgeClass: "border-emerald-500/50 text-emerald-600 dark:text-emerald-400" };
+    return { label: "Atenção", Icon: AlertTriangle, colorClass: "bg-warning/10 text-warning dark:text-warning", badgeClass: "border-warning/50 text-warning dark:text-warning" };
+  return { label: "Saudável", Icon: CheckCircle2, colorClass: "bg-success/10 text-success dark:text-success", badgeClass: "border-success/50 text-success dark:text-success" };
 }
 
 const GruposEconomicos = () => {
@@ -628,13 +628,13 @@ const GruposEconomicos = () => {
                     </div>
                     <div className="rounded-lg border bg-card p-3 text-center space-y-1">
                       <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Saldo Aberto</p>
-                      <p className={`font-mono font-bold text-lg ${modalSaldo > 0 ? "text-yellow-600 dark:text-yellow-400" : "text-foreground"}`}>
+                      <p className={`font-mono font-bold text-lg ${modalSaldo > 0 ? "text-warning dark:text-warning" : "text-foreground"}`}>
                         {formatCurrency(modalSaldo)}
                       </p>
                     </div>
                     <div className="rounded-lg border bg-card p-3 text-center space-y-1">
                       <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Vencidos</p>
-                      <p className={`font-bold text-2xl ${modalVencidos > 0 ? "text-destructive" : "text-emerald-600 dark:text-emerald-400"}`}>
+                      <p className={`font-bold text-2xl ${modalVencidos > 0 ? "text-destructive" : "text-success dark:text-success"}`}>
                         {modalVencidos}
                       </p>
                     </div>

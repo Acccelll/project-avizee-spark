@@ -514,7 +514,7 @@ export default function Funcionarios() {
                   )}
                   <div className="rounded-md border bg-background px-2.5 py-2">
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Financeiro Pendente</p>
-                    <p className={`font-mono text-sm font-medium mt-0.5 ${lancamentosAbertos.length > 0 ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"}`}>
+                    <p className={`font-mono text-sm font-medium mt-0.5 ${lancamentosAbertos.length > 0 ? "text-warning dark:text-warning" : "text-muted-foreground"}`}>
                       {lancamentosAbertos.length > 0
                         ? `${lancamentosAbertos.length} aberto${lancamentosAbertos.length !== 1 ? "s" : ""}`
                         : "Em dia"}

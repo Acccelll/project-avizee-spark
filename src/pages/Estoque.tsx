@@ -516,8 +516,8 @@ const Estoque = () => {
           <TabsContent value="saldos">
             <div className="mb-2">
               <p className="text-xs text-muted-foreground">Estado atual do estoque — posição de cada item, criticidade e valor.</p>
-              <div className="mt-2 flex flex-wrap items-center gap-2 rounded-md border border-blue-300/40 bg-blue-500/5 px-3 py-2 text-xs text-muted-foreground">
-                <Info className="h-3.5 w-3.5 text-blue-600" />
+              <div className="mt-2 flex flex-wrap items-center gap-2 rounded-md border border-info/30/40 bg-info/5 px-3 py-2 text-xs text-muted-foreground">
+                <Info className="h-3.5 w-3.5 text-info" />
                 A lista exibe por padrão apenas itens com saldo ≠ 0 ou com estoque mínimo definido.
                 <Button size="sm" variant="ghost" className="h-6 px-2 text-[11px]" onClick={() => setShowTodosProdutos((prev) => !prev)}>
                   {showTodosProdutos ? "Ocultar sem movimentação" : "Mostrar todos os produtos"}

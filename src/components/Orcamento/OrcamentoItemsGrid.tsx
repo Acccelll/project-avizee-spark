@@ -550,7 +550,7 @@ export function OrcamentoItemsGrid({ items, onChange, produtos, precosEspeciais 
         <DialogContent>
           <DialogHeader><DialogTitle>Importação rápida de itens</DialogTitle></DialogHeader>
           <p className="text-xs text-muted-foreground">Cole uma linha por item no formato: Código;Descrição;Quantidade;Unitário</p>
-          <p className="text-xs text-amber-600">Itens sem correspondência no cadastro ficam marcados como "Produto não vinculado" e devem ser vinculados antes de salvar.</p>
+          <p className="text-xs text-warning">Itens sem correspondência no cadastro ficam marcados como "Produto não vinculado" e devem ser vinculados antes de salvar.</p>
           <Textarea value={importText} onChange={(e) => setImportText(e.target.value)} className="min-h-40" />
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setImportOpen(false)}>Cancelar</Button>

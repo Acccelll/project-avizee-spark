@@ -159,7 +159,7 @@ export function ClienteComunicacoesTab({ clienteId, onCountChange }: Props) {
                   <span>{new Date(com.data_hora || com.data_registro).toLocaleString("pt-BR")}</span>
                   {com.responsavel_nome && <span>· {com.responsavel_nome}</span>}
                   {com.retorno_previsto && (
-                    <span className="text-amber-600">· Retorno: {new Date(com.retorno_previsto + "T00:00:00").toLocaleDateString("pt-BR")}</span>
+                    <span className="text-warning">· Retorno: {new Date(com.retorno_previsto + "T00:00:00").toLocaleDateString("pt-BR")}</span>
                   )}
                 </div>
               </div>
