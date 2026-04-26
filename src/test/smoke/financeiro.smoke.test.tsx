@@ -132,7 +132,7 @@ describe("smoke: financeiro abertura, filtros e baixa mínima", () => {
   });
 
   it("abre financeiro, aplica busca principal e permite iniciar baixa", async () => {
-    renderWithSmokeProviders(<FinanceiroPage />, "/financeiro");
+    renderWithSmokeProviders(<FinanceiroPage />, "/financeiro?period=todos");
 
     expect(await screen.findByText("Lançamentos")).toBeInTheDocument();
     expect(await screen.findByText("Rows: 2")).toBeInTheDocument();
