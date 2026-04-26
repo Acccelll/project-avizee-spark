@@ -54,7 +54,7 @@ export function MapeamentoColunasForm({ headers, importType, mapping, onMappingC
           {fields.map((field) => (
             <TableRow key={field.key}>
               <TableCell className="font-medium">
-                {field.label} {field.required && <span className="text-rose-500">*</span>}
+                {field.label} {field.required && <span className="text-destructive">*</span>}
               </TableCell>
               <TableCell>
                 <Select

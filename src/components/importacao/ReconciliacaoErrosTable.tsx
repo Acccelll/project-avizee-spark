@@ -28,7 +28,7 @@ export function ReconciliacaoErrosTable({ erros, onExport }: ReconciliacaoErrosT
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h4 className="text-sm font-semibold flex items-center gap-2">
-          <AlertCircle className="h-4 w-4 text-rose-500" />
+          <AlertCircle className="h-4 w-4 text-destructive" />
           Amostra de Inconsistências ({erros.length})
         </h4>
         {onExport && (
@@ -54,7 +54,7 @@ export function ReconciliacaoErrosTable({ erros, onExport }: ReconciliacaoErrosT
               <TableRow key={i} className="h-8 py-0">
                 <TableCell className="font-mono text-[10px] h-8 py-1">{err.linha}</TableCell>
                 <TableCell className="font-medium text-[10px] h-8 py-1">{err.coluna || "—"}</TableCell>
-                <TableCell className="text-rose-600 text-[10px] h-8 py-1">{err.mensagem}</TableCell>
+                <TableCell className="text-destructive text-[10px] h-8 py-1">{err.mensagem}</TableCell>
                 <TableCell className="text-right font-mono text-[10px] h-8 py-1 truncate max-w-[150px]">
                   {err.valor_original || "—"}
                 </TableCell>

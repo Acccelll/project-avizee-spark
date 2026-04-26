@@ -111,26 +111,26 @@ export function RelatorioMigracaoFaturamentoCard({ loteId, className }: Props) {
                 <div className="text-xs text-muted-foreground">Total de itens</div>
                 <div className="text-2xl font-bold">{data.total_itens}</div>
               </div>
-              <div className="p-3 rounded-md border bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200">
-                <div className="text-xs text-emerald-700 dark:text-emerald-400">Vinculados</div>
-                <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-400">
+              <div className="p-3 rounded-md border bg-success/10 border-success/30">
+                <div className="text-xs text-success">Vinculados</div>
+                <div className="text-2xl font-bold text-success">
                   {data.vinculados}
                 </div>
-                <div className="text-xs text-emerald-700/70 dark:text-emerald-400/70">{pct(data.pct_vinculados)}</div>
+                <div className="text-xs text-success/70">{pct(data.pct_vinculados)}</div>
               </div>
-              <div className="p-3 rounded-md border bg-amber-50 dark:bg-amber-950/20 border-amber-200">
-                <div className="text-xs text-amber-700 dark:text-amber-400 flex items-center gap-1">
+              <div className="p-3 rounded-md border bg-warning/10 border-warning/30">
+                <div className="text-xs text-warning flex items-center gap-1">
                   <AlertTriangle className="h-3 w-3" /> Duvidosos
                 </div>
-                <div className="text-2xl font-bold text-amber-700 dark:text-amber-400">{data.duvidosos}</div>
-                <div className="text-xs text-amber-700/70 dark:text-amber-400/70">{pct(data.pct_duvidosos)}</div>
+                <div className="text-2xl font-bold text-warning">{data.duvidosos}</div>
+                <div className="text-xs text-warning/70">{pct(data.pct_duvidosos)}</div>
               </div>
-              <div className="p-3 rounded-md border bg-red-50 dark:bg-red-950/20 border-red-200">
-                <div className="text-xs text-red-700 dark:text-red-400 flex items-center gap-1">
+              <div className="p-3 rounded-md border bg-destructive/10 border-destructive/30">
+                <div className="text-xs text-destructive flex items-center gap-1">
                   <AlertCircle className="h-3 w-3" /> Não vinculados
                 </div>
-                <div className="text-2xl font-bold text-red-700 dark:text-red-400">{data.nao_vinculados}</div>
-                <div className="text-xs text-red-700/70 dark:text-red-400/70">{pct(data.pct_nao_vinculados)}</div>
+                <div className="text-2xl font-bold text-destructive">{data.nao_vinculados}</div>
+                <div className="text-xs text-destructive/70">{pct(data.pct_nao_vinculados)}</div>
               </div>
             </div>
 
