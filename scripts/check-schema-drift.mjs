@@ -173,6 +173,91 @@ function extractFollowingSelect(content, fromIndex, nextFromIndex) {
   return m ? m[1] : null;
 }
 
+/**
+ * Extrai object literals passados a `.insert(...)`, `.update(...)` ou
+ * `.upsert(...)` que seguem um `.from`. Suporta:
+ *   - .insert({ col: ... })
+ *   - .update({ col: ... })
+ *   - .insert([{ col: ... }, { col: ... }])
+ *
+ * Retorna array de { kind, keys[] }. Limitações: ignora variáveis
+ * (`.insert(payload)`) e spread (`...rest`).
+ */
+function extractFollowingMutations(content, fromIndex, nextFromIndex) {
+  const end = nextFromIndex ?? Math.min(content.length, fromIndex + 2000);
+  const window = content.slice(fromIndex, end);
+  const out = [];
+  const re = /\.(insert|update|upsert)\(\s*\[?\s*\{/g;
+  let m;
+  while ((m = re.exec(window))) {
+    const kind = m[1];
+    const braceStart = m.index + m[0].length - 1;
+    let depth = 0;
+    let inStr = null;
+    let escape = false;
+    let keyBuf = "";
+    let expectingKey = false;
+    const allKeys = new Set();
+    let i = braceStart;
+    for (; i < window.length; i++) {
+      const ch = window[i];
+      if (escape) { escape = false; continue; }
+      if (inStr) {
+        if (ch === "\\") { escape = true; continue; }
+        if (ch === inStr) inStr = null;
+        continue;
+      }
+      if (ch === '"' || ch === "'" || ch === "`") { inStr = ch; continue; }
+      if (ch === "{") {
+        depth++;
+        if (depth === 1) { expectingKey = true; keyBuf = ""; }
+        continue;
+      }
+      if (ch === "}") {
+        if (depth === 1 && expectingKey && keyBuf.trim()) {
+          const k = keyBuf.trim().replace(/^['"`]|['"`]$/g, "");
+          if (/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(k)) allKeys.add(k);
+          keyBuf = "";
+        }
+        depth--;
+        if (depth === 0) break;
+        continue;
+      }
+      if (depth === 1 && expectingKey) {
+        if (ch === ":") {
+          const k = keyBuf.trim().replace(/^['"`]|['"`]$/g, "");
+          if (/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(k)) allKeys.add(k);
+          keyBuf = "";
+          expectingKey = false;
+          let depth2 = 0;
+          let inStr2 = null;
+          let esc2 = false;
+          i++;
+          for (; i < window.length; i++) {
+            const c2 = window[i];
+            if (esc2) { esc2 = false; continue; }
+            if (inStr2) {
+              if (c2 === "\\") { esc2 = true; continue; }
+              if (c2 === inStr2) inStr2 = null;
+              continue;
+            }
+            if (c2 === '"' || c2 === "'" || c2 === "`") { inStr2 = c2; continue; }
+            if (c2 === "(" || c2 === "{" || c2 === "[") depth2++;
+            else if (c2 === ")" || c2 === "]") depth2--;
+            else if (c2 === "}" && depth2 === 0) { i--; break; }
+            else if (c2 === "," && depth2 === 0) { expectingKey = true; break; }
+          }
+          continue;
+        }
+        keyBuf += ch;
+      }
+    }
+    if (allKeys.size > 0) out.push({ kind, keys: [...allKeys] });
+    re.lastIndex = i + 1;
+  }
+  return out;
+}
+
 function main() {
   const typesSrc = readFileSync(TYPES_PATH, "utf8");
   const tables = parseTablesFromTypes(typesSrc);
@@ -199,16 +284,30 @@ function main() {
       }
       const validCols = tables.get(table);
       const selectStr = extractFollowingSelect(content, index, nextIndex);
-      if (!selectStr || selectStr.trim() === "*") continue;
-      const cols = parseSelectColumns(selectStr);
-      for (const col of cols) {
-        if (!validCols.has(col)) {
-          drift.push({
-            file: file.replace(ROOT + "/", ""),
-            table,
-            col,
-            kind: "select",
-          });
+      if (selectStr && selectStr.trim() !== "*") {
+        const cols = parseSelectColumns(selectStr);
+        for (const col of cols) {
+          if (!validCols.has(col)) {
+            drift.push({
+              file: file.replace(ROOT + "/", ""),
+              table,
+              col,
+              kind: "select",
+            });
+          }
+        }
+      }
+      const mutations = extractFollowingMutations(content, index, nextIndex);
+      for (const { kind, keys } of mutations) {
+        for (const col of keys) {
+          if (!validCols.has(col)) {
+            drift.push({
+              file: file.replace(ROOT + "/", ""),
+              table,
+              col,
+              kind,
+            });
+          }
         }
       }
     }
@@ -240,7 +339,7 @@ function main() {
   for (const [table, items] of Object.entries(byTable)) {
     console.log(`  ${table}:`);
     for (const d of items) {
-      console.log(`    - col "${d.col}"  (${d.file})`);
+      console.log(`    - [${d.kind}] col "${d.col}"  (${d.file})`);
     }
   }
   console.log("");
