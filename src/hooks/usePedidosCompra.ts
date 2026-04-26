@@ -18,6 +18,13 @@ import { validateForm } from "@/lib/validationSchemas";
 import { pedidoCompraSchema, validatePedidoItems } from "@/lib/pedidoCompraSchema";
 import { todayISO } from "@/lib/dateUtils";
 import { INVALIDATION_KEYS } from "@/services/_invalidationKeys";
+import {
+  proximoNumeroPedidoCompra,
+  receberCompra,
+  aprovarPedido as rpcAprovarPedido,
+  rejeitarPedido as rpcRejeitarPedido,
+  cancelarPedidoCompra as rpcCancelarPedidoCompra,
+} from "@/types/rpc";
 
 /** Shape of a row from pedidos_compra_itens joined with produtos */
 export interface PedidoItemRow {
@@ -474,9 +481,9 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
     }
   };
 
-  const aprovarPedidoFn = async (p: PedidoCompra) => {
+  const aprovarPedido = async (p: PedidoCompra) => {
     try {
-      await aprovarPedido({ p_pedido_id: String(p.id) });
+      await rpcAprovarPedido({ p_pedido_id: String(p.id) });
       toast.success("Pedido aprovado.");
       setDrawerOpen(false);
       await refreshAll();
@@ -486,13 +493,13 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
     }
   };
 
-  const rejeitarPedidoFn = async (p: PedidoCompra, motivo: string) => {
+  const rejeitarPedido = async (p: PedidoCompra, motivo: string) => {
     if (!motivo.trim()) {
       toast.error("Informe o motivo da rejeição.");
       return;
     }
     try {
-      await rejeitarPedido({ p_pedido_id: String(p.id), p_motivo: motivo });
+      await rpcRejeitarPedido({ p_pedido_id: String(p.id), p_motivo: motivo });
       toast.success("Pedido rejeitado.");
       setDrawerOpen(false);
       await refreshAll();
@@ -515,14 +522,14 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
     }
   };
 
-  const cancelarPedidoFn = async (p: PedidoCompra, motivo?: string) => {
+  const cancelarPedido = async (p: PedidoCompra, motivo?: string) => {
     const motivoTrim = (motivo ?? "").trim();
     if (!motivoTrim) {
       toast.error("Informe o motivo do cancelamento.");
       return;
     }
     try {
-      await cancelarPedidoCompra({ p_id: String(p.id), p_motivo: motivoTrim });
+      await rpcCancelarPedidoCompra({ p_id: String(p.id), p_motivo: motivoTrim });
       toast.success("Pedido de compra cancelado.");
       setDrawerOpen(false);
       await refreshAll();
