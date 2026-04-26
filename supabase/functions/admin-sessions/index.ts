@@ -81,6 +81,7 @@ Deno.serve(async (req) => {
     await requireAdmin(serviceClient, req);
 
     const { action, userId } = await req.json();
+    const log = createLogger("admin-sessions", req).child({ action });
 
     if (action === "metrics") {
       const { data: usersData, error: usersError } =
@@ -140,7 +141,7 @@ Deno.serve(async (req) => {
 
     return json({ error: "Ação inválida. Use 'list' ou 'revoke'." }, 400);
   } catch (err: any) {
-    console.error("[admin-sessions]", err);
+    moduleLog.error("Request failed", err);
     const status = err.status ?? 500;
     const message =
       err.message ?? "Erro interno ao gerenciar sessões.";
