@@ -28,6 +28,15 @@
     "src/services/financeiro/cancelamentos.ts",
     "src/services/financeiro/index.ts",
     "src/lib/workbook/comparators.ts",
-    "src/types/rpc.ts"
-  ]
+    "src/types/rpc.ts",
+    "src/services/financeiro/conciliacao.service.ts",
+    "src/services/financeiro/ofxParser.service.ts",
+    "src/services/financeiro/titulos.service.ts",
+    "src/services/fiscal/**/*",
+    "src/pages/financeiro/hooks/useConciliacaoBancaria.ts",
+    "src/pages/financeiro/hooks/useFinanceiroAuxiliares.ts",
+    "src/pages/financeiro/hooks/useFinanceiroKpis.ts",
+    "src/pages/fiscal/**/*"
+  ],
+  "exclude": ["**/__tests__/**", "**/*.test.ts", "**/*.test.tsx"]
 }

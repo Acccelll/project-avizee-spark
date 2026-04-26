@@ -46,8 +46,9 @@ Gaps menores ainda em aberto:
 - Próximos incrementos opcionais: latência média de RPCs críticos (precisa instrumentação) e status real das filas pgmq (depende de RPC dedicada).
 
 ### 7. Hardening TypeScript — lote financeiro/fiscal (Eixo B.2)
-- Expandir `tsconfig.STRICT-core.json` para `src/services/financeiro/*`, `src/services/fiscal/*`, `src/pages/financeiro/*`, `src/pages/fiscal/*`.
-- Critério de saída por lote: `tsc -p tsconfig.STRICT-core.json` zerado.
+- ✅ Concluído. `tsconfig.strict-core.json` agora cobre `src/services/financeiro/**`, `src/services/fiscal/**`, `src/pages/financeiro/**` e `src/pages/fiscal/**` com `strict: true` e zero erros.
+- 6 correções aplicadas: (1) `useConciliacaoBancaria` removeu `|| null` morto na RPC `sugerir_conciliacao_bancaria` (param `p_conta_id` é sempre `string`); (2) `useNotaFiscalLifecycle` trocou `motivo ?? null` por `motivo` (RPC aceita `string | undefined`); (3-6) os 4 serviços Sefaz (`autorizacao`, `cancelamento`, `consulta`, `inutilizacao`) extraíram `certBase64`/`certSenha` em locais antes do branch `useVault ? null : {...}` para o TS estreitar `string | undefined` → `string`.
+- Próximo lote sugerido: `src/services/comercial/**`, `src/services/admin/**` e `src/services/cadastros/**`.
 
 ### 8. Centralização dos tipos de RPC
 - Criar `src/types/rpc.ts` com retornos das RPCs mais usadas (numeração atômica, baixa financeira, conciliação).
@@ -84,8 +85,8 @@ Sem refactor visual no mesmo PR (regra do `services-migration-plan.md`).
 2. **#2 Security Definer views** (segurança real)
 3. **#11 ConfirmDestructiveDialog** (ganho de UX e consistência rápido)
 4. **#4 Testes núcleo** (lote fiscal+financeiro+workbook)
-5. **#7 Strict TS** lote fiscal/financeiro
-6. **#5 Logger Edge** + **#6 Painel saúde** (juntos fazem sentido)
+5. **#7 Strict TS** lote fiscal/financeiro ✅
+6. **#5 Logger Edge** + **#6 Painel saúde** (juntos fazem sentido) ✅
 7. **#12 Services cadastros** (zera dívida arquitetural)
 8. **#9 A11y** + **#10 bundle** (polimento final)
 

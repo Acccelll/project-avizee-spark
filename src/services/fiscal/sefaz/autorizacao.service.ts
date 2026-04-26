@@ -106,7 +106,9 @@ export async function autorizarNFe(
   // Padrão Vault: certificado e senha são lidos server-side (Storage privado +
   // secret CERTIFICADO_PFX_SENHA). Mantemos o objeto como fallback caso o
   // caller queira injetar credenciais explicitamente (não recomendado).
-  const useVault = !certificado.conteudo || !certificado.senha;
+  const certBase64 = certificado.conteudo;
+  const certSenha = certificado.senha;
+  const useVault = !certBase64 || !certSenha;
   const resposta = await enviarParaSefaz(
     xmlNFe,
     urlSefaz,
@@ -114,8 +116,8 @@ export async function autorizarNFe(
     useVault
       ? null
       : {
-          certificado_base64: certificado.conteudo,
-          certificado_senha: certificado.senha,
+          certificado_base64: certBase64,
+          certificado_senha: certSenha,
         },
   );
 
