@@ -1,5 +1,9 @@
 import { sendLovableEmail } from 'npm:@lovable.dev/email-js'
 import { createClient } from 'npm:@supabase/supabase-js@2'
+import { createLogger } from '../_shared/logger.ts'
+
+// Logger module-level (sem request) usado por helpers chamados fora do handler.
+const moduleLog = createLogger('process-email-queue')
 
 const MAX_RETRIES = 5
 const DEFAULT_BATCH_SIZE = 10
@@ -74,7 +78,7 @@ async function moveToDlq(
     payload,
   })
   if (error) {
-    console.error('Failed to move message to DLQ', { queue, msg_id: msg.msg_id, reason, error })
+    moduleLog.error('Failed to move message to DLQ', { queue, msg_id: msg.msg_id, reason, error })
   }
 }
 
@@ -84,7 +88,7 @@ Deno.serve(async (req) => {
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 
   if (!apiKey || !supabaseUrl || !supabaseServiceKey) {
-    console.error('Missing required environment variables')
+    moduleLog.error('Missing required environment variables')
     return new Response(
       JSON.stringify({ error: 'Server configuration error' }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
@@ -144,7 +148,7 @@ Deno.serve(async (req) => {
     })
 
     if (readError) {
-      console.error('Failed to read email batch', { queue, error: readError })
+      moduleLog.error('Failed to read email batch', { queue, error: readError })
       continue
     }
 
@@ -173,7 +177,7 @@ Deno.serve(async (req) => {
         .eq('status', 'failed')
 
       if (failedRowsError) {
-        console.error('Failed to load failed-attempt counters', {
+        moduleLog.error('Failed to load failed-attempt counters', {
           queue,
           error: failedRowsError,
         })
@@ -205,7 +209,7 @@ Deno.serve(async (req) => {
         const ageMs = Date.now() - new Date(queuedAt).getTime()
         const maxAgeMs = ttlMinutes[queue] * 60 * 1000
         if (ageMs > maxAgeMs) {
-          console.warn('Email expired (TTL exceeded)', {
+          moduleLog.warn('Email expired (TTL exceeded)', {
             queue,
             msg_id: msg.msg_id,
             queued_at: queuedAt,
@@ -232,7 +236,7 @@ Deno.serve(async (req) => {
           .maybeSingle()
 
         if (alreadySent) {
-          console.warn('Skipping duplicate send (already sent)', {
+          moduleLog.warn('Skipping duplicate send (already sent)', {
             queue,
             msg_id: msg.msg_id,
             message_id: payload.message_id,
@@ -242,7 +246,7 @@ Deno.serve(async (req) => {
             message_id: msg.msg_id,
           })
           if (dupDelError) {
-            console.error('Failed to delete duplicate message from queue', { queue, msg_id: msg.msg_id, error: dupDelError })
+            moduleLog.error('Failed to delete duplicate message from queue', { queue, msg_id: msg.msg_id, error: dupDelError })
           }
           continue
         }
@@ -284,12 +288,12 @@ Deno.serve(async (req) => {
           message_id: msg.msg_id,
         })
         if (delError) {
-          console.error('Failed to delete sent message from queue', { queue, msg_id: msg.msg_id, error: delError })
+          moduleLog.error('Failed to delete sent message from queue', { queue, msg_id: msg.msg_id, error: delError })
         }
         totalProcessed++
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error)
-        console.error('Email send failed', {
+        moduleLog.error('Email send failed', {
           queue,
           msg_id: msg.msg_id,
           read_ct: msg.read_ct,

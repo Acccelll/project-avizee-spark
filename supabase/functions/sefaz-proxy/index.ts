@@ -14,6 +14,7 @@
 
 import forge from "https://esm.sh/node-forge@1.3.1";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { createLogger } from "../_shared/logger.ts";
 
 const allowedOrigin = Deno.env.get("ALLOWED_ORIGIN");
 
@@ -233,11 +234,13 @@ Deno.serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  const log = createLogger("sefaz-proxy", req);
   try {
     await requireAuth(req);
 
     const body = await req.json();
     const { action } = body;
+    log.info("request received", { action });
 
     if (action === "parse-certificado") {
       const { certificado_base64, senha } = body;
@@ -329,7 +332,7 @@ Deno.serve(async (req) => {
 
     return json({ error: "action inválida. Use 'assinar-e-enviar' ou 'parse-certificado'" }, 400);
   } catch (err: any) {
-    console.error("[sefaz-proxy]", err);
+    log.error("request failed", err);
     return json({ error: err.message || "Erro interno" }, err.message?.includes("Sessão") ? 401 : 500);
   }
 });
