@@ -15,6 +15,9 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { createLogger } from "../_shared/logger.ts";
+
+const moduleLog = createLogger("validate-invite");
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": Deno.env.get("ALLOWED_ORIGIN") ?? "*",
@@ -86,7 +89,7 @@ Deno.serve(async (req) => {
       { status: 200, headers: corsHeaders },
     );
   } catch (err) {
-    console.error("[validate-invite] error", err);
+    moduleLog.error("validate failed", err);
     return new Response(
       JSON.stringify({ valid: false, reason: "internal_error" }),
       { status: 500, headers: corsHeaders },

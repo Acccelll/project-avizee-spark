@@ -35,8 +35,9 @@ Gaps menores ainda em aberto:
 - `src/services/fiscal/sefaz/assinaturaDigital` — depende de WebCrypto; testar via integration na própria edge function.
 
 ### 5. Logger estruturado em Edge Functions (Eixo D.3)
-- Hoje: `console.log` cru. Criar `supabase/functions/_shared/logger.ts` com níveis e `request_id` correlacional.
-- Aplicar em `sefaz-proxy`, `admin-users`, `process-email-queue`, `apresentacao-cadencia-runner`.
+- ✅ `supabase/functions/_shared/logger.ts` implementado (níveis debug/info/warn/error, JSON em uma linha, `request_id` extraído de `x-request-id`/`x-correlation-id`, suporte a `child(extra)`).
+- ✅ Aplicado nos 4 alvos do plano (`sefaz-proxy`, `admin-users`, `process-email-queue`, `apresentacao-cadencia-runner`) + extensões nesta iteração: `admin-sessions`, `validate-invite`, `notify-admin-new-signup`, `auth-email-hook`.
+- Pendente (não-críticos): `correios-api`, `handle-email-suppression`, `handle-email-unsubscribe`, `preview-transactional-email`, `send-transactional-email`, `social-sync` — ainda usam `console.*` mas baixo volume e fluxos não-fiscais.
 
 ### 6. Painel admin "Saúde do sistema" (Eixo D.4)
 - Componente novo consumindo `vw_admin_audit_unified` para mostrar:
