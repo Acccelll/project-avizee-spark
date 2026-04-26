@@ -20,6 +20,8 @@ import {
   listarComentarios,
   removerApresentacaoCadencia,
   salvarApresentacaoCadencia,
+  salvarPreferenciasApresentacao,
+  registrarTelemetriaSlides,
 } from '@/services/apresentacaoService';
 import { ApresentacaoGeracaoDialog } from '@/components/apresentacao/ApresentacaoGeracaoDialog';
 import { ApresentacaoSlidesPreview } from '@/components/apresentacao/ApresentacaoSlidesPreview';
@@ -53,12 +55,24 @@ export default function ApresentacaoGerencial() {
 
   const gerarMutation = useMutation({
     mutationFn: gerarApresentacao,
-    onSuccess: ({ blob, geracaoId, aguardandoAprovacao }) => {
+    onSuccess: ({ blob, geracaoId, aguardandoAprovacao }, variables) => {
       if (blob) downloadBlob(blob, `apresentacao_gerencial_${geracaoId.slice(0, 8)}.pptx`);
       toast.success(aguardandoAprovacao ? 'Rascunho criado. Envie para aprovação para gerar versão final.' : 'Apresentação gerada com sucesso.');
       queryClient.invalidateQueries({ queryKey: ['apresentacao-geracoes'] });
       setSelectedGeracaoId(geracaoId);
       setDialogOpen(false);
+
+      // Persiste preferências e registra telemetria (best-effort)
+      const enabledSlides = (variables.slideConfig ?? []).filter((s) => s.enabled).map((s) => s.codigo);
+      void salvarPreferenciasApresentacao({
+        ultimo_template_id: variables.templateId,
+        ultimo_modo_geracao: variables.modoGeracao,
+        ultimos_slides_codigos: enabledSlides,
+        ultima_competencia_inicial: variables.competenciaInicial,
+        ultima_competencia_final: variables.competenciaFinal,
+        exigir_revisao_padrao: variables.exigirRevisao ?? true,
+      }).catch(() => undefined);
+      void registrarTelemetriaSlides(enabledSlides, 'gerado', geracaoId).catch(() => undefined);
     },
     onError: (err) => toast.error(`Falha ao gerar apresentação: ${err instanceof Error ? err.message : String(err)}`),
   });
