@@ -89,7 +89,7 @@ Deno.serve(async (req) => {
       { status: 200, headers: corsHeaders },
     );
   } catch (err) {
-    console.error("[validate-invite] error", err);
+    moduleLog.error("validate failed", err);
     return new Response(
       JSON.stringify({ valid: false, reason: "internal_error" }),
       { status: 500, headers: corsHeaders },
