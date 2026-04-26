@@ -38,9 +38,10 @@ export function ApresentacaoTemplateManager({
         <div className="space-y-1"><Label>Arquivo .pptx (opcional)</Label><Input type="file" accept=".pptx" onChange={(e) => setFile(e.target.files?.[0])} /></div>
       </div>
       <div className="space-y-1"><Label>Descrição</Label><Textarea value={draft.descricao} onChange={(e) => setDraft((d) => ({ ...d, descricao: e.target.value }))} /></div>
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-xs text-muted-foreground">Templates ativos: {templates.length}</p>
         <Button
+          className="h-11 w-full sm:h-10 sm:w-auto"
           onClick={() => onCreate(draft, file)}
           disabled={isSaving || !draft.nome || !draft.codigo || !draft.versao}
         >

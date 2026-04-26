@@ -60,7 +60,9 @@ describe("smoke: autenticação, proteção de rota e acesso admin", () => {
       </Routes>,
       "/administracao",
     );
-    expect(await screen.findByText("Home")).toBeInTheDocument();
+    // AdminRoute exibe um placeholder "Área administrativa" (não redireciona) para usuários sem perfil admin
+    expect(await screen.findByText(/Área administrativa/i)).toBeInTheDocument();
+    expect(screen.queryByText("Painel Admin")).not.toBeInTheDocument();
     nonAdmin.unmount();
 
     mockUseIsAdmin.mockReturnValue({ isAdmin: true, loading: false });
