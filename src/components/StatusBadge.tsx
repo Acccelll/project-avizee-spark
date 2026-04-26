@@ -93,7 +93,7 @@ const variantClasses: Record<StatusVariant, string> = {
   destructive: 'bg-destructive/10 text-destructive border-destructive/20',
   info:        'bg-info/10 text-info border-info/20',
   primary:     'bg-primary/10 text-primary border-primary/20',
-  muted:       'bg-muted text-muted-foreground border-muted',
+  muted:       'bg-muted text-muted-foreground border-border',
 };
 
 interface StatusBadgeProps {
