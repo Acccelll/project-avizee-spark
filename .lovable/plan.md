@@ -1,148 +1,92 @@
+# Sugestões de melhorias e novos componentes
 
-# Plano de Revisão End-to-End — AviZee ERP
-
-Auditoria estruturada do projeto para identificar **bugs latentes, dívidas arquiteturais, riscos de segurança e oportunidades de melhoria** — sem refatorações disruptivas, respeitando a doutrina de preservação arquitetural já registrada na memória.
-
----
-
-## 1. Diagnóstico atual (achados quantitativos)
-
-| Área | Métrica | Status |
-|---|---|---|
-| Linter Supabase | **152 issues** | 🔴 22 ERRORS, 3 WARN extension, 127 WARN RLS "always true" |
-| TypeScript | `strict:false`, `noImplicitAny:false`, `strictNullChecks:false` | 🟡 frouxo globalmente |
-| Migração services | **39 páginas/hooks** ainda chamando `supabase.from/rpc` direto | 🟡 dívida vs `docs/services-migration-plan.md` |
-| Testes unitários | Apenas ~5 arquivos `.test.ts` (workbook, telemetria, permissions, exemplo) | 🔴 cobertura mínima |
-| Edge Functions | 16 functions, várias sem teste/log estruturado | 🟡 |
-| Histórico recente | PGRST204 (schema vs service), views ignorando dados `importada/historico` | 🔴 indica drift schema↔código |
+A varredura de cores cruas e a documentação `EmptyState` × `DetailEmpty` já estão concluídas. Abaixo, sugestões priorizadas a partir do `.lovable/plan.md` (auditoria geral) e das memórias do projeto. Cada item é entregável de forma independente — escolha por onde seguir.
 
 ---
 
-## 2. Eixos da revisão (5 frentes paralelas, cada uma entregável de forma independente)
+## 🔴 Alta prioridade (risco real)
 
-### 🔒 Eixo A — Segurança & integridade do banco
+### 1. Bug do `forwardRef` no `Badge` (Eixo E.1 do plano)
+- Console warning ativo: *"Function components cannot be given refs"* dentro de `ApresentacaoSlidesPreview`.
+- **Ação**: envolver `Badge` com `React.forwardRef` (ou trocar wrapper por `<span>` quando o ref vier de Tooltip/Popover).
+- **Esforço**: ~10 min. Risco zero.
 
-**A.1. Auditar os 22 `Security Definer Views` (ERROR)**
-- Listar via `pg_views` + `pg_class.relrowsecurity` e classificar:
-  - **Manter SECURITY DEFINER** (vistas de relatório que precisam bypassar RLS por design) → adicionar comentário `COMMENT ON VIEW ... IS 'security definer intencional: …'` e marcar como aceito no scanner.
-  - **Converter para `security_invoker=on`** → padrão para vistas de uso direto pelo client.
-- Revalidar se as vistas atualizadas no último ciclo (`vw_workbook_*`) estão com o invoker correto.
+### 2. Auditoria dos 22 `SECURITY DEFINER` views (Eixo A.1)
+- Linter Supabase aponta 22 ERRORS. Classificar caso a caso:
+  - **Manter** (relatórios que precisam bypassar RLS) → adicionar `COMMENT ON VIEW` justificando.
+  - **Converter** para `security_invoker=on` (vistas consumidas direto pelo client).
+- **Esforço**: médio. **Risco se não fizer**: vazamento silencioso de dados entre escopos.
 
-**A.2. Revisar 127 RLS `USING (true)`**
-- Já existe a memória `rls-single-tenant.md` (modo permissivo intencional). Validar tabela-por-tabela se ainda faz sentido (ex.: `permission_audit`, `auditoria_logs`, `apresentacao_*` deveriam ser **admin-only** ou **owner-scoped**).
-- Restringir tabelas que armazenam **PII/segredos** ou **eventos sensíveis** (audit, telemetria, comentários gerenciais).
-
-**A.3. Extensions in Public** (3 warns)
-- Mover extensões (`pg_trgm`, `unaccent`, `pgmq`?) para schema dedicado quando viável.
-
-**A.4. Drift schema ↔ código** (causa do PGRST204 recente)
-- Criar um script de smoke que cruza `Database["public"]["Tables"][T]["Row"]` (do `types.ts`) com colunas usadas em cada `service.ts`.
-- Documentar processo: **toda alteração de service deve ter migration prévia aprovada** (já é regra; reforçar no `services-migration-plan.md`).
+### 3. Script de drift schema ↔ código (Eixo A.4)
+- Causa raiz dos PGRST204 recentes. Cruza `Database["public"]["Tables"][T]["Row"]` (de `types.ts`) com colunas usadas em cada `*.service.ts`.
+- Roda em CI / pré-commit como smoke. Reforça a regra "toda alteração de service exige migration prévia".
+- **Esforço**: 1 script Node + 1 doc.
 
 ---
 
-### 🧱 Eixo B — Hardening TypeScript
+## 🟡 Média prioridade (qualidade & DX)
 
-**B.1. Inventário de `any` / `as any`**
-- Listar top-30 arquivos com mais ocorrências e priorizar por criticidade (financeiro > fiscal > comercial > cadastros).
+### 4. Cobertura de testes nos núcleos críticos (Eixo D.1)
+Hoje só ~5 specs existem. Lotes prioritários:
+- `src/lib/workbook/*` — falta `fetchWorkbookData`, `generateWorkbook`.
+- `src/services/financeiro/*` — cálculo de baixa, status efetivo (`parcial`).
+- `src/services/fiscal/sefaz/*` — montagem/parsing de XML (sem rede).
+- `src/lib/permissions.ts` — expandir matriz por papel (admin/financeiro/estoquista/vendedor).
+- Smoke de páginas grandes: `Fiscal`, `WorkbookGerencial`, `ApresentacaoGerencial`, `Financeiro`.
 
-**B.2. Expandir `tsconfig.STRICT-core.json`**
-- Adicionar próximos lotes (sugestão): `src/services/financeiro/*`, `src/services/fiscal/*`, `src/pages/financeiro/*`, `src/pages/fiscal/*`.
-- Critério de saída de cada lote: `tsc -p tsconfig.STRICT-core.json` zerado.
-
-**B.3. Remover `@ts-nocheck` residuais** (já está em 0 segundo `rg` — manter monitorado em CI).
-
-**B.4. Tipagem das RPCs**
-- Centralizar tipos de retorno de RPC em `src/types/rpc.ts` (hoje cada hook redeclara `.rpc("…")` sem assert de tipo).
-
----
-
-### 🧩 Eixo C — Migração de queries para services (continuar Fase 2/3)
-
-**C.1. Mapear as 39 páginas/hooks** que ainda usam `supabase.from/rpc`:
-- Já tem services prontos para alguns (financeiro, fiscal, estoque, comercial). Outros (Clientes, Fornecedores, Funcionários, Sócios, Transportadoras, ContasBancarias) ainda são **page-level**.
-- Plano:
-  1. Concluir Phase 2 (cadastros): `clientes.service.ts`, `fornecedores.service.ts`, `funcionarios.service.ts`, `transportadoras.service.ts`, `contasBancarias.service.ts`.
-  2. Phase 3 (dashboards/relatórios) — já parcialmente feito; faltam hooks `useDashboard*` migrarem para `dashboard.service.ts`.
-- **Não** fazer refactor visual no mesmo PR (regra do `services-migration-plan.md`).
-
-**C.2. Padronizar invalidação de cache** via `useInvalidateAfterMutation` + `INVALIDATION_KEYS` (já existe; auditar 14 mutations cross-módulo do `CONTRACTS.md` para garantir aderência).
-
----
-
-### 🧪 Eixo D — Testes & observabilidade
-
-**D.1. Cobertura mínima por módulo crítico** (vitest)
-- Alvo realista: **lib puras + services com regra de negócio**.
-- Lotes prioritários:
-  - `src/lib/workbook/*` (já tem 1; falta `fetchWorkbookData`, `generateWorkbook`).
-  - `src/services/financeiro/*` (cálculo de baixa, status efetivo).
-  - `src/services/fiscal/sefaz/*` (montagem de XML, parsing de retorno — sem rede).
-  - `src/lib/permissions.ts` (já tem; expandir matriz por papel).
-
-**D.2. Smoke tests de páginas críticas** (já há `src/test/smoke/`)
-- Adicionar smoke para: `Fiscal`, `WorkbookGerencial`, `ApresentacaoGerencial`, `Financeiro`.
-- Verificar render sem erro com mocks mínimos do supabase client.
-
-**D.3. Logging estruturado em Edge Functions**
-- Hoje os logs são `console.log` cru. Criar helper `_shared/logger.ts` com níveis (`info|warn|error`) e correlação por `request_id`.
+### 5. Logger estruturado em Edge Functions (Eixo D.3)
+- Hoje: `console.log` cru. Criar `supabase/functions/_shared/logger.ts` com níveis e `request_id` correlacional.
 - Aplicar em `sefaz-proxy`, `admin-users`, `process-email-queue`, `apresentacao-cadencia-runner`.
 
-**D.4. Métricas de runtime**
-- Aproveitar `vw_admin_audit_unified` para contabilizar erros por módulo. Criar painel admin "Saúde do sistema".
+### 6. Painel admin "Saúde do sistema" (Eixo D.4)
+- Componente novo consumindo `vw_admin_audit_unified` para mostrar:
+  - erros por módulo (últimas 24h / 7d)
+  - latência média de RPCs críticos
+  - status das filas pgmq (e-mail, cadências)
+- Reaproveita `DashboardCard` + `DataTable` virtualizados.
+
+### 7. Hardening TypeScript — lote financeiro/fiscal (Eixo B.2)
+- Expandir `tsconfig.STRICT-core.json` para `src/services/financeiro/*`, `src/services/fiscal/*`, `src/pages/financeiro/*`, `src/pages/fiscal/*`.
+- Critério de saída por lote: `tsc -p tsconfig.STRICT-core.json` zerado.
+
+### 8. Centralização dos tipos de RPC
+- Criar `src/types/rpc.ts` com retornos das RPCs mais usadas (numeração atômica, baixa financeira, conciliação).
+- Hoje cada hook redeclara `.rpc("…")` sem assert de tipo → fonte de bugs silenciosos.
 
 ---
 
-### 🎨 Eixo E — UX, performance e acessibilidade
+## 🟢 Polimento de produto
 
-**E.1. Console warnings ativos**
-- Corrigir `Function components cannot be given refs` em `Badge` dentro de `ApresentacaoSlidesPreview` (envolver com `React.forwardRef` ou trocar wrapper).
+### 9. Acessibilidade dos diálogos críticos (Eixo E.3)
+- Auditar com axe-core: `ApresentacaoGeracaoDialog`, `LimparDadosMigracaoButton`, `SefazRetornoModal`, `TempPasswordDialog`.
+- Checar foco inicial, `aria-describedby`, `Esc` para fechar, anúncio de erros via `role="alert"`.
 
-**E.2. Bundle / code-split**
-- Verificar tamanho do chunk inicial (`npm run build`); páginas grandes (Workbook, Apresentação, Fiscal) já usam `React.lazy`? Confirmar e estender.
+### 10. Code-split / bundle
+- Confirmar se `Workbook`, `Apresentação`, `Fiscal`, `Importação` usam `React.lazy` no router.
+- Medir chunk inicial via `npm run build` e quebrar quem passar de ~250kb gzip.
 
-**E.3. Acessibilidade**
-- Auditar diálogos críticos (`ApresentacaoGeracaoDialog`, `LimparDadosMigracaoButton`) com axe-core: foco inicial, `aria-describedby`, `Esc` para fechar.
+### 11. Componentes novos sugeridos (reaproveitáveis)
+- **`<ConfirmDestructiveDialog>`** — Wrapper sobre `AlertDialog` que aplica a árvore de decisão de `mem://produto/excluir-vs-inativar-vs-cancelar` (exige motivo, lista efeitos colaterais, badge de ação terminal). Hoje cada tela faz à mão.
+- **`<HealthBadge>`** — pequeno indicador (verde/amarelo/vermelho) para status de integrações (Sefaz, SMTP, Correios, AI Gateway), consumindo um endpoint único `/integracoes/health`.
+- **`<AsyncJobStatus>`** — visualizador unificado de jobs assíncronos (importação, geração de workbook, envio de e-mail) — substitui `ImportacaoTimeline` + `ApresentacaoHistoricoTable` por um shell comum.
+- **`<DiffViewer>`** — para auditoria (`/auditoria`): mostra diffs antes/depois de updates, hoje renderizados como JSON cru.
 
-**E.4. Coerência de status (memória `contrato-de-status`)**
-- Varrer telas para garantir que **todos** os badges passem por `STATUS_VARIANT_MAP`. Hoje `Apresentacao*` introduziu `status_editorial` — confirmar mapeamento.
-
-**E.5. Responsividade mobile**
-- Aplicar checklist de `produto/comercial-mobile` e `produto/configuracoes-mobile` em telas que ainda não foram revisadas: `Fiscal`, `WorkbookGerencial`, `ApresentacaoGerencial`, `Financeiro`.
-
----
-
-## 3. Ordem de execução sugerida (priorizada por risco × custo)
-
-| Fase | Conteúdo | Esforço | Risco se não fizer |
-|---|---|---|---|
-| **1 — Segurança DB** (Eixo A.1, A.4) | Triagem dos 22 SECURITY DEFINER + script de drift schema | Médio | 🔴 Alto (vazamento de dados / quebras silenciosas como PGRST204) |
-| **2 — Bugs de UX visíveis** (E.1) | forwardRef no Badge | Baixo | 🟡 Médio (warning em prod) |
-| **3 — Testes de núcleo** (D.1 priorizando workbook + fiscal + financeiro) | Lote inicial de ~10 specs | Médio | 🔴 Alto (regressões silenciosas) |
-| **4 — Hardening TS** (B.1, B.2 lote financeiro/fiscal) | Expandir STRICT-core | Médio | 🟡 |
-| **5 — Migração services** (C.1 cadastros) | 5 services novos, sem mudança visual | Médio | 🟡 |
-| **6 — RLS revision** (A.2) | Tabela a tabela, manter modo single-tenant onde aplicável | Alto | 🟡 (warns, não erros) |
-| **7 — Observabilidade** (D.3, D.4) | Logger compartilhado + painel saúde | Médio | 🟢 |
-| **8 — A11y + responsividade** (E.3, E.5) | Auditoria + ajustes | Médio | 🟢 |
+### 12. Migração final de services (Phase 2 cadastros — Eixo C.1)
+Faltam 5 services para zerar a dívida:
+`clientes.service.ts`, `fornecedores.service.ts`, `funcionarios.service.ts`, `transportadoras.service.ts`, `contasBancarias.service.ts`.
+Sem refactor visual no mesmo PR (regra do `services-migration-plan.md`).
 
 ---
 
-## 4. Entregáveis desta revisão (após aprovação)
+## Ordem sugerida
 
-Para **cada fase** acima, entregamos:
-1. **Migration SQL** (quando aplicável) com nomes claros (`YYYYMMDDhhmmss_<descrição>.sql`).
-2. **Patches de código** focados, sem refactor visual misturado.
-3. **Specs de teste** ao lado dos arquivos modificados.
-4. **Atualização de memórias** (`mem://`) quando uma decisão arquitetural for tomada.
-5. **Nota no PR** explicando trade-offs (especialmente em RLS/Security Definer).
+1. **#1 forwardRef Badge** (10 min, mata um warning visível)
+2. **#2 Security Definer views** (segurança real)
+3. **#11 ConfirmDestructiveDialog** (ganho de UX e consistência rápido)
+4. **#4 Testes núcleo** (lote fiscal+financeiro+workbook)
+5. **#7 Strict TS** lote fiscal/financeiro
+6. **#5 Logger Edge** + **#6 Painel saúde** (juntos fazem sentido)
+7. **#12 Services cadastros** (zera dívida arquitetural)
+8. **#9 A11y** + **#10 bundle** (polimento final)
 
----
-
-## 5. Perguntas em aberto antes de partir para execução
-
-1. **Prioridade de início**: começamos pela **Fase 1 (segurança DB)** ou prefere atacar primeiro os **bugs visíveis (Fase 2 + bug do `forwardRef`)** para destravar UX?
-2. **Profundidade de RLS (Eixo A.2)**: confirma manter o modo **single-tenant permissivo** descrito em `mem://security/rls-single-tenant`, restringindo só tabelas sensíveis (audit, telemetria, configs)?
-3. **Strict TS**: aceita expandir `tsconfig.STRICT-core` apenas em **financeiro + fiscal** neste ciclo, deixando `pages/dashboard` e `pages/comercial` para o próximo?
-4. **Cobertura de testes**: quer um alvo numérico (p.ex. **services com regra de negócio = 70% statements**) ou seguimos sem meta formal, apenas adicionando specs por módulo crítico?
-
-Após responder, execução começa pelas fases na ordem priorizada.
+Diga qual item (ou bloco) você quer atacar primeiro e eu executo.

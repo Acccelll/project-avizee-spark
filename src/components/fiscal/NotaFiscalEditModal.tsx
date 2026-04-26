@@ -1,3 +1,4 @@
+import * as React from "react";
 import { type FormEvent, type ReactNode } from "react";
 import { FormModal } from "@/components/FormModal";
 import { Button } from "@/components/ui/button";
@@ -140,24 +141,25 @@ function SectionHeader({
   );
 }
 
-function ReadField({
-  label,
-  value,
-  mono,
-}: {
+interface ReadFieldProps extends React.HTMLAttributes<HTMLDivElement> {
   label: string;
   value: ReactNode;
   mono?: boolean;
-}) {
-  return (
-    <div className="space-y-0.5">
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-        {label}
-      </p>
-      <p className={cn("text-sm font-medium", mono && "font-mono")}>{value}</p>
-    </div>
-  );
 }
+
+const ReadField = React.forwardRef<HTMLDivElement, ReadFieldProps>(
+  ({ label, value, mono, className, ...rest }, ref) => {
+    return (
+      <div ref={ref} className={cn("space-y-0.5", className)} {...rest}>
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          {label}
+        </p>
+        <p className={cn("text-sm font-medium", mono && "font-mono")}>{value}</p>
+      </div>
+    );
+  },
+);
+ReadField.displayName = "ReadField";
 
 // ── Main Component ─────────────────────────────────────────────────────────────
 
