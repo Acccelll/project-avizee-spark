@@ -73,9 +73,13 @@ Gaps menores ainda em aberto:
 - **`<DiffViewer>`** — para auditoria (`/auditoria`): mostra diffs antes/depois de updates, hoje renderizados como JSON cru.
 
 ### 12. Migração final de services (Phase 2 cadastros — Eixo C.1)
-Faltam 5 services para zerar a dívida:
-`clientes.service.ts`, `fornecedores.service.ts`, `funcionarios.service.ts`, `transportadoras.service.ts`, `contasBancarias.service.ts`.
-Sem refactor visual no mesmo PR (regra do `services-migration-plan.md`).
+Status real (auditoria 2026-04): os 4 services já existiam (`clientes`, `fornecedores`, `transportadoras`, `contasBancarias`); `Funcionarios.tsx` não consome Supabase direto (usa hooks). A dívida residual eram **4 arquivos do domínio cliente** ainda chamando `supabase.from/rpc`:
+- ✅ `src/pages/Clientes.tsx` — 2 lookups (`grupos_economicos`, `formas_pagamento`) movidos para `listGruposEconomicosAtivos` + `listFormasPagamentoAtivas` em `clientes.service.ts`.
+- ✅ `src/pages/clientes/components/ClienteEnderecosTab.tsx` — load/CRUD/`set_principal_endereco` agora via service.
+- ✅ `src/pages/clientes/components/ClienteTransportadorasTab.tsx` — load/vincular/desvincular via service.
+- ✅ `src/pages/clientes/components/ClienteComunicacoesTab.tsx` — load/insert via service.
+
+Resultado: nenhum `import { supabase }` em `src/pages/Clientes.tsx` ou `src/pages/clientes/**`. Typecheck verde. Os demais 4 services do plano (`fornecedores`, `transportadoras`, `contasBancarias`, e funcionários via hook) já não tinham consumidores com query direta.
 
 ---
 
