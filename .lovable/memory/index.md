@@ -55,3 +55,4 @@
 - [RLS Single-Tenant](mem://security/rls-single-tenant) — Modo single-tenant; tabelas críticas com USING(true), exceto app_configuracoes (admin); checklist multi-tenant
 - [Tipagem RPC Centralizada](mem://tech/tipagem-rpc-centralizada) — `src/types/rpc.ts` expõe `RpcName`/`RpcArgs`/`RpcReturn` e `invokeRpc` para consumir RPCs sem `as any`
 - [Security Definer Views](mem://security/security-definer-views) — 4 views mantidas DEFINER intencional (públicas + audit unified); demais analíticas com `security_invoker=on`
+- [ConfirmDestructiveDialog](mem://tech/confirm-destructive-dialog) — Wrapper para ações terminais (Cancelar/Excluir/Estornar) com motivo + efeitos colaterais; ConfirmDialog continua para confirmações simples
