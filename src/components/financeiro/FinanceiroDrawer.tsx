@@ -8,6 +8,7 @@ import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSumm
 import { DrawerStatusBanner } from "@/components/ui/DrawerStatusBanner";
 import { DrawerActionBar } from "@/components/ui/DrawerActionBar";
 import { EmptyState } from "@/components/ui/empty-state";
+import { DetailEmpty } from "@/components/ui/DetailStates";
 import { Edit, Trash2, CreditCard, RotateCcw, AlertCircle, Receipt } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
@@ -363,7 +364,7 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
               {loadingAuditoria ? (
                 <p className="text-sm text-muted-foreground text-center py-4">Carregando histórico…</p>
               ) : auditoriaList.length === 0 ? (
-                <p className="text-xs text-muted-foreground">Nenhum evento de auditoria registrado.</p>
+                <DetailEmpty title="Nenhum evento de auditoria registrado" className="py-6" />
               ) : (
                 <div className="rounded-lg border overflow-hidden">
                   <table className="w-full text-xs">

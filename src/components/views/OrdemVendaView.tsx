@@ -453,7 +453,7 @@ export function OrdemVendaView({ id }: Props) {
         {/* ── Itens ──────────────────────────────────────── */}
         <TabsContent value="itens" className="space-y-3 mt-3">
           {items.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-6">Nenhum item encontrado.</p>
+            <DetailEmpty title="Nenhum item encontrado" />
           ) : (
             <>
               <div className="rounded-lg border overflow-hidden">

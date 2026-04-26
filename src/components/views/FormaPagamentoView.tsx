@@ -297,9 +297,11 @@ export function FormaPagamentoView({ id }: Props) {
             </div>
           </div>
           {usoLancamentos === 0 && usoCaixa === 0 && (
-            <p className="text-xs text-muted-foreground text-center py-2">
-              Esta forma ainda não foi utilizada em lançamentos ou movimentações.
-            </p>
+            <DetailEmpty
+              title="Sem uso registrado"
+              message="Esta forma ainda não foi utilizada em lançamentos ou movimentações."
+              className="py-6"
+            />
           )}
         </TabsContent>
 
@@ -307,7 +309,7 @@ export function FormaPagamentoView({ id }: Props) {
           {forma.observacoes ? (
             <p className="text-sm whitespace-pre-wrap">{forma.observacoes}</p>
           ) : (
-            <p className="text-sm text-muted-foreground italic">Nenhuma observação registrada.</p>
+            <DetailEmpty title="Nenhuma observação registrada" className="py-6" />
           )}
         </TabsContent>
       </Tabs>

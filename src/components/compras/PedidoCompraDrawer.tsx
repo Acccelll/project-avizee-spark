@@ -397,12 +397,15 @@ export function PedidoCompraDrawer({
           </p>
         </ViewSection>
       ) : (
-        <div className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
-          <Boxes className="h-8 w-8 mx-auto mb-2 opacity-30" />
-          {["recebido", "parcialmente_recebido"].includes(pedidoStatus)
-            ? "Movimentações de estoque não encontradas."
-            : "Nenhum recebimento registrado ainda."}
-        </div>
+        <DetailEmpty
+          icon={Boxes}
+          title={
+            ["recebido", "parcialmente_recebido"].includes(pedidoStatus)
+              ? "Movimentações de estoque não encontradas"
+              : "Nenhum recebimento registrado ainda"
+          }
+          className="py-8"
+        />
       )}
 
       <ViewSection title="Logística / Rastreamento">
