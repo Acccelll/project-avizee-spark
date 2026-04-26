@@ -158,6 +158,8 @@ export function NotaFiscalDrawer({
   const { pending: estornarPending, run: runEstornar } = useActionLock();
   const { pending: devolucaoPending, run: runDevolucao } = useActionLock();
   const isMobile = useIsMobile();
+  const { isAdmin } = useIsAdmin();
+  const [permDeleteOpen, setPermDeleteOpen] = useState(false);
 
   if (!open || !selected) return null;
 
