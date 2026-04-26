@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, RefreshCcw } from 'lucide-react';
+import { Plus, RefreshCcw, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { ModulePage } from '@/components/ModulePage';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,7 @@ import {
   downloadGeracao,
   downloadBlob,
 } from '@/services/workbookService';
+import { buildHistoricoCsv } from '@/lib/workbook/historicoCsv';
 import type { WorkbookGeracao, WorkbookModoGeracao } from '@/types/workbook';
 
 export default function WorkbookGerencial() {
@@ -77,6 +78,20 @@ export default function WorkbookGerencial() {
     }
   };
 
+  const handleExportCsv = () => {
+    if (!geracoes.length) {
+      toast.info('Sem gerações para exportar.');
+      return;
+    }
+    const csv = buildHistoricoCsv(geracoes);
+    const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' });
+    downloadBlob(
+      blob,
+      `workbook_historico_${new Date().toISOString().slice(0, 10)}.csv`,
+    );
+    toast.success('CSV exportado.');
+  };
+
   return (
     <><ModulePage
         title="Workbook Gerencial"
@@ -85,6 +100,15 @@ export default function WorkbookGerencial() {
             <Button variant="outline" size="sm" onClick={() => refetch()}>
               <RefreshCcw className="h-4 w-4 mr-1" />
               Atualizar
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportCsv}
+              disabled={loadingGeracoes || geracoes.length === 0}
+            >
+              <Download className="h-4 w-4 mr-1" />
+              Exportar CSV
             </Button>
             {canGerar && (
               <Button size="sm" onClick={() => setDialogOpen(true)} disabled={loadingTemplates || templates.length === 0}>
