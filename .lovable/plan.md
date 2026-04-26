@@ -52,7 +52,7 @@ Gaps menores ainda em aberto:
 
 ### 8. Centralização dos tipos de RPC
 - ✅ `src/types/rpc.ts` agora expõe `RpcName`/`RpcArgs`/`RpcReturn`/`invokeRpc` + atalhos nomeados para as RPCs críticas: `proximoNumeroOrcamento`, `proximoNumeroPedidoCompra`, `sugerirConciliacaoBancaria`, `aprovarPedido`, `rejeitarPedido`, `cancelarPedidoCompra`, `receberCompra`.
-- Próximo incremento (não bloqueante): migrar incrementalmente os ~15 call sites em `usePedidosCompra`, `Orcamentos`, `OrcamentoForm`, `RegistrarRecebimentoDialog` para os atalhos — uma renomeação no banco quebrará apenas em `rpc.ts`.
+- ✅ Call sites migrados nesta iteração: `usePedidosCompra` (5×), `Orcamentos.tsx` (1×), `RegistrarRecebimentoDialog` (1×), `useReceberCompra` (1×). Restam apenas chamadas em `OrcamentoForm.tsx` (`salvar_orcamento`, `proximo_numero_orcamento` 2×) — não cobertas pelos atalhos atuais; expandir `rpc.ts` quando o refactor de `OrcamentoForm` (1.272 LOC) for atacado.
 
 ---
 
@@ -66,13 +66,13 @@ Gaps menores ainda em aberto:
 
 ### 10. Code-split / bundle
 - ✅ `src/App.tsx` usa `lazy()` para todas as páginas (Workbook, Apresentação, Fiscal, Financeiro, Importação, Pedidos, Orçamentos, Cotações, Auditoria, Administração, etc.). Não há rotas eagerly-loaded fora de `Login`/`Signup`/`NotFound`.
-- Próximo incremento (opcional): rodar `npm run build -- --report` para identificar chunks ainda > 250 KB gzip e aplicar `lazy()` em sub-componentes pesados (ex.: `OrcamentoForm` 1.272 LOC, `ApresentacaoSlidesPreview`).
+- ⚠️ Profiling local bloqueado por issue ambiental do sandbox (`@tanstack/query-core` peer dep não resolvida no `node_modules` mockado). Rodar em CI ou ambiente com install limpo: `npx vite build --mode production` + `vite-bundle-visualizer`. Candidatos óbvios para split adicional: `OrcamentoForm.tsx` (1.272 LOC), `ApresentacaoSlidesPreview`, `WorkbookGeracoesTable`, e qualquer dependência de PDF (`@react-pdf/renderer`) usada apenas em rotas específicas.
 
 ### 11. Componentes novos sugeridos (reaproveitáveis)
 - ✅ **`<ConfirmDestructiveDialog>`** — Implementado em `src/components/ConfirmDestructiveDialog.tsx` + hook `useConfirmDestructive`. Aplica a árvore de `mem://produto/excluir-vs-inativar-vs-cancelar` (motivo obrigatório, lista de efeitos colaterais, badge "Ação terminal"). Migração das telas que ainda usam `window.confirm`/`ConfirmDialog` para ações terminais é incremental.
 - ✅ **`<HealthBadge>`** — Implementado em `src/components/HealthBadge.tsx`. 5 estados (`healthy`/`degraded`/`down`/`unknown`/`checking`), tooltip opcional com detalhes (latência, última checagem) e modo `compact` para tabelas densas. Próximo passo: endpoint `/integracoes/health` (ou equivalente) consolidando Sefaz/SMTP/Correios/AI Gateway para alimentar o painel de saúde (#6).
 - ✅ **`<AsyncJobStatus>`** — Implementado em `src/components/AsyncJobStatus.tsx`. 6 estados (`queued`/`running`/`succeeded`/`failed`/`cancelled`/`paused`), barra de progresso opcional em `running`, mensagem com `role="alert"` em `failed`/`cancelled` e modo `compact` para tabelas. Pronto para substituir incrementalmente badges ad-hoc em `ImportacaoTimeline`, `ApresentacaoHistoricoTable`, `WorkbookGeracoesTable` e fila de e-mail.
-- **`<DiffViewer>`** — para auditoria (`/auditoria`): mostra diffs antes/depois de updates, hoje renderizados como JSON cru.
+- ✅ **`<DiffViewer>`** — Já implementado em `src/lib/audit/DiffViewer.tsx` e integrado a `Auditoria.tsx`. Suporta INSERT (badge verde "+ Criado"), DELETE (badge vermelho "− Excluído"), UPDATE (lista apenas campos alterados com antes/depois lado a lado) e fallback pretty-print para `permission_audit.alteracao` não-estruturado.
 
 ### 12. Migração final de services (Phase 2 cadastros — Eixo C.1)
 Status real (auditoria 2026-04): os 4 services já existiam (`clientes`, `fornecedores`, `transportadoras`, `contasBancarias`); `Funcionarios.tsx` não consome Supabase direto (usa hooks). A dívida residual eram **4 arquivos do domínio cliente** ainda chamando `supabase.from/rpc`:
