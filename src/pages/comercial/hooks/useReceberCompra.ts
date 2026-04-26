@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { receberCompra } from "@/types/rpc";
 import { toast } from "sonner";
 
