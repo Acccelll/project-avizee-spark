@@ -27,7 +27,7 @@ export function useRegistrarBaixa() {
         p_data_baixa: params.dataBaixa,
         p_forma_pagamento: params.formaPagamento,
         p_conta_bancaria_id: params.contaBancariaId,
-        p_observacoes: params.observacoes ?? null,
+        p_observacoes: params.observacoes ?? undefined,
       });
       if (error) throw error;
       return data as string;

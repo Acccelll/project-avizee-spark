@@ -5,6 +5,7 @@
     "noEmit": true
   },
   "include": [
+    "src/vite-env.d.ts",
     "src/pages/Perfil.tsx",
     "src/services/admin/empresa.service.ts",
     "src/pages/relatorios/hooks/useRelatorioVendas.ts",

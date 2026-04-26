@@ -69,7 +69,7 @@ export function buildFinanceiroColumns({ getLancamentoStatus, hoje, hojeStr, onB
       render: (l: Lancamento) => (
         <div className="space-y-0.5">
           <span className="text-sm">{displayDescricao(l)}</span>
-          {l.parcela_numero > 0 && (
+          {(l.parcela_numero ?? 0) > 0 && (
             <span className="text-[10px] text-muted-foreground font-mono block">
               Parcela {l.parcela_numero}/{l.parcela_total}
             </span>
