@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
+import { receberCompra } from "@/types/rpc";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/format";
 import { todayISO } from "@/lib/dateUtils";
@@ -122,13 +123,12 @@ export function RegistrarRecebimentoDialog({ open, onClose, pedidoId, pedidoNume
     }
     setSaving(true);
     try {
-      const { error } = await supabase.rpc("receber_compra", {
+      await receberCompra({
         p_pedido_id: pedidoId,
         p_data_recebimento: dataRecebimento,
         p_itens: payload as never,
         p_observacoes: observacoes.trim() || null,
       });
-      if (error) throw error;
       toast.success("Recebimento registrado.");
       onSuccess?.();
       onClose();

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { ModulePage } from "@/components/ModulePage";
+import { proximoNumeroOrcamento } from "@/types/rpc";
 import { DataTable } from "@/components/DataTable";
 import { PullToRefresh } from "@/components/ui/PullToRefresh";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -209,7 +210,7 @@ const Orcamentos = () => {
       const { data: items } = await supabase.from("orcamentos_itens").select("*").eq("orcamento_id", orc.id);
       // Buscar metadados completos do orçamento original (frete simulador, etc.)
       const { data: fullOrcamento } = await supabase.from("orcamentos").select("*").eq("id", orc.id).maybeSingle();
-      const { data: newNumero } = await supabase.rpc("proximo_numero_orcamento");
+      const newNumero = await proximoNumeroOrcamento().catch(() => null);
       const newNumeroStr = newNumero || `ORC${String(Date.now()).slice(-6)}`;
       const fullOrc = (fullOrcamento || {}) as Record<string, unknown>;
       const { data: newOrc, error } = await supabase.from("orcamentos").insert({

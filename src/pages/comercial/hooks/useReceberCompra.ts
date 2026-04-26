@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { receberCompra } from "@/types/rpc";
 import { toast } from "sonner";
 
 export interface ReceberCompraItem {
@@ -28,13 +29,12 @@ export function useReceberCompra() {
 
   return useMutation({
     mutationFn: async (input: ReceberCompraInput): Promise<ReceberCompraResult> => {
-      const { data, error } = await supabase.rpc("receber_compra", {
+      const data = await receberCompra({
         p_pedido_id: input.pedidoId,
         p_data_recebimento: input.dataRecebimento,
         p_itens: input.itens as unknown as never,
         p_observacoes: input.observacoes ?? null,
       });
-      if (error) throw error;
       return data as unknown as ReceberCompraResult;
     },
     onSuccess: (result) => {
