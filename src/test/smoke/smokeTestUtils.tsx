@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
 import { render } from "@testing-library/react";
 import { RelationalNavigationProvider } from "@/contexts/RelationalNavigationContext";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import type { AppRole } from "@/contexts/AuthContext";
 
 export interface MockAuthState {
@@ -58,7 +59,7 @@ export function renderWithSmokeProviders(ui: ReactElement, route = "/", options:
     return (
       <QueryClientProvider client={queryClient}>
         <MemoryRouter initialEntries={[route]}>
-          {inner}
+          <TooltipProvider>{inner}</TooltipProvider>
         </MemoryRouter>
       </QueryClientProvider>
     );
