@@ -16,6 +16,9 @@ import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext"
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
+import { PeriodFilter, type PeriodValue } from "@/components/filters/PeriodFilter";
+import { periodToDateFrom, periodToDateTo } from "@/lib/periodFilter";
+import type { Period } from "@/components/filters/periodTypes";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatDate, daysSince, formatNumber, calculateDaysBetween } from "@/lib/format";
 import { FileText, DollarSign, Truck } from "lucide-react";
@@ -161,6 +164,29 @@ const Pedidos = () => {
   };
   const setDataInicio = (v: string) => updateParam("de", v || null);
   const setDataFim = (v: string) => updateParam("ate", v || null);
+
+  // Bridge PeriodFilter (preset/range) ↔ URL (`de`/`ate`).
+  // Presets são backward-looking (emissão dos últimos N dias) usando periodToDateFrom.
+  const periodValue: PeriodValue = { preset: null, from: dataInicio || null, to: dataFim || null };
+  const handlePeriodChange = (next: PeriodValue) => {
+    if (next.preset) {
+      const from = periodToDateFrom(next.preset as Period);
+      const to = periodToDateTo(next.preset as Period) ?? new Date().toISOString().slice(0, 10);
+      setSearchParams((prev) => {
+        const np = new URLSearchParams(prev);
+        np.set("de", from);
+        np.set("ate", to);
+        return np;
+      }, { replace: true });
+      return;
+    }
+    setSearchParams((prev) => {
+      const np = new URLSearchParams(prev);
+      if (next.from) np.set("de", next.from); else np.delete("de");
+      if (next.to) np.set("ate", next.to); else np.delete("ate");
+      return np;
+    }, { replace: true });
+  };
 
   const { data: clientesList = [] } = useClientesRef();
   const [generatingNfId, setGeneratingNfId] = useState<string | null>(null);
@@ -411,23 +437,7 @@ const Pedidos = () => {
             placeholder="Clientes"
             className="w-[200px]"
           />
-          <div className="flex items-center gap-2">
-            <Input
-              type="date"
-              value={dataInicio}
-              onChange={(e) => setDataInicio(e.target.value)}
-              className="h-9 w-[140px] text-xs"
-              title="Emissão desde"
-            />
-            <span className="text-xs text-muted-foreground">até</span>
-            <Input
-              type="date"
-              value={dataFim}
-              onChange={(e) => setDataFim(e.target.value)}
-              className="h-9 w-[140px] text-xs"
-              title="Emissão até"
-            />
-          </div>
+          <PeriodFilter mode="both" value={periodValue} onChange={handlePeriodChange} />
         </AdvancedFilterBar>
 
         <PullToRefresh onRefresh={fetchData}>
