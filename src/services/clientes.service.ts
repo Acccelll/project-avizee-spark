@@ -177,3 +177,25 @@ export async function listTransportadorasAtivas() {
   if (error) throw error;
   return (data || []) as Array<{ id: string; nome_razao_social: string }>;
 }
+
+// ── Lookups auxiliares (listas combo) ──────────────────────────────────────
+
+export async function listGruposEconomicosAtivos() {
+  const { data, error } = await supabase
+    .from("grupos_economicos")
+    .select("id, nome")
+    .eq("ativo", true)
+    .order("nome");
+  if (error) throw error;
+  return (data || []) as Array<{ id: string; nome: string }>;
+}
+
+export async function listFormasPagamentoAtivas() {
+  const { data, error } = await supabase
+    .from("formas_pagamento")
+    .select("id, descricao")
+    .eq("ativo", true)
+    .order("descricao");
+  if (error) throw error;
+  return (data || []) as Array<{ id: string; descricao: string }>;
+}
