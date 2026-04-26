@@ -31,14 +31,14 @@ export interface FiscalStatusVisual {
 
 const DEFAULT_INTERNAL: FiscalStatusVisual = {
   label: "Status desconhecido",
-  classes: "bg-muted text-muted-foreground border-muted",
+  classes: "bg-muted text-muted-foreground border-border",
   icon: HelpCircle,
   description: "Status interno não mapeado no front.",
 };
 
 const DEFAULT_SEFAZ: FiscalStatusVisual = {
   label: "Não enviado",
-  classes: "bg-muted text-muted-foreground border-muted",
+  classes: "bg-muted text-muted-foreground border-border",
   icon: Clock3,
   description: "Documento ainda não enviado para SEFAZ.",
 };
@@ -52,7 +52,7 @@ export const fiscalInternalStatusMap: Record<string, FiscalStatusVisual> = {
   },
   rascunho: {
     label: "Rascunho",
-    classes: "bg-muted text-muted-foreground border-muted",
+    classes: "bg-muted text-muted-foreground border-border",
     icon: FileEdit,
     description: "Documento em preparação no ERP.",
   },
@@ -70,7 +70,7 @@ export const fiscalInternalStatusMap: Record<string, FiscalStatusVisual> = {
   },
   importada: {
     label: "Importada",
-    classes: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-800",
+    classes: "bg-info/10 text-info border-info/20",
     icon: FileDown,
     description: "Nota importada de fonte externa.",
   },
@@ -94,7 +94,7 @@ export const fiscalInternalStatusMap: Record<string, FiscalStatusVisual> = {
   },
   inutilizada: {
     label: "Inutilizada",
-    classes: "bg-muted text-muted-foreground border-muted",
+    classes: "bg-muted text-muted-foreground border-border",
     icon: AlertTriangle,
     description: "Faixa/numeração inutilizada junto à SEFAZ.",
   },
@@ -103,7 +103,7 @@ export const fiscalInternalStatusMap: Record<string, FiscalStatusVisual> = {
 export const fiscalSefazStatusMap: Record<string, FiscalStatusVisual> = {
   nao_enviada: {
     label: "Não enviada",
-    classes: "bg-muted text-muted-foreground border-muted",
+    classes: "bg-muted text-muted-foreground border-border",
     icon: Clock3,
     description: "NF ainda não enviada para autorização na SEFAZ.",
   },
@@ -115,7 +115,7 @@ export const fiscalSefazStatusMap: Record<string, FiscalStatusVisual> = {
   },
   em_processamento: {
     label: "Em processamento",
-    classes: "bg-primary/10 text-primary border-primary/20",
+    classes: "bg-info/10 text-info border-info/20",
     icon: Clock3,
     description: "SEFAZ recebeu e está processando a solicitação.",
   },
@@ -139,13 +139,13 @@ export const fiscalSefazStatusMap: Record<string, FiscalStatusVisual> = {
   },
   inutilizada: {
     label: "Inutilizada",
-    classes: "bg-muted text-muted-foreground border-muted",
+    classes: "bg-muted text-muted-foreground border-border",
     icon: AlertTriangle,
     description: "Numeração inutilizada na SEFAZ.",
   },
   importada_externa: {
     label: "Importada externa",
-    classes: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-800",
+    classes: "bg-info/10 text-info border-info/20",
     icon: FileDown,
     description: "Documento emitido fora do ERP e apenas importado.",
   },
