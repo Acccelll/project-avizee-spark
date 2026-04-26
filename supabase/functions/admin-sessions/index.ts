@@ -8,10 +8,12 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { createLogger } from "../_shared/logger.ts";
 
 const allowedOrigin = Deno.env.get("ALLOWED_ORIGIN");
+const moduleLog = createLogger("admin-sessions");
 if (!allowedOrigin) {
-  console.warn("[admin-sessions] ALLOWED_ORIGIN env var is not set. Requests will be rejected.");
+  moduleLog.warn("ALLOWED_ORIGIN env var is not set. Requests will be rejected.");
 }
 
 const corsHeaders = {
