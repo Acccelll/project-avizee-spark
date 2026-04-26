@@ -21,7 +21,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { supabase } from "@/integrations/supabase/client";
+import { createFolhaPagamento, gerarFinanceiroFolha } from "@/services/rh.service";
 import { toast } from "sonner";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { getUserFriendlyError } from "@/utils/errorMessages";
@@ -196,20 +196,23 @@ export default function Funcionarios() {
       return;
     }
     const liquido = Number(selected.salario_base) + Number(folhaForm.proventos) - Number(folhaForm.descontos);
-    const { error } = await supabase.from("folha_pagamento").insert({
-      funcionario_id: selected.id,
-      competencia: folhaForm.competencia,
-      salario_base: selected.salario_base,
-      proventos: folhaForm.proventos || 0,
-      descontos: folhaForm.descontos || 0,
-      valor_liquido: liquido,
-      observacoes: folhaForm.observacoes || null,
-      status: "processada",
-    });
-    if (error) { toast.error(getUserFriendlyError(error)); return; }
-    toast.success("Folha registrada!");
-    setFolhaModalOpen(false);
-    openView(selected);
+    try {
+      await createFolhaPagamento({
+        funcionario_id: selected.id,
+        competencia: folhaForm.competencia,
+        salario_base: selected.salario_base,
+        proventos: folhaForm.proventos || 0,
+        descontos: folhaForm.descontos || 0,
+        valor_liquido: liquido,
+        observacoes: folhaForm.observacoes || null,
+        status: "processada",
+      });
+      toast.success("Folha registrada!");
+      setFolhaModalOpen(false);
+      openView(selected);
+    } catch (err) {
+      toast.error(getUserFriendlyError(err));
+    }
   };
 
   const handleFecharFolha = async (folha: FolhaPagamento) => {
@@ -218,9 +221,7 @@ export default function Funcionarios() {
       return;
     }
     try {
-      const { data, error } = await supabase.rpc('gerar_financeiro_folha', { p_folha_id: folha.id });
-      if (error) throw error;
-      const r = data as { ok?: boolean; erro?: string; data_pagamento?: string; data_fgts?: string };
+      const r = await gerarFinanceiroFolha(folha.id);
       if (r?.erro) { toast.error(r.erro); return; }
       toast.success(
         `Lançamentos financeiros gerados: salário (${r.data_pagamento}) e FGTS (${r.data_fgts}).`,
