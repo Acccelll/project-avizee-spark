@@ -40,11 +40,10 @@ Gaps menores ainda em aberto:
 - Pendente (não-críticos): `correios-api`, `handle-email-suppression`, `handle-email-unsubscribe`, `preview-transactional-email`, `send-transactional-email`, `social-sync` — ainda usam `console.*` mas baixo volume e fluxos não-fiscais.
 
 ### 6. Painel admin "Saúde do sistema" (Eixo D.4)
-- Componente novo consumindo `vw_admin_audit_unified` para mostrar:
-  - erros por módulo (últimas 24h / 7d)
-  - latência média de RPCs críticos
-  - status das filas pgmq (e-mail, cadências)
-- Reaproveita `DashboardCard` + `DataTable` virtualizados.
+- ✅ Implementado em `src/pages/admin/sections/SaudeSistemaSection.tsx` + hook `useSaudeSistema` (`src/pages/admin/hooks/useSaudeSistema.ts`).
+- Lê `v_admin_audit_unified` (eventos por módulo 24h/7d) + `email_send_log` (taxa de erro de envio) + `email_send_state` (backoff). Renderiza com `<HealthBadge>` para integrações (e-mail/auditoria/permissões), KPI 24h de e-mail e tabela de atividade por módulo. Refresh manual + auto-refresh a cada 5min.
+- Acessível em `/administracao?tab=saude` (item "Saúde do sistema" sob "Dados & Auditoria").
+- Próximos incrementos opcionais: latência média de RPCs críticos (precisa instrumentação) e status real das filas pgmq (depende de RPC dedicada).
 
 ### 7. Hardening TypeScript — lote financeiro/fiscal (Eixo B.2)
 - Expandir `tsconfig.STRICT-core.json` para `src/services/financeiro/*`, `src/services/fiscal/*`, `src/pages/financeiro/*`, `src/pages/fiscal/*`.
