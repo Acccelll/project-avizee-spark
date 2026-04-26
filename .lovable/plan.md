@@ -27,12 +27,12 @@ A varredura de cores cruas e a documentação `EmptyState` × `DetailEmpty` já 
 ## 🟡 Média prioridade (qualidade & DX)
 
 ### 4. Cobertura de testes nos núcleos críticos (Eixo D.1)
-Hoje só ~5 specs existem. Lotes prioritários:
-- `src/lib/workbook/*` — falta `fetchWorkbookData`, `generateWorkbook`.
-- `src/services/financeiro/*` — cálculo de baixa, status efetivo (`parcial`).
-- `src/services/fiscal/sefaz/*` — montagem/parsing de XML (sem rede).
-- `src/lib/permissions.ts` — expandir matriz por papel (admin/financeiro/estoquista/vendedor).
-- Smoke de páginas grandes: `Fiscal`, `WorkbookGerencial`, `ApresentacaoGerencial`, `Financeiro`.
+Status real (auditoria 2026-04): **64 arquivos / 729 testes, todos verdes**. O plano antigo subestimava a cobertura.
+Cobertos: workbook (comparators, historicoCsv, workbook), apresentacao (7 specs), financeiro (baixas, calculos, cancelamentos, conciliacao, estornos, ofxParser), sefaz (xmlBuilder + sefazUrls + cancelamento + inutilizacao — adicionados nesta iteração), validadores fiscais (CEST/NCM/IE/chave), permissions, integração financeiro/fiscal/venda, smoke (auth, dashboard, financeiro).
+Gaps menores ainda em aberto:
+- `src/lib/workbook/fetchWorkbookData`/`generateWorkbook`/`buildVisualSheets` — exigem fixture do template `.xlsx`; não autocontidos.
+- `src/services/fiscal/sefaz/autorizacao` + `consulta` — fluxos longos com vários branches; vale split em helpers antes de testar.
+- `src/services/fiscal/sefaz/assinaturaDigital` — depende de WebCrypto; testar via integration na própria edge function.
 
 ### 5. Logger estruturado em Edge Functions (Eixo D.3)
 - Hoje: `console.log` cru. Criar `supabase/functions/_shared/logger.ts` com níveis e `request_id` correlacional.
