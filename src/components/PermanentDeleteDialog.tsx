@@ -14,7 +14,8 @@ interface Props {
     | "funcionarios"
     | "transportadoras"
     | "formas_pagamento"
-    | "grupos_economicos";
+    | "grupos_economicos"
+    | "notas_fiscais";
   id: string;
   /** Nome legível usado no título e na descrição (ex: "transportadora"). */
   entityLabel: string;
