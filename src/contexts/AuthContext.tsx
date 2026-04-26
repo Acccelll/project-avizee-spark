@@ -55,7 +55,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [permissionsLoaded, setPermissionsLoaded] = useState(false);
-  const [profile, setProfile] = useState<{ nome: string; email: string; cargo: string; avatar_url: string } | null>(null);
+  const [profile, setProfile] = useState<{
+    nome: string | null;
+    email: string | null;
+    cargo: string | null;
+    avatar_url: string | null;
+  } | null>(null);
   const [roles, setRoles] = useState<AppRole[]>([]);
   const [extraPermissions, setExtraPermissions] = useState<PermissionKey[]>([]);
   const [deniedPermissions, setDeniedPermissions] = useState<PermissionKey[]>([]);
