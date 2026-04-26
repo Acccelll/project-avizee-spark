@@ -37,3 +37,40 @@ export async function invokeRpc<N extends RpcName>(
   if (error) throw new Error(error.message);
   return data as RpcReturn<N>;
 }
+
+// ─── Atalhos tipados para as RPCs mais usadas ───────────────────────────────
+//
+// Estes wrappers existem para (1) servir como índice descobrível das RPCs
+// críticas do domínio e (2) garantir que callers usem o nome canônico — uma
+// renomeação no banco quebra **aqui**, não em N hooks espalhados.
+//
+// Categorias seguem o roteiro do plano: numeração atômica, baixa financeira,
+// conciliação bancária e ciclo fiscal.
+
+// ── Numeração atômica de documentos ────────────────────────────────────────
+
+export const proximoNumeroOrcamento = () =>
+  invokeRpc("proximo_numero_orcamento", {} as RpcArgs<"proximo_numero_orcamento">);
+
+export const proximoNumeroPedidoCompra = () =>
+  invokeRpc("proximo_numero_pedido_compra", {} as RpcArgs<"proximo_numero_pedido_compra">);
+
+// ── Baixa / conciliação financeira ─────────────────────────────────────────
+
+export const sugerirConciliacaoBancaria = (
+  args: RpcArgs<"sugerir_conciliacao_bancaria">,
+) => invokeRpc("sugerir_conciliacao_bancaria", args);
+
+// ── Ciclo de pedidos de compra ─────────────────────────────────────────────
+
+export const aprovarPedido = (args: RpcArgs<"aprovar_pedido">) =>
+  invokeRpc("aprovar_pedido", args);
+
+export const rejeitarPedido = (args: RpcArgs<"rejeitar_pedido">) =>
+  invokeRpc("rejeitar_pedido", args);
+
+export const cancelarPedidoCompra = (args: RpcArgs<"cancelar_pedido_compra">) =>
+  invokeRpc("cancelar_pedido_compra", args);
+
+export const receberCompra = (args: RpcArgs<"receber_compra">) =>
+  invokeRpc("receber_compra", args);

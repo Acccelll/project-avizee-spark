@@ -51,25 +51,27 @@ Gaps menores ainda em aberto:
 - Próximo lote sugerido: `src/services/comercial/**`, `src/services/admin/**` e `src/services/cadastros/**`.
 
 ### 8. Centralização dos tipos de RPC
-- Criar `src/types/rpc.ts` com retornos das RPCs mais usadas (numeração atômica, baixa financeira, conciliação).
-- Hoje cada hook redeclara `.rpc("…")` sem assert de tipo → fonte de bugs silenciosos.
+- ✅ `src/types/rpc.ts` agora expõe `RpcName`/`RpcArgs`/`RpcReturn`/`invokeRpc` + atalhos nomeados para as RPCs críticas: `proximoNumeroOrcamento`, `proximoNumeroPedidoCompra`, `sugerirConciliacaoBancaria`, `aprovarPedido`, `rejeitarPedido`, `cancelarPedidoCompra`, `receberCompra`.
+- Próximo incremento (não bloqueante): migrar incrementalmente os ~15 call sites em `usePedidosCompra`, `Orcamentos`, `OrcamentoForm`, `RegistrarRecebimentoDialog` para os atalhos — uma renomeação no banco quebrará apenas em `rpc.ts`.
 
 ---
 
 ## 🟢 Polimento de produto
 
 ### 9. Acessibilidade dos diálogos críticos (Eixo E.3)
-- Auditar com axe-core: `ApresentacaoGeracaoDialog`, `LimparDadosMigracaoButton`, `SefazRetornoModal`, `TempPasswordDialog`.
-- Checar foco inicial, `aria-describedby`, `Esc` para fechar, anúncio de erros via `role="alert"`.
+- ✅ Auditados os 4 dialogs do plano:
+  - `ApresentacaoGeracaoDialog`, `LimparDadosMigracaoButton`, `TempPasswordDialog` — já tinham `DialogDescription` (Radix mapeia para `aria-describedby`) + `aria-label` nos botões-ícone. OK.
+  - `SefazRetornoModal` — faltava `DialogDescription` e bloco de erros sem `role="alert"`. **Corrigido**.
+- Esc/foco inicial são gerenciados pelo Radix `Dialog`/`AlertDialog` por padrão — manter. Próximo passo opcional: integrar `axe-core` em testes de smoke para regressão automática.
 
 ### 10. Code-split / bundle
-- Confirmar se `Workbook`, `Apresentação`, `Fiscal`, `Importação` usam `React.lazy` no router.
-- Medir chunk inicial via `npm run build` e quebrar quem passar de ~250kb gzip.
+- ✅ `src/App.tsx` usa `lazy()` para todas as páginas (Workbook, Apresentação, Fiscal, Financeiro, Importação, Pedidos, Orçamentos, Cotações, Auditoria, Administração, etc.). Não há rotas eagerly-loaded fora de `Login`/`Signup`/`NotFound`.
+- Próximo incremento (opcional): rodar `npm run build -- --report` para identificar chunks ainda > 250 KB gzip e aplicar `lazy()` em sub-componentes pesados (ex.: `OrcamentoForm` 1.272 LOC, `ApresentacaoSlidesPreview`).
 
 ### 11. Componentes novos sugeridos (reaproveitáveis)
 - ✅ **`<ConfirmDestructiveDialog>`** — Implementado em `src/components/ConfirmDestructiveDialog.tsx` + hook `useConfirmDestructive`. Aplica a árvore de `mem://produto/excluir-vs-inativar-vs-cancelar` (motivo obrigatório, lista de efeitos colaterais, badge "Ação terminal"). Migração das telas que ainda usam `window.confirm`/`ConfirmDialog` para ações terminais é incremental.
 - ✅ **`<HealthBadge>`** — Implementado em `src/components/HealthBadge.tsx`. 5 estados (`healthy`/`degraded`/`down`/`unknown`/`checking`), tooltip opcional com detalhes (latência, última checagem) e modo `compact` para tabelas densas. Próximo passo: endpoint `/integracoes/health` (ou equivalente) consolidando Sefaz/SMTP/Correios/AI Gateway para alimentar o painel de saúde (#6).
-- **`<AsyncJobStatus>`** — visualizador unificado de jobs assíncronos (importação, geração de workbook, envio de e-mail) — substitui `ImportacaoTimeline` + `ApresentacaoHistoricoTable` por um shell comum.
+- ✅ **`<AsyncJobStatus>`** — Implementado em `src/components/AsyncJobStatus.tsx`. 6 estados (`queued`/`running`/`succeeded`/`failed`/`cancelled`/`paused`), barra de progresso opcional em `running`, mensagem com `role="alert"` em `failed`/`cancelled` e modo `compact` para tabelas. Pronto para substituir incrementalmente badges ad-hoc em `ImportacaoTimeline`, `ApresentacaoHistoricoTable`, `WorkbookGeracoesTable` e fila de e-mail.
 - **`<DiffViewer>`** — para auditoria (`/auditoria`): mostra diffs antes/depois de updates, hoje renderizados como JSON cru.
 
 ### 12. Migração final de services (Phase 2 cadastros — Eixo C.1)

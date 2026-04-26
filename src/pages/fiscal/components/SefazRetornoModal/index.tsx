@@ -4,6 +4,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -53,6 +54,9 @@ export function SefazRetornoModal({
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Retorno da SEFAZ</DialogTitle>
+          <DialogDescription>
+            Resultado do processamento da nota junto à SEFAZ — protocolo, motivo e XML completo.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -76,7 +80,7 @@ export function SefazRetornoModal({
           )}
 
           {erros && erros.length > 0 && (
-            <div>
+            <div role="alert">
               <p className="text-sm font-medium text-destructive">Erros</p>
               <ul className="mt-1 space-y-1">
                 {erros.map((e, i) => (
