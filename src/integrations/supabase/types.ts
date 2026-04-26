@@ -112,29 +112,50 @@ export type Database = {
       apresentacao_comentarios: {
         Row: {
           comentario_automatico: string | null
+          comentario_editado: string | null
           comentario_manual: string | null
+          comentario_status: string
           created_at: string
           geracao_id: string
           id: string
+          ordem: number
+          origem: string | null
+          prioridade: number
           slide_codigo: string
+          tags_json: Json | null
+          titulo: string | null
           updated_at: string
         }
         Insert: {
           comentario_automatico?: string | null
+          comentario_editado?: string | null
           comentario_manual?: string | null
+          comentario_status?: string
           created_at?: string
           geracao_id: string
           id?: string
+          ordem?: number
+          origem?: string | null
+          prioridade?: number
           slide_codigo: string
+          tags_json?: Json | null
+          titulo?: string | null
           updated_at?: string
         }
         Update: {
           comentario_automatico?: string | null
+          comentario_editado?: string | null
           comentario_manual?: string | null
+          comentario_status?: string
           created_at?: string
           geracao_id?: string
           id?: string
+          ordem?: number
+          origem?: string | null
+          prioridade?: number
           slide_codigo?: string
+          tags_json?: Json | null
+          titulo?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -149,57 +170,87 @@ export type Database = {
       }
       apresentacao_geracoes: {
         Row: {
+          aprovado_em: string | null
+          aprovado_por: string | null
           arquivo_path: string | null
           cadencia_id: string | null
           competencia_final: string | null
           competencia_inicial: string | null
           created_at: string
+          data_origem_json: Json | null
+          empresa_id: string | null
+          fechamento_id_final: string | null
+          fechamento_id_inicial: string | null
+          gerado_em: string
           gerado_por: string | null
           hash_geracao: string | null
           id: string
+          is_final: boolean
           modo_geracao: string
           observacoes: string | null
           parametros_json: Json | null
+          slide_config_json: Json | null
           slides_json: Json | null
           status: string
           status_editorial: string | null
           template_id: string | null
+          total_slides: number | null
           updated_at: string
         }
         Insert: {
+          aprovado_em?: string | null
+          aprovado_por?: string | null
           arquivo_path?: string | null
           cadencia_id?: string | null
           competencia_final?: string | null
           competencia_inicial?: string | null
           created_at?: string
+          data_origem_json?: Json | null
+          empresa_id?: string | null
+          fechamento_id_final?: string | null
+          fechamento_id_inicial?: string | null
+          gerado_em?: string
           gerado_por?: string | null
           hash_geracao?: string | null
           id?: string
+          is_final?: boolean
           modo_geracao?: string
           observacoes?: string | null
           parametros_json?: Json | null
+          slide_config_json?: Json | null
           slides_json?: Json | null
           status?: string
           status_editorial?: string | null
           template_id?: string | null
+          total_slides?: number | null
           updated_at?: string
         }
         Update: {
+          aprovado_em?: string | null
+          aprovado_por?: string | null
           arquivo_path?: string | null
           cadencia_id?: string | null
           competencia_final?: string | null
           competencia_inicial?: string | null
           created_at?: string
+          data_origem_json?: Json | null
+          empresa_id?: string | null
+          fechamento_id_final?: string | null
+          fechamento_id_inicial?: string | null
+          gerado_em?: string
           gerado_por?: string | null
           hash_geracao?: string | null
           id?: string
+          is_final?: boolean
           modo_geracao?: string
           observacoes?: string | null
           parametros_json?: Json | null
+          slide_config_json?: Json | null
           slides_json?: Json | null
           status?: string
           status_editorial?: string | null
           template_id?: string | null
+          total_slides?: number | null
           updated_at?: string
         }
         Relationships: [
