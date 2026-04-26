@@ -10,6 +10,9 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { createLogger } from "../_shared/logger.ts";
+
+const moduleLog = createLogger("notify-admin-new-signup");
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": Deno.env.get("ALLOWED_ORIGIN") ?? "*",
@@ -59,7 +62,7 @@ Deno.serve(async (req) => {
     });
 
     if (queueError) {
-      console.error("[notify-admin-new-signup] queue error", queueError);
+      moduleLog.error("queue error", queueError);
       // Não bloqueia o signup — apenas registra
       return new Response(
         JSON.stringify({ ok: false, queued: false, error: queueError.message }),
@@ -72,7 +75,7 @@ Deno.serve(async (req) => {
       { status: 200, headers: corsHeaders },
     );
   } catch (err) {
-    console.error("[notify-admin-new-signup] error", err);
+    moduleLog.error("unexpected error", err);
     return new Response(
       JSON.stringify({ ok: false, error: String(err) }),
       { status: 500, headers: corsHeaders },
