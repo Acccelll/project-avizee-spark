@@ -73,7 +73,19 @@ export async function autorizarNFe(
     };
   }
 
-  // Sem credenciais explícitas → modo Vault (padrão recomendado).
+  // Validação: certificado A1 deve vir do Vault (conteudo+senha undefined/null)
+  // ou com ambos preenchidos. Strings vazias indicam preenchimento incompleto
+  // pelo caller e devem ser rejeitadas antes de chegar ao proxy.
+  const conteudoVazio = certificado.conteudo === "";
+  const senhaVazia = certificado.senha === "";
+  if (conteudoVazio || senhaVazia) {
+    return {
+      sucesso: false,
+      motivo:
+        "Certificado A1: conteúdo (.pfx) e senha são obrigatórios quando informados explicitamente.",
+    };
+  }
+  // Sem credenciais explícitas (undefined) → modo Vault (padrão recomendado).
   // O sefaz-proxy lerá .pfx do Storage e a senha do secret server-side.
 
   // Garante que crt e ambiente reflitam a configuração da empresa quando
