@@ -104,6 +104,7 @@ export function FreteSimuladorForm({
                                 variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground"
                                 onClick={(e) => { e.stopPropagation(); onEditarCaixa(c.id); }}
                                 title="Editar caixa"
+                                aria-label="Editar caixa"
                               >
                                 <Pencil className="h-3.5 w-3.5" />
                               </Button>
@@ -111,6 +112,7 @@ export function FreteSimuladorForm({
                                 variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive"
                                 onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(c.id); }}
                                 title="Remover caixa"
+                                aria-label="Remover caixa"
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
                               </Button>

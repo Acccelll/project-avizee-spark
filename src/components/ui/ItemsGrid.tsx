@@ -213,7 +213,7 @@ export function ItemsGrid<TProd extends ItemsGridProdutoBase>({
                 </td>
                 {!readOnly && (
                   <td className="px-3 py-2">
-                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeItem(idx)}>
+                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeItem(idx)} aria-label="Remover item">
                       <Trash2 className="w-3.5 h-3.5 text-destructive" />
                     </Button>
                   </td>
