@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
-import { TrendingUp, TrendingDown, Activity } from 'lucide-react';
+import { TrendingUp, TrendingDown, Activity, Download } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { listarSlideUsoAgregado } from '@/services/apresentacaoService';
+import { Button } from '@/components/ui/button';
+import { listarSlideUsoAgregado, downloadBlob } from '@/services/apresentacaoService';
 import { APRESENTACAO_SLIDES_MAP } from '@/lib/apresentacao/slideDefinitions';
 
 function formatDate(iso: string | null): string {
@@ -21,6 +22,26 @@ export function ApresentacaoTelemetriaPanel() {
   const bottom = sorted.filter((s) => s.total_gerado > 0).slice(-5).reverse();
   const totalGeracoes = data.reduce((acc, s) => acc + s.total_gerado, 0);
 
+  const exportarCsv = () => {
+    const header = ['slide_codigo', 'titulo', 'total_selecionado', 'total_desselecionado', 'total_gerado', 'ultimo_uso_em'];
+    const rows = sorted.map((s) => [
+      s.slide_codigo,
+      APRESENTACAO_SLIDES_MAP.get(s.slide_codigo as never)?.titulo ?? s.slide_codigo,
+      s.total_selecionado,
+      s.total_desselecionado,
+      s.total_gerado,
+      s.ultimo_uso_em ?? '',
+    ]);
+    const csv = [header, ...rows]
+      .map((r) => r.map((cell) => {
+        const v = String(cell ?? '');
+        return /[",;\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+      }).join(';'))
+      .join('\n');
+    const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' });
+    downloadBlob(blob, `apresentacao_telemetria_${new Date().toISOString().slice(0, 10)}.csv`);
+  };
+
   return (
     <Card>
       <CardHeader className="pb-2">
@@ -30,6 +51,9 @@ export function ApresentacaoTelemetriaPanel() {
           <Badge variant="outline" className="ml-auto text-[10px]">
             {totalGeracoes} eventos de geração
           </Badge>
+          <Button size="sm" variant="ghost" className="h-7 px-2" onClick={exportarCsv} disabled={!data.length}>
+            <Download className="h-3.5 w-3.5 mr-1" /> CSV
+          </Button>
         </CardTitle>
       </CardHeader>
       <CardContent>
