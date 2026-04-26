@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { listarSlideUsoAgregado, downloadBlob } from '@/services/apresentacaoService';
 import { APRESENTACAO_SLIDES_MAP } from '@/lib/apresentacao/slideDefinitions';
+import { buildTelemetriaCsv } from '@/lib/apresentacao/telemetriaCsv';
 
 function formatDate(iso: string | null): string {
   if (!iso) return '—';
@@ -23,21 +24,7 @@ export function ApresentacaoTelemetriaPanel() {
   const totalGeracoes = data.reduce((acc, s) => acc + s.total_gerado, 0);
 
   const exportarCsv = () => {
-    const header = ['slide_codigo', 'titulo', 'total_selecionado', 'total_desselecionado', 'total_gerado', 'ultimo_uso_em'];
-    const rows = sorted.map((s) => [
-      s.slide_codigo,
-      APRESENTACAO_SLIDES_MAP.get(s.slide_codigo as never)?.titulo ?? s.slide_codigo,
-      s.total_selecionado,
-      s.total_desselecionado,
-      s.total_gerado,
-      s.ultimo_uso_em ?? '',
-    ]);
-    const csv = [header, ...rows]
-      .map((r) => r.map((cell) => {
-        const v = String(cell ?? '');
-        return /[",;\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
-      }).join(';'))
-      .join('\n');
+    const csv = buildTelemetriaCsv(sorted);
     const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' });
     downloadBlob(blob, `apresentacao_telemetria_${new Date().toISOString().slice(0, 10)}.csv`);
   };
