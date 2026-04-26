@@ -1,6 +1,9 @@
 import { ViewDrawerV2, ViewField, ViewSection, DrawerStickyFooter } from "@/components/ViewDrawerV2";
 import { useDrawerData } from "@/hooks/useDrawerData";
 import { useActionLock } from "@/hooks/useActionLock";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { PermanentDeleteDialog } from "@/components/PermanentDeleteDialog";
+import { useState } from "react";
 import { getNotaFiscalPermissions } from "@/lib/drawerPermissions";
 import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSummaryCard";
 import { DrawerStatusBanner, type DrawerStatusTone } from "@/components/ui/DrawerStatusBanner";
@@ -104,6 +107,8 @@ interface NotaFiscalDrawerProps {
   onEstornar: (nf: NotaFiscal) => void;
   onDevolucao: (nf: NotaFiscal) => void;
   onDanfe: (nf: NotaFiscal) => void;
+  /** Chamado após exclusão permanente bem-sucedida (admin). */
+  onPermanentlyDeleted?: () => void;
 }
 
 // ── Component ──────────────────────────────────────────────────────────────────
@@ -111,6 +116,7 @@ interface NotaFiscalDrawerProps {
 export function NotaFiscalDrawer({
   open, onClose, selected,
   onEdit, onDelete, onConfirmar, onEstornar, onDevolucao, onDanfe,
+  onPermanentlyDeleted,
 }: NotaFiscalDrawerProps) {
   const selectedId = selected?.id ?? null;
 
