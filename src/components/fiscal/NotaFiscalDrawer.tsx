@@ -4,7 +4,6 @@ import { useActionLock } from "@/hooks/useActionLock";
 import { getNotaFiscalPermissions } from "@/lib/drawerPermissions";
 import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSummaryCard";
 import { DrawerStatusBanner, type DrawerStatusTone } from "@/components/ui/DrawerStatusBanner";
-import { EmptyState } from "@/components/ui/empty-state";
 import { DetailEmpty } from "@/components/ui/DetailStates";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RelationalLink } from "@/components/ui/RelationalLink";
