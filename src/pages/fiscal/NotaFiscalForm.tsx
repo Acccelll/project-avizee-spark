@@ -44,7 +44,6 @@ interface NotaFiscalRow {
   serie: string | null;
   data_emissao: string | null;
   natureza_operacao: string | null;
-  cfop: string | null;
   tipo: string;
   cliente_id: string | null;
   fornecedor_id: string | null;
@@ -67,7 +66,6 @@ function rowToFormDefaults(row: NotaFiscalRow): Partial<NFeFormData> {
     serie: row.serie ?? "1",
     dataEmissao: row.data_emissao ?? new Date().toISOString().split("T")[0],
     naturezaOperacao: row.natureza_operacao ?? "",
-    cfop: row.cfop ?? "",
     tipoOperacao: (row.tipo as "entrada" | "saida") ?? "saida",
     clienteId: row.cliente_id ?? undefined,
     fornecedorId: row.fornecedor_id ?? undefined,
@@ -103,7 +101,7 @@ export default function NotaFiscalFormPage() {
       const { data, error } = await supabase
         .from("notas_fiscais")
         .select(
-          "id, numero, serie, data_emissao, natureza_operacao, cfop, tipo, cliente_id, fornecedor_id, forma_pagamento, condicao_pagamento, frete_modalidade, frete_valor, desconto_valor, outras_despesas, observacoes, status, status_sefaz, pedido_compra_id",
+          "id, numero, serie, data_emissao, natureza_operacao, tipo, cliente_id, fornecedor_id, forma_pagamento, condicao_pagamento, frete_modalidade, frete_valor, desconto_valor, outras_despesas, observacoes, status, status_sefaz, pedido_compra_id",
         )
         .eq("id", id!)
         .maybeSingle();
@@ -138,7 +136,6 @@ export default function NotaFiscalFormPage() {
         serie: formData.serie,
         data_emissao: formData.dataEmissao,
         natureza_operacao: formData.naturezaOperacao,
-        cfop: formData.cfop,
         tipo: formData.tipoOperacao,
         cliente_id: formData.clienteId || null,
         fornecedor_id: formData.fornecedorId || null,
