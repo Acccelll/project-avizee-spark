@@ -67,7 +67,7 @@ export function CertificadoValidadeAlert() {
 
   if (diasRestantes <= 30) {
     return (
-      <Alert className="border-yellow-500 text-yellow-800 [&>svg]:text-yellow-600">
+      <Alert className="border-warning/50 bg-warning/5 text-warning [&>svg]:text-warning">
         <AlertTriangle className="h-4 w-4" />
         <AlertTitle>Certificado Digital expira em {diasRestantes} dias</AlertTitle>
         <AlertDescription>

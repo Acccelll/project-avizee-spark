@@ -22,9 +22,10 @@ export interface SefazRetornoModalProps {
 
 function getStatusBadge(status?: string) {
   if (!status) return <Badge variant="secondary">—</Badge>;
-  if (status === "100") return <Badge className="bg-green-600">Autorizado ({status})</Badge>;
+  if (status === "100")
+    return <Badge className="bg-success text-success-foreground">Autorizado ({status})</Badge>;
   if (status === "135" || status === "155")
-    return <Badge className="bg-orange-500">Cancelado ({status})</Badge>;
+    return <Badge className="bg-warning text-warning-foreground">Cancelado ({status})</Badge>;
   return <Badge variant="destructive">Rejeitado ({status})</Badge>;
 }
 
