@@ -1,5 +1,9 @@
 import { sendLovableEmail } from 'npm:@lovable.dev/email-js'
 import { createClient } from 'npm:@supabase/supabase-js@2'
+import { createLogger } from '../_shared/logger.ts'
+
+// Logger module-level (sem request) usado por helpers chamados fora do handler.
+const moduleLog = createLogger('process-email-queue')
 
 const MAX_RETRIES = 5
 const DEFAULT_BATCH_SIZE = 10
