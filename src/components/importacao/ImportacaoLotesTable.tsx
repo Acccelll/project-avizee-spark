@@ -80,9 +80,9 @@ export function ImportacaoLotesTable({ lotes, isLoading, onView, onImport, onDel
             <TableHead>Arquivo</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="text-center">Lidos</TableHead>
-            <TableHead className="text-center text-emerald-600">Válidos</TableHead>
-            <TableHead className="text-center text-rose-600">Erros</TableHead>
-            <TableHead className="text-center text-blue-600">Importados</TableHead>
+            <TableHead className="text-center text-success">Válidos</TableHead>
+            <TableHead className="text-center text-destructive">Erros</TableHead>
+            <TableHead className="text-center text-info">Importados</TableHead>
             <TableHead className="text-right">Ações</TableHead>
           </TableRow>
         </TableHeader>
@@ -100,9 +100,9 @@ export function ImportacaoLotesTable({ lotes, isLoading, onView, onImport, onDel
                 <ImportacaoStatusBadge status={lote.status} />
               </TableCell>
               <TableCell className="text-center font-semibold">{lote.total_registros}</TableCell>
-              <TableCell className="text-center font-semibold text-emerald-600">{lote.registros_sucesso}</TableCell>
-              <TableCell className="text-center font-semibold text-rose-600">{lote.registros_erro}</TableCell>
-              <TableCell className="text-center font-semibold text-blue-600">{lote.registros_sucesso}</TableCell>
+              <TableCell className="text-center font-semibold text-success">{lote.registros_sucesso}</TableCell>
+              <TableCell className="text-center font-semibold text-destructive">{lote.registros_erro}</TableCell>
+              <TableCell className="text-center font-semibold text-info">{lote.registros_sucesso}</TableCell>
               <TableCell className="text-right">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -123,7 +123,7 @@ export function ImportacaoLotesTable({ lotes, isLoading, onView, onImport, onDel
                       </DropdownMenuItem>
                     )}
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem className="text-rose-600" onClick={() => onDelete?.(lote.id)}>
+                    <DropdownMenuItem className="text-destructive" onClick={() => onDelete?.(lote.id)}>
                       <Trash2 className="mr-2 h-4 w-4" />
                       Excluir Lote
                     </DropdownMenuItem>
