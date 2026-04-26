@@ -110,16 +110,39 @@ export default function ApresentacaoGerencial() {
   });
 
   if (!canVisualizar) {
-    return <><ModulePage title="Apresentação Gerencial">Sem permissão para visualizar.</ModulePage></>;
+    return (
+      <ModulePage title="Apresentação Gerencial">
+        <div className="rounded-md border border-border bg-muted/40 p-6 text-center text-sm text-muted-foreground">
+          Sem permissão para visualizar.
+        </div>
+      </ModulePage>
+    );
   }
 
   return (
     <><ModulePage
         title="Apresentação Gerencial"
         headerActions={
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => refetch()}><RefreshCcw className="h-4 w-4 mr-1" />Atualizar</Button>
-            {canGerar && <Button size="sm" onClick={() => setDialogOpen(true)}><Plus className="h-4 w-4 mr-1" />Novo rascunho</Button>}
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => refetch()}
+              className="h-11 sm:h-9"
+            >
+              <RefreshCcw className="h-4 w-4 mr-1" />
+              Atualizar
+            </Button>
+            {canGerar && (
+              <Button
+                size="sm"
+                onClick={() => setDialogOpen(true)}
+                className="h-11 sm:h-9"
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                Novo rascunho
+              </Button>
+            )}
           </div>
         }
       >
