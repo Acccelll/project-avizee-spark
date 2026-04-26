@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
-import { isPathActive, type NavSection, type NavSectionKey } from '@/lib/navigation';
+import { isPathActive, flatNavItems, type NavSection, type NavSectionKey } from '@/lib/navigation';
 import { useUserPreference } from '@/hooks/useUserPreference';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -32,13 +32,41 @@ export function useNavigationState(visibleSections: NavSection[]): NavigationSta
   const { user } = useAuth();
   const currentRoute = `${location.pathname}${location.search}`;
 
+  /**
+   * Bases de todos os itens de navegação conhecidos. Usadas para resolver o
+   * conflito de prefixo: quando o pathname é, por exemplo,
+   * `/relatorios/workbook-gerencial`, tanto `/relatorios` quanto
+   * `/relatorios/workbook-gerencial` dariam match via `startsWith`. Apenas o
+   * item de base **mais longa** deve ser considerado ativo.
+   */
+  const knownBases = useMemo(
+    () => flatNavItems.map((item) => item.path.split('?')[0]),
+    [],
+  );
+
+  const mostSpecificActiveBase = useMemo(() => {
+    const matches = knownBases.filter(
+      (base) => location.pathname === base || location.pathname.startsWith(`${base}/`),
+    );
+    if (!matches.length) return null;
+    return matches.reduce((a, b) => (b.length > a.length ? b : a));
+  }, [knownBases, location.pathname]);
+
   const isItemActive = useCallback(
     (targetPath: string) => {
       const [targetBase, targetQuery] = targetPath.split('?');
       if (targetQuery) return currentRoute === targetPath;
-      return location.pathname === targetBase || location.pathname.startsWith(`${targetBase}/`);
+      const matchesPrefix =
+        location.pathname === targetBase || location.pathname.startsWith(`${targetBase}/`);
+      if (!matchesPrefix) return false;
+      // Se existe um item conhecido mais específico que também casa,
+      // este (menos específico) NÃO deve ser destacado como ativo.
+      if (mostSpecificActiveBase && mostSpecificActiveBase !== targetBase) {
+        return false;
+      }
+      return true;
     },
-    [currentRoute, location.pathname],
+    [currentRoute, location.pathname, mostSpecificActiveBase],
   );
 
   const activeSectionKeys = useMemo<NavSectionKey[]>(
