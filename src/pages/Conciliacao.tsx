@@ -13,6 +13,9 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
+import { PeriodFilter, type PeriodValue } from "@/components/filters/PeriodFilter";
+import { periodToDateFrom, periodToDateTo } from "@/lib/periodFilter";
+import type { Period } from "@/components/filters/periodTypes";
 import { supabase } from "@/integrations/supabase/client";
 import { parseOFX, type OFXTransaction } from "@/lib/parseOFX";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -603,22 +606,21 @@ export default function Conciliacao() {
             </Select>
           </div>
 
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">De</label>
-            <Input
-              type="date"
-              value={dataInicio}
-              onChange={(e) => setDataInicio(e.target.value)}
-              className="w-36"
-            />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Até</label>
-            <Input
-              type="date"
-              value={dataFim}
-              onChange={(e) => setDataFim(e.target.value)}
-              className="w-36"
+          <div className="flex items-end">
+            <PeriodFilter
+              mode="both"
+              value={{ preset: null, from: dataInicio || null, to: dataFim || null }}
+              onChange={(next: PeriodValue) => {
+                if (next.preset) {
+                  const from = periodToDateFrom(next.preset as Period);
+                  const to = periodToDateTo(next.preset as Period) ?? new Date().toISOString().slice(0, 10);
+                  setDataInicio(from);
+                  setDataFim(to);
+                  return;
+                }
+                setDataInicio(next.from || "");
+                setDataFim(next.to || "");
+              }}
             />
           </div>
 
