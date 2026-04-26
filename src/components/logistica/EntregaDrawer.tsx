@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSummaryCard";
 import { DrawerStatusBanner } from "@/components/ui/DrawerStatusBanner";
 import { EmptyState } from "@/components/ui/empty-state";
+import { DetailEmpty } from "@/components/ui/DetailStates";
+import { Skeleton } from "@/components/ui/skeleton";
 import { formatDate, formatNumber } from "@/lib/format";
 import {
   Truck,
@@ -242,9 +244,12 @@ export function EntregaDrawer({ open, onClose, entrega }: EntregaDrawerProps) {
       </ViewSection>
 
       {loading ? (
-        <p className="text-xs text-muted-foreground text-center py-3">Carregando itens...</p>
+        <div className="space-y-2 py-1" aria-busy="true" aria-label="Carregando itens">
+          <Skeleton tone="card" className="h-12 w-full" />
+          <Skeleton tone="card" className="h-12 w-full" />
+        </div>
       ) : itens.length === 0 ? (
-        <EmptyState icon={Package} title="Nenhum item vinculado ao pedido" />
+        <DetailEmpty icon={Package} title="Nenhum item vinculado ao pedido" className="py-8" />
       ) : (
         <ViewSection title={`Itens do Pedido (${itens.length})`}>
           <div className="space-y-2">
@@ -426,10 +431,11 @@ export function EntregaDrawer({ open, onClose, entrega }: EntregaDrawerProps) {
           </div>
         </ViewSection>
       ) : (
-        <EmptyState
+        <DetailEmpty
           icon={AlertTriangle}
           title="Nenhuma ocorrência registrada"
-          description="Ocorrências como atraso, devolução e entrega parcial aparecerão aqui."
+          message="Ocorrências como atraso, devolução e entrega parcial aparecerão aqui."
+          className="py-8"
         />
       )}
     </div>
