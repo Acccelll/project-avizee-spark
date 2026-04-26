@@ -9,8 +9,8 @@ import { cancelarNFe } from "../cancelamento.service";
 
 const mockEnviar = enviarParaSefaz as unknown as ReturnType<typeof vi.fn>;
 
-const certificadoVault = { conteudo: "", senha: "" };
-const certificadoInline = { conteudo: "BASE64==", senha: "secret" };
+const certificadoVault = { tipo: "A1" as const, conteudo: "", senha: "" };
+const certificadoInline = { tipo: "A1" as const, conteudo: "BASE64==", senha: "secret" };
 const emitente = { cnpj: "12345678000190" };
 const url = "https://homologacao.nfe.fazenda.sp.gov.br/ws/nferecepcaoevento4.asmx";
 const chave = "35200512345678000190550010000000011000000019";
