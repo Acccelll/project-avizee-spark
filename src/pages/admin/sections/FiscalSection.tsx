@@ -179,7 +179,7 @@ export function FiscalSection() {
               </ul>
             </div>
             <Separator />
-            <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 px-3 py-2.5 text-sm text-amber-800 dark:text-amber-300">
+            <div className="flex items-start gap-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-2.5 text-sm text-warning">
               <Info className="h-4 w-4 mt-0.5 shrink-0" />
               <p>
                 Esses valores são <strong>parâmetros armazenados</strong> e ainda não são consumidos automaticamente por todos os módulos fiscais. Servem como referência e base para futuras integrações.

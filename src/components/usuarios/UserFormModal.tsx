@@ -425,7 +425,7 @@ export function UserFormModal({
             </div>
             {isEdit && user?.id === currentUser?.id && (
               <p className="text-[11px] text-muted-foreground flex items-center gap-1">
-                <AlertTriangle className="h-3 w-3 text-amber-500" />
+                <AlertTriangle className="h-3 w-3 text-warning" />
                 Você não pode inativar a própria conta.
               </p>
             )}
