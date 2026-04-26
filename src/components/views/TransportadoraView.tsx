@@ -18,6 +18,8 @@ import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSumm
 import { RecordIdentityCard } from "@/components/ui/RecordIdentityCard";
 import { DetailLoading, DetailError, DetailEmpty } from "@/components/ui/DetailStates";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { PermanentDeleteDialog } from "@/components/PermanentDeleteDialog";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { toast } from "sonner";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 
@@ -85,8 +87,10 @@ const REMESSA_STATUS: Record<string, { label: string; classes: string }> = {
 export function TransportadoraView({ id }: Props) {
   const navigate = useNavigate();
   const { clearStack } = useRelationalNavigation();
+  const { isAdmin } = useIsAdmin();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [permDeleteOpen, setPermDeleteOpen] = useState(false);
 
   const { data, loading, error } = useDetailFetch<TransportadoraDetail>(id, async (tId, signal) => {
     const { data: t, error: tErr } = await supabase
@@ -184,6 +188,17 @@ export function TransportadoraView({ id }: Props) {
         >
           <Trash2 className="h-3.5 w-3.5" /> Inativar
         </Button>
+        {isAdmin && transportadora.ativo === false && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+            aria-label="Excluir transportadora permanentemente"
+            onClick={() => setPermDeleteOpen(true)}
+          >
+            <Trash2 className="h-3.5 w-3.5" /> Excluir definitivamente
+          </Button>
+        )}
       </>
     ) : undefined,
   });
@@ -385,6 +400,21 @@ export function TransportadoraView({ id }: Props) {
             ? `Esta transportadora possui ${clientes.length} cliente(s) vinculado(s) e ${remessas.length} remessa(s). Ao inativar, ela deixará de aparecer em novas seleções; o histórico será preservado.`
             : `Tem certeza que deseja inativar "${transportadora.nome_razao_social}"? Você pode reativá-la a qualquer momento.`
         }
+      />
+
+      <PermanentDeleteDialog
+        open={permDeleteOpen}
+        onClose={() => setPermDeleteOpen(false)}
+        table="transportadoras"
+        id={id}
+        entityLabel="transportadora"
+        recordName={transportadora.nome_razao_social}
+        warning={
+          clientes.length > 0 || remessas.length > 0
+            ? `Existem ${clientes.length} cliente(s) e ${remessas.length} remessa(s) vinculados. A exclusão será bloqueada se houver referências ativas.`
+            : undefined
+        }
+        onDeleted={() => clearStack()}
       />
     </div>
   );
