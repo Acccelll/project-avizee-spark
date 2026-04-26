@@ -158,7 +158,7 @@ export default function Budget() {
                   <TableCell className="text-muted-foreground">{r.observacoes ?? '—'}</TableCell>
                   {canEdit && (
                     <TableCell>
-                      <Button variant="ghost" size="icon" onClick={() => deleteMutation.mutate(r.id)} disabled={deleteMutation.isPending}>
+                      <Button variant="ghost" size="icon" onClick={() => deleteMutation.mutate(r.id)} disabled={deleteMutation.isPending} aria-label="Excluir lançamento de budget">
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </TableCell>

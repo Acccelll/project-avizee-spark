@@ -18,6 +18,7 @@ import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
 import { ViewDrawerV2 } from "@/components/ViewDrawerV2";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { EmptyState } from "@/components/ui/empty-state";
 import { useCan } from "@/hooks/useCan";
 import { useRelationalNavigation } from "@/contexts/RelationalNavigationContext";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
@@ -50,7 +51,7 @@ import {
 import {
   Eye, AlertTriangle, Truck, Package, CheckCheck, ExternalLink, Loader2,
   Edit, Trash2, Plus, MapPin, Package as PackageIcon, Search, Clock, Timer,
-  ChevronDown,
+  ChevronDown, History,
 } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
@@ -873,7 +874,12 @@ export default function Logistica() {
                   <Button size="sm" onClick={handleAddEvento} disabled={savingEvento} className="max-sm:h-11 max-sm:w-full"><Plus className="h-3.5 w-3.5 mr-1" />{savingEvento ? "Salvando..." : "Adicionar"}</Button>
                 </div>
                 {eventos.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-6">Nenhum evento registrado</p>
+                  <EmptyState
+                    icon={History}
+                    title="Nenhum evento registrado"
+                    description="Adicione o primeiro evento de rastreamento usando o formulário acima."
+                    className="py-6"
+                  />
                 ) : (
                   <div className="space-y-0">
                     {eventos.map((ev, i) => (

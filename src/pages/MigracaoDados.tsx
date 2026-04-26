@@ -634,7 +634,7 @@ export default function MigracaoDados() {
                   </SelectContent>
                 </Select>
 
-                <Button variant="ghost" size="icon" title="Mais filtros">
+                <Button variant="ghost" size="icon" title="Mais filtros" aria-label="Mais filtros">
                   <Filter className="h-4 w-4" />
                 </Button>
               </div>

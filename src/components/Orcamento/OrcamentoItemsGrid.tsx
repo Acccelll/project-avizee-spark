@@ -323,8 +323,8 @@ export function OrcamentoItemsGrid({ items, onChange, produtos, precosEspeciais 
                   <td className="px-2 py-1.5">
                     <div className="flex gap-1 items-center">
                       <AutocompleteSearch options={getProductOptions()} value={item.produto_id} onChange={(val) => updateItem(idx, "produto_id", val)} placeholder="Buscar produto..." className="flex-1" onCreateNew={() => window.open('/produtos', '_blank')} createNewLabel="Produto não encontrado? Cadastrar" dropdownMinWidth="min-w-[420px]" />
-                      <ProductSelector produtos={produtos} onSelect={(p) => updateItem(idx, "produto_id", p.id)} trigger={<Button variant="outline" size="icon" className="h-7 w-7"><Search className="h-3 w-3" /></Button>} />
-                      {item.produto_id && <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => setDetailProductId(item.produto_id)}><Info className="h-3 w-3" /></Button>}
+                      <ProductSelector produtos={produtos} onSelect={(p) => updateItem(idx, "produto_id", p.id)} trigger={<Button variant="outline" size="icon" className="h-7 w-7" aria-label="Buscar produto"><Search className="h-3 w-3" /></Button>} />
+                      {item.produto_id && <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => setDetailProductId(item.produto_id)} aria-label="Detalhes do produto"><Info className="h-3 w-3" /></Button>}
                     </div>
                     {hasSpecial && <p className="text-[11px] text-primary mt-1">Preço especial para este cliente aplicado.</p>}
                     {item.variacao && (

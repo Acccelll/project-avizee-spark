@@ -372,7 +372,7 @@ export default function Socios() {
                         <td className="p-3">{formatDate(p.vigencia_inicio)}</td>
                         <td className="p-3">{p.vigencia_fim ? formatDate(p.vigencia_fim) : "—"}</td>
                         <td className="p-3 text-right">
-                          <Button size="icon" variant="ghost" onClick={() => removePart.mutate(p.id)}>
+                          <Button size="icon" variant="ghost" onClick={() => removePart.mutate(p.id)} aria-label="Remover participação">
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </td>

@@ -44,7 +44,7 @@ export function ProductSelector({ produtos, onSelect, trigger }: ProductSelector
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         {trigger || (
-          <Button variant="outline" size="icon" className="h-8 w-8">
+          <Button variant="outline" size="icon" className="h-8 w-8" aria-label="Selecionar produto">
             <Search className="h-4 w-4" />
           </Button>
         )}
@@ -140,7 +140,7 @@ export function ClientSelector({ clientes, onSelect, trigger }: ClientSelectorPr
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         {trigger || (
-          <Button variant="outline" size="icon" className="h-10 w-10">
+          <Button variant="outline" size="icon" className="h-10 w-10" aria-label="Selecionar cliente">
             <Search className="h-4 w-4" />
           </Button>
         )}
