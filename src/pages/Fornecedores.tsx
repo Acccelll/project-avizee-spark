@@ -702,7 +702,7 @@ const Fornecedores = () => {
           <div className="flex items-center gap-2 pb-1">
             <ShoppingCart className="w-4 h-4 text-primary/70" />
             <h3 className="font-semibold text-sm">Condições de Compra</h3>
-            <span className="ml-auto text-xs bg-info/10 text-info border border-info/30 dark:bg-blue-950/40 dark:text-info dark:border-info rounded-full px-2 py-0.5 leading-none">
+            <span className="ml-auto text-xs bg-info/10 text-info border border-info/30 dark:text-info dark:border-info rounded-full px-2 py-0.5 leading-none">
               Aplica-se a compras e financeiro
             </span>
           </div>

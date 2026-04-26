@@ -61,7 +61,7 @@ function ComparativoFornecedores({ viewItems, viewPropostas }: { viewItems: Cota
           const total = colTotals[si];
           const isWinner = total > 0 && total === bestColTotal;
           return (
-            <div key={sid} className={`rounded-lg border p-3 space-y-2 ${isWinner ? "border-success/40 bg-success/10/30 dark:bg-emerald-950/10" : "bg-card"}`}>
+            <div key={sid} className={`rounded-lg border p-3 space-y-2 ${isWinner ? "border-success/40 bg-success/20" : "bg-card"}`}>
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold truncate">{supplierNames[si]}</p>
@@ -251,7 +251,7 @@ export function CotacaoCompraPropostasPanel({
                       <div
                         key={p.id}
                         className={`rounded-lg border p-3 text-sm md:flex md:items-center md:justify-between md:py-2 ${
-                          p.selecionado ? "border-primary bg-primary/5 ring-1 ring-primary/20" : isBest ? "border-success/30 bg-success/10/50 dark:bg-emerald-950/20" : ""
+                          p.selecionado ? "border-primary bg-primary/5 ring-1 ring-primary/20" : isBest ? "border-success/30 bg-success/20" : ""
                         }`}
                       >
                         <div className="flex items-start justify-between gap-2 md:items-center md:gap-2 md:min-w-0 md:flex-1">

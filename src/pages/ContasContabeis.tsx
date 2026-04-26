@@ -41,9 +41,9 @@ interface ContaContabil {
 }
 
 const NATUREZA_STYLES: Record<string, string> = {
-  devedora: "border-info/40 text-info dark:text-info bg-info/10/60 dark:bg-blue-950/30",
-  credora:  "border-success/40 text-success dark:text-success bg-success/10/60 dark:bg-emerald-950/30",
-  mista:    "border-accent/40 text-accent-foreground dark:text-accent-foreground bg-accent/30/60 dark:bg-violet-950/30",
+  devedora: "border-info/40 text-info dark:text-info bg-info/20",
+  credora:  "border-success/40 text-success dark:text-success bg-success/20",
+  mista:    "border-accent/40 text-accent-foreground dark:text-accent-foreground bg-accent/20",
 };
 
 // ---------------------------------------------------------------------------

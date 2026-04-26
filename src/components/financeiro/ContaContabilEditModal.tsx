@@ -525,7 +525,7 @@ export function ContaContabilEditModal({
             </div>
 
             {inativarComVinculos && (
-              <Alert className="mt-3 py-2 border-warning/30 bg-warning/10 dark:bg-amber-950/20">
+              <Alert className="mt-3 py-2 border-warning/30 bg-warning/10">
                 <AlertTriangle className="h-4 w-4 text-warning" />
                 <AlertDescription className="text-xs text-warning dark:text-warning">
                   <strong>Atenção:</strong> esta conta possui {totalVinculos} vínculo

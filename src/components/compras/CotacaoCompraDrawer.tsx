@@ -189,7 +189,7 @@ export function CotacaoCompraDrawer({
                         </div>
                       )}
                       {drawerStats.selectedSupplierName && (
-                        <div className="flex items-start gap-2 rounded-lg border border-success/30 bg-success/10/50 dark:bg-emerald-950/20 px-3 py-2 text-xs text-success dark:text-success">
+                        <div className="flex items-start gap-2 rounded-lg border border-success/30 bg-success/20 px-3 py-2 text-xs text-success dark:text-success">
                           <Trophy className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
                           Fornecedor selecionado: <strong className="ml-1">{drawerStats.selectedSupplierName}</strong>
                         </div>
@@ -242,7 +242,7 @@ export function CotacaoCompraDrawer({
                       </div>
                     )}
                     {selected.status === "aprovada" && (
-                      <div className="flex items-start gap-2 rounded-lg border border-success/30 bg-success/10/50 dark:bg-emerald-950/20 px-4 py-3 text-sm text-success dark:text-success">
+                      <div className="flex items-start gap-2 rounded-lg border border-success/30 bg-success/20 px-4 py-3 text-sm text-success dark:text-success">
                         <ThumbsUp className="h-4 w-4 mt-0.5 flex-shrink-0" />
                         <div><p className="font-semibold">Cotação aprovada</p><p className="text-xs mt-0.5 opacity-80">Pronta para conversão em Pedido de Compra.</p></div>
                       </div>
@@ -344,7 +344,7 @@ export function CotacaoCompraDrawer({
                     </div>
 
                     {!["aprovada", "convertida", "rejeitada", "cancelada"].includes(selected.status) && drawerStats.allItemsHaveSelected && (
-                      <div className="flex items-start gap-2 rounded-lg border border-success/30 bg-success/10/50 dark:bg-emerald-950/20 px-3 py-2 text-xs text-success dark:text-success">
+                      <div className="flex items-start gap-2 rounded-lg border border-success/30 bg-success/20 px-3 py-2 text-xs text-success dark:text-success">
                         <Info className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
                         Todos os itens têm fornecedor selecionado. Envie para aprovação ou aprove diretamente.
                       </div>

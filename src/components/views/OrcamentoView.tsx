@@ -293,7 +293,7 @@ export function OrcamentoView({ id }: Props) {
         {/* --- RESUMO --- */}
         <TabsContent value="resumo" className="space-y-3 mt-3 text-sm">
           {isExpired && (
-            <div className="flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/20 p-3 text-xs text-amber-800 dark:text-amber-400">
+            <div className="flex items-center gap-2 rounded-lg border border-warning/40 bg-warning/10 p-3 text-xs text-warning">
               <AlertTriangle className="h-4 w-4 shrink-0" />
               <span>Este orçamento está expirado (validade: {formatDate(selected.validade)}).</span>
             </div>
@@ -316,7 +316,7 @@ export function OrcamentoView({ id }: Props) {
             {selected.validade && (
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Validade</span>
-                <span className={isExpired ? "text-amber-600 font-medium" : ""}>{formatDate(selected.validade)}</span>
+                <span className={isExpired ? "text-warning font-medium" : ""}>{formatDate(selected.validade)}</span>
               </div>
             )}
             <div className="flex justify-between items-center">
@@ -446,7 +446,7 @@ export function OrcamentoView({ id }: Props) {
             {selected.validade && (
               <div>
                 <p className="text-[10px] text-muted-foreground uppercase font-semibold">Validade</p>
-                <p className={isExpired ? "text-amber-600 font-medium" : ""}>{formatDate(selected.validade)}</p>
+                <p className={isExpired ? "text-warning font-medium" : ""}>{formatDate(selected.validade)}</p>
               </div>
             )}
           </div>

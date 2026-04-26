@@ -1001,13 +1001,13 @@ const Produtos = () => {
               </div>
               <div className="space-y-2">
                 <Label className="text-xs text-muted-foreground">Lucro Bruto</Label>
-                <div className={`h-9 flex items-center font-mono text-sm font-semibold border rounded-md px-3 ${lucroBruto >= 0 ? "text-success bg-success/10 dark:bg-emerald-950/30" : "text-destructive bg-destructive/5"}`}>
+                <div className={`h-9 flex items-center font-mono text-sm font-semibold border rounded-md px-3 ${lucroBruto >= 0 ? "text-success bg-success/10" : "text-destructive bg-destructive/5"}`}>
                   {formatCurrency(lucroBruto)}
                 </div>
               </div>
               <div className="space-y-2">
                 <Label className="text-xs text-muted-foreground">Margem</Label>
-                <div className={`h-9 flex items-center font-mono text-sm font-semibold border rounded-md px-3 ${margemPercent >= 0 ? "text-success bg-success/10 dark:bg-emerald-950/30" : "text-destructive bg-destructive/5"}`}>
+                <div className={`h-9 flex items-center font-mono text-sm font-semibold border rounded-md px-3 ${margemPercent >= 0 ? "text-success bg-success/10" : "text-destructive bg-destructive/5"}`}>
                   {custoParaCalculo > 0 ? `${margemPercent.toFixed(1)}%` : "—"}
                 </div>
               </div>
