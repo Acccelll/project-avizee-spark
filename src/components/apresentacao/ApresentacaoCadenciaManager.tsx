@@ -124,9 +124,9 @@ export function ApresentacaoCadenciaManager({ cadencias, templates, canManage, i
       <div className="space-y-2">
         {cadencias.length === 0 && <p className="text-xs text-muted-foreground">Nenhuma cadência configurada.</p>}
         {cadencias.map((c) => (
-          <div key={c.id} className="flex items-center justify-between rounded-md border p-3 text-sm">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
+          <div key={c.id} className="flex flex-col gap-3 rounded-md border p-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-1 min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="font-medium">{c.nome}</span>
                 <Badge variant={c.ativo ? 'default' : 'secondary'}>{c.ativo ? 'Ativa' : 'Inativa'}</Badge>
                 <Badge variant="outline">Dia {c.dia_do_mes}</Badge>
@@ -138,11 +138,24 @@ export function ApresentacaoCadenciaManager({ cadencias, templates, canManage, i
               </div>
             </div>
             {canManage && (
-              <div className="flex gap-2">
-                <Button size="sm" variant="outline" onClick={() => handleRun(c.id)} disabled={running === c.id}>
+              <div className="flex gap-2 self-end sm:self-auto">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-11 w-11 sm:h-9 sm:w-9"
+                  aria-label={`Executar cadência ${c.nome}`}
+                  onClick={() => handleRun(c.id)}
+                  disabled={running === c.id}
+                >
                   {running === c.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
                 </Button>
-                <Button size="sm" variant="ghost" onClick={() => onRemove(c.id).catch((e) => toast.error(String(e)))}>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-11 w-11 sm:h-9 sm:w-9"
+                  aria-label={`Remover cadência ${c.nome}`}
+                  onClick={() => onRemove(c.id).catch((e) => toast.error(String(e)))}
+                >
                   <Trash2 className="h-4 w-4 text-destructive" />
                 </Button>
               </div>
