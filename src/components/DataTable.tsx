@@ -150,6 +150,15 @@ interface DataTableProps<T> {
    * Tipicamente uma coluna que renderiza `<StatusBadge />`.
    */
   mobileStatusKey?: string;
+  /**
+   * Função opcional que retorna a cor de acento (faixa lateral) para a linha
+   * com base no item. Permite indicar status/saúde do registro com baixa
+   * carga visual, sem ocupar uma coluna. Use tokens semânticos do DS.
+   *
+   * @example
+   * rowAccent={(p) => p.estoque < p.estoque_minimo ? 'destructive' : null}
+   */
+  rowAccent?: (item: T) => 'success' | 'warning' | 'destructive' | 'info' | 'primary' | null | undefined;
 }
 
 type SortDirection = 'asc' | 'desc' | null;
