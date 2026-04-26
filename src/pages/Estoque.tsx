@@ -160,6 +160,31 @@ const Estoque = () => {
     return { totalItens, valorEstoque, itensCriticos, ajustesManuais };
   }, [produtosCrud.data, abaixoMinimo, data]);
 
+  // Sparklines: contagem diária dos últimos 14 dias por tipo de movimento.
+  // Mostra a tendência recente sem nova query — usa o `data` já carregado.
+  const sparklines = useMemo(() => {
+    const days = 14;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const buckets: { saida: number[]; ajuste: number[]; entrada: number[] } = {
+      saida: new Array(days).fill(0),
+      ajuste: new Array(days).fill(0),
+      entrada: new Array(days).fill(0),
+    };
+    for (const m of data) {
+      if (!m.created_at) continue;
+      const d = new Date(m.created_at);
+      d.setHours(0, 0, 0, 0);
+      const diff = Math.floor((today.getTime() - d.getTime()) / 86400000);
+      if (diff < 0 || diff >= days) continue;
+      const idx = days - 1 - diff;
+      if (m.tipo === "saida" && buckets.saida[idx] !== undefined) buckets.saida[idx]++;
+      else if (m.tipo === "ajuste" && buckets.ajuste[idx] !== undefined) buckets.ajuste[idx]++;
+      else if (m.tipo === "entrada" && buckets.entrada[idx] !== undefined) buckets.entrada[idx]++;
+    }
+    return buckets;
+  }, [data]);
+
   // Posição atual / Saldos
   const posicaoAtual = useMemo(() => {
     const q = searchPosicao.toLowerCase();
@@ -426,6 +451,7 @@ const Estoque = () => {
               variationType={kpis.itensCriticos > 0 ? "negative" : "positive"}
               variant={kpis.itensCriticos > 0 ? "danger" : undefined}
               onClick={kpis.itensCriticos > 0 ? () => { setActiveTab("saldos"); setSituacaoFilters(["critico", "zerado"]); } : undefined}
+              sparklineData={sparklines.saida}
             />
             <SummaryCard
               title="Ajustes Manuais"
@@ -434,6 +460,7 @@ const Estoque = () => {
               variation="evento sensível auditável"
               variationType="negative"
               variant="warning"
+              sparklineData={sparklines.ajuste}
             />
           </>
         }
