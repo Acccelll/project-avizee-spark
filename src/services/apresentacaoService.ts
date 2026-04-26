@@ -416,3 +416,81 @@ export async function executarCadenciaAgora(cadenciaId: string): Promise<unknown
   if (error) throw error;
   return data;
 }
+
+// ===================== Preferências do usuário (F9) =====================
+
+export interface ApresentacaoPreferencias {
+  ultimo_template_id: string | null;
+  ultimo_modo_geracao: ApresentacaoModoGeracao | null;
+  ultimos_slides_codigos: string[];
+  ultima_competencia_inicial: string | null;
+  ultima_competencia_final: string | null;
+  exigir_revisao_padrao: boolean;
+}
+
+export async function carregarPreferenciasApresentacao(): Promise<ApresentacaoPreferencias | null> {
+  const { data: userData } = await supabase.auth.getUser();
+  const userId = userData.user?.id;
+  if (!userId) return null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase as any)
+    .from('apresentacao_preferencias')
+    .select('*')
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (error) return null;
+  return (data as ApresentacaoPreferencias | null) ?? null;
+}
+
+export async function salvarPreferenciasApresentacao(prefs: ApresentacaoPreferencias): Promise<void> {
+  const { data: userData } = await supabase.auth.getUser();
+  const userId = userData.user?.id;
+  if (!userId) return;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await (supabase as any)
+    .from('apresentacao_preferencias')
+    .upsert(
+      { user_id: userId, ...prefs, updated_at: new Date().toISOString() },
+      { onConflict: 'user_id' },
+    );
+}
+
+// ===================== Telemetria de slides (F9) =====================
+
+export type TelemetriaAcao = 'selecionado' | 'desselecionado' | 'gerado';
+
+export async function registrarTelemetriaSlides(
+  slides: string[],
+  acao: TelemetriaAcao,
+  geracaoId?: string,
+): Promise<void> {
+  if (!slides.length) return;
+  const { data: userData } = await supabase.auth.getUser();
+  const userId = userData.user?.id ?? null;
+  const rows = slides.map((slide_codigo) => ({
+    slide_codigo,
+    acao,
+    user_id: userId,
+    geracao_id: geracaoId ?? null,
+  }));
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await (supabase as any).from('apresentacao_slide_telemetria').insert(rows);
+}
+
+export interface SlideUsoAggregado {
+  slide_codigo: string;
+  total_selecionado: number;
+  total_desselecionado: number;
+  total_gerado: number;
+  ultimo_uso_em: string | null;
+}
+
+export async function listarSlideUsoAgregado(): Promise<SlideUsoAggregado[]> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase as any)
+    .from('vw_apresentacao_slide_uso')
+    .select('*')
+    .order('total_gerado', { ascending: false });
+  if (error) return [];
+  return (data ?? []) as SlideUsoAggregado[];
+}
