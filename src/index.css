@@ -23,7 +23,9 @@
     --muted: 40 33% 92%;
     --muted-foreground: 220 9% 34%;
 
-    --accent: 43 100% 96%;
+    /* Accent precisa contrastar com --background para hovers/states ficarem
+       visíveis. Usamos um sand levemente mais escuro que o background. */
+    --accent: 40 40% 88%;
     --accent-foreground: 60 4% 8%;
 
     --destructive: 0 72% 51%;
@@ -48,7 +50,7 @@
     --sidebar-foreground: 60 4% 8%;
     --sidebar-primary: 2 100% 21%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 43 100% 96%;
+    --sidebar-accent: 40 40% 90%;
     --sidebar-accent-foreground: 60 4% 8%;
     --sidebar-border: 40 33% 92%;
     --sidebar-ring: 2 100% 21%;
@@ -123,16 +125,16 @@
   }
 
   ::-webkit-scrollbar-track {
-    background: hsl(var(--background));
+    background: transparent;
   }
 
   ::-webkit-scrollbar-thumb {
-    background: hsl(var(--secondary));
+    background: hsl(var(--muted-foreground) / 0.25);
     border-radius: 4px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: hsl(var(--primary));
+    background: hsl(var(--muted-foreground) / 0.45);
   }
 
   :where(
@@ -146,7 +148,6 @@
     ):focus-visible {
     outline: 2px solid hsl(var(--ring));
     outline-offset: 2px;
-    box-shadow: 0 0 0 4px hsl(var(--ring) / 0.25);
     border-radius: 0.5rem;
   }
 }

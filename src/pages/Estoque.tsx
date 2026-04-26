@@ -520,6 +520,12 @@ const Estoque = () => {
               onView={(p) => { setSelectedPosicao(p as ProdutoPosicao); setPosicaoDrawerOpen(true); }}
               mobileStatusKey="situacao"
               mobileIdentifierKey="estoque_atual"
+              rowAccent={(p) => {
+                const sit = getSituacao(p as ProdutoPosicao);
+                if (sit === 'zerado') return 'destructive';
+                if (sit === 'critico') return 'warning';
+                return null;
+              }}
               mobilePrimaryAction={(p) => {
                 const sit = getSituacao(p as ProdutoPosicao);
                 if (sit !== "critico" && sit !== "zerado") return null;
