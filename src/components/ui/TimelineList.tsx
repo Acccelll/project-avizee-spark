@@ -1,4 +1,5 @@
-import { Clock } from "lucide-react";
+import { Clock, History } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 
 interface TimelineItem {
   id: string;
@@ -15,7 +16,7 @@ interface Props {
 
 export function TimelineList({ items, emptyMessage = "Nenhum registro" }: Props) {
   if (items.length === 0) {
-    return <p className="text-sm text-muted-foreground py-4 text-center">{emptyMessage}</p>;
+    return <EmptyState icon={History} title={emptyMessage} className="py-8" />;
   }
 
   return (

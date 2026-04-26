@@ -59,8 +59,12 @@ export function ImportacaoLotesTable({ lotes, isLoading, onView, onImport, onDel
 
   if (lotes.length === 0) {
     return (
-      <div className="rounded-md border p-12 text-center text-muted-foreground bg-card">
-        Nenhum lote de importação encontrado.
+      <div className="rounded-md border bg-card">
+        <EmptyState
+          icon={Inbox}
+          title="Nenhum lote de importação encontrado"
+          description="Importe um arquivo para visualizar o histórico de lotes."
+        />
       </div>
     );
   }
