@@ -18,7 +18,14 @@ import { useCnpjLookup } from "@/hooks/useCnpjLookup";
 import { useViaCep } from "@/hooks/useViaCep";
 import { useDocumentoUnico } from "@/hooks/useDocumentoUnico";
 import { Switch } from "@/components/ui/switch";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  getTransportadoraContext,
+  listClientesAtivos,
+  listClientesVinculados,
+  vincularClienteTransportadora,
+  desvincularClienteTransportadora,
+  type ClienteVinculadoView,
+} from "@/services/transportadoras.service";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -63,14 +70,7 @@ interface Transportadora {
 
 type TransportadoraFormData = Omit<Transportadora, "id" | "created_at" | "updated_at">;
 
-interface ClienteVinculado {
-  id: string;
-  cliente_id: string;
-  prioridade: number | null;
-  modalidade: string | null;
-  prazo_medio: string | null;
-  clientes: { nome_razao_social: string; cpf_cnpj: string } | null;
-}
+type ClienteVinculado = ClienteVinculadoView;
 
 const emptyForm: TransportadoraFormData = {
   nome_razao_social: "", nome_fantasia: "", cpf_cnpj: "", contato: "",
@@ -133,14 +133,9 @@ export default function Transportadoras() {
   const loadModalContext = async (transportadoraId: string) => {
     setLoadingModalCtx(true);
     try {
-      const [{ count: cliCount, error: cliErr }, { count: remCount, error: remErr }] = await Promise.all([
-        supabase.from("cliente_transportadoras").select("id", { count: "exact", head: true }).eq("transportadora_id", transportadoraId).eq("ativo", true),
-        supabase.from("remessas").select("id", { count: "exact", head: true }).eq("transportadora_id", transportadoraId),
-      ]);
-      if (cliErr) throw cliErr;
-      if (remErr) throw remErr;
-      setModalCliCount(cliCount ?? 0);
-      setModalRemCount(remCount ?? 0);
+      const ctx = await getTransportadoraContext(transportadoraId);
+      setModalCliCount(ctx.clientes);
+      setModalRemCount(ctx.remessas);
     } catch (err) {
       console.error("[transportadoras] erro ao carregar contexto do modal:", err);
     } finally {
@@ -149,21 +144,16 @@ export default function Transportadoras() {
   };
 
   useEffect(() => {
-    supabase.from("clientes").select("id, nome_razao_social").eq("ativo", true).order("nome_razao_social")
-      .then(({ data }) => setClientesList(data || []));
+    listClientesAtivos()
+      .then((d) => setClientesList(d))
+      .catch((err) => console.error("[transportadoras] erro ao carregar clientes:", err));
   }, []);
 
   const loadEditClientes = async (transportadoraId: string) => {
     setLoadingEditClientes(true);
     try {
-      const { data, error } = await supabase
-        .from("cliente_transportadoras")
-        .select("id, cliente_id, prioridade, modalidade, prazo_medio, clientes(nome_razao_social, cpf_cnpj)")
-        .eq("transportadora_id", transportadoraId)
-        .eq("ativo", true)
-        .order("prioridade");
-      if (error) throw error;
-      setEditClientesVinculados((data || []) as ClienteVinculado[]);
+      const data = await listClientesVinculados(transportadoraId);
+      setEditClientesVinculados(data);
     } catch (err) {
       console.error("[transportadoras] erro ao carregar clientes vinculados:", err);
     } finally {
@@ -177,11 +167,11 @@ export default function Transportadoras() {
     if (already) { toast.error("Cliente já vinculado a esta transportadora"); return; }
     setSavingVinculoCliente(true);
     try {
-      const { error } = await supabase.from("cliente_transportadoras").insert({
-        cliente_id: vinculoClienteId, transportadora_id: transportadoraId,
-        prioridade: editClientesVinculados.length + 1, ativo: true,
-      });
-      if (error) throw error;
+      await vincularClienteTransportadora(
+        vinculoClienteId,
+        transportadoraId,
+        editClientesVinculados.length + 1,
+      );
       setVinculoClienteId("");
       await loadEditClientes(transportadoraId);
       toast.success("Cliente vinculado");
@@ -194,8 +184,7 @@ export default function Transportadoras() {
 
   const handleDesvincularCliente = async (vinculoId: string, transportadoraId: string) => {
     try {
-      const { error } = await supabase.from("cliente_transportadoras").update({ ativo: false }).eq("id", vinculoId);
-      if (error) throw error;
+      await desvincularClienteTransportadora(vinculoId);
       await loadEditClientes(transportadoraId);
       toast.success("Vínculo removido");
     } catch (err) {
