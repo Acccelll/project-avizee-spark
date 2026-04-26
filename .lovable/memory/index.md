@@ -53,3 +53,5 @@
 - [Fiscal Mobile](mem://produto/fiscal-mobile) — DataTable mobile com sub-pill SEFAZ, drawer com 3 tabs e footer primary+menu, DevolucaoDialog com stepper, banner pendentes
 - [Relatórios Mobile](mem://produto/relatorios-mobile) — Chart-first, KPIs 2x2, filtros bottom-sheet, tabela em Collapsible, sticky Exportar; props DataTable derivadas de semantics
 - [RLS Single-Tenant](mem://security/rls-single-tenant) — Modo single-tenant; tabelas críticas com USING(true), exceto app_configuracoes (admin); checklist multi-tenant
+- [Tipagem RPC Centralizada](mem://tech/tipagem-rpc-centralizada) — `src/types/rpc.ts` expõe `RpcName`/`RpcArgs`/`RpcReturn` e `invokeRpc` para consumir RPCs sem `as any`
+- [Security Definer Views](mem://security/security-definer-views) — 4 views mantidas DEFINER intencional (públicas + audit unified); demais analíticas com `security_invoker=on`
