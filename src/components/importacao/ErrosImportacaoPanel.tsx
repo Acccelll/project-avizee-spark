@@ -16,22 +16,22 @@ export function ErrosImportacaoPanel({ data }: ErrosImportacaoPanelProps) {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Alert variant="default" className="bg-blue-50 border-blue-200">
-          <FileText className="h-4 w-4 text-blue-600" />
-          <AlertTitle className="text-blue-800">Total Lido</AlertTitle>
-          <AlertDescription className="text-blue-700 font-bold text-lg">{total} registros</AlertDescription>
+        <Alert variant="default" className="bg-info/10 border-info/30">
+          <FileText className="h-4 w-4 text-info" />
+          <AlertTitle className="text-info">Total Lido</AlertTitle>
+          <AlertDescription className="text-info font-bold text-lg">{total} registros</AlertDescription>
         </Alert>
 
-        <Alert variant="default" className="bg-emerald-50 border-emerald-200">
-          <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-          <AlertTitle className="text-emerald-800">Válidos</AlertTitle>
-          <AlertDescription className="text-emerald-700 font-bold text-lg">{validos} registros</AlertDescription>
+        <Alert variant="default" className="bg-success/10 border-success/30">
+          <CheckCircle2 className="h-4 w-4 text-success" />
+          <AlertTitle className="text-success">Válidos</AlertTitle>
+          <AlertDescription className="text-success font-bold text-lg">{validos} registros</AlertDescription>
         </Alert>
 
-        <Alert variant="destructive" className="bg-rose-50 border-rose-200 text-rose-800">
-          <AlertCircle className="h-4 w-4 text-rose-600" />
-          <AlertTitle className="text-rose-800">Com Erro</AlertTitle>
-          <AlertDescription className="text-rose-700 font-bold text-lg">{erros} registros</AlertDescription>
+        <Alert variant="destructive" className="bg-destructive/10 border-destructive/30 text-destructive">
+          <AlertCircle className="h-4 w-4 text-destructive" />
+          <AlertTitle className="text-destructive">Com Erro</AlertTitle>
+          <AlertDescription className="text-destructive font-bold text-lg">{erros} registros</AlertDescription>
         </Alert>
       </div>
 
@@ -47,10 +47,10 @@ export function ErrosImportacaoPanel({ data }: ErrosImportacaoPanelProps) {
       )}
 
       {validos > 0 && (
-        <Alert variant="default" className="bg-emerald-50 border-emerald-200">
-          <ListChecks className="h-4 w-4 text-emerald-600" />
-          <AlertTitle className="text-emerald-800">Pronto para Carga</AlertTitle>
-          <AlertDescription className="text-emerald-700">
+        <Alert variant="default" className="bg-success/10 border-success/30">
+          <ListChecks className="h-4 w-4 text-success" />
+          <AlertTitle className="text-success">Pronto para Carga</AlertTitle>
+          <AlertDescription className="text-success">
             {validos} registros estão em conformidade e podem ser inseridos no banco.
           </AlertDescription>
         </Alert>

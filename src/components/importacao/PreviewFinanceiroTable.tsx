@@ -27,20 +27,20 @@ export function PreviewFinanceiroTable({ data }: PreviewFinanceiroTableProps) {
         </TableHeader>
         <TableBody>
           {data.map((item, i) => (
-            <TableRow key={i} className={cn(!item._valid && "bg-rose-50/50")}>
+            <TableRow key={i} className={cn(!item._valid && "bg-destructive/5")}>
               <TableCell className="text-center">
                 {item._valid ? (
-                  <CheckCircle2 className="h-5 w-5 text-emerald-500 mx-auto" />
+                  <CheckCircle2 className="h-5 w-5 text-success mx-auto" />
                 ) : (
-                  <XCircle className="h-5 w-5 text-rose-500 mx-auto" />
+                  <XCircle className="h-5 w-5 text-destructive mx-auto" />
                 )}
               </TableCell>
               <TableCell>
                 <div className="flex items-center gap-1">
                    {item.tipo === 'receber' ? (
-                     <ArrowDownLeft className="h-3 w-3 text-emerald-500" />
+                     <ArrowDownLeft className="h-3 w-3 text-success" />
                    ) : (
-                     <ArrowUpRight className="h-3 w-3 text-rose-500" />
+                     <ArrowUpRight className="h-3 w-3 text-destructive" />
                    )}
                    <span className="text-xs uppercase font-medium">{item.tipo}</span>
                 </div>
@@ -54,7 +54,7 @@ export function PreviewFinanceiroTable({ data }: PreviewFinanceiroTableProps) {
               </TableCell>
               <TableCell>
                 {!item._valid && (
-                  <div className="flex flex-col gap-1 text-[10px] text-rose-600">
+                  <div className="flex flex-col gap-1 text-[10px] text-destructive">
                     {item._errors.map((err, idx) => (
                       <div key={idx} className="flex items-center gap-1">
                         <AlertCircle className="h-3 w-3" />
@@ -63,7 +63,7 @@ export function PreviewFinanceiroTable({ data }: PreviewFinanceiroTableProps) {
                     ))}
                   </div>
                 )}
-                {item._valid && <span className="text-[10px] text-emerald-600 font-medium">Válido</span>}
+                {item._valid && <span className="text-[10px] text-success font-medium">Válido</span>}
               </TableCell>
             </TableRow>
           ))}

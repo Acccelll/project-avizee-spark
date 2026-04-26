@@ -9,9 +9,9 @@ interface PreviewImportacaoTableProps {
 }
 
 const actionConfig: Record<string, { label: string; icon: React.ReactNode; className: string }> = {
-  inserir: { label: "Novo", icon: <PlusCircle className="h-3 w-3" />, className: "bg-emerald-100 text-emerald-700 border-emerald-200" },
-  atualizar: { label: "Atualizar", icon: <ArrowUpCircle className="h-3 w-3" />, className: "bg-blue-100 text-blue-700 border-blue-200" },
-  duplicado: { label: "Duplicado", icon: <Copy className="h-3 w-3" />, className: "bg-amber-100 text-amber-700 border-amber-200" },
+  inserir: { label: "Novo", icon: <PlusCircle className="h-3 w-3" />, className: "bg-success/15 text-success border-success/30" },
+  atualizar: { label: "Atualizar", icon: <ArrowUpCircle className="h-3 w-3" />, className: "bg-info/15 text-info border-info/30" },
+  duplicado: { label: "Duplicado", icon: <Copy className="h-3 w-3" />, className: "bg-warning/15 text-warning border-warning/30" },
 };
 
 export function PreviewImportacaoTable({ data, importType }: PreviewImportacaoTableProps) {
@@ -31,19 +31,19 @@ export function PreviewImportacaoTable({ data, importType }: PreviewImportacaoTa
       {/* Summary bar */}
       <div className="flex flex-wrap gap-2 text-[11px]">
         <Badge variant="outline" className="gap-1">{stats.total} total</Badge>
-        <Badge variant="outline" className="gap-1 bg-emerald-50 text-emerald-700 border-emerald-200">
+        <Badge variant="outline" className="gap-1 bg-success/10 text-success border-success/30">
           <PlusCircle className="h-3 w-3" /> {stats.novos} novos
         </Badge>
-        <Badge variant="outline" className="gap-1 bg-blue-50 text-blue-700 border-blue-200">
+        <Badge variant="outline" className="gap-1 bg-info/10 text-info border-info/30">
           <ArrowUpCircle className="h-3 w-3" /> {stats.atualizados} atualizações
         </Badge>
         {stats.erros > 0 && (
-          <Badge variant="outline" className="gap-1 bg-rose-50 text-rose-700 border-rose-200">
+          <Badge variant="outline" className="gap-1 bg-destructive/10 text-destructive border-destructive/30">
             <XCircle className="h-3 w-3" /> {stats.erros} erros
           </Badge>
         )}
         {stats.warnings > 0 && (
-          <Badge variant="outline" className="gap-1 bg-amber-50 text-amber-700 border-amber-200">
+          <Badge variant="outline" className="gap-1 bg-warning/10 text-warning border-warning/30">
             <AlertTriangle className="h-3 w-3" /> {stats.warnings} avisos
           </Badge>
         )}
@@ -66,15 +66,15 @@ export function PreviewImportacaoTable({ data, importType }: PreviewImportacaoTa
               const action = actionConfig[row._action] || actionConfig.inserir;
               return (
                 <TableRow key={i} className={cn(
-                  !row._valid && "bg-rose-50/50 hover:bg-rose-50",
-                  row._warnings?.length > 0 && row._valid && "bg-amber-50/30",
+                  !row._valid && "bg-destructive/5 hover:bg-destructive/10",
+                  row._warnings?.length > 0 && row._valid && "bg-warning/5",
                   "transition-colors"
                 )}>
                   <TableCell className="text-center">
                     {row._valid ? (
-                      <CheckCircle2 className="h-4 w-4 text-emerald-500 mx-auto" />
+                      <CheckCircle2 className="h-4 w-4 text-success mx-auto" />
                     ) : (
-                      <XCircle className="h-4 w-4 text-rose-500 mx-auto" />
+                      <XCircle className="h-4 w-4 text-destructive mx-auto" />
                     )}
                   </TableCell>
                   <TableCell>
@@ -93,7 +93,7 @@ export function PreviewImportacaoTable({ data, importType }: PreviewImportacaoTa
                   </TableCell>
                   <TableCell>
                     {!row._valid && (
-                      <div className="flex flex-col gap-0.5 text-[10px] text-rose-600">
+                      <div className="flex flex-col gap-0.5 text-[10px] text-destructive">
                         {row._errors?.map((err: string, j: number) => (
                           <div key={j} className="flex items-center gap-1">
                             <AlertCircle className="h-3 w-3 shrink-0" /> {err}
@@ -102,7 +102,7 @@ export function PreviewImportacaoTable({ data, importType }: PreviewImportacaoTa
                       </div>
                     )}
                     {row._warnings?.length > 0 && (
-                      <div className="flex flex-col gap-0.5 text-[10px] text-amber-600">
+                      <div className="flex flex-col gap-0.5 text-[10px] text-warning">
                         {row._warnings.map((w: string, j: number) => (
                           <div key={j} className="flex items-center gap-1">
                             <AlertTriangle className="h-3 w-3 shrink-0" /> {w}
@@ -111,7 +111,7 @@ export function PreviewImportacaoTable({ data, importType }: PreviewImportacaoTa
                       </div>
                     )}
                     {row._valid && (!row._warnings || row._warnings.length === 0) && (
-                      <span className="text-[10px] text-emerald-600">Pronto</span>
+                      <span className="text-[10px] text-success">Pronto</span>
                     )}
                   </TableCell>
                 </TableRow>
