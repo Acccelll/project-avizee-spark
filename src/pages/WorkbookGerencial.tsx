@@ -96,8 +96,13 @@ export default function WorkbookGerencial() {
     <><ModulePage
         title="Workbook Gerencial"
         headerActions={
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => refetch()}>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => refetch()}
+              className="h-11 sm:h-9"
+            >
               <RefreshCcw className="h-4 w-4 mr-1" />
               Atualizar
             </Button>
@@ -106,12 +111,18 @@ export default function WorkbookGerencial() {
               size="sm"
               onClick={handleExportCsv}
               disabled={loadingGeracoes || geracoes.length === 0}
+              className="h-11 sm:h-9"
             >
               <Download className="h-4 w-4 mr-1" />
               Exportar CSV
             </Button>
             {canGerar && (
-              <Button size="sm" onClick={() => setDialogOpen(true)} disabled={loadingTemplates || templates.length === 0}>
+              <Button
+                size="sm"
+                onClick={() => setDialogOpen(true)}
+                disabled={loadingTemplates || templates.length === 0}
+                className="h-11 sm:h-9"
+              >
                 <Plus className="h-4 w-4 mr-1" />
                 Gerar Workbook
               </Button>
@@ -120,7 +131,7 @@ export default function WorkbookGerencial() {
         }
       >
         {templates.length === 0 && !loadingTemplates && (
-          <div className="mb-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-200 rounded-md text-sm">
+          <div className="mb-4 rounded-md border border-warning/40 bg-warning/10 p-3 text-sm text-warning-foreground">
             Nenhum template de workbook disponível. Contacte o administrador.
           </div>
         )}
