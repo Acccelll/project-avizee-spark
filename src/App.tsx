@@ -46,6 +46,7 @@ const Auditoria = lazy(() => import("./pages/Auditoria"));
 const Signup = lazy(() => import("./pages/Signup"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const AuthConfirm = lazy(() => import("./pages/AuthConfirm"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const Transportadoras = lazy(() => import("./pages/Transportadoras"));
 const FormasPagamento = lazy(() => import("./pages/FormasPagamento"));
@@ -122,6 +123,7 @@ const App = () => (
                     <Route path="/signup" element={<LazyPage><Signup /></LazyPage>} />
                     <Route path="/forgot-password" element={<LazyPage><ForgotPassword /></LazyPage>} />
                     <Route path="/reset-password" element={<LazyPage><ResetPassword /></LazyPage>} />
+                    <Route path="/auth/confirm" element={<LazyPage><AuthConfirm /></LazyPage>} />
 
                     {/* Authenticated app — shell renderizado uma única vez via Outlet */}
                     <Route element={<AppLayout />}>
