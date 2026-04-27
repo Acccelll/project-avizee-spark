@@ -1,99 +1,65 @@
-# Sugestões de melhorias e novos componentes
+## Problema confirmado
 
-A varredura de cores cruas e a documentação `EmptyState` × `DetailEmpty` já estão concluídas. Abaixo, sugestões priorizadas a partir do `.lovable/plan.md` (auditoria geral) e das memórias do projeto. Cada item é entregável de forma independente — escolha por onde seguir.
+Conferi a planilha `Conciliação_FluxoCaixa_2026-15.xlsx` contra `financeiro_lancamentos`. Há divergências graves vindas da migração de saldos:
 
----
+### Contas a Receber (aba CR)
+- **Planilha:** 97 linhas, total R$ 84.667,03 — **nenhuma com valor zero**.
+- **Banco:** 93 lançamentos `tipo=receber`, dos quais **61 estão com `valor = 0,00`, descrição "Lançamento sem descrição", sem conta contábil**.
+- Esses 61 zerados são exatamente as parcelas migradas do empréstimo do Elber Kauan e de algumas outras vendas:
 
-## 🔴 Alta prioridade (risco real)
+| Cliente | Zerados no DB | Linhas reais na planilha |
+|---|---|---|
+| Elber Kauan Rodrigues Medeiros | 54 | 58 (27 parcelas de "Receita com Empréstimos" R$ 250,00 + 27 de "Receita com Juros") |
+| Pluma Genetics | 3 | 7 |
+| Nutriza Agroindustrial | 2 | 6 |
+| Fredi Soerger | 2 | 2 |
 
-### 1. Bug do `forwardRef` no `Badge` (Eixo E.1 do plano)
-- Console warning ativo: *"Function components cannot be given refs"* dentro de `ApresentacaoSlidesPreview`.
-- **Ação**: envolver `Badge` com `React.forwardRef` (ou trocar wrapper por `<span>` quando o ref vier de Tooltip/Popover).
-- **Esforço**: ~10 min. Risco zero.
+### Contas a Pagar (aba CP)
+- **Planilha:** 318 linhas, total R$ 67.074,49.
+- **Banco:** 270 lançamentos, total R$ 55.332,91.
+- **Faltam ~48 lançamentos e R$ 11.741,58** — provavelmente parcelas de cartão (AliExpress, Inter) também não migradas.
 
-### 2. Auditoria dos 22 `SECURITY DEFINER` views (Eixo A.1)
-- Linter Supabase aponta 22 ERRORS. Classificar caso a caso:
-  - **Manter** (relatórios que precisam bypassar RLS) → adicionar `COMMENT ON VIEW` justificando.
-  - **Converter** para `security_invoker=on` (vistas consumidas direto pelo client).
-- **Esforço**: médio. **Risco se não fizer**: vazamento silencioso de dados entre escopos.
+### Causa raiz
+A migração inicial de saldos (a tela de Importação → Financeiro) criou os "esqueletos" das parcelas (cliente/fornecedor + vencimento) mas perdeu três campos críticos: `valor`, `descricao` e `conta_contabil_id`. Para o CP houve perda total de algumas parcelas.
 
-### 3. Script de drift schema ↔ código (Eixo A.4)
-- Causa raiz dos PGRST204 recentes. Cruza `Database["public"]["Tables"][T]["Row"]` (de `types.ts`) com colunas usadas em cada `*.service.ts`.
-- Roda em CI / pré-commit como smoke. Reforça a regra "toda alteração de service exige migration prévia".
-- **Esforço**: 1 script Node + 1 doc.
+## Plano de correção
 
----
+### 1. Backup e auditoria
+- Migration que copia os 61 lançamentos zerados (+ snapshot de CP) para uma tabela `financeiro_lancamentos_backup_20260427` antes de qualquer alteração.
 
-## 🟡 Média prioridade (qualidade & DX)
+### 2. Reconciliação CR (61 zerados)
+- Script de migração que faz match planilha ↔ banco usando `(cliente_id, data_vencimento, conta_contábil)`:
+  - Identifica cliente pelo nome canônico (Elber, Pluma, Nutriza, Fredi).
+  - Para cada parcela zerada, encontra a linha equivalente na CR pela `data_vencimento` e pelo tipo de receita (Empréstimo R$ 250 ou Juros valor variável).
+  - `UPDATE financeiro_lancamentos` setando: `valor`, `saldo_restante = valor - valor_pago`, `descricao` (ex.: "Receita com Empréstimos — Elber Kauan — Parcela X/27"), `conta_contabil_id` (resolvendo via tabela `contas_contabeis` pelo código `6.1.1.01.001` / `6.1.1.01.002`), `forma_pagamento = 'cobranca_automatica'`.
+  - Recalcula `status` (aberto/pago/parcial) com base em `data_pagamento` da planilha.
 
-### 4. Cobertura de testes nos núcleos críticos (Eixo D.1)
-Status real (auditoria 2026-04): **64 arquivos / 729 testes, todos verdes**. O plano antigo subestimava a cobertura.
-Cobertos: workbook (comparators, historicoCsv, workbook), apresentacao (7 specs), financeiro (baixas, calculos, cancelamentos, conciliacao, estornos, ofxParser), sefaz (xmlBuilder + sefazUrls + cancelamento + inutilizacao — adicionados nesta iteração), validadores fiscais (CEST/NCM/IE/chave), permissions, integração financeiro/fiscal/venda, smoke (auth, dashboard, financeiro).
-Gaps menores ainda em aberto:
-- `src/lib/workbook/fetchWorkbookData`/`generateWorkbook`/`buildVisualSheets` — exigem fixture do template `.xlsx`; não autocontidos.
-- `src/services/fiscal/sefaz/autorizacao` + `consulta` — fluxos longos com vários branches; vale split em helpers antes de testar.
-- `src/services/fiscal/sefaz/assinaturaDigital` — depende de WebCrypto; testar via integration na própria edge function.
+### 3. Reconciliação CP (48 ausentes)
+- Cruza planilha CP × DB por `(fornecedor_id, data_vencimento, valor)`.
+- Para as 48 linhas ausentes, **INSERT** novos lançamentos `tipo='pagar'` com `origem_tipo='migracao_saldo'`, `descricao`, conta contábil, banco e forma de pagamento da planilha.
+- Para qualquer linha CP já no DB com diferença de valor, gera relatório (não altera automaticamente — divergências de centavos podem ser de juros/multa).
 
-### 5. Logger estruturado em Edge Functions (Eixo D.3)
-- ✅ `supabase/functions/_shared/logger.ts` implementado (níveis debug/info/warn/error, JSON em uma linha, `request_id` extraído de `x-request-id`/`x-correlation-id`, suporte a `child(extra)`).
-- ✅ Aplicado nos 4 alvos do plano (`sefaz-proxy`, `admin-users`, `process-email-queue`, `apresentacao-cadencia-runner`) + extensões nesta iteração: `admin-sessions`, `validate-invite`, `notify-admin-new-signup`, `auth-email-hook`.
-- Pendente (não-críticos): `correios-api`, `handle-email-suppression`, `handle-email-unsubscribe`, `preview-transactional-email`, `send-transactional-email`, `social-sync` — ainda usam `console.*` mas baixo volume e fluxos não-fiscais.
+### 4. Relatório de conferência
+- Após as correções, executar consultas de validação:
+  - Soma CR DB == soma CR planilha (R$ 84.667,03)?
+  - Soma CP DB == soma CP planilha (R$ 67.074,49)?
+  - Zero registros com `valor=0` em `financeiro_lancamentos`.
+- Salvar `/mnt/documents/conciliacao_financeira_relatorio.xlsx` listando o que foi corrigido e quaisquer divergências remanescentes para revisão manual.
 
-### 6. Painel admin "Saúde do sistema" (Eixo D.4)
-- ✅ Implementado em `src/pages/admin/sections/SaudeSistemaSection.tsx` + hook `useSaudeSistema` (`src/pages/admin/hooks/useSaudeSistema.ts`).
-- Lê `v_admin_audit_unified` (eventos por módulo 24h/7d) + `email_send_log` (taxa de erro de envio) + `email_send_state` (backoff). Renderiza com `<HealthBadge>` para integrações (e-mail/auditoria/permissões), KPI 24h de e-mail e tabela de atividade por módulo. Refresh manual + auto-refresh a cada 5min.
-- Acessível em `/administracao?tab=saude` (item "Saúde do sistema" sob "Dados & Auditoria").
-- Próximos incrementos opcionais: latência média de RPCs críticos (precisa instrumentação) e status real das filas pgmq (depende de RPC dedicada).
+### 5. UI — exibir avisos
+- Já existe a coluna "Saldo em Aberto" mostrando "Quitado" mesmo para R$ 0,00 (imagem anexa). Após a correção, esses lançamentos passarão a refletir os valores reais. Não há mudança de UI necessária.
 
-### 7. Hardening TypeScript — lote financeiro/fiscal (Eixo B.2)
-- ✅ Concluído. `tsconfig.strict-core.json` agora cobre `src/services/financeiro/**`, `src/services/fiscal/**`, `src/pages/financeiro/**` e `src/pages/fiscal/**` com `strict: true` e zero erros.
-- 6 correções aplicadas: (1) `useConciliacaoBancaria` removeu `|| null` morto na RPC `sugerir_conciliacao_bancaria` (param `p_conta_id` é sempre `string`); (2) `useNotaFiscalLifecycle` trocou `motivo ?? null` por `motivo` (RPC aceita `string | undefined`); (3-6) os 4 serviços Sefaz (`autorizacao`, `cancelamento`, `consulta`, `inutilizacao`) extraíram `certBase64`/`certSenha` em locais antes do branch `useVault ? null : {...}` para o TS estreitar `string | undefined` → `string`.
-- Próximo lote sugerido: `src/services/comercial/**`, `src/services/admin/**` e `src/services/cadastros/**`.
+## Detalhes técnicos
 
-### 8. Centralização dos tipos de RPC
-- ✅ `src/types/rpc.ts` agora expõe `RpcName`/`RpcArgs`/`RpcReturn`/`invokeRpc` + atalhos nomeados para as RPCs críticas: `proximoNumeroOrcamento`, `proximoNumeroPedidoCompra`, `sugerirConciliacaoBancaria`, `aprovarPedido`, `rejeitarPedido`, `cancelarPedidoCompra`, `receberCompra`.
-- ✅ Call sites migrados nesta iteração: `usePedidosCompra` (5×), `Orcamentos.tsx` (1×), `RegistrarRecebimentoDialog` (1×), `useReceberCompra` (1×). Restam apenas chamadas em `OrcamentoForm.tsx` (`salvar_orcamento`, `proximo_numero_orcamento` 2×) — não cobertas pelos atalhos atuais; expandir `rpc.ts` quando o refactor de `OrcamentoForm` (1.272 LOC) for atacado.
+- Todas as alterações em `financeiro_lancamentos` passam por migração SQL versionada (não por edição manual).
+- O trigger `trg_sync_financeiro_saldo` recalcula `valor_pago`/`saldo_restante` a partir de `financeiro_baixas`. Para os 61 zerados, **não há baixa associada** — vamos definir manualmente `valor_pago = 0` ou criar baixa caso a planilha indique `Data Pagto` preenchida.
+- Para entradas com `Data Pagto` preenchida na planilha, criar registro em `financeiro_baixas` com `valor`, `data_baixa = Data Pagto`, `forma_pagamento = COBRANÇA AUTOMÁTICA` e deixar o trigger recalcular o status.
+- `conta_contabil_id` é resolvido por `SELECT id FROM contas_contabeis WHERE codigo = '<código da planilha>'`.
+- Trilha de auditoria: cada `UPDATE`/`INSERT` registra `updated_by`/`origem_descricao = 'reconciliacao_planilha_2026-15'`.
 
----
+## Entregáveis
 
-## 🟢 Polimento de produto
-
-### 9. Acessibilidade dos diálogos críticos (Eixo E.3)
-- ✅ Auditados os 4 dialogs do plano:
-  - `ApresentacaoGeracaoDialog`, `LimparDadosMigracaoButton`, `TempPasswordDialog` — já tinham `DialogDescription` (Radix mapeia para `aria-describedby`) + `aria-label` nos botões-ícone. OK.
-  - `SefazRetornoModal` — faltava `DialogDescription` e bloco de erros sem `role="alert"`. **Corrigido**.
-- Esc/foco inicial são gerenciados pelo Radix `Dialog`/`AlertDialog` por padrão — manter. Próximo passo opcional: integrar `axe-core` em testes de smoke para regressão automática.
-
-### 10. Code-split / bundle
-- ✅ `src/App.tsx` usa `lazy()` para todas as páginas (Workbook, Apresentação, Fiscal, Financeiro, Importação, Pedidos, Orçamentos, Cotações, Auditoria, Administração, etc.). Não há rotas eagerly-loaded fora de `Login`/`Signup`/`NotFound`.
-- ⚠️ Profiling local bloqueado por issue ambiental do sandbox (`@tanstack/query-core` peer dep não resolvida no `node_modules` mockado). Rodar em CI ou ambiente com install limpo: `npx vite build --mode production` + `vite-bundle-visualizer`. Candidatos óbvios para split adicional: `OrcamentoForm.tsx` (1.272 LOC), `ApresentacaoSlidesPreview`, `WorkbookGeracoesTable`, e qualquer dependência de PDF (`@react-pdf/renderer`) usada apenas em rotas específicas.
-
-### 11. Componentes novos sugeridos (reaproveitáveis)
-- ✅ **`<ConfirmDestructiveDialog>`** — Implementado em `src/components/ConfirmDestructiveDialog.tsx` + hook `useConfirmDestructive`. Aplica a árvore de `mem://produto/excluir-vs-inativar-vs-cancelar` (motivo obrigatório, lista de efeitos colaterais, badge "Ação terminal"). Migração das telas que ainda usam `window.confirm`/`ConfirmDialog` para ações terminais é incremental.
-- ✅ **`<HealthBadge>`** — Implementado em `src/components/HealthBadge.tsx`. 5 estados (`healthy`/`degraded`/`down`/`unknown`/`checking`), tooltip opcional com detalhes (latência, última checagem) e modo `compact` para tabelas densas. Próximo passo: endpoint `/integracoes/health` (ou equivalente) consolidando Sefaz/SMTP/Correios/AI Gateway para alimentar o painel de saúde (#6).
-- ✅ **`<AsyncJobStatus>`** — Implementado em `src/components/AsyncJobStatus.tsx`. 6 estados (`queued`/`running`/`succeeded`/`failed`/`cancelled`/`paused`), barra de progresso opcional em `running`, mensagem com `role="alert"` em `failed`/`cancelled` e modo `compact` para tabelas. Pronto para substituir incrementalmente badges ad-hoc em `ImportacaoTimeline`, `ApresentacaoHistoricoTable`, `WorkbookGeracoesTable` e fila de e-mail.
-- ✅ **`<DiffViewer>`** — Já implementado em `src/lib/audit/DiffViewer.tsx` e integrado a `Auditoria.tsx`. Suporta INSERT (badge verde "+ Criado"), DELETE (badge vermelho "− Excluído"), UPDATE (lista apenas campos alterados com antes/depois lado a lado) e fallback pretty-print para `permission_audit.alteracao` não-estruturado.
-
-### 12. Migração final de services (Phase 2 cadastros — Eixo C.1)
-Status real (auditoria 2026-04): os 4 services já existiam (`clientes`, `fornecedores`, `transportadoras`, `contasBancarias`); `Funcionarios.tsx` não consome Supabase direto (usa hooks). A dívida residual eram **4 arquivos do domínio cliente** ainda chamando `supabase.from/rpc`:
-- ✅ `src/pages/Clientes.tsx` — 2 lookups (`grupos_economicos`, `formas_pagamento`) movidos para `listGruposEconomicosAtivos` + `listFormasPagamentoAtivas` em `clientes.service.ts`.
-- ✅ `src/pages/clientes/components/ClienteEnderecosTab.tsx` — load/CRUD/`set_principal_endereco` agora via service.
-- ✅ `src/pages/clientes/components/ClienteTransportadorasTab.tsx` — load/vincular/desvincular via service.
-- ✅ `src/pages/clientes/components/ClienteComunicacoesTab.tsx` — load/insert via service.
-
-Resultado: nenhum `import { supabase }` em `src/pages/Clientes.tsx` ou `src/pages/clientes/**`. Typecheck verde. Os demais 4 services do plano (`fornecedores`, `transportadoras`, `contasBancarias`, e funcionários via hook) já não tinham consumidores com query direta.
-
----
-
-## Ordem sugerida
-
-1. **#1 forwardRef Badge** (10 min, mata um warning visível)
-2. **#2 Security Definer views** (segurança real)
-3. **#11 ConfirmDestructiveDialog** (ganho de UX e consistência rápido)
-4. **#4 Testes núcleo** (lote fiscal+financeiro+workbook)
-5. **#7 Strict TS** lote fiscal/financeiro ✅
-6. **#5 Logger Edge** + **#6 Painel saúde** (juntos fazem sentido) ✅
-7. **#12 Services cadastros** (zera dívida arquitetural)
-8. **#9 A11y** + **#10 bundle** (polimento final)
-
-Diga qual item (ou bloco) você quer atacar primeiro e eu executo.
+1. Migration SQL com backup + correções.
+2. Migration SQL com inserts dos 48 CP ausentes.
+3. Relatório `.xlsx` em `/mnt/documents/` com antes/depois.
+4. Validação final mostrando totais batendo com a planilha.
