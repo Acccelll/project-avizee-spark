@@ -25,11 +25,13 @@ export default function ResetPassword() {
   const branding = useBranding();
 
   useEffect(() => {
-    // O hash de recovery pode ser processado antes OU depois do efeito montar.
-    // Se depender apenas de um único onAuthStateChange, existe uma janela de corrida:
-    // o evento pode disparar antes do listener, getSession() ainda retornar null,
-    // e a tela ficar presa em "Validando link...". O usuário então clica de novo no
-    // e-mail e o token de uso único passa a aparecer como expirado/inválido.
+    // Fluxo novo (preferido): o usuário chega aqui já autenticado por
+    // `/auth/confirm` (que chamou `verifyOtp` após clique humano). Basta
+    // verificar a sessão.
+    //
+    // Fluxo legado: links antigos podem ainda chegar com `#access_token=...`
+    // ou `?type=recovery`. Mantemos compatibilidade aguardando o evento
+    // PASSWORD_RECOVERY ou a sessão aparecer.
     let mounted = true;
     let settled = false;
     let recoveryEventSeen = false;
@@ -65,6 +67,14 @@ export default function ResetPassword() {
         mounted = false;
       };
     }
+
+    // Caminho rápido: se já há sessão (vinda de /auth/confirm), libera de imediato.
+    void supabase.auth.getSession().then(({ data }) => {
+      if (!mounted || settled) return;
+      if (data.session && !hashHasRecovery) {
+        finishSuccess(timers);
+      }
+    });
 
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (!mounted) return;

@@ -221,11 +221,33 @@ async function handleWebhook(req: Request): Promise<Response> {
   }
 
   // Build template props from payload.data (HookData structure)
+  // Build a confirmation URL that points to our own app's intersticial route
+  // (`/auth/confirm`) instead of Supabase's `/verify` endpoint. This is critical
+  // for `recovery`, `signup`, `magiclink`, `invite` and `email_change` types,
+  // because email scanners / Safe Links / antivírus frequently pre-fetch links,
+  // and Supabase's `/verify` consumes the one-time token on the very first GET
+  // — leaving the user with a "Email link is invalid or has expired" error
+  // when they click later. Our `/auth/confirm` page only calls `verifyOtp`
+  // after an explicit human click, so prefetchers cannot burn the token.
+  const APP_BASE_URL = `https://sistema.${ROOT_DOMAIN}`
+  const tokenHash = payload.data.token_hash as string | undefined
+  const redirectMap: Record<string, string> = {
+    recovery: '/reset-password',
+    signup: '/login',
+    magiclink: '/',
+    invite: '/signup',
+    email_change: '/configuracoes',
+  }
+  const redirectTo = redirectMap[emailType] ?? '/'
+  const safeConfirmationUrl = tokenHash
+    ? `${APP_BASE_URL}/auth/confirm?token_hash=${encodeURIComponent(tokenHash)}&type=${encodeURIComponent(emailType)}&redirect_to=${encodeURIComponent(redirectTo)}`
+    : payload.data.url // fallback (reauthentication uses OTP only — no token_hash)
+
   const templateProps = {
     siteName: SITE_NAME,
     siteUrl: `https://${ROOT_DOMAIN}`,
     recipient: payload.data.email,
-    confirmationUrl: payload.data.url,
+    confirmationUrl: safeConfirmationUrl,
     token: payload.data.token,
     email: payload.data.email,
     newEmail: payload.data.new_email,
