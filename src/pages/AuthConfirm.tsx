@@ -71,26 +71,38 @@ export default function AuthConfirm() {
   const [error, setError] = useState<string | null>(null);
 
   const tokenHash = params.get("token_hash");
+  const rawToken = params.get("token");
+  const emailParam = params.get("email");
   const type = (params.get("type") || "recovery") as RecoveryType;
   const redirectTo = params.get("redirect_to") || "/";
 
   const copy = useMemo(() => COPY[type] ?? COPY.recovery, [type]);
 
-  // Se o link já vier sem token_hash (caso o hook esteja enviando o link
-  // legado por algum motivo), tratamos imediatamente como inválido.
+  // Aceitamos `token_hash` (formato moderno) ou o par `token` + `email`
+  // (formato legado). Sem nenhum dos dois, o link é inválido.
   useEffect(() => {
-    if (!tokenHash) setError("Link de confirmação inválido ou incompleto.");
-  }, [tokenHash]);
+    if (!tokenHash && !(rawToken && emailParam)) {
+      setError("Link de confirmação inválido ou incompleto.");
+    }
+  }, [tokenHash, rawToken, emailParam]);
 
   const handleConfirm = async () => {
-    if (!tokenHash || submitting) return;
+    if (submitting) return;
+    if (!tokenHash && !(rawToken && emailParam)) return;
     setSubmitting(true);
     setError(null);
     try {
-      const { error: verifyError } = await supabase.auth.verifyOtp({
-        token_hash: tokenHash,
-        type: type as "recovery" | "signup" | "magiclink" | "invite" | "email_change" | "email",
-      });
+      const verifyArgs = tokenHash
+        ? {
+            token_hash: tokenHash,
+            type: type as "recovery" | "signup" | "magiclink" | "invite" | "email_change" | "email",
+          }
+        : {
+            token: rawToken!,
+            email: emailParam!,
+            type: type as "recovery" | "signup" | "magiclink" | "invite" | "email_change" | "email",
+          };
+      const { error: verifyError } = await supabase.auth.verifyOtp(verifyArgs as any);
       if (verifyError) {
         const raw = (verifyError.message || "").toLowerCase();
         if (raw.includes("expired") || raw.includes("invalid") || raw.includes("not found")) {
@@ -161,7 +173,7 @@ export default function AuthConfirm() {
               <Button
                 type="button"
                 onClick={handleConfirm}
-                disabled={!tokenHash || submitting}
+                disabled={(!tokenHash && !(rawToken && emailParam)) || submitting}
                 className="w-full gap-2"
               >
                 {submitting ? (
