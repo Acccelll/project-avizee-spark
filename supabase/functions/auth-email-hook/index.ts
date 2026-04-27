@@ -231,6 +231,7 @@ async function handleWebhook(req: Request): Promise<Response> {
   // after an explicit human click, so prefetchers cannot burn the token.
   const APP_BASE_URL = `https://sistema.${ROOT_DOMAIN}`
   const tokenHash = payload.data.token_hash as string | undefined
+  const rawToken = payload.data.token as string | undefined
   const redirectMap: Record<string, string> = {
     recovery: '/reset-password',
     signup: '/login',
@@ -239,9 +240,23 @@ async function handleWebhook(req: Request): Promise<Response> {
     email_change: '/configuracoes',
   }
   const redirectTo = redirectMap[emailType] ?? '/'
-  const safeConfirmationUrl = tokenHash
-    ? `${APP_BASE_URL}/auth/confirm?token_hash=${encodeURIComponent(tokenHash)}&type=${encodeURIComponent(emailType)}&redirect_to=${encodeURIComponent(redirectTo)}`
-    : payload.data.url // fallback (reauthentication uses OTP only — no token_hash)
+  // Prefer token_hash (PKCE-style verifyOtp). If only the raw token is present
+  // (older payloads), still route to /auth/confirm so an email scanner GET on
+  // Supabase's /verify cannot consume the link before the user clicks.
+  let safeConfirmationUrl: string
+  if (tokenHash) {
+    safeConfirmationUrl = `${APP_BASE_URL}/auth/confirm?token_hash=${encodeURIComponent(tokenHash)}&type=${encodeURIComponent(emailType)}&redirect_to=${encodeURIComponent(redirectTo)}`
+  } else if (rawToken) {
+    safeConfirmationUrl = `${APP_BASE_URL}/auth/confirm?token=${encodeURIComponent(rawToken)}&type=${encodeURIComponent(emailType)}&email=${encodeURIComponent(payload.data.email)}&redirect_to=${encodeURIComponent(redirectTo)}`
+  } else {
+    safeConfirmationUrl = payload.data.url
+  }
+  log.info('Built confirmation url', {
+    emailType,
+    hasTokenHash: !!tokenHash,
+    hasRawToken: !!rawToken,
+    fellBackToSupabase: !tokenHash && !rawToken,
+  })
 
   const templateProps = {
     siteName: SITE_NAME,
