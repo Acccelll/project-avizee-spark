@@ -580,6 +580,30 @@ export default function Logistica() {
       const s = r.status_transporte ?? "";
       return <StatusBadge status={remessaStatusMap[s]?.color ?? s} />;
     }},
+    { key: "etiqueta", label: "Etiqueta", render: (r: Remessa) => {
+      const et = etiquetasMap[r.id];
+      if (!et) return <span className="text-muted-foreground text-xs">—</span>;
+      const labelMap: Record<string, string> = { emitida: "Emitida", pendente: "Pendente", erro: "Erro", cancelada: "Cancelada" };
+      const colorMap: Record<string, string> = { emitida: "success", pendente: "warning", erro: "destructive", cancelada: "muted" };
+      return (
+        <div className="inline-flex items-center gap-1.5">
+          <StatusBadge status={colorMap[et.status] ?? "muted"} label={labelMap[et.status] ?? et.status} />
+          {et.status === "emitida" && et.pdf_path && (
+            <Button variant="ghost" size="icon" className="h-7 w-7" title="Baixar PDF da etiqueta" onClick={async (e) => {
+              e.stopPropagation();
+              try {
+                const url = await baixarEtiquetaPdf(et.pdf_path!);
+                window.open(url, "_blank", "noopener,noreferrer");
+              } catch (err) {
+                console.error("[etiqueta] baixar falhou", err);
+              }
+            }}>
+              <FileDown className="h-3.5 w-3.5" />
+            </Button>
+          )}
+        </div>
+      );
+    }},
     { key: "rastrear", label: "Rastrear", render: (r: Remessa) => r.codigo_rastreio ? (
       <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => setTrackingTarget({ codigo: r.codigo_rastreio!, remessaId: r.id })}>
         <Search className="h-3.5 w-3.5" />Rastrear
