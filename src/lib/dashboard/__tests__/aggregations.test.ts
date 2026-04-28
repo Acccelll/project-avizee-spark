@@ -32,11 +32,12 @@ describe("dashboard aggregations", () => {
     expect(
       summarizeFiscalStats([
         { status: "confirmada", valor_total: 200 },
+        { status: "importada", valor_total: 150 },
         { status: "rascunho", valor_total: 50 },
         { status: "pendente", valor_total: 60 },
         { status: "cancelada", valor_total: 30 },
       ]),
-    ).toEqual({ emitidas: 1, pendentes: 2, canceladas: 1, valorEmitidas: 200 });
+    ).toEqual({ emitidas: 2, pendentes: 2, canceladas: 1, valorEmitidas: 350 });
   });
 
   it("gera top clientes com ordenação descrescente", () => {
