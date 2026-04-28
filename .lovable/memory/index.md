@@ -64,3 +64,4 @@
 - [Auditoria exhaustive-deps](mem://tech/auditoria-exhaustive-deps) — Todas as 32 supressões revisadas e documentadas inline com justificativa após "--"
 - [Dynamic imports libs pesadas](mem://tech/dynamic-imports-libs-pesadas) — ExcelJS e pptxgenjs sempre via `await import()` nos entry points dos services
 - [Notificações Proativas no Sidebar](mem://features/notificacoes-proativas-sidebar) — Badges agregando vencidos, estoque baixo, orçamentos, NF rejeitada e DLQ de e-mail (admin-only) via realtime
+- [Webhooks de saída](mem://features/webhooks-saida) — pgmq + edge dispatcher (cron 1min) + UI admin com HMAC SHA-256 e secret reveal one-shot
