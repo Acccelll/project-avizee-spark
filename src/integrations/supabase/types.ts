@@ -1238,6 +1238,7 @@ export type Database = {
           conta_bancaria_id: string
           created_at: string
           data_conciliacao: string
+          empresa_id: string
           id: string
           observacoes: string | null
           total_pares: number
@@ -1247,6 +1248,7 @@ export type Database = {
           conta_bancaria_id: string
           created_at?: string
           data_conciliacao?: string
+          empresa_id?: string
           id?: string
           observacoes?: string | null
           total_pares?: number
@@ -1256,6 +1258,7 @@ export type Database = {
           conta_bancaria_id?: string
           created_at?: string
           data_conciliacao?: string
+          empresa_id?: string
           id?: string
           observacoes?: string | null
           total_pares?: number
@@ -1886,6 +1889,7 @@ export type Database = {
           created_at: string
           documento_id: string | null
           documento_tipo: string | null
+          empresa_id: string
           id: string
           motivo: string | null
           motivo_estruturado: string | null
@@ -1904,6 +1908,7 @@ export type Database = {
           created_at?: string
           documento_id?: string | null
           documento_tipo?: string | null
+          empresa_id?: string
           id?: string
           motivo?: string | null
           motivo_estruturado?: string | null
@@ -1922,6 +1927,7 @@ export type Database = {
           created_at?: string
           documento_id?: string | null
           documento_tipo?: string | null
+          empresa_id?: string
           id?: string
           motivo?: string | null
           motivo_estruturado?: string | null
