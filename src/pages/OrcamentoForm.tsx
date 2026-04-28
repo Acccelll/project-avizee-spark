@@ -821,14 +821,9 @@ export default function OrcamentoForm() {
     let cancelled = false;
     (async () => {
       if (user?.id) {
-        const { data } = await supabase
-          .from("orcamento_drafts")
-          .select("payload")
-          .eq("usuario_id", user.id)
-          .eq("draft_key", draftKey)
-          .maybeSingle();
+        const has = await hasOrcamentoDraft(user.id, draftKey).catch(() => false);
         if (cancelled) return;
-        if (data?.payload) { setRestoreDraftOpen(true); return; }
+        if (has) { setRestoreDraftOpen(true); return; }
       }
       const saved = localStorage.getItem(draftKey);
       if (!cancelled && saved) setRestoreDraftOpen(true);
@@ -846,13 +841,8 @@ export default function OrcamentoForm() {
       let serverOk = false;
       if (user?.id) {
         try {
-          const { error } = await supabase
-            .from("orcamento_drafts")
-            .upsert(
-              { usuario_id: user.id, draft_key: draftKey, payload: payload as unknown as Json },
-              { onConflict: "usuario_id,draft_key" },
-            );
-          if (!error) serverOk = true;
+          await upsertOrcamentoDraft(user.id, draftKey, payload);
+          serverOk = true;
         } catch {/* fallback abaixo */}
       }
       if (!serverOk) {
@@ -864,9 +854,11 @@ export default function OrcamentoForm() {
   }, [buildDraftPayload, draftKey, getValues, items.length, user?.id]);
 
   useEffect(() => {
-    supabase.from('empresa_config').select('*').limit(1).single().then(({ data }) => {
-      if (data) setEmpresaConfig(data as unknown as Record<string, string>);
-    });
+    getEmpresaConfig()
+      .then((data) => {
+        if (data) setEmpresaConfig(data as unknown as Record<string, string>);
+      })
+      .catch(() => {/* opcional — não bloqueia o form */});
   }, []);
 
   const clienteOptions = clientes.map((c) => ({
@@ -1067,13 +1059,8 @@ export default function OrcamentoForm() {
                       const val = e.target.value?.trim();
                       if (!val) return;
                       // Não revalida se for o próprio número do orçamento em edição
-                      const { data: existente } = await supabase
-                        .from('orcamentos')
-                        .select('id')
-                        .eq('numero', val)
-                        .neq('id', id || '00000000-0000-0000-0000-000000000000')
-                        .maybeSingle();
-                      if (existente) {
+                      const existe = await existeOrcamentoComNumero(val, id || null).catch(() => false);
+                      if (existe) {
                         toast.error('Este número de orçamento já está em uso. Escolha outro.');
                       }
                     }}
@@ -1651,29 +1638,20 @@ export default function OrcamentoForm() {
               variant="outline"
               onClick={async () => {
                 localStorage.removeItem(draftKey);
-                if (user?.id) {
-                  try {
-                    await supabase.from("orcamento_drafts")
-                      .delete()
-                      .eq("usuario_id", user.id)
-                      .eq("draft_key", draftKey);
-                  } catch {/* ignore */}
-                }
+                 if (user?.id) {
+                   try {
+                     await deleteOrcamentoDraft(user.id, draftKey);
+                   } catch {/* ignore */}
+                 }
                 setRestoreDraftOpen(false);
               }}
             >Descartar</Button>
             <Button
               onClick={async () => {
-                let payload: unknown = null;
-                if (user?.id) {
-                  const { data } = await supabase
-                    .from("orcamento_drafts")
-                    .select("payload")
-                    .eq("usuario_id", user.id)
-                    .eq("draft_key", draftKey)
-                    .maybeSingle();
-                  if (data?.payload) payload = data.payload;
-                }
+                 let payload: unknown = null;
+                 if (user?.id) {
+                   payload = await getOrcamentoDraftPayload(user.id, draftKey).catch(() => null);
+                 }
                 if (!payload) {
                   const raw = localStorage.getItem(draftKey);
                   if (raw) { try { payload = JSON.parse(raw); } catch {/* ignore */} }
@@ -1692,8 +1670,8 @@ export default function OrcamentoForm() {
         onClose={() => setQuickAddOpen(false)}
         onCreated={async (newId) => {
           // Reload clients list and select the new one
-          const { data: freshClientes } = await supabase.from("clientes").select("*").eq("ativo", true).order("nome_razao_social");
-          setClientes(freshClientes || []);
+          const freshClientes = await listClientesAtivosOrcamento();
+          setClientes(freshClientes);
           handleClienteChange(newId);
         }}
       />
