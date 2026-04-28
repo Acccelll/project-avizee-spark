@@ -56,7 +56,7 @@ export async function updateEmpresa(
   id: string,
   patch: Partial<Pick<Empresa, "nome" | "cnpj" | "ativo">>,
 ): Promise<Empresa> {
-  const next: Record<string, unknown> = {};
+  const next: { nome?: string; cnpj?: string | null; ativo?: boolean } = {};
   if (patch.nome !== undefined) next.nome = patch.nome.trim();
   if (patch.cnpj !== undefined) next.cnpj = patch.cnpj?.trim() || null;
   if (patch.ativo !== undefined) next.ativo = patch.ativo;
