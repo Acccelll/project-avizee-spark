@@ -2,6 +2,7 @@ import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
+import { VitePWA } from "vite-plugin-pwa";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
@@ -43,7 +44,69 @@ export default defineConfig(({ mode }) => {
     // Logs críticos em dev devem usar `@/lib/logger` para preservar rastreabilidade.
     drop: mode === "production" ? ["console", "debugger"] : [],
   },
-  plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
+  plugins: [
+    react(),
+    mode === "development" && componentTagger(),
+    // PWA leve: precache de assets do build, runtime cache para listas críticas
+    // (clientes, fornecedores, produtos) e fontes do Google. SW só ativa em
+    // produção — `devOptions.enabled = false` mantém o dev sem service worker
+    // para evitar conflitos com HMR.
+    VitePWA({
+      registerType: "prompt",
+      injectRegister: false, // registramos manualmente em src/lib/pwa.ts
+      includeAssets: ["favicon.ico", "robots.txt", "images/pwa-192.png", "images/pwa-512.png"],
+      manifest: {
+        name: "Sistema AviZee",
+        short_name: "AviZee",
+        description: "ERP AviZee - Sistema de Gestão Empresarial",
+        theme_color: "#0F766E",
+        background_color: "#ffffff",
+        display: "standalone",
+        orientation: "portrait-primary",
+        start_url: "/",
+        scope: "/",
+        lang: "pt-BR",
+        icons: [
+          { src: "/images/pwa-192.png", sizes: "192x192", type: "image/png" },
+          { src: "/images/pwa-512.png", sizes: "512x512", type: "image/png" },
+          { src: "/images/pwa-512-maskable.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+        ],
+      },
+      workbox: {
+        globPatterns: ["**/*.{js,css,html,svg,png,ico,woff2}"],
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+        // Não interceptar Supabase realtime/auth nem edge functions — devem
+        // sempre ir à rede para evitar payloads obsoletos em mutations.
+        navigateFallbackDenylist: [/^\/api\//, /\/functions\/v1\//, /\/auth\/v1\//, /\/realtime\//],
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/fonts\.(?:googleapis|gstatic)\.com\/.*/i,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "google-fonts",
+              expiration: { maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 * 365 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
+            // Listas de leitura (clientes/fornecedores/produtos) — SWR de 5min.
+            // Mutations (POST/PATCH/DELETE) NUNCA são cacheadas — Workbox só
+            // intercepta GET por padrão.
+            urlPattern: ({ url, request }) =>
+              request.method === "GET" &&
+              /\/rest\/v1\/(clientes|fornecedores|produtos|app_configuracoes)/.test(url.pathname),
+            handler: "StaleWhileRevalidate",
+            options: {
+              cacheName: "supabase-listas",
+              expiration: { maxEntries: 50, maxAgeSeconds: 60 * 5 },
+              cacheableResponse: { statuses: [200] },
+            },
+          },
+        ],
+      },
+      devOptions: { enabled: false },
+    }),
+  ].filter(Boolean),
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
