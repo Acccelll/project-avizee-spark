@@ -402,6 +402,7 @@ const Clientes = () => {
               />
             )}
           />
+          </div>
         </PullToRefresh>
       </ModulePage>
 
