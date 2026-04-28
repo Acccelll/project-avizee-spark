@@ -195,3 +195,8 @@ Sugiro a sequência **Onda 0 → Onda 1 → Onda 3** (fundação + casca + wizar
   - Service `manifestacao.service.ts` com URL do Ambiente Nacional (prod/hom) + helpers `statusManifestacaoFromEvento` / `tipoEventoFiscalFromManifestacao`
   - `ManifestacaoDestinatarioDrawer`: captura por chave, lista NF-e com badge de status e ações de Ciência / Confirmar / Desconhecer / Não realizada (esta com diálogo de justificativa 15–255 chars)
   - Atalhos no Painel e em Documentos do `/faturamento`
+- ✅ **Onda 9** — Importação de XML de NF-e (entrada):
+  - `nfe_distribuicao` recebe colunas enriquecidas: `uf_emitente`, `ie_emitente`, `valor_icms`, `valor_ipi`, `natureza_operacao`, `xml_importado`
+  - Tabela `nfe_distribuicao_itens` (numero_item, código, descrição, NCM, CFOP, unidade, qtd, valor_unitario, valor_total) com UNIQUE (nfe_distribuicao_id, numero_item) e `chk_` constraints
+  - Service `nfeXmlParser.service.ts` (DOMParser nativo, tolerante a namespace) extraindo chave/emitente/totais/itens/protocolo de procNFe ou NFe
+  - `ManifestacaoDestinatarioDrawer` ganhou: botão "Importar XML autorizado" (upsert por chave + reescrita atômica de itens), badge "XML" + total formatado por linha, botão "Ver itens" abrindo `ItensDialog` (lazy fetch, tabela com NCM/CFOP/qtd/valores)
