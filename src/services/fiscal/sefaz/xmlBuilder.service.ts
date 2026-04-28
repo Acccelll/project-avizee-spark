@@ -409,3 +409,43 @@ export function construirXMLInutilizacao(
   </infInut>
 </inutNFe>`;
 }
+
+/**
+ * Constrói o XML de evento de Carta de Correção Eletrônica (CC-e).
+ * tpEvento = 110110, conforme MOC NF-e 4.00.
+ *
+ * @param correcao Texto da correção (15 a 1000 caracteres).
+ * @param sequencia Número sequencial da CC-e para a mesma NF (1..20).
+ */
+export function construirXMLCartaCorrecao(
+  chave: string,
+  correcao: string,
+  cnpjEmitente: string,
+  dataHora: string,
+  sequencia: number,
+  ambiente: AmbienteSefaz = "2",
+): string {
+  const cnpj = cnpjEmitente.replace(/\D/g, "");
+  const seqStr = String(sequencia).padStart(2, "0");
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<envEvento versao="1.00" xmlns="http://www.portalfiscal.inf.br/nfe">
+  <idLote>1</idLote>
+  <evento versao="1.00">
+    <infEvento Id="ID110110${chave}${seqStr}">
+      <cOrgao>91</cOrgao>
+      <tpAmb>${ambiente}</tpAmb>
+      <CNPJ>${cnpj}</CNPJ>
+      <chNFe>${chave}</chNFe>
+      <dhEvento>${dataHora}</dhEvento>
+      <tpEvento>110110</tpEvento>
+      <nSeqEvento>${sequencia}</nSeqEvento>
+      <verEvento>1.00</verEvento>
+      <detEvento versao="1.00">
+        <descEvento>Carta de Correcao</descEvento>
+        <xCorrecao>${escapeXml(correcao)}</xCorrecao>
+        <xCondUso>A Carta de Correcao e disciplinada pelo paragrafo 1o-A do art. 7o do Convenio S/N, de 15 de dezembro de 1970 e pode ser utilizada para regularizacao de erro ocorrido na emissao de documento fiscal, desde que o erro nao esteja relacionado com: I - as variaveis que determinam o valor do imposto tais como: base de calculo, aliquota, diferenca de preco, quantidade, valor da operacao ou da prestacao; II - a correcao de dados cadastrais que implique mudanca do remetente ou do destinatario; III - a data de emissao ou de saida.</xCondUso>
+      </detEvento>
+    </infEvento>
+  </evento>
+</envEvento>`;
+}
