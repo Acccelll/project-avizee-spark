@@ -10,6 +10,8 @@ import {
   XCircle,
   Upload,
   Eye,
+  PackagePlus,
+  CheckCheck,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -46,6 +48,13 @@ import {
 import { notifyError } from "@/utils/errorMessages";
 import { parseNFeXml, type NFeXmlItem } from "@/services/fiscal/nfeXmlParser.service";
 import { formatCurrency } from "@/lib/format";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 /**
  * Manifestação do Destinatário (Onda 8).
@@ -76,6 +85,8 @@ interface NfeCapturada {
   data_manifestacao: string | null;
   observacao: string | null;
   xml_importado: boolean;
+  processado?: boolean;
+  data_processamento?: string | null;
 }
 
 const STATUS_LABEL: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -116,6 +127,7 @@ export function ManifestacaoDestinatarioDrawer({ open, onOpenChange }: Manifesta
   const [importando, setImportando] = useState(false);
   const [verItensTarget, setVerItensTarget] = useState<NfeCapturada | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const [processarTarget, setProcessarTarget] = useState<NfeCapturada | null>(null);
 
   const { data: notas = [], isLoading } = useQuery({
     queryKey: ["nfe-distribuicao"],
@@ -123,7 +135,7 @@ export function ManifestacaoDestinatarioDrawer({ open, onOpenChange }: Manifesta
       const { data, error } = await supabase
         .from("nfe_distribuicao")
         .select(
-          "id, chave_acesso, cnpj_emitente, nome_emitente, numero, serie, data_emissao, valor_total, protocolo_autorizacao, status_manifestacao, data_manifestacao, observacao, xml_importado",
+          "id, chave_acesso, cnpj_emitente, nome_emitente, numero, serie, data_emissao, valor_total, protocolo_autorizacao, status_manifestacao, data_manifestacao, observacao, xml_importado, processado, data_processamento",
         )
         .order("created_at", { ascending: false })
         .limit(100);
@@ -443,6 +455,11 @@ export function ManifestacaoDestinatarioDrawer({ open, onOpenChange }: Manifesta
                             {nf.xml_importado && (
                               <Badge variant="secondary" className="text-[10px]">XML</Badge>
                             )}
+                            {nf.processado && (
+                              <Badge variant="default" className="text-[10px] gap-1">
+                                <CheckCheck className="h-3 w-3" /> Processada
+                              </Badge>
+                            )}
                           </div>
                         </div>
                         <div className="flex flex-wrap gap-2 pt-1">
@@ -456,6 +473,18 @@ export function ManifestacaoDestinatarioDrawer({ open, onOpenChange }: Manifesta
                               <Eye className="h-3 w-3" /> Ver itens
                             </Button>
                           )}
+                          {nf.xml_importado &&
+                            nf.status_manifestacao === "confirmada" &&
+                            !nf.processado && (
+                              <Button
+                                size="sm"
+                                variant="default"
+                                onClick={() => setProcessarTarget(nf)}
+                                className="gap-1"
+                              >
+                                <PackagePlus className="h-3 w-3" /> Processar entrada
+                              </Button>
+                            )}
                           <Button
                             size="sm"
                             variant="outline"
@@ -557,6 +586,15 @@ export function ManifestacaoDestinatarioDrawer({ open, onOpenChange }: Manifesta
         nf={verItensTarget}
         onClose={() => setVerItensTarget(null)}
       />
+
+      <ProcessarEntradaDialog
+        nf={processarTarget}
+        onClose={() => setProcessarTarget(null)}
+        onProcessed={() => {
+          qc.invalidateQueries({ queryKey: ["nfe-distribuicao"] });
+          setProcessarTarget(null);
+        }}
+      />
     </>
   );
 }
@@ -654,6 +692,302 @@ function ItensDialog({ nf, onClose }: ItensDialogProps) {
         )}
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>Fechar</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/**
+ * Dialog para processar entrada da NF-e: gera 1 título a pagar (consolidado)
+ * + movimentações de estoque para os itens já vinculados a um produto.
+ * O usuário escolhe fornecedor (sugerido pelo CNPJ emitente), data de
+ * vencimento e mapeia produtos por linha de item.
+ */
+interface ProcessarEntradaProps {
+  nf: NfeCapturada | null;
+  onClose: () => void;
+  onProcessed: () => void;
+}
+
+interface ItemLinha {
+  id: string;
+  numero_item: number;
+  descricao: string;
+  ncm: string | null;
+  cfop: string | null;
+  quantidade: number;
+  valor_total: number;
+  produto_id: string | null;
+}
+
+interface ProdutoOpt {
+  id: string;
+  sku: string | null;
+  nome: string;
+}
+
+interface FornecedorOpt {
+  id: string;
+  nome_razao_social: string | null;
+  nome_fantasia: string | null;
+  cpf_cnpj: string | null;
+}
+
+function ProcessarEntradaDialog({ nf, onClose, onProcessed }: ProcessarEntradaProps) {
+  const qc = useQueryClient();
+  const [fornecedorId, setFornecedorId] = useState<string>("");
+  const [vencimento, setVencimento] = useState<string>(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 30);
+    return d.toISOString().slice(0, 10);
+  });
+  const [processando, setProcessando] = useState(false);
+
+  // Reset quando troca de NF
+  if (nf && !fornecedorId && nf) {
+    // intentionally noop — initialization handled by useQuery onSuccess via select default
+  }
+
+  const { data: fornecedores = [] } = useQuery({
+    queryKey: ["fornecedores-ativos-min"],
+    queryFn: async (): Promise<FornecedorOpt[]> => {
+      const { data, error } = await supabase
+        .from("fornecedores")
+        .select("id, nome_razao_social, nome_fantasia, cpf_cnpj")
+        .eq("ativo", true)
+        .order("nome_razao_social")
+        .limit(500);
+      if (error) throw error;
+      return (data ?? []) as FornecedorOpt[];
+    },
+    enabled: !!nf,
+  });
+
+  const { data: produtos = [] } = useQuery({
+    queryKey: ["produtos-min-busca"],
+    queryFn: async (): Promise<ProdutoOpt[]> => {
+      const { data, error } = await supabase
+        .from("produtos")
+        .select("id, sku, nome")
+        .eq("ativo", true)
+        .order("nome")
+        .limit(500);
+      if (error) throw error;
+      return (data ?? []) as ProdutoOpt[];
+    },
+    enabled: !!nf,
+  });
+
+  const { data: itens = [], refetch: refetchItens } = useQuery({
+    queryKey: ["nfe-dist-itens-mapear", nf?.id],
+    queryFn: async (): Promise<ItemLinha[]> => {
+      if (!nf) return [];
+      const { data, error } = await supabase
+        .from("nfe_distribuicao_itens")
+        .select("id, numero_item, descricao, ncm, cfop, quantidade, valor_total, produto_id")
+        .eq("nfe_distribuicao_id", nf.id)
+        .order("numero_item");
+      if (error) throw error;
+      return (data ?? []).map((r) => ({
+        id: r.id,
+        numero_item: r.numero_item,
+        descricao: r.descricao,
+        ncm: r.ncm,
+        cfop: r.cfop,
+        quantidade: Number(r.quantidade ?? 0),
+        valor_total: Number(r.valor_total ?? 0),
+        produto_id: r.produto_id,
+      }));
+    },
+    enabled: !!nf,
+  });
+
+  // Sugere fornecedor pelo CNPJ emitente quando lista carrega
+  if (
+    nf?.cnpj_emitente &&
+    !fornecedorId &&
+    fornecedores.length > 0
+  ) {
+    const cnpjLimpo = nf.cnpj_emitente.replace(/\D/g, "");
+    const match = fornecedores.find(
+      (f) => (f.cpf_cnpj ?? "").replace(/\D/g, "") === cnpjLimpo,
+    );
+    if (match) {
+      // setState dentro do render é seguro aqui pois é condicional e converge.
+      setTimeout(() => setFornecedorId(match.id), 0);
+    }
+  }
+
+  const handleMapearProduto = async (itemId: string, produtoId: string | null) => {
+    const { error } = await supabase
+      .from("nfe_distribuicao_itens")
+      .update({ produto_id: produtoId })
+      .eq("id", itemId);
+    if (error) {
+      notifyError(error);
+      return;
+    }
+    refetchItens();
+  };
+
+  const itensComProduto = itens.filter((i) => i.produto_id).length;
+
+  const handleProcessar = async () => {
+    if (!nf || !fornecedorId) return;
+    setProcessando(true);
+    try {
+      const { data, error } = await supabase.rpc("processar_nfe_distribuicao", {
+        p_nfe_id: nf.id,
+        p_fornecedor_id: fornecedorId,
+        p_data_vencimento: vencimento,
+        p_descricao: null,
+      });
+      if (error) throw error;
+      const r = (data ?? {}) as {
+        itens_processados?: number;
+        itens_total?: number;
+        itens_sem_produto?: number;
+      };
+      toast.success(
+        `Entrada processada — ${r.itens_processados ?? 0}/${r.itens_total ?? 0} itens em estoque, 1 título a pagar gerado.`,
+        r.itens_sem_produto && r.itens_sem_produto > 0
+          ? { description: `${r.itens_sem_produto} item(ns) ficaram sem produto e não foram lançados em estoque.` }
+          : undefined,
+      );
+      qc.invalidateQueries({ queryKey: ["financeiro_lancamentos"] });
+      qc.invalidateQueries({ queryKey: ["estoque_movimentos"] });
+      onProcessed();
+      setFornecedorId("");
+    } catch (e) {
+      notifyError(e);
+    } finally {
+      setProcessando(false);
+    }
+  };
+
+  return (
+    <Dialog open={!!nf} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <PackagePlus className="h-5 w-5" />
+            Processar entrada — NF {nf?.numero ?? "—"}/{nf?.serie ?? "—"}
+          </DialogTitle>
+          <DialogDescription>
+            Mapeie os produtos do XML para itens do seu cadastro e confirme para
+            gerar o título a pagar e a movimentação de estoque.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1">
+              <Label htmlFor="fornecedor">Fornecedor</Label>
+              <Select value={fornecedorId} onValueChange={setFornecedorId}>
+                <SelectTrigger id="fornecedor">
+                  <SelectValue placeholder="Selecione o fornecedor…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {fornecedores.map((f) => (
+                    <SelectItem key={f.id} value={f.id}>
+                      {f.nome_fantasia ?? f.nome_razao_social ?? "—"}
+                      {f.cpf_cnpj ? ` · ${f.cpf_cnpj}` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {nf?.cnpj_emitente && (
+                <p className="text-[11px] text-muted-foreground">
+                  Sugerido pelo CNPJ emitente {nf.cnpj_emitente}
+                </p>
+              )}
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="vencimento">Data de vencimento</Label>
+              <Input
+                id="vencimento"
+                type="date"
+                value={vencimento}
+                onChange={(e) => setVencimento(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="rounded-md border max-h-[40vh] overflow-y-auto">
+            <table className="w-full text-xs">
+              <thead className="bg-muted/50 sticky top-0">
+                <tr>
+                  <th className="px-2 py-2 text-left">#</th>
+                  <th className="px-2 py-2 text-left">Descrição</th>
+                  <th className="px-2 py-2 text-right">Qtd</th>
+                  <th className="px-2 py-2 text-right">Valor</th>
+                  <th className="px-2 py-2 text-left">Produto cadastrado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {itens.map((it) => (
+                  <tr key={it.id} className="border-t align-top">
+                    <td className="px-2 py-1.5">{it.numero_item}</td>
+                    <td className="px-2 py-1.5">
+                      <div>{it.descricao}</div>
+                      <div className="text-[10px] text-muted-foreground">
+                        {it.ncm && `NCM ${it.ncm}`} {it.cfop && `· CFOP ${it.cfop}`}
+                      </div>
+                    </td>
+                    <td className="px-2 py-1.5 text-right">
+                      {it.quantidade.toLocaleString("pt-BR", { maximumFractionDigits: 4 })}
+                    </td>
+                    <td className="px-2 py-1.5 text-right">{formatCurrency(it.valor_total)}</td>
+                    <td className="px-2 py-1.5">
+                      <Select
+                        value={it.produto_id ?? "__none__"}
+                        onValueChange={(v) =>
+                          handleMapearProduto(it.id, v === "__none__" ? null : v)
+                        }
+                      >
+                        <SelectTrigger className="h-7 text-xs">
+                          <SelectValue placeholder="— sem mapeamento —" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">— sem mapeamento —</SelectItem>
+                          {produtos.map((p) => (
+                            <SelectItem key={p.id} value={p.id}>
+                              {p.sku ? `${p.sku} — ` : ""}{p.nome}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            {itensComProduto}/{itens.length} itens com produto mapeado. Itens sem
+            mapeamento não geram movimentação de estoque, mas o título a pagar
+            usa o valor total da nota.
+          </p>
+        </div>
+
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose} disabled={processando}>
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleProcessar}
+            disabled={!fornecedorId || processando}
+            className="gap-2"
+          >
+            {processando ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <CheckCheck className="h-4 w-4" />
+            )}
+            Processar entrada
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

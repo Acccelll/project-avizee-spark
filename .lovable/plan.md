@@ -200,3 +200,9 @@ Sugiro a sequência **Onda 0 → Onda 1 → Onda 3** (fundação + casca + wizar
   - Tabela `nfe_distribuicao_itens` (numero_item, código, descrição, NCM, CFOP, unidade, qtd, valor_unitario, valor_total) com UNIQUE (nfe_distribuicao_id, numero_item) e `chk_` constraints
   - Service `nfeXmlParser.service.ts` (DOMParser nativo, tolerante a namespace) extraindo chave/emitente/totais/itens/protocolo de procNFe ou NFe
   - `ManifestacaoDestinatarioDrawer` ganhou: botão "Importar XML autorizado" (upsert por chave + reescrita atômica de itens), badge "XML" + total formatado por linha, botão "Ver itens" abrindo `ItensDialog` (lazy fetch, tabela com NCM/CFOP/qtd/valores)
+- ✅ **Onda 10** — Processamento de NF-e de entrada (estoque + financeiro):
+  - `nfe_distribuicao` ganha: `fornecedor_id`, `processado`, `data_processamento`, `financeiro_lancamento_id`
+  - `nfe_distribuicao_itens` ganha `produto_id` (vínculo com cadastro)
+  - RPC `processar_nfe_distribuicao(p_nfe_id, p_fornecedor_id, p_data_vencimento, p_descricao)` SECURITY DEFINER + search_path=public — atomicamente: gera 1 título consolidado em `financeiro_lancamentos` (origem_tipo='nfe_entrada', origem_id=NF-e, fornecedor + valor + vencimento), insere movimentações em `estoque_movimentos` (tipo=entrada, documento_tipo='nfe_entrada') para cada item com produto mapeado, marca a NF como processada
+  - Pré-condições no RPC: status `confirmada` + `xml_importado` + ainda não processada + fornecedor obrigatório
+  - UI no `ManifestacaoDestinatarioDrawer`: badge "Processada", botão "Processar entrada" (visível só quando confirmada+importada+não processada) abrindo `ProcessarEntradaDialog` com seleção de fornecedor (sugerido pelo CNPJ emitente), data de vencimento padrão D+30 e mapeamento item→produto inline (Select), retorno mostra contagem `itens_processados / itens_total / itens_sem_produto`
