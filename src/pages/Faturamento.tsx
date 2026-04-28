@@ -20,6 +20,7 @@ import {
   Plus,
   BookOpen,
   Ban,
+  Inbox,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -28,6 +29,7 @@ import { BacklogFaturamento } from "@/pages/faturamento/BacklogFaturamento";
 import { InutilizacaoDrawer } from "@/pages/fiscal/components/InutilizacaoDrawer";
 import { StatusSefazUFWidget } from "@/pages/fiscal/components/StatusSefazUFWidget";
 import { ContingenciaSvcDrawer } from "@/pages/fiscal/components/ContingenciaSvcDrawer";
+import { ManifestacaoDestinatarioDrawer } from "@/pages/fiscal/components/ManifestacaoDestinatarioDrawer";
 import { useQueryClient } from "@tanstack/react-query";
 
 /**
@@ -162,6 +164,7 @@ export default function Faturamento() {
   const [inutOpen, setInutOpen] = useState(false);
   const [contOpen, setContOpen] = useState(false);
   const [contCfg, setContCfg] = useState<{ modo: string | null; motivo: string | null } | null>(null);
+  const [manifOpen, setManifOpen] = useState(false);
   const qc = useQueryClient();
 
   const handleTab = (next: string) => {
@@ -316,6 +319,9 @@ export default function Faturamento() {
                   <Button variant="outline" className="justify-start" onClick={() => setInutOpen(true)}>
                     <Ban className="h-4 w-4 mr-2" /> Inutilizar numeração
                   </Button>
+                  <Button variant="outline" className="justify-start" onClick={() => setManifOpen(true)}>
+                    <Inbox className="h-4 w-4 mr-2" /> Manifestação do destinatário
+                  </Button>
                 </CardContent>
               </Card>
             </div>
@@ -370,6 +376,9 @@ export default function Faturamento() {
                 <Button variant="outline" onClick={() => setInutOpen(true)} className="gap-2">
                   <Ban className="h-4 w-4" /> Inutilizar numeração
                 </Button>
+                <Button variant="outline" onClick={() => setManifOpen(true)} className="gap-2">
+                  <Inbox className="h-4 w-4" /> Manifestação do destinatário
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -377,6 +386,7 @@ export default function Faturamento() {
       </Tabs>
 
       <InutilizacaoDrawer open={inutOpen} onOpenChange={setInutOpen} />
+      <ManifestacaoDestinatarioDrawer open={manifOpen} onOpenChange={setManifOpen} />
       <ContingenciaSvcDrawer
         open={contOpen}
         onOpenChange={setContOpen}

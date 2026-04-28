@@ -449,3 +449,59 @@ export function construirXMLCartaCorrecao(
   </evento>
 </envEvento>`;
 }
+
+/**
+ * Tipos de evento de Manifestação do Destinatário (NT 2012/002).
+ * - 210200 = Confirmação da Operação
+ * - 210210 = Ciência da Operação
+ * - 210220 = Desconhecimento da Operação
+ * - 210240 = Operação Não Realizada (exige justificativa 15..255)
+ */
+export type TipoManifestacao = "210200" | "210210" | "210220" | "210240";
+
+const DESC_MANIFESTACAO: Record<TipoManifestacao, string> = {
+  "210200": "Confirmacao da Operacao",
+  "210210": "Ciencia da Operacao",
+  "210220": "Desconhecimento da Operacao",
+  "210240": "Operacao nao Realizada",
+};
+
+/**
+ * Constrói o XML de evento de Manifestação do Destinatário.
+ * cOrgao = 91 (AN — Ambiente Nacional). Apenas 210240 carrega xJust.
+ */
+export function construirXMLManifestacao(
+  chave: string,
+  cnpjDestinatario: string,
+  tpEvento: TipoManifestacao,
+  dataHora: string,
+  ambiente: AmbienteSefaz = "2",
+  justificativa?: string,
+): string {
+  const cnpj = cnpjDestinatario.replace(/\D/g, "");
+  const seqStr = "01";
+  const desc = DESC_MANIFESTACAO[tpEvento];
+  const xJustTag =
+    tpEvento === "210240" && justificativa
+      ? `\n        <xJust>${escapeXml(justificativa)}</xJust>`
+      : "";
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<envEvento versao="1.00" xmlns="http://www.portalfiscal.inf.br/nfe">
+  <idLote>1</idLote>
+  <evento versao="1.00">
+    <infEvento Id="ID${tpEvento}${chave}${seqStr}">
+      <cOrgao>91</cOrgao>
+      <tpAmb>${ambiente}</tpAmb>
+      <CNPJ>${cnpj}</CNPJ>
+      <chNFe>${chave}</chNFe>
+      <dhEvento>${dataHora}</dhEvento>
+      <tpEvento>${tpEvento}</tpEvento>
+      <nSeqEvento>1</nSeqEvento>
+      <verEvento>1.00</verEvento>
+      <detEvento versao="1.00">
+        <descEvento>${desc}</descEvento>${xJustTag}
+      </detEvento>
+    </infEvento>
+  </evento>
+</envEvento>`;
+}

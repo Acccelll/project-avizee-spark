@@ -188,3 +188,10 @@ Sugiro a sequência **Onda 0 → Onda 1 → Onda 3** (fundação + casca + wizar
   - Template transacional `nfe-autorizada` (registry + edge function redeploy)
   - Serviço `enviarDanfePorEmail` (PDF → Storage → signed URL 7d → fila pgmq)
   - Botão "Enviar por e-mail" no `SefazAcoesPanel` com pré-preenchimento do e-mail do cliente
+- ✅ **Onda 8** — Manifestação do Destinatário (NF-e de entrada por chave):
+  - Tabela `nfe_distribuicao` (chave única 44 dígitos, CNPJ/série/número extraídos da chave, `status_manifestacao ∈ {sem_manifestacao,ciencia,confirmada,desconhecida,nao_realizada}`)
+  - Coluna `eventos_fiscais.nfe_distribuicao_id` + relax do `nota_fiscal_id NOT NULL` com `chk_eventos_fiscais_destino`
+  - Builder `construirXMLManifestacao` (eventos 210200/210210/210220/210240, cOrgao 91 AN)
+  - Service `manifestacao.service.ts` com URL do Ambiente Nacional (prod/hom) + helpers `statusManifestacaoFromEvento` / `tipoEventoFiscalFromManifestacao`
+  - `ManifestacaoDestinatarioDrawer`: captura por chave, lista NF-e com badge de status e ações de Ciência / Confirmar / Desconhecer / Não realizada (esta com diálogo de justificativa 15–255 chars)
+  - Atalhos no Painel e em Documentos do `/faturamento`
