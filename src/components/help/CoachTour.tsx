@@ -11,16 +11,26 @@ import type { HelpTourStep } from '@/help/types';
  * (`orcamentos.novoBtn`) quanto seletor CSS arbitrário (`header.global-period`).
  */
 function resolveTarget(target: string): Element | null {
-  if (target.startsWith('[') || target.includes(' ') || target.includes('.') === false) {
-    // tenta primeiro como data-help-id
-    const byAttr = document.querySelector(`[data-help-id="${target}"]`);
-    if (byAttr) return byAttr;
-  }
+  // 1. Caso comum: target é um valor de `data-help-id` (ex.: `dashboard.fiscal`).
+  //    Usamos CSS.escape para suportar pontos, dois pontos e outros caracteres
+  //    que, sem escape, seriam interpretados como combinadores CSS.
   try {
-    return document.querySelector(`[data-help-id="${target}"]`) || document.querySelector(target);
+    const byAttr = document.querySelector(`[data-help-id="${CSS.escape(target)}"]`);
+    if (byAttr) return byAttr;
   } catch {
-    return null;
+    /* noop */
   }
+  // 2. Fallback: trata como seletor CSS bruto apenas quando o início indica isso
+  //    (`[`, `#`, `.`, `:`, `*` ou letra de tag). Evita disparar querySelector
+  //    com `dashboard.fiscal` (que é seletor inválido) e cair silenciosamente.
+  if (/^[\[#.:*a-z]/i.test(target)) {
+    try {
+      return document.querySelector(target);
+    } catch {
+      /* noop */
+    }
+  }
+  return null;
 }
 
 const PADDING = 8;
