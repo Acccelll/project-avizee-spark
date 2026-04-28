@@ -1,14 +1,13 @@
 /**
  * PWA bootstrap — registro manual do service worker via workbox-window.
  *
- * Por que manual: usamos `registerType: "prompt"` no vite-plugin-pwa e
- * `injectRegister: false`. Assim controlamos:
- *   1. Quando o SW é registrado (apenas em produção, fora de iframes do
- *      preview do Lovable, e quando suportado).
- *   2. Quando o usuário é avisado de que há nova versão disponível (toast).
- *
- * O hook `useUpdateAvailable` consome o evento global `pwa:update-ready`
- * disparado aqui para mostrar um toast com botão "Atualizar".
+ * Estratégia: `registerType: "autoUpdate"` no vite-plugin-pwa garante que
+ * SWs novos assumam automaticamente (skipWaiting + clientsClaim no workbox).
+ * Mantemos o evento `pwa:update-ready` por compatibilidade com o toast em
+ * `useUpdateAvailable`, mas ele é apenas informativo — a atualização já
+ * aconteceu silenciosamente. Isto resolve o caso "PWA instalado no mobile
+ * preso a um bundle JS antigo com envs vazias", em que o usuário nunca via
+ * o prompt para atualizar e ficava bloqueado no /login.
  */
 
 import type { Workbox } from "workbox-window";
