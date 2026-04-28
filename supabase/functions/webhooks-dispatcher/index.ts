@@ -65,10 +65,12 @@ async function processQueue(): Promise<{ processed: number; delivered: number; f
   let failed = 0;
 
   for (let i = 0; i < BATCH_SIZE; i++) {
-    // pgmq.read devolve até N mensagens; usamos 1 por iteração para simplificar
-    const { data: msgs, error: readError } = await admin
-      .schema("pgmq" as any)
-      .rpc("read", { queue_name: "webhook_events", vt: VISIBILITY_TIMEOUT, qty: 1 } as any);
+    // Usamos wrappers públicos (webhooks_queue_read/_delete) porque o schema
+    // pgmq não é exposto pelo PostgREST.
+    const { data: msgs, error: readError } = await admin.rpc(
+      "webhooks_queue_read" as any,
+      { p_qty: 1, p_vt: VISIBILITY_TIMEOUT } as any,
+    );
 
     if (readError) {
       console.error("[webhooks-dispatcher] erro pgmq.read", readError);
@@ -83,7 +85,7 @@ async function processQueue(): Promise<{ processed: number; delivered: number; f
       const payload = m.message?.payload ?? {};
 
       if (!evento) {
-        await admin.schema("pgmq" as any).rpc("delete", { queue_name: "webhook_events", msg_id: m.msg_id } as any);
+        await admin.rpc("webhooks_queue_delete" as any, { p_msg_id: m.msg_id } as any);
         continue;
       }
 
@@ -103,7 +105,7 @@ async function processQueue(): Promise<{ processed: number; delivered: number; f
 
       // Sem endpoint interessado → consumir e seguir
       if (!endpoints || endpoints.length === 0) {
-        await admin.schema("pgmq" as any).rpc("delete", { queue_name: "webhook_events", msg_id: m.msg_id } as any);
+        await admin.rpc("webhooks_queue_delete" as any, { p_msg_id: m.msg_id } as any);
         continue;
       }
 
@@ -198,7 +200,7 @@ async function processQueue(): Promise<{ processed: number; delivered: number; f
       }
 
       // Mensagem consumida (independente de sucesso por endpoint — retry vive em deliveries)
-      await admin.schema("pgmq" as any).rpc("delete", { queue_name: "webhook_events", msg_id: m.msg_id } as any);
+      await admin.rpc("webhooks_queue_delete" as any, { p_msg_id: m.msg_id } as any);
     }
   }
 
