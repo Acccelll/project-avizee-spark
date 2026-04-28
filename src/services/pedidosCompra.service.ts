@@ -40,7 +40,7 @@ export async function getPedidoCompra(id: string): Promise<PedidoCompraRow | nul
   const { data, error } = await supabase
     .from("pedidos_compra")
     .select("*, fornecedores(nome_razao_social, cpf_cnpj)")
-    .eq("id", id)
+    .eq("id", String(id))
     .maybeSingle();
   if (error) throw new Error(error.message);
   return (data ?? null) as PedidoCompraRow | null;
@@ -50,7 +50,7 @@ export async function listPedidoCompraItens(pedidoId: string): Promise<PedidoCom
   const { data, error } = await supabase
     .from("pedidos_compra_itens")
     .select("*, produtos(nome, codigo_interno)")
-    .eq("pedido_compra_id", pedidoId);
+    .eq("pedido_compra_id", String(pedidoId));
   if (error) throw new Error(error.message);
   return (data ?? []) as PedidoCompraItemRow[];
 }
@@ -142,7 +142,7 @@ export async function listEstoqueMovimentosPorPedido(pedidoId: string | number) 
   const { data, error } = await supabase
     .from("estoque_movimentos")
     .select("*, produtos(nome, codigo_interno)")
-    .eq("documento_id", pedidoId)
+    .eq("documento_id", String(pedidoId))
     .eq("documento_tipo", "pedido_compra");
   if (error) throw error;
   return data || [];
@@ -184,7 +184,7 @@ export async function updatePedidoCompra(id: string | number, payload: Record<st
   const { error } = await supabase
     .from("pedidos_compra")
     .update(payload as never)
-    .eq("id", id);
+    .eq("id", String(id));
   if (error) throw error;
 }
 
@@ -192,7 +192,7 @@ export async function deletePedidoCompraItens(pedidoId: string | number) {
   const { error } = await supabase
     .from("pedidos_compra_itens")
     .delete()
-    .eq("pedido_compra_id", pedidoId);
+    .eq("pedido_compra_id", String(pedidoId));
   if (error) throw error;
 }
 
@@ -202,12 +202,12 @@ export async function insertPedidoCompraItens(rows: Array<Record<string, unknown
 }
 
 export async function deletePedidoCompraHard(id: string | number) {
-  const { error } = await supabase.from("pedidos_compra").delete().eq("id", id);
+  const { error } = await supabase.from("pedidos_compra").delete().eq("id", String(id));
   if (error) throw error;
 }
 
 export async function softDeletePedidoCompra(id: string | number) {
-  const { error } = await supabase.from("pedidos_compra").update({ ativo: false }).eq("id", id);
+  const { error } = await supabase.from("pedidos_compra").update({ ativo: false }).eq("id", String(id));
   if (error) throw error;
 }
 
@@ -215,7 +215,7 @@ export async function listPedidoItensParaRecebimento(pedidoId: string | number) 
   const { data, error } = await supabase
     .from("pedidos_compra_itens")
     .select("id, produto_id, quantidade, quantidade_recebida, preco_unitario")
-    .eq("pedido_compra_id", pedidoId);
+    .eq("pedido_compra_id", String(pedidoId));
   if (error) throw error;
   return data || [];
 }
@@ -224,7 +224,7 @@ export async function marcarPedidoEnviado(id: string | number) {
   const { error } = await supabase
     .from("pedidos_compra")
     .update({ status: "enviado_ao_fornecedor" })
-    .eq("id", id);
+    .eq("id", String(id));
   if (error) throw error;
 }
 
