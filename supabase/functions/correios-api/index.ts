@@ -486,24 +486,48 @@ async function buildPrepostagemBody(
   if (!cli.cep) throw new Error("Cliente sem CEP cadastrado.");
   if (!cli.logradouro || !cli.cidade || !cli.uf) throw new Error("Endereço do cliente incompleto (logradouro/cidade/UF).");
 
-  // Dados do remetente vêm de app_configuracoes
-  const { data: cfgRows } = await admin
-    .from("app_configuracoes")
-    .select("chave, valor")
-    .in("chave", [
-      "razao_social","cnpj_empresa","cep_empresa",
-      "endereco_empresa","numero_empresa","complemento_empresa",
-      "bairro_empresa","cidade_empresa","uf_empresa",
-      "telefone_empresa","email_empresa",
-    ]);
-  const cfg: Record<string, string> = {};
-  for (const r of cfgRows ?? []) {
-    const v = (r as { valor: unknown }).valor;
-    cfg[(r as { chave: string }).chave] = typeof v === "string" ? v.replace(/^"|"$/g, "") : String(v);
+  // Dados do remetente — fonte canônica: empresa_config (Administração → Empresa).
+  // Fallback para chaves legadas em app_configuracoes mantido por compatibilidade.
+  const { data: empCfg } = await admin
+    .from("empresa_config")
+    .select("razao_social, cnpj, cep, logradouro, numero, complemento, bairro, cidade, uf, telefone, email")
+    .limit(1)
+    .maybeSingle();
+
+  const cfg: Record<string, string> = {
+    razao_social: empCfg?.razao_social ?? "",
+    cnpj_empresa: empCfg?.cnpj ?? "",
+    cep_empresa: empCfg?.cep ?? "",
+    endereco_empresa: empCfg?.logradouro ?? "",
+    numero_empresa: empCfg?.numero ?? "",
+    complemento_empresa: empCfg?.complemento ?? "",
+    bairro_empresa: empCfg?.bairro ?? "",
+    cidade_empresa: empCfg?.cidade ?? "",
+    uf_empresa: empCfg?.uf ?? "",
+    telefone_empresa: empCfg?.telefone ?? "",
+    email_empresa: empCfg?.email ?? "",
+  };
+
+  // Fallback: chaves legadas em app_configuracoes preenchem o que estiver vazio
+  const missingKeys = Object.entries(cfg).filter(([, v]) => !v).map(([k]) => k);
+  if (missingKeys.length > 0) {
+    const { data: cfgRows } = await admin
+      .from("app_configuracoes")
+      .select("chave, valor")
+      .in("chave", missingKeys);
+    for (const r of cfgRows ?? []) {
+      const v = (r as { valor: unknown }).valor;
+      const parsed = typeof v === "string" ? v.replace(/^"|"$/g, "") : String(v);
+      if (parsed) cfg[(r as { chave: string }).chave] = parsed;
+    }
   }
 
   const cepRemetente = onlyDigits(cfg.cep_empresa);
-  if (!cepRemetente) throw new Error("CEP do remetente (empresa) não configurado em Administração.");
+  if (!cepRemetente) throw new Error("CEP do remetente (empresa) não configurado em Administração → Empresa.");
+  if (!cfg.cnpj_empresa) throw new Error("CNPJ do remetente (empresa) não configurado em Administração → Empresa.");
+  if (!cfg.endereco_empresa || !cfg.cidade_empresa || !cfg.uf_empresa) {
+    throw new Error("Endereço do remetente incompleto (logradouro/cidade/UF) em Administração → Empresa.");
+  }
 
   // Mapeia o nome do serviço para o código contratual
   const servicoUpper = (remessa.servico || "").toUpperCase();
