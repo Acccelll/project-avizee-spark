@@ -122,10 +122,10 @@ Mantida do plano anterior, agora explicitada:
 ## 6. Roadmap em 6 ondas
 
 ```text
-Onda 0 — Fundação SEFAZ (bloqueante)
+Onda 0 — Fundação SEFAZ (bloqueante)  ✅ entregue
   Numeração + chave + IBGE + uniqueness + rigor do payload + persistência XML/DANFE
 
-Onda 1 — Estrutura do módulo /faturamento
+Onda 1 — Estrutura do módulo /faturamento  ✅ entregue
   Rota, layout 4 abas, KPIs do Painel, widget status SEFAZ
 
 Onda 2 — Cadastros fiscais
