@@ -501,7 +501,7 @@ const Estoque = () => {
         )}
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <ScrollableTabsList className="mb-4">
+          <ScrollableTabsList className="mb-4" data-help-id="estoque.tabs">
             <TabsTrigger value="saldos" className="gap-1.5">
               <Package className="h-3.5 w-3.5" />Saldos
             </TabsTrigger>
@@ -525,6 +525,7 @@ const Estoque = () => {
                 </Button>
               </div>
             </div>
+            <div data-help-id="estoque.filtros">
             <AdvancedFilterBar
               searchValue={searchPosicao}
               onSearchChange={setSearchPosicao}
@@ -542,6 +543,8 @@ const Estoque = () => {
                 className="w-[180px]"
               />
             </AdvancedFilterBar>
+            </div>
+            <div data-help-id="estoque.tabela">
             <DataTable
               columns={posColumns}
               data={posicaoAtual}
