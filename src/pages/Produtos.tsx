@@ -28,6 +28,7 @@ import {
   listProdutoFornecedores,
   saveProdutoComposicao,
   saveProdutoFornecedores,
+  createUnidadeMedida,
 } from "@/services/produtos.service";
 import { toast } from "sonner";
 import { Loader2, Plus, Trash2, Package, FileText, TrendingUp, Archive, ShoppingCart, AlertCircle, CheckCircle2, AlignLeft, Tag } from "lucide-react";
@@ -409,13 +410,15 @@ const Produtos = () => {
     if (!descricao) { toast.error("Descrição é obrigatória"); return; }
     setSavingNovaUnidade(true);
     try {
-      const { data: inserted, error } = await supabase
-        .from("unidades_medida")
-        .insert({ codigo, descricao, sigla: novaUnidadeForm.sigla.trim() || null, ativo: true })
-        .select("id, codigo, descricao, sigla")
-        .maybeSingle();
-      if (error) {
-        toast.error(getUserFriendlyError(error));
+      let inserted;
+      try {
+        inserted = await createUnidadeMedida({
+          codigo,
+          descricao,
+          sigla: novaUnidadeForm.sigla.trim() || null,
+        });
+      } catch (err) {
+        toast.error(getUserFriendlyError(err));
         setSavingNovaUnidade(false);
         return;
       }
