@@ -486,7 +486,7 @@ const Orcamentos = () => {
             placeholder="Clientes"
             className="w-[250px]"
           />
-          <PeriodFilter mode="both" value={periodValue} onChange={handlePeriodChange} />
+          <PeriodFilter mode="both" value={periodValue} onChange={handlePeriodChange} direction="past" />
         </AdvancedFilterBar>
 
         <PullToRefresh onRefresh={fetchData}>
@@ -498,6 +498,30 @@ const Orcamentos = () => {
             showColumnToggle={true}
             onView={(o) => pushView("orcamento", o.id)}
             onEdit={(o) => navigate(`/orcamentos/${o.id}`)}
+            rowExtraActions={(o: Orcamento) => (
+              <>
+                {canSendOrcamento(o.status) && (
+                  <Button size="sm" variant="outline" className="h-7 px-2 text-xs gap-1" disabled={sendLock.pending} onClick={(e) => { e.stopPropagation(); handleSendForApproval(o); }}>
+                    <Send className="w-3 h-3" /> Enviar
+                  </Button>
+                )}
+                {canApproveOrcamento(o.status) && (
+                  <Button size="sm" variant="outline" className="h-7 px-2 text-xs gap-1" onClick={(e) => { e.stopPropagation(); handleApprove(o); }} disabled={!isAdmin || approveLock.pending} title={!isAdmin ? "Somente admins podem aprovar" : ""}>
+                    <CheckCircle className="w-3 h-3" /> Aprovar
+                  </Button>
+                )}
+                {canConvertOrcamento(o.status) && (
+                  <Button size="sm" variant="default" className="h-7 px-2 text-xs gap-1" disabled={convertLock.pending} onClick={(e) => {
+                    e.stopPropagation();
+                    setPoNumberCliente("");
+                    setDataPoCliente("");
+                    setConvertingId(o.id);
+                  }}>
+                    <ArrowRightCircle className="w-3 h-3" /> Gerar Pedido
+                  </Button>
+                )}
+              </>
+            )}
             mobileStatusKey="status"
             mobilePrimaryAction={(o) => {
               if (canConvertOrcamento(o.status)) {
