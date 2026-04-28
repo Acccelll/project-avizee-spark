@@ -284,6 +284,46 @@ export async function persistirEventosNormalizados(input: {
   return novos.length;
 }
 
+// ── Rastreio agregado por documento ────────────────────────────────────────────
+
+/**
+ * Busca remessas ativas filtradas por documento de origem (pedido de compra,
+ * NF, ordem de venda ou remessa direta) e seus eventos agrupados por remessa.
+ * Usado pelo `LogisticaRastreioSection` para o painel de rastreio in-drawer.
+ */
+export async function fetchRemessasRastreioPorDocumento(filters: {
+  pedidoCompraId?: string;
+  notaFiscalId?: string;
+  remessaId?: string;
+  ordemVendaId?: string;
+}): Promise<{ remessas: Remessa[]; eventos: Record<string, RemessaEvento[]> }> {
+  let query = supabase
+    .from("remessas")
+    .select("*, transportadoras(nome_razao_social)");
+  if (filters.remessaId) query = query.eq("id", filters.remessaId);
+  if (filters.pedidoCompraId) query = query.eq("pedido_compra_id", filters.pedidoCompraId);
+  if (filters.notaFiscalId) query = query.eq("nota_fiscal_id", filters.notaFiscalId);
+  if (filters.ordemVendaId) query = query.eq("ordem_venda_id", filters.ordemVendaId);
+  const { data, error } = await query.eq("ativo", true);
+  if (error) throw error;
+  const remessas = (data ?? []) as Remessa[];
+  if (remessas.length === 0) return { remessas, eventos: {} };
+  const ids = remessas.map((r) => r.id);
+  const { data: evs, error: evErr } = await supabase
+    .from("remessa_eventos")
+    .select("*")
+    .in("remessa_id", ids)
+    .order("data_hora", { ascending: false });
+  if (evErr) throw evErr;
+  const eventos: Record<string, RemessaEvento[]> = {};
+  for (const ev of evs ?? []) {
+    const key = ev.remessa_id as string;
+    if (!eventos[key]) eventos[key] = [];
+    eventos[key].push(ev as RemessaEvento);
+  }
+  return { remessas, eventos };
+}
+
 // ── Hooks ──────────────────────────────────────────────────────────────────────
 
 export function useRemessas() {
