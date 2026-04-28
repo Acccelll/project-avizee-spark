@@ -24,8 +24,8 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { getUserFriendlyError } from "@/utils/errorMessages";
-import { supabase } from "@/integrations/supabase/client";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
+import { getEmpresaConfig, upsertEmpresaConfig } from "@/services/fiscal.service";
 
 const configuracaoSchema = z.object({
   crt: z.string().min(1, "CRT obrigatório"),
@@ -71,7 +71,7 @@ export default function ConfiguracaoFiscal() {
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.from("empresa_config").select("*").limit(1).single();
+      const data = await getEmpresaConfig();
       if (data) {
         setConfigId(data.id);
         setAmbienteAtual((data.ambiente_padrao as "homologacao" | "producao") || "homologacao");
@@ -128,12 +128,8 @@ export default function ConfiguracaoFiscal() {
         // backend supports them.
       };
 
-      if (configId) {
-        await supabase.from("empresa_config").update(payload as never).eq("id", configId);
-      } else {
-        const { data } = await supabase.from("empresa_config").insert(payload as never).select().single();
-        if (data) setConfigId((data as { id: string }).id);
-      }
+      const savedId = await upsertEmpresaConfig(payload as never, configId);
+      if (!configId) setConfigId(savedId);
       setAmbienteAtual(values.ambiente_padrao);
       toast.success("Configurações fiscais salvas");
     } catch (err) {
