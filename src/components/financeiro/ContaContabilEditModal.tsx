@@ -23,7 +23,7 @@ import { Separator } from "@/components/ui/separator";
 import { StatusBadge } from "@/components/StatusBadge";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { notifyError } from "@/utils/errorMessages";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import {
@@ -257,7 +257,7 @@ export function ContaContabilEditModal({
         baselineRef.current = snapshot();
         onClose();
       } catch (err: unknown) {
-        toast.error(getUserFriendlyError(err));
+        notifyError(err);
         throw err;
       }
     });

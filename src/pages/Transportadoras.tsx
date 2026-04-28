@@ -39,7 +39,7 @@ import { UF_OPTIONS } from "@/constants/brasil";
 import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { notifyError } from "@/utils/errorMessages";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { transportadoraSchema, validateForm } from "@/lib/validationSchemas";
@@ -177,7 +177,7 @@ export default function Transportadoras() {
       toast.success("Cliente vinculado");
     } catch (err) {
       console.error("[transportadoras] erro ao vincular cliente:", err);
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     }
     setSavingVinculoCliente(false);
   };
@@ -189,7 +189,7 @@ export default function Transportadoras() {
       toast.success("Vínculo removido");
     } catch (err) {
       console.error("[transportadoras] erro ao remover vínculo:", err);
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     }
   };
 

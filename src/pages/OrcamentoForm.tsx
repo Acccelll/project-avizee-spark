@@ -36,7 +36,7 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { TemplateConfig } from "@/types/orcamento";
 import { calcularRentabilidade, type InternalCostCandidate } from "@/lib/orcamentoRentabilidade";
 import { getOrcamentoInternalAccess } from "@/lib/orcamentoInternalAccess";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { getUserFriendlyError, notifyError } from "@/utils/errorMessages";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useOrcamentoTemplates, type OrcamentoTemplate } from "@/pages/comercial/hooks/useOrcamentoTemplates";
 import { logger } from "@/lib/logger";
@@ -439,7 +439,7 @@ export default function OrcamentoForm() {
         }
       } catch (err: unknown) {
         logger.error("[OrcamentoForm] erro ao carregar dados:", err);
-        toast.error(getUserFriendlyError(err));
+        notifyError(err);
       }
     };
     loadData();
@@ -678,7 +678,7 @@ export default function OrcamentoForm() {
       if (!isEdit && orcId) navigate(`/orcamentos/${orcId}?created=1`, { replace: true });
     } catch (err: unknown) {
       logger.error('[orcamento]', err);
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     }
     setSaving(false);
   };
@@ -731,7 +731,7 @@ export default function OrcamentoForm() {
       navigate(`/orcamentos/${orcId}`, { replace: true });
     } catch (err: unknown) {
       logger.error('[orcamento] duplicar:', err);
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     }
   };
 
@@ -758,7 +758,7 @@ export default function OrcamentoForm() {
         pdf.save(`${numero || "ORCAMENTO"} - ${safeCliente}.pdf`);
         toast.success("PDF gerado com sucesso!");
       } catch (err: unknown) {
-        toast.error(getUserFriendlyError(err));
+        notifyError(err);
       }
     };
     requestAnimationFrame(() => requestAnimationFrame(() => { capture(); }));
@@ -1291,7 +1291,7 @@ export default function OrcamentoForm() {
                       await navigator.clipboard.writeText(link);
                       toast.success('Link público copiado!');
                     } catch (err: unknown) {
-                      toast.error(getUserFriendlyError(err));
+                      notifyError(err);
                     }
                   }}
                 >
@@ -1307,7 +1307,7 @@ export default function OrcamentoForm() {
                       const token = await ensurePublicToken(id);
                       window.open(`${window.location.origin}/orcamento-publico?token=${token}`, '_blank');
                     } catch (err: unknown) {
-                      toast.error(getUserFriendlyError(err));
+                      notifyError(err);
                     }
                   }}
                 >

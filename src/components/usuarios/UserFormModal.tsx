@@ -38,7 +38,7 @@ import {
   ROLE_LABELS,
   getRolePermissions,
 } from '@/lib/permissions';
-import { getUserFriendlyError } from '@/utils/errorMessages';
+import { notifyError } from '@/utils/errorMessages';
 import { validatePassword, PASSWORD_MIN_LENGTH } from '@/lib/passwordPolicy';
 import {
   ALL_ROLES,
@@ -226,7 +226,7 @@ export function UserFormModal({
       onClose();
     } catch (err) {
       console.error('[usuarios] Erro ao salvar usuário:', err);
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     } finally {
       setSaving(false);
     }

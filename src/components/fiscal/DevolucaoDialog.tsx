@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { formatCurrency, formatDate } from "@/lib/format";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { notifyError } from "@/utils/errorMessages";
 import { useGerarDevolucaoNF } from "@/pages/fiscal/hooks/useNotaFiscalLifecycle";
 
 /** Minimal shape of the originating NF used by the devolução flow. */
@@ -71,7 +71,7 @@ export function DevolucaoDialog({ open, onOpenChange, devolucaoNF, devolucaoIten
       onSuccess();
     } catch (err: unknown) {
       console.error("[fiscal] devolução:", err);
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     }
     setProcessing(false);
   };

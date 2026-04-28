@@ -30,7 +30,7 @@ import { CotacaoCompraItensTable } from "@/components/compras/CotacaoCompraItens
 import { ArrowLeft, Plus, Save, X } from "lucide-react";
 import { PageShell } from "@/components/PageShell";
 import { toast } from "sonner";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { notifyError } from "@/utils/errorMessages";
 import { formatDate } from "@/lib/format";
 import {
   type CotacaoCompra,
@@ -267,7 +267,7 @@ export default function CotacaoCompraForm() {
       setProposalForm({ fornecedor_id: "", preco_unitario: 0, prazo_entrega_dias: "", observacoes: "" });
       await reloadPropostas();
     } catch (err: unknown) {
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     }
   };
 
@@ -278,7 +278,7 @@ export default function CotacaoCompraForm() {
       toast.success("Fornecedor selecionado!");
       await reloadPropostas();
     } catch (err: unknown) {
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     }
   };
 
@@ -289,7 +289,7 @@ export default function CotacaoCompraForm() {
       toast.success("Proposta removida.");
       await reloadPropostas();
     } catch (err: unknown) {
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     }
   };
 

@@ -10,7 +10,7 @@
  */
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { notifyError } from "@/utils/errorMessages";
 import { logger } from "@/lib/logger";
 
 async function processarEstornoRpc(
@@ -70,7 +70,7 @@ export async function processarEstorno(
     return true;
   } catch (error) {
     logger.error("[financeiro] erro ao estornar:", error);
-    toast.error(getUserFriendlyError(error));
+    notifyError(error);
     return false;
   }
 }

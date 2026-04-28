@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { notifyError } from "@/utils/errorMessages";
 import {
   confirmarNotaFiscal,
   estornarNotaFiscal,
@@ -25,7 +25,7 @@ export function useConfirmarNotaFiscal() {
       qc.invalidateQueries({ queryKey: ["estoque"] });
       qc.invalidateQueries({ queryKey: ["financeiro"] });
     },
-    onError: (e) => toast.error(getUserFriendlyError(e)),
+    onError: (e) => notifyError(e),
   });
 }
 
@@ -39,7 +39,7 @@ export function useEstornarNotaFiscal() {
       qc.invalidateQueries({ queryKey: ["estoque"] });
       qc.invalidateQueries({ queryKey: ["financeiro"] });
     },
-    onError: (e) => toast.error(getUserFriendlyError(e)),
+    onError: (e) => notifyError(e),
   });
 }
 
@@ -52,6 +52,6 @@ export function useGerarDevolucaoNF() {
       toast.success("NF de devolução gerada e vinculada à origem.");
       qc.invalidateQueries({ queryKey: ["notas_fiscais"] });
     },
-    onError: (e) => toast.error(getUserFriendlyError(e)),
+    onError: (e) => notifyError(e),
   });
 }

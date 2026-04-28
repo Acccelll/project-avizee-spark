@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { notifyError } from "@/utils/errorMessages";
 import {
   transicionarRemessa,
   type RemessaTransition,
@@ -43,6 +43,6 @@ export function useTransicionarRemessa() {
       toast.success(`Remessa atualizada — ${labelMap[vars.novoStatus]}`);
       invalidateAll(qc);
     },
-    onError: (err: Error) => toast.error(getUserFriendlyError(err)),
+    onError: (err: Error) => notifyError(err),
   });
 }

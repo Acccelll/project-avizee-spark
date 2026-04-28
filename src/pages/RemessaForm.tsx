@@ -31,7 +31,7 @@ import {
 import { statusRemessa } from "@/lib/statusSchema";
 import { toast } from "sonner";
 import { Save, Truck } from "lucide-react";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { notifyError } from "@/utils/errorMessages";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useBeforeUnloadGuard } from "@/hooks/useBeforeUnloadGuard";
 import { PageShell } from "@/components/PageShell";
@@ -122,7 +122,7 @@ export default function RemessaFormPage() {
       setPedidosCompra(pc);
       setNotasFiscais(nf);
     };
-    loadLookups().catch((err) => toast.error(getUserFriendlyError(err)));
+    loadLookups().catch((err) => notifyError(err));
   }, []);
 
   useEffect(() => {
@@ -144,7 +144,7 @@ export default function RemessaFormPage() {
         baselineRef.current = next;
         setForm(next);
       } catch (err) {
-        toast.error(getUserFriendlyError(err));
+        notifyError(err);
         navigate("/logistica");
       } finally {
         setLoading(false);
@@ -196,7 +196,7 @@ export default function RemessaFormPage() {
         navigate("/logistica");
       }
     } catch (err: unknown) {
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     }
   };
 

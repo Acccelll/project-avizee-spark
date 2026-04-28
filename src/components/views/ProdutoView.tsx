@@ -18,7 +18,7 @@ import { usePublishDrawerSlots } from "@/contexts/RelationalDrawerSlotsContext";
 import { useDetailFetch } from "@/hooks/useDetailFetch";
 import { useDetailActions } from "@/hooks/useDetailActions";
 import { useInvalidateAfterMutation } from "@/hooks/useInvalidateAfterMutation";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { notifyError } from "@/utils/errorMessages";
 import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSummaryCard";
 import { RecordIdentityCard } from "@/components/ui/RecordIdentityCard";
 import { SectionTitle } from "@/components/ui/SectionTitle";
@@ -599,7 +599,7 @@ export function ProdutoView({ id }: Props) {
             toast.success("Produto excluído com sucesso.");
             clearStack();
           } catch (err) {
-            toast.error(getUserFriendlyError(err));
+            notifyError(err);
           } finally {
             setDeleteConfirmOpen(false);
           }

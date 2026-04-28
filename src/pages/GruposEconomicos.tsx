@@ -22,8 +22,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { SummaryCard } from "@/components/SummaryCard";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatDate } from "@/lib/format";
-import { toast } from "sonner";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { notifyError } from "@/utils/errorMessages";
 import { useEditDeepLink } from "@/hooks/useEditDeepLink";
 import { logger } from "@/lib/logger";
 
@@ -266,7 +265,7 @@ const GruposEconomicos = () => {
       setModalOpen(false);
     } catch (err: unknown) {
       logger.error("[grupos-economicos] erro ao salvar:", err);
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     }
     setSaving(false);
   };

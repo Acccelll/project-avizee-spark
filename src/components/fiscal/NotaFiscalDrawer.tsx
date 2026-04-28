@@ -26,7 +26,7 @@ import {
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { notifyError } from "@/utils/errorMessages";
 import {
   canConfirmFiscal,
   canDevolverFiscal,
@@ -509,7 +509,7 @@ export function NotaFiscalDrawer({
       const url = await getNotaFiscalAnexoSignedUrl(anexo.caminho_storage);
       window.open(url, "_blank");
     } catch (err: unknown) {
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     }
   };
 

@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { notifyError } from "@/utils/errorMessages";
 import {
   enviarOrcamentoAprovacao,
   aprovarOrcamento,
@@ -24,7 +24,7 @@ export function useEnviarOrcamentoAprovacao() {
       invalidateOrcamentos(qc);
       toast.success(`Orçamento ${result.numero} enviado para aprovação!`);
     },
-    onError: (err) => toast.error(getUserFriendlyError(err)),
+    onError: (err) => notifyError(err),
   });
 }
 
@@ -39,6 +39,6 @@ export function useAprovarOrcamento() {
       invalidateOrcamentos(qc);
       toast.success(`Orçamento ${result.numero} aprovado!`);
     },
-    onError: (err) => toast.error(getUserFriendlyError(err)),
+    onError: (err) => notifyError(err),
   });
 }

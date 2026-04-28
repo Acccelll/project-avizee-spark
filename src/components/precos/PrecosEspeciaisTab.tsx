@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { AutocompleteSearch } from "@/components/ui/AutocompleteSearch";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { notifyError } from "@/utils/errorMessages";
 import {
   listPrecosEspeciais,
   listClientesAtivosBasic,
@@ -91,7 +91,7 @@ export function PrecosEspeciaisTab({ clienteId, produtoId }: Props) {
       fetchData();
     } catch (err) {
       console.error('[precos-especiais] erro ao salvar:', err);
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     }
   };
 

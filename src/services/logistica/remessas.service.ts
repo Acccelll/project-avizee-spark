@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { notifyError } from "@/utils/errorMessages";
 import {
   fetchTracking,
   normalizarEventos,
@@ -343,7 +343,7 @@ export function useRemessas() {
       toast.success("Remessa criada com sucesso!");
       invalidate();
     },
-    onError: (err) => toast.error(getUserFriendlyError(err)),
+    onError: (err) => notifyError(err),
   });
 
   const updateMutation = useMutation<void, Error, { id: string; payload: RemessaUpdate }>({
@@ -352,7 +352,7 @@ export function useRemessas() {
       toast.success("Remessa atualizada!");
       invalidate();
     },
-    onError: (err) => toast.error(getUserFriendlyError(err)),
+    onError: (err) => notifyError(err),
   });
 
   const deleteMutation = useMutation<void, Error, string>({
@@ -361,7 +361,7 @@ export function useRemessas() {
       toast.success("Remessa removida!");
       invalidate();
     },
-    onError: (err) => toast.error(getUserFriendlyError(err)),
+    onError: (err) => notifyError(err),
   });
 
   return {

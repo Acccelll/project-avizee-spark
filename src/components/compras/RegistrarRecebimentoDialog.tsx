@@ -9,7 +9,7 @@ import { receberCompra } from "@/types/rpc";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/format";
 import { todayISO } from "@/lib/dateUtils";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { notifyError } from "@/utils/errorMessages";
 import { Loader2, PackageCheck } from "lucide-react";
 
 interface Props {
@@ -78,7 +78,7 @@ export function RegistrarRecebimentoDialog({ open, onClose, pedidoId, pedidoNume
         setDataRecebimento(todayISO());
         setObservacoes("");
       } catch (err) {
-        toast.error(getUserFriendlyError(err));
+        notifyError(err);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -133,7 +133,7 @@ export function RegistrarRecebimentoDialog({ open, onClose, pedidoId, pedidoNume
       onSuccess?.();
       onClose();
     } catch (err) {
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     } finally {
       setSaving(false);
     }

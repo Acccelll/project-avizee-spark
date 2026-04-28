@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { notifyError } from "@/utils/errorMessages";
 import { logger } from "@/lib/logger";
 import {
   registrarBaixaFinanceira,
@@ -28,7 +28,7 @@ export function useRegistrarBaixa() {
     },
     onError: (error) => {
       logger.error("[financeiro] erro ao registrar baixa:", error);
-      toast.error(getUserFriendlyError(error));
+      notifyError(error);
     },
   });
 }
@@ -47,7 +47,7 @@ export function useEstornarBaixa() {
     },
     onError: (error) => {
       logger.error("[financeiro] erro ao estornar baixa:", error);
-      toast.error(getUserFriendlyError(error));
+      notifyError(error);
     },
   });
 }
@@ -71,7 +71,7 @@ export function useGerarParcelas() {
     },
     onError: (error) => {
       logger.error("[financeiro] erro ao gerar parcelas:", error);
-      toast.error(getUserFriendlyError(error));
+      notifyError(error);
     },
   });
 }
@@ -91,7 +91,7 @@ export function useGerarFinanceiroFolha() {
     },
     onError: (error) => {
       logger.error("[financeiro] erro ao gerar financeiro da folha:", error);
-      toast.error(getUserFriendlyError(error));
+      notifyError(error);
     },
   });
 }

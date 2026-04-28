@@ -20,7 +20,7 @@ import { MaskedInput } from "@/components/ui/MaskedInput";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { UF_OPTIONS } from "@/constants/brasil";
 import { toast } from "sonner";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { notifyError } from "@/utils/errorMessages";
 
 interface EnderecoEntrega {
   id: string;
@@ -100,7 +100,7 @@ export function ClienteEnderecosTab({ clienteId, fallbackEndereco, onCountChange
       await load();
     } catch (err) {
       console.error("[clientes] erro ao salvar endereço:", err);
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     }
     setSaving(false);
   };
@@ -112,7 +112,7 @@ export function ClienteEnderecosTab({ clienteId, fallbackEndereco, onCountChange
       toast.success("Endereço principal definido");
     } catch (err) {
       console.error("[clientes] erro ao definir principal:", err);
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     }
   };
 
@@ -130,7 +130,7 @@ export function ClienteEnderecosTab({ clienteId, fallbackEndereco, onCountChange
       toast.success("Endereço removido");
     } catch (err) {
       console.error("[clientes] erro ao remover endereço:", err);
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     }
   };
 

@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { notifyError } from "@/utils/errorMessages";
 import {
   autorizarNFe,
   consultarNFe,
@@ -157,7 +157,7 @@ export function useSefazAcoes(): UseSefazAcoesReturn {
         qc.invalidateQueries({ queryKey: ["notas_fiscais"] });
         return result;
       } catch (e) {
-        toast.error(getUserFriendlyError(e));
+        notifyError(e);
         return null;
       } finally {
         setPending(false);
@@ -191,7 +191,7 @@ export function useSefazAcoes(): UseSefazAcoesReturn {
         else toast.error(`Consulta falhou: ${result.motivo ?? "—"}`);
         return result;
       } catch (e) {
-        toast.error(getUserFriendlyError(e));
+        notifyError(e);
         return null;
       } finally {
         setPending(false);
@@ -252,7 +252,7 @@ export function useSefazAcoes(): UseSefazAcoesReturn {
         qc.invalidateQueries({ queryKey: ["notas_fiscais"] });
         return result;
       } catch (e) {
-        toast.error(getUserFriendlyError(e));
+        notifyError(e);
         return null;
       } finally {
         setPending(false);

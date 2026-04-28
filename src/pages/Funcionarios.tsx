@@ -24,7 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { createFolhaPagamento, gerarFinanceiroFolha } from "@/services/rh.service";
 import { toast } from "sonner";
 import { formatCurrency, formatDate } from "@/lib/format";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { notifyError } from "@/utils/errorMessages";
 import { useEffect } from "react";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { useEditDirtyForm } from "@/hooks/useEditDirtyForm";
@@ -212,7 +212,7 @@ export default function Funcionarios() {
       setFolhaModalOpen(false);
       openView(selected);
     } catch (err) {
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     }
   };
 
@@ -230,7 +230,7 @@ export default function Funcionarios() {
       if (selected) openView(selected);
     } catch (err) {
       logger.error('[funcionarios] erro ao gerar financeiro:', err);
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     }
   };
 

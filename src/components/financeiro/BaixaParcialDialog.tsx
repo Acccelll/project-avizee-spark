@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useRegistrarBaixa } from "@/pages/financeiro/hooks/useBaixaFinanceira";
 import { formatCurrency } from "@/lib/format";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { notifyError } from "@/utils/errorMessages";
 import { toast } from "sonner";
 
 interface ContaBancaria {
@@ -152,7 +152,7 @@ export function BaixaParcialDialog({ open, onClose, lancamento, contasBancarias,
       onClose();
     } catch (err: unknown) {
       console.error("[baixa]", err);
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     } finally {
       setSaving(false);
     }

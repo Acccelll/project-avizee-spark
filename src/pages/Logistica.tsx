@@ -49,7 +49,7 @@ import {
   listPedidosCompraAtivos,
   listNotasFiscaisAtivas,
 } from "@/services/logistica/lookups.service";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { notifyError } from "@/utils/errorMessages";
 import {
   ENTREGA_STATUS_ORDER,
   ENTREGA_STATUS_META,
@@ -362,7 +362,7 @@ export default function Logistica() {
     try {
       remessaIds = await listRemessaIdsByOv(entrega.id);
     } catch (err) {
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
       setUpdatingEntregaId(null);
       return;
     }
@@ -375,7 +375,7 @@ export default function Logistica() {
     try {
       await updateStatusTransporte(remessaIds[0], status);
     } catch (err) {
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
       setUpdatingEntregaId(null);
       return;
     }
@@ -408,7 +408,7 @@ export default function Logistica() {
       const ref = await findRemessaByOvAndTracking(entrega.id, entrega.codigo_rastreio);
       setTrackingTarget({ codigo: entrega.codigo_rastreio, remessaId: ref?.id ?? "" });
     } catch (err) {
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     }
   };
 
@@ -428,7 +428,7 @@ export default function Logistica() {
       const refreshed = await listRemessaEventos(remSelected.id);
       setEventos(refreshed);
     } catch (err: unknown) {
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     } finally { setSavingEvento(false); }
   };
 
@@ -444,7 +444,7 @@ export default function Logistica() {
       if (remSelected?.id === remessa.id) {
         setRemSelected({ ...remessa, status_transporte: newStatus });
       }
-    } catch (err: unknown) { toast.error(getUserFriendlyError(err)); }
+    } catch (err: unknown) { notifyError(err); }
   };
 
   const handleRastrear = async (remessa: Remessa) => {
@@ -468,7 +468,7 @@ export default function Logistica() {
       const updatedEvents = await listRemessaEventos(remessa.id);
       setEventos(updatedEvents);
     } catch (err: unknown) {
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     }
   };
 

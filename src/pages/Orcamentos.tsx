@@ -30,7 +30,7 @@ import { useCrossModuleToast } from "@/hooks/useCrossModuleToast";
 import { CrossModuleActionDialog, type ImpactItem } from "@/components/CrossModuleActionDialog";
 import { statusOrcamento } from "@/lib/statusSchema";
 import { canApproveOrcamento, canConvertOrcamento, canSendOrcamento, getOrcamentoStatusLabel, normalizeOrcamentoStatus } from "@/lib/comercialWorkflow";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { notifyError } from "@/utils/errorMessages";
 import { useClientesRef } from "@/hooks/useReferenceCache";
 import { useActionLock } from "@/hooks/useActionLock";
 import { useUrlListState } from "@/hooks/useUrlListState";
@@ -199,7 +199,7 @@ const Orcamentos = () => {
         await sendForApproval(orc);
         fetchData();
       } catch (err: unknown) {
-        toast.error(getUserFriendlyError(err));
+        notifyError(err);
       }
     });
   }, [fetchData, sendLock]);
@@ -212,7 +212,7 @@ const Orcamentos = () => {
       navigate(`/orcamentos/${created.id}`);
     } catch (err: unknown) {
       logger.error('[orcamentos] duplicar:', err);
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     }
   };
 
@@ -226,7 +226,7 @@ const Orcamentos = () => {
         await approveOrcamento(orc);
         fetchData();
       } catch (err: unknown) {
-        toast.error(getUserFriendlyError(err));
+        notifyError(err);
       }
     });
   };

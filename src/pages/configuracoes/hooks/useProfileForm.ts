@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { getUserFriendlyError } from '@/utils/errorMessages';
+import { notifyError } from '@/utils/errorMessages';
 import { saveUserProfile } from '@/services/auth.service';
 
 const NOME_MIN = 2;
@@ -74,7 +74,7 @@ export function useProfileForm() {
       }
     } catch (err: unknown) {
       console.error('[perfil] save:', err);
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     }
     setSaving(false);
   };

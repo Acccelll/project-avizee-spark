@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { getUserFriendlyError } from '@/utils/errorMessages';
+import { notifyError } from '@/utils/errorMessages';
 import { getPasswordCriteriaWithMatch, PASSWORD_MIN_LENGTH } from '@/lib/passwordPolicy';
 import {
   verifyPasswordReauth,
@@ -95,7 +95,7 @@ export function useChangePassword() {
       setShowSignOutOthers(true);
     } catch (err: unknown) {
       console.error('[perfil] password:', err);
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     }
     setChanging(false);
   };
@@ -108,7 +108,7 @@ export function useChangePassword() {
       setShowSignOutOthers(false);
     } catch (err: unknown) {
       console.error('[perfil] signOut others:', err);
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     }
     setSigningOutOthers(false);
   };

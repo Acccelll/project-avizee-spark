@@ -16,7 +16,7 @@ import {
   listPedidosCompraParaVincular,
   vincularNFPedidoCompra,
 } from "@/services/fiscal.service";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { notifyError } from "@/utils/errorMessages";
 import { formatCurrency } from "@/lib/format";
 
 interface PedidoOption {
@@ -80,7 +80,7 @@ export function PedidoCompraLinker({
         baseOpts = list.map((p) => ({ ...p }));
       } catch (err) {
         if (cancelled) return;
-        toast.error(getUserFriendlyError(err));
+        notifyError(err);
         setLoadingList(false);
         return;
       }
@@ -138,7 +138,7 @@ export function PedidoCompraLinker({
       qc.invalidateQueries({ queryKey: ["notas_fiscais"] });
       qc.invalidateQueries({ queryKey: ["pedidos_compra"] });
     } catch (err) {
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     } finally {
       setPending(false);
     }
@@ -152,7 +152,7 @@ export function PedidoCompraLinker({
       toast.success("Vínculo removido.");
       qc.invalidateQueries({ queryKey: ["notas_fiscais"] });
     } catch (err) {
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     } finally {
       setPending(false);
     }

@@ -10,7 +10,7 @@ import {
   trackAndPersistEventos,
   fetchRemessasRastreioPorDocumento,
 } from "@/services/logistica/remessas.service";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { notifyError } from "@/utils/errorMessages";
 import { getRastreioStatusConsistencyBadge } from "@/pages/logistica/logisticaStatus";
 
 type Remessa = Tables<"remessas"> & {
@@ -85,7 +85,7 @@ export function LogisticaRastreioSection({ pedidoCompraId, notaFiscalId, remessa
         toast.success("Rastreio consultado — nenhum evento novo.");
       }
     } catch (err: unknown) {
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     } finally {
       setTrackingLoading(null);
     }

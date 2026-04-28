@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Truck, Plus, Trash2, Star } from "lucide-react";
 import { toast } from "sonner";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { notifyError } from "@/utils/errorMessages";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 
 interface TransportadoraBasic { id: string; nome_razao_social: string; }
@@ -65,7 +65,7 @@ export function ClienteTransportadorasTab({ clienteId }: Props) {
       toast.success("Transportadora vinculada");
     } catch (err) {
       console.error("[clientes] erro ao vincular transportadora:", err);
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     }
     setSavingVinculo(false);
   };
@@ -84,7 +84,7 @@ export function ClienteTransportadorasTab({ clienteId }: Props) {
       toast.success("Vínculo removido");
     } catch (err) {
       console.error("[clientes] erro ao remover vínculo:", err);
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     }
   };
 

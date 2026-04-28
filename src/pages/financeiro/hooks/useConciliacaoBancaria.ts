@@ -8,7 +8,7 @@
 import { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { notifyError } from "@/utils/errorMessages";
 import { parseOFX, type TransacaoExtrato } from "@/services/financeiro/ofxParser.service";
 import {
   sugerirConciliacao,
@@ -172,7 +172,7 @@ export function useConciliacaoBancaria(
       });
     },
     onError: (err) => {
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     },
   });
 

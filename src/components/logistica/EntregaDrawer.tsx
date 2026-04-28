@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { notifyError } from "@/utils/errorMessages";
 import { getEntregaStatusCfg } from "@/pages/logistica/logisticaStatus";
 import { DrawerStickyFooter } from "@/components/ui/DrawerStickyFooter";
 
@@ -305,7 +305,7 @@ export function EntregaDrawer({ open, onClose, entrega }: EntregaDrawerProps) {
         .order("data_hora", { ascending: false });
       setEventos((evs as RemessaEvento[]) || []);
     } catch (err: unknown) {
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     } finally {
       setTrackingLoading(false);
     }

@@ -1,13 +1,12 @@
 import { useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
 import { useDashboardPeriod } from "@/contexts/DashboardPeriodContext";
 import { useDashboardAuxData } from "./useDashboardAuxData";
 import { useDashboardComercialData } from "./useDashboardComercialData";
 import { useDashboardEstoqueData } from "./useDashboardEstoqueData";
 import { useDashboardFinanceiroData } from "./useDashboardFinanceiroData";
 import { useDashboardFiscalData } from "./useDashboardFiscalData";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { notifyError } from "@/utils/errorMessages";
 import type { DashboardStats, FaturamentoStats, FiscalStats, ProdRow, TopPoint } from "./types";
 import type { BacklogOv, CompraAguardando, RecentOrcamento } from "./types";
 import type { ScopeKind } from "@/components/dashboard/ScopeBadge";
@@ -156,7 +155,7 @@ export function useDashboardData() {
         };
       } catch (error) {
         console.error("[dashboard] erro ao carregar dados:", error);
-        toast.error(getUserFriendlyError(error));
+        notifyError(error);
         throw error;
       }
     },

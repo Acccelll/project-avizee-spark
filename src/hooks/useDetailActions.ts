@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { notifyError } from "@/utils/errorMessages";
 
 /**
  * useDetailActions — lock POR AÇÃO (não global) para botões das Views de
@@ -51,7 +51,7 @@ export function useDetailActions(opts: UseDetailActionsOptions = {}): UseDetailA
       try {
         return await fn();
       } catch (err) {
-        if (toastOnError) toast.error(getUserFriendlyError(err));
+        if (toastOnError) notifyError(err);
         throw err;
       } finally {
         lockRef.current.delete(key);

@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { notifyError } from "@/utils/errorMessages";
 import { registrarMovimentacao, type EstoqueMovimentoInsert } from "../services/estoque.service";
 
 interface RegistrarMovimentacaoInput {
@@ -23,7 +23,7 @@ export function useEstoqueMutations() {
     },
     onError: (err) => {
       console.error("[estoque] erro ao salvar:", err);
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     },
   });
 

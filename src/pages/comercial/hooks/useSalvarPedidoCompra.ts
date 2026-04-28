@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { notifyError } from "@/utils/errorMessages";
 import { INVALIDATION_KEYS } from "@/services/_invalidationKeys";
 import {
   salvarPedidoCompra,
@@ -24,6 +24,6 @@ export function useSalvarPedidoCompra() {
       });
       toast.success("Pedido de compra salvo!");
     },
-    onError: (err) => toast.error(getUserFriendlyError(err)),
+    onError: (err) => notifyError(err),
   });
 }

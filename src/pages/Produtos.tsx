@@ -38,7 +38,7 @@ import { ProductAutocomplete } from "@/components/ui/ProductAutocomplete";
 import { cfopCodes, cstIcmsCodes } from "@/lib/fiscalData";
 import { useNcmLookup } from '@/hooks/useNcmLookup';
 import { Switch } from "@/components/ui/switch";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { notifyError } from "@/utils/errorMessages";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useEditDirtyForm } from "@/hooks/useEditDirtyForm";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
@@ -418,7 +418,7 @@ const Produtos = () => {
           sigla: novaUnidadeForm.sigla.trim() || null,
         });
       } catch (err) {
-        toast.error(getUserFriendlyError(err));
+        notifyError(err);
         setSavingNovaUnidade(false);
         return;
       }
@@ -430,7 +430,7 @@ const Produtos = () => {
       toast.success(`Unidade "${nova.codigo}" criada com sucesso`);
     } catch (err) {
       console.error('[produtos] erro ao criar unidade:', err);
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     }
     setSavingNovaUnidade(false);
   };
