@@ -63,9 +63,14 @@ import {
 import {
   Eye, AlertTriangle, Truck, Package, CheckCheck, ExternalLink, Loader2,
   Edit, Trash2, Plus, MapPin, Package as PackageIcon, Search, Clock, Timer,
-  ChevronDown, History,
+  ChevronDown, History, FileDown,
 } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  listLatestEtiquetasByRemessas,
+  baixarEtiqueta as baixarEtiquetaPdf,
+  type RemessaEtiqueta,
+} from "@/services/logistica/prepostagem.service";
 
 // ─── Remessa types ───
 type Remessa = Tables<"remessas">;
@@ -153,6 +158,7 @@ export default function Logistica() {
   const [remSearchTerm, setRemSearchTerm] = useState("");
   const [remStatusFilters, setRemStatusFilters] = useState<string[]>([]);
   const [remTranspFilters, setRemTranspFilters] = useState<string[]>([]);
+  const [etiquetasMap, setEtiquetasMap] = useState<Record<string, RemessaEtiqueta>>({});
 
   const [clientes, setClientes] = useState<Array<{ id: string; nome_razao_social: string }>>([]);
   const [transportadorasLookup, setTransportadorasLookup] = useState<Array<{ id: string; nome_razao_social: string }>>([]);
@@ -179,6 +185,18 @@ export default function Logistica() {
         .catch(() => setEventos([]));
     }
   }, [remSelected, remDrawerOpen]);
+
+  // Carrega o status de etiqueta Correios para todas as remessas visíveis (batch).
+  useEffect(() => {
+    const ids = (remessasData ?? []).map((r) => r.id);
+    if (ids.length === 0) {
+      setEtiquetasMap({});
+      return;
+    }
+    void listLatestEtiquetasByRemessas(ids)
+      .then(setEtiquetasMap)
+      .catch(() => setEtiquetasMap({}));
+  }, [remessasData]);
 
   // ─── Derived maps ───
   const clienteMapLookup = useMemo(() => Object.fromEntries(clientes.map(c => [c.id, c.nome_razao_social])), [clientes]);
@@ -561,6 +579,30 @@ export default function Logistica() {
     { key: "status_transporte", label: "Status", render: (r: Remessa) => {
       const s = r.status_transporte ?? "";
       return <StatusBadge status={remessaStatusMap[s]?.color ?? s} />;
+    }},
+    { key: "etiqueta", label: "Etiqueta", render: (r: Remessa) => {
+      const et = etiquetasMap[r.id];
+      if (!et) return <span className="text-muted-foreground text-xs">—</span>;
+      const labelMap: Record<string, string> = { emitida: "Emitida", pendente: "Pendente", erro: "Erro", cancelada: "Cancelada" };
+      const colorMap: Record<string, string> = { emitida: "success", pendente: "warning", erro: "destructive", cancelada: "muted" };
+      return (
+        <div className="inline-flex items-center gap-1.5">
+          <StatusBadge status={colorMap[et.status] ?? "muted"} label={labelMap[et.status] ?? et.status} />
+          {et.status === "emitida" && et.pdf_path && (
+            <Button variant="ghost" size="icon" className="h-7 w-7" title="Baixar PDF da etiqueta" onClick={async (e) => {
+              e.stopPropagation();
+              try {
+                const url = await baixarEtiquetaPdf(et.pdf_path!);
+                window.open(url, "_blank", "noopener,noreferrer");
+              } catch (err) {
+                console.error("[etiqueta] baixar falhou", err);
+              }
+            }}>
+              <FileDown className="h-3.5 w-3.5" />
+            </Button>
+          )}
+        </div>
+      );
     }},
     { key: "rastrear", label: "Rastrear", render: (r: Remessa) => r.codigo_rastreio ? (
       <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => setTrackingTarget({ codigo: r.codigo_rastreio!, remessaId: r.id })}>
