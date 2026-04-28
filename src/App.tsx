@@ -67,6 +67,7 @@ const ApresentacaoGerencial = lazy(() => import("./pages/ApresentacaoGerencial")
 const Social = lazy(() => import("./pages/Social"));
 const Socios = lazy(() => import("./pages/Socios"));
 const Unsubscribe = lazy(() => import("./pages/Unsubscribe"));
+const Ajuda = lazy(() => import("./pages/Ajuda"));
 
 // Redirect component that properly maps :id param
 function CotacaoIdRedirect() {
@@ -186,6 +187,8 @@ const App = () => (
                       <Route path="/socios" element={<PermissionRoute resource="socios"><LazyPage><Socios /></LazyPage></PermissionRoute>} />
                       {/* Alias legado: redireciona preservando deep-links externos para a aba de Participações dentro de /socios */}
                       <Route path="/socios-participacoes" element={<PermissionRoute resource="socios"><Navigate to="/socios?tab=participacoes" replace /></PermissionRoute>} />
+                      {/* Central de ajuda — disponível para qualquer usuário autenticado */}
+                      <Route path="/ajuda" element={<ProtectedRoute><LazyPage><Ajuda /></LazyPage></ProtectedRoute>} />
                       {/* Catch-all dentro do shell — preserva sidebar/header em rotas inválidas */}
                       <Route path="*" element={<LazyPage><NotFound /></LazyPage>} />
                     </Route>

@@ -14,6 +14,10 @@ import { useGlobalHotkeys } from '@/hooks/useGlobalHotkeys';
 import { GlobalSearch } from './navigation/GlobalSearch';
 import { GlobalShortcutsDialog } from './navigation/GlobalShortcutsDialog';
 import { GlobalPeriodProvider } from '@/contexts/DashboardPeriodContext';
+import { HelpProvider, useHelp } from '@/contexts/HelpContext';
+import { HelpDrawer } from './help/HelpDrawer';
+import { CoachTour } from './help/CoachTour';
+import { FirstVisitToast } from './help/FirstVisitToast';
 
 /**
  * AppLayout
@@ -50,10 +54,7 @@ export function AppLayout() {
   const contentMarginCollapsed = isDynamic ? true : collapsed;
 
   // Hotkeys globais — registradas uma única vez, sobrevivem a navegação.
-  useGlobalHotkeys({
-    onOpenSearch: () => setSearchOpen(true),
-    onOpenShortcuts: () => setShortcutsOpen(true),
-  });
+  // O atalho `?` para abrir a ajuda da tela é injetado dentro de HelpProvider.
 
   useEffect(() => {
     if (!isMobile) setMobileMenuOpen(false);
@@ -61,6 +62,11 @@ export function AppLayout() {
 
   return (
     <GlobalPeriodProvider>
+    <HelpProvider>
+    <HelpHotkeysBridge
+      onOpenSearch={() => setSearchOpen(true)}
+      onOpenShortcuts={() => setShortcutsOpen(true)}
+    />
     <div className="min-h-screen bg-background">
       <SkipLink />
 
@@ -110,8 +116,33 @@ export function AppLayout() {
       <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
       <GlobalShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
 
+      <HelpDrawer />
+      <CoachTour />
+      <FirstVisitToast />
+
       {import.meta.env.DEV && <ContrastDevTool />}
     </div>
+    </HelpProvider>
     </GlobalPeriodProvider>
   );
+}
+
+/**
+ * Bridge que registra os hotkeys globais com acesso ao contexto de ajuda.
+ * Precisa estar dentro do `HelpProvider` para poder abrir o HelpDrawer via `?`.
+ */
+function HelpHotkeysBridge({
+  onOpenSearch,
+  onOpenShortcuts,
+}: {
+  onOpenSearch: () => void;
+  onOpenShortcuts: () => void;
+}) {
+  const { openDrawer } = useHelp();
+  useGlobalHotkeys({
+    onOpenSearch,
+    onOpenShortcuts,
+    onOpenHelp: openDrawer,
+  });
+  return null;
 }
