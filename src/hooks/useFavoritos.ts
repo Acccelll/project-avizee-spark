@@ -31,7 +31,7 @@ export function useFavoritos() {
     } catch {
       // ignore parse errors
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot legacy migration por user.id; depende intencionalmente apenas do id
   }, [user?.id]);
 
   const toggleFavorito = useCallback(

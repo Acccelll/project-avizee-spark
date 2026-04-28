@@ -228,7 +228,7 @@ const Fiscal = () => {
     const next = new URLSearchParams(searchParams);
     next.delete("new");
     setSearchParams(next, { replace: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- atalho ?new=1 one-shot; openCreate/setSearchParams capturados via closure
   }, [searchParams, autoOpened]);
 
   // Auto-abre o modal de NF de entrada pré-preenchida quando vem de PC.

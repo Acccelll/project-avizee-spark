@@ -87,7 +87,7 @@ export function useDashboardLayout(userId: string | null | undefined) {
       // ignore
     }
     // run once per user id
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- migração legacy one-shot por userId; reagir a `value`/`save` causaria loop
   }, [userId]);
 
   // Always reconcile against the latest DEFAULT_ORDER so newly added widgets

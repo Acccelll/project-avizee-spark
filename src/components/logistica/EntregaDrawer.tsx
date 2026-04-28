@@ -139,7 +139,7 @@ export function EntregaDrawer({ open, onClose, entrega }: EntregaDrawerProps) {
 
     load();
     return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load() captura entrega/setters via closure; rerodar quando o objeto entrega muda em referência causaria refetch desnecessário
   }, [open, entrega?.id]);
 
   if (!entrega) return <ViewDrawerV2 open={open} onClose={onClose} title="" />;

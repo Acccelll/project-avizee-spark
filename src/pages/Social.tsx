@@ -95,7 +95,7 @@ export default function Social() {
   useEffect(() => {
     if (!permissions.canViewModule) return;
     loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadData depende só dos filtros via closure; recriá-la a cada render dispararia refetch
   }, [dataInicio, dataFim, filtroRede, filtroTipoPost, permissions.canViewModule]);
 
   const historicoComparativo = useMemo(() => {

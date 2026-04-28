@@ -227,8 +227,7 @@ export function DataTable<T extends Record<string, any>>({
   // Persistência unificada (Supabase + localStorage migração) via hook.
   const initialHiddenKeys = useMemo(
     () => columns.filter((c) => c.hidden).map((c) => c.key),
-    // Apenas no primeiro render: defaults do schema de colunas.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- snapshot do schema de colunas no primeiro render; mudanças posteriores em columns.hidden não devem sobrescrever a preferência do usuário
     [],
   );
   const {
@@ -302,7 +301,7 @@ export function DataTable<T extends Record<string, any>>({
       );
     }
     // só checa uma vez por moduleKey
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- aviso DEV-only por módulo; columns/mobileStatusKey usados via closure intencionalmente
   }, [moduleKey]);
 
   const toggleColumnVisibility = (key: string) => {

@@ -55,7 +55,7 @@ export function RelatorioMigracaoFaturamentoCard({ loteId, className }: Props) {
 
   useEffect(() => {
     if (loteId) fetchRelatorio();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchRelatorio só depende de loteId via closure; recriar a função a cada render dispararia refetch
   }, [loteId]);
 
   const exportNaoVinculados = () => {

@@ -88,7 +88,7 @@ export function useDetailFetch<T>(
       cancelled = true;
       controller.abort();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetcher capturado via closure; nonce serve como gatilho explícito de reload
   }, [id, nonce]);
 
   const reload = useCallback(() => setNonce((n) => n + 1), []);

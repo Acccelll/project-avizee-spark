@@ -42,7 +42,7 @@ export function JustCreatedBanner({
     if (!visible) return;
     const t = setTimeout(() => dismiss(), autoDismissMs);
     return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- dismiss recria a cada render por usar setSearchParams; fechar via closure evita loop de reset do timer
   }, [visible, autoDismissMs]);
 
   const dismiss = () => {

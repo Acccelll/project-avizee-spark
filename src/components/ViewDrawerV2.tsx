@@ -70,7 +70,7 @@ export function ViewDrawerV2({
     if (!tabs || tabs.length === 0) { setActiveTab(undefined); return; }
     const next = defaultTab && tabs.some((t) => t.value === defaultTab) ? defaultTab : tabs[0].value;
     setActiveTab(next);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- usamos tabValues (string serializada) como proxy estável de tabs[], evitando rerun por mudança de referência
   }, [tabValues, defaultTab]);
 
   // Quando há badge legado e não há summary, embute o badge no breadcrumb para não perder contexto.

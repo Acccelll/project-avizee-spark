@@ -48,7 +48,8 @@ export function ClienteTransportadorasTab({ clienteId }: Props) {
       .catch((err) => console.error("[clientes] erro ao carregar transportadoras:", err));
   }, []);
 
-  useEffect(() => { void loadVinculos(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [clienteId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- loadVinculos depende só de clienteId via closure; recriar a função a cada render dispararia refetch
+  useEffect(() => { void loadVinculos(); }, [clienteId]);
 
   const handleAdd = async () => {
     if (!vinculoTranspId) { toast.error("Selecione uma transportadora"); return; }

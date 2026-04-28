@@ -36,7 +36,7 @@ export default function PedidosCompra() {
     if (searchParams.get("atrasadas") === "1") {
       filters.setRecebimentoFilters((prev) => (prev.includes("aguardando") ? prev : ["aguardando", "parcial"]));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- drill-down one-shot via ?atrasadas=1; filters.setRecebimentoFilters é setter estável
   }, [searchParams]);
 
   const statusOptions = useMemo<MultiSelectOption[]>(
