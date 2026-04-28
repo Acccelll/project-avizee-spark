@@ -26,12 +26,22 @@ public.current_empresa_id() RETURNS uuid LANGUAGE sql STABLE SECURITY DEFINER
 - RLS: `empresa_id = current_empresa_id() OR has_role(uid, 'admin')` em SELECT/INSERT/UPDATE; DELETE permanece admin-only.
 
 **Não migrado nesta onda (continua single-tenant USING(true)):**
-- financeiro_lancamentos, financeiro_baixas, compras, compras_itens, estoque_movimentos, conciliacao_bancaria, notas_fiscais, notas_fiscais_itens, orcamentos, ordens_venda, pedidos_compra.
+- financeiro_lancamentos, financeiro_baixas, notas_fiscais, notas_fiscais_itens.
+- (Onda 2 migrou orcamentos, ordens_venda, compras, compras_itens, pedidos_compra; Onda 3 migrou estoque_movimentos e conciliacao_bancaria.)
 
 **Próximas ondas previstas:**
 - Onda 2: Comercial (orcamentos, ordens_venda) + Compras.
-- Onda 3: Estoque + Logística.
+- Onda 3: Estoque + Conciliação bancária. ✅ concluída 28/abr/2026.
 - Onda 4: Financeiro + Fiscal (mais sensível — exige reescrita de RPCs salvar_nota_fiscal, fluxo_caixa views, etc).
+
+## Onda 3 (28/abr/2026) — Estoque + Conciliação
+
+Tabelas migradas: `estoque_movimentos`, `conciliacao_bancaria`.
+- `empresa_id NOT NULL DEFAULT public.current_empresa_id()` + índice + trigger safety-net (`set_empresa_id_default`, reusada da Onda 1).
+- RLS: SELECT/INSERT/UPDATE = empresa do usuário OR admin; DELETE = admin only.
+- Backfill: registros existentes vinculados à empresa padrão.
+- TypeScript Insert types continuam aceitando payloads sem `empresa_id` (default cobre).
+- Tabelas filhas (extratos/links de conciliação) não tinham coluna empresa_id e seguem RLS atual; herdam isolamento via FK quando aplicável.
 
 **UI ainda pendente nesta onda:**
 - Tela admin para gerenciar empresas e vínculos `user_empresas`. Hoje só é possível via SQL/insert tool.
