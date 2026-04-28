@@ -170,11 +170,7 @@ export function OrcamentoView({ id }: Props) {
 
   const handleCriarRevisao = () =>
     run("revisao", async () => {
-      const { data: novoId, error } = await supabase.rpc(
-        "criar_revisao_orcamento" as never,
-        { p_orcamento_id: selected.id } as never,
-      );
-      if (error) throw error;
+      const novoId = await criarRevisaoOrcamento(selected.id);
       toast.success("Revisão criada!");
       invalidate(["orcamentos"]);
       if (novoId) navigate(`/orcamentos/${novoId}`);

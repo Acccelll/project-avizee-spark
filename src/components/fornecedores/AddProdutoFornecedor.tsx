@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { listProdutosBasicAtivos, vincularProdutoFornecedor } from "@/services/produtos.service";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,23 +21,20 @@ export function AddProdutoFornecedor({ fornecedorId, onAdded }: AddProdutoFornec
   const [produtos, setProdutos] = useState<{ id: string; nome: string; sku: string; codigo_interno: string }[]>([]);
 
   useEffect(() => {
-    supabase.from("produtos").select("id, nome, sku, codigo_interno").eq("ativo", true).order("nome").then(({ data }) => {
-      if (data) setProdutos(data as { id: string; nome: string; sku: string; codigo_interno: string }[]);
-    });
+    listProdutosBasicAtivos().then(setProdutos).catch(() => setProdutos([]));
   }, []);
 
   const handleAdd = async () => {
     if (!produtoId) { toast.error("Selecione um produto"); return; }
     setSaving(true);
     try {
-      const { error } = await supabase.from("produtos_fornecedores").insert({
+      await vincularProdutoFornecedor({
         produto_id: produtoId,
         fornecedor_id: fornecedorId,
         preco_compra: precoCompra || 0,
         lead_time_dias: leadTime || 0,
         eh_principal: false,
       });
-      if (error) throw error;
       toast.success("Produto vinculado com sucesso!");
       setProdutoId("");
       setPrecoCompra(0);
