@@ -118,3 +118,32 @@ gerenciais), `chunk-apresentacao.*.js` (pptxgenjs), `chunk-exceljs.*.js` (compar
 xlsx-compat e export.service). Bundle inicial deixa de carregar ~650KB de libs Office.
 
 Sem mudança na API pública dos services consumidos por componentes/páginas.
+
+---
+
+## Onda — Auditoria Zod nos formulários (28/abr/2026)
+
+Antes de iniciar mudanças, varredura confirmou que **todos os formulários
+críticos já validam com Zod**. Não há código a alterar nesta onda.
+
+| Formulário | Schema | Mecanismo |
+|---|---|---|
+| NF-e (`pages/fiscal/components/NFeForm`) | `nfeSchema` (com `superRefine` p/ CFOP e parcelas) | `zodResolver` + react-hook-form |
+| Orçamento (`pages/OrcamentoForm.tsx`) | `orcamentoSchema` | `zodResolver` + react-hook-form |
+| Pedido de Compra (`hooks/usePedidosCompra.ts`) | `pedidoCompraSchema` + `validatePedidoItems` | `validateForm()` helper |
+| Cotação de Compra (`hooks/useCotacoesCompra.ts`) | `cotacaoCompraSchema` + `validateCotacaoItems` | `validateForm()` helper |
+| Cliente (`pages/Clientes.tsx`) | `clienteFornecedorSchema` | `validateForm()` helper |
+| Fornecedor (`pages/Fornecedores.tsx`) | `clienteFornecedorSchema` | `validateForm()` helper |
+| Produto (`pages/Produtos.tsx`) | `produtoSchema` (com `extend` p/ insumo) | `validateForm()` helper |
+| Transportadora (`pages/Transportadoras.tsx`) | `transportadoraSchema` | `validateForm()` helper |
+| Configuração Fiscal / SPED | schemas próprios | `zodResolver` |
+
+Convivem dois padrões válidos: `zodResolver` (forms grandes com
+react-hook-form) e `validateForm()` helper (forms imperativos com `useState`).
+Ambos retornam erros por campo — não há divergência funcional. Decisão: manter
+os dois padrões; não vale o risco de refatorar `Clientes/Fornecedores/Produtos`
+para react-hook-form sem ganho de UX correspondente.
+
+Próximas frentes candidatas: **Painel de saúde do sistema** (admin),
+**Multi-tenant `empresa_id` + RLS** ou **Notificações proativas (email queue
++ in-app badges)**.
