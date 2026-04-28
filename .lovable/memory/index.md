@@ -7,6 +7,7 @@
 - RBAC via `user_permissions`. UI must use `can(resource, action)` for critical actions.
 - Security: All DB RPCs and triggers MUST set `search_path = public`.
 - Decompose God components. Separate UI state and prioritize strict domain typing.
+- Acesso a `supabase.from/rpc/storage` só em `src/services/`. Exceções: `src/lib/realtime/*`, `src/types/rpc.ts`, `supabase.auth.*` em pages de auth, `supabase.functions.invoke` em hooks dedicados.
 
 ## Memories
 - [Invoicing and Tax](mem://features/faturamento-fiscal)
@@ -59,3 +60,4 @@
 - [HealthBadge](mem://tech/health-badge) — Indicador de saúde de integrações externas (5 estados: healthy/degraded/down/unknown/checking) com tooltip de detalhes
 - [Painel Saúde do Sistema](mem://features/painel-saude-sistema) — Aba /administracao?tab=saude consolidando integrações (e-mail/auditoria/permissões) via v_admin_audit_unified + email_send_log
 - [DataTable - coluna única "Ações"](mem://tech/datatable-acoes-unicas) — Proibido criar 2ª coluna "Ações" manual; usar rowExtraActions
+- [Camada services única](mem://tech/camada-services-unica) — Doutrina pós-Onda 6: src/services/ é única autoridade para from/rpc/storage; lista de exceções legítimas (auth, functions.invoke, realtime singletons, helper callRpc)
