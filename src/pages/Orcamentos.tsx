@@ -408,6 +408,7 @@ const Orcamentos = () => {
           <SummaryCard title="Taxa de Conversão" value={`${kpis.conversionRate}%`} icon={BarChart3} variationType="positive" variation="orçamentos → Pedido" />
         </div>
 
+        <div data-help-id="orcamentos.filtros">
         <AdvancedFilterBar
           searchValue={searchTerm}
           onSearchChange={setSearchTerm}
@@ -450,8 +451,10 @@ const Orcamentos = () => {
           />
           <PeriodFilter mode="both" value={periodValue} onChange={handlePeriodChange} direction="past" />
         </AdvancedFilterBar>
+        </div>
 
         <PullToRefresh onRefresh={fetchData}>
+          <div data-help-id="orcamentos.tabela">
           <DataTable
             columns={columns}
             data={filteredData}
