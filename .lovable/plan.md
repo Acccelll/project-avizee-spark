@@ -1,80 +1,86 @@
-## Problema
+## Objetivo
 
-O CoachTour resolve alvos via `[data-help-id="..."]`. Várias entries do registry referenciam IDs que **não existem no DOM**, fazendo o popover cair no modo "fantasma" centralizado com o aviso amarelo "Esta área não foi encontrada".
+Reescrever os manuais e tours guiados do sistema de Ajuda com profundidade real — cobrindo submódulos, abas, drawers, formulários, ações por linha e atalhos. Ampliar os tours para passar pelas funções principais que hoje ficam de fora (ex.: baixar título no Financeiro, criar orçamento no Comercial, faturar pedido, ajuste de estoque, conciliação OFX, recebimento na Logística, abas do drawer de cadastros).
 
-## Auditoria (entries × anchors no DOM)
+## Escopo
 
-| Entry | Target esperado | Existe no DOM? |
-|---|---|---|
-| dashboard | `header.global-period` | NÃO (seletor CSS sem match — é `GlobalPeriodChip`) |
-| dashboard | `dashboard.comercial` | OK (`Index.tsx`) |
-| dashboard | `dashboard.financeiro` | OK |
-| dashboard | `dashboard.fiscal` | OK |
-| orcamentos | `orcamentos.novoBtn` | NÃO |
-| orcamentos | `orcamentos.filtros` | OK |
-| orcamentos | `orcamentos.tabela` | OK |
-| pedidos | `pedidos.filtros` / `.tabela` | OK |
-| fiscal | `fiscal.tipoTabs` | NÃO |
-| fiscal | `fiscal.novaBtn` | NÃO |
-| fiscal | `fiscal.tabela` | OK (também `fiscal.filtros`) |
-| estoque | `estoque.filtros` / `.tabela` | NÃO (página não tem anchors) |
-| financeiro | `financeiro.tipoTabs` / `.tabela` | NÃO |
-| logistica | `logistica.tabs` / `.tabela` | NÃO |
-| clientes | `clientes.novoBtn` / `.tabela` | NÃO |
-| produtos | `produtos.filtros` / `.tabela` | NÃO |
+**Módulos com manual + tour completo (Onda 1 — core):**
+Dashboard, Orçamentos, Pedidos de Venda, Fiscal (NF-e), Estoque, Financeiro, Logística, Clientes, Produtos.
 
-Resumo: **só Pedidos está 100% correto**. Dashboard, Orçamentos e Fiscal estão parcialmente; Estoque, Financeiro, Logística, Clientes e Produtos não têm nenhum anchor.
+**Módulos com manual + tour curto (Onda 2 — secundários):**
+Pedidos de Compra, Cotações de Compra, Fornecedores, Contas Bancárias, Conciliação, Fluxo de Caixa, Relatórios, Workbook, Apresentação Gerencial.
 
-## Correções
+**Módulos com manual ampliado, sem tour (Onda 3 — auxiliares):**
+Transportadoras, Funcionários, Sócios, Formas de Pagamento, Grupos Econômicos, Administração, Auditoria, Configurações.
 
-### 1. Adicionar `data-help-id` nas páginas que faltam
+## O que muda no conteúdo (manuais)
 
-Em cada página, envolver os elementos correspondentes (sem alterar layout/estilo) com `<div data-help-id="...">` ou aplicar o atributo direto no wrapper existente:
+Cada `HelpEntry` dos módulos core passa a ter, no mínimo:
+1. **Visão geral** — para que serve, onde se encaixa no fluxo do ERP.
+2. **Estrutura da tela** — KPIs do topo, filtros, tabela, abas e drawer.
+3. **Ações por linha** — botões inline, atalhos do drawer, regras de permissão.
+4. **Formulário (Novo / Editar)** — abas do `FormModal`/página, campos obrigatórios, validações automáticas (CNPJ, CEP, NCM), regras de tributação.
+5. **Ciclo de vida e status** — transições permitidas, quem pode mudar status, efeitos colaterais (estoque, financeiro, fiscal).
+6. **Excluir × Inativar × Cancelar** — árvore de decisão por entidade.
+7. **Integrações** — para onde a ação leva (Financeiro gera título, Pedido baixa estoque, NF-e dispara SEFAZ, etc.).
+8. **Atalhos e dicas** — `Ctrl+N`, `?`, navegação por número.
 
-- **`src/pages/Estoque.tsx`** → `estoque.filtros` (AdvancedFilterBar) e `estoque.tabela` (DataTable)
-- **`src/pages/Financeiro.tsx`** → `financeiro.tipoTabs` (Tabs Receber/Pagar) e `financeiro.tabela`
-- **`src/pages/Logistica.tsx`** → `logistica.tabs` (TabsList) e `logistica.tabela`
-- **`src/pages/Clientes.tsx`** → `clientes.novoBtn` (botão "Novo cliente" no PageHeader) e `clientes.tabela`
-- **`src/pages/Produtos.tsx`** → `produtos.filtros` e `produtos.tabela`
-- **`src/pages/Orcamentos.tsx`** → adicionar `orcamentos.novoBtn` no botão "Novo orçamento"
-- **`src/pages/Fiscal.tsx`** → adicionar `fiscal.tipoTabs` (tabs NFe/NFCe/NFSe) e `fiscal.novaBtn` (botão "Nova NF")
+## O que muda nos tours guiados
 
-### 2. Corrigir target inválido do dashboard
+Hoje cada tour tem 2 passos (filtros + tabela). Vamos para **5–8 passos por módulo core**, cobrindo:
 
-`src/components/navigation/GlobalPeriodChip.tsx` → adicionar `data-help-id="dashboard.globalPeriod"` no wrapper raiz do chip.
-`src/help/entries/dashboard.ts` → trocar `target: 'header.global-period'` por `target: 'dashboard.globalPeriod'`.
+- **Dashboard:** período global → bloco comercial → financeiro → fiscal → logística → drill-down explicativo (passo "fantasma" sem alvo).
+- **Orçamentos:** filtros → tabela → ações inline (Enviar/Aprovar/Converter) → botão "Novo" → drawer (abas Geral/Itens/Rentabilidade) → conversão em pedido.
+- **Pedidos:** filtros → tabela → ações inline → botão "Novo" → drawer → faturar (NF-e) → cancelar com motivo.
+- **Fiscal:** seletor entrada/saída → filtros → tabela → status SEFAZ → ações (DANFE/XML/CC-e/Cancelar) → botão "Nova nota" → drawer → contingência.
+- **Estoque:** abas (Saldos/Movimentações/Ajuste) → filtros → tabela → drill no produto → ajuste manual com motivo.
+- **Financeiro:** alternância Lista/Calendário → KPIs (a vencer/vencidos/parciais/pagos clicáveis) → filtros → tabela → ações inline (Baixar/Estornar/Editar/Cancelar) → botão "Novo Lançamento" → modal → conciliação relacionada.
+- **Logística:** abas Entregas/Recebimentos/Remessas → filtros → cards/linhas → rastreio em massa → drawer da remessa (eventos, etiqueta, transições postado→trânsito→entregue) → recebimento de compra.
+- **Clientes:** filtros → tabela → botão "Novo" → drawer/modal com abas (Dados/Contatos/Endereço/Comercial/Comunicações) → ViaCEP/CNPJ → condições comerciais (desconto máximo).
+- **Produtos:** filtros → tabela → botão "Novo" → modal com abas (Dados/Estoque/Fiscal/Compras/Obs) → tributação (NCM/CEST/CST) → fornecedores vinculados → composição/preço sugerido.
 
-### 3. Endurecer o resolver (defesa em profundidade)
+Tours secundários ganham 2–3 passos em vez de zero (filtros, tabela, ação principal).
 
-`src/components/help/CoachTour.tsx` — `resolveTarget()`: a lógica atual tenta `querySelector(target)` quando o target contém `.` (ex.: `dashboard.fiscal` é um seletor CSS válido mas inválido sintaticamente, e cai no catch). Simplificar para:
+## Âncoras `data-help-id` adicionais necessárias
 
-```ts
-function resolveTarget(target: string): Element | null {
-  // 1. tenta como data-help-id (caso mais comum)
-  const byAttr = document.querySelector(`[data-help-id="${CSS.escape(target)}"]`);
-  if (byAttr) return byAttr;
-  // 2. tenta como seletor CSS bruto (apenas se começa com [, #, ., :, * ou tag)
-  if (/^[\[#.:*a-z]/i.test(target)) {
-    try { return document.querySelector(target); } catch { /* noop */ }
-  }
-  return null;
-}
-```
+Hoje só existem `*.filtros`, `*.tabela`, `*.tabs` e blocos do dashboard. Para o tour novo cobrir as ações principais, vamos **adicionar** estes anchors (o resolver já lida com `CSS.escape`):
 
-### 4. Bump de versão
+| Página | Novos anchors |
+|--------|---------------|
+| `Index.tsx` | `dashboard.logistica` |
+| `Orcamentos.tsx` | `orcamentos.novoBtn`, `orcamentos.acoesLinha` (no `<tbody>` ou wrapper das ações) |
+| `Pedidos.tsx` | `pedidos.novoBtn`, `pedidos.acoesLinha` |
+| `Fiscal.tsx` | `fiscal.tipoSeletor`, `fiscal.novoBtn`, `fiscal.acoesLinha` |
+| `Financeiro.tsx` | `financeiro.viewToggle` (Lista/Calendário), `financeiro.kpis`, `financeiro.novoBtn`, `financeiro.acoesLinha` |
+| `Estoque.tsx` | `estoque.ajusteBtn` (botão atalho de ajuste) |
+| `Logistica.tsx` | `logistica.bulkRastrear`, `logistica.cardAcoes` |
+| `Clientes.tsx` | `clientes.novoBtn` |
+| `Produtos.tsx` | `produtos.novoBtn` |
 
-Subir `version: 2` em todos os entries alterados (dashboard, fiscal, estoque, financeiro, logistica, clientes, produtos, orcamentos) para reativar o first-visit toast e mostrar o tour funcional aos usuários que já o haviam descartado.
+Como `ModulePage` renderiza o botão "Novo" centralmente, vamos adicionar `data-help-id` via prop opcional no `ModulePage` (ou envolver o `ModulePage` num `<div data-help-id="...">`, alternativa mais simples e sem refatoração). Optaremos pelo wrapper `<div>` quando o `ModulePage` não suportar a prop.
 
-## Validação
+## Detalhes técnicos
 
-Após aplicar, abrir cada rota, disparar o tour pelo `?` e confirmar que:
-- Nenhum passo exibe o aviso amarelo "Esta área não foi encontrada".
-- O anel de destaque (ring) cerca o elemento correto.
-- O popover ancora abaixo (ou acima, se não couber) do alvo.
+- **Sem mudança de tipos**: `HelpEntry`/`HelpTourStep` já comportam o conteúdo expandido. Apenas `version` é incrementado em cada entrada para reativar o `FirstVisitToast` para usuários que já dispensaram a versão anterior.
+- **Passos "fantasma"**: o `CoachTour` já suporta steps cujo `target` não resolve (centraliza). Vamos usá-los para conceitos que não têm âncora visual única (ex.: "drill-down clica em qualquer KPI").
+- **Sem nova migration**: o `useHelpProgress` persiste `lastSeenVersion` por rota — bump de versão basta.
+- **Sem mudança no `HelpDrawer`/`HelpMenu`/`Ajuda.tsx`**: eles renderizam a partir do registry; conteúdo mais longo é absorvido naturalmente (já tem scroll).
+- **Ordem de execução**:
+  1. Adicionar os `data-help-id` que faltam nas 9 páginas core.
+  2. Reescrever `src/help/entries/{dashboard,orcamentos,pedidos,fiscal,estoque,financeiro,logistica,clientes,produtos}.ts` com manual expandido + tour 5–8 passos + `version` incrementado.
+  3. Expandir manuais e adicionar tour curto em `lote2.ts`.
+  4. Expandir manuais em `lote3.ts` (sem tour).
+  5. Smoke manual: para cada rota tocada, verificar visualmente se cada passo do tour aponta para um alvo existente; ajustar onde necessário.
 
-## Arquivos afetados
+## Entregáveis
 
-- 7 páginas: `Estoque`, `Financeiro`, `Logistica`, `Clientes`, `Produtos`, `Orcamentos`, `Fiscal`
-- 1 componente: `GlobalPeriodChip.tsx`
-- 1 utilitário: `CoachTour.tsx` (resolver)
-- 8 entries de ajuda (bump de versão + correção do dashboard)
+- 9 arquivos de entry core reescritos.
+- `lote2.ts` e `lote3.ts` ampliados.
+- Anchors injetados em 9 páginas.
+- Memória de produto atualizada com a doutrina de "manual completo + tour ≥5 passos por módulo core" (arquivo curto em `mem://produto/manual-tour-cobertura.md`).
+
+## Não está no escopo
+
+- Mudanças no motor do tour (`CoachTour.tsx`), no drawer de ajuda, nos hotkeys ou na página `/ajuda`.
+- Tradução para outros idiomas.
+- Tours em telas de formulário standalone (`OrcamentoForm`, `PedidoForm`, `RemessaForm`, `PedidoCompraForm`, `CotacaoCompraForm`) — neste momento só manuais cobrem essas telas.
