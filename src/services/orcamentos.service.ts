@@ -420,3 +420,14 @@ export async function existeOrcamentoComNumero(
   if (error) throw error;
   return !!data;
 }
+
+/** Cria uma revisão de orçamento (clona itens via RPC). */
+export async function criarRevisaoOrcamento(orcamentoId: string): Promise<string | null> {
+  // RPC criada na migração; cast `as never` evita atrito com tipagem gerada.
+  const { data, error } = await supabase.rpc(
+    "criar_revisao_orcamento" as never,
+    { p_orcamento_id: orcamentoId } as never,
+  );
+  if (error) throw error;
+  return (data as string | null) ?? null;
+}
