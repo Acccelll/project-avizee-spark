@@ -89,7 +89,7 @@ export function useNavigationState(visibleSections: NavSection[]): NavigationSta
 
   const { value: manualSections, save: saveManualSections } = useUserPreference<Record<string, boolean>>(
     user?.id ?? null,
-    'sidebar_sections_state',
+    'sidebar_sections_state_v2',
     {},
   );
 
