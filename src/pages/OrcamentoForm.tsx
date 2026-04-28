@@ -40,6 +40,7 @@ import { getOrcamentoInternalAccess } from "@/lib/orcamentoInternalAccess";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useOrcamentoTemplates, type OrcamentoTemplate } from "@/pages/comercial/hooks/useOrcamentoTemplates";
+import { logger } from "@/lib/logger";
 
 interface ClienteSnapshot {
   nome_razao_social: string; nome_fantasia: string; cpf_cnpj: string;
@@ -352,7 +353,7 @@ export default function OrcamentoForm() {
         if (isEdit) {
           const { data: orc, error: orcError } = await supabase.from("orcamentos").select("*").eq("id", id).maybeSingle();
           if (orcError) {
-            console.error("[OrcamentoForm] erro ao carregar orçamento:", orcError);
+            logger.error("[OrcamentoForm] erro ao carregar orçamento:", orcError);
             toast.error("Erro ao carregar orçamento.", { description: orcError.message });
           } else if (orc) {
             reset({
@@ -411,14 +412,14 @@ export default function OrcamentoForm() {
         } else {
           const { data: novoNumero, error: numErr } = await supabase.rpc('proximo_numero_orcamento');
           if (numErr || !novoNumero) {
-            console.error('[OrcamentoForm] proximo_numero_orcamento falhou:', numErr);
+            logger.error('[OrcamentoForm] proximo_numero_orcamento falhou:', numErr);
             toast.error('Não foi possível gerar o número do orçamento. Tente novamente.');
             return;
           }
           setValue('numero', novoNumero);
         }
       } catch (err: unknown) {
-        console.error("[OrcamentoForm] erro ao carregar dados:", err);
+        logger.error("[OrcamentoForm] erro ao carregar dados:", err);
         toast.error(getUserFriendlyError(err));
       }
     };
@@ -673,7 +674,7 @@ export default function OrcamentoForm() {
       });
       if (!isEdit && orcId) navigate(`/orcamentos/${orcId}?created=1`, { replace: true });
     } catch (err: unknown) {
-      console.error('[orcamento]', err);
+      logger.error('[orcamento]', err);
       toast.error(getUserFriendlyError(err));
     }
     setSaving(false);
@@ -697,7 +698,7 @@ export default function OrcamentoForm() {
     try {
       const { data: newNumero, error: numErr } = await supabase.rpc('proximo_numero_orcamento');
       if (numErr || !newNumero) {
-        console.error('[orcamento] duplicar — proximo_numero_orcamento falhou:', numErr);
+        logger.error('[orcamento] duplicar — proximo_numero_orcamento falhou:', numErr);
         toast.error('Não foi possível gerar o número do orçamento. Tente novamente.');
         return;
       }
@@ -725,7 +726,7 @@ export default function OrcamentoForm() {
       toast.success(`Duplicado: ${payload.numero}`);
       navigate(`/orcamentos/${orcId}`, { replace: true });
     } catch (err: unknown) {
-      console.error('[orcamento] duplicar:', err);
+      logger.error('[orcamento] duplicar:', err);
       toast.error(getUserFriendlyError(err));
     }
   };

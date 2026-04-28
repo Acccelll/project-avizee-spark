@@ -31,6 +31,7 @@ import { useEditDirtyForm } from "@/hooks/useEditDirtyForm";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useDocumentoUnico } from "@/hooks/useDocumentoUnico";
 import { useEditDeepLink } from "@/hooks/useEditDeepLink";
+import { logger } from "@/lib/logger";
 
 interface Funcionario {
   id: string; nome: string; cpf: string; cargo: string; departamento: string;
@@ -228,7 +229,7 @@ export default function Funcionarios() {
       );
       if (selected) openView(selected);
     } catch (err) {
-      console.error('[funcionarios] erro ao gerar financeiro:', err);
+      logger.error('[funcionarios] erro ao gerar financeiro:', err);
       toast.error(getUserFriendlyError(err));
     }
   };
