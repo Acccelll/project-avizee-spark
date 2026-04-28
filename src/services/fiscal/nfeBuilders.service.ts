@@ -198,6 +198,13 @@ export async function buildNFeDataFromDb(nf: NotaFiscal): Promise<NFeData> {
   if (!dest.cpf_cnpj || !dest.uf) {
     throw new Error("Destinatário sem CPF/CNPJ ou UF — corrija o cadastro antes de transmitir.");
   }
+  if (!dest.codigo_ibge_municipio || dest.codigo_ibge_municipio.length < 7) {
+    throw new Error(
+      `Destinatário sem código IBGE do município. Edite o cadastro de ${
+        isSaida ? "cliente" : "fornecedor"
+      } e informe o município (busca por CEP preenche automaticamente).`,
+    );
+  }
 
   const itensDb = await lerItens(nf.id);
   if (itensDb.length === 0) {
@@ -286,9 +293,7 @@ export async function buildNFeDataFromDb(nf: NotaFiscal): Promise<NFeData> {
       logradouro: dest.logradouro ?? "",
       numero: dest.numero ?? "S/N",
       municipio: dest.cidade ?? "",
-      // Município do destinatário não está no schema atual — usa o do emitente
-      // como fallback. Recomendamos mapear quando o cadastro persistir IBGE.
-      codigoMunicipio: emi.codigo_ibge_municipio,
+      codigoMunicipio: dest.codigo_ibge_municipio,
     },
     itens,
     totais: {
