@@ -85,6 +85,78 @@ export async function baixarEtiqueta(pdfPath: string): Promise<string> {
 }
 
 /**
+ * Mescla várias etiquetas Correios (PDFs no bucket `etiquetas-correios`)
+ * em um único PDF A4 com 4 etiquetas por página (2 colunas × 2 linhas, retrato).
+ *
+ * Cada etiqueta é renderizada preservando proporção, encaixada no quadrante.
+ * Retorna um Blob (application/pdf) pronto para abrir/imprimir.
+ */
+export async function imprimirEtiquetasA4(pdfPaths: string[]): Promise<Blob> {
+  if (pdfPaths.length === 0) throw new Error("Nenhuma etiqueta selecionada.");
+  const { PDFDocument } = await import("pdf-lib");
+
+  // A4 retrato em pontos: 595.28 × 841.89
+  const A4_W = 595.28;
+  const A4_H = 841.89;
+  const MARGIN = 14; // ~5mm de margem externa
+  const GUTTER = 8;  // espaço entre quadrantes
+  const cellW = (A4_W - MARGIN * 2 - GUTTER) / 2;
+  const cellH = (A4_H - MARGIN * 2 - GUTTER) / 2;
+
+  // Posições dos 4 quadrantes (origem inferior-esquerda no PDF)
+  const slots = [
+    { x: MARGIN,                     y: MARGIN + cellH + GUTTER }, // top-left
+    { x: MARGIN + cellW + GUTTER,    y: MARGIN + cellH + GUTTER }, // top-right
+    { x: MARGIN,                     y: MARGIN },                  // bottom-left
+    { x: MARGIN + cellW + GUTTER,    y: MARGIN },                  // bottom-right
+  ];
+
+  const out = await PDFDocument.create();
+
+  // Baixa todos os PDFs em paralelo (signed URLs)
+  const buffers = await Promise.all(
+    pdfPaths.map(async (path) => {
+      const url = await baixarEtiqueta(path);
+      const r = await fetch(url);
+      if (!r.ok) throw new Error(`Falha ao baixar ${path}`);
+      return new Uint8Array(await r.arrayBuffer());
+    }),
+  );
+
+  // Coleta a 1ª página de cada PDF (etiqueta cabe em 1 página)
+  const sourcePages: Array<{ doc: import("pdf-lib").PDFDocument; index: number }> = [];
+  for (const buf of buffers) {
+    const src = await PDFDocument.load(buf, { ignoreEncryption: true });
+    sourcePages.push({ doc: src, index: 0 });
+  }
+
+  let page = out.addPage([A4_W, A4_H]);
+  let slotIdx = 0;
+
+  for (const { doc, index } of sourcePages) {
+    if (slotIdx === 4) {
+      page = out.addPage([A4_W, A4_H]);
+      slotIdx = 0;
+    }
+    // embedPage permite reposicionar/escalar
+    const [embedded] = await out.embedPages([doc.getPage(index)]);
+    const srcW = embedded.width;
+    const srcH = embedded.height;
+    const scale = Math.min(cellW / srcW, cellH / srcH);
+    const w = srcW * scale;
+    const h = srcH * scale;
+    const slot = slots[slotIdx];
+    const x = slot.x + (cellW - w) / 2;
+    const y = slot.y + (cellH - h) / 2;
+    page.drawPage(embedded, { x, y, xScale: scale, yScale: scale });
+    slotIdx++;
+  }
+
+  const bytes = await out.save();
+  return new Blob([bytes], { type: "application/pdf" });
+}
+
+/**
  * Pipeline completo: criar pré-postagem → solicitar PDF → polling → upload → persistir.
  * Retorna o registro criado em `remessa_etiquetas`.
  */
