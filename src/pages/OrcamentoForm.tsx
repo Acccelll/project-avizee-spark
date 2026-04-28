@@ -659,20 +659,16 @@ export default function OrcamentoForm() {
         valor_total: i.valor_total, peso_unitario: i.peso_unitario || 0, peso_total: i.peso_total || 0,
       }));
 
-      const { data: orcId, error } = await supabase.rpc('salvar_orcamento', {
-        p_id: isEdit ? id : null,
-        p_payload: payload as unknown as never,
-        p_itens: itemsPayload as unknown as never,
+      const orcId = await salvarOrcamentoRpc({
+        id: isEdit ? id! : null,
+        payload,
+        itens: itemsPayload,
       });
-      if (error) throw error;
 
       localStorage.removeItem(draftKey);
       if (user?.id) {
         try {
-          await supabase.from("orcamento_drafts")
-            .delete()
-            .eq("usuario_id", user.id)
-            .eq("draft_key", draftKey);
+          await deleteOrcamentoDraft(user.id, draftKey);
         } catch {/* ignore */}
       }
       toast.success(isEdit ? "Orçamento atualizado com sucesso" : "Orçamento criado com sucesso", {
@@ -703,9 +699,11 @@ export default function OrcamentoForm() {
       return;
     }
     try {
-      const { data: newNumero, error: numErr } = await supabase.rpc('proximo_numero_orcamento');
-      if (numErr || !newNumero) {
+      const newNumero = await proximoNumeroOrcamento().catch((numErr) => {
         logger.error('[orcamento] duplicar — proximo_numero_orcamento falhou:', numErr);
+        return null;
+      });
+      if (!newNumero) {
         toast.error('Não foi possível gerar o número do orçamento. Tente novamente.');
         return;
       }
@@ -723,12 +721,11 @@ export default function OrcamentoForm() {
         valor_total: i.valor_total, peso_unitario: i.peso_unitario || 0, peso_total: i.peso_total || 0,
       }));
 
-      const { data: orcId, error } = await supabase.rpc('salvar_orcamento', {
-        p_id: null,
-        p_payload: payload as unknown as never,
-        p_itens: itemsPayload as unknown as never,
+      const orcId = await salvarOrcamentoRpc({
+        id: null,
+        payload,
+        itens: itemsPayload,
       });
-      if (error) throw error;
 
       toast.success(`Duplicado: ${payload.numero}`);
       navigate(`/orcamentos/${orcId}`, { replace: true });
