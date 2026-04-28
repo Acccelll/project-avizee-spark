@@ -463,12 +463,7 @@ export default function OrcamentoForm() {
       if (!pagamento) {
         let descricaoForma: string | null = null;
         if (c.forma_pagamento_id) {
-          const { data: fp } = await supabase
-            .from("formas_pagamento")
-            .select("descricao")
-            .eq("id", c.forma_pagamento_id)
-            .maybeSingle();
-          descricaoForma = fp?.descricao ?? null;
+          descricaoForma = await getFormaPagamentoDescricao(c.forma_pagamento_id);
         }
         const fallback = descricaoForma ?? c.forma_pagamento_padrao ?? null;
         if (fallback) setValue('pagamento', fallback);
@@ -477,15 +472,8 @@ export default function OrcamentoForm() {
       if (c.prazo_padrao && !prazoPagamento && !c.prazo_preferencial) setValue('prazoPagamento', `${c.prazo_padrao} DDL`);
 
       // Load special prices for this client (only active and within validity period)
-      const today = new Date().toISOString().slice(0, 10);
-      supabase.from("precos_especiais")
-        .select("*")
-        .eq("cliente_id", cId)
-        .eq("ativo", true)
-        .or(`vigencia_fim.is.null,vigencia_fim.gte.${today}`)
-        .or(`vigencia_inicio.is.null,vigencia_inicio.lte.${today}`)
-        .then(({ data }) => {
-          const rules = data || [];
+      listPrecosEspeciaisAtuais(cId)
+        .then((rules) => {
           setPrecosEspeciais(rules as Tables<"precos_especiais">[]);
 
           // Recalculate prices for existing items if they have special prices
