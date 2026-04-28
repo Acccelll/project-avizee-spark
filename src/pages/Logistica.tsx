@@ -63,9 +63,14 @@ import {
 import {
   Eye, AlertTriangle, Truck, Package, CheckCheck, ExternalLink, Loader2,
   Edit, Trash2, Plus, MapPin, Package as PackageIcon, Search, Clock, Timer,
-  ChevronDown, History,
+  ChevronDown, History, FileDown,
 } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  listLatestEtiquetasByRemessas,
+  baixarEtiqueta as baixarEtiquetaPdf,
+  type RemessaEtiqueta,
+} from "@/services/logistica/prepostagem.service";
 
 // ─── Remessa types ───
 type Remessa = Tables<"remessas">;
