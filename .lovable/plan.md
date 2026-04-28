@@ -206,3 +206,9 @@ Sugiro a sequência **Onda 0 → Onda 1 → Onda 3** (fundação + casca + wizar
   - RPC `processar_nfe_distribuicao(p_nfe_id, p_fornecedor_id, p_data_vencimento, p_descricao)` SECURITY DEFINER + search_path=public — atomicamente: gera 1 título consolidado em `financeiro_lancamentos` (origem_tipo='nfe_entrada', origem_id=NF-e, fornecedor + valor + vencimento), insere movimentações em `estoque_movimentos` (tipo=entrada, documento_tipo='nfe_entrada') para cada item com produto mapeado, marca a NF como processada
   - Pré-condições no RPC: status `confirmada` + `xml_importado` + ainda não processada + fornecedor obrigatório
   - UI no `ManifestacaoDestinatarioDrawer`: badge "Processada", botão "Processar entrada" (visível só quando confirmada+importada+não processada) abrindo `ProcessarEntradaDialog` com seleção de fornecedor (sugerido pelo CNPJ emitente), data de vencimento padrão D+30 e mapeamento item→produto inline (Select), retorno mostra contagem `itens_processados / itens_total / itens_sem_produto`
+- ✅ **Onda 11** — Visibilidade de NF-e de entrada no Financeiro:
+  - `useFinanceiroFiltros`: novo valor `nfe_entrada` em `origemOpts` e label "NF-e de Entrada" em `origemLabelMap` (alias adicional `fiscal_nota`)
+  - `getOrigemLabel` (src/lib/financeiro.ts) reconhece `origem_tipo='nfe_entrada'` → "NF-e de Entrada"
+  - `FinanceiroDrawer` (aba Origem): novo `RelationalLink` "Ver NF-e de entrada original" quando `origem_tipo='nfe_entrada'` + `origem_id` definido, navegando para `/faturamento?tab=manifestacao&nfe=<id>`
+  - `ManifestacaoDestinatarioDrawer` aceita `highlightNfeId` (opcional): rola até o `<li>` da NF correspondente e aplica anel `border-primary ring-2 ring-primary/30 bg-primary/5`
+  - `Faturamento.tsx`: efeito de deep-link consome `?tab=manifestacao&nfe=<id>` → abre o drawer com destaque, limpa os params para evitar reabertura
