@@ -212,3 +212,9 @@ Sugiro a sequência **Onda 0 → Onda 1 → Onda 3** (fundação + casca + wizar
   - `FinanceiroDrawer` (aba Origem): novo `RelationalLink` "Ver NF-e de entrada original" quando `origem_tipo='nfe_entrada'` + `origem_id` definido, navegando para `/faturamento?tab=manifestacao&nfe=<id>`
   - `ManifestacaoDestinatarioDrawer` aceita `highlightNfeId` (opcional): rola até o `<li>` da NF correspondente e aplica anel `border-primary ring-2 ring-primary/30 bg-primary/5`
   - `Faturamento.tsx`: efeito de deep-link consome `?tab=manifestacao&nfe=<id>` → abre o drawer com destaque, limpa os params para evitar reabertura
+- ✅ **Onda 12** — Relatório "NF-e de Entrada":
+  - Novo `TipoRelatorio: 'nfe_entrada'` em `src/services/relatorios/lib/shared.ts`
+  - Loader `loadNfeEntrada(filtros)` em `src/services/relatorios/loaders/compras.ts`: lê `nfe_distribuicao` (com join em `fornecedores`), aplica `withDateRange('data_emissao')` + filtro `fornecedorIds`, monta linhas com fornecedor (fallback para `nome_emitente` ou `cnpj_emitente`), totais (valor/ICMS/IPI), KPIs (`qtdNfe`, `totalEntradas`, `totalIcms`, `totalIpi`, `processadas`) e chartData agregado por mês (`YYYY-MM`)
+  - `nfeEntradaConfig` em `src/config/relatoriosConfig.ts` (categoria `fiscal_faturamento`, ícone Receipt): colunas Emissão/Nº/Série/Fornecedor/CNPJ/Valor/ICMS/IPI/Status/Processada com `footerTotal` em valores; filtros de fornecedor e status (`sem_manifestacao|ciencia|confirmada|desconhecida|nao_realizada`); drill-down para `/fornecedores` e `/faturamento`
+  - `reportRuntimeSemantics.nfe_entrada` (statusField='status', dateSortField='emissao', valueSortField='valor')
+  - Dispatcher `carregarRelatorio` roteia `case 'nfe_entrada'`
