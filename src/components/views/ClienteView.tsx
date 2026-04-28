@@ -375,8 +375,7 @@ export function ClienteView({ id }: Props) {
         loading={locked("delete")}
         onConfirm={() =>
           run("delete", async () => {
-            const { error: delErr } = await supabase.from("clientes").delete().eq("id", id);
-            if (delErr) throw delErr;
+            await deleteCliente(id);
             toast.success("Cliente excluído com sucesso.");
             // Invalida cache da grid (D2) — evita exibir registro morto.
             await invalidate(["clientes", "ordens_venda", "financeiro_lancamentos"]);

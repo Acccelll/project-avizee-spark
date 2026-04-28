@@ -363,8 +363,7 @@ export function FornecedorView({ id }: Props) {
         loading={locked("delete")}
         onConfirm={() =>
           run("delete", async () => {
-            const { error: delErr } = await supabase.from("fornecedores").delete().eq("id", id);
-            if (delErr) throw delErr;
+            await deleteFornecedor(id);
             toast.success("Fornecedor excluído com sucesso.");
             await invalidate(["fornecedores", "pedidos_compra", "financeiro_lancamentos"]);
             setDeleteConfirmOpen(false);
