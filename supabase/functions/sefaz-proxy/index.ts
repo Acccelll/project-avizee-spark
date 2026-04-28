@@ -242,6 +242,16 @@ Deno.serve(async (req) => {
     const { action } = body;
     log.info("request received", { action });
 
+    if (!action || typeof action !== "string") {
+      return json(
+        {
+          error:
+            "Campo 'action' ausente. Use 'health', 'parse-certificado', 'assinar-e-enviar' ou 'assinar-e-enviar-vault'.",
+        },
+        400,
+      );
+    }
+
     // ── Health check leve ──────────────────────────────────────────
     // Usado pelo painel "Saúde do sistema" (admin) para indicar se a
     // edge function está acessível sem precisar de PFX/SOAP. Retorna
@@ -344,7 +354,12 @@ Deno.serve(async (req) => {
       return json(resultado);
     }
 
-    return json({ error: "action inválida. Use 'assinar-e-enviar' ou 'parse-certificado'" }, 400);
+    return json(
+      {
+        error: `action '${action}' inválida. Use 'health', 'parse-certificado', 'assinar-e-enviar' ou 'assinar-e-enviar-vault'.`,
+      },
+      400,
+    );
   } catch (err: any) {
     log.error("request failed", err);
     return json({ error: err.message || "Erro interno" }, err.message?.includes("Sessão") ? 401 : 500);
