@@ -357,15 +357,11 @@ const Produtos = () => {
             .filter((c) => c.produto_filho_id)
             .map((c) => ({ produto_filho_id: c.produto_filho_id, quantidade: c.quantidade }))
         : [];
-      const { error: compError } = await supabase.rpc("save_produto_composicao", {
-        p_produto_pai_id: produtoId,
-        p_itens: composicaoItens,
-        p_payload: { eh_composto: form.eh_composto },
+      await saveProdutoComposicao({
+        produtoPaiId: produtoId,
+        itens: composicaoItens,
+        ehComposto: !!form.eh_composto,
       });
-      if (compError) {
-        console.error("[produtos] composição:", compError);
-        throw new Error("Erro ao salvar composição: " + (compError.message || "tente novamente"));
-      }
 
       // Fornecedores: RPC transacional (delete + insert atômico).
       const fornecedoresPayload = editFornecedores
@@ -379,14 +375,10 @@ const Produtos = () => {
           lead_time_dias: f.lead_time_dias != null ? String(f.lead_time_dias) : "",
           preco_compra: f.preco_compra != null ? String(f.preco_compra) : "",
         }));
-      const { error: fornError } = await supabase.rpc("save_produto_fornecedores", {
-        p_produto_id: produtoId,
-        p_itens: fornecedoresPayload,
+      await saveProdutoFornecedores({
+        produtoId,
+        itens: fornecedoresPayload,
       });
-      if (fornError) {
-        console.error("[produtos] fornecedores:", fornError);
-        throw new Error("Erro ao salvar fornecedores: " + (fornError.message || "tente novamente"));
-      }
       markPristine();
       if (saveAndNewRef.current && mode === "create") {
         saveAndNewRef.current = false;
