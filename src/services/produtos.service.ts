@@ -153,3 +153,80 @@ export async function vincularProdutoFornecedor(input: {
   });
   if (error) throw error;
 }
+
+// ── ProdutoView (drawer/detalhe) ──────────────────────────────────────────────
+
+/**
+ * Busca produto + dados auxiliares (histórico de NF, composição,
+ * movimentos de estoque, vínculos com fornecedores e nome do grupo).
+ * Usa Promise.allSettled internamente para não invalidar o detalhe se uma
+ * sub-query falhar isoladamente.
+ */
+export async function fetchProdutoDetalhes(
+  produtoId: string,
+  signal: AbortSignal,
+) {
+  const { data: p, error: pError } = await supabase
+    .from("produtos")
+    .select("*")
+    .eq("id", produtoId)
+    .abortSignal(signal)
+    .maybeSingle();
+  if (pError) throw pError;
+  if (!p) return null;
+
+  const [comprasRes, vendasRes, compRes, movRes, fornRes, grupoRes] = await Promise.allSettled([
+    supabase
+      .from("notas_fiscais_itens")
+      .select(
+        "quantidade, valor_unitario, notas_fiscais!inner(id, numero, tipo, data_emissao, fornecedores(id, nome_razao_social))",
+      )
+      .eq("produto_id", p.id)
+      .in("notas_fiscais.tipo", ["entrada", "compra"])
+      .order("data_emissao", { foreignTable: "notas_fiscais", ascending: false })
+      .abortSignal(signal)
+      .limit(30),
+    supabase
+      .from("notas_fiscais_itens")
+      .select(
+        "quantidade, valor_unitario, notas_fiscais!inner(id, numero, tipo, data_emissao, clientes(id, nome_razao_social))",
+      )
+      .eq("produto_id", p.id)
+      .in("notas_fiscais.tipo", ["saida", "venda"])
+      .order("data_emissao", { foreignTable: "notas_fiscais", ascending: false })
+      .abortSignal(signal)
+      .limit(30),
+    p.eh_composto
+      ? supabase
+          .from("produto_composicoes")
+          .select("quantidade, ordem, produtos:produto_filho_id(id, nome, sku, preco_custo)")
+          .eq("produto_pai_id", p.id)
+          .abortSignal(signal)
+          .order("ordem")
+      : Promise.resolve({ data: [] as unknown[] }),
+    supabase
+      .from("estoque_movimentos")
+      .select("tipo, quantidade, motivo, created_at, saldo_anterior, saldo_atual")
+      .eq("produto_id", p.id)
+      .abortSignal(signal)
+      .order("created_at", { ascending: false })
+      .limit(20),
+    supabase
+      .from("produtos_fornecedores")
+      .select(
+        "preco_compra, lead_time_dias, referencia_fornecedor, eh_principal, unidade_fornecedor, fornecedores:fornecedor_id(id, nome_razao_social)",
+      )
+      .eq("produto_id", p.id)
+      .abortSignal(signal),
+    p.grupo_id
+      ? supabase
+          .from("grupos_produto")
+          .select("nome")
+          .eq("id", p.grupo_id)
+          .abortSignal(signal)
+          .maybeSingle()
+      : Promise.resolve({ data: null as Record<string, unknown> | null }),
+  ]);
+
+  return { produto: p, comprasRes, vendasRes, compRes, movRes, fornRes, grupoRes };
+}
