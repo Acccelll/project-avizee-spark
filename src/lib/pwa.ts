@@ -34,7 +34,12 @@ export async function registerPwa(): Promise<void> {
     wb = new Workbox("/sw.js", { scope: "/" });
 
     wb.addEventListener("waiting", dispatchUpdateReady);
-    wb.addEventListener("externalwaiting", dispatchUpdateReady);
+    // `externalwaiting` (SW novo detectado em outra aba) — nem todas as
+    // versões de workbox-window declaram o tipo. Cast para evitar TS2345.
+    (wb.addEventListener as unknown as (e: string, l: () => void) => void)(
+      "externalwaiting",
+      dispatchUpdateReady,
+    );
 
     await wb.register();
   } catch (e) {
