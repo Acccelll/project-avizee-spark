@@ -1,7 +1,6 @@
 
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { getUserFriendlyError } from "@/utils/errorMessages";
@@ -25,6 +24,7 @@ import {
   rejeitarPedido as rpcRejeitarPedido,
   cancelarPedidoCompra as rpcCancelarPedidoCompra,
 } from "@/types/rpc";
+import * as pcs from "@/services/pedidosCompra.service";
 
 /** Shape of a row from pedidos_compra_itens joined with produtos */
 export interface PedidoItemRow {
