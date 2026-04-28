@@ -448,6 +448,11 @@ export function ManifestacaoDestinatarioDrawer({ open, onOpenChange }: Manifesta
                             {nf.xml_importado && (
                               <Badge variant="secondary" className="text-[10px]">XML</Badge>
                             )}
+                            {nf.processado && (
+                              <Badge variant="default" className="text-[10px] gap-1">
+                                <CheckCheck className="h-3 w-3" /> Processada
+                              </Badge>
+                            )}
                           </div>
                         </div>
                         <div className="flex flex-wrap gap-2 pt-1">
@@ -461,6 +466,18 @@ export function ManifestacaoDestinatarioDrawer({ open, onOpenChange }: Manifesta
                               <Eye className="h-3 w-3" /> Ver itens
                             </Button>
                           )}
+                          {nf.xml_importado &&
+                            nf.status_manifestacao === "confirmada" &&
+                            !nf.processado && (
+                              <Button
+                                size="sm"
+                                variant="default"
+                                onClick={() => setProcessarTarget(nf)}
+                                className="gap-1"
+                              >
+                                <PackagePlus className="h-3 w-3" /> Processar entrada
+                              </Button>
+                            )}
                           <Button
                             size="sm"
                             variant="outline"
