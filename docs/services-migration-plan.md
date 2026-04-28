@@ -1,3 +1,25 @@
+
+## Onda 6 — Lote 2b (concluído)
+
+Componentes migrados (13 arquivos):
+- `PermanentDeleteDialog`, `views/{Cliente,Fornecedor,Produto,Orcamento}View`
+- `fiscal/NotaFiscalDrawer`, `financeiro/ContaContabilDrawer`
+- `compras/EstornarRecebimentoDialog`, `logistica/LogisticaRastreioSection`
+- `precos/PrecosEspeciaisTab`, `fornecedores/AddProdutoFornecedor`
+- `Orcamento/FreteCorreiosCard`
+- `importacao/{LimparDadosMigracaoButton,RelatorioMigracaoFaturamento}`
+
+Services novos/estendidos:
+- novo: `precosEspeciais.service.ts`, `financeiro/contasContabeis.ts`
+- estendido: `produtos`, `clientes`, `fornecedores`, `fiscal`, `orcamentos`,
+  `logistica/remessas`, `comercial/comprasLifecycle`, `importacao`
+
+Pendente (Lote 2c — detectado por grep abrangente):
+`views/{Transportadora,Remessa,PedidoCompra,OrdemVenda,NotaFiscal,GrupoEconomico,Funcionario,FormaPagamento}View`,
+`QuickAdd{Supplier,Product,Client}Modal`, `financeiro/ContaBancariaDrawer`,
+`compras/RegistrarRecebimentoDialog`, `auth/SessionExpiryWarning`,
+e hooks restantes (`useSessoes`, `useComprasRealtime`, `useFluxoCaixaData`,
+`useDocumentoUnico`, `useNotificationDetails`).
 # Plano de migração: páginas → camada de serviços
 
 ## Contexto
