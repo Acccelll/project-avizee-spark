@@ -212,13 +212,13 @@ Deno.serve(async (req) => {
   const totalDuplicados = resultados.reduce((s, r) => s + r.duplicados, 0);
   const totalErros = resultados.filter((r) => !r.sucesso).length;
 
-  // Registra log em audit_logs
-  await admin.from("audit_logs").insert({
-    user_id: null,
-    action: "distdfe_cron_run",
-    table_name: "nfe_distribuicao",
-    record_id: null,
-    metadata: {
+  // Registra log em auditoria_logs
+  await admin.from("auditoria_logs").insert({
+    tabela: "nfe_distribuicao",
+    acao: "distdfe_cron_run",
+    registro_id: null,
+    usuario_id: null,
+    dados_novos: {
       ambiente,
       inicio,
       fim,
