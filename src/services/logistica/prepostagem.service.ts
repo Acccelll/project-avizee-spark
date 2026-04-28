@@ -153,7 +153,7 @@ export async function imprimirEtiquetasA4(pdfPaths: string[]): Promise<Blob> {
   }
 
   const bytes = await out.save();
-  return new Blob([bytes], { type: "application/pdf" });
+  return new Blob([bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)], { type: "application/pdf" });
 }
 
 /**
