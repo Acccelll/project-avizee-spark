@@ -21,6 +21,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  listGruposAtivos,
+  listFornecedoresParaProduto,
+  listUnidadesMedidaAtivas,
+  listProdutoComposicao,
+  listProdutoFornecedores,
+  saveProdutoComposicao,
+  saveProdutoFornecedores,
+} from "@/services/produtos.service";
 import { toast } from "sonner";
 import { Loader2, Plus, Trash2, Package, FileText, TrendingUp, Archive, ShoppingCart, AlertCircle, CheckCircle2, AlignLeft, Tag } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -143,13 +152,13 @@ const Produtos = () => {
 
   useEffect(() => {
     Promise.all([
-      supabase.from("grupos_produto").select("id, nome").eq("ativo", true).order("nome"),
-      supabase.from("fornecedores").select("id, nome_razao_social").eq("ativo", true).order("nome_razao_social"),
-      supabase.from("unidades_medida").select("id, codigo, descricao, sigla").eq("ativo", true).order("codigo"),
-    ]).then(([{ data: g }, { data: f }, { data: um }]) => {
-      if (g) setGrupos(g);
-      if (f) setFornecedoresList(f);
-      if (um) setUnidadesMedida(um as UnidadeMedidaOption[]);
+      listGruposAtivos(),
+      listFornecedoresParaProduto(),
+      listUnidadesMedidaAtivas(),
+    ]).then(([g, f, um]) => {
+      setGrupos(g);
+      setFornecedoresList(f);
+      setUnidadesMedida(um as UnidadeMedidaOption[]);
     });
   }, []);
 
