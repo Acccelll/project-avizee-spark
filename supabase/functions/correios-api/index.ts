@@ -390,8 +390,13 @@ Deno.serve(async (req) => {
       }
     }
 
+    // ── Pré-postagem ───────────────────────────────────────────────
+    if (action && action.startsWith("prepostagem_")) {
+      return await handlePrepostagem(req, action, url);
+    }
+
     return new Response(
-      JSON.stringify({ error: "Ação não suportada. Use ?action=cotacao_multi ou ?action=rastrear" }),
+      JSON.stringify({ error: "Ação não suportada. Use ?action=cotacao_multi, ?action=rastrear ou ?action=prepostagem_*" }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e: any) {
@@ -402,3 +407,267 @@ Deno.serve(async (req) => {
     );
   }
 });
+
+// ─────────────────────────────────────────────────────────────────────
+// Pré-postagem Correios (API contratual /prepostagem/v1)
+// ─────────────────────────────────────────────────────────────────────
+
+function makeAdminClient() {
+  return createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+}
+
+async function requireUserWithRole(req: Request): Promise<{ userId: string }> {
+  const token = req.headers.get("Authorization")?.replace(/^Bearer\s+/i, "");
+  if (!token) throw new Error("Token de autenticação ausente.");
+  const admin = makeAdminClient();
+  const { data, error } = await admin.auth.getUser(token);
+  if (error || !data.user) throw new Error("Sessão inválida ou expirada.");
+
+  const userId = data.user.id;
+  const { data: roles } = await admin
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId);
+  const allowed = new Set(["admin", "estoquista", "vendedor"]);
+  const has = (roles ?? []).some((r: { role: string }) => allowed.has(r.role));
+  if (!has) throw new Error("Permissão insuficiente para gerar etiquetas.");
+  return { userId };
+}
+
+function jsonRes(data: unknown, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+async function autenticarParaPrepostagem(): Promise<{ token: string; nuDR?: string; nuContrato?: string }> {
+  const auth = await autenticarCorreios({
+    apiKey: Deno.env.get("CORREIOS_API_KEY") || undefined,
+    contrato: Deno.env.get("CORREIOS_CONTRATO") || undefined,
+    cartao: Deno.env.get("CORREIOS_CARTAO_POSTAGEM") || undefined,
+    user: Deno.env.get("CORREIOS_USER") || undefined,
+    pass: Deno.env.get("CORREIOS_PASS") || undefined,
+  });
+  if (!auth) throw new Error("Falha ao autenticar nos Correios. Verifique CORREIOS_API_KEY/CORREIOS_USER.");
+  return auth;
+}
+
+function onlyDigits(v?: string | null): string {
+  return (v ?? "").replace(/\D/g, "");
+}
+
+async function buildPrepostagemBody(
+  admin: ReturnType<typeof makeAdminClient>,
+  remessaId: string,
+  nuContrato?: string,
+  nuDR?: string,
+): Promise<Record<string, unknown>> {
+  const { data: remessa, error: rErr } = await admin
+    .from("remessas")
+    .select("id, cliente_id, servico, peso, volumes, valor_frete, observacoes, ordem_venda_id")
+    .eq("id", remessaId)
+    .maybeSingle();
+  if (rErr || !remessa) throw new Error("Remessa não encontrada.");
+  if (!remessa.cliente_id) throw new Error("Remessa sem cliente associado.");
+  if (!remessa.servico) throw new Error("Informe o serviço (SEDEX/PAC) na remessa.");
+
+  const { data: cli, error: cErr } = await admin
+    .from("clientes")
+    .select("nome_razao_social, cpf_cnpj, tipo_pessoa, email, telefone, logradouro, numero, complemento, bairro, cidade, uf, cep")
+    .eq("id", remessa.cliente_id)
+    .maybeSingle();
+  if (cErr || !cli) throw new Error("Cliente não encontrado para a remessa.");
+
+  if (!cli.cep) throw new Error("Cliente sem CEP cadastrado.");
+  if (!cli.logradouro || !cli.cidade || !cli.uf) throw new Error("Endereço do cliente incompleto (logradouro/cidade/UF).");
+
+  // Dados do remetente vêm de app_configuracoes
+  const { data: cfgRows } = await admin
+    .from("app_configuracoes")
+    .select("chave, valor")
+    .in("chave", [
+      "razao_social","cnpj_empresa","cep_empresa",
+      "endereco_empresa","numero_empresa","complemento_empresa",
+      "bairro_empresa","cidade_empresa","uf_empresa",
+      "telefone_empresa","email_empresa",
+    ]);
+  const cfg: Record<string, string> = {};
+  for (const r of cfgRows ?? []) {
+    const v = (r as { valor: unknown }).valor;
+    cfg[(r as { chave: string }).chave] = typeof v === "string" ? v.replace(/^"|"$/g, "") : String(v);
+  }
+
+  const cepRemetente = onlyDigits(cfg.cep_empresa);
+  if (!cepRemetente) throw new Error("CEP do remetente (empresa) não configurado em Administração.");
+
+  // Mapeia o nome do serviço para o código contratual
+  const servicoUpper = (remessa.servico || "").toUpperCase();
+  const codigoServico = servicoUpper.includes("SEDEX") ? "03220"
+    : servicoUpper.includes("PAC") ? "03298"
+    : remessa.servico;
+
+  const pesoGramas = Math.max(Math.round((Number(remessa.peso) || 0.3) * 1000), 300);
+
+  const body: Record<string, unknown> = {
+    idCorreios: undefined,
+    codigoServico,
+    numeroNotaFiscal: undefined,
+    serieNotaFiscal: undefined,
+    chaveNFe: undefined,
+    cienciaConteudoProibido: "1",
+    observacao: remessa.observacoes ?? undefined,
+    solicitarColeta: "N",
+    remetente: {
+      nome: cfg.razao_social || "Empresa",
+      dddTelefone: onlyDigits(cfg.telefone_empresa).slice(0, 2) || "11",
+      telefone: onlyDigits(cfg.telefone_empresa).slice(2) || undefined,
+      email: cfg.email_empresa || undefined,
+      cpfCnpj: onlyDigits(cfg.cnpj_empresa) || undefined,
+      endereco: {
+        cep: cepRemetente,
+        logradouro: cfg.endereco_empresa || "",
+        numero: cfg.numero_empresa || "S/N",
+        complemento: cfg.complemento_empresa || undefined,
+        bairro: cfg.bairro_empresa || "",
+        cidade: cfg.cidade_empresa || "",
+        uf: (cfg.uf_empresa || "").toUpperCase(),
+      },
+    },
+    destinatario: {
+      nome: cli.nome_razao_social,
+      dddTelefone: onlyDigits(cli.telefone).slice(0, 2) || undefined,
+      telefone: onlyDigits(cli.telefone).slice(2) || undefined,
+      email: cli.email || undefined,
+      cpfCnpj: onlyDigits(cli.cpf_cnpj) || undefined,
+      endereco: {
+        cep: onlyDigits(cli.cep),
+        logradouro: cli.logradouro,
+        numero: cli.numero || "S/N",
+        complemento: cli.complemento || undefined,
+        bairro: cli.bairro || "",
+        cidade: cli.cidade,
+        uf: (cli.uf || "").toUpperCase(),
+      },
+    },
+    servicosAdicionais: [],
+    pesoInformado: String(pesoGramas),
+    codigoFormatoObjetoInformado: "2", // 2 = Caixa/Pacote
+    alturaInformada: "15",
+    larguraInformada: "15",
+    comprimentoInformado: "20",
+    diametroInformado: "0",
+    valorDeclarado: remessa.valor_frete ? String(Number(remessa.valor_frete).toFixed(2)) : undefined,
+    listaServicoAdicional: [],
+  };
+  if (nuContrato) body.numeroContrato = nuContrato;
+  if (nuDR) body.numeroDR = nuDR;
+
+  return body;
+}
+
+async function handlePrepostagem(req: Request, action: string, url: URL): Promise<Response> {
+  await requireUserWithRole(req);
+  const admin = makeAdminClient();
+
+  // ── Criar pré-postagem ─────────────────────────────────────────
+  if (action === "prepostagem_criar" && req.method === "POST") {
+    const { remessa_id } = await req.json();
+    if (!remessa_id) return jsonRes({ error: "remessa_id é obrigatório" }, 400);
+
+    const auth = await autenticarParaPrepostagem();
+    const body = await buildPrepostagemBody(admin, remessa_id, auth.nuContrato, auth.nuDR);
+
+    const res = await fetch("https://api.correios.com.br/prepostagem/v1/prepostagens", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${auth.token}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+    const txt = await res.text();
+    let data: Record<string, unknown> = {};
+    try { data = JSON.parse(txt); } catch { /* */ }
+    if (!res.ok) {
+      console.error(`[prepostagem-criar] status=${res.status} body=${txt.slice(0, 800)}`);
+      return jsonRes({ error: `Correios ${res.status}: ${(data as { msgs?: string[] }).msgs?.join("; ") || txt.slice(0, 400)}` }, 502);
+    }
+    return jsonRes({
+      id: data.id ?? data.idPrePostagem,
+      codigoObjeto: data.codigoObjeto,
+      raw: data,
+      requestBody: body,
+    });
+  }
+
+  // ── Solicitar geração assíncrona do PDF ────────────────────────
+  if (action === "prepostagem_rotulo" && req.method === "POST") {
+    const { idsPrePostagem, tipoRotulo = "P" } = await req.json();
+    if (!Array.isArray(idsPrePostagem) || idsPrePostagem.length === 0) {
+      return jsonRes({ error: "idsPrePostagem (array) é obrigatório" }, 400);
+    }
+    const auth = await autenticarParaPrepostagem();
+    const res = await fetch("https://api.correios.com.br/prepostagem/v1/prepostagens/rotulo/assincrono/pdf", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${auth.token}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ idsPrePostagem, tipoRotulo, idCorreios: undefined, layoutImpressao: "P" }),
+    });
+    const txt = await res.text();
+    let data: Record<string, unknown> = {};
+    try { data = JSON.parse(txt); } catch { /* */ }
+    if (!res.ok) {
+      console.error(`[prepostagem-rotulo] status=${res.status} body=${txt.slice(0, 800)}`);
+      return jsonRes({ error: `Correios ${res.status}: ${txt.slice(0, 400)}` }, 502);
+    }
+    return jsonRes({ idRecibo: data.idRecibo ?? data.id, raw: data });
+  }
+
+  // ── Consultar PDF gerado ───────────────────────────────────────
+  if (action === "prepostagem_pdf" && req.method === "GET") {
+    const idRecibo = url.searchParams.get("idRecibo") || "";
+    if (!idRecibo) return jsonRes({ error: "idRecibo é obrigatório" }, 400);
+    const auth = await autenticarParaPrepostagem();
+    const res = await fetch(
+      `https://api.correios.com.br/prepostagem/v1/prepostagens/rotulo/download/assincrono/${encodeURIComponent(idRecibo)}`,
+      { headers: { Authorization: `Bearer ${auth.token}`, Accept: "application/json" } },
+    );
+    const txt = await res.text();
+    let data: Record<string, unknown> = {};
+    try { data = JSON.parse(txt); } catch { /* */ }
+    if (!res.ok) {
+      console.error(`[prepostagem-pdf] status=${res.status} body=${txt.slice(0, 400)}`);
+      return jsonRes({ status: "erro", error: `Correios ${res.status}` }, 502);
+    }
+    const dados = (data as { dados?: string }).dados;
+    if (!dados) return jsonRes({ status: "pendente" });
+    return jsonRes({ status: "pronto", pdfBase64: dados });
+  }
+
+  // ── Cancelar pré-postagem ──────────────────────────────────────
+  if (action === "prepostagem_cancelar" && req.method === "POST") {
+    const { idCorreios } = await req.json();
+    if (!idCorreios) return jsonRes({ error: "idCorreios é obrigatório" }, 400);
+    const auth = await autenticarParaPrepostagem();
+    const res = await fetch(
+      `https://api.correios.com.br/prepostagem/v1/prepostagens/${encodeURIComponent(idCorreios)}`,
+      { method: "DELETE", headers: { Authorization: `Bearer ${auth.token}`, Accept: "application/json" } },
+    );
+    const txt = await res.text();
+    if (!res.ok) {
+      return jsonRes({ error: `Correios ${res.status}: ${txt.slice(0, 300)}` }, 502);
+    }
+    return jsonRes({ ok: true });
+  }
+
+  return jsonRes({ error: `Action de pré-postagem inválida: ${action}` }, 400);
+}

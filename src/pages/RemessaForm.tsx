@@ -35,6 +35,7 @@ import { getUserFriendlyError } from "@/utils/errorMessages";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useBeforeUnloadGuard } from "@/hooks/useBeforeUnloadGuard";
 import { PageShell } from "@/components/PageShell";
+import { EtiquetaCorreiosCard } from "@/components/logistica/EtiquetaCorreiosCard";
 
 type Cliente = LookupRef;
 type Transportadora = LookupRef;
@@ -351,6 +352,16 @@ export default function RemessaFormPage() {
                 </div>
               </CardContent>
             </Card>
+
+            {!isNew && id && (
+              <EtiquetaCorreiosCard
+                remessaId={id}
+                tipoRemessa={form.tipo_remessa}
+                servico={form.servico}
+                peso={form.peso}
+                clienteId={form.cliente_id}
+              />
+            )}
 
             <div className="hidden md:flex justify-end gap-3 pb-6">
               <Button type="button" variant="outline" onClick={handleCancel}>
