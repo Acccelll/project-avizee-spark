@@ -807,6 +807,44 @@ export default function Logistica() {
             <AdvancedFilterBar searchValue={remSearchTerm} onSearchChange={setRemSearchTerm} searchPlaceholder="Buscar por rastreio, cliente ou transportadora..." activeFilters={remActiveFilters} onRemoveFilter={handleRemoveRemFilter} onClearAll={() => { setRemStatusFilters([]); setRemTranspFilters([]); }} count={filteredRemessas.length}>
               <MultiSelect options={remStatusOptions} selected={remStatusFilters} onChange={setRemStatusFilters} placeholder="Status" className="w-[180px]" />
               <MultiSelect options={remTranspOptions} selected={remTranspFilters} onChange={setRemTranspFilters} placeholder="Transportadoras" className="w-[220px]" />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={printingBatch}
+                onClick={async () => {
+                  const paths = filteredRemessas
+                    .map((r) => etiquetasMap[r.id])
+                    .filter((e) => e?.status === "emitida" && e.pdf_path)
+                    .map((e) => e!.pdf_path!) as string[];
+                  if (paths.length === 0) {
+                    toast.error("Nenhuma etiqueta emitida nas remessas filtradas.");
+                    return;
+                  }
+                  setPrintingBatch(true);
+                  try {
+                    const blob = await imprimirEtiquetasA4(paths);
+                    const url = URL.createObjectURL(blob);
+                    const win = window.open(url, "_blank", "noopener");
+                    if (!win) {
+                      // Fallback: download
+                      const a = document.createElement("a");
+                      a.href = url;
+                      a.download = `etiquetas-${format(new Date(), "yyyyMMdd-HHmm")}.pdf`;
+                      a.click();
+                    }
+                    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+                    toast.success(`${paths.length} etiqueta(s) prontas para impressão (4 por A4).`);
+                  } catch (e) {
+                    toast.error((e as Error).message);
+                  } finally {
+                    setPrintingBatch(false);
+                  }
+                }}
+              >
+                {printingBatch ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Printer className="h-3.5 w-3.5 mr-1.5" />}
+                Imprimir etiquetas (4/A4)
+              </Button>
             </AdvancedFilterBar>
             <DataTable
               columns={remessaColumns}
