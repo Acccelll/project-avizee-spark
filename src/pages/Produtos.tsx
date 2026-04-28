@@ -20,7 +20,16 @@ import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  listGruposAtivos,
+  listFornecedoresParaProduto,
+  listUnidadesMedidaAtivas,
+  listProdutoComposicao,
+  listProdutoFornecedores,
+  saveProdutoComposicao,
+  saveProdutoFornecedores,
+  createUnidadeMedida,
+} from "@/services/produtos.service";
 import { toast } from "sonner";
 import { Loader2, Plus, Trash2, Package, FileText, TrendingUp, Archive, ShoppingCart, AlertCircle, CheckCircle2, AlignLeft, Tag } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -143,13 +152,13 @@ const Produtos = () => {
 
   useEffect(() => {
     Promise.all([
-      supabase.from("grupos_produto").select("id, nome").eq("ativo", true).order("nome"),
-      supabase.from("fornecedores").select("id, nome_razao_social").eq("ativo", true).order("nome_razao_social"),
-      supabase.from("unidades_medida").select("id, codigo, descricao, sigla").eq("ativo", true).order("codigo"),
-    ]).then(([{ data: g }, { data: f }, { data: um }]) => {
-      if (g) setGrupos(g);
-      if (f) setFornecedoresList(f);
-      if (um) setUnidadesMedida(um as UnidadeMedidaOption[]);
+      listGruposAtivos(),
+      listFornecedoresParaProduto(),
+      listUnidadesMedidaAtivas(),
+    ]).then(([g, f, um]) => {
+      setGrupos(g);
+      setFornecedoresList(f);
+      setUnidadesMedida(um as UnidadeMedidaOption[]);
     });
   }, []);
 
@@ -224,17 +233,15 @@ const Produtos = () => {
       variacoes_texto: variacoesTexto,
       ativo: p.ativo !== false,
     });
-    const [compRes, fornRes] = await Promise.all([
-      p.eh_composto
-        ? supabase.from("produto_composicoes").select("id, produto_filho_id, quantidade, ordem, produtos:produto_filho_id(nome, sku, preco_custo)").eq("produto_pai_id", p.id).order("ordem")
-        : Promise.resolve({ data: [] }),
-      supabase.from("produtos_fornecedores").select("*").eq("produto_id", p.id),
+    const [compData, fornData] = await Promise.all([
+      p.eh_composto ? listProdutoComposicao(p.id) : Promise.resolve([]),
+      listProdutoFornecedores(p.id),
     ]);
-    setEditComposicao(((compRes.data || []) as Array<{id: string; produto_filho_id: string; quantidade: number; ordem: number; produtos: {nome: string; sku: string; preco_custo: number} | null}>).map((c) => ({
+    setEditComposicao(compData.map((c) => ({
       id: c.id, produto_filho_id: c.produto_filho_id, quantidade: c.quantidade, ordem: c.ordem,
       nome: c.produtos?.nome, sku: c.produtos?.sku, preco_custo: c.produtos?.preco_custo
     })));
-    setEditFornecedores(((fornRes.data || []) as Array<{id: string; fornecedor_id: string; eh_principal: boolean | null; descricao_fornecedor: string | null; referencia_fornecedor: string | null; unidade_fornecedor: string | null; lead_time_dias: number | null; preco_compra: number | null}>).map((f) => ({
+    setEditFornecedores(fornData.map((f) => ({
       id: f.id, fornecedor_id: f.fornecedor_id, eh_principal: f.eh_principal || false,
       descricao_fornecedor: f.descricao_fornecedor || "", referencia_fornecedor: f.referencia_fornecedor || "",
       unidade_fornecedor: f.unidade_fornecedor || "", lead_time_dias: f.lead_time_dias || 0, preco_compra: f.preco_compra || 0,
@@ -350,15 +357,11 @@ const Produtos = () => {
             .filter((c) => c.produto_filho_id)
             .map((c) => ({ produto_filho_id: c.produto_filho_id, quantidade: c.quantidade }))
         : [];
-      const { error: compError } = await supabase.rpc("save_produto_composicao", {
-        p_produto_pai_id: produtoId,
-        p_itens: composicaoItens,
-        p_payload: { eh_composto: form.eh_composto },
+      await saveProdutoComposicao({
+        produtoPaiId: produtoId,
+        itens: composicaoItens,
+        ehComposto: !!form.eh_composto,
       });
-      if (compError) {
-        console.error("[produtos] composição:", compError);
-        throw new Error("Erro ao salvar composição: " + (compError.message || "tente novamente"));
-      }
 
       // Fornecedores: RPC transacional (delete + insert atômico).
       const fornecedoresPayload = editFornecedores
@@ -372,14 +375,10 @@ const Produtos = () => {
           lead_time_dias: f.lead_time_dias != null ? String(f.lead_time_dias) : "",
           preco_compra: f.preco_compra != null ? String(f.preco_compra) : "",
         }));
-      const { error: fornError } = await supabase.rpc("save_produto_fornecedores", {
-        p_produto_id: produtoId,
-        p_itens: fornecedoresPayload,
+      await saveProdutoFornecedores({
+        produtoId,
+        itens: fornecedoresPayload,
       });
-      if (fornError) {
-        console.error("[produtos] fornecedores:", fornError);
-        throw new Error("Erro ao salvar fornecedores: " + (fornError.message || "tente novamente"));
-      }
       markPristine();
       if (saveAndNewRef.current && mode === "create") {
         saveAndNewRef.current = false;
@@ -411,13 +410,15 @@ const Produtos = () => {
     if (!descricao) { toast.error("Descrição é obrigatória"); return; }
     setSavingNovaUnidade(true);
     try {
-      const { data: inserted, error } = await supabase
-        .from("unidades_medida")
-        .insert({ codigo, descricao, sigla: novaUnidadeForm.sigla.trim() || null, ativo: true })
-        .select("id, codigo, descricao, sigla")
-        .maybeSingle();
-      if (error) {
-        toast.error(getUserFriendlyError(error));
+      let inserted;
+      try {
+        inserted = await createUnidadeMedida({
+          codigo,
+          descricao,
+          sigla: novaUnidadeForm.sigla.trim() || null,
+        });
+      } catch (err) {
+        toast.error(getUserFriendlyError(err));
         setSavingNovaUnidade(false);
         return;
       }

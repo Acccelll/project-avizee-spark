@@ -45,7 +45,7 @@ Regras:
 
 | Página | # queries | Service alvo | Status |
 |---|---|---|---|
-| `Fiscal.tsx` | 14 | `services/fiscal/dashboard.service.ts` | TODO |
+| `Fiscal.tsx` | 14 | estender `services/fiscal.service.ts` (lookups + `upsertNotaFiscalComItens`) | ✅ 2026-04-28 |
 | `OrcamentoForm.tsx` | 14 | estender `services/orcamentos.service.ts` | TODO |
 | `FluxoCaixa.tsx` | 4 | `services/financeiro/fluxoCaixa.service.ts` | TODO |
 | `Clientes.tsx` (sub-tabs) | 6 | `services/clientes.service.ts` | ✅ template |
@@ -61,7 +61,8 @@ no mesmo lote.
 
 | Página | # queries | Service alvo |
 |---|---|---|
-| `Produtos.tsx` | ~5 | `services/produtos.service.ts` (já existe — completar) |
+| `Produtos.tsx` | ~5 | `services/produtos.service.ts` (lookups + RPCs encapsuladas) ✅ 2026-04-28 |
+| `CotacaoCompraForm.tsx` | 9 | `services/cotacoesCompra.service.ts` (novo) ✅ 2026-04-28 |
 | `Fornecedores.tsx` | ~4 | `services/fornecedores.service.ts` (criar) |
 | `Funcionarios.tsx` | ~3 | `services/rh.service.ts` (criar) |
 | `Transportadoras.tsx` | ~3 | `services/logistica.service.ts` (estender) |

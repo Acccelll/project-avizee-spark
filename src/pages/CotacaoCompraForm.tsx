@@ -7,7 +7,18 @@
  */
 import { useCallback, useEffect, useState, useMemo, type SetStateAction } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  getCotacaoCompra,
+  listCotacaoItens,
+  listCotacaoPropostas,
+  listProdutosParaCotacao,
+  listFornecedoresParaCotacao,
+  updateCotacaoHeader,
+  replaceCotacaoItens,
+  insertCotacaoProposta,
+  selectCotacaoProposta,
+  deleteCotacaoProposta,
+} from "@/services/cotacoesCompra.service";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -85,14 +96,13 @@ export default function CotacaoCompraForm() {
     async function load() {
       if (!id) { navigate("/cotacoes-compra"); return; }
       setLoading(true);
-      const [{ data: cot }, { data: itens }, { data: propostas }, { data: prods }, { data: fors }] =
-        await Promise.all([
-          supabase.from("cotacoes_compra").select("*").eq("id", id).single(),
-          supabase.from("cotacoes_compra_itens").select("*, produtos(nome, codigo_interno, sku)").eq("cotacao_compra_id", id),
-          supabase.from("cotacoes_compra_propostas").select("*, fornecedores(nome_razao_social)").eq("cotacao_compra_id", id),
-          supabase.from("produtos").select("id, nome, codigo_interno, sku").eq("ativo", true).order("nome"),
-          supabase.from("fornecedores").select("id, nome_razao_social, cpf_cnpj").eq("ativo", true).order("nome_razao_social"),
-        ]);
+      const [cot, itens, propostas, prods, fors] = await Promise.all([
+        getCotacaoCompra(id).catch(() => null),
+        listCotacaoItens(id),
+        listCotacaoPropostas(id),
+        listProdutosParaCotacao(),
+        listFornecedoresParaCotacao(),
+      ]);
 
       if (!cot) { toast.error("Cotação não encontrada."); navigate("/cotacoes-compra"); return; }
 
@@ -149,11 +159,8 @@ export default function CotacaoCompraForm() {
 
   const reloadPropostas = async () => {
     if (!cotacao) return;
-    const { data } = await supabase
-      .from("cotacoes_compra_propostas")
-      .select("*, fornecedores(nome_razao_social)")
-      .eq("cotacao_compra_id", cotacao.id);
-    setViewPropostas((data || []) as Proposta[]);
+    const data = await listCotacaoPropostas(cotacao.id).catch(() => []);
+    setViewPropostas(data as Proposta[]);
   };
 
   const handleSave = async () => {
@@ -191,8 +198,7 @@ export default function CotacaoCompraForm() {
         observacoes: form.observacoes || null,
         status: form.status,
       };
-      const { error: updErr } = await supabase.from("cotacoes_compra").update(payload).eq("id", cotacao.id);
-      if (updErr) throw updErr;
+      await updateCotacaoHeader(cotacao.id, payload);
 
       // Substituição atômica via RPC (evita ficar sem itens em caso de falha)
       const itemsPayload = localItems.filter((i) => i.produto_id).map((i) => ({
@@ -200,11 +206,7 @@ export default function CotacaoCompraForm() {
         quantidade: i.quantidade,
         unidade: i.unidade,
       }));
-      const { error: rpcErr } = await supabase.rpc("replace_cotacao_compra_itens", {
-        p_cotacao_id: cotacao.id,
-        p_itens: itemsPayload as unknown as never,
-      });
-      if (rpcErr) throw rpcErr;
+      await replaceCotacaoItens(cotacao.id, itemsPayload);
 
       toast.success("Cotação salva!", {
         description: cotacao?.numero ? `Cotação ${cotacao.numero}` : undefined,
@@ -212,13 +214,10 @@ export default function CotacaoCompraForm() {
       setCotacao({ ...cotacao, ...payload } as CotacaoCompra);
 
       // Reload items to refresh viewItems with DB ids
-      const { data: itensReload } = await supabase
-        .from("cotacoes_compra_itens")
-        .select("*, produtos(nome, codigo_interno, sku)")
-        .eq("cotacao_compra_id", cotacao.id);
-      setViewItems((itensReload || []) as CotacaoItem[]);
+      const itensReload = await listCotacaoItens(cotacao.id).catch(() => []);
+      setViewItems(itensReload as CotacaoItem[]);
       updateLocalItems(
-        (itensReload || []).map((i: CotacaoItem) => ({
+        (itensReload as CotacaoItem[]).map((i: CotacaoItem) => ({
           _localId: i.id,
           id: i.id,
           produto_id: i.produto_id,
@@ -255,16 +254,14 @@ export default function CotacaoCompraForm() {
       return;
     }
     try {
-      const { error } = await supabase.from("cotacoes_compra_propostas").insert({
+      await insertCotacaoProposta({
         cotacao_compra_id: cotacao.id,
         item_id: itemId,
         fornecedor_id: proposalForm.fornecedor_id,
         preco_unitario: proposalForm.preco_unitario,
         prazo_entrega_dias: proposalForm.prazo_entrega_dias ? Number(proposalForm.prazo_entrega_dias) : null,
         observacoes: proposalForm.observacoes || null,
-        selecionado: false,
       });
-      if (error) throw error;
       toast.success("Proposta adicionada!");
       setAddingProposal(null);
       setProposalForm({ fornecedor_id: "", preco_unitario: 0, prazo_entrega_dias: "", observacoes: "" });
@@ -277,10 +274,7 @@ export default function CotacaoCompraForm() {
   const handleSelectProposal = async (propostaId: string, itemId: string) => {
     if (!cotacao) return;
     try {
-      await Promise.all([
-        supabase.from("cotacoes_compra_propostas").update({ selecionado: false }).eq("cotacao_compra_id", cotacao.id).eq("item_id", itemId),
-        supabase.from("cotacoes_compra_propostas").update({ selecionado: true }).eq("id", propostaId),
-      ]);
+      await selectCotacaoProposta({ cotacaoId: cotacao.id, itemId, propostaId });
       toast.success("Fornecedor selecionado!");
       await reloadPropostas();
     } catch (err: unknown) {
@@ -291,8 +285,7 @@ export default function CotacaoCompraForm() {
   const handleDeleteProposal = async (propostaId: string) => {
     if (!cotacao) return;
     try {
-      const { error } = await supabase.from("cotacoes_compra_propostas").delete().eq("id", propostaId);
-      if (error) throw error;
+      await deleteCotacaoProposta(propostaId);
       toast.success("Proposta removida.");
       await reloadPropostas();
     } catch (err: unknown) {
