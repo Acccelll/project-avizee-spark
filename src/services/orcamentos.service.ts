@@ -254,3 +254,125 @@ export async function duplicateOrcamento(
 
   return { id: newOrc.id as string, numero: newNumeroStr };
 }
+
+// ── Lookups e CRUD usados pela página OrcamentoForm ───────────────────────────
+import type { Database, Tables } from "@/integrations/supabase/types";
+
+type Json = Database["public"]["Tables"]["orcamentos"]["Row"]["cliente_snapshot"];
+
+/** Lista de clientes ativos (com todas as colunas usadas pelo form). */
+export async function listClientesAtivosOrcamento(): Promise<Tables<"clientes">[]> {
+  const { data, error } = await supabase
+    .from("clientes")
+    .select("*")
+    .eq("ativo", true)
+    .order("nome_razao_social");
+  if (error) throw error;
+  return (data ?? []) as Tables<"clientes">[];
+}
+
+/** Lista de produtos ativos com vínculos de fornecedores (para sugestão de custo). */
+export async function listProdutosAtivosComFornecedores(): Promise<Tables<"produtos">[]> {
+  const { data, error } = await supabase
+    .from("produtos")
+    .select("*, produtos_fornecedores(*, fornecedores(nome_razao_social))")
+    .eq("ativo", true)
+    .order("nome");
+  if (error) throw error;
+  return (data ?? []) as Tables<"produtos">[];
+}
+
+/** Carrega o cabeçalho de um orçamento. */
+export async function getOrcamentoById(orcId: string): Promise<Tables<"orcamentos"> | null> {
+  const { data, error } = await supabase
+    .from("orcamentos")
+    .select("*")
+    .eq("id", orcId)
+    .maybeSingle();
+  if (error) throw error;
+  return (data ?? null) as Tables<"orcamentos"> | null;
+}
+
+/** Itens de um orçamento. */
+export async function listOrcamentoItens(orcId: string): Promise<Tables<"orcamentos_itens">[]> {
+  const { data, error } = await supabase
+    .from("orcamentos_itens")
+    .select("*")
+    .eq("orcamento_id", orcId);
+  if (error) throw error;
+  return (data ?? []) as Tables<"orcamentos_itens">[];
+}
+
+/** Descrição de uma forma de pagamento por id (lookup pontual). */
+export async function getFormaPagamentoDescricao(id: string): Promise<string | null> {
+  const { data, error } = await supabase
+    .from("formas_pagamento")
+    .select("descricao")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw error;
+  return data?.descricao ?? null;
+}
+
+/** Preços especiais válidos hoje para o cliente. */
+export async function listPrecosEspeciaisAtuais(
+  clienteId: string,
+): Promise<Tables<"precos_especiais">[]> {
+  const today = new Date().toISOString().slice(0, 10);
+  const { data, error } = await supabase
+    .from("precos_especiais")
+    .select("*")
+    .eq("cliente_id", clienteId)
+    .eq("ativo", true)
+    .or(`vigencia_fim.is.null,vigencia_fim.gte.${today}`)
+    .or(`vigencia_inicio.is.null,vigencia_inicio.lte.${today}`);
+  if (error) throw error;
+  return (data ?? []) as Tables<"precos_especiais">[];
+}
+
+/**
+ * RPC transacional `salvar_orcamento`.
+ * Cria (p_id=null) ou atualiza header + itens em uma única transação.
+ * Retorna o id do orçamento persistido.
+ */
+export async function salvarOrcamentoRpc(params: {
+  id: string | null;
+  payload: unknown;
+  itens: unknown;
+}): Promise<string> {
+  const { data, error } = await supabase.rpc("salvar_orcamento", {
+    p_id: params.id as unknown as string,
+    p_payload: params.payload as never,
+    p_itens: params.itens as never,
+  });
+  if (error) throw error;
+  return data as string;
+}
+
+// ── Drafts (rascunhos remotos) ────────────────────────────────────────────────
+
+export async function deleteOrcamentoDraft(usuarioId: string, draftKey: string): Promise<void> {
+  const { error } = await supabase
+    .from("orcamento_drafts")
+    .delete()
+    .eq("usuario_id", usuarioId)
+    .eq("draft_key", draftKey);
+  if (error) throw error;
+}
+
+export async function getOrcamentoDraftPayload(
+  usuarioId: string,
+  draftKey: string,
+): Promise<unknown | null> {
+  const { data, error } = await supabase
+    .from("orcamento_drafts")
+    .select("payload")
+    .eq("usuario_id", usuarioId)
+    .eq("draft_key", draftKey)
+    .maybeSingle();
+  if (error) throw error;
+  return (data?.payload ?? null) as unknown;
+}
+
+// Hint para tree-shaking: garantimos que o tipo Json seja "usado".
+export type OrcamentoClienteSnapshotJson = Json;
