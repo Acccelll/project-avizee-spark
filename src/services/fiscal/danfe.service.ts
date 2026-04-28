@@ -182,6 +182,12 @@ export function gerarDanfePdf(data: DanfeInput, salvar = true): Blob {
   }
 
   if (data.chave_acesso) {
+    const barcode = gerarBarcodeChave(data.chave_acesso);
+    if (barcode) {
+      // Faixa do código de barras CODE-128C (largura ~120mm, altura 12mm)
+      doc.addImage(barcode, "PNG", margin, y, 120, 12);
+      y += 13;
+    }
     doc.setFontSize(7).setFont("helvetica", "bold");
     doc.text("CHAVE DE ACESSO", margin, y + 4);
     doc.setFont("helvetica", "normal");
