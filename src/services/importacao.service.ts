@@ -315,3 +315,36 @@ export async function inserirCompraXml(payload: TablesInsert<"compras">) {
   const { error } = await supabase.from("compras").insert(payload);
   return { error };
 }
+
+// ────────────────────────────────────────────────────────────────────────────
+// Operações administrativas (limpeza / relatórios)
+// ────────────────────────────────────────────────────────────────────────────
+
+export interface LimparDadosMigracaoResult {
+  ok?: boolean;
+  erro?: string;
+  apagados?: Record<string, number>;
+}
+
+export async function limparDadosMigracao(): Promise<LimparDadosMigracaoResult> {
+  const { data, error } = await supabase.rpc("limpar_dados_migracao", {
+    p_confirmar: true,
+  });
+  if (error) throw error;
+  return (data ?? {}) as LimparDadosMigracaoResult;
+}
+
+export async function fetchRelatorioMigracaoFaturamento<T = unknown>(
+  loteId: string,
+): Promise<T> {
+  // RPC não tipada — cast `as never` mantém o resto do código tipado.
+  const { data, error } = await (supabase.rpc as unknown as (
+    name: string,
+    args: Record<string, unknown>,
+  ) => Promise<{ data: T | null; error: unknown }>)(
+    "relatorio_migracao_faturamento",
+    { p_lote_id: loteId },
+  );
+  if (error) throw error;
+  return data as T;
+}
