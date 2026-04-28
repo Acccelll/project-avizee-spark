@@ -233,17 +233,15 @@ const Produtos = () => {
       variacoes_texto: variacoesTexto,
       ativo: p.ativo !== false,
     });
-    const [compRes, fornRes] = await Promise.all([
-      p.eh_composto
-        ? supabase.from("produto_composicoes").select("id, produto_filho_id, quantidade, ordem, produtos:produto_filho_id(nome, sku, preco_custo)").eq("produto_pai_id", p.id).order("ordem")
-        : Promise.resolve({ data: [] }),
-      supabase.from("produtos_fornecedores").select("*").eq("produto_id", p.id),
+    const [compData, fornData] = await Promise.all([
+      p.eh_composto ? listProdutoComposicao(p.id) : Promise.resolve([]),
+      listProdutoFornecedores(p.id),
     ]);
-    setEditComposicao(((compRes.data || []) as Array<{id: string; produto_filho_id: string; quantidade: number; ordem: number; produtos: {nome: string; sku: string; preco_custo: number} | null}>).map((c) => ({
+    setEditComposicao(compData.map((c) => ({
       id: c.id, produto_filho_id: c.produto_filho_id, quantidade: c.quantidade, ordem: c.ordem,
       nome: c.produtos?.nome, sku: c.produtos?.sku, preco_custo: c.produtos?.preco_custo
     })));
-    setEditFornecedores(((fornRes.data || []) as Array<{id: string; fornecedor_id: string; eh_principal: boolean | null; descricao_fornecedor: string | null; referencia_fornecedor: string | null; unidade_fornecedor: string | null; lead_time_dias: number | null; preco_compra: number | null}>).map((f) => ({
+    setEditFornecedores(fornData.map((f) => ({
       id: f.id, fornecedor_id: f.fornecedor_id, eh_principal: f.eh_principal || false,
       descricao_fornecedor: f.descricao_fornecedor || "", referencia_fornecedor: f.referencia_fornecedor || "",
       unidade_fornecedor: f.unidade_fornecedor || "", lead_time_dias: f.lead_time_dias || 0, preco_compra: f.preco_compra || 0,
