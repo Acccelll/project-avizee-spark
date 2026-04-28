@@ -25,14 +25,13 @@ public.current_empresa_id() RETURNS uuid LANGUAGE sql STABLE SECURITY DEFINER
 - Índice `idx_<tabela>_empresa_id`.
 - RLS: `empresa_id = current_empresa_id() OR has_role(uid, 'admin')` em SELECT/INSERT/UPDATE; DELETE permanece admin-only.
 
-**Não migrado nesta onda (continua single-tenant USING(true)):**
-- financeiro_lancamentos, financeiro_baixas, notas_fiscais, notas_fiscais_itens.
-- (Onda 2 migrou orcamentos, ordens_venda, compras, compras_itens, pedidos_compra; Onda 3 migrou estoque_movimentos e conciliacao_bancaria.)
+**Status (após Onda 4 — 28/abr/2026):** Multi-tenant completo em todas as
+tabelas de domínio. Nenhuma tabela `USING(true)` remanescente.
 
 **Próximas ondas previstas:**
 - Onda 2: Comercial (orcamentos, ordens_venda) + Compras.
 - Onda 3: Estoque + Conciliação bancária. ✅ concluída 28/abr/2026.
-- Onda 4: Financeiro + Fiscal (mais sensível — exige reescrita de RPCs salvar_nota_fiscal, fluxo_caixa views, etc).
+- Onda 4: Financeiro + Fiscal. ✅ concluída 28/abr/2026.
 
 ## Onda 3 (28/abr/2026) — Estoque + Conciliação
 
@@ -42,6 +41,17 @@ Tabelas migradas: `estoque_movimentos`, `conciliacao_bancaria`.
 - Backfill: registros existentes vinculados à empresa padrão.
 - TypeScript Insert types continuam aceitando payloads sem `empresa_id` (default cobre).
 - Tabelas filhas (extratos/links de conciliação) não tinham coluna empresa_id e seguem RLS atual; herdam isolamento via FK quando aplicável.
+
+## Onda 4 (28/abr/2026) — Financeiro + Fiscal
+
+Tabelas migradas: `financeiro_lancamentos`, `financeiro_baixas`, `notas_fiscais`.
+- `notas_fiscais_itens` não recebe coluna; RLS herda via `EXISTS` na nota pai.
+- `empresa_id NOT NULL DEFAULT current_empresa_id()` + índice + trigger safety-net.
+- RLS financeiro: combina **papel obrigatório** (`admin` OR `financeiro`) **com filtro de empresa**.
+- RLS notas_fiscais: empresa do usuário OR admin; UPDATE preserva regra de status (`autorizada`/`cancelada_sefaz`/`inutilizada` só com papel admin/financeiro).
+- DELETE permanece admin-only (políticas legadas mantidas).
+- Views `vw_workbook_*` e `vw_apresentacao_*` agora filtram automaticamente por tenant via `security_invoker=on` herdando RLS do chamador.
+- Backfill: tudo vinculado à empresa padrão.
 
 **UI ainda pendente nesta onda:**
 - Tela admin para gerenciar empresas e vínculos `user_empresas`. Hoje só é possível via SQL/insert tool.
