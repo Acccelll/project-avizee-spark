@@ -36,6 +36,20 @@ export async function listUnidadesMedidaAtivas() {
   return data || [];
 }
 
+export async function createUnidadeMedida(input: {
+  codigo: string;
+  descricao: string;
+  sigla: string | null;
+}) {
+  const { data, error } = await supabase
+    .from("unidades_medida")
+    .insert({ ...input, ativo: true })
+    .select("id, codigo, descricao, sigla")
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
 export type ProdutoComposicaoRow = {
   id: string;
   produto_filho_id: string;
