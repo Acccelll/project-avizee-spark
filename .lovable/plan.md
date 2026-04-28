@@ -172,7 +172,7 @@ Sugiro a sequência **Onda 0 → Onda 1 → Onda 3** (fundação + casca + wizar
   - RPCs `aplicar_matriz_fiscal(produto, uf_destino)` e `buscar_municipio_ibge(nome, uf)`
   - UI `/faturamento/cadastros` com Naturezas (CRUD + 7 seeds) e Matriz Fiscal (CRUD)
   - Hook `useMunicipioIbge` com fallback automático para a API do IBGE
-- ⏳ **Onda 3** — Wizard 5 passos
+- ✅ **Onda 3** — Wizard 5 passos: /faturamento/emitir com Stepper, autocomplete de cliente/produto, RPC aplicar_matriz_fiscal, resolução automática de IBGE, salvamento como rascunho e redirecionamento para SefazAcoesPanel
 - ⏳ **Onda 4** — Backlog OV→NF
 - ⏳ **Onda 5** — Eventos: CC-e, devolução/complementar, inutilização UI
 - ⏳ **Onda 6** — Status SEFAZ por UF + contingência
