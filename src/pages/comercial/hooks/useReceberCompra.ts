@@ -1,42 +1,20 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { receberCompra } from "@/types/rpc";
 import { toast } from "sonner";
+import {
+  receberCompra,
+  estornarRecebimentoCompra,
+  type ReceberCompraInput,
+  type ReceberCompraItem,
+  type ReceberCompraResult,
+} from "@/services/comercial/comprasLifecycle.service";
 
-export interface ReceberCompraItem {
-  produto_id: string | null;
-  descricao?: string | null;
-  quantidade_recebida: number;
-  valor_unitario: number;
-}
-
-export interface ReceberCompraInput {
-  pedidoId: string;
-  dataRecebimento: string; // YYYY-MM-DD
-  itens: ReceberCompraItem[];
-  observacoes?: string;
-}
-
-interface ReceberCompraResult {
-  compra_id: string;
-  numero: string;
-  status_pedido: "recebido" | "parcialmente_recebido";
-  valor_total: number;
-}
+export type { ReceberCompraInput, ReceberCompraItem };
 
 export function useReceberCompra() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (input: ReceberCompraInput): Promise<ReceberCompraResult> => {
-      const data = await receberCompra({
-        p_pedido_id: input.pedidoId,
-        p_data_recebimento: input.dataRecebimento,
-        p_itens: input.itens as unknown as never,
-        p_observacoes: input.observacoes ?? null,
-      });
-      return data as unknown as ReceberCompraResult;
-    },
+    mutationFn: (input: ReceberCompraInput): Promise<ReceberCompraResult> => receberCompra(input),
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["pedidos_compra"] });
       queryClient.invalidateQueries({ queryKey: ["compras"] });
@@ -55,14 +33,8 @@ export function useReceberCompra() {
 export function useEstornarRecebimento() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ compraId, motivo }: { compraId: string; motivo?: string }) => {
-      const { data, error } = await supabase.rpc("estornar_recebimento_compra", {
-        p_compra_id: compraId,
-        p_motivo: motivo ?? null,
-      });
-      if (error) throw error;
-      return data;
-    },
+    mutationFn: ({ compraId, motivo }: { compraId: string; motivo?: string }) =>
+      estornarRecebimentoCompra({ compraId, motivo }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["pedidos_compra"] });
       queryClient.invalidateQueries({ queryKey: ["compras"] });

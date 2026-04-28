@@ -1,37 +1,27 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import { INVALIDATION_KEYS } from "@/services/_invalidationKeys";
+import {
+  cancelarPedidoVenda,
+  type CancelarPedidoVendaResult,
+} from "@/services/comercial/pedidosVenda.service";
 
 interface CancelarPedidoInput {
   id: string;
   motivo?: string;
 }
 
-interface CancelarPedidoResult {
-  id: string;
-  numero: string;
-  status: string;
-}
+type CancelarPedidoResult = CancelarPedidoVendaResult;
 
 /**
- * Cancela um pedido de venda via RPC `cancelar_pedido_venda`.
- * A RPC bloqueia se houver NF ativa vinculada e registra auditoria.
- * Invalida o conjunto de faturamento para refletir em grids/dashboard.
+ * Wrapper RQ para `cancelarPedidoVenda` (service comercial).
  */
 export function useCancelarPedido() {
   const queryClient = useQueryClient();
 
   return useMutation<CancelarPedidoResult, Error, CancelarPedidoInput>({
-    mutationFn: async ({ id, motivo }) => {
-      const { data, error } = await supabase.rpc("cancelar_pedido_venda" as never, {
-        p_id: id,
-        p_motivo: motivo ?? null,
-      } as never);
-      if (error) throw new Error(error.message);
-      return data as CancelarPedidoResult;
-    },
+    mutationFn: ({ id, motivo }) => cancelarPedidoVenda({ id, motivo: motivo ?? null }),
     onSuccess: (result) => {
       INVALIDATION_KEYS.faturamentoPedido.forEach((key) => {
         queryClient.invalidateQueries({ queryKey: [key] });
