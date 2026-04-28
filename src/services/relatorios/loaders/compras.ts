@@ -74,6 +74,104 @@ export async function loadCompras(filtros: FiltroRelatorio): Promise<RelatorioRe
   };
 }
 
+/**
+ * Relatório "NF-e de Entrada" — agrupa NF-e capturadas (nfe_distribuicao)
+ * por fornecedor e mês, com totais de ICMS/IPI extraídos do XML importado.
+ * Considera apenas NF-e com status_manifestacao 'confirmada' ou 'ciencia'
+ * e filtra pelo período da `data_emissao`.
+ */
+export async function loadNfeEntrada(filtros: FiltroRelatorio): Promise<RelatorioResultado> {
+  let query = supabase
+    .from("nfe_distribuicao")
+    .select(
+      "id, chave_acesso, numero, serie, data_emissao, valor_total, valor_icms, valor_ipi, status_manifestacao, processado, xml_importado, fornecedor_id, cnpj_emitente, nome_emitente, fornecedores(nome_razao_social)",
+    )
+    .order("data_emissao", { ascending: false });
+
+  query = withDateRange(query, "data_emissao", filtros);
+  if (filtros.fornecedorIds?.length) {
+    query = query.in("fornecedor_id", filtros.fornecedorIds);
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+
+  const rows = (data || []).map((raw) => {
+    const item = raw as {
+      id: string;
+      chave_acesso: string;
+      numero: string | null;
+      serie: string | null;
+      data_emissao: string | null;
+      valor_total: number | null;
+      valor_icms: number | null;
+      valor_ipi: number | null;
+      status_manifestacao: string;
+      processado: boolean | null;
+      xml_importado: boolean | null;
+      fornecedor_id: string | null;
+      cnpj_emitente: string | null;
+      nome_emitente: string | null;
+      fornecedores?: { nome_razao_social: string } | null;
+    };
+    const fornecedor = item.fornecedores?.nome_razao_social
+      || item.nome_emitente
+      || (item.cnpj_emitente ? `CNPJ ${item.cnpj_emitente}` : "Sem fornecedor");
+    const mesEmissao = item.data_emissao ? item.data_emissao.slice(0, 7) : "-";
+    return {
+      nfeId: item.id,
+      fornecedorId: item.fornecedor_id ?? undefined,
+      fornecedor,
+      cnpj: item.cnpj_emitente || "-",
+      numero: item.numero || "-",
+      serie: item.serie || "-",
+      chave: item.chave_acesso,
+      emissao: item.data_emissao,
+      mes: mesEmissao,
+      valor: Number(item.valor_total || 0),
+      icms: Number(item.valor_icms || 0),
+      ipi: Number(item.valor_ipi || 0),
+      status: item.status_manifestacao,
+      processado: item.processado ? "sim" : "nao",
+      xml: item.xml_importado ? "sim" : "nao",
+    };
+  });
+
+  const totalEntradas = rows.reduce((s, r) => s + r.valor, 0);
+  const totalIcms = rows.reduce((s, r) => s + r.icms, 0);
+  const totalIpi = rows.reduce((s, r) => s + r.ipi, 0);
+  const processadas = rows.filter((r) => r.processado === "sim").length;
+
+  // Chart: agregação por mês
+  const porMes = new Map<string, number>();
+  for (const r of rows) {
+    porMes.set(r.mes, (porMes.get(r.mes) || 0) + r.valor);
+  }
+  const chartData = Array.from(porMes.entries())
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([name, value]) => ({ name, value }));
+
+  return {
+    title: "NF-e de Entrada",
+    subtitle: "Notas fiscais eletrônicas recebidas (manifestação do destinatário).",
+    rows,
+    chartData,
+    kpis: {
+      qtdNfe: rows.length,
+      totalEntradas,
+      totalIcms,
+      totalIpi,
+      processadas,
+    },
+    meta: {
+      kind: 'list',
+      valueNature: 'monetario',
+      timeAxis: { field: 'criacao', label: 'data de emissão', required: false },
+      drillDownReady: true,
+    },
+  };
+}
+
 export async function loadComprasFornecedor(filtros: FiltroRelatorio): Promise<RelatorioResultado> {
   let query = supabase
     .from("compras")
