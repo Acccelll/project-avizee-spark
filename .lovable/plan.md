@@ -262,3 +262,7 @@ Sugiro a sequência **Onda 0 → Onda 1 → Onda 3** (fundação + casca + wizar
   - Reuso do `CertificadoValidadeAlert` no topo (mostra automaticamente quando vencimento ≤ 30 dias)
   - PeriodFilter como fonte única (`mem://produto/contrato-de-periodos`); refetch manual e staleTime 60s
   - Rota: `/fiscal/dashboard` registrada em `src/App.tsx`
+- ✅ **Onda 19** — Acessibilidade do Dashboard Fiscal:
+  - Item "Dashboard Fiscal" adicionado em `navSections.fiscal` (entre Faturamento e Notas), com keywords `indicadores/kpi/icms/apuracao/distdfe/painel` para o GlobalSearch
+  - Atalho global `Ctrl/Cmd + Shift + F` em `useGlobalHotkeys` → navega para `/fiscal/dashboard` (gated por `faturamento_fiscal:visualizar` via `useCan`, silencioso quando sem permissão)
+  - Atalho documentado em `GlobalShortcutsDialog`
