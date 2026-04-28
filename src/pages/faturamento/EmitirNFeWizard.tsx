@@ -111,6 +111,9 @@ const wizardSchema = z.object({
   // Vínculo opcional com Ordem de Venda (Onda 4)
   ordem_venda_id: z.string().nullable().optional(),
   ordem_venda_numero: z.string().nullable().optional(),
+  // Vínculo opcional com NF-e referenciada (Onda 5: devolução/complementar)
+  nf_referenciada_id: z.string().nullable().optional(),
+  nf_referenciada_chave: z.string().nullable().optional(),
 });
 type WizardData = z.infer<typeof wizardSchema>;
 
