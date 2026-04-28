@@ -48,6 +48,13 @@ import {
 import { notifyError } from "@/utils/errorMessages";
 import { parseNFeXml, type NFeXmlItem } from "@/services/fiscal/nfeXmlParser.service";
 import { formatCurrency } from "@/lib/format";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 /**
  * Manifestação do Destinatário (Onda 8).
