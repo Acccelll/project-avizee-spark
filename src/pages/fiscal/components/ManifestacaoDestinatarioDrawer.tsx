@@ -120,7 +120,7 @@ export function ManifestacaoDestinatarioDrawer({ open, onOpenChange }: Manifesta
       const { data, error } = await supabase
         .from("nfe_distribuicao")
         .select(
-          "id, chave_acesso, cnpj_emitente, nome_emitente, numero, serie, data_emissao, valor_total, protocolo_autorizacao, status_manifestacao, data_manifestacao, observacao",
+          "id, chave_acesso, cnpj_emitente, nome_emitente, numero, serie, data_emissao, valor_total, protocolo_autorizacao, status_manifestacao, data_manifestacao, observacao, xml_importado",
         )
         .order("created_at", { ascending: false })
         .limit(100);
