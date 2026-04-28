@@ -51,6 +51,17 @@ export async function deleteRemessa(id: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
+/** Carrega uma remessa pelo id (usado pela página de edição). */
+export async function getRemessaById(id: string): Promise<Remessa | null> {
+  const { data, error } = await supabase
+    .from("remessas")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return data ?? null;
+}
+
 /** Atualiza apenas o campo `status_transporte` de uma remessa (ação rápida). */
 export async function updateStatusTransporte(
   remessaId: string,

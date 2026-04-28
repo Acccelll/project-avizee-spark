@@ -7,7 +7,7 @@ import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
 import { FormModal } from "@/components/FormModal";
 import { StatusBadge } from "@/components/StatusBadge";
-import { supabase } from "@/integrations/supabase/client";
+import { createLancamento } from "@/services/financeiro";
 import { formatCurrency } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -346,7 +346,7 @@ const FluxoCaixa = () => {
     }
     setSaving(true);
     try {
-      await supabase.from("financeiro_lancamentos").insert({
+      await createLancamento({
         tipo: form.tipo, descricao: form.descricao,
         valor: Number(form.valor),
         data_vencimento: form.data_vencimento,
@@ -354,7 +354,6 @@ const FluxoCaixa = () => {
         forma_pagamento: form.forma_pagamento || null,
         conta_bancaria_id: form.conta_bancaria_id || null,
         observacoes: form.observacoes || null,
-        ativo: true,
       });
       toast.success("Lançamento registrado com sucesso");
       setModalOpen(false);
@@ -404,11 +403,15 @@ const FluxoCaixa = () => {
 
       if (!data || !descricao || isNaN(valor) || valor <= 0) { fail++; continue; }
 
-      const { error } = await supabase.from("financeiro_lancamentos").insert({
-        tipo, descricao, valor,
-        data_vencimento: data, status: "aberto", ativo: true,
-      });
-      if (error) fail++; else ok++;
+      try {
+        await createLancamento({
+          tipo, descricao, valor,
+          data_vencimento: data, status: "aberto",
+        });
+        ok++;
+      } catch {
+        fail++;
+      }
     }
     setCsvImporting(false);
     if (ok > 0) toast.success(`${ok} lançamento(s) importado(s) com sucesso${fail > 0 ? ` (${fail} ignorado(s))` : ""}`);
