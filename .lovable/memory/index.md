@@ -62,3 +62,4 @@
 - [DataTable - coluna única "Ações"](mem://tech/datatable-acoes-unicas) — Proibido criar 2ª coluna "Ações" manual; usar rowExtraActions
 - [Camada services única](mem://tech/camada-services-unica) — Doutrina pós-Onda 6: src/services/ é única autoridade para from/rpc/storage; lista de exceções legítimas (auth, functions.invoke, realtime singletons, helper callRpc)
 - [Auditoria exhaustive-deps](mem://tech/auditoria-exhaustive-deps) — Todas as 32 supressões revisadas e documentadas inline com justificativa após "--"
+- [Dynamic imports libs pesadas](mem://tech/dynamic-imports-libs-pesadas) — ExcelJS e pptxgenjs sempre via `await import()` nos entry points dos services
