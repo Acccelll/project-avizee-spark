@@ -7670,24 +7670,15 @@ export type Database = {
         Returns: Json
       }
       consolidar_lote_financeiro: { Args: { p_lote_id: string }; Returns: Json }
-      converter_orcamento_em_ov:
-        | {
-            Args: {
-              p_data_po?: string
-              p_orcamento_id: string
-              p_po_number?: string
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
-              p_data_po?: string
-              p_forcar?: boolean
-              p_orcamento_id: string
-              p_po_number?: string
-            }
-            Returns: Json
-          }
+      converter_orcamento_em_ov: {
+        Args: {
+          p_data_po?: string
+          p_forcar?: boolean
+          p_orcamento_id: string
+          p_po_number?: string
+        }
+        Returns: Json
+      }
       count_estoque_baixo: { Args: never; Returns: number }
       criar_apuracao_societaria: {
         Args: { p_competencia: string; p_lucro_base?: number }
