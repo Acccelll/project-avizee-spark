@@ -135,6 +135,7 @@ export function getOrigemLabel(l: {
 }): string {
   switch (l.origem_tipo) {
     case 'fiscal_nota': return 'Nota Fiscal';
+    case 'nfe_entrada': return 'NF-e de Entrada';
     case 'comercial': return 'Comercial';
     case 'compras': return 'Compras';
     case 'parcelamento': return 'Parcelamento';
