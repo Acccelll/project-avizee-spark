@@ -80,7 +80,7 @@ export function DashboardHeader({ lastUpdated, onRefresh, rightSlot }: Dashboard
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2" data-help-id="dashboard.globalPeriod">
           <div className="flex items-center gap-1.5">
             <CalendarRange className="h-4 w-4 text-muted-foreground shrink-0" />
             <Select value={period} onValueChange={(v: DashboardPeriod) => setPeriod(v)}>
