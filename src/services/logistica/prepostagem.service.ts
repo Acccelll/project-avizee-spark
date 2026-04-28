@@ -54,6 +54,27 @@ export async function listEtiquetasByRemessa(remessaId: string): Promise<Remessa
   return (data ?? []) as RemessaEtiqueta[];
 }
 
+/**
+ * Lista a etiqueta mais recente (não cancelada) de cada remessa.
+ * Usado pela coluna "Etiqueta" na lista de remessas em /logistica.
+ */
+export async function listLatestEtiquetasByRemessas(
+  remessaIds: string[],
+): Promise<Record<string, RemessaEtiqueta>> {
+  if (remessaIds.length === 0) return {};
+  const { data, error } = await supabase
+    .from("remessa_etiquetas")
+    .select("*")
+    .in("remessa_id", remessaIds)
+    .order("created_at", { ascending: false });
+  if (error) throw new Error(error.message);
+  const map: Record<string, RemessaEtiqueta> = {};
+  for (const row of (data ?? []) as RemessaEtiqueta[]) {
+    if (!map[row.remessa_id]) map[row.remessa_id] = row;
+  }
+  return map;
+}
+
 /** Gera signed URL para download do PDF (válida por 5 min). */
 export async function baixarEtiqueta(pdfPath: string): Promise<string> {
   const { data, error } = await supabase.storage
