@@ -3137,6 +3137,54 @@ export type Database = {
           },
         ]
       }
+      help_feedback: {
+        Row: {
+          comment: string | null
+          created_at: string
+          helpful: boolean
+          id: string
+          route: string
+          user_id: string | null
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string
+          helpful: boolean
+          id?: string
+          route: string
+          user_id?: string | null
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string
+          helpful?: boolean
+          id?: string
+          route?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      help_progress: {
+        Row: {
+          disabled_first_visit: boolean
+          seen_tours: string[]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          disabled_first_visit?: boolean
+          seen_tours?: string[]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          disabled_first_visit?: boolean
+          seen_tours?: string[]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       importacao_logs: {
         Row: {
           created_at: string

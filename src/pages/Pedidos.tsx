@@ -373,6 +373,7 @@ const Pedidos = () => {
           <SummaryCard title="Atrasados" value={formatNumber(kpis.atrasados)} icon={AlertTriangle} variationType={kpis.atrasados > 0 ? "negative" as const : "neutral" as const} variation="fora do prazo de despacho" />
         </div>
 
+        <div data-help-id="pedidos.filtros">
         <AdvancedFilterBar
           searchValue={searchTerm}
           onSearchChange={setSearchTerm}
@@ -412,8 +413,10 @@ const Pedidos = () => {
           />
           <PeriodFilter mode="both" value={periodValue} onChange={handlePeriodChange} direction="past" />
         </AdvancedFilterBar>
+        </div>
 
         <PullToRefresh onRefresh={fetchData}>
+        <div data-help-id="pedidos.tabela">
         <DataTable
           columns={columns}
           data={filteredData}
@@ -453,6 +456,7 @@ const Pedidos = () => {
           emptyTitle="Nenhum pedido encontrado"
           emptyDescription="Converta um orçamento aprovado em pedido ou ajuste os filtros aplicados."
         />
+        </div>
         </PullToRefresh>
       </ModulePage>
 

@@ -23,6 +23,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { ROLE_LABELS, type AppRole } from '@/lib/permissions';
 import { cn } from '@/lib/utils';
 import { GlobalPeriodChip } from './GlobalPeriodChip';
+import { HelpMenu } from '@/components/help/HelpMenu';
 
 const ROLE_DOT_COLORS: Record<AppRole, string> = {
   admin: 'bg-destructive',
@@ -154,6 +155,8 @@ export function AppHeader({ onOpenMobileMenu: _onOpenMobileMenu, onOpenSearch, o
                 <Keyboard className="h-4 w-4" />
               </Button>
 
+              <HelpMenu onOpenShortcuts={onOpenShortcuts} variant="mobile" />
+
               <NotificationsPanel />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -221,6 +224,8 @@ export function AppHeader({ onOpenMobileMenu: _onOpenMobileMenu, onOpenSearch, o
             <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground" onClick={onOpenShortcuts} aria-label="Abrir atalhos" title="Atalhos (?)">
               <Keyboard className="h-4 w-4" />
             </Button>
+
+            <HelpMenu onOpenShortcuts={onOpenShortcuts} />
 
             <NotificationsPanel />
 

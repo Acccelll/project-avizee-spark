@@ -22,6 +22,8 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import { useAppearancePreferences } from '../hooks/useAppearancePreferences';
 import { getFontLabel } from '../utils/passwordPolicy';
+import { useHelpProgress } from '@/hooks/useHelpProgress';
+import { toast } from 'sonner';
 
 interface Props {
   isAdmin: boolean;
@@ -31,6 +33,7 @@ export function AparenciaSection({ isAdmin }: Props) {
   const ap = useAppearancePreferences();
   const { branding } = useBrandingPreview();
   const isMobile = useIsMobile();
+  const help = useHelpProgress();
   const corPrimaria = branding.corPrimaria || '#6b0d0d';
   const corSecundaria = branding.corSecundaria || '#b85b2d';
 
@@ -394,6 +397,42 @@ export function AparenciaSection({ isAdmin }: Props) {
             <p className="text-xs text-muted-foreground mt-0.5">Escolha como o menu lateral se comporta.</p>
           </div>
           {grupoMenuLateral}
+        </div>
+
+        <Separator />
+
+        <div className="space-y-4">
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">Ajuda e tours guiados</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Controle se telas novas oferecem automaticamente um tour guiado no primeiro acesso.
+            </p>
+          </div>
+          <div className="flex items-center justify-between gap-3 rounded-lg border bg-card px-4 py-3">
+            <div className="min-w-0">
+              <p className="text-sm font-medium">Sugerir tour em telas novas</p>
+              <p className="text-xs text-muted-foreground">
+                Aparece um aviso discreto na primeira vez que você entra em uma tela com tour disponível.
+              </p>
+            </div>
+            <Switch
+              checked={!help.state.disabledFirstVisit}
+              onCheckedChange={(checked) => help.setDisabledFirstVisit(!checked)}
+              aria-label="Sugerir tour em telas novas"
+            />
+          </div>
+          <div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                help.resetAll();
+                toast.success('Tours reiniciados — eles voltarão a aparecer ao entrar em cada tela.');
+              }}
+            >
+              Reiniciar todos os tours
+            </Button>
+          </div>
         </div>
 
         <Separator />

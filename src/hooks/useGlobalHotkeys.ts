@@ -21,6 +21,13 @@ import type { Permission } from '@/utils/permissions';
 interface Options {
   onOpenSearch?: () => void;
   onOpenShortcuts?: () => void;
+  /**
+   * Disparado pela tecla `?` (sem modificadores) — abre o manual da tela atual.
+   * Mantemos retrocompat: se ausente, o `?` cai no comportamento legado de
+   * abrir a busca global, mas com o sistema de Ajuda em uso a tendência é
+   * sempre passar este callback.
+   */
+  onOpenHelp?: () => void;
 }
 
 /** Cada slot de Cmd+1..9 carrega o caminho e a permissão necessária. */
@@ -42,7 +49,7 @@ function isEditableTarget(target: EventTarget | null) {
   return tag === 'input' || tag === 'textarea' || tag === 'select' || target.isContentEditable;
 }
 
-export function useGlobalHotkeys({ onOpenSearch, onOpenShortcuts }: Options = {}) {
+export function useGlobalHotkeys({ onOpenSearch, onOpenShortcuts, onOpenHelp }: Options = {}) {
   const navigate = useNavigate();
   const { can } = useCan();
 
@@ -87,11 +94,12 @@ export function useGlobalHotkeys({ onOpenSearch, onOpenShortcuts }: Options = {}
       }
       if (!event.metaKey && !event.ctrlKey && event.key === '?') {
         event.preventDefault();
-        onOpenSearch?.();
+        if (onOpenHelp) onOpenHelp();
+        else onOpenSearch?.();
       }
     };
 
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [navigate, onOpenSearch, onOpenShortcuts, can]);
+  }, [navigate, onOpenSearch, onOpenShortcuts, onOpenHelp, can]);
 }

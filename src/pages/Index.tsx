@@ -198,6 +198,7 @@ const DashboardContent = () => {
     ),
     financeiro: () => (
       <BlockErrorBoundary label="Financeiro">
+        <div data-help-id="dashboard.financeiro">
         <MobileCollapsibleBlock
           title="Financeiro"
           icon={DollarSign}
@@ -214,6 +215,7 @@ const DashboardContent = () => {
             pagamentosHoje={vencimentosHoje.pagar}
           />
         </MobileCollapsibleBlock>
+        </div>
       </BlockErrorBoundary>
     ),
     acoes_rapidas: () => (
@@ -249,6 +251,7 @@ const DashboardContent = () => {
     ),
     comercial: () => (
       <BlockErrorBoundary label="Comercial">
+        <div data-help-id="dashboard.comercial">
         <MobileCollapsibleBlock
           title="Comercial"
           icon={ShoppingBag}
@@ -265,6 +268,7 @@ const DashboardContent = () => {
             faturamentoMesAnterior={faturamento.mesAnterior}
           />
         </MobileCollapsibleBlock>
+        </div>
       </BlockErrorBoundary>
     ),
     estoque: () => (
@@ -312,6 +316,7 @@ const DashboardContent = () => {
     fiscal: () => (
       <LazyInViewWidget fallback={<Skeleton className="h-[220px] w-full rounded-xl" />}>
         <BlockErrorBoundary label="Fiscal">
+          <div data-help-id="dashboard.fiscal">
           <MobileCollapsibleBlock
             title="Fiscal"
             icon={FileTextIcon}
@@ -324,6 +329,7 @@ const DashboardContent = () => {
           >
             <FiscalBlock stats={fiscalStats} />
           </MobileCollapsibleBlock>
+          </div>
         </BlockErrorBoundary>
       </LazyInViewWidget>
     ),
