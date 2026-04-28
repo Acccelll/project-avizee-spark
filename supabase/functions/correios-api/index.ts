@@ -24,6 +24,13 @@ interface FreteOption {
 }
 
 /**
+ * Cache em memória do token Correios (vive enquanto o isolate estiver ativo).
+ * Token oficial dura 30min; renovamos aos 25min para evitar expiração no meio
+ * do polling do PDF de pré-postagem.
+ */
+const TOKEN_CACHE = new Map<string, { token: string; nuDR?: string; nuContrato?: string; expiresAt: number }>();
+
+/**
  * Authenticate against the modern Correios REST API using a CWS Access Key
  * (Chave de Acesso). The Access Key authorizes /token/v1/autentica/contrato,
  * which returns a Bearer token usable on /preco/v2 and /prazo/v1 endpoints.
@@ -38,6 +45,14 @@ async function autenticarCorreios(opts: {
   pass?: string;
 }): Promise<{ token: string; nuDR?: string; nuContrato?: string } | null> {
   const { apiKey, contrato, cartao, user, pass } = opts;
+
+  // Cache em memória do isolate (TTL 25min). Token Correios dura 30min;
+  // renovamos um pouco antes para evitar 401 em chamadas longas (polling de PDF).
+  const cacheKey = `${apiKey ?? ""}|${user ?? ""}|${contrato ?? ""}|${cartao ?? ""}`;
+  const cached = TOKEN_CACHE.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    return { token: cached.token, nuDR: cached.nuDR, nuContrato: cached.nuContrato };
+  }
 
   // Preferred: CWS Access Key flow (Basic Auth where user = CORREIOS_USER and pass = Access Key).
   // The Correios gateway returns "GTW-014 ... Utilize 'Authorization: Basic'" when Bearer is sent.
@@ -90,7 +105,9 @@ async function autenticarCorreios(opts: {
           const dr = data?.cartaoPostagem?.dr ?? data?.contrato?.dr;
           const nuContrato = data?.cartaoPostagem?.contrato ?? data?.contrato?.numero;
           console.log(`[correios-auth-key] OK via ${ep.url} apis=${JSON.stringify(apisAuth)} dr=${dr} contrato=${nuContrato}`);
-          return { token: data.token as string, nuDR: dr != null ? String(dr) : undefined, nuContrato: nuContrato ? String(nuContrato) : undefined };
+          const result = { token: data.token as string, nuDR: dr != null ? String(dr) : undefined, nuContrato: nuContrato ? String(nuContrato) : undefined };
+          TOKEN_CACHE.set(cacheKey, { ...result, expiresAt: Date.now() + 25 * 60 * 1000 });
+          return result;
         }
       } catch (e) {
         console.warn(`[correios-auth-key] ${ep.url} threw`, e);
@@ -125,7 +142,9 @@ async function autenticarCorreios(opts: {
           if (data?.token) {
             const dr = data?.cartaoPostagem?.dr ?? data?.contrato?.dr;
             const nuContrato = data?.cartaoPostagem?.contrato ?? data?.contrato?.numero;
-            return { token: data.token as string, nuDR: dr != null ? String(dr) : undefined, nuContrato: nuContrato ? String(nuContrato) : undefined };
+            const result = { token: data.token as string, nuDR: dr != null ? String(dr) : undefined, nuContrato: nuContrato ? String(nuContrato) : undefined };
+            TOKEN_CACHE.set(cacheKey, { ...result, expiresAt: Date.now() + 25 * 60 * 1000 });
+            return result;
           }
       } catch (e) {
         console.warn(`[correios-auth-legacy] ${ep.url} threw`, e);
