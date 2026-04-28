@@ -6309,6 +6309,110 @@ export type Database = {
         }
         Relationships: []
       }
+      webhooks_deliveries: {
+        Row: {
+          endpoint_id: string
+          enfileirado_em: string
+          evento: string
+          finalizado_em: string | null
+          http_status: number | null
+          id: string
+          payload: Json
+          proxima_tentativa_em: string | null
+          signature: string | null
+          status: string
+          tentativas: number
+          ultimo_erro: string | null
+        }
+        Insert: {
+          endpoint_id: string
+          enfileirado_em?: string
+          evento: string
+          finalizado_em?: string | null
+          http_status?: number | null
+          id?: string
+          payload: Json
+          proxima_tentativa_em?: string | null
+          signature?: string | null
+          status?: string
+          tentativas?: number
+          ultimo_erro?: string | null
+        }
+        Update: {
+          endpoint_id?: string
+          enfileirado_em?: string
+          evento?: string
+          finalizado_em?: string | null
+          http_status?: number | null
+          id?: string
+          payload?: Json
+          proxima_tentativa_em?: string | null
+          signature?: string | null
+          status?: string
+          tentativas?: number
+          ultimo_erro?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "webhooks_deliveries_endpoint_id_fkey"
+            columns: ["endpoint_id"]
+            isOneToOne: false
+            referencedRelation: "webhooks_endpoints"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      webhooks_endpoints: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          criado_por: string | null
+          descricao: string | null
+          eventos: string[]
+          id: string
+          nome: string
+          secret_hash: string
+          total_falha: number
+          total_sucesso: number
+          ultimo_disparo_em: string | null
+          ultimo_status: string | null
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          criado_por?: string | null
+          descricao?: string | null
+          eventos?: string[]
+          id?: string
+          nome: string
+          secret_hash: string
+          total_falha?: number
+          total_sucesso?: number
+          ultimo_disparo_em?: string | null
+          ultimo_status?: string | null
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          criado_por?: string | null
+          descricao?: string | null
+          eventos?: string[]
+          id?: string
+          nome?: string
+          secret_hash?: string
+          total_falha?: number
+          total_sucesso?: number
+          ultimo_disparo_em?: string | null
+          ultimo_status?: string | null
+          updated_at?: string
+          url?: string
+        }
+        Relationships: []
+      }
       workbook_geracoes: {
         Row: {
           arquivo_path: string | null
@@ -7735,6 +7839,21 @@ export type Database = {
         }
         Returns: string
       }
+      webhooks_create_endpoint: {
+        Args: {
+          p_descricao?: string
+          p_eventos: string[]
+          p_nome: string
+          p_url: string
+        }
+        Returns: Json
+      }
+      webhooks_enqueue: {
+        Args: { p_evento: string; p_payload: Json }
+        Returns: undefined
+      }
+      webhooks_metrics: { Args: never; Returns: Json }
+      webhooks_rotate_secret: { Args: { p_endpoint_id: string }; Returns: Json }
     }
     Enums: {
       app_role:
