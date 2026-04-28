@@ -93,6 +93,17 @@ export async function listEventos(remessaId: string): Promise<RemessaEvento[]> {
   return (data ?? []) as RemessaEvento[];
 }
 
+/** Retorna apenas os IDs das remessas ativas associadas a uma OV. */
+export async function listRemessaIdsByOv(ordemVendaId: string): Promise<string[]> {
+  const { data, error } = await supabase
+    .from("remessas")
+    .select("id")
+    .eq("ordem_venda_id", ordemVendaId)
+    .eq("ativo", true);
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((r) => r.id);
+}
+
 /** Insere um novo evento manual de rastreio em uma remessa. */
 export async function addEvento(input: {
   remessaId: string;

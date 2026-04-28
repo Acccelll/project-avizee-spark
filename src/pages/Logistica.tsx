@@ -41,6 +41,7 @@ import {
   findRemessaByOvAndTracking,
   listEventos as listRemessaEventos,
   addEvento as addRemessaEvento,
+  listRemessaIdsByOv,
 } from "@/services/logistica/remessas.service";
 import {
   listClientesAtivos,
@@ -337,17 +338,14 @@ export default function Logistica() {
       if (!ok) return;
     }
     setUpdatingEntregaId(entrega.id);
-    const { data: remessas, error: remessasError } = await supabase
-      .from("remessas")
-      .select("id")
-      .eq("ordem_venda_id", entrega.id)
-      .eq("ativo", true);
-    if (remessasError) {
-      toast.error(getUserFriendlyError(remessasError));
+    let remessaIds: string[];
+    try {
+      remessaIds = await listRemessaIdsByOv(entrega.id);
+    } catch (err) {
+      toast.error(getUserFriendlyError(err));
       setUpdatingEntregaId(null);
       return;
     }
-    const remessaIds = (remessas ?? []).map((r) => r.id);
     if (remessaIds.length === 0) { toast.warning("Nenhuma remessa encontrada para o pedido."); setUpdatingEntregaId(null); return; }
     if (remessaIds.length > 1) {
       toast.warning(MULTI_REMESSA_STATUS_MESSAGE);
@@ -447,10 +445,8 @@ export default function Logistica() {
       }
 
       toast.success(`${novos} novo(s) evento(s) incluído(s)`);
-      const { data: updatedEvents } = await supabase
-        .from("remessa_eventos").select("*").eq("remessa_id", remessa.id)
-        .order("data_hora", { ascending: false });
-      setEventos((updatedEvents ?? []) as RemessaEvento[]);
+      const updatedEvents = await listRemessaEventos(remessa.id);
+      setEventos(updatedEvents);
     } catch (err: unknown) {
       toast.error(getUserFriendlyError(err));
     }
