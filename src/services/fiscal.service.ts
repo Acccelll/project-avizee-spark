@@ -3,6 +3,10 @@ import type { Database } from "@/integrations/supabase/types";
 
 type NotaFiscalEventoInsert =
   Database["public"]["Tables"]["nota_fiscal_eventos"]["Insert"];
+type NotaFiscalUpdate = Database["public"]["Tables"]["notas_fiscais"]["Update"];
+type NotaFiscalInsert = Database["public"]["Tables"]["notas_fiscais"]["Insert"];
+type NotaFiscalItemInsert =
+  Database["public"]["Tables"]["notas_fiscais_itens"]["Insert"];
 
 // ── Event logging ──────────────────────────────────────────────────────────────
 
@@ -100,4 +104,96 @@ export async function verificarDuplicidadeChave(
     .eq("chave_acesso", chaveAcesso)
     .limit(1);
   return (data?.length || 0) > 0;
+}
+
+// ── Lookups & itens (consumidos pela página Fiscal) ────────────────────────────
+
+export async function listOrdensVendaParaFiscal() {
+  const { data, error } = await supabase
+    .from("ordens_venda")
+    .select("id, numero, cliente_id, clientes(nome_razao_social)")
+    .eq("ativo", true)
+    .in("status", ["aprovada", "em_separacao"])
+    .order("numero");
+  if (error) throw error;
+  return data || [];
+}
+
+export async function listContasContabeisLancaveis() {
+  const { data, error } = await supabase
+    .from("contas_contabeis")
+    .select("id, codigo, descricao")
+    .eq("ativo", true)
+    .eq("aceita_lancamento", true)
+    .order("codigo");
+  if (error) throw error;
+  return data || [];
+}
+
+export async function getPedidoCompraResumo(pedidoId: string) {
+  const { data, error } = await supabase
+    .from("pedidos_compra")
+    .select("numero, fornecedor_id")
+    .eq("id", pedidoId)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+export async function listNotaFiscalItensCompletos(nfId: string) {
+  const { data, error } = await supabase
+    .from("notas_fiscais_itens")
+    .select("*, produtos(nome, sku)")
+    .eq("nota_fiscal_id", nfId);
+  if (error) throw error;
+  return data || [];
+}
+
+export async function getEmpresaConfigPrincipal() {
+  const { data, error } = await supabase
+    .from("empresa_config")
+    .select("*")
+    .limit(1)
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Salva uma NF (insert ou update) e substitui seus itens em uma única operação.
+ * Não é atômica server-side (idealmente migrar para RPC), mas centraliza o I/O
+ * que estava espalhado pela página `Fiscal.tsx`.
+ */
+export async function upsertNotaFiscalComItens(params: {
+  mode: "create" | "edit";
+  nfId?: string;
+  payload: NotaFiscalInsert & NotaFiscalUpdate;
+  itemsBuilder: (nfId: string) => NotaFiscalItemInsert[];
+}): Promise<string> {
+  const { mode, nfId, payload, itemsBuilder } = params;
+  let resolvedId = nfId;
+  if (mode === "create") {
+    const { data, error } = await supabase
+      .from("notas_fiscais")
+      .insert(payload as NotaFiscalInsert)
+      .select()
+      .single();
+    if (error) throw error;
+    resolvedId = data.id;
+  } else {
+    if (!nfId) throw new Error("nfId obrigatório para edit");
+    await Promise.all([
+      supabase.from("notas_fiscais").update(payload as NotaFiscalUpdate).eq("id", nfId),
+      supabase.from("notas_fiscais_itens").delete().eq("nota_fiscal_id", nfId),
+    ]);
+  }
+  if (!resolvedId) throw new Error("Falha ao resolver id da NF");
+  const itens = itemsBuilder(resolvedId);
+  if (itens.length > 0) {
+    const { error: insErr } = await supabase
+      .from("notas_fiscais_itens")
+      .insert(itens);
+    if (insErr) throw insErr;
+  }
+  return resolvedId;
 }
