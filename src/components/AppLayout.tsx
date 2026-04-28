@@ -38,6 +38,8 @@ export function AppLayout() {
   const [hoverExpanded, setHoverExpanded] = useState(false);
   // Toast proativo quando o cron DistDF-e baixa NF-e novas
   useNfeEntradaToast();
+  // Auto-ciência DistDF-e (Onda 17) — controlada por app_configuracoes.distdfe_auto_ciencia
+  useAutoCienciaDistDFe();
 
   // Modo dinâmico: recolhido por padrão, expande visualmente no hover (overlay).
   // No modo fixed-* a preferência boolean `sidebarCollapsed` continua valendo
