@@ -46,7 +46,7 @@ Regras:
 | Página | # queries | Service alvo | Status |
 |---|---|---|---|
 | `Fiscal.tsx` | 14 | estender `services/fiscal.service.ts` (lookups + `upsertNotaFiscalComItens`) | ✅ 2026-04-28 |
-| `OrcamentoForm.tsx` | 14 | estender `services/orcamentos.service.ts` | TODO |
+| `OrcamentoForm.tsx` | 14 | estender `services/orcamentos.service.ts` (lookups, drafts, `salvarOrcamentoRpc`, `existeOrcamentoComNumero`) | ✅ 2026-04-28 |
 | `FluxoCaixa.tsx` | 4 | `services/financeiro/lancamentos.ts` (`createLancamento`) | ✅ 2026-04-28 |
 | `Clientes.tsx` (sub-tabs) | 6 | `services/clientes.service.ts` | ✅ template |
 | `Logistica.tsx` | 8 | `services/logistica/{remessas,lookups}.service.ts` | ✅ 2026-04-28 |
