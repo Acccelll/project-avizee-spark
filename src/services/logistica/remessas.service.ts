@@ -13,6 +13,7 @@ export type Remessa = Database["public"]["Tables"]["remessas"]["Row"];
 export type RemessaInsert = Database["public"]["Tables"]["remessas"]["Insert"];
 export type RemessaUpdate = Database["public"]["Tables"]["remessas"]["Update"];
 export type RemessaEvento = Database["public"]["Tables"]["remessa_eventos"]["Row"];
+export type RemessaEventoInsert = Database["public"]["Tables"]["remessa_eventos"]["Insert"];
 
 const QUERY_KEY = "remessas";
 
@@ -47,6 +48,63 @@ export async function updateRemessa(id: string, payload: RemessaUpdate): Promise
 
 export async function deleteRemessa(id: string): Promise<void> {
   const { error } = await supabase.from("remessas").update({ ativo: false }).eq("id", id);
+  if (error) throw new Error(error.message);
+}
+
+/** Atualiza apenas o campo `status_transporte` de uma remessa (ação rápida). */
+export async function updateStatusTransporte(
+  remessaId: string,
+  status: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from("remessas")
+    .update({ status_transporte: status })
+    .eq("id", remessaId);
+  if (error) throw new Error(error.message);
+}
+
+/**
+ * Localiza a remessa ativa associada a uma OV e código de rastreio
+ * (usado para alimentar o `remessa_id` no TrackingModal a partir de uma Entrega).
+ */
+export async function findRemessaByOvAndTracking(
+  ordemVendaId: string,
+  codigoRastreio: string,
+): Promise<{ id: string } | null> {
+  const { data, error } = await supabase
+    .from("remessas")
+    .select("id")
+    .eq("ordem_venda_id", ordemVendaId)
+    .eq("ativo", true)
+    .eq("codigo_rastreio", codigoRastreio)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return data ?? null;
+}
+
+/** Lista os eventos de rastreio de uma remessa, mais recentes primeiro. */
+export async function listEventos(remessaId: string): Promise<RemessaEvento[]> {
+  const { data, error } = await supabase
+    .from("remessa_eventos")
+    .select("*")
+    .eq("remessa_id", remessaId)
+    .order("data_hora", { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as RemessaEvento[];
+}
+
+/** Insere um novo evento manual de rastreio em uma remessa. */
+export async function addEvento(input: {
+  remessaId: string;
+  descricao: string;
+  local?: string | null;
+}): Promise<void> {
+  const payload: RemessaEventoInsert = {
+    remessa_id: input.remessaId,
+    descricao: input.descricao,
+    local: input.local ?? null,
+  };
+  const { error } = await supabase.from("remessa_eventos").insert(payload);
   if (error) throw new Error(error.message);
 }
 
