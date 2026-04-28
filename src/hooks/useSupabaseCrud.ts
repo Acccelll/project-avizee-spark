@@ -114,7 +114,7 @@ export function useSupabaseCrud<R = any>({
 
   const queryResult = useQuery({
     queryKey,
-    queryFn: async (): Promise<QueryResult> => {
+    queryFn: async ({ signal }): Promise<QueryResult> => {
       if (!supabase) {
         return { rows: [] as R[], totalCount: null, hasMore: false, truncated: false };
       }
@@ -133,6 +133,10 @@ export function useSupabaseCrud<R = any>({
           query = query.or(orFilter);
         }
         if (shouldFilterAtivo) query = query.eq("ativo", true);
+        // Propaga o AbortSignal do React Query — quando a query é
+        // cancelada (componente desmontado, filtro mudado), o fetch é
+        // abortado em vez de continuar até o fim e tentar setState órfão.
+        if (signal) query = query.abortSignal(signal);
         return query;
       };
 
@@ -162,6 +166,10 @@ export function useSupabaseCrud<R = any>({
       // Loop until we've fetched everything (or hit the safety cap).
       // eslint-disable-next-line no-constant-condition
       while (true) {
+        if (signal?.aborted) {
+          // Curto-circuita silenciosamente — React Query já descartou a query.
+          return { rows: all, totalCount: total, hasMore: false, truncated };
+        }
         const to = from + allChunkSize - 1;
         const { data: result, error, count } = await buildQuery().range(from, to);
         if (error) {

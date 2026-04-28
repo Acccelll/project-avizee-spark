@@ -7392,6 +7392,7 @@ export type Database = {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
       }
+      duplicar_orcamento: { Args: { p_orcamento_id: string }; Returns: Json }
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
         Returns: number
@@ -7609,6 +7610,10 @@ export type Database = {
       replace_pedido_compra_itens: {
         Args: { p_itens: Json; p_pedido_id: string }
         Returns: Json
+      }
+      salvar_nota_fiscal: {
+        Args: { p_itens: Json; p_nf_id: string; p_payload: Json }
+        Returns: string
       }
       salvar_orcamento: {
         Args: { p_id: string; p_itens: Json; p_payload: Json }

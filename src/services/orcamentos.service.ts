@@ -1,7 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { logger } from "@/lib/logger";
-import { proximoNumeroOrcamento } from "@/types/rpc";
 
 interface OrcamentoBase {
   id: string;
@@ -172,87 +171,14 @@ export async function duplicateOrcamento(
     frete_tipo?: string | null; modalidade?: string | null;
     cliente_snapshot?: unknown; }
 ): Promise<{ id: string; numero: string }> {
-  // 1. Itens originais
-  const { data: items, error: itemsError } = await supabase
-    .from("orcamentos_itens")
-    .select("*")
-    .eq("orcamento_id", orc.id);
-  if (itemsError) throw new Error(itemsError.message);
-
-  // 2. Snapshot completo do orçamento original (metadados de frete)
-  const { data: fullOrcamento, error: fullError } = await supabase
-    .from("orcamentos")
-    .select("*")
-    .eq("id", orc.id)
-    .maybeSingle();
-  if (fullError) throw new Error(fullError.message);
-  const fullOrc = (fullOrcamento ?? {}) as Record<string, unknown>;
-
-  // 3. Numeração atômica (com fallback em caso de erro de rede)
-  const newNumero = await proximoNumeroOrcamento().catch((err) => {
-    logger.warn("[orcamentos] proximo_numero_orcamento falhou, usando fallback:", err);
-    return null;
+  // Operação atômica server-side: cabeçalho + itens em uma única transação.
+  const { data, error } = await supabase.rpc("duplicar_orcamento", {
+    p_orcamento_id: orc.id,
   });
-  const newNumeroStr = newNumero || `ORC${String(Date.now()).slice(-6)}`;
-
-  // 4. Insert do novo cabeçalho como rascunho
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Supabase insert type inference limitation
-  const { data: newOrc, error: insertError } = await (supabase as any)
-    .from("orcamentos")
-    .insert({
-      numero: newNumeroStr,
-      data_orcamento: new Date().toISOString().split("T")[0],
-      status: "rascunho",
-      cliente_id: orc.cliente_id,
-      validade: null,
-      observacoes: orc.observacoes,
-      frete_valor: orc.frete_valor || 0,
-      valor_total: orc.valor_total,
-      quantidade_total: orc.quantidade_total,
-      peso_total: orc.peso_total,
-      pagamento: orc.pagamento,
-      prazo_pagamento: orc.prazo_pagamento,
-      prazo_entrega: orc.prazo_entrega,
-      frete_tipo: orc.frete_tipo,
-      modalidade: orc.modalidade,
-      cliente_snapshot: orc.cliente_snapshot,
-      transportadora_id: (fullOrc.transportadora_id as string | null) ?? null,
-      frete_simulacao_id: (fullOrc.frete_simulacao_id as string | null) ?? null,
-      origem_frete: (fullOrc.origem_frete as string | null) ?? null,
-      servico_frete: (fullOrc.servico_frete as string | null) ?? null,
-      prazo_entrega_dias: (fullOrc.prazo_entrega_dias as number | null) ?? null,
-      volumes: (fullOrc.volumes as number | null) ?? null,
-      altura_cm: (fullOrc.altura_cm as number | null) ?? null,
-      largura_cm: (fullOrc.largura_cm as number | null) ?? null,
-      comprimento_cm: (fullOrc.comprimento_cm as number | null) ?? null,
-    })
-    .select()
-    .single();
-  if (insertError) throw new Error(insertError.message);
-  if (!newOrc) throw new Error("Falha ao criar orçamento duplicado");
-
-  // 5. Copia dos itens (se houver)
-  if (items && items.length > 0) {
-    const newItems = items.map((i) => ({
-      orcamento_id: newOrc.id,
-      produto_id: i.produto_id,
-      codigo_snapshot: i.codigo_snapshot,
-      descricao_snapshot: i.descricao_snapshot,
-      variacao: i.variacao,
-      quantidade: i.quantidade,
-      unidade: i.unidade,
-      valor_unitario: i.valor_unitario,
-      valor_total: i.valor_total,
-      peso_unitario: i.peso_unitario,
-      peso_total: i.peso_total,
-    }));
-    const { error: insertItemsError } = await supabase
-      .from("orcamentos_itens")
-      .insert(newItems);
-    if (insertItemsError) throw new Error(insertItemsError.message);
-  }
-
-  return { id: newOrc.id as string, numero: newNumeroStr };
+  if (error) throw new Error(error.message);
+  const result = data as { id: string; numero: string } | null;
+  if (!result?.id) throw new Error("Falha ao duplicar orçamento");
+  return { id: result.id, numero: result.numero };
 }
 
 // ── Lookups e CRUD usados pela página OrcamentoForm ───────────────────────────
