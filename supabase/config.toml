@@ -19,3 +19,5 @@ project_id = "cpvdncsxzostovdduhci"
     verify_jwt = false
   [functions.webhooks-dispatcher]
     verify_jwt = false
+  [functions.process-distdfe-cron]
+    verify_jwt = false
