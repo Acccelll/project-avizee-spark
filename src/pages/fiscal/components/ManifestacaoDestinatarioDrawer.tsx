@@ -579,6 +579,15 @@ export function ManifestacaoDestinatarioDrawer({ open, onOpenChange }: Manifesta
         nf={verItensTarget}
         onClose={() => setVerItensTarget(null)}
       />
+
+      <ProcessarEntradaDialog
+        nf={processarTarget}
+        onClose={() => setProcessarTarget(null)}
+        onProcessed={() => {
+          qc.invalidateQueries({ queryKey: ["nfe-distribuicao"] });
+          setProcessarTarget(null);
+        }}
+      />
     </>
   );
 }
