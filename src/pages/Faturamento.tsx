@@ -28,6 +28,9 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { CertificadoValidadeAlert } from "@/components/fiscal/CertificadoValidadeAlert";
 import { BacklogFaturamento } from "@/pages/faturamento/BacklogFaturamento";
 import { InutilizacaoDrawer } from "@/pages/fiscal/components/InutilizacaoDrawer";
+import { StatusSefazUFWidget } from "@/pages/fiscal/components/StatusSefazUFWidget";
+import { ContingenciaSvcDrawer } from "@/pages/fiscal/components/ContingenciaSvcDrawer";
+import { useQueryClient } from "@tanstack/react-query";
 
 /**
  * Módulo /faturamento — Onda 1 do plano "Emissor estilo Sebrae".
@@ -138,49 +141,6 @@ async function fetchUltimasNotas(): Promise<DocResumo[]> {
   }));
 }
 
-function StatusSefazWidget({
-  ultima,
-}: {
-  ultima: PainelKpis["ultimaTransmissao"];
-}) {
-  const ok = ultima?.status === "autorizada";
-  const erro = ultima?.status === "rejeitada";
-  const Icon = ok ? ShieldCheck : erro ? AlertTriangle : Activity;
-  const tone = ok
-    ? "text-success"
-    : erro
-      ? "text-destructive"
-      : "text-muted-foreground";
-  const label = ok
-    ? "SEFAZ respondendo normalmente"
-    : erro
-      ? "Última transmissão rejeitada"
-      : "Sem transmissões recentes";
-
-  return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Icon className={`h-4 w-4 ${tone}`} />
-          Status SEFAZ
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-1 text-sm">
-        <p className={tone}>{label}</p>
-        {ultima?.quando && (
-          <p className="text-muted-foreground">
-            Última atividade: {formatDate(ultima.quando)}
-          </p>
-        )}
-        <p className="text-xs text-muted-foreground pt-2">
-          Monitoramento baseado na última transmissão registrada. Health-check
-          dedicado por UF chega na Onda 2.
-        </p>
-      </CardContent>
-    </Card>
-  );
-}
-
 function StatusBadge({ status }: { status: string | null }) {
   if (!status) return <Badge variant="outline">—</Badge>;
   const map: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -202,6 +162,9 @@ export default function Faturamento() {
   const tabParam = (searchParams.get("tab") as TabKey) || "painel";
   const [tab, setTab] = useState<TabKey>(VALID_TABS.includes(tabParam) ? tabParam : "painel");
   const [inutOpen, setInutOpen] = useState(false);
+  const [contOpen, setContOpen] = useState(false);
+  const [contCfg, setContCfg] = useState<{ modo: string | null; motivo: string | null } | null>(null);
+  const qc = useQueryClient();
 
   const handleTab = (next: string) => {
     const t = next as TabKey;
@@ -329,7 +292,12 @@ export default function Faturamento() {
               </Card>
             </div>
             <div className="space-y-4">
-              <StatusSefazWidget ultima={kpis?.ultimaTransmissao ?? null} />
+              <StatusSefazUFWidget
+                onAbrirContingencia={(cfg) => {
+                  setContCfg({ modo: cfg.modo_emissao_nfe, motivo: cfg.contingencia_motivo });
+                  setContOpen(true);
+                }}
+              />
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-base">Atalhos</CardTitle>
@@ -411,6 +379,13 @@ export default function Faturamento() {
       </Tabs>
 
       <InutilizacaoDrawer open={inutOpen} onOpenChange={setInutOpen} />
+      <ContingenciaSvcDrawer
+        open={contOpen}
+        onOpenChange={setContOpen}
+        modoAtual={contCfg?.modo ?? null}
+        motivoAtual={contCfg?.motivo ?? null}
+        onSalvo={() => qc.invalidateQueries()}
+      />
     </ModulePage>
   );
 }
