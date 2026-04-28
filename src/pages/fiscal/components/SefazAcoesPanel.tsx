@@ -201,6 +201,17 @@ export function SefazAcoesPanel({ nf, buildNFeData, buildDanfeData }: SefazAcoes
         size="sm"
         variant="outline"
         className="gap-1.5"
+        disabled={!podeEnviarEmail || enviandoEmail}
+        onClick={handleAbrirEmail}
+      >
+        {enviandoEmail ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Mail className="h-3.5 w-3.5" />}
+        Enviar por e-mail
+      </Button>
+
+      <Button
+        size="sm"
+        variant="outline"
+        className="gap-1.5"
         disabled={!podeCce}
         onClick={() => setCceOpen(true)}
       >
