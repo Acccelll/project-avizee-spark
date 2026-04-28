@@ -1,86 +1,162 @@
-## Objetivo
+# Faturamento estilo Emissor Sebrae — plano de construção
 
-Reescrever os manuais e tours guiados do sistema de Ajuda com profundidade real — cobrindo submódulos, abas, drawers, formulários, ações por linha e atalhos. Ampliar os tours para passar pelas funções principais que hoje ficam de fora (ex.: baixar título no Financeiro, criar orçamento no Comercial, faturar pedido, ajuste de estoque, conciliação OFX, recebimento na Logística, abas do drawer de cadastros).
+Adoto o Emissor Sebrae como referência de **escopo funcional, vocabulário e fluxo de telas**, mas implemento dentro do nosso ERP (React + Supabase + sefaz-proxy já existentes). Não vamos clonar a UI: vamos cobrir as mesmas capacidades, reaproveitando o que já temos (cadastros de produtos/clientes/fornecedores, RBAC, certificado A1 no Vault, builder XML 4.00, autorização SEFAZ).
 
-## Escopo
+## 1. Mapa de paridade Sebrae × ERP atual
 
-**Módulos com manual + tour completo (Onda 1 — core):**
-Dashboard, Orçamentos, Pedidos de Venda, Fiscal (NF-e), Estoque, Financeiro, Logística, Clientes, Produtos.
+```text
+Capítulo Sebrae                 │ Estado no ERP        │ Ação
+────────────────────────────────┼──────────────────────┼──────────────────────
+Cadastro de Emitente            │ empresa_config OK    │ Endurecer validação + wizard
+Configuração Fiscal (CRT, amb)  │ Parcial              │ Aba dedicada "Faturamento"
+Certificado A1/A3               │ A1 via Vault OK      │ UI upload + validade + alerta
+Cadastro de Produtos/NCM/CST    │ produtos OK          │ Aba Fiscal por produto + grade
+Cadastro de Serviços (NFS-e)    │ Inexistente          │ Fora do MVP — fase 2
+Cadastro de Clientes/Forn.      │ OK                   │ Adicionar IBGE município + IE
+Transportadoras                 │ Inexistente          │ Nova entidade transportadoras
+Matriz Fiscal (regras CST/CFOP) │ Inexistente          │ Tabela matriz_fiscal + RPC
+Natureza de Operação            │ Campo livre          │ Tabela naturezas_operacao
+Permissões (perfis fiscais)     │ user_permissions OK  │ Adicionar recursos fiscais
+Emissão NF-e (saída/entrada)    │ Backend OK, UX fraca │ Wizard 5 passos + rascunho
+Carta de Correção (CC-e)        │ Inexistente          │ Serviço + UI
+Cancelamento NF-e               │ OK                   │ Manter
+Inutilização de numeração       │ Serviço OK, sem UI   │ Drawer dedicado
+NF-e devolução / complementar   │ Inexistente          │ Modelos pré-preenchidos
+Manifestação destinatário (MDe) │ Inexistente          │ Fase 2
+NFC-e / CT-e / NFS-e / MDF-e    │ Tela vazia/parcial   │ Fora do MVP
+Consulta de documentos          │ Lista NF OK          │ Filtros avançados + ações
+Importar XML emitido fora       │ OK                   │ Manter
+Exportar XMLs em lote           │ Inexistente          │ Gerar ZIP do período
+Status do serviço SEFAZ         │ Health parcial       │ Widget na tela Faturamento
+Relatórios fiscais              │ Inexistente          │ Livro Saídas/Entradas + SPED
+Rejeições com soluções          │ Toast genérico       │ Catálogo de cStat + ajuda
+```
 
-**Módulos com manual + tour curto (Onda 2 — secundários):**
-Pedidos de Compra, Cotações de Compra, Fornecedores, Contas Bancárias, Conciliação, Fluxo de Caixa, Relatórios, Workbook, Apresentação Gerencial.
+## 2. Arquitetura nova: módulo `/faturamento`
 
-**Módulos com manual ampliado, sem tour (Onda 3 — auxiliares):**
-Transportadoras, Funcionários, Sócios, Formas de Pagamento, Grupos Econômicos, Administração, Auditoria, Configurações.
+Rota dedicada (separada de `/fiscal`, que vira tela técnica de auditoria de NFs). Layout em 4 abas seguindo o Sebrae:
 
-## O que muda no conteúdo (manuais)
+```text
+/faturamento
+├─ Painel        → KPIs (autorizadas hoje, rejeitadas, status SEFAZ, certificado)
+├─ Emitir        → Wizard NF-e + atalhos (saída/devolução/complementar/remessa)
+├─ Backlog       → OVs aprovadas aguardando faturamento + ação "Faturar"
+└─ Documentos    → Lista NFs com filtros, ações em lote, exportar XML/DANFE
+```
 
-Cada `HelpEntry` dos módulos core passa a ter, no mínimo:
-1. **Visão geral** — para que serve, onde se encaixa no fluxo do ERP.
-2. **Estrutura da tela** — KPIs do topo, filtros, tabela, abas e drawer.
-3. **Ações por linha** — botões inline, atalhos do drawer, regras de permissão.
-4. **Formulário (Novo / Editar)** — abas do `FormModal`/página, campos obrigatórios, validações automáticas (CNPJ, CEP, NCM), regras de tributação.
-5. **Ciclo de vida e status** — transições permitidas, quem pode mudar status, efeitos colaterais (estoque, financeiro, fiscal).
-6. **Excluir × Inativar × Cancelar** — árvore de decisão por entidade.
-7. **Integrações** — para onde a ação leva (Financeiro gera título, Pedido baixa estoque, NF-e dispara SEFAZ, etc.).
-8. **Atalhos e dicas** — `Ctrl+N`, `?`, navegação por número.
+## 3. Wizard "Emitir NF-e" (5 passos, igual ao Sebrae)
 
-## O que muda nos tours guiados
+```text
+Passo 1 — Identificação
+  • Tipo (saída/entrada), finalidade (normal/complementar/ajuste/devolução)
+  • Natureza da operação (autocomplete da tabela naturezas_operacao)
+  • Série, próximo número (auto via SEQUENCE), data emissão/saída
 
-Hoje cada tour tem 2 passos (filtros + tabela). Vamos para **5–8 passos por módulo core**, cobrindo:
+Passo 2 — Destinatário
+  • Buscar cliente/fornecedor existente OU cadastrar inline
+  • Validação: CPF/CNPJ + IE + UF + IBGE município (bloqueia avanço)
+  • indIEDest calculado automaticamente
 
-- **Dashboard:** período global → bloco comercial → financeiro → fiscal → logística → drill-down explicativo (passo "fantasma" sem alvo).
-- **Orçamentos:** filtros → tabela → ações inline (Enviar/Aprovar/Converter) → botão "Novo" → drawer (abas Geral/Itens/Rentabilidade) → conversão em pedido.
-- **Pedidos:** filtros → tabela → ações inline → botão "Novo" → drawer → faturar (NF-e) → cancelar com motivo.
-- **Fiscal:** seletor entrada/saída → filtros → tabela → status SEFAZ → ações (DANFE/XML/CC-e/Cancelar) → botão "Nova nota" → drawer → contingência.
-- **Estoque:** abas (Saldos/Movimentações/Ajuste) → filtros → tabela → drill no produto → ajuste manual com motivo.
-- **Financeiro:** alternância Lista/Calendário → KPIs (a vencer/vencidos/parciais/pagos clicáveis) → filtros → tabela → ações inline (Baixar/Estornar/Editar/Cancelar) → botão "Novo Lançamento" → modal → conciliação relacionada.
-- **Logística:** abas Entregas/Recebimentos/Remessas → filtros → cards/linhas → rastreio em massa → drawer da remessa (eventos, etiqueta, transições postado→trânsito→entregue) → recebimento de compra.
-- **Clientes:** filtros → tabela → botão "Novo" → drawer/modal com abas (Dados/Contatos/Endereço/Comercial/Comunicações) → ViaCEP/CNPJ → condições comerciais (desconto máximo).
-- **Produtos:** filtros → tabela → botão "Novo" → modal com abas (Dados/Estoque/Fiscal/Compras/Obs) → tributação (NCM/CEST/CST) → fornecedores vinculados → composição/preço sugerido.
+Passo 3 — Itens
+  • Adicionar produto (autocomplete por código/descrição)
+  • Aplica matriz fiscal: CFOP por UF emit×UF dest, CST/CSOSN por CRT,
+    NCM, alíquotas ICMS/IPI/PIS/COFINS calculadas
+  • Permite override por linha (com aviso "fora da matriz")
+  • Totalizador em tempo real
 
-Tours secundários ganham 2–3 passos em vez de zero (filtros, tabela, ação principal).
+Passo 4 — Transporte e pagamento
+  • Modalidade do frete (0-9), transportadora (autocomplete),
+    placa, volumes, peso bruto/líquido
+  • Forma de pagamento (mapeada para tpag SEFAZ) + parcelas (duplicatas)
+  • Informações complementares (texto livre + tags %DUPLICATAS%)
 
-## Âncoras `data-help-id` adicionais necessárias
+Passo 5 — Revisão e transmissão
+  • Pré-validação local (preEmissao.validator + ncm + cfop)
+  • Painel "o que será enviado" com totais e tributos
+  • Botões: [Salvar rascunho] [Transmitir SEFAZ] [Transmitir e baixar DANFE]
+```
 
-Hoje só existem `*.filtros`, `*.tabela`, `*.tabs` e blocos do dashboard. Para o tour novo cobrir as ações principais, vamos **adicionar** estes anchors (o resolver já lida com `CSS.escape`):
+Cada passo é um componente isolado; rascunho persiste em `notas_fiscais` com `status='rascunho'` (autosave 5s).
 
-| Página | Novos anchors |
-|--------|---------------|
-| `Index.tsx` | `dashboard.logistica` |
-| `Orcamentos.tsx` | `orcamentos.novoBtn`, `orcamentos.acoesLinha` (no `<tbody>` ou wrapper das ações) |
-| `Pedidos.tsx` | `pedidos.novoBtn`, `pedidos.acoesLinha` |
-| `Fiscal.tsx` | `fiscal.tipoSeletor`, `fiscal.novoBtn`, `fiscal.acoesLinha` |
-| `Financeiro.tsx` | `financeiro.viewToggle` (Lista/Calendário), `financeiro.kpis`, `financeiro.novoBtn`, `financeiro.acoesLinha` |
-| `Estoque.tsx` | `estoque.ajusteBtn` (botão atalho de ajuste) |
-| `Logistica.tsx` | `logistica.bulkRastrear`, `logistica.cardAcoes` |
-| `Clientes.tsx` | `clientes.novoBtn` |
-| `Produtos.tsx` | `produtos.novoBtn` |
+## 4. Novidades funcionais (estilo Sebrae)
 
-Como `ModulePage` renderiza o botão "Novo" centralmente, vamos adicionar `data-help-id` via prop opcional no `ModulePage` (ou envolver o `ModulePage` num `<div data-help-id="...">`, alternativa mais simples e sem refatoração). Optaremos pelo wrapper `<div>` quando o `ModulePage` não suportar a prop.
+### 4.1 Matriz Fiscal
+Tabela `matriz_fiscal` (escopo: CRT × UF origem × UF destino × tipo operação) com CST/CSOSN, alíquota ICMS, redução BC, FCP, ST, PIS/COFINS, CFOP padrão. RPC `aplicar_matriz_fiscal(produto_id, dest_uf, finalidade)` retorna o item pronto. Tela de cadastro em "Faturamento → Configurações → Matriz Fiscal" com clonagem (botão "Copiar matriz" do Sebrae).
 
-## Detalhes técnicos
+### 4.2 Natureza de Operação
+Tabela `naturezas_operacao` (descrição, CFOP padrão dentro/fora UF, finalidade NF-e, movimenta estoque?, gera financeiro?). Vira preset 1-clique no Passo 1.
 
-- **Sem mudança de tipos**: `HelpEntry`/`HelpTourStep` já comportam o conteúdo expandido. Apenas `version` é incrementado em cada entrada para reativar o `FirstVisitToast` para usuários que já dispensaram a versão anterior.
-- **Passos "fantasma"**: o `CoachTour` já suporta steps cujo `target` não resolve (centraliza). Vamos usá-los para conceitos que não têm âncora visual única (ex.: "drill-down clica em qualquer KPI").
-- **Sem nova migration**: o `useHelpProgress` persiste `lastSeenVersion` por rota — bump de versão basta.
-- **Sem mudança no `HelpDrawer`/`HelpMenu`/`Ajuda.tsx`**: eles renderizam a partir do registry; conteúdo mais longo é absorvido naturalmente (já tem scroll).
-- **Ordem de execução**:
-  1. Adicionar os `data-help-id` que faltam nas 9 páginas core.
-  2. Reescrever `src/help/entries/{dashboard,orcamentos,pedidos,fiscal,estoque,financeiro,logistica,clientes,produtos}.ts` com manual expandido + tour 5–8 passos + `version` incrementado.
-  3. Expandir manuais e adicionar tour curto em `lote2.ts`.
-  4. Expandir manuais em `lote3.ts` (sem tour).
-  5. Smoke manual: para cada rota tocada, verificar visualmente se cada passo do tour aponta para um alvo existente; ajustar onde necessário.
+### 4.3 Carta de Correção (CC-e)
+Serviço `cartaCorrecao.service.ts` (evento 110110), drawer no detalhe da NF: textarea (mínimo 15 chars, máximo 1000), histórico de CC-e (até 20 por NF). Persistência em `eventos_fiscais`.
 
-## Entregáveis
+### 4.4 NF-e Devolução / Complementar / Remessa
+Botões "Nova devolução", "Nova complementar" no detalhe de uma NF autorizada. Pré-preenche referência (`refNFe`), CFOPs invertidos, finalidade adequada, itens copiados.
 
-- 9 arquivos de entry core reescritos.
-- `lote2.ts` e `lote3.ts` ampliados.
-- Anchors injetados em 9 páginas.
-- Memória de produto atualizada com a doutrina de "manual completo + tour ≥5 passos por módulo core" (arquivo curto em `mem://produto/manual-tour-cobertura.md`).
+### 4.5 Inutilização de numeração
+Drawer "Inutilizar números" em "Faturamento → Documentos": série + faixa numérica + justificativa. Exige que os números estejam não usados; persiste em `inutilizacoes` e bloqueia reuso.
 
-## Não está no escopo
+### 4.6 Status SEFAZ ao vivo
+Widget no Painel chamando `consultaStatusServico` (cStat 107) por UF. Detecta SEFAZ offline e oferece **modo contingência SVC-AN/SVC-RS** (alterando `tpEmis` para 9).
 
-- Mudanças no motor do tour (`CoachTour.tsx`), no drawer de ajuda, nos hotkeys ou na página `/ajuda`.
-- Tradução para outros idiomas.
-- Tours em telas de formulário standalone (`OrcamentoForm`, `PedidoForm`, `RemessaForm`, `PedidoCompraForm`, `CotacaoCompraForm`) — neste momento só manuais cobrem essas telas.
+### 4.7 Catálogo de rejeições
+Tabela seed `sefaz_rejeicoes_help` com cStat → título amigável + causa provável + ação sugerida (espelho do capítulo "Rejeições e Soluções" do manual). Modal de retorno SEFAZ consulta esta tabela e mostra "Como resolver".
+
+### 4.8 Exportação em lote
+Botão "Exportar XMLs do período" gera ZIP com todos `procNFe.xml` autorizados (storage `dbavizee/nfe/`) e DANFEs PDF — usado por contadores.
+
+### 4.9 Permissões por perfil fiscal
+Recursos novos em `user_permissions`: `faturamento.emitir`, `faturamento.cancelar`, `faturamento.cce`, `faturamento.inutilizar`, `faturamento.matriz_fiscal`. Perfis sugeridos: Vendedor (emitir), Financeiro (consultar), Contador (CC-e/inutilizar/exportar), Admin (tudo).
+
+## 5. Fundação técnica obrigatória (sem isso nada autoriza)
+
+Mantida do plano anterior, agora explicitada:
+
+- **Numeração atômica**: SEQUENCE `nfe_numero_seq_<serie>` + RPC `proximo_numero_nfe(serie)`.
+- **Chave de acesso 44d**: RPC `gerar_chave_acesso_nfe(nf_id)` (UF+AAMM+CNPJ+modelo+série+número+tpEmis+cNF+DV mod11).
+- **IBGE município** em `clientes` e `fornecedores` (lookup ViaCEP/IBGE no cadastro).
+- **Endurecer `buildNFeDataFromDb`**: NCM válido obrigatório, CFOP derivado, CST/CSOSN conforme CRT, tpag mapeado, sem defaults perigosos.
+- **Pós-autorização**: salvar `procNFe.xml` em `dbavizee/nfe/<ano>/<mes>/<chave>.xml`, gerar DANFE PDF, popular `caminho_xml`/`caminho_pdf`, opcional envio email via fila pgmq.
+- **Triggers de integração**: NF autorizada → `estoque_movimentos` (saída) + `financeiro_lancamentos` (a receber por parcela).
+- **Constraint unicidade**: `(empresa_id, modelo, serie, numero)` única em `notas_fiscais`.
+
+## 6. Roadmap em 6 ondas
+
+```text
+Onda 0 — Fundação SEFAZ (bloqueante)
+  Numeração + chave + IBGE + uniqueness + rigor do payload + persistência XML/DANFE
+
+Onda 1 — Estrutura do módulo /faturamento
+  Rota, layout 4 abas, KPIs do Painel, widget status SEFAZ
+
+Onda 2 — Cadastros fiscais
+  Naturezas de Operação, Matriz Fiscal, Transportadoras, aba Fiscal em produtos,
+  IBGE município em clientes/fornecedores, UI upload certificado A1 + alerta validade
+
+Onda 3 — Wizard Emitir NF-e (5 passos)
+  Rascunho/autosave, presets de natureza, validação SEFAZ-grade,
+  modal de retorno com catálogo de rejeições
+
+Onda 4 — Backlog "Faturar OV"
+  Tela com OVs aprovadas, RPC faturar_ordem_venda, faturamento parcial,
+  triggers estoque/financeiro
+
+Onda 5 — Eventos pós-emissão e operação
+  CC-e (serviço + UI), Inutilização (drawer), NF Devolução/Complementar/Remessa,
+  Exportar XMLs em lote, Importar XML emitido fora (já existe — integrar),
+  Permissões fiscais granulares
+```
+
+## 7. Fora do MVP (fase 2)
+
+NFC-e (precisa CSC + impressora), CT-e (5 modais), NFS-e (350+ municípios diferentes), MDF-e, Manifestação do Destinatário, certificado A3 (precisa middleware no SO do cliente). Mantemos as telas atuais como placeholder até decidirmos investir.
+
+## 8. Pré-requisitos do cliente (operacionais)
+
+1. Certificado A1 (.pfx) + senha
+2. CRT, IE ativa, série e numeração inicial definidos
+3. NCM/CFOP padrão revisados nos produtos cadastrados
+4. Homologação SEFAZ antes de virar para produção
+
+## Como prefere prosseguir?
+
+Sugiro a sequência **Onda 0 → Onda 1 → Onda 3** (fundação + casca + wizard de emissão) para ter algo emitindo NF-e real em homologação o quanto antes; cadastros (Onda 2) e backlog OV (Onda 4) entram em paralelo conforme prioridade. Posso começar pela Onda 0 ou prefere validar antes a estrutura visual da Onda 1 (rota, abas, KPIs)?
