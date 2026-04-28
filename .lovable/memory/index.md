@@ -6,8 +6,8 @@
 - Database: RLS is mandatory. Enforce state/type integrity via `chk_` constraints.
 - RBAC via `user_permissions`. UI must use `can(resource, action)` for critical actions.
 - Security: All DB RPCs and triggers MUST set `search_path = public`.
+- Multi-tenant ATIVO: toda tabela de domínio tem `empresa_id` com default `current_empresa_id()` e RLS por empresa (admin bypass). Novas tabelas devem seguir o padrão.
 - Decompose God components. Separate UI state and prioritize strict domain typing.
-- Acesso a `supabase.from/rpc/storage` só em `src/services/`. Exceções: `src/lib/realtime/*`, `src/types/rpc.ts`, `supabase.auth.*` em pages de auth, `supabase.functions.invoke` em hooks dedicados.
 
 ## Memories
 - [Invoicing and Tax](mem://features/faturamento-fiscal)
@@ -67,3 +67,61 @@
 - [Webhooks de saída](mem://features/webhooks-saida) — pgmq + edge dispatcher (cron 1min) + UI admin com HMAC SHA-256 e secret reveal one-shot
 - [PWA / offline-first leve](mem://features/pwa-offline-leve) — vite-plugin-pwa, manifest AviZee, runtime cache SWR de listas (clientes/fornecedores/produtos), banner offline, prompt de update e botão flutuante de instalação
 - [Multi-tenant Onda 1](mem://features/multi-tenant-onda1) — empresas + user_empresas (1:1), empresa_id em clientes/fornecedores/produtos com RLS por empresa via current_empresa_id()
+- [Invoicing and Tax](mem://features/faturamento-fiscal)
+- [Report Generation](mem://features/relatorios)
+- [External APIs](mem://integracoes/api-externas)
+- [RBAC Roles](mem://auth/papeis-de-usuario)
+- [Unified Logistics UI](mem://features/logistica-unificada)
+- [Data Fetching & State](mem://tech/padroes-de-desenvolvimento)
+- [Domain Typing](mem://tech/centralizacao-tipagem)
+- [Development Constraints](mem://constraints/diretrizes-de-desenvolvimento)
+- [Admin Configuration](mem://features/administracao)
+- [Admin User Management](mem://auth/gestao-de-usuarios-admin)
+- [Client/Supplier Rules](mem://features/cadastros-condicoes-comerciais)
+- [Managerial Workbook](mem://features/workbook-gerencial)
+- [Email Infrastructure](mem://integracoes/email-notificacoes)
+- [Managerial Presentation](mem://features/apresentacao-gerencial)
+- [DataTable Virtualization](mem://tech/performance-virtualizacao)
+- [Inventory Data Integrity](mem://tech/integridade-dados-estoque)
+- [Edge Functions CORS](mem://tech/infraestrutura-cors)
+- [Bank Reconciliation](mem://features/conciliacao-bancaria)
+- [DB Schema Integrity](mem://tech/integridade-dados-schema)
+- [Auth Initialization](mem://auth/sincronizacao-sessao-inicial)
+- [Products and Materials](mem://features/produtos-e-insumos)
+- [Financial Migrations](mem://features/financeiro-migracao-saldos)
+- [Write & Delete Restrictions](mem://security/restricoes-escrita-exclusao)
+- [Data Privacy Rules](mem://security/privacidade-dados-usuarios)
+- [SQL Function Security](mem://security/seguranca-funcoes-sql)
+- [Data Migration Rules](mem://constraints/migracao-dados-restricoes)
+- [Atomic Numbering](mem://tech/numeracao-atomica-documentos)
+- [Transactional Persistence](mem://tech/padroes-de-persistencia-transacional)
+- [Secret Management](mem://security/gestao-de-segredos-vault)
+- [User Preferences](mem://features/preferencias-de-usuario)
+- [Social Module Flags](mem://features/modulo-social-infraestrutura) — VITE_FEATURE_SOCIAL controla visibilidade; quando false o item aparece com badge "Em breve" e disabled
+- [Perfil x Configurações](mem://features/perfil-x-configuracoes)
+- [Design System Fontes Canônicas](mem://tech/design-system-fontes-canonicas)
+- [Contrato de Status](mem://produto/contrato-de-status)
+- [Excluir vs Inativar vs Cancelar](mem://produto/excluir-vs-inativar-vs-cancelar)
+- [Quando Drawer, Quando Página](mem://produto/quando-drawer-quando-pagina)
+- [Contrato de Períodos](mem://produto/contrato-de-periodos)
+- [Comercial Mobile](mem://produto/comercial-mobile)
+- [Compras Mobile](mem://produto/compras-mobile)
+- [Estoque & Logística Mobile](mem://produto/estoque-logistica-mobile) — DataTable mobile props, EstoqueAjusteSheet (bottom-sheet pré-preenchível), footers operacionais e CTA primário por estado
+- [Financeiro Mobile](mem://produto/financeiro-mobile) — DataTable mobile, bottom-sheets para Baixa/ConfirmDialog, Calendário tap→sheet, Conciliação vertical com vincular filtrado
+- [Fiscal Mobile](mem://produto/fiscal-mobile) — DataTable mobile com sub-pill SEFAZ, drawer com 3 tabs e footer primary+menu, DevolucaoDialog com stepper, banner pendentes
+- [Relatórios Mobile](mem://produto/relatorios-mobile) — Chart-first, KPIs 2x2, filtros bottom-sheet, tabela em Collapsible, sticky Exportar; props DataTable derivadas de semantics
+- [RLS Single-Tenant](mem://security/rls-single-tenant) — Modo single-tenant; tabelas críticas com USING(true), exceto app_configuracoes (admin); checklist multi-tenant
+- [Tipagem RPC Centralizada](mem://tech/tipagem-rpc-centralizada) — `src/types/rpc.ts` expõe `RpcName`/`RpcArgs`/`RpcReturn` e `invokeRpc` para consumir RPCs sem `as any`
+- [Security Definer Views](mem://security/security-definer-views) — 4 views mantidas DEFINER intencional (públicas + audit unified); demais analíticas com `security_invoker=on`
+- [ConfirmDestructiveDialog](mem://tech/confirm-destructive-dialog) — Wrapper para ações terminais (Cancelar/Excluir/Estornar) com motivo + efeitos colaterais; ConfirmDialog continua para confirmações simples
+- [HealthBadge](mem://tech/health-badge) — Indicador de saúde de integrações externas (5 estados: healthy/degraded/down/unknown/checking) com tooltip de detalhes
+- [Painel Saúde do Sistema](mem://features/painel-saude-sistema) — Aba /administracao?tab=saude consolidando integrações (e-mail/auditoria/permissões) via v_admin_audit_unified + email_send_log
+- [DataTable - coluna única "Ações"](mem://tech/datatable-acoes-unicas) — Proibido criar 2ª coluna "Ações" manual; usar rowExtraActions
+- [Camada services única](mem://tech/camada-services-unica) — Doutrina pós-Onda 6: src/services/ é única autoridade para from/rpc/storage; lista de exceções legítimas (auth, functions.invoke, realtime singletons, helper callRpc)
+- [Auditoria exhaustive-deps](mem://tech/auditoria-exhaustive-deps) — Todas as 32 supressões revisadas e documentadas inline com justificativa após "--"
+- [Dynamic imports libs pesadas](mem://tech/dynamic-imports-libs-pesadas) — ExcelJS e pptxgenjs sempre via `await import()` nos entry points dos services
+- [Notificações Proativas no Sidebar](mem://features/notificacoes-proativas-sidebar) — Badges agregando vencidos, estoque baixo, orçamentos, NF rejeitada e DLQ de e-mail (admin-only) via realtime
+- [Webhooks de saída](mem://features/webhooks-saida) — pgmq + edge dispatcher (cron 1min) + UI admin com HMAC SHA-256 e secret reveal one-shot
+- [PWA / offline-first leve](mem://features/pwa-offline-leve) — vite-plugin-pwa, manifest AviZee, runtime cache SWR de listas (clientes/fornecedores/produtos), banner offline, prompt de update e botão flutuante de instalação
+- [Multi-tenant Onda 1](mem://features/multi-tenant-onda1) — empresas + user_empresas (1:1), empresa_id em clientes/fornecedores/produtos com RLS por empresa via current_empresa_id()
+- [Multi-tenant Ondas 1-4](mem://features/multi-tenant-onda1) — empresa_id + RLS por tenant em todas as tabelas de domínio (cadastros, comercial, compras, estoque, conciliação, financeiro, fiscal)
