@@ -539,6 +539,7 @@ const Orcamentos = () => {
             emptyTitle="Nenhum orçamento encontrado"
             emptyDescription="Crie um novo orçamento ou ajuste os filtros aplicados."
           />
+          </div>
         </PullToRefresh>
       </ModulePage>
 
