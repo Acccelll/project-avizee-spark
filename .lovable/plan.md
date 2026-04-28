@@ -75,3 +75,21 @@ src/hooks/useSupabaseCrud.ts                    (AbortSignal)
 - Abrir PR no GitHub → confirmar que os 4 jobs do CI executam.
 
 Aprova para eu executar este plano?
+
+---
+
+## Onda complementar — verificação `PeriodFilter direction` + `rowExtraActions` (28/abr/2026)
+
+Antes de iniciar mudanças, varredura confirmou que ambos os itens **já estão implementados e adotados**:
+
+- `PeriodFilter` expõe `direction?: 'past' | 'future' | 'neutral'` (default `past`), com chips,
+  ícones (`History`/`CalendarClock`/`Calendar`) e tooltips específicos por direção.
+  - `direction="future"` em uso: `Financeiro.tsx`, `FluxoCaixa.tsx`, `MonthFilter` em `Financeiro`.
+  - `direction="past"` (explícito) em uso: `Pedidos.tsx`, `Orcamentos.tsx`, `Conciliacao.tsx`, `Estoque.tsx`.
+  - `Auditoria.tsx` usa default (`past`), apropriado para log histórico.
+- `DataTable.rowExtraActions?: (item) => ReactNode` (linha 168 de `src/components/DataTable.tsx`)
+  já consumido em: `Orcamentos`, `Logistica` (entregas + recebimentos), `compras/PedidoCompraTable`,
+  `Financeiro`, `Pedidos`.
+
+Sem gap funcional → nenhuma alteração de código necessária nesta onda. Próxima frente sugerida:
+migração de forms para Zod (NF, Orçamento, Cliente) ou multi-tenant `empresa_id`.
