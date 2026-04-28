@@ -621,6 +621,7 @@ export default function Conciliacao() {
                 setDataInicio(next.from || "");
                 setDataFim(next.to || "");
               }}
+              direction="past"
             />
           </div>
 
