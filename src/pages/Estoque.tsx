@@ -39,6 +39,7 @@ import { cn } from "@/lib/utils";
 import { getOrigemConfig, getTipoMovConfig, tipoMovConfig } from "@/components/estoque/estoqueMovimentacaoConfig";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { EstoqueAjusteSheet } from "@/components/estoque/EstoqueAjusteSheet";
+import { logger } from "@/lib/logger";
 
 type ProdutoRow = Database["public"]["Tables"]["produtos"]["Row"];
 
@@ -305,7 +306,7 @@ const Estoque = () => {
       setPendingMovForm(null);
     } catch (err) {
       // onError in the hook already calls toast.error — log only for debugging.
-      console.error("[estoque] executeMovimentacao:", err);
+      logger.error("[estoque] executeMovimentacao:", err);
     } finally {
       setPendingSubmit(false);
     }

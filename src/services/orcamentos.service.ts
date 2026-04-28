@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { logger } from "@/lib/logger";
 
 interface OrcamentoBase {
   id: string;
@@ -101,7 +102,7 @@ export async function enviarOrcamentoPorEmail(
         .createSignedUrl(filename, 60 * 60 * 24 * 30);
       linkPdf = signed?.signedUrl;
     } catch (err) {
-      console.warn("Falha ao anexar PDF ao e-mail:", err);
+      logger.warn("Falha ao anexar PDF ao e-mail:", err);
     }
   }
 

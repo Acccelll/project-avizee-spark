@@ -46,6 +46,7 @@ import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { QuickAddSupplierModal } from "@/components/QuickAddSupplierModal";
 import { MobileQuickAddFAB } from "@/components/MobileQuickAddFAB";
 import { ContactInlineActions } from "@/components/ui/MobileCardActions";
+import { logger } from "@/lib/logger";
 
 const MAX_OBSERVACOES_LENGTH = 2000;
 const MAX_PRAZO_DAYS = 365;
@@ -135,7 +136,7 @@ const Fornecedores = () => {
         total: compras.reduce((s, c) => s + Number(c.valor_total || 0), 0),
       });
     } catch (err) {
-      console.error("[fornecedores] erro ao carregar contexto:", err);
+      logger.error("[fornecedores] erro ao carregar contexto:", err);
       toast.error(getUserFriendlyError(err));
     } finally {
       setLoadingFornContext(false);
@@ -210,7 +211,7 @@ const Fornecedores = () => {
         setModalOpen(false);
       }
     } catch (err) {
-      console.error('[fornecedores] erro ao salvar:', err);
+      logger.error('[fornecedores] erro ao salvar:', err);
       toast.error(getUserFriendlyError(err));
     }
     setSaving(false);

@@ -38,6 +38,7 @@ import { useActionLock } from "@/hooks/useActionLock";
 import { useUrlListState } from "@/hooks/useUrlListState";
 import { subscribeComercial } from "@/lib/realtime/comercialChannel";
 import { INVALIDATION_KEYS } from "@/services/_invalidationKeys";
+import { logger } from "@/lib/logger";
 
 interface Orcamento {
   id: string;
@@ -249,7 +250,7 @@ const Orcamentos = () => {
       fetchData();
       navigate(`/orcamentos/${newOrc.id}`);
     } catch (err: unknown) {
-      console.error('[orcamentos] duplicar:', err);
+      logger.error('[orcamentos] duplicar:', err);
       toast.error(getUserFriendlyError(err));
     }
   };
