@@ -31,6 +31,12 @@ export type { InutilizacaoParams, InutilizacaoResult } from "./inutilizacao.serv
 export { enviarCartaCorrecao } from "./cartaCorrecao.service";
 export type { CartaCorrecaoParams, CartaCorrecaoResult } from "./cartaCorrecao.service";
 
+export {
+  consultarStatusServico,
+  construirXMLConsultaStatus,
+} from "./statusServico.service";
+export type { StatusServicoResult } from "./statusServico.service";
+
 export { resolverUrlSefaz, UFS_SUPORTADAS } from "./sefazUrls.service";
 export type { SefazServico } from "./sefazUrls.service";
 
