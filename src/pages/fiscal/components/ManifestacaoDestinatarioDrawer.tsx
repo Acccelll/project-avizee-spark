@@ -351,6 +351,25 @@ export function ManifestacaoDestinatarioDrawer({ open, onOpenChange, highlightNf
     }
   };
 
+  const handleSincronizar = async () => {
+    setSincronizando(true);
+    try {
+      const r = await sincronizarDistDFe("2");
+      if (!r.sucesso) {
+        toast.error(r.erro ?? `Falha na sincronização (${r.cStat ?? "?"})`);
+        return;
+      }
+      toast.success(
+        `Sincronizado: ${r.novos} nova(s), ${r.duplicados} já existente(s). NSU ${r.ultNSU ?? "—"}/${r.maxNSU ?? "—"}`,
+      );
+      qc.invalidateQueries({ queryKey: ["nfe-distribuicao"] });
+    } catch (e) {
+      notifyError(e);
+    } finally {
+      setSincronizando(false);
+    }
+  };
+
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
