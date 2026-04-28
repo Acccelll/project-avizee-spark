@@ -53,6 +53,11 @@ import {
 } from "@/services/orcamentos.service";
 import { getEmpresaConfig } from "@/services/fiscal.service";
 import { proximoNumeroOrcamento } from "@/types/rpc";
+import {
+  upsertOrcamentoDraft,
+  hasOrcamentoDraft,
+  existeOrcamentoComNumero,
+} from "@/services/orcamentos.service";
 
 interface ClienteSnapshot {
   nome_razao_social: string; nome_fantasia: string; cpf_cnpj: string;
@@ -419,13 +424,18 @@ export default function OrcamentoForm() {
             toast.error("Orçamento não encontrado.", { description: `Nenhum orçamento com ID ${id}.` });
           }
         } else {
-          const { data: novoNumero, error: numErr } = await proximoNumeroOrcamento();
-          if (numErr || !novoNumero) {
+          try {
+            const novoNumero = await proximoNumeroOrcamento();
+            if (!novoNumero) {
+              toast.error('Não foi possível gerar o número do orçamento. Tente novamente.');
+              return;
+            }
+            setValue('numero', novoNumero);
+          } catch (numErr) {
             logger.error('[OrcamentoForm] proximo_numero_orcamento falhou:', numErr);
             toast.error('Não foi possível gerar o número do orçamento. Tente novamente.');
             return;
           }
-          setValue('numero', novoNumero);
         }
       } catch (err: unknown) {
         logger.error("[OrcamentoForm] erro ao carregar dados:", err);
