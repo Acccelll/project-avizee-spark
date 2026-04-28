@@ -56,6 +56,21 @@ export function getUserFriendlyError(error: any): string {
 
   const err = error as SupabaseError & { message?: string };
 
+  // AbortError: requisição cancelada intencionalmente (ex.: drawer fechou
+  // durante fetch, navegação, troca rápida de registro). NÃO é um erro real
+  // do ponto de vista do usuário — retornamos string vazia para que
+  // `notifyError` não exiba toast.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const anyErr = error as any;
+  if (
+    anyErr?.name === "AbortError" ||
+    /signal is aborted|aborted without reason|the operation was aborted/i.test(
+      String(anyErr?.message ?? ""),
+    )
+  ) {
+    return "";
+  }
+
   // 1. Try exact error code mapping
   if (err.code && ERROR_CODE_MAP[err.code]) {
     return ERROR_CODE_MAP[err.code];
@@ -77,4 +92,19 @@ export function getUserFriendlyError(error: any): string {
   }
 
   return "Ocorreu um erro inesperado. Tente novamente.";
+}
+
+/**
+ * Helper para reportar erros via toast suprimindo cancelamentos (AbortError).
+ * Use sempre que for fazer `toast.error(getUserFriendlyError(err))` em handlers
+ * de mutations/queries — evita que cancelamentos legítimos virem ruído visual.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function notifyError(error: any, fallback?: string): void {
+  const msg = getUserFriendlyError(error);
+  if (!msg) return; // AbortError ou similar — silenciar
+  // Import dinâmico evita ciclo com sonner em módulos que não usam toast.
+  void import("sonner").then(({ toast }) => {
+    toast.error(fallback ?? msg);
+  });
 }
