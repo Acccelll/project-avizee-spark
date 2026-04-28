@@ -1754,6 +1754,8 @@ export type Database = {
           cnpj: string | null
           codigo_ibge_municipio: string | null
           complemento: string | null
+          contingencia_inicio: string | null
+          contingencia_motivo: string | null
           cor_primaria: string | null
           cor_secundaria: string | null
           created_at: string
@@ -1768,6 +1770,7 @@ export type Database = {
           logradouro: string | null
           marca_subtitulo: string | null
           marca_texto: string | null
+          modo_emissao_nfe: string
           nome_fantasia: string | null
           numero: string | null
           proximo_numero_nfe: number | null
@@ -1792,6 +1795,8 @@ export type Database = {
           cnpj?: string | null
           codigo_ibge_municipio?: string | null
           complemento?: string | null
+          contingencia_inicio?: string | null
+          contingencia_motivo?: string | null
           cor_primaria?: string | null
           cor_secundaria?: string | null
           created_at?: string
@@ -1806,6 +1811,7 @@ export type Database = {
           logradouro?: string | null
           marca_subtitulo?: string | null
           marca_texto?: string | null
+          modo_emissao_nfe?: string
           nome_fantasia?: string | null
           numero?: string | null
           proximo_numero_nfe?: number | null
@@ -1830,6 +1836,8 @@ export type Database = {
           cnpj?: string | null
           codigo_ibge_municipio?: string | null
           complemento?: string | null
+          contingencia_inicio?: string | null
+          contingencia_motivo?: string | null
           cor_primaria?: string | null
           cor_secundaria?: string | null
           created_at?: string
@@ -1844,6 +1852,7 @@ export type Database = {
           logradouro?: string | null
           marca_subtitulo?: string | null
           marca_texto?: string | null
+          modo_emissao_nfe?: string
           nome_fantasia?: string | null
           numero?: string | null
           proximo_numero_nfe?: number | null
