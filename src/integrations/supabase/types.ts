@@ -2249,6 +2249,7 @@ export type Database = {
           conta_bancaria_id: string | null
           created_at: string
           data_baixa: string
+          empresa_id: string
           estornada_em: string | null
           estornada_por: string | null
           forma_pagamento: string | null
@@ -2266,6 +2267,7 @@ export type Database = {
           conta_bancaria_id?: string | null
           created_at?: string
           data_baixa: string
+          empresa_id?: string
           estornada_em?: string | null
           estornada_por?: string | null
           forma_pagamento?: string | null
@@ -2283,6 +2285,7 @@ export type Database = {
           conta_bancaria_id?: string | null
           created_at?: string
           data_baixa?: string
+          empresa_id?: string
           estornada_em?: string | null
           estornada_por?: string | null
           forma_pagamento?: string | null
@@ -2346,6 +2349,7 @@ export type Database = {
           data_vencimento: string
           descricao: string | null
           documento_pai_id: string | null
+          empresa_id: string
           forma_pagamento: string | null
           forma_pagamento_id: string | null
           fornecedor_id: string | null
@@ -2386,6 +2390,7 @@ export type Database = {
           data_vencimento: string
           descricao?: string | null
           documento_pai_id?: string | null
+          empresa_id?: string
           forma_pagamento?: string | null
           forma_pagamento_id?: string | null
           fornecedor_id?: string | null
@@ -2426,6 +2431,7 @@ export type Database = {
           data_vencimento?: string
           descricao?: string | null
           documento_pai_id?: string | null
+          empresa_id?: string
           forma_pagamento?: string | null
           forma_pagamento_id?: string | null
           fornecedor_id?: string | null
@@ -3387,6 +3393,7 @@ export type Database = {
           data_emissao: string | null
           data_saida_entrada: string | null
           desconto_valor: number | null
+          empresa_id: string
           enviado_email: boolean | null
           especie_volumes: string | null
           finalidade_nfe: string | null
@@ -3447,6 +3454,7 @@ export type Database = {
           data_emissao?: string | null
           data_saida_entrada?: string | null
           desconto_valor?: number | null
+          empresa_id?: string
           enviado_email?: boolean | null
           especie_volumes?: string | null
           finalidade_nfe?: string | null
@@ -3507,6 +3515,7 @@ export type Database = {
           data_emissao?: string | null
           data_saida_entrada?: string | null
           desconto_valor?: number | null
+          empresa_id?: string
           enviado_email?: boolean | null
           especie_volumes?: string | null
           finalidade_nfe?: string | null
