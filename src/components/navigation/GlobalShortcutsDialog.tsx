@@ -17,6 +17,7 @@ export function GlobalShortcutsDialog({ open, onOpenChange }: Props) {
           <li><strong>Ctrl/Cmd + Shift + N</strong> — Nova nota fiscal</li>
           <li><strong>Ctrl/Cmd + Shift + C</strong> — Novo cliente</li>
           <li><strong>Ctrl/Cmd + Shift + P</strong> — Novo produto</li>
+          <li><strong>Ctrl/Cmd + Shift + F</strong> — Dashboard Fiscal</li>
           <li><strong>Esc</strong> — Fechar modal/drawer atual</li>
           <li><strong>Ctrl/Cmd + [1-9]</strong> — Navegação rápida pelos módulos</li>
         </ul>
