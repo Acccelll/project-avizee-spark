@@ -49,7 +49,7 @@ import {
   listPedidosCompraAtivos,
   listNotasFiscaisAtivas,
 } from "@/services/logistica/lookups.service";
-import { getUserFriendlyError, notifyError } from "@/utils/errorMessages";
+import { notifyError } from "@/utils/errorMessages";
 import {
   ENTREGA_STATUS_ORDER,
   ENTREGA_STATUS_META,

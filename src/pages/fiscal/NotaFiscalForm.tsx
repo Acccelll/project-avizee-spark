@@ -8,7 +8,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { getUserFriendlyError, notifyError } from "@/utils/errorMessages";
+import { notifyError } from "@/utils/errorMessages";
 import { NFeForm } from "@/pages/fiscal/components/NFeForm";
 import type { NFeFormData } from "@/pages/fiscal/components/NFeForm/schema";
 import {

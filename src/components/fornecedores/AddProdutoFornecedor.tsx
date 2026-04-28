@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ProductAutocomplete } from "@/components/ui/ProductAutocomplete";
 import { toast } from "sonner";
-import { getUserFriendlyError, notifyError } from "@/utils/errorMessages";
+import { notifyError } from "@/utils/errorMessages";
 import { Plus, Loader2 } from "lucide-react";
 
 interface AddProdutoFornecedorProps {

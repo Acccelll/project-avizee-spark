@@ -5,7 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { toast } from "sonner";
-import { getUserFriendlyError, notifyError } from "@/utils/errorMessages";
+import { notifyError } from "@/utils/errorMessages";
 import { validateForm } from "@/lib/validationSchemas";
 import { cotacaoCompraSchema, validateCotacaoItems } from "@/lib/cotacaoCompraSchema";
 import { useGerarPedidoCompra } from "@/pages/comercial/hooks/useGerarPedidoCompra";

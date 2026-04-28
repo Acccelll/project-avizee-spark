@@ -21,7 +21,7 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { PermanentDeleteDialog } from "@/components/PermanentDeleteDialog";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { toast } from "sonner";
-import { getUserFriendlyError, notifyError } from "@/utils/errorMessages";
+import { notifyError } from "@/utils/errorMessages";
 
 interface Props {
   id: string;

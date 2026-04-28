@@ -16,7 +16,7 @@ import {
   listPedidosCompraParaVincular,
   vincularNFPedidoCompra,
 } from "@/services/fiscal.service";
-import { getUserFriendlyError, notifyError } from "@/utils/errorMessages";
+import { notifyError } from "@/utils/errorMessages";
 import { formatCurrency } from "@/lib/format";
 
 interface PedidoOption {

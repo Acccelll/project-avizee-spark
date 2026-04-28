@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { getUserFriendlyError, notifyError } from "@/utils/errorMessages";
+import { notifyError } from "@/utils/errorMessages";
 import { getEntregaStatusCfg } from "@/pages/logistica/logisticaStatus";
 import { DrawerStickyFooter } from "@/components/ui/DrawerStickyFooter";
 

@@ -30,7 +30,7 @@ import { useCrossModuleToast } from "@/hooks/useCrossModuleToast";
 import { CrossModuleActionDialog, type ImpactItem } from "@/components/CrossModuleActionDialog";
 import { statusOrcamento } from "@/lib/statusSchema";
 import { canApproveOrcamento, canConvertOrcamento, canSendOrcamento, getOrcamentoStatusLabel, normalizeOrcamentoStatus } from "@/lib/comercialWorkflow";
-import { getUserFriendlyError, notifyError } from "@/utils/errorMessages";
+import { notifyError } from "@/utils/errorMessages";
 import { useClientesRef } from "@/hooks/useReferenceCache";
 import { useActionLock } from "@/hooks/useActionLock";
 import { useUrlListState } from "@/hooks/useUrlListState";

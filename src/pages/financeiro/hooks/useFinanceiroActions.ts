@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { exportarParaExcel, exportarParaPdf } from "@/services/export.service";
 import { processarEstorno } from "@/services/financeiro.service";
-import { getUserFriendlyError, notifyError } from "@/utils/errorMessages";
+import { notifyError } from "@/utils/errorMessages";
 import { supabase } from "@/integrations/supabase/client";
 import type { Lancamento } from "@/types/domain";
 import type { LancamentoForm } from "@/pages/financeiro/types";

@@ -41,7 +41,7 @@ import { clienteFornecedorSchema, validateForm } from "@/lib/validationSchemas";
 import { SummaryCard } from "@/components/SummaryCard";
 import { UF_OPTIONS } from "@/constants/brasil";
 import { AddProdutoFornecedor } from "@/components/fornecedores/AddProdutoFornecedor";
-import { getUserFriendlyError, notifyError } from "@/utils/errorMessages";
+import { notifyError } from "@/utils/errorMessages";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { QuickAddSupplierModal } from "@/components/QuickAddSupplierModal";
 import { MobileQuickAddFAB } from "@/components/MobileQuickAddFAB";

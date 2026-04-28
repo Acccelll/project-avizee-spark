@@ -9,7 +9,7 @@ import { receberCompra } from "@/types/rpc";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/format";
 import { todayISO } from "@/lib/dateUtils";
-import { getUserFriendlyError, notifyError } from "@/utils/errorMessages";
+import { notifyError } from "@/utils/errorMessages";
 import { Loader2, PackageCheck } from "lucide-react";
 
 interface Props {

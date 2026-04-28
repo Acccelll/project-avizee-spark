@@ -20,7 +20,7 @@ import { MaskedInput } from "@/components/ui/MaskedInput";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { UF_OPTIONS } from "@/constants/brasil";
 import { toast } from "sonner";
-import { getUserFriendlyError, notifyError } from "@/utils/errorMessages";
+import { notifyError } from "@/utils/errorMessages";
 
 interface EnderecoEntrega {
   id: string;

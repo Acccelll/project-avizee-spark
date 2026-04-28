@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { getUserFriendlyError, notifyError } from "@/utils/errorMessages";
+import { notifyError } from "@/utils/errorMessages";
 import { INVALIDATION_KEYS } from "@/services/_invalidationKeys";
 import type { Socio, SocioParticipacao, SocioParametro, ApuracaoSocietaria, ApuracaoSocietariaItem, SocioRetirada } from "@/types/domain";
 import * as svc from "@/services/socios.service";

@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useRegistrarBaixa } from "@/pages/financeiro/hooks/useBaixaFinanceira";
 import { formatCurrency } from "@/lib/format";
-import { getUserFriendlyError, notifyError } from "@/utils/errorMessages";
+import { notifyError } from "@/utils/errorMessages";
 import { toast } from "sonner";
 
 interface ContaBancaria {

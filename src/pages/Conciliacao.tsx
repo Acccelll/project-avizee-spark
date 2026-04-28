@@ -33,7 +33,7 @@ import {
 import type { TransacaoExtrato } from "@/services/financeiro/ofxParser.service";
 import { exportarParaExcel } from "@/services/export.service";
 import type { Lancamento } from "@/types/domain";
-import { getUserFriendlyError, notifyError } from "@/utils/errorMessages";
+import { notifyError } from "@/utils/errorMessages";
 import { getOrigemKey, getOrigemLabel } from "@/lib/financeiro";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";

@@ -17,7 +17,7 @@ import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MaskedInput } from "@/components/ui/MaskedInput";
 import { cn } from "@/lib/utils";
-import { getUserFriendlyError, notifyError } from "@/utils/errorMessages";
+import { notifyError } from "@/utils/errorMessages";
 import { SectionShell } from "@/pages/admin/components/SectionShell";
 import { useEmpresaConfig, useAppConfig } from "@/pages/admin/hooks/useEmpresaConfig";
 import { uploadDbavizeeImage } from "@/services/storage.service";

@@ -31,7 +31,7 @@ import {
 import { statusRemessa } from "@/lib/statusSchema";
 import { toast } from "sonner";
 import { Save, Truck } from "lucide-react";
-import { getUserFriendlyError, notifyError } from "@/utils/errorMessages";
+import { notifyError } from "@/utils/errorMessages";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useBeforeUnloadGuard } from "@/hooks/useBeforeUnloadGuard";
 import { PageShell } from "@/components/PageShell";

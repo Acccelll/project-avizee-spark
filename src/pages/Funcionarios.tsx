@@ -24,7 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { createFolhaPagamento, gerarFinanceiroFolha } from "@/services/rh.service";
 import { toast } from "sonner";
 import { formatCurrency, formatDate } from "@/lib/format";
-import { getUserFriendlyError, notifyError } from "@/utils/errorMessages";
+import { notifyError } from "@/utils/errorMessages";
 import { useEffect } from "react";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { useEditDirtyForm } from "@/hooks/useEditDirtyForm";

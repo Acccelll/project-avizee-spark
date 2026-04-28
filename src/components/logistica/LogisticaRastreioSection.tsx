@@ -10,7 +10,7 @@ import {
   trackAndPersistEventos,
   fetchRemessasRastreioPorDocumento,
 } from "@/services/logistica/remessas.service";
-import { getUserFriendlyError, notifyError } from "@/utils/errorMessages";
+import { notifyError } from "@/utils/errorMessages";
 import { getRastreioStatusConsistencyBadge } from "@/pages/logistica/logisticaStatus";
 
 type Remessa = Tables<"remessas"> & {

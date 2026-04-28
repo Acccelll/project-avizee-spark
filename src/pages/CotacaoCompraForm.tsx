@@ -30,7 +30,7 @@ import { CotacaoCompraItensTable } from "@/components/compras/CotacaoCompraItens
 import { ArrowLeft, Plus, Save, X } from "lucide-react";
 import { PageShell } from "@/components/PageShell";
 import { toast } from "sonner";
-import { getUserFriendlyError, notifyError } from "@/utils/errorMessages";
+import { notifyError } from "@/utils/errorMessages";
 import { formatDate } from "@/lib/format";
 import {
   type CotacaoCompra,

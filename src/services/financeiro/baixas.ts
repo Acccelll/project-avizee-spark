@@ -14,7 +14,7 @@ import {
   calcularNovoSaldo,
   statusPosBaixa,
 } from "@/lib/financeiro";
-import { getUserFriendlyError, notifyError } from "@/utils/errorMessages";
+import { notifyError } from "@/utils/errorMessages";
 import { logger } from "@/lib/logger";
 import type { Database } from "@/integrations/supabase/types";
 

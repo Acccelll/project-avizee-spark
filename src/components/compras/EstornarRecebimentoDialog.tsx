@@ -9,7 +9,7 @@ import {
 } from "@/services/comercial/comprasLifecycle.service";
 import { toast } from "sonner";
 import { formatCurrency, formatDate } from "@/lib/format";
-import { getUserFriendlyError, notifyError } from "@/utils/errorMessages";
+import { notifyError } from "@/utils/errorMessages";
 import { Loader2, RotateCcw, AlertTriangle } from "lucide-react";
 import { StatusBadge } from "@/components/StatusBadge";
 

@@ -25,7 +25,7 @@ import {
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { exportarParaExcel } from "@/services/export.service";
 import type { Lancamento, ContaBancaria } from "@/types/domain";
-import { getUserFriendlyError, notifyError } from "@/utils/errorMessages";
+import { notifyError } from "@/utils/errorMessages";
 import { displayDescricao } from "@/lib/displayLancamento";
 import { getEffectiveStatus as libGetEffectiveStatus } from "@/lib/financeiro";
 import { useIsMobile } from "@/hooks/use-mobile";
