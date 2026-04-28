@@ -1,148 +1,101 @@
-# Filtros temporais mais claros + fim das colunas "Ações" duplicadas
 
-Três frentes que se reforçam visualmente: (1) deixar explícito se o período é "para trás" (histórico) ou "para frente" (vencimentos), (2) adicionar um seletor de **Mês fechado**, e (3) consolidar as colunas de Ações nas listas onde hoje aparecem duas.
+## Verificação da auditoria (read-only)
 
----
+Antes de propor correções, cruzei cada item com o código atual e o banco. Vários itens marcados como "CRÍTICO" **já estão resolvidos** — a auditoria foi feita contra um estado anterior. O plano abaixo separa o que é dívida técnica real do que é apenas atualização de documentação.
 
-## 1. Clareza de direção nos filtros temporais
+### Itens da auditoria que JÁ estão resolvidos (apenas atualizar docs)
 
-### Problema atual
-- Em **Lançamentos** e **Fluxo de Caixa**, os chips "7 / 15 / 30 / 90 dias" são *forward-looking* (vencimentos próximos), via `periodToFinancialRange`.
-- Em **Pedidos**, **Orçamentos**, **Estoque** os mesmos chips são *backward-looking* (emissão/movimentação nos últimos N dias), via `periodToDateFrom`.
-- Visualmente são idênticos — o usuário não sabe para que lado o tempo "anda".
-
-### Proposta: contrato visual de direção
-
-Acrescentar uma prop `direction` ao `PeriodFilter`:
-
-```
-direction: "past" | "future" | "neutral"   // default "past"
-```
-
-Efeitos visuais (pequenos, sem poluir):
-- **past**: ícone `History` (ou `ArrowLeft`) cinza à esquerda dos chips, label do agrupador "Período (histórico)".
-- **future**: ícone `CalendarClock` (ou `ArrowRight`), label "Período (vencimentos)".
-- **neutral**: ícone `Calendar` atual, label "Período".
-- Os próprios chips **mudam de rótulo** conforme a direção, para tirar a ambiguidade:
-  - past → "Últimos 7d", "Últimos 30d", "Este ano até hoje"
-  - future → "Próximos 7d", "Próximos 30d", "Vence hoje", "Vencidos"
-- Tooltip no hover do chip explicita: "Vencimentos entre hoje e DD/MM" ou "Movimentos entre DD/MM e hoje".
-
-Mapeamento de páginas:
-
-| Página | Direção | Fonte de dados |
+| # | Item | Estado real |
 |---|---|---|
-| Lançamentos, Fluxo de Caixa, Conciliação (vencimentos) | future | `data_vencimento` |
-| Pedidos, Orçamentos, Cotações de Compra, Pedidos de Compra | past | `data_emissao` / `data_cotacao` |
-| Estoque (movimentação) | past | `data_movimento` |
-| Auditoria | past (range only) | `created_at` |
-| Dashboard / Relatórios | past | conforme widget |
+| 1 | RPCs `confirmar_nota_fiscal` / `estornar_nota_fiscal` ausentes | ✅ Existem no banco. `useNotaFiscalLifecycle.ts` chama `supabase.rpc("confirmar_nota_fiscal", …)`. As funções TS antigas foram removidas (comentário explícito em `fiscal.service.ts`). |
+| 4 | Race condition em `quantidade_faturada` (sem `FOR UPDATE`) | ✅ `gerar_nf_de_pedido` já usa `pg_advisory_xact_lock(hashtext(p_pedido_id))` + `SELECT … FROM ordens_venda WHERE id=… FOR UPDATE` + bloqueio por `status_faturamento='faturado'`. |
+| ALTA | 153 console.* em produção | 🟡 Parcial: `vite.config.ts` faz `esbuild.drop: ["console","debugger"]` em produção e `src/lib/logger.ts` existe. Mas ~25 arquivos (Orcamentos, OrcamentoForm, Estoque, Fornecedores, Funcionarios, workbookService, financeiro/estornos, financeiro/cancelamentos, freteSimulacao, etc.) ainda usam `console.*` direto em vez do logger — em dev poluem o console e em prod somem só por causa do `drop`. |
 
-Atualizar `mem://produto/contrato-de-periodos` para registrar a doutrina de direção e os novos rótulos.
+→ **Ação**: atualizar `src/services/CONTRACTS.md` (remover bullets 1 e 2 de "Decisões pendentes") e migrar os `console.*` restantes para `logger`.
 
----
+### Itens reais a corrigir nesta entrega
 
-## 2. Novo filtro "Mês"
+#### 1. ErrorBoundary per-route (crashes silenciosos)
 
-### Comportamento
-Novo controle ao lado do `PeriodFilter`, chamado **`MonthFilter`**:
-- Botão default mostra o mês corrente (ex.: "Abr/2026").
-- Popover com seletor compacto de mês/ano (grid de 12 meses + setas de ano), no estilo do Calendar do shadcn.
-- Atalhos: "Mês atual", "Mês anterior", "Próximo mês", "Limpar".
-- Quando aplicado:
-  - **future direction**: filtra por vencimentos dentro daquele mês (1º → último dia).
-  - **past direction**: filtra por emissão/movimento dentro daquele mês.
-- Ao escolher um mês, o `PeriodFilter` desliga seus chips (vão a `outline`) — só uma fonte de verdade temporal por vez.
-- Ao clicar num chip de período, o `MonthFilter` volta ao estado vazio.
+Hoje há **um único** `<ErrorBoundary>` no nível de `<Routes>` em `App.tsx`. Um erro em qualquer página derruba o app inteiro.
 
-### Onde aplicar
-- **Imediato (agora):** Lançamentos, Fluxo de Caixa, Conciliação, Pedidos, Orçamentos, Cotações de Compra, Pedidos de Compra, Estoque (movimentação), Relatórios.
-- **Não aplicar**: Auditoria (já usa range customizado livre); Dashboard (período é global).
+**Correção**: adicionar `<ErrorBoundary>` dentro do `LazyPage` wrapper já existente, de forma transparente — uma única edição em `App.tsx` (no componente `LazyPage`) cobre todas as 45+ rotas sem repetição.
 
-Convenção de URL: `?mes=YYYY-MM` quando definido; remove `de`/`ate` enquanto ativo.
-
----
-
-## 3. Colunas "Ações" duplicadas
-
-### Diagnóstico
-O `DataTable` já gera **automaticamente** uma coluna "Ações" (à esquerda) com Visualizar / Editar / Excluir sempre que `onView/onEdit/onDelete` é passado. Algumas telas adicionam **uma segunda coluna manual** também rotulada "Ações" para botões contextuais — daí o usuário ver duas colunas com o mesmo título.
-
-Ocorrências confirmadas:
-- `src/pages/financeiro/config/financeiroColumns.tsx` → "Baixar"
-- `src/pages/Orcamentos.tsx` → "Enviar / Aprovar / Gerar Pedido"
-- `src/pages/Pedidos.tsx`
-- `src/pages/Logistica.tsx` (Entregas e Recebimentos — duas colunas chamadas "Ações" cada)
-- `src/components/compras/PedidoCompraTable.tsx`
-- `src/pages/Relatorios.tsx`
-
-### Proposta: uma única coluna "Ações"
-
-Estender o `DataTable` com uma prop:
-```
-rowExtraActions?: (item) => ReactNode   // botões contextuais
+```tsx
+// LazyPage atual envolve children em <Suspense>; vamos compor:
+const LazyPage = ({ children }) => (
+  <ErrorBoundary>
+    <Suspense fallback={<PageLoader />}>{children}</Suspense>
+  </ErrorBoundary>
+);
 ```
 
-Renderização: a coluna automática passa a ser `[ Visualizar ] [ Editar ] [ ...rowExtraActions ] [ ⋮ overflow ]`.
+Resultado: um erro em `/fiscal` mostra a tela de erro do `ErrorBoundary` (já tem botão "Recarregar" + "Voltar ao Dashboard") sem derrubar a sidebar, header ou outras rotas em background.
 
-Regras visuais:
-- Os 2 botões contextuais mais relevantes ficam visíveis (ex.: **Baixar** em Lançamentos, **Gerar Pedido** em Orçamentos).
-- Ações terciárias colapsam num menu `⋮` (DropdownMenu) à direita, evitando linha "balão".
-- Ícone-only com `title`+`aria-label` no desktop; rótulo curto quando há espaço.
-- Mobile já usa `mobilePrimaryAction` no card — mantém-se inalterado.
+#### 2. Migrar `console.*` remanescentes para `logger`
 
-Migração página a página:
-1. Remover a 2ª coluna manual `acoes_*`.
-2. Mover o conteúdo para `rowExtraActions={...}`.
-3. Manter a ordem visual: Visualizar → Editar → Ação primária do domínio (Baixar/Aprovar/Gerar Pedido/Receber) → ⋮.
+Lista alvo (todos os arquivos onde `rg "^\s*console\." src/services src/pages` retornou hits):
 
-Atualizar `mem://tech/design-system-fontes-canonicas` com o contrato `rowExtraActions` (proibir nova coluna manual chamada "Ações").
+- `src/services/workbookService.ts` (3)
+- `src/services/financeiro/estornos.ts` (1)
+- `src/services/financeiro/cancelamentos.ts` (1)
+- `src/services/orcamentos.service.ts` (1)
+- `src/services/freteSimulacao.service.ts` (1)
+- `src/pages/Orcamentos.tsx`, `OrcamentoForm.tsx`, `Estoque.tsx`, `Fornecedores.tsx`, `Funcionarios.tsx`, `GruposEconomicos.tsx`, `NotFound.tsx`
 
----
+Substituição mecânica: `console.error(` → `logger.error(`, `console.warn(` → `logger.warn(`. Adicionar `import { logger } from "@/lib/logger";` onde faltar.
 
-## Resumo visual
+#### 3. Tornar ExcelJS / pptxgenjs / jsPDF dinâmicos
 
-```text
-ANTES (Lançamentos)
-| Ações | Status | Vencimento | Cliente | ... | Ações |
-| 👁 ✏ 🗑 | aberto | 30/04 | ACME | ... | [Baixar] |
+Auditar `src/services/workbookService.ts`, `src/services/apresentacaoService.ts` e qualquer uso de `jspdf`. Onde houver `import ExcelJS from "exceljs"` no topo do arquivo, mover para dentro da função:
 
-DEPOIS
-| Ações                       | Status | Vencimento | Cliente | ... |
-| 👁 ✏ [Baixar] ⋮             | aberto | 30/04      | ACME    | ... |
-
-ANTES (filtros)
-[📅] [Hoje] [7d] [30d] [90d]   ← past? future? indistinguível
-
-DEPOIS (Lançamentos — future)
-[⏩ Período (vencimentos)] [Vence hoje] [Próx. 7d] [Próx. 30d] [Vencidos]   [📆 Abr/2026 ▾]
-
-DEPOIS (Pedidos — past)
-[⏪ Período (emissão)] [Hoje] [Últ. 7d] [Últ. 30d] [Este ano]   [📆 Abr/2026 ▾]
+```ts
+async function exportarWorkbook(...) {
+  const ExcelJS = (await import("exceljs")).default;
+  // ...
+}
 ```
 
----
+Isso retira ~3MB do chunk principal. Como as páginas que consomem já são lazy, o ganho é direto no first-load das páginas leves (Dashboard, Login).
 
-## Detalhes técnicos
+#### 4. Atualizar `CONTRACTS.md`
 
-**Arquivos principais a tocar**
-- `src/components/filters/PeriodFilter.tsx` — adicionar `direction`, ícone e rótulos dinâmicos.
-- `src/components/filters/periodTypes.ts` — labels por direção (helper `getPeriodLabels(direction)`).
-- `src/components/filters/MonthFilter.tsx` — **novo** componente (popover + grid de meses).
-- `src/lib/periodFilter.ts` — adicionar `monthToRange(yyyyMm)`; manter `periodToDateFrom`/`periodToFinancialRange`.
-- `src/components/DataTable.tsx` — nova prop `rowExtraActions`; cabeçalho único "Ações".
-- Páginas que migram (remover coluna manual + passar `rowExtraActions`):
-  Financeiro (`financeiroColumns.tsx`), `Orcamentos.tsx`, `Pedidos.tsx`, `Logistica.tsx`, `Relatorios.tsx`, `compras/PedidoCompraTable.tsx`, `compras/CotacaoCompraFilters.tsx` (substituir os dois `<input type=date>` pelo `MonthFilter`+`PeriodFilter` no padrão).
-- Páginas que aplicam `direction` correta no `PeriodFilter`:
-  Financeiro, FluxoCaixa, Conciliação → `direction="future"`.
-  Pedidos, Orcamentos, Estoque, CotacoesCompra, PedidosCompra → `direction="past"`.
-- Memórias a atualizar:
-  - `mem://produto/contrato-de-periodos` (direção + MonthFilter).
-  - `mem://tech/design-system-fontes-canonicas` (contrato de Ações única).
+Remover/marcar como ✅ as duas pendências #1 e #2 da seção "Decisões pendentes". Manter #3 (Realtime cross-módulo) como pendente real.
 
-**Compatibilidade**
-- `PeriodFilter` mantém API legada (string `Period`); `direction` é opcional com default `"past"` (preservando comportamento de Pedidos/Orçamentos).
-- Páginas financeiras passam explicitamente `direction="future"` — a função de range continua sendo `periodToFinancialRange`.
-- `rowExtraActions` é opcional; tabelas que não usarem ficam idênticas.
+### Itens grandes que ficam fora desta entrega (justificativa)
 
-**Sem mudança de stack, sem refactor amplo.** Apenas extensões de componentes existentes + remoção das colunas duplicadas + criação do `MonthFilter`.
+São válidos, mas exigem ondas dedicadas — não cabem com qualidade na mesma mensagem que as correções acima:
+
+- **123 `as any`** e **489 `as Type`**: requer auditoria por arquivo + ativar regra ESLint, com risco de regressão. Tratar em PR isolado.
+- **39 páginas com `supabase.from()` direto**: o roteiro já existe em `docs/services-migration-plan.md`. Continuar pelas Fases 1–3 lá descritas — não combinar com refactor visual.
+- **Cobertura de testes (8,6% → 25%)**: meta de sprint, não de PR.
+- **Realtime cross-módulo, sunset `_legacy/`, split de `types.ts`, CI para `check:schema-drift`, budget de bundle, TTL no `syncQueue`**: cada um vira issue/PR próprio.
+- **Refactor de `OrcamentoForm.tsx` (1.768 linhas)**: combinar com migração de service (Fase 1 do plano).
+- **Zod nos formulários restantes**: 5 forms — onda dedicada.
+
+## Arquivos modificados nesta entrega
+
+| Arquivo | Mudança |
+|---|---|
+| `src/App.tsx` | Envolver `LazyPage` com `<ErrorBoundary>` |
+| `src/services/CONTRACTS.md` | Remover pendências #1 e #2 já resolvidas |
+| `src/services/workbookService.ts` | `console` → `logger`; dynamic import `exceljs` |
+| `src/services/apresentacaoService.ts` | dynamic import `pptxgenjs` (se aplicável) |
+| `src/services/financeiro/estornos.ts` | `console` → `logger` |
+| `src/services/financeiro/cancelamentos.ts` | `console` → `logger` |
+| `src/services/orcamentos.service.ts` | `console` → `logger` |
+| `src/services/freteSimulacao.service.ts` | `console` → `logger` |
+| `src/pages/Orcamentos.tsx`, `OrcamentoForm.tsx`, `Estoque.tsx`, `Fornecedores.tsx`, `Funcionarios.tsx`, `GruposEconomicos.tsx`, `NotFound.tsx` | `console` → `logger` |
+
+Sem migrações de banco. Sem mudança de API pública. Risco baixo.
+
+## Resumo
+
+Quatro entregas concretas:
+
+1. **ErrorBoundary por rota** via wrapper `LazyPage` (cobre 45+ rotas com 1 edição).
+2. **Migração de ~13 arquivos** de `console.*` para `logger`.
+3. **Lazy load** de `exceljs` / `pptxgenjs` / `jspdf` (chunks dinâmicos).
+4. **Atualizar `CONTRACTS.md`** removendo pendências fiscais já resolvidas no banco.
+
+Os demais itens da auditoria (especialmente os "CRÍTICOS" #1 e #4) **já estavam resolvidos** no código atual e estão apenas refletidos incorretamente na documentação.
