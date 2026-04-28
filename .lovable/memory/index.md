@@ -63,3 +63,4 @@
 - [Camada services única](mem://tech/camada-services-unica) — Doutrina pós-Onda 6: src/services/ é única autoridade para from/rpc/storage; lista de exceções legítimas (auth, functions.invoke, realtime singletons, helper callRpc)
 - [Auditoria exhaustive-deps](mem://tech/auditoria-exhaustive-deps) — Todas as 32 supressões revisadas e documentadas inline com justificativa após "--"
 - [Dynamic imports libs pesadas](mem://tech/dynamic-imports-libs-pesadas) — ExcelJS e pptxgenjs sempre via `await import()` nos entry points dos services
+- [Notificações Proativas no Sidebar](mem://features/notificacoes-proativas-sidebar) — Badges agregando vencidos, estoque baixo, orçamentos, NF rejeitada e DLQ de e-mail (admin-only) via realtime

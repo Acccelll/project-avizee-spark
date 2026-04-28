@@ -33,12 +33,16 @@ export function useSidebarBadges(): SidebarBadges {
       financeiro: { count: financeiroTotal, tone: financeiroTone },
       estoque: { count: alerts.estoqueBaixo, tone: 'danger' },
       comercial: { count: alerts.orcamentosPendentes, tone: 'warning' },
+      fiscal: { count: alerts.nfRejeitadas, tone: 'danger' },
+      administracao: { count: alerts.filaEmailDLQ, tone: 'danger' },
     };
 
     const itemBadges: Record<string, BadgeInfo> = {
       '/orcamentos': { count: alerts.orcamentosPendentes, tone: 'warning' },
       '/financeiro': { count: financeiroTotal, tone: financeiroTone },
       '/estoque': { count: alerts.estoqueBaixo, tone: 'danger' },
+      '/fiscal': { count: alerts.nfRejeitadas, tone: 'danger' },
+      '/administracao': { count: alerts.filaEmailDLQ, tone: 'danger' },
     };
 
     const secondsSinceSync = alerts.lastUpdatedAt
