@@ -37,11 +37,6 @@ export const orcamentosHelp: HelpEntry = {
   ],
   tour: [
     {
-      target: 'orcamentos.novoBtn',
-      title: 'Criar novo orçamento',
-      body: 'Inicia um rascunho. Você pode salvar e voltar depois — nada é enviado ao cliente automaticamente.',
-    },
-    {
       target: 'orcamentos.filtros',
       title: 'Filtros e busca',
       body: 'Filtre por status, cliente, vendedor e período. As preferências de filtro ficam salvas por usuário.',
@@ -52,5 +47,5 @@ export const orcamentosHelp: HelpEntry = {
       body: 'Clique em uma linha para abrir o drawer com detalhes, ações e histórico. As cores de status seguem o padrão do ERP.',
     },
   ],
-  version: 1,
+  version: 2,
 };

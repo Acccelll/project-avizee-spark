@@ -39,5 +39,5 @@ export const logisticaHelp: HelpEntry = {
       body: 'Clique em uma linha para ver detalhes e ações específicas do tipo.',
     },
   ],
-  version: 1,
+  version: 2,
 };

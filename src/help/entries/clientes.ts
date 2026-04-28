@@ -31,9 +31,9 @@ export const clientesHelp: HelpEntry = {
   ],
   tour: [
     {
-      target: 'clientes.novoBtn',
-      title: 'Novo cliente',
-      body: 'Cadastre PF ou PJ. Informe o documento e os demais dados serão sugeridos automaticamente quando possível.',
+      target: 'clientes.filtros',
+      title: 'Filtros e busca',
+      body: 'Filtre por status, tipo (PF/PJ) e grupo econômico. Busque por nome, CNPJ, e-mail ou cidade.',
     },
     {
       target: 'clientes.tabela',
@@ -41,5 +41,5 @@ export const clientesHelp: HelpEntry = {
       body: 'Clique em uma linha para abrir o drawer com tabs: Geral, Endereços, Contatos, Comercial, Histórico.',
     },
   ],
-  version: 1,
+  version: 2,
 };

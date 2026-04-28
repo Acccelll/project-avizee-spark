@@ -32,9 +32,9 @@ export const financeiroHelp: HelpEntry = {
   ],
   tour: [
     {
-      target: 'financeiro.tipoTabs',
-      title: 'Receber × Pagar',
-      body: 'Alterne entre contas a receber e a pagar. Cada aba tem ações específicas.',
+      target: 'financeiro.filtros',
+      title: 'Filtros e busca',
+      body: 'Use os filtros de Tipo (Receber/Pagar), Status, Banco e Origem para refinar a lista. A busca cobre descrição, pessoa, banco e forma de pagamento.',
     },
     {
       target: 'financeiro.tabela',
@@ -42,5 +42,5 @@ export const financeiroHelp: HelpEntry = {
       body: 'Cores indicam status. Use ações na linha para baixar, estornar, editar ou cancelar.',
     },
   ],
-  version: 1,
+  version: 2,
 };
