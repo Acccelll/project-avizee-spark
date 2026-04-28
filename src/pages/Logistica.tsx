@@ -713,6 +713,7 @@ export default function Logistica() {
                 <Input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} className="h-9 w-[140px] text-xs" title="Prev. entrega até" />
               </div>
             </AdvancedFilterBar>
+            <div data-help-id="logistica.tabela">
             <DataTable
               columns={entregaColumns}
               data={filteredEntregas}
