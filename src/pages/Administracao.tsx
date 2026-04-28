@@ -12,7 +12,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Activity, Building2, Database, HardDrive, Mail, Menu, Plug, Bell, Receipt, Shield, Users, Wallet, KeyRound } from "lucide-react";
+import { Activity, Building2, Database, HardDrive, Mail, Menu, Plug, Bell, Receipt, Shield, Users, Wallet, KeyRound, Webhook } from "lucide-react";
 import { ModulePage } from "@/components/ModulePage";
 import { Button } from "@/components/ui/button";
 import {
@@ -34,6 +34,7 @@ import { FiscalSection } from "@/pages/admin/sections/FiscalSection";
 import { FinanceiroSection } from "@/pages/admin/sections/FinanceiroSection";
 import { PerfisCatalogoSection } from "@/pages/admin/sections/PerfisCatalogoSection";
 import { SaudeSistemaSection } from "@/pages/admin/sections/SaudeSistemaSection";
+import { WebhooksSection } from "@/pages/admin/sections/WebhooksSection";
 
 /** Seções renderizadas internamente (não inclui atalhos externos). */
 const VALID_SECTION_KEYS = new Set([
@@ -44,6 +45,7 @@ const VALID_SECTION_KEYS = new Set([
   "email",
   "integracoes",
   "notificacoes",
+  "webhooks",
   "backup",
   "fiscal",
   "financeiro",
@@ -72,6 +74,7 @@ const sideNavGroups: SideNavGroup[] = [
       { key: "email", label: "E-mails", icon: Mail },
       { key: "integracoes", label: "Integrações", icon: Plug },
       { key: "notificacoes", label: "Notificações globais", icon: Bell },
+      { key: "webhooks", label: "Webhooks de saída", icon: Webhook },
       { key: "backup", label: "Backup", icon: HardDrive },
       { key: "fiscal", label: "Parâmetros Fiscais", icon: Receipt },
       { key: "financeiro", label: "Parâmetros Financeiros", icon: Wallet },
@@ -195,6 +198,8 @@ function SectionContent({ section }: { section: string }) {
       return <IntegracoesSection />;
     case "notificacoes":
       return <NotificacoesSection />;
+    case "webhooks":
+      return <WebhooksSection />;
     case "backup":
       return <BackupSection />;
     case "fiscal":
