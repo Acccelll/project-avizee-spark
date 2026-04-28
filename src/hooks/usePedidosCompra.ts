@@ -151,14 +151,7 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
     refetch: refetchPedidos,
   } = useQuery({
     queryKey: ["pedidos_compra"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("pedidos_compra")
-        .select("*, fornecedores(nome_razao_social, cpf_cnpj)")
-        .eq("ativo", true)
-        .order("id", { ascending: false });
-      if (error) throw error;
-      return (data || []) as PedidoCompra[];
-    },
+    queryFn: async () => (await pcs.listPedidosCompra()) as PedidoCompra[],
     select: (data) => data.map((pedido) => ({
       ...pedido,
       status: canonicalPedidoStatus(pedido.status),
@@ -169,37 +162,17 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
 
   const { data: fornecedoresRaw = [], isLoading: fornecedoresLoading } = useQuery({
     queryKey: ["pedidos_compra_fornecedores"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("fornecedores")
-        .select("id, nome_razao_social, cpf_cnpj, ativo")
-        .order("id", { ascending: false });
-      if (error) throw error;
-      return (data || []) as FornecedorOptionRow[];
-    },
+    queryFn: async () => (await pcs.listFornecedoresParaPedido()) as FornecedorOptionRow[],
   });
 
   const { data: produtosRaw = [], isLoading: produtosLoading } = useQuery({
     queryKey: ["pedidos_compra_produtos"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("produtos")
-        .select("id, nome, codigo_interno, preco_venda, preco_custo, unidade_medida, ativo")
-        .eq("ativo", true)
-        .order("id", { ascending: false });
-      if (error) throw error;
-      return (data || []) as ProdutoOptionRow[];
-    },
+    queryFn: async () => (await pcs.listProdutosParaPedido()) as ProdutoOptionRow[],
   });
 
   const { data: formasPagamentoRaw = [] } = useQuery({
     queryKey: ["pedidos_compra_formas_pagamento"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("formas_pagamento")
-        .select("id, descricao")
-        .eq("ativo", true)
-        .order("descricao", { ascending: true });
-      if (error) throw error;
-      return (data || []) as { id: string; descricao: string }[];
-    },
+    queryFn: () => pcs.listFormasPagamentoParaPedido(),
   });
 
   const pedidos = pedidosRaw;
@@ -266,31 +239,19 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
     setDrawerOpen(true);
 
     const [itensResult, estResult] = await Promise.all([
-      supabase.from("pedidos_compra_itens")
-        .select("*, produtos(nome, codigo_interno)")
-        .eq("pedido_compra_id", p.id),
-      supabase.from("estoque_movimentos")
-        .select("*, produtos(nome, codigo_interno)")
-        .eq("documento_id", p.id)
-        .eq("documento_tipo", "pedido_compra"),
+      pcs.listPedidoCompraItens(String(p.id)),
+      pcs.listEstoqueMovimentosPorPedido(p.id),
     ]);
 
-    setViewItems((itensResult.data || []) as unknown as PedidoItemRow[]);
-    setViewEstoque((estResult.data as EstoqueMovimentoRow[]) || []);
+    setViewItems((itensResult || []) as unknown as PedidoItemRow[]);
+    setViewEstoque((estResult as EstoqueMovimentoRow[]) || []);
 
     if (p.cotacao_compra_id) {
-      const { data: cot } = await supabase.from("cotacoes_compra")
-        .select("id, numero, status, data_cotacao")
-        .eq("id", String(p.cotacao_compra_id))
-        .single();
+      const cot = await pcs.getCotacaoResumoSimples(String(p.cotacao_compra_id));
       setViewCotacao(cot || null);
     }
 
-    const { data: finLanc } = await supabase
-      .from("financeiro_lancamentos")
-      .select("id, descricao, valor, status, data_vencimento, tipo")
-      .eq("pedido_compra_id", String(p.id))
-      .eq("ativo", true);
+    const finLanc = await pcs.listFinanceiroPorPedido(p.id);
     setViewFinanceiro((finLanc as FinanceiroLancRow[]) || []);
   };
 
@@ -331,24 +292,12 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
         // do SEQUENCE — risco de duplicidade entre usuários).
         const rpcNumero = await proximoNumeroPedidoCompra();
         if (!rpcNumero) throw new Error("Não foi possível gerar o número do pedido. Tente novamente.");
-        const { data: newP, error } = await supabase.from("pedidos_compra")
-          .insert({ numero: rpcNumero, ...payload })
-          .select()
-          .single();
-        if (error) throw error;
-        pedidoId = newP.id;
+        const newP = await pcs.insertPedidoCompra({ numero: rpcNumero, ...payload });
+        pedidoId = (newP as { id: string | number }).id;
       } else if (selected) {
         // Sequential: evita apagar itens caso o update do cabeçalho falhe.
-        const { error: updErr } = await supabase
-          .from("pedidos_compra")
-          .update(payload)
-          .eq("id", selected.id);
-        if (updErr) throw updErr;
-        const { error: delErr } = await supabase
-          .from("pedidos_compra_itens")
-          .delete()
-          .eq("pedido_compra_id", selected.id);
-        if (delErr) throw delErr;
+        await pcs.updatePedidoCompra(selected.id, payload);
+        await pcs.deletePedidoCompraItens(selected.id);
       }
 
       if (items.length > 0 && pedidoId) {
@@ -363,11 +312,12 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
           }));
 
         if (itemsPayload.length > 0) {
-          const { error: itemsError } = await supabase.from("pedidos_compra_itens").insert(itemsPayload);
-          if (itemsError) {
+          try {
+            await pcs.insertPedidoCompraItens(itemsPayload);
+          } catch (itemsError) {
             if (mode === "create" && pedidoId) {
               // rollback manual do cabeçalho criado neste submit.
-              await supabase.from("pedidos_compra").delete().eq("id", pedidoId);
+              await pcs.deletePedidoCompraHard(pedidoId);
             }
             throw itemsError;
           }
@@ -389,14 +339,12 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
   };
 
   const darEntrada = async (p: PedidoCompra) => {
-    const { data: itens, error: itensError } = await supabase
-      .from("pedidos_compra_itens")
-      .select("id, produto_id, quantidade, quantidade_recebida, preco_unitario")
-      .eq("pedido_compra_id", p.id);
-
-    if (itensError) {
-      console.error("[darEntrada] fetch itens", itensError);
-      toast.error(getUserFriendlyError(itensError));
+    let itens: Awaited<ReturnType<typeof pcs.listPedidoItensParaRecebimento>> = [];
+    try {
+      itens = await pcs.listPedidoItensParaRecebimento(p.id);
+    } catch (err) {
+      console.error("[darEntrada] fetch itens", err);
+      toast.error(getUserFriendlyError(err));
       return;
     }
     if (!itens || itens.length === 0) {
@@ -466,9 +414,8 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
 
   const solicitarAprovacao = async (p: PedidoCompra) => {
     try {
-      const { data, error } = await supabase.rpc("solicitar_aprovacao_pedido", { p_pedido_id: String(p.id) });
-      if (error) throw error;
-      const status = (data as { status?: string } | null)?.status;
+      const data = await pcs.solicitarAprovacaoPedido(p.id);
+      const status = data?.status;
       if (status === "aguardando_aprovacao") {
         toast.success("Pedido enviado para aprovação.");
       } else {
@@ -511,9 +458,7 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
 
   const marcarEnviado = async (p: PedidoCompra) => {
     try {
-      await supabase.from("pedidos_compra")
-        .update({ status: "enviado_ao_fornecedor" })
-        .eq("id", p.id);
+      await pcs.marcarPedidoEnviado(p.id);
       toast.success("Pedido marcado como enviado ao fornecedor.");
       await refreshAll();
     } catch (err: unknown) {
@@ -541,7 +486,7 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
 
   const deleteSelected = async () => {
     if (!selected) return;
-    await supabase.from("pedidos_compra").update({ ativo: false }).eq("id", selected.id);
+    await pcs.softDeletePedidoCompra(selected.id);
     await refreshAll();
     toast.success("Removido!");
   };
