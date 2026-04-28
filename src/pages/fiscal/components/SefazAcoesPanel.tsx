@@ -45,6 +45,10 @@ export function SefazAcoesPanel({ nf, buildNFeData, buildDanfeData }: SefazAcoes
   const [cceOpen, setCceOpen] = useState(false);
   const [justificativa, setJustificativa] = useState("");
   const [gerandoDanfe, setGerandoDanfe] = useState(false);
+  const [emailOpen, setEmailOpen] = useState(false);
+  const [emailDestino, setEmailDestino] = useState("");
+  const [mensagemEmail, setMensagemEmail] = useState("");
+  const [enviandoEmail, setEnviandoEmail] = useState(false);
 
   const { data: certificado, isLoading: carregandoCert } = useQuery({
     queryKey: ["certificado-digital"],
