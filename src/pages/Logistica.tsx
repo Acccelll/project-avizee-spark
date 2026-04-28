@@ -9,7 +9,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import { StatusBadge } from "@/components/StatusBadge";
 import { SummaryCard } from "@/components/SummaryCard";
@@ -36,7 +35,20 @@ import { useRecebimentos } from "@/pages/logistica/hooks/useRecebimentos";
 import type { Recebimento } from "@/pages/logistica/hooks/useRecebimentos";
 import { useTransicionarRemessa, type RemessaTransition } from "@/pages/logistica/hooks/useTransicionarRemessa";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
-import { trackAndPersistEventos } from "@/services/logistica/remessas.service";
+import {
+  trackAndPersistEventos,
+  updateStatusTransporte,
+  findRemessaByOvAndTracking,
+  listEventos as listRemessaEventos,
+  addEvento as addRemessaEvento,
+  listRemessaIdsByOv,
+} from "@/services/logistica/remessas.service";
+import {
+  listClientesAtivos,
+  listTransportadorasAtivas,
+  listPedidosCompraAtivos,
+  listNotasFiscaisAtivas,
+} from "@/services/logistica/lookups.service";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import {
   ENTREGA_STATUS_ORDER,
@@ -153,17 +165,18 @@ export default function Logistica() {
 
   // ─── Load lookup tables for remessa form ───
   useEffect(() => {
-    supabase.from("clientes").select("id,nome_razao_social").eq("ativo", true).then(({ data: d }) => setClientes(d ?? []));
-    supabase.from("transportadoras").select("id,nome_razao_social").eq("ativo", true).then(({ data: d }) => setTransportadorasLookup(d ?? []));
-    supabase.from("pedidos_compra").select("id, numero").eq("ativo", true).then(({ data: d }) => setPedidosCompra(d ?? []));
-    supabase.from("notas_fiscais").select("id, numero, tipo").eq("ativo", true).then(({ data: d }) => setNotasFiscais(d ?? []));
+    void listClientesAtivos().then(setClientes).catch(() => setClientes([]));
+    void listTransportadorasAtivas().then(setTransportadorasLookup).catch(() => setTransportadorasLookup([]));
+    void listPedidosCompraAtivos().then(setPedidosCompra).catch(() => setPedidosCompra([]));
+    void listNotasFiscaisAtivas().then(setNotasFiscais).catch(() => setNotasFiscais([]));
   }, []);
 
   // Load events when remessa drawer opens
   useEffect(() => {
     if (remSelected && remDrawerOpen) {
-      supabase.from("remessa_eventos").select("*").eq("remessa_id", remSelected.id).order("data_hora", { ascending: false })
-        .then(({ data: d }) => setEventos((d ?? []) as RemessaEvento[]));
+      void listRemessaEventos(remSelected.id)
+        .then(setEventos)
+        .catch(() => setEventos([]));
     }
   }, [remSelected, remDrawerOpen]);
 
@@ -325,25 +338,27 @@ export default function Logistica() {
       if (!ok) return;
     }
     setUpdatingEntregaId(entrega.id);
-    const { data: remessas, error: remessasError } = await supabase
-      .from("remessas")
-      .select("id")
-      .eq("ordem_venda_id", entrega.id)
-      .eq("ativo", true);
-    if (remessasError) {
-      toast.error(getUserFriendlyError(remessasError));
+    let remessaIds: string[];
+    try {
+      remessaIds = await listRemessaIdsByOv(entrega.id);
+    } catch (err) {
+      toast.error(getUserFriendlyError(err));
       setUpdatingEntregaId(null);
       return;
     }
-    const remessaIds = (remessas ?? []).map((r) => r.id);
     if (remessaIds.length === 0) { toast.warning("Nenhuma remessa encontrada para o pedido."); setUpdatingEntregaId(null); return; }
     if (remessaIds.length > 1) {
       toast.warning(MULTI_REMESSA_STATUS_MESSAGE);
       setUpdatingEntregaId(null);
       return;
     }
-    const { error } = await supabase.from("remessas").update({ status_transporte: status }).eq("id", remessaIds[0]);
-    if (error) { toast.error(getUserFriendlyError(error)); setUpdatingEntregaId(null); return; }
+    try {
+      await updateStatusTransporte(remessaIds[0], status);
+    } catch (err) {
+      toast.error(getUserFriendlyError(err));
+      setUpdatingEntregaId(null);
+      return;
+    }
     toast.success("Status atualizado");
     setUpdatingEntregaId(null);
   };
@@ -369,18 +384,12 @@ export default function Logistica() {
       toast.warning("Entrega sem código de rastreio");
       return;
     }
-    const { data, error } = await supabase
-      .from("remessas")
-      .select("id")
-      .eq("ordem_venda_id", entrega.id)
-      .eq("ativo", true)
-      .eq("codigo_rastreio", entrega.codigo_rastreio)
-      .maybeSingle();
-    if (error) {
-      toast.error(getUserFriendlyError(error));
-      return;
+    try {
+      const ref = await findRemessaByOvAndTracking(entrega.id, entrega.codigo_rastreio);
+      setTrackingTarget({ codigo: entrega.codigo_rastreio, remessaId: ref?.id ?? "" });
+    } catch (err) {
+      toast.error(getUserFriendlyError(err));
     }
-    setTrackingTarget({ codigo: entrega.codigo_rastreio, remessaId: data?.id ?? "" });
   };
 
   const openViewRemessa = (r: Remessa) => { setRemSelected(r); setRemDrawerOpen(true); };
@@ -389,12 +398,15 @@ export default function Logistica() {
     if (!remSelected || !eventoForm.descricao.trim()) { toast.error("Descrição obrigatória"); return; }
     setSavingEvento(true);
     try {
-      const { error } = await supabase.from("remessa_eventos").insert({ remessa_id: remSelected.id, descricao: eventoForm.descricao, local: eventoForm.local || null });
-      if (error) throw error;
+      await addRemessaEvento({
+        remessaId: remSelected.id,
+        descricao: eventoForm.descricao,
+        local: eventoForm.local || null,
+      });
       toast.success("Evento adicionado");
       setEventoForm({ descricao: "", local: "" });
-      const { data: d } = await supabase.from("remessa_eventos").select("*").eq("remessa_id", remSelected.id).order("data_hora", { ascending: false });
-      setEventos((d ?? []) as RemessaEvento[]);
+      const refreshed = await listRemessaEventos(remSelected.id);
+      setEventos(refreshed);
     } catch (err: unknown) {
       toast.error(getUserFriendlyError(err));
     } finally { setSavingEvento(false); }
@@ -433,10 +445,8 @@ export default function Logistica() {
       }
 
       toast.success(`${novos} novo(s) evento(s) incluído(s)`);
-      const { data: updatedEvents } = await supabase
-        .from("remessa_eventos").select("*").eq("remessa_id", remessa.id)
-        .order("data_hora", { ascending: false });
-      setEventos((updatedEvents ?? []) as RemessaEvento[]);
+      const updatedEvents = await listRemessaEventos(remessa.id);
+      setEventos(updatedEvents);
     } catch (err: unknown) {
       toast.error(getUserFriendlyError(err));
     }

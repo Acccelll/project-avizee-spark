@@ -3,7 +3,6 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { ModulePage } from "@/components/ModulePage";
-import { proximoNumeroOrcamento } from "@/types/rpc";
 import { DataTable } from "@/components/DataTable";
 import { PullToRefresh } from "@/components/ui/PullToRefresh";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -21,12 +20,11 @@ import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect
 import { PeriodFilter, type PeriodValue } from "@/components/filters/PeriodFilter";
 import { periodToDateFrom, periodToDateTo } from "@/lib/periodFilter";
 import type { Period } from "@/components/filters/periodTypes";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { formatCurrency, formatDate, calculateDaysBetween } from "@/lib/format";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { Send } from "lucide-react";
-import { sendForApproval, approveOrcamento } from "@/services/orcamentos.service";
+import { sendForApproval, approveOrcamento, duplicateOrcamento } from "@/services/orcamentos.service";
 import { useConverterOrcamento } from "@/pages/comercial/hooks/useConverterOrcamento";
 import { useCrossModuleToast } from "@/hooks/useCrossModuleToast";
 import { CrossModuleActionDialog, type ImpactItem } from "@/components/CrossModuleActionDialog";
@@ -208,47 +206,10 @@ const Orcamentos = () => {
 
   const handleDuplicate = async (orc: Orcamento) => {
     try {
-      const { data: items } = await supabase.from("orcamentos_itens").select("*").eq("orcamento_id", orc.id);
-      // Buscar metadados completos do orçamento original (frete simulador, etc.)
-      const { data: fullOrcamento } = await supabase.from("orcamentos").select("*").eq("id", orc.id).maybeSingle();
-      const newNumero = await proximoNumeroOrcamento().catch(() => null);
-      const newNumeroStr = newNumero || `ORC${String(Date.now()).slice(-6)}`;
-      const fullOrc = (fullOrcamento || {}) as Record<string, unknown>;
-      const { data: newOrc, error } = await supabase.from("orcamentos").insert({
-        numero: newNumeroStr, data_orcamento: new Date().toISOString().split("T")[0],
-        status: "rascunho", cliente_id: orc.cliente_id, validade: null,
-        observacoes: orc.observacoes, frete_valor: orc.frete_valor || 0,
-        valor_total: orc.valor_total, quantidade_total: orc.quantidade_total,
-        peso_total: orc.peso_total, pagamento: orc.pagamento,
-        prazo_pagamento: orc.prazo_pagamento, prazo_entrega: orc.prazo_entrega,
-        frete_tipo: orc.frete_tipo, modalidade: orc.modalidade,
-        cliente_snapshot: orc.cliente_snapshot,
-        // Preservar todos os metadados de frete do simulador
-        transportadora_id: (fullOrc.transportadora_id as string | null) ?? null,
-        frete_simulacao_id: (fullOrc.frete_simulacao_id as string | null) ?? null,
-        origem_frete: (fullOrc.origem_frete as string | null) ?? null,
-        servico_frete: (fullOrc.servico_frete as string | null) ?? null,
-        prazo_entrega_dias: (fullOrc.prazo_entrega_dias as number | null) ?? null,
-        volumes: (fullOrc.volumes as number | null) ?? null,
-        altura_cm: (fullOrc.altura_cm as number | null) ?? null,
-        largura_cm: (fullOrc.largura_cm as number | null) ?? null,
-        comprimento_cm: (fullOrc.comprimento_cm as number | null) ?? null,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Supabase insert type inference limitation
-      } as any).select().single();
-      if (error) throw error;
-      if (items && items.length > 0 && newOrc) {
-        const newItems = items.map((i) => ({
-          orcamento_id: newOrc.id, produto_id: i.produto_id,
-          codigo_snapshot: i.codigo_snapshot, descricao_snapshot: i.descricao_snapshot,
-          variacao: i.variacao, quantidade: i.quantidade, unidade: i.unidade,
-          valor_unitario: i.valor_unitario, valor_total: i.valor_total,
-          peso_unitario: i.peso_unitario, peso_total: i.peso_total,
-        }));
-        await supabase.from("orcamentos_itens").insert(newItems);
-      }
-      toast.success(`Orçamento duplicado: ${newNumeroStr}`);
+      const created = await duplicateOrcamento(orc);
+      toast.success(`Orçamento duplicado: ${created.numero}`);
       fetchData();
-      navigate(`/orcamentos/${newOrc.id}`);
+      navigate(`/orcamentos/${created.id}`);
     } catch (err: unknown) {
       logger.error('[orcamentos] duplicar:', err);
       toast.error(getUserFriendlyError(err));
