@@ -63,7 +63,7 @@ import {
 import {
   Eye, AlertTriangle, Truck, Package, CheckCheck, ExternalLink, Loader2,
   Edit, Trash2, Plus, MapPin, Package as PackageIcon, Search, Clock, Timer,
-  ChevronDown, History, FileDown,
+  ChevronDown, History, FileDown, Printer,
 } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
