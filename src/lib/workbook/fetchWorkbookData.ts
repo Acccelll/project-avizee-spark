@@ -123,7 +123,7 @@ async function fetchDynamicModeData(compIni: string, compFim: string): Promise<W
     quantidade_nfs: Number(r.quantidade_nfs ?? 0),
   }));
 
-  const fopag = (fopagRes.data ?? []).map((r: Record<string, unknown>) => ({
+  const fopag = ((fopagRes.data ?? []) as unknown as Record<string, unknown>[]).map((r) => ({
     competencia: String(r.competencia ?? '').slice(0, 7), // normalize 2026-02-01 -> 2026-02
     funcionario_nome: String((r.funcionarios as Record<string, unknown>)?.nome ?? 'Sem Nome'),
     salario_base: Number(r.salario_base ?? 0),
@@ -232,7 +232,7 @@ async function fetchDynamicModeData(compIni: string, compFim: string): Promise<W
     centro_custo_id: r.centro_custo_id ? String(r.centro_custo_id) : null,
     valor: numField(r, 'valor'),
   }));
-  const empresaData = empresaRes.data as Record<string, unknown> | null;
+  const empresaData = empresaRes.data as unknown as Record<string, unknown> | null;
   const empresa = empresaData
     ? {
         razao_social: String(empresaData.razao_social ?? ''),
