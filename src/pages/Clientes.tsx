@@ -363,6 +363,7 @@ const Clientes = () => {
           </>
         }
       >
+        <div data-help-id="clientes.filtros">
         <AdvancedFilterBar
           searchValue={searchTerm}
           onSearchChange={setSearchTerm}
@@ -376,8 +377,10 @@ const Clientes = () => {
           <MultiSelect options={tipoOptions} selected={tipoFilters} onChange={setTipoFilters} placeholder="Tipos" className="w-[150px]" />
           <MultiSelect options={grupoOptions} selected={grupoFilters} onChange={setGrupoFilters} placeholder="Grupos" className="w-[200px]" />
         </AdvancedFilterBar>
+        </div>
 
         <PullToRefresh onRefresh={fetchData}>
+          <div data-help-id="clientes.tabela">
           <DataTable
             columns={columns}
             data={filteredData}
@@ -399,6 +402,7 @@ const Clientes = () => {
               />
             )}
           />
+          </div>
         </PullToRefresh>
       </ModulePage>
 

@@ -640,7 +640,7 @@ export default function Logistica() {
         )}
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <ScrollableTabsList className="mb-4">
+          <ScrollableTabsList className="mb-4" data-help-id="logistica.tabs">
             <TabsTrigger value="entregas">Entregas</TabsTrigger>
             <TabsTrigger value="recebimentos">Recebimentos</TabsTrigger>
             <TabsTrigger value="remessas">Remessas</TabsTrigger>
@@ -713,6 +713,7 @@ export default function Logistica() {
                 <Input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} className="h-9 w-[140px] text-xs" title="Prev. entrega até" />
               </div>
             </AdvancedFilterBar>
+            <div data-help-id="logistica.tabela">
             <DataTable
               columns={entregaColumns}
               data={filteredEntregas}
@@ -745,6 +746,7 @@ export default function Logistica() {
               emptyTitle="Nenhuma entrega encontrada"
               emptyDescription="Tente ajustar os filtros de status ou período."
             />
+            </div>
           </TabsContent>
 
           {/* ── Tab: Recebimentos ── */}

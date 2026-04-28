@@ -36,14 +36,9 @@ export const fiscalHelp: HelpEntry = {
   ],
   tour: [
     {
-      target: 'fiscal.tipoTabs',
-      title: 'Entrada vs Saída',
-      body: 'Alterne entre os tipos de nota. As ações disponíveis variam conforme o tipo.',
-    },
-    {
-      target: 'fiscal.novaBtn',
-      title: 'Emitir nova nota',
-      body: 'Inicia o assistente de emissão. Você pode salvar como rascunho antes de transmitir.',
+      target: 'fiscal.filtros',
+      title: 'Filtros e busca',
+      body: 'Filtre por tipo (entrada/saída), modelo, status ERP, status SEFAZ e origem. Use a busca para localizar por número, chave ou parceiro.',
     },
     {
       target: 'fiscal.tabela',
@@ -51,5 +46,5 @@ export const fiscalHelp: HelpEntry = {
       body: 'O badge de status sinaliza o estágio na SEFAZ. Clique para ver XML, DANFE e ações.',
     },
   ],
-  version: 1,
+  version: 2,
 };

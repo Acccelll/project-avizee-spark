@@ -757,6 +757,7 @@ const Produtos = () => {
         }
       >
 
+        <div data-help-id="produtos.filtros">
         <AdvancedFilterBar
           searchValue={searchTerm}
           onSearchChange={setSearchTerm}
@@ -802,8 +803,10 @@ const Produtos = () => {
             className="w-[200px]"
           />
         </AdvancedFilterBar>
+        </div>
 
         <PullToRefresh onRefresh={fetchData}>
+        <div data-help-id="produtos.tabela">
         <DataTable
           columns={columns}
           data={filteredData}
@@ -817,6 +820,7 @@ const Produtos = () => {
           mobileIdentifierKey="codigo_interno"
           mobileStatusKey="ativo"
         />
+        </div>
         </PullToRefresh>
       </ModulePage>
 

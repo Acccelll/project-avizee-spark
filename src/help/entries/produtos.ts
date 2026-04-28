@@ -41,5 +41,5 @@ export const produtosHelp: HelpEntry = {
       body: 'Clique em uma linha para ver tabs: Geral, Tributação, Preços, Fornecedores, Estoque.',
     },
   ],
-  version: 1,
+  version: 2,
 };

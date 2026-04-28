@@ -32,6 +32,11 @@ export const estoqueHelp: HelpEntry = {
   ],
   tour: [
     {
+      target: 'estoque.tabs',
+      title: 'Saldos, movimentações e ajustes',
+      body: 'A tela tem três abas: Saldos (posição atual), Movimentações (histórico) e Ajuste Manual.',
+    },
+    {
       target: 'estoque.filtros',
       title: 'Filtros',
       body: 'Filtre por categoria, depósito e situação (abaixo do mínimo, sem giro, etc).',
@@ -42,5 +47,5 @@ export const estoqueHelp: HelpEntry = {
       body: 'Clique em uma linha para ver o histórico de movimentações e ações (ajustar, transferir).',
     },
   ],
-  version: 1,
+  version: 2,
 };

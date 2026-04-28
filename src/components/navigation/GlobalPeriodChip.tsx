@@ -62,6 +62,7 @@ export function GlobalPeriodChip({ className }: { className?: string }) {
           size="sm"
           className={cn("h-9 gap-1.5 rounded-full px-3 text-xs", className)}
           aria-label={`Período: ${label}`}
+          data-help-id="dashboard.globalPeriod"
         >
           <CalendarRange className="h-3.5 w-3.5" />
           <span className="font-medium">{label}</span>
