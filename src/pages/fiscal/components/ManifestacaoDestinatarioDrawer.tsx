@@ -435,8 +435,16 @@ export function ManifestacaoDestinatarioDrawer({ open, onOpenChange, highlightNf
                   {notas.map((nf) => {
                     const st = STATUS_LABEL[nf.status_manifestacao] ?? STATUS_LABEL.sem_manifestacao;
                     const isLoading = manifestando === nf.id;
+                    const isHighlighted = highlightNfeId === nf.id;
                     return (
-                      <li key={nf.id} className="rounded-md border p-3 text-sm">
+                      <li
+                        key={nf.id}
+                        ref={isHighlighted ? highlightRef : undefined}
+                        className={
+                          "rounded-md border p-3 text-sm transition-colors " +
+                          (isHighlighted ? "border-primary ring-2 ring-primary/30 bg-primary/5" : "")
+                        }
+                      >
                         <div className="mb-2 flex items-start justify-between gap-3">
                           <div className="min-w-0">
                             <p className="font-medium">
