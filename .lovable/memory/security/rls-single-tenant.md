@@ -5,15 +5,16 @@ type: constraint
 ---
 # RLS — Modo single-tenant
 
-**Estado atual.** Estas tabelas têm RLS habilitado mas com políticas
-`USING (true)` para `authenticated` (qualquer usuário logado lê/escreve tudo):
+**Estado atual (28/abr/2026).** Após Ondas 1–3 do multi-tenant, restam
+single-tenant `USING (true)` apenas:
 
 - `financeiro_lancamentos`, `financeiro_baixas`
-- `clientes`, `fornecedores`
-- `compras`, `compras_itens`
-- `estoque_movimentos`
-- `conciliacao_bancaria`
 - `notas_fiscais`, `notas_fiscais_itens`
+
+Já migradas para `empresa_id = public.current_empresa_id()`:
+- Onda 1: `clientes`, `fornecedores`, `produtos`.
+- Onda 2: `orcamentos`, `ordens_venda`, `compras`, `compras_itens`, `pedidos_compra`.
+- Onda 3: `estoque_movimentos`, `conciliacao_bancaria`.
 
 Cada uma delas carrega `COMMENT ON TABLE` documentando o modo single-tenant.
 
