@@ -67,7 +67,7 @@ export function useMunicipioIbge() {
           .from("ibge_municipios")
           .upsert({ codigo_ibge: result.codigo_ibge, nome: result.nome, uf: result.uf })
           .then(({ error: upErr }) => {
-            if (upErr) logger.debug("ibge_municipios upsert skipped", upErr.message);
+            if (upErr) logger.info("ibge_municipios upsert skipped", upErr.message);
           });
 
         return result;
