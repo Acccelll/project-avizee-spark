@@ -14,6 +14,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { RemoteUiPreferencesHydrator } from "@/components/theme/RemoteUiPreferencesHydrator";
 import { OfflineBanner } from "@/components/OfflineBanner";
+import { PwaUpdatePrompt } from "@/components/PwaUpdatePrompt";
 import { AppLayout } from "@/components/AppLayout";
 import { ContentSpinner } from "@/components/ui/spinner";
 import { SessionExpiryWarning } from "@/components/auth/SessionExpiryWarning";
@@ -115,6 +116,7 @@ const App = () => (
                 <TooltipProvider>
                   <Sonner />
                   <OfflineBanner />
+                  <PwaUpdatePrompt />
                   <SessionExpiryWarning />
                   <RemoteUiPreferencesHydrator />
                   <Routes>
