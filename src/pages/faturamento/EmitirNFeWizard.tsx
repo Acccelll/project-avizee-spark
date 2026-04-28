@@ -1002,7 +1002,7 @@ export default function EmitirNFeWizard() {
         produto?: { ncm: string | null } | null;
       }> }).itens ?? [];
 
-      const itensWizard: WizardItem[] = itensOv
+      const itensWizard = itensOv
         .map((it) => {
           const restante = Number(it.quantidade ?? 0) - Number(it.quantidade_faturada ?? 0);
           if (restante <= 0) return null;
@@ -1025,7 +1025,7 @@ export default function EmitirNFeWizard() {
             pis_aliquota: 0, pis_valor: 0,
             cofins_aliquota: 0, cofins_valor: 0,
             matriz_aplicada: false,
-          } satisfies WizardItem;
+          } as WizardItem;
         })
         .filter((x): x is WizardItem => x !== null);
 
