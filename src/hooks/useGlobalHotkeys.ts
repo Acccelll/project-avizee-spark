@@ -78,6 +78,13 @@ export function useGlobalHotkeys({ onOpenSearch, onOpenShortcuts, onOpenHelp }: 
         navigate('/produtos');
         return;
       }
+      if (mod && event.shiftKey && event.key.toLowerCase() === 'f') {
+        event.preventDefault();
+        if (can('faturamento_fiscal:visualizar')) {
+          navigate('/fiscal/dashboard');
+        }
+        return;
+      }
       if (mod && event.key === '/') {
         event.preventDefault();
         onOpenShortcuts?.();
