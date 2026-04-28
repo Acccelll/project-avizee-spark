@@ -10,6 +10,7 @@ const periodLabels: Record<DashboardPeriod, string> = {
   week: 'Esta semana',
   month: 'Este mês',
   '30d': 'Últimos 30 dias',
+  year: 'Este ano',
   custom: 'Personalizado',
 };
 
@@ -92,6 +93,7 @@ export function DashboardHeader({ lastUpdated, onRefresh, rightSlot }: Dashboard
                 <SelectItem value="week">Esta semana</SelectItem>
                 <SelectItem value="month">Este mês</SelectItem>
                 <SelectItem value="30d">Últimos 30 dias</SelectItem>
+                <SelectItem value="year">Este ano</SelectItem>
                 <SelectItem value="custom">Personalizado</SelectItem>
               </SelectContent>
             </Select>

@@ -7,7 +7,7 @@ const formatLocalDate = (date: Date): string => {
   return `${year}-${month}-${day}`;
 };
 
-export type DashboardPeriod = "today" | "week" | "month" | "30d" | "custom";
+export type DashboardPeriod = "today" | "week" | "month" | "30d" | "year" | "custom";
 
 interface DashboardPeriodContextValue {
   period: DashboardPeriod;
@@ -73,6 +73,9 @@ export function DashboardPeriodProvider({ children }: { children: ReactNode }) {
     }
     if (period === "month") {
       return { dateFrom: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`, dateTo: toIso(now) };
+    }
+    if (period === "year") {
+      return { dateFrom: `${now.getFullYear()}-01-01`, dateTo: toIso(now) };
     }
     if (period === "custom") {
       return { dateFrom: customStart, dateTo: customEnd };
