@@ -1,23 +1,24 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import { getUserFriendlyError } from "@/utils/errorMessages";
+import {
+  confirmarNotaFiscal,
+  estornarNotaFiscal,
+  gerarDevolucaoNotaFiscal,
+  type ItemDevolucao,
+} from "@/services/fiscal.service";
+
+export type { ItemDevolucao };
 
 /**
  * Hooks de ciclo de vida de Notas Fiscais (Rodada 5).
- * Encapsulam as RPCs transacionais:
- *  - confirmar_nota_fiscal
- *  - estornar_nota_fiscal
- *  - gerar_devolucao_nota_fiscal
+ * Wrappers React Query sobre `services/fiscal.service.ts`.
  */
 
 export function useConfirmarNotaFiscal() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (nfId: string) => {
-      const { error } = await supabase.rpc("confirmar_nota_fiscal", { p_nf_id: nfId });
-      if (error) throw error;
-    },
+    mutationFn: (nfId: string) => confirmarNotaFiscal(nfId),
     onSuccess: () => {
       toast.success("Nota fiscal confirmada com impacto em estoque/financeiro.");
       qc.invalidateQueries({ queryKey: ["notas_fiscais"] });
@@ -31,13 +32,7 @@ export function useConfirmarNotaFiscal() {
 export function useEstornarNotaFiscal() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ nfId, motivo }: { nfId: string; motivo?: string }) => {
-      const { error } = await supabase.rpc("estornar_nota_fiscal", {
-        p_nf_id: nfId,
-        p_motivo: motivo,
-      });
-      if (error) throw error;
-    },
+    mutationFn: (input: { nfId: string; motivo?: string }) => estornarNotaFiscal(input),
     onSuccess: () => {
       toast.success("Estorno concluído com reversão operacional.");
       qc.invalidateQueries({ queryKey: ["notas_fiscais"] });
@@ -48,29 +43,11 @@ export function useEstornarNotaFiscal() {
   });
 }
 
-export interface ItemDevolucao {
-  produto_id: string;
-  quantidade: number;
-}
-
 export function useGerarDevolucaoNF() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({
-      nfOrigemId,
-      itens,
-    }: {
-      nfOrigemId: string;
-      /** Quando omitido, gera devolução total. */
-      itens?: ItemDevolucao[];
-    }) => {
-      const { data, error } = await supabase.rpc("gerar_devolucao_nota_fiscal", {
-        p_nf_origem_id: nfOrigemId,
-        p_itens: (itens ?? null) as never,
-      });
-      if (error) throw error;
-      return data as string;
-    },
+    mutationFn: (input: { nfOrigemId: string; itens?: ItemDevolucao[] }) =>
+      gerarDevolucaoNotaFiscal(input),
     onSuccess: () => {
       toast.success("NF de devolução gerada e vinculada à origem.");
       qc.invalidateQueries({ queryKey: ["notas_fiscais"] });

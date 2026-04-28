@@ -179,6 +179,111 @@ export async function trackCorreios(
   return normalizarEventos(tracking, remessaId);
 }
 
+// ── Lifecycle (RPCs) ─────────────────────────────────────────────────────────
+
+export type RemessaTransition =
+  | "pendente"
+  | "coletado"
+  | "postado"
+  | "em_transito"
+  | "ocorrencia"
+  | "entregue"
+  | "devolvido"
+  | "cancelado";
+
+const RPC_BY_TRANSITION: Partial<Record<RemessaTransition, string>> = {
+  em_transito: "marcar_remessa_em_transito",
+  entregue: "marcar_remessa_entregue",
+  cancelado: "cancelar_remessa",
+};
+
+export async function expedirRemessa(remessaId: string): Promise<void> {
+  const { error } = await supabase.rpc("expedir_remessa", { p_remessa_id: remessaId });
+  if (error) throw new Error(error.message);
+}
+
+export async function marcarRemessaEmTransito(remessaId: string): Promise<void> {
+  const { error } = await supabase.rpc("marcar_remessa_em_transito", { p_remessa_id: remessaId });
+  if (error) throw new Error(error.message);
+}
+
+export async function marcarRemessaEntregue(remessaId: string): Promise<void> {
+  const { error } = await supabase.rpc("marcar_remessa_entregue", { p_remessa_id: remessaId });
+  if (error) throw new Error(error.message);
+}
+
+export async function cancelarRemessa(input: { id: string; motivo?: string | null }): Promise<void> {
+  const { error } = await supabase.rpc("cancelar_remessa", {
+    p_remessa_id: input.id,
+    p_motivo: input.motivo ?? null,
+  });
+  if (error) throw new Error(error.message);
+}
+
+/**
+ * Transição genérica: chama a RPC correspondente quando aplicável; se a RPC recusar
+ * (estado incompatível), faz `update` direto em `status_transporte` para preservar
+ * a operação puramente logística do usuário.
+ */
+export async function transicionarRemessa(input: {
+  remessaId: string;
+  novoStatus: RemessaTransition;
+  motivo?: string;
+}): Promise<void> {
+  const { remessaId, novoStatus, motivo } = input;
+  const rpcName = RPC_BY_TRANSITION[novoStatus];
+  if (rpcName) {
+    const params: Record<string, unknown> = { p_remessa_id: remessaId };
+    if (rpcName === "cancelar_remessa") params.p_motivo = motivo ?? null;
+    const { error } = await (supabase.rpc as unknown as (
+      fn: string,
+      args: Record<string, unknown>,
+    ) => Promise<{ error: Error | null }>)(rpcName, params);
+    if (error) {
+      const { error: updErr } = await supabase
+        .from("remessas")
+        .update({ status_transporte: novoStatus })
+        .eq("id", remessaId);
+      if (updErr) throw new Error(error.message);
+    }
+    return;
+  }
+  const { error } = await supabase
+    .from("remessas")
+    .update({ status_transporte: novoStatus })
+    .eq("id", remessaId);
+  if (error) throw new Error(error.message);
+}
+
+/**
+ * Persiste eventos já normalizados (vindos do hook de tracking) deduplicando
+ * por (data_hora, descricao, local). Retorna a quantidade de novos inseridos.
+ */
+export async function persistirEventosNormalizados(input: {
+  remessaId: string;
+  eventos: Array<CorreiosEventoNormalizado & { remessa_id: string }>;
+}): Promise<number> {
+  const { remessaId, eventos } = input;
+  if (eventos.length === 0) return 0;
+
+  const { data: existentes, error: selErr } = await supabase
+    .from("remessa_eventos")
+    .select("descricao, local, data_hora")
+    .eq("remessa_id", remessaId);
+  if (selErr) throw new Error(selErr.message);
+
+  const eventKey = (e: { descricao: string; local: string | null; data_hora: string }) =>
+    `${e.data_hora}::${e.descricao}::${e.local ?? ""}`;
+  const existentesSet = new Set((existentes ?? []).map(eventKey));
+  const novos = eventos.filter((e) => !existentesSet.has(eventKey(e)));
+
+  if (novos.length > 0) {
+    const { error: insErr } = await supabase.from("remessa_eventos").insert(novos);
+    if (insErr) throw new Error(insErr.message);
+  }
+  return novos.length;
+}
+
 // ── Hooks ──────────────────────────────────────────────────────────────────────
 
 export function useRemessas() {

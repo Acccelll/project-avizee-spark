@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, MapPin, AlertTriangle } from "lucide-react";
 import { useCorreiosTracking } from "@/hooks/useCorreiosTracking";
 import { normalizarEventos } from "@/services/correios.service";
-import { supabase } from "@/integrations/supabase/client";
+import { persistirEventosNormalizados } from "@/services/logistica/remessas.service";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import type { CorreiosEventoNormalizado } from "@/services/correios.service";
@@ -35,23 +35,8 @@ export function TrackingModal({ open, onClose, codigoRastreio, remessaId }: Trac
     if (!remessaId || eventos.length === 0) return;
 
     try {
-      const { data: existentes } = await supabase
-        .from("remessa_eventos")
-        .select("descricao, local, data_hora")
-        .eq("remessa_id", remessaId);
-
-      const eventKey = (e: { descricao: string; local: string | null; data_hora: string }) =>
-        `${e.data_hora}::${e.descricao}::${e.local ?? ""}`;
-
-      const existentesSet = new Set((existentes ?? []).map(eventKey));
-      const novos = eventos.filter((e) => !existentesSet.has(eventKey(e)));
-
-      if (novos.length > 0) {
-        const { error: insertError } = await supabase.from("remessa_eventos").insert(novos);
-        if (insertError) throw insertError;
-      }
-
-      toast.success(`${novos.length} novo(s) evento(s) salvo(s)`);
+      const novos = await persistirEventosNormalizados({ remessaId, eventos });
+      toast.success(`${novos} novo(s) evento(s) salvo(s)`);
       queryClient.invalidateQueries({ queryKey: ["remessa-eventos", remessaId] });
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Erro ao salvar eventos");

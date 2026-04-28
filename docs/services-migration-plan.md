@@ -104,3 +104,26 @@ no mesmo lote.
 - [ ] Funcionalidade smoke-testada (load, create, edit, delete).
 - [ ] Tipos do service casam com `Tables<...>` (sem `as any`).
 - [ ] Notas de breaking changes registradas no PR (se houver).
+
+## Onda 5 — Migração de hooks de página para src/services/ (CONCLUÍDA)
+
+### Novos services
+- `services/comercial/pedidosVenda.service.ts` — faturarPedido, cancelarPedidoVenda
+- `services/comercial/orcamentosLifecycle.service.ts` — enviar/aprovar orçamento
+- `services/comercial/comprasLifecycle.service.ts` — receber/estornar/salvar/gerar pedido de compra
+- `services/comercial/orcamentoTemplates.service.ts` — templates user/equipe
+- `services/financeiro/baixaRpc.ts` — registrar/estornar baixa, parcelas, folha
+- `services/financeiro/auxiliares.ts` — contas bancárias + contábeis
+- `services/financeiro/conciliacaoQueries.ts` — view + RPC pg_trgm
+- `services/dashboard.service.ts` — KPIs estoque + aux
+- `services/auth.service.ts` — perfil, password, sessões, auditoria self
+- `services/estoque.service.ts` (movido de pages/estoque/services) + ajustarEstoqueManual
+
+### Services estendidos
+- `services/logistica/remessas.service.ts` — lifecycle (expedir/em_transito/entregue/cancelar/transicionar) + persistirEventosNormalizados
+- `services/fiscal.service.ts` — confirmar/estornar/devolução NF + vínculo NF↔Pedido de Compra
+
+### Resultado
+- 0 ocorrências de `supabase.from` / `supabase.rpc` em `src/pages/`.
+- Restantes legítimos: `supabase.auth.*` em páginas de auth (Login/Signup/etc.) e `supabase.functions.invoke` / `supabase.storage` em pontos isolados.
+- `tsc --noEmit` limpo.

@@ -1,9 +1,14 @@
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { getUserFriendlyError } from '@/utils/errorMessages';
 import { getPasswordCriteriaWithMatch, PASSWORD_MIN_LENGTH } from '@/lib/passwordPolicy';
+import {
+  verifyPasswordReauth,
+  updateUserPassword,
+  signOutOtherSessions,
+  logSelfUpdateAudit,
+} from '@/services/auth.service';
 
 export interface PasswordErrors {
   current?: string;
@@ -46,7 +51,7 @@ export function useChangePassword() {
     setErrors({});
     setChanging(true);
     try {
-      const { error: signInError } = await supabase.auth.signInWithPassword({
+      const signInError = await verifyPasswordReauth({
         email: user!.email!,
         password: currentPassword,
       });
@@ -55,9 +60,10 @@ export function useChangePassword() {
         setChanging(false);
         return;
       }
-      const { error } = await supabase.auth.updateUser({ password: newPassword });
-      if (error) {
-        const msg = (error.message || '').toLowerCase();
+      try {
+        await updateUserPassword(newPassword);
+      } catch (error: unknown) {
+        const msg = (error instanceof Error ? error.message : '').toLowerCase();
         if (msg.includes('weak') || (msg.includes('password') && msg.includes('short'))) {
           setErrors({ new: 'A senha não atende à política mínima do servidor. Use uma senha mais forte.' });
           setChanging(false);
@@ -72,12 +78,12 @@ export function useChangePassword() {
       }
       toast.success('Senha alterada com sucesso!');
       try {
-        await supabase.rpc('log_self_update_audit', {
-          p_tipo_acao: 'self_password_change',
-          p_entidade: 'auth.users',
-          p_entidade_id: user!.id,
-          p_alteracao: { evento: 'password_changed' },
-          p_motivo: 'troca de senha pelo próprio usuário',
+        await logSelfUpdateAudit({
+          tipoAcao: 'self_password_change',
+          entidade: 'auth.users',
+          entidadeId: user!.id,
+          alteracao: { evento: 'password_changed' },
+          motivo: 'troca de senha pelo próprio usuário',
         });
       } catch (auditErr) {
         console.warn('[perfil] auditoria self-password falhou:', auditErr);
@@ -97,8 +103,7 @@ export function useChangePassword() {
   const signOutOthers = async () => {
     setSigningOutOthers(true);
     try {
-      const { error } = await supabase.auth.signOut({ scope: 'others' });
-      if (error) throw error;
+      await signOutOtherSessions();
       toast.success('Sessões em outros dispositivos foram encerradas.');
       setShowSignOutOthers(false);
     } catch (err: unknown) {

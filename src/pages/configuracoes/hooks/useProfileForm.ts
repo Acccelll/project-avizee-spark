@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { getUserFriendlyError } from '@/utils/errorMessages';
+import { saveUserProfile } from '@/services/auth.service';
 
 const NOME_MIN = 2;
 const NOME_MAX = 80;
@@ -58,11 +58,7 @@ export function useProfileForm() {
     setValidationError(null);
     setSaving(true);
     try {
-      const { error } = await supabase.rpc('save_user_profile', {
-        p_nome: nomeTrim,
-        p_cargo: cargoTrim,
-      });
-      if (error) throw error;
+      await saveUserProfile({ nome: nomeTrim, cargo: cargoTrim });
       // Espelha valores normalizados no estado local para que o dirty-check
       // não fique "sujo" após o save quando o usuário digitou com espaços.
       setNome(nomeTrim);

@@ -1,13 +1,11 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import { getUserFriendlyError } from "@/utils/errorMessages";
-
-interface LifecycleResult {
-  id: string;
-  numero: string;
-  status: string;
-}
+import {
+  enviarOrcamentoAprovacao,
+  aprovarOrcamento,
+  type OrcamentoLifecycleResult,
+} from "@/services/comercial/orcamentosLifecycle.service";
 
 function invalidateOrcamentos(qc: ReturnType<typeof useQueryClient>) {
   ["orcamentos", "ordens_venda", "pedidos"].forEach((k) =>
@@ -17,18 +15,11 @@ function invalidateOrcamentos(qc: ReturnType<typeof useQueryClient>) {
 
 /**
  * Envia orçamento (rascunho) para aprovação via RPC `enviar_orcamento_aprovacao`.
- * A RPC valida status atual + existência de itens server-side e registra auditoria.
  */
 export function useEnviarOrcamentoAprovacao() {
   const qc = useQueryClient();
-  return useMutation<LifecycleResult, Error, { id: string; numero?: string }>({
-    mutationFn: async ({ id }) => {
-      const { data, error } = await supabase.rpc("enviar_orcamento_aprovacao" as never, {
-        p_id: id,
-      } as never);
-      if (error) throw new Error(error.message);
-      return data as LifecycleResult;
-    },
+  return useMutation<OrcamentoLifecycleResult, Error, { id: string; numero?: string }>({
+    mutationFn: ({ id }) => enviarOrcamentoAprovacao(id),
     onSuccess: (result) => {
       invalidateOrcamentos(qc);
       toast.success(`Orçamento ${result.numero} enviado para aprovação!`);
@@ -39,18 +30,11 @@ export function useEnviarOrcamentoAprovacao() {
 
 /**
  * Aprova orçamento (pendente → aprovado) via RPC `aprovar_orcamento`.
- * Gate de status server-side + auditoria.
  */
 export function useAprovarOrcamento() {
   const qc = useQueryClient();
-  return useMutation<LifecycleResult, Error, { id: string; numero?: string }>({
-    mutationFn: async ({ id }) => {
-      const { data, error } = await supabase.rpc("aprovar_orcamento" as never, {
-        p_id: id,
-      } as never);
-      if (error) throw new Error(error.message);
-      return data as LifecycleResult;
-    },
+  return useMutation<OrcamentoLifecycleResult, Error, { id: string; numero?: string }>({
+    mutationFn: ({ id }) => aprovarOrcamento(id),
     onSuccess: (result) => {
       invalidateOrcamentos(qc);
       toast.success(`Orçamento ${result.numero} aprovado!`);

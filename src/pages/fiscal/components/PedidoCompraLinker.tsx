@@ -11,7 +11,11 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  desvincularNFPedidoCompra,
+  listPedidosCompraParaVincular,
+  vincularNFPedidoCompra,
+} from "@/services/fiscal.service";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import { formatCurrency } from "@/lib/format";
 
@@ -70,39 +74,17 @@ export function PedidoCompraLinker({
     let cancelled = false;
     (async () => {
       setLoadingList(true);
-      const { data, error } = await supabase
-        .from("pedidos_compra")
-        .select(
-          "id, numero, valor_total, status, data_pedido, fornecedores(nome_razao_social)",
-        )
-        .eq("fornecedor_id", fornecedorId)
-        .neq("status", "cancelado")
-        .order("created_at", { ascending: false })
-        .limit(50);
-      if (cancelled) return;
-      if (error) {
-        toast.error(getUserFriendlyError(error));
+      let baseOpts: PedidoOption[] = [];
+      try {
+        const list = await listPedidosCompraParaVincular(fornecedorId);
+        baseOpts = list.map((p) => ({ ...p }));
+      } catch (err) {
+        if (cancelled) return;
+        toast.error(getUserFriendlyError(err));
         setLoadingList(false);
         return;
       }
-      const baseOpts: PedidoOption[] = (data ?? []).map((row) => {
-        const r = row as unknown as {
-          id: string;
-          numero: string | null;
-          valor_total: number | null;
-          status: string | null;
-          data_pedido: string | null;
-          fornecedores: { nome_razao_social: string } | null;
-        };
-        return {
-          id: r.id,
-          numero: r.numero,
-          valor_total: r.valor_total,
-          status: r.status,
-          data_pedido: r.data_pedido,
-          fornecedor_nome: r.fornecedores?.nome_razao_social ?? null,
-        };
-      });
+      if (cancelled) return;
 
       // Marcar sugestões: valor_total ≈ nfValorTotal (±0,01) e
       // data_pedido ∈ [nfDataEmissao - 15d, nfDataEmissao]
@@ -151,11 +133,7 @@ export function PedidoCompraLinker({
     if (!selectedId) return;
     setPending(true);
     try {
-      const { error } = await supabase.rpc("vincular_nf_pedido_compra", {
-        p_nf_id: notaFiscalId,
-        p_pedido_id: selectedId,
-      });
-      if (error) throw error;
+      await vincularNFPedidoCompra({ notaFiscalId, pedidoCompraId: selectedId });
       toast.success("NF vinculada ao pedido de compra. Status do PO atualizado.");
       qc.invalidateQueries({ queryKey: ["notas_fiscais"] });
       qc.invalidateQueries({ queryKey: ["pedidos_compra"] });
@@ -169,11 +147,7 @@ export function PedidoCompraLinker({
   const handleDesvincular = async () => {
     setPending(true);
     try {
-      const { error } = await supabase
-        .from("notas_fiscais")
-        .update({ pedido_compra_id: null })
-        .eq("id", notaFiscalId);
-      if (error) throw error;
+      await desvincularNFPedidoCompra(notaFiscalId);
       setSelectedId(null);
       toast.success("Vínculo removido.");
       qc.invalidateQueries({ queryKey: ["notas_fiscais"] });

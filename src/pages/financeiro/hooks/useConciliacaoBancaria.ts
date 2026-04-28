@@ -7,7 +7,6 @@
 
 import { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import { parseOFX, type TransacaoExtrato } from "@/services/financeiro/ofxParser.service";
@@ -16,6 +15,10 @@ import {
   conciliarTransacao,
   type TituloParaConciliacao,
 } from "@/services/financeiro/conciliacao.service";
+import {
+  listLancamentosParaConciliacao,
+  sugerirConciliacaoBancariaRpc,
+} from "@/services/financeiro/conciliacaoQueries";
 
 /** Par de conciliação: transação do extrato ↔ lançamento ERP. */
 export interface ParConciliacao {
@@ -78,29 +81,7 @@ export function useConciliacaoBancaria(
   // ── Busca de lançamentos pendentes via React Query ────────────────────────
   const { data: lancamentos = [], isLoading: loadingLancamentos } = useQuery({
     queryKey: ["conciliacao-lancamentos", contaId, dataInicio, dataFim],
-    queryFn: async (): Promise<TituloParaConciliacao[]> => {
-      if (!contaId) return [];
-
-      const { data, error } = await supabase
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .from("vw_conciliacao_eventos_financeiros" as any)
-        .select("lancamento_id, descricao, valor_movimento, data_movimento, tipo, status_titulo, conciliacao_status")
-        .eq("conta_bancaria_id", contaId)
-        .gte("data_movimento", dataInicio)
-        .lte("data_movimento", dataFim)
-        .in("conciliacao_status", ["pendente", "divergente", "desconciliado"])
-        .order("data_movimento", { ascending: true });
-
-      if (error) throw new Error(error.message);
-      return ((data as unknown as Array<Record<string, unknown>>) ?? []).map((item) => ({
-        id: String(item.lancamento_id),
-        descricao: (item.descricao as string | null) ?? null,
-        valor: Number(item.valor_movimento ?? 0),
-        data_vencimento: String(item.data_movimento),
-        tipo: String(item.tipo ?? ""),
-        status: String(item.status_titulo ?? "aberto"),
-      }));
-    },
+    queryFn: () => listLancamentosParaConciliacao({ contaId, dataInicio, dataFim }),
     enabled: Boolean(contaId),
   });
 
@@ -137,12 +118,7 @@ export function useConciliacaoBancaria(
         data: e.data,
         descricao: e.descricao,
       }));
-      const { data, error } = await supabase.rpc('sugerir_conciliacao_bancaria', {
-        p_conta_id: contaId,
-        p_extrato: payload as unknown as never,
-      });
-      if (error) throw error;
-      const ranked = (data || []) as Array<{ extrato_id: string; lancamento_id: string; score: number }>;
+      const ranked = await sugerirConciliacaoBancariaRpc({ contaId, extrato: payload });
       // Para cada extrato, pega o melhor lançamento ainda não usado
       const grouped = new Map<string, Array<{ lancamento_id: string; score: number }>>();
       for (const r of ranked) {

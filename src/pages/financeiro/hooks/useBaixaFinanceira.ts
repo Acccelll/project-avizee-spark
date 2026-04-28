@@ -1,17 +1,17 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import { logger } from "@/lib/logger";
+import {
+  registrarBaixaFinanceira,
+  estornarBaixaFinanceira,
+  gerarParcelasFinanceirasRpc,
+  gerarFinanceiroFolhaRpc,
+  type RegistrarBaixaParams,
+  type GerarParcelasBase,
+} from "@/services/financeiro/baixaRpc";
 
-export interface RegistrarBaixaParams {
-  lancamentoId: string;
-  valorPago: number;
-  dataBaixa: string;
-  formaPagamento: string;
-  contaBancariaId: string;
-  observacoes?: string | null;
-}
+export type { RegistrarBaixaParams };
 
 /**
  * Registra baixa transacional (total ou parcial) usando RPC.
@@ -20,18 +20,7 @@ export interface RegistrarBaixaParams {
 export function useRegistrarBaixa() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (params: RegistrarBaixaParams) => {
-      const { data, error } = await supabase.rpc("registrar_baixa_financeira", {
-        p_lancamento_id: params.lancamentoId,
-        p_valor_pago: params.valorPago,
-        p_data_baixa: params.dataBaixa,
-        p_forma_pagamento: params.formaPagamento,
-        p_conta_bancaria_id: params.contaBancariaId,
-        p_observacoes: params.observacoes ?? undefined,
-      });
-      if (error) throw error;
-      return data as string;
-    },
+    mutationFn: (params: RegistrarBaixaParams) => registrarBaixaFinanceira(params),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["financeiro"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
@@ -50,13 +39,7 @@ export function useRegistrarBaixa() {
 export function useEstornarBaixa() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ baixaId, motivo }: { baixaId: string; motivo?: string }) => {
-      const { error } = await supabase.rpc("estornar_baixa_financeira", {
-        p_baixa_id: baixaId,
-        p_motivo: motivo,
-      });
-      if (error) throw error;
-    },
+    mutationFn: (input: { baixaId: string; motivo?: string }) => estornarBaixaFinanceira(input),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["financeiro"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
@@ -70,20 +53,7 @@ export function useEstornarBaixa() {
 }
 
 export interface GerarParcelasParams {
-  base: {
-    tipo: "receber" | "pagar";
-    descricao: string;
-    valor: number;
-    data_vencimento: string;
-    forma_pagamento?: string | null;
-    banco?: string | null;
-    cartao?: string | null;
-    cliente_id?: string | null;
-    fornecedor_id?: string | null;
-    conta_bancaria_id?: string | null;
-    conta_contabil_id?: string | null;
-    observacoes?: string | null;
-  };
+  base: GerarParcelasBase;
   numParcelas: number;
   intervaloDias?: number;
 }
@@ -94,15 +64,7 @@ export interface GerarParcelasParams {
 export function useGerarParcelas() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ base, numParcelas, intervaloDias = 30 }: GerarParcelasParams) => {
-      const { data, error } = await supabase.rpc("gerar_parcelas_financeiras", {
-        p_base: base as never,
-        p_num_parcelas: numParcelas,
-        p_intervalo_dias: intervaloDias,
-      });
-      if (error) throw error;
-      return data as string;
-    },
+    mutationFn: (params: GerarParcelasParams) => gerarParcelasFinanceirasRpc(params),
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ["financeiro"] });
       toast.success(`${vars.numParcelas} parcelas geradas com sucesso`);
@@ -120,14 +82,8 @@ export function useGerarParcelas() {
 export function useGerarFinanceiroFolha() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ competencia, dataVencimento }: { competencia: string; dataVencimento: string }) => {
-      const { data, error } = await supabase.rpc("gerar_financeiro_folha", {
-        p_competencia: competencia,
-        p_data_vencimento: dataVencimento,
-      });
-      if (error) throw error;
-      return data as number;
-    },
+    mutationFn: (input: { competencia: string; dataVencimento: string }) =>
+      gerarFinanceiroFolhaRpc(input),
     onSuccess: (count) => {
       qc.invalidateQueries({ queryKey: ["financeiro"] });
       qc.invalidateQueries({ queryKey: ["folha"] });
