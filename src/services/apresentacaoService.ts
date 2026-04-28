@@ -10,11 +10,20 @@ import type {
   SlideConfigItem,
 } from '@/types/apresentacao';
 import { fetchPresentationData } from '@/lib/apresentacao/fetchPresentationData';
-import { generatePresentation, type PresentationBranding } from '@/lib/apresentacao/generatePresentation';
+import type { PresentationBranding } from '@/lib/apresentacao/generatePresentation';
 import { buildAutomaticComments } from '@/lib/apresentacao/commentRules';
 import { APRESENTACAO_SLIDES_MAP } from '@/lib/apresentacao/slideDefinitions';
 import { hashPayload } from '@/lib/apresentacao/utils';
 import { activeSlides, resolveSlideConfig } from '@/lib/apresentacao/templateResolver';
+
+/**
+ * Lazy-loads the heavy pptxgenjs-based presentation generator. Keeps the
+ * pptxgenjs bundle (~250KB) out of the initial app load.
+ */
+async function loadGeneratePresentation() {
+  const mod = await import('@/lib/apresentacao/generatePresentation');
+  return mod.generatePresentation;
+}
 
 export async function listarApresentacaoTemplates(): Promise<ApresentacaoTemplate[]> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -274,6 +283,7 @@ async function gerarArquivoFinal(geracaoId: string, active: SlideCodigo[], bundl
 
   const branding = await fetchPresentationBranding();
 
+  const generatePresentation = await loadGeneratePresentation();
   const blob = await generatePresentation(bundle, comentarioMap as Partial<Record<string, string>>, {
     slideOrder: active,
     metadata: { geracaoId, hash, geradoEm: new Date().toISOString(), origem: 'erp-avizee-v2' },

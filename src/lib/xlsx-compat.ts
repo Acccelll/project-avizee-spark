@@ -3,12 +3,26 @@
  * Eliminates the prototype-pollution vulnerability in xlsx@0.18.5.
  *
  * Only the subset of the API actually used in this codebase is implemented.
+ *
+ * NOTE: ExcelJS is imported dynamically to keep the ~400KB library out of the
+ * initial bundle. The first call to `read()` / `utils.book_new()` triggers
+ * the import; subsequent calls reuse the cached module.
  */
-import ExcelJS from "exceljs";
+import type ExcelJSNs from "exceljs";
+
+type ExcelJSModule = typeof ExcelJSNs;
+let excelJsPromise: Promise<ExcelJSModule> | null = null;
+
+async function loadExcelJS(): Promise<ExcelJSModule> {
+  if (!excelJsPromise) {
+    excelJsPromise = import("exceljs").then((m) => (m.default ?? m) as ExcelJSModule);
+  }
+  return excelJsPromise;
+}
 
 /* ---------- Internal helpers ---------- */
 
-function worksheetToRows(ws: ExcelJS.Worksheet): unknown[][] {
+function worksheetToRows(ws: ExcelJSNs.Worksheet): unknown[][] {
   const rows: unknown[][] = [];
   ws.eachRow({ includeEmpty: false }, (row) => {
     const values: unknown[] = [];
@@ -25,26 +39,35 @@ function worksheetToRows(ws: ExcelJS.Worksheet): unknown[][] {
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
 export interface WorkSheet {
   /** @internal */
-  _ws: ExcelJS.Worksheet;
+  _ws: ExcelJSNs.Worksheet;
 }
 
 export interface WorkBook {
   SheetNames: string[];
   Sheets: Record<string, WorkSheet>;
   /** @internal */
-  _wb: ExcelJS.Workbook;
+  _wb: ExcelJSNs.Workbook;
 }
 
 /* ---------- read ---------- */
 
 export function read(data: unknown, _opts?: { type?: string }): WorkBook {
   // ExcelJS's xlsx.load is async – we wrap it with a sync-looking API that
-  // stores a promise. The sheet data is resolved lazily via _loaded.
-  const wb = new ExcelJS.Workbook();
-  const result: WorkBook = { SheetNames: [], Sheets: {}, _wb: wb };
+  // stores a promise. The sheet data (and the ExcelJS module itself) are
+  // resolved lazily via _loaded; consumers MUST call `await ensureLoaded(wb)`
+  // before touching SheetNames / Sheets.
+  const result: WorkBook = {
+    SheetNames: [],
+    Sheets: {},
+    // Real workbook is assigned during _loaded; cast keeps the public type stable.
+    _wb: undefined as unknown as ExcelJSNs.Workbook,
+  };
 
   // We store a promise so consumers can await it before using data
   (result as WorkBook & { _loaded: Promise<void> })._loaded = (async () => {
+    const ExcelJS = await loadExcelJS();
+    const wb = new ExcelJS.Workbook();
+    result._wb = wb;
     let buffer: ArrayBuffer;
     if (typeof data === "string") {
       const buf = new Uint8Array(data.length);
@@ -92,7 +115,8 @@ export const utils = {
     });
   },
 
-  json_to_sheet(data: Record<string, unknown>[]): WorkSheet {
+  async json_to_sheet(data: Record<string, unknown>[]): Promise<WorkSheet> {
+    const ExcelJS = await loadExcelJS();
     const wb = new ExcelJS.Workbook();
     const ws = wb.addWorksheet("Sheet1");
     if (data.length > 0) {
@@ -103,7 +127,8 @@ export const utils = {
     return { _ws: ws };
   },
 
-  book_new(): WorkBook {
+  async book_new(): Promise<WorkBook> {
+    const ExcelJS = await loadExcelJS();
     return { SheetNames: [], Sheets: {}, _wb: new ExcelJS.Workbook() };
   },
 
