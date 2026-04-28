@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
-import { Send, Search, Ban, FileDown, Loader2, ShieldAlert } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { Send, Search, Ban, FileDown, Loader2, ShieldAlert, FileText, RotateCcw } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -16,6 +16,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { useSefazAcoes } from "@/pages/fiscal/hooks/useSefazAcoes";
 import { SefazRetornoModal } from "@/pages/fiscal/components/SefazRetornoModal";
+import { CartaCorrecaoDrawer } from "@/pages/fiscal/components/CartaCorrecaoDrawer";
 import { gerarDanfePdf, type DanfeInput } from "@/services/fiscal/danfe.service";
 import { obterCertificadoConfigurado } from "@/services/fiscal/certificado.service";
 import { toast } from "sonner";
@@ -36,7 +37,9 @@ interface SefazAcoesPanelProps {
  */
 export function SefazAcoesPanel({ nf, buildNFeData, buildDanfeData }: SefazAcoesPanelProps) {
   const acoes = useSefazAcoes();
+  const navigate = useNavigate();
   const [cancelOpen, setCancelOpen] = useState(false);
+  const [cceOpen, setCceOpen] = useState(false);
   const [justificativa, setJustificativa] = useState("");
   const [gerandoDanfe, setGerandoDanfe] = useState(false);
 
@@ -53,6 +56,8 @@ export function SefazAcoesPanel({ nf, buildNFeData, buildDanfeData }: SefazAcoes
   const podeConsultar = !!nf.chave_acesso;
   const podeCancelar = nf.status_sefaz === "autorizada";
   const podeDanfe = !!nf.chave_acesso;
+  const podeCce = nf.status_sefaz === "autorizada" && !!nf.chave_acesso;
+  const podeDevolucao = nf.status_sefaz === "autorizada";
 
   const handleTransmitir = async () => {
     if (!buildNFeData) {
@@ -137,6 +142,26 @@ export function SefazAcoesPanel({ nf, buildNFeData, buildDanfeData }: SefazAcoes
         DANFE PDF
       </Button>
 
+      <Button
+        size="sm"
+        variant="outline"
+        className="gap-1.5"
+        disabled={!podeCce}
+        onClick={() => setCceOpen(true)}
+      >
+        <FileText className="h-3.5 w-3.5" /> Carta de Correção
+      </Button>
+
+      <Button
+        size="sm"
+        variant="outline"
+        className="gap-1.5"
+        disabled={!podeDevolucao}
+        onClick={() => navigate(`/faturamento/emitir?refNFeId=${nf.id}&finalidade=4`)}
+      >
+        <RotateCcw className="h-3.5 w-3.5" /> Nova Devolução
+      </Button>
+
       <SefazRetornoModal
         aberto={acoes.modalAberto}
         onFechar={acoes.fecharModal}
@@ -146,6 +171,8 @@ export function SefazAcoesPanel({ nf, buildNFeData, buildDanfeData }: SefazAcoes
         xmlRetorno={acoes.ultimoRetorno?.xmlRetorno}
         erros={acoes.ultimoRetorno?.erros}
       />
+
+      <CartaCorrecaoDrawer nf={nf} open={cceOpen} onOpenChange={setCceOpen} />
 
       <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
         <DialogContent>
