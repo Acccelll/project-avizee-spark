@@ -363,6 +363,35 @@ export function ManifestacaoDestinatarioDrawer({ open, onOpenChange }: Manifesta
                 {novaChave.replace(/\D/g, "").length}/44 dígitos. Os dados básicos
                 (CNPJ emitente, série, número e mês de emissão) são extraídos da chave.
               </p>
+              <Separator className="my-2" />
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept=".xml,application/xml,text/xml"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) handleImportarXml(f);
+                  }}
+                />
+                <Button
+                  variant="outline"
+                  className="gap-2"
+                  disabled={importando}
+                  onClick={() => fileRef.current?.click()}
+                >
+                  {importando ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Upload className="h-4 w-4" />
+                  )}
+                  Importar XML autorizado
+                </Button>
+                <span className="text-xs text-muted-foreground">
+                  Enriquece a NF-e com emitente, totais e itens (procNFe ou NFe).
+                </span>
+              </div>
             </div>
 
             <Separator />
