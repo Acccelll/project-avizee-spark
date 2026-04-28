@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, FileText, Send, XCircle, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
-import { usePermissions } from "@/hooks/usePermissions";
+import { useCan } from "@/hooks/useCan";
 import {
   baixarEtiqueta,
   cancelarEtiqueta,
@@ -40,13 +40,13 @@ export function EtiquetaCorreiosCard({
   peso,
   clienteId,
 }: Props) {
-  const { can } = usePermissions();
+  const { can } = useCan();
   const [etiquetas, setEtiquetas] = useState<RemessaEtiqueta[]>([]);
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
-  const podeEscrever = can("logistica", "update");
+  const podeEscrever = can("logistica:editar");
 
   useEffect(() => {
     if (!remessaId) return;
