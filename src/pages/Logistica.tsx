@@ -492,25 +492,18 @@ export default function Logistica() {
     { key: "peso_total", label: "Peso", hidden: true, render: (item: Entrega) => <span className="text-xs">{formatNumber(item.peso_total || 0)} kg</span> },
     { key: "previsao_envio", label: "Prev. Envio", hidden: true, render: (item: Entrega) => item.previsao_envio ? <span className="text-xs">{formatDate(item.previsao_envio)}</span> : <span className="text-muted-foreground text-xs">—</span> },
     { key: "codigo_rastreio", label: "Rastreio", hidden: true, render: (item: Entrega) => item.codigo_rastreio ? <span className="font-mono text-xs">{item.codigo_rastreio}</span> : <span className="text-muted-foreground text-xs">—</span> },
-    { key: "acoes", label: "Ações", render: (item: Entrega) => (
-      <div className="flex items-center gap-1.5 flex-wrap">
-        <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => setSelectedEntrega(item)}><Eye className="h-3.5 w-3.5" />Ver</Button>
-        <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-muted-foreground" onClick={() => pushView("ordem_venda", item.id)}><ExternalLink className="h-3.5 w-3.5" />Pedido</Button>
-        {item.codigo_rastreio && (
-          <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => abrirRastreioEntrega(item)}>
-            <Search className="h-3.5 w-3.5" />Rastrear
-          </Button>
-        )}
-        {canEdit && (
+    { key: "status_select", label: "Atualizar status", sortable: false, hidden: !canEdit, render: (item: Entrega) => (
+      canEdit ? (
+        <div className="flex items-center gap-1.5 flex-wrap" onClick={(e) => e.stopPropagation()}>
           <Select value={item.status_logistico} onValueChange={(value) => updateEntregaStatus(item, value)}>
             <SelectTrigger className="h-8 w-[180px] text-xs" disabled={item.exibicao_remessas === "multipla" || updatingEntregaId === item.id || ENTREGA_TERMINAL.has(item.status_logistico)}><SelectValue /></SelectTrigger>
             <SelectContent>{ENTREGA_STATUS_ORDER.map((s) => <SelectItem key={s} value={s} disabled={ENTREGA_TERMINAL.has(item.status_logistico) || (item.exibicao_remessas === "multipla" && s !== item.status_logistico)}>{ENTREGA_STATUS_META[s]?.label || s.replaceAll("_", " ")}</SelectItem>)}</SelectContent>
           </Select>
-        )}
-        {item.exibicao_remessas === "multipla" && (
-          <span className="text-[10px] text-muted-foreground">Atualize por remessa (aba Remessas)</span>
-        )}
-      </div>
+          {item.exibicao_remessas === "multipla" && (
+            <span className="text-[10px] text-muted-foreground">via Remessas</span>
+          )}
+        </div>
+      ) : null
     )},
   ];
 
@@ -548,17 +541,6 @@ export default function Logistica() {
         )}
       </div>
     ) : <span className="text-xs text-muted-foreground">—</span> },
-    { key: "acoes", label: "Ações", render: (item: Recebimento) => (
-      <div className="flex items-center gap-1.5 flex-wrap">
-        <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => setSelectedRecebimento(item)}><Eye className="h-3.5 w-3.5" />Ver</Button>
-        <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-muted-foreground" onClick={() => pushView("pedido_compra", item.id)}><ExternalLink className="h-3.5 w-3.5" />Compra</Button>
-        {canEdit && item.status_logistico !== "recebido" && (
-          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => abrirRegistrarRecebimento(item)}>
-            <CheckCheck className="h-3.5 w-3.5 mr-1" />Registrar recebimento
-          </Button>
-        )}
-      </div>
-    )},
   ];
 
   const remessaColumns = [
