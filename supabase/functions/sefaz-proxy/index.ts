@@ -242,6 +242,20 @@ Deno.serve(async (req) => {
     const { action } = body;
     log.info("request received", { action });
 
+    // ── Health check leve ──────────────────────────────────────────
+    // Usado pelo painel "Saúde do sistema" (admin) para indicar se a
+    // edge function está acessível sem precisar de PFX/SOAP. Retorna
+    // também a presença do secret de senha do certificado.
+    if (action === "health") {
+      const hasPfxPassword = !!Deno.env.get("CERTIFICADO_PFX_SENHA");
+      return json({
+        ok: true,
+        action: "health",
+        hasPfxPassword,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     if (action === "parse-certificado") {
       const { certificado_base64, senha } = body;
       if (!certificado_base64 || !senha) {

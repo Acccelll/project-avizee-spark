@@ -5,6 +5,8 @@
  *  - `v_admin_audit_unified`     → eventos administrativos por entidade (24h / 7d)
  *  - `email_send_log`            → taxa de erro de envio (24h)
  *  - `email_send_state`          → backoff de envio (`retry_after_until`)
+ *  - `email_queue_metrics()`     → profundidade das filas pgmq (auth/transactional + DLQ)
+ *  - edge function `sefaz-proxy` → ping `action: "health"` para indicar disponibilidade
  *
  * Não cria endpoints novos: tudo lido via PostgREST com RLS (admin-only).
  * O resultado alimenta `<HealthBadge>` e cartões de KPI em `SaudeSistemaSection`.
@@ -21,10 +23,16 @@ export interface ModuloEvento {
 }
 
 export interface IntegracaoSaude {
-  chave: "email" | "auditoria" | "permissoes";
+  chave: "email" | "auditoria" | "permissoes" | "fila_email" | "sefaz";
   nome: string;
   status: HealthStatus;
   detalhe: string;
+}
+
+export interface FilaEmailMetric {
+  queue_name: string;
+  total_messages: number;
+  oldest_msg_age_seconds: number;
 }
 
 export interface SaudeSistemaSnapshot {
@@ -37,11 +45,19 @@ export interface SaudeSistemaSnapshot {
     taxaErro: number;
     backoffAte: string | null;
   };
+  filas: FilaEmailMetric[];
 }
 
 /** Limites para classificação de saúde do envio de e-mail. */
 const EMAIL_DEGRADED_THRESHOLD = 0.05; // 5% de erro
 const EMAIL_DOWN_THRESHOLD = 0.25;     // 25% de erro
+
+/** Limites para a fila de e-mail (mensagens pendentes acumuladas). */
+const FILA_DEGRADED_MSGS = 50;
+const FILA_DOWN_MSGS = 200;
+/** Idade máxima saudável da mensagem mais antiga (segundos). */
+const FILA_DEGRADED_AGE = 15 * 60;     // 15 min
+const FILA_DOWN_AGE = 60 * 60;         // 1 h
 
 function classificarEmail(erros: number, total: number, backoffAte: string | null): IntegracaoSaude {
   if (backoffAte && new Date(backoffAte) > new Date()) {
@@ -83,6 +99,95 @@ function classificarEmail(erros: number, total: number, backoffAte: string | nul
     status: "healthy",
     detalhe: `${total} envios nas últimas 24h, ${erros} com erro`,
   };
+}
+
+function classificarFila(filas: FilaEmailMetric[]): IntegracaoSaude {
+  // Considera apenas as filas principais (DLQ é tratada à parte no card).
+  const main = filas.filter((f) => !f.queue_name.endsWith("_dlq"));
+  const dlqTotal = filas
+    .filter((f) => f.queue_name.endsWith("_dlq"))
+    .reduce((s, f) => s + f.total_messages, 0);
+  const totalPend = main.reduce((s, f) => s + f.total_messages, 0);
+  const idadeMax = main.reduce((m, f) => Math.max(m, f.oldest_msg_age_seconds), 0);
+
+  if (dlqTotal > 0) {
+    return {
+      chave: "fila_email",
+      nome: "Fila de e-mail",
+      status: "down",
+      detalhe: `${dlqTotal} mensagem(ns) na DLQ — investigar falhas persistentes`,
+    };
+  }
+  if (totalPend >= FILA_DOWN_MSGS || idadeMax >= FILA_DOWN_AGE) {
+    return {
+      chave: "fila_email",
+      nome: "Fila de e-mail",
+      status: "down",
+      detalhe: `${totalPend} pendentes, mais antiga há ${Math.round(idadeMax / 60)} min`,
+    };
+  }
+  if (totalPend >= FILA_DEGRADED_MSGS || idadeMax >= FILA_DEGRADED_AGE) {
+    return {
+      chave: "fila_email",
+      nome: "Fila de e-mail",
+      status: "degraded",
+      detalhe: `${totalPend} pendentes, mais antiga há ${Math.round(idadeMax / 60)} min`,
+    };
+  }
+  if (totalPend === 0) {
+    return {
+      chave: "fila_email",
+      nome: "Fila de e-mail",
+      status: "healthy",
+      detalhe: "Nenhuma mensagem pendente",
+    };
+  }
+  return {
+    chave: "fila_email",
+    nome: "Fila de e-mail",
+    status: "healthy",
+    detalhe: `${totalPend} pendente(s), processamento dentro do SLA`,
+  };
+}
+
+async function pingSefaz(): Promise<IntegracaoSaude> {
+  const inicio = performance.now();
+  try {
+    const { data, error } = await supabase.functions.invoke("sefaz-proxy", {
+      body: { action: "health" },
+    });
+    const ms = Math.round(performance.now() - inicio);
+    if (error) {
+      return {
+        chave: "sefaz",
+        nome: "Proxy Sefaz",
+        status: "down",
+        detalhe: `Falha na chamada: ${error.message}`,
+      };
+    }
+    const hasPfx = (data as { hasPfxPassword?: boolean } | null)?.hasPfxPassword;
+    if (hasPfx === false) {
+      return {
+        chave: "sefaz",
+        nome: "Proxy Sefaz",
+        status: "degraded",
+        detalhe: `Acessível em ${ms}ms, mas senha do PFX não configurada`,
+      };
+    }
+    return {
+      chave: "sefaz",
+      nome: "Proxy Sefaz",
+      status: "healthy",
+      detalhe: `Acessível em ${ms}ms`,
+    };
+  } catch (e) {
+    return {
+      chave: "sefaz",
+      nome: "Proxy Sefaz",
+      status: "down",
+      detalhe: `Indisponível: ${(e as Error).message}`,
+    };
+  }
 }
 
 export function useSaudeSistema() {
@@ -149,8 +254,31 @@ export function useSaudeSistema() {
       const erros24h = emailErrosRes.count ?? 0;
       const backoffAte = stateRes.data?.retry_after_until ?? null;
 
+      // 3. Profundidade das filas pgmq (RPC SECURITY DEFINER admin-only)
+      let filas: FilaEmailMetric[] = [];
+      try {
+        // RPC `email_queue_metrics` ainda pode não estar tipada no client gerado.
+        // Acesso via cast — substitui `invokeRpc` quando types regenerarem.
+        const { data: rows, error } = await (
+          supabase.rpc as unknown as (
+            name: string,
+            args?: Record<string, unknown>,
+          ) => Promise<{ data: FilaEmailMetric[] | null; error: { message: string } | null }>
+        )("email_queue_metrics", {});
+        if (error) throw new Error(error.message);
+        filas = rows ?? [];
+      } catch {
+        // RPC pode falhar em ambientes sem pgmq; mantém lista vazia.
+        filas = [];
+      }
+
+      // 4. Ping ao sefaz-proxy em paralelo com a montagem do snapshot
+      const sefazIntegracao = await pingSefaz();
+
       const integracoes: IntegracaoSaude[] = [
         classificarEmail(erros24h, enviados24h, backoffAte),
+        classificarFila(filas),
+        sefazIntegracao,
         {
           chave: "auditoria",
           nome: "Trilha de auditoria",
@@ -175,6 +303,7 @@ export function useSaudeSistema() {
           taxaErro: enviados24h > 0 ? erros24h / enviados24h : 0,
           backoffAte,
         },
+        filas,
       };
     },
     staleTime: 60 * 1000,
