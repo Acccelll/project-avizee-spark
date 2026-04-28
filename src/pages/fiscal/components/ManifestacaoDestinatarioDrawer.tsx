@@ -418,12 +418,17 @@ export function ManifestacaoDestinatarioDrawer({ open, onOpenChange }: Manifesta
                             <p className="font-medium">
                               NF {nf.numero ?? "—"}/{nf.serie ?? "—"}{" "}
                               <span className="font-normal text-muted-foreground">
-                                · CNPJ {nf.cnpj_emitente ?? "—"}
+                                · {nf.nome_emitente ?? `CNPJ ${nf.cnpj_emitente ?? "—"}`}
                               </span>
                             </p>
                             <p className="font-mono text-[11px] text-muted-foreground break-all">
                               {nf.chave_acesso}
                             </p>
+                            {nf.valor_total != null && (
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Total: {formatCurrency(Number(nf.valor_total))}
+                              </p>
+                            )}
                             {nf.data_manifestacao && (
                               <p className="text-xs text-muted-foreground mt-1">
                                 Manifestada em{" "}
@@ -433,9 +438,24 @@ export function ManifestacaoDestinatarioDrawer({ open, onOpenChange }: Manifesta
                               </p>
                             )}
                           </div>
-                          <Badge variant={st.variant}>{st.label}</Badge>
+                          <div className="flex flex-col items-end gap-1">
+                            <Badge variant={st.variant}>{st.label}</Badge>
+                            {nf.xml_importado && (
+                              <Badge variant="secondary" className="text-[10px]">XML</Badge>
+                            )}
+                          </div>
                         </div>
                         <div className="flex flex-wrap gap-2 pt-1">
+                          {nf.xml_importado && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setVerItensTarget(nf)}
+                              className="gap-1"
+                            >
+                              <Eye className="h-3 w-3" /> Ver itens
+                            </Button>
+                          )}
                           <Button
                             size="sm"
                             variant="outline"
