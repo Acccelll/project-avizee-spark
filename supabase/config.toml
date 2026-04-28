@@ -17,3 +17,5 @@ project_id = "cpvdncsxzostovdduhci"
     verify_jwt = false
   [functions.handle-email-suppression]
     verify_jwt = false
+  [functions.webhooks-dispatcher]
+    verify_jwt = false

@@ -209,3 +209,59 @@ Arquivos:
 Próxima frente sugerida: **Multi-tenant `empresa_id` + RLS** (alto risco,
 roteiro pronto em `rls-single-tenant.md`) ou **Webhooks de saída** para
 integrações externas.
+
+---
+
+## Onda — Webhooks de saída (28/abr/2026)
+
+Infraestrutura completa para emitir eventos do ERP para sistemas externos
+via HTTP POST assinado.
+
+### O que entrou
+
+- Tabelas `webhooks_endpoints` (catálogo) e `webhooks_deliveries`
+  (histórico de tentativas) com RLS admin-only e `chk_` em status/URL.
+- Fila `pgmq.webhook_events` consumida pelo dispatcher.
+- Triggers em `notas_fiscais`, `orcamentos`, `ordens_venda`,
+  `pedidos_compra` enfileiram payloads quando o status muda.
+- Edge function `webhooks-dispatcher` (cron 1min via pg_net + ação
+  manual) que: lê fila, busca endpoints assinantes, faz POST com
+  `X-AviZee-Signature` (HMAC SHA-256), persiste delivery e aplica
+  retry exponencial até 5 tentativas.
+- RPCs `webhooks_create_endpoint`, `webhooks_rotate_secret`,
+  `webhooks_increment_counter`, `webhooks_metrics` (todas
+  SECURITY DEFINER + `search_path = public`).
+- UI `/administracao?tab=webhooks` com KPIs, CRUD de endpoints,
+  reveal one-shot do segredo, tabela de deliveries com filtro por
+  endpoint e botão "Disparar agora".
+
+### Decisões
+
+- **Secret HMAC = `secret_hash`**: o banco nunca guarda o segredo em
+  texto puro; quem valida do outro lado armazena o mesmo hash que o
+  admin recebeu via dialog. Trade-off: simplicidade vs vault — vale
+  o ganho operacional para esta primeira versão.
+- Catálogo `WEBHOOK_EVENTOS` em `src/services/webhooks.service.ts`
+  é a fonte client-side; o banco aceita texto livre, mas a UI valida.
+- `webhooks-dispatcher` com `verify_jwt = false` para o cron
+  funcionar; é admin-only no painel via gate de UI e o dispatcher
+  só consome fila + faz POST para endpoints já cadastrados pelo admin.
+
+### Arquivos
+
+- `supabase/migrations/<ts>_webhooks_*.sql` (estrutura + cron)
+- `supabase/functions/webhooks-dispatcher/index.ts`
+- `src/services/webhooks.service.ts`
+- `src/pages/admin/hooks/useWebhooks.ts`
+- `src/pages/admin/sections/WebhooksSection.tsx`
+- `src/pages/Administracao.tsx` (rota `webhooks`)
+- `supabase/config.toml` (entrada da função)
+- `.lovable/memory/features/webhooks-saida.md`
+
+### Próximas frentes candidatas
+
+- **Replay de delivery individual** (botão "reenviar" + endpoint
+  `?action=retry&delivery=<id>` no dispatcher).
+- **Integração ao painel de saúde**: card consumindo
+  `webhooks_metrics()` ao lado das filas de e-mail.
+- **Multi-tenant `empresa_id` + RLS** (alto risco/impacto).
