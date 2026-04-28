@@ -31,6 +31,7 @@ const OrcamentoForm = lazy(() => import("./pages/OrcamentoForm"));
 
 const Estoque = lazy(() => import("./pages/Estoque"));
 const Fiscal = lazy(() => import("./pages/Fiscal"));
+const Faturamento = lazy(() => import("./pages/Faturamento"));
 const FiscalDetail = lazy(() => import("./pages/FiscalDetail"));
 const NotaFiscalForm = lazy(() => import("./pages/fiscal/NotaFiscalForm"));
 const Financeiro = lazy(() => import("./pages/Financeiro"));
@@ -163,6 +164,7 @@ const App = () => (
                       <Route path="/pedidos/:id" element={<PermissionRoute resource="pedidos"><LazyPage><PedidoForm /></LazyPage></PermissionRoute>} />
                       <Route path="/estoque" element={<PermissionRoute resource="estoque"><LazyPage><Estoque /></LazyPage></PermissionRoute>} />
                       <Route path="/fiscal" element={<PermissionRoute resource="faturamento_fiscal"><LazyPage><Fiscal /></LazyPage></PermissionRoute>} />
+                      <Route path="/faturamento" element={<PermissionRoute resource="faturamento_fiscal"><LazyPage><Faturamento /></LazyPage></PermissionRoute>} />
                       <Route path="/fiscal/novo" element={<PermissionRoute resource="faturamento_fiscal" action="editar"><LazyPage><NotaFiscalForm /></LazyPage></PermissionRoute>} />
                       <Route path="/fiscal/:id/editar" element={<PermissionRoute resource="faturamento_fiscal" action="editar"><LazyPage><NotaFiscalForm /></LazyPage></PermissionRoute>} />
                       <Route path="/fiscal/:id" element={<PermissionRoute resource="faturamento_fiscal"><LazyPage><FiscalDetail /></LazyPage></PermissionRoute>} />
