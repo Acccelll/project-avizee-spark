@@ -666,6 +666,18 @@ export default function Logistica() {
               moduleKey="logistica-entregas"
               showColumnToggle
               onView={(e) => setSelectedEntrega(e as Entrega)}
+              rowExtraActions={(item: Entrega) => (
+                <>
+                  <Button variant="ghost" size="sm" className="h-7 px-2 gap-1 text-xs text-muted-foreground" onClick={(e) => { e.stopPropagation(); pushView("ordem_venda", item.id); }} title="Ver pedido">
+                    <ExternalLink className="h-3.5 w-3.5" />Pedido
+                  </Button>
+                  {item.codigo_rastreio && (
+                    <Button variant="ghost" size="sm" className="h-7 px-2 gap-1 text-xs" onClick={(e) => { e.stopPropagation(); abrirRastreioEntrega(item); }} title="Rastrear">
+                      <Search className="h-3.5 w-3.5" />Rastrear
+                    </Button>
+                  )}
+                </>
+              )}
               mobileStatusKey="status_logistico"
               mobileIdentifierKey="cliente"
               mobilePrimaryAction={(item) => {
@@ -709,6 +721,18 @@ export default function Logistica() {
               moduleKey="logistica-recebimentos"
               showColumnToggle
               onView={(r) => setSelectedRecebimento(r as Recebimento)}
+              rowExtraActions={(item: Recebimento) => (
+                <>
+                  <Button variant="ghost" size="sm" className="h-7 px-2 gap-1 text-xs text-muted-foreground" onClick={(e) => { e.stopPropagation(); pushView("pedido_compra", item.id); }} title="Ver compra">
+                    <ExternalLink className="h-3.5 w-3.5" />Compra
+                  </Button>
+                  {canEdit && item.status_logistico !== "recebido" && (
+                    <Button variant="outline" size="sm" className="h-7 px-2 gap-1 text-xs" onClick={(e) => { e.stopPropagation(); abrirRegistrarRecebimento(item); }}>
+                      <CheckCheck className="h-3.5 w-3.5" />Receber
+                    </Button>
+                  )}
+                </>
+              )}
               mobileStatusKey="status_logistico"
               mobileIdentifierKey="fornecedor"
               mobilePrimaryAction={(item) => {
