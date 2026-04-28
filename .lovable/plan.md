@@ -236,3 +236,9 @@ Sugiro a sequência **Onda 0 → Onda 1 → Onda 3** (fundação + casca + wizar
   - Lista accordion-style de execuções: clique expande detalhes por CNPJ (status OK/Falha, novos/duplicados, cStat/xMotivo/erro)
   - Botões: "Atualizar" (recarrega), "Executar agora (Hom.)" e "Produção" (dispara `sincronizarDistDFe(ambiente)` — útil para testes manuais sem aguardar o cron)
   - Link "Ver histórico de execuções →" no `ManifestacaoDestinatarioDrawer` (próximo ao botão de sincronização) para acesso direto
+- ✅ **Onda 16** — Notificação proativa de NF-e de entrada novas:
+  - `nfe_distribuicao` adicionada à publication `supabase_realtime` (REPLICA IDENTITY FULL) — qualquer INSERT do cron `process-distdfe-cron` chega ao client em tempo real
+  - Canal singleton `alertsChannel` agora escuta também `public.nfe_distribuicao` (broadcast → invalida `sidebar-alerts`)
+  - `SidebarAlertsRaw` ganha `nfeEntradaSemManifestacao`: COUNT(*) em `nfe_distribuicao WHERE status_manifestacao='sem_manifestacao'`
+  - `useSidebarBadges`: badge da seção `fiscal` agora soma NF-e rejeitadas (saída) + NF-e de entrada sem manifestação; tone vira `warning` quando só há entradas pendentes (preserva `danger` para rejeições). Item-badge separado em `/faturamento` com tone `warning`
+  - Hook `useNfeEntradaToast` (montado no `AppLayout`): observa `nfeEntradaSemManifestacao` via `useSidebarAlerts`, persiste último valor em `sessionStorage`, dispara `toast.info` com action "Ver" → `/faturamento?tab=manifestacao` quando o contador aumenta. Ignora primeira leitura (snapshot inicial não é "novo")
