@@ -552,6 +552,110 @@ export function ManifestacaoDestinatarioDrawer({ open, onOpenChange }: Manifesta
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ItensDialog
+        nf={verItensTarget}
+        onClose={() => setVerItensTarget(null)}
+      />
     </>
+  );
+}
+
+/**
+ * Dialog que carrega e exibe os itens de uma NF-e capturada via XML.
+ * Lazy-load: só faz fetch quando aberto.
+ */
+interface ItensDialogProps {
+  nf: NfeCapturada | null;
+  onClose: () => void;
+}
+
+function ItensDialog({ nf, onClose }: ItensDialogProps) {
+  const { data: itens = [], isLoading } = useQuery({
+    queryKey: ["nfe-distribuicao-itens", nf?.id],
+    queryFn: async (): Promise<NFeXmlItem[]> => {
+      if (!nf) return [];
+      const { data, error } = await supabase
+        .from("nfe_distribuicao_itens")
+        .select("numero_item, codigo, descricao, ncm, cfop, unidade, quantidade, valor_unitario, valor_total")
+        .eq("nfe_distribuicao_id", nf.id)
+        .order("numero_item");
+      if (error) throw error;
+      return (data ?? []).map((r) => ({
+        numero: r.numero_item,
+        codigo: r.codigo,
+        descricao: r.descricao,
+        ncm: r.ncm,
+        cfop: r.cfop,
+        unidade: r.unidade,
+        quantidade: Number(r.quantidade ?? 0),
+        valorUnitario: Number(r.valor_unitario ?? 0),
+        valorTotal: Number(r.valor_total ?? 0),
+      }));
+    },
+    enabled: !!nf,
+  });
+
+  return (
+    <Dialog open={!!nf} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>
+            Itens da NF {nf?.numero ?? "—"}/{nf?.serie ?? "—"}
+          </DialogTitle>
+          <DialogDescription>
+            {nf?.nome_emitente ?? `CNPJ ${nf?.cnpj_emitente ?? "—"}`} · Total{" "}
+            {nf?.valor_total != null ? formatCurrency(Number(nf.valor_total)) : "—"}
+          </DialogDescription>
+        </DialogHeader>
+        {isLoading ? (
+          <p className="text-sm text-muted-foreground py-8 text-center">Carregando itens…</p>
+        ) : itens.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-8 text-center">
+            Nenhum item cadastrado.
+          </p>
+        ) : (
+          <div className="max-h-[60vh] overflow-y-auto rounded-md border">
+            <table className="w-full text-xs">
+              <thead className="bg-muted/50 text-muted-foreground sticky top-0">
+                <tr>
+                  <th className="px-2 py-2 text-left">#</th>
+                  <th className="px-2 py-2 text-left">Descrição</th>
+                  <th className="px-2 py-2 text-left">NCM</th>
+                  <th className="px-2 py-2 text-left">CFOP</th>
+                  <th className="px-2 py-2 text-right">Qtd</th>
+                  <th className="px-2 py-2 text-right">Vlr Unit</th>
+                  <th className="px-2 py-2 text-right">Vlr Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {itens.map((it) => (
+                  <tr key={it.numero} className="border-t">
+                    <td className="px-2 py-1.5">{it.numero}</td>
+                    <td className="px-2 py-1.5">
+                      <div className="font-medium">{it.descricao}</div>
+                      {it.codigo && (
+                        <div className="text-[10px] text-muted-foreground">cód {it.codigo}</div>
+                      )}
+                    </td>
+                    <td className="px-2 py-1.5">{it.ncm ?? "—"}</td>
+                    <td className="px-2 py-1.5">{it.cfop ?? "—"}</td>
+                    <td className="px-2 py-1.5 text-right">
+                      {it.quantidade.toLocaleString("pt-BR", { maximumFractionDigits: 4 })}{" "}
+                      <span className="text-muted-foreground">{it.unidade ?? ""}</span>
+                    </td>
+                    <td className="px-2 py-1.5 text-right">{formatCurrency(it.valorUnitario)}</td>
+                    <td className="px-2 py-1.5 text-right font-medium">{formatCurrency(it.valorTotal)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose}>Fechar</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
