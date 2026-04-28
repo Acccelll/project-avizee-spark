@@ -186,6 +186,18 @@ export default function Logistica() {
     }
   }, [remSelected, remDrawerOpen]);
 
+  // Carrega o status de etiqueta Correios para todas as remessas visíveis (batch).
+  useEffect(() => {
+    const ids = (remessasData ?? []).map((r) => r.id);
+    if (ids.length === 0) {
+      setEtiquetasMap({});
+      return;
+    }
+    void listLatestEtiquetasByRemessas(ids)
+      .then(setEtiquetasMap)
+      .catch(() => setEtiquetasMap({}));
+  }, [remessasData]);
+
   // ─── Derived maps ───
   const clienteMapLookup = useMemo(() => Object.fromEntries(clientes.map(c => [c.id, c.nome_razao_social])), [clientes]);
   const transpMapLookup = useMemo(() => Object.fromEntries(transportadorasLookup.map(t => [t.id, t.nome_razao_social])), [transportadorasLookup]);
