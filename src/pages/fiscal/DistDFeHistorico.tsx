@@ -7,9 +7,16 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, RefreshCw, PlayCircle } from "lucide-react";
+import { ArrowLeft, RefreshCw, PlayCircle, Zap } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { useAppConfig } from "@/hooks/useAppConfig";
+import {
+  aplicarCienciaEmLote,
+  buscarNfeSemManifestacao,
+} from "@/services/fiscal/autoCiencia.service";
 
 /**
  * Histórico de execuções do cron `process-distdfe-cron`.
@@ -50,6 +57,12 @@ export default function DistDFeHistorico() {
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const {
+    value: autoCiencia,
+    save: saveAutoCiencia,
+    loading: loadingFlag,
+  } = useAppConfig<boolean>("distdfe_auto_ciencia", false);
+  const [aplicandoLote, setAplicandoLote] = useState(false);
 
   const carregar = useCallback(async () => {
     setLoading(true);
@@ -147,6 +160,69 @@ export default function DistDFeHistorico() {
           </CardContent>
         </Card>
       </div>
+
+      <Card className="border-amber-500/30">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Zap className="h-4 w-4 text-amber-500" />
+            Auto-Ciência da Operação
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Quando ativada, toda NF-e nova baixada pelo cron recebe automaticamente o evento{" "}
+            <strong>NT 2012/002 — 210210 (Ciência da Operação)</strong> junto à SEFAZ, eliminando
+            o passo manual. A confirmação efetiva (210200) ou desconhecimento (210220) continua
+            sendo uma decisão do usuário fiscal.
+          </p>
+          <div className="flex items-center justify-between rounded-md border p-3">
+            <Label htmlFor="auto-ciencia" className="cursor-pointer">
+              <div className="font-medium">Aplicar ciência automaticamente</div>
+              <div className="text-xs text-muted-foreground">
+                Vale para novas NF-e detectadas após esta opção ser ligada.
+              </div>
+            </Label>
+            <Switch
+              id="auto-ciencia"
+              checked={!!autoCiencia}
+              disabled={loadingFlag}
+              onCheckedChange={(v) => void saveAutoCiencia(v)}
+            />
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={aplicandoLote}
+            onClick={async () => {
+              setAplicandoLote(true);
+              try {
+                const notas = await buscarNfeSemManifestacao(100);
+                if (notas.length === 0) {
+                  toast({ title: "Nada a fazer", description: "Não há NF-e sem manifestação." });
+                  return;
+                }
+                const r = await aplicarCienciaEmLote(notas);
+                toast({
+                  title: "Lote concluído",
+                  description: `${r.sucesso} ciência(s) aplicada(s) · ${r.falhas} falha(s).`,
+                  variant: r.falhas > 0 ? "destructive" : "default",
+                });
+              } catch (e) {
+                toast({
+                  title: "Falha no lote",
+                  description: (e as Error).message,
+                  variant: "destructive",
+                });
+              } finally {
+                setAplicandoLote(false);
+              }
+            }}
+          >
+            <Zap className="h-4 w-4 mr-2" />
+            {aplicandoLote ? "Aplicando..." : "Aplicar ciência em lote agora"}
+          </Button>
+        </CardContent>
+      </Card>
 
       {ultima && (
         <Card className="border-primary/30">

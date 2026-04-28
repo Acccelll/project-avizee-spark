@@ -242,3 +242,13 @@ Sugiro a sequência **Onda 0 → Onda 1 → Onda 3** (fundação + casca + wizar
   - `SidebarAlertsRaw` ganha `nfeEntradaSemManifestacao`: COUNT(*) em `nfe_distribuicao WHERE status_manifestacao='sem_manifestacao'`
   - `useSidebarBadges`: badge da seção `fiscal` agora soma NF-e rejeitadas (saída) + NF-e de entrada sem manifestação; tone vira `warning` quando só há entradas pendentes (preserva `danger` para rejeições). Item-badge separado em `/faturamento` com tone `warning`
   - Hook `useNfeEntradaToast` (montado no `AppLayout`): observa `nfeEntradaSemManifestacao` via `useSidebarAlerts`, persiste último valor em `sessionStorage`, dispara `toast.info` com action "Ver" → `/faturamento?tab=manifestacao` quando o contador aumenta. Ignora primeira leitura (snapshot inicial não é "novo")
+- ✅ **Onda 17** — Auto-Ciência DistDF-e (manifestação automática 210210):
+  - Flag `app_configuracoes.distdfe_auto_ciencia` (boolean, default false) lida via `useAppConfig`
+  - Service `src/services/fiscal/autoCiencia.service.ts`:
+    - `aplicarCienciaEmLote(notas)`: carrega CNPJ destinatário e ambiente de `empresa_config`, recheca status atual de cada NF (idempotência), invoca `enviarManifestacao(210210)` (reusa serviço existente já testado, com XMLDSig + sefaz-proxy), persiste `eventos_fiscais` (motivo_retorno='auto-ciencia') e atualiza `nfe_distribuicao.status_manifestacao='ciencia'`. Retorna `{total, sucesso, falhas, detalhes[]}`
+    - `buscarNfeSemManifestacao(limite)`: lista NF-e elegíveis ordenadas por created_at
+  - Hook `useAutoCienciaDistDFe` (montado no `AppLayout`): quando flag ligada, observa `nfeEntradaSemManifestacao`; ao aumentar (sinal do cron), dispara `aplicarCienciaEmLote` em background com toast loading→success/error. Ref `running` previne reentrada (1 execução por vez); ignora primeira leitura
+  - UI em `/fiscal/distdfe-historico` — novo card "Auto-Ciência da Operação" com:
+    - Switch ligando/desligando a flag (persiste via `useAppConfig` → `app_configuracoes`)
+    - Botão "Aplicar ciência em lote agora" (manual) que executa o lote sem precisar esperar o cron, útil para limpar backlog
+  - Decisão arquitetural: manifestação roda no client (não no edge function) porque o serviço `enviarManifestacao` já assina XMLDSig localmente e usa o `sefaz-proxy` mTLS — reaproveitamento total, sem duplicar lógica de assinatura no edge
