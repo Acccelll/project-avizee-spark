@@ -20,7 +20,6 @@ import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { supabase } from "@/integrations/supabase/client";
 import {
   listGruposAtivos,
   listFornecedoresParaProduto,
