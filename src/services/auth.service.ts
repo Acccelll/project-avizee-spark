@@ -1,4 +1,54 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { PermissionKey } from "@/lib/permissions";
+
+/* -------- Profile / Roles / Permissions (lidos pelo AuthContext) -------- */
+
+export interface AuthProfileRow {
+  nome: string | null;
+  email: string | null;
+  cargo: string | null;
+  avatar_url: string | null;
+}
+
+export async function fetchAuthProfile(userId: string): Promise<AuthProfileRow | null> {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("nome,email,cargo,avatar_url")
+    .eq("id", userId)
+    .single();
+  if (error) throw error;
+  return (data as AuthProfileRow | null) ?? null;
+}
+
+export async function fetchAuthRoles(userId: string): Promise<string[]> {
+  const { data, error } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId);
+  if (error) throw error;
+  return ((data as Array<{ role: string }> | null) ?? []).map((r) => r.role);
+}
+
+export interface AuthPermissionsResult {
+  allowed: PermissionKey[];
+  denied: PermissionKey[];
+}
+
+export async function fetchAuthPermissions(userId: string): Promise<AuthPermissionsResult> {
+  const { data, error } = await supabase
+    .from("user_permissions")
+    .select("resource, action, allowed")
+    .eq("user_id", userId);
+  if (error) throw error;
+  const allowed: PermissionKey[] = [];
+  const denied: PermissionKey[] = [];
+  for (const row of (data || []) as Array<{ resource: string; action: string; allowed: boolean }>) {
+    const key = `${row.resource}:${row.action}` as PermissionKey;
+    if (row.allowed) allowed.push(key);
+    else denied.push(key);
+  }
+  return { allowed, denied };
+}
 
 /* -------- Perfil -------- */
 
