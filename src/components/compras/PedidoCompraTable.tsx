@@ -138,24 +138,6 @@ export function PedidoCompraTable({
           <span className="text-xs text-muted-foreground">Avulso</span>
         ),
     },
-    {
-      key: "acoes_pc",
-      label: "Ações",
-      sortable: false,
-      render: (p: PedidoCompra) => {
-        const status = canonicalPedidoStatus(p.status);
-        const canSend = status === "aprovado";
-        const canReceive = pedidoCanReceive(status);
-        if (!canSend && !canReceive) return null;
-        const primary = canSend
-          ? { label: "Enviar ao fornecedor", icon: SendHorizontal, onClick: () => sendLock.run(() => onSend(p)), disabled: sendLock.pending }
-          : { label: "Receber", icon: PackageCheck, onClick: () => receiveLock.run(() => onReceive(p)), disabled: receiveLock.pending };
-        const secondary = canSend && canReceive
-          ? [{ label: "Receber", icon: PackageCheck, onClick: () => receiveLock.run(() => onReceive(p)), disabled: receiveLock.pending }]
-          : [];
-        return <RowActions primary={primary} secondary={secondary} />;
-      },
-    },
   ];
 
   return (
@@ -167,6 +149,19 @@ export function PedidoCompraTable({
       showColumnToggle={true}
       onView={onView}
       onEdit={onEdit}
+      rowExtraActions={(p: PedidoCompra) => {
+        const status = canonicalPedidoStatus(p.status);
+        const canSend = status === "aprovado";
+        const canReceive = pedidoCanReceive(status);
+        if (!canSend && !canReceive) return null;
+        const primary = canSend
+          ? { label: "Enviar ao fornecedor", icon: SendHorizontal, onClick: () => sendLock.run(() => onSend(p)), disabled: sendLock.pending }
+          : { label: "Receber", icon: PackageCheck, onClick: () => receiveLock.run(() => onReceive(p)), disabled: receiveLock.pending };
+        const secondary = canSend && canReceive
+          ? [{ label: "Receber", icon: PackageCheck, onClick: () => receiveLock.run(() => onReceive(p)), disabled: receiveLock.pending }]
+          : [];
+        return <RowActions primary={primary} secondary={secondary} />;
+      }}
       mobileStatusKey="status"
       emptyTitle="Nenhum pedido de compra encontrado"
       emptyDescription="Tente ajustar os filtros ou crie um novo pedido de compra."
