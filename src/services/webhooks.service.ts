@@ -128,3 +128,12 @@ export async function triggerDispatcher(): Promise<unknown> {
   if (error) throw error;
   return data;
 }
+
+/** Reenfileira uma delivery falha para nova tentativa imediata. Admin-only via RPC. */
+export async function replayDelivery(deliveryId: string): Promise<{ id: string; status: string }> {
+  const { data, error } = await supabase.rpc("webhooks_replay_delivery" as never, {
+    p_delivery_id: deliveryId,
+  } as never);
+  if (error) throw error;
+  return data as unknown as { id: string; status: string };
+}
