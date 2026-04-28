@@ -55,3 +55,8 @@ export async function deleteProdutoFornecedor(vinculoId: string): Promise<void> 
     .eq("id", vinculoId);
   if (error) throw error;
 }
+
+export async function deleteFornecedor(id: string): Promise<void> {
+  const { error } = await supabase.from("fornecedores").delete().eq("id", id);
+  if (error) throw error;
+}

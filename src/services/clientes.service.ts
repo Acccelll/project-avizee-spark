@@ -199,3 +199,8 @@ export async function listFormasPagamentoAtivas() {
   if (error) throw error;
   return (data || []) as Array<{ id: string; descricao: string }>;
 }
+
+export async function deleteCliente(id: string): Promise<void> {
+  const { error } = await supabase.from("clientes").delete().eq("id", id);
+  if (error) throw error;
+}
