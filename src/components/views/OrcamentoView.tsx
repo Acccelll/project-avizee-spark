@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { FormTabsList } from "@/components/FormTabsList";
@@ -27,6 +26,7 @@ import {
   ensurePublicToken,
   cancelarOrcamento,
   criarRevisaoOrcamento,
+  fetchOrcamentoDetalhes,
 } from "@/services/orcamentos.service";
 import { useConverterOrcamento } from "@/pages/comercial/hooks/useConverterOrcamento";
 import { useCrossModuleToast } from "@/hooks/useCrossModuleToast";
@@ -67,36 +67,10 @@ export function OrcamentoView({ id }: Props) {
   const converterOrcamento = useConverterOrcamento();
   const crossToast = useCrossModuleToast();
 
-  const { data, loading, error, reload } = useDetailFetch<OrcamentoDetail>(id, async (oId, signal) => {
-    const { data: orc, error: orcError } = await supabase
-      .from("orcamentos")
-      .select("*, clientes(id, nome_razao_social)")
-      .eq("id", oId)
-      .abortSignal(signal)
-      .maybeSingle();
-    if (orcError) throw orcError;
-    if (!orc) return null;
-
-    const [{ data: it }, { data: ov }] = await Promise.all([
-      supabase
-        .from("orcamentos_itens")
-        .select("*, produtos(id, nome, sku)")
-        .eq("orcamento_id", orc.id)
-        .abortSignal(signal),
-      supabase
-        .from("ordens_venda")
-        .select("id, numero")
-        .eq("cotacao_id", orc.id)
-        .abortSignal(signal)
-        .maybeSingle(),
-    ]);
-
-    return {
-      orcamento: orc,
-      items: it || [],
-      linkedOV: ov || null,
-    };
-  });
+  const { data, loading, error, reload } = useDetailFetch<OrcamentoDetail>(
+    id,
+    fetchOrcamentoDetalhes,
+  );
 
   const selected = data?.orcamento ?? null;
   const items = data?.items ?? [];
