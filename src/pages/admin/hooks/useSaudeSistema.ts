@@ -15,7 +15,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { HealthStatus } from "@/components/HealthBadge";
-import { invokeRpc } from "@/types/rpc";
 
 export interface ModuloEvento {
   entidade: string;
@@ -258,8 +257,16 @@ export function useSaudeSistema() {
       // 3. Profundidade das filas pgmq (RPC SECURITY DEFINER admin-only)
       let filas: FilaEmailMetric[] = [];
       try {
-        const rows = await invokeRpc("email_queue_metrics", {});
-        filas = (rows as FilaEmailMetric[] | null) ?? [];
+        // RPC `email_queue_metrics` ainda pode não estar tipada no client gerado.
+        // Acesso via cast — substitui `invokeRpc` quando types regenerarem.
+        const { data: rows, error } = await (
+          supabase.rpc as unknown as (
+            name: string,
+            args?: Record<string, unknown>,
+          ) => Promise<{ data: FilaEmailMetric[] | null; error: { message: string } | null }>
+        )("email_queue_metrics", {});
+        if (error) throw new Error(error.message);
+        filas = rows ?? [];
       } catch {
         // RPC pode falhar em ambientes sem pgmq; mantém lista vazia.
         filas = [];
