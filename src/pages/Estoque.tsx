@@ -613,6 +613,7 @@ const Estoque = () => {
                   setDataInicio(next.from || "");
                   setDataFim(next.to || "");
                 }}
+                direction="past"
               />
             </AdvancedFilterBar>
             <DataTable

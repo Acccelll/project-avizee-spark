@@ -91,3 +91,33 @@ export function periodToDateTo(period: Period): string | null {
   }
   return null;
 }
+
+/**
+ * Converte uma string `YYYY-MM` no intervalo de datas do mês fechado
+ * (1º dia até último dia). Retorna `null` se a string não for válida.
+ */
+export function monthToRange(yyyyMm: string | null | undefined): { from: string; to: string } | null {
+  if (!yyyyMm) return null;
+  const m = /^(\d{4})-(\d{2})$/.exec(yyyyMm);
+  if (!m) return null;
+  const year = Number(m[1]);
+  const month = Number(m[2]); // 1-12
+  if (month < 1 || month > 12) return null;
+  const first = new Date(year, month - 1, 1);
+  const last = new Date(year, month, 0); // dia 0 do mês seguinte = último dia
+  return { from: fmtDate(first), to: fmtDate(last) };
+}
+
+/** Retorna o YYYY-MM do mês corrente. */
+export function currentMonthKey(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+/** Formata YYYY-MM como "Mmm/AAAA" (ex.: "Abr/2026"). */
+export function formatMonthKey(yyyyMm: string): string {
+  const m = /^(\d{4})-(\d{2})$/.exec(yyyyMm);
+  if (!m) return yyyyMm;
+  const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+  return `${months[Number(m[2]) - 1]}/${m[1]}`;
+}

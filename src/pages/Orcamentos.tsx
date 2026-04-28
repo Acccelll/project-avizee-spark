@@ -394,44 +394,6 @@ const Orcamentos = () => {
       key: "peso_total", label: "Peso Total", hidden: true,
       render: (o: Orcamento) => <span className="text-xs text-muted-foreground">{o.peso_total ? `${o.peso_total} kg` : "—"}</span>,
     },
-    {
-      key: "acoes_comercial", label: "Ações", sortable: false,
-      render: (o: Orcamento) => (
-        <div className="flex items-center gap-1">
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-7 w-7 p-0"
-            aria-label="Visualizar orçamento"
-            title="Visualizar"
-            onClick={(e) => { e.stopPropagation(); pushView("orcamento", o.id); }}
-          >
-            <Eye className="w-3.5 h-3.5" />
-          </Button>
-          {canSendOrcamento(o.status) && (
-            <Button size="sm" variant="outline" className="h-7 text-xs gap-1" disabled={sendLock.pending} onClick={(e) => { e.stopPropagation(); handleSendForApproval(o); }}>
-              <Send className="w-3 h-3" /> Enviar
-            </Button>
-          )}
-          {canApproveOrcamento(o.status) && (
-            <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={(e) => { e.stopPropagation(); handleApprove(o); }} disabled={!isAdmin || approveLock.pending} title={!isAdmin ? "Somente admins podem aprovar" : ""}>
-              <CheckCircle className="w-3 h-3" /> Aprovar
-            </Button>
-          )}
-          {canConvertOrcamento(o.status) && (
-            <Button size="sm" variant="default" className="h-7 text-xs gap-1" disabled={convertLock.pending} onClick={(e) => {
-              e.stopPropagation();
-              // Reset PO state ao abrir o dialog para evitar vazamento entre orçamentos.
-              setPoNumberCliente("");
-              setDataPoCliente("");
-              setConvertingId(o.id);
-            }}>
-              <ArrowRightCircle className="w-3 h-3" /> Gerar Pedido
-            </Button>
-          )}
-        </div>
-      ),
-    },
   ];
 
   const convertingOrc = data.find(o => o.id === convertingId);
@@ -524,7 +486,7 @@ const Orcamentos = () => {
             placeholder="Clientes"
             className="w-[250px]"
           />
-          <PeriodFilter mode="both" value={periodValue} onChange={handlePeriodChange} />
+          <PeriodFilter mode="both" value={periodValue} onChange={handlePeriodChange} direction="past" />
         </AdvancedFilterBar>
 
         <PullToRefresh onRefresh={fetchData}>
@@ -536,6 +498,30 @@ const Orcamentos = () => {
             showColumnToggle={true}
             onView={(o) => pushView("orcamento", o.id)}
             onEdit={(o) => navigate(`/orcamentos/${o.id}`)}
+            rowExtraActions={(o: Orcamento) => (
+              <>
+                {canSendOrcamento(o.status) && (
+                  <Button size="sm" variant="outline" className="h-7 px-2 text-xs gap-1" disabled={sendLock.pending} onClick={(e) => { e.stopPropagation(); handleSendForApproval(o); }}>
+                    <Send className="w-3 h-3" /> Enviar
+                  </Button>
+                )}
+                {canApproveOrcamento(o.status) && (
+                  <Button size="sm" variant="outline" className="h-7 px-2 text-xs gap-1" onClick={(e) => { e.stopPropagation(); handleApprove(o); }} disabled={!isAdmin || approveLock.pending} title={!isAdmin ? "Somente admins podem aprovar" : ""}>
+                    <CheckCircle className="w-3 h-3" /> Aprovar
+                  </Button>
+                )}
+                {canConvertOrcamento(o.status) && (
+                  <Button size="sm" variant="default" className="h-7 px-2 text-xs gap-1" disabled={convertLock.pending} onClick={(e) => {
+                    e.stopPropagation();
+                    setPoNumberCliente("");
+                    setDataPoCliente("");
+                    setConvertingId(o.id);
+                  }}>
+                    <ArrowRightCircle className="w-3 h-3" /> Gerar Pedido
+                  </Button>
+                )}
+              </>
+            )}
             mobileStatusKey="status"
             mobilePrimaryAction={(o) => {
               if (canConvertOrcamento(o.status)) {

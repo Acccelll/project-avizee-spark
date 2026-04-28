@@ -455,6 +455,7 @@ const FluxoCaixa = () => {
               onChange={handlePeriodChange}
               options={financialPeriods}
               mode="both"
+              direction="future"
             />
           </div>
           <div className="space-y-1">

@@ -10,6 +10,34 @@ type: feature
 `src/components/filters/PeriodFilter.tsx`. Novas telas **não** podem
 criar inputs `<input type="date">` paralelos.
 
+## Direção temporal (obrigatória)
+
+Toda instância do `PeriodFilter` deve declarar `direction`:
+
+| direction | Quando usar | Rótulos | Ícone |
+|---|---|---|---|
+| `past` | Histórico/emissão (Pedidos, Orçamentos, Estoque, Cotações) | "Hoje", "Últ. 7d/30d…", "Este ano" | History |
+| `future` | Vencimentos (Lançamentos, Fluxo de Caixa) | "Vence hoje", "Próx. 7d/30d…", "Até fim do ano" | CalendarClock |
+| `neutral` | Datas genéricas/raras | rótulos curtos ("7d", "30d") | Calendar |
+
+Default: `past` (preserva comportamento legado). Páginas financeiras
+devem passar `direction="future"` explicitamente.
+
+Cada chip leva tooltip detalhando o intervalo concreto.
+
+## MonthFilter (mês fechado)
+
+Componente `src/components/filters/MonthFilter.tsx` complementa o
+`PeriodFilter` para selecionar **um mês específico** (1º → último dia).
+Convivem na mesma toolbar; quando `MonthFilter` está ativo, a tela
+ignora o `PeriodFilter` (uma única fonte de verdade temporal).
+
+- URL: `?mes=YYYY-MM` quando ativo.
+- Aplicar em: Lançamentos, Fluxo de Caixa, Conciliação, Pedidos,
+  Orçamentos, Cotações de Compra, Pedidos de Compra, Estoque,
+  Relatórios.
+- Não aplicar em: Auditoria (range livre), Dashboard (período global).
+
 ## Presets canônicos (orientação para trás — análise histórica)
 
 | Valor | Label PT-BR | Significado |

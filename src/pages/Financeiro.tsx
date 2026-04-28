@@ -8,6 +8,7 @@ import { FormModal } from "@/components/FormModal";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { SummaryCard } from "@/components/SummaryCard";
 import { PeriodFilter } from "@/components/filters/PeriodFilter";
+import { MonthFilter } from "@/components/filters/MonthFilter";
 import { financialPeriods } from "@/components/filters/periodTypes";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { useQueryClient } from "@tanstack/react-query";
@@ -139,6 +140,8 @@ const Financeiro = () => {
     setOrigemFilters,
     period,
     setPeriod,
+    mes,
+    setMes,
     filteredData,
     activeFilters,
     handleRemoveFilter,
@@ -205,10 +208,6 @@ const Financeiro = () => {
         getLancamentoStatus,
         hoje,
         hojeStr,
-        onBaixaParcial: (l) => {
-          setBaixaParcialTarget(l);
-          setBaixaParcialOpen(true);
-        },
       }),
     [getLancamentoStatus, hoje, hojeStr],
   );
@@ -216,7 +215,13 @@ const Financeiro = () => {
   return (
     <><ModulePage title="Lançamentos" subtitle="Gestão unificada de contas a pagar e receber" addLabel="Novo Lançamento" onAdd={openCreate}>
         <div className="mb-4 flex items-center gap-2 flex-wrap">
-          <PeriodFilter value={period} onChange={setPeriod} options={financialPeriods} />
+          <PeriodFilter
+            value={period}
+            onChange={(p) => { setPeriod(p); setMes(null); }}
+            options={financialPeriods}
+            direction="future"
+          />
+          <MonthFilter value={mes} onChange={setMes} direction="future" />
           <div className="flex gap-1 ml-auto rounded-lg border p-0.5">
             <Button
               size="sm"
@@ -324,6 +329,25 @@ const Financeiro = () => {
               onView={(l) => {
                 setSelected(l);
                 setDrawerOpen(true);
+              }}
+              rowExtraActions={(l) => {
+                const es = getLancamentoStatus(l);
+                if (es === "pago" || es === "cancelado") return null;
+                return (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs gap-1 border-primary/30 text-primary hover:bg-primary/5 whitespace-nowrap"
+                    aria-label={`Baixar lançamento: ${l.descricao}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setBaixaParcialTarget(l);
+                      setBaixaParcialOpen(true);
+                    }}
+                  >
+                    <CreditCard className="h-3 w-3" /> Baixar
+                  </Button>
+                );
               }}
               mobileStatusKey="status"
               mobileIdentifierKey="descricao"

@@ -359,32 +359,6 @@ const Pedidos = () => {
         return <span className={`font-mono text-xs ${dias > DIAS_ABERTO_ALERTA ? "text-destructive font-bold" : "text-muted-foreground"}`}>{dias}d</span>;
       },
     },
-    {
-      key: "acoes", label: "Ações", sortable: false,
-      render: (p: Pedido) => (
-        <div className="flex gap-1">
-          {canFaturarPedido(p) && (
-            <Button
-              size="sm"
-              variant="default"
-              className="h-7 text-xs gap-1"
-              disabled={stockCheckPending || generatingNfId === p.id}
-              onClick={(e) => { e.stopPropagation(); handleRequestGenerateNF(p); }}
-            >
-              <FileOutput className="w-3 h-3" /> Gerar NF
-            </Button>
-          )}
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-7 text-xs"
-            onClick={(e) => { e.stopPropagation(); navigate(`/pedidos/${p.id}`); }}
-          >
-            Editar
-          </Button>
-        </div>
-      ),
-    },
   ];
 
   return (
@@ -436,7 +410,7 @@ const Pedidos = () => {
             placeholder="Clientes"
             className="w-[200px]"
           />
-          <PeriodFilter mode="both" value={periodValue} onChange={handlePeriodChange} />
+          <PeriodFilter mode="both" value={periodValue} onChange={handlePeriodChange} direction="past" />
         </AdvancedFilterBar>
 
         <PullToRefresh onRefresh={fetchData}>
@@ -447,6 +421,20 @@ const Pedidos = () => {
           moduleKey="pedidos"
           showColumnToggle={true}
           onView={handleView}
+          onEdit={(p) => navigate(`/pedidos/${p.id}`)}
+          rowExtraActions={(p) => (
+            canFaturarPedido(p) ? (
+              <Button
+                size="sm"
+                variant="default"
+                className="h-7 px-2 text-xs gap-1"
+                disabled={stockCheckPending || generatingNfId === p.id}
+                onClick={(e) => { e.stopPropagation(); handleRequestGenerateNF(p); }}
+              >
+                <FileOutput className="w-3 h-3" /> Gerar NF
+              </Button>
+            ) : null
+          )}
           mobileStatusKey="status"
           mobilePrimaryAction={(p) => {
             if (!canFaturarPedido(p)) return null;
