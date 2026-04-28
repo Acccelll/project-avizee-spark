@@ -314,3 +314,30 @@ roteiro em `rls-single-tenant.md`) ou **PWA / offline-first leve**.
 - **Integração ao painel de saúde**: card consumindo
   `webhooks_metrics()` ao lado das filas de e-mail.
 - **Multi-tenant `empresa_id` + RLS** (alto risco/impacto).
+
+## Onda — Multi-tenant Onda 1: Cadastros (28/abr/2026)
+
+### Decisões aprovadas
+- **Modelo:** 1 usuário = 1 empresa fixo (`user_empresas` com PK `user_id`, expansível para N:N).
+- **Backfill:** empresa default `"AviZee — Empresa Padrão"` recebe todos `auth.users` e todas as linhas existentes.
+- **Escopo:** fatiado — apenas `clientes`, `fornecedores`, `produtos` nesta onda.
+
+### O que entrou
+- Tabelas `public.empresas` e `public.user_empresas` com RLS (admin-only para writes).
+- Função `public.current_empresa_id()` SECURITY DEFINER (sem recursão de policy).
+- Coluna `empresa_id NOT NULL DEFAULT current_empresa_id()` em clientes/fornecedores/produtos + índices.
+- Trigger `set_empresa_id_default()` BEFORE INSERT como safety-net.
+- RLS reescrita: `empresa_id = current_empresa_id() OR has_role(uid,'admin')`.
+- Backfill 100% (sem perda de dados).
+
+### Por que não quebrou o frontend
+- `DEFAULT current_empresa_id()` torna a coluna opcional no tipo gerado pelo Supabase, então os QuickAdd e demais inserts continuam compilando sem precisar enviar `empresa_id`.
+
+### Linter
+- 404 warnings pré-existentes (security-definer views da onda fiscal; RLS USING(true) das tabelas single-tenant ainda não migradas). Nenhum novo finding introduzido por esta onda.
+
+### Próximas ondas
+- **Onda 2:** Comercial (orcamentos, ordens_venda) + Compras.
+- **Onda 3:** Estoque + Logística.
+- **Onda 4:** Financeiro + Fiscal (mais sensível — exige reescrita de RPCs).
+- **UI admin de empresas/vínculos** (hoje só via SQL).
