@@ -1,5 +1,4 @@
 import { useCallback, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
   parseConciliacaoWorkbook,
@@ -9,6 +8,17 @@ import {
   type PlanoContasRow,
   normalizeNomeMatch,
 } from "@/lib/importacao/conciliacaoParser";
+import {
+  listClientesLookup,
+  listFornecedoresLookup,
+  listContasContabeisLookup,
+  createImportacaoLote,
+  updateLoteStatus,
+  insertStagingChunks,
+  logImportacao,
+  consolidarLote,
+  consolidarFinanceiro,
+} from "@/services/importacao.service";
 
 /**
  * Hook do fluxo "Conciliação / Financeiro".
@@ -125,10 +135,10 @@ export function useImportacaoConciliacao() {
     setIsProcessing(true);
     try {
       // Carrega cadastros existentes
-      const [{ data: clientes }, { data: fornecedores }, { data: contas }] = await Promise.all([
-        supabase.from("clientes").select("id, nome_razao_social, nome_fantasia, cpf_cnpj, codigo_legado").eq("ativo", true),
-        supabase.from("fornecedores").select("id, nome_razao_social, nome_fantasia, cpf_cnpj, codigo_legado").eq("ativo", true),
-        supabase.from("contas_contabeis").select("id, codigo, descricao").eq("ativo", true),
+      const [clientes, fornecedores, contas] = await Promise.all([
+        listClientesLookup({ activeOnly: true }),
+        listFornecedoresLookup({ activeOnly: true }),
+        listContasContabeisLookup(),
       ]);
 
       // Índices em memória (inclui clientes/fornecedores da planilha como apoio
@@ -136,10 +146,10 @@ export function useImportacaoConciliacao() {
       const auxByLegadoCli = new Map(bundle.clientes.map((p) => [p.codigo_legado, p]));
       const auxByLegadoForn = new Map(bundle.fornecedores.map((p) => [p.codigo_legado, p]));
 
-      const cliByLegado = new Map((clientes ?? []).filter((c) => c.codigo_legado).map((c) => [String(c.codigo_legado), c]));
-      const cliByCpf = new Map((clientes ?? []).filter((c) => c.cpf_cnpj).map((c) => [String(c.cpf_cnpj), c]));
+      const cliByLegado = new Map(clientes.filter((c) => c.codigo_legado).map((c) => [String(c.codigo_legado), c]));
+      const cliByCpf = new Map(clientes.filter((c) => c.cpf_cnpj).map((c) => [String(c.cpf_cnpj), c]));
       const cliByNome = new Map<string, { id: string; count: number }>();
-      (clientes ?? []).forEach((c) => {
+      clientes.forEach((c) => {
         for (const n of [c.nome_razao_social, c.nome_fantasia]) {
           if (!n) continue;
           const key = normalizeNomeMatch(n);
@@ -148,10 +158,10 @@ export function useImportacaoConciliacao() {
         }
       });
 
-      const fornByLegado = new Map((fornecedores ?? []).filter((f) => f.codigo_legado).map((f) => [String(f.codigo_legado), f]));
-      const fornByCpf = new Map((fornecedores ?? []).filter((f) => f.cpf_cnpj).map((f) => [String(f.cpf_cnpj), f]));
+      const fornByLegado = new Map(fornecedores.filter((f) => f.codigo_legado).map((f) => [String(f.codigo_legado), f]));
+      const fornByCpf = new Map(fornecedores.filter((f) => f.cpf_cnpj).map((f) => [String(f.cpf_cnpj), f]));
       const fornByNome = new Map<string, { id: string; count: number }>();
-      (fornecedores ?? []).forEach((f) => {
+      fornecedores.forEach((f) => {
         for (const n of [f.nome_razao_social, f.nome_fantasia]) {
           if (!n) continue;
           const key = normalizeNomeMatch(n);
@@ -160,7 +170,7 @@ export function useImportacaoConciliacao() {
         }
       });
 
-      const contasByCodigo = new Map((contas ?? []).map((c) => [c.codigo, c]));
+      const contasByCodigo = new Map(contas.map((c) => [c.codigo, c]));
 
       const dedupKeys = new Set<string>();
       const dedupKey = (r: FinanceiroConciliacaoRow, entityId: string | null) =>
@@ -348,36 +358,24 @@ export function useImportacaoConciliacao() {
     }
     setIsProcessing(true);
     try {
-      const { data: user } = await supabase.auth.getUser();
-
       // Cria 1 lote consolidado
-      const { data: lote, error: loteError } = await supabase
-        .from("importacao_lotes")
-        .insert({
-          tipo: "conciliacao_financeiro",
-          fase: "conciliacao",
-          status: "staging",
-          arquivo_nome: file?.name ?? null,
-          total_registros: preview.resumo.total + preview.plano.length,
-          registros_sucesso: 0,
-          registros_erro: preview.resumo.erros,
-          usuario_id: user?.user?.id ?? null,
-          resumo: {
-            cr: preview.cr.length,
-            cp: preview.cp.length,
-            fopag: preview.fopag.length,
-            plano_contas: preview.plano.length,
-            fc_total: preview.fc.length,
-            fc_divergencias: preview.reconciliacao.divergencias,
-            pendencias_vinculo: preview.resumo.pendentes,
-            duplicados_estimados: preview.resumo.duplicados,
-          },
-        })
-        .select()
-        .single();
-
-      if (loteError) throw loteError;
-      const newLoteId = lote.id;
+      const newLoteId = await createImportacaoLote({
+        tipo: "conciliacao_financeiro",
+        fase: "conciliacao",
+        arquivo_nome: file?.name ?? null,
+        total_registros: preview.resumo.total + preview.plano.length,
+        registros_erro: preview.resumo.erros,
+        resumo: {
+          cr: preview.cr.length,
+          cp: preview.cp.length,
+          fopag: preview.fopag.length,
+          plano_contas: preview.plano.length,
+          fc_total: preview.fc.length,
+          fc_divergencias: preview.reconciliacao.divergencias,
+          pendencias_vinculo: preview.resumo.pendentes,
+          duplicados_estimados: preview.resumo.duplicados,
+        },
+      });
       setLoteId(newLoteId);
 
       // Staging de cadastros (clientes/fornecedores) — consolidados via
@@ -417,11 +415,7 @@ export function useImportacaoConciliacao() {
             },
           })),
       ];
-      for (let i = 0; i < pessoaRows.length; i += 500) {
-        const chunk = pessoaRows.slice(i, i + 500);
-        const { error } = await supabase.from("stg_cadastros").insert(chunk);
-        if (error) throw error;
-      }
+      await insertStagingChunks("stg_cadastros", pessoaRows);
 
       // Staging financeiro (CR + CP + FOPAG válidos)
       const all = [...preview.cr, ...preview.cp, ...preview.fopag].filter((x) => x._valid && !x._duplicado);
@@ -450,11 +444,7 @@ export function useImportacaoConciliacao() {
           observacoes: null,
         },
       }));
-      for (let i = 0; i < stgRows.length; i += 500) {
-        const chunk = stgRows.slice(i, i + 500);
-        const { error } = await supabase.from("stg_financeiro_aberto").insert(chunk);
-        if (error) throw error;
-      }
+      await insertStagingChunks("stg_financeiro_aberto", stgRows);
 
       // Staging plano de contas (via stg_cadastros + _tipo_enriquecimento)
       const planoRows = preview.plano.map((p) => ({
@@ -469,25 +459,19 @@ export function useImportacaoConciliacao() {
           i_level: p.i_level,
         },
       }));
-      if (planoRows.length) {
-        for (let i = 0; i < planoRows.length; i += 500) {
-          const chunk = planoRows.slice(i, i + 500);
-          const { error } = await supabase.from("stg_cadastros").insert(chunk);
-          if (error) throw error;
-        }
-      }
+      await insertStagingChunks("stg_cadastros", planoRows);
 
       // FC e Centro de Custo: apenas log
-      await supabase.from("importacao_logs").insert({
-        lote_id: newLoteId,
-        nivel: "info",
-        etapa: "conciliacao_fc",
-        mensagem: JSON.stringify({
+      await logImportacao(
+        newLoteId,
+        "info",
+        JSON.stringify({
           fc_total: preview.fc.length,
           divergencias: preview.reconciliacao.divergencias,
           consolidado_derivado: preview.reconciliacao.totalDerivado,
         }),
-      });
+        "conciliacao_fc",
+      );
 
       toast.success(
         `Lote staged: ${stgRows.length} títulos + ${planoRows.length} contas. FC: ${preview.fc.length} (${preview.reconciliacao.divergencias} divergências).`,
@@ -511,20 +495,16 @@ export function useImportacaoConciliacao() {
       setIsProcessing(true);
       try {
         // 1) Cadastros (clientes/fornecedores da aba CLIENTES/FORNECEDORES)
-        const { error: errCad } = await supabase.rpc("consolidar_lote_cadastros", { p_lote_id: target });
-        if (errCad) throw errCad;
+        await consolidarLote("consolidar_lote_cadastros", { p_lote_id: target });
         // Re-marca lote como staging para próxima RPC (consolidar_lote_cadastros muda status).
-        await supabase.from("importacao_lotes").update({ status: "staging" }).eq("id", target);
+        await updateLoteStatus(target, "staging");
 
         // 2) Plano de contas via consolidar_lote_enriquecimento
-        const { error: errEnr } = await supabase.rpc("consolidar_lote_enriquecimento", { p_lote_id: target });
-        if (errEnr) throw errEnr;
-        await supabase.from("importacao_lotes").update({ status: "staging" }).eq("id", target);
+        await consolidarLote("consolidar_lote_enriquecimento", { p_lote_id: target });
+        await updateLoteStatus(target, "staging");
 
         // 3) Financeiro
-        const { data, error } = await supabase.rpc("consolidar_lote_financeiro", { p_lote_id: target });
-        if (error) throw error;
-        const r = data as Record<string, unknown> & { erro?: string };
+        const r = await consolidarFinanceiro(target);
         if (r?.erro) {
           toast.error(`Erro: ${String(r.erro)}`);
           return false;
