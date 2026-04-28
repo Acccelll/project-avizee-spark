@@ -12,6 +12,7 @@ import {
   Eye,
   PackagePlus,
   CheckCheck,
+  RefreshCw,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -42,6 +43,7 @@ import {
   enviarManifestacao,
   statusManifestacaoFromEvento,
   tipoEventoFiscalFromManifestacao,
+  sincronizarDistDFe,
   type AmbienteSefaz,
   type TipoManifestacao,
 } from "@/services/fiscal/sefaz";
@@ -130,6 +132,7 @@ export function ManifestacaoDestinatarioDrawer({ open, onOpenChange, highlightNf
   const [verItensTarget, setVerItensTarget] = useState<NfeCapturada | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [processarTarget, setProcessarTarget] = useState<NfeCapturada | null>(null);
+  const [sincronizando, setSincronizando] = useState(false);
   const highlightRef = useRef<HTMLLIElement | null>(null);
 
   useEffect(() => {
@@ -348,6 +351,25 @@ export function ManifestacaoDestinatarioDrawer({ open, onOpenChange, highlightNf
     }
   };
 
+  const handleSincronizar = async () => {
+    setSincronizando(true);
+    try {
+      const r = await sincronizarDistDFe("2");
+      if (!r.sucesso) {
+        toast.error(r.erro ?? `Falha na sincronização (${r.cStat ?? "?"})`);
+        return;
+      }
+      toast.success(
+        `Sincronizado: ${r.novos} nova(s), ${r.duplicados} já existente(s). NSU ${r.ultNSU ?? "—"}/${r.maxNSU ?? "—"}`,
+      );
+      qc.invalidateQueries({ queryKey: ["nfe-distribuicao"] });
+    } catch (e) {
+      notifyError(e);
+    } finally {
+      setSincronizando(false);
+    }
+  };
+
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
@@ -363,6 +385,26 @@ export function ManifestacaoDestinatarioDrawer({ open, onOpenChange, highlightNf
           </SheetHeader>
 
           <div className="mt-6 space-y-6">
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant="default"
+                className="gap-2"
+                disabled={sincronizando}
+                onClick={handleSincronizar}
+              >
+                {sincronizando ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
+                Sincronizar SEFAZ (DistDF-e)
+              </Button>
+              <span className="text-xs text-muted-foreground">
+                Baixa automaticamente NF-e novas emitidas contra o CNPJ da empresa
+                (Ambiente Nacional, mTLS via certificado A1).
+              </span>
+            </div>
+
             {/* Adicionar nova chave */}
             <div className="rounded-md border p-4 space-y-3">
               <Label htmlFor="nova-chave">Capturar NF-e por chave de acesso</Label>
