@@ -7393,6 +7393,14 @@ export type Database = {
         Returns: boolean
       }
       duplicar_orcamento: { Args: { p_orcamento_id: string }; Returns: Json }
+      email_queue_metrics: {
+        Args: never
+        Returns: {
+          oldest_msg_age_seconds: number
+          queue_name: string
+          total_messages: number
+        }[]
+      }
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
         Returns: number
