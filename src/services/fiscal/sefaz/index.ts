@@ -2,6 +2,7 @@ export {
   construirXMLNFe,
   construirXMLCancelamento,
   construirXMLInutilizacao,
+  construirXMLCartaCorrecao,
 } from "./xmlBuilder.service";
 export type {
   NFeData,
@@ -26,6 +27,9 @@ export type { CancelamentoResult } from "./cancelamento.service";
 
 export { inutilizarNumeracao } from "./inutilizacao.service";
 export type { InutilizacaoParams, InutilizacaoResult } from "./inutilizacao.service";
+
+export { enviarCartaCorrecao } from "./cartaCorrecao.service";
+export type { CartaCorrecaoParams, CartaCorrecaoResult } from "./cartaCorrecao.service";
 
 export { resolverUrlSefaz, UFS_SUPORTADAS } from "./sefazUrls.service";
 export type { SefazServico } from "./sefazUrls.service";
