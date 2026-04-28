@@ -3,7 +3,10 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { estornarRecebimentoCompra } from "@/services/comercial/comprasLifecycle.service";
+import {
+  estornarRecebimentoCompra,
+  listRecebimentosDoPedido,
+} from "@/services/comercial/comprasLifecycle.service";
 import { toast } from "sonner";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { getUserFriendlyError } from "@/utils/errorMessages";
@@ -47,16 +50,10 @@ export function EstornarRecebimentoDialog({ open, onClose, pedidoId, pedidoNumer
     (async () => {
       setLoading(true);
       try {
-        const { data, error } = await supabase
-          .from("compras")
-          .select("id, numero, data_compra, status, valor_total, ativo")
-          .eq("pedido_compra_id", pedidoId)
-          .eq("ativo", true)
-          .order("data_compra", { ascending: false });
-        if (error) throw error;
+        const data = await listRecebimentosDoPedido(pedidoId);
         if (cancelled) return;
-        setCompras((data || []) as CompraRow[]);
-        setSelectedCompraId(data && data.length > 0 ? String(data[0].id) : null);
+        setCompras(data as CompraRow[]);
+        setSelectedCompraId(data.length > 0 ? String(data[0].id) : null);
         setMotivo("");
       } catch (err) {
         toast.error(getUserFriendlyError(err));

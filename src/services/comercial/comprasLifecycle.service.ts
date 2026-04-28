@@ -44,6 +44,29 @@ export async function estornarRecebimentoCompra(input: {
   return data;
 }
 
+export interface CompraRecebimentoRow {
+  id: string;
+  numero: string | null;
+  data_compra: string | null;
+  status: string | null;
+  valor_total: number | null;
+  ativo: boolean | null;
+}
+
+/** Lista recebimentos (compras) ativos vinculados a um pedido de compra. */
+export async function listRecebimentosDoPedido(
+  pedidoCompraId: string,
+): Promise<CompraRecebimentoRow[]> {
+  const { data, error } = await supabase
+    .from("compras")
+    .select("id, numero, data_compra, status, valor_total, ativo")
+    .eq("pedido_compra_id", pedidoCompraId)
+    .eq("ativo", true)
+    .order("data_compra", { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as CompraRecebimentoRow[];
+}
+
 /* -------- Pedido de Compra -------- */
 
 export interface SalvarPedidoCompraItem {

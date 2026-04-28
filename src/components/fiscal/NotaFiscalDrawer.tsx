@@ -13,7 +13,10 @@ import { RelationalLink } from "@/components/ui/RelationalLink";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { TimelineList } from "@/components/ui/TimelineList";
-import { fetchNotaFiscalDetalhes } from "@/services/fiscal.service";
+import {
+  fetchNotaFiscalDetalhes,
+  getNotaFiscalAnexoSignedUrl,
+} from "@/services/fiscal.service";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
@@ -503,9 +506,8 @@ export function NotaFiscalDrawer({
   const handleDownloadAnexo = async (anexo: AnexoFiscal) => {
     if (!anexo.caminho_storage) { toast.error("Caminho do arquivo não disponível."); return; }
     try {
-      const { data, error } = await supabase.storage.from("dbavizee").createSignedUrl(anexo.caminho_storage, 300);
-      if (error) throw error;
-      window.open(data.signedUrl, "_blank");
+      const url = await getNotaFiscalAnexoSignedUrl(anexo.caminho_storage);
+      window.open(url, "_blank");
     } catch (err: unknown) {
       toast.error(getUserFriendlyError(err));
     }

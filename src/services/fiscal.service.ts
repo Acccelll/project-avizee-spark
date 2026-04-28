@@ -391,3 +391,15 @@ export async function permanentDeleteRecord(
   const { error } = await supabase.from(table).delete().eq("id", id);
   if (error) throw error;
 }
+
+/** Gera URL assinada (5 min) para um anexo fiscal no bucket `dbavizee`. */
+export async function getNotaFiscalAnexoSignedUrl(
+  caminhoStorage: string,
+  expiresInSeconds = 300,
+): Promise<string> {
+  const { data, error } = await supabase.storage
+    .from("dbavizee")
+    .createSignedUrl(caminhoStorage, expiresInSeconds);
+  if (error) throw error;
+  return data.signedUrl;
+}
