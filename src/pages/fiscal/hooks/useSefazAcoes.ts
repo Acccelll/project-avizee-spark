@@ -95,15 +95,58 @@ export function useSefazAcoes(): UseSefazAcoesReturn {
         toast.error("NF já autorizada pela SEFAZ.");
         return null;
       }
+      // ── Garantir número e chave antes de qualquer pré-validação ──
+      // Numeração atômica via SEQUENCE evita duplicidade em concorrência;
+      // chave de 44 dígitos é gerada server-side com DV mod 11.
+      let nfAtual = nf;
+      let dadosAtuais = dadosNFe;
+      try {
+        if (!nfAtual.numero || nfAtual.numero === "0") {
+          const { data: numData, error: numErr } = await supabase.rpc(
+            "proximo_numero_nfe",
+            { p_serie: nfAtual.serie ?? "1" },
+          );
+          if (numErr) throw numErr;
+          const row = Array.isArray(numData) ? numData[0] : numData;
+          const novoNumero = String(row?.numero ?? "");
+          if (!novoNumero) throw new Error("RPC proximo_numero_nfe não retornou número.");
+          await supabase
+            .from("notas_fiscais")
+            .update({ numero: novoNumero })
+            .eq("id", nfAtual.id);
+          nfAtual = { ...nfAtual, numero: novoNumero };
+          dadosAtuais = { ...dadosAtuais, numero: novoNumero };
+        }
+        if (!nfAtual.chave_acesso || nfAtual.chave_acesso.length !== 44) {
+          const { data: chaveData, error: chaveErr } = await supabase.rpc(
+            "gerar_chave_acesso_nfe",
+            { p_nf_id: nfAtual.id },
+          );
+          if (chaveErr) throw chaveErr;
+          const novaChave = String(chaveData ?? "");
+          if (novaChave.length !== 44) {
+            throw new Error("RPC gerar_chave_acesso_nfe retornou chave inválida.");
+          }
+          await supabase
+            .from("notas_fiscais")
+            .update({ chave_acesso: novaChave })
+            .eq("id", nfAtual.id);
+          nfAtual = { ...nfAtual, chave_acesso: novaChave };
+          dadosAtuais = { ...dadosAtuais, chave: novaChave };
+        }
+      } catch (e) {
+        notifyError(e);
+        return null;
+      }
       // Pré-validação local antes de bater na SEFAZ — bloqueia rejeições
       // óbvias (NCM/CFOP/dados cadastrais) economizando uma chamada autenticada.
       const erros = validarPreEmissao(
         {
-          cnpj_emitente: dadosNFe?.emitente?.cnpj ?? null,
-          destinatario_cnpj_cpf: dadosNFe?.destinatario?.cpfCnpj ?? null,
-          destinatario_nome: dadosNFe?.destinatario?.razaoSocial ?? null,
+          cnpj_emitente: dadosAtuais?.emitente?.cnpj ?? null,
+          destinatario_cnpj_cpf: dadosAtuais?.destinatario?.cpfCnpj ?? null,
+          destinatario_nome: dadosAtuais?.destinatario?.razaoSocial ?? null,
         },
-        (dadosNFe?.itens ?? []).map((i) => ({
+        (dadosAtuais?.itens ?? []).map((i) => ({
           ncm: (i as { ncm?: string | null }).ncm ?? null,
           cfop: (i as { cfop?: string | null }).cfop ?? null,
         })),
@@ -122,7 +165,7 @@ export function useSefazAcoes(): UseSefazAcoesReturn {
         const cfg = await lerConfigEmpresa();
         const url = resolverUrlSefaz(cfg.uf, cfg.ambiente, "autorizacao");
         const result = await autorizarNFe(
-          { ...dadosNFe, ambiente: cfg.ambiente },
+          { ...dadosAtuais, ambiente: cfg.ambiente },
           { tipo: "A1" },
           url,
         );
@@ -132,15 +175,15 @@ export function useSefazAcoes(): UseSefazAcoesReturn {
           .update({
             status_sefaz: proxima_status,
             protocolo_autorizacao: result.protocolo ?? null,
-            chave_acesso: result.chave ?? nf.chave_acesso,
+            chave_acesso: result.chave ?? nfAtual.chave_acesso,
             motivo_rejeicao: result.sucesso ? null : (result.motivo ?? null),
             ambiente_emissao: cfg.ambiente === "1" ? "producao" : "homologacao",
           })
-          .eq("id", nf.id);
+          .eq("id", nfAtual.id);
         await registrarEventoFiscal({
-          nota_fiscal_id: nf.id,
+          nota_fiscal_id: nfAtual.id,
           tipo_evento: result.sucesso ? "autorizacao" : "rejeicao",
-          status_anterior: nf.status_sefaz ?? "nao_enviada",
+          status_anterior: nfAtual.status_sefaz ?? "nao_enviada",
           status_novo: proxima_status,
           descricao: result.motivo ?? undefined,
           payload_resumido: { protocolo: result.protocolo, status: result.status },
