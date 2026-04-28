@@ -32,6 +32,7 @@ const OrcamentoForm = lazy(() => import("./pages/OrcamentoForm"));
 const Estoque = lazy(() => import("./pages/Estoque"));
 const Fiscal = lazy(() => import("./pages/Fiscal"));
 const Faturamento = lazy(() => import("./pages/Faturamento"));
+const FaturamentoCadastros = lazy(() => import("./pages/faturamento/FaturamentoCadastros"));
 const FiscalDetail = lazy(() => import("./pages/FiscalDetail"));
 const NotaFiscalForm = lazy(() => import("./pages/fiscal/NotaFiscalForm"));
 const Financeiro = lazy(() => import("./pages/Financeiro"));
