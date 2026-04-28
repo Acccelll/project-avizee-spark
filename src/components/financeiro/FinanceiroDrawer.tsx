@@ -304,6 +304,16 @@ export function FinanceiroDrawer({ open, onClose, selected, effectiveStatus, onB
                   <RelationalLink type="nota_fiscal" id={selected.nota_fiscal_id}>Ver NF vinculada</RelationalLink>
                 </ViewField>
               )}
+              {selected.origem_tipo === "nfe_entrada" && selected.origem_id && (
+                <ViewField label="NF-e de Entrada">
+                  <RelationalLink
+                    to={`/faturamento?tab=manifestacao&nfe=${selected.origem_id}`}
+                    behavior="route"
+                  >
+                    Ver NF-e de entrada original
+                  </RelationalLink>
+                </ViewField>
+              )}
               {selected.origem_tipo === "societario" && (
                 <ViewField label="Retirada de Sócio">
                   <RelationalLink to="/socios-participacoes" behavior="route">

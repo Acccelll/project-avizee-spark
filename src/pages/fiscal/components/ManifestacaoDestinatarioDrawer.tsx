@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Loader2,
@@ -69,6 +69,8 @@ import {
 interface ManifestacaoDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Quando informado, rola até a NF-e correspondente e a destaca visualmente. */
+  highlightNfeId?: string | null;
 }
 
 interface NfeCapturada {
@@ -117,7 +119,7 @@ function extrairDoChave(chave: string): { cnpj: string; serie: string; numero: s
   return { cnpj, serie, numero, data };
 }
 
-export function ManifestacaoDestinatarioDrawer({ open, onOpenChange }: ManifestacaoDrawerProps) {
+export function ManifestacaoDestinatarioDrawer({ open, onOpenChange, highlightNfeId }: ManifestacaoDrawerProps) {
   const qc = useQueryClient();
   const [novaChave, setNovaChave] = useState("");
   const [salvando, setSalvando] = useState(false);
@@ -128,6 +130,16 @@ export function ManifestacaoDestinatarioDrawer({ open, onOpenChange }: Manifesta
   const [verItensTarget, setVerItensTarget] = useState<NfeCapturada | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [processarTarget, setProcessarTarget] = useState<NfeCapturada | null>(null);
+  const highlightRef = useRef<HTMLLIElement | null>(null);
+
+  useEffect(() => {
+    if (!open || !highlightNfeId) return;
+    // Aguarda render da lista antes de fazer scroll.
+    const t = setTimeout(() => {
+      highlightRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 250);
+    return () => clearTimeout(t);
+  }, [open, highlightNfeId, /* re-roda quando notas chegam: */]);
 
   const { data: notas = [], isLoading } = useQuery({
     queryKey: ["nfe-distribuicao"],
@@ -423,8 +435,16 @@ export function ManifestacaoDestinatarioDrawer({ open, onOpenChange }: Manifesta
                   {notas.map((nf) => {
                     const st = STATUS_LABEL[nf.status_manifestacao] ?? STATUS_LABEL.sem_manifestacao;
                     const isLoading = manifestando === nf.id;
+                    const isHighlighted = highlightNfeId === nf.id;
                     return (
-                      <li key={nf.id} className="rounded-md border p-3 text-sm">
+                      <li
+                        key={nf.id}
+                        ref={isHighlighted ? highlightRef : undefined}
+                        className={
+                          "rounded-md border p-3 text-sm transition-colors " +
+                          (isHighlighted ? "border-primary ring-2 ring-primary/30 bg-primary/5" : "")
+                        }
+                      >
                         <div className="mb-2 flex items-start justify-between gap-3">
                           <div className="min-w-0">
                             <p className="font-medium">

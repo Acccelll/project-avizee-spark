@@ -15,6 +15,8 @@ const origemLabelMap: Record<string, string> = {
   manual: "Manual",
   societario: "Sócio (Pró-labore/Bônus)",
   nota_fiscal: "Nota Fiscal",
+  fiscal_nota: "Nota Fiscal",
+  nfe_entrada: "NF-e de Entrada",
   folha_pagamento: "Folha de pagamento",
   pedido_compra: "Pedido de compra",
 };
@@ -184,6 +186,7 @@ export function useFinanceiroFiltros({ data, contasBancarias, getLancamentoStatu
     { label: "Manual", value: "manual" },
     { label: "Sócio (Pró-labore/Bônus)", value: "societario" },
     { label: "Nota Fiscal", value: "nota_fiscal" },
+    { label: "NF-e de Entrada", value: "nfe_entrada" },
     { label: "Folha de pagamento", value: "folha_pagamento" },
     { label: "Pedido de compra", value: "pedido_compra" },
   ];
