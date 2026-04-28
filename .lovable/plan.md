@@ -225,3 +225,8 @@ Sugiro a sequência **Onda 0 → Onda 1 → Onda 3** (fundação + casca + wizar
   - Service `distdfe.service.ts` (`sincronizarDistDFe(ambiente)`): lê último NSU de `nfe_distdfe_sync`, invoca a edge function, faz `upsert` em `nfe_distribuicao` por `chave_acesso` (idempotente, apenas docs com chave 44 dígitos), atualiza `nfe_distdfe_sync` (cnpj+ambiente) com novo NSU/contagem
   - UI `ManifestacaoDestinatarioDrawer`: botão primário "Sincronizar SEFAZ (DistDF-e)" no topo do drawer com toast de resultado (`X nova(s), Y existente(s), NSU u/m`), invalida `nfe-distribuicao`
   - Reaproveitamento total do A1 + senha já cadastrados na Onda 0 (sem novos secrets)
+- ✅ **Onda 14** — Cron diário DistDF-e (sincronização automática):
+  - Edge function `process-distdfe-cron` (verify_jwt=false, chamada apenas pelo pg_cron com anon key): lista todos CNPJs em `nfe_distdfe_sync` para o ambiente (default 2/homologação), invoca internamente `sefaz-distdfe` (action consultar-nsu) por CNPJ, faz upsert idempotente em `nfe_distribuicao` por `chave_acesso`, atualiza `ultimo_nsu`/`max_nsu`/`ultima_sync_at` e registra resumo agregado em `auditoria_logs` (acao='distdfe_cron_run', dados_novos com totais e detalhes por CNPJ)
+  - Fallback: se `nfe_distdfe_sync` estiver vazio, faz uma sondagem inicial (`ultNSU='0'`, cnpj='auto') — a edge function descobre o CNPJ a partir do A1
+  - Agendamento via `pg_cron` (job `process-distdfe-cron-daily`): cron `0 6 * * *` (06:00 UTC ≈ 03:00 BRT) → `net.http_post` para `/functions/v1/process-distdfe-cron`
+  - Re-execuções manuais possíveis via `supabase.functions.invoke('process-distdfe-cron', { body: { ambiente: '1' | '2' } })` por admins
