@@ -5,16 +5,16 @@ type: constraint
 ---
 # RLS — Modo single-tenant
 
-**Estado atual (28/abr/2026).** Após Ondas 1–3 do multi-tenant, restam
-single-tenant `USING (true)` apenas:
+**Estado atual (28/abr/2026).** Multi-tenant **completo** após Ondas 1–4.
+Nenhuma tabela de domínio permanece em modo `USING (true)`.
 
-- `financeiro_lancamentos`, `financeiro_baixas`
-- `notas_fiscais`, `notas_fiscais_itens`
-
-Já migradas para `empresa_id = public.current_empresa_id()`:
+Tabelas com `empresa_id = public.current_empresa_id()`:
 - Onda 1: `clientes`, `fornecedores`, `produtos`.
 - Onda 2: `orcamentos`, `ordens_venda`, `compras`, `compras_itens`, `pedidos_compra`.
 - Onda 3: `estoque_movimentos`, `conciliacao_bancaria`.
+- Onda 4: `financeiro_lancamentos`, `financeiro_baixas`, `notas_fiscais` (+ `notas_fiscais_itens` herda via FK).
+
+Financeiro/Fiscal mantêm exigência adicional de papel (`admin` OR `financeiro` para SELECT/INSERT/UPDATE em `financeiro_*`; `notas_fiscais` UPDATE preserva regra de status autorizada/cancelada/inutilizada).
 
 Cada uma delas carrega `COMMENT ON TABLE` documentando o modo single-tenant.
 
