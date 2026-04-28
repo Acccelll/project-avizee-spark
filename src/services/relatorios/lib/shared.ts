@@ -23,6 +23,7 @@ export type TipoRelatorio =
   | "estoque_minimo"
   | "vendas_cliente"
   | "compras_fornecedor"
+  | "nfe_entrada"
   | "divergencias"
   | "faturamento";
 

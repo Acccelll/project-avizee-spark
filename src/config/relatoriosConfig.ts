@@ -511,6 +511,56 @@ const comprasFornecedorConfig: ReportConfig = {
   ],
 };
 
+const nfeEntradaConfig: ReportConfig = {
+  id: 'nfe_entrada',
+  title: 'NF-e de Entrada',
+  description: 'Notas fiscais recebidas via manifestação do destinatário',
+  objective: 'Acompanhar NF-e de entrada por fornecedor com totais de ICMS/IPI',
+  category: 'fiscal_faturamento',
+  icon: Receipt,
+  chartType: 'bar',
+  columns: [
+    { key: 'emissao', label: 'Emissão', format: 'date' },
+    { key: 'numero', label: 'Nº' },
+    { key: 'serie', label: 'Série' },
+    { key: 'fornecedor', label: 'Fornecedor' },
+    { key: 'cnpj', label: 'CNPJ' },
+    { key: 'valor', label: 'Valor Total', format: 'currency', align: 'right', footerTotal: true },
+    { key: 'icms', label: 'ICMS', format: 'currency', align: 'right', footerTotal: true },
+    { key: 'ipi', label: 'IPI', format: 'currency', align: 'right', footerTotal: true },
+    { key: 'status', label: 'Manifestação', format: 'badge' },
+    { key: 'processado', label: 'Processada', format: 'badge' },
+  ],
+  filters: {
+    showDateRange: true,
+    showClientes: false,
+    showFornecedores: true,
+    showGrupos: false,
+    showStatus: true,
+    statusOptions: [
+      { value: 'todos', label: 'Todos' },
+      { value: 'sem_manifestacao', label: 'Sem manifestação' },
+      { value: 'ciencia', label: 'Ciência' },
+      { value: 'confirmada', label: 'Confirmada' },
+      { value: 'desconhecida', label: 'Desconhecida' },
+      { value: 'nao_realizada', label: 'Não realizada' },
+    ],
+    showTipos: false,
+  },
+  timeAxis: { field: 'emissao', label: 'data de emissão', required: false },
+  kpis: [
+    { key: 'qtdNfe', label: 'NF-e', format: 'number', variation: 'no período' },
+    { key: 'totalEntradas', label: 'Total Entradas', format: 'currency', variation: 'valor bruto' },
+    { key: 'totalIcms', label: 'ICMS', format: 'currency', variation: 'destacado' },
+    { key: 'totalIpi', label: 'IPI', format: 'currency', variation: 'destacado' },
+    { key: 'processadas', label: 'Processadas', format: 'number', variant: 'success', variation: 'estoque + financeiro' },
+  ],
+  drillDown: [
+    { key: 'fornecedor', label: 'Abrir fornecedor', route: '/fornecedores', targetField: 'fornecedorId', available: true },
+    { key: 'nfe', label: 'Abrir NF-e', route: '/faturamento', targetField: 'nfeId', available: true },
+  ],
+};
+
 const faturamentoConfig: ReportConfig = {
   id: 'faturamento',
   title: 'Faturamento',
@@ -744,6 +794,7 @@ export const reportConfigs: Record<TipoRelatorio, ReportConfig> = {
   vendas_cliente: vendasClienteConfig,
   compras: comprasConfig,
   compras_fornecedor: comprasFornecedorConfig,
+  nfe_entrada: nfeEntradaConfig,
   faturamento: faturamentoConfig,
   aging: agingConfig,
   dre: dreConfig,
@@ -830,6 +881,7 @@ export const reportRuntimeSemantics: Partial<Record<TipoRelatorio, ReportRuntime
   // `compras` filtra/lista por data de compra (campo `compra` na linha) — alinhado a `timeAxis.field = 'criacao'` (data de compra) no config.
   compras: { statusField: 'status', valueSortField: 'valor', dateSortField: 'compra', periodAxisLabel: 'data de compra', highlightFilters: ['periodo', 'fornecedores'], investigableField: 'fornecedor' },
   compras_fornecedor: { valueSortField: 'valorTotal', dateSortField: 'compra', periodAxisLabel: 'data de compra (por fornecedor)', highlightFilters: ['periodo', 'fornecedores'], investigableField: 'fornecedor' },
+  nfe_entrada: { statusField: 'status', valueSortField: 'valor', dateSortField: 'emissao', periodAxisLabel: 'data de emissão (NF-e de entrada)', highlightFilters: ['periodo', 'fornecedores', 'status'], investigableField: 'fornecedor' },
   faturamento: { valueSortField: 'valorTotal', dateSortField: 'data', periodAxisLabel: 'data de emissão da NF', highlightFilters: ['periodo'] },
   // Fluxo de caixa: o período filtra por `data_pagamento` (ou `data_vencimento` quando ainda não pago).
   fluxo_caixa: { valueSortField: 'saldo', dateSortField: 'data', periodAxisLabel: 'data de pagamento (ou vencimento)', highlightFilters: ['periodo', 'tipo'] },
