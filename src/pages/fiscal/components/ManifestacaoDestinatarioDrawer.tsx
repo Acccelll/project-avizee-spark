@@ -723,7 +723,7 @@ interface ItemLinha {
 
 interface ProdutoOpt {
   id: string;
-  codigo: string | null;
+  sku: string | null;
   nome: string;
 }
 
@@ -769,7 +769,7 @@ function ProcessarEntradaDialog({ nf, onClose, onProcessed }: ProcessarEntradaPr
     queryFn: async (): Promise<ProdutoOpt[]> => {
       const { data, error } = await supabase
         .from("produtos")
-        .select("id, codigo, nome")
+        .select("id, sku, nome")
         .eq("ativo", true)
         .order("nome")
         .limit(500);
@@ -953,7 +953,7 @@ function ProcessarEntradaDialog({ nf, onClose, onProcessed }: ProcessarEntradaPr
                           <SelectItem value="__none__">— sem mapeamento —</SelectItem>
                           {produtos.map((p) => (
                             <SelectItem key={p.id} value={p.id}>
-                              {p.codigo ? `${p.codigo} — ` : ""}{p.nome}
+                              {p.sku ? `${p.sku} — ` : ""}{p.nome}
                             </SelectItem>
                           ))}
                         </SelectContent>
