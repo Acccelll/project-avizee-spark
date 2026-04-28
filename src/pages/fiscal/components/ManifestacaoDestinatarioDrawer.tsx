@@ -43,6 +43,7 @@ import {
   enviarManifestacao,
   statusManifestacaoFromEvento,
   tipoEventoFiscalFromManifestacao,
+  sincronizarDistDFe,
   type AmbienteSefaz,
   type TipoManifestacao,
 } from "@/services/fiscal/sefaz";
