@@ -835,6 +835,7 @@ export type Database = {
           celular: string | null
           cep: string | null
           cidade: string | null
+          codigo_ibge_municipio: string | null
           codigo_legado: string | null
           complemento: string | null
           contato: string | null
@@ -852,6 +853,7 @@ export type Database = {
           limite_credito: number | null
           logradouro: string | null
           motivo_inativacao: string | null
+          municipio_nome: string | null
           nome_fantasia: string | null
           nome_razao_social: string
           numero: string | null
@@ -872,6 +874,7 @@ export type Database = {
           celular?: string | null
           cep?: string | null
           cidade?: string | null
+          codigo_ibge_municipio?: string | null
           codigo_legado?: string | null
           complemento?: string | null
           contato?: string | null
@@ -889,6 +892,7 @@ export type Database = {
           limite_credito?: number | null
           logradouro?: string | null
           motivo_inativacao?: string | null
+          municipio_nome?: string | null
           nome_fantasia?: string | null
           nome_razao_social: string
           numero?: string | null
@@ -909,6 +913,7 @@ export type Database = {
           celular?: string | null
           cep?: string | null
           cidade?: string | null
+          codigo_ibge_municipio?: string | null
           codigo_legado?: string | null
           complemento?: string | null
           contato?: string | null
@@ -926,6 +931,7 @@ export type Database = {
           limite_credito?: number | null
           logradouro?: string | null
           motivo_inativacao?: string | null
+          municipio_nome?: string | null
           nome_fantasia?: string | null
           nome_razao_social?: string
           numero?: string | null
@@ -2791,6 +2797,7 @@ export type Database = {
           celular: string | null
           cep: string | null
           cidade: string | null
+          codigo_ibge_municipio: string | null
           codigo_legado: string | null
           complemento: string | null
           contato: string | null
@@ -2804,6 +2811,7 @@ export type Database = {
           inscricao_estadual: string | null
           logradouro: string | null
           motivo_inativacao: string | null
+          municipio_nome: string | null
           nome_fantasia: string | null
           nome_razao_social: string
           numero: string | null
@@ -2821,6 +2829,7 @@ export type Database = {
           celular?: string | null
           cep?: string | null
           cidade?: string | null
+          codigo_ibge_municipio?: string | null
           codigo_legado?: string | null
           complemento?: string | null
           contato?: string | null
@@ -2834,6 +2843,7 @@ export type Database = {
           inscricao_estadual?: string | null
           logradouro?: string | null
           motivo_inativacao?: string | null
+          municipio_nome?: string | null
           nome_fantasia?: string | null
           nome_razao_social: string
           numero?: string | null
@@ -2851,6 +2861,7 @@ export type Database = {
           celular?: string | null
           cep?: string | null
           cidade?: string | null
+          codigo_ibge_municipio?: string | null
           codigo_legado?: string | null
           complemento?: string | null
           contato?: string | null
@@ -2864,6 +2875,7 @@ export type Database = {
           inscricao_estadual?: string | null
           logradouro?: string | null
           motivo_inativacao?: string | null
+          municipio_nome?: string | null
           nome_fantasia?: string | null
           nome_razao_social?: string
           numero?: string | null
@@ -7666,6 +7678,7 @@ export type Database = {
         Args: { p_retirada_id: string }
         Returns: undefined
       }
+      calcular_dv_chave_nfe: { Args: { p_chave43: string }; Returns: string }
       cancelar_cotacao_compra: {
         Args: { p_id: string; p_motivo?: string }
         Returns: Json
@@ -7801,6 +7814,7 @@ export type Database = {
         Args: { p_dv: string; p_ref: string; p_status: string }
         Returns: string
       }
+      gerar_chave_acesso_nfe: { Args: { p_nf_id: string }; Returns: string }
       gerar_devolucao_nota_fiscal: {
         Args: { p_itens?: Json; p_nf_origem_id: string }
         Returns: string
@@ -7897,6 +7911,13 @@ export type Database = {
       normalize_text_match: { Args: { p_input: string }; Returns: string }
       proximo_numero_cotacao_compra: { Args: never; Returns: string }
       proximo_numero_nf: { Args: never; Returns: string }
+      proximo_numero_nfe: {
+        Args: { p_serie?: string }
+        Returns: {
+          numero: number
+          serie: string
+        }[]
+      }
       proximo_numero_nota_fiscal: { Args: never; Returns: string }
       proximo_numero_orcamento: { Args: never; Returns: string }
       proximo_numero_ordem_venda: { Args: never; Returns: string }
