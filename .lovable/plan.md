@@ -1,3 +1,39 @@
+
+## Onda — PWA / offline-first leve (28/abr/2026)
+
+### O que entrou
+
+- `vite-plugin-pwa@1` + `workbox-window@7`, registro manual em
+  `src/lib/pwa.ts` (não roda em DEV nem em iframe do preview).
+- Manifest "Sistema AviZee" + ícones 192/512/maskable em `public/images/`.
+- Estratégias de cache: precache de assets do build; `CacheFirst` para
+  Google Fonts; `StaleWhileRevalidate` (5min) só para GETs em
+  `clientes/fornecedores/produtos/app_configuracoes`. Mutations e
+  domínios sensíveis (NF, financeiro, pedidos) **nunca** são cacheados.
+- Componentes globais montados em `App.tsx`:
+  - `OfflineBanner` (já existia) — barra amber sticky.
+  - `PwaUpdatePrompt` — toast Sonner persistente quando há SW novo.
+  - `InstallPwaButton` (variant `floating`) — card flutuante captura
+    `beforeinstallprompt`. Variant `inline` disponível para reuso.
+
+### Decisões
+
+- `registerType: "prompt"` evita updates silenciosos em forms abertos.
+- Sem Background Sync / fila offline de mutations — escopo "leve".
+- iOS Safari não dispara `beforeinstallprompt`; install guide manual fica
+  para próxima onda.
+
+### Arquivos
+
+- `vite.config.ts` (plugin VitePWA configurado)
+- `index.html` (manifest, theme-color, apple-touch-icon)
+- `src/lib/pwa.ts`, `src/main.tsx` (registro do SW)
+- `src/components/OfflineBanner.tsx`, `PwaUpdatePrompt.tsx`, `InstallPwaButton.tsx`
+- `public/images/pwa-{192,512,512-maskable}.png`
+- `.lovable/memory/features/pwa-offline-leve.md`
+
+Próxima frente sugerida: **Multi-tenant `empresa_id` + RLS** (alto risco,
+roteiro em `rls-single-tenant.md`) ou **Install guide para iOS Safari**.
 # Auditoria — onda de correções priorizada
 
 A auditoria que você passou tem itens já resolvidos pelas Ondas 1-6 (Logística já tem `src/services/logistica/` com `remessas`/`recebimentos`/`lookups`; `Fiscal.tsx` e `Orcamentos.tsx` não acessam mais Supabase direto — chamam `upsertNotaFiscalComItens` e `duplicateOrcamento`). O risco real está **dentro dos services** e em alguns pontos de infraestrutura. Abaixo o plano para o que de fato precisa de correção, agrupado por bloco entregável.
