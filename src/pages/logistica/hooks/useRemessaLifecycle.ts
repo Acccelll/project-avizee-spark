@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { getUserFriendlyError, notifyError } from "@/utils/errorMessages";
 import {
   expedirRemessa,
   marcarRemessaEmTransito,
@@ -22,7 +22,7 @@ export function useExpedirRemessa() {
       toast.success("Remessa expedida — estoque baixado");
       invalidateAll(qc);
     },
-    onError: (err: Error) => toast.error(getUserFriendlyError(err)),
+    onError: (err: Error) => notifyError(err),
   });
 }
 
@@ -34,7 +34,7 @@ export function useMarcarEmTransito() {
       toast.success("Remessa em trânsito");
       invalidateAll(qc);
     },
-    onError: (err: Error) => toast.error(getUserFriendlyError(err)),
+    onError: (err: Error) => notifyError(err),
   });
 }
 
@@ -46,7 +46,7 @@ export function useMarcarEntregue() {
       toast.success("Remessa marcada como entregue");
       invalidateAll(qc);
     },
-    onError: (err: Error) => toast.error(getUserFriendlyError(err)),
+    onError: (err: Error) => notifyError(err),
   });
 }
 
@@ -59,6 +59,6 @@ export function useCancelarRemessa() {
       toast.success("Remessa cancelada");
       invalidateAll(qc);
     },
-    onError: (err: Error) => toast.error(getUserFriendlyError(err)),
+    onError: (err: Error) => notifyError(err),
   });
 }

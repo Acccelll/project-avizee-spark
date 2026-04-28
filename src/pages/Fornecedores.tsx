@@ -41,7 +41,7 @@ import { clienteFornecedorSchema, validateForm } from "@/lib/validationSchemas";
 import { SummaryCard } from "@/components/SummaryCard";
 import { UF_OPTIONS } from "@/constants/brasil";
 import { AddProdutoFornecedor } from "@/components/fornecedores/AddProdutoFornecedor";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { getUserFriendlyError, notifyError } from "@/utils/errorMessages";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { QuickAddSupplierModal } from "@/components/QuickAddSupplierModal";
 import { MobileQuickAddFAB } from "@/components/MobileQuickAddFAB";
@@ -137,7 +137,7 @@ const Fornecedores = () => {
       });
     } catch (err) {
       logger.error("[fornecedores] erro ao carregar contexto:", err);
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     } finally {
       setLoadingFornContext(false);
     }
@@ -212,7 +212,7 @@ const Fornecedores = () => {
       }
     } catch (err) {
       logger.error('[fornecedores] erro ao salvar:', err);
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     }
     setSaving(false);
   };
@@ -805,7 +805,7 @@ const Fornecedores = () => {
                               toast.success("Vínculo removido");
                               loadFornContext(selected.id);
                             } catch (err) {
-                              toast.error(getUserFriendlyError(err));
+                              notifyError(err);
                             }
                           }}
                         ><Trash2 className="w-3 h-3" /></Button>

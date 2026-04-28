@@ -95,7 +95,7 @@ export function useChangePassword() {
       setShowSignOutOthers(true);
     } catch (err: unknown) {
       console.error('[perfil] password:', err);
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     }
     setChanging(false);
   };
@@ -108,7 +108,7 @@ export function useChangePassword() {
       setShowSignOutOthers(false);
     } catch (err: unknown) {
       console.error('[perfil] signOut others:', err);
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     }
     setSigningOutOthers(false);
   };

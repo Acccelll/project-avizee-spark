@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { getUserFriendlyError, notifyError } from "@/utils/errorMessages";
 import { INVALIDATION_KEYS } from "@/services/_invalidationKeys";
 import {
   cancelarPedidoVenda,
@@ -29,7 +29,7 @@ export function useCancelarPedido() {
       toast.success(`Pedido ${result.numero} cancelado.`);
     },
     onError: (err) => {
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     },
   });
 }

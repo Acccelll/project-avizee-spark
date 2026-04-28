@@ -86,7 +86,7 @@ export default function Social() {
       setAlertas(alertasData);
     } catch (error: unknown) {
       console.error('[social] erro ao carregar', error);
-      toast.error(getUserFriendlyError(error));
+      notifyError(error);
     } finally {
       setLoading(false);
     }
@@ -119,7 +119,7 @@ export default function Social() {
       await loadData();
     } catch (error: unknown) {
       console.error('[social] sync', error);
-      toast.error(getUserFriendlyError(error));
+      notifyError(error);
     }
   };
 
@@ -131,7 +131,7 @@ export default function Social() {
       await loadData();
     } catch (error: unknown) {
       console.error('[social] criar conta', error);
-      toast.error(getUserFriendlyError(error));
+      notifyError(error);
     }
   };
 
@@ -143,7 +143,7 @@ export default function Social() {
       await loadData();
     } catch (error: unknown) {
       console.error('[social] desativar conta', error);
-      toast.error(getUserFriendlyError(error));
+      notifyError(error);
     }
   };
 

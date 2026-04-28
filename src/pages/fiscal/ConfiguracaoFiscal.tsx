@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { getUserFriendlyError, notifyError } from "@/utils/errorMessages";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { getEmpresaConfig, upsertEmpresaConfig } from "@/services/fiscal.service";
 
@@ -134,7 +134,7 @@ export default function ConfiguracaoFiscal() {
       toast.success("Configurações fiscais salvas");
     } catch (err) {
       console.error(err);
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     }
     setSaving(false);
   }

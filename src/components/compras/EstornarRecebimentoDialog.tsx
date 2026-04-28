@@ -9,7 +9,7 @@ import {
 } from "@/services/comercial/comprasLifecycle.service";
 import { toast } from "sonner";
 import { formatCurrency, formatDate } from "@/lib/format";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { getUserFriendlyError, notifyError } from "@/utils/errorMessages";
 import { Loader2, RotateCcw, AlertTriangle } from "lucide-react";
 import { StatusBadge } from "@/components/StatusBadge";
 
@@ -56,7 +56,7 @@ export function EstornarRecebimentoDialog({ open, onClose, pedidoId, pedidoNumer
         setSelectedCompraId(data.length > 0 ? String(data[0].id) : null);
         setMotivo("");
       } catch (err) {
-        toast.error(getUserFriendlyError(err));
+        notifyError(err);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -83,7 +83,7 @@ export function EstornarRecebimentoDialog({ open, onClose, pedidoId, pedidoNumer
       onSuccess?.();
       onClose();
     } catch (err) {
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     } finally {
       setSaving(false);
     }

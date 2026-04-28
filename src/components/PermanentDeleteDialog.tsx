@@ -3,7 +3,7 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { getUserFriendlyError, notifyError } from "@/utils/errorMessages";
 import {
   permanentDeleteRecord,
   type PermanentDeleteTable,
@@ -88,7 +88,7 @@ export function PermanentDeleteDialog({
           onClose();
           onDeleted();
         } catch (err) {
-          toast.error(getUserFriendlyError(err));
+          notifyError(err);
         } finally {
           setDeleting(false);
         }

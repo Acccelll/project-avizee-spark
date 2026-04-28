@@ -96,7 +96,7 @@ export function getUserFriendlyError(error: any): string {
 
 /**
  * Helper para reportar erros via toast suprimindo cancelamentos (AbortError).
- * Use sempre que for fazer `toast.error(getUserFriendlyError(err))` em handlers
+ * Use sempre que for fazer `notifyError(err)` em handlers
  * de mutations/queries — evita que cancelamentos legítimos virem ruído visual.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

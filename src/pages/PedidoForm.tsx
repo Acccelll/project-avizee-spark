@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { StatusBadge } from "@/components/StatusBadge";
 import { Save, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { getUserFriendlyError, notifyError } from "@/utils/errorMessages";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { PageShell } from "@/components/PageShell";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
@@ -95,7 +95,7 @@ const PedidoForm = () => {
           observacoes: typed.observacoes || "",
         });
       } catch (err: unknown) {
-        toast.error(getUserFriendlyError(err));
+        notifyError(err);
         navigate("/pedidos");
       } finally {
         setLoading(false);

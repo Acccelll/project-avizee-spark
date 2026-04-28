@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { getUserFriendlyError, notifyError } from "@/utils/errorMessages";
 
 type Primitive = string | number | boolean;
 
@@ -145,7 +145,7 @@ export function useSupabaseCrud<R = any>({
         const from = page * pageSize;
         const { data: result, error, count } = await buildQuery().range(from, from + pageSize - 1);
         if (error) {
-          if (showToasts) toast.error(getUserFriendlyError(error));
+          if (showToasts) notifyError(error);
           throw error;
         }
         const rows = (result ?? []) as R[];
@@ -173,7 +173,7 @@ export function useSupabaseCrud<R = any>({
         const to = from + allChunkSize - 1;
         const { data: result, error, count } = await buildQuery().range(from, to);
         if (error) {
-          if (showToasts) toast.error(getUserFriendlyError(error));
+          if (showToasts) notifyError(error);
           throw error;
         }
         const chunk = (result ?? []) as R[];
@@ -215,7 +215,7 @@ export function useSupabaseCrud<R = any>({
       invalidateTable();
     },
     onError: (err: Error) => {
-      if (showToasts) toast.error(getUserFriendlyError(err));
+      if (showToasts) notifyError(err);
     },
   });
 
@@ -252,7 +252,7 @@ export function useSupabaseCrud<R = any>({
       if (optimistic && context?.snapshot) {
         queryClient.setQueryData<QueryResult>(queryKey, context.snapshot);
       }
-      if (showToasts) toast.error(getUserFriendlyError(err));
+      if (showToasts) notifyError(err);
     },
     onSettled: () => {
       invalidateTable();
@@ -294,7 +294,7 @@ export function useSupabaseCrud<R = any>({
       if (optimistic && context?.snapshot) {
         queryClient.setQueryData<QueryResult>(queryKey, context.snapshot);
       }
-      if (showToasts) toast.error(getUserFriendlyError(err));
+      if (showToasts) notifyError(err);
     },
     onSettled: () => {
       invalidateTable();

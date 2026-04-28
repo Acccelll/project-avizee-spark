@@ -36,7 +36,7 @@ import {
 import { SummaryCard } from "@/components/SummaryCard";
 import { UF_OPTIONS } from "@/constants/brasil";
 import { clienteFornecedorSchema, validateForm } from "@/lib/validationSchemas";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { getUserFriendlyError, notifyError } from "@/utils/errorMessages";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { ClienteEnderecosTab } from "./clientes/components/ClienteEnderecosTab";
 import { ClienteComunicacoesTab } from "./clientes/components/ClienteComunicacoesTab";
@@ -239,7 +239,7 @@ const Clientes = () => {
       setModalOpen(false);
     } catch (err) {
       console.error('[clientes] erro ao salvar:', err);
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     }
     setSaving(false);
   };

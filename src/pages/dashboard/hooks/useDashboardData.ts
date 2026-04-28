@@ -7,7 +7,7 @@ import { useDashboardComercialData } from "./useDashboardComercialData";
 import { useDashboardEstoqueData } from "./useDashboardEstoqueData";
 import { useDashboardFinanceiroData } from "./useDashboardFinanceiroData";
 import { useDashboardFiscalData } from "./useDashboardFiscalData";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { getUserFriendlyError, notifyError } from "@/utils/errorMessages";
 import type { DashboardStats, FaturamentoStats, FiscalStats, ProdRow, TopPoint } from "./types";
 import type { BacklogOv, CompraAguardando, RecentOrcamento } from "./types";
 import type { ScopeKind } from "@/components/dashboard/ScopeBadge";
@@ -156,7 +156,7 @@ export function useDashboardData() {
         };
       } catch (error) {
         console.error("[dashboard] erro ao carregar dados:", error);
-        toast.error(getUserFriendlyError(error));
+        notifyError(error);
         throw error;
       }
     },

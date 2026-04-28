@@ -33,7 +33,7 @@ import {
 import type { TransacaoExtrato } from "@/services/financeiro/ofxParser.service";
 import { exportarParaExcel } from "@/services/export.service";
 import type { Lancamento } from "@/types/domain";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { getUserFriendlyError, notifyError } from "@/utils/errorMessages";
 import { getOrigemKey, getOrigemLabel } from "@/lib/financeiro";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
@@ -231,7 +231,7 @@ export default function Conciliacao() {
       }
     } catch (err: unknown) {
       console.error("[conciliacao] erro ao processar OFX:", err);
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -393,7 +393,7 @@ export default function Conciliacao() {
       );
       setMatches([]);
     } catch (err) {
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     } finally {
       setConfirming(false);
     }

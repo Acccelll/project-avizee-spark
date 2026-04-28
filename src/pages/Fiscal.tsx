@@ -19,7 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { getUserFriendlyError, notifyError } from "@/utils/errorMessages";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { FileText, DollarSign, CheckCircle, Clock, ArrowLeftRight, MoreVertical, Eye, Edit as EditIcon, XCircle as XCircleIcon } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -352,7 +352,7 @@ const Fiscal = () => {
         await invalidate(INVALIDATION_KEYS.fiscalLifecycle);
       } catch (err: unknown) {
         logger.error('[fiscal] confirmar NF:', err);
-        toast.error(getUserFriendlyError(err));
+        notifyError(err);
       }
     });
   };
@@ -377,7 +377,7 @@ const Fiscal = () => {
         await invalidate(INVALIDATION_KEYS.fiscalLifecycle);
       } catch (err: unknown) {
         logger.error('[fiscal] estornar NF:', err);
-        toast.error(getUserFriendlyError(err));
+        notifyError(err);
       }
     });
   };
@@ -400,7 +400,7 @@ const Fiscal = () => {
       fetchData();
     } catch (err: unknown) {
       logger.error('[fiscal] cancelar rascunho:', err);
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     }
   };
 
@@ -474,7 +474,7 @@ const Fiscal = () => {
       fetchData();
     } catch (err: unknown) {
       logger.error('[fiscal] salvar e confirmar NF:', err);
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     }
     setSaving(false);
   };
@@ -565,7 +565,7 @@ const Fiscal = () => {
         });
       }
       toast.success("Nota fiscal salva!"); setModalOpen(false); fetchData();
-    } catch (err: unknown) { logger.error('[fiscal] salvar NF:', err); toast.error(getUserFriendlyError(err)); }
+    } catch (err: unknown) { logger.error('[fiscal] salvar NF:', err); notifyError(err); }
     setSaving(false);
   };
 
@@ -597,7 +597,7 @@ const Fiscal = () => {
       fetchData();
     } catch (err: unknown) {
       logger.error('[fiscal] inativar NF:', err);
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     }
   };
 

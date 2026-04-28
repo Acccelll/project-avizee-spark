@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/format";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { getUserFriendlyError, notifyError } from "@/utils/errorMessages";
 import {
   listBancosAtivos,
   listContasBancarias,
@@ -99,7 +99,7 @@ const ContasBancarias = () => {
       setBancos(b);
       setContas(c as ContaBancaria[]);
     } catch (err) {
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     } finally {
       setLoading(false);
     }
@@ -195,7 +195,7 @@ const ContasBancarias = () => {
       const counts = await getContaInUseCounts(c.id);
       setInUseCounts(counts);
     } catch (err) {
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     }
   };
 
@@ -253,7 +253,7 @@ const ContasBancarias = () => {
       toast.success("Conta removida!");
       fetchData();
     } catch (err) {
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     }
   };
 

@@ -226,7 +226,7 @@ export function UserFormModal({
       onClose();
     } catch (err) {
       console.error('[usuarios] Erro ao salvar usuário:', err);
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     } finally {
       setSaving(false);
     }

@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { getUserFriendlyError, notifyError } from "@/utils/errorMessages";
 import {
   ajustarEstoqueManual,
   type AjusteEstoqueInput,
@@ -23,6 +23,6 @@ export function useAjustarEstoque() {
       qc.invalidateQueries({ queryKey: ["estoque-movimentacoes"] });
       qc.invalidateQueries({ queryKey: ["produtos"] });
     },
-    onError: (err: Error) => toast.error(getUserFriendlyError(err)),
+    onError: (err: Error) => notifyError(err),
   });
 }

@@ -19,7 +19,7 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { PermanentDeleteDialog } from "@/components/PermanentDeleteDialog";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { toast } from "sonner";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { getUserFriendlyError, notifyError } from "@/utils/errorMessages";
 
 interface Props {
   id: string;
@@ -307,7 +307,7 @@ export function GrupoEconomicoView({ id }: Props) {
             setDeleteOpen(false);
             clearStack();
           } catch (err) {
-            toast.error(getUserFriendlyError(err));
+            notifyError(err);
           } finally {
             setDeleting(false);
           }

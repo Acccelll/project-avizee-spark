@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { getUserFriendlyError, notifyError } from "@/utils/errorMessages";
 import { type GridItem } from "@/components/ui/ItemsGrid";
 import {
   type PedidoCompra,
@@ -344,7 +344,7 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
       itens = await pcs.listPedidoItensParaRecebimento(p.id);
     } catch (err) {
       console.error("[darEntrada] fetch itens", err);
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
       return;
     }
     if (!itens || itens.length === 0) {
@@ -397,7 +397,7 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
       await refreshAll();
     } catch (err: unknown) {
       console.error("[darEntrada]", err);
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     }
 
     if (entradaOk) {
@@ -424,7 +424,7 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
       await refreshAll();
     } catch (err: unknown) {
       console.error("[solicitarAprovacao]", err);
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     }
   };
 
@@ -436,7 +436,7 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
       await refreshAll();
     } catch (err: unknown) {
       console.error("[aprovarPedido]", err);
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     }
   };
 
@@ -452,7 +452,7 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
       await refreshAll();
     } catch (err: unknown) {
       console.error("[rejeitarPedido]", err);
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     }
   };
 
@@ -463,7 +463,7 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
       await refreshAll();
     } catch (err: unknown) {
       console.error("[marcarEnviado]", err);
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     }
   };
 
@@ -480,7 +480,7 @@ export function usePedidosCompra(): UsePedidosCompraReturn {
       await refreshAll();
     } catch (err: unknown) {
       console.error("[cancelarPedido]", err);
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     }
   };
 

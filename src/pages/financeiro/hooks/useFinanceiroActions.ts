@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { exportarParaExcel, exportarParaPdf } from "@/services/export.service";
 import { processarEstorno } from "@/services/financeiro.service";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { getUserFriendlyError, notifyError } from "@/utils/errorMessages";
 import { supabase } from "@/integrations/supabase/client";
 import type { Lancamento } from "@/types/domain";
 import type { LancamentoForm } from "@/pages/financeiro/types";
@@ -104,7 +104,7 @@ export function useFinanceiroActions({ filteredData, getLancamentoStatus, create
         onSuccess();
       } catch (error) {
         logger.error("[financeiro] erro ao salvar:", error);
-        toast.error(getUserFriendlyError(error));
+        notifyError(error);
       } finally {
         setSaving(false);
       }

@@ -15,7 +15,7 @@ import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useDetailFetch } from "@/hooks/useDetailFetch";
 import { useDetailActions } from "@/hooks/useDetailActions";
 import { useInvalidateAfterMutation } from "@/hooks/useInvalidateAfterMutation";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { getUserFriendlyError, notifyError } from "@/utils/errorMessages";
 import { pagamentoLabels, freteTipoLabels } from "@/utils/comercial";
 import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSummaryCard";
 import { RecordIdentityCard } from "@/components/ui/RecordIdentityCard";
@@ -518,7 +518,7 @@ export function OrcamentoView({ id }: Props) {
             setCancelMotivo("");
           } catch (err: unknown) {
             console.error("[OrcamentoView] erro ao cancelar:", err);
-            toast.error(getUserFriendlyError(err));
+            notifyError(err);
           } finally {
             setDeleteConfirmOpen(false);
           }

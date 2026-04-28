@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge";
 import { MessageSquare, MessageSquarePlus, Clock } from "lucide-react";
 import { toast } from "sonner";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { getUserFriendlyError, notifyError } from "@/utils/errorMessages";
 
 interface ComunicacaoCliente {
   id: string;
@@ -100,7 +100,7 @@ export function ClienteComunicacoesTab({ clienteId, onCountChange }: Props) {
       toast.success("Comunicação registrada");
     } catch (err) {
       console.error("[clientes] erro ao salvar comunicação:", err);
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     }
     setSaving(false);
   };

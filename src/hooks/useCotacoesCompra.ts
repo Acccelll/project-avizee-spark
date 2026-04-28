@@ -5,7 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { toast } from "sonner";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { getUserFriendlyError, notifyError } from "@/utils/errorMessages";
 import { validateForm } from "@/lib/validationSchemas";
 import { cotacaoCompraSchema, validateCotacaoItems } from "@/lib/cotacaoCompraSchema";
 import { useGerarPedidoCompra } from "@/pages/comercial/hooks/useGerarPedidoCompra";
@@ -275,7 +275,7 @@ export function useCotacoesCompra() {
       setProposalForm({ fornecedor_id: "", preco_unitario: 0, prazo_entrega_dias: "", observacoes: "" });
       await reloadPropostas();
     } catch (err: unknown) {
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     }
   };
 
@@ -286,7 +286,7 @@ export function useCotacoesCompra() {
       toast.success("Fornecedor selecionado!");
       await reloadPropostas();
     } catch (err: unknown) {
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     }
   };
 
@@ -305,7 +305,7 @@ export function useCotacoesCompra() {
       toast.success("Cotação enviada para aprovação!");
       fetchData();
     } catch (err: unknown) {
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     }
   };
 
@@ -317,7 +317,7 @@ export function useCotacoesCompra() {
       toast.success("Cotação aprovada!");
       fetchData();
     } catch (err: unknown) {
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     }
   };
 
@@ -334,7 +334,7 @@ export function useCotacoesCompra() {
       toast.error("Cotação rejeitada.");
       fetchData();
     } catch (err: unknown) {
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     }
   };
 
@@ -352,7 +352,7 @@ export function useCotacoesCompra() {
       setDrawerOpen(false);
       fetchData();
     } catch (err: unknown) {
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     }
   };
 

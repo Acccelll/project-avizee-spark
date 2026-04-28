@@ -17,7 +17,7 @@ import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MaskedInput } from "@/components/ui/MaskedInput";
 import { cn } from "@/lib/utils";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { getUserFriendlyError, notifyError } from "@/utils/errorMessages";
 import { SectionShell } from "@/pages/admin/components/SectionShell";
 import { useEmpresaConfig, useAppConfig } from "@/pages/admin/hooks/useEmpresaConfig";
 import { uploadDbavizeeImage } from "@/services/storage.service";
@@ -128,7 +128,7 @@ export function EmpresaSection() {
       toast.success("Imagem enviada com sucesso.");
     } catch (err) {
       console.error("[admin] Erro ao enviar imagem:", err);
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     } finally {
       setUploading(false);
       if (inputRef.current) inputRef.current.value = "";

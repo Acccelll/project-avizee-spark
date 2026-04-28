@@ -25,7 +25,7 @@ import {
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { exportarParaExcel } from "@/services/export.service";
 import type { Lancamento, ContaBancaria } from "@/types/domain";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { getUserFriendlyError, notifyError } from "@/utils/errorMessages";
 import { displayDescricao } from "@/lib/displayLancamento";
 import { getEffectiveStatus as libGetEffectiveStatus } from "@/lib/financeiro";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -362,7 +362,7 @@ const FluxoCaixa = () => {
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Erro desconhecido";
       console.error("[fluxo_caixa]", msg);
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     }
     setSaving(false);
   };

@@ -5,7 +5,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { getUserFriendlyError, notifyError } from "@/utils/errorMessages";
 import {
   atribuirPerfil,
   concederPermissao,
@@ -44,7 +44,7 @@ export function usePerfis(userId: string) {
     },
     onError: (err: Error) => {
       console.error("[admin] Erro ao atribuir perfil:", err);
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     },
   });
 
@@ -57,7 +57,7 @@ export function usePerfis(userId: string) {
     },
     onError: (err: Error) => {
       console.error("[admin] Erro ao remover perfil:", err);
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     },
   });
 
@@ -70,7 +70,7 @@ export function usePerfis(userId: string) {
     },
     onError: (err: Error) => {
       console.error("[admin] Erro ao conceder permissão:", err);
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     },
   });
 
@@ -83,7 +83,7 @@ export function usePerfis(userId: string) {
     },
     onError: (err: Error) => {
       console.error("[admin] Erro ao revogar permissão:", err);
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     },
   });
 

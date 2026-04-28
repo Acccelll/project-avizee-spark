@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import type { TemplateConfig } from "@/types/orcamento";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { getUserFriendlyError, notifyError } from "@/utils/errorMessages";
 import {
   buildTemplateKey,
   existsTeamTemplate,
@@ -42,7 +42,7 @@ export function useOrcamentoTemplates(userId: string | null | undefined): UseOrc
       const list = await listOrcamentoTemplates(userId);
       setTemplates(list);
     } catch (err) {
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
       return;
     }
   }, [userId]);
@@ -72,7 +72,7 @@ export function useOrcamentoTemplates(userId: string | null | undefined): UseOrc
             if (!ok) return false;
           }
         } catch (err) {
-          toast.error(getUserFriendlyError(err));
+          notifyError(err);
           return false;
         }
       }
@@ -81,7 +81,7 @@ export function useOrcamentoTemplates(userId: string | null | undefined): UseOrc
       try {
         await upsertOrcamentoTemplate(record);
       } catch (err) {
-        toast.error(getUserFriendlyError(err));
+        notifyError(err);
         return false;
       }
       toast.success("Template salvo");

@@ -9,7 +9,7 @@
  */
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { getUserFriendlyError, notifyError } from "@/utils/errorMessages";
 import { logger } from "@/lib/logger";
 
 export async function cancelarLancamento(
@@ -31,7 +31,7 @@ export async function cancelarLancamento(
     return true;
   } catch (error) {
     logger.error("[financeiro] erro ao cancelar:", error);
-    toast.error(getUserFriendlyError(error));
+    notifyError(error);
     return false;
   }
 }

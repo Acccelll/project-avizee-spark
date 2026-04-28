@@ -14,7 +14,7 @@ import {
   calcularNovoSaldo,
   statusPosBaixa,
 } from "@/lib/financeiro";
-import { getUserFriendlyError } from "@/utils/errorMessages";
+import { getUserFriendlyError, notifyError } from "@/utils/errorMessages";
 import { logger } from "@/lib/logger";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -191,7 +191,7 @@ export async function processarBaixaLote(params: BaixaLoteParams): Promise<boole
     return true;
   } catch (error) {
     logger.error("[financeiro] erro na baixa em lote:", error);
-    toast.error(getUserFriendlyError(error));
+    notifyError(error);
     return false;
   }
 }

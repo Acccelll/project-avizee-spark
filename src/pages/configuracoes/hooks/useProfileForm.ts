@@ -74,7 +74,7 @@ export function useProfileForm() {
       }
     } catch (err: unknown) {
       console.error('[perfil] save:', err);
-      toast.error(getUserFriendlyError(err));
+      notifyError(err);
     }
     setSaving(false);
   };
