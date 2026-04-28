@@ -165,6 +165,7 @@ export default function Faturamento() {
   const [contOpen, setContOpen] = useState(false);
   const [contCfg, setContCfg] = useState<{ modo: string | null; motivo: string | null } | null>(null);
   const [manifOpen, setManifOpen] = useState(false);
+  const [manifHighlight, setManifHighlight] = useState<string | null>(null);
   const qc = useQueryClient();
 
   const handleTab = (next: string) => {
@@ -174,6 +175,24 @@ export default function Faturamento() {
     sp.set("tab", t);
     setSearchParams(sp, { replace: true });
   };
+
+  // Deep-link: /faturamento?tab=manifestacao&nfe=<id>
+  // Abre o drawer de Manifestação com a NF correspondente em destaque.
+  useEffect(() => {
+    const sp = searchParams;
+    if (sp.get("tab") === "manifestacao") {
+      const nfeId = sp.get("nfe");
+      setManifHighlight(nfeId);
+      setManifOpen(true);
+      // Limpa o param "tab=manifestacao" para não reabrir em re-renders;
+      // mantém a aba atual.
+      const next = new URLSearchParams(sp);
+      next.delete("tab");
+      next.delete("nfe");
+      setSearchParams(next, { replace: true });
+    }
+    // Apenas no mount/quando a query muda externamente.
+  }, [searchParams, setSearchParams]);
 
   const kpisQuery = useQuery({ queryKey: ["faturamento-kpis"], queryFn: fetchPainelKpis });
   const ultimasQuery = useQuery({ queryKey: ["faturamento-ultimas"], queryFn: fetchUltimasNotas });
