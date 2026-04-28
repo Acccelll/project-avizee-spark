@@ -25,15 +25,19 @@ export const sumNfValues = (rows: NfRow[] = []) =>
  * Status canônicos pós-Rodada 5: rascunho | confirmada | cancelada.
  * `pendentes` agrega documentos ainda não autorizados — `rascunho` (legacy)
  * e `pendente` (em trânsito de envio à SEFAZ).
+ * `emitidas` aceita `confirmada` (emitidas pelo ERP) e `importada` (carga
+ * histórica via XML/planilha) — ambas representam NF-e válidas no SEFAZ.
  */
 export const summarizeFiscalStats = (rows: NfRow[] = []): FiscalStats => {
-  const emitidas = rows.filter((item) => item.status === "confirmada").length;
+  const emitidas = rows.filter(
+    (item) => item.status === "confirmada" || item.status === "importada",
+  ).length;
   const pendentes = rows.filter(
     (item) => item.status === "rascunho" || item.status === "pendente",
   ).length;
   const canceladas = rows.filter((item) => item.status === "cancelada").length;
   const valorEmitidas = rows
-    .filter((item) => item.status === "confirmada")
+    .filter((item) => item.status === "confirmada" || item.status === "importada")
     .reduce((sum, item) => sum + Number(item.valor_total ?? 0), 0);
 
   return { emitidas, pendentes, canceladas, valorEmitidas };
