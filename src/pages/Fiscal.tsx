@@ -30,7 +30,16 @@ import { DevolucaoDialog } from "@/components/fiscal/DevolucaoDialog";
 import { NotaFiscalDrawer } from "@/components/fiscal/NotaFiscalDrawer";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown } from "lucide-react";
-import { registrarEventoFiscal, cancelarNotaFiscal } from "@/services/fiscal.service";
+import {
+  registrarEventoFiscal,
+  cancelarNotaFiscal,
+  listOrdensVendaParaFiscal,
+  listContasContabeisLancaveis,
+  getPedidoCompraResumo,
+  listNotaFiscalItensCompletos,
+  getEmpresaConfigPrincipal,
+  upsertNotaFiscalComItens,
+} from "@/services/fiscal.service";
 import {
   useConfirmarNotaFiscal,
   useEstornarNotaFiscal,
@@ -180,12 +189,12 @@ const Fiscal = () => {
 
   useEffect(() => {
     const load = async () => {
-      const [{ data: ovs }, { data: contas }] = await Promise.all([
-        supabase.from("ordens_venda").select("id, numero, cliente_id, clientes(nome_razao_social)").eq("ativo", true).in("status", ["aprovada", "em_separacao"]).order("numero"),
-        supabase.from("contas_contabeis").select("id, codigo, descricao").eq("ativo", true).eq("aceita_lancamento", true).order("codigo"),
+      const [ovs, contas] = await Promise.all([
+        listOrdensVendaParaFiscal(),
+        listContasContabeisLancaveis(),
       ]);
-      setOrdensVenda(ovs || []);
-      setContasContabeis(contas || []);
+      setOrdensVenda(ovs);
+      setContasContabeis(contas);
     };
     load();
   }, []);
