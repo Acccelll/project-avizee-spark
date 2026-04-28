@@ -108,6 +108,9 @@ const wizardSchema = z.object({
   desconto_valor: z.coerce.number().min(0).default(0),
   forma_pagamento: z.string().default("01"),
   observacoes: z.string().optional(),
+  // Vínculo opcional com Ordem de Venda (Onda 4)
+  ordem_venda_id: z.string().nullable().optional(),
+  ordem_venda_numero: z.string().nullable().optional(),
 });
 type WizardData = z.infer<typeof wizardSchema>;
 
@@ -942,8 +945,98 @@ export default function EmitirNFeWizard() {
           form.setValue("cliente_municipio_ibge", data.codigo_ibge_municipio ?? "");
         });
     }
+    // Onda 4 — pré-preencher a partir de uma Ordem de Venda
+    const ovId = searchParams.get("ovId");
+    if (ovId && !form.getValues("ordem_venda_id")) {
+      void carregarOrdemVenda(ovId);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const carregarOrdemVenda = async (ovId: string) => {
+    try {
+      const { data: ov, error } = await supabase
+        .from("ordens_venda")
+        .select(`
+          id, numero, observacoes, frete_tipo, frete_valor,
+          cliente:cliente_id(id, nome_razao_social, uf, codigo_ibge_municipio, cidade),
+          itens:ordens_venda_itens(
+            id, produto_id, codigo_snapshot, descricao_snapshot,
+            quantidade, quantidade_faturada, unidade, valor_unitario, valor_total,
+            produto:produto_id(ncm)
+          )
+        `)
+        .eq("id", ovId)
+        .maybeSingle();
+      if (error) throw error;
+      if (!ov) {
+        toast.error("Ordem de venda não encontrada.");
+        return;
+      }
+      const cli = (ov as { cliente?: { id: string; nome_razao_social: string; uf: string | null; codigo_ibge_municipio: string | null; cidade: string | null } | null }).cliente;
+      form.setValue("ordem_venda_id", ov.id);
+      form.setValue("ordem_venda_numero", ov.numero);
+      if (cli) {
+        form.setValue("cliente_id", cli.id);
+        form.setValue("cliente_nome", cli.nome_razao_social);
+        form.setValue("cliente_uf", (cli.uf ?? "").toUpperCase());
+        form.setValue("cliente_municipio_ibge", cli.codigo_ibge_municipio ?? "");
+      }
+      const freteMap: Record<string, WizardData["frete_modalidade"]> = {
+        cif: "0", fob: "1", terceiros: "2", proprio: "3", sem_frete: "9",
+      };
+      if (ov.frete_tipo) form.setValue("frete_modalidade", freteMap[ov.frete_tipo] ?? "9");
+      form.setValue("frete_valor", Number(ov.frete_valor ?? 0));
+      const obsBase = `Ref. Pedido de Venda nº ${ov.numero}`;
+      form.setValue("observacoes", ov.observacoes ? `${obsBase}. ${ov.observacoes}` : obsBase);
+
+      const itensOv = (ov as { itens?: Array<{
+        produto_id: string | null;
+        codigo_snapshot: string | null;
+        descricao_snapshot: string | null;
+        quantidade: number | null;
+        quantidade_faturada: number | null;
+        unidade: string | null;
+        valor_unitario: number | null;
+        valor_total: number | null;
+        produto?: { ncm: string | null } | null;
+      }> }).itens ?? [];
+
+      const itensWizard = itensOv
+        .map((it) => {
+          const restante = Number(it.quantidade ?? 0) - Number(it.quantidade_faturada ?? 0);
+          if (restante <= 0) return null;
+          const vu = Number(it.valor_unitario ?? 0);
+          const total = +(restante * vu).toFixed(2);
+          return {
+            produto_id: it.produto_id,
+            codigo_produto: it.codigo_snapshot ?? "",
+            descricao: it.descricao_snapshot ?? "",
+            ncm: (it.produto?.ncm ?? "").replace(/\D/g, "").padStart(8, "0").slice(-8),
+            cfop: "5102",
+            cst: "00",
+            origem_mercadoria: "0",
+            unidade: it.unidade ?? "UN",
+            quantidade: restante,
+            valor_unitario: vu,
+            valor_total: total,
+            icms_aliquota: 0, icms_base: total, icms_valor: 0,
+            ipi_aliquota: 0, ipi_valor: 0,
+            pis_aliquota: 0, pis_valor: 0,
+            cofins_aliquota: 0, cofins_valor: 0,
+            matriz_aplicada: false,
+          } as WizardItem;
+        })
+        .filter((x): x is WizardItem => x !== null);
+
+      form.setValue("itens", itensWizard);
+      toast.success(
+        `Pedido ${ov.numero} carregado: ${itensWizard.length} ${itensWizard.length === 1 ? "item" : "itens"} prontos para faturar. Aplique a matriz fiscal nos itens.`,
+      );
+    } catch (err) {
+      notifyError(err);
+    }
+  };
 
   const validarStep = async (n: number): Promise<boolean> => {
     const fields: Record<number, (keyof WizardData)[]> = {
@@ -1008,6 +1101,7 @@ export default function EmitirNFeWizard() {
           cofins_valor: totaisCofins,
           status: "pendente",
           status_sefaz: "nao_enviada",
+          ordem_venda_id: data.ordem_venda_id ?? null,
         } as never])
         .select("id")
         .single();
@@ -1041,6 +1135,18 @@ export default function EmitirNFeWizard() {
         .from("notas_fiscais_itens")
         .insert(itensPayload as never);
       if (itErr) throw itErr;
+
+      // Onda 4 — marcar OV como faturada (parcial/total)
+      if (data.ordem_venda_id) {
+        try {
+          await supabase
+            .from("ordens_venda")
+            .update({ status_faturamento: "faturado" })
+            .eq("id", data.ordem_venda_id);
+        } catch {
+          /* não bloqueia: status pode ser ajustado posteriormente */
+        }
+      }
 
       toast.success("Rascunho salvo. Pronto para transmitir!");
       navigate(`/fiscal/${nfRow!.id}`);

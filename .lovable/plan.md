@@ -173,6 +173,6 @@ Sugiro a sequência **Onda 0 → Onda 1 → Onda 3** (fundação + casca + wizar
   - UI `/faturamento/cadastros` com Naturezas (CRUD + 7 seeds) e Matriz Fiscal (CRUD)
   - Hook `useMunicipioIbge` com fallback automático para a API do IBGE
 - ✅ **Onda 3** — Wizard 5 passos: /faturamento/emitir com Stepper, autocomplete de cliente/produto, RPC aplicar_matriz_fiscal, resolução automática de IBGE, salvamento como rascunho e redirecionamento para SefazAcoesPanel
-- ⏳ **Onda 4** — Backlog OV→NF
+- ✅ **Onda 4** — Backlog OV→NF: aba `/faturamento?tab=backlog` lista ordens de venda com `status_faturamento ∈ {pendente, parcial}` e ação "Faturar" abre o wizard com `?ovId=…` (cliente, itens com saldo restante, frete e observações pré-preenchidos; vínculo `notas_fiscais.ordem_venda_id` persistido e OV marcada como `faturado`)
 - ⏳ **Onda 5** — Eventos: CC-e, devolução/complementar, inutilização UI
 - ⏳ **Onda 6** — Status SEFAZ por UF + contingência
