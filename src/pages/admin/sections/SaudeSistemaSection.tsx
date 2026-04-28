@@ -8,7 +8,7 @@
  * consistência visual com outros indicadores de integração.
  */
 
-import { Activity, AlertCircle, Mail, RefreshCw, ShieldCheck } from "lucide-react";
+import { Activity, AlertCircle, FileSignature, Inbox, Mail, RefreshCw, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -18,12 +18,21 @@ import { useSaudeSistema } from "@/pages/admin/hooks/useSaudeSistema";
 
 const ICONES_INTEGRACAO = {
   email: Mail,
+  fila_email: Inbox,
+  sefaz: FileSignature,
   auditoria: ShieldCheck,
   permissoes: Activity,
 } as const;
 
 function formatTimestamp(iso: string) {
   return new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "medium" });
+}
+
+function formatAge(seconds: number): string {
+  if (seconds <= 0) return "—";
+  if (seconds < 60) return `${seconds}s`;
+  if (seconds < 3600) return `${Math.round(seconds / 60)}min`;
+  return `${Math.round(seconds / 3600)}h`;
 }
 
 export function SaudeSistemaSection() {
@@ -65,7 +74,7 @@ export function SaudeSistemaSection() {
       {/* Cartões de integrações */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {isLoading
-          ? Array.from({ length: 3 }).map((_, i) => (
+          ? Array.from({ length: 5 }).map((_, i) => (
               <Card key={i}>
                 <CardHeader className="pb-2">
                   <Skeleton className="h-4 w-32" />
@@ -81,7 +90,7 @@ export function SaudeSistemaSection() {
               return (
                 <Card key={it.chave}>
                   <CardHeader className="pb-2 flex-row items-start gap-2 space-y-0">
-                    <Icon className="h-4 w-4 mt-0.5 text-muted-foreground" />
+                    {Icon && <Icon className="h-4 w-4 mt-0.5 text-muted-foreground" />}
                     <div className="flex-1 min-w-0">
                       <CardTitle className="text-sm">{it.nome}</CardTitle>
                     </div>
@@ -94,6 +103,49 @@ export function SaudeSistemaSection() {
               );
             })}
       </div>
+
+      {/* Filas pgmq de e-mail */}
+      {data && data.filas.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Filas de e-mail (pgmq)</CardTitle>
+            <CardDescription>
+              Profundidade atual e idade da mensagem mais antiga em cada fila.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-xs text-muted-foreground">
+                  <tr className="border-b">
+                    <th className="py-2 text-left font-medium">Fila</th>
+                    <th className="py-2 text-right font-medium">Pendentes</th>
+                    <th className="py-2 text-right font-medium">Mais antiga</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.filas.map((f) => (
+                    <tr key={f.queue_name} className="border-b last:border-b-0">
+                      <td className="py-2 font-medium">
+                        {f.queue_name}
+                        {f.queue_name.endsWith("_dlq") && (
+                          <span className="ml-2 inline-block rounded bg-destructive/10 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-destructive">
+                            DLQ
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-2 text-right tabular-nums">{f.total_messages}</td>
+                      <td className="py-2 text-right tabular-nums text-muted-foreground">
+                        {formatAge(f.oldest_msg_age_seconds)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* KPI de e-mail */}
       {data && (
