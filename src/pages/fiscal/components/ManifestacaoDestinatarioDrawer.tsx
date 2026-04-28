@@ -10,6 +10,8 @@ import {
   XCircle,
   Upload,
   Eye,
+  PackagePlus,
+  CheckCheck,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -118,6 +120,7 @@ export function ManifestacaoDestinatarioDrawer({ open, onOpenChange }: Manifesta
   const [importando, setImportando] = useState(false);
   const [verItensTarget, setVerItensTarget] = useState<NfeCapturada | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const [processarTarget, setProcessarTarget] = useState<NfeCapturada | null>(null);
 
   const { data: notas = [], isLoading } = useQuery({
     queryKey: ["nfe-distribuicao"],
