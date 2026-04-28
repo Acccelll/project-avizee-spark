@@ -511,6 +511,56 @@ const comprasFornecedorConfig: ReportConfig = {
   ],
 };
 
+const nfeEntradaConfig: ReportConfig = {
+  id: 'nfe_entrada',
+  title: 'NF-e de Entrada',
+  description: 'Notas fiscais recebidas via manifestação do destinatário',
+  objective: 'Acompanhar NF-e de entrada por fornecedor com totais de ICMS/IPI',
+  category: 'fiscal_faturamento',
+  icon: Receipt,
+  chartType: 'bar',
+  columns: [
+    { key: 'emissao', label: 'Emissão', format: 'date' },
+    { key: 'numero', label: 'Nº' },
+    { key: 'serie', label: 'Série' },
+    { key: 'fornecedor', label: 'Fornecedor' },
+    { key: 'cnpj', label: 'CNPJ' },
+    { key: 'valor', label: 'Valor Total', format: 'currency', align: 'right', footerTotal: true },
+    { key: 'icms', label: 'ICMS', format: 'currency', align: 'right', footerTotal: true },
+    { key: 'ipi', label: 'IPI', format: 'currency', align: 'right', footerTotal: true },
+    { key: 'status', label: 'Manifestação', format: 'badge' },
+    { key: 'processado', label: 'Processada', format: 'badge' },
+  ],
+  filters: {
+    showDateRange: true,
+    showClientes: false,
+    showFornecedores: true,
+    showGrupos: false,
+    showStatus: true,
+    statusOptions: [
+      { value: 'todos', label: 'Todos' },
+      { value: 'sem_manifestacao', label: 'Sem manifestação' },
+      { value: 'ciencia', label: 'Ciência' },
+      { value: 'confirmada', label: 'Confirmada' },
+      { value: 'desconhecida', label: 'Desconhecida' },
+      { value: 'nao_realizada', label: 'Não realizada' },
+    ],
+    showTipos: false,
+  },
+  timeAxis: { field: 'emissao', label: 'data de emissão', required: false },
+  kpis: [
+    { key: 'qtdNfe', label: 'NF-e', format: 'number', variation: 'no período' },
+    { key: 'totalEntradas', label: 'Total Entradas', format: 'currency', variation: 'valor bruto' },
+    { key: 'totalIcms', label: 'ICMS', format: 'currency', variation: 'destacado' },
+    { key: 'totalIpi', label: 'IPI', format: 'currency', variation: 'destacado' },
+    { key: 'processadas', label: 'Processadas', format: 'number', variant: 'success', variation: 'estoque + financeiro' },
+  ],
+  drillDown: [
+    { key: 'fornecedor', label: 'Abrir fornecedor', route: '/fornecedores', targetField: 'fornecedorId', available: true },
+    { key: 'nfe', label: 'Abrir NF-e', route: '/faturamento', targetField: 'nfeId', available: true, queryParams: { tab: 'manifestacao', nfe: 'nfeId' } as Record<string, string> },
+  ],
+};
+
 const faturamentoConfig: ReportConfig = {
   id: 'faturamento',
   title: 'Faturamento',
