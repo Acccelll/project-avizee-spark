@@ -20,6 +20,7 @@ import {
   ShieldCheck,
   AlertTriangle,
   Plus,
+  BookOpen,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -338,6 +339,9 @@ export default function Faturamento() {
                   </Button>
                   <Button variant="outline" className="justify-start" onClick={() => navigate("/administracao?tab=fiscal")}>
                     <ShieldCheck className="h-4 w-4 mr-2" /> Configurações fiscais
+                  </Button>
+                  <Button variant="outline" className="justify-start" onClick={() => navigate("/faturamento/cadastros")}>
+                    <BookOpen className="h-4 w-4 mr-2" /> Cadastros (Naturezas/Matriz)
                   </Button>
                 </CardContent>
               </Card>
