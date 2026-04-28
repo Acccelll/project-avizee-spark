@@ -7,6 +7,7 @@
 - RBAC via `user_permissions`. UI must use `can(resource, action)` for critical actions.
 - Security: All DB RPCs and triggers MUST set `search_path = public`.
 - Decompose God components. Separate UI state and prioritize strict domain typing.
+- Acesso a `supabase.from/rpc/storage` só em `src/services/`. Exceções: `src/lib/realtime/*`, `src/types/rpc.ts`, `supabase.auth.*` em pages de auth, `supabase.functions.invoke` em hooks dedicados.
 
 ## Memories
 - [Invoicing and Tax](mem://features/faturamento-fiscal)
