@@ -12,6 +12,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { ContrastDevTool } from './accessibility/ContrastDevTool';
 import { useGlobalHotkeys } from '@/hooks/useGlobalHotkeys';
 import { useNfeEntradaToast } from '@/hooks/useNfeEntradaToast';
+import { useAutoCienciaDistDFe } from '@/hooks/useAutoCienciaDistDFe';
 import { GlobalSearch } from './navigation/GlobalSearch';
 import { GlobalShortcutsDialog } from './navigation/GlobalShortcutsDialog';
 import { GlobalPeriodProvider } from '@/contexts/DashboardPeriodContext';
