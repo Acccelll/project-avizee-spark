@@ -8,6 +8,27 @@ import { financeiroHelp } from './entries/financeiro';
 import { logisticaHelp } from './entries/logistica';
 import { clientesHelp } from './entries/clientes';
 import { produtosHelp } from './entries/produtos';
+import {
+  pedidosCompraHelp,
+  cotacoesCompraHelp,
+  contasBancariasHelp,
+  conciliacaoHelp,
+  fluxoCaixaHelp,
+  relatoriosHelp,
+  workbookHelp,
+  apresentacaoHelp,
+  fornecedoresHelp,
+} from './entries/lote2';
+import {
+  transportadorasHelp,
+  funcionariosHelp,
+  sociosHelp,
+  formasPagamentoHelp,
+  gruposEconomicosHelp,
+  administracaoHelp,
+  auditoriaHelp,
+  configuracoesHelp,
+} from './entries/lote3';
 
 /**
  * Registry central da ajuda. Mapeia rotas → conteúdo do manual e do tour.
@@ -23,6 +44,27 @@ export const HELP_REGISTRY: Record<string, HelpEntry> = {
   '/logistica': logisticaHelp,
   '/clientes': clientesHelp,
   '/produtos': produtosHelp,
+
+  // Lote 2 — secundários, manual sem tour
+  '/pedidos-compra': pedidosCompraHelp,
+  '/cotacoes-compra': cotacoesCompraHelp,
+  '/fornecedores': fornecedoresHelp,
+  '/contas-bancarias': contasBancariasHelp,
+  '/conciliacao': conciliacaoHelp,
+  '/fluxo-caixa': fluxoCaixaHelp,
+  '/relatorios': relatoriosHelp,
+  '/relatorios/workbook-gerencial': workbookHelp,
+  '/relatorios/apresentacao-gerencial': apresentacaoHelp,
+
+  // Lote 3 — auxiliares, manual curto
+  '/transportadoras': transportadorasHelp,
+  '/funcionarios': funcionariosHelp,
+  '/socios': sociosHelp,
+  '/formas-pagamento': formasPagamentoHelp,
+  '/grupos-economicos': gruposEconomicosHelp,
+  '/administracao': administracaoHelp,
+  '/auditoria': auditoriaHelp,
+  '/configuracoes': configuracoesHelp,
 };
 
 /**
