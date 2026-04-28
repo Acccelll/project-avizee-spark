@@ -1,110 +1,178 @@
+# Sistema de Ajuda e Tour Guiado
 
-## Viabilidade
+Solução em duas camadas integradas: **(1) Manual da tela** sempre acessível por botão no header, e **(2) Tour guiado interativo** opcional, disparado automaticamente no primeiro acesso de cada tela.
 
-Sim — é viável. Já temos no projeto:
-- **Credenciais contratuais ativas** (`CORREIOS_API_KEY`, `CORREIOS_CONTRATO`, `CORREIOS_CARTAO_POSTAGEM`, `CORREIOS_USER`) e a edge function `correios-api` que autentica com sucesso na API REST oficial (`api.correios.com.br/token/v1/autentica/contrato`) — o mesmo token autoriza a API de **Pré-Postagem v1** (`/prepostagem/v1/prepostagens` + `/rotulo/assincrono/pdf`).
-- Tabela `remessas` com cliente, transportadora, serviço, peso, volumes, código de rastreio, OV, NF e endereço derivado.
-- UI já consolidada em `/logistica` (aba Remessas) + `RemessaForm` para edição.
-
-A pré-postagem **substitui a etiqueta manual**: você cria o objeto na base dos Correios, recebe o **código de rastreio definitivo** + um **PDF de rótulo** pronto para colar no pacote e levar à agência (ou pedir coleta).
-
----
-
-## Fluxo de negócio proposto
+## Visão geral
 
 ```text
-Remessa criada (status=pendente)
-        │
-        │  [usuário clica "Gerar etiqueta Correios"]
-        │  valida: serviço SEDEX/PAC, peso, dimensões, dest. com CEP, NF vinculada (opcional)
-        ▼
-POST  correios-api?action=prepostagem_criar   (edge function)
-        │  → autentica (cache token 25min) → POST /prepostagem/v1/prepostagens
-        │  ← devolve { id, codigoObjeto }
-        ▼
-Persiste em remessa_etiquetas (1 linha por tentativa)
-        + atualiza remessas.codigo_rastreio, status='postado_pendente_pdf'
-        ▼
-POST  correios-api?action=prepostagem_rotulo   (mesma chamada ou job)
-        │  → POST /prepostagem/v1/prepostagens/rotulo/assincrono/pdf
-        │  ← devolve { idRecibo }
-        ▼
-GET   correios-api?action=prepostagem_pdf&idRecibo=...
-        │  → polling até { dados: <base64 PDF> } (3-5 tentativas com backoff curto)
-        │  → upload do PDF para Storage privado `dbavizee/etiquetas/<remessa_id>.pdf`
-        ▼
-remessa_etiquetas.pdf_path = <caminho>; status='emitida'
-UI mostra botão "Baixar etiqueta (PDF)" e "Cancelar pré-postagem"
-        ▼
-[opcional] DELETE /prepostagem/v1/prepostagens/{id}  →  status='cancelada'
+┌─ AppHeader ──────────────────────────────────────────────┐
+│  ...           [🔍 Busca]  [? Ajuda ▾]  [🔔]  [👤]        │
+└──────────────────────┬───────────────────────────────────┘
+                       │ clique
+        ┌──────────────┴──────────────┐
+        │  📖 Manual desta tela       │ → abre HelpDrawer (lateral)
+        │  ▶  Iniciar tour guiado      │ → ativa Coach overlay
+        │  ⌨  Atalhos do teclado       │ → reaproveita dialog atual
+        │  ─────                       │
+        │  📚 Central de ajuda        │ → /ajuda (índice geral)
+        └─────────────────────────────┘
 ```
 
-Estados de `remessa_etiquetas.status`: `pendente | emitida | erro | cancelada`.
+No **primeiro acesso** de uma tela com tour configurado, aparece um toast discreto: *"Primeira vez aqui? **Fazer tour (30s)** · Pular"*. Decisão fica salva em `user_preferences`.
 
----
+## Arquitetura
 
-## Onde implementar
+### 1. Registry central de conteúdo
 
-### 1. Banco (1 migração)
-Nova tabela `public.remessa_etiquetas`:
-- `remessa_id` (FK), `id_correios`, `codigo_objeto`, `id_recibo_pdf`, `pdf_path`, `pdf_base64_size`, `payload_request` (jsonb), `payload_response` (jsonb), `status`, `erro_mensagem`, `created_by`, `empresa_id` (NOT NULL DEFAULT `current_empresa_id()`).
-- Constraint `chk_remessa_etiquetas_status`.
-- Trigger `set_empresa_id_default` (padrão multi-tenant Onda 1).
-- RLS: SELECT/INSERT por `empresa_id` + papel `estoquista`/`admin`; DELETE só admin.
-- Bucket privado `etiquetas-correios` em Storage (RLS por `empresa_id` no path).
+Um único módulo declarativo descreve a ajuda de cada rota — sem espalhar texto por todos os componentes.
 
-### 2. Edge Function `correios-api` (extensão, sem nova função)
-Adicionar 4 actions ao switch existente, reaproveitando `autenticarCorreios`:
-- `prepostagem_criar` (POST) — monta corpo a partir da remessa + cliente + endereço + NF.
-- `prepostagem_rotulo` (POST) — solicita geração assíncrona do PDF.
-- `prepostagem_pdf` (GET) — consulta `idRecibo` e devolve base64.
-- `prepostagem_cancelar` (DELETE) — cancela uma pré-postagem ainda não postada.
+`src/help/registry.ts`
+```ts
+export interface HelpTourStep {
+  target: string;              // seletor CSS ou data-help-id
+  title: string;
+  body: string;
+  placement?: 'top'|'bottom'|'left'|'right'|'auto';
+}
+export interface HelpEntry {
+  route: string;               // ex: '/comercial/orcamentos'
+  title: string;
+  summary: string;             // 1-2 linhas
+  sections: { heading: string; body: string; bullets?: string[] }[];
+  shortcuts?: { keys: string; desc: string }[];
+  related?: { label: string; to: string }[];
+  tour?: HelpTourStep[];       // opcional
+  version: number;             // bump quando o conteúdo muda relevantemente
+}
+export const HELP_REGISTRY: Record<string, HelpEntry> = { ... };
+```
 
-Todas exigem JWT do usuário (`requireAuth`) e checam papel `estoquista|admin` via service-role + `has_role`.
+Lookup faz match por rota mais específica (ex.: `/comercial/orcamentos/novo` cai em `/comercial/orcamentos` se não houver entry própria).
 
-### 3. Serviço front-end
-Novo `src/services/logistica/prepostagem.service.ts` com:
-- `gerarEtiqueta(remessaId)` — orquestra as 3 chamadas + upload PDF para Storage + insere em `remessa_etiquetas`.
-- `baixarEtiqueta(etiquetaId)` — gera signed URL do bucket.
-- `cancelarEtiqueta(etiquetaId)`.
+### 2. Botão e menu de ajuda no header
 
-### 4. UI
-- **`RemessaForm.tsx`** (rodapé do form, ao lado de Salvar): botão **"Gerar etiqueta Correios"** habilitado quando `tipo_remessa='entrega'`, serviço SEDEX/PAC, peso > 0, cliente com CEP. Usa `can('logistica','update')`.
-- **`EntregaDrawer.tsx`** + tabela em `/logistica`: nova coluna **Etiqueta** com badge `pendente/emitida/erro` e ações `Baixar PDF` / `Regerar` / `Cancelar`.
-- Toast com link direto para o PDF assim que o polling concluir.
+`src/components/help/HelpMenu.tsx` — DropdownMenu com ícone `HelpCircle`, integrado ao `AppHeader` (entre busca e notificações). Oculto em rotas públicas (login, orçamento público).
 
-### 5. Saúde do sistema
-Adicionar card "Pré-postagem Correios" em `useSaudeSistema` chamando `correios-api?action=prepostagem_health` (lista últimas 24h: emitidas vs erros).
+Atalho global: **`?`** ou **`Shift+/`** abre o drawer da tela atual (registrar em `useGlobalHotkeys`).
 
----
+### 3. HelpDrawer — o "manual"
 
-## Detalhes técnicos relevantes
+`src/components/help/HelpDrawer.tsx` — usa `Sheet` (lado direito, largura `sm:max-w-md`). Renderiza `HelpEntry` com:
+- Título + resumo
+- Seções (markdown leve via `react-markdown`, já presente no projeto se usado em chat; senão renderização simples com headings/listas)
+- Atalhos de teclado da tela
+- Links relacionados (navegação interna)
+- Botão **"Iniciar tour guiado"** (se `tour` existe)
+- Rodapé: "Esta página foi útil?" 👍/👎 → grava em `help_feedback` (tabela nova) para priorizarmos melhorias.
 
-- **Endpoints Correios** (produção):
-  - Auth: `POST /token/v1/autentica/contrato` (já implementado).
-  - Criar: `POST /prepostagem/v1/prepostagens` — body com remetente (do `app_configuracoes.empresa`), destinatário, serviço (03220 SEDEX / 03298 PAC contratual), dimensões, declaração de conteúdo (itens da NF se houver).
-  - PDF assíncrono: `POST /prepostagem/v1/prepostagens/rotulo/assincrono/pdf` → `idRecibo`; depois `GET /prepostagem/v1/prepostagens/rotulo/download/assincrono/{idRecibo}` em polling (intervalo 1.5s, máx 6 tentativas; se ainda pendente, fica `pdf_path=null` e botão "Tentar baixar PDF" reaparece).
-  - Cancelar: `DELETE /prepostagem/v1/prepostagens/{id}` (válido até a postagem física).
-- **Cache de token**: introduzir cache em memória do isolate (TTL 25 min) — evita reautenticar a cada chamada e elimina a maior fonte de latência.
-- **Idempotência**: `remessa_etiquetas` tem `UNIQUE (remessa_id, status='emitida')` parcial, impede duplicidade.
-- **Erros tratados**: 401 (token expirado → reautentica e tenta 1x), 422 (campos inválidos → mensagem mostrada no toast), timeout (mantém status `pendente` e oferece reenvio).
-- **Multi-tenant**: tudo respeita `current_empresa_id()` e o bucket usa path `<empresa_id>/<remessa_id>.pdf`.
-- **Auditoria**: insere em `audit_log` (entidade `remessa_etiqueta`, ação `criar/cancelar`).
-- **Configuração do remetente**: já existe `app_configuracoes.empresa` (CNPJ, IE, endereço completo) — basta consumir.
+Fallback elegante quando a rota não tem entry: card "Ajuda em construção para esta tela" + link para central.
 
----
+### 4. Tour guiado (Coach)
 
-## Pré-requisitos a validar antes de codar
+`src/components/help/CoachTour.tsx` — overlay próprio (sem dependência externa pesada), usando `Popover` do projeto + um backdrop com recorte (clip-path) ao redor do alvo.
 
-1. Confirmar com o usuário que o **contrato Correios já tem o módulo "Pré-Postagem" liberado** (visível no resp. da auth em `apis: [...]`; se faltar, é uma habilitação no portal CWS, não código).
-2. Confirmar dimensões padrão (caixa) — proponho default `30×15×10 cm` (já usado na cotação) configurável em `app_configuracoes.logistica`.
+Funcionamento:
+- Recebe `steps: HelpTourStep[]`.
+- Cada step localiza o alvo via `document.querySelector('[data-help-id="..."]')` (preferimos data-attr por estabilidade contra refactors de classe).
+- Scroll suave até o alvo, destaca com ring + sombra, mostra popover com Anterior/Próximo/Pular/Concluir e contador `2/6`.
+- `Esc` fecha; foco preso dentro do popover (acessibilidade).
+- Se um alvo sumir (ex.: tab diferente), mostra step "fantasma" centralizado pedindo para ativar a área correta, com `actionLabel` opcional.
 
----
+Marcações nas telas são mínimas: adicionamos `data-help-id="orcamentos.novoBtn"` em poucos elementos-chave por tela (botão Novo, filtros, kpi principal, tabela). **Não** cria-se conteúdo de ajuda dentro dos componentes — só âncoras.
 
-## Ondas de entrega sugeridas
+### 5. Primeiro acesso — disparo automático
 
-1. **Onda A (mínimo viável)**: tabela + 3 actions na edge + botão único no `RemessaForm` que faz o ciclo completo e devolve o PDF. ~1 iteração.
-2. **Onda B**: cancelamento, regerar, coluna na lista de remessas, integração com `/logistica`.
-3. **Onda C**: card de saúde + relatório "Etiquetas emitidas no mês" + impressão em lote (pega N remessas e devolve um PDF único — endpoint `/rotulo` aceita até 6 ids por chamada).
+`src/hooks/useFirstVisitTour.ts`:
+- Lê `seen_tours` (array de `route@version`) de `user_preferences`.
+- Na montagem da rota, se houver `tour` e a chave não estiver registrada, dispara um **toast não-bloqueante** (sonner) com ações *Fazer tour* / *Agora não* / *Não mostrar mais*.
+- Decisões persistem; se "Agora não" só registra na sessão, voltará no próximo login.
+- Bump de `version` no registry reativa o toast (anuncia mudanças de UX).
 
-Aguardo aprovação para começar pela **Onda A**.
+### 6. Central de Ajuda `/ajuda`
+
+Página simples que lista todas as `HelpEntry` agrupadas por seção da navegação, com busca local (já temos padrão de `Input` + filtro). Útil como índice e para usuários novos explorarem antes de entrar em cada tela.
+
+### 7. Persistência
+
+Migração nova:
+```sql
+-- coluna no user_preferences (jsonb existente) ou tabela dedicada:
+create table public.help_progress (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  seen_tours text[] not null default '{}',
+  disabled_first_visit boolean not null default false,
+  updated_at timestamptz not null default now()
+);
+alter table public.help_progress enable row level security;
+create policy "self read"  on public.help_progress for select using (auth.uid() = user_id);
+create policy "self upsert" on public.help_progress for insert with check (auth.uid() = user_id);
+create policy "self update" on public.help_progress for update using (auth.uid() = user_id);
+
+create table public.help_feedback (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) on delete set null,
+  route text not null,
+  helpful boolean not null,
+  comment text,
+  created_at timestamptz not null default now()
+);
+alter table public.help_feedback enable row level security;
+create policy "self insert" on public.help_feedback for insert with check (auth.uid() = user_id);
+create policy "admin read"  on public.help_feedback for select using (public.has_role(auth.uid(), 'admin'));
+```
+
+### 8. Configurações do usuário
+
+Em `/configuracoes?tab=preferencias` (ou aba existente equivalente) adicionamos:
+- ☐ Mostrar tours guiados em telas novas
+- Botão **"Reiniciar todos os tours"** (limpa `seen_tours`)
+
+## Rollout do conteúdo
+
+Implementar a infra completa + conteúdo das telas mais usadas no primeiro lote, e ir preenchendo o registry incrementalmente:
+
+**Lote 1 (com tour):** Dashboard, Orçamentos, Pedidos, Fiscal (NF-e), Estoque, Financeiro, Logística, Clientes, Produtos.
+**Lote 2 (só manual):** Compras, Cotações, Contas Bancárias, Conciliação, Fluxo de Caixa, Relatórios, Workbook, Apresentação Gerencial.
+**Lote 3:** Cadastros auxiliares (Transportadoras, Funcionários, Sócios, Formas de Pagamento, etc.) — manual curto, sem tour.
+**Admin/Configurações:** manual focado em segurança e responsabilidade dos campos.
+
+Cada entry leva ~10 minutos para escrever bem; podemos paralelizar por módulo.
+
+## Detalhes técnicos
+
+- **Sem libs novas pesadas.** Usamos `Sheet`, `Popover`, `DropdownMenu`, `Tooltip` já existentes. O recorte do backdrop do tour é CSS puro (`clip-path` calculado a partir do `getBoundingClientRect`).
+- **Acessibilidade:** ARIA `role="dialog"`, `aria-labelledby`, foco preso, `Esc` fecha, contraste do anel respeita tokens do design system.
+- **Mobile:** drawer já é responsivo; o tour adapta para sheet inferior em telas <640px (popover vira `Drawer` bottom). Botão de ajuda some do `AppHeader` mobile e aparece em `MobileQuickActions`.
+- **i18n-ready:** registry é só strings — fácil migrar para chaves no futuro.
+- **Telemetria leve:** registramos `tour_started/completed/skipped` em `help_feedback` (extensão futura) para entender adoção.
+- **Performance:** registry é estático e tree-shakable; tour só carrega ao iniciar (lazy import do `CoachTour`).
+
+## Arquivos a criar/editar
+
+Novos:
+- `src/help/registry.ts` + `src/help/entries/*.ts` (um por módulo)
+- `src/components/help/HelpMenu.tsx`
+- `src/components/help/HelpDrawer.tsx`
+- `src/components/help/CoachTour.tsx`
+- `src/components/help/FirstVisitToast.tsx`
+- `src/hooks/useHelpEntry.ts`, `src/hooks/useFirstVisitTour.ts`, `src/hooks/useCoachTour.ts`
+- `src/pages/Ajuda.tsx` + rota
+- `supabase/migrations/<ts>_help.sql`
+
+Editar:
+- `src/components/navigation/AppHeader.tsx` (botão ajuda)
+- `src/components/navigation/MobileQuickActions.tsx` (botão ajuda mobile)
+- `src/components/AppLayout.tsx` (montagem do `CoachTour` provider e `FirstVisitToast`)
+- `src/hooks/useGlobalHotkeys.ts` (atalho `?`)
+- `src/App.tsx` (rota `/ajuda`)
+- `src/pages/configuracoes/...` (toggle e botão reset)
+- Marcações `data-help-id` em ~5 pontos por tela do Lote 1.
+
+## Entregáveis desta primeira implementação
+
+1. Infra completa (registry, drawer, tour, primeiro acesso, persistência, configurações).
+2. Conteúdo do **Lote 1** (manual + tour guiado).
+3. Página `/ajuda` com índice e busca.
+4. Marcações `data-help-id` nas telas do Lote 1.
+
+Lotes 2 e 3 (preenchimento do conteúdo) entram em iterações seguintes — a infra já estará pronta, basta adicionar entries no registry.
