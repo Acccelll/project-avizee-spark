@@ -94,6 +94,52 @@ export function SefazAcoesPanel({ nf, buildNFeData, buildDanfeData }: SefazAcoes
     }
   };
 
+  /**
+   * Pré-popula o e-mail do cliente (se cadastrado) e abre o diálogo de envio.
+   */
+  const handleAbrirEmail = async () => {
+    setMensagemEmail("");
+    setEmailDestino("");
+    if (nf.cliente_id) {
+      const { data: cli } = await supabase
+        .from("clientes")
+        .select("email")
+        .eq("id", nf.cliente_id)
+        .maybeSingle();
+      if (cli?.email) setEmailDestino(String(cli.email));
+    }
+    setEmailOpen(true);
+  };
+
+  const handleEnviarEmail = async () => {
+    if (!buildDanfeData) return;
+    if (!emailDestino.includes("@")) {
+      toast.error("Informe um e-mail válido.");
+      return;
+    }
+    setEnviandoEmail(true);
+    try {
+      const dados = await buildDanfeData(nf);
+      const r = await enviarDanfePorEmail({
+        nfId: nf.id,
+        destinatarioEmail: emailDestino.trim(),
+        destinatarioNome: dados.destinatario?.nome ?? null,
+        danfe: dados,
+        mensagem: mensagemEmail.trim() || null,
+      });
+      if (r.ok) {
+        toast.success(`DANFE enviada para ${emailDestino.trim()}.`);
+        setEmailOpen(false);
+      } else {
+        toast.error(r.erro ?? "Falha ao enviar DANFE por e-mail.");
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao enviar DANFE.");
+    } finally {
+      setEnviandoEmail(false);
+    }
+  };
+
   return (
     <div className="space-y-3">
       {certificadoAusente && (
