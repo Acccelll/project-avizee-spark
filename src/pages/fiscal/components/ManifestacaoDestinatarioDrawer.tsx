@@ -76,6 +76,8 @@ interface NfeCapturada {
   data_manifestacao: string | null;
   observacao: string | null;
   xml_importado: boolean;
+  processado?: boolean;
+  data_processamento?: string | null;
 }
 
 const STATUS_LABEL: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -123,7 +125,7 @@ export function ManifestacaoDestinatarioDrawer({ open, onOpenChange }: Manifesta
       const { data, error } = await supabase
         .from("nfe_distribuicao")
         .select(
-          "id, chave_acesso, cnpj_emitente, nome_emitente, numero, serie, data_emissao, valor_total, protocolo_autorizacao, status_manifestacao, data_manifestacao, observacao, xml_importado",
+          "id, chave_acesso, cnpj_emitente, nome_emitente, numero, serie, data_emissao, valor_total, protocolo_autorizacao, status_manifestacao, data_manifestacao, observacao, xml_importado, processado, data_processamento",
         )
         .order("created_at", { ascending: false })
         .limit(100);
