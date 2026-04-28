@@ -69,8 +69,9 @@ const FINALIDADE_LABEL: Record<string, string> = {
 
 function NaturezasTab() {
   const queryClient = useQueryClient();
-  const isAdmin = useCan("faturamento_fiscal", "admin");
-  const confirmDestructive = useConfirmDestructive();
+  const { can } = useCan();
+  const isAdmin = can("faturamento_fiscal:admin");
+  const { confirm: confirmDestructive, dialog: destructiveDialog } = useConfirmDestructive();
   const [editing, setEditing] = useState<Natureza | null>(null);
   const [open, setOpen] = useState(false);
 
@@ -152,7 +153,7 @@ function NaturezasTab() {
         if (error) throw error;
         toast.success("Natureza atualizada");
       } else {
-        const { error } = await supabase.from("naturezas_operacao").insert(payload);
+        const { error } = await supabase.from("naturezas_operacao").insert([payload]);
         if (error) throw error;
         toast.success("Natureza criada");
       }
@@ -164,19 +165,22 @@ function NaturezasTab() {
   };
 
   const handleDelete = async (n: Natureza) => {
-    const ok = await confirmDestructive({
-      title: "Excluir natureza?",
-      description: `Excluir "${n.codigo} — ${n.descricao}". Notas já emitidas não são afetadas.`,
-      confirmText: "Excluir",
-    });
-    if (!ok) return;
-    const { error } = await supabase.from("naturezas_operacao").delete().eq("id", n.id);
-    if (error) {
-      notifyError(error);
-      return;
-    }
-    toast.success("Natureza excluída");
-    queryClient.invalidateQueries({ queryKey: ["naturezas-operacao"] });
+    await confirmDestructive(
+      {
+        verb: "Excluir",
+        entity: `natureza "${n.codigo}"`,
+        sideEffects: ["Notas já emitidas não são afetadas"],
+      },
+      async () => {
+        const { error } = await supabase.from("naturezas_operacao").delete().eq("id", n.id);
+        if (error) {
+          notifyError(error);
+          return;
+        }
+        toast.success("Natureza excluída");
+        queryClient.invalidateQueries({ queryKey: ["naturezas-operacao"] });
+      },
+    );
   };
 
   return (
@@ -275,8 +279,10 @@ function NaturezasTab() {
         footer={
           <FormModalFooter
             onCancel={() => setOpen(false)}
-            onSave={form.handleSubmit(onSubmit)}
+            onSubmit={form.handleSubmit(onSubmit)}
             saving={form.formState.isSubmitting}
+            mode={editing ? "edit" : "create"}
+            isDirty={form.formState.isDirty}
           />
         }
       >
@@ -370,6 +376,7 @@ function NaturezasTab() {
           </div>
         </form>
       </FormModal>
+      {destructiveDialog}
     </Card>
   );
 }
@@ -413,8 +420,9 @@ const CRT_LABEL: Record<string, string> = {
 
 function MatrizTab() {
   const queryClient = useQueryClient();
-  const isAdmin = useCan("faturamento_fiscal", "admin");
-  const confirmDestructive = useConfirmDestructive();
+  const { can } = useCan();
+  const isAdmin = can("faturamento_fiscal:admin");
+  const { confirm: confirmDestructive, dialog: destructiveDialog } = useConfirmDestructive();
   const [editing, setEditing] = useState<MatrizRegra | null>(null);
   const [open, setOpen] = useState(false);
 
@@ -486,7 +494,7 @@ function MatrizTab() {
         if (error) throw error;
         toast.success("Regra atualizada");
       } else {
-        const { error } = await supabase.from("matriz_fiscal").insert(payload);
+        const { error } = await supabase.from("matriz_fiscal").insert([payload]);
         if (error) throw error;
         toast.success("Regra criada");
       }
@@ -498,19 +506,22 @@ function MatrizTab() {
   };
 
   const handleDelete = async (m: MatrizRegra) => {
-    const ok = await confirmDestructive({
-      title: "Excluir regra?",
-      description: `Excluir regra "${m.nome}". Notas futuras deixarão de aplicá-la.`,
-      confirmText: "Excluir",
-    });
-    if (!ok) return;
-    const { error } = await supabase.from("matriz_fiscal").delete().eq("id", m.id);
-    if (error) {
-      notifyError(error);
-      return;
-    }
-    toast.success("Regra excluída");
-    queryClient.invalidateQueries({ queryKey: ["matriz-fiscal"] });
+    await confirmDestructive(
+      {
+        verb: "Excluir",
+        entity: `regra "${m.nome}"`,
+        sideEffects: ["Notas futuras deixarão de aplicá-la automaticamente"],
+      },
+      async () => {
+        const { error } = await supabase.from("matriz_fiscal").delete().eq("id", m.id);
+        if (error) {
+          notifyError(error);
+          return;
+        }
+        toast.success("Regra excluída");
+        queryClient.invalidateQueries({ queryKey: ["matriz-fiscal"] });
+      },
+    );
   };
 
   return (
@@ -614,8 +625,10 @@ function MatrizTab() {
         footer={
           <FormModalFooter
             onCancel={() => setOpen(false)}
-            onSave={form.handleSubmit(onSubmit)}
+            onSubmit={form.handleSubmit(onSubmit)}
             saving={form.formState.isSubmitting}
+            mode={editing ? "edit" : "create"}
+            isDirty={form.formState.isDirty}
           />
         }
       >
@@ -735,6 +748,7 @@ function MatrizTab() {
           </div>
         </form>
       </FormModal>
+      {destructiveDialog}
     </Card>
   );
 }
