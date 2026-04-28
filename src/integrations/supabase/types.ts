@@ -1068,6 +1068,7 @@ export type Database = {
           data_compra: string | null
           data_entrega_prevista: string | null
           data_entrega_real: string | null
+          empresa_id: string
           fornecedor_id: string | null
           frete_valor: number | null
           id: string
@@ -1086,6 +1087,7 @@ export type Database = {
           data_compra?: string | null
           data_entrega_prevista?: string | null
           data_entrega_real?: string | null
+          empresa_id?: string
           fornecedor_id?: string | null
           frete_valor?: number | null
           id?: string
@@ -1104,6 +1106,7 @@ export type Database = {
           data_compra?: string | null
           data_entrega_prevista?: string | null
           data_entrega_real?: string | null
+          empresa_id?: string
           fornecedor_id?: string | null
           frete_valor?: number | null
           id?: string
@@ -1117,6 +1120,13 @@ export type Database = {
           valor_total?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "compras_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "compras_fornecedor_id_fkey"
             columns: ["fornecedor_id"]
@@ -3881,6 +3891,7 @@ export type Database = {
           created_at: string
           data_orcamento: string | null
           desconto: number | null
+          empresa_id: string
           frete_simulacao_id: string | null
           frete_tipo: string | null
           frete_valor: number | null
@@ -3924,6 +3935,7 @@ export type Database = {
           created_at?: string
           data_orcamento?: string | null
           desconto?: number | null
+          empresa_id?: string
           frete_simulacao_id?: string | null
           frete_tipo?: string | null
           frete_valor?: number | null
@@ -3967,6 +3979,7 @@ export type Database = {
           created_at?: string
           data_orcamento?: string | null
           desconto?: number | null
+          empresa_id?: string
           frete_simulacao_id?: string | null
           frete_tipo?: string | null
           frete_valor?: number | null
@@ -4007,6 +4020,13 @@ export type Database = {
             columns: ["cliente_id"]
             isOneToOne: false
             referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orcamentos_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
             referencedColumns: ["id"]
           },
           {
@@ -4164,6 +4184,7 @@ export type Database = {
           data_emissao: string | null
           data_po_cliente: string | null
           data_prometida_despacho: string | null
+          empresa_id: string
           frete_simulacao_id: string | null
           frete_tipo: string | null
           frete_valor: number | null
@@ -4194,6 +4215,7 @@ export type Database = {
           data_emissao?: string | null
           data_po_cliente?: string | null
           data_prometida_despacho?: string | null
+          empresa_id?: string
           frete_simulacao_id?: string | null
           frete_tipo?: string | null
           frete_valor?: number | null
@@ -4224,6 +4246,7 @@ export type Database = {
           data_emissao?: string | null
           data_po_cliente?: string | null
           data_prometida_despacho?: string | null
+          empresa_id?: string
           frete_simulacao_id?: string | null
           frete_tipo?: string | null
           frete_valor?: number | null
@@ -4273,6 +4296,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_trilha_comercial"
             referencedColumns: ["orcamento_id"]
+          },
+          {
+            foreignKeyName: "ordens_venda_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "ordens_venda_transportadora_id_fkey"
@@ -4403,6 +4433,7 @@ export type Database = {
           data_entrega_prevista: string | null
           data_entrega_real: string | null
           data_pedido: string | null
+          empresa_id: string
           fornecedor_id: string | null
           frete_valor: number | null
           id: string
@@ -4425,6 +4456,7 @@ export type Database = {
           data_entrega_prevista?: string | null
           data_entrega_real?: string | null
           data_pedido?: string | null
+          empresa_id?: string
           fornecedor_id?: string | null
           frete_valor?: number | null
           id?: string
@@ -4447,6 +4479,7 @@ export type Database = {
           data_entrega_prevista?: string | null
           data_entrega_real?: string | null
           data_pedido?: string | null
+          empresa_id?: string
           fornecedor_id?: string | null
           frete_valor?: number | null
           id?: string
@@ -4472,6 +4505,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_trilha_compras"
             referencedColumns: ["cotacao_id"]
+          },
+          {
+            foreignKeyName: "pedidos_compra_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "pedidos_compra_fornecedor_id_fkey"
