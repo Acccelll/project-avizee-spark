@@ -23,7 +23,6 @@ import { OrcamentoPdfTemplateBrand } from "@/components/Orcamento/OrcamentoPdfTe
 import { StatusBadge } from "@/components/StatusBadge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Save, Eye, FileText, Copy, Plus, Search, Wand2, RefreshCw, CheckCircle2, AlertTriangle, CalendarDays, Clock, MoreHorizontal, LayoutTemplate, Mail, ChevronDown, ZoomIn, ZoomOut, Maximize2, Minimize2, Loader2, FileText as FileTextIcon, UploadCloud, Send } from "lucide-react";
 import { PageShell } from "@/components/PageShell";
@@ -41,6 +40,19 @@ import { getUserFriendlyError } from "@/utils/errorMessages";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useOrcamentoTemplates, type OrcamentoTemplate } from "@/pages/comercial/hooks/useOrcamentoTemplates";
 import { logger } from "@/lib/logger";
+import {
+  listClientesAtivosOrcamento,
+  listProdutosAtivosComFornecedores,
+  getOrcamentoById,
+  listOrcamentoItens,
+  getFormaPagamentoDescricao,
+  listPrecosEspeciaisAtuais,
+  salvarOrcamentoRpc,
+  deleteOrcamentoDraft,
+  getOrcamentoDraftPayload,
+} from "@/services/orcamentos.service";
+import { getEmpresaConfig } from "@/services/fiscal.service";
+import { proximoNumeroOrcamento } from "@/types/rpc";
 
 interface ClienteSnapshot {
   nome_razao_social: string; nome_fantasia: string; cpf_cnpj: string;
@@ -337,25 +349,22 @@ export default function OrcamentoForm() {
   ), [scenarioItems, scenarioConfig, desconto, freteValor, impostoSt, impostoIpi, outrasDespesas, productCostMap]);
 
   useEffect(() => {
-    if (!supabase) {
-      toast.error("Serviço de banco de dados não disponível. Verifique a configuração.");
-      return;
-    }
     const loadData = async () => {
       try {
-        const [clientesRes, produtosRes] = await Promise.all([
-          supabase.from("clientes").select("*").eq("ativo", true).order("nome_razao_social"),
-          supabase.from("produtos").select("*, produtos_fornecedores(*, fornecedores(nome_razao_social))").eq("ativo", true).order("nome"),
+        const [clientesData, produtosData] = await Promise.all([
+          listClientesAtivosOrcamento(),
+          listProdutosAtivosComFornecedores(),
         ]);
-        setClientes(clientesRes.data || []);
-        setProdutos(produtosRes.data || []);
+        setClientes(clientesData);
+        setProdutos(produtosData);
 
         if (isEdit) {
-          const { data: orc, error: orcError } = await supabase.from("orcamentos").select("*").eq("id", id).maybeSingle();
-          if (orcError) {
+          const orc = await getOrcamentoById(id!).catch((orcError) => {
             logger.error("[OrcamentoForm] erro ao carregar orçamento:", orcError);
-            toast.error("Erro ao carregar orçamento.", { description: orcError.message });
-          } else if (orc) {
+            toast.error("Erro ao carregar orçamento.", { description: getUserFriendlyError(orcError) });
+            return null;
+          });
+          if (orc) {
             reset({
               numero: orc.numero,
               dataOrcamento: orc.data_orcamento,
@@ -387,11 +396,11 @@ export default function OrcamentoForm() {
             if (orc.altura_cm != null) setFreteAlturaCm(orc.altura_cm);
             if (orc.largura_cm != null) setFreteLarguraCm(orc.largura_cm);
             if (orc.comprimento_cm != null) setFreteComprimentoCm(orc.comprimento_cm);
-            const { data: itensData } = await supabase.from("orcamentos_itens").select("*").eq("orcamento_id", id);
+            const itensData = await listOrcamentoItens(id!);
             if (itensData) {
               // Defesa em profundidade: se o snapshot `variacao` estiver vazio mas o produto
               // vinculado tiver `variacoes` cadastradas, usamos esse texto para exibir ao cliente.
-              const produtosMap = new Map((produtosRes.data || []).map((p) => [p.id, p]));
+              const produtosMap = new Map(produtosData.map((p) => [p.id, p]));
               const hidratado = itensData.map((it) => {
                 const variacaoSnapshot = (it as { variacao?: string | null }).variacao;
                 if (variacaoSnapshot && String(variacaoSnapshot).trim()) return it;
@@ -406,11 +415,11 @@ export default function OrcamentoForm() {
               });
               setItems(hidratado);
             }
-          } else {
+          } else if (orc !== null) {
             toast.error("Orçamento não encontrado.", { description: `Nenhum orçamento com ID ${id}.` });
           }
         } else {
-          const { data: novoNumero, error: numErr } = await supabase.rpc('proximo_numero_orcamento');
+          const { data: novoNumero, error: numErr } = await proximoNumeroOrcamento();
           if (numErr || !novoNumero) {
             logger.error('[OrcamentoForm] proximo_numero_orcamento falhou:', numErr);
             toast.error('Não foi possível gerar o número do orçamento. Tente novamente.');
