@@ -405,7 +405,14 @@ export default function Faturamento() {
       </Tabs>
 
       <InutilizacaoDrawer open={inutOpen} onOpenChange={setInutOpen} />
-      <ManifestacaoDestinatarioDrawer open={manifOpen} onOpenChange={setManifOpen} />
+      <ManifestacaoDestinatarioDrawer
+        open={manifOpen}
+        onOpenChange={(o) => {
+          setManifOpen(o);
+          if (!o) setManifHighlight(null);
+        }}
+        highlightNfeId={manifHighlight}
+      />
       <ContingenciaSvcDrawer
         open={contOpen}
         onOpenChange={setContOpen}
