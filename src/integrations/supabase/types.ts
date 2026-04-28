@@ -3627,6 +3627,48 @@ export type Database = {
         }
         Relationships: []
       }
+      nfe_distdfe_sync: {
+        Row: {
+          ambiente: string
+          cnpj: string
+          created_at: string
+          id: string
+          max_nsu: string | null
+          ultima_qtd_docs: number
+          ultima_resposta_cstat: string | null
+          ultima_resposta_xmotivo: string | null
+          ultima_sync_at: string | null
+          ultimo_nsu: string
+          updated_at: string
+        }
+        Insert: {
+          ambiente?: string
+          cnpj: string
+          created_at?: string
+          id?: string
+          max_nsu?: string | null
+          ultima_qtd_docs?: number
+          ultima_resposta_cstat?: string | null
+          ultima_resposta_xmotivo?: string | null
+          ultima_sync_at?: string | null
+          ultimo_nsu?: string
+          updated_at?: string
+        }
+        Update: {
+          ambiente?: string
+          cnpj?: string
+          created_at?: string
+          id?: string
+          max_nsu?: string | null
+          ultima_qtd_docs?: number
+          ultima_resposta_cstat?: string | null
+          ultima_resposta_xmotivo?: string | null
+          ultima_sync_at?: string | null
+          ultimo_nsu?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       nfe_distribuicao: {
         Row: {
           chave_acesso: string
@@ -3641,6 +3683,7 @@ export type Database = {
           ie_emitente: string | null
           natureza_operacao: string | null
           nome_emitente: string | null
+          nsu: string | null
           numero: string | null
           observacao: string | null
           processado: boolean
@@ -3669,6 +3712,7 @@ export type Database = {
           ie_emitente?: string | null
           natureza_operacao?: string | null
           nome_emitente?: string | null
+          nsu?: string | null
           numero?: string | null
           observacao?: string | null
           processado?: boolean
@@ -3697,6 +3741,7 @@ export type Database = {
           ie_emitente?: string | null
           natureza_operacao?: string | null
           nome_emitente?: string | null
+          nsu?: string | null
           numero?: string | null
           observacao?: string | null
           processado?: boolean
