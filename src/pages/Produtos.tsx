@@ -820,6 +820,7 @@ const Produtos = () => {
           mobileIdentifierKey="codigo_interno"
           mobileStatusKey="ativo"
         />
+        </div>
         </PullToRefresh>
       </ModulePage>
 
