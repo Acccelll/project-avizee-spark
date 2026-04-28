@@ -12,7 +12,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Activity, Building2, Database, HardDrive, Mail, Menu, Plug, Bell, Receipt, Shield, Users, Wallet, KeyRound, Webhook } from "lucide-react";
+import { Activity, Building, Building2, Database, HardDrive, Mail, Menu, Plug, Bell, Receipt, Shield, Users, Wallet, KeyRound, Webhook } from "lucide-react";
 import { ModulePage } from "@/components/ModulePage";
 import { Button } from "@/components/ui/button";
 import {
@@ -35,10 +35,12 @@ import { FinanceiroSection } from "@/pages/admin/sections/FinanceiroSection";
 import { PerfisCatalogoSection } from "@/pages/admin/sections/PerfisCatalogoSection";
 import { SaudeSistemaSection } from "@/pages/admin/sections/SaudeSistemaSection";
 import { WebhooksSection } from "@/pages/admin/sections/WebhooksSection";
+import { EmpresasSection } from "@/pages/admin/sections/EmpresasSection";
 
 /** Seções renderizadas internamente (não inclui atalhos externos). */
 const VALID_SECTION_KEYS = new Set([
   "empresa",
+  "empresas",
   "dashboard",
   "usuarios",
   "perfis",
@@ -56,7 +58,10 @@ const sideNavGroups: SideNavGroup[] = [
   {
     key: "empresa",
     label: "Empresa",
-    items: [{ key: "empresa", label: "Dados da Empresa", icon: Building2 }],
+    items: [
+      { key: "empresa", label: "Dados da Empresa", icon: Building2 },
+      { key: "empresas", label: "Empresas e vínculos", icon: Building },
+    ],
   },
   {
     key: "acesso",
@@ -188,6 +193,8 @@ function SectionContent({ section }: { section: string }) {
       return <DashboardAdmin />;
     case "empresa":
       return <EmpresaSection />;
+    case "empresas":
+      return <EmpresasSection />;
     case "usuarios":
       return <UsuariosTab />;
     case "perfis":

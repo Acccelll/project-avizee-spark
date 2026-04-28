@@ -36,3 +36,19 @@ public.current_empresa_id() RETURNS uuid LANGUAGE sql STABLE SECURITY DEFINER
 **UI ainda pendente nesta onda:**
 - Tela admin para gerenciar empresas e vínculos `user_empresas`. Hoje só é possível via SQL/insert tool.
 - Indicador da empresa corrente no header/configurações.
+
+## UI admin (28/abr/2026)
+
+Aba **Administração → Empresa → "Empresas e vínculos"** (`?tab=empresas`):
+
+- KPIs: total de empresas, usuários vinculados, usuários sem vínculo (alerta amber).
+- CRUD de `empresas` (nome único, cnpj opcional, toggle ativo). Remoção bloqueada quando há usuários vinculados (FK RESTRICT) ou cadastros (clientes/fornecedores/produtos).
+- Tabela de vínculos com Select inline para trocar a empresa do usuário; usuários sem vínculo aparecem destacados em amber.
+
+Arquivos:
+- `src/services/empresas.service.ts` (CRUD + bindings + unbound users)
+- `src/pages/admin/hooks/useEmpresasAdmin.ts` (React Query)
+- `src/pages/admin/sections/EmpresasSection.tsx`
+- `src/pages/Administracao.tsx` (aba registrada, key `empresas`)
+
+Aviso operacional: a troca de empresa de um usuário só passa a valer no próximo login dele (o `current_empresa_id()` é resolvido por sessão via JWT/auth.uid em SECURITY DEFINER, mas o cache de queries do cliente não é invalidado para outros usuários).
