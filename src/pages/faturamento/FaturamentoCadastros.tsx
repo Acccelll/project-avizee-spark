@@ -70,7 +70,7 @@ const FINALIDADE_LABEL: Record<string, string> = {
 function NaturezasTab() {
   const queryClient = useQueryClient();
   const { can } = useCan();
-  const isAdmin = can("faturamento_fiscal:admin");
+  const isAdmin = can("faturamento_fiscal:admin_fiscal");
   const { confirm: confirmDestructive, dialog: destructiveDialog } = useConfirmDestructive();
   const [editing, setEditing] = useState<Natureza | null>(null);
   const [open, setOpen] = useState(false);
@@ -153,7 +153,9 @@ function NaturezasTab() {
         if (error) throw error;
         toast.success("Natureza atualizada");
       } else {
-        const { error } = await supabase.from("naturezas_operacao").insert([payload]);
+        const { error } = await supabase
+          .from("naturezas_operacao")
+          .insert([payload as never]);
         if (error) throw error;
         toast.success("Natureza criada");
       }
@@ -421,7 +423,7 @@ const CRT_LABEL: Record<string, string> = {
 function MatrizTab() {
   const queryClient = useQueryClient();
   const { can } = useCan();
-  const isAdmin = can("faturamento_fiscal:admin");
+  const isAdmin = can("faturamento_fiscal:admin_fiscal");
   const { confirm: confirmDestructive, dialog: destructiveDialog } = useConfirmDestructive();
   const [editing, setEditing] = useState<MatrizRegra | null>(null);
   const [open, setOpen] = useState(false);
@@ -494,7 +496,7 @@ function MatrizTab() {
         if (error) throw error;
         toast.success("Regra atualizada");
       } else {
-        const { error } = await supabase.from("matriz_fiscal").insert([payload]);
+        const { error } = await supabase.from("matriz_fiscal").insert([payload as never]);
         if (error) throw error;
         toast.success("Regra criada");
       }
