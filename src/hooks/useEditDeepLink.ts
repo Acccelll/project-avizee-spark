@@ -48,6 +48,6 @@ export function useEditDeepLink<T = Record<string, unknown>>(opts: {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- opts.table/onLoad e navigate são estáveis; rerodar o efeito a cada mudança causaria loop de navegação
   }, [location.pathname, location.search, location.state]);
 }

@@ -177,7 +177,7 @@ const Produtos = () => {
       { pathname: location.pathname, search: params.toString() ? `?${params.toString()}` : "" },
       { replace: true },
     );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- atalho ?new=1 one-shot; openCreate/navigate são estáveis
   }, [location.search]);
 
   const produtosDisponiveis = data;

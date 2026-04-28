@@ -58,7 +58,7 @@ export function useDrawerData<T>(
       cancelled = true;
       controller.abort();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetcher é capturado via closure e nonce força reload manual; deps explícitas evitam refetch desnecessário
   }, [open, selectedId, nonce]);
 
   return { data, loading, error, reload: () => setNonce((n) => n + 1) };

@@ -126,7 +126,7 @@ export function PedidoCompraLinker({
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só queremos rebuscar quando o trio (fornecedor, valor, data) muda; setters/toast usados via closure
   }, [fornecedorId, nfValorTotal, nfDataEmissao]);
 
   const handleVincular = async () => {

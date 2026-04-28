@@ -132,7 +132,7 @@ export function useActiveFilterChips({
       });
     }
     return out;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- setFiltrosState (callback de set) é estável; incluí-lo invalidaria o memo a cada render
   }, [
     filtrosState,
     clientes,

@@ -57,7 +57,7 @@ export function useDataTablePrefs(moduleKey: string | undefined, initialHiddenKe
       localStorage.removeItem(cols);
       localStorage.removeItem(mode);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- migração one-shot; reagir a mudanças em `value`/`save` causaria loop de salvamento
   }, [moduleKey, loading]);
 
   const setHiddenKeys = useCallback(

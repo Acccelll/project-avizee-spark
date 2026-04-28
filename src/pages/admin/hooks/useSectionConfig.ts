@@ -68,7 +68,7 @@ export function useSectionConfig<T extends Record<string, unknown>>(
       values: { ...defaults, ...data } as T,
       lastSaved: meta,
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- defaults é o seed inicial e não deve invalidar o memo a cada render do consumidor
   }, [config]);
 
   const save = (next: T) => {

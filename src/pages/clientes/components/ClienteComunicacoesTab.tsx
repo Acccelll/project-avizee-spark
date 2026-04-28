@@ -76,7 +76,8 @@ export function ClienteComunicacoesTab({ clienteId, onCountChange }: Props) {
     }
   };
 
-  useEffect(() => { void load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [clienteId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- load() depende só de clienteId via closure; recriar a função a cada render dispararia refetch
+  useEffect(() => { void load(); }, [clienteId]);
 
   const handleSave = async () => {
     if (!form.assunto.trim()) { toast.error("Assunto é obrigatório"); return; }

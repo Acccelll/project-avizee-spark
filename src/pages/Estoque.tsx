@@ -132,7 +132,7 @@ const Estoque = () => {
       setActiveTab("saldos");
       setSituacaoFilters((prev) => (prev.length ? prev : ["critico", "zerado"]));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- drill-down one-shot via ?critico=1; setters do useState são estáveis
   }, [searchParams]);
   // Movimentações filters
   const [searchMovimentacao, setSearchMovimentacao] = useState("");

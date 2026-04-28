@@ -302,7 +302,7 @@ export function DataTable<T extends Record<string, any>>({
       );
     }
     // só checa uma vez por moduleKey
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- aviso DEV-only por módulo; columns/mobileStatusKey usados via closure intencionalmente
   }, [moduleKey]);
 
   const toggleColumnVisibility = (key: string) => {

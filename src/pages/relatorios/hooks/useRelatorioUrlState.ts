@@ -46,7 +46,7 @@ export function useRelatorioUrlState(): RelatorioUrlState {
       setSearchParams({});
       toast.warning(`Relatório "${rawTipo}" não existe. Voltando ao catálogo.`);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- setSearchParams é estável (react-router); incluí-lo causaria warnings sem efeito
   }, [rawTipo, isValidTipo]);
 
   const dataInicio = searchParams.get('di') || '';

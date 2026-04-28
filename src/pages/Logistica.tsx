@@ -136,7 +136,7 @@ export default function Logistica() {
     if (atrasadas === "1") {
       setPrazoFilters((prev) => (prev.includes("atrasado") ? prev : ["atrasado"]));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- drill-down one-shot via query string; setters do useState são estáveis
   }, [searchParams]);
 
   const [searchTermReceb, setSearchTermReceb] = useState("");

@@ -118,7 +118,7 @@ export default function Auditoria() {
       }
     }, 350);
     return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- debounce intencional só sobre searchInput; set/searchTerm refletem URL e iriam re-disparar o timer
   }, [searchInput]);
 
   const dateFrom = useMemo(() => {

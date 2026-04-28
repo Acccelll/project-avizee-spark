@@ -123,7 +123,7 @@ export default function Conciliacao() {
       if (tipoFilters.length) next.set("tipo", tipoFilters.join(",")); else next.delete("tipo");
       return next;
     }, { replace: true });
-  }, [dataInicio, dataFim, searchTerm, statusConcFilters, tipoFilters]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [dataInicio, dataFim, searchTerm, statusConcFilters, tipoFilters]); // eslint-disable-line react-hooks/exhaustive-deps -- setSearchParams é estável (react-router); evitar incluí-lo previne loop de update
 
   // ─── Load contas bancárias (React Query, raramente muda) ──────────────────
   const { data: contasQuery } = useQuery({

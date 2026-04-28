@@ -81,7 +81,8 @@ export function ClienteEnderecosTab({ clienteId, fallbackEndereco, onCountChange
     }
   };
 
-  useEffect(() => { void load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [clienteId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- load() depende só de clienteId via closure; recriar a função a cada render dispararia refetch
+  useEffect(() => { void load(); }, [clienteId]);
 
   const handleSave = async () => {
     if (!form.identificacao.trim()) { toast.error("Identificação do endereço é obrigatória"); return; }

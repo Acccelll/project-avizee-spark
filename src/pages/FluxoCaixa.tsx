@@ -158,7 +158,7 @@ const FluxoCaixa = () => {
       if (movStatusFilters.length) next.set("status", movStatusFilters.join(",")); else next.delete("status");
       return next;
     }, { replace: true });
-  }, [dataInicio, dataFim, periodicidade, filterBanco, viewMode, movSearch, movTipoFilters, movStatusFilters]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [dataInicio, dataFim, periodicidade, filterBanco, viewMode, movSearch, movTipoFilters, movStatusFilters]); // eslint-disable-line react-hooks/exhaustive-deps -- setSearchParams é estável (react-router); evitar incluí-lo previne loop de update
 
   const reload = useCallback(async () => {
     await qc.invalidateQueries({ queryKey: ["fluxo-caixa"] });

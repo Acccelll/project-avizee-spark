@@ -132,7 +132,7 @@ export function RelationalNavigationProvider({ children }: { children: ReactNode
     if (state.stack.length > maxDepth) {
       dispatch({ type: "trim_to_limit", payload: maxDepth });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só queremos reagir à mudança do limite, não a cada push/pop do stack
   }, [maxDepth]);
 
   const stackRef = useRef(state.stack);
