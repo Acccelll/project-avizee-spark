@@ -58,3 +58,4 @@
 - [ConfirmDestructiveDialog](mem://tech/confirm-destructive-dialog) — Wrapper para ações terminais (Cancelar/Excluir/Estornar) com motivo + efeitos colaterais; ConfirmDialog continua para confirmações simples
 - [HealthBadge](mem://tech/health-badge) — Indicador de saúde de integrações externas (5 estados: healthy/degraded/down/unknown/checking) com tooltip de detalhes
 - [Painel Saúde do Sistema](mem://features/painel-saude-sistema) — Aba /administracao?tab=saude consolidando integrações (e-mail/auditoria/permissões) via v_admin_audit_unified + email_send_log
+- [DataTable - coluna única "Ações"](mem://tech/datatable-acoes-unicas) — Proibido criar 2ª coluna "Ações" manual; usar rowExtraActions
