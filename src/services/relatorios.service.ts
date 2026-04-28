@@ -42,6 +42,7 @@ import {
 import {
   loadCompras,
   loadComprasFornecedor,
+  loadNfeEntrada,
 } from "@/services/relatorios/loaders/compras";
 import { loadDivergencias } from "@/services/relatorios/loaders/divergencias";
 
@@ -94,6 +95,8 @@ export async function carregarRelatorio(
       return loadCompras(filtros);
     case "compras_fornecedor":
       return loadComprasFornecedor(filtros);
+    case "nfe_entrada":
+      return loadNfeEntrada(filtros);
 
     case "divergencias":
       return loadDivergencias(filtros);
