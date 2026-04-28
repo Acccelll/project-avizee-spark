@@ -125,3 +125,5 @@
 - [PWA / offline-first leve](mem://features/pwa-offline-leve) — vite-plugin-pwa, manifest AviZee, runtime cache SWR de listas (clientes/fornecedores/produtos), banner offline, prompt de update e botão flutuante de instalação
 - [Multi-tenant Onda 1](mem://features/multi-tenant-onda1) — empresas + user_empresas (1:1), empresa_id em clientes/fornecedores/produtos com RLS por empresa via current_empresa_id()
 - [Multi-tenant Ondas 1-4](mem://features/multi-tenant-onda1) — empresa_id + RLS por tenant em todas as tabelas de domínio (cadastros, comercial, compras, estoque, conciliação, financeiro, fiscal)
+
+- [Manual e Tour Cobertura](mem://produto/manual-tour-cobertura) — Doutrina de cobertura mínima de manuais e tours por módulo; core ≥5 steps, anchors padrão, bump de version
