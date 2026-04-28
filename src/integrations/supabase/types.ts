@@ -3634,12 +3634,16 @@ export type Database = {
           created_at: string
           data_emissao: string | null
           data_manifestacao: string | null
+          data_processamento: string | null
+          financeiro_lancamento_id: string | null
+          fornecedor_id: string | null
           id: string
           ie_emitente: string | null
           natureza_operacao: string | null
           nome_emitente: string | null
           numero: string | null
           observacao: string | null
+          processado: boolean
           protocolo_autorizacao: string | null
           serie: string | null
           status_manifestacao: string
@@ -3658,12 +3662,16 @@ export type Database = {
           created_at?: string
           data_emissao?: string | null
           data_manifestacao?: string | null
+          data_processamento?: string | null
+          financeiro_lancamento_id?: string | null
+          fornecedor_id?: string | null
           id?: string
           ie_emitente?: string | null
           natureza_operacao?: string | null
           nome_emitente?: string | null
           numero?: string | null
           observacao?: string | null
+          processado?: boolean
           protocolo_autorizacao?: string | null
           serie?: string | null
           status_manifestacao?: string
@@ -3682,12 +3690,16 @@ export type Database = {
           created_at?: string
           data_emissao?: string | null
           data_manifestacao?: string | null
+          data_processamento?: string | null
+          financeiro_lancamento_id?: string | null
+          fornecedor_id?: string | null
           id?: string
           ie_emitente?: string | null
           natureza_operacao?: string | null
           nome_emitente?: string | null
           numero?: string | null
           observacao?: string | null
+          processado?: boolean
           protocolo_autorizacao?: string | null
           serie?: string | null
           status_manifestacao?: string
@@ -3700,7 +3712,36 @@ export type Database = {
           xml_importado?: boolean
           xml_nfe?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "nfe_distribuicao_financeiro_lancamento_id_fkey"
+            columns: ["financeiro_lancamento_id"]
+            isOneToOne: false
+            referencedRelation: "financeiro_lancamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nfe_distribuicao_financeiro_lancamento_id_fkey"
+            columns: ["financeiro_lancamento_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_aging_cp"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nfe_distribuicao_financeiro_lancamento_id_fkey"
+            columns: ["financeiro_lancamento_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_aging_cr"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nfe_distribuicao_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "fornecedores"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       nfe_distribuicao_itens: {
         Row: {
@@ -3712,6 +3753,7 @@ export type Database = {
           ncm: string | null
           nfe_distribuicao_id: string
           numero_item: number
+          produto_id: string | null
           quantidade: number
           unidade: string | null
           valor_total: number
@@ -3726,6 +3768,7 @@ export type Database = {
           ncm?: string | null
           nfe_distribuicao_id: string
           numero_item: number
+          produto_id?: string | null
           quantidade?: number
           unidade?: string | null
           valor_total?: number
@@ -3740,6 +3783,7 @@ export type Database = {
           ncm?: string | null
           nfe_distribuicao_id?: string
           numero_item?: number
+          produto_id?: string | null
           quantidade?: number
           unidade?: string | null
           valor_total?: number
@@ -3752,6 +3796,34 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "nfe_distribuicao"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nfe_distribuicao_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produtos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nfe_distribuicao_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_estoque_critico"
+            referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "nfe_distribuicao_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_estoque_giro"
+            referencedColumns: ["produto_id"]
+          },
+          {
+            foreignKeyName: "nfe_distribuicao_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_workbook_estoque_posicao"
+            referencedColumns: ["produto_id"]
           },
         ]
       }
@@ -8355,6 +8427,15 @@ export type Database = {
       }
       normalizar_descricao: { Args: { p: string }; Returns: string }
       normalize_text_match: { Args: { p_input: string }; Returns: string }
+      processar_nfe_distribuicao: {
+        Args: {
+          p_data_vencimento: string
+          p_descricao?: string
+          p_fornecedor_id: string
+          p_nfe_id: string
+        }
+        Returns: Json
+      }
       proximo_numero_cotacao_compra: { Args: never; Returns: string }
       proximo_numero_nf: { Args: never; Returns: string }
       proximo_numero_nfe: {
