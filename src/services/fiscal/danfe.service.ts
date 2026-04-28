@@ -12,6 +12,7 @@
  */
 
 import { jsPDF } from "jspdf";
+import JsBarcode from "jsbarcode";
 import { formatCurrency, formatDate } from "@/lib/format";
 
 export interface DanfeItemInput {
@@ -76,6 +77,28 @@ export interface DanfeInput {
 
 function formatarChave(chave: string): string {
   return chave.replace(/\D/g, "").match(/.{1,4}/g)?.join(" ") ?? chave;
+}
+
+/**
+ * Gera CODE-128C da chave de acesso (44 dígitos) usando jsbarcode em
+ * canvas off-screen e devolve o dataURL para `addImage`.
+ * Retorna `null` se o ambiente não suportar canvas (SSR).
+ */
+function gerarBarcodeChave(chave: string): string | null {
+  if (typeof document === "undefined") return null;
+  try {
+    const canvas = document.createElement("canvas");
+    JsBarcode(canvas, chave.replace(/\D/g, ""), {
+      format: "CODE128C",
+      displayValue: false,
+      margin: 0,
+      height: 40,
+      width: 1.4,
+    });
+    return canvas.toDataURL("image/png");
+  } catch {
+    return null;
+  }
 }
 
 function safe(value: unknown, fallback = "—"): string {
@@ -159,6 +182,12 @@ export function gerarDanfePdf(data: DanfeInput, salvar = true): Blob {
   }
 
   if (data.chave_acesso) {
+    const barcode = gerarBarcodeChave(data.chave_acesso);
+    if (barcode) {
+      // Faixa do código de barras CODE-128C (largura ~120mm, altura 12mm)
+      doc.addImage(barcode, "PNG", margin, y, 120, 12);
+      y += 13;
+    }
     doc.setFontSize(7).setFont("helvetica", "bold");
     doc.text("CHAVE DE ACESSO", margin, y + 4);
     doc.setFont("helvetica", "normal");

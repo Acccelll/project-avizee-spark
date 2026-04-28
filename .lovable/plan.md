@@ -181,4 +181,10 @@ Sugiro a sequência **Onda 0 → Onda 1 → Onda 3** (fundação + casca + wizar
   - `CartaCorrecaoDrawer` (texto 15–1000 chars, sequência 1–20, histórico) integrado ao `SefazAcoesPanel`
   - `InutilizacaoDrawer` (série/ano/faixa/justificativa) acessível pelo Painel e Documentos do Faturamento
   - Botão "Nova Devolução" no `SefazAcoesPanel` redireciona para `/faturamento/emitir?refNFeId=…&finalidade=4`; wizard pré-preenche cliente, itens (CFOP invertido 5xxx→1xxx / 6xxx→2xxx) e referência de chave
-- ⏳ **Onda 6** — Status SEFAZ por UF + contingência
+- ✅ **Onda 6** — Status SEFAZ por UF (cStat 107) + alternância de Contingência SVC: widget `StatusSefazUFWidget` consulta SEFAZ via sefaz-proxy, `ContingenciaSvcDrawer` grava `empresa_config.modo_emissao_nfe` com motivo (≥15 chars) validado por trigger
+- ✅ **Onda 7** — DANFE PDF + envio por e-mail:
+  - DANFE com **CODE-128C** (jsbarcode) na chave de acesso
+  - Bucket privado `danfe-pdfs` (RLS: upload/leitura authenticated, delete admin)
+  - Template transacional `nfe-autorizada` (registry + edge function redeploy)
+  - Serviço `enviarDanfePorEmail` (PDF → Storage → signed URL 7d → fila pgmq)
+  - Botão "Enviar por e-mail" no `SefazAcoesPanel` com pré-preenchimento do e-mail do cliente

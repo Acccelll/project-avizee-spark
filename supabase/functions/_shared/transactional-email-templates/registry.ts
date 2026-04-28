@@ -10,7 +10,9 @@ export interface TemplateEntry {
 }
 
 import { template as orcamentoDisponivel } from './orcamento-disponivel.tsx'
+import { template as nfeAutorizada } from './nfe-autorizada.tsx'
 
 export const TEMPLATES: Record<string, TemplateEntry> = {
   'orcamento-disponivel': orcamentoDisponivel,
+  'nfe-autorizada': nfeAutorizada,
 }

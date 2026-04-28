@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
-import { Send, Search, Ban, FileDown, Loader2, ShieldAlert, FileText, RotateCcw } from "lucide-react";
+import { Send, Search, Ban, FileDown, Loader2, ShieldAlert, FileText, RotateCcw, Mail } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,11 +14,14 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { useSefazAcoes } from "@/pages/fiscal/hooks/useSefazAcoes";
 import { SefazRetornoModal } from "@/pages/fiscal/components/SefazRetornoModal";
 import { CartaCorrecaoDrawer } from "@/pages/fiscal/components/CartaCorrecaoDrawer";
 import { gerarDanfePdf, type DanfeInput } from "@/services/fiscal/danfe.service";
+import { enviarDanfePorEmail } from "@/services/fiscal/danfeEmail.service";
 import { obterCertificadoConfigurado } from "@/services/fiscal/certificado.service";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { NotaFiscal } from "@/types/domain";
 import type { NFeData } from "@/services/fiscal/sefaz";
@@ -42,6 +45,10 @@ export function SefazAcoesPanel({ nf, buildNFeData, buildDanfeData }: SefazAcoes
   const [cceOpen, setCceOpen] = useState(false);
   const [justificativa, setJustificativa] = useState("");
   const [gerandoDanfe, setGerandoDanfe] = useState(false);
+  const [emailOpen, setEmailOpen] = useState(false);
+  const [emailDestino, setEmailDestino] = useState("");
+  const [mensagemEmail, setMensagemEmail] = useState("");
+  const [enviandoEmail, setEnviandoEmail] = useState(false);
 
   const { data: certificado, isLoading: carregandoCert } = useQuery({
     queryKey: ["certificado-digital"],
@@ -56,6 +63,8 @@ export function SefazAcoesPanel({ nf, buildNFeData, buildDanfeData }: SefazAcoes
   const podeConsultar = !!nf.chave_acesso;
   const podeCancelar = nf.status_sefaz === "autorizada";
   const podeDanfe = !!nf.chave_acesso;
+  const podeEnviarEmail =
+    nf.status_sefaz === "autorizada" && !!nf.chave_acesso && !!buildDanfeData;
   const podeCce = nf.status_sefaz === "autorizada" && !!nf.chave_acesso;
   const podeDevolucao = nf.status_sefaz === "autorizada";
 
@@ -82,6 +91,52 @@ export function SefazAcoesPanel({ nf, buildNFeData, buildDanfeData }: SefazAcoes
       toast.error(e instanceof Error ? e.message : "Falha ao gerar DANFE.");
     } finally {
       setGerandoDanfe(false);
+    }
+  };
+
+  /**
+   * Pré-popula o e-mail do cliente (se cadastrado) e abre o diálogo de envio.
+   */
+  const handleAbrirEmail = async () => {
+    setMensagemEmail("");
+    setEmailDestino("");
+    if (nf.cliente_id) {
+      const { data: cli } = await supabase
+        .from("clientes")
+        .select("email")
+        .eq("id", nf.cliente_id)
+        .maybeSingle();
+      if (cli?.email) setEmailDestino(String(cli.email));
+    }
+    setEmailOpen(true);
+  };
+
+  const handleEnviarEmail = async () => {
+    if (!buildDanfeData) return;
+    if (!emailDestino.includes("@")) {
+      toast.error("Informe um e-mail válido.");
+      return;
+    }
+    setEnviandoEmail(true);
+    try {
+      const dados = await buildDanfeData(nf);
+      const r = await enviarDanfePorEmail({
+        nfId: nf.id,
+        destinatarioEmail: emailDestino.trim(),
+        destinatarioNome: dados.destinatario?.nome ?? null,
+        danfe: dados,
+        mensagem: mensagemEmail.trim() || null,
+      });
+      if (r.ok) {
+        toast.success(`DANFE enviada para ${emailDestino.trim()}.`);
+        setEmailOpen(false);
+      } else {
+        toast.error(r.erro ?? "Falha ao enviar DANFE por e-mail.");
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao enviar DANFE.");
+    } finally {
+      setEnviandoEmail(false);
     }
   };
 
@@ -146,6 +201,17 @@ export function SefazAcoesPanel({ nf, buildNFeData, buildDanfeData }: SefazAcoes
         size="sm"
         variant="outline"
         className="gap-1.5"
+        disabled={!podeEnviarEmail || enviandoEmail}
+        onClick={handleAbrirEmail}
+      >
+        {enviandoEmail ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Mail className="h-3.5 w-3.5" />}
+        Enviar por e-mail
+      </Button>
+
+      <Button
+        size="sm"
+        variant="outline"
+        className="gap-1.5"
         disabled={!podeCce}
         onClick={() => setCceOpen(true)}
       >
@@ -173,6 +239,50 @@ export function SefazAcoesPanel({ nf, buildNFeData, buildDanfeData }: SefazAcoes
       />
 
       <CartaCorrecaoDrawer nf={nf} open={cceOpen} onOpenChange={setCceOpen} />
+
+      {/* Diálogo de envio do DANFE por e-mail (Onda 7) */}
+      <Dialog open={emailOpen} onOpenChange={setEmailOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Enviar DANFE por e-mail</DialogTitle>
+            <DialogDescription>
+              O DANFE será gerado em PDF, salvo em armazenamento privado e o
+              link enviado ao destinatário (válido por 7 dias).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label htmlFor="danfe-email">E-mail do destinatário</Label>
+              <Input
+                id="danfe-email"
+                type="email"
+                value={emailDestino}
+                onChange={(e) => setEmailDestino(e.target.value)}
+                placeholder="financeiro@destinatario.com"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="danfe-mensagem">Mensagem (opcional)</Label>
+              <Textarea
+                id="danfe-mensagem"
+                value={mensagemEmail}
+                onChange={(e) => setMensagemEmail(e.target.value)}
+                placeholder="Segue o DANFE da NF-e referente ao pedido…"
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEmailOpen(false)} disabled={enviandoEmail}>
+              Cancelar
+            </Button>
+            <Button onClick={handleEnviarEmail} disabled={enviandoEmail || !emailDestino.includes("@")}>
+              {enviandoEmail ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
+              Enviar DANFE
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
         <DialogContent>
