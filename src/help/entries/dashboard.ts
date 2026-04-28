@@ -34,7 +34,7 @@ export const dashboardHelp: HelpEntry = {
   ],
   tour: [
     {
-      target: 'header.global-period',
+      target: 'dashboard.globalPeriod',
       title: 'Período global',
       body: 'Todos os blocos da dashboard respondem a este filtro. Mude aqui para ajustar o intervalo de análise.',
     },
@@ -54,5 +54,5 @@ export const dashboardHelp: HelpEntry = {
       body: 'Status das NF-e emitidas no período. Cores seguem o contrato de status do ERP.',
     },
   ],
-  version: 1,
+  version: 2,
 };
