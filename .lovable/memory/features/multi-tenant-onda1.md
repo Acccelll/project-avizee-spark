@@ -52,3 +52,16 @@ Arquivos:
 - `src/pages/Administracao.tsx` (aba registrada, key `empresas`)
 
 Aviso operacional: a troca de empresa de um usuário só passa a valer no próximo login dele (o `current_empresa_id()` é resolvido por sessão via JWT/auth.uid em SECURITY DEFINER, mas o cache de queries do cliente não é invalidado para outros usuários).
+
+## Onda 2 — Comercial + Compras (28/abr/2026)
+
+**Tabelas migradas (parents):** `orcamentos`, `ordens_venda`, `compras`, `pedidos_compra`.
+- Mesmo padrão da Onda 1: `empresa_id NOT NULL DEFAULT current_empresa_id()`, índice, trigger BEFORE INSERT, RLS por empresa (admin enxerga tudo).
+
+**Tabelas-filhas (`*_itens`):** `orcamentos_itens`, `ordens_venda_itens`, `compras_itens`, `pedidos_compra_itens`.
+- **Não receberam coluna** — herdam empresa via `EXISTS(SELECT 1 FROM <parent> WHERE id=<fk> AND empresa_id=current_empresa_id())`.
+- Garante consistência por construção: impossível ter item de empresa A apontando para documento de empresa B.
+
+**Linter:** 404 → 380 warnings (24 USING(true) eliminados). Build TS limpo, sem mudança no frontend.
+
+**Restantes single-tenant:** financeiro_lancamentos, financeiro_baixas, estoque_movimentos, conciliacao_bancaria, notas_fiscais, notas_fiscais_itens. Vão na Onda 3 (Estoque) e Onda 4 (Financeiro + Fiscal — mais sensível, exige reescrita de RPCs como salvar_nota_fiscal e views vw_workbook_*).

@@ -341,3 +341,20 @@ roteiro em `rls-single-tenant.md`) ou **PWA / offline-first leve**.
 - **Onda 3:** Estoque + Logística.
 - **Onda 4:** Financeiro + Fiscal (mais sensível — exige reescrita de RPCs).
 - **UI admin de empresas/vínculos** (hoje só via SQL).
+
+## Onda — Multi-tenant Onda 2: Comercial + Compras (28/abr/2026)
+
+### O que entrou
+- `empresa_id NOT NULL DEFAULT current_empresa_id()` em `orcamentos`, `ordens_venda`, `compras`, `pedidos_compra`.
+- Backfill 100% para empresa padrão; índices + triggers BEFORE INSERT como safety-net.
+- RLS por empresa nos parents; itens herdam via EXISTS(parent).
+
+### Por que itens não ganharam coluna
+- Evita inconsistência item↔parent. Filho sempre lê empresa do pai por FK.
+
+### Linter
+- 404 → 380 (24 RLS USING(true) eliminados). Frontend não precisou mudar (DEFAULT torna empresa_id opcional no Insert tipado).
+
+### Próximas ondas
+- **Onda 3:** Estoque + Logística (estoque_movimentos, conciliacao_bancaria).
+- **Onda 4:** Financeiro + Fiscal — exige reescrita de `salvar_nota_fiscal` e views `vw_workbook_*` para propagar filtro empresa.
