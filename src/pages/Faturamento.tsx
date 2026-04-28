@@ -254,7 +254,7 @@ export default function Faturamento() {
       subtitle="Emissão, acompanhamento e gestão de documentos fiscais (estilo Emissor Sebrae)"
       summaryCards={summaryCards}
       headerActions={
-        <Button onClick={() => navigate("/fiscal/novo?tipo=saida")} className="gap-2">
+        <Button onClick={() => navigate("/faturamento/emitir")} className="gap-2">
           <Plus className="h-4 w-4" />
           Emitir NF-e
         </Button>
@@ -357,16 +357,16 @@ export default function Faturamento() {
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                O wizard de emissão em 5 passos (Identificação → Destinatário →
-                Itens → Transporte/Pagamento → Revisão) entra na <strong>Onda 3</strong>.
-                Por enquanto, use o formulário atual de NF-e.
+                Wizard guiado em 5 passos (Identificação → Destinatário → Itens
+                → Transporte/Pagamento → Revisão), com aplicação automática da
+                matriz fiscal e resolução do código IBGE do destinatário.
               </p>
               <div className="flex flex-wrap gap-2">
-                <Button onClick={() => navigate("/fiscal/novo?tipo=saida")} className="gap-2">
-                  <Send className="h-4 w-4" /> Nova NF-e de saída
+                <Button onClick={() => navigate("/faturamento/emitir")} className="gap-2">
+                  <Send className="h-4 w-4" /> Iniciar wizard NF-e
                 </Button>
                 <Button variant="outline" onClick={() => navigate("/fiscal/novo?tipo=entrada")} className="gap-2">
-                  <Plus className="h-4 w-4" /> Nota de entrada
+                  <Plus className="h-4 w-4" /> Nota de entrada (formulário clássico)
                 </Button>
               </div>
             </CardContent>
