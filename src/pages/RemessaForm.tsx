@@ -35,6 +35,7 @@ import { getUserFriendlyError } from "@/utils/errorMessages";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useBeforeUnloadGuard } from "@/hooks/useBeforeUnloadGuard";
 import { PageShell } from "@/components/PageShell";
+import { EtiquetaCorreiosCard } from "@/components/logistica/EtiquetaCorreiosCard";
 
 type Cliente = LookupRef;
 type Transportadora = LookupRef;
