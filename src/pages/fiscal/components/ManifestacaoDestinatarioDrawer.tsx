@@ -69,6 +69,8 @@ import {
 interface ManifestacaoDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Quando informado, rola até a NF-e correspondente e a destaca visualmente. */
+  highlightNfeId?: string | null;
 }
 
 interface NfeCapturada {
@@ -117,7 +119,7 @@ function extrairDoChave(chave: string): { cnpj: string; serie: string; numero: s
   return { cnpj, serie, numero, data };
 }
 
-export function ManifestacaoDestinatarioDrawer({ open, onOpenChange }: ManifestacaoDrawerProps) {
+export function ManifestacaoDestinatarioDrawer({ open, onOpenChange, highlightNfeId }: ManifestacaoDrawerProps) {
   const qc = useQueryClient();
   const [novaChave, setNovaChave] = useState("");
   const [salvando, setSalvando] = useState(false);
