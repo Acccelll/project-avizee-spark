@@ -147,3 +147,35 @@ para react-hook-form sem ganho de UX correspondente.
 Próximas frentes candidatas: **Painel de saúde do sistema** (admin),
 **Multi-tenant `empresa_id` + RLS** ou **Notificações proativas (email queue
 + in-app badges)**.
+
+---
+
+## Onda — Painel de saúde do sistema (28/abr/2026)
+
+Painel `/administracao?tab=saude` já existia cobrindo e-mail/auditoria/
+permissões. Esta onda **estendeu** com duas integrações críticas que estavam
+fora do radar:
+
+- **Fila pgmq de e-mail** (`auth_emails`, `transactional_emails`, `*_dlq`).
+  Nova RPC `public.email_queue_metrics()` (SECURITY DEFINER, admin-only,
+  `search_path = public`) varre `pgmq.q_*` e devolve `total_messages` e
+  `oldest_msg_age_seconds`. Card dedicado mostra a tabela de filas com badge
+  DLQ destacando mensagens travadas.
+- **Sefaz proxy** — nova action `health` na edge function `sefaz-proxy`
+  (apenas valida JWT, devolve `{ ok, hasPfxPassword, timestamp }`). Hook faz
+  ping a cada refresh e mede latência. Classifica `down` / `degraded` /
+  `healthy` conforme resposta + presença do secret de senha do PFX.
+
+Limites de classificação (em `useSaudeSistema.ts`):
+- Fila: DLQ>0 → `down`. ≥200 pendentes ou idade ≥1h → `down`. ≥50 ou ≥15min → `degraded`.
+- Sefaz: erro → `down`. Sem PFX → `degraded`. OK → `healthy` com latência.
+
+Arquivos:
+- `supabase/migrations/<ts>_email_queue_metrics.sql` (nova RPC)
+- `supabase/functions/sefaz-proxy/index.ts` (action `health`)
+- `src/pages/admin/hooks/useSaudeSistema.ts` (filas + sefaz)
+- `src/pages/admin/sections/SaudeSistemaSection.tsx` (card de filas + ícones)
+- `.lovable/memory/features/painel-saude-sistema.md` (atualizada)
+
+Próxima frente sugerida: **Notificações proativas** (in-app badges puxando
+da fila pgmq + email_send_log) ou **Multi-tenant `empresa_id` + RLS**.
