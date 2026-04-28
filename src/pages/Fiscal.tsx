@@ -867,6 +867,7 @@ const Fiscal = () => {
           <SummaryCard title="Confirmadas" value={String(kpis.confirmadas)} icon={CheckCircle} variationType="positive" variation="processadas" />
         </div>
 
+        <div data-help-id="fiscal.tabela">
         <DataTable
           columns={columns}
           data={filteredData}
@@ -973,6 +974,7 @@ const Fiscal = () => {
             );
           }}
         />
+        </div>
       </ModulePage>
 
       {/* Form Modal - Create */}
