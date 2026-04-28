@@ -84,16 +84,16 @@ export function ComercialBlock({
           <p className="text-xs text-muted-foreground">Pedidos pendentes</p>
           <p className="text-lg font-bold mono mt-0.5">{formatNumber(pedidosPendentes)}</p>
         </div>
-        <div className="px-4 py-2 border-l border-border/60">
-          <p className="text-xs text-muted-foreground flex items-center gap-1">
-            Ticket médio
+        <div className="px-4 py-2 border-l border-border/60 min-w-0">
+          <p className="text-xs text-muted-foreground flex flex-wrap items-center gap-1">
+            <span>Ticket médio</span>
             <ScopeBadge scope={{ kind: 'fixed-window', janela: 'mes-atual' }} />
           </p>
           <p className="text-lg font-bold mono mt-0.5">{formatCurrency(ticketMedio)}</p>
         </div>
-        <div className="px-4 py-2 border-l border-border/60">
-          <p className="text-xs text-muted-foreground flex items-center gap-1">
-            Faturamento (mês)
+        <div className="px-4 py-2 border-l border-border/60 min-w-0">
+          <p className="text-xs text-muted-foreground flex flex-wrap items-center gap-1">
+            <span>Faturamento (mês)</span>
             <ScopeBadge scope={{ kind: 'fixed-window', janela: 'mes-atual' }} />
           </p>
           <p className="text-lg font-bold mono mt-0.5">{formatCurrency(faturamentoMesAtual)}</p>
