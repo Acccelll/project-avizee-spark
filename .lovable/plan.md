@@ -252,3 +252,13 @@ Sugiro a sequência **Onda 0 → Onda 1 → Onda 3** (fundação + casca + wizar
     - Switch ligando/desligando a flag (persiste via `useAppConfig` → `app_configuracoes`)
     - Botão "Aplicar ciência em lote agora" (manual) que executa o lote sem precisar esperar o cron, útil para limpar backlog
   - Decisão arquitetural: manifestação roda no client (não no edge function) porque o serviço `enviarManifestacao` já assina XMLDSig localmente e usa o `sefaz-proxy` mTLS — reaproveitamento total, sem duplicar lógica de assinatura no edge
+- ✅ **Onda 18** — Dashboard Fiscal consolidado (`/fiscal/dashboard`):
+  - Service `dashboardFiscal.service.ts`: 8 queries em paralelo (Promise.all) para counts head:true (saída por status) + agregações (valores, tributos), totais de entrada por `status_manifestacao`, última sync de `nfe_distdfe_sync`, configuração da empresa (`proximo_numero_nfe`, `serie_padrao_nfe`, `modo_emissao_nfe`, ambiente, contingência). Constrói série diária cruzada (emitidas vs recebidas) num único Map para o gráfico
+  - Página `FiscalDashboard.tsx` (lazy + `PermissionRoute resource="faturamento_fiscal"`) com 4 seções:
+    - **NF-e Emitidas (saída)**: 4 SummaryCards compactos — Autorizadas (com valor), Rejeitadas (danger), Canceladas, Pendentes
+    - **NF-e Recebidas (entrada/DistDF-e)**: Total, Sem manifestação (warning), Ciência/Confirmadas, Desconhecidas/Não realizadas
+    - **Apuração de tributos**: ICMS, ICMS-ST, IPI, PIS, COFINS — somente NF-e autorizadas
+    - **Movimento diário (Recharts ComposedChart)** + cards laterais de Sincronização DistDF-e (última execução, cStat, CNPJs monitorados, link p/ histórico) e Configuração de emissão (ambiente, próximo número/série, modo, badge de contingência ativa, link p/ configuração)
+  - Reuso do `CertificadoValidadeAlert` no topo (mostra automaticamente quando vencimento ≤ 30 dias)
+  - PeriodFilter como fonte única (`mem://produto/contrato-de-periodos`); refetch manual e staleTime 60s
+  - Rota: `/fiscal/dashboard` registrada em `src/App.tsx`
