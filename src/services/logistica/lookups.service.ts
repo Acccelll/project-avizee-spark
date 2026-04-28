@@ -48,6 +48,17 @@ export async function listPedidosCompraAtivos(): Promise<DocumentoRef[]> {
   return (data ?? []) as DocumentoRef[];
 }
 
+export async function listOrdensVendaAtivas(): Promise<DocumentoRef[]> {
+  const { data, error } = await supabase
+    .from("ordens_venda")
+    .select("id, numero")
+    .eq("ativo", true)
+    .order("numero", { ascending: false })
+    .limit(200);
+  if (error) throw new Error(error.message);
+  return (data ?? []) as DocumentoRef[];
+}
+
 export async function listNotasFiscaisAtivas(): Promise<NotaFiscalRef[]> {
   const { data, error } = await supabase
     .from("notas_fiscais")
