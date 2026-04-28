@@ -258,6 +258,19 @@ via HTTP POST assinado.
 - `supabase/config.toml` (entrada da função)
 - `.lovable/memory/features/webhooks-saida.md`
 
+### Iterações pós-onda (28/abr/2026)
+
+- **Replay individual**: nova RPC `webhooks_replay_delivery(uuid)`
+  (admin-only) zera tentativas e marca `proxima_tentativa_em = now()`
+  para o dispatcher reenviar no próximo ciclo. Botão "Send" aparece na
+  tabela de deliveries apenas para entregas em `falha`/`cancelado`.
+- **Webhooks no painel de saúde**: `SaudeSistemaSection` ganha cartão
+  "Webhooks de saída" alimentado por `webhooks_metrics()`.
+  Classificação: `down` se ≥10 falhas 24h ou ≥200 na fila;
+  `degraded` se ≥1 falha ou ≥50 na fila; `unknown` se sem endpoints.
+
+Próxima frente sugerida: **Multi-tenant `empresa_id` + RLS** (alto risco,
+roteiro em `rls-single-tenant.md`) ou **PWA / offline-first leve**.
 ### Próximas frentes candidatas
 
 - **Replay de delivery individual** (botão "reenviar" + endpoint
