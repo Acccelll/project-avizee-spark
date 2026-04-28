@@ -130,6 +130,16 @@ export function ManifestacaoDestinatarioDrawer({ open, onOpenChange, highlightNf
   const [verItensTarget, setVerItensTarget] = useState<NfeCapturada | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [processarTarget, setProcessarTarget] = useState<NfeCapturada | null>(null);
+  const highlightRef = useRef<HTMLLIElement | null>(null);
+
+  useEffect(() => {
+    if (!open || !highlightNfeId) return;
+    // Aguarda render da lista antes de fazer scroll.
+    const t = setTimeout(() => {
+      highlightRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 250);
+    return () => clearTimeout(t);
+  }, [open, highlightNfeId, /* re-roda quando notas chegam: */]);
 
   const { data: notas = [], isLoading } = useQuery({
     queryKey: ["nfe-distribuicao"],
