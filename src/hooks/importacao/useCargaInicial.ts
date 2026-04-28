@@ -1,7 +1,14 @@
 import { useCallback, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { parseConciliacaoWorkbook, type ConciliacaoBundle } from "@/lib/importacao/conciliacaoParser";
+import {
+  createImportacaoLote,
+  insertStagingChunks,
+  logImportacao,
+  cargaInicialConciliacao,
+  cargaInicialProcessarExtras,
+  mergeLoteConciliacao,
+} from "@/services/importacao.service";
 
 /**
  * Hook orquestrador da CARGA INICIAL DE PRODUÇÃO (insert-only).
@@ -73,19 +80,17 @@ export function useCargaInicial() {
     if (!bundle) { toast.error("Selecione um arquivo primeiro."); return null; }
     setIsProcessing(true);
     try {
-      const { data: user } = await supabase.auth.getUser();
       const grupos = Array.from(new Set([...bundle.produtos, ...bundle.insumos].map(p => p.grupo_nome).filter(Boolean) as string[]));
       const totalReg = grupos.length + bundle.planoContas.length + bundle.fornecedores.length + bundle.clientes.length + bundle.produtos.length + bundle.insumos.length + bundle.cr.length + bundle.cp.length;
 
-      const { data: lote, error: errLote } = await supabase.from("importacao_lotes").insert({
-        tipo: "conciliacao_carga_inicial", fase: "carga_inicial", status: "staging",
+      const newLoteId = await createImportacaoLote({
+        tipo: "conciliacao_carga_inicial",
+        fase: "carga_inicial",
         arquivo_nome: file?.name ?? null,
-        total_registros: totalReg, registros_sucesso: 0, registros_erro: 0,
-        usuario_id: user?.user?.id ?? null,
+        total_registros: totalReg,
         resumo: { ...resumo?.contagens },
-      }).select().single();
-      if (errLote) throw errLote;
-      const newLoteId = lote.id; setLoteId(newLoteId);
+      });
+      setLoteId(newLoteId);
 
       // stg_cadastros: grupos + plano + fornecedores + clientes + produtos + insumos
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -98,21 +103,13 @@ export function useCargaInicial() {
       bundle.clientes.forEach(c => cadRows.push({ lote_id: newLoteId, status: "pendente", dados: { _tipo: "cliente", ...c } }));
       [...bundle.produtos, ...bundle.insumos].forEach(p => cadRows.push({ lote_id: newLoteId, status: "pendente", dados: { _tipo: p.tipo_item, ...p } }));
 
-      for (let i = 0; i < cadRows.length; i += 500) {
-        const { error } = await supabase.from("stg_cadastros").insert(cadRows.slice(i, i + 500));
-        if (error) throw error;
-      }
+      await insertStagingChunks("stg_cadastros", cadRows);
 
       // stg_estoque_inicial
       const estqRows = [...bundle.produtos, ...bundle.insumos]
         .filter(p => p.estoque_inicial > 0)
         .map(p => ({ lote_id: newLoteId, status: "pendente", dados: { codigo_legado_produto: p.codigo_legado, quantidade: p.estoque_inicial } }));
-      if (estqRows.length) {
-        for (let i = 0; i < estqRows.length; i += 500) {
-          const { error } = await supabase.from("stg_estoque_inicial").insert(estqRows.slice(i, i + 500));
-          if (error) throw error;
-        }
-      }
+      await insertStagingChunks("stg_estoque_inicial", estqRows);
 
       // stg_financeiro_aberto: CR + CP
       const finRows = [...bundle.cr, ...bundle.cp].map(r => ({
@@ -128,16 +125,15 @@ export function useCargaInicial() {
           parcela_numero: r.parcela_numero, parcela_total: r.parcela_total,
         },
       }));
-      for (let i = 0; i < finRows.length; i += 500) {
-        const { error } = await supabase.from("stg_financeiro_aberto").insert(finRows.slice(i, i + 500));
-        if (error) throw error;
-      }
+      await insertStagingChunks("stg_financeiro_aberto", finRows);
 
       // FC: log de conferência
-      await supabase.from("importacao_logs").insert({
-        lote_id: newLoteId, nivel: "info", etapa: "fc_conferencia",
-        mensagem: JSON.stringify({ fc_total: bundle.fc.length, primeiros: bundle.fc.slice(0, 5) }),
-      });
+      await logImportacao(
+        newLoteId,
+        "info",
+        JSON.stringify({ fc_total: bundle.fc.length, primeiros: bundle.fc.slice(0, 5) }),
+        "fc_conferencia",
+      );
 
       toast.success(`Staging completo: ${cadRows.length} cadastros, ${estqRows.length} estoque, ${finRows.length} financeiro.`);
       return newLoteId;
@@ -151,13 +147,11 @@ export function useCargaInicial() {
     if (!loteId) { toast.error("Faça o staging primeiro."); return false; }
     setIsProcessing(true);
     try {
-      const { data, error } = await supabase.rpc("carga_inicial_conciliacao", { p_lote_id: loteId, p_force: force });
-      if (error) throw error;
-      const r = data as Record<string, unknown> & { erro?: string };
+      const r = await cargaInicialConciliacao(loteId, force) as Record<string, unknown> & { erro?: string };
       if (r?.erro) { toast.error(`Bloqueado: ${String(r.erro)}`); setResultado(r); return false; }
       // Processar extras (centros de custo + sintéticas)
       try {
-        const { data: extras } = await supabase.rpc("carga_inicial_processar_extras", { p_lote_id: loteId });
+        const extras = await cargaInicialProcessarExtras(loteId);
         if (extras) Object.assign(r as object, { extras });
       } catch (e) {
         console.warn("Falha ao processar extras (centro_custo/sinteticas):", e);
@@ -176,9 +170,7 @@ export function useCargaInicial() {
     if (!loteId) { toast.error("Faça o staging primeiro."); return false; }
     setIsProcessing(true);
     try {
-      const { data, error } = await supabase.rpc("merge_lote_conciliacao", { p_lote_id: loteId });
-      if (error) throw error;
-      const r = data as Record<string, unknown> & { erro?: string };
+      const r = await mergeLoteConciliacao(loteId) as Record<string, unknown> & { erro?: string };
       if (r?.erro) { toast.error(`Erro: ${String(r.erro)}`); setResultado(r); return false; }
       setResultado(r);
       toast.success(
