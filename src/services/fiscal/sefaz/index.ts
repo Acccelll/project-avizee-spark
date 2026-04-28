@@ -32,6 +32,15 @@ export { enviarCartaCorrecao } from "./cartaCorrecao.service";
 export type { CartaCorrecaoParams, CartaCorrecaoResult } from "./cartaCorrecao.service";
 
 export {
+  enviarManifestacao,
+  statusManifestacaoFromEvento,
+  tipoEventoFiscalFromManifestacao,
+} from "./manifestacao.service";
+export type { ManifestacaoParams, ManifestacaoResult } from "./manifestacao.service";
+export { construirXMLManifestacao } from "./xmlBuilder.service";
+export type { TipoManifestacao } from "./xmlBuilder.service";
+
+export {
   consultarStatusServico,
   construirXMLConsultaStatus,
 } from "./statusServico.service";
