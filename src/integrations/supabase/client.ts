@@ -13,8 +13,25 @@
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "./types";
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
-const SUPABASE_PUBLISHABLE_KEY = (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY) as string;
+/**
+ * Lê uma `<meta name="...">` do `index.html`. Usado como fallback resiliente
+ * em PWA instalado: se o chunk JS atual for um precache antigo onde
+ * `import.meta.env.VITE_SUPABASE_*` foi compilado como string vazia, ainda
+ * conseguimos inicializar o auth lendo do HTML (que é sempre fresco da rede
+ * via navigateFallback do Workbox).
+ */
+function readMeta(name: string): string {
+  if (typeof document === "undefined") return "";
+  const el = document.querySelector(`meta[name="${name}"]`);
+  return (el?.getAttribute("content") || "").trim();
+}
+
+const SUPABASE_URL =
+  (import.meta.env.VITE_SUPABASE_URL as string) ||
+  readMeta("x-supabase-url");
+const SUPABASE_PUBLISHABLE_KEY =
+  ((import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY) as string) ||
+  readMeta("x-supabase-anon-key");
 const isPlaceholderConfig =
   !SUPABASE_URL ||
   !SUPABASE_PUBLISHABLE_KEY ||
