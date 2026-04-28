@@ -627,7 +627,7 @@ export default function Logistica() {
         addLabel={canEdit ? "Nova Remessa" : undefined}
         onAdd={canEdit ? () => navigate("/remessas/new") : undefined}
         headerActions={canEdit ? (
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={handleBulkRastrear} disabled={bulkTracking}>
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={handleBulkRastrear} disabled={bulkTracking} data-help-id="logistica.bulkRastrear">
             {bulkTracking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
             Atualizar Rastreios
           </Button>

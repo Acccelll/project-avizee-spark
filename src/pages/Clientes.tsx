@@ -352,6 +352,7 @@ const Clientes = () => {
         subtitle="Consulta comercial e cadastro de clientes"
         addLabel="Novo Cliente"
         onAdd={openCreate}
+        addButtonHelpId="clientes.novoBtn"
         summaryCards={
           <>
             <SummaryCard title="Total de Clientes" value={data.length} icon={Users} />

@@ -213,7 +213,7 @@ const Financeiro = () => {
   );
 
   return (
-    <><ModulePage title="Lançamentos" subtitle="Gestão unificada de contas a pagar e receber" addLabel="Novo Lançamento" onAdd={openCreate}>
+    <><ModulePage title="Lançamentos" subtitle="Gestão unificada de contas a pagar e receber" addLabel="Novo Lançamento" onAdd={openCreate} addButtonHelpId="financeiro.novoBtn">
         <div className="mb-4 flex items-center gap-2 flex-wrap">
           <PeriodFilter
             value={period}
@@ -222,7 +222,7 @@ const Financeiro = () => {
             direction="future"
           />
           <MonthFilter value={mes} onChange={setMes} direction="future" />
-          <div className="flex gap-1 ml-auto rounded-lg border p-0.5">
+          <div className="flex gap-1 ml-auto rounded-lg border p-0.5" data-help-id="financeiro.viewToggle">
             <Button
               size="sm"
               variant={viewMode === "lista" ? "default" : "ghost"}
@@ -271,7 +271,7 @@ const Financeiro = () => {
           </button>
         )}
 
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 mb-6" data-help-id="financeiro.kpis">
           <SummaryCard title="A Vencer" value={kpis.aVencer.toString()} subtitle={formatCurrency(kpis.totalAVencer)} icon={CalendarClock} variant="info" onClick={() => setStatusFilters(["aberto"])} />
           {/* Em mobile, "Vence Hoje" vira banner acima — esconder card duplicado */}
           <SummaryCard title="Vence Hoje" value={kpis.venceHoje.toString()} icon={Clock} variant="warning" className="hidden md:flex" />
