@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import type { Json } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
 import { useSyncedStorage, buildSyncedStorageKey } from './useSyncedStorage';
 import { enqueueSync, processSyncQueue } from '@/services/syncQueue';
 import { useOnlineStatus } from './useOnlineStatus';
+import { getUserPreference, upsertUserPreference } from '@/services/userPreference.service';
 
 /**
  * useUserPreference
@@ -63,13 +63,8 @@ export function useUserPreference<T = Json>(userId: string | null | undefined, p
   }, [legacyKey, namespace, preferenceKey, setCache]);
 
   const reloadFromSupabase = useCallback(async () => {
-    if (!supabase || !userId) return;
-    const { data, error } = await supabase
-      .from('user_preferences')
-      .select('columns_config, updated_at')
-      .eq('user_id', userId)
-      .eq('module_key', preferenceKey)
-      .maybeSingle();
+    if (!userId) return;
+    const { data, error } = await getUserPreference(userId, preferenceKey);
 
     if (!error && data?.columns_config !== undefined && data?.columns_config !== null) {
       setCache(data.columns_config as unknown as T);
@@ -87,20 +82,16 @@ export function useUserPreference<T = Json>(userId: string | null | undefined, p
 
   useEffect(() => {
     const flush = async () => {
-      if (!isOnline || !supabase || !userId) return;
+      if (!isOnline || !userId) return;
       await processSyncQueue(async (item) => {
         if (item.scope !== 'userpref') return false;
         const [, uId, mKey] = item.key.split(':');
         if (!uId || !mKey) return true;
-        const { error } = await supabase.from('user_preferences').upsert(
-          {
-            user_id: uId,
-            module_key: mKey,
-            columns_config: item.value as Json,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: 'user_id,module_key' },
-        );
+        const { error } = await upsertUserPreference({
+          userId: uId,
+          moduleKey: mKey,
+          value: item.value as Json,
+        });
         return !error;
       });
       await reloadFromSupabase();
@@ -116,7 +107,7 @@ export function useUserPreference<T = Json>(userId: string | null | undefined, p
 
       const queueKey = `user_pref:${userId ?? 'anon'}:${preferenceKey}`;
 
-      if (!userId || !supabase || !isOnline) {
+      if (!userId || !isOnline) {
         if (userId) {
           enqueueSync({ scope: 'userpref', key: queueKey, value: nextValue, prevValue: previous });
           if (!isOnline) {
@@ -128,15 +119,11 @@ export function useUserPreference<T = Json>(userId: string | null | undefined, p
 
       const submit = async (): Promise<boolean> => {
         const res = await withTimeout(
-          supabase.from('user_preferences').upsert(
-            {
-              user_id: userId,
-              module_key: preferenceKey,
-              columns_config: nextValue as unknown as Json,
-              updated_at: new Date().toISOString(),
-            },
-            { onConflict: 'user_id,module_key' },
-          ),
+          upsertUserPreference({
+            userId,
+            moduleKey: preferenceKey,
+            value: nextValue as unknown as Json,
+          }),
         );
         const error = res?.error;
 

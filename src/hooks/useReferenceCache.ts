@@ -1,5 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  fetchClientesRef,
+  fetchFornecedoresRef,
+  fetchContasBancariasRef,
+  fetchGruposProdutoRef,
+  fetchFormasPagamentoRef,
+} from "@/services/referenceCache.service";
 
 /**
  * useReferenceCache — caches de dados de referência (clientes, fornecedores,
@@ -44,17 +50,7 @@ export function useClientesRef(opts?: { ativosOnly?: boolean; limit?: number }) 
   const limit = opts?.limit ?? 1000;
   return useQuery<ClienteRef[]>({
     queryKey: ["ref", "clientes", { ativosOnly, limit }],
-    queryFn: async () => {
-      let q = supabase
-        .from("clientes")
-        .select("id, nome_razao_social")
-        .order("nome_razao_social")
-        .limit(limit);
-      if (ativosOnly) q = q.eq("ativo", true);
-      const { data, error } = await q;
-      if (error) throw error;
-      return (data ?? []) as ClienteRef[];
-    },
+    queryFn: () => fetchClientesRef({ ativosOnly, limit }),
     staleTime: STALE,
     refetchOnWindowFocus: false,
   });
@@ -65,17 +61,7 @@ export function useFornecedoresRef(opts?: { ativosOnly?: boolean; limit?: number
   const limit = opts?.limit ?? 1000;
   return useQuery<FornecedorRef[]>({
     queryKey: ["ref", "fornecedores", { ativosOnly, limit }],
-    queryFn: async () => {
-      let q = supabase
-        .from("fornecedores")
-        .select("id, nome_razao_social")
-        .order("nome_razao_social")
-        .limit(limit);
-      if (ativosOnly) q = q.eq("ativo", true);
-      const { data, error } = await q;
-      if (error) throw error;
-      return (data ?? []) as FornecedorRef[];
-    },
+    queryFn: () => fetchFornecedoresRef({ ativosOnly, limit }),
     staleTime: STALE,
     refetchOnWindowFocus: false,
   });
@@ -85,13 +71,7 @@ export function useContasBancariasRef(opts?: { ativasOnly?: boolean }) {
   const ativasOnly = opts?.ativasOnly ?? true;
   return useQuery<ContaBancariaRef[]>({
     queryKey: ["ref", "contas_bancarias", { ativasOnly }],
-    queryFn: async () => {
-      let q = supabase.from("contas_bancarias").select("id, descricao").order("descricao");
-      if (ativasOnly) q = q.eq("ativo", true);
-      const { data, error } = await q;
-      if (error) throw error;
-      return (data ?? []) as ContaBancariaRef[];
-    },
+    queryFn: () => fetchContasBancariasRef({ ativasOnly }),
     staleTime: STALE,
     refetchOnWindowFocus: false,
   });
@@ -101,13 +81,7 @@ export function useGruposProdutoRef(opts?: { ativosOnly?: boolean }) {
   const ativosOnly = opts?.ativosOnly ?? true;
   return useQuery<GrupoProdutoRef[]>({
     queryKey: ["ref", "grupos_produto", { ativosOnly }],
-    queryFn: async () => {
-      let q = supabase.from("grupos_produto").select("id, nome").order("nome");
-      if (ativosOnly) q = q.eq("ativo", true);
-      const { data, error } = await q;
-      if (error) throw error;
-      return (data ?? []) as GrupoProdutoRef[];
-    },
+    queryFn: () => fetchGruposProdutoRef({ ativosOnly }),
     staleTime: STALE,
     refetchOnWindowFocus: false,
   });
@@ -117,16 +91,7 @@ export function useFormasPagamentoRef(opts?: { ativasOnly?: boolean }) {
   const ativasOnly = opts?.ativasOnly ?? true;
   return useQuery<FormaPagamentoRef[]>({
     queryKey: ["ref", "formas_pagamento", { ativasOnly }],
-    queryFn: async () => {
-      let q = supabase
-        .from("formas_pagamento")
-        .select("id, descricao, tipo, parcelas, prazo_dias")
-        .order("descricao");
-      if (ativasOnly) q = q.eq("ativo", true);
-      const { data, error } = await q;
-      if (error) throw error;
-      return (data ?? []) as FormaPagamentoRef[];
-    },
+    queryFn: () => fetchFormasPagamentoRef({ ativasOnly }),
     staleTime: STALE,
     refetchOnWindowFocus: false,
   });

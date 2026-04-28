@@ -127,3 +127,19 @@ no mesmo lote.
 - 0 ocorrências de `supabase.from` / `supabase.rpc` em `src/pages/`.
 - Restantes legítimos: `supabase.auth.*` em páginas de auth (Login/Signup/etc.) e `supabase.functions.invoke` / `supabase.storage` em pontos isolados.
 - `tsc --noEmit` limpo.
+
+## Onda 6 — Lote 2a: hooks globais (concluído)
+
+Migrados 10 hooks de `src/hooks/*` (zero `supabase.from/rpc` direto):
+
+- `useUserPreference.ts` → `services/userPreference.service.ts`
+- `useAppConfig.ts` → `services/appConfig.service.ts`
+- `useSidebarAlerts.ts` → `services/sidebarAlerts.service.ts`
+- `useEditDeepLink.ts` → `services/genericLookup.service.ts`
+- `useReferenceCache.ts` → `services/referenceCache.service.ts`
+- `useRelatoriosFavoritos.ts` → `services/relatoriosFavoritos.service.ts`
+- `useSocios.ts` (5 hooks: Socios/Participacoes/Parametros/Apuracoes/Retiradas) → `services/socios.service.ts`
+- `usePedidosCompra.ts` → ampliação de `services/pedidosCompra.service.ts`
+- `useCotacoesCompra.ts` → ampliação de `services/cotacoesCompra.service.ts`
+
+Restante Onda 6: ~14 arquivos em `src/components/*` (views, drawers, dialogs, frete/correios) — Lote 2b.

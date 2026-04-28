@@ -1,10 +1,10 @@
 import { useEffect, useCallback, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import { useSyncedStorage } from "./useSyncedStorage";
 import { enqueueSync, processSyncQueue } from "@/services/syncQueue";
 import { useOnlineStatus } from "./useOnlineStatus";
+import { getAppConfig, upsertAppConfig } from "@/services/appConfig.service";
 
 const REMOTE_TIMEOUT_MS = 8000;
 
@@ -30,8 +30,7 @@ export function useAppConfig<T = Json>(chave: string, defaultValue?: T) {
   const [loading, setLoading] = useState(true);
 
   const reloadFromSupabase = useCallback(async () => {
-    if (!supabase) return;
-    const { data } = await supabase.from("app_configuracoes").select("valor").eq("chave", chave).maybeSingle();
+    const { data } = await getAppConfig(chave);
     if (data?.valor !== undefined) {
       setCache(data.valor as T);
     }
@@ -43,12 +42,10 @@ export function useAppConfig<T = Json>(chave: string, defaultValue?: T) {
 
   useEffect(() => {
     const flush = async () => {
-      if (!isOnline || !supabase) return;
+      if (!isOnline) return;
       await processSyncQueue(async (item) => {
         if (item.scope !== "appconfig" || item.key !== chave) return false;
-        const { error } = await supabase
-          .from("app_configuracoes")
-          .upsert({ chave: item.key, valor: item.value as Json, updated_at: new Date().toISOString() }, { onConflict: "chave" });
+        const { error } = await upsertAppConfig(item.key, item.value as Json);
         return !error;
       });
       await reloadFromSupabase();
@@ -63,19 +60,14 @@ export function useAppConfig<T = Json>(chave: string, defaultValue?: T) {
       const meta = getMeta();
       setCache(newValue);
 
-      if (!supabase || !isOnline) {
+      if (!isOnline) {
         enqueueSync({ scope: "appconfig", key: chave, value: newValue, prevValue: previous });
         return true;
       }
 
       const submit = async () => {
         const res = await withTimeout(
-          supabase
-            .from("app_configuracoes")
-            .upsert(
-              { chave, valor: newValue as unknown as Json, updated_at: new Date().toISOString() },
-              { onConflict: "chave" },
-            ),
+          upsertAppConfig(chave, newValue as unknown as Json),
         );
         const error = res?.error;
 

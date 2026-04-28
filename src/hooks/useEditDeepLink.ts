@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { fetchByIdGeneric } from "@/services/genericLookup.service";
 
 /**
  * Centraliza o padrão de deep-link `?editId=<uuid>` (ou via `location.state.editId`)
@@ -32,7 +32,7 @@ export function useEditDeepLink<T = Record<string, unknown>>(opts: {
     if (!editId) return;
 
     let cancelled = false;
-    supabase.from(opts.table).select("*").eq("id", editId).maybeSingle().then(({ data }) => {
+    fetchByIdGeneric(opts.table, editId).then((data) => {
       if (cancelled) return;
       if (data) opts.onLoad(data as T);
       const nextSearch = new URLSearchParams(location.search);

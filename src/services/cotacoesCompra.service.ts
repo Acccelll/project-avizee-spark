@@ -122,3 +122,78 @@ export async function deleteCotacaoProposta(propostaId: string) {
     .eq("id", propostaId);
   if (error) throw error;
 }
+
+/* ─────────── Enrichment / Lifecycle (useCotacoesCompra) ─────────── */
+
+export async function listCotacaoItensEnrichment(ids: string[]) {
+  const { data, error } = await supabase
+    .from("cotacoes_compra_itens")
+    .select("cotacao_compra_id, produtos(nome, codigo_interno, sku)")
+    .in("cotacao_compra_id", ids);
+  if (error) throw error;
+  return data || [];
+}
+
+export async function listCotacaoPropostasEnrichment(ids: string[]) {
+  const { data, error } = await supabase
+    .from("cotacoes_compra_propostas")
+    .select("cotacao_compra_id, fornecedor_id, selecionado, fornecedores(nome_razao_social)")
+    .in("cotacao_compra_id", ids);
+  if (error) throw error;
+  return data || [];
+}
+
+export async function proximoNumeroCotacaoCompra() {
+  return supabase.rpc("proximo_numero_cotacao_compra");
+}
+
+export async function insertCotacaoHeader(payload: {
+  numero: string;
+  data_cotacao: string;
+  data_validade: string | null;
+  observacoes: string | null;
+  status: string;
+}) {
+  const { data, error } = await supabase
+    .from("cotacoes_compra")
+    .insert(payload)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteCotacaoItens(cotacaoId: string) {
+  const { error } = await supabase
+    .from("cotacoes_compra_itens")
+    .delete()
+    .eq("cotacao_compra_id", cotacaoId);
+  if (error) throw error;
+}
+
+export async function insertCotacaoItens(
+  rows: Array<{ cotacao_compra_id: string; produto_id: string; quantidade: number; unidade: string }>,
+) {
+  const { error } = await supabase.from("cotacoes_compra_itens").insert(rows);
+  if (error) throw error;
+}
+
+export async function enviarCotacaoAprovacao(id: string) {
+  const { error } = await supabase.rpc("enviar_cotacao_aprovacao", { p_id: id });
+  if (error) throw error;
+}
+
+export async function aprovarCotacaoCompra(id: string) {
+  const { error } = await supabase.rpc("aprovar_cotacao_compra", { p_id: id });
+  if (error) throw error;
+}
+
+export async function rejeitarCotacaoCompra(id: string, motivo: string) {
+  const { error } = await supabase.rpc("rejeitar_cotacao_compra", { p_id: id, p_motivo: motivo });
+  if (error) throw error;
+}
+
+export async function cancelarCotacaoCompra(id: string, motivo: string) {
+  const { error } = await supabase.rpc("cancelar_cotacao_compra", { p_id: id, p_motivo: motivo });
+  if (error) throw error;
+}

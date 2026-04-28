@@ -19,8 +19,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import {
+  listRelatoriosFavoritos,
+  insertRelatoriosFavoritos,
+  insertRelatorioFavorito,
+  deleteRelatorioFavorito,
+  renameRelatorioFavorito,
+} from "@/services/relatoriosFavoritos.service";
 
 const STORAGE_KEY = "relatorios_favoritos_v1";
 
@@ -82,10 +88,7 @@ export function useRelatoriosFavoritos() {
 
     (async () => {
       // 1. Load existing rows for this user
-      const { data, error } = await supabase
-        .from("relatorios_favoritos")
-        .select("id, nome, params, criado_em")
-        .order("criado_em", { ascending: true });
+      const { data, error } = await listRelatoriosFavoritos();
 
       if (cancelled) return;
       if (error) {
@@ -101,17 +104,14 @@ export function useRelatoriosFavoritos() {
         const remoteNames = new Set(remote.map((f) => f.nome.toLowerCase()));
         const toMigrate = local.filter((f) => !remoteNames.has(f.nome.toLowerCase()));
         if (toMigrate.length) {
-          const { data: inserted, error: insertErr } = await supabase
-            .from("relatorios_favoritos")
-            .insert(
-              toMigrate.map((f) => ({
-                user_id: userId,
-                nome: f.nome,
-                params: f.params,
-                criado_em: f.criadoEm,
-              })),
-            )
-            .select("id, nome, params, criado_em");
+          const { data: inserted, error: insertErr } = await insertRelatoriosFavoritos(
+            toMigrate.map((f) => ({
+              user_id: userId,
+              nome: f.nome,
+              params: f.params,
+              criado_em: f.criadoEm,
+            })),
+          );
           if (!insertErr && inserted) {
             remote.push(...inserted.map(rowToFavorito));
           }
@@ -162,11 +162,7 @@ export function useRelatoriosFavoritos() {
         return novo;
       }
 
-      const { data, error } = await supabase
-        .from("relatorios_favoritos")
-        .insert({ user_id: userId, nome: nomeClean, params })
-        .select("id, nome, params, criado_em")
-        .single();
+      const { data, error } = await insertRelatorioFavorito({ user_id: userId, nome: nomeClean, params });
 
       if (error || !data) {
         console.error("[useRelatoriosFavoritos] insert error", error);
@@ -191,7 +187,7 @@ export function useRelatoriosFavoritos() {
         });
         return;
       }
-      const { error } = await supabase.from("relatorios_favoritos").delete().eq("id", id);
+      const { error } = await deleteRelatorioFavorito(id);
       if (error) {
         console.error("[useRelatoriosFavoritos] delete error", error);
         toast.error("Não foi possível remover o favorito.");
@@ -214,10 +210,7 @@ export function useRelatoriosFavoritos() {
         });
         return;
       }
-      const { error } = await supabase
-        .from("relatorios_favoritos")
-        .update({ nome: nomeClean })
-        .eq("id", id);
+      const { error } = await renameRelatorioFavorito(id, nomeClean);
       if (error) {
         console.error("[useRelatoriosFavoritos] rename error", error);
         toast.error("Não foi possível renomear o favorito.");

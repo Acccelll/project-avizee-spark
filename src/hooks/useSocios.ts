@@ -1,9 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import { INVALIDATION_KEYS } from "@/services/_invalidationKeys";
 import type { Socio, SocioParticipacao, SocioParametro, ApuracaoSocietaria, ApuracaoSocietariaItem, SocioRetirada } from "@/types/domain";
+import * as svc from "@/services/socios.service";
 
 const inv = (qc: ReturnType<typeof useQueryClient>) =>
   Promise.all(INVALIDATION_KEYS.socios.map((k) => qc.invalidateQueries({ queryKey: [k] })));
@@ -13,38 +13,23 @@ export function useSocios() {
   const qc = useQueryClient();
   const query = useQuery({
     queryKey: ["socios"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("socios").select("*").order("nome");
-      if (error) throw error;
-      return (data ?? []) as Socio[];
-    },
+    queryFn: () => svc.listSocios(),
   });
 
   const create = useMutation({
-    mutationFn: async (payload: Partial<Socio>) => {
-      const { data, error } = await supabase.from("socios").insert(payload as never).select().single();
-      if (error) throw error;
-      return data as Socio;
-    },
+    mutationFn: (payload: Partial<Socio>) => svc.createSocio(payload),
     onSuccess: async () => { await inv(qc); toast.success("Sócio cadastrado"); },
     onError: (e) => toast.error(getUserFriendlyError(e)),
   });
 
   const update = useMutation({
-    mutationFn: async ({ id, ...payload }: Partial<Socio> & { id: string }) => {
-      const { data, error } = await supabase.from("socios").update(payload as never).eq("id", id).select().single();
-      if (error) throw error;
-      return data as Socio;
-    },
+    mutationFn: ({ id, ...payload }: Partial<Socio> & { id: string }) => svc.updateSocio(id, payload),
     onSuccess: async () => { await inv(qc); toast.success("Sócio atualizado"); },
     onError: (e) => toast.error(getUserFriendlyError(e)),
   });
 
   const remove = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("socios").delete().eq("id", id);
-      if (error) throw error;
-    },
+    mutationFn: (id: string) => svc.removeSocio(id),
     onSuccess: async () => { await inv(qc); toast.success("Sócio excluído"); },
     onError: (e) => toast.error(getUserFriendlyError(e)),
   });
@@ -57,30 +42,17 @@ export function useSocioParticipacoes(socioId?: string) {
   const qc = useQueryClient();
   const query = useQuery({
     queryKey: ["socios_participacoes", socioId ?? "all"],
-    queryFn: async () => {
-      let q = supabase.from("socios_participacoes").select("*").order("vigencia_inicio", { ascending: false });
-      if (socioId) q = q.eq("socio_id", socioId);
-      const { data, error } = await q;
-      if (error) throw error;
-      return (data ?? []) as SocioParticipacao[];
-    },
+    queryFn: () => svc.listSocioParticipacoes(socioId),
   });
 
   const create = useMutation({
-    mutationFn: async (payload: Partial<SocioParticipacao>) => {
-      const { data, error } = await supabase.from("socios_participacoes").insert(payload as never).select().single();
-      if (error) throw error;
-      return data as SocioParticipacao;
-    },
+    mutationFn: (payload: Partial<SocioParticipacao>) => svc.createSocioParticipacao(payload),
     onSuccess: async () => { await inv(qc); toast.success("Participação registrada"); },
     onError: (e) => toast.error(getUserFriendlyError(e)),
   });
 
   const remove = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("socios_participacoes").delete().eq("id", id);
-      if (error) throw error;
-    },
+    mutationFn: (id: string) => svc.removeSocioParticipacao(id),
     onSuccess: async () => { await inv(qc); toast.success("Participação removida"); },
     onError: (e) => toast.error(getUserFriendlyError(e)),
   });
@@ -93,19 +65,11 @@ export function useSocioParametros() {
   const qc = useQueryClient();
   const query = useQuery({
     queryKey: ["socios_parametros"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("socios_parametros").select("*").order("competencia", { ascending: false });
-      if (error) throw error;
-      return (data ?? []) as SocioParametro[];
-    },
+    queryFn: () => svc.listSocioParametros(),
   });
 
   const upsert = useMutation({
-    mutationFn: async (payload: Partial<SocioParametro>) => {
-      const { data, error } = await supabase.from("socios_parametros").upsert(payload as never, { onConflict: "competencia" }).select().single();
-      if (error) throw error;
-      return data as SocioParametro;
-    },
+    mutationFn: (payload: Partial<SocioParametro>) => svc.upsertSocioParametro(payload),
     onSuccess: async () => { await inv(qc); toast.success("Parâmetro salvo"); },
     onError: (e) => toast.error(getUserFriendlyError(e)),
   });
@@ -119,11 +83,7 @@ export function useApuracoesSocietarias(competencia?: string) {
 
   const list = useQuery({
     queryKey: ["apuracoes_societarias"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("apuracoes_societarias").select("*").order("competencia", { ascending: false });
-      if (error) throw error;
-      return (data ?? []) as ApuracaoSocietaria[];
-    },
+    queryFn: () => svc.listApuracoesSocietarias(),
   });
 
   const itens = useQuery({
@@ -133,64 +93,39 @@ export function useApuracoesSocietarias(competencia?: string) {
       if (!competencia) return [];
       const ap = list.data?.find((a) => a.competencia === competencia);
       if (!ap) return [];
-      const { data, error } = await supabase
-        .from("apuracoes_societarias_itens")
-        .select("*, socios(nome, cpf)")
-        .eq("apuracao_id", ap.id);
-      if (error) throw error;
-      return (data ?? []) as ApuracaoSocietariaItem[];
+      return svc.listApuracaoItens(ap.id);
     },
   });
 
   const criar = useMutation({
-    mutationFn: async (params: { competencia: string; lucro_base?: number | null }) => {
-      const { data, error } = await supabase.rpc("criar_apuracao_societaria", {
-        p_competencia: params.competencia,
-        p_lucro_base: params.lucro_base ?? null,
-      });
-      if (error) throw error;
-      return data as string;
-    },
+    mutationFn: (params: { competencia: string; lucro_base?: number | null }) =>
+      svc.criarApuracaoSocietaria(params.competencia, params.lucro_base ?? null),
     onSuccess: async () => { await inv(qc); toast.success("Apuração criada"); },
     onError: (e) => toast.error(getUserFriendlyError(e)),
   });
 
   const recalcular = useMutation({
-    mutationFn: async (apuracaoId: string) => {
-      const { error } = await supabase.rpc("recalcular_apuracao_societaria", { p_apuracao_id: apuracaoId });
-      if (error) throw error;
-    },
+    mutationFn: (apuracaoId: string) => svc.recalcularApuracaoSocietaria(apuracaoId),
     onSuccess: async () => { await inv(qc); toast.success("Apuração recalculada"); },
     onError: (e) => toast.error(getUserFriendlyError(e)),
   });
 
   const fechar = useMutation({
-    mutationFn: async (apuracaoId: string) => {
-      const { error } = await supabase.rpc("fechar_apuracao_societaria", { p_apuracao_id: apuracaoId });
-      if (error) throw error;
-    },
+    mutationFn: (apuracaoId: string) => svc.fecharApuracaoSocietaria(apuracaoId),
     onSuccess: async () => { await inv(qc); toast.success("Apuração fechada"); },
     onError: (e) => toast.error(getUserFriendlyError(e)),
   });
 
   const reabrir = useMutation({
-    mutationFn: async (params: { id: string; motivo: string }) => {
-      const { error } = await supabase.rpc("reabrir_apuracao_societaria", {
-        p_apuracao_id: params.id,
-        p_motivo: params.motivo,
-      });
-      if (error) throw error;
-    },
+    mutationFn: (params: { id: string; motivo: string }) =>
+      svc.reabrirApuracaoSocietaria(params.id, params.motivo),
     onSuccess: async () => { await inv(qc); toast.success("Apuração reaberta"); },
     onError: (e) => toast.error(getUserFriendlyError(e)),
   });
 
   const updateBasic = useMutation({
-    mutationFn: async ({ id, ...payload }: Partial<ApuracaoSocietaria> & { id: string }) => {
-      const { data, error } = await supabase.from("apuracoes_societarias").update(payload as never).eq("id", id).select().single();
-      if (error) throw error;
-      return data as ApuracaoSocietaria;
-    },
+    mutationFn: ({ id, ...payload }: Partial<ApuracaoSocietaria> & { id: string }) =>
+      svc.updateApuracaoBasic(id, payload),
     onSuccess: async () => { await inv(qc); toast.success("Apuração atualizada"); },
     onError: (e) => toast.error(getUserFriendlyError(e)),
   });
@@ -198,7 +133,7 @@ export function useApuracoesSocietarias(competencia?: string) {
   return {
     apuracoes: list.data ?? [],
     loadingList: list.isLoading,
-    itens: itens.data ?? [],
+    itens: (itens.data ?? []) as ApuracaoSocietariaItem[],
     loadingItens: itens.isLoading,
     criar, recalcular, fechar, reabrir, updateBasic,
   };
@@ -210,59 +145,31 @@ export function useSociosRetiradas(filtros?: { competencia?: string; socioId?: s
 
   const query = useQuery({
     queryKey: ["socios_retiradas", filtros],
-    queryFn: async () => {
-      let q = supabase.from("socios_retiradas").select("*, socios(nome)").order("created_at", { ascending: false });
-      if (filtros?.competencia) q = q.eq("competencia", filtros.competencia);
-      if (filtros?.socioId) q = q.eq("socio_id", filtros.socioId);
-      if (filtros?.status) q = q.eq("status", filtros.status);
-      if (filtros?.tipo) q = q.eq("tipo", filtros.tipo);
-      const { data, error } = await q;
-      if (error) throw error;
-      return (data ?? []) as SocioRetirada[];
-    },
+    queryFn: () => svc.listSociosRetiradas(filtros),
   });
 
   const create = useMutation({
-    mutationFn: async (payload: Partial<SocioRetirada>) => {
-      const { data, error } = await supabase.from("socios_retiradas").insert(payload as never).select().single();
-      if (error) throw error;
-      return data as SocioRetirada;
-    },
+    mutationFn: (payload: Partial<SocioRetirada>) => svc.createSocioRetirada(payload),
     onSuccess: async () => { await inv(qc); toast.success("Retirada registrada"); },
     onError: (e) => toast.error(getUserFriendlyError(e)),
   });
 
   const aprovar = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.rpc("aprovar_retirada_socio", { p_retirada_id: id });
-      if (error) throw error;
-    },
+    mutationFn: (id: string) => svc.aprovarRetiradaSocio(id),
     onSuccess: async () => { await inv(qc); toast.success("Retirada aprovada"); },
     onError: (e) => toast.error(getUserFriendlyError(e)),
   });
 
   const gerarFinanceiro = useMutation({
-    mutationFn: async (params: { id: string; data_vencimento: string; conta_bancaria_id?: string | null }) => {
-      const { data, error } = await supabase.rpc("gerar_financeiro_retirada", {
-        p_retirada_id: params.id,
-        p_data_vencimento: params.data_vencimento,
-        p_conta_bancaria_id: params.conta_bancaria_id ?? null,
-      });
-      if (error) throw error;
-      return data as string;
-    },
+    mutationFn: (params: { id: string; data_vencimento: string; conta_bancaria_id?: string | null }) =>
+      svc.gerarFinanceiroRetirada(params),
     onSuccess: async () => { await inv(qc); toast.success("Lançamento financeiro gerado"); },
     onError: (e) => toast.error(getUserFriendlyError(e)),
   });
 
   const cancelar = useMutation({
-    mutationFn: async (params: { id: string; motivo: string }) => {
-      const { error } = await supabase.rpc("cancelar_retirada_socio", {
-        p_retirada_id: params.id,
-        p_motivo: params.motivo,
-      });
-      if (error) throw error;
-    },
+    mutationFn: (params: { id: string; motivo: string }) =>
+      svc.cancelarRetiradaSocio(params.id, params.motivo),
     onSuccess: async () => { await inv(qc); toast.success("Retirada cancelada"); },
     onError: (e) => toast.error(getUserFriendlyError(e)),
   });
