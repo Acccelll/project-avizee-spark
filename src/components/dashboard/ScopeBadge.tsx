@@ -1,3 +1,4 @@
+import { forwardRef } from 'react';
 import { Calendar, Clock, CalendarRange } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -42,24 +43,27 @@ function describe(scope: ScopeKind): { label: string; tooltip: string; Icon: typ
   };
 }
 
-export function ScopeBadge({ scope, className }: { scope: ScopeKind; className?: string }) {
-  const { label, tooltip, Icon } = describe(scope);
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <span
-          className={
-            'inline-flex items-center gap-1 rounded-full border border-border/60 bg-muted/30 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground ' +
-            (className ?? '')
-          }
-        >
-          <Icon className="h-2.5 w-2.5" />
-          {label}
-        </span>
-      </TooltipTrigger>
-      <TooltipContent side="top" className="text-xs max-w-[220px]">
-        {tooltip}
-      </TooltipContent>
-    </Tooltip>
-  );
-}
+export const ScopeBadge = forwardRef<HTMLSpanElement, { scope: ScopeKind; className?: string }>(
+  function ScopeBadge({ scope, className }, ref) {
+    const { label, tooltip, Icon } = describe(scope);
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span
+            ref={ref}
+            className={
+              'inline-flex max-w-full items-center gap-1 rounded-full border border-border/60 bg-muted/30 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground whitespace-nowrap shrink-0 ' +
+              (className ?? '')
+            }
+          >
+            <Icon className="h-2.5 w-2.5 shrink-0" />
+            <span className="truncate">{label}</span>
+          </span>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="text-xs max-w-[220px]">
+          {tooltip}
+        </TooltipContent>
+      </Tooltip>
+    );
+  },
+);
