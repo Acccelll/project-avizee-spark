@@ -329,3 +329,65 @@ export async function desvincularNFPedidoCompra(notaFiscalId: string): Promise<v
     .eq("id", notaFiscalId);
   if (error) throw error;
 }
+
+// ── Drawer / detail helpers ────────────────────────────────────────────────────
+
+/**
+ * Carrega itens, lançamentos financeiros, movimentos de estoque, eventos e
+ * anexos relacionados a uma nota fiscal — usado pelo NotaFiscalDrawer.
+ */
+export async function fetchNotaFiscalDetalhes(notaFiscalId: string) {
+  const [{ data: it }, { data: lanc }, { data: mov }, { data: ev }, { data: anx }] =
+    await Promise.all([
+      supabase
+        .from("notas_fiscais_itens")
+        .select("*, produtos(id, nome, sku)")
+        .eq("nota_fiscal_id", notaFiscalId),
+      supabase
+        .from("financeiro_lancamentos")
+        .select(
+          "id, tipo, descricao, valor, data_vencimento, status, forma_pagamento, parcela_numero, parcela_total",
+        )
+        .eq("nota_fiscal_id", notaFiscalId)
+        .order("parcela_numero", { ascending: true }),
+      supabase
+        .from("estoque_movimentos")
+        .select("*, produtos(id, nome, sku)")
+        .eq("documento_id", notaFiscalId)
+        .eq("documento_tipo", "fiscal")
+        .order("created_at", { ascending: true }),
+      supabase
+        .from("nota_fiscal_eventos")
+        .select("*")
+        .eq("nota_fiscal_id", notaFiscalId)
+        .order("data_evento", { ascending: false }),
+      supabase
+        .from("nota_fiscal_anexos")
+        .select("*")
+        .eq("nota_fiscal_id", notaFiscalId)
+        .order("created_at", { ascending: false }),
+    ]);
+  return {
+    items: it ?? [],
+    lancamentos: lanc ?? [],
+    movimentos: mov ?? [],
+    eventos: ev ?? [],
+    anexos: anx ?? [],
+  };
+}
+
+/** Hard-delete genérico de tabelas suportadas pelo PermanentDeleteDialog. */
+export type PermanentDeleteTable =
+  | "funcionarios"
+  | "transportadoras"
+  | "formas_pagamento"
+  | "grupos_economicos"
+  | "notas_fiscais";
+
+export async function permanentDeleteRecord(
+  table: PermanentDeleteTable,
+  id: string,
+): Promise<void> {
+  const { error } = await supabase.from(table).delete().eq("id", id);
+  if (error) throw error;
+}
