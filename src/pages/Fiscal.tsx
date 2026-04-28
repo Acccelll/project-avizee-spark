@@ -799,6 +799,7 @@ const Fiscal = () => {
 
   return (
     <><ModulePage title={tipoConfig.title} subtitle={tipoConfig.subtitle} addLabel={tipoConfig.addLabel} onAdd={openCreate}
+        addButtonHelpId="fiscal.novoBtn"
         headerActions={<>
           <input ref={xmlInputRef} type="file" accept=".xml" className="hidden" onChange={handleXmlImport} />
           <Button

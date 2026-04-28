@@ -295,6 +295,7 @@ const DashboardContent = () => {
     logistica: () => (
       <LazyInViewWidget fallback={<Skeleton className="h-[220px] w-full rounded-xl" />}>
         <BlockErrorBoundary label="Logística">
+          <div data-help-id="dashboard.logistica">
           <MobileCollapsibleBlock
             title="Logística"
             icon={Truck}
@@ -310,6 +311,7 @@ const DashboardContent = () => {
               totalRemessasAtrasadas={remessasAtrasadas}
             />
           </MobileCollapsibleBlock>
+          </div>
         </BlockErrorBoundary>
       </LazyInViewWidget>
     ),

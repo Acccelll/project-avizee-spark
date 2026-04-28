@@ -400,6 +400,7 @@ const Orcamentos = () => {
         subtitle="Central de consulta e acompanhamento do funil comercial"
         addLabel="Novo Orçamento"
         onAdd={() => navigate("/orcamentos/novo")}
+        addButtonHelpId="orcamentos.novoBtn"
       >
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <SummaryCard title="Total de Orçamentos" value={String(kpis.total)} icon={FileText} variationType="neutral" variation="registros" />

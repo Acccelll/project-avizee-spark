@@ -721,6 +721,7 @@ const Produtos = () => {
         subtitle="Consulta e gestão de produtos"
         addLabel="Novo Produto"
         onAdd={openCreate}
+        addButtonHelpId="produtos.novoBtn"
         summaryCards={
           <>
             <SummaryCard
