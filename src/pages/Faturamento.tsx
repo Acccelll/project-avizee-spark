@@ -25,6 +25,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { CertificadoValidadeAlert } from "@/components/fiscal/CertificadoValidadeAlert";
+import { BacklogFaturamento } from "@/pages/faturamento/BacklogFaturamento";
 
 /**
  * Módulo /faturamento — Onda 1 do plano "Emissor estilo Sebrae".
@@ -375,21 +376,7 @@ export default function Faturamento() {
 
         {/* BACKLOG */}
         <TabsContent value="backlog" className="mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Backlog de faturamento</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <p className="text-sm text-muted-foreground">
-                Lista de pedidos de venda aprovados aguardando emissão de NF-e.
-                Implementação completa (com ação “Faturar” e faturamento parcial)
-                vem na <strong>Onda 4</strong>.
-              </p>
-              <Button variant="outline" onClick={() => navigate("/pedidos")}>
-                Ver pedidos
-              </Button>
-            </CardContent>
-          </Card>
+          <BacklogFaturamento />
         </TabsContent>
 
         {/* DOCUMENTOS */}
