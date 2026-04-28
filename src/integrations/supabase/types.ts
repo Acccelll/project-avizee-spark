@@ -7852,6 +7852,10 @@ export type Database = {
         Args: { p_evento: string; p_payload: Json }
         Returns: undefined
       }
+      webhooks_increment_counter: {
+        Args: { p_endpoint_id: string; p_field: string }
+        Returns: undefined
+      }
       webhooks_metrics: { Args: never; Returns: Json }
       webhooks_rotate_secret: { Args: { p_endpoint_id: string }; Returns: Json }
     }
