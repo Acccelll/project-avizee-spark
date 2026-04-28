@@ -1976,6 +1976,85 @@ export type Database = {
           },
         ]
       }
+      eventos_fiscais: {
+        Row: {
+          codigo_evento: string | null
+          correcao: string | null
+          created_at: string
+          data_evento: string | null
+          id: string
+          justificativa: string | null
+          motivo_retorno: string | null
+          nota_fiscal_id: string
+          protocolo: string | null
+          sequencia: number
+          status_sefaz: string
+          tipo_evento: string
+          updated_at: string
+          usuario_id: string | null
+          xml_envio: string | null
+          xml_retorno: string | null
+        }
+        Insert: {
+          codigo_evento?: string | null
+          correcao?: string | null
+          created_at?: string
+          data_evento?: string | null
+          id?: string
+          justificativa?: string | null
+          motivo_retorno?: string | null
+          nota_fiscal_id: string
+          protocolo?: string | null
+          sequencia?: number
+          status_sefaz?: string
+          tipo_evento: string
+          updated_at?: string
+          usuario_id?: string | null
+          xml_envio?: string | null
+          xml_retorno?: string | null
+        }
+        Update: {
+          codigo_evento?: string | null
+          correcao?: string | null
+          created_at?: string
+          data_evento?: string | null
+          id?: string
+          justificativa?: string | null
+          motivo_retorno?: string | null
+          nota_fiscal_id?: string
+          protocolo?: string | null
+          sequencia?: number
+          status_sefaz?: string
+          tipo_evento?: string
+          updated_at?: string
+          usuario_id?: string | null
+          xml_envio?: string | null
+          xml_retorno?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "eventos_fiscais_nota_fiscal_id_fkey"
+            columns: ["nota_fiscal_id"]
+            isOneToOne: false
+            referencedRelation: "notas_fiscais"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "eventos_fiscais_nota_fiscal_id_fkey"
+            columns: ["nota_fiscal_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_comercial"
+            referencedColumns: ["nf_id"]
+          },
+          {
+            foreignKeyName: "eventos_fiscais_nota_fiscal_id_fkey"
+            columns: ["nota_fiscal_id"]
+            isOneToOne: false
+            referencedRelation: "v_trilha_fiscal"
+            referencedColumns: ["nf_id"]
+          },
+        ]
+      }
       fechamento_caixa_saldos: {
         Row: {
           competencia: string
@@ -3310,6 +3389,63 @@ export type Database = {
         }
         Relationships: []
       }
+      inutilizacoes_numeracao: {
+        Row: {
+          ano: number
+          created_at: string
+          data_evento: string | null
+          id: string
+          justificativa: string
+          modelo: string
+          motivo_retorno: string | null
+          numero_final: number
+          numero_inicial: number
+          protocolo: string | null
+          serie: number
+          status_sefaz: string
+          updated_at: string
+          usuario_id: string | null
+          xml_envio: string | null
+          xml_retorno: string | null
+        }
+        Insert: {
+          ano: number
+          created_at?: string
+          data_evento?: string | null
+          id?: string
+          justificativa: string
+          modelo?: string
+          motivo_retorno?: string | null
+          numero_final: number
+          numero_inicial: number
+          protocolo?: string | null
+          serie: number
+          status_sefaz?: string
+          updated_at?: string
+          usuario_id?: string | null
+          xml_envio?: string | null
+          xml_retorno?: string | null
+        }
+        Update: {
+          ano?: number
+          created_at?: string
+          data_evento?: string | null
+          id?: string
+          justificativa?: string
+          modelo?: string
+          motivo_retorno?: string | null
+          numero_final?: number
+          numero_inicial?: number
+          protocolo?: string | null
+          serie?: number
+          status_sefaz?: string
+          updated_at?: string
+          usuario_id?: string | null
+          xml_envio?: string | null
+          xml_retorno?: string | null
+        }
+        Relationships: []
+      }
       invites: {
         Row: {
           created_at: string
@@ -3615,6 +3751,7 @@ export type Database = {
           motivo_rejeicao: string | null
           movimenta_estoque: boolean | null
           natureza_operacao: string | null
+          nf_referenciada_chave: string | null
           nf_referenciada_id: string | null
           numeracao_volumes: string | null
           numero: string | null
@@ -3676,6 +3813,7 @@ export type Database = {
           motivo_rejeicao?: string | null
           movimenta_estoque?: boolean | null
           natureza_operacao?: string | null
+          nf_referenciada_chave?: string | null
           nf_referenciada_id?: string | null
           numeracao_volumes?: string | null
           numero?: string | null
@@ -3737,6 +3875,7 @@ export type Database = {
           motivo_rejeicao?: string | null
           movimenta_estoque?: boolean | null
           natureza_operacao?: string | null
+          nf_referenciada_chave?: string | null
           nf_referenciada_id?: string | null
           numeracao_volumes?: string | null
           numero?: string | null
