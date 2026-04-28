@@ -16,23 +16,31 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { supabase } from "@/integrations/supabase/client";
-import { useRemessas } from "@/services/logistica/remessas.service";
+import { useRemessas, getRemessaById } from "@/services/logistica/remessas.service";
 import type { Remessa } from "@/services/logistica/remessas.service";
+import {
+  listClientesAtivos,
+  listTransportadorasAtivas,
+  listOrdensVendaAtivas,
+  listPedidosCompraAtivos,
+  listNotasFiscaisAtivas,
+  type LookupRef,
+  type DocumentoRef,
+  type NotaFiscalRef,
+} from "@/services/logistica/lookups.service";
 import { statusRemessa } from "@/lib/statusSchema";
 import { toast } from "sonner";
 import { Save, Truck } from "lucide-react";
 import { getUserFriendlyError } from "@/utils/errorMessages";
-import type { Tables } from "@/integrations/supabase/types";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useBeforeUnloadGuard } from "@/hooks/useBeforeUnloadGuard";
 import { PageShell } from "@/components/PageShell";
 
-type Cliente = Tables<"clientes">;
-type Transportadora = Tables<"transportadoras">;
-type OrdemVenda = Tables<"ordens_venda">;
-type PedidoCompra = Tables<"pedidos_compra">;
-type NotaFiscal = Tables<"notas_fiscais">;
+type Cliente = LookupRef;
+type Transportadora = LookupRef;
+type OrdemVenda = DocumentoRef;
+type PedidoCompra = DocumentoRef;
+type NotaFiscal = NotaFiscalRef;
 
 interface RemessaForm {
   tipo_remessa: string;
@@ -101,19 +109,19 @@ export default function RemessaFormPage() {
   useEffect(() => {
     const loadLookups = async () => {
       const [c, t, ov, pc, nf] = await Promise.all([
-        supabase.from("clientes").select("id,nome_razao_social").eq("ativo", true).order("nome_razao_social"),
-        supabase.from("transportadoras").select("id,nome_razao_social").eq("ativo", true).order("nome_razao_social"),
-        supabase.from("ordens_venda").select("id,numero").eq("ativo", true).order("numero", { ascending: false }).limit(200),
-        supabase.from("pedidos_compra").select("id,numero").eq("ativo", true).order("numero", { ascending: false }).limit(200),
-        supabase.from("notas_fiscais").select("id,numero,tipo").eq("ativo", true).order("numero", { ascending: false }).limit(200),
+        listClientesAtivos(),
+        listTransportadorasAtivas(),
+        listOrdensVendaAtivas(),
+        listPedidosCompraAtivos(),
+        listNotasFiscaisAtivas(),
       ]);
-      setClientes((c.data ?? []) as Cliente[]);
-      setTransportadoras((t.data ?? []) as Transportadora[]);
-      setOrdensVenda((ov.data ?? []) as OrdemVenda[]);
-      setPedidosCompra((pc.data ?? []) as PedidoCompra[]);
-      setNotasFiscais((nf.data ?? []) as NotaFiscal[]);
+      setClientes(c);
+      setTransportadoras(t);
+      setOrdensVenda(ov);
+      setPedidosCompra(pc);
+      setNotasFiscais(nf);
     };
-    loadLookups();
+    loadLookups().catch((err) => toast.error(getUserFriendlyError(err)));
   }, []);
 
   useEffect(() => {
@@ -124,16 +132,22 @@ export default function RemessaFormPage() {
     }
     const load = async () => {
       setLoading(true);
-      const { data, error } = await supabase.from("remessas").select("*").eq("id", id).single();
-      if (error || !data) {
-        toast.error("Remessa não encontrada");
+      try {
+        const data = await getRemessaById(id!);
+        if (!data) {
+          toast.error("Remessa não encontrada");
+          navigate("/logistica");
+          return;
+        }
+        const next = remessaToForm(data);
+        baselineRef.current = next;
+        setForm(next);
+      } catch (err) {
+        toast.error(getUserFriendlyError(err));
         navigate("/logistica");
-        return;
+      } finally {
+        setLoading(false);
       }
-      const next = remessaToForm(data as Remessa);
-      baselineRef.current = next;
-      setForm(next);
-      setLoading(false);
     };
     load();
   }, [id, isNew, navigate]);
