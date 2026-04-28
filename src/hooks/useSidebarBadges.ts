@@ -28,12 +28,15 @@ export function useSidebarBadges(): SidebarBadges {
   return useMemo(() => {
     const financeiroTotal = alerts.financeiroVencidos + alerts.financeiroVencer;
     const financeiroTone: BadgeTone = alerts.financeiroVencidos > 0 ? 'danger' : 'info';
+    // Fiscal soma NF-e rejeitadas (saída) + NF-e de entrada sem manifestação
+    const fiscalTotal = alerts.nfRejeitadas + alerts.nfeEntradaSemManifestacao;
+    const fiscalTone: BadgeTone = alerts.nfRejeitadas > 0 ? 'danger' : 'warning';
 
     const moduleBadges: Partial<Record<NavSectionKey, BadgeInfo>> = {
       financeiro: { count: financeiroTotal, tone: financeiroTone },
       estoque: { count: alerts.estoqueBaixo, tone: 'danger' },
       comercial: { count: alerts.orcamentosPendentes, tone: 'warning' },
-      fiscal: { count: alerts.nfRejeitadas, tone: 'danger' },
+      fiscal: { count: fiscalTotal, tone: fiscalTone },
       administracao: { count: alerts.filaEmailDLQ, tone: 'danger' },
     };
 
@@ -42,6 +45,7 @@ export function useSidebarBadges(): SidebarBadges {
       '/financeiro': { count: financeiroTotal, tone: financeiroTone },
       '/estoque': { count: alerts.estoqueBaixo, tone: 'danger' },
       '/fiscal': { count: alerts.nfRejeitadas, tone: 'danger' },
+      '/faturamento': { count: alerts.nfeEntradaSemManifestacao, tone: 'warning' },
       '/administracao': { count: alerts.filaEmailDLQ, tone: 'danger' },
     };
 
