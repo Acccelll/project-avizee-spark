@@ -4,7 +4,6 @@ import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import { validateForm } from "@/lib/validationSchemas";
@@ -20,6 +19,7 @@ import {
   buildEmptyForm,
 } from "@/components/compras/cotacaoCompraTypes";
 import { canonicalCotacaoStatus } from "@/components/compras/comprasStatus";
+import * as ccs from "@/services/cotacoesCompra.service";
 
 export function useCotacoesCompra() {
   const navigate = useNavigate();
@@ -71,15 +71,9 @@ export function useCotacoesCompra() {
     if (!enrichmentKey) return;
     const ids = enrichmentKey.split(",");
     Promise.all([
-      supabase
-        .from("cotacoes_compra_itens")
-        .select("cotacao_compra_id, produtos(nome, codigo_interno, sku)")
-        .in("cotacao_compra_id", ids),
-      supabase
-        .from("cotacoes_compra_propostas")
-        .select("cotacao_compra_id, fornecedor_id, selecionado, fornecedores(nome_razao_social)")
-        .in("cotacao_compra_id", ids),
-    ]).then(([{ data: itens }, { data: propostas }]) => {
+      ccs.listCotacaoItensEnrichment(ids),
+      ccs.listCotacaoPropostasEnrichment(ids),
+    ]).then(([itens, propostas]) => {
       const map: Record<string, CotacaoSummary> = {};
       for (const id of ids) {
         const cItens = (itens || []).filter((i: { cotacao_compra_id: string }) => i.cotacao_compra_id === id);
@@ -141,7 +135,7 @@ export function useCotacoesCompra() {
 
   const openCreate = async () => {
     setMode("create");
-    const { data: rpcNumero, error: rpcErr } = await supabase.rpc("proximo_numero_cotacao_compra");
+    const { data: rpcNumero, error: rpcErr } = await ccs.proximoNumeroCotacaoCompra();
     // Numeração crítica deve sempre vir do PostgreSQL SEQUENCE.
     // Se falhar, abortamos a criação para não gerar números duplicáveis.
     if (rpcErr || !rpcNumero) {
@@ -166,18 +160,12 @@ export function useCotacoesCompra() {
   const openView = async (c: CotacaoCompra) => {
     setSelected({ ...c, status: canonicalCotacaoStatus(c.status) });
     setDrawerOpen(true);
-    const [{ data: itens }, { data: propostas }] = await Promise.all([
-      supabase
-        .from("cotacoes_compra_itens")
-        .select("*, produtos(nome, codigo_interno, sku)")
-        .eq("cotacao_compra_id", c.id),
-      supabase
-        .from("cotacoes_compra_propostas")
-        .select("*, fornecedores(nome_razao_social)")
-        .eq("cotacao_compra_id", c.id),
+    const [itens, propostas] = await Promise.all([
+      ccs.listCotacaoItens(c.id),
+      ccs.listCotacaoPropostas(c.id),
     ]);
-    setViewItems(itens || []);
-    setViewPropostas(propostas || []);
+    setViewItems((itens || []) as CotacaoItem[]);
+    setViewPropostas((propostas || []) as Proposta[]);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -203,32 +191,19 @@ export function useCotacoesCompra() {
       };
       let cotacaoId = selected?.id;
       if (mode === "create") {
-        const { data: newC, error } = await supabase
-          .from("cotacoes_compra")
-          .insert(payload)
-          .select()
-          .single();
-        if (error) throw error;
+        const newC = await ccs.insertCotacaoHeader(payload);
         cotacaoId = (newC as CotacaoCompra).id;
       } else if (selected) {
         // Sequential update -> delete: evita race onde Promise.all
         // apaga itens mesmo se o update do cabeçalho falhar.
-        const { error: updErr } = await supabase
-          .from("cotacoes_compra")
-          .update(payload)
-          .eq("id", selected.id);
-        if (updErr) throw updErr;
-        const { error: delErr } = await supabase
-          .from("cotacoes_compra_itens")
-          .delete()
-          .eq("cotacao_compra_id", selected.id);
-        if (delErr) throw delErr;
+        await ccs.updateCotacaoHeader(selected.id, payload);
+        await ccs.deleteCotacaoItens(selected.id);
       }
       if (cotacaoId) {
         const itemsPayload = localItems
           .filter((i) => i.produto_id)
           .map((i) => ({
-            cotacao_compra_id: cotacaoId,
+            cotacao_compra_id: cotacaoId as string,
             produto_id: i.produto_id,
             quantidade: i.quantidade,
             unidade: i.unidade,
@@ -237,10 +212,7 @@ export function useCotacoesCompra() {
           toast.error("A cotação precisa de pelo menos 1 item.");
           throw new Error("Cotação sem itens válidos");
         }
-        const { error: insErr } = await supabase
-          .from("cotacoes_compra_itens")
-          .insert(itemsPayload);
-        if (insErr) throw insErr;
+        await ccs.insertCotacaoItens(itemsPayload);
       }
       toast.success("Cotação de compra salva!");
       setModalOpen(false);
@@ -268,11 +240,8 @@ export function useCotacoesCompra() {
 
   const reloadPropostas = async () => {
     if (!selected) return;
-    const { data: propostas } = await supabase
-      .from("cotacoes_compra_propostas")
-      .select("*, fornecedores(nome_razao_social)")
-      .eq("cotacao_compra_id", selected.id);
-    setViewPropostas(propostas || []);
+    const propostas = await ccs.listCotacaoPropostas(selected.id);
+    setViewPropostas((propostas || []) as Proposta[]);
   };
 
   const handleAddProposal = async (itemId: string) => {
@@ -293,14 +262,13 @@ export function useCotacoesCompra() {
       return;
     }
     try {
-      await supabase.from("cotacoes_compra_propostas").insert({
+      await ccs.insertCotacaoProposta({
         cotacao_compra_id: selected.id,
         item_id: itemId,
         fornecedor_id: proposalForm.fornecedor_id,
         preco_unitario: proposalForm.preco_unitario,
         prazo_entrega_dias: proposalForm.prazo_entrega_dias ? Number(proposalForm.prazo_entrega_dias) : null,
         observacoes: proposalForm.observacoes || null,
-        selecionado: false,
       });
       toast.success("Proposta adicionada!");
       setAddingProposal(null);
@@ -314,17 +282,7 @@ export function useCotacoesCompra() {
   const handleSelectProposal = async (propostaId: string, itemId: string) => {
     if (!selected) return;
     try {
-      await Promise.all([
-        supabase
-          .from("cotacoes_compra_propostas")
-          .update({ selecionado: false })
-          .eq("cotacao_compra_id", selected.id)
-          .eq("item_id", itemId),
-        supabase
-          .from("cotacoes_compra_propostas")
-          .update({ selecionado: true })
-          .eq("id", propostaId),
-      ]);
+      await ccs.selectCotacaoProposta({ cotacaoId: selected.id, itemId, propostaId });
       toast.success("Fornecedor selecionado!");
       await reloadPropostas();
     } catch (err: unknown) {
@@ -334,7 +292,7 @@ export function useCotacoesCompra() {
 
   const handleDeleteProposal = async (propostaId: string) => {
     if (!selected) return;
-    await supabase.from("cotacoes_compra_propostas").delete().eq("id", propostaId);
+    await ccs.deleteCotacaoProposta(propostaId);
     toast.success("Proposta removida");
     await reloadPropostas();
   };
@@ -342,8 +300,7 @@ export function useCotacoesCompra() {
   const handleSendForApproval = async () => {
     if (!selected) return;
     try {
-      const { error } = await supabase.rpc("enviar_cotacao_aprovacao", { p_id: selected.id });
-      if (error) throw error;
+      await ccs.enviarCotacaoAprovacao(selected.id);
       setSelected({ ...selected, status: "aguardando_aprovacao" });
       toast.success("Cotação enviada para aprovação!");
       fetchData();
@@ -355,8 +312,7 @@ export function useCotacoesCompra() {
   const handleApprove = async () => {
     if (!selected) return;
     try {
-      const { error } = await supabase.rpc("aprovar_cotacao_compra", { p_id: selected.id });
-      if (error) throw error;
+      await ccs.aprovarCotacaoCompra(selected.id);
       setSelected({ ...selected, status: "aprovada" });
       toast.success("Cotação aprovada!");
       fetchData();
@@ -373,8 +329,7 @@ export function useCotacoesCompra() {
       return;
     }
     try {
-      const { error } = await supabase.rpc("rejeitar_cotacao_compra", { p_id: selected.id, p_motivo: motivoTrim });
-      if (error) throw error;
+      await ccs.rejeitarCotacaoCompra(selected.id, motivoTrim);
       setSelected({ ...selected, status: "rejeitada" });
       toast.error("Cotação rejeitada.");
       fetchData();
@@ -391,8 +346,7 @@ export function useCotacoesCompra() {
       return;
     }
     try {
-      const { error } = await supabase.rpc("cancelar_cotacao_compra", { p_id: selected.id, p_motivo: motivoTrim });
-      if (error) throw error;
+      await ccs.cancelarCotacaoCompra(selected.id, motivoTrim);
       setSelected({ ...selected, status: "cancelada" });
       toast.success("Cotação cancelada.");
       setDrawerOpen(false);
