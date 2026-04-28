@@ -7,7 +7,18 @@
  */
 import { useCallback, useEffect, useState, useMemo, type SetStateAction } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  getCotacaoCompra,
+  listCotacaoItens,
+  listCotacaoPropostas,
+  listProdutosParaCotacao,
+  listFornecedoresParaCotacao,
+  updateCotacaoHeader,
+  replaceCotacaoItens,
+  insertCotacaoProposta,
+  selectCotacaoProposta,
+  deleteCotacaoProposta,
+} from "@/services/cotacoesCompra.service";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -85,14 +96,13 @@ export default function CotacaoCompraForm() {
     async function load() {
       if (!id) { navigate("/cotacoes-compra"); return; }
       setLoading(true);
-      const [{ data: cot }, { data: itens }, { data: propostas }, { data: prods }, { data: fors }] =
-        await Promise.all([
-          supabase.from("cotacoes_compra").select("*").eq("id", id).single(),
-          supabase.from("cotacoes_compra_itens").select("*, produtos(nome, codigo_interno, sku)").eq("cotacao_compra_id", id),
-          supabase.from("cotacoes_compra_propostas").select("*, fornecedores(nome_razao_social)").eq("cotacao_compra_id", id),
-          supabase.from("produtos").select("id, nome, codigo_interno, sku").eq("ativo", true).order("nome"),
-          supabase.from("fornecedores").select("id, nome_razao_social, cpf_cnpj").eq("ativo", true).order("nome_razao_social"),
-        ]);
+      const [cot, itens, propostas, prods, fors] = await Promise.all([
+        getCotacaoCompra(id).catch(() => null),
+        listCotacaoItens(id),
+        listCotacaoPropostas(id),
+        listProdutosParaCotacao(),
+        listFornecedoresParaCotacao(),
+      ]);
 
       if (!cot) { toast.error("Cotação não encontrada."); navigate("/cotacoes-compra"); return; }
 
