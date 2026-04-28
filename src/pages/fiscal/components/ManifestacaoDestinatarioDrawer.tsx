@@ -132,6 +132,7 @@ export function ManifestacaoDestinatarioDrawer({ open, onOpenChange, highlightNf
   const [verItensTarget, setVerItensTarget] = useState<NfeCapturada | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [processarTarget, setProcessarTarget] = useState<NfeCapturada | null>(null);
+  const [sincronizando, setSincronizando] = useState(false);
   const highlightRef = useRef<HTMLLIElement | null>(null);
 
   useEffect(() => {
