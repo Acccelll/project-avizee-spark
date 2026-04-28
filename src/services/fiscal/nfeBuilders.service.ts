@@ -65,13 +65,14 @@ interface ParceiroRow {
   numero: string | null;
   cidade: string | null;
   tipo_pessoa: string | null;
+  codigo_ibge_municipio: string | null;
 }
 
 async function lerCliente(id: string): Promise<ParceiroRow> {
   const { data, error } = await supabase
     .from("clientes")
     .select(
-      "nome_razao_social, cpf_cnpj, inscricao_estadual, uf, cep, logradouro, numero, cidade, tipo_pessoa",
+      "nome_razao_social, cpf_cnpj, inscricao_estadual, uf, cep, logradouro, numero, cidade, tipo_pessoa, codigo_ibge_municipio",
     )
     .eq("id", id)
     .maybeSingle();
@@ -88,6 +89,8 @@ async function lerCliente(id: string): Promise<ParceiroRow> {
     numero: (row.numero as string | null) ?? null,
     cidade: (row.cidade as string | null) ?? null,
     tipo_pessoa: (row.tipo_pessoa as string | null) ?? null,
+    codigo_ibge_municipio:
+      (row.codigo_ibge_municipio as string | null) ?? null,
   };
 }
 
@@ -95,7 +98,7 @@ async function lerFornecedor(id: string): Promise<ParceiroRow> {
   const { data, error } = await supabase
     .from("fornecedores")
     .select(
-      "nome_razao_social, cpf_cnpj, inscricao_estadual, uf, cep, logradouro, numero, cidade, tipo_pessoa",
+      "nome_razao_social, cpf_cnpj, inscricao_estadual, uf, cep, logradouro, numero, cidade, tipo_pessoa, codigo_ibge_municipio",
     )
     .eq("id", id)
     .maybeSingle();
@@ -112,6 +115,8 @@ async function lerFornecedor(id: string): Promise<ParceiroRow> {
     numero: (row.numero as string | null) ?? null,
     cidade: (row.cidade as string | null) ?? null,
     tipo_pessoa: (row.tipo_pessoa as string | null) ?? null,
+    codigo_ibge_municipio:
+      (row.codigo_ibge_municipio as string | null) ?? null,
   };
 }
 
