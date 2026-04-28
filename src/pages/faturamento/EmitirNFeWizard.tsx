@@ -1086,8 +1086,8 @@ export default function EmitirNFeWizard() {
       if (ehDevolucao) {
         form.setValue("tipo_operacao", "entrada");
       }
-      form.setValue("nf_referenciada_id" as never, nfRef.id as never);
-      form.setValue("nf_referenciada_chave" as never, (nfRef.chave_acesso ?? "") as never);
+      form.setValue("nf_referenciada_id", nfRef.id);
+      form.setValue("nf_referenciada_chave", nfRef.chave_acesso ?? "");
 
       const cli = (nfRef as { cliente?: { id: string; nome_razao_social: string; uf: string | null; codigo_ibge_municipio: string | null } | null }).cliente;
       if (cli) {
@@ -1211,8 +1211,8 @@ export default function EmitirNFeWizard() {
           status: "pendente",
           status_sefaz: "nao_enviada",
           ordem_venda_id: data.ordem_venda_id ?? null,
-          nf_referenciada_id: (data as unknown as { nf_referenciada_id?: string | null }).nf_referenciada_id ?? null,
-          nf_referenciada_chave: (data as unknown as { nf_referenciada_chave?: string | null }).nf_referenciada_chave ?? null,
+          nf_referenciada_id: data.nf_referenciada_id ?? null,
+          nf_referenciada_chave: data.nf_referenciada_chave ?? null,
         } as never])
         .select("id")
         .single();
