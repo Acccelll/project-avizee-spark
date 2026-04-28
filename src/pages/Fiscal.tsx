@@ -824,6 +824,7 @@ const Fiscal = () => {
           />
         )}
         <CertificadoValidadeAlert />
+        <div data-help-id="fiscal.filtros">
         <AdvancedFilterBar
           searchValue={consultaSearch}
           onSearchChange={setConsultaSearch}
@@ -839,6 +840,7 @@ const Fiscal = () => {
           <MultiSelect options={origemOptions} selected={origemFilters} onChange={setOrigemFilters} placeholder="Origem" className="w-[180px]" />
           <MultiSelect options={statusSefazOptions} selected={statusSefazFilters} onChange={setStatusSefazFilters} placeholder="Status SEFAZ" className="w-[180px]" />
         </AdvancedFilterBar>
+        </div>
 
         {/* Banner mobile tappable: filtra para Pendentes em 1 toque */}
         {isMobile && kpis.pendentes > 0 && (

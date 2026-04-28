@@ -456,6 +456,7 @@ const Pedidos = () => {
           emptyTitle="Nenhum pedido encontrado"
           emptyDescription="Converta um orçamento aprovado em pedido ou ajuste os filtros aplicados."
         />
+        </div>
         </PullToRefresh>
       </ModulePage>
 
