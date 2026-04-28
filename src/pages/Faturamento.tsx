@@ -21,11 +21,13 @@ import {
   AlertTriangle,
   Plus,
   BookOpen,
+  Ban,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { CertificadoValidadeAlert } from "@/components/fiscal/CertificadoValidadeAlert";
 import { BacklogFaturamento } from "@/pages/faturamento/BacklogFaturamento";
+import { InutilizacaoDrawer } from "@/pages/fiscal/components/InutilizacaoDrawer";
 
 /**
  * Módulo /faturamento — Onda 1 do plano "Emissor estilo Sebrae".
@@ -199,6 +201,7 @@ export default function Faturamento() {
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = (searchParams.get("tab") as TabKey) || "painel";
   const [tab, setTab] = useState<TabKey>(VALID_TABS.includes(tabParam) ? tabParam : "painel");
+  const [inutOpen, setInutOpen] = useState(false);
 
   const handleTab = (next: string) => {
     const t = next as TabKey;
@@ -344,6 +347,9 @@ export default function Faturamento() {
                   <Button variant="outline" className="justify-start" onClick={() => navigate("/faturamento/cadastros")}>
                     <BookOpen className="h-4 w-4 mr-2" /> Cadastros (Naturezas/Matriz)
                   </Button>
+                  <Button variant="outline" className="justify-start" onClick={() => setInutOpen(true)}>
+                    <Ban className="h-4 w-4 mr-2" /> Inutilizar numeração
+                  </Button>
                 </CardContent>
               </Card>
             </div>
@@ -387,20 +393,24 @@ export default function Faturamento() {
             </CardHeader>
             <CardContent className="space-y-3">
               <p className="text-sm text-muted-foreground">
-                A consulta avançada com filtros, exportação ZIP de XMLs e ações em
-                lote (CC-e, inutilização, cancelamento) está sendo migrada da tela
-                atual. Por agora, abra a tela Fiscal completa.
+                Operações pós-emissão: CC-e e devolução ficam no detalhe de cada
+                NF autorizada. Inutilização de faixa abre pelo botão abaixo.
               </p>
               <div className="flex flex-wrap gap-2">
                 <Button onClick={() => navigate("/fiscal?tipo=saida")}>Notas de saída</Button>
                 <Button variant="outline" onClick={() => navigate("/fiscal?tipo=entrada")}>
                   Notas de entrada
                 </Button>
+                <Button variant="outline" onClick={() => setInutOpen(true)} className="gap-2">
+                  <Ban className="h-4 w-4" /> Inutilizar numeração
+                </Button>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
+
+      <InutilizacaoDrawer open={inutOpen} onOpenChange={setInutOpen} />
     </ModulePage>
   );
 }

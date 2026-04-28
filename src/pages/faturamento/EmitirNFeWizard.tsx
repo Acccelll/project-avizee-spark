@@ -111,6 +111,9 @@ const wizardSchema = z.object({
   // Vínculo opcional com Ordem de Venda (Onda 4)
   ordem_venda_id: z.string().nullable().optional(),
   ordem_venda_numero: z.string().nullable().optional(),
+  // Vínculo opcional com NF-e referenciada (Onda 5: devolução/complementar)
+  nf_referenciada_id: z.string().nullable().optional(),
+  nf_referenciada_chave: z.string().nullable().optional(),
 });
 type WizardData = z.infer<typeof wizardSchema>;
 
@@ -950,6 +953,15 @@ export default function EmitirNFeWizard() {
     if (ovId && !form.getValues("ordem_venda_id")) {
       void carregarOrdemVenda(ovId);
     }
+    // Onda 5 — pré-preencher a partir de uma NF autorizada (devolução/complementar)
+    const refNFeId = searchParams.get("refNFeId");
+    const finalidadeQS = searchParams.get("finalidade");
+    if (refNFeId) {
+      const fin = (finalidadeQS === "2" || finalidadeQS === "3" || finalidadeQS === "4")
+        ? finalidadeQS as WizardData["finalidade"]
+        : "4";
+      void carregarNFReferenciada(refNFeId, fin);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -1038,6 +1050,103 @@ export default function EmitirNFeWizard() {
     }
   };
 
+  /**
+   * Onda 5 — Carrega uma NF-e autorizada como referência para devolução
+   * (finalidade 4) ou complementar (finalidade 2). Inverte CFOP de saída
+   * (5xxx/6xxx) para entrada (1xxx/2xxx) no caso de devolução.
+   */
+  const carregarNFReferenciada = async (
+    nfId: string,
+    finalidade: WizardData["finalidade"],
+  ) => {
+    try {
+      const { data: nfRef, error } = await supabase
+        .from("notas_fiscais")
+        .select(`
+          id, numero, serie, chave_acesso, observacoes, valor_total, frete_valor,
+          cliente:cliente_id(id, nome_razao_social, uf, codigo_ibge_municipio),
+          itens:notas_fiscais_itens(
+            produto_id, codigo_produto, descricao, ncm, cfop, cst, origem_mercadoria,
+            unidade, quantidade, valor_unitario, valor_total,
+            icms_base, icms_aliquota, icms_valor,
+            ipi_aliquota, ipi_valor, pis_aliquota, pis_valor, cofins_aliquota, cofins_valor
+          )
+        `)
+        .eq("id", nfId)
+        .maybeSingle();
+      if (error) throw error;
+      if (!nfRef) {
+        toast.error("NF de referência não encontrada.");
+        return;
+      }
+
+      const ehDevolucao = finalidade === "4";
+      form.setValue("finalidade", finalidade);
+      // Devolução de venda → entrada na empresa; complementar mantém saída
+      if (ehDevolucao) {
+        form.setValue("tipo_operacao", "entrada");
+      }
+      form.setValue("nf_referenciada_id", nfRef.id);
+      form.setValue("nf_referenciada_chave", nfRef.chave_acesso ?? "");
+
+      const cli = (nfRef as { cliente?: { id: string; nome_razao_social: string; uf: string | null; codigo_ibge_municipio: string | null } | null }).cliente;
+      if (cli) {
+        form.setValue("cliente_id", cli.id);
+        form.setValue("cliente_nome", cli.nome_razao_social);
+        form.setValue("cliente_uf", (cli.uf ?? "").toUpperCase());
+        form.setValue("cliente_municipio_ibge", cli.codigo_ibge_municipio ?? "");
+      }
+
+      const obsRef = `Ref. NF-e nº ${nfRef.numero}/${nfRef.serie} chave ${nfRef.chave_acesso ?? "—"}`;
+      const obsAtual = nfRef.observacoes ?? "";
+      form.setValue("observacoes", obsAtual ? `${obsRef}. ${obsAtual}` : obsRef);
+
+      const inverterCfop = (cfop: string | null): string => {
+        if (!cfop || cfop.length !== 4) return cfop ?? "1202";
+        if (cfop.startsWith("5")) return "1" + cfop.slice(1);
+        if (cfop.startsWith("6")) return "2" + cfop.slice(1);
+        return cfop;
+      };
+
+      const itensRef = (nfRef as { itens?: Array<Record<string, unknown>> }).itens ?? [];
+      const itensWizard = itensRef.map((it) => {
+        const cfopOriginal = (it.cfop as string | null) ?? null;
+        return {
+          produto_id: (it.produto_id as string | null) ?? null,
+          codigo_produto: (it.codigo_produto as string | null) ?? "",
+          descricao: (it.descricao as string | null) ?? "",
+          ncm: ((it.ncm as string | null) ?? "").replace(/\D/g, "").padStart(8, "0").slice(-8),
+          cfop: ehDevolucao ? inverterCfop(cfopOriginal) : (cfopOriginal ?? "5102"),
+          cst: (it.cst as string | null) ?? "00",
+          origem_mercadoria: (it.origem_mercadoria as string | null) ?? "0",
+          unidade: (it.unidade as string | null) ?? "UN",
+          quantidade: Number(it.quantidade ?? 0),
+          valor_unitario: Number(it.valor_unitario ?? 0),
+          valor_total: Number(it.valor_total ?? 0),
+          icms_aliquota: Number(it.icms_aliquota ?? 0),
+          icms_base: Number(it.icms_base ?? 0),
+          icms_valor: Number(it.icms_valor ?? 0),
+          ipi_aliquota: Number(it.ipi_aliquota ?? 0),
+          ipi_valor: Number(it.ipi_valor ?? 0),
+          pis_aliquota: Number(it.pis_aliquota ?? 0),
+          pis_valor: Number(it.pis_valor ?? 0),
+          cofins_aliquota: Number(it.cofins_aliquota ?? 0),
+          cofins_valor: Number(it.cofins_valor ?? 0),
+          matriz_aplicada: false,
+        } as WizardItem;
+      });
+
+      form.setValue("itens", itensWizard);
+      toast.success(
+        ehDevolucao
+          ? `NF ${nfRef.numero} carregada como devolução (CFOP invertido). Revise quantidades e tributos.`
+          : `NF ${nfRef.numero} carregada como complementar.`,
+      );
+    } catch (err) {
+      notifyError(err);
+    }
+  };
+
   const validarStep = async (n: number): Promise<boolean> => {
     const fields: Record<number, (keyof WizardData)[]> = {
       0: ["natureza_codigo", "natureza_descricao", "data_emissao"],
@@ -1102,6 +1211,8 @@ export default function EmitirNFeWizard() {
           status: "pendente",
           status_sefaz: "nao_enviada",
           ordem_venda_id: data.ordem_venda_id ?? null,
+          nf_referenciada_id: data.nf_referenciada_id ?? null,
+          nf_referenciada_chave: data.nf_referenciada_chave ?? null,
         } as never])
         .select("id")
         .single();
