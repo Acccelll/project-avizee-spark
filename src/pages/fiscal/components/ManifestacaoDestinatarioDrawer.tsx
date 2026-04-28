@@ -77,12 +77,6 @@ interface NfeCapturada {
   observacao: string | null;
   xml_importado: boolean;
 }
-  valor_total: number | null;
-  protocolo_autorizacao: string | null;
-  status_manifestacao: string;
-  data_manifestacao: string | null;
-  observacao: string | null;
-}
 
 const STATUS_LABEL: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   sem_manifestacao: { label: "Sem manifestação", variant: "outline" },
