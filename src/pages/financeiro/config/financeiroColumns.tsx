@@ -1,10 +1,8 @@
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/StatusBadge";
 import type { Column } from "@/components/DataTable";
 import { formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { CreditCard } from "lucide-react";
 import type { Lancamento } from "@/types/domain";
 import { displayDescricao } from "@/lib/displayLancamento";
 import { getOrigemLabel } from "@/lib/financeiro";
@@ -27,10 +25,9 @@ interface Params {
   getLancamentoStatus: (l: Lancamento) => string;
   hoje: Date;
   hojeStr: string;
-  onBaixaParcial: (l: Lancamento) => void;
 }
 
-export function buildFinanceiroColumns({ getLancamentoStatus, hoje, hojeStr, onBaixaParcial }: Params) {
+export function buildFinanceiroColumns({ getLancamentoStatus, hoje, hojeStr }: Params) {
   return [
     {
       key: "tipo",
@@ -175,31 +172,6 @@ export function buildFinanceiroColumns({ getLancamentoStatus, hoje, hojeStr, onB
       render: (l: Lancamento) => {
         if (!l.contas_bancarias) return <span className="text-muted-foreground text-xs">—</span>;
         return <span className="text-xs">{l.contas_bancarias.bancos?.nome} - {l.contas_bancarias.descricao}</span>;
-      },
-    },
-    {
-      key: "acoes_rapidas",
-      label: "Ações",
-      sortable: false,
-      render: (l: Lancamento) => {
-        const es = getLancamentoStatus(l);
-        const canBaixa = es !== "pago" && es !== "cancelado";
-        if (!canBaixa) return null;
-
-        return (
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-7 text-xs gap-1 border-primary/30 text-primary hover:bg-primary/5 whitespace-nowrap"
-            aria-label={`Baixar lançamento: ${l.descricao}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              onBaixaParcial(l);
-            }}
-          >
-            <CreditCard className="h-3 w-3" /> Baixar
-          </Button>
-        );
       },
     },
   ] satisfies Column<Lancamento>[];
