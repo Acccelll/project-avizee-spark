@@ -240,6 +240,50 @@ export function SefazAcoesPanel({ nf, buildNFeData, buildDanfeData }: SefazAcoes
 
       <CartaCorrecaoDrawer nf={nf} open={cceOpen} onOpenChange={setCceOpen} />
 
+      {/* Diálogo de envio do DANFE por e-mail (Onda 7) */}
+      <Dialog open={emailOpen} onOpenChange={setEmailOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Enviar DANFE por e-mail</DialogTitle>
+            <DialogDescription>
+              O DANFE será gerado em PDF, salvo em armazenamento privado e o
+              link enviado ao destinatário (válido por 7 dias).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label htmlFor="danfe-email">E-mail do destinatário</Label>
+              <Input
+                id="danfe-email"
+                type="email"
+                value={emailDestino}
+                onChange={(e) => setEmailDestino(e.target.value)}
+                placeholder="financeiro@destinatario.com"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="danfe-mensagem">Mensagem (opcional)</Label>
+              <Textarea
+                id="danfe-mensagem"
+                value={mensagemEmail}
+                onChange={(e) => setMensagemEmail(e.target.value)}
+                placeholder="Segue o DANFE da NF-e referente ao pedido…"
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEmailOpen(false)} disabled={enviandoEmail}>
+              Cancelar
+            </Button>
+            <Button onClick={handleEnviarEmail} disabled={enviandoEmail || !emailDestino.includes("@")}>
+              {enviandoEmail ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
+              Enviar DANFE
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
         <DialogContent>
           <DialogHeader>
