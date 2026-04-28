@@ -158,6 +158,7 @@ export default function Logistica() {
   const [remSearchTerm, setRemSearchTerm] = useState("");
   const [remStatusFilters, setRemStatusFilters] = useState<string[]>([]);
   const [remTranspFilters, setRemTranspFilters] = useState<string[]>([]);
+  const [etiquetasMap, setEtiquetasMap] = useState<Record<string, RemessaEtiqueta>>({});
 
   const [clientes, setClientes] = useState<Array<{ id: string; nome_razao_social: string }>>([]);
   const [transportadorasLookup, setTransportadorasLookup] = useState<Array<{ id: string; nome_razao_social: string }>>([]);
