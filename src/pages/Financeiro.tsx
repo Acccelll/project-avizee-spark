@@ -330,6 +330,25 @@ const Financeiro = () => {
                 setSelected(l);
                 setDrawerOpen(true);
               }}
+              rowExtraActions={(l) => {
+                const es = getLancamentoStatus(l);
+                if (es === "pago" || es === "cancelado") return null;
+                return (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs gap-1 border-primary/30 text-primary hover:bg-primary/5 whitespace-nowrap"
+                    aria-label={`Baixar lançamento: ${l.descricao}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setBaixaParcialTarget(l);
+                      setBaixaParcialOpen(true);
+                    }}
+                  >
+                    <CreditCard className="h-3 w-3" /> Baixar
+                  </Button>
+                );
+              }}
               mobileStatusKey="status"
               mobileIdentifierKey="descricao"
               mobilePrimaryAction={(l) => {
