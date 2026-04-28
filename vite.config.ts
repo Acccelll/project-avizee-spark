@@ -52,7 +52,11 @@ export default defineConfig(({ mode }) => {
     // produção — `devOptions.enabled = false` mantém o dev sem service worker
     // para evitar conflitos com HMR.
     VitePWA({
-      registerType: "prompt",
+      // `autoUpdate` é crítico para PWA instalado em mobile: sem isto, um
+      // bundle JS antigo (com envs vazias após mudança no .env, p.ex.) ficava
+      // servido eternamente do precache porque o usuário nunca via o prompt
+      // de "atualizar". Agora o SW novo assume sozinho na próxima navegação.
+      registerType: "autoUpdate",
       injectRegister: false, // registramos manualmente em src/lib/pwa.ts
       includeAssets: ["favicon.ico", "robots.txt", "images/pwa-192.png", "images/pwa-512.png"],
       manifest: {
@@ -75,6 +79,13 @@ export default defineConfig(({ mode }) => {
       workbox: {
         globPatterns: ["**/*.{js,css,html,svg,png,ico,woff2}"],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+        // Remove precaches de versões antigas e ativa o SW novo imediatamente.
+        // Sem isto, dispositivos ficavam presos a um bundle JS antigo onde
+        // `import.meta.env.VITE_SUPABASE_URL` foi compilado como string vazia,
+        // disparando "serviço de autenticação não foi carregado" no /login.
+        cleanupOutdatedCaches: true,
+        skipWaiting: true,
+        clientsClaim: true,
         // Não interceptar Supabase realtime/auth nem edge functions — devem
         // sempre ir à rede para evitar payloads obsoletos em mutations.
         navigateFallbackDenylist: [/^\/api\//, /\/functions\/v1\//, /\/auth\/v1\//, /\/realtime\//],
