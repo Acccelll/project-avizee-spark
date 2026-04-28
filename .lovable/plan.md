@@ -179,3 +179,33 @@ Arquivos:
 
 Próxima frente sugerida: **Notificações proativas** (in-app badges puxando
 da fila pgmq + email_send_log) ou **Multi-tenant `empresa_id` + RLS**.
+
+---
+
+## Onda — Notificações proativas no sidebar (28/abr/2026)
+
+Estende o pipeline já existente (`useSidebarAlerts` + `useSidebarBadges` +
+canal singleton `sidebar-alerts-shared`) com duas novas fontes operacionais
+críticas:
+
+- **Fiscal — NF rejeitada**: contagem de `notas_fiscais` ativos com
+  `status = 'rejeitada'` aparece no módulo `fiscal` e na rota `/fiscal`
+  com tom `danger`. Realtime cobre via novo listener em `notas_fiscais`.
+- **Administração — DLQ de e-mail**: soma de mensagens nas filas
+  `*_dlq` via RPC `email_queue_metrics()`. Como a RPC é admin-only, o
+  service só invoca quando `useIsAdmin()` retorna true; para os demais o
+  badge fica em 0 e não polui a UI.
+
+QueryKey passa a incluir `{ isAdmin }` para invalidar quando a role muda.
+Tons preservam o contrato (`danger`/`warning`/`info`). Memória nova:
+`features/notificacoes-proativas-sidebar.md`.
+
+Arquivos:
+- `src/services/sidebarAlerts.service.ts` (novas contagens)
+- `src/hooks/useSidebarAlerts.ts` (admin gate + queryKey)
+- `src/hooks/useSidebarBadges.ts` (mapeamento fiscal/admin)
+- `src/lib/realtime/alertsChannel.ts` (escuta `notas_fiscais`)
+
+Próxima frente sugerida: **Multi-tenant `empresa_id` + RLS** (alto risco,
+roteiro pronto em `rls-single-tenant.md`) ou **Webhooks de saída** para
+integrações externas.
