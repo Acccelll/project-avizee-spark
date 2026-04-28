@@ -160,9 +160,9 @@ export async function getEmpresaConfigPrincipal() {
 }
 
 /**
- * Salva uma NF (insert ou update) e substitui seus itens em uma única operação.
- * Não é atômica server-side (idealmente migrar para RPC), mas centraliza o I/O
- * que estava espalhado pela página `Fiscal.tsx`.
+ * Salva uma NF (insert ou update) e substitui seus itens em UMA transação
+ * server-side via RPC `salvar_nota_fiscal`. Atômico: se qualquer passo
+ * (cabeçalho, delete de itens, insert de itens) falhar, nada é persistido.
  */
 export async function upsertNotaFiscalComItens(params: {
   mode: "create" | "edit";
@@ -171,31 +171,24 @@ export async function upsertNotaFiscalComItens(params: {
   itemsBuilder: (nfId: string) => NotaFiscalItemInsert[];
 }): Promise<string> {
   const { mode, nfId, payload, itemsBuilder } = params;
-  let resolvedId = nfId;
-  if (mode === "create") {
-    const { data, error } = await supabase
-      .from("notas_fiscais")
-      .insert(payload as NotaFiscalInsert)
-      .select()
-      .single();
-    if (error) throw error;
-    resolvedId = data.id;
-  } else {
-    if (!nfId) throw new Error("nfId obrigatório para edit");
-    await Promise.all([
-      supabase.from("notas_fiscais").update(payload as NotaFiscalUpdate).eq("id", nfId),
-      supabase.from("notas_fiscais_itens").delete().eq("nota_fiscal_id", nfId),
-    ]);
+  if (mode === "edit" && !nfId) {
+    throw new Error("nfId obrigatório para edit");
   }
-  if (!resolvedId) throw new Error("Falha ao resolver id da NF");
-  const itens = itemsBuilder(resolvedId);
-  if (itens.length > 0) {
-    const { error: insErr } = await supabase
-      .from("notas_fiscais_itens")
-      .insert(itens);
-    if (insErr) throw insErr;
-  }
-  return resolvedId;
+  // itemsBuilder precisa do id; em create geramos um placeholder e depois
+  // re-mapeamos para o id real devolvido pela RPC.
+  const placeholderId = nfId ?? "00000000-0000-0000-0000-000000000000";
+  const itensRaw = itemsBuilder(placeholderId);
+  // Remove o nota_fiscal_id de cada item — a RPC injeta o id correto após
+  // resolver insert/update do cabeçalho.
+  const itensPayload = itensRaw.map(({ nota_fiscal_id: _ignored, ...rest }) => rest);
+  const { data, error } = await supabase.rpc("salvar_nota_fiscal", {
+    p_nf_id: mode === "edit" ? (nfId as string) : null,
+    p_payload: payload as unknown as Database["public"]["Functions"]["salvar_nota_fiscal"]["Args"]["p_payload"],
+    p_itens: itensPayload as unknown as Database["public"]["Functions"]["salvar_nota_fiscal"]["Args"]["p_itens"],
+  });
+  if (error) throw error;
+  if (!data) throw new Error("RPC salvar_nota_fiscal não retornou id");
+  return data as string;
 }
 
 // ── Empresa Config (Configuração Fiscal) ───────────────────────────────────────
