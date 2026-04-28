@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { Tables } from "@/integrations/supabase/types";
+import { fetchProdutoDetalhes, deleteProduto } from "@/services/produtos.service";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Package, AlertTriangle, Archive, FileText, Edit, Trash2, ShoppingCart, Layers, DollarSign } from "lucide-react";
@@ -60,43 +60,9 @@ export function ProdutoView({ id }: Props) {
   const invalidate = useInvalidateAfterMutation();
 
   const { data, loading, error } = useDetailFetch<ProdutoDetail>(id, async (pId, signal) => {
-    const { data: p, error: pError } = await supabase
-      .from("produtos")
-      .select("*")
-      .eq("id", pId)
-      .abortSignal(signal)
-      .maybeSingle();
-    if (pError) throw pError;
-    if (!p) return null;
-
-    // A4 fix: settled em vez de all — falha em uma query não silencia as outras.
-    const [comprasRes, vendasRes, compRes, movRes, fornRes, grupoRes] = await Promise.allSettled([
-      supabase.from("notas_fiscais_itens")
-        .select("quantidade, valor_unitario, notas_fiscais!inner(id, numero, tipo, data_emissao, fornecedores(id, nome_razao_social))")
-        .eq("produto_id", p.id)
-        .in("notas_fiscais.tipo", ["entrada", "compra"])
-        .order("data_emissao", { foreignTable: "notas_fiscais", ascending: false })
-        .abortSignal(signal).limit(30),
-      supabase.from("notas_fiscais_itens")
-        .select("quantidade, valor_unitario, notas_fiscais!inner(id, numero, tipo, data_emissao, clientes(id, nome_razao_social))")
-        .eq("produto_id", p.id)
-        .in("notas_fiscais.tipo", ["saida", "venda"])
-        .order("data_emissao", { foreignTable: "notas_fiscais", ascending: false })
-        .abortSignal(signal).limit(30),
-      p.eh_composto ? supabase.from("produto_composicoes")
-        .select("quantidade, ordem, produtos:produto_filho_id(id, nome, sku, preco_custo)")
-        .eq("produto_pai_id", p.id).abortSignal(signal).order("ordem")
-        : Promise.resolve({ data: [] }),
-      supabase.from("estoque_movimentos")
-        .select("tipo, quantidade, motivo, created_at, saldo_anterior, saldo_atual")
-        .eq("produto_id", p.id).abortSignal(signal).order("created_at", { ascending: false }).limit(20),
-      supabase.from("produtos_fornecedores")
-        .select("preco_compra, lead_time_dias, referencia_fornecedor, eh_principal, unidade_fornecedor, fornecedores:fornecedor_id(id, nome_razao_social)")
-        .eq("produto_id", p.id).abortSignal(signal),
-      p.grupo_id
-        ? supabase.from("grupos_produto").select("nome").eq("id", p.grupo_id).abortSignal(signal).maybeSingle()
-        : Promise.resolve({ data: null }),
-    ]);
+    const res = await fetchProdutoDetalhes(pId, signal);
+    if (!res) return null;
+    const { produto: p, comprasRes, vendasRes, compRes, movRes, fornRes, grupoRes } = res;
 
     const pickData = <T,>(r: PromiseSettledResult<unknown>, fallback: T): T => {
       if (r.status !== "fulfilled") return fallback;
@@ -629,8 +595,7 @@ export function ProdutoView({ id }: Props) {
         onClose={() => setDeleteConfirmOpen(false)}
         onConfirm={async () => {
           try {
-            const { error } = await supabase.from("produtos").delete().eq("id", id);
-            if (error) throw error;
+            await deleteProduto(id);
             toast.success("Produto excluído com sucesso.");
             clearStack();
           } catch (err) {
