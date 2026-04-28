@@ -36,6 +36,7 @@ const FaturamentoCadastros = lazy(() => import("./pages/faturamento/FaturamentoC
 const EmitirNFeWizard = lazy(() => import("./pages/faturamento/EmitirNFeWizard"));
 const FiscalDetail = lazy(() => import("./pages/FiscalDetail"));
 const NotaFiscalForm = lazy(() => import("./pages/fiscal/NotaFiscalForm"));
+const DistDFeHistorico = lazy(() => import("./pages/fiscal/DistDFeHistorico"));
 const Financeiro = lazy(() => import("./pages/Financeiro"));
 const ContasBancarias = lazy(() => import("./pages/ContasBancarias"));
 const FluxoCaixa = lazy(() => import("./pages/FluxoCaixa"));
@@ -172,6 +173,7 @@ const App = () => (
                       <Route path="/fiscal/novo" element={<PermissionRoute resource="faturamento_fiscal" action="editar"><LazyPage><NotaFiscalForm /></LazyPage></PermissionRoute>} />
                       <Route path="/fiscal/:id/editar" element={<PermissionRoute resource="faturamento_fiscal" action="editar"><LazyPage><NotaFiscalForm /></LazyPage></PermissionRoute>} />
                       <Route path="/fiscal/:id" element={<PermissionRoute resource="faturamento_fiscal"><LazyPage><FiscalDetail /></LazyPage></PermissionRoute>} />
+                      <Route path="/fiscal/distdfe-historico" element={<PermissionRoute resource="faturamento_fiscal"><LazyPage><DistDFeHistorico /></LazyPage></PermissionRoute>} />
                       <Route path="/financeiro" element={<PermissionRoute resource="financeiro"><LazyPage><Financeiro /></LazyPage></PermissionRoute>} />
                       <Route path="/financeiro/:id" element={<PermissionRoute resource="financeiro"><LazyPage><Financeiro /></LazyPage></PermissionRoute>} />
                       <Route path="/contas-bancarias" element={<PermissionRoute resource="financeiro"><LazyPage><ContasBancarias /></LazyPage></PermissionRoute>} />
