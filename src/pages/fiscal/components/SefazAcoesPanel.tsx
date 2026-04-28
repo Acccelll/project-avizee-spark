@@ -63,6 +63,8 @@ export function SefazAcoesPanel({ nf, buildNFeData, buildDanfeData }: SefazAcoes
   const podeConsultar = !!nf.chave_acesso;
   const podeCancelar = nf.status_sefaz === "autorizada";
   const podeDanfe = !!nf.chave_acesso;
+  const podeEnviarEmail =
+    nf.status_sefaz === "autorizada" && !!nf.chave_acesso && !!buildDanfeData;
   const podeCce = nf.status_sefaz === "autorizada" && !!nf.chave_acesso;
   const podeDevolucao = nf.status_sefaz === "autorizada";
 
