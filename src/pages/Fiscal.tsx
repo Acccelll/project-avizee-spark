@@ -236,11 +236,7 @@ const Fiscal = () => {
     if (autoOpened || !pedidoCompraOriginId || tipoOriginParam !== "entrada") return;
     let cancelled = false;
     (async () => {
-      const { data: pc } = await supabase
-        .from("pedidos_compra")
-        .select("numero, fornecedor_id")
-        .eq("id", pedidoCompraOriginId)
-        .maybeSingle();
+      const pc = await getPedidoCompraResumo(pedidoCompraOriginId).catch(() => null);
       if (cancelled) return;
       setOriginPedidoNumero(pc?.numero ?? null);
       setMode("create");
