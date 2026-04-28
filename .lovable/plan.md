@@ -218,3 +218,10 @@ Sugiro a sequência **Onda 0 → Onda 1 → Onda 3** (fundação + casca + wizar
   - `nfeEntradaConfig` em `src/config/relatoriosConfig.ts` (categoria `fiscal_faturamento`, ícone Receipt): colunas Emissão/Nº/Série/Fornecedor/CNPJ/Valor/ICMS/IPI/Status/Processada com `footerTotal` em valores; filtros de fornecedor e status (`sem_manifestacao|ciencia|confirmada|desconhecida|nao_realizada`); drill-down para `/fornecedores` e `/faturamento`
   - `reportRuntimeSemantics.nfe_entrada` (statusField='status', dateSortField='emissao', valueSortField='valor')
   - Dispatcher `carregarRelatorio` roteia `case 'nfe_entrada'`
+- ✅ **Onda 13** — DistDF-e (download automático de NF-e via SEFAZ AN, mTLS):
+  - Tabela `nfe_distdfe_sync` (cnpj+ambiente, ultimo_nsu, max_nsu, ultima_sync_at, cStat/xMotivo, qtd_docs) com `chk_distdfe_ambiente`, `chk_distdfe_cnpj_len` e UNIQUE(cnpj,ambiente); RLS: select autenticados, insert/update admin+financeiro, delete admin
+  - Coluna `nfe_distribuicao.nsu` para correlacionar NF-e com NSU de origem
+  - Edge function `sefaz-distdfe` (action `consultar-nsu`): lê PFX do storage `dbavizee/certificados/empresa.pfx` + senha `CERTIFICADO_PFX_SENHA`, converte para PEM via node-forge, cria `Deno.createHttpClient({cert,key})` para mTLS, monta `<distDFeInt>` (cUFAutor=91, distNSU/ultNSU 15 dígitos), envia SOAP 1.2 ao Ambiente Nacional (prod/hom), parseia `<retDistDFeInt>` e descomprime cada `<docZip>` (gzip+base64) via fflate, extrai chave/CNPJ/valor/data/numero/serie de cada documento
+  - Service `distdfe.service.ts` (`sincronizarDistDFe(ambiente)`): lê último NSU de `nfe_distdfe_sync`, invoca a edge function, faz `upsert` em `nfe_distribuicao` por `chave_acesso` (idempotente, apenas docs com chave 44 dígitos), atualiza `nfe_distdfe_sync` (cnpj+ambiente) com novo NSU/contagem
+  - UI `ManifestacaoDestinatarioDrawer`: botão primário "Sincronizar SEFAZ (DistDF-e)" no topo do drawer com toast de resultado (`X nova(s), Y existente(s), NSU u/m`), invalida `nfe-distribuicao`
+  - Reaproveitamento total do A1 + senha já cadastrados na Onda 0 (sem novos secrets)
