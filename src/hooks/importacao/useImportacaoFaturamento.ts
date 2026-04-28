@@ -1,6 +1,5 @@
 import { useState, useCallback } from "react";
 import * as XLSX from "@/lib/xlsx-compat";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { validateFaturamentoImport } from "@/lib/importacao/validators";
 import { FIELD_ALIASES, FATURAMENTO_FIELD_ALIASES } from "@/lib/importacao/aliases";
@@ -14,6 +13,17 @@ import {
   type IdentificadorLegacyLookup,
 } from "@/lib/importacao/produtoMatch";
 import { Mapping } from "./types";
+import {
+  listClientesLookup,
+  listProdutosLookup,
+  listProdutoIdentificadoresLegacy,
+  findNotasFiscaisExistentes,
+  createImportacaoLote,
+  insertStagingChunks,
+  logImportacao,
+  consolidarFaturamento,
+  cancelarLote,
+} from "@/services/importacao.service";
 
 export interface GroupedNF {
   numero: string;
@@ -108,24 +118,20 @@ export function useImportacaoFaturamento() {
     setIsProcessing(true);
 
     try {
-      const { data: clientes } = await supabase
-        .from("clientes")
-        .select("id, nome_razao_social, cpf_cnpj");
+      const clientes = await listClientesLookup();
       const clienteByCpf = new Map(
-        clientes?.filter((c: any) => c.cpf_cnpj).map((c: any) => [String(c.cpf_cnpj).replace(/\D/g, ""), c.id]) || []
+        clientes.filter(c => c.cpf_cnpj).map(c => [String(c.cpf_cnpj).replace(/\D/g, ""), c.id])
       );
       const clienteByName = new Map(
-        clientes?.map((c: any) => [String(c.nome_razao_social).toUpperCase(), c.id]) || []
+        clientes.map(c => [String(c.nome_razao_social).toUpperCase(), c.id])
       );
 
-      const { data: produtosBanco } = await supabase
-        .from("produtos")
-        .select("id, codigo_interno, codigo_legado, nome");
+      const produtosBanco = await listProdutosLookup();
       const prodByLegado = new Map(
-        produtosBanco?.filter((p: any) => p.codigo_legado).map((p: any) => [p.codigo_legado, p.id]) || []
+        produtosBanco.filter(p => p.codigo_legado).map(p => [p.codigo_legado, p.id])
       );
       const prodByInterno = new Map(
-        produtosBanco?.filter((p: any) => p.codigo_interno).map((p: any) => [p.codigo_interno, p.id]) || []
+        produtosBanco.filter(p => p.codigo_interno).map(p => [p.codigo_interno, p.id])
       );
 
       // Aba Produtos do mesmo workbook (1031 itens com COD./GRUPO/Nome/Custo).
@@ -134,7 +140,7 @@ export function useImportacaoFaturamento() {
       // mas casam por nome aproximado de produto.
       const prodAuxByCodigo = new Map<string, { nome: string; grupo?: string }>();
       const prodIdByNomeNorm = new Map<string, string>();
-      (produtosBanco ?? []).forEach((p: any) => {
+      produtosBanco.forEach((p) => {
         if (p.nome) prodIdByNomeNorm.set(String(p.nome).toUpperCase().trim(), p.id);
       });
       if (workbook) {
@@ -240,20 +246,10 @@ export function useImportacaoFaturamento() {
       const todas = Array.from(grouped.values());
       const chaves = todas.map(n => n.chave_acesso).filter(Boolean) as string[];
       const numeros = todas.map(n => n.numero);
-      const [{ data: porChave }, { data: porNumero }] = await Promise.all([
-        chaves.length
-          ? supabase.from("notas_fiscais").select("chave_acesso").in("chave_acesso", chaves)
-          : Promise.resolve({ data: [] as { chave_acesso: string | null }[] }),
-        numeros.length
-          ? supabase.from("notas_fiscais")
-              .select("numero, serie, data_emissao")
-              .eq("origem", "importacao_historica")
-              .in("numero", numeros)
-          : Promise.resolve({ data: [] as { numero: string; serie: string | null; data_emissao: string | null }[] }),
-      ]);
-      const chavesExistentes = new Set((porChave ?? []).map(r => r.chave_acesso).filter(Boolean) as string[]);
+      const { porChave, porNumero } = await findNotasFiscaisExistentes(chaves, numeros);
+      const chavesExistentes = new Set(porChave.map(r => r.chave_acesso).filter(Boolean) as string[]);
       const triplas = new Set(
-        (porNumero ?? []).map(r => `${r.numero}|${String(r.serie ?? "1")}|${String(r.data_emissao ?? "").slice(0, 10)}`)
+        porNumero.map(r => `${r.numero}|${String(r.serie ?? "1")}|${String(r.data_emissao ?? "").slice(0, 10)}`)
       );
       grouped.forEach(nf => {
         const chaveOk = nf.chave_acesso && chavesExistentes.has(nf.chave_acesso);
@@ -267,19 +263,16 @@ export function useImportacaoFaturamento() {
       setPreviewData(Array.from(grouped.values()));
 
       // Contagem prevista de match — espelha pipeline da RPC (sem persistir).
-      const { data: identificadores } = await supabase
-        .from("produto_identificadores_legacy")
-        .select("produto_id, codigo_legacy, descricao_normalizada")
-        .eq("ativo", true);
+      const identificadores = await listProdutoIdentificadoresLegacy();
 
-      const produtosLookup: ProdutoLookup[] = (produtosBanco ?? []).map((p: any) => ({
+      const produtosLookup: ProdutoLookup[] = produtosBanco.map((p) => ({
         id: p.id,
         codigo_interno: p.codigo_interno,
         codigo_legado: p.codigo_legado,
         nome: p.nome,
         ativo: true,
       }));
-      const identsLookup: IdentificadorLegacyLookup[] = (identificadores ?? []) as IdentificadorLegacyLookup[];
+      const identsLookup: IdentificadorLegacyLookup[] = identificadores as IdentificadorLegacyLookup[];
 
       const itensFlat: Array<{ codigo: string | null; descricao: string | null }> = [];
       grouped.forEach((nf) => {
@@ -308,7 +301,6 @@ export function useImportacaoFaturamento() {
     setIsProcessing(true);
 
     try {
-      const { data: user } = await supabase.auth.getUser();
       const validos = previewData.filter(i => i.status === "valido");
       const errosCount = previewData.length - validos.length;
       const totalItens = validos.reduce((s, nf) => s + nf.itens_count, 0);
@@ -317,37 +309,26 @@ export function useImportacaoFaturamento() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const comProduto = validos.reduce((s, nf) => s + nf.itens.filter((i: any) => i.produto_id).length, 0);
 
-      const { data: lote, error: loteError } = await supabase
-        .from("importacao_lotes")
-        .insert({
-          tipo: "faturamento",
-          arquivo_nome: file?.name,
-          status: "staging",
-          fase: "faturamento",
-          total_registros: rawRows.length,
-          registros_sucesso: 0,
-          registros_erro: errosCount,
-          usuario_id: user?.user?.id,
-          resumo: {
-            nfs: validos.length,
-            itens: totalItens,
-            valor_total: totalValor,
-            pct_com_cliente: validos.length > 0 ? Math.round((comCliente / validos.length) * 100) : 0,
-            pct_com_produto: totalItens > 0 ? Math.round((comProduto / totalItens) * 100) : 0,
-          },
-        })
-        .select()
-        .single();
-
-      if (loteError) throw loteError;
-      const currentLoteId = lote.id;
+      const currentLoteId = await createImportacaoLote({
+        tipo: "faturamento",
+        arquivo_nome: file?.name,
+        fase: "faturamento",
+        total_registros: rawRows.length,
+        registros_erro: errosCount,
+        resumo: {
+          nfs: validos.length,
+          itens: totalItens,
+          valor_total: totalValor,
+          pct_com_cliente: validos.length > 0 ? Math.round((comCliente / validos.length) * 100) : 0,
+          pct_com_produto: totalItens > 0 ? Math.round((comProduto / totalItens) * 100) : 0,
+        },
+      });
       setLoteId(currentLoteId);
 
       // Write each NF as a single staging row with itens embedded
-      if (validos.length > 0) {
-        const stagingRows = validos.map(nf => ({
-          lote_id: currentLoteId,
-          dados: {
+      const stagingRows = validos.map(nf => ({
+        lote_id: currentLoteId,
+        dados: {
             numero: nf.numero,
             serie: nf.serie || "1",
             data_emissao: nf.data_emissao,
@@ -379,41 +360,28 @@ export function useImportacaoFaturamento() {
               pis_valor: item.pis_valor || 0,
               cofins_valor: item.cofins_valor || 0,
             })),
-          },
-          status: "pendente",
-        }));
-
-        for (let i = 0; i < stagingRows.length; i += 200) {
-          const batch = stagingRows.slice(i, i + 200);
-          const { error: stgError } = await supabase.from("stg_faturamento").insert(batch);
-          if (stgError) throw stgError;
-        }
-      }
-
-      await supabase.from("importacao_logs").insert({
-        lote_id: currentLoteId,
-        nivel: "info",
-        mensagem: `Staging de faturamento: ${validos.length} NFs, ${totalItens} itens, valor total R$ ${totalValor.toFixed(2)}.`,
-      });
+        },
+        status: "pendente" as const,
+      }));
+      await insertStagingChunks("stg_faturamento", stagingRows, 200);
+      await logImportacao(
+        currentLoteId,
+        "info",
+        `Staging de faturamento: ${validos.length} NFs, ${totalItens} itens, valor total R$ ${totalValor.toFixed(2)}.`,
+      );
 
       // Consolida automaticamente — sem etapa manual de confirmação
-      const { data: consolidData, error: consolidError } = await supabase.rpc(
-        "consolidar_lote_faturamento",
-        { p_lote_id: currentLoteId }
-      );
-      if (consolidError) throw consolidError;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const result = consolidData as any;
+      const result = await consolidarFaturamento(currentLoteId);
       if (result?.erro) {
         toast.error(`Erro na consolidação: ${result.erro}`);
         return currentLoteId;
       }
 
-      await supabase.from("importacao_logs").insert({
-        lote_id: currentLoteId,
-        nivel: "info",
-        mensagem: `Consolidação automática: ${result?.nfs_inseridas ?? 0} NFs, ${result?.itens_inseridos ?? 0} itens, ${result?.erros ?? 0} erros.`,
-      });
+      await logImportacao(
+        currentLoteId,
+        "info",
+        `Consolidação automática: ${result?.nfs_inseridas ?? 0} NFs, ${result?.itens_inseridos ?? 0} itens, ${result?.erros ?? 0} erros.`,
+      );
 
       toast.success(
         `Importação concluída: ${result?.nfs_inseridas ?? validos.length} NFs, ${result?.itens_inseridos ?? totalItens} itens. ` +
@@ -439,8 +407,7 @@ export function useImportacaoFaturamento() {
     const targetLoteId = loteIdParam || loteId;
     if (!targetLoteId) return;
     try {
-      await supabase.from("stg_faturamento").delete().eq("lote_id", targetLoteId);
-      await supabase.from("importacao_lotes").update({ status: "cancelado" }).eq("id", targetLoteId);
+      await cancelarLote(targetLoteId, "stg_faturamento");
       toast.info("Lote cancelado.");
     } catch (err: unknown) {
       toast.error(`Erro ao cancelar: ${err instanceof Error ? err.message : String(err)}`);

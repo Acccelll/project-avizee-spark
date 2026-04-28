@@ -1,9 +1,16 @@
 
 import { useState, useCallback } from "react";
 import JSZip from "jszip";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { parseNFeXml, NFeData } from "@/lib/nfeXmlParser";
+import {
+  createImportacaoLote,
+  updateLoteStatus,
+  logImportacaoBatch,
+  listFornecedoresParaXml,
+  findNotasFiscaisPorChaves,
+  inserirCompraXml,
+} from "@/services/importacao.service";
 
 export interface XmlImportItem {
   fileName: string;
@@ -115,12 +122,8 @@ export function useImportacaoXml() {
         .map(r => r.data!.chaveAcesso);
 
       if (chaves.length > 0) {
-        const { data: existentes } = await supabase
-          .from("notas_fiscais")
-          .select("chave_acesso")
-          .in("chave_acesso", chaves);
-
-        const existSet = new Set(existentes?.map(e => e.chave_acesso));
+        const existentes = await findNotasFiscaisPorChaves(chaves);
+        const existSet = new Set(existentes.map(e => e.chave_acesso));
         results.forEach(r => {
           if (r.data?.chaveAcesso && existSet.has(r.data.chaveAcesso)) {
             r.status = "duplicado";
@@ -148,31 +151,22 @@ export function useImportacaoXml() {
     setIsProcessing(true);
 
     try {
-      const { data: user } = await supabase.auth.getUser();
       const validos = xmlData.filter(i => i.status === "valido");
       const errosCount = xmlData.length - validos.length;
 
-      const { data: lote, error: loteError } = await supabase
-        .from("importacao_lotes")
-        .insert({
-          tipo: "compras_xml",
-          arquivo_nome: files.length === 1 ? files[0].name : `${files.length} arquivos`,
-          status: "processando",
-          total_registros: xmlData.length,
-          registros_sucesso: validos.length,
-          registros_erro: errosCount,
-          usuario_id: user?.user?.id,
-        })
-        .select()
-        .single();
-
-      if (loteError) throw loteError;
-      const currentLoteId = lote.id;
+      const currentLoteId = await createImportacaoLote({
+        tipo: "compras_xml",
+        arquivo_nome: files.length === 1 ? files[0].name : `${files.length} arquivos`,
+        status: "processando",
+        total_registros: xmlData.length,
+        registros_sucesso: validos.length,
+        registros_erro: errosCount,
+      });
       setLoteId(currentLoteId);
 
       // Import valid XMLs directly into compras
-      const { data: vendors } = await supabase.from("fornecedores").select("id, cpf_cnpj");
-      const vendorMap = new Map(vendors?.map(v => [v.cpf_cnpj?.replace(/\D/g, ""), v.id]));
+      const vendors = await listFornecedoresParaXml();
+      const vendorMap = new Map(vendors.map(v => [v.cpf_cnpj?.replace(/\D/g, ""), v.id]));
 
       const itemsComDados = validos.filter((i): i is XmlImportItem & { data: NFeData } => i.data !== null);
 
@@ -182,7 +176,7 @@ export function useImportacaoXml() {
 
       // Batch-insert all "no vendor" error logs in one round-trip
       if (semFornecedor.length > 0) {
-        await supabase.from("importacao_logs").insert(
+        await logImportacaoBatch(
           semFornecedor.map(item => ({
             lote_id: currentLoteId,
             nivel: "error",
@@ -196,8 +190,8 @@ export function useImportacaoXml() {
         comFornecedor.map(item => {
           const nfe = item.data;
           const fornecedorId = vendorMap.get(nfe.emitente.cnpj.replace(/\D/g, ""));
-          return supabase.from("compras").insert({
-            fornecedor_id: fornecedorId,
+          return inserirCompraXml({
+            fornecedor_id: fornecedorId!,
             numero: nfe.numero,
             data_compra: nfe.dataEmissao,
             valor_total: nfe.valorTotal,
@@ -210,7 +204,7 @@ export function useImportacaoXml() {
       // Batch-insert error logs for any failed inserts
       const failures = insertResults.filter(r => r.error);
       if (failures.length > 0) {
-        await supabase.from("importacao_logs").insert(
+        await logImportacaoBatch(
           failures.map(({ nfe, error: cError }) => ({
             lote_id: currentLoteId,
             nivel: "error",
@@ -221,13 +215,9 @@ export function useImportacaoXml() {
 
       const importedCount = insertResults.filter(r => !r.error).length;
 
-      await supabase
-        .from("importacao_lotes")
-        .update({
-          status: errosCount > 0 ? "parcial" : "concluido",
-          registros_sucesso: importedCount,
-        })
-        .eq("id", currentLoteId);
+      await updateLoteStatus(currentLoteId, errosCount > 0 ? "parcial" : "concluido", {
+        registros_sucesso: importedCount,
+      });
 
       toast.success(`${importedCount} notas XML importadas.`);
       setIsProcessing(false);

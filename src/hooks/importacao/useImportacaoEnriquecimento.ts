@@ -1,11 +1,17 @@
 import { useState, useCallback } from "react";
 import * as XLSX from "@/lib/xlsx-compat";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { FIELD_ALIASES } from "@/lib/importacao/aliases";
 import { normalizeText, normalizeCpfCnpj } from "@/lib/importacao/normalizers";
 import { parseDecimalFlexible } from "@/lib/importacao/parsers";
 import { Mapping } from "./types";
+import {
+  createImportacaoLote,
+  insertStagingChunks,
+  logImportacao,
+  consolidarEnriquecimento,
+  cancelarLote,
+} from "@/services/importacao.service";
 
 export type EnrichmentType =
   | "produtos_fornecedores"
@@ -181,52 +187,34 @@ export function useImportacaoEnriquecimento() {
     if (previewData.length === 0) return;
     setIsProcessing(true);
     try {
-      const { data: user } = await supabase.auth.getUser();
       const validos = previewData.filter(i => i._valid);
       const errosCount = previewData.length - validos.length;
 
-      const { data: lote, error: loteError } = await supabase
-        .from("importacao_lotes")
-        .insert({
-          tipo: enrichmentType,
-          arquivo_nome: file?.name,
-          status: "staging",
-          fase: "enriquecimento",
-          total_registros: previewData.length,
-          registros_sucesso: 0,
-          registros_erro: errosCount,
-          usuario_id: user?.user?.id,
-          resumo: { validos: validos.length, erros: errosCount },
-        })
-        .select()
-        .single();
-
-      if (loteError) throw loteError;
-      const currentLoteId = lote.id;
+      const currentLoteId = await createImportacaoLote({
+        tipo: enrichmentType,
+        arquivo_nome: file?.name,
+        fase: "enriquecimento",
+        total_registros: previewData.length,
+        registros_erro: errosCount,
+        resumo: { validos: validos.length, erros: errosCount },
+      });
       setLoteId(currentLoteId);
 
       // Store in stg_cadastros with enrichment type marker
-      if (validos.length > 0) {
-        const rows = validos.map(item => {
-          const { _valid, _errors, _warnings, _action, _originalLine, ...rest } = item;
-          return {
-            lote_id: currentLoteId,
-            dados: { ...rest, _tipo_enriquecimento: enrichmentType },
-            status: "pendente",
-          };
-        });
-        for (let i = 0; i < rows.length; i += 500) {
-          const batch = rows.slice(i, i + 500);
-          const { error } = await supabase.from("stg_cadastros").insert(batch);
-          if (error) throw error;
-        }
-      }
-
-      await supabase.from("importacao_logs").insert({
-        lote_id: currentLoteId,
-        nivel: "info",
-        mensagem: `Staging de ${enrichmentType}: ${validos.length} válidos, ${errosCount} erros.`,
+      const rows = validos.map(item => {
+        const { _valid, _errors, _warnings, _action, _originalLine, ...rest } = item;
+        return {
+          lote_id: currentLoteId,
+          dados: { ...rest, _tipo_enriquecimento: enrichmentType },
+          status: "pendente" as const,
+        };
       });
+      await insertStagingChunks("stg_cadastros", rows);
+      await logImportacao(
+        currentLoteId,
+        "info",
+        `Staging de ${enrichmentType}: ${validos.length} válidos, ${errosCount} erros.`,
+      );
 
       toast.success(`${validos.length} registros em staging. Confirme para consolidar.`);
       return currentLoteId;
@@ -243,26 +231,18 @@ export function useImportacaoEnriquecimento() {
     setIsProcessing(true);
 
     try {
-      const { data, error } = await supabase.rpc("consolidar_lote_enriquecimento", {
-        p_lote_id: targetLoteId,
-      });
-
-      if (error) throw error;
-
-      const resultado = data as Record<string, number>;
+      const resultado = await consolidarEnriquecimento(targetLoteId);
       if (resultado.erro) {
         toast.error(String(resultado.erro));
         return false;
       }
-
-      const inseridos = resultado.inseridos || 0;
-      const erros = resultado.erros || 0;
-
-      await supabase.from("importacao_logs").insert({
-        lote_id: targetLoteId,
-        nivel: "info",
-        mensagem: `Consolidação de ${enrichmentType}: ${inseridos} inseridos, ${erros} erros.`,
-      });
+      const inseridos = resultado.inseridos ?? 0;
+      const erros = resultado.erros ?? 0;
+      await logImportacao(
+        targetLoteId,
+        "info",
+        `Consolidação de ${enrichmentType}: ${inseridos} inseridos, ${erros} erros.`,
+      );
 
       if (erros === 0) {
         toast.success(`${inseridos} registros consolidados com sucesso.`);
@@ -285,8 +265,7 @@ export function useImportacaoEnriquecimento() {
     const targetLoteId = loteIdParam || loteId;
     if (!targetLoteId) return;
     try {
-      await supabase.from("stg_cadastros").delete().eq("lote_id", targetLoteId);
-      await supabase.from("importacao_lotes").update({ status: "cancelado" }).eq("id", targetLoteId);
+      await cancelarLote(targetLoteId, "stg_cadastros");
       toast.info("Lote cancelado.");
     } catch (err: unknown) {
       toast.error(`Erro: ${err instanceof Error ? err.message : "Desconhecido"}`);
