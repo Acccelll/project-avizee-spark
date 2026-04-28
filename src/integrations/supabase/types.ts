@@ -3635,15 +3635,21 @@ export type Database = {
           data_emissao: string | null
           data_manifestacao: string | null
           id: string
+          ie_emitente: string | null
+          natureza_operacao: string | null
           nome_emitente: string | null
           numero: string | null
           observacao: string | null
           protocolo_autorizacao: string | null
           serie: string | null
           status_manifestacao: string
+          uf_emitente: string | null
           updated_at: string
           usuario_id: string | null
+          valor_icms: number | null
+          valor_ipi: number | null
           valor_total: number | null
+          xml_importado: boolean
           xml_nfe: string | null
         }
         Insert: {
@@ -3653,15 +3659,21 @@ export type Database = {
           data_emissao?: string | null
           data_manifestacao?: string | null
           id?: string
+          ie_emitente?: string | null
+          natureza_operacao?: string | null
           nome_emitente?: string | null
           numero?: string | null
           observacao?: string | null
           protocolo_autorizacao?: string | null
           serie?: string | null
           status_manifestacao?: string
+          uf_emitente?: string | null
           updated_at?: string
           usuario_id?: string | null
+          valor_icms?: number | null
+          valor_ipi?: number | null
           valor_total?: number | null
+          xml_importado?: boolean
           xml_nfe?: string | null
         }
         Update: {
@@ -3671,18 +3683,77 @@ export type Database = {
           data_emissao?: string | null
           data_manifestacao?: string | null
           id?: string
+          ie_emitente?: string | null
+          natureza_operacao?: string | null
           nome_emitente?: string | null
           numero?: string | null
           observacao?: string | null
           protocolo_autorizacao?: string | null
           serie?: string | null
           status_manifestacao?: string
+          uf_emitente?: string | null
           updated_at?: string
           usuario_id?: string | null
+          valor_icms?: number | null
+          valor_ipi?: number | null
           valor_total?: number | null
+          xml_importado?: boolean
           xml_nfe?: string | null
         }
         Relationships: []
+      }
+      nfe_distribuicao_itens: {
+        Row: {
+          cfop: string | null
+          codigo: string | null
+          created_at: string
+          descricao: string
+          id: string
+          ncm: string | null
+          nfe_distribuicao_id: string
+          numero_item: number
+          quantidade: number
+          unidade: string | null
+          valor_total: number
+          valor_unitario: number
+        }
+        Insert: {
+          cfop?: string | null
+          codigo?: string | null
+          created_at?: string
+          descricao: string
+          id?: string
+          ncm?: string | null
+          nfe_distribuicao_id: string
+          numero_item: number
+          quantidade?: number
+          unidade?: string | null
+          valor_total?: number
+          valor_unitario?: number
+        }
+        Update: {
+          cfop?: string | null
+          codigo?: string | null
+          created_at?: string
+          descricao?: string
+          id?: string
+          ncm?: string | null
+          nfe_distribuicao_id?: string
+          numero_item?: number
+          quantidade?: number
+          unidade?: string | null
+          valor_total?: number
+          valor_unitario?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nfe_distribuicao_itens_nfe_distribuicao_id_fkey"
+            columns: ["nfe_distribuicao_id"]
+            isOneToOne: false
+            referencedRelation: "nfe_distribuicao"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       nota_fiscal_anexos: {
         Row: {

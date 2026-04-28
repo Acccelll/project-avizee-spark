@@ -1,6 +1,16 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Inbox, Plus, CheckCircle2, AlertTriangle, EyeOff, XCircle } from "lucide-react";
+import {
+  Loader2,
+  Inbox,
+  Plus,
+  CheckCircle2,
+  AlertTriangle,
+  EyeOff,
+  XCircle,
+  Upload,
+  Eye,
+} from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
@@ -34,6 +44,8 @@ import {
   type TipoManifestacao,
 } from "@/services/fiscal/sefaz";
 import { notifyError } from "@/utils/errorMessages";
+import { parseNFeXml, type NFeXmlItem } from "@/services/fiscal/nfeXmlParser.service";
+import { formatCurrency } from "@/lib/format";
 
 /**
  * Manifestação do Destinatário (Onda 8).
@@ -63,6 +75,7 @@ interface NfeCapturada {
   status_manifestacao: string;
   data_manifestacao: string | null;
   observacao: string | null;
+  xml_importado: boolean;
 }
 
 const STATUS_LABEL: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -100,6 +113,9 @@ export function ManifestacaoDestinatarioDrawer({ open, onOpenChange }: Manifesta
   const [manifestando, setManifestando] = useState<string | null>(null);
   const [naoRealizadaTarget, setNaoRealizadaTarget] = useState<NfeCapturada | null>(null);
   const [justNaoRealizada, setJustNaoRealizada] = useState("");
+  const [importando, setImportando] = useState(false);
+  const [verItensTarget, setVerItensTarget] = useState<NfeCapturada | null>(null);
+  const fileRef = useRef<HTMLInputElement | null>(null);
 
   const { data: notas = [], isLoading } = useQuery({
     queryKey: ["nfe-distribuicao"],
@@ -107,7 +123,7 @@ export function ManifestacaoDestinatarioDrawer({ open, onOpenChange }: Manifesta
       const { data, error } = await supabase
         .from("nfe_distribuicao")
         .select(
-          "id, chave_acesso, cnpj_emitente, nome_emitente, numero, serie, data_emissao, valor_total, protocolo_autorizacao, status_manifestacao, data_manifestacao, observacao",
+          "id, chave_acesso, cnpj_emitente, nome_emitente, numero, serie, data_emissao, valor_total, protocolo_autorizacao, status_manifestacao, data_manifestacao, observacao, xml_importado",
         )
         .order("created_at", { ascending: false })
         .limit(100);
@@ -232,6 +248,82 @@ export function ManifestacaoDestinatarioDrawer({ open, onOpenChange }: Manifesta
     await executarManifestacao(target, "210240", just);
   };
 
+  /**
+   * Importa um XML autorizado (procNFe ou NFe nua) e faz upsert em
+   * `nfe_distribuicao` + `nfe_distribuicao_itens`. Marca xml_importado=true.
+   */
+  const handleImportarXml = async (file: File) => {
+    setImportando(true);
+    try {
+      const text = await file.text();
+      const parsed = parseNFeXml(text);
+      const { data: { user } } = await supabase.auth.getUser();
+
+      const payloadHeader = {
+        chave_acesso: parsed.chave,
+        cnpj_emitente: parsed.cnpjEmitente,
+        nome_emitente: parsed.nomeEmitente,
+        numero: parsed.numero || null,
+        serie: parsed.serie || null,
+        data_emissao: parsed.dataEmissao,
+        valor_total: parsed.valorTotal,
+        valor_icms: parsed.valorIcms,
+        valor_ipi: parsed.valorIpi,
+        natureza_operacao: parsed.naturezaOperacao,
+        uf_emitente: parsed.ufEmitente,
+        ie_emitente: parsed.ieEmitente,
+        protocolo_autorizacao: parsed.protocolo,
+        xml_nfe: text,
+        xml_importado: true,
+        usuario_id: user?.id ?? null,
+      };
+
+      // Upsert por chave_acesso (UNIQUE). Mantém status_manifestacao existente
+      // ao não enviar — onConflict atualiza apenas as colunas do payload.
+      const { data: upserted, error } = await supabase
+        .from("nfe_distribuicao")
+        .upsert(payloadHeader, { onConflict: "chave_acesso" })
+        .select("id")
+        .single();
+      if (error) throw error;
+
+      // Reescreve itens (delete + insert) para evitar drift quando reimportado
+      await supabase
+        .from("nfe_distribuicao_itens")
+        .delete()
+        .eq("nfe_distribuicao_id", upserted.id);
+
+      if (parsed.itens.length > 0) {
+        const itensRows = parsed.itens.map((it) => ({
+          nfe_distribuicao_id: upserted.id,
+          numero_item: it.numero,
+          codigo: it.codigo,
+          descricao: it.descricao,
+          ncm: it.ncm,
+          cfop: it.cfop,
+          unidade: it.unidade,
+          quantidade: it.quantidade,
+          valor_unitario: it.valorUnitario,
+          valor_total: it.valorTotal,
+        }));
+        const { error: itErr } = await supabase
+          .from("nfe_distribuicao_itens")
+          .insert(itensRows);
+        if (itErr) throw itErr;
+      }
+
+      toast.success(
+        `XML importado — NF ${parsed.numero}/${parsed.serie} (${parsed.itens.length} ${parsed.itens.length === 1 ? "item" : "itens"})`,
+      );
+      qc.invalidateQueries({ queryKey: ["nfe-distribuicao"] });
+    } catch (e) {
+      notifyError(e);
+    } finally {
+      setImportando(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
@@ -271,6 +363,35 @@ export function ManifestacaoDestinatarioDrawer({ open, onOpenChange }: Manifesta
                 {novaChave.replace(/\D/g, "").length}/44 dígitos. Os dados básicos
                 (CNPJ emitente, série, número e mês de emissão) são extraídos da chave.
               </p>
+              <Separator className="my-2" />
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept=".xml,application/xml,text/xml"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) handleImportarXml(f);
+                  }}
+                />
+                <Button
+                  variant="outline"
+                  className="gap-2"
+                  disabled={importando}
+                  onClick={() => fileRef.current?.click()}
+                >
+                  {importando ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Upload className="h-4 w-4" />
+                  )}
+                  Importar XML autorizado
+                </Button>
+                <span className="text-xs text-muted-foreground">
+                  Enriquece a NF-e com emitente, totais e itens (procNFe ou NFe).
+                </span>
+              </div>
             </div>
 
             <Separator />
@@ -297,12 +418,17 @@ export function ManifestacaoDestinatarioDrawer({ open, onOpenChange }: Manifesta
                             <p className="font-medium">
                               NF {nf.numero ?? "—"}/{nf.serie ?? "—"}{" "}
                               <span className="font-normal text-muted-foreground">
-                                · CNPJ {nf.cnpj_emitente ?? "—"}
+                                · {nf.nome_emitente ?? `CNPJ ${nf.cnpj_emitente ?? "—"}`}
                               </span>
                             </p>
                             <p className="font-mono text-[11px] text-muted-foreground break-all">
                               {nf.chave_acesso}
                             </p>
+                            {nf.valor_total != null && (
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Total: {formatCurrency(Number(nf.valor_total))}
+                              </p>
+                            )}
                             {nf.data_manifestacao && (
                               <p className="text-xs text-muted-foreground mt-1">
                                 Manifestada em{" "}
@@ -312,9 +438,24 @@ export function ManifestacaoDestinatarioDrawer({ open, onOpenChange }: Manifesta
                               </p>
                             )}
                           </div>
-                          <Badge variant={st.variant}>{st.label}</Badge>
+                          <div className="flex flex-col items-end gap-1">
+                            <Badge variant={st.variant}>{st.label}</Badge>
+                            {nf.xml_importado && (
+                              <Badge variant="secondary" className="text-[10px]">XML</Badge>
+                            )}
+                          </div>
                         </div>
                         <div className="flex flex-wrap gap-2 pt-1">
+                          {nf.xml_importado && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setVerItensTarget(nf)}
+                              className="gap-1"
+                            >
+                              <Eye className="h-3 w-3" /> Ver itens
+                            </Button>
+                          )}
                           <Button
                             size="sm"
                             variant="outline"
@@ -411,6 +552,110 @@ export function ManifestacaoDestinatarioDrawer({ open, onOpenChange }: Manifesta
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ItensDialog
+        nf={verItensTarget}
+        onClose={() => setVerItensTarget(null)}
+      />
     </>
+  );
+}
+
+/**
+ * Dialog que carrega e exibe os itens de uma NF-e capturada via XML.
+ * Lazy-load: só faz fetch quando aberto.
+ */
+interface ItensDialogProps {
+  nf: NfeCapturada | null;
+  onClose: () => void;
+}
+
+function ItensDialog({ nf, onClose }: ItensDialogProps) {
+  const { data: itens = [], isLoading } = useQuery({
+    queryKey: ["nfe-distribuicao-itens", nf?.id],
+    queryFn: async (): Promise<NFeXmlItem[]> => {
+      if (!nf) return [];
+      const { data, error } = await supabase
+        .from("nfe_distribuicao_itens")
+        .select("numero_item, codigo, descricao, ncm, cfop, unidade, quantidade, valor_unitario, valor_total")
+        .eq("nfe_distribuicao_id", nf.id)
+        .order("numero_item");
+      if (error) throw error;
+      return (data ?? []).map((r) => ({
+        numero: r.numero_item,
+        codigo: r.codigo,
+        descricao: r.descricao,
+        ncm: r.ncm,
+        cfop: r.cfop,
+        unidade: r.unidade,
+        quantidade: Number(r.quantidade ?? 0),
+        valorUnitario: Number(r.valor_unitario ?? 0),
+        valorTotal: Number(r.valor_total ?? 0),
+      }));
+    },
+    enabled: !!nf,
+  });
+
+  return (
+    <Dialog open={!!nf} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>
+            Itens da NF {nf?.numero ?? "—"}/{nf?.serie ?? "—"}
+          </DialogTitle>
+          <DialogDescription>
+            {nf?.nome_emitente ?? `CNPJ ${nf?.cnpj_emitente ?? "—"}`} · Total{" "}
+            {nf?.valor_total != null ? formatCurrency(Number(nf.valor_total)) : "—"}
+          </DialogDescription>
+        </DialogHeader>
+        {isLoading ? (
+          <p className="text-sm text-muted-foreground py-8 text-center">Carregando itens…</p>
+        ) : itens.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-8 text-center">
+            Nenhum item cadastrado.
+          </p>
+        ) : (
+          <div className="max-h-[60vh] overflow-y-auto rounded-md border">
+            <table className="w-full text-xs">
+              <thead className="bg-muted/50 text-muted-foreground sticky top-0">
+                <tr>
+                  <th className="px-2 py-2 text-left">#</th>
+                  <th className="px-2 py-2 text-left">Descrição</th>
+                  <th className="px-2 py-2 text-left">NCM</th>
+                  <th className="px-2 py-2 text-left">CFOP</th>
+                  <th className="px-2 py-2 text-right">Qtd</th>
+                  <th className="px-2 py-2 text-right">Vlr Unit</th>
+                  <th className="px-2 py-2 text-right">Vlr Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {itens.map((it) => (
+                  <tr key={it.numero} className="border-t">
+                    <td className="px-2 py-1.5">{it.numero}</td>
+                    <td className="px-2 py-1.5">
+                      <div className="font-medium">{it.descricao}</div>
+                      {it.codigo && (
+                        <div className="text-[10px] text-muted-foreground">cód {it.codigo}</div>
+                      )}
+                    </td>
+                    <td className="px-2 py-1.5">{it.ncm ?? "—"}</td>
+                    <td className="px-2 py-1.5">{it.cfop ?? "—"}</td>
+                    <td className="px-2 py-1.5 text-right">
+                      {it.quantidade.toLocaleString("pt-BR", { maximumFractionDigits: 4 })}{" "}
+                      <span className="text-muted-foreground">{it.unidade ?? ""}</span>
+                    </td>
+                    <td className="px-2 py-1.5 text-right">{formatCurrency(it.valorUnitario)}</td>
+                    <td className="px-2 py-1.5 text-right font-medium">{formatCurrency(it.valorTotal)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose}>Fechar</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
