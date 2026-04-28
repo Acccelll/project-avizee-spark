@@ -119,3 +119,37 @@ export async function saveProdutoFornecedores(params: {
   });
   if (error) throw new Error("Erro ao salvar fornecedores: " + (error.message || "tente novamente"));
 }
+
+export async function deleteProduto(id: string): Promise<void> {
+  const { error } = await supabase.from("produtos").delete().eq("id", id);
+  if (error) throw error;
+}
+
+/** Lookup leve para autocompletes (id/nome/sku/codigo_interno). */
+export async function listProdutosBasicAtivos() {
+  const { data, error } = await supabase
+    .from("produtos")
+    .select("id, nome, sku, codigo_interno")
+    .eq("ativo", true)
+    .order("nome");
+  if (error) throw error;
+  return (data || []) as { id: string; nome: string; sku: string; codigo_interno: string }[];
+}
+
+/** Vincula um produto a um fornecedor. */
+export async function vincularProdutoFornecedor(input: {
+  produto_id: string;
+  fornecedor_id: string;
+  preco_compra: number;
+  lead_time_dias: number;
+  eh_principal?: boolean;
+}): Promise<void> {
+  const { error } = await supabase.from("produtos_fornecedores").insert({
+    produto_id: input.produto_id,
+    fornecedor_id: input.fornecedor_id,
+    preco_compra: input.preco_compra,
+    lead_time_dias: input.lead_time_dias,
+    eh_principal: input.eh_principal ?? false,
+  });
+  if (error) throw error;
+}
