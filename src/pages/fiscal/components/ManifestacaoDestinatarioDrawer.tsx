@@ -403,6 +403,12 @@ export function ManifestacaoDestinatarioDrawer({ open, onOpenChange, highlightNf
                 Baixa automaticamente NF-e novas emitidas contra o CNPJ da empresa
                 (Ambiente Nacional, mTLS via certificado A1).
               </span>
+              <a
+                href="/fiscal/distdfe-historico"
+                className="text-xs text-primary hover:underline ml-auto"
+              >
+                Ver histórico de execuções →
+              </a>
             </div>
 
             {/* Adicionar nova chave */}

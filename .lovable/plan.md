@@ -230,3 +230,9 @@ Sugiro a sequência **Onda 0 → Onda 1 → Onda 3** (fundação + casca + wizar
   - Fallback: se `nfe_distdfe_sync` estiver vazio, faz uma sondagem inicial (`ultNSU='0'`, cnpj='auto') — a edge function descobre o CNPJ a partir do A1
   - Agendamento via `pg_cron` (job `process-distdfe-cron-daily`): cron `0 6 * * *` (06:00 UTC ≈ 03:00 BRT) → `net.http_post` para `/functions/v1/process-distdfe-cron`
   - Re-execuções manuais possíveis via `supabase.functions.invoke('process-distdfe-cron', { body: { ambiente: '1' | '2' } })` por admins
+- ✅ **Onda 15** — Histórico DistDF-e (`/fiscal/distdfe-historico`):
+  - Página nova `src/pages/fiscal/DistDFeHistorico.tsx` (lazy + `PermissionRoute resource="faturamento_fiscal"`): lê `auditoria_logs` filtrado por `acao='distdfe_cron_run'` (limit 50, ordem desc) — registros gravados pela edge function da Onda 14
+  - KPIs: total de execuções (50), NF-e novas (10), erros (10); card destacado da última execução com ambiente, totais e timestamp formatado pt-BR
+  - Lista accordion-style de execuções: clique expande detalhes por CNPJ (status OK/Falha, novos/duplicados, cStat/xMotivo/erro)
+  - Botões: "Atualizar" (recarrega), "Executar agora (Hom.)" e "Produção" (dispara `sincronizarDistDFe(ambiente)` — útil para testes manuais sem aguardar o cron)
+  - Link "Ver histórico de execuções →" no `ManifestacaoDestinatarioDrawer` (próximo ao botão de sincronização) para acesso direto
