@@ -24,6 +24,13 @@ interface FreteOption {
 }
 
 /**
+ * Cache em memória do token Correios (vive enquanto o isolate estiver ativo).
+ * Token oficial dura 30min; renovamos aos 25min para evitar expiração no meio
+ * do polling do PDF de pré-postagem.
+ */
+const TOKEN_CACHE = new Map<string, { token: string; nuDR?: string; nuContrato?: string; expiresAt: number }>();
+
+/**
  * Authenticate against the modern Correios REST API using a CWS Access Key
  * (Chave de Acesso). The Access Key authorizes /token/v1/autentica/contrato,
  * which returns a Bearer token usable on /preco/v2 and /prazo/v1 endpoints.
