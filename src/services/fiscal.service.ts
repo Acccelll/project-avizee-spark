@@ -234,3 +234,98 @@ export async function upsertEmpresaConfig(
   if (error) throw error;
   return data.id;
 }
+
+// ── Lifecycle: Confirmar / Estornar / Devolver ────────────────────────────────
+
+export async function confirmarNotaFiscal(nfId: string): Promise<void> {
+  const { error } = await supabase.rpc("confirmar_nota_fiscal", { p_nf_id: nfId });
+  if (error) throw error;
+}
+
+export async function estornarNotaFiscal(input: { nfId: string; motivo?: string }): Promise<void> {
+  const { error } = await supabase.rpc("estornar_nota_fiscal", {
+    p_nf_id: input.nfId,
+    p_motivo: input.motivo,
+  });
+  if (error) throw error;
+}
+
+export interface ItemDevolucao {
+  produto_id: string;
+  quantidade: number;
+}
+
+export async function gerarDevolucaoNotaFiscal(input: {
+  nfOrigemId: string;
+  /** Quando omitido, gera devolução total. */
+  itens?: ItemDevolucao[];
+}): Promise<string> {
+  const { data, error } = await supabase.rpc("gerar_devolucao_nota_fiscal", {
+    p_nf_origem_id: input.nfOrigemId,
+    p_itens: (input.itens ?? null) as never,
+  });
+  if (error) throw error;
+  return data as string;
+}
+
+// ── Vínculo NF ↔ Pedido de Compra ─────────────────────────────────────────────
+
+export interface PedidoCompraOpcao {
+  id: string;
+  numero: string | null;
+  valor_total: number | null;
+  status: string | null;
+  data_pedido: string | null;
+  fornecedor_nome: string | null;
+}
+
+/** Lista pedidos de compra ativos do fornecedor para vínculo manual com NF. */
+export async function listPedidosCompraParaVincular(fornecedorId: string): Promise<PedidoCompraOpcao[]> {
+  const { data, error } = await supabase
+    .from("pedidos_compra")
+    .select("id, numero, valor_total, status, data_pedido, fornecedores(nome_razao_social)")
+    .eq("fornecedor_id", fornecedorId)
+    .neq("status", "cancelado")
+    .order("created_at", { ascending: false })
+    .limit(50);
+  if (error) throw error;
+  return (data ?? []).map((row) => {
+    const r = row as unknown as {
+      id: string;
+      numero: string | null;
+      valor_total: number | null;
+      status: string | null;
+      data_pedido: string | null;
+      fornecedores: { nome_razao_social: string } | null;
+    };
+    return {
+      id: r.id,
+      numero: r.numero,
+      valor_total: r.valor_total,
+      status: r.status,
+      data_pedido: r.data_pedido,
+      fornecedor_nome: r.fornecedores?.nome_razao_social ?? null,
+    };
+  });
+}
+
+/** Vincula NF a um pedido de compra via RPC `vincular_nf_pedido_compra`. */
+export async function vincularNFPedidoCompra(input: {
+  notaFiscalId: string;
+  pedidoCompraId: string;
+}): Promise<void> {
+  const { error } = await supabase.rpc("vincular_nf_pedido_compra", {
+    p_nf_id: input.notaFiscalId,
+    p_pedido_id: input.pedidoCompraId,
+  });
+  if (error) throw error;
+}
+
+/** Remove o vínculo NF ↔ Pedido de Compra (apenas reseta a coluna). */
+export async function desvincularNFPedidoCompra(notaFiscalId: string): Promise<void> {
+  const { error } = await supabase
+    .from("notas_fiscais")
+    .update({ pedido_compra_id: null })
+    .eq("id", notaFiscalId);
+  if (error) throw error;
+}
