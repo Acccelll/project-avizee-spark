@@ -376,3 +376,47 @@ export async function getOrcamentoDraftPayload(
 
 // Hint para tree-shaking: garantimos que o tipo Json seja "usado".
 export type OrcamentoClienteSnapshotJson = Json;
+
+// ── Drafts (autosave/upsert) ──────────────────────────────────────────────────
+
+export async function upsertOrcamentoDraft(
+  usuarioId: string,
+  draftKey: string,
+  payload: unknown,
+): Promise<void> {
+  const { error } = await supabase
+    .from("orcamento_drafts")
+    .upsert(
+      { usuario_id: usuarioId, draft_key: draftKey, payload: payload as never },
+      { onConflict: "usuario_id,draft_key" },
+    );
+  if (error) throw error;
+}
+
+export async function hasOrcamentoDraft(
+  usuarioId: string,
+  draftKey: string,
+): Promise<boolean> {
+  const payload = await getOrcamentoDraftPayload(usuarioId, draftKey);
+  return payload != null;
+}
+
+// ── Validação de número único ─────────────────────────────────────────────────
+
+/**
+ * Verifica se já existe outro orçamento com este número.
+ * `excludeId` evita falso positivo durante edição.
+ */
+export async function existeOrcamentoComNumero(
+  numero: string,
+  excludeId?: string | null,
+): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("orcamentos")
+    .select("id")
+    .eq("numero", numero)
+    .neq("id", excludeId || "00000000-0000-0000-0000-000000000000")
+    .maybeSingle();
+  if (error) throw error;
+  return !!data;
+}
