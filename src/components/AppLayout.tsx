@@ -11,6 +11,7 @@ import { SkipLink } from './SkipLink';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { ContrastDevTool } from './accessibility/ContrastDevTool';
 import { useGlobalHotkeys } from '@/hooks/useGlobalHotkeys';
+import { useNfeEntradaToast } from '@/hooks/useNfeEntradaToast';
 import { GlobalSearch } from './navigation/GlobalSearch';
 import { GlobalShortcutsDialog } from './navigation/GlobalShortcutsDialog';
 import { GlobalPeriodProvider } from '@/contexts/DashboardPeriodContext';
@@ -34,6 +35,8 @@ export function AppLayout() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [hoverExpanded, setHoverExpanded] = useState(false);
+  // Toast proativo quando o cron DistDF-e baixa NF-e novas
+  useNfeEntradaToast();
 
   // Modo dinâmico: recolhido por padrão, expande visualmente no hover (overlay).
   // No modo fixed-* a preferência boolean `sidebarCollapsed` continua valendo

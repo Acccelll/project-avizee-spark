@@ -10,6 +10,7 @@ export interface SidebarAlerts {
   estoqueBaixo: number;
   orcamentosPendentes: number;
   nfRejeitadas: number;
+  nfeEntradaSemManifestacao: number;
   filaEmailDLQ: number;
   lastUpdatedAt?: string;
 }
@@ -47,6 +48,7 @@ export function useSidebarAlerts(): SidebarAlerts {
       estoqueBaixo: 0,
       orcamentosPendentes: 0,
       nfRejeitadas: 0,
+      nfeEntradaSemManifestacao: 0,
       filaEmailDLQ: 0,
       lastUpdatedAt: undefined,
     }
