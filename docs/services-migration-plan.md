@@ -49,6 +49,8 @@ Regras:
 | `OrcamentoForm.tsx` | 14 | estender `services/orcamentos.service.ts` | TODO |
 | `FluxoCaixa.tsx` | 4 | `services/financeiro/fluxoCaixa.service.ts` | TODO |
 | `Clientes.tsx` (sub-tabs) | 6 | `services/clientes.service.ts` | ✅ template |
+| `Logistica.tsx` | 8 | `services/logistica/{remessas,lookups}.service.ts` | ✅ 2026-04-28 |
+| `Orcamentos.tsx` | 4 | `services/orcamentos.service.ts` (+`duplicateOrcamento`) | ✅ 2026-04-28 |
 
 **Estratégia para `OrcamentoForm.tsx`:** combinar com o refactor pendente do
 arquivo (1.272 linhas). Extrair primeiro hooks (`useOrcamentoSubmit`,
