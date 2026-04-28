@@ -401,6 +401,7 @@ const Financeiro = () => {
                 </div>
               )}
             />
+            </div>
           </PullToRefresh>
         )}
       </ModulePage>

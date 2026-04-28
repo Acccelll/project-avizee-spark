@@ -640,7 +640,7 @@ export default function Logistica() {
         )}
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <ScrollableTabsList className="mb-4">
+          <ScrollableTabsList className="mb-4" data-help-id="logistica.tabs">
             <TabsTrigger value="entregas">Entregas</TabsTrigger>
             <TabsTrigger value="recebimentos">Recebimentos</TabsTrigger>
             <TabsTrigger value="remessas">Remessas</TabsTrigger>
