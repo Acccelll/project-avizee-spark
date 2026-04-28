@@ -18,6 +18,8 @@ interface ModulePageProps {
   showToolbar?: boolean;
   summaryCards?: ReactNode;
   headerActions?: ReactNode;
+  /** Optional `data-help-id` applied to the "add" button — used by the guided tour. */
+  addButtonHelpId?: string;
 }
 
 export function ModulePage({
@@ -35,6 +37,7 @@ export function ModulePage({
   showToolbar,
   summaryCards,
   headerActions,
+  addButtonHelpId,
 }: ModulePageProps) {
   const hasSearch = typeof onSearchChange === "function";
   const shouldShowToolbar = showToolbar ?? Boolean(hasSearch || filters || toolbarExtra || count !== undefined);
@@ -50,7 +53,11 @@ export function ModulePage({
         <div className="flex shrink-0 items-center gap-2">
           {headerActions}
           {addLabel && (
-            <Button onClick={onAdd} className="h-11 gap-2 sm:h-9 w-full sm:w-auto">
+            <Button
+              onClick={onAdd}
+              className="h-11 gap-2 sm:h-9 w-full sm:w-auto"
+              data-help-id={addButtonHelpId}
+            >
               <Plus className="h-4 w-4" />
               {addLabel}
             </Button>
