@@ -843,6 +843,7 @@ export type Database = {
           deleted_at: string | null
           deleted_by: string | null
           email: string | null
+          empresa_id: string
           forma_pagamento_id: string | null
           forma_pagamento_padrao: string | null
           grupo_economico_id: string | null
@@ -879,6 +880,7 @@ export type Database = {
           deleted_at?: string | null
           deleted_by?: string | null
           email?: string | null
+          empresa_id?: string
           forma_pagamento_id?: string | null
           forma_pagamento_padrao?: string | null
           grupo_economico_id?: string | null
@@ -915,6 +917,7 @@ export type Database = {
           deleted_at?: string | null
           deleted_by?: string | null
           email?: string | null
+          empresa_id?: string
           forma_pagamento_id?: string | null
           forma_pagamento_padrao?: string | null
           grupo_economico_id?: string | null
@@ -937,6 +940,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "clientes_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "clientes_forma_pagamento_id_fkey"
             columns: ["forma_pagamento_id"]
@@ -1828,6 +1838,33 @@ export type Database = {
           uf?: string | null
           updated_at?: string
           whatsapp?: string | null
+        }
+        Relationships: []
+      }
+      empresas: {
+        Row: {
+          ativo: boolean
+          cnpj: string | null
+          created_at: string
+          id: string
+          nome: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          cnpj?: string | null
+          created_at?: string
+          id?: string
+          nome: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          cnpj?: string | null
+          created_at?: string
+          id?: string
+          nome?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -2740,6 +2777,7 @@ export type Database = {
           deleted_at: string | null
           deleted_by: string | null
           email: string | null
+          empresa_id: string
           id: string
           inscricao_estadual: string | null
           logradouro: string | null
@@ -2769,6 +2807,7 @@ export type Database = {
           deleted_at?: string | null
           deleted_by?: string | null
           email?: string | null
+          empresa_id?: string
           id?: string
           inscricao_estadual?: string | null
           logradouro?: string | null
@@ -2798,6 +2837,7 @@ export type Database = {
           deleted_at?: string | null
           deleted_by?: string | null
           email?: string | null
+          empresa_id?: string
           id?: string
           inscricao_estadual?: string | null
           logradouro?: string | null
@@ -2813,7 +2853,15 @@ export type Database = {
           uf?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fornecedores_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       frete_simulacoes: {
         Row: {
@@ -4816,6 +4864,7 @@ export type Database = {
           descontinuado_em: string | null
           descricao: string | null
           eh_composto: boolean
+          empresa_id: string
           estoque_atual: number | null
           estoque_ideal: number | null
           estoque_minimo: number | null
@@ -4854,6 +4903,7 @@ export type Database = {
           descontinuado_em?: string | null
           descricao?: string | null
           eh_composto?: boolean
+          empresa_id?: string
           estoque_atual?: number | null
           estoque_ideal?: number | null
           estoque_minimo?: number | null
@@ -4892,6 +4942,7 @@ export type Database = {
           descontinuado_em?: string | null
           descricao?: string | null
           eh_composto?: boolean
+          empresa_id?: string
           estoque_atual?: number | null
           estoque_ideal?: number | null
           estoque_minimo?: number | null
@@ -4918,6 +4969,13 @@ export type Database = {
           variacoes?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "produtos_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "produtos_grupo_id_fkey"
             columns: ["grupo_id"]
@@ -6222,6 +6280,32 @@ export type Database = {
         }
         Relationships: []
       }
+      user_empresas: {
+        Row: {
+          created_at: string
+          empresa_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          empresa_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          empresa_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_empresas_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_permissions: {
         Row: {
           action: string
@@ -7492,6 +7576,7 @@ export type Database = {
         Args: { p_orcamento_id: string }
         Returns: string
       }
+      current_empresa_id: { Args: never; Returns: string }
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean

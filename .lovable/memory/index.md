@@ -66,3 +66,4 @@
 - [Notificações Proativas no Sidebar](mem://features/notificacoes-proativas-sidebar) — Badges agregando vencidos, estoque baixo, orçamentos, NF rejeitada e DLQ de e-mail (admin-only) via realtime
 - [Webhooks de saída](mem://features/webhooks-saida) — pgmq + edge dispatcher (cron 1min) + UI admin com HMAC SHA-256 e secret reveal one-shot
 - [PWA / offline-first leve](mem://features/pwa-offline-leve) — vite-plugin-pwa, manifest AviZee, runtime cache SWR de listas (clientes/fornecedores/produtos), banner offline, prompt de update e botão flutuante de instalação
+- [Multi-tenant Onda 1](mem://features/multi-tenant-onda1) — empresas + user_empresas (1:1), empresa_id em clientes/fornecedores/produtos com RLS por empresa via current_empresa_id()
