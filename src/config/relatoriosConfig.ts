@@ -881,6 +881,7 @@ export const reportRuntimeSemantics: Partial<Record<TipoRelatorio, ReportRuntime
   // `compras` filtra/lista por data de compra (campo `compra` na linha) — alinhado a `timeAxis.field = 'criacao'` (data de compra) no config.
   compras: { statusField: 'status', valueSortField: 'valor', dateSortField: 'compra', periodAxisLabel: 'data de compra', highlightFilters: ['periodo', 'fornecedores'], investigableField: 'fornecedor' },
   compras_fornecedor: { valueSortField: 'valorTotal', dateSortField: 'compra', periodAxisLabel: 'data de compra (por fornecedor)', highlightFilters: ['periodo', 'fornecedores'], investigableField: 'fornecedor' },
+  nfe_entrada: { statusField: 'status', valueSortField: 'valor', dateSortField: 'emissao', periodAxisLabel: 'data de emissão (NF-e de entrada)', highlightFilters: ['periodo', 'fornecedores', 'status'], investigableField: 'fornecedor' },
   faturamento: { valueSortField: 'valorTotal', dateSortField: 'data', periodAxisLabel: 'data de emissão da NF', highlightFilters: ['periodo'] },
   // Fluxo de caixa: o período filtra por `data_pagamento` (ou `data_vencimento` quando ainda não pago).
   fluxo_caixa: { valueSortField: 'saldo', dateSortField: 'data', periodAxisLabel: 'data de pagamento (ou vencimento)', highlightFilters: ['periodo', 'tipo'] },
