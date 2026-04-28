@@ -113,6 +113,9 @@ export function ManifestacaoDestinatarioDrawer({ open, onOpenChange }: Manifesta
   const [manifestando, setManifestando] = useState<string | null>(null);
   const [naoRealizadaTarget, setNaoRealizadaTarget] = useState<NfeCapturada | null>(null);
   const [justNaoRealizada, setJustNaoRealizada] = useState("");
+  const [importando, setImportando] = useState(false);
+  const [verItensTarget, setVerItensTarget] = useState<NfeCapturada | null>(null);
+  const fileRef = useRef<HTMLInputElement | null>(null);
 
   const { data: notas = [], isLoading } = useQuery({
     queryKey: ["nfe-distribuicao"],
@@ -243,6 +246,82 @@ export function ManifestacaoDestinatarioDrawer({ open, onOpenChange }: Manifesta
     setNaoRealizadaTarget(null);
     setJustNaoRealizada("");
     await executarManifestacao(target, "210240", just);
+  };
+
+  /**
+   * Importa um XML autorizado (procNFe ou NFe nua) e faz upsert em
+   * `nfe_distribuicao` + `nfe_distribuicao_itens`. Marca xml_importado=true.
+   */
+  const handleImportarXml = async (file: File) => {
+    setImportando(true);
+    try {
+      const text = await file.text();
+      const parsed = parseNFeXml(text);
+      const { data: { user } } = await supabase.auth.getUser();
+
+      const payloadHeader = {
+        chave_acesso: parsed.chave,
+        cnpj_emitente: parsed.cnpjEmitente,
+        nome_emitente: parsed.nomeEmitente,
+        numero: parsed.numero || null,
+        serie: parsed.serie || null,
+        data_emissao: parsed.dataEmissao,
+        valor_total: parsed.valorTotal,
+        valor_icms: parsed.valorIcms,
+        valor_ipi: parsed.valorIpi,
+        natureza_operacao: parsed.naturezaOperacao,
+        uf_emitente: parsed.ufEmitente,
+        ie_emitente: parsed.ieEmitente,
+        protocolo_autorizacao: parsed.protocolo,
+        xml_nfe: text,
+        xml_importado: true,
+        usuario_id: user?.id ?? null,
+      };
+
+      // Upsert por chave_acesso (UNIQUE). Mantém status_manifestacao existente
+      // ao não enviar — onConflict atualiza apenas as colunas do payload.
+      const { data: upserted, error } = await supabase
+        .from("nfe_distribuicao")
+        .upsert(payloadHeader, { onConflict: "chave_acesso" })
+        .select("id")
+        .single();
+      if (error) throw error;
+
+      // Reescreve itens (delete + insert) para evitar drift quando reimportado
+      await supabase
+        .from("nfe_distribuicao_itens")
+        .delete()
+        .eq("nfe_distribuicao_id", upserted.id);
+
+      if (parsed.itens.length > 0) {
+        const itensRows = parsed.itens.map((it) => ({
+          nfe_distribuicao_id: upserted.id,
+          numero_item: it.numero,
+          codigo: it.codigo,
+          descricao: it.descricao,
+          ncm: it.ncm,
+          cfop: it.cfop,
+          unidade: it.unidade,
+          quantidade: it.quantidade,
+          valor_unitario: it.valorUnitario,
+          valor_total: it.valorTotal,
+        }));
+        const { error: itErr } = await supabase
+          .from("nfe_distribuicao_itens")
+          .insert(itensRows);
+        if (itErr) throw itErr;
+      }
+
+      toast.success(
+        `XML importado — NF ${parsed.numero}/${parsed.serie} (${parsed.itens.length} ${parsed.itens.length === 1 ? "item" : "itens"})`,
+      );
+      qc.invalidateQueries({ queryKey: ["nfe-distribuicao"] });
+    } catch (e) {
+      notifyError(e);
+    } finally {
+      setImportando(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
   };
 
   return (
