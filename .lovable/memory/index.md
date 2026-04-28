@@ -65,3 +65,4 @@
 - [Dynamic imports libs pesadas](mem://tech/dynamic-imports-libs-pesadas) — ExcelJS e pptxgenjs sempre via `await import()` nos entry points dos services
 - [Notificações Proativas no Sidebar](mem://features/notificacoes-proativas-sidebar) — Badges agregando vencidos, estoque baixo, orçamentos, NF rejeitada e DLQ de e-mail (admin-only) via realtime
 - [Webhooks de saída](mem://features/webhooks-saida) — pgmq + edge dispatcher (cron 1min) + UI admin com HMAC SHA-256 e secret reveal one-shot
+- [PWA / offline-first leve](mem://features/pwa-offline-leve) — vite-plugin-pwa, manifest AviZee, runtime cache SWR de listas (clientes/fornecedores/produtos), banner offline, prompt de update e botão flutuante de instalação
