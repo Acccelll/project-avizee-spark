@@ -69,6 +69,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import {
   listLatestEtiquetasByRemessas,
   baixarEtiqueta as baixarEtiquetaPdf,
+  imprimirEtiquetasA4,
   type RemessaEtiqueta,
 } from "@/services/logistica/prepostagem.service";
 
