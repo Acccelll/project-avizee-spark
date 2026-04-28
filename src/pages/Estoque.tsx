@@ -580,6 +580,7 @@ const Estoque = () => {
               emptyTitle="Nenhum item encontrado"
               emptyDescription="Ajuste os filtros ou verifique se há produtos com estoque ou mínimo cadastrado."
             />
+            </div>
           </TabsContent>
 
           {/* ── ABA MOVIMENTAÇÕES ──────────────────────────────── */}

@@ -280,6 +280,7 @@ const Financeiro = () => {
           <SummaryCard title="Pagos" value={kpis.pagoNoPeriodo.toString()} subtitle={formatCurrency(kpis.totalPago)} icon={CheckCircle} variant="success" onClick={() => setStatusFilters(["pago"])} />
         </div>
 
+        <div data-help-id="financeiro.filtros">
         <AdvancedFilterBar
           searchValue={searchTerm}
           onSearchChange={setSearchTerm}
@@ -310,11 +311,13 @@ const Financeiro = () => {
           <MultiSelect options={bancoOpts} selected={bancoFilters} onChange={setBancoFilters} placeholder="Bancos" className="w-[200px]" />
           <MultiSelect options={origemOpts} selected={origemFilters} onChange={setOrigemFilters} placeholder="Origem" className="w-[200px]" />
         </AdvancedFilterBar>
+        </div>
 
         {viewMode === "calendario" ? (
           <FinanceiroCalendar data={filteredData} onBaixaSuccess={invalidateAfterBaixa} />
         ) : (
           <PullToRefresh onRefresh={fetchData}>
+            <div data-help-id="financeiro.tabela">
             <DataTable
               columns={columns}
               data={filteredData}
