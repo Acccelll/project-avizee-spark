@@ -9,19 +9,16 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent } from '@/components/ui/card';
-import { supabase } from '@/integrations/supabase/client';
 import { useCan } from '@/hooks/useCan';
+import {
+  listBudgetsMensais,
+  createBudgetMensal,
+  deleteBudgetMensal,
+  type BudgetCategoria,
+  type BudgetMensal,
+} from '@/services/budget.service';
 
-type BudgetCategoria = 'receita' | 'despesa' | 'fopag' | 'imposto' | 'investimento';
-
-interface BudgetRow {
-  id: string;
-  competencia: string;
-  categoria: BudgetCategoria;
-  centro_custo_id: string | null;
-  valor: number;
-  observacoes: string | null;
-}
+type BudgetRow = BudgetMensal;
 
 const CATEGORIAS: { value: BudgetCategoria; label: string }[] = [
   { value: 'receita', label: 'Receita' },
@@ -48,29 +45,19 @@ export default function Budget() {
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['budgets-mensais'],
-    queryFn: async (): Promise<BudgetRow[]> => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data, error } = await (supabase as any)
-        .from('budgets_mensais')
-        .select('id, competencia, categoria, centro_custo_id, valor, observacoes')
-        .order('competencia', { ascending: false });
-      if (error) throw error;
-      return (data ?? []) as BudgetRow[];
-    },
+    queryFn: () => listBudgetsMensais(),
   });
 
   const insertMutation = useMutation({
     mutationFn: async () => {
       const valorNum = Number(valor.replace(',', '.'));
       if (!Number.isFinite(valorNum) || valorNum <= 0) throw new Error('Informe um valor válido.');
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error } = await (supabase as any).from('budgets_mensais').insert({
+      await createBudgetMensal({
         competencia: competencia + '-01',
         categoria,
         valor: valorNum,
         observacoes: observacoes || null,
       });
-      if (error) throw error;
     },
     onSuccess: () => {
       toast.success('Budget adicionado.');
@@ -82,11 +69,7 @@ export default function Budget() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error } = await (supabase as any).from('budgets_mensais').delete().eq('id', id);
-      if (error) throw error;
-    },
+    mutationFn: (id: string) => deleteBudgetMensal(id),
     onSuccess: () => {
       toast.success('Removido.');
       qc.invalidateQueries({ queryKey: ['budgets-mensais'] });
