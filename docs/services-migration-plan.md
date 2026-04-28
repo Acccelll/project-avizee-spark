@@ -165,3 +165,20 @@ Migrados 10 hooks de `src/hooks/*` (zero `supabase.from/rpc` direto):
 - `useCotacoesCompra.ts` → ampliação de `services/cotacoesCompra.service.ts`
 
 Restante Onda 6: ~14 arquivos em `src/components/*` (views, drawers, dialogs, frete/correios) — Lote 2b.
+
+## Onda 6 — Lote 2c: finalização (concluído)
+
+Últimos 3 alvos com acesso direto ao Supabase fora de `src/services/`:
+
+- `src/contexts/AuthContext.tsx` → `services/auth.service.ts`
+  - Novos helpers `fetchAuthProfile`, `fetchAuthRoles`, `fetchAuthPermissions`.
+- `src/pages/admin/sections/EmpresaSection.tsx` → `services/storage.service.ts`
+  - Novo wrapper `uploadDbavizeeImage` (upload + getPublicUrl no bucket `dbavizee`).
+- `src/lib/workbook/fetchWorkbookData.ts` → `services/workbook.service.ts`
+  - Helpers tipados `fetchFolhaPagamentoRange` e `fetchEmpresaConfigBrand`.
+  - Demais consultas `vw_workbook_*` permanecem no agregador (chamadas em paralelo dentro de uma única `Promise.all`).
+
+### Resultado da Onda 6 completa
+- **Zero** ocorrências de `supabase.from` / `supabase.rpc` / `supabase.storage` em `src/pages/`, `src/components/`, `src/hooks/`, `src/contexts/` ou `src/lib/` (exceto camadas dedicadas: `src/lib/realtime/*` para canais singleton e `src/types/rpc.ts` para o helper `callRpc`).
+- `tsc --noEmit` limpo.
+- Camada `src/services/` é a única autoridade para acesso ao banco.

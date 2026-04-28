@@ -5,6 +5,7 @@
  */
 import { supabase } from '@/integrations/supabase/client';
 import type { WorkbookModoGeracao } from '@/types/workbook';
+import { fetchFolhaPagamentoRange, fetchEmpresaConfigBrand } from '@/services/workbook.service';
 
 export interface WorkbookRawData {
   receita: Array<{ competencia: string; total_receita: number; total_recebido: number; quantidade: number }>;
@@ -73,10 +74,7 @@ async function fetchDynamicModeData(compIni: string, compFim: string): Promise<W
     (supabase as any).from('vw_workbook_aging_cr').select('*'),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (supabase as any).from('vw_workbook_aging_cp').select('*'),
-    supabase.from('folha_pagamento')
-      .select('competencia, salario_base, proventos, descontos, valor_liquido, funcionarios(nome)')
-      .gte('competencia', iniYM)
-      .lte('competencia', fimYM),
+    fetchFolhaPagamentoRange(iniYM, fimYM).then((data) => ({ data, error: null as null })),
     // V2 ──────────────────────────────────────────────
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (supabase as any).from('vw_workbook_dre_mensal').select('*').gte('competencia', fullIniYM).lte('competencia', fimYM),
@@ -102,7 +100,7 @@ async function fetchDynamicModeData(compIni: string, compFim: string): Promise<W
     (supabase as any).from('vw_workbook_fiscal_resumo').select('*').gte('competencia', iniYM).lte('competencia', fimYM),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (supabase as any).from('budgets_mensais').select('competencia, categoria, centro_custo_id, valor').gte('competencia', `${iniYM}-01`).lte('competencia', `${fimYM}-31`),
-    supabase.from('empresa_config').select('razao_social, nome_fantasia, cnpj, logo_url').limit(1).maybeSingle(),
+    fetchEmpresaConfigBrand().then((data) => ({ data, error: null as null })),
   ]);
 
   const receita = (receitaRes.data ?? []).map((r: Record<string, unknown>) => ({
@@ -125,7 +123,7 @@ async function fetchDynamicModeData(compIni: string, compFim: string): Promise<W
     quantidade_nfs: Number(r.quantidade_nfs ?? 0),
   }));
 
-  const fopag = (fopagRes.data ?? []).map((r: Record<string, unknown>) => ({
+  const fopag = ((fopagRes.data ?? []) as unknown as Record<string, unknown>[]).map((r) => ({
     competencia: String(r.competencia ?? '').slice(0, 7), // normalize 2026-02-01 -> 2026-02
     funcionario_nome: String((r.funcionarios as Record<string, unknown>)?.nome ?? 'Sem Nome'),
     salario_base: Number(r.salario_base ?? 0),
@@ -234,7 +232,7 @@ async function fetchDynamicModeData(compIni: string, compFim: string): Promise<W
     centro_custo_id: r.centro_custo_id ? String(r.centro_custo_id) : null,
     valor: numField(r, 'valor'),
   }));
-  const empresaData = empresaRes.data as Record<string, unknown> | null;
+  const empresaData = empresaRes.data as unknown as Record<string, unknown> | null;
   const empresa = empresaData
     ? {
         razao_social: String(empresaData.razao_social ?? ''),

@@ -8,6 +8,11 @@ import {
   type PermissionKey,
 } from "@/lib/permissions";
 import { logger } from "@/lib/logger";
+import {
+  fetchAuthProfile,
+  fetchAuthRoles,
+  fetchAuthPermissions,
+} from "@/services/auth.service";
 
 /** Re-export para preservar imports existentes (`import type { AppRole } from "@/contexts/AuthContext"`). */
 export type { AppRole };
@@ -84,7 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchProfile = async (userId: string) => {
     try {
-      const { data } = await supabase.from("profiles").select("*").eq("id", userId).single();
+      const data = await fetchAuthProfile(userId);
       if (data) setProfile(data);
     } catch (err) {
       logger.error("[auth] Failed to fetch profile", err);
@@ -93,13 +98,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchRoles = async (userId: string) => {
     try {
-      const { data } = await supabase.from("user_roles").select("role").eq("user_id", userId);
-      if (data) {
-        const validRoles = (data as unknown as Array<{ role: string }>)
-          .map((r) => r.role)
-          .filter((r): r is AppRole => !LEGACY_ROLES.has(r) && VALID_APP_ROLES.has(r));
-        setRoles(validRoles);
-      }
+      const data = await fetchAuthRoles(userId);
+      const validRoles = data.filter(
+        (r): r is AppRole => !LEGACY_ROLES.has(r) && VALID_APP_ROLES.has(r),
+      );
+      setRoles(validRoles);
     } catch (err) {
       logger.error("[auth] Failed to fetch roles", err);
       setRoles([]);
@@ -108,20 +111,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchExtraPermissions = async (userId: string) => {
     try {
-      const { data, error } = await supabase
-        .from("user_permissions")
-        .select("resource, action, allowed")
-        .eq("user_id", userId);
-      if (error) throw error;
-      const allow: PermissionKey[] = [];
-      const deny: PermissionKey[] = [];
-      for (const row of (data || []) as Array<{ resource: string; action: string; allowed: boolean }>) {
-        const key = `${row.resource}:${row.action}` as PermissionKey;
-        if (row.allowed) allow.push(key);
-        else deny.push(key);
-      }
-      setExtraPermissions(allow);
-      setDeniedPermissions(deny);
+      const { allowed, denied } = await fetchAuthPermissions(userId);
+      setExtraPermissions(allowed);
+      setDeniedPermissions(denied);
     } catch (err) {
       logger.error("[auth] Failed to fetch extra permissions", err);
       setExtraPermissions([]);
