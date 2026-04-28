@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
 import type { MultiSelectOption } from "@/components/ui/MultiSelect";
-import { periodToFinancialRange } from "@/lib/periodFilter";
+import { periodToFinancialRange, monthToRange } from "@/lib/periodFilter";
 import type { Period } from "@/components/filters/periodTypes";
 import type { ContaBancaria, Lancamento } from "@/types/domain";
 
@@ -32,6 +32,7 @@ export function useFinanceiroFiltros({ data, contasBancarias, getLancamentoStatu
   const bancoParam = searchParams.get("banco");
   const origemParam = searchParams.get("origem");
   const periodParam = searchParams.get("period");
+  const mesParam = searchParams.get("mes");
 
   const [statusFilters, setStatusFilters] = useState<string[]>(
     statusParam ? statusParam.split(",") : [],
@@ -46,6 +47,7 @@ export function useFinanceiroFiltros({ data, contasBancarias, getLancamentoStatu
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState(searchParams.get("search") ?? "");
   const [period, setPeriod] = useState<Period>(isPeriod(periodParam) ? periodParam : "30d");
+  const [mes, setMes] = useState<string | null>(mesParam && /^\d{4}-\d{2}$/.test(mesParam) ? mesParam : null);
 
   useEffect(() => {
     if (tipoParam) setTipoFilters([tipoParam]);
@@ -67,20 +69,25 @@ export function useFinanceiroFiltros({ data, contasBancarias, getLancamentoStatu
         else next.delete("origem");
         if (period !== "30d") next.set("period", period);
         else next.delete("period");
+        if (mes) next.set("mes", mes);
+        else next.delete("mes");
         return next;
       },
       { replace: true },
     );
-  }, [searchTerm, statusFilters, tipoFilters, bancoFilters, origemFilters, period, setSearchParams]);
+  }, [searchTerm, statusFilters, tipoFilters, bancoFilters, origemFilters, period, mes, setSearchParams]);
 
   const filteredData = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
-    const { dateFrom, dateTo } = periodToFinancialRange(period);
-    const isOverdueFilter = period === "vencidos";
+    const monthRange = monthToRange(mes);
+    const { dateFrom, dateTo } = monthRange
+      ? { dateFrom: monthRange.from, dateTo: monthRange.to }
+      : periodToFinancialRange(period);
+    const isOverdueFilter = !monthRange && period === "vencidos";
 
     return data.filter((l) => {
       const effectiveStatus = getLancamentoStatus(l);
-      if (period === "todos") {
+      if (!monthRange && period === "todos") {
         // sem filtro de período
       } else if (isOverdueFilter) {
         if (effectiveStatus !== "vencido") return false;
@@ -113,7 +120,7 @@ export function useFinanceiroFiltros({ data, contasBancarias, getLancamentoStatu
 
       return true;
     });
-  }, [data, statusFilters, tipoFilters, bancoFilters, origemFilters, searchTerm, period, getLancamentoStatus]);
+  }, [data, statusFilters, tipoFilters, bancoFilters, origemFilters, searchTerm, period, mes, getLancamentoStatus]);
 
   const activeFilters = useMemo(() => {
     const chips: FilterChip[] = [];
@@ -196,6 +203,8 @@ export function useFinanceiroFiltros({ data, contasBancarias, getLancamentoStatu
     setOrigemFilters,
     period,
     setPeriod,
+    mes,
+    setMes,
     filteredData,
     activeFilters,
     handleRemoveFilter,
