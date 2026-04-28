@@ -271,7 +271,7 @@ function Step1Identificacao() {
 
 interface ClienteRow {
   id: string;
-  nome: string;
+  nome_razao_social: string;
   cpf_cnpj: string | null;
   uf: string | null;
   cidade: string | null;
@@ -297,12 +297,12 @@ function Step2Destinatario() {
     queryFn: async () => {
       let q = supabase
         .from("clientes")
-        .select("id, nome, cpf_cnpj, uf, cidade, codigo_ibge_municipio, inscricao_estadual, ativo")
+        .select("id, nome_razao_social, cpf_cnpj, uf, cidade, codigo_ibge_municipio, inscricao_estadual, ativo")
         .eq("ativo", true)
-        .order("nome")
+        .order("nome_razao_social")
         .limit(20);
       if (debouncedBusca) {
-        q = q.or(`nome.ilike.%${debouncedBusca}%,cpf_cnpj.ilike.%${debouncedBusca}%`);
+        q = q.or(`nome_razao_social.ilike.%${debouncedBusca}%,cpf_cnpj.ilike.%${debouncedBusca}%`);
       }
       const { data, error } = await q;
       if (error) throw error;
@@ -313,7 +313,7 @@ function Step2Destinatario() {
 
   const selecionar = async (c: ClienteRow) => {
     setValue("cliente_id", c.id, { shouldDirty: true });
-    setValue("cliente_nome", c.nome, { shouldDirty: true });
+    setValue("cliente_nome", c.nome_razao_social, { shouldDirty: true });
     setValue("cliente_uf", (c.uf ?? "").toUpperCase(), { shouldDirty: true });
     setValue("cliente_municipio_ibge", c.codigo_ibge_municipio ?? "", { shouldDirty: true });
     setOpen(false);
@@ -365,7 +365,7 @@ function Step2Destinatario() {
                     {(clientes ?? []).map((c) => (
                       <CommandItem key={c.id} value={c.id} onSelect={() => selecionar(c)}>
                         <div className="flex flex-col">
-                          <span className="font-medium">{c.nome}</span>
+                          <span className="font-medium">{c.nome_razao_social}</span>
                           <span className="text-xs text-muted-foreground">
                             {c.cpf_cnpj ?? "—"} · {c.cidade ?? "?"}/{c.uf ?? "?"}
                             {!c.codigo_ibge_municipio && " · ⚠ sem IBGE"}
@@ -431,10 +431,10 @@ function Step2Destinatario() {
 
 interface ProdutoRow {
   id: string;
-  codigo: string | null;
+  codigo_interno: string | null;
   descricao: string;
   ncm: string | null;
-  unidade: string | null;
+  unidade_medida: string | null;
   preco_venda: number | null;
 }
 
@@ -613,12 +613,12 @@ function Step3Itens() {
     queryFn: async () => {
       let q = supabase
         .from("produtos")
-        .select("id, codigo, descricao, ncm, unidade, preco_venda")
+        .select("id, codigo_interno, descricao, ncm, unidade_medida, preco_venda")
         .eq("ativo", true)
         .order("descricao")
         .limit(20);
       if (debouncedBusca) {
-        q = q.or(`descricao.ilike.%${debouncedBusca}%,codigo.ilike.%${debouncedBusca}%`);
+        q = q.or(`descricao.ilike.%${debouncedBusca}%,codigo_interno.ilike.%${debouncedBusca}%`);
       }
       const { data, error } = await q;
       if (error) throw error;
@@ -632,13 +632,13 @@ function Step3Itens() {
     const vu = Number(p.preco_venda || 0);
     append({
       produto_id: p.id,
-      codigo_produto: p.codigo ?? "",
+      codigo_produto: p.codigo_interno ?? "",
       descricao: p.descricao,
       ncm: (p.ncm ?? "").padStart(8, "0").slice(0, 8) || "00000000",
       cfop: "",
       cst: "00",
       origem_mercadoria: "0",
-      unidade: p.unidade ?? "UN",
+      unidade: p.unidade_medida ?? "UN",
       quantidade: qtd,
       valor_unitario: vu,
       valor_total: +(qtd * vu).toFixed(2),
@@ -710,7 +710,7 @@ function Step3Itens() {
                         <div className="flex flex-col">
                           <span className="font-medium">{p.descricao}</span>
                           <span className="text-xs text-muted-foreground">
-                            {p.codigo ?? "—"} · NCM {p.ncm ?? "?"} · {formatCurrency(Number(p.preco_venda ?? 0))}
+                            {p.codigo_interno ?? "—"} · NCM {p.ncm ?? "?"} · {formatCurrency(Number(p.preco_venda ?? 0))}
                           </span>
                         </div>
                       </CommandItem>
@@ -931,13 +931,13 @@ export default function EmitirNFeWizard() {
     if (cid && !form.getValues("cliente_id")) {
       supabase
         .from("clientes")
-        .select("id, nome, uf, codigo_ibge_municipio")
+        .select("id, nome_razao_social, uf, codigo_ibge_municipio")
         .eq("id", cid)
         .maybeSingle()
         .then(({ data }) => {
           if (!data) return;
           form.setValue("cliente_id", data.id);
-          form.setValue("cliente_nome", data.nome);
+          form.setValue("cliente_nome", data.nome_razao_social);
           form.setValue("cliente_uf", (data.uf ?? "").toUpperCase());
           form.setValue("cliente_municipio_ibge", data.codigo_ibge_municipio ?? "");
         });
