@@ -42,6 +42,11 @@ function ensureChannel() {
       { event: "*", schema: "public", table: "orcamentos" },
       broadcast,
     )
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "notas_fiscais" },
+      broadcast,
+    )
     .subscribe();
 }
 
