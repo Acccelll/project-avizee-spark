@@ -93,3 +93,28 @@ Antes de iniciar mudanças, varredura confirmou que ambos os itens **já estão 
 
 Sem gap funcional → nenhuma alteração de código necessária nesta onda. Próxima frente sugerida:
 migração de forms para Zod (NF, Orçamento, Cliente) ou multi-tenant `empresa_id`.
+
+---
+
+## Onda — Dynamic imports ExcelJS / pptxgenjs (28/abr/2026)
+
+Objetivo: tirar as duas libs mais pesadas do bundle inicial. Cada uma só é necessária quando o usuário aciona uma ação explícita (gerar workbook, gerar apresentação, importar planilha).
+
+- `src/services/workbookService.ts`: removido `import { generateWorkbook }` estático;
+  introduzido helper `loadGenerateWorkbook()` com `await import('@/lib/workbook/generateWorkbook')`.
+  Toda a árvore `src/lib/workbook/*` (que importa `exceljs`) passa a virar um chunk separado
+  via code-splitting do Vite/Rollup.
+- `src/services/apresentacaoService.ts`: import de `generatePresentation` virou `import type` +
+  helper `loadGeneratePresentation()` com `await import('@/lib/apresentacao/generatePresentation')`.
+  `pptxgenjs` (~250KB) sai do bundle inicial.
+- `src/lib/xlsx-compat.ts`: ExcelJS agora carregado via `loadExcelJS()` (cached promise) em vez
+  de `import ExcelJS from "exceljs"` no topo. `read()` continua síncrona (já retornava workbook
+  com `_loaded` promise — consumidores já chamam `await ensureLoaded(wb)`). `utils.book_new` e
+  `utils.json_to_sheet` viraram `async` (sem consumidores ativos — verificado).
+- `src/services/export.service.ts` já usava `await import("exceljs")` desde o Bloco 1.
+
+Resultado esperado: três chunks lazy distintos — `chunk-workbook.*.js` (ExcelJS + planilhas
+gerenciais), `chunk-apresentacao.*.js` (pptxgenjs), `chunk-exceljs.*.js` (compartilhado entre
+xlsx-compat e export.service). Bundle inicial deixa de carregar ~650KB de libs Office.
+
+Sem mudança na API pública dos services consumidos por componentes/páginas.
