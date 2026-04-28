@@ -53,8 +53,14 @@ obrigatória** (ver `src/services/_invalidationKeys.ts`).
 
 ## Decisões pendentes (fora do escopo)
 
-1. Criar RPCs `confirmar_nota_fiscal` / `estornar_nota_fiscal` para paridade
-   transacional com `receber_compra` e eliminar a janela de inconsistência.
-2. Implementar `SELECT FOR UPDATE` em `quantidade_faturada` para evitar
-   double-counting em faturamentos concorrentes.
+1. ✅ **Resolvido (2026-04-28).** RPCs `confirmar_nota_fiscal` e
+   `estornar_nota_fiscal` existem no banco com `SECURITY DEFINER` +
+   `search_path = public`; `useNotaFiscalLifecycle.ts` é o ponto único de
+   entrada. As funções TS antigas foram removidas (ver comentário em
+   `fiscal.service.ts`).
+2. ✅ **Resolvido.** A RPC `gerar_nf_de_pedido` já protege concorrência via
+   `pg_advisory_xact_lock(hashtext(p_pedido_id))` + `SELECT … FROM
+   ordens_venda WHERE id=$1 FOR UPDATE` + guarda explícita de
+   `status_faturamento='faturado'` antes de criar a NF. Faturamento duplo é
+   bloqueado dentro da mesma transação.
 3. Realtime cross-módulo (Supabase Realtime) para invalidação automática.
