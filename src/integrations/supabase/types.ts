@@ -3197,6 +3197,24 @@ export type Database = {
         }
         Relationships: []
       }
+      ibge_municipios: {
+        Row: {
+          codigo_ibge: string
+          nome: string
+          uf: string
+        }
+        Insert: {
+          codigo_ibge: string
+          nome: string
+          uf: string
+        }
+        Update: {
+          codigo_ibge?: string
+          nome?: string
+          uf?: string
+        }
+        Relationships: []
+      }
       importacao_logs: {
         Row: {
           created_at: string
@@ -3325,6 +3343,132 @@ export type Database = {
           token?: string
           used_at?: string | null
           used_by?: string | null
+        }
+        Relationships: []
+      }
+      matriz_fiscal: {
+        Row: {
+          aliquota_cofins: number
+          aliquota_fcp: number
+          aliquota_icms: number
+          aliquota_ipi: number
+          aliquota_pis: number
+          ativo: boolean
+          cfop: string
+          created_at: string
+          crt: string
+          cst_cofins: string
+          cst_csosn: string
+          cst_ipi: string | null
+          cst_pis: string
+          id: string
+          ncm_prefixo: string | null
+          nome: string
+          origem_mercadoria: string
+          prioridade: number
+          reducao_bc_icms: number
+          tipo_operacao: string
+          uf_destino: string
+          uf_origem: string
+          updated_at: string
+        }
+        Insert: {
+          aliquota_cofins?: number
+          aliquota_fcp?: number
+          aliquota_icms?: number
+          aliquota_ipi?: number
+          aliquota_pis?: number
+          ativo?: boolean
+          cfop: string
+          created_at?: string
+          crt: string
+          cst_cofins?: string
+          cst_csosn: string
+          cst_ipi?: string | null
+          cst_pis?: string
+          id?: string
+          ncm_prefixo?: string | null
+          nome: string
+          origem_mercadoria?: string
+          prioridade?: number
+          reducao_bc_icms?: number
+          tipo_operacao?: string
+          uf_destino: string
+          uf_origem: string
+          updated_at?: string
+        }
+        Update: {
+          aliquota_cofins?: number
+          aliquota_fcp?: number
+          aliquota_icms?: number
+          aliquota_ipi?: number
+          aliquota_pis?: number
+          ativo?: boolean
+          cfop?: string
+          created_at?: string
+          crt?: string
+          cst_cofins?: string
+          cst_csosn?: string
+          cst_ipi?: string | null
+          cst_pis?: string
+          id?: string
+          ncm_prefixo?: string | null
+          nome?: string
+          origem_mercadoria?: string
+          prioridade?: number
+          reducao_bc_icms?: number
+          tipo_operacao?: string
+          uf_destino?: string
+          uf_origem?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      naturezas_operacao: {
+        Row: {
+          ativo: boolean
+          cfop_dentro_uf: string | null
+          cfop_fora_uf: string | null
+          codigo: string
+          created_at: string
+          descricao: string
+          finalidade: string
+          gera_financeiro: boolean
+          id: string
+          movimenta_estoque: boolean
+          observacoes: string | null
+          tipo_operacao: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          cfop_dentro_uf?: string | null
+          cfop_fora_uf?: string | null
+          codigo: string
+          created_at?: string
+          descricao: string
+          finalidade?: string
+          gera_financeiro?: boolean
+          id?: string
+          movimenta_estoque?: boolean
+          observacoes?: string | null
+          tipo_operacao?: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          cfop_dentro_uf?: string | null
+          cfop_fora_uf?: string | null
+          codigo?: string
+          created_at?: string
+          descricao?: string
+          finalidade?: string
+          gera_financeiro?: boolean
+          id?: string
+          movimenta_estoque?: boolean
+          observacoes?: string | null
+          tipo_operacao?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -7671,12 +7815,28 @@ export type Database = {
             }
             Returns: string
           }
+      aplicar_matriz_fiscal: {
+        Args: {
+          p_produto_id: string
+          p_tipo_operacao?: string
+          p_uf_destino: string
+        }
+        Returns: Json
+      }
       aprovar_cotacao_compra: { Args: { p_id: string }; Returns: Json }
       aprovar_orcamento: { Args: { p_id: string }; Returns: Json }
       aprovar_pedido: { Args: { p_pedido_id: string }; Returns: Json }
       aprovar_retirada_socio: {
         Args: { p_retirada_id: string }
         Returns: undefined
+      }
+      buscar_municipio_ibge: {
+        Args: { p_nome: string; p_uf: string }
+        Returns: {
+          codigo_ibge: string
+          nome: string
+          uf: string
+        }[]
       }
       calcular_dv_chave_nfe: { Args: { p_chave43: string }; Returns: string }
       cancelar_cotacao_compra: {
