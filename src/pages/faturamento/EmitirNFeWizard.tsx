@@ -108,6 +108,9 @@ const wizardSchema = z.object({
   desconto_valor: z.coerce.number().min(0).default(0),
   forma_pagamento: z.string().default("01"),
   observacoes: z.string().optional(),
+  // Vínculo opcional com Ordem de Venda (Onda 4)
+  ordem_venda_id: z.string().nullable().optional(),
+  ordem_venda_numero: z.string().nullable().optional(),
 });
 type WizardData = z.infer<typeof wizardSchema>;
 
