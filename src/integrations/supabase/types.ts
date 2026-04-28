@@ -5368,6 +5368,72 @@ export type Database = {
         }
         Relationships: []
       }
+      remessa_etiquetas: {
+        Row: {
+          codigo_objeto: string | null
+          created_at: string
+          created_by: string | null
+          empresa_id: string
+          erro_mensagem: string | null
+          id: string
+          id_correios: string | null
+          id_recibo_pdf: string | null
+          payload_request: Json | null
+          payload_response: Json | null
+          pdf_path: string | null
+          remessa_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          codigo_objeto?: string | null
+          created_at?: string
+          created_by?: string | null
+          empresa_id?: string
+          erro_mensagem?: string | null
+          id?: string
+          id_correios?: string | null
+          id_recibo_pdf?: string | null
+          payload_request?: Json | null
+          payload_response?: Json | null
+          pdf_path?: string | null
+          remessa_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          codigo_objeto?: string | null
+          created_at?: string
+          created_by?: string | null
+          empresa_id?: string
+          erro_mensagem?: string | null
+          id?: string
+          id_correios?: string | null
+          id_recibo_pdf?: string | null
+          payload_request?: Json | null
+          payload_response?: Json | null
+          pdf_path?: string | null
+          remessa_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "remessa_etiquetas_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "remessa_etiquetas_remessa_id_fkey"
+            columns: ["remessa_id"]
+            isOneToOne: false
+            referencedRelation: "remessas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       remessa_eventos: {
         Row: {
           created_at: string
