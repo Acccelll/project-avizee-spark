@@ -23,7 +23,6 @@ import { OrcamentoPdfTemplateBrand } from "@/components/Orcamento/OrcamentoPdfTe
 import { StatusBadge } from "@/components/StatusBadge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Save, Eye, FileText, Copy, Plus, Search, Wand2, RefreshCw, CheckCircle2, AlertTriangle, CalendarDays, Clock, MoreHorizontal, LayoutTemplate, Mail, ChevronDown, ZoomIn, ZoomOut, Maximize2, Minimize2, Loader2, FileText as FileTextIcon, UploadCloud, Send } from "lucide-react";
 import { PageShell } from "@/components/PageShell";
@@ -41,6 +40,24 @@ import { getUserFriendlyError } from "@/utils/errorMessages";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useOrcamentoTemplates, type OrcamentoTemplate } from "@/pages/comercial/hooks/useOrcamentoTemplates";
 import { logger } from "@/lib/logger";
+import {
+  listClientesAtivosOrcamento,
+  listProdutosAtivosComFornecedores,
+  getOrcamentoById,
+  listOrcamentoItens,
+  getFormaPagamentoDescricao,
+  listPrecosEspeciaisAtuais,
+  salvarOrcamentoRpc,
+  deleteOrcamentoDraft,
+  getOrcamentoDraftPayload,
+} from "@/services/orcamentos.service";
+import { getEmpresaConfig } from "@/services/fiscal.service";
+import { proximoNumeroOrcamento } from "@/types/rpc";
+import {
+  upsertOrcamentoDraft,
+  hasOrcamentoDraft,
+  existeOrcamentoComNumero,
+} from "@/services/orcamentos.service";
 
 interface ClienteSnapshot {
   nome_razao_social: string; nome_fantasia: string; cpf_cnpj: string;
@@ -337,25 +354,22 @@ export default function OrcamentoForm() {
   ), [scenarioItems, scenarioConfig, desconto, freteValor, impostoSt, impostoIpi, outrasDespesas, productCostMap]);
 
   useEffect(() => {
-    if (!supabase) {
-      toast.error("Serviço de banco de dados não disponível. Verifique a configuração.");
-      return;
-    }
     const loadData = async () => {
       try {
-        const [clientesRes, produtosRes] = await Promise.all([
-          supabase.from("clientes").select("*").eq("ativo", true).order("nome_razao_social"),
-          supabase.from("produtos").select("*, produtos_fornecedores(*, fornecedores(nome_razao_social))").eq("ativo", true).order("nome"),
+        const [clientesData, produtosData] = await Promise.all([
+          listClientesAtivosOrcamento(),
+          listProdutosAtivosComFornecedores(),
         ]);
-        setClientes(clientesRes.data || []);
-        setProdutos(produtosRes.data || []);
+        setClientes(clientesData);
+        setProdutos(produtosData);
 
         if (isEdit) {
-          const { data: orc, error: orcError } = await supabase.from("orcamentos").select("*").eq("id", id).maybeSingle();
-          if (orcError) {
+          const orc = await getOrcamentoById(id!).catch((orcError) => {
             logger.error("[OrcamentoForm] erro ao carregar orçamento:", orcError);
-            toast.error("Erro ao carregar orçamento.", { description: orcError.message });
-          } else if (orc) {
+            toast.error("Erro ao carregar orçamento.", { description: getUserFriendlyError(orcError) });
+            return null;
+          });
+          if (orc) {
             reset({
               numero: orc.numero,
               dataOrcamento: orc.data_orcamento,
@@ -387,11 +401,11 @@ export default function OrcamentoForm() {
             if (orc.altura_cm != null) setFreteAlturaCm(orc.altura_cm);
             if (orc.largura_cm != null) setFreteLarguraCm(orc.largura_cm);
             if (orc.comprimento_cm != null) setFreteComprimentoCm(orc.comprimento_cm);
-            const { data: itensData } = await supabase.from("orcamentos_itens").select("*").eq("orcamento_id", id);
+            const itensData = await listOrcamentoItens(id!);
             if (itensData) {
               // Defesa em profundidade: se o snapshot `variacao` estiver vazio mas o produto
               // vinculado tiver `variacoes` cadastradas, usamos esse texto para exibir ao cliente.
-              const produtosMap = new Map((produtosRes.data || []).map((p) => [p.id, p]));
+              const produtosMap = new Map(produtosData.map((p) => [p.id, p]));
               const hidratado = itensData.map((it) => {
                 const variacaoSnapshot = (it as { variacao?: string | null }).variacao;
                 if (variacaoSnapshot && String(variacaoSnapshot).trim()) return it;
@@ -406,17 +420,22 @@ export default function OrcamentoForm() {
               });
               setItems(hidratado);
             }
-          } else {
+          } else if (orc !== null) {
             toast.error("Orçamento não encontrado.", { description: `Nenhum orçamento com ID ${id}.` });
           }
         } else {
-          const { data: novoNumero, error: numErr } = await supabase.rpc('proximo_numero_orcamento');
-          if (numErr || !novoNumero) {
+          try {
+            const novoNumero = await proximoNumeroOrcamento();
+            if (!novoNumero) {
+              toast.error('Não foi possível gerar o número do orçamento. Tente novamente.');
+              return;
+            }
+            setValue('numero', novoNumero);
+          } catch (numErr) {
             logger.error('[OrcamentoForm] proximo_numero_orcamento falhou:', numErr);
             toast.error('Não foi possível gerar o número do orçamento. Tente novamente.');
             return;
           }
-          setValue('numero', novoNumero);
         }
       } catch (err: unknown) {
         logger.error("[OrcamentoForm] erro ao carregar dados:", err);
@@ -444,12 +463,7 @@ export default function OrcamentoForm() {
       if (!pagamento) {
         let descricaoForma: string | null = null;
         if (c.forma_pagamento_id) {
-          const { data: fp } = await supabase
-            .from("formas_pagamento")
-            .select("descricao")
-            .eq("id", c.forma_pagamento_id)
-            .maybeSingle();
-          descricaoForma = fp?.descricao ?? null;
+          descricaoForma = await getFormaPagamentoDescricao(c.forma_pagamento_id);
         }
         const fallback = descricaoForma ?? c.forma_pagamento_padrao ?? null;
         if (fallback) setValue('pagamento', fallback);
@@ -458,15 +472,8 @@ export default function OrcamentoForm() {
       if (c.prazo_padrao && !prazoPagamento && !c.prazo_preferencial) setValue('prazoPagamento', `${c.prazo_padrao} DDL`);
 
       // Load special prices for this client (only active and within validity period)
-      const today = new Date().toISOString().slice(0, 10);
-      supabase.from("precos_especiais")
-        .select("*")
-        .eq("cliente_id", cId)
-        .eq("ativo", true)
-        .or(`vigencia_fim.is.null,vigencia_fim.gte.${today}`)
-        .or(`vigencia_inicio.is.null,vigencia_inicio.lte.${today}`)
-        .then(({ data }) => {
-          const rules = data || [];
+      listPrecosEspeciaisAtuais(cId)
+        .then((rules) => {
           setPrecosEspeciais(rules as Tables<"precos_especiais">[]);
 
           // Recalculate prices for existing items if they have special prices
@@ -652,20 +659,16 @@ export default function OrcamentoForm() {
         valor_total: i.valor_total, peso_unitario: i.peso_unitario || 0, peso_total: i.peso_total || 0,
       }));
 
-      const { data: orcId, error } = await supabase.rpc('salvar_orcamento', {
-        p_id: isEdit ? id : null,
-        p_payload: payload as unknown as never,
-        p_itens: itemsPayload as unknown as never,
+      const orcId = await salvarOrcamentoRpc({
+        id: isEdit ? id! : null,
+        payload,
+        itens: itemsPayload,
       });
-      if (error) throw error;
 
       localStorage.removeItem(draftKey);
       if (user?.id) {
         try {
-          await supabase.from("orcamento_drafts")
-            .delete()
-            .eq("usuario_id", user.id)
-            .eq("draft_key", draftKey);
+          await deleteOrcamentoDraft(user.id, draftKey);
         } catch {/* ignore */}
       }
       toast.success(isEdit ? "Orçamento atualizado com sucesso" : "Orçamento criado com sucesso", {
@@ -696,9 +699,11 @@ export default function OrcamentoForm() {
       return;
     }
     try {
-      const { data: newNumero, error: numErr } = await supabase.rpc('proximo_numero_orcamento');
-      if (numErr || !newNumero) {
+      const newNumero = await proximoNumeroOrcamento().catch((numErr) => {
         logger.error('[orcamento] duplicar — proximo_numero_orcamento falhou:', numErr);
+        return null;
+      });
+      if (!newNumero) {
         toast.error('Não foi possível gerar o número do orçamento. Tente novamente.');
         return;
       }
@@ -716,12 +721,11 @@ export default function OrcamentoForm() {
         valor_total: i.valor_total, peso_unitario: i.peso_unitario || 0, peso_total: i.peso_total || 0,
       }));
 
-      const { data: orcId, error } = await supabase.rpc('salvar_orcamento', {
-        p_id: null,
-        p_payload: payload as unknown as never,
-        p_itens: itemsPayload as unknown as never,
+      const orcId = await salvarOrcamentoRpc({
+        id: null,
+        payload,
+        itens: itemsPayload,
       });
-      if (error) throw error;
 
       toast.success(`Duplicado: ${payload.numero}`);
       navigate(`/orcamentos/${orcId}`, { replace: true });
@@ -817,14 +821,9 @@ export default function OrcamentoForm() {
     let cancelled = false;
     (async () => {
       if (user?.id) {
-        const { data } = await supabase
-          .from("orcamento_drafts")
-          .select("payload")
-          .eq("usuario_id", user.id)
-          .eq("draft_key", draftKey)
-          .maybeSingle();
+        const has = await hasOrcamentoDraft(user.id, draftKey).catch(() => false);
         if (cancelled) return;
-        if (data?.payload) { setRestoreDraftOpen(true); return; }
+        if (has) { setRestoreDraftOpen(true); return; }
       }
       const saved = localStorage.getItem(draftKey);
       if (!cancelled && saved) setRestoreDraftOpen(true);
@@ -842,13 +841,8 @@ export default function OrcamentoForm() {
       let serverOk = false;
       if (user?.id) {
         try {
-          const { error } = await supabase
-            .from("orcamento_drafts")
-            .upsert(
-              { usuario_id: user.id, draft_key: draftKey, payload: payload as unknown as Json },
-              { onConflict: "usuario_id,draft_key" },
-            );
-          if (!error) serverOk = true;
+          await upsertOrcamentoDraft(user.id, draftKey, payload);
+          serverOk = true;
         } catch {/* fallback abaixo */}
       }
       if (!serverOk) {
@@ -860,9 +854,11 @@ export default function OrcamentoForm() {
   }, [buildDraftPayload, draftKey, getValues, items.length, user?.id]);
 
   useEffect(() => {
-    supabase.from('empresa_config').select('*').limit(1).single().then(({ data }) => {
-      if (data) setEmpresaConfig(data as unknown as Record<string, string>);
-    });
+    getEmpresaConfig()
+      .then((data) => {
+        if (data) setEmpresaConfig(data as unknown as Record<string, string>);
+      })
+      .catch(() => {/* opcional — não bloqueia o form */});
   }, []);
 
   const clienteOptions = clientes.map((c) => ({
@@ -1063,13 +1059,8 @@ export default function OrcamentoForm() {
                       const val = e.target.value?.trim();
                       if (!val) return;
                       // Não revalida se for o próprio número do orçamento em edição
-                      const { data: existente } = await supabase
-                        .from('orcamentos')
-                        .select('id')
-                        .eq('numero', val)
-                        .neq('id', id || '00000000-0000-0000-0000-000000000000')
-                        .maybeSingle();
-                      if (existente) {
+                      const existe = await existeOrcamentoComNumero(val, id || null).catch(() => false);
+                      if (existe) {
                         toast.error('Este número de orçamento já está em uso. Escolha outro.');
                       }
                     }}
@@ -1647,29 +1638,20 @@ export default function OrcamentoForm() {
               variant="outline"
               onClick={async () => {
                 localStorage.removeItem(draftKey);
-                if (user?.id) {
-                  try {
-                    await supabase.from("orcamento_drafts")
-                      .delete()
-                      .eq("usuario_id", user.id)
-                      .eq("draft_key", draftKey);
-                  } catch {/* ignore */}
-                }
+                 if (user?.id) {
+                   try {
+                     await deleteOrcamentoDraft(user.id, draftKey);
+                   } catch {/* ignore */}
+                 }
                 setRestoreDraftOpen(false);
               }}
             >Descartar</Button>
             <Button
               onClick={async () => {
-                let payload: unknown = null;
-                if (user?.id) {
-                  const { data } = await supabase
-                    .from("orcamento_drafts")
-                    .select("payload")
-                    .eq("usuario_id", user.id)
-                    .eq("draft_key", draftKey)
-                    .maybeSingle();
-                  if (data?.payload) payload = data.payload;
-                }
+                 let payload: unknown = null;
+                 if (user?.id) {
+                   payload = await getOrcamentoDraftPayload(user.id, draftKey).catch(() => null);
+                 }
                 if (!payload) {
                   const raw = localStorage.getItem(draftKey);
                   if (raw) { try { payload = JSON.parse(raw); } catch {/* ignore */} }
@@ -1688,8 +1670,8 @@ export default function OrcamentoForm() {
         onClose={() => setQuickAddOpen(false)}
         onCreated={async (newId) => {
           // Reload clients list and select the new one
-          const { data: freshClientes } = await supabase.from("clientes").select("*").eq("ativo", true).order("nome_razao_social");
-          setClientes(freshClientes || []);
+          const freshClientes = await listClientesAtivosOrcamento();
+          setClientes(freshClientes);
           handleClienteChange(newId);
         }}
       />
