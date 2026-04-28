@@ -1,6 +1,16 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Inbox, Plus, CheckCircle2, AlertTriangle, EyeOff, XCircle } from "lucide-react";
+import {
+  Loader2,
+  Inbox,
+  Plus,
+  CheckCircle2,
+  AlertTriangle,
+  EyeOff,
+  XCircle,
+  Upload,
+  Eye,
+} from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
@@ -34,6 +44,8 @@ import {
   type TipoManifestacao,
 } from "@/services/fiscal/sefaz";
 import { notifyError } from "@/utils/errorMessages";
+import { parseNFeXml, type NFeXmlItem } from "@/services/fiscal/nfeXmlParser.service";
+import { formatCurrency } from "@/lib/format";
 
 /**
  * Manifestação do Destinatário (Onda 8).
@@ -58,6 +70,13 @@ interface NfeCapturada {
   numero: string | null;
   serie: string | null;
   data_emissao: string | null;
+  valor_total: number | null;
+  protocolo_autorizacao: string | null;
+  status_manifestacao: string;
+  data_manifestacao: string | null;
+  observacao: string | null;
+  xml_importado: boolean;
+}
   valor_total: number | null;
   protocolo_autorizacao: string | null;
   status_manifestacao: string;
