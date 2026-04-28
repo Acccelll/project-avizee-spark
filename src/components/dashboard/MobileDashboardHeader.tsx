@@ -21,6 +21,7 @@ const periodLabels: Record<DashboardPeriod, string> = {
   week: 'Esta semana',
   month: 'Este mês',
   '30d': 'Últimos 30 dias',
+  year: 'Este ano',
   custom: 'Personalizado',
 };
 
@@ -29,6 +30,7 @@ const periodOptions: { value: DashboardPeriod; label: string }[] = [
   { value: 'week', label: 'Esta semana' },
   { value: 'month', label: 'Este mês' },
   { value: '30d', label: 'Últimos 30 dias' },
+  { value: 'year', label: 'Este ano' },
   { value: 'custom', label: 'Personalizado' },
 ];
 
