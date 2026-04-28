@@ -38,7 +38,7 @@ import {
   ROLE_LABELS,
   getRolePermissions,
 } from '@/lib/permissions';
-import { getUserFriendlyError } from '@/utils/errorMessages';
+import { getUserFriendlyError, notifyError } from '@/utils/errorMessages';
 import { validatePassword, PASSWORD_MIN_LENGTH } from '@/lib/passwordPolicy';
 import {
   ALL_ROLES,

@@ -3,7 +3,7 @@ import { AlertTriangle, BarChart3, FileText, RefreshCcw, Users } from 'lucide-re
 import { toast } from 'sonner';
 import { ModulePage } from '@/components/ModulePage';
 import { AccessDenied } from '@/components/AccessDenied';
-import { getUserFriendlyError } from '@/utils/errorMessages';
+import { getUserFriendlyError, notifyError } from '@/utils/errorMessages';
 import { SummaryCard } from '@/components/SummaryCard';
 import { Tabs, TabsContent, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollableTabsList } from '@/components/ui/scrollable-tabs';
