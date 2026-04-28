@@ -7,7 +7,6 @@
  */
 import { useCallback, useEffect, useState, type SetStateAction } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,6 +23,14 @@ import { statusPedidoCompra } from "@/lib/statusSchema";
 import type { PedidoCompra } from "@/components/compras/pedidoCompraTypes";
 import { pedidoNumero } from "@/components/compras/pedidoCompraTypes";
 import type { Database } from "@/integrations/supabase/types";
+import {
+  getPedidoCompra,
+  listPedidoCompraItens,
+  listFornecedoresAtivos,
+  listProdutosAtivos,
+  listFormasPagamentoAtivas,
+  getCotacaoResumoById,
+} from "@/services/pedidosCompra.service";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { canonicalPedidoStatus, pedidoStatusLabelMap } from "@/components/compras/comprasStatus";
 import { useSalvarPedidoCompra } from "@/pages/comercial/hooks/useSalvarPedidoCompra";
@@ -83,14 +90,13 @@ export default function PedidoCompraForm() {
       if (!id) { navigate("/pedidos-compra"); return; }
       setLoading(true);
 
-      const [{ data: ped }, { data: itens }, { data: fors }, { data: prods }, { data: fps }] =
-        await Promise.all([
-          supabase.from("pedidos_compra").select("*, fornecedores(nome_razao_social, cpf_cnpj)").eq("id", id).single(),
-          supabase.from("pedidos_compra_itens").select("*, produtos(nome, codigo_interno)").eq("pedido_compra_id", id),
-          supabase.from("fornecedores").select("id, nome_razao_social, cpf_cnpj").eq("ativo", true).order("nome_razao_social"),
-          supabase.from("produtos").select("id, nome, codigo_interno, preco_venda, preco_custo, unidade_medida").eq("ativo", true).order("nome"),
-          supabase.from("formas_pagamento").select("id, descricao").eq("ativo", true).order("descricao"),
-        ]);
+      const [ped, itens, fors, prods, fps] = await Promise.all([
+        getPedidoCompra(id),
+        listPedidoCompraItens(id),
+        listFornecedoresAtivos(),
+        listProdutosAtivos(),
+        listFormasPagamentoAtivas(),
+      ]);
 
       if (!ped) { toast.error("Pedido não encontrado."); navigate("/pedidos-compra"); return; }
 
@@ -120,7 +126,7 @@ export default function PedidoCompraForm() {
         })
       );
       setFornecedorOptions(
-        (fors || []).map((f: FornecedorRow) => ({
+        (fors || []).map((f) => ({
           id: f.id,
           label: f.nome_razao_social || "",
           sublabel: f.cpf_cnpj || "",
@@ -130,11 +136,8 @@ export default function PedidoCompraForm() {
       setFormasPagamento((fps || []) as FormasPagRow[]);
 
       if (ped.cotacao_compra_id) {
-        const { data: cot } = await supabase.from("cotacoes_compra")
-          .select("numero, status")
-          .eq("id", String(ped.cotacao_compra_id))
-          .single();
-        setViewCotacao(cot || null);
+        const cot = await getCotacaoResumoById(String(ped.cotacao_compra_id));
+        setViewCotacao(cot);
       }
 
       setIsDirty(false);
