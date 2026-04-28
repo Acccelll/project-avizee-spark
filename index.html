@@ -12,6 +12,18 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="AviZee" />
 
+    <!--
+      Fallback runtime para configuração do backend.
+      Em PWA instalado, um chunk JS antigo cacheado pelo service worker pode
+      ter sido compilado com envs vazias (build antes das envs serem injetadas).
+      O `index.html` sempre vem fresco da rede (navigateFallback do Workbox),
+      então estas metas funcionam como fonte de verdade resiliente.
+      `src/integrations/supabase/client.ts` lê delas como fallback quando
+      `import.meta.env.VITE_SUPABASE_*` chegam vazios.
+    -->
+    <meta name="x-supabase-url" content="https://cpvdncsxzostovdduhci.supabase.co" />
+    <meta name="x-supabase-anon-key" content="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNwdmRuY3N4em9zdG92ZGR1aGNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3NTgwNzEsImV4cCI6MjA5MTMzNDA3MX0.EJG--zZ-iFZg8iE4GoBwtZPaE-sW1aEl6ByGBvX1jQ4" />
+
     <meta property="og:type" content="website" />
     <link rel="icon" type="image/x-icon" href="/favicon.ico">
     <!-- Preconnect to critical third-party origins to shorten the network dependency tree
