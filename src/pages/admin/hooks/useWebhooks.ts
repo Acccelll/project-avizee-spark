@@ -12,6 +12,7 @@ import {
   fetchMetrics,
   listDeliveries,
   listEndpoints,
+  replayDelivery,
   rotateSecret,
   triggerDispatcher,
   updateEndpoint,
@@ -82,5 +83,11 @@ export function useWebhookMutations() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao disparar."),
   });
 
-  return { create, update, remove, rotate, dispatch };
+  const replay = useMutation({
+    mutationFn: replayDelivery,
+    onSuccess: () => { invalidate(); toast.success("Entrega reenfileirada."); },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao reenfileirar."),
+  });
+
+  return { create, update, remove, rotate, dispatch, replay };
 }

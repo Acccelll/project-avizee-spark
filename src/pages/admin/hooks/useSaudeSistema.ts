@@ -23,7 +23,7 @@ export interface ModuloEvento {
 }
 
 export interface IntegracaoSaude {
-  chave: "email" | "auditoria" | "permissoes" | "fila_email" | "sefaz";
+  chave: "email" | "auditoria" | "permissoes" | "fila_email" | "sefaz" | "webhooks";
   nome: string;
   status: HealthStatus;
   detalhe: string;
@@ -58,6 +58,12 @@ const FILA_DOWN_MSGS = 200;
 /** Idade máxima saudável da mensagem mais antiga (segundos). */
 const FILA_DEGRADED_AGE = 15 * 60;     // 15 min
 const FILA_DOWN_AGE = 60 * 60;         // 1 h
+
+/** Limites para webhooks. Falhas em 24h e profundidade da fila pgmq. */
+const WEBHOOK_FALHAS_DEGRADED = 1;
+const WEBHOOK_FALHAS_DOWN = 10;
+const WEBHOOK_FILA_DEGRADED = 50;
+const WEBHOOK_FILA_DOWN = 200;
 
 function classificarEmail(erros: number, total: number, backoffAte: string | null): IntegracaoSaude {
   if (backoffAte && new Date(backoffAte) > new Date()) {
@@ -190,6 +196,64 @@ async function pingSefaz(): Promise<IntegracaoSaude> {
   }
 }
 
+interface WebhookMetricsRaw {
+  endpoints_ativos: number;
+  deliveries_pendentes: number;
+  falhas_24h: number;
+  fila_total: number;
+  fila_oldest_age_seconds: number;
+}
+
+async function classificarWebhooks(): Promise<IntegracaoSaude> {
+  try {
+    const { data, error } = await (
+      supabase.rpc as unknown as (
+        name: string,
+      ) => Promise<{ data: WebhookMetricsRaw | null; error: { message: string } | null }>
+    )("webhooks_metrics");
+    if (error) throw new Error(error.message);
+    const m = data ?? { endpoints_ativos: 0, deliveries_pendentes: 0, falhas_24h: 0, fila_total: 0, fila_oldest_age_seconds: 0 };
+
+    if (m.endpoints_ativos === 0) {
+      return {
+        chave: "webhooks",
+        nome: "Webhooks de saída",
+        status: "unknown",
+        detalhe: "Nenhum endpoint ativo configurado",
+      };
+    }
+    if (m.falhas_24h >= WEBHOOK_FALHAS_DOWN || m.fila_total >= WEBHOOK_FILA_DOWN) {
+      return {
+        chave: "webhooks",
+        nome: "Webhooks de saída",
+        status: "down",
+        detalhe: `${m.falhas_24h} falha(s) em 24h, ${m.fila_total} na fila`,
+      };
+    }
+    if (m.falhas_24h >= WEBHOOK_FALHAS_DEGRADED || m.fila_total >= WEBHOOK_FILA_DEGRADED) {
+      return {
+        chave: "webhooks",
+        nome: "Webhooks de saída",
+        status: "degraded",
+        detalhe: `${m.falhas_24h} falha(s) em 24h, ${m.fila_total} na fila`,
+      };
+    }
+    return {
+      chave: "webhooks",
+      nome: "Webhooks de saída",
+      status: "healthy",
+      detalhe: `${m.endpoints_ativos} endpoint(s) ativo(s), ${m.deliveries_pendentes} pendente(s)`,
+    };
+  } catch (e) {
+    return {
+      chave: "webhooks",
+      nome: "Webhooks de saída",
+      status: "unknown",
+      detalhe: `Métricas indisponíveis: ${(e as Error).message}`,
+    };
+  }
+}
+
 export function useSaudeSistema() {
   return useQuery({
     queryKey: ["admin", "saude-sistema"] as const,
@@ -273,12 +337,16 @@ export function useSaudeSistema() {
       }
 
       // 4. Ping ao sefaz-proxy em paralelo com a montagem do snapshot
-      const sefazIntegracao = await pingSefaz();
+      const [sefazIntegracao, webhooksIntegracao] = await Promise.all([
+        pingSefaz(),
+        classificarWebhooks(),
+      ]);
 
       const integracoes: IntegracaoSaude[] = [
         classificarEmail(erros24h, enviados24h, backoffAte),
         classificarFila(filas),
         sefazIntegracao,
+        webhooksIntegracao,
         {
           chave: "auditoria",
           nome: "Trilha de auditoria",

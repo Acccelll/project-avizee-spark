@@ -54,6 +54,9 @@ array `eventos`).
   sucesso/falha, ações: editar, rotacionar segredo, remover (com confirm).
 - Tabela das últimas 100 entregas com filtro por endpoint.
 - Botão "Disparar agora" invoca a edge function manualmente.
+- Cada linha de delivery em `falha`/`cancelado` tem botão "Send" que chama
+  `webhooks_replay_delivery(uuid)` para reenfileirar imediatamente
+  (zera tentativas e seta `proxima_tentativa_em = now()`).
 
 ## Hooks/Service
 
@@ -66,5 +69,10 @@ array `eventos`).
 
 RPC `webhooks_metrics()` (admin-only) devolve `endpoints_ativos`,
 `deliveries_pendentes`, `falhas_24h`, `fila_total` e
-`fila_oldest_age_seconds`. Pode ser integrada ao painel de saúde
-(`SaudeSistemaSection`) numa próxima onda.
+`fila_oldest_age_seconds`. Já integrada ao painel de saúde
+(`SaudeSistemaSection` → cartão "Webhooks de saída"). Limites de
+classificação:
+- `down`: ≥10 falhas em 24h ou ≥200 mensagens na fila.
+- `degraded`: ≥1 falha em 24h ou ≥50 na fila.
+- `unknown`: nenhum endpoint ativo.
+- `healthy`: caso contrário.

@@ -9,7 +9,7 @@
 import { useMemo, useState } from "react";
 import {
   AlertCircle, CheckCircle2, Clock, Copy, Loader2, Plug, Plus,
-  RefreshCw, RotateCcw, Trash2, XCircle,
+  RefreshCw, RotateCcw, Send, Trash2, XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -213,6 +213,7 @@ export function WebhooksSection() {
                     <TableHead className="text-right">HTTP</TableHead>
                     <TableHead className="text-right">Tentativas</TableHead>
                     <TableHead>Erro</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -225,6 +226,22 @@ export function WebhooksSection() {
                       <TableCell className="text-right text-xs">{d.tentativas}</TableCell>
                       <TableCell className="text-xs text-muted-foreground max-w-[280px] truncate" title={d.ultimo_erro ?? undefined}>
                         {d.ultimo_erro ?? "—"}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {(d.status === "falha" || d.status === "cancelado") ? (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            title="Reenfileirar entrega"
+                            disabled={m.replay.isPending}
+                            onClick={() => m.replay.mutate(d.id)}
+                          >
+                            <Send className="h-3.5 w-3.5" />
+                          </Button>
+                        ) : (
+                          <span className="text-muted-foreground/50 text-xs">—</span>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}

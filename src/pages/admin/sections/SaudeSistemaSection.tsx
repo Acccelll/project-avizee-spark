@@ -8,7 +8,7 @@
  * consistência visual com outros indicadores de integração.
  */
 
-import { Activity, AlertCircle, FileSignature, Inbox, Mail, RefreshCw, ShieldCheck } from "lucide-react";
+import { Activity, AlertCircle, FileSignature, Inbox, Mail, RefreshCw, ShieldCheck, Webhook } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -22,6 +22,7 @@ const ICONES_INTEGRACAO = {
   sefaz: FileSignature,
   auditoria: ShieldCheck,
   permissoes: Activity,
+  webhooks: Webhook,
 } as const;
 
 function formatTimestamp(iso: string) {
