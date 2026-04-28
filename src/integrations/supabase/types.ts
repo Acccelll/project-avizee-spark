@@ -1994,7 +1994,8 @@ export type Database = {
           id: string
           justificativa: string | null
           motivo_retorno: string | null
-          nota_fiscal_id: string
+          nfe_distribuicao_id: string | null
+          nota_fiscal_id: string | null
           protocolo: string | null
           sequencia: number
           status_sefaz: string
@@ -2012,7 +2013,8 @@ export type Database = {
           id?: string
           justificativa?: string | null
           motivo_retorno?: string | null
-          nota_fiscal_id: string
+          nfe_distribuicao_id?: string | null
+          nota_fiscal_id?: string | null
           protocolo?: string | null
           sequencia?: number
           status_sefaz?: string
@@ -2030,7 +2032,8 @@ export type Database = {
           id?: string
           justificativa?: string | null
           motivo_retorno?: string | null
-          nota_fiscal_id?: string
+          nfe_distribuicao_id?: string | null
+          nota_fiscal_id?: string | null
           protocolo?: string | null
           sequencia?: number
           status_sefaz?: string
@@ -2041,6 +2044,13 @@ export type Database = {
           xml_retorno?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "eventos_fiscais_nfe_distribuicao_id_fkey"
+            columns: ["nfe_distribuicao_id"]
+            isOneToOne: false
+            referencedRelation: "nfe_distribuicao"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "eventos_fiscais_nota_fiscal_id_fkey"
             columns: ["nota_fiscal_id"]
@@ -3614,6 +3624,63 @@ export type Database = {
           observacoes?: string | null
           tipo_operacao?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      nfe_distribuicao: {
+        Row: {
+          chave_acesso: string
+          cnpj_emitente: string | null
+          created_at: string
+          data_emissao: string | null
+          data_manifestacao: string | null
+          id: string
+          nome_emitente: string | null
+          numero: string | null
+          observacao: string | null
+          protocolo_autorizacao: string | null
+          serie: string | null
+          status_manifestacao: string
+          updated_at: string
+          usuario_id: string | null
+          valor_total: number | null
+          xml_nfe: string | null
+        }
+        Insert: {
+          chave_acesso: string
+          cnpj_emitente?: string | null
+          created_at?: string
+          data_emissao?: string | null
+          data_manifestacao?: string | null
+          id?: string
+          nome_emitente?: string | null
+          numero?: string | null
+          observacao?: string | null
+          protocolo_autorizacao?: string | null
+          serie?: string | null
+          status_manifestacao?: string
+          updated_at?: string
+          usuario_id?: string | null
+          valor_total?: number | null
+          xml_nfe?: string | null
+        }
+        Update: {
+          chave_acesso?: string
+          cnpj_emitente?: string | null
+          created_at?: string
+          data_emissao?: string | null
+          data_manifestacao?: string | null
+          id?: string
+          nome_emitente?: string | null
+          numero?: string | null
+          observacao?: string | null
+          protocolo_autorizacao?: string | null
+          serie?: string | null
+          status_manifestacao?: string
+          updated_at?: string
+          usuario_id?: string | null
+          valor_total?: number | null
+          xml_nfe?: string | null
         }
         Relationships: []
       }
