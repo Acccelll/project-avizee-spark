@@ -15,6 +15,7 @@ import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { RemoteUiPreferencesHydrator } from "@/components/theme/RemoteUiPreferencesHydrator";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { PwaUpdatePrompt } from "@/components/PwaUpdatePrompt";
+import { InstallPwaButton } from "@/components/InstallPwaButton";
 import { AppLayout } from "@/components/AppLayout";
 import { ContentSpinner } from "@/components/ui/spinner";
 import { SessionExpiryWarning } from "@/components/auth/SessionExpiryWarning";
@@ -117,6 +118,7 @@ const App = () => (
                   <Sonner />
                   <OfflineBanner />
                   <PwaUpdatePrompt />
+                  <InstallPwaButton />
                   <SessionExpiryWarning />
                   <RemoteUiPreferencesHydrator />
                   <Routes>

@@ -96,17 +96,3 @@ export function InstallPwaButton({ className, variant = "floating" }: { classNam
     </div>
   );
 }
-
-/* Antiga implementação inline mantida acima via variant="inline". */
-function _LegacyShape() {
-  return (
-    <Button
-      variant="outline"
-      size="sm"
-      onClick={() => undefined}
-    >
-      <Download className="h-3.5 w-3.5" />
-      <span className="ml-1.5">—</span>
-    </Button>
-  );
-}
