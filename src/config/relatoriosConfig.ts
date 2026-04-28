@@ -557,7 +557,7 @@ const nfeEntradaConfig: ReportConfig = {
   ],
   drillDown: [
     { key: 'fornecedor', label: 'Abrir fornecedor', route: '/fornecedores', targetField: 'fornecedorId', available: true },
-    { key: 'nfe', label: 'Abrir NF-e', route: '/faturamento', targetField: 'nfeId', available: true, queryParams: { tab: 'manifestacao', nfe: 'nfeId' } as Record<string, string> },
+    { key: 'nfe', label: 'Abrir NF-e', route: '/faturamento', targetField: 'nfeId', available: true },
   ],
 };
 
@@ -794,6 +794,7 @@ export const reportConfigs: Record<TipoRelatorio, ReportConfig> = {
   vendas_cliente: vendasClienteConfig,
   compras: comprasConfig,
   compras_fornecedor: comprasFornecedorConfig,
+  nfe_entrada: nfeEntradaConfig,
   faturamento: faturamentoConfig,
   aging: agingConfig,
   dre: dreConfig,
