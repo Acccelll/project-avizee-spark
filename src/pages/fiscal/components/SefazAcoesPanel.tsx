@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
-import { Send, Search, Ban, FileDown, Loader2, ShieldAlert, FileText, RotateCcw } from "lucide-react";
+import { Send, Search, Ban, FileDown, Loader2, ShieldAlert, FileText, RotateCcw, Mail } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,11 +14,14 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { useSefazAcoes } from "@/pages/fiscal/hooks/useSefazAcoes";
 import { SefazRetornoModal } from "@/pages/fiscal/components/SefazRetornoModal";
 import { CartaCorrecaoDrawer } from "@/pages/fiscal/components/CartaCorrecaoDrawer";
 import { gerarDanfePdf, type DanfeInput } from "@/services/fiscal/danfe.service";
+import { enviarDanfePorEmail } from "@/services/fiscal/danfeEmail.service";
 import { obterCertificadoConfigurado } from "@/services/fiscal/certificado.service";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { NotaFiscal } from "@/types/domain";
 import type { NFeData } from "@/services/fiscal/sefaz";
