@@ -160,3 +160,19 @@ NFC-e (precisa CSC + impressora), CT-e (5 modais), NFS-e (350+ municípios difer
 ## Como prefere prosseguir?
 
 Sugiro a sequência **Onda 0 → Onda 1 → Onda 3** (fundação + casca + wizard de emissão) para ter algo emitindo NF-e real em homologação o quanto antes; cadastros (Onda 2) e backlog OV (Onda 4) entram em paralelo conforme prioridade. Posso começar pela Onda 0 ou prefere validar antes a estrutura visual da Onda 1 (rota, abas, KPIs)?
+
+---
+
+## Status de implementação
+
+- ✅ **Onda 0** — Fundação: SEQUENCE de numeração, RPC `gerar_chave_acesso_nfe`, IBGE em clientes/fornecedores
+- ✅ **Onda 1** — Estrutura: rota `/faturamento` com 4 abas (Painel/Emitir/Backlog/Documentos) e KPIs reais
+- ✅ **Onda 2** — Cadastros auxiliares:
+  - Tabelas `naturezas_operacao`, `matriz_fiscal`, `ibge_municipios`
+  - RPCs `aplicar_matriz_fiscal(produto, uf_destino)` e `buscar_municipio_ibge(nome, uf)`
+  - UI `/faturamento/cadastros` com Naturezas (CRUD + 7 seeds) e Matriz Fiscal (CRUD)
+  - Hook `useMunicipioIbge` com fallback automático para a API do IBGE
+- ⏳ **Onda 3** — Wizard 5 passos
+- ⏳ **Onda 4** — Backlog OV→NF
+- ⏳ **Onda 5** — Eventos: CC-e, devolução/complementar, inutilização UI
+- ⏳ **Onda 6** — Status SEFAZ por UF + contingência
