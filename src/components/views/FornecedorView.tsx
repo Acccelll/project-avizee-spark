@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { fetchFornecedorDetalhes, deleteFornecedor } from "@/services/fornecedores.service";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -40,39 +40,11 @@ export function FornecedorView({ id }: Props) {
   const invalidate = useInvalidateAfterMutation();
 
   const { data, loading, error } = useDetailFetch<FornecedorDetail>(id, async (fId, signal) => {
-    const { data: f, error: fError } = await supabase
-      .from("fornecedores")
-      .select("*")
-      .eq("id", fId)
-      .abortSignal(signal)
-      .maybeSingle();
-    if (fError) throw fError;
-    if (!f) return null;
-
-    const [cRes, finRes, pRes] = await Promise.all([
-      supabase
-        .from("pedidos_compra")
-        .select("id, numero, data_pedido, valor_total, status")
-        .eq("fornecedor_id", f.id)
-        .order("data_pedido", { ascending: false })
-        .limit(10)
-        .abortSignal(signal),
-      supabase
-        .from("financeiro_lancamentos")
-        .select("*")
-        .eq("fornecedor_id", f.id)
-        .order("data_vencimento", { ascending: false })
-        .limit(10)
-        .abortSignal(signal),
-      supabase
-        .from("produtos_fornecedores")
-        .select("*, produtos(id, nome, sku)")
-        .eq("fornecedor_id", f.id)
-        .abortSignal(signal),
-    ]);
-
+    const res = await fetchFornecedorDetalhes(fId, signal);
+    if (!res) return null;
+    const { fornecedor, cRes, finRes, pRes } = res;
     return {
-      fornecedor: f as FornecedorRow,
+      fornecedor: fornecedor as FornecedorRow,
       compras: (cRes.data as CompraRow[]) || [],
       financeiro: (finRes.data as FinanceiroLancamentoRow[]) || [],
       produtos: (pRes.data as ProdutoFornecedorRow[]) || [],
