@@ -13,7 +13,7 @@ import { RelationalLink } from "@/components/ui/RelationalLink";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { TimelineList } from "@/components/ui/TimelineList";
-import { supabase } from "@/integrations/supabase/client";
+import { fetchNotaFiscalDetalhes } from "@/services/fiscal.service";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
@@ -127,22 +127,13 @@ export function NotaFiscalDrawer({
     eventos: EventoFiscal[];
     anexos: AnexoFiscal[];
   }>(open, selectedId, async (id) => {
-    const [{ data: it }, { data: lanc }, { data: mov }, { data: ev }, { data: anx }] = await Promise.all([
-      supabase.from("notas_fiscais_itens").select("*, produtos(id, nome, sku)").eq("nota_fiscal_id", id),
-      // A coluna canônica em `financeiro_lancamentos` é `nota_fiscal_id`.
-      // `documento_fiscal_id` não existe no schema atual — o `or(...)` antigo
-      // gerava query inválida silenciosa.
-      supabase.from("financeiro_lancamentos").select("id, tipo, descricao, valor, data_vencimento, status, forma_pagamento, parcela_numero, parcela_total").eq("nota_fiscal_id", id).order("parcela_numero", { ascending: true }),
-      supabase.from("estoque_movimentos").select("*, produtos(id, nome, sku)").eq("documento_id", id).eq("documento_tipo", "fiscal").order("created_at", { ascending: true }),
-      supabase.from("nota_fiscal_eventos").select("*").eq("nota_fiscal_id", id).order("data_evento", { ascending: false }),
-      supabase.from("nota_fiscal_anexos").select("*").eq("nota_fiscal_id", id).order("created_at", { ascending: false }),
-    ]);
+    const r = await fetchNotaFiscalDetalhes(id);
     return {
-      items: (it || []) as unknown as NFItem[],
-      lancamentos: lanc || [],
-      movimentos: (mov || []) as unknown as MovimentoEstoque[],
-      eventos: ev || [],
-      anexos: anx || [],
+      items: r.items as unknown as NFItem[],
+      lancamentos: r.lancamentos as LancamentoFiscal[],
+      movimentos: r.movimentos as unknown as MovimentoEstoque[],
+      eventos: r.eventos as EventoFiscal[],
+      anexos: r.anexos as AnexoFiscal[],
     };
   });
 

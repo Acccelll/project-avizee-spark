@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
+import { limparDadosMigracao } from "@/services/importacao.service";
 import { toast } from "sonner";
 import { Trash2, AlertTriangle } from "lucide-react";
 import {
@@ -55,11 +55,7 @@ export function LimparDadosMigracaoButton({ onCleaned }: Props) {
     setBusy(true);
 
     try {
-      const { data, error } = await supabase.rpc("limpar_dados_migracao", { p_confirmar: true });
-      if (error) throw error;
-
-      const r = data as { ok?: boolean; erro?: string; apagados?: Record<string, number> };
-
+      const r = await limparDadosMigracao();
       if (r?.erro) {
         toast.error(r.erro);
         return;

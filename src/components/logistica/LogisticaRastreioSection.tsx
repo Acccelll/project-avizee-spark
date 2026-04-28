@@ -1,13 +1,15 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Tables } from "@/integrations/supabase/types";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Search, MapPin, Truck, ExternalLink, Package, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { trackAndPersistEventos } from "@/services/logistica/remessas.service";
+import {
+  trackAndPersistEventos,
+  fetchRemessasRastreioPorDocumento,
+} from "@/services/logistica/remessas.service";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import { getRastreioStatusConsistencyBadge } from "@/pages/logistica/logisticaStatus";
 
@@ -34,35 +36,17 @@ export function LogisticaRastreioSection({ pedidoCompraId, notaFiscalId, remessa
 
   const fetchLogistica = useCallback(async () => {
     setLoading(true);
-    let query = supabase.from("remessas").select("*, transportadoras(nome_razao_social)");
-
-    if (remessaId) query = query.eq("id", remessaId);
-    if (pedidoCompraId) query = query.eq("pedido_compra_id", pedidoCompraId);
-    if (notaFiscalId) query = query.eq("nota_fiscal_id", notaFiscalId);
-    if (ordemVendaId) query = query.eq("ordem_venda_id", ordemVendaId);
-
-    const { data, error } = await query.eq("ativo", true);
-
-    if (!error && data) {
-      setRemessas(data);
-      // Batch-fetch events for all remessas in a single query
-      if (data.length > 0) {
-        const ids = data.map((r: Remessa) => r.id);
-        const { data: evs } = await supabase
-          .from("remessa_eventos")
-          .select("*")
-          .in("remessa_id", ids)
-          .order("data_hora", { ascending: false });
-        if (evs) {
-          const grouped: Record<string, RemessaEvento[]> = {};
-          for (const ev of evs) {
-            const key = ev.remessa_id as string;
-            if (!grouped[key]) grouped[key] = [];
-            grouped[key].push(ev);
-          }
-          setEventos(grouped);
-        }
-      }
+    try {
+      const { remessas: rs, eventos: ev } = await fetchRemessasRastreioPorDocumento({
+        pedidoCompraId,
+        notaFiscalId,
+        remessaId,
+        ordemVendaId,
+      });
+      setRemessas(rs as Remessa[]);
+      setEventos(ev as Record<string, RemessaEvento[]>);
+    } catch {
+      // mantém estados anteriores em falha
     }
     setLoading(false);
   }, [pedidoCompraId, notaFiscalId, remessaId, ordemVendaId]);

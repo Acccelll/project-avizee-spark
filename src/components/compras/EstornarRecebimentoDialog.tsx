@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { supabase } from "@/integrations/supabase/client";
+import { estornarRecebimentoCompra } from "@/services/comercial/comprasLifecycle.service";
 import { toast } from "sonner";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { getUserFriendlyError } from "@/utils/errorMessages";
@@ -78,11 +78,10 @@ export function EstornarRecebimentoDialog({ open, onClose, pedidoId, pedidoNumer
     }
     setSaving(true);
     try {
-      const { error } = await supabase.rpc("estornar_recebimento_compra", {
-        p_compra_id: selectedCompraId,
-        p_motivo: motivo.trim(),
+      await estornarRecebimentoCompra({
+        compraId: selectedCompraId,
+        motivo: motivo.trim(),
       });
-      if (error) throw error;
       toast.success("Recebimento estornado. Estoque devolvido.");
       onSuccess?.();
       onClose();
