@@ -1101,6 +1101,7 @@ export default function EmitirNFeWizard() {
           cofins_valor: totaisCofins,
           status: "pendente",
           status_sefaz: "nao_enviada",
+          ordem_venda_id: data.ordem_venda_id ?? null,
         } as never])
         .select("id")
         .single();
@@ -1134,6 +1135,18 @@ export default function EmitirNFeWizard() {
         .from("notas_fiscais_itens")
         .insert(itensPayload as never);
       if (itErr) throw itErr;
+
+      // Onda 4 — marcar OV como faturada (parcial/total)
+      if (data.ordem_venda_id) {
+        try {
+          await supabase
+            .from("ordens_venda")
+            .update({ status_faturamento: "faturado" })
+            .eq("id", data.ordem_venda_id);
+        } catch {
+          /* não bloqueia: status pode ser ajustado posteriormente */
+        }
+      }
 
       toast.success("Rascunho salvo. Pronto para transmitir!");
       navigate(`/fiscal/${nfRow!.id}`);
