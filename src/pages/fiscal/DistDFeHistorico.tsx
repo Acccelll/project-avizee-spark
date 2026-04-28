@@ -7,9 +7,16 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, RefreshCw, PlayCircle } from "lucide-react";
+import { ArrowLeft, RefreshCw, PlayCircle, Zap } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { useAppConfig } from "@/hooks/useAppConfig";
+import {
+  aplicarCienciaEmLote,
+  buscarNfeSemManifestacao,
+} from "@/services/fiscal/autoCiencia.service";
 
 /**
  * Histórico de execuções do cron `process-distdfe-cron`.
@@ -50,6 +57,12 @@ export default function DistDFeHistorico() {
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const {
+    value: autoCiencia,
+    save: saveAutoCiencia,
+    loading: loadingFlag,
+  } = useAppConfig<boolean>("distdfe_auto_ciencia", false);
+  const [aplicandoLote, setAplicandoLote] = useState(false);
 
   const carregar = useCallback(async () => {
     setLoading(true);
