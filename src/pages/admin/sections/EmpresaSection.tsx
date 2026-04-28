@@ -17,10 +17,10 @@ import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MaskedInput } from "@/components/ui/MaskedInput";
 import { cn } from "@/lib/utils";
-import { supabase } from "@/integrations/supabase/client";
 import { getUserFriendlyError } from "@/utils/errorMessages";
 import { SectionShell } from "@/pages/admin/components/SectionShell";
 import { useEmpresaConfig, useAppConfig } from "@/pages/admin/hooks/useEmpresaConfig";
+import { uploadDbavizeeImage } from "@/services/storage.service";
 
 const DEFAULT_FORM = {
   empresa: "AviZee Equipamentos LTDA",
@@ -110,7 +110,6 @@ export function EmpresaSection() {
     setUploading: (v: boolean) => void,
     inputRef: React.RefObject<HTMLInputElement>,
   ) => {
-    if (!supabase) return;
     const allowed = ["image/png", "image/jpeg", "image/jpg", "image/svg+xml", "image/webp"];
     if (!allowed.includes(file.type)) {
       toast.error("Formato de imagem não suportado. Use PNG, JPEG, SVG ou WebP.");
@@ -124,13 +123,8 @@ export function EmpresaSection() {
     try {
       const ext = file.name.split(".").pop() ?? "png";
       const path = `${pathPrefix}.${ext}`;
-      const { error } = await supabase.storage.from("dbavizee").upload(path, file, {
-        upsert: true,
-        contentType: file.type,
-      });
-      if (error) throw error;
-      const { data: urlData } = supabase.storage.from("dbavizee").getPublicUrl(path);
-      update(field, urlData.publicUrl);
+      const { publicUrl } = await uploadDbavizeeImage({ path, file });
+      update(field, publicUrl);
       toast.success("Imagem enviada com sucesso.");
     } catch (err) {
       console.error("[admin] Erro ao enviar imagem:", err);
