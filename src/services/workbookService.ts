@@ -1,8 +1,16 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { WorkbookTemplate, WorkbookGeracao, FechamentoMensal, WorkbookParametros } from '@/types/workbook';
-import { generateWorkbook } from '@/lib/workbook/generateWorkbook';
 import { hashParametros } from '@/lib/workbook/utils';
 import { logger } from "@/lib/logger";
+
+/**
+ * Lazy-loads the heavy ExcelJS-based workbook generator. Keeps ~400KB out of
+ * the initial bundle — only paid for when the user actually generates a workbook.
+ */
+async function loadGenerateWorkbook() {
+  const mod = await import('@/lib/workbook/generateWorkbook');
+  return mod.generateWorkbook;
+}
 
 export async function listarTemplates(): Promise<WorkbookTemplate[]> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -66,6 +74,7 @@ export async function gerarWorkbook(
 
   try {
     // Generate the workbook blob
+    const generateWorkbook = await loadGenerateWorkbook();
     const blob = await generateWorkbook({ parametros, geracaoId: geracao.id });
 
     // Try to save artifact to storage
@@ -149,6 +158,7 @@ export async function downloadGeracao(geracao: WorkbookGeracao): Promise<Blob> {
     modoGeracao?: 'dinamico' | 'fechado';
   };
 
+  const generateWorkbook = await loadGenerateWorkbook();
   const blob = await generateWorkbook({
     parametros: {
       templateId: params.templateId ?? '',
