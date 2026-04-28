@@ -1,11 +1,19 @@
 
 import { useState, useCallback } from "react";
 import * as XLSX from "@/lib/xlsx-compat";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { validateFinanceiroImport } from "@/lib/importacao/validators";
 import { FIELD_ALIASES } from "@/lib/importacao/aliases";
 import { Mapping, PreviewFinanceiroRow } from "./types";
+import {
+  listClientesLookup,
+  listFornecedoresLookup,
+  createImportacaoLote,
+  insertStagingChunks,
+  logImportacao,
+  consolidarFinanceiro,
+  cancelarLote,
+} from "@/services/importacao.service";
 
 /**
  * Hook de importação financeira com staging real.
@@ -78,21 +86,19 @@ export function useImportacaoFinanceiro() {
     setIsProcessing(true);
 
     try {
-      const { data: clientes } = await supabase
-        .from("clientes")
-        .select("id, nome_razao_social, cpf_cnpj, codigo_legado");
-      const { data: fornecedores } = await supabase
-        .from("fornecedores")
-        .select("id, nome_razao_social, cpf_cnpj, codigo_legado");
+      const [clientes, fornecedores] = await Promise.all([
+        listClientesLookup(),
+        listFornecedoresLookup(),
+      ]);
 
       const entityByLegado = new Map<string, { id: string; type: "cliente" | "fornecedor" }>();
       const entityByCpf = new Map<string, { id: string; type: "cliente" | "fornecedor" }>();
 
-      clientes?.forEach((c: any) => {
+      clientes.forEach((c) => {
         if (c.codigo_legado) entityByLegado.set(c.codigo_legado, { id: c.id, type: "cliente" });
         if (c.cpf_cnpj) entityByCpf.set(String(c.cpf_cnpj).replace(/\D/g, ""), { id: c.id, type: "cliente" });
       });
-      fornecedores?.forEach((f: any) => {
+      fornecedores.forEach((f) => {
         if (f.codigo_legado) entityByLegado.set(f.codigo_legado, { id: f.id, type: "fornecedor" });
         if (f.cpf_cnpj) entityByCpf.set(String(f.cpf_cnpj).replace(/\D/g, ""), { id: f.id, type: "fornecedor" });
       });
@@ -146,7 +152,6 @@ export function useImportacaoFinanceiro() {
     setIsProcessing(true);
 
     try {
-      const { data: user } = await supabase.auth.getUser();
       const validos = previewData.filter(i => i._valid);
       const errosCount = previewData.length - validos.length;
 
@@ -155,66 +160,48 @@ export function useImportacaoFinanceiro() {
       const abertos = validos.filter(i => !i.data_pagamento).length;
       const baixados = validos.filter(i => !!i.data_pagamento).length;
 
-      const { data: lote, error: loteError } = await supabase
-        .from("importacao_lotes")
-        .insert({
-          tipo: "financeiro_aberto",
-          arquivo_nome: file?.name,
-          status: "staging",
-          fase: "financeiro",
-          total_registros: previewData.length,
-          registros_sucesso: 0,
-          registros_erro: errosCount,
-          usuario_id: user?.user?.id,
-          resumo: { totalCP, totalCR, abertos, baixados, semVinculo: validos.filter(i => !i.entity_id).length },
-          erros: errosCount > 0
-            ? previewData.filter(i => !i._valid).slice(0, 50).map(i => ({ linha: i._originalLine, erros: i._errors }))
-            : null,
-        })
-        .select()
-        .single();
-
-      if (loteError) throw loteError;
-      const currentLoteId = lote.id;
+      const currentLoteId = await createImportacaoLote({
+        tipo: "financeiro_aberto",
+        arquivo_nome: file?.name,
+        fase: "financeiro",
+        total_registros: previewData.length,
+        registros_erro: errosCount,
+        resumo: { totalCP, totalCR, abertos, baixados, semVinculo: validos.filter(i => !i.entity_id).length },
+        erros: errosCount > 0
+          ? previewData.filter(i => !i._valid).slice(0, 50).map(i => ({ linha: i._originalLine, erros: i._errors }))
+          : null,
+      });
       setLoteId(currentLoteId);
 
-      if (validos.length > 0) {
-        const stagingRows = validos.map(item => ({
-          lote_id: currentLoteId,
-          dados: {
-            tipo: item.tipo === 'receber' ? 'receber' : 'pagar',
-            descricao: item.descricao || item.titulo || 'Carga via migração',
-            titulo: item.titulo,
-            data_emissao: item.data_emissao,
-            data_vencimento: item.data_vencimento,
-            data_pagamento: item.data_pagamento,
-            valor: item.valor,
-            valor_pago: item.valor_pago,
-            forma_pagamento: item.forma_pagamento,
-            banco: item.banco,
-            parcela_numero: item.parcela_numero,
-            parcela_total: item.parcela_total,
-            cpf_cnpj: item.cpf_cnpj,
-            codigo_legado_pessoa: item.codigo_legado_pessoa,
-            entity_id: item.entity_id,
-            entity_type: item.entity_type,
-            observacoes: item.observacoes,
-          },
-          status: "pendente",
-        }));
-
-        for (let i = 0; i < stagingRows.length; i += 500) {
-          const batch = stagingRows.slice(i, i + 500);
-          const { error: stgError } = await supabase.from("stg_financeiro_aberto").insert(batch);
-          if (stgError) throw stgError;
-        }
-      }
-
-      await supabase.from("importacao_logs").insert({
+      const stagingRows = validos.map(item => ({
         lote_id: currentLoteId,
-        nivel: "info",
-        mensagem: `Staging financeiro: ${validos.length} títulos (CP: ${totalCP.toFixed(2)}, CR: ${totalCR.toFixed(2)}), ${errosCount} erros.`,
-      });
+        dados: {
+          tipo: item.tipo === 'receber' ? 'receber' : 'pagar',
+          descricao: item.descricao || item.titulo || 'Carga via migração',
+          titulo: item.titulo,
+          data_emissao: item.data_emissao,
+          data_vencimento: item.data_vencimento,
+          data_pagamento: item.data_pagamento,
+          valor: item.valor,
+          valor_pago: item.valor_pago,
+          forma_pagamento: item.forma_pagamento,
+          banco: item.banco,
+          parcela_numero: item.parcela_numero,
+          parcela_total: item.parcela_total,
+          cpf_cnpj: item.cpf_cnpj,
+          codigo_legado_pessoa: item.codigo_legado_pessoa,
+          entity_id: item.entity_id,
+          entity_type: item.entity_type,
+          observacoes: item.observacoes,
+        },
+        status: "pendente" as const,
+      }));
+      await insertStagingChunks("stg_financeiro_aberto", stagingRows);
+      await logImportacao(
+        currentLoteId,
+        "info",
+        `Staging financeiro: ${validos.length} títulos (CP: ${totalCP.toFixed(2)}, CR: ${totalCR.toFixed(2)}), ${errosCount} erros.`,
+      );
 
       toast.success(`${validos.length} títulos enviados para staging. Confirme para consolidar.`);
       return currentLoteId;
@@ -237,25 +224,16 @@ export function useImportacaoFinanceiro() {
 
     setIsProcessing(true);
     try {
-      const { data, error } = await supabase.rpc("consolidar_lote_financeiro", {
-        p_lote_id: targetLoteId,
-      });
-
-      if (error) throw error;
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const result = data as any;
-      if (result?.erro) {
+      const result = await consolidarFinanceiro(targetLoteId);
+      if (result.erro) {
         toast.error(`Erro na consolidação: ${result.erro}`);
         return false;
       }
-
-      await supabase.from("importacao_logs").insert({
-        lote_id: targetLoteId,
-        nivel: "info",
-        mensagem: `Consolidação financeira: ${result.inseridos} lançamentos criados, ${result.erros} erros.`,
-      });
-
+      await logImportacao(
+        targetLoteId,
+        "info",
+        `Consolidação financeira: ${result.inseridos ?? 0} lançamentos criados, ${result.erros ?? 0} erros.`,
+      );
       toast.success(`${result.inseridos} lançamentos financeiros consolidados.`);
       return true;
     } catch (error: unknown) {
@@ -271,8 +249,7 @@ export function useImportacaoFinanceiro() {
     const targetLoteId = loteIdParam || loteId;
     if (!targetLoteId) return;
     try {
-      await supabase.from("stg_financeiro_aberto").delete().eq("lote_id", targetLoteId);
-      await supabase.from("importacao_lotes").update({ status: "cancelado" }).eq("id", targetLoteId);
+      await cancelarLote(targetLoteId, "stg_financeiro_aberto");
       toast.info("Lote cancelado.");
     } catch (err: unknown) {
       toast.error(`Erro ao cancelar: ${err instanceof Error ? err.message : String(err)}`);
