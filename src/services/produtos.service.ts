@@ -119,3 +119,114 @@ export async function saveProdutoFornecedores(params: {
   });
   if (error) throw new Error("Erro ao salvar fornecedores: " + (error.message || "tente novamente"));
 }
+
+export async function deleteProduto(id: string): Promise<void> {
+  const { error } = await supabase.from("produtos").delete().eq("id", id);
+  if (error) throw error;
+}
+
+/** Lookup leve para autocompletes (id/nome/sku/codigo_interno). */
+export async function listProdutosBasicAtivos() {
+  const { data, error } = await supabase
+    .from("produtos")
+    .select("id, nome, sku, codigo_interno")
+    .eq("ativo", true)
+    .order("nome");
+  if (error) throw error;
+  return (data || []) as { id: string; nome: string; sku: string; codigo_interno: string }[];
+}
+
+/** Vincula um produto a um fornecedor. */
+export async function vincularProdutoFornecedor(input: {
+  produto_id: string;
+  fornecedor_id: string;
+  preco_compra: number;
+  lead_time_dias: number;
+  eh_principal?: boolean;
+}): Promise<void> {
+  const { error } = await supabase.from("produtos_fornecedores").insert({
+    produto_id: input.produto_id,
+    fornecedor_id: input.fornecedor_id,
+    preco_compra: input.preco_compra,
+    lead_time_dias: input.lead_time_dias,
+    eh_principal: input.eh_principal ?? false,
+  });
+  if (error) throw error;
+}
+
+// ── ProdutoView (drawer/detalhe) ──────────────────────────────────────────────
+
+/**
+ * Busca produto + dados auxiliares (histórico de NF, composição,
+ * movimentos de estoque, vínculos com fornecedores e nome do grupo).
+ * Usa Promise.allSettled internamente para não invalidar o detalhe se uma
+ * sub-query falhar isoladamente.
+ */
+export async function fetchProdutoDetalhes(
+  produtoId: string,
+  signal: AbortSignal,
+) {
+  const { data: p, error: pError } = await supabase
+    .from("produtos")
+    .select("*")
+    .eq("id", produtoId)
+    .abortSignal(signal)
+    .maybeSingle();
+  if (pError) throw pError;
+  if (!p) return null;
+
+  const [comprasRes, vendasRes, compRes, movRes, fornRes, grupoRes] = await Promise.allSettled([
+    supabase
+      .from("notas_fiscais_itens")
+      .select(
+        "quantidade, valor_unitario, notas_fiscais!inner(id, numero, tipo, data_emissao, fornecedores(id, nome_razao_social))",
+      )
+      .eq("produto_id", p.id)
+      .in("notas_fiscais.tipo", ["entrada", "compra"])
+      .order("data_emissao", { foreignTable: "notas_fiscais", ascending: false })
+      .abortSignal(signal)
+      .limit(30),
+    supabase
+      .from("notas_fiscais_itens")
+      .select(
+        "quantidade, valor_unitario, notas_fiscais!inner(id, numero, tipo, data_emissao, clientes(id, nome_razao_social))",
+      )
+      .eq("produto_id", p.id)
+      .in("notas_fiscais.tipo", ["saida", "venda"])
+      .order("data_emissao", { foreignTable: "notas_fiscais", ascending: false })
+      .abortSignal(signal)
+      .limit(30),
+    p.eh_composto
+      ? supabase
+          .from("produto_composicoes")
+          .select("quantidade, ordem, produtos:produto_filho_id(id, nome, sku, preco_custo)")
+          .eq("produto_pai_id", p.id)
+          .abortSignal(signal)
+          .order("ordem")
+      : Promise.resolve({ data: [] as unknown[] }),
+    supabase
+      .from("estoque_movimentos")
+      .select("tipo, quantidade, motivo, created_at, saldo_anterior, saldo_atual")
+      .eq("produto_id", p.id)
+      .abortSignal(signal)
+      .order("created_at", { ascending: false })
+      .limit(20),
+    supabase
+      .from("produtos_fornecedores")
+      .select(
+        "preco_compra, lead_time_dias, referencia_fornecedor, eh_principal, unidade_fornecedor, fornecedores:fornecedor_id(id, nome_razao_social)",
+      )
+      .eq("produto_id", p.id)
+      .abortSignal(signal),
+    p.grupo_id
+      ? supabase
+          .from("grupos_produto")
+          .select("nome")
+          .eq("id", p.grupo_id)
+          .abortSignal(signal)
+          .maybeSingle()
+      : Promise.resolve({ data: null as Record<string, unknown> | null }),
+  ]);
+
+  return { produto: p, comprasRes, vendasRes, compRes, movRes, fornRes, grupoRes };
+}

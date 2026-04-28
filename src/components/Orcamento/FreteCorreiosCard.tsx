@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Package, Truck, CheckCircle2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchEmpresaConfig } from '@/services/admin/empresa.service';
 import { toast } from 'sonner';
 
 interface FreteOption {
@@ -24,11 +25,10 @@ export function FreteCorreiosCard({ cepDestino, pesoTotal, onSelect }: FreteCorr
   const [loadingConfig, setLoadingConfig] = useState(true);
 
   useEffect(() => {
-    if (!supabase) { setLoadingConfig(false); return; }
-    supabase.from('empresa_config').select('cep').maybeSingle().then(({ data, error }) => {
-      if (!error) setCepOrigem((data?.cep || '').replace(/\D/g, ''));
-      setLoadingConfig(false);
-    });
+    fetchEmpresaConfig()
+      .then((cfg) => setCepOrigem(((cfg?.cep ?? '') as string).replace(/\D/g, '')))
+      .catch(() => {})
+      .finally(() => setLoadingConfig(false));
   }, []);
   const [loading, setLoading] = useState(false);
   const [opcoes, setOpcoes] = useState<FreteOption[]>([]);

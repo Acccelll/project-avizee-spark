@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { Tables } from "@/integrations/supabase/types";
+import { fetchClienteDetalhes, deleteCliente } from "@/services/clientes.service";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -55,53 +55,11 @@ export function ClienteView({ id }: Props) {
 
   // Fetch padronizado (race-safe + cancelável + reset entre ids).
   const { data, loading, error } = useDetailFetch<ClienteDetail>(id, async (cId, signal) => {
-    const { data: c, error: cError } = await supabase
-      .from("clientes")
-      .select("*, grupos_economicos!clientes_grupo_economico_id_fkey(nome), formas_pagamento!clientes_forma_pagamento_id_fkey(descricao)")
-      .eq("id", cId)
-      .abortSignal(signal)
-      .maybeSingle();
-    if (cError) throw cError;
-    if (!c) return null;
-
-    const [vRes, nfRes, fRes, commRes, transRes] = await Promise.all([
-      supabase
-        .from("ordens_venda")
-        .select("id, numero, data_emissao, valor_total, status")
-        .eq("cliente_id", c.id)
-        .order("data_emissao", { ascending: false })
-        .limit(10)
-        .abortSignal(signal),
-      supabase
-        .from("notas_fiscais")
-        .select("id, numero, data_emissao, valor_total, status, ordem_venda_id")
-        .eq("cliente_id", c.id)
-        .in("tipo", ["saida", "venda"])
-        .order("data_emissao", { ascending: false })
-        .limit(30)
-        .abortSignal(signal),
-      supabase
-        .from("financeiro_lancamentos")
-        .select("*")
-        .eq("cliente_id", c.id)
-        .order("data_vencimento", { ascending: false })
-        .limit(10)
-        .abortSignal(signal),
-      supabase
-        .from("cliente_registros_comunicacao")
-        .select("*")
-        .eq("cliente_id", c.id)
-        .order("data_hora", { ascending: false })
-        .abortSignal(signal),
-      supabase
-        .from("cliente_transportadoras")
-        .select("*, transportadoras(nome_razao_social)")
-        .eq("cliente_id", c.id)
-        .abortSignal(signal),
-    ]);
-
+    const res = await fetchClienteDetalhes(cId, signal);
+    if (!res) return null;
+    const { cliente, vRes, nfRes, fRes, commRes, transRes } = res;
     return {
-      cliente: c as ClienteWithGroup,
+      cliente: cliente as ClienteWithGroup,
       vendas: (vRes.data as VendaRow[]) || [],
       notasSaida: (nfRes.data as NotaSaidaRow[]) || [],
       financeiro: (fRes.data as FinanceiroRow[]) || [],
@@ -375,8 +333,7 @@ export function ClienteView({ id }: Props) {
         loading={locked("delete")}
         onConfirm={() =>
           run("delete", async () => {
-            const { error: delErr } = await supabase.from("clientes").delete().eq("id", id);
-            if (delErr) throw delErr;
+            await deleteCliente(id);
             toast.success("Cliente excluído com sucesso.");
             // Invalida cache da grid (D2) — evita exibir registro morto.
             await invalidate(["clientes", "ordens_venda", "financeiro_lancamentos"]);

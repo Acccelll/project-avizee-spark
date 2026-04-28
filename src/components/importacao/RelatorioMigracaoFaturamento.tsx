@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { fetchRelatorioMigracaoFaturamento } from "@/services/importacao.service";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -44,12 +44,8 @@ export function RelatorioMigracaoFaturamentoCard({ loteId, className }: Props) {
   const fetchRelatorio = async () => {
     setLoading(true);
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: r, error } = await (supabase.rpc as any)("relatorio_migracao_faturamento", {
-        p_lote_id: loteId,
-      });
-      if (error) throw error;
-      setData(r as RelatorioMigracaoFaturamento);
+      const r = await fetchRelatorioMigracaoFaturamento<RelatorioMigracaoFaturamento>(loteId);
+      setData(r);
     } catch (err) {
       toast.error(`Erro ao carregar relatório: ${err instanceof Error ? err.message : String(err)}`);
     } finally {

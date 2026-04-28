@@ -17,7 +17,7 @@ import {
   LinkIcon,
 } from "lucide-react";
 import { DrawerSummaryCard, DrawerSummaryGrid } from "@/components/ui/DrawerSummaryCard";
-import { supabase } from "@/integrations/supabase/client";
+import { fetchContaContabilVinculos } from "@/services/financeiro/contasContabeis";
 
 interface ContaContabil {
   id: string;
@@ -102,18 +102,7 @@ export function ContaContabilDrawer({
   const { data: vinculos, loading: loadingVinculos } = useDrawerData<VinculoContagem>(
     open,
     selectedId,
-    async (id) => {
-      const [lanc, nf, gp] = await Promise.all([
-        supabase.from("financeiro_lancamentos").select("id", { count: "exact", head: true }).eq("conta_contabil_id", id).eq("ativo", true),
-        supabase.from("notas_fiscais").select("id", { count: "exact", head: true }).eq("conta_contabil_id", id).eq("ativo", true),
-        supabase.from("grupos_produto").select("id", { count: "exact", head: true }).eq("conta_contabil_id", id),
-      ]);
-      return {
-        lancamentos: lanc.count ?? 0,
-        notas_fiscais: nf.count ?? 0,
-        grupos_produto: gp.count ?? 0,
-      };
-    },
+    fetchContaContabilVinculos,
   );
 
   const { pending: editPending, run: runEdit } = useActionLock();

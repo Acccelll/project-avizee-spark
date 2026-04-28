@@ -55,3 +55,52 @@ export async function deleteProdutoFornecedor(vinculoId: string): Promise<void> 
     .eq("id", vinculoId);
   if (error) throw error;
 }
+
+export async function deleteFornecedor(id: string): Promise<void> {
+  const { error } = await supabase.from("fornecedores").delete().eq("id", id);
+  if (error) throw error;
+}
+
+// ── FornecedorView (drawer/detalhe) ───────────────────────────────────────────
+
+/**
+ * Carrega fornecedor + auxiliares (pedidos de compra, financeiro,
+ * produtos vinculados) usados no `FornecedorView`.
+ */
+export async function fetchFornecedorDetalhes(
+  fornecedorId: string,
+  signal: AbortSignal,
+) {
+  const { data: f, error: fError } = await supabase
+    .from("fornecedores")
+    .select("*")
+    .eq("id", fornecedorId)
+    .abortSignal(signal)
+    .maybeSingle();
+  if (fError) throw fError;
+  if (!f) return null;
+
+  const [cRes, finRes, pRes] = await Promise.all([
+    supabase
+      .from("pedidos_compra")
+      .select("id, numero, data_pedido, valor_total, status")
+      .eq("fornecedor_id", f.id)
+      .order("data_pedido", { ascending: false })
+      .limit(10)
+      .abortSignal(signal),
+    supabase
+      .from("financeiro_lancamentos")
+      .select("*")
+      .eq("fornecedor_id", f.id)
+      .order("data_vencimento", { ascending: false })
+      .limit(10)
+      .abortSignal(signal),
+    supabase
+      .from("produtos_fornecedores")
+      .select("*, produtos(id, nome, sku)")
+      .eq("fornecedor_id", f.id)
+      .abortSignal(signal),
+  ]);
+
+  return { fornecedor: f, cRes, finRes, pRes };
+}

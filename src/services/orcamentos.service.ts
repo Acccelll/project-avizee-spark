@@ -420,3 +420,45 @@ export async function existeOrcamentoComNumero(
   if (error) throw error;
   return !!data;
 }
+
+/** Cria uma revisão de orçamento (clona itens via RPC). */
+export async function criarRevisaoOrcamento(orcamentoId: string): Promise<string | null> {
+  // RPC criada na migração; cast `as never` evita atrito com tipagem gerada.
+  const { data, error } = await supabase.rpc(
+    "criar_revisao_orcamento" as never,
+    { p_orcamento_id: orcamentoId } as never,
+  );
+  if (error) throw error;
+  return (data as string | null) ?? null;
+}
+
+/**
+ * Carrega orçamento + itens + ordem de venda vinculada (se existir).
+ * Usado pelo `OrcamentoView` para o drawer de detalhes.
+ */
+export async function fetchOrcamentoDetalhes(orcamentoId: string, signal: AbortSignal) {
+  const { data: orc, error: orcError } = await supabase
+    .from("orcamentos")
+    .select("*, clientes(id, nome_razao_social)")
+    .eq("id", orcamentoId)
+    .abortSignal(signal)
+    .maybeSingle();
+  if (orcError) throw orcError;
+  if (!orc) return null;
+
+  const [{ data: it }, { data: ov }] = await Promise.all([
+    supabase
+      .from("orcamentos_itens")
+      .select("*, produtos(id, nome, sku)")
+      .eq("orcamento_id", orc.id)
+      .abortSignal(signal),
+    supabase
+      .from("ordens_venda")
+      .select("id, numero")
+      .eq("cotacao_id", orc.id)
+      .abortSignal(signal)
+      .maybeSingle(),
+  ]);
+
+  return { orcamento: orc, items: it ?? [], linkedOV: ov ?? null };
+}

@@ -199,3 +199,65 @@ export async function listFormasPagamentoAtivas() {
   if (error) throw error;
   return (data || []) as Array<{ id: string; descricao: string }>;
 }
+
+export async function deleteCliente(id: string): Promise<void> {
+  const { error } = await supabase.from("clientes").delete().eq("id", id);
+  if (error) throw error;
+}
+
+// ── ClienteView (drawer/detalhe) ──────────────────────────────────────────────
+
+/**
+ * Carrega cliente + dados auxiliares (vendas, NFs de saída, financeiro,
+ * comunicação, transportadoras vinculadas) usados no `ClienteView`.
+ */
+export async function fetchClienteDetalhes(clienteId: string, signal: AbortSignal) {
+  const { data: c, error: cError } = await supabase
+    .from("clientes")
+    .select(
+      "*, grupos_economicos!clientes_grupo_economico_id_fkey(nome), formas_pagamento!clientes_forma_pagamento_id_fkey(descricao)",
+    )
+    .eq("id", clienteId)
+    .abortSignal(signal)
+    .maybeSingle();
+  if (cError) throw cError;
+  if (!c) return null;
+
+  const [vRes, nfRes, fRes, commRes, transRes] = await Promise.all([
+    supabase
+      .from("ordens_venda")
+      .select("id, numero, data_emissao, valor_total, status")
+      .eq("cliente_id", c.id)
+      .order("data_emissao", { ascending: false })
+      .limit(10)
+      .abortSignal(signal),
+    supabase
+      .from("notas_fiscais")
+      .select("id, numero, data_emissao, valor_total, status, ordem_venda_id")
+      .eq("cliente_id", c.id)
+      .in("tipo", ["saida", "venda"])
+      .order("data_emissao", { ascending: false })
+      .limit(30)
+      .abortSignal(signal),
+    supabase
+      .from("financeiro_lancamentos")
+      .select("*")
+      .eq("cliente_id", c.id)
+      .order("data_vencimento", { ascending: false })
+      .limit(10)
+      .abortSignal(signal),
+    supabase
+      .from("cliente_registros_comunicacao")
+      .select("*")
+      .eq("cliente_id", c.id)
+      .order("data_hora", { ascending: false })
+      .abortSignal(signal),
+    supabase
+      .from("cliente_transportadoras")
+      .select("*, transportadoras(nome_razao_social)")
+      .eq("cliente_id", c.id)
+      .abortSignal(signal),
+  ]);
+
+  return { cliente: c, vRes, nfRes, fRes, commRes, transRes };
+}

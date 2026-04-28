@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,24 +9,18 @@ import { AutocompleteSearch } from "@/components/ui/AutocompleteSearch";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getUserFriendlyError } from "@/utils/errorMessages";
+import {
+  listPrecosEspeciais,
+  listClientesAtivosBasic,
+  listProdutosAtivosBasic,
+  upsertPrecoEspecial,
+  softDeletePrecoEspecial,
+  type PrecoEspecialRow,
+} from "@/services/precosEspeciais.service";
 
 interface Props {
   clienteId?: string;
   produtoId?: string;
-}
-
-interface PrecoEspecialRow {
-  id: string;
-  cliente_id: string | null;
-  produto_id: string | null;
-  preco_especial: number;
-  data_inicio: string | null;
-  data_fim: string | null;
-  observacoes: string | null;
-  ativo: boolean;
-  created_at: string;
-  clientes: { nome_razao_social: string } | null;
-  produtos: { nome: string; sku: string | null; preco_venda: number | null } | null;
 }
 
 interface ClienteOption { id: string; nome_razao_social: string }
@@ -54,22 +47,25 @@ export function PrecosEspeciaisTab({ clienteId, produtoId }: Props) {
 
   const fetchData = async () => {
     setLoading(true);
-    let query = supabase.from("precos_especiais").select("*, clientes(nome_razao_social), produtos(nome, sku, preco_venda)").eq("ativo", true);
-    if (clienteId) query = query.eq("cliente_id", clienteId);
-    if (produtoId) query = query.eq("produto_id", produtoId);
-
-    const { data } = await query.order("created_at", { ascending: false });
-    setItems(data || []);
+    try {
+      const data = await listPrecosEspeciais({ clienteId, produtoId });
+      setItems(data);
+    } catch (err) {
+      console.error("[precos-especiais] fetch:", err);
+      setItems([]);
+    }
     setLoading(false);
   };
 
   useEffect(() => {
     fetchData();
     if (!clienteId) {
-      supabase.from("clientes").select("id, nome_razao_social").eq("ativo", true).then(({ data }) => setClientes(data || []));
+      listClientesAtivosBasic().then(setClientes).catch(() => setClientes([]));
     }
     if (!produtoId) {
-      supabase.from("produtos").select("id, nome, sku").eq("ativo", true).then(({ data }) => setProdutos(data || []));
+      listProdutosAtivosBasic().then((d) =>
+        setProdutos(d as ProdutoOption[]),
+      ).catch(() => setProdutos([]));
     }
   }, [clienteId, produtoId]);
 
@@ -80,13 +76,8 @@ export function PrecosEspeciaisTab({ clienteId, produtoId }: Props) {
     }
 
     try {
-      if (editingId) {
-        await supabase.from("precos_especiais").update(form).eq("id", editingId);
-        toast.success("Regra de preço atualizada");
-      } else {
-        await supabase.from("precos_especiais").insert(form);
-        toast.success("Nova regra de preço criada");
-      }
+      await upsertPrecoEspecial(form, editingId);
+      toast.success(editingId ? "Regra de preço atualizada" : "Nova regra de preço criada");
       setEditingId(null);
       setShowAdd(false);
       setForm({
@@ -107,7 +98,7 @@ export function PrecosEspeciaisTab({ clienteId, produtoId }: Props) {
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const handleRemove = async (id: string) => {
-    await supabase.from("precos_especiais").update({ ativo: false }).eq("id", id);
+    await softDeletePrecoEspecial(id);
     toast.success("Regra removida");
     setDeleteId(null);
     fetchData();

@@ -1,21 +1,19 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { getUserFriendlyError } from "@/utils/errorMessages";
+import {
+  permanentDeleteRecord,
+  type PermanentDeleteTable,
+} from "@/services/fiscal.service";
 
 interface Props {
   open: boolean;
   onClose: () => void;
   /** Tabela do Supabase (ex: "funcionarios", "transportadoras"). */
-  table:
-    | "funcionarios"
-    | "transportadoras"
-    | "formas_pagamento"
-    | "grupos_economicos"
-    | "notas_fiscais";
+  table: PermanentDeleteTable;
   id: string;
   /** Nome legível usado no título e na descrição (ex: "transportadora"). */
   entityLabel: string;
@@ -67,8 +65,9 @@ export function PermanentDeleteDialog({
       onConfirm={async () => {
         setDeleting(true);
         try {
-          const { error } = await supabase.from(table).delete().eq("id", id);
-          if (error) {
+          try {
+            await permanentDeleteRecord(table, id);
+          } catch (error) {
             // 23503 = foreign_key_violation
             const code = (error as { code?: string }).code;
             if (code === "23503") {
