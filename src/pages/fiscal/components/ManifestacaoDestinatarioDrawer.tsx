@@ -385,6 +385,26 @@ export function ManifestacaoDestinatarioDrawer({ open, onOpenChange, highlightNf
           </SheetHeader>
 
           <div className="mt-6 space-y-6">
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant="default"
+                className="gap-2"
+                disabled={sincronizando}
+                onClick={handleSincronizar}
+              >
+                {sincronizando ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
+                Sincronizar SEFAZ (DistDF-e)
+              </Button>
+              <span className="text-xs text-muted-foreground">
+                Baixa automaticamente NF-e novas emitidas contra o CNPJ da empresa
+                (Ambiente Nacional, mTLS via certificado A1).
+              </span>
+            </div>
+
             {/* Adicionar nova chave */}
             <div className="rounded-md border p-4 space-y-3">
               <Label htmlFor="nova-chave">Capturar NF-e por chave de acesso</Label>
