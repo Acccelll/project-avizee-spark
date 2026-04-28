@@ -880,7 +880,7 @@ export type Database = {
           deleted_at?: string | null
           deleted_by?: string | null
           email?: string | null
-          empresa_id: string
+          empresa_id?: string
           forma_pagamento_id?: string | null
           forma_pagamento_padrao?: string | null
           grupo_economico_id?: string | null
@@ -2807,7 +2807,7 @@ export type Database = {
           deleted_at?: string | null
           deleted_by?: string | null
           email?: string | null
-          empresa_id: string
+          empresa_id?: string
           id?: string
           inscricao_estadual?: string | null
           logradouro?: string | null
@@ -4903,7 +4903,7 @@ export type Database = {
           descontinuado_em?: string | null
           descricao?: string | null
           eh_composto?: boolean
-          empresa_id: string
+          empresa_id?: string
           estoque_atual?: number | null
           estoque_ideal?: number | null
           estoque_minimo?: number | null
