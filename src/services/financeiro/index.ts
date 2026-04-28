@@ -19,6 +19,7 @@ export type { BaixaItemOverride, BaixaLoteParams } from "./baixas";
 
 export { processarEstorno } from "./estornos";
 export { cancelarLancamento } from "./cancelamentos";
+export { createLancamento, type LancamentoInsert } from "./lancamentos";
 
 export { getEffectiveStatus } from "@/lib/financeiro";
 
