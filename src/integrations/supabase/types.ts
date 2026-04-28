@@ -7997,6 +7997,17 @@ export type Database = {
         Returns: undefined
       }
       webhooks_metrics: { Args: never; Returns: Json }
+      webhooks_queue_delete: { Args: { p_msg_id: number }; Returns: boolean }
+      webhooks_queue_read: {
+        Args: { p_qty?: number; p_vt?: number }
+        Returns: {
+          enqueued_at: string
+          message: Json
+          msg_id: number
+          read_ct: number
+          vt: string
+        }[]
+      }
       webhooks_replay_delivery: {
         Args: { p_delivery_id: string }
         Returns: Json
