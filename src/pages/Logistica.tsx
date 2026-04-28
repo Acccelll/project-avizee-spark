@@ -746,6 +746,7 @@ export default function Logistica() {
               emptyTitle="Nenhuma entrega encontrada"
               emptyDescription="Tente ajustar os filtros de status ou período."
             />
+            </div>
           </TabsContent>
 
           {/* ── Tab: Recebimentos ── */}
