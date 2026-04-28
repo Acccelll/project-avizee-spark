@@ -159,6 +159,13 @@ interface DataTableProps<T> {
    * rowAccent={(p) => p.estoque < p.estoque_minimo ? 'destructive' : null}
    */
   rowAccent?: (item: T) => 'success' | 'warning' | 'destructive' | 'info' | 'primary' | null | undefined;
+  /**
+   * Botões contextuais de domínio renderizados dentro da coluna única "Ações"
+   * (ao lado de Visualizar). Use para ações primárias do fluxo, como
+   * "Baixar" (Lançamentos), "Aprovar"/"Gerar Pedido" (Orçamentos),
+   * "Receber" (Logística). Evita criar uma segunda coluna chamada "Ações".
+   */
+  rowExtraActions?: (item: T) => React.ReactNode;
 }
 
 type SortDirection = 'asc' | 'desc' | null;
@@ -201,6 +208,7 @@ export function DataTable<T extends Record<string, any>>({
   mobilePrimaryAction,
   mobileStatusKey,
   rowAccent,
+  rowExtraActions,
 }: DataTableProps<T>) {
   const isMobile = useIsMobile();
   const [deleteItem, setDeleteItem] = useState<T | null>(null);
@@ -404,6 +412,8 @@ export function DataTable<T extends Record<string, any>>({
   // implemente onView, caímos no edit como fallback de compatibilidade.
   const renderActions = (item: T) => {
     const primaryAction = onView ?? onEdit;
+    const extras = rowExtraActions?.(item);
+    const hasOverflow = !!(onEdit || onDuplicate || onDelete);
     return (
       <div className="flex items-center gap-1 flex-nowrap">
         {renderInlineDetails && (
@@ -419,6 +429,43 @@ export function DataTable<T extends Record<string, any>>({
               <Eye className="h-4 w-4" />
             </Button>
           </TooltipTrigger><TooltipContent>Visualizar</TooltipContent></Tooltip>
+        )}
+        {extras && <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>{extras}</div>}
+        {hasOverflow && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Mais ações" onClick={(e) => e.stopPropagation()}>
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              {onEdit && (
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(item); }}>
+                  <Pencil className="mr-2 h-4 w-4" /> Editar
+                </DropdownMenuItem>
+              )}
+              {onDuplicate && (
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onDuplicate(item); }}>
+                  <Copy className="mr-2 h-4 w-4" /> Duplicar
+                </DropdownMenuItem>
+              )}
+              {onDelete && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (skipDeleteConfirm) { onDelete(item); return; }
+                      setDeleteItem(item);
+                    }}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" /> {deleteActionLabel}
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
       </div>
     );
