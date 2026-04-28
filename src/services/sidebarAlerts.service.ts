@@ -7,6 +7,8 @@ export interface SidebarAlertsRaw {
   orcamentosPendentes: number;
   /** NF-e com status `rejeitada` (action requerida do usuário fiscal) */
   nfRejeitadas: number;
+  /** NF-e de entrada baixadas via DistDF-e ainda sem manifestação do destinatário */
+  nfeEntradaSemManifestacao: number;
   /**
    * Mensagens em DLQ de e-mail (auth_emails_dlq + transactional_emails_dlq).
    * Apenas admin enxerga este alerta — para não-admins fica em 0.
@@ -29,6 +31,7 @@ export async function fetchSidebarAlertsRaw(
     estoqueBaixoRes,
     { count: orcPendentes },
     { count: nfRej },
+    { count: nfEntrada },
   ] = await Promise.all([
     supabase
       .from("financeiro_lancamentos")
@@ -54,6 +57,10 @@ export async function fetchSidebarAlertsRaw(
       .select("*", { count: "exact", head: true })
       .eq("ativo", true)
       .eq("status", "rejeitada"),
+    supabase
+      .from("nfe_distribuicao")
+      .select("*", { count: "exact", head: true })
+      .eq("status_manifestacao", "sem_manifestacao"),
   ]);
 
   const baixoCount = Number((estoqueBaixoRes as { data?: number | null }).data ?? 0);
@@ -85,6 +92,7 @@ export async function fetchSidebarAlertsRaw(
     estoqueBaixo: baixoCount,
     orcamentosPendentes: orcPendentes || 0,
     nfRejeitadas: nfRej || 0,
+    nfeEntradaSemManifestacao: nfEntrada || 0,
     filaEmailDLQ,
   };
 }
