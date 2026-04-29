@@ -968,6 +968,16 @@ const Fiscal = () => {
             variant="outline"
             size="sm"
             className="gap-1.5 min-h-11 md:min-h-9 px-3"
+            onClick={() => setBuscarChaveOpen(true)}
+            aria-label="Buscar NF-e pela chave de acesso"
+          >
+            <KeyRound className="h-4 w-4 md:h-3.5 md:w-3.5" />{" "}
+            <span className="hidden xs:inline">Buscar por </span>chave
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 min-h-11 md:min-h-9 px-3"
             onClick={() => xmlInputRef.current?.click()}
             aria-label="Importar XML de NF-e"
           >
