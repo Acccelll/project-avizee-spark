@@ -266,3 +266,9 @@ Sugiro a sequência **Onda 0 → Onda 1 → Onda 3** (fundação + casca + wizar
   - Item "Dashboard Fiscal" adicionado em `navSections.fiscal` (entre Faturamento e Notas), com keywords `indicadores/kpi/icms/apuracao/distdfe/painel` para o GlobalSearch
   - Atalho global `Ctrl/Cmd + Shift + F` em `useGlobalHotkeys` → navega para `/fiscal/dashboard` (gated por `faturamento_fiscal:visualizar` via `useCan`, silencioso quando sem permissão)
   - Atalho documentado em `GlobalShortcutsDialog`
+- ✅ **Onda 20** — Exportação PDF do Dashboard Fiscal:
+  - Service `src/services/fiscal/dashboardFiscalPdf.service.ts` — gera A4 retrato com jsPDF (lazy import), cabeçalho da empresa (razao_social/CNPJ via `empresa_config`), título, período e timestamp
+  - Seções: NF-e Emitidas (grid 2×2), NF-e Recebidas (grid 2×2), Apuração de tributos (lista label↔valor), Sincronização DistDF-e, Configuração de emissão e top-15 dias com mais movimento
+  - Helpers internos `drawSectionTitle`, `drawKpiGrid`, `drawKeyValueList`, `ensureSpace` para auto-paginação
+  - Rodapé com `Página X de Y` em todas as páginas; arquivo nomeado via `buildExportFilename(...)`
+  - Botão "Exportar PDF" no header de `/fiscal/dashboard` (ao lado de Atualizar) com estado `exporting` e toast de sucesso/erro
