@@ -1186,6 +1186,21 @@ const Produtos = () => {
                     <Input className="h-9" value={forn.unidade_fornecedor} onChange={(e) => updateFornecedor(idx, "unidade_fornecedor", e.target.value)} placeholder="UN" />
                   </div>
                   <div className="space-y-1">
+                    <Label className="text-xs">Fator de Conversão</Label>
+                    <Input
+                      type="number"
+                      step="any"
+                      min="0"
+                      className="h-9"
+                      value={forn.fator_conversao}
+                      onChange={(e) => updateFornecedor(idx, "fator_conversao", Number(e.target.value))}
+                      placeholder="1"
+                    />
+                    <p className="text-[10px] text-muted-foreground">
+                      1 {forn.unidade_fornecedor || "un. forn."} = {forn.fator_conversao || 1} {form.unidade_medida || "un. interna"}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
                     <Label className="text-xs">Lead Time (dias)</Label>
                     <Input type="number" min="0" className="h-9" value={forn.lead_time_dias} onChange={(e) => updateFornecedor(idx, "lead_time_dias", Number(e.target.value))} />
                   </div>
