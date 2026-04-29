@@ -190,6 +190,55 @@ async function replaceUserRoles(
   if (insertError) throw insertError;
 }
 
+async function resolveDefaultEmpresaId(serviceClient: any, actorUserId?: string): Promise<string | null> {
+  if (actorUserId) {
+    const { data: actorBinding, error: actorBindingError } = await serviceClient
+      .from("user_empresas")
+      .select("empresa_id")
+      .eq("user_id", actorUserId)
+      .maybeSingle();
+    if (actorBindingError) throw actorBindingError;
+    if (actorBinding?.empresa_id) return actorBinding.empresa_id;
+  }
+
+  const { data: empresa, error: empresaError } = await serviceClient
+    .from("empresas")
+    .select("id")
+    .eq("ativo", true)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (empresaError) throw empresaError;
+
+  return empresa?.id ?? null;
+}
+
+async function ensureUserEmpresa(
+  serviceClient: any,
+  userId: string,
+  actorUserId?: string,
+) {
+  const { data: existingBinding, error: bindingError } = await serviceClient
+    .from("user_empresas")
+    .select("empresa_id")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (bindingError) throw bindingError;
+  if (existingBinding?.empresa_id) return existingBinding.empresa_id;
+
+  const empresaId = await resolveDefaultEmpresaId(serviceClient, actorUserId);
+  if (!empresaId) {
+    throw new HttpError(500, "Nenhuma empresa ativa encontrada para vincular o usuário.");
+  }
+
+  const { error: upsertError } = await serviceClient
+    .from("user_empresas")
+    .upsert({ user_id: userId, empresa_id: empresaId }, { onConflict: "user_id" });
+  if (upsertError) throw upsertError;
+
+  return empresaId;
+}
+
 async function replaceUserPermissions(serviceClient: any, userId: string, permissionKeys: unknown) {
   // Estratégia não-destrutiva (preserva granted_by/granted_at/motivo originais):
   //   INSERT  → permissões novas que não existiam.
@@ -486,6 +535,7 @@ Deno.serve(async (req) => {
         throw profileError;
       }
 
+      await ensureUserEmpresa(serviceClient, targetUser.id, currentUser.id);
       await replaceUserRoles(serviceClient, targetUser.id, rolePadrao, rolesSecundarios);
       await replaceUserPermissions(serviceClient, targetUser.id, payload.extra_permissions);
       if (!ativo) await setUserActiveStatus(serviceClient, targetUser.id, false);
@@ -529,6 +579,7 @@ Deno.serve(async (req) => {
       const { error: profileError } = await serviceClient.from("profiles").upsert({ id, nome, email: email || null, cargo: cargo || null, updated_at: new Date().toISOString() }, { onConflict: "id" });
       if (profileError) throw profileError;
 
+      await ensureUserEmpresa(serviceClient, id, currentUser.id);
       await replaceUserRoles(serviceClient, id, rolePadrao, rolesSecundariosUpd);
       await replaceUserPermissions(serviceClient, id, payload.extra_permissions);
       await setUserActiveStatus(serviceClient, id, ativo);
