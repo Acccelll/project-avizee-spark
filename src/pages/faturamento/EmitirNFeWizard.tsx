@@ -29,6 +29,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -94,6 +95,12 @@ const wizardSchema = z.object({
   natureza_descricao: z.string().min(1),
   finalidade: z.enum(["1", "2", "3", "4"]).default("1"),
   tipo_operacao: z.enum(["saida", "entrada"]).default("saida"),
+  indicador_presenca: z.enum(["0", "1", "2", "3", "4", "9"]).default("0"),
+  data_saida: z.string().optional(),
+  hora_saida: z.string().optional(),
+  via_intermediador: z.boolean().default(false),
+  intermediador_cnpj: z.string().optional(),
+  intermediador_identificador: z.string().optional(),
   // Passo 2
   cliente_id: z.string().min(1, "Selecione um destinatário"),
   cliente_nome: z.string(),
@@ -106,6 +113,11 @@ const wizardSchema = z.object({
   frete_valor: z.coerce.number().min(0).default(0),
   outras_despesas: z.coerce.number().min(0).default(0),
   desconto_valor: z.coerce.number().min(0).default(0),
+  transportadora_id: z.string().nullable().optional(),
+  transportadora_nome: z.string().optional(),
+  transportadora_cnpj: z.string().optional(),
+  veiculo_placa: z.string().optional(),
+  veiculo_uf: z.string().optional(),
   forma_pagamento: z.string().default("01"),
   observacoes: z.string().optional(),
   // Vínculo opcional com Ordem de Venda (Onda 4)
@@ -114,7 +126,10 @@ const wizardSchema = z.object({
   // Vínculo opcional com NF-e referenciada (Onda 5: devolução/complementar)
   nf_referenciada_id: z.string().nullable().optional(),
   nf_referenciada_chave: z.string().nullable().optional(),
-});
+}).refine(
+  (v) => !v.data_saida || v.data_saida >= v.data_emissao,
+  { message: "Data de saída não pode ser anterior à emissão.", path: ["data_saida"] },
+);
 type WizardData = z.infer<typeof wizardSchema>;
 
 const STEPS = [
