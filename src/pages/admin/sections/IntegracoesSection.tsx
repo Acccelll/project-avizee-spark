@@ -13,32 +13,23 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SectionShell } from "@/pages/admin/components/SectionShell";
 import { useSectionConfig } from "@/pages/admin/hooks/useSectionConfig";
+import { CertificadoUploader } from "@/components/fiscal/CertificadoUploader";
 
 const DEFAULTS = {
   gatewayUrl: "",
   gatewayApiKey: "",
   sefazAmbiente: "homologacao",
-  sefazCertificadoBase64: "",
+  sefazCertificadoBase64: "", // legado, mantido para retrocompatibilidade
   webhookUrl: "",
   webhookSecret: "",
-};
-
-const isValidBase64 = (value: string) => {
-  const trimmed = value.trim();
-  if (!trimmed) return true;
-  if (/\s/.test(trimmed)) return false;
-  if (!/^[A-Za-z0-9+/=]+$/.test(trimmed)) return false;
-  return trimmed.length % 4 === 0;
 };
 
 export function IntegracoesSection() {
   const { values, lastSaved, save, isSaving } = useSectionConfig("integracoes", DEFAULTS);
   const [draft, setDraft] = useState(values);
-  const [showCert, setShowCert] = useState(false);
 
   useEffect(() => {
     setDraft(values);
@@ -48,13 +39,7 @@ export function IntegracoesSection() {
     setDraft((prev) => ({ ...prev, [key]: value }));
   };
 
-  const certValid = isValidBase64(draft.sefazCertificadoBase64);
-
   const handleSubmit = () => {
-    if (!certValid) {
-      toast.error("Corrija o certificado SEFAZ: o conteúdo deve estar em Base64 válido.");
-      return;
-    }
     save(draft);
   };
 
