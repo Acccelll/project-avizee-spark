@@ -1,3 +1,5 @@
 - [Tradução XML Fiscal](mem://features/traducao-xml-fiscal) — Drawer obrigatório com pendência, opcional via banner em 100% OK; XML é verdade fiscal imutável; fator qtd_interna = qCom × fator
 - [Cadastro Rápido](mem://features/cadastro-rapido) — QuickAdd de produto/cliente/fornecedor com pré-preenchimento via XML e onCreateNew nos autocompletes
 - [SKU por Sigla de Grupo](mem://features/sku-por-grupo) — Regra SIGLA+NNN via RPC proximo_sku_grupo (atômica, SECURITY DEFINER)
+- [Vencimento e parcelas na NF](mem://features/fiscal-vencimento-parcelas) — data_vencimento/numero_parcelas/intervalo/parcelas em notas_fiscais; PagamentoNFe gera tabela editável; soma validada
+- [Certificado digital A1](mem://features/certificado-digital-a1) — Upload .pfx em dbavizee/certificados/empresa.pfx; senha em Vault via RPC admin; sefaz-proxy lê via assinar-e-enviar-vault
