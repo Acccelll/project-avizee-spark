@@ -1335,10 +1335,27 @@ const Fiscal = () => {
         onCreated={async (produtoId) => {
           const idx = quickProdutoLinhaIdx;
           await produtosCrud.fetchData();
-          if (idx !== null) {
+          if (idx !== null && idx >= 0) {
             setTraducaoLinhas((prev) => prev.map((l) =>
               l.index === idx ? { ...l, produtoId, matchStatus: "manual", pendente: false, salvarDePara: true } : l
             ));
+          } else if (idx === -1) {
+            // Entrada manual via ItemsGrid: anexa o novo produto à última linha do grid (ou cria uma).
+            setItems((prev) => {
+              const next = [...prev];
+              const target = next.findIndex((i) => !i.produto_id);
+              const matched = produtosCrud.data.find((p) => p.id === produtoId);
+              const row = {
+                produto_id: produtoId,
+                codigo: String(matched?.codigo_interno || ""),
+                descricao: String(matched?.nome || ""),
+                quantidade: 0,
+                valor_unitario: Number(matched?.preco_custo || 0),
+                valor_total: 0,
+              };
+              if (target >= 0) next[target] = row; else next.push(row);
+              return next;
+            });
           }
           setQuickProdutoLinhaIdx(null);
           setQuickProdutoNome("");
