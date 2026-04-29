@@ -1244,6 +1244,39 @@ export default function EmitirNFeWizard() {
       toast.success(
         `Pedido ${ov.numero} carregado: ${itensWizard.length} ${itensWizard.length === 1 ? "item" : "itens"} prontos para faturar. Aplique a matriz fiscal nos itens.`,
       );
+
+      // A-03: aplicar matriz fiscal automaticamente em cada item
+      const ufDestino = form.getValues("cliente_uf");
+      if (ufDestino && itensWizard.length > 0) {
+        toast.info("Aplicando matriz fiscal automaticamente…");
+        let aplicadas = 0;
+        for (let i = 0; i < itensWizard.length; i++) {
+          const it = itensWizard[i];
+          if (!it.produto_id) continue;
+          try {
+            const { data: m } = await supabase.rpc("aplicar_matriz_fiscal", {
+              p_produto_id: it.produto_id,
+              p_uf_destino: ufDestino,
+              p_tipo_operacao: "saida",
+            });
+            const mr = m as { matched?: boolean; cfop?: string; cst_csosn?: string; aliquota_icms?: number; aliquota_pis?: number; aliquota_cofins?: number } | null;
+            if (mr?.matched) {
+              if (mr.cfop) form.setValue(`itens.${i}.cfop`, mr.cfop);
+              if (mr.cst_csosn) form.setValue(`itens.${i}.cst`, mr.cst_csosn);
+              form.setValue(`itens.${i}.icms_aliquota`, Number(mr.aliquota_icms ?? 0));
+              form.setValue(`itens.${i}.pis_aliquota`, Number(mr.aliquota_pis ?? 0));
+              form.setValue(`itens.${i}.cofins_aliquota`, Number(mr.aliquota_cofins ?? 0));
+              form.setValue(`itens.${i}.matriz_aplicada`, true);
+              aplicadas++;
+            }
+          } catch {
+            /* segue: matriz pode ser ajustada manualmente */
+          }
+        }
+        if (aplicadas > 0) {
+          toast.success(`Matriz fiscal aplicada em ${aplicadas} de ${itensWizard.length} itens.`);
+        }
+      }
     } catch (err) {
       notifyError(err);
     }
