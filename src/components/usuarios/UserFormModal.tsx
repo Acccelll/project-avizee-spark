@@ -495,6 +495,53 @@ export function UserFormModal({
               </p>
             </div>
 
+            {/* Roles secundários cumulativos */}
+            <div className="space-y-2 rounded-md border bg-muted/20 p-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="space-y-0.5">
+                  <Label className="text-sm">Roles adicionais (cumulativos)</Label>
+                  <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                    <Info className="h-3 w-3" />
+                    Some permissões de outros papéis ao role padrão. Use para casos
+                    como "vendedor que também atua como estoquista".
+                  </p>
+                </div>
+                {form.roles_secundarios.length > 0 && (
+                  <span className="shrink-0 inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[11px] text-primary">
+                    +{form.roles_secundarios.length}
+                  </span>
+                )}
+              </div>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {ALL_ROLES.filter((r) => r !== form.role_padrao && r !== 'admin').map(
+                  (role) => {
+                    const checked = form.roles_secundarios.includes(role);
+                    return (
+                      <label
+                        key={role}
+                        className={`flex items-center gap-2 rounded-md border px-2.5 py-2 text-sm cursor-pointer transition-colors ${
+                          checked
+                            ? 'border-primary/40 bg-primary/5'
+                            : 'border-border hover:bg-muted/40'
+                        }`}
+                      >
+                        <Checkbox
+                          checked={checked}
+                          onCheckedChange={() => toggleSecondaryRole(role)}
+                        />
+                        <span className="flex-1">{ROLE_LABELS[role]}</span>
+                      </label>
+                    );
+                  },
+                )}
+              </div>
+              {form.role_padrao === 'admin' && (
+                <p className="text-[11px] text-muted-foreground">
+                  Administrador já herda todas as permissões — roles adicionais não são necessários.
+                </p>
+              )}
+            </div>
+
             <PermissionMatrix
               allow={form.extra_permissions}
               deny={form.denied_permissions}
