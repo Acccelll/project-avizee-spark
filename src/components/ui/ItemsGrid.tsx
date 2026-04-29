@@ -44,6 +44,8 @@ interface Props<TProd extends ItemsGridProdutoBase> {
    * Use this to supply `preco_custo` (or 0) in purchase contexts.
    */
   getDefaultUnitPrice?: (produto: TProd) => number;
+  /** Habilita "+ Cadastrar produto" no autocomplete. Recebe a busca atual digitada (não usada hoje, reservado). */
+  onCreateProduto?: () => void;
 }
 
 const emptyItem = (): GridItem => ({
@@ -51,7 +53,7 @@ const emptyItem = (): GridItem => ({
 });
 
 export function ItemsGrid<TProd extends ItemsGridProdutoBase>({
-  items, onChange, produtos, title = "Itens", readOnly = false, itemErrors = {}, getDefaultUnitPrice,
+  items, onChange, produtos, title = "Itens", readOnly = false, itemErrors = {}, getDefaultUnitPrice, onCreateProduto,
 }: Props<TProd>) {
   const addItem = () => onChange([...items, emptyItem()]);
   const removeItem = (idx: number) => onChange(items.filter((_, i) => i !== idx));
@@ -136,6 +138,8 @@ export function ItemsGrid<TProd extends ItemsGridProdutoBase>({
                   value={item.produto_id}
                   onChange={(id) => updateItem(idx, "produto_id", id)}
                   placeholder="Buscar produto..."
+                  onCreateNew={onCreateProduto}
+                  createNewLabel="Cadastrar novo produto"
                 />
               )}
               {item.codigo && (
@@ -217,6 +221,8 @@ export function ItemsGrid<TProd extends ItemsGridProdutoBase>({
                       onChange={(id) => updateItem(idx, "produto_id", id)}
                       placeholder="Buscar produto (nome, código)..."
                       className="min-w-[200px]"
+                      onCreateNew={onCreateProduto}
+                      createNewLabel="Cadastrar novo produto"
                     />
                   )}
                 </td>
