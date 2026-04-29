@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/select";
 import { FormModal } from "@/components/FormModal";
 import { FormModalFooter } from "@/components/FormModalFooter";
-import { Plus, Pencil, Trash2, ScrollText, Calculator, Truck } from "lucide-react";
+import { Plus, Pencil, Trash2, Copy, ScrollText, Calculator, Truck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCan } from "@/hooks/useCan";
 import { useConfirmDestructive } from "@/hooks/useConfirmDestructive";
@@ -445,21 +445,21 @@ function MatrizTab() {
     resolver: zodResolver(matrizSchema),
     defaultValues: {
       nome: "",
-      crt: "3",
+      crt: "1",
       uf_origem: "SP",
       uf_destino: "SP",
       tipo_operacao: "saida",
       ncm_prefixo: "",
       cfop: "5102",
-      cst_csosn: "00",
+      cst_csosn: "102",
       origem_mercadoria: "0",
-      aliquota_icms: 18,
+      aliquota_icms: 0,
       reducao_bc_icms: 0,
       aliquota_fcp: 0,
       cst_pis: "01",
-      aliquota_pis: 1.65,
+      aliquota_pis: 0,
       cst_cofins: "01",
-      aliquota_cofins: 7.6,
+      aliquota_cofins: 0,
       cst_ipi: "",
       aliquota_ipi: 0,
       prioridade: 100,
@@ -476,6 +476,17 @@ function MatrizTab() {
     setEditing(m);
     form.reset({
       ...m,
+      ncm_prefixo: m.ncm_prefixo ?? "",
+      cst_ipi: m.cst_ipi ?? "",
+    });
+    setOpen(true);
+  };
+
+  const duplicarRegra = (m: MatrizRegra) => {
+    setEditing(null);
+    form.reset({
+      ...m,
+      nome: `${m.nome} (cópia)`,
       ncm_prefixo: m.ncm_prefixo ?? "",
       cst_ipi: m.cst_ipi ?? "",
     });
@@ -601,6 +612,14 @@ function MatrizTab() {
                         <div className="inline-flex gap-1">
                           <Button size="sm" variant="ghost" onClick={() => openEdit(m)}>
                             <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            title="Duplicar regra"
+                            onClick={() => duplicarRegra(m)}
+                          >
+                            <Copy className="h-3.5 w-3.5" />
                           </Button>
                           <Button size="sm" variant="ghost" onClick={() => handleDelete(m)}>
                             <Trash2 className="h-3.5 w-3.5 text-destructive" />
