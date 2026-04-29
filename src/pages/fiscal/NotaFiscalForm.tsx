@@ -58,6 +58,11 @@ interface NotaFiscalRow {
   status_sefaz: string | null;
   pedido_compra_id: string | null;
   valor_total: number | null;
+  data_vencimento: string | null;
+  numero_parcelas: number | null;
+  intervalo_parcelas_dias: number | null;
+  parcelas: unknown;
+  gera_financeiro: boolean | null;
 }
 
 function rowToFormDefaults(row: NotaFiscalRow): Partial<NFeFormData> {
@@ -77,6 +82,13 @@ function rowToFormDefaults(row: NotaFiscalRow): Partial<NFeFormData> {
     outrasDespesas: Number(row.outras_despesas || 0),
     observacoes: row.observacoes ?? "",
     itens: [],
+    geraFinanceiro: row.gera_financeiro ?? true,
+    dataVencimento: row.data_vencimento ?? undefined,
+    numeroParcelas: Number(row.numero_parcelas || 1),
+    intervaloParcelasDias: Number(row.intervalo_parcelas_dias ?? 30),
+    parcelas: Array.isArray(row.parcelas)
+      ? (row.parcelas as Array<{ numero: number; vencimento: string; valor: number }>)
+      : undefined,
   };
 }
 
@@ -101,7 +113,7 @@ export default function NotaFiscalFormPage() {
       const { data, error } = await supabase
         .from("notas_fiscais")
         .select(
-          "id, numero, serie, data_emissao, natureza_operacao, tipo, cliente_id, fornecedor_id, forma_pagamento, condicao_pagamento, frete_modalidade, frete_valor, desconto_valor, outras_despesas, observacoes, status, status_sefaz, pedido_compra_id",
+          "id, numero, serie, data_emissao, natureza_operacao, tipo, cliente_id, fornecedor_id, forma_pagamento, condicao_pagamento, frete_modalidade, frete_valor, desconto_valor, outras_despesas, observacoes, status, status_sefaz, pedido_compra_id, data_vencimento, numero_parcelas, intervalo_parcelas_dias, parcelas, gera_financeiro",
         )
         .eq("id", id!)
         .maybeSingle();
@@ -146,6 +158,11 @@ export default function NotaFiscalFormPage() {
         desconto_valor: formData.descontoValor,
         outras_despesas: formData.outrasDespesas,
         observacoes: formData.observacoes || null,
+        gera_financeiro: formData.geraFinanceiro ?? true,
+        data_vencimento: formData.dataVencimento || null,
+        numero_parcelas: formData.numeroParcelas ?? 1,
+        intervalo_parcelas_dias: formData.intervaloParcelasDias ?? 30,
+        parcelas: formData.parcelas && formData.parcelas.length > 0 ? formData.parcelas : null,
       };
 
       if (isCreate) {
