@@ -14,7 +14,10 @@ export function FirstVisitToast() {
   const { pathname } = useLocation();
   const { startTour } = useHelp();
   const { state, loaded, hasSeen, markSeen, setDisabledFirstVisit } = useHelpProgress();
-  const skippedThisSession = useRef<Set<string>>(new Set());
+  // Tags já processadas nesta sessão (evita re-disparo enquanto a persistência
+  // remota de `markSeen` ainda não refletiu em `state.seenTours`, e também
+  // protege contra StrictMode dupla-execução do efeito).
+  const handledThisSession = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (!loaded) return;
@@ -23,7 +26,13 @@ export function FirstVisitToast() {
     if (!entry?.tour?.length) return;
     const key = `${entry.route}@${entry.version}`;
     if (hasSeen(entry.route, entry.version)) return;
-    if (skippedThisSession.current.has(key)) return;
+    if (handledThisSession.current.has(key)) return;
+
+    // Marca imediatamente como tratado nesta sessão. Assim, mesmo que o
+    // usuário navegue para fora e volte antes do `markSeen` persistir no
+    // banco, o toast não reaparece. A persistência continua acontecendo via
+    // `markSeen` para travar o registro entre sessões/dispositivos.
+    handledThisSession.current.add(key);
 
     // pequeno delay para não competir com renders iniciais
     const t = setTimeout(() => {
@@ -37,20 +46,18 @@ export function FirstVisitToast() {
         cancel: {
           label: 'Agora não',
           onClick: () => {
-            skippedThisSession.current.add(key);
+            /* já marcado em handledThisSession */
           },
         },
-        onDismiss: () => {
-          skippedThisSession.current.add(key);
-        },
       });
-      // marca como visto para não reaparecer constantemente; usuário pode reabrir via menu
+      // Persiste no banco para não reaparecer em sessões futuras / outros
+      // dispositivos. Usuário pode reabrir o tour via menu de ajuda.
       markSeen(entry.route, entry.version);
     }, 800);
 
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname, loaded, state.disabledFirstVisit]);
+  }, [pathname, loaded, state.disabledFirstVisit, state.seenTours]);
 
   // referenciado para silenciar lint em closures que possam parecer não usadas
   void setDisabledFirstVisit;
