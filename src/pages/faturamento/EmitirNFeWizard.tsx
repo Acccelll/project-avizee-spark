@@ -828,8 +828,100 @@ function Step3Itens() {
 
 // ============ Passo 4 — Transporte e Pagamento ============
 
+interface TransportadoraRow {
+  id: string;
+  nome_razao_social: string;
+  cpf_cnpj: string | null;
+  uf: string | null;
+}
+
+function TransportadoraPicker() {
+  const { setValue, watch } = useFormContext<WizardData>();
+  const [busca, setBusca] = useState("");
+  const [open, setOpen] = useState(false);
+  const debounced = useDebounce(busca, 300);
+
+  const transportadoraNome = watch("transportadora_nome");
+
+  const { data, isFetching } = useQuery({
+    queryKey: ["transportadoras-busca", debounced],
+    queryFn: async () => {
+      let q = supabase
+        .from("fornecedores")
+        .select("id, nome_razao_social, cpf_cnpj, uf")
+        .eq("ativo", true)
+        .eq("transportadora", true)
+        .order("nome_razao_social")
+        .limit(20);
+      if (debounced) {
+        q = q.or(`nome_razao_social.ilike.%${debounced}%,cpf_cnpj.ilike.%${debounced}%`);
+      }
+      const { data, error } = await q;
+      if (error) throw error;
+      return data as TransportadoraRow[];
+    },
+    enabled: open,
+  });
+
+  const selecionar = (t: TransportadoraRow) => {
+    setValue("transportadora_id", t.id, { shouldDirty: true });
+    setValue("transportadora_nome", t.nome_razao_social, { shouldDirty: true });
+    setValue("transportadora_cnpj", t.cpf_cnpj ?? "", { shouldDirty: true });
+    setOpen(false);
+  };
+
+  const limpar = () => {
+    setValue("transportadora_id", null, { shouldDirty: true });
+    setValue("transportadora_nome", "", { shouldDirty: true });
+    setValue("transportadora_cnpj", "", { shouldDirty: true });
+  };
+
+  return (
+    <div className="space-y-1 sm:col-span-2">
+      <Label>Transportadora</Label>
+      <div className="flex gap-2">
+        <Popover open={open} onOpenChange={setOpen}>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className="flex-1 justify-between">
+              {transportadoraNome || "Selecionar transportadora…"}
+              <Truck className="h-4 w-4 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[420px] p-0" align="start">
+            <Command shouldFilter={false}>
+              <CommandInput placeholder="Nome ou CNPJ…" value={busca} onValueChange={setBusca} />
+              <CommandList>
+                {isFetching && <p className="p-3 text-xs text-muted-foreground">Buscando…</p>}
+                <CommandEmpty>
+                  Nenhuma transportadora cadastrada. Marque o flag “transportadora” no fornecedor.
+                </CommandEmpty>
+                <CommandGroup>
+                  {(data ?? []).map((t) => (
+                    <CommandItem key={t.id} value={t.id} onSelect={() => selecionar(t)}>
+                      <div className="flex flex-col">
+                        <span className="font-medium">{t.nome_razao_social}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {t.cpf_cnpj ?? "—"} · {t.uf ?? "?"}
+                        </span>
+                      </div>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
+        {transportadoraNome && (
+          <Button variant="ghost" size="sm" onClick={limpar}>Limpar</Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function Step4Transporte() {
   const { register, watch, setValue } = useFormContext<WizardData>();
+  const modal = watch("frete_modalidade");
   return (
     <Card>
       <CardHeader>
@@ -854,6 +946,29 @@ function Step4Transporte() {
           <Label>Valor do frete</Label>
           <Input type="number" step="0.01" {...register("frete_valor")} />
         </div>
+        {modal !== "9" && (
+          <>
+            <TransportadoraPicker />
+            <div className="space-y-1">
+              <Label>Placa do veículo</Label>
+              <Input
+                {...register("veiculo_placa")}
+                placeholder="ABC1D23"
+                maxLength={8}
+                style={{ textTransform: "uppercase" }}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>UF do veículo</Label>
+              <Input
+                {...register("veiculo_uf")}
+                placeholder="SP"
+                maxLength={2}
+                style={{ textTransform: "uppercase" }}
+              />
+            </div>
+          </>
+        )}
         <div className="space-y-1">
           <Label>Outras despesas</Label>
           <Input type="number" step="0.01" {...register("outras_despesas")} />
