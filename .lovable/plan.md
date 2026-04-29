@@ -1,105 +1,135 @@
-## Diagnóstico atual
+## Resumo
 
-Hoje, ao importar um XML de NF-e (Fiscal → Importar XML), o sistema faz três "traduções" automáticas, mas todas invisíveis para o usuário:
+Seis ajustes coordenados para reduzir atrito no fluxo Comercial → Fiscal e padronizar nomenclatura. Todos preservam a stack atual (sem refactors) e seguem a doutrina já memorizada (StatusVariantMap, ViewDrawerV2, RBAC).
 
-1. **Fornecedor** — match silencioso por CNPJ (toast genérico).
-2. **Produto** — match por `codigo_interno`/`sku` igual ao `cProd` do XML; quando não acha, deixa `produto_id` vazio e mostra apenas "X itens não vinculados".
-3. **Unidade & valor unitário** — usa cegamente `uCom`, `qCom` e `vUnCom` do XML. Não há comparação com a unidade do cadastro do produto (`produtos.unidade_medida`), nem fator de conversão. Se o fornecedor emite em **KG** e internamente trabalhamos em **UN/MT**, o estoque entra errado e o custo unitário fica distorcido.
+---
 
-O banco já tem a base para corrigir isso (não precisa migration nestes campos):
-- `notas_fiscais_itens` possui: `codigo_produto_origem`, `descricao_produto_origem`, `unidade_origem`, `quantidade_origem`, `valor_unitario_origem`, `valor_total_origem`, `match_status`.
-- `produtos_fornecedores` possui: `referencia_fornecedor`, `descricao_fornecedor`, `unidade_fornecedor` (de-para por fornecedor já modelado, mas sem fator de conversão).
-- `produtos.unidade_medida` é a unidade interna canônica.
+## 1. Tooltip nos itens do autocomplete (nome cortado)
 
-O que falta é (a) **uma etapa explícita de tradução** no wizard de importação e (b) **fator de conversão** persistido no de-para.
+**Onde:** `src/components/ui/AutocompleteSearch.tsx` (componente único — corrige todos os pontos: tradução XML, ItemsGrid, OrcamentoItemsGrid, ProductAutocomplete).
 
-## Princípio inegociável
+**Solução proposta:** atributo `title` nativo no `<button>` da opção, contendo `label + sublabel + metaLine`. É o caminho rápido, acessível e zero-dependência — surge ao passar o mouse sem precisar de Radix Tooltip dentro do dropdown (que conflitaria com o portal do popover). Mantém o `truncate` visual atual.
 
-O que está no XML é a **verdade fiscal** e nunca é alterado. A "tradução" só afeta os campos internos (estoque, custo, vínculo de produto). Os campos `*_origem` em `notas_fiscais_itens` guardam o XML cru.
+> Alternativa avaliada (Radix Tooltip): exige envolver cada linha em `<TooltipProvider>` dentro de um popover já posicionado em z-50 — risco de flicker e custo maior. Descartada em favor do `title` nativo.
 
-## Mudanças propostas
+---
 
-### 1. Banco — fator e regra de conversão no de-para
+## 2. "Itens da Nota" muito pequena — mínimo de 3 linhas
 
-Migration em `produtos_fornecedores`:
-- `fator_conversao numeric NOT NULL DEFAULT 1` — quantos "unidade interna" cabem em 1 "unidade do fornecedor". Ex.: fornecedor vende KG, interno é MT, 1 KG = 0,25 MT → fator 0,25.
-- `chk_fator_conversao_pos CHECK (fator_conversao > 0)`.
-- Índice `(fornecedor_id, referencia_fornecedor)` para lookup rápido na importação.
+**Onde:** `src/components/ui/ItemsGrid.tsx` (estado vazio).
 
-### 2. Drawer "Tradução XML" — opcional ou obrigatório
+Trocar `text-center text-muted-foreground py-8` por uma área com `min-h-[180px]` (≈3 linhas de input) e empty-state mais útil: ícone + texto + atalho **"+ Adicionar primeiro item"**. Vale tanto na tabela desktop (`<tr><td>` com altura mínima) quanto no card mobile.
 
-Ao importar XML, classificar cada item:
+---
 
-- **OK** — produto casado E (`uCom == produto.unidade_medida` OU já existe `produtos_fornecedores` com `fator_conversao` salvo).
-- **Pendente** — sem `produto_id` OU unidade divergente sem fator memorizado.
+## 3. Cadastro rápido de produto/cliente durante a nota (manual e XML)
 
-Comportamento:
-- **100% OK** → drawer **NÃO abre**. Vai direto ao formulário com banner discreto: "NF importada de XML. Tradução automática aplicada. [Ver tradução]".
-- **Qualquer pendência** → drawer **abre obrigatoriamente** e bloqueia avanço até resolver todos os itens pendentes.
-- Botão "Ver tradução" no banner reabre o drawer em modo somente-leitura.
+Aproveita o `onCreateNew` que **já existe** em `AutocompleteSearch` (hoje só renderiza quando não há resultado) e adiciona um drawer leve de cadastro express.
 
-Layout do drawer (uma linha por item, pendentes destacados no topo):
+**Componentes novos:**
+- `src/components/cadastro-rapido/QuickProdutoDrawer.tsx` — campos mínimos: nome, grupo, unidade, código interno (auto-sugerido pela regra do item 4), preço de custo. Salva em `produtos` com `tipo_item='produto'`, `ativo=true`. Devolve o produto criado.
+- `src/components/cadastro-rapido/QuickClienteDrawer.tsx` — nome/razão, CPF/CNPJ (com lookup via `useCnpjLookup` já existente), e-mail, telefone. Demais campos editáveis depois em `/clientes`.
+- `src/components/cadastro-rapido/QuickFornecedorDrawer.tsx` — análogo, usado na entrada XML quando o emitente não está cadastrado.
+
+**Pontos de integração:**
+- `ItemsGrid` e `OrcamentoItemsGrid`: passar `onCreateNew` que abre `QuickProdutoDrawer`; ao confirmar, faz `refetch` da lista de produtos e seleciona o recém-criado na linha.
+- `TraducaoXmlDrawer`: idem para cada linha pendente — pré-preenche nome com `xProd` e código interno seguindo a regra do grupo escolhido. Após criar, atualiza o `produtoId` da linha e oferece marcar `salvarDePara`.
+- `useNFeXmlImport`: quando o emitente não casa com nenhum fornecedor, exibir CTA **"Cadastrar fornecedor a partir do XML"** já com CNPJ, razão, IE e endereço pré-preenchidos do `nfe.emitente`.
+- Cabeçalho do `Fiscal.tsx` (cliente do destinatário em saída): mesmo padrão.
+
+**RBAC:** drawers respeitam `can('produtos','editar')`, `can('clientes','editar')`, `can('fornecedores','editar')`. Sem permissão, o botão some.
+
+---
+
+## 4. Regra de nomenclatura de SKU = SIGLA DO GRUPO + sequência
+
+**Schema (migração):**
+- Adicionar `grupos_produto.sigla TEXT` (2–4 chars, único quando preenchido). UI em `/produtos` aba "Grupos" para editar.
+- Sequência por grupo via tabela `grupos_produto_sku_seq(grupo_id uuid PK, ultimo_numero int)` e RPC `proximo_sku_grupo(_grupo_id uuid) returns text` (`SECURITY DEFINER, search_path=public`) — segue a doutrina de **numeração atômica via SEQUENCES/RPCs** (mem://tech/numeracao-atomica-documentos).
+- Formato: `{SIGLA}{NNN}` com padding mínimo 3 (ex.: `AG001`, `AG002`); cresce sozinho a partir de 999.
+
+**UI em `Produtos.tsx`:**
+- Ao selecionar/mudar `grupo_id` no formulário, e o campo SKU estiver vazio, chama `proximo_sku_grupo` e preenche.
+- Botão "Gerar próximo" ao lado do input SKU (sempre disponível) — preview sem reservar até salvar.
+- Validação Zod no `produtoSchema`: se grupo tem sigla, SKU deve começar com ela (warning, não bloqueio, para preservar legados).
+- Mesma lógica usada no `QuickProdutoDrawer` do item 3.
+
+> Não retroage SKUs existentes — só padroniza novos.
+
+---
+
+## 5. Fluxo "Gerar Pedido" no Comercial — clarificar que **não** é nota fiscal
+
+**Diagnóstico:** hoje o botão e o status na `OrdemVendaView` (status_faturamento + ícone Receipt) dão impressão de emissão fiscal. Falta evidenciar **origem (orçamento)**, **número do pedido do cliente** e **destino (NF emitida / faturado)**.
+
+**Ações:**
+- Renomear CTA principal de "Gerar Pedido" → **"Converter em Pedido de Venda"** com subtítulo "(não emite nota — apenas confirma a venda)".
+- No `OrcamentoView`/dialog de conversão, exibir card explicativo com 3 etapas em linha (timeline horizontal):
 
 ```text
-┌─ Item 1  [PENDENTE] ────────────────────────────────────────┐
-│ DO XML (fiscal — preservado)    →   NO SISTEMA              │
-│ cProd:   1234.A                 →   [Produto: Cabo 6mm  ▾]  │
-│ xProd:   CABO FLEX 6MM PR 100M  →   SKU: CAB-6-PR           │
-│ uCom:    KG     qCom: 25,000    →   Unid. interna: MT       │
-│ vUnCom:  18,40  vProd: 460,00   →   Fator: [0,25]  ⚠        │
-│                                     Qtd convertida: 6,250 MT│
-│                                     Custo unitário: 73,60   │
-│ [✓ Salvar tradução para este fornecedor]                    │
-└─────────────────────────────────────────────────────────────┘
+Orçamento #123  →  Pedido #PV-456  →  NF-e #000789
+   (origem)         (esta etapa)        (próxima — Faturar)
 ```
 
-Regras:
-- Coluna esquerda **read-only** (XML cru).
-- Pré-preenchimento: match por `(fornecedor, cProd)` em `produtos_fornecedores` → senão match por `codigo_interno`/`sku`.
-- Fator default = 1 quando `uCom == produto.unidade_medida`; senão input destacado em amarelo até confirmação.
-- Cálculo derivado em tempo real:
-  - `qtd_interna = qCom × fator`
-  - `vUn_interno = vProd / qtd_interna` (preserva o total)
-- Checkbox "Salvar tradução" → upsert em `produtos_fornecedores` ao confirmar (default ligado para itens pendentes resolvidos).
-- "Confirmar tradução" só habilita quando todos os itens têm `produto_id` e `fator > 0`.
+- Adicionar campo **"Nº pedido do cliente"** (`pedido_cliente_ref TEXT` em `pedidos_venda`) no diálogo de conversão e na aba Faturamento — referência opcional de PO do cliente para casar depois com NF.
+- Em `OrdemVendaView`:
+  - Abrir bloco "Origem" mostrando link clicável para o orçamento (`Orçamento #X — aceito em DD/MM`).
+  - Aba "Faturamento" hoje existente: trocar o badge "Status faturamento" por **timeline visual** (Não faturado → Parcial → Faturado) usando o `STATUS_VARIANT_MAP` (mem://produto/contrato-de-status).
+  - Exibir lista de NFs vinculadas com nº/série/chave, valor, data — link para `/fiscal?id=...`.
+- CTA secundário **"Faturar agora"** continua existindo, mas só ativo quando o pedido está aprovado e tem saldo a faturar; texto do botão: "Emitir NF-e deste pedido".
 
-### 3. Persistência — XML preservado, internos convertidos
+**Migração:** `ALTER TABLE pedidos_venda ADD COLUMN pedido_cliente_ref TEXT;` + `chk_` se quiser limitar tamanho.
 
-Em `notas_fiscais_itens`:
-- `codigo_produto_origem`, `descricao_produto_origem`, `unidade_origem`, `quantidade_origem`, `valor_unitario_origem`, `valor_total_origem` ← XML cru.
-- `produto_id`, `unidade`, `quantidade`, `valor_unitario`, `valor_total` ← internos convertidos.
-- `match_status`: `auto` (memorizado), `manual` (usuário escolheu/confirmou), `direto` (uCom == unidade interna, fator 1 sem precisar drawer).
+---
 
-Movimentação de estoque e custo médio passam a usar os campos internos — corretos por construção.
+## 6. Remover "(novo)" do submódulo Faturamento
 
-### 4. Cadastro do produto — visibilidade do de-para
+**Onde:** `src/lib/navigation.ts:196`.
 
-Na aba "Fornecedores" do cadastro de produto, adicionar colunas `Cód. fornecedor` (`referencia_fornecedor`), `Unid. fornecedor`, `Fator conversão`, com helper "1 [un. fornecedor] = N [un. interna]". Permite cadastrar a tradução **antes** de receber o primeiro XML — assim a próxima importação cai em "100% OK".
+Trocar `'Faturamento (novo)'` por `'Faturamento'`. Verificar também sidebar/breadcrumbs derivados (não há outras ocorrências do label "(novo)" — confirmado por busca).
 
-## Convenção do fator (decidida)
+---
 
-`qtd_interna = qCom × fator_conversao`. Ex.: fornecedor envia 25 KG e usamos MT, 1 KG = 0,25 MT → `25 × 0,25 = 6,25 MT`.
+## Detalhes técnicos
 
-## NFs antigas
+**Migrações SQL** (uma única, fase 1):
+```sql
+ALTER TABLE grupos_produto ADD COLUMN sigla TEXT;
+CREATE UNIQUE INDEX uq_grupos_produto_sigla ON grupos_produto(sigla) WHERE sigla IS NOT NULL;
 
-Sem backfill. Continuam como estão; apenas novas importações usam o novo fluxo.
+CREATE TABLE grupos_produto_sku_seq (
+  grupo_id uuid PRIMARY KEY REFERENCES grupos_produto(id) ON DELETE CASCADE,
+  ultimo_numero int NOT NULL DEFAULT 0
+);
+ALTER TABLE grupos_produto_sku_seq ENABLE ROW LEVEL SECURITY;
+-- política: leitura/escrita só via RPC SECURITY DEFINER
 
-## Arquivos que serão tocados
+CREATE OR REPLACE FUNCTION proximo_sku_grupo(_grupo_id uuid)
+RETURNS text LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_sigla text; v_num int;
+BEGIN
+  SELECT sigla INTO v_sigla FROM grupos_produto WHERE id = _grupo_id;
+  IF v_sigla IS NULL THEN RAISE EXCEPTION 'Grupo sem sigla configurada'; END IF;
+  INSERT INTO grupos_produto_sku_seq(grupo_id, ultimo_numero) VALUES (_grupo_id, 1)
+    ON CONFLICT (grupo_id) DO UPDATE SET ultimo_numero = grupos_produto_sku_seq.ultimo_numero + 1
+    RETURNING ultimo_numero INTO v_num;
+  RETURN v_sigla || lpad(v_num::text, 3, '0');
+END $$;
 
-- `supabase/migrations/<nova>.sql` — `fator_conversao` em `produtos_fornecedores` + constraint + índice.
-- `src/pages/fiscal/hooks/useNFeXmlImport.ts` — passa a buscar de-para por `(fornecedor_id, referencia_fornecedor)`, classificar cada item (OK/pendente) e devolver estrutura de tradução com fator memorizado.
-- `src/pages/fiscal/components/TraducaoXmlDrawer.tsx` *(novo)* — UI da tradução conforme mockup, modo edição e somente-leitura.
-- `src/pages/Fiscal.tsx` — `handleXmlImport` decide: se há pendência, abre drawer; senão vai direto ao formulário com banner. Banner tem ação "Ver tradução".
-- `src/services/fiscal.service.ts` (`buildNfItemsPayload`) — gravar `*_origem` + `match_status`.
-- `src/pages/Cadastros.tsx` (aba Fornecedores do produto) — colunas `unidade_fornecedor` e `fator_conversao`.
-- `mem://features/traducao-xml-fiscal` *(nova memória)* — doutrina: XML é fiscal e imutável; tradução afeta só interno; drawer obrigatório só com pendência; fator `qtd_interna = qCom × fator`.
+ALTER TABLE pedidos_venda ADD COLUMN pedido_cliente_ref TEXT;
+```
 
-## Ordem de execução
+**Memória a atualizar** após implementação:
+- `mem/features/traducao-xml-fiscal.md` — anotar suporte a quick-create de produto/fornecedor.
+- Nova entrada `mem/features/cadastro-rapido.md` — padrão dos QuickDrawers.
+- Nova entrada `mem/features/sku-por-grupo.md` — regra SIGLA+NNN e RPC.
+- Atualizar `mem/index.md` (Memories).
 
-1. Migration `fator_conversao` + constraint + índice.
-2. Estender `useNFeXmlImport` (lookup de-para + classificação OK/pendente).
-3. Criar `TraducaoXmlDrawer` (componente puro).
-4. Plugar drawer condicional + banner em `Fiscal.tsx`.
-5. Atualizar `buildNfItemsPayload` para `*_origem` + `match_status`.
-6. Estender aba Fornecedores do cadastro de produto.
-7. Salvar memória da doutrina.
+## Ordem sugerida de execução
+
+1. Itens **1, 2, 6** (correções rápidas, baixíssimo risco) — mesma entrega.
+2. Item **4** (migração + sigla + RPC + UI grupo/produto).
+3. Item **3** (QuickDrawers, depende do item 4 para autosugerir SKU).
+4. Item **5** (refino do fluxo Comercial → Pedido → NF).
+
+Quer aprovar tudo de uma vez ou prefere fatiar em duas entregas (1+2+6 primeiro, depois 3+4+5)?
