@@ -175,6 +175,7 @@ const Fiscal = () => {
   const [consultaSearch, setConsultaSearch] = useState("");
   const [itemContaContabil, setItemContaContabil] = useState<Record<number, string>>({});
   const xmlInputRef = useRef<HTMLInputElement>(null);
+  const [buscarChaveOpen, setBuscarChaveOpen] = useState(false);
   const [danfeOpen, setDanfeOpen] = useState(false);
   const [danfeData, setDanfeData] = useState<Record<string, unknown> | null>(null);
   const [modeloFilters, setModeloFilters] = useState<string[]>([]);
