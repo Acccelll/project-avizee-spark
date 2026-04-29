@@ -289,7 +289,7 @@ export default function Faturamento() {
                               {formatDate(n.data_emissao)} · {formatCurrency(Number(n.valor_total ?? 0))}
                             </p>
                           </div>
-                          <StatusBadge status={n.status_sefaz} />
+                          <FiscalSefazStatusBadge status={n.status_sefaz || "nao_enviada"} />
                         </li>
                       ))}
                     </ul>
