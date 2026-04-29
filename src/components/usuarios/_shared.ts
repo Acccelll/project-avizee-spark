@@ -66,6 +66,14 @@ export interface UserWithRoles {
   created_at: string;
   updated_at: string;
   role_padrao: AppRole;
+  /**
+   * Roles secundários cumulativos (não inclui o `role_padrao`).
+   * As permissões finais do usuário são a UNIÃO das permissões herdadas de
+   * todos os roles (padrão + secundários) somadas aos overrides individuais.
+   * O role padrão é mantido por separado apenas para auditoria/UI — funcionalmente
+   * o efeito é o mesmo de incluí-lo na lista de roles.
+   */
+  roles_secundarios: AppRole[];
   extra_permissions: string[];
   /** Revogações individuais (`user_permissions.allowed=false`). */
   denied_permissions: string[];
@@ -79,6 +87,7 @@ export interface UserFormData {
   cargo: string;
   ativo: boolean;
   role_padrao: AppRole;
+  roles_secundarios: AppRole[];
   extra_permissions: string[];
   denied_permissions: string[];
 }
@@ -89,6 +98,7 @@ export const emptyForm = (): UserFormData => ({
   cargo: '',
   ativo: true,
   role_padrao: 'vendedor',
+  roles_secundarios: [],
   extra_permissions: [],
   denied_permissions: [],
 });
