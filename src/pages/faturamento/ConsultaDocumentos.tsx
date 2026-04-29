@@ -19,7 +19,7 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { useDebounce } from "@/hooks/useDebounce";
 import { FiscalSefazStatusBadge } from "@/components/fiscal/FiscalStatusBadges";
 import { PeriodFilter } from "@/components/filters/PeriodFilter";
-import type { Period } from "@/lib/periodTypes";
+import type { Period } from "@/components/filters/periodTypes";
 import { periodToDateFrom, periodToDateTo } from "@/lib/periodFilter";
 import { fiscalSefazStatusOptions } from "@/lib/fiscalStatus";
 
