@@ -20,6 +20,7 @@ import { Separator } from "@/components/ui/separator";
 import { AlertCircle, ArrowRight, CheckCircle2 } from "lucide-react";
 import { AutocompleteSearch } from "@/components/ui/AutocompleteSearch";
 import type { TraducaoLinha, ProdutoMatchRef } from "@/pages/fiscal/hooks/useNFeXmlImport";
+import { parseVariacoes, formatVariacoesSuffix } from "@/utils/cadastros";
 
 interface Props {
   open: boolean;
@@ -42,8 +43,22 @@ export function TraducaoXmlDrawer({ open, readOnly = false, fornecedorNome, prod
     setDraft(linhas);
   }, [linhas, open]);
 
+  // Inclui SEMPRE a variação (ex.: "13 X 45") junto do nome para diferenciar
+  // produtos homônimos. A doutrina (parseVariacoes) é a mesma do
+  // OrcamentoItemsGrid e ItemsGrid.
   const produtoOptions = useMemo(
-    () => produtos.map((p) => ({ id: p.id, label: p.nome, sublabel: p.sku || p.codigo_interno || "" })),
+    () =>
+      produtos.map((p) => {
+        const variacoes = parseVariacoes(p.variacoes);
+        const variSuffix = formatVariacoesSuffix(p.variacoes);
+        const codePart = [p.sku, p.codigo_interno].filter(Boolean).join(" / ");
+        return {
+          id: p.id,
+          label: `${p.nome}${variSuffix}`,
+          sublabel: [codePart, p.unidade_medida].filter(Boolean).join(" · "),
+          searchTerms: [p.sku, p.codigo_interno, ...variacoes].filter(Boolean) as string[],
+        };
+      }),
     [produtos],
   );
 
