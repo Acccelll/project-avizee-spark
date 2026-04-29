@@ -18,7 +18,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { useDebounce } from "@/hooks/useDebounce";
 import { FiscalSefazStatusBadge } from "@/components/fiscal/FiscalStatusBadges";
-import { PeriodFilter, type PeriodValue } from "@/components/filters/PeriodFilter";
+import { PeriodFilter } from "@/components/filters/PeriodFilter";
+import type { Period } from "@/lib/periodTypes";
 import { periodToDateFrom, periodToDateTo } from "@/lib/periodFilter";
 import { fiscalSefazStatusOptions } from "@/lib/fiscalStatus";
 
@@ -51,7 +52,7 @@ export function ConsultaDocumentos() {
   const debounced = useDebounce(busca, 300);
   const [tipo, setTipo] = useState<string>("todos");
   const [statusSefaz, setStatusSefaz] = useState<string>("todos");
-  const [period, setPeriod] = useState<PeriodValue>({ preset: "30d" });
+  const [period, setPeriod] = useState<Period>("30d");
 
   const query = useQuery({
     queryKey: ["faturamento-consulta-docs", debounced, tipo, statusSefaz, period],
