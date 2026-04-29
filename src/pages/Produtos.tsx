@@ -155,6 +155,11 @@ const Produtos = () => {
   const [novaUnidadeForm, setNovaUnidadeForm] = useState({ codigo: "", descricao: "", sigla: "" });
   const [savingNovaUnidade, setSavingNovaUnidade] = useState(false);
 
+  // Edição rápida da sigla do grupo (regra de SKU = SIGLA + NNN)
+  const [siglaDialogOpen, setSiglaDialogOpen] = useState(false);
+  const [siglaInput, setSiglaInput] = useState("");
+  const [savingSigla, setSavingSigla] = useState(false);
+
   useEffect(() => {
     Promise.all([
       listGruposAtivos(),
@@ -940,13 +945,36 @@ const Produtos = () => {
               </div>
               <div className="space-y-2">
                 <Label>Grupo de Produto</Label>
-                <Select value={form.grupo_id || "nenhum"} onValueChange={(v) => setForm({ ...form, grupo_id: v === "nenhum" ? "" : v })}>
-                  <SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="nenhum">Nenhum</SelectItem>
-                    {grupos.map((g) => <SelectItem key={g.id} value={g.id}>{g.nome}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <div className="flex gap-1.5">
+                  <Select value={form.grupo_id || "nenhum"} onValueChange={(v) => setForm({ ...form, grupo_id: v === "nenhum" ? "" : v })}>
+                    <SelectTrigger className="flex-1"><SelectValue placeholder="Nenhum" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="nenhum">Nenhum</SelectItem>
+                      {grupos.map((g) => (
+                        <SelectItem key={g.id} value={g.id}>
+                          {g.nome}{g.sigla ? ` · ${g.sigla}` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {form.grupo_id && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="shrink-0 h-9 w-9"
+                      title="Editar sigla do grupo (usada para gerar SKU)"
+                      aria-label="Editar sigla do grupo"
+                      onClick={() => {
+                        const g = grupos.find(g => g.id === form.grupo_id);
+                        setSiglaInput(g?.sigla || "");
+                        setSiglaDialogOpen(true);
+                      }}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
               </div>
               <div className="space-y-2">
                 <Label>Unidade de Medida</Label>
