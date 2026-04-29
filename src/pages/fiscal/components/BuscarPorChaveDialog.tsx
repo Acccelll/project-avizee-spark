@@ -91,11 +91,32 @@ export function BuscarPorChaveDialog({
       //    Diferente do consultar-nsu (incremental), busca exatamente esta chave.
       //    Limitação SEFAZ: a NF precisa ser destinada ao CNPJ do certificado.
       setPhase("sefaz");
-      toast.info("Consultando SEFAZ pela chave…");
+
+      // Lê ambiente da empresa (1 = produção, 2 = homologação). Padrão = produção.
+      let ambiente: "1" | "2" = "1";
+      try {
+        const { data: cfg } = await supabase
+          .from("empresa_config")
+          .select("ambiente_sefaz, ambiente_padrao")
+          .maybeSingle();
+        if (cfg?.ambiente_sefaz === "1" || cfg?.ambiente_sefaz === "2") {
+          ambiente = cfg.ambiente_sefaz;
+        } else if (cfg?.ambiente_padrao === "homologacao") {
+          ambiente = "2";
+        } else if (cfg?.ambiente_padrao === "producao") {
+          ambiente = "1";
+        }
+      } catch (cfgErr) {
+        console.warn("[BuscarPorChave] não foi possível ler empresa_config:", cfgErr);
+      }
+
+      toast.info(
+        `Consultando SEFAZ pela chave (${ambiente === "1" ? "produção" : "homologação"})…`,
+      );
 
       const { data: result, error: syncErr } = await supabase.functions.invoke(
         "sefaz-distdfe",
-        { body: { action: "consultar-chave", chNFe: chaveLimpa } },
+        { body: { action: "consultar-chave", chNFe: chaveLimpa, ambiente } },
       );
 
       if (syncErr) {
