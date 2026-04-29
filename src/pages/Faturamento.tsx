@@ -377,29 +377,7 @@ export default function Faturamento() {
 
         {/* DOCUMENTOS */}
         <TabsContent value="documentos" className="mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Documentos fiscais</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <p className="text-sm text-muted-foreground">
-                Operações pós-emissão: CC-e e devolução ficam no detalhe de cada
-                NF autorizada. Inutilização de faixa abre pelo botão abaixo.
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <Button onClick={() => navigate("/fiscal?tipo=saida")}>Notas de saída</Button>
-                <Button variant="outline" onClick={() => navigate("/fiscal?tipo=entrada")}>
-                  Notas de entrada
-                </Button>
-                <Button variant="outline" onClick={() => setInutOpen(true)} className="gap-2">
-                  <Ban className="h-4 w-4" /> Inutilizar numeração
-                </Button>
-                <Button variant="outline" onClick={() => setManifOpen(true)} className="gap-2">
-                  <Inbox className="h-4 w-4" /> Manifestação do destinatário
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          <ConsultaDocumentos />
         </TabsContent>
       </Tabs>
 
