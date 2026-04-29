@@ -12,6 +12,7 @@ import {
   TrendingUp,
   ArrowRight,
   History,
+  FileDown,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,8 @@ import {
   fetchDashboardFiscal,
   type DashboardFiscalKpis,
 } from "@/services/fiscal/dashboardFiscal.service";
+import { exportarDashboardFiscalPdf } from "@/services/fiscal/dashboardFiscalPdf.service";
+import { toast } from "sonner";
 import { periodToDateFrom } from "@/lib/periodFilter";
 import type { Period } from "@/components/filters/periodTypes";
 import { format } from "date-fns";
@@ -58,6 +61,7 @@ function todayIso() {
 
 export default function FiscalDashboard() {
   const [period, setPeriod] = useState<Period>("30d");
+  const [exporting, setExporting] = useState(false);
 
   const periodo = useMemo(
     () => ({ from: periodToDateFrom(period), to: todayIso() }),
@@ -69,6 +73,20 @@ export default function FiscalDashboard() {
     queryFn: () => fetchDashboardFiscal(periodo),
     staleTime: 60 * 1000,
   });
+
+  const handleExportPdf = async () => {
+    if (!data) return;
+    setExporting(true);
+    try {
+      await exportarDashboardFiscalPdf({ data, periodo });
+      toast.success("PDF gerado com sucesso");
+    } catch (err) {
+      console.error("[FiscalDashboard] export PDF", err);
+      toast.error("Falha ao gerar PDF");
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <div className="container mx-auto p-4 md:p-6 space-y-6">
@@ -89,6 +107,15 @@ export default function FiscalDashboard() {
           >
             <RefreshCw className={`h-4 w-4 mr-2 ${isFetching ? "animate-spin" : ""}`} />
             Atualizar
+          </Button>
+          <Button
+            variant="default"
+            size="sm"
+            onClick={() => void handleExportPdf()}
+            disabled={!data || exporting || isLoading}
+          >
+            <FileDown className={`h-4 w-4 mr-2 ${exporting ? "animate-pulse" : ""}`} />
+            {exporting ? "Gerando…" : "Exportar PDF"}
           </Button>
         </div>
       </div>
