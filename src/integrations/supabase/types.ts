@@ -8599,7 +8599,10 @@ export type Database = {
         }
         Returns: boolean
       }
-      importar_nfe_entrada: { Args: { p_payload: Json }; Returns: Json }
+      importar_nfe_entrada: {
+        Args: { p_empresa_id?: string; p_payload: Json }
+        Returns: Json
+      }
       inutilizar_nota_fiscal: {
         Args: { p_motivo: string; p_nf_id: string; p_protocolo: string }
         Returns: undefined
