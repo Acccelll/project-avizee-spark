@@ -89,3 +89,72 @@ export async function obterCertificadoConfigurado(): Promise<CertificadoInfo | n
     diasRestantes: calcularDiasRestantes(valor.validadeFim),
   };
 }
+
+/* ─────────────────────────────────────────────────────────────────
+ * Upload seguro do certificado A1
+ * ────────────────────────────────────────────────────────────────*/
+
+const STORAGE_BUCKET = "dbavizee";
+const STORAGE_PATH = "certificados/empresa.pfx";
+const VAULT_SECRET_NAME = "CERTIFICADO_PFX_SENHA";
+const APP_CONFIG_KEY = "certificado_digital";
+
+/**
+ * Persiste o .pfx no Storage privado, salva a senha no Vault e atualiza os
+ * metadados em `app_configuracoes`. Devolve o `CertificadoInfo` calculado.
+ *
+ * - Storage: bucket `dbavizee`, path fixo `certificados/empresa.pfx`.
+ *   A edge function `sefaz-proxy` (action `assinar-e-enviar-vault`) lê
+ *   exatamente desse caminho.
+ * - Senha: gravada via RPC `salvar_secret_vault` (admin-only). A senha
+ *   nunca volta para o client depois de salva.
+ */
+export async function uploadCertificadoA1(
+  arquivo: File,
+  senha: string,
+): Promise<CertificadoInfo> {
+  // 1. Lê metadados via edge function (valida senha + arquivo).
+  const info = await lerCertificadoA1(arquivo, senha);
+
+  // 2. Sobe o .pfx para o Storage privado.
+  const { error: upErr } = await supabase.storage
+    .from(STORAGE_BUCKET)
+    .upload(STORAGE_PATH, arquivo, {
+      upsert: true,
+      contentType: "application/x-pkcs12",
+    });
+  if (upErr) throw new Error(`Falha ao enviar certificado: ${upErr.message}`);
+
+  // 3. Persiste senha no Vault.
+  const { error: vaultErr } = await supabase.rpc("salvar_secret_vault", {
+    p_name: VAULT_SECRET_NAME,
+    p_secret: senha,
+  });
+  if (vaultErr) throw new Error(`Falha ao salvar senha no cofre: ${vaultErr.message}`);
+
+  // 4. Atualiza metadados (sem senha, sem .pfx).
+  const { error: cfgErr } = await supabase.from("app_configuracoes").upsert(
+    {
+      chave: APP_CONFIG_KEY,
+      valor: {
+        cnpj: info.cnpj,
+        razaoSocial: info.razaoSocial,
+        validadeInicio: info.validadeInicio,
+        validadeFim: info.validadeFim,
+        atualizadoEm: new Date().toISOString(),
+        storagePath: `${STORAGE_BUCKET}/${STORAGE_PATH}`,
+      },
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "chave" },
+  );
+  if (cfgErr) throw new Error(`Falha ao gravar metadados: ${cfgErr.message}`);
+
+  return info;
+}
+
+export async function removerCertificadoA1(): Promise<void> {
+  await supabase.storage.from(STORAGE_BUCKET).remove([STORAGE_PATH]);
+  await supabase.rpc("remover_secret_vault", { p_name: VAULT_SECRET_NAME });
+  await supabase.from("app_configuracoes").delete().eq("chave", APP_CONFIG_KEY);
+}
