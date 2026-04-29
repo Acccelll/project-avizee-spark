@@ -897,7 +897,42 @@ const Produtos = () => {
               </div>
               <div className="space-y-2">
                 <Label className="flex items-center gap-1">SKU <span className="text-muted-foreground font-normal text-xs">(referência externa)</span></Label>
-                <Input value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })} className="font-mono" placeholder="Ex: PROD-001" />
+                <div className="flex gap-1.5">
+                  <Input
+                    value={form.sku}
+                    onChange={(e) => setForm({ ...form, sku: e.target.value })}
+                    className="font-mono flex-1"
+                    placeholder={(() => {
+                      const g = grupos.find(g => g.id === form.grupo_id);
+                      return g?.sigla ? `${g.sigla}001` : "Ex: PROD-001";
+                    })()}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="shrink-0 h-9 w-9"
+                    title="Gerar próximo SKU pela sigla do grupo"
+                    aria-label="Gerar próximo SKU"
+                    disabled={!form.grupo_id || !grupos.find(g => g.id === form.grupo_id)?.sigla}
+                    onClick={async () => {
+                      try {
+                        const next = await proximoSkuDoGrupo(form.grupo_id);
+                        setForm((f) => ({ ...f, sku: next }));
+                        toast.success(`SKU sugerido: ${next}`);
+                      } catch (e) {
+                        toast.error((e as Error).message);
+                      }
+                    }}
+                  >
+                    <Wand2 className="h-4 w-4" />
+                  </Button>
+                </div>
+                {form.grupo_id && !grupos.find(g => g.id === form.grupo_id)?.sigla && (
+                  <p className="text-[11px] text-muted-foreground">
+                    Defina uma sigla no grupo para gerar SKU automático (ex.: AG, SR).
+                  </p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label className="flex items-center gap-1">Código Interno <span className="text-muted-foreground font-normal text-xs">(uso sistêmico)</span></Label>
