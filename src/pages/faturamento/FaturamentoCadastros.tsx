@@ -137,6 +137,23 @@ function NaturezasTab() {
     setOpen(true);
   };
 
+  const duplicarNatureza = (n: Natureza) => {
+    setEditing(null);
+    form.reset({
+      codigo: `${n.codigo}_COPIA`,
+      descricao: `${n.descricao} (cópia)`,
+      cfop_dentro_uf: n.cfop_dentro_uf ?? "",
+      cfop_fora_uf: n.cfop_fora_uf ?? "",
+      finalidade: n.finalidade as NaturezaForm["finalidade"],
+      tipo_operacao: n.tipo_operacao as NaturezaForm["tipo_operacao"],
+      movimenta_estoque: n.movimenta_estoque,
+      gera_financeiro: n.gera_financeiro,
+      ativo: n.ativo,
+      observacoes: n.observacoes ?? "",
+    });
+    setOpen(true);
+  };
+
   const onSubmit = async (values: NaturezaForm) => {
     const payload = {
       ...values,
@@ -251,6 +268,14 @@ function NaturezasTab() {
                         <div className="inline-flex gap-1">
                           <Button size="sm" variant="ghost" onClick={() => openEdit(n)}>
                             <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            title="Duplicar natureza"
+                            onClick={() => duplicarNatureza(n)}
+                          >
+                            <Copy className="h-3.5 w-3.5" />
                           </Button>
                           <Button
                             size="sm"
