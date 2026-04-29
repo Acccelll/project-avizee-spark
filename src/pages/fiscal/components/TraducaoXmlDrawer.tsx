@@ -134,11 +134,13 @@ function LinhaCard({
   readOnly,
   produtoOptions,
   onChange,
+  onCreateProduto,
 }: {
   linha: TraducaoLinha;
   readOnly: boolean;
   produtoOptions: { id: string; label: string; sublabel: string }[];
   onChange: (patch: Partial<TraducaoLinha>) => void;
+  onCreateProduto?: (linhaIndex: number, sugestaoNome: string) => void;
 }) {
   const qtdInterna = linha.fatorConversao > 0 ? linha.xmlQuantidade * linha.fatorConversao : 0;
   const vUnInterno = qtdInterna > 0 ? linha.xmlValorTotal / qtdInterna : 0;
@@ -187,7 +189,18 @@ function LinhaCard({
                 onChange({ produtoId: id, matchStatus: "manual" });
               }}
               placeholder="Buscar produto..."
+              onCreateNew={!readOnly && onCreateProduto ? () => onCreateProduto(linha.index, linha.xmlDescricao) : undefined}
+              createNewLabel="Cadastrar este produto"
             />
+            {!readOnly && !linha.produtoId && onCreateProduto && (
+              <button
+                type="button"
+                className="mt-1 inline-flex items-center gap-1 text-[11px] text-primary hover:underline"
+                onClick={() => onCreateProduto(linha.index, linha.xmlDescricao)}
+              >
+                <PlusCircle className="h-3 w-3" /> Cadastrar &ldquo;{linha.xmlDescricao.slice(0, 32)}{linha.xmlDescricao.length > 32 ? "…" : ""}&rdquo;
+              </button>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div>
