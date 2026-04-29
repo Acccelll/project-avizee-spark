@@ -154,6 +154,7 @@ export function AutocompleteSearch({
                 } ${idx > 0 ? "border-t border-border/40" : ""}`}
                 onClick={() => selectOption(o.id)}
                 onMouseEnter={() => setHighlightIdx(idx)}
+                title={[o.label, o.sublabel, o.metaLine].filter(Boolean).join(" — ")}
               >
                 <span className="flex items-start gap-2 min-w-0 flex-1">
                   {o.imageUrl ? <img src={o.imageUrl} alt={o.label} className="h-8 w-8 rounded object-cover mt-0.5 shrink-0" /> : null}
