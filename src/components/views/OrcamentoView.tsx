@@ -47,6 +47,7 @@ import {
   GitBranch,
 } from "lucide-react";
 import { toast } from "sonner";
+import { ComercialFlowTimeline } from "@/components/views/ComercialFlowTimeline";
 
 interface Props {
   id: string;
@@ -195,7 +196,7 @@ export function OrcamentoView({ id }: Props) {
         )}
         {canConvertOrcamento(selected.status) && (
           <Button size="sm" variant="default" className="h-8 gap-1.5 text-xs" onClick={() => setConvertConfirmOpen(true)} disabled={isAnyLocked}>
-            <ArrowRightCircle className="h-3.5 w-3.5" /> Gerar Pedido
+            <ArrowRightCircle className="h-3.5 w-3.5" /> Converter em Pedido
           </Button>
         )}
         {["aprovado", "rejeitado", "expirado", "convertido"].includes(normalizeOrcamentoStatus(selected.status)) && (
@@ -241,6 +242,32 @@ export function OrcamentoView({ id }: Props) {
 
   return (
     <div className="space-y-4">
+      {/* Timeline do fluxo Orçamento → Pedido → NF */}
+      <ComercialFlowTimeline
+        steps={[
+          {
+            key: "orcamento",
+            label: `Orçamento ${selected.numero}`,
+            done: true,
+            current: !linkedOV,
+            hint: "Etapa atual",
+          },
+          {
+            key: "pedido",
+            label: linkedOV ? `Pedido ${linkedOV.numero}` : "Pedido de Venda",
+            done: !!linkedOV,
+            hint: linkedOV ? "Abrir pedido vinculado" : "Use 'Converter em Pedido' para avançar",
+            onClick: linkedOV ? () => pushView("ordem_venda", linkedOV.id) : undefined,
+          },
+          {
+            key: "nf",
+            label: "Nota Fiscal",
+            done: false,
+            hint: "Emitida a partir do Pedido (módulo Faturamento)",
+          },
+        ]}
+      />
+
       {/* KPI strip */}
       <DrawerSummaryGrid cols={4}>
         <DrawerSummaryCard label="Itens" value={String(kpiItens)} align="center" />
@@ -552,7 +579,7 @@ export function OrcamentoView({ id }: Props) {
         loading={locked("approve")}
       />
 
-      {/* Gerar Pedido — preview de impacto cross-módulo */}
+      {/* Converter em Pedido de Venda — preview de impacto cross-módulo */}
       <CrossModuleActionDialog
         open={convertConfirmOpen}
         onClose={() => {
@@ -561,13 +588,13 @@ export function OrcamentoView({ id }: Props) {
           setDataPoCliente("");
         }}
         onConfirm={handleConvertToOV}
-        title="Gerar Pedido"
-        description={`Confirma a conversão do orçamento ${selected?.numero} em Pedido?`}
-        confirmLabel="Gerar Pedido"
+        title="Converter em Pedido de Venda"
+        description={`Confirma a conversão do orçamento ${selected?.numero} em Pedido de Venda? Nenhuma Nota Fiscal será emitida nesta etapa.`}
+        confirmLabel="Converter em Pedido"
         loading={locked("convert")}
         impacts={[
           {
-            label: "Cria 1 Pedido em /pedidos",
+            label: "Cria 1 Pedido de Venda em /pedidos (sem emitir NF)",
             detail: `${items.length} ${items.length === 1 ? "item" : "itens"} · ${formatCurrency(kpiValor)}`,
             tone: "primary",
           },

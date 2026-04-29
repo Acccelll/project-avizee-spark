@@ -25,6 +25,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { OVDetail, NotaFiscalListItem, LancamentoListItem, OrdemVendaItemWithProduto } from "@/types/comercial";
 import { subscribeComercial } from "@/lib/realtime/comercialChannel";
+import { ComercialFlowTimeline } from "@/components/views/ComercialFlowTimeline";
 import {
   FileOutput,
   DollarSign,
@@ -305,6 +306,51 @@ export function OrdemVendaView({ id }: Props) {
           </Badge>
         </div>
       </div>
+
+      {/* Timeline do fluxo Orçamento → Pedido → NF */}
+      <ComercialFlowTimeline
+        steps={[
+          {
+            key: "orcamento",
+            label: selected.orcamentos?.numero
+              ? `Orçamento ${selected.orcamentos.numero}`
+              : "Sem orçamento",
+            done: !!selected.cotacao_id,
+            hint: selected.cotacao_id ? "Abrir orçamento de origem" : "Pedido criado sem orçamento",
+            onClick: selected.cotacao_id
+              ? () => pushView("orcamento", selected.cotacao_id!)
+              : undefined,
+          },
+          {
+            key: "pedido",
+            label: `Pedido ${selected.numero}`,
+            done: true,
+            current: notasFiscais.length === 0,
+            hint: "Etapa atual",
+          },
+          {
+            key: "nf",
+            label:
+              notasFiscais.length === 0
+                ? "Nota Fiscal"
+                : notasFiscais.length === 1
+                  ? `NF ${notasFiscais[0].numero}`
+                  : `${notasFiscais.length} NFs`,
+            done: notasFiscais.some((n) => ["confirmada", "autorizada"].includes(n.status || "")),
+            current: notasFiscais.length > 0,
+            hint:
+              notasFiscais.length === 1
+                ? "Abrir Nota Fiscal"
+                : notasFiscais.length === 0
+                  ? "Use 'Gerar NF' no cabeçalho para faturar"
+                  : "Várias NFs vinculadas — veja a aba Faturamento",
+            onClick:
+              notasFiscais.length === 1
+                ? () => pushView("nota_fiscal", notasFiscais[0].id)
+                : undefined,
+          },
+        ]}
+      />
 
       {/* Strip de registros relacionados — visibilidade imediata dos vínculos cross-módulo. */}
       <RelatedRecordsStrip

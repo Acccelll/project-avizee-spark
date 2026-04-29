@@ -483,7 +483,7 @@ const Orcamentos = () => {
                     setDataPoCliente("");
                     setConvertingId(o.id);
                   }}>
-                    <ArrowRightCircle className="w-3 h-3" /> Gerar Pedido
+                    <ArrowRightCircle className="w-3 h-3" /> Converter em Pedido
                   </Button>
                 )}
               </>
@@ -504,7 +504,7 @@ const Orcamentos = () => {
                       setConvertingId(o.id);
                     }}
                   >
-                    <ArrowRightCircle className="w-4 h-4" /> Gerar Pedido
+                    <ArrowRightCircle className="w-4 h-4" /> Converter em Pedido
                   </Button>
                 );
               }
@@ -552,13 +552,13 @@ const Orcamentos = () => {
           setDataPoCliente("");
         }}
         onConfirm={() => convertingOrc && handleConvertToPedido(convertingOrc)}
-        title="Gerar Pedido"
-        description={`Confirma a conversão do orçamento ${convertingOrc?.numero} em Pedido?`}
-        confirmLabel="Gerar Pedido"
+        title="Converter em Pedido de Venda"
+        description={`Confirma a conversão do orçamento ${convertingOrc?.numero} em Pedido de Venda? Nenhuma Nota Fiscal será emitida nesta etapa.`}
+        confirmLabel="Converter em Pedido"
         loading={convertLock.pending}
         impacts={[
           {
-            label: "Cria 1 Pedido em /pedidos",
+            label: "Cria 1 Pedido de Venda em /pedidos (sem emitir NF)",
             detail: convertingOrc ? formatCurrency(Number(convertingOrc.valor_total || 0)) : undefined,
             tone: "primary",
           },
