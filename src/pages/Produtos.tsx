@@ -1387,6 +1387,58 @@ const Produtos = () => {
         </DialogContent>
       </Dialog>
 
+      {/* ── Dialog: Editar Sigla do Grupo (regra de SKU) ───────── */}
+      <Dialog open={siglaDialogOpen} onOpenChange={(v) => { if (!v) setSiglaDialogOpen(false); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Sigla do Grupo</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 pt-1">
+            <p className="text-xs text-muted-foreground">
+              A sigla é usada como prefixo do SKU dos produtos deste grupo.
+              Ex.: sigla <strong>AG</strong> gera <code className="font-mono">AG001, AG002, AG003…</code>
+            </p>
+            <div className="space-y-1.5">
+              <Label>Sigla <span className="text-destructive">*</span></Label>
+              <Input
+                value={siglaInput}
+                onChange={(e) => setSiglaInput(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 4))}
+                placeholder="Ex: AG"
+                maxLength={4}
+                autoFocus
+                className="font-mono"
+              />
+              <p className="text-[11px] text-muted-foreground">2 a 4 caracteres (letras/números). Maiúsculas.</p>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="outline" onClick={() => setSiglaDialogOpen(false)}>Cancelar</Button>
+              <Button
+                type="button"
+                disabled={savingSigla || siglaInput.length < 2}
+                className="gap-1.5"
+                onClick={async () => {
+                  if (!form.grupo_id) return;
+                  setSavingSigla(true);
+                  try {
+                    await updateGrupoSigla(form.grupo_id, siglaInput);
+                    setGrupos((prev) => prev.map(g => g.id === form.grupo_id ? { ...g, sigla: siglaInput } : g));
+                    toast.success("Sigla atualizada.");
+                    setSiglaDialogOpen(false);
+                  } catch (e) {
+                    toast.error((e as Error).message);
+                  } finally {
+                    setSavingSigla(false);
+                  }
+                }}
+              >
+                {savingSigla ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                Salvar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {confirmActionDialog}
     </>);
 
