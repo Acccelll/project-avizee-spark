@@ -12,6 +12,7 @@
  *
  * Actions:
  *   - "consultar-nsu": consulta documentos a partir do último NSU recebido
+ *   - "consultar-chave": consulta um documento específico por chave de acesso (consChNFe)
  *
  * Endpoint SEFAZ (AN):
  *   - Produção:    https://www1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx
@@ -90,19 +91,20 @@ function pfxToPem(base64: string, senha: string): { certPem: string; keyPem: str
 function montarDistDFeInt(opts: {
   ambiente: "1" | "2";
   cnpj: string;
-  ultNSU: string;
+  ultNSU?: string;
+  chNFe?: string;
   cUFAutor?: string; // 91 = AN
 }): string {
   const cUF = opts.cUFAutor ?? "91";
-  const ultNSU = String(opts.ultNSU).padStart(15, "0");
+  const corpo = opts.chNFe
+    ? `<consChNFe><chNFe>${opts.chNFe}</chNFe></consChNFe>`
+    : `<distNSU><ultNSU>${String(opts.ultNSU ?? "0").padStart(15, "0")}</ultNSU></distNSU>`;
   return `<?xml version="1.0" encoding="UTF-8"?>
 <distDFeInt xmlns="http://www.portalfiscal.inf.br/nfe" versao="1.01">
   <tpAmb>${opts.ambiente}</tpAmb>
   <cUFAutor>${cUF}</cUFAutor>
   <CNPJ>${opts.cnpj}</CNPJ>
-  <distNSU>
-    <ultNSU>${ultNSU}</ultNSU>
-  </distNSU>
+  ${corpo}
 </distDFeInt>`;
 }
 
@@ -220,14 +222,18 @@ Deno.serve(async (req) => {
     await requireAuth(req);
     const body = await req.json().catch(() => ({}));
     const action: string = body.action ?? "consultar-nsu";
-    log.info("request", { action, ambiente: body.ambiente, ultNSU: body.ultNSU });
+    log.info("request", { action, ambiente: body.ambiente, ultNSU: body.ultNSU, chNFe: body.chNFe });
 
-    if (action !== "consultar-nsu") {
-      return json({ error: `action '${action}' inválida. Use 'consultar-nsu'.` }, 400);
+    if (action !== "consultar-nsu" && action !== "consultar-chave") {
+      return json({ error: `action '${action}' inválida. Use 'consultar-nsu' ou 'consultar-chave'.` }, 400);
     }
 
     const ambiente: "1" | "2" = body.ambiente === "1" ? "1" : "2";
     const ultNSUInput: string = String(body.ultNSU ?? "0").replace(/\D/g, "");
+    const chNFeInput: string = String(body.chNFe ?? "").replace(/\D/g, "");
+    if (action === "consultar-chave" && chNFeInput.length !== 44) {
+      return json({ sucesso: false, erro: "Chave de acesso (chNFe) inválida — exige 44 dígitos." }, 400);
+    }
 
     // Senha do certificado
     const senha = Deno.env.get("CERTIFICADO_PFX_SENHA");
@@ -290,7 +296,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    const distDFeInt = montarDistDFeInt({ ambiente, cnpj, ultNSU: ultNSUInput });
+    const distDFeInt = action === "consultar-chave"
+      ? montarDistDFeInt({ ambiente, cnpj, chNFe: chNFeInput })
+      : montarDistDFeInt({ ambiente, cnpj, ultNSU: ultNSUInput });
     const envelope = envelopeSoap(distDFeInt);
     const url = endpointAN(ambiente);
 

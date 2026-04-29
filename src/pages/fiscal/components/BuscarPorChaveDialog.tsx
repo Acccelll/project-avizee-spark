@@ -87,13 +87,15 @@ export function BuscarPorChaveDialog({
         return;
       }
 
-      // 2. Tenta sincronizar via SEFAZ DistDFe (consulta NSU)
+      // 2. Consulta direta por chave no DistDFe (consChNFe).
+      //    Diferente do consultar-nsu (incremental), busca exatamente esta chave.
+      //    Limitação SEFAZ: a NF precisa ser destinada ao CNPJ do certificado.
       setPhase("sefaz");
-      toast.info("Chave não encontrada localmente. Sincronizando com SEFAZ…");
+      toast.info("Consultando SEFAZ pela chave…");
 
-      const { data: syncResult, error: syncErr } = await supabase.functions.invoke(
+      const { data: result, error: syncErr } = await supabase.functions.invoke(
         "sefaz-distdfe",
-        { body: { action: "consultar-nsu" } },
+        { body: { action: "consultar-chave", chNFe: chaveLimpa } },
       );
 
       if (syncErr) {
@@ -103,28 +105,49 @@ export function BuscarPorChaveDialog({
         throw new Error(msg);
       }
 
-      const novosDocs = (syncResult as { documentos_novos?: number })?.documentos_novos ?? 0;
-      if (novosDocs > 0) {
-        toast.info(`${novosDocs} novo(s) documento(s) sincronizado(s). Verificando…`);
+      type SefazResp = {
+        sucesso?: boolean;
+        erro?: string;
+        cStat?: string;
+        xMotivo?: string;
+        docs?: Array<{ schema?: string; xml?: string; chave?: string }>;
+      };
+      const r = (result ?? {}) as SefazResp;
+
+      if (r.sucesso === false) {
+        throw new Error(r.erro ?? "Falha desconhecida no SEFAZ.");
       }
 
-      // 3. Re-busca local após sync
-      const localApos = await buscarLocal(chaveLimpa);
-      if (localApos?.xml_nfe) {
-        toast.success(
-          `XML obtido via SEFAZ (NF ${localApos.numero ?? "?"} de ${localApos.nome_emitente ?? "—"}).`,
-        );
-        onXmlObtido(localApos.xml_nfe, "sefaz");
+      // Procura o doc da chave consultada (procNFe completo).
+      const doc = (r.docs ?? []).find(
+        (d) => d.chave === chaveLimpa && d.schema?.toLowerCase().includes("procnfe"),
+      ) ?? (r.docs ?? []).find((d) => d.chave === chaveLimpa);
+
+      if (doc?.xml) {
+        // Persiste o XML para reuso (cache local + disponibiliza na manifestação).
+        try {
+          await supabase.from("nfe_distribuicao").upsert(
+            [{ chave_acesso: chaveLimpa, xml_nfe: doc.xml }],
+            { onConflict: "chave_acesso" },
+          );
+        } catch (persistErr) {
+          console.warn("[BuscarPorChave] cache local falhou:", persistErr);
+        }
+        toast.success("XML obtido via SEFAZ.");
+        onXmlObtido(doc.xml, "sefaz");
         reset();
         onClose();
         return;
       }
 
-      // 4. Não encontrado
-      toast.error(
-        "Chave não encontrada no DistDFe. O serviço SEFAZ só retorna XMLs destinados ao CNPJ da empresa.",
-        { duration: 8000 },
-      );
+      // Não encontrou — devolve a mensagem real da SEFAZ (cStat + xMotivo).
+      const cStat = r.cStat ?? "";
+      const xMotivo = r.xMotivo ?? "Documento não localizado.";
+      const explicacao =
+        cStat === "137" || cStat === "138"
+          ? `${xMotivo} (cStat ${cStat}). A NF-e existe mas não está vinculada ao CNPJ do certificado configurado — peça o XML diretamente ao emissor.`
+          : `${xMotivo}${cStat ? ` (cStat ${cStat})` : ""}.`;
+      toast.error(`SEFAZ: ${explicacao}`, { duration: 10000 });
     } catch (err) {
       console.error("[BuscarPorChave]", err);
       const msg = err instanceof Error ? err.message : String(err);
