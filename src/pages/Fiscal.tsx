@@ -64,6 +64,8 @@ import { FiscalInternalStatusBadge, FiscalSefazStatusBadge } from "@/components/
 import type { NotaFiscal as NotaFiscalDomain } from "@/types/domain";
 import { CertificadoValidadeAlert } from "@/components/fiscal/CertificadoValidadeAlert";
 import { logger } from "@/lib/logger";
+import { QuickAddProductModal } from "@/components/QuickAddProductModal";
+import { QuickAddSupplierModal } from "@/components/QuickAddSupplierModal";
 
 /**
  * Tipo canônico re-exportado de @/types/domain para preservar compat. local.
@@ -193,6 +195,17 @@ const Fiscal = () => {
   } | null>(null);
   /** True quando a NF aberta no modal foi originada de um XML — controla o banner. */
   const [xmlOriginInfo, setXmlOriginInfo] = useState<{ fornecedorId: string; fornecedorNome: string } | null>(null);
+  // Quick-add disparado a partir do drawer de tradução XML
+  const [quickProdutoLinhaIdx, setQuickProdutoLinhaIdx] = useState<number | null>(null);
+  const [quickProdutoNome, setQuickProdutoNome] = useState("");
+  // Quick-add de fornecedor a partir do XML (emitente não cadastrado)
+  const [quickFornecedorOpen, setQuickFornecedorOpen] = useState(false);
+  const [quickFornecedorDefaults, setQuickFornecedorDefaults] = useState<{
+    nome_razao_social?: string;
+    cpf_cnpj?: string;
+    email?: string;
+    telefone?: string;
+  }>({});
   // Devolução
   const [devolucaoModalOpen, setDevolucaoModalOpen] = useState(false);
   const [devolucaoNF, setDevolucaoNF] = useState<NotaFiscal | null>(null);
