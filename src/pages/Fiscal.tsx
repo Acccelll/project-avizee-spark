@@ -232,7 +232,7 @@ const Fiscal = () => {
   const [originPedidoNumero, setOriginPedidoNumero] = useState<string | null>(null);
   const [autoOpened, setAutoOpened] = useState(false);
 
-  const openCreate = () => { setMode("create"); setForm({ ...emptyForm }); setItems([]); setSelected(null); setParcelas(1); setItemContaContabil({}); setItemFiscalData({}); setModalOpen(true); };
+  const openCreate = () => { setMode("create"); setForm({ ...emptyForm }); setItems([]); setSelected(null); setParcelas(1); setItemContaContabil({}); setItemFiscalData({}); setXmlOriginInfo(null); setTraducaoLinhas([]); setModalOpen(true); };
 
   // Atalho rápido: ?new=1 abre o formulário de emissão.
   useEffect(() => {
@@ -1093,13 +1093,24 @@ const Fiscal = () => {
       {/* Form Modal - Create */}
       <FormModal
         open={modalOpen && mode === "create"}
-        onClose={() => setModalOpen(false)}
+        onClose={() => { setModalOpen(false); setXmlOriginInfo(null); setTraducaoLinhas([]); }}
         title="Nova Nota Fiscal"
         size="xl"
         mode="create"
         createHint="Importe um XML para preencher automaticamente, ou comece definindo o tipo (entrada/saída) e o emitente."
       >
         <form onSubmit={handleSubmit} className="space-y-5">
+          {xmlOriginInfo && traducaoLinhas.length > 0 && (
+            <div className="flex items-center justify-between gap-3 rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-sm">
+              <div>
+                <strong>NF importada de XML.</strong> Tradução automática aplicada para <em>{xmlOriginInfo.fornecedorNome}</em>.
+                <span className="text-muted-foreground"> Os campos fiscais do XML são preservados.</span>
+              </div>
+              <Button type="button" size="sm" variant="outline" onClick={() => { setTraducaoReadOnly(false); setTraducaoOpen(true); }}>
+                Ver/editar tradução
+              </Button>
+            </div>
+          )}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             <div className="space-y-2"><Label>Tipo</Label>
               <Select value={form.tipo} onValueChange={(v) => setForm({ ...form, tipo: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="entrada">Entrada</SelectItem><SelectItem value="saida">Saída</SelectItem></SelectContent></Select>
