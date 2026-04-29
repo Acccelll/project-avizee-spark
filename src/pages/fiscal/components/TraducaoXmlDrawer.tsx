@@ -17,7 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
-import { AlertCircle, ArrowRight, CheckCircle2 } from "lucide-react";
+import { AlertCircle, ArrowRight, CheckCircle2, PlusCircle } from "lucide-react";
 import { AutocompleteSearch } from "@/components/ui/AutocompleteSearch";
 import type { TraducaoLinha, ProdutoMatchRef } from "@/pages/fiscal/hooks/useNFeXmlImport";
 import { parseVariacoes, formatVariacoesSuffix } from "@/utils/cadastros";
@@ -31,12 +31,17 @@ interface Props {
   linhas: TraducaoLinha[];
   onCancel: () => void;
   onConfirm: (linhas: TraducaoLinha[]) => void;
+  /**
+   * Callback para "Cadastrar produto" a partir do nome do XML.
+   * Recebe o índice da linha e o nome sugerido (xProd).
+   */
+  onCreateProduto?: (linhaIndex: number, sugestaoNome: string) => void;
 }
 
 const fmt = (n: number, dec = 4) =>
   Number.isFinite(n) ? n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: dec }) : "—";
 
-export function TraducaoXmlDrawer({ open, readOnly = false, fornecedorNome, produtos, linhas, onCancel, onConfirm }: Props) {
+export function TraducaoXmlDrawer({ open, readOnly = false, fornecedorNome, produtos, linhas, onCancel, onConfirm, onCreateProduto }: Props) {
   const [draft, setDraft] = useState<TraducaoLinha[]>(linhas);
 
   useEffect(() => {
@@ -105,6 +110,7 @@ export function TraducaoXmlDrawer({ open, readOnly = false, fornecedorNome, prod
               readOnly={readOnly}
               produtoOptions={produtoOptions}
               onChange={(patch) => updateLinha(linha.index, patch)}
+              onCreateProduto={onCreateProduto}
             />
           ))}
         </div>
@@ -128,11 +134,13 @@ function LinhaCard({
   readOnly,
   produtoOptions,
   onChange,
+  onCreateProduto,
 }: {
   linha: TraducaoLinha;
   readOnly: boolean;
   produtoOptions: { id: string; label: string; sublabel: string }[];
   onChange: (patch: Partial<TraducaoLinha>) => void;
+  onCreateProduto?: (linhaIndex: number, sugestaoNome: string) => void;
 }) {
   const qtdInterna = linha.fatorConversao > 0 ? linha.xmlQuantidade * linha.fatorConversao : 0;
   const vUnInterno = qtdInterna > 0 ? linha.xmlValorTotal / qtdInterna : 0;
@@ -181,7 +189,18 @@ function LinhaCard({
                 onChange({ produtoId: id, matchStatus: "manual" });
               }}
               placeholder="Buscar produto..."
+              onCreateNew={!readOnly && onCreateProduto ? () => onCreateProduto(linha.index, linha.xmlDescricao) : undefined}
+              createNewLabel="Cadastrar este produto"
             />
+            {!readOnly && !linha.produtoId && onCreateProduto && (
+              <button
+                type="button"
+                className="mt-1 inline-flex items-center gap-1 text-[11px] text-primary hover:underline"
+                onClick={() => onCreateProduto(linha.index, linha.xmlDescricao)}
+              >
+                <PlusCircle className="h-3 w-3" /> Cadastrar &ldquo;{linha.xmlDescricao.slice(0, 32)}{linha.xmlDescricao.length > 32 ? "…" : ""}&rdquo;
+              </button>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div>

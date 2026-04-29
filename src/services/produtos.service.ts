@@ -9,11 +9,36 @@ import { supabase } from "@/integrations/supabase/client";
 export async function listGruposAtivos() {
   const { data, error } = await supabase
     .from("grupos_produto")
-    .select("id, nome")
+    .select("id, nome, sigla")
     .eq("ativo", true)
     .order("nome");
   if (error) throw error;
   return data || [];
+}
+
+/**
+ * Próximo SKU disponível para o grupo informado.
+ * Usa RPC atômica `proximo_sku_grupo` (mem://tech/numeracao-atomica-documentos).
+ * Lança erro se o grupo não tiver `sigla` configurada.
+ */
+export async function proximoSkuDoGrupo(grupoId: string): Promise<string> {
+  const { data, error } = await supabase.rpc("proximo_sku_grupo", { _grupo_id: grupoId });
+  if (error) throw new Error(error.message);
+  return String(data || "");
+}
+
+/** Atualiza a sigla de um grupo de produto (admin/editor). */
+export async function updateGrupoSigla(grupoId: string, sigla: string | null): Promise<void> {
+  const value = sigla?.trim().toUpperCase() || null;
+  const { error } = await supabase
+    .from("grupos_produto")
+    .update({ sigla: value })
+    .eq("id", grupoId);
+  if (error) throw error;
+  if (value) {
+    // Reposiciona o contador a partir dos SKUs já existentes (não bloqueia em caso de erro).
+    await supabase.rpc("inicializar_seq_sku_grupo", { _grupo_id: grupoId });
+  }
 }
 
 export async function listFornecedoresParaProduto() {

@@ -64,6 +64,8 @@ import { FiscalInternalStatusBadge, FiscalSefazStatusBadge } from "@/components/
 import type { NotaFiscal as NotaFiscalDomain } from "@/types/domain";
 import { CertificadoValidadeAlert } from "@/components/fiscal/CertificadoValidadeAlert";
 import { logger } from "@/lib/logger";
+import { QuickAddProductModal } from "@/components/QuickAddProductModal";
+import { QuickAddSupplierModal } from "@/components/QuickAddSupplierModal";
 
 /**
  * Tipo canônico re-exportado de @/types/domain para preservar compat. local.
@@ -193,6 +195,17 @@ const Fiscal = () => {
   } | null>(null);
   /** True quando a NF aberta no modal foi originada de um XML — controla o banner. */
   const [xmlOriginInfo, setXmlOriginInfo] = useState<{ fornecedorId: string; fornecedorNome: string } | null>(null);
+  // Quick-add disparado a partir do drawer de tradução XML
+  const [quickProdutoLinhaIdx, setQuickProdutoLinhaIdx] = useState<number | null>(null);
+  const [quickProdutoNome, setQuickProdutoNome] = useState("");
+  // Quick-add de fornecedor a partir do XML (emitente não cadastrado)
+  const [quickFornecedorOpen, setQuickFornecedorOpen] = useState(false);
+  const [quickFornecedorDefaults, setQuickFornecedorDefaults] = useState<{
+    nome_razao_social?: string;
+    cpf_cnpj?: string;
+    email?: string;
+    telefone?: string;
+  }>({});
   // Devolução
   const [devolucaoModalOpen, setDevolucaoModalOpen] = useState(false);
   const [devolucaoNF, setDevolucaoNF] = useState<NotaFiscal | null>(null);
@@ -590,6 +603,22 @@ const Fiscal = () => {
       }
       const { nfe, fornecedorId, fiscalMap, traducao, traducaoOk } = result;
       const fornecedorNome = fornecedoresCrud.data.find((f) => f.id === fornecedorId)?.nome_razao_social || nfe.emitente.razaoSocial || "—";
+
+      // Sem fornecedor → oferecer cadastro rápido pré-preenchido com dados do XML.
+      if (!fornecedorId && nfe.emitente?.cnpj) {
+        setQuickFornecedorDefaults({
+          nome_razao_social: nfe.emitente.razaoSocial || "",
+          cpf_cnpj: nfe.emitente.cnpj,
+          email: (nfe.emitente as { email?: string }).email || "",
+          telefone: (nfe.emitente as { telefone?: string }).telefone || "",
+        });
+        // Mantém pendingXmlImport para retomar após cadastro do fornecedor.
+        setPendingXmlImport({ nfe, fornecedorId: "", fornecedorNome, fiscalMap: fiscalMap as Record<number, NfItemFiscalData> });
+        setTraducaoLinhas(traducao);
+        setQuickFornecedorOpen(true);
+        toast.info(`Fornecedor ${nfe.emitente.cnpj} não cadastrado. Cadastre rapidamente para continuar.`);
+        return;
+      }
 
       if (traducaoOk) {
         // 100% OK → vai direto pro form. Banner permite reabrir em modo somente-leitura.
@@ -1146,7 +1175,13 @@ const Fiscal = () => {
               <Select value={form.ordem_venda_id || "none"} onValueChange={(v) => setForm({ ...form, ordem_venda_id: v === "none" ? "" : v })}><SelectTrigger><SelectValue placeholder="Vincular a um Pedido..." /></SelectTrigger><SelectContent><SelectItem value="none">Nenhum</SelectItem>{ordensVenda.map((ov) => (<SelectItem key={ov.id} value={ov.id}>{ov.numero} — {ov.clientes?.nome_razao_social || ""}</SelectItem>))}</SelectContent></Select>
             </div>
           )}
-          <ItemsGrid items={items} onChange={setItems} produtos={produtosCrud.data} title="Itens da Nota" />
+          <ItemsGrid
+            items={items}
+            onChange={setItems}
+            produtos={produtosCrud.data}
+            title="Itens da Nota"
+            onCreateProduto={() => { setQuickProdutoLinhaIdx(-1); setQuickProdutoNome(""); }}
+          />
           {items.length > 0 && contasContabeis.length > 0 && (
             <div className="space-y-2"><Label className="text-sm font-semibold">Conta Contábil por Item</Label>
               <div className="space-y-2 rounded-lg border p-3">
@@ -1286,7 +1321,66 @@ const Fiscal = () => {
         linhas={traducaoLinhas}
         onCancel={handleTraducaoCancel}
         onConfirm={handleTraducaoConfirm}
+        onCreateProduto={(idx, nome) => {
+          setQuickProdutoLinhaIdx(idx);
+          setQuickProdutoNome(nome);
+        }}
       />
+
+      {/* Cadastro rápido de produto a partir do XML */}
+      <QuickAddProductModal
+        open={quickProdutoLinhaIdx !== null}
+        defaultNome={quickProdutoNome}
+        onClose={() => { setQuickProdutoLinhaIdx(null); setQuickProdutoNome(""); }}
+        onCreated={async (produtoId) => {
+          const idx = quickProdutoLinhaIdx;
+          await produtosCrud.fetchData();
+          if (idx !== null && idx >= 0) {
+            setTraducaoLinhas((prev) => prev.map((l) =>
+              l.index === idx ? { ...l, produtoId, matchStatus: "manual", pendente: false, salvarDePara: true } : l
+            ));
+          } else if (idx === -1) {
+            // Entrada manual via ItemsGrid: anexa o novo produto à última linha do grid (ou cria uma).
+            setItems((prev) => {
+              const next = [...prev];
+              const target = next.findIndex((i) => !i.produto_id);
+              const matched = produtosCrud.data.find((p) => p.id === produtoId) as { codigo_interno?: string; nome?: string; preco_custo?: number } | undefined;
+              const row = {
+                produto_id: produtoId,
+                codigo: String(matched?.codigo_interno || ""),
+                descricao: String(matched?.nome || ""),
+                quantidade: 0,
+                valor_unitario: Number(matched?.preco_custo || 0),
+                valor_total: 0,
+              };
+              if (target >= 0) next[target] = row; else next.push(row);
+              return next;
+            });
+          }
+          setQuickProdutoLinhaIdx(null);
+          setQuickProdutoNome("");
+        }}
+      />
+
+      {/* Cadastro rápido de fornecedor a partir do XML */}
+      <QuickAddSupplierModal
+        open={quickFornecedorOpen}
+        defaults={quickFornecedorDefaults}
+        onClose={() => { setQuickFornecedorOpen(false); }}
+        onCreated={async (fornecedorId) => {
+          await fornecedoresCrud.fetchData();
+          setQuickFornecedorOpen(false);
+          // Retoma o fluxo de importação XML pendente
+          if (pendingXmlImport) {
+            const fornecedorNome = quickFornecedorDefaults.nome_razao_social || "";
+            const newPending = { ...pendingXmlImport, fornecedorId, fornecedorNome };
+            setPendingXmlImport(newPending);
+            setTraducaoReadOnly(false);
+            setTraducaoOpen(true);
+          }
+        }}
+      />
+
       {confirmDialog}
     </>
   );

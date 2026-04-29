@@ -29,9 +29,11 @@ import {
   saveProdutoComposicao,
   saveProdutoFornecedores,
   createUnidadeMedida,
+  proximoSkuDoGrupo,
+  updateGrupoSigla,
 } from "@/services/produtos.service";
 import { toast } from "sonner";
-import { Loader2, Plus, Trash2, Package, FileText, TrendingUp, Archive, ShoppingCart, AlertCircle, CheckCircle2, AlignLeft, Tag } from "lucide-react";
+import { Loader2, Plus, Trash2, Package, FileText, TrendingUp, Archive, ShoppingCart, AlertCircle, CheckCircle2, AlignLeft, Tag, Wand2, Pencil } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { FiscalAutocomplete } from "@/components/ui/FiscalAutocomplete";
 import { ProductAutocomplete } from "@/components/ui/ProductAutocomplete";
@@ -145,13 +147,18 @@ const Produtos = () => {
   const [estoqueFilters, setEstoqueFilters] = useState<string[]>([]);
   const [grupoFilters, setGrupoFilters] = useState<string[]>([]);
   const [ativoFilters, setAtivoFilters] = useState<string[]>([]);
-  const [grupos, setGrupos] = useState<{id: string; nome: string}[]>([]);
+  const [grupos, setGrupos] = useState<{id: string; nome: string; sigla?: string | null}[]>([]);
   const { buscarNcm, loading: ncmLoading } = useNcmLookup();
 
   // State for inline unit creation dialog
   const [novaUnidadeDialogOpen, setNovaUnidadeDialogOpen] = useState(false);
   const [novaUnidadeForm, setNovaUnidadeForm] = useState({ codigo: "", descricao: "", sigla: "" });
   const [savingNovaUnidade, setSavingNovaUnidade] = useState(false);
+
+  // Edição rápida da sigla do grupo (regra de SKU = SIGLA + NNN)
+  const [siglaDialogOpen, setSiglaDialogOpen] = useState(false);
+  const [siglaInput, setSiglaInput] = useState("");
+  const [savingSigla, setSavingSigla] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -895,7 +902,42 @@ const Produtos = () => {
               </div>
               <div className="space-y-2">
                 <Label className="flex items-center gap-1">SKU <span className="text-muted-foreground font-normal text-xs">(referência externa)</span></Label>
-                <Input value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })} className="font-mono" placeholder="Ex: PROD-001" />
+                <div className="flex gap-1.5">
+                  <Input
+                    value={form.sku}
+                    onChange={(e) => setForm({ ...form, sku: e.target.value })}
+                    className="font-mono flex-1"
+                    placeholder={(() => {
+                      const g = grupos.find(g => g.id === form.grupo_id);
+                      return g?.sigla ? `${g.sigla}001` : "Ex: PROD-001";
+                    })()}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="shrink-0 h-9 w-9"
+                    title="Gerar próximo SKU pela sigla do grupo"
+                    aria-label="Gerar próximo SKU"
+                    disabled={!form.grupo_id || !grupos.find(g => g.id === form.grupo_id)?.sigla}
+                    onClick={async () => {
+                      try {
+                        const next = await proximoSkuDoGrupo(form.grupo_id);
+                        setForm({ ...form, sku: next });
+                        toast.success(`SKU sugerido: ${next}`);
+                      } catch (e) {
+                        toast.error((e as Error).message);
+                      }
+                    }}
+                  >
+                    <Wand2 className="h-4 w-4" />
+                  </Button>
+                </div>
+                {form.grupo_id && !grupos.find(g => g.id === form.grupo_id)?.sigla && (
+                  <p className="text-[11px] text-muted-foreground">
+                    Defina uma sigla no grupo para gerar SKU automático (ex.: AG, SR).
+                  </p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label className="flex items-center gap-1">Código Interno <span className="text-muted-foreground font-normal text-xs">(uso sistêmico)</span></Label>
@@ -903,13 +945,36 @@ const Produtos = () => {
               </div>
               <div className="space-y-2">
                 <Label>Grupo de Produto</Label>
-                <Select value={form.grupo_id || "nenhum"} onValueChange={(v) => setForm({ ...form, grupo_id: v === "nenhum" ? "" : v })}>
-                  <SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="nenhum">Nenhum</SelectItem>
-                    {grupos.map((g) => <SelectItem key={g.id} value={g.id}>{g.nome}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <div className="flex gap-1.5">
+                  <Select value={form.grupo_id || "nenhum"} onValueChange={(v) => setForm({ ...form, grupo_id: v === "nenhum" ? "" : v })}>
+                    <SelectTrigger className="flex-1"><SelectValue placeholder="Nenhum" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="nenhum">Nenhum</SelectItem>
+                      {grupos.map((g) => (
+                        <SelectItem key={g.id} value={g.id}>
+                          {g.nome}{g.sigla ? ` · ${g.sigla}` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {form.grupo_id && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="shrink-0 h-9 w-9"
+                      title="Editar sigla do grupo (usada para gerar SKU)"
+                      aria-label="Editar sigla do grupo"
+                      onClick={() => {
+                        const g = grupos.find(g => g.id === form.grupo_id);
+                        setSiglaInput(g?.sigla || "");
+                        setSiglaDialogOpen(true);
+                      }}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
               </div>
               <div className="space-y-2">
                 <Label>Unidade de Medida</Label>
@@ -1319,6 +1384,58 @@ const Produtos = () => {
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Dialog: Editar Sigla do Grupo (regra de SKU) ───────── */}
+      <Dialog open={siglaDialogOpen} onOpenChange={(v) => { if (!v) setSiglaDialogOpen(false); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Sigla do Grupo</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 pt-1">
+            <p className="text-xs text-muted-foreground">
+              A sigla é usada como prefixo do SKU dos produtos deste grupo.
+              Ex.: sigla <strong>AG</strong> gera <code className="font-mono">AG001, AG002, AG003…</code>
+            </p>
+            <div className="space-y-1.5">
+              <Label>Sigla <span className="text-destructive">*</span></Label>
+              <Input
+                value={siglaInput}
+                onChange={(e) => setSiglaInput(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 4))}
+                placeholder="Ex: AG"
+                maxLength={4}
+                autoFocus
+                className="font-mono"
+              />
+              <p className="text-[11px] text-muted-foreground">2 a 4 caracteres (letras/números). Maiúsculas.</p>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="outline" onClick={() => setSiglaDialogOpen(false)}>Cancelar</Button>
+              <Button
+                type="button"
+                disabled={savingSigla || siglaInput.length < 2}
+                className="gap-1.5"
+                onClick={async () => {
+                  if (!form.grupo_id) return;
+                  setSavingSigla(true);
+                  try {
+                    await updateGrupoSigla(form.grupo_id, siglaInput);
+                    setGrupos((prev) => prev.map(g => g.id === form.grupo_id ? { ...g, sigla: siglaInput } : g));
+                    toast.success("Sigla atualizada.");
+                    setSiglaDialogOpen(false);
+                  } catch (e) {
+                    toast.error((e as Error).message);
+                  } finally {
+                    setSavingSigla(false);
+                  }
+                }}
+              >
+                {savingSigla ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                Salvar
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 

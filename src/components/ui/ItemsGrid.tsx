@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, PackageOpen } from "lucide-react";
 import { AutocompleteSearch } from "@/components/ui/AutocompleteSearch";
 import { parseVariacoes, formatVariacoesSuffix } from "@/utils/cadastros";
 
@@ -44,6 +44,8 @@ interface Props<TProd extends ItemsGridProdutoBase> {
    * Use this to supply `preco_custo` (or 0) in purchase contexts.
    */
   getDefaultUnitPrice?: (produto: TProd) => number;
+  /** Habilita "+ Cadastrar produto" no autocomplete. Recebe a busca atual digitada (não usada hoje, reservado). */
+  onCreateProduto?: () => void;
 }
 
 const emptyItem = (): GridItem => ({
@@ -51,7 +53,7 @@ const emptyItem = (): GridItem => ({
 });
 
 export function ItemsGrid<TProd extends ItemsGridProdutoBase>({
-  items, onChange, produtos, title = "Itens", readOnly = false, itemErrors = {}, getDefaultUnitPrice,
+  items, onChange, produtos, title = "Itens", readOnly = false, itemErrors = {}, getDefaultUnitPrice, onCreateProduto,
 }: Props<TProd>) {
   const addItem = () => onChange([...items, emptyItem()]);
   const removeItem = (idx: number) => onChange(items.filter((_, i) => i !== idx));
@@ -107,7 +109,15 @@ export function ItemsGrid<TProd extends ItemsGridProdutoBase>({
       {/* Mobile: cards verticais (md:hidden) */}
       <div className="md:hidden p-3 space-y-3">
         {items.length === 0 ? (
-          <p className="text-center text-muted-foreground py-6 text-sm">Nenhum item adicionado</p>
+          <div className="min-h-[180px] flex flex-col items-center justify-center gap-2 text-muted-foreground">
+            <PackageOpen className="w-8 h-8 opacity-40" />
+            <p className="text-sm">Nenhum item adicionado</p>
+            {!readOnly && (
+              <Button type="button" variant="outline" size="sm" onClick={addItem} className="gap-1.5">
+                <Plus className="w-4 h-4" /> Adicionar primeiro item
+              </Button>
+            )}
+          </div>
         ) : items.map((item, idx) => (
           <div key={idx} className="rounded-lg border bg-background p-3 space-y-2.5">
             <div className="flex items-start justify-between gap-2">
@@ -128,6 +138,8 @@ export function ItemsGrid<TProd extends ItemsGridProdutoBase>({
                   value={item.produto_id}
                   onChange={(id) => updateItem(idx, "produto_id", id)}
                   placeholder="Buscar produto..."
+                  onCreateNew={onCreateProduto}
+                  createNewLabel="Cadastrar novo produto"
                 />
               )}
               {item.codigo && (
@@ -181,7 +193,19 @@ export function ItemsGrid<TProd extends ItemsGridProdutoBase>({
           </thead>
           <tbody>
             {items.length === 0 ? (
-              <tr><td colSpan={readOnly ? 5 : 6} className="text-center text-muted-foreground py-8 text-sm">Nenhum item adicionado</td></tr>
+              <tr>
+                <td colSpan={readOnly ? 5 : 6} className="text-center text-muted-foreground text-sm" style={{ height: 180 }}>
+                  <div className="flex flex-col items-center justify-center gap-2">
+                    <PackageOpen className="w-8 h-8 opacity-40" />
+                    <p>Nenhum item adicionado</p>
+                    {!readOnly && (
+                      <Button type="button" variant="outline" size="sm" onClick={addItem} className="gap-1.5">
+                        <Plus className="w-4 h-4" /> Adicionar primeiro item
+                      </Button>
+                    )}
+                  </div>
+                </td>
+              </tr>
             ) : items.map((item, idx) => (
               <tr key={idx} className="border-b last:border-b-0 hover:bg-muted/20">
                 <td className="px-3 py-2">
@@ -197,6 +221,8 @@ export function ItemsGrid<TProd extends ItemsGridProdutoBase>({
                       onChange={(id) => updateItem(idx, "produto_id", id)}
                       placeholder="Buscar produto (nome, código)..."
                       className="min-w-[200px]"
+                      onCreateNew={onCreateProduto}
+                      createNewLabel="Cadastrar novo produto"
                     />
                   )}
                 </td>

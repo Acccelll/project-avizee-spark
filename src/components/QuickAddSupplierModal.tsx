@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Building2, Phone, Search } from "lucide-react";
 import { FormModal } from "@/components/FormModal";
 import { FormModalFooter } from "@/components/FormModalFooter";
@@ -23,6 +23,14 @@ interface QuickAddSupplierModalProps {
   open: boolean;
   onClose: () => void;
   onCreated: (fornecedorId: string) => void;
+  /** Pré-preenchimento opcional (ex.: fornecedor extraído do XML da NF-e). */
+  defaults?: Partial<{
+    nome_razao_social: string;
+    nome_fantasia: string;
+    cpf_cnpj: string;
+    email: string;
+    telefone: string;
+  }>;
 }
 
 type TipoPessoa = "F" | "J";
@@ -45,11 +53,19 @@ export function QuickAddSupplierModal({
   open,
   onClose,
   onCreated,
+  defaults,
 }: QuickAddSupplierModalProps) {
   const { saving, submit } = useSubmitLock({ errorPrefix: "Erro ao cadastrar fornecedor" });
   const { buscarCnpj, loading: cnpjLoading } = useCnpjLookup();
   const [form, setForm] = useState({ ...emptyForm });
   const [isDirty, setIsDirty] = useState(false);
+
+  useEffect(() => {
+    if (open && defaults) {
+      setForm((prev) => ({ ...prev, ...defaults }));
+      setIsDirty(true);
+    }
+  }, [open, defaults]);
 
   const update = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));

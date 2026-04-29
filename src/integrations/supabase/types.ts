@@ -3226,6 +3226,7 @@ export type Database = {
           descricao: string | null
           id: string
           nome: string
+          sigla: string | null
         }
         Insert: {
           ativo?: boolean
@@ -3234,6 +3235,7 @@ export type Database = {
           descricao?: string | null
           id?: string
           nome: string
+          sigla?: string | null
         }
         Update: {
           ativo?: boolean
@@ -3242,6 +3244,7 @@ export type Database = {
           descricao?: string | null
           id?: string
           nome?: string
+          sigla?: string | null
         }
         Relationships: [
           {
@@ -3249,6 +3252,29 @@ export type Database = {
             columns: ["conta_contabil_id"]
             isOneToOne: false
             referencedRelation: "contas_contabeis"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      grupos_produto_sku_seq: {
+        Row: {
+          grupo_id: string
+          ultimo_numero: number
+        }
+        Insert: {
+          grupo_id: string
+          ultimo_numero?: number
+        }
+        Update: {
+          grupo_id?: string
+          ultimo_numero?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "grupos_produto_sku_seq_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: true
+            referencedRelation: "grupos_produto"
             referencedColumns: ["id"]
           },
         ]
@@ -4845,6 +4871,7 @@ export type Database = {
           numero: string
           observacoes: string | null
           origem_frete: string | null
+          pedido_cliente_ref: string | null
           peso_total: number | null
           po_number: string | null
           prazo_despacho_dias: number | null
@@ -4876,6 +4903,7 @@ export type Database = {
           numero: string
           observacoes?: string | null
           origem_frete?: string | null
+          pedido_cliente_ref?: string | null
           peso_total?: number | null
           po_number?: string | null
           prazo_despacho_dias?: number | null
@@ -4907,6 +4935,7 @@ export type Database = {
           numero?: string
           observacoes?: string | null
           origem_frete?: string | null
+          pedido_cliente_ref?: string | null
           peso_total?: number | null
           po_number?: string | null
           prazo_despacho_dias?: number | null
@@ -8633,6 +8662,10 @@ export type Database = {
         Args: { p_empresa_id?: string; p_payload: Json }
         Returns: Json
       }
+      inicializar_seq_sku_grupo: {
+        Args: { _grupo_id: string }
+        Returns: undefined
+      }
       inutilizar_nota_fiscal: {
         Args: { p_motivo: string; p_nf_id: string; p_protocolo: string }
         Returns: undefined
@@ -8691,6 +8724,7 @@ export type Database = {
       proximo_numero_orcamento: { Args: never; Returns: string }
       proximo_numero_ordem_venda: { Args: never; Returns: string }
       proximo_numero_pedido_compra: { Args: never; Returns: string }
+      proximo_sku_grupo: { Args: { _grupo_id: string }; Returns: string }
       reabrir_apuracao_societaria: {
         Args: { p_apuracao_id: string; p_motivo: string }
         Returns: undefined
