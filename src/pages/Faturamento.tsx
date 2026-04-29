@@ -180,8 +180,18 @@ export default function Faturamento() {
     // Apenas no mount/quando a query muda externamente.
   }, [searchParams, setSearchParams]);
 
-  const kpisQuery = useQuery({ queryKey: ["faturamento-kpis"], queryFn: fetchPainelKpis });
-  const ultimasQuery = useQuery({ queryKey: ["faturamento-ultimas"], queryFn: fetchUltimasNotas });
+  const kpisQuery = useQuery({
+    queryKey: ["faturamento-kpis"],
+    queryFn: fetchPainelKpis,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+  const ultimasQuery = useQuery({
+    queryKey: ["faturamento-ultimas"],
+    queryFn: fetchUltimasNotas,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
 
   const kpis = kpisQuery.data;
 
