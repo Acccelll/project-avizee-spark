@@ -1,145 +1,118 @@
-# Módulo Social — Retomada com foco em Instagram
 
-## Diagnóstico do estado atual
+# Revisão e revamp da Importação de Notas de Entrada
 
-**O que já existe:**
-- Tabelas `social_contas`, `social_metricas_snapshot`, `social_posts` com RLS aberta a `authenticated`.
-- RPCs stub: `social_dashboard_consolidado`, `social_posts_filtrados`, `social_sincronizar_manual`, `social_alertas_periodo` — todas retornando dados vazios/fake.
-- Edge function `social-sync` com chamada Graph API real (`/v19.0/{id}/media`, `/insights`) mas usando token global de env (`INSTAGRAM_ACCESS_TOKEN`) — não suporta múltiplas contas, não persiste no banco, não renova token, retorna mock se token ausente.
-- UI completa em abas: `Dashboard | Contas | Métricas | Posts | Alertas | Relatórios` (`src/pages/Social.tsx` + `src/components/social/*`).
-- Provider mock (`socialProviders.ts`) que apenas devolve cenário de homologação.
-- Módulo escondido atrás de `VITE_FEATURE_SOCIAL=true` na sidebar.
-- Permissões RBAC já mapeadas (`social:visualizar`, `:configurar`, `:sincronizar`, `:exportar`, `:gerenciar_alertas`).
+## 1. Diagnóstico
 
-**O que falta (gaps reais, em ordem de prioridade):**
-1. **OAuth real do Instagram** — não há fluxo de login, token está hardcoded como secret global.
-2. **Persistência por conta** — token, refresh, expiração, escopos por linha em `social_contas`.
-3. **Sync real escrevendo no banco** — `social-sync` retorna JSON mas nunca grava em `social_posts` ou `social_metricas_snapshot`.
-4. **RPC de dashboard** retorna apenas `total_contas/seguidores/posts` — UI espera estrutura `comparativo[]`, `totais{}` (incompatível).
-5. **Schema desalinhado** — código TS espera campos como `nome_conta`, `identificador_externo`, `status_conexao`, `taxa_engajamento`, `tipo_post`, `engajamento_total`; tabelas têm `nome`, `identificador`, sem status, sem engajamento calculado.
-6. **Webhooks** — ausente (mudanças em mídia/comentários só via polling manual).
-7. **Cron de sync diária** — ausente.
-8. **Alertas** — RPC retorna sempre vazio; sem regras (queda de seguidores, token expirando, sync falhando).
+### Estado atual do banco
+- **0 notas com `tipo_operacao='entrada'`** em `notas_fiscais` (de 347 totais — todas saída/internas).
+- **0 compras** em `compras`.
+- **0 lotes** do tipo `compras_xml` rodados.
+- **143 fornecedores** cadastrados.
 
-## Estratégia: 4 ondas, começando pelo Instagram
+### Estado da planilha consolidada (`notas_entrada_consolidadas.xlsx`)
+- 278 arquivos brutos → **141 notas únicas**: 118 NFe + 12 NFe-só-PDF + 7 NFS-e + 1 BP-e + 3 PDF cru.
+- 125 estruturadas via XML, 16 só por PDF.
+- **210 itens** detalhados extraídos dos XMLs.
+- **58 fornecedores distintos**; só 4 sem CNPJ.
+- Cobertura por campo: Número 100%, Chave 90%, CNPJ 92%, Emissão 92%, Valor 92%.
 
-Mantenho a UI existente intacta na superfície e endureço camada de dados + integração. LinkedIn fica para depois — toda decisão de schema considera multi-plataforma mas só implementamos Instagram agora.
+### Gaps no pipeline atual (`useImportacaoXml` + `inserirCompraXml`)
+1. **Insere apenas em `compras`** (4 colunas: número, data, valor, observação). Não cria registro em `notas_fiscais`, não grava itens, não captura impostos, frete, série, chave, natureza da operação, transportadora, duplicatas.
+2. **Descarta notas sem fornecedor cadastrado** (apenas loga erro). Hoje isso significaria perder ~80 notas, já que só 58 dos 141 emitentes provavelmente existem em `fornecedores`.
+3. **Não trata NFS-e nem BP-e** — parser só conhece NF-e modelo 55.
+4. **Não tem OCR para PDF** — os 16 PDFs ficariam de fora.
+5. **Não reconcilia com `nfe_distribuicao`** (DistDF-e), perdendo a oportunidade de marcar manifestação automática.
+6. **Não atualiza estoque** (`movimenta_estoque=true` na nota mas sem trigger conectado para entrada).
+7. **Sem detecção de duplicidade por número+série+CNPJ** — só por chave de acesso. Notas sem chave (PDF) podem duplicar.
+8. **Sem reaproveitamento do `nfeXmlParser.service.ts`** (parser fiscal completo já existe e é usado pela autorização de saída).
 
----
+## 2. Estratégia (4 ondas)
 
-## Onda 1 — Schema alinhado + OAuth Instagram (esta entrega)
+### Onda A — Backend: RPC `importar_nfe_entrada` + auto-criação de fornecedor
+Centraliza a persistência atômica de uma NF-e de entrada em uma RPC `SECURITY DEFINER`. O front-end passa um JSON estruturado e a RPC:
 
-**Migration 1: alinhar `social_contas` ao contrato TS**
-- `RENAME` `nome` → `nome_conta`, `identificador` → `identificador_externo`.
-- `ADD` `status_conexao TEXT NOT NULL DEFAULT 'desconectado'` com `chk_status_conexao IN ('conectado','expirado','erro','desconectado')`.
-- `ADD` `url_conta TEXT`, `escopos TEXT[] DEFAULT '{}'`, `ultima_sincronizacao TIMESTAMPTZ`.
-- `ADD` `refresh_token TEXT`, `meta_user_id TEXT`, `facebook_page_id TEXT` (long-lived token Instagram precisa do par Page+IG).
-- `chk_plataforma IN ('instagram_business','linkedin_page')`.
-- Endurecer RLS: `social:visualizar` para SELECT, `social:configurar` para INSERT/UPDATE/DELETE via `has_permission()`.
+1. Resolve o fornecedor pelo CNPJ:
+   - Se existe → reutiliza.
+   - Se não existe → **cria** em `fornecedores` com nome, CNPJ, IE, UF, cidade do emitente. Marca `origem='import_xml_entrada'` e `ativo=true`.
+2. Faz **upsert** em `notas_fiscais` por `(chave_acesso)` quando há chave, ou por `(numero, serie, fornecedor_id, modelo_documento)` quando não há (PDF/NFS-e). Preenche **todos** os campos disponíveis: número, série, chave, emissão, valor_total, valor_produtos, frete, desconto, ICMS/IPI/PIS/COFINS/ICMS-ST, natureza_operacao, modelo (55/65/57/SE), tipo_operacao='entrada', status='importada'.
+3. Insere itens em `notas_fiscais_itens` (já existente).
+4. Vincula a `nfe_distribuicao` quando a chave bater (atualiza `status_manifestacao` para `ciencia_da_operacao`).
+5. Retorna `{nf_id, fornecedor_id, fornecedor_criado, itens_inseridos, atualizada}`.
 
-**Migration 2: alinhar `social_posts` e `social_metricas_snapshot`**
-- Posts: adicionar `plataforma`, `id_externo_post` (renomear), `titulo_legenda`, `url_post`, `tipo_post` com check, `salvamentos`, `cliques`, `engajamento_total` GENERATED `(curtidas+comentarios+compartilhamentos+salvamentos)`, `taxa_engajamento NUMERIC(8,4) GENERATED` (engajamento/alcance*100, com guard), `destaque BOOLEAN DEFAULT false`, `campanha_id UUID`.
-- Snapshot: adicionar `seguidores_total`, `seguidores_novos`, `visitas_perfil`, `cliques_link`, `engajamento_total`, `taxa_engajamento`, `quantidade_posts_periodo`, `observacoes`. Manter compatibilidade renomeando antigos.
-- Índices compostos `(conta_id, data_publicacao DESC)`.
+Migrations criadas:
+- Coluna `origem` em `fornecedores` (enum: `manual|import_xml_entrada|import_planilha|distdfe`).
+- Constraint única parcial em `notas_fiscais` para a chave de dedup.
+- A RPC propriamente dita.
 
-**Migration 3: reescrever RPCs com payload que a UI já espera**
-- `social_dashboard_consolidado(_data_inicio, _data_fim)` retorna `{ periodo, comparativo[], totais }` com agregação por plataforma a partir de `social_metricas_snapshot` (último snapshot do período por conta) + JOIN `social_contas`.
-- `social_metricas_periodo(_conta_id, ...)` (RPC nova que `socialService` já chama mas não existe).
-- `social_alertas_periodo` consulta tabela real (criar `social_alertas` com colunas do contrato TS: `tipo_alerta`, `titulo`, `descricao`, `severidade`, `resolvido`, `data_referencia`).
-- `social_sincronizar_manual` apenas enfileira: insere row em `social_sync_jobs` (nova) e devolve job_id; quem executa é a edge function via cron/trigger HTTP.
+### Onda B — Parser unificado (NF-e 55 + NFS-e + BP-e + PDF)
+Novo módulo `src/lib/importacao/nfeEntradaParser.ts` que:
 
-**Edge function nova: `instagram-oauth`**
-- `GET /instagram-oauth/start` — gera URL do Facebook Login com escopos `instagram_basic, instagram_manage_insights, pages_show_list, pages_read_engagement, business_management`, state assinado HMAC com `user_id + nonce`.
-- `GET /instagram-oauth/callback` — troca `code` por short-lived token, depois faz exchange para long-lived (60d) via `/oauth/access_token?grant_type=fb_exchange_token`, lista Pages do usuário, para cada Page com IG vinculado cria/atualiza `social_contas` com `meta_user_id`, `facebook_page_id`, `identificador_externo` (IG business id), `access_token`, `token_expira_em = now()+60d`, `status_conexao='conectado'`.
-- Secrets necessárias: `META_APP_ID`, `META_APP_SECRET`, `OAUTH_STATE_SECRET`, `ALLOWED_ORIGIN`. Pediremos ao usuário via `add_secret` antes de implantar.
-- `verify_jwt = true` em `start`; `false` em `callback` (Meta não envia JWT).
+- **NF-e (modelo 55)**: reaproveita `nfeXmlParser.service.ts` que já existe e está mais completo que `lib/nfeXmlParser.ts`.
+- **NFS-e**: parser tolerante a múltiplos layouts municipais (ABRASF, Ginfes, IssNet) — extrai número, RPS, prestador, valor, data, ISS.
+- **BP-e (modelo 63)**: similar ao 55, namespace diferente.
+- **PDF (DANFE)**: usa `pdfjs-dist` (já no projeto) + heurísticas regex para extrair Número, CNPJ, Emissão, Valor Total, Chave (44 dígitos). Marca `requer_revisao=true` e `status='rascunho'`.
 
-**UI: `SocialContaModal` ganha botão "Conectar com Instagram"**
-- Substitui o cadastro manual por redirect para `/functions/v1/instagram-oauth/start?return_to=/social`. Mantém modo "Adicionar manual" para LinkedIn (placeholder).
+Saída padronizada: `ParsedNotaEntrada` discriminada por `modelo_documento`.
 
----
+### Onda C — UI revamp `MigracaoDados → aba "NFs de Entrada"`
+Substitui o `useImportacaoXml` por `useImportacaoNotasEntrada`:
 
-## Onda 2 — Sync real do Instagram (escrita no banco)
+1. **Drop zone** aceita `.xml`, `.pdf`, `.zip` (até 500 arquivos via ZIP, vs 200 atuais).
+2. **Pré-visualização tabular** mostra para cada arquivo: status (✅ válido / ⚠️ requer revisão / ❌ duplicada / ❌ erro), número, fornecedor (com badge "será criado"), emissão, valor, modelo. Permite desmarcar individualmente.
+3. **Painel de fornecedores a criar** lista os emitentes novos, agrupados por CNPJ, mostra quantas notas vinculadas. Botão "Editar antes de criar" abre modal para corrigir nome/IE.
+4. **Importação** chama a RPC em paralelo (chunks de 10), com barra de progresso e log ao vivo.
+5. **Relatório final**: notas importadas, fornecedores criados, itens, erros — com export CSV.
 
-**Reescrita da edge function `social-sync`**
-- Para cada conta `instagram_business` ativa (ou a especificada por `conta_id`):
-  1. Verifica `token_expira_em`; se < 7 dias, faz refresh long-lived (`grant_type=ig_refresh_token`) e atualiza row.
-  2. `GET /{ig_id}?fields=followers_count,media_count,name,username,profile_picture_url`.
-  3. `GET /{ig_id}/insights?metric=impressions,reach,profile_views,website_clicks&period=day&since=&until=`.
-  4. `GET /{ig_id}/media?fields=id,caption,media_type,media_product_type,timestamp,like_count,comments_count,permalink,thumbnail_url&limit=50`.
-  5. Para cada media, `GET /{media_id}/insights?metric=impressions,reach,saved,shares` (engajamento real).
-  6. Upsert em `social_posts` (chave `(conta_id, id_externo_post)`).
-  7. Insere snapshot diário em `social_metricas_snapshot` (chave `(conta_id, data_referencia)` → upsert).
-  8. Atualiza `social_contas.ultima_sincronizacao = now()`, `status_conexao='conectado'`.
-  9. Em erro 401/190 (OAuthException), marca `status_conexao='expirado'` e cria alerta `severidade='alta'`.
-- Tratamento de rate limit (Meta: x-app-usage header) — backoff exponencial.
-- Logs estruturados no `logger`.
+### Onda D — Carga inicial dos 278 arquivos via planilha consolidada
+Edge function `importar-notas-entrada-consolidadas` que lê `notas_entrada_consolidadas.xlsx` (subido pelo usuário no storage `migracao/`) e:
 
-**Cron de sync diária**
-- `pg_cron` invoca `social-sync` todo dia 06:00 BRT, sem `conta_id` (sincroniza todas as contas ativas).
-- Migration via insert tool (não migration), pois contém URL+anon key.
+1. Para cada linha de **Notas**: chama a mesma RPC `importar_nfe_entrada` com os campos já estruturados. As 141 notas entram de uma vez, criando ~30 fornecedores faltantes.
+2. Para cada linha de **Itens_XML**: insere em `notas_fiscais_itens` vinculando pela chave de acesso.
+3. Para os 16 PDFs sem XML: aplica OCR mais agressivo (parsing do texto cru em "Destinatário" — vi que vários PDFs têm o cabeçalho fiscal completo dentro daquele campo, ex.: a nota DGTF tem CNPJ destinatário, frete, IPI 118,72 etc. embutidos em texto).
+4. Gera relatório CSV em `/mnt/documents/import-notas-entrada-relatorio.csv`.
 
-**UI**
-- `SocialContasTab`: pill de status (`conectado/expirado/erro`), botão "Sincronizar agora" por conta (chama `social-sync` com `conta_id`), botão "Reconectar" quando expirado (volta ao OAuth).
-- Toast de progresso usando `useCrossModuleToast`.
+Após Onda D, **quando você reanexar o ZIP de XMLs**, rodamos um **passe de enriquecimento** que reconcilia pela chave de acesso e preenche o que faltava (tributos por item, transportadora, duplicatas, NCMs completos), sem duplicar notas — graças ao upsert da Onda A.
 
----
+## 3. Garantias mínimas exigidas
+Para **toda** nota importada (XML, PDF ou planilha):
+- ✅ **Número** — 100% (já temos para todas).
+- ✅ **Fornecedor** — 100% (criado se não existir).
+- ✅ **Emissão** — para PDFs sem data, default = data do diretório (Ano/Mês na planilha) + flag `data_estimada=true`.
+- ✅ **Valor** — para PDFs sem valor extraído, marcar `status='rascunho'` + entrar na fila de revisão (não bloqueia importação).
 
-## Onda 3 — Webhooks Instagram (eventos em tempo real)
+## 4. Detalhes técnicos
 
-Baseado em `fbsamples/graph-api-webhooks-samples`.
+**Arquivos novos**:
+- `supabase/migrations/<ts>_importar_nfe_entrada.sql` — coluna `origem` em fornecedores, constraint única parcial em notas_fiscais, RPC `importar_nfe_entrada(p_payload jsonb)`.
+- `src/lib/importacao/nfeEntradaParser.ts` — parser unificado.
+- `src/lib/importacao/danfePdfParser.ts` — heurísticas regex sobre texto de DANFE.
+- `src/hooks/importacao/useImportacaoNotasEntrada.ts` — substitui `useImportacaoXml`.
+- `src/components/importacao/NotasEntradaPreview.tsx` — tabela de pré-visualização.
+- `src/components/importacao/FornecedoresACriarPanel.tsx` — painel de criação.
+- `supabase/functions/importar-notas-entrada-consolidadas/index.ts` — carga inicial.
 
-**Edge function nova: `instagram-webhooks`**
-- `GET` — handshake `hub.mode=subscribe`, valida `hub.verify_token` contra secret `META_WEBHOOK_VERIFY_TOKEN`, devolve `hub.challenge`.
-- `POST` — valida assinatura `X-Hub-Signature-256` com `META_APP_SECRET` (HMAC-SHA256 do raw body). Processa entries:
-  - Campo `mentions` → cria alerta informativo "Sua conta foi mencionada".
-  - Campo `comments` → upsert em `social_posts_comentarios` (tabela nova, leve) + alerta opcional se palavra-chave configurada.
-  - Campo `story_insights` → atualiza snapshot.
-- Sempre retorna 200 rapidamente (Meta corta após 5s).
-- `verify_jwt = false`, `ALLOWED_ORIGIN` irrestrito (endpoint público para Meta).
+**Arquivos modificados**:
+- `src/services/importacao.service.ts` — adiciona `importarNfeEntrada(payload)` e remove `inserirCompraXml` legacy.
+- `src/pages/MigracaoDados.tsx` — troca aba XML.
 
-**Configuração no Meta App** (instrução para o usuário, não código):
-- App Dashboard → Webhooks → Instagram → Callback URL = `https://<project-ref>.supabase.co/functions/v1/instagram-webhooks`, Verify Token = secret.
-- Subscrever campos: `comments`, `mentions`, `story_insights`, `live_comments`.
-- Para cada conta IG conectada via OAuth, fazer `POST /{ig_id}/subscribed_apps?subscribed_fields=...` no callback do OAuth (já entra na Onda 1).
+**Compatibilidade**: hook antigo `useImportacaoXml` fica deprecated mas funcional por 1 release; novo hook coexiste.
 
----
+**Performance**: RPC é única chamada por nota (vs 3 hoje: select fornecedor, insert compra, insert log). Importar 141 notas: ~5 s.
 
-## Onda 4 — Alertas inteligentes + relatórios reais
+**Segurança**: RPC com `search_path=public`, valida CNPJ (14 dígitos) e chave (44 dígitos) antes de criar fornecedor; rejeita se ambos faltarem.
 
-- Trigger `AFTER INSERT ON social_metricas_snapshot` calcula deltas vs snapshot anterior; se queda de seguidores > 2% ou engajamento cai > 30%, insere `social_alertas`.
-- Cron diário verifica `token_expira_em < now()+7d` → alerta `severidade='media'`.
-- `SocialRelatoriosTab`: PDF mensal reusando padrão de `dashboardFiscalPdf.service.ts`, com gráfico de seguidores e top 10 posts por engajamento.
-- Realtime: `ALTER PUBLICATION supabase_realtime ADD TABLE social_alertas` para badge na sidebar (reusa `useSidebarAlerts`).
+**Testes**: extender `src/lib/importacao/__tests__/xmlImport.test.ts` com fixtures de NFS-e e BP-e; teste de upsert (idempotência).
 
----
+## 5. Resultado esperado após as 4 ondas
+- **141 notas de entrada** importadas com Número, Fornecedor, Emissão e Valor garantidos.
+- **~30 fornecedores novos** criados automaticamente a partir dos XMLs/planilha.
+- **210 itens** vinculados.
+- **125 notas estruturadas** com tributos completos; **16 notas-PDF** em fila de revisão com dados parciais.
+- **Pipeline pronto** para receber o ZIP completo de XMLs e fazer o passe de enriquecimento sem duplicar nada.
 
-## Detalhes técnicos
-
-**Secrets a pedir antes de Onda 1:**
-- `META_APP_ID` (Facebook App ID, público)
-- `META_APP_SECRET` (Facebook App Secret)
-- `META_WEBHOOK_VERIFY_TOKEN` (string aleatória definida pelo usuário)
-- `OAUTH_STATE_SECRET` (gerada automaticamente, 32 bytes)
-
-**Pré-requisitos do lado Meta** (informar ao usuário):
-- App Meta tipo "Business", produto "Instagram Graph API" + "Facebook Login for Business" adicionados.
-- Conta IG do tipo Business/Creator vinculada a uma Página Facebook.
-- Em Dev Mode: usuários testers; em produção: App Review com `instagram_basic`, `instagram_manage_insights`, `pages_read_engagement`.
-
-**Compatibilidade durante a migration**
-- A view atual depende dos nomes antigos (`migrations/20260425212212_*.sql`); a migration vai recriar a view após o RENAME.
-- `socialService.ts` já espera o contrato novo, então essas colunas farão a UI funcionar sem mudanças após a migration.
-
-**Arquivos que serão criados/editados na Onda 1:**
-- `supabase/migrations/<ts>_social_schema_alignment.sql`
-- `supabase/migrations/<ts>_social_rpcs_v2.sql`
-- `supabase/functions/instagram-oauth/index.ts`
-- `supabase/functions/social-sync/index.ts` (refactor leve para preparar Onda 2)
-- `src/components/social/SocialContaModal.tsx` (botão OAuth)
-- `src/services/social.service.ts` (helper `iniciarOAuthInstagram`)
-- `.lovable/memory/features/modulo-social-infraestrutura.md` (atualizar)
-
-## Entrega desta resposta
-
-Implementar **Onda 1 completa**: schema alinhado, RPCs reescritas, edge function `instagram-oauth` operacional e botão de conexão na UI. Após sua aprovação, peço os 3 secrets do Meta e sigo.
+## 6. Ordem de execução proposta
+1. Onda A (migration + RPC) — base de tudo.
+2. Onda D (edge function + execução da carga via planilha) — entrega valor imediato: as 141 notas no ar.
+3. Onda B (parser unificado) — habilita XML/PDF interativo.
+4. Onda C (UI revamp) — fecha o ciclo para uso recorrente.
+5. (Quando ZIP chegar) passe de enriquecimento.
