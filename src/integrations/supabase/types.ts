@@ -2919,6 +2919,7 @@ export type Database = {
           prazo_padrao: number | null
           telefone: string | null
           tipo_pessoa: string
+          transportadora: boolean
           uf: string | null
           updated_at: string
         }
@@ -2952,6 +2953,7 @@ export type Database = {
           prazo_padrao?: number | null
           telefone?: string | null
           tipo_pessoa?: string
+          transportadora?: boolean
           uf?: string | null
           updated_at?: string
         }
@@ -2985,6 +2987,7 @@ export type Database = {
           prazo_padrao?: number | null
           telefone?: string | null
           tipo_pessoa?: string
+          transportadora?: boolean
           uf?: string | null
           updated_at?: string
         }
@@ -3998,6 +4001,7 @@ export type Database = {
           conta_contabil_id: string | null
           created_at: string
           data_emissao: string | null
+          data_saida: string | null
           data_saida_entrada: string | null
           desconto_valor: number | null
           empresa_id: string
@@ -4009,9 +4013,13 @@ export type Database = {
           frete_modalidade: string | null
           frete_valor: number | null
           gera_financeiro: boolean | null
+          hora_saida: string | null
           icms_st_valor: number | null
           icms_valor: number | null
           id: string
+          indicador_presenca: string | null
+          intermediador_cnpj: string | null
+          intermediador_identificador: string | null
           ipi_valor: number | null
           marca_volumes: string | null
           modelo_documento: string | null
@@ -4046,6 +4054,9 @@ export type Database = {
           valor_produtos: number | null
           valor_seguro: number | null
           valor_total: number | null
+          veiculo_placa: string | null
+          veiculo_uf: string | null
+          via_intermediador: boolean | null
           xml_gerado: boolean | null
         }
         Insert: {
@@ -4060,6 +4071,7 @@ export type Database = {
           conta_contabil_id?: string | null
           created_at?: string
           data_emissao?: string | null
+          data_saida?: string | null
           data_saida_entrada?: string | null
           desconto_valor?: number | null
           empresa_id?: string
@@ -4071,9 +4083,13 @@ export type Database = {
           frete_modalidade?: string | null
           frete_valor?: number | null
           gera_financeiro?: boolean | null
+          hora_saida?: string | null
           icms_st_valor?: number | null
           icms_valor?: number | null
           id?: string
+          indicador_presenca?: string | null
+          intermediador_cnpj?: string | null
+          intermediador_identificador?: string | null
           ipi_valor?: number | null
           marca_volumes?: string | null
           modelo_documento?: string | null
@@ -4108,6 +4124,9 @@ export type Database = {
           valor_produtos?: number | null
           valor_seguro?: number | null
           valor_total?: number | null
+          veiculo_placa?: string | null
+          veiculo_uf?: string | null
+          via_intermediador?: boolean | null
           xml_gerado?: boolean | null
         }
         Update: {
@@ -4122,6 +4141,7 @@ export type Database = {
           conta_contabil_id?: string | null
           created_at?: string
           data_emissao?: string | null
+          data_saida?: string | null
           data_saida_entrada?: string | null
           desconto_valor?: number | null
           empresa_id?: string
@@ -4133,9 +4153,13 @@ export type Database = {
           frete_modalidade?: string | null
           frete_valor?: number | null
           gera_financeiro?: boolean | null
+          hora_saida?: string | null
           icms_st_valor?: number | null
           icms_valor?: number | null
           id?: string
+          indicador_presenca?: string | null
+          intermediador_cnpj?: string | null
+          intermediador_identificador?: string | null
           ipi_valor?: number | null
           marca_volumes?: string | null
           modelo_documento?: string | null
@@ -4170,6 +4194,9 @@ export type Database = {
           valor_produtos?: number | null
           valor_seguro?: number | null
           valor_total?: number | null
+          veiculo_placa?: string | null
+          veiculo_uf?: string | null
+          via_intermediador?: boolean | null
           xml_gerado?: boolean | null
         }
         Relationships: [
