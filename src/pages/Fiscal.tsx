@@ -1328,7 +1328,7 @@ const Fiscal = () => {
         onClose={() => { setQuickProdutoLinhaIdx(null); setQuickProdutoNome(""); }}
         onCreated={async (produtoId) => {
           const idx = quickProdutoLinhaIdx;
-          await produtosCrud.refetch?.();
+          await produtosCrud.fetchData();
           if (idx !== null) {
             setTraducaoLinhas((prev) => prev.map((l) =>
               l.index === idx ? { ...l, produtoId, matchStatus: "manual", pendente: false, salvarDePara: true } : l
@@ -1345,7 +1345,7 @@ const Fiscal = () => {
         defaults={quickFornecedorDefaults}
         onClose={() => { setQuickFornecedorOpen(false); }}
         onCreated={async (fornecedorId) => {
-          await fornecedoresCrud.refetch?.();
+          await fornecedoresCrud.fetchData();
           setQuickFornecedorOpen(false);
           // Retoma o fluxo de importação XML pendente
           if (pendingXmlImport) {
