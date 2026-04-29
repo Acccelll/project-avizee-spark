@@ -1,144 +1,105 @@
+## Diagnóstico atual
 
-# Auditoria do módulo Fiscal/Faturamento — Plano de correções
+Hoje, ao importar um XML de NF-e (Fiscal → Importar XML), o sistema faz três "traduções" automáticas, mas todas invisíveis para o usuário:
 
-Validei todos os 13 pontos contra o código atual. Confirmações importantes:
+1. **Fornecedor** — match silencioso por CNPJ (toast genérico).
+2. **Produto** — match por `codigo_interno`/`sku` igual ao `cProd` do XML; quando não acha, deixa `produto_id` vazio e mostra apenas "X itens não vinculados".
+3. **Unidade & valor unitário** — usa cegamente `uCom`, `qCom` e `vUnCom` do XML. Não há comparação com a unidade do cadastro do produto (`produtos.unidade_medida`), nem fator de conversão. Se o fornecedor emite em **KG** e internamente trabalhamos em **UN/MT**, o estoque entra errado e o custo unitário fica distorcido.
 
-- `notas_fiscais` **já tem** `transportadora_id` e `data_saida_entrada` — não precisamos criar essas colunas.
-- `notas_fiscais` **não tem** `indicador_presenca`, `data_saida`, `hora_saida`, `via_intermediador`, `intermediador_cnpj`, `intermediador_identificador` — migration necessária.
-- RPC `aplicar_matriz_fiscal` existe.
-- Componente canônico `FiscalSefazStatusBadge` existe em `src/components/fiscal/FiscalStatusBadges.tsx`.
-- `MatrizTab` realmente inicializa `crt: "3"`, `cst_csosn: "00"`, `aliquota_icms: 18`, `pis: 1.65`, `cofins: 7.6`.
-- `BacklogFaturamento` busca em `numero` e `po_number` apenas (sem nome do cliente).
-- `Step4Transporte` não tem nenhum campo de transportadora.
-- `Step1Identificacao` não tem `indicador_presenca` nem `data_saida`.
+O banco já tem a base para corrigir isso (não precisa migration nestes campos):
+- `notas_fiscais_itens` possui: `codigo_produto_origem`, `descricao_produto_origem`, `unidade_origem`, `quantidade_origem`, `valor_unitario_origem`, `valor_total_origem`, `match_status`.
+- `produtos_fornecedores` possui: `referencia_fornecedor`, `descricao_fornecedor`, `unidade_fornecedor` (de-para por fornecedor já modelado, mas sem fator de conversão).
+- `produtos.unidade_medida` é a unidade interna canônica.
 
-## Críticos (bloqueiam emissão SEFAZ)
+O que falta é (a) **uma etapa explícita de tradução** no wizard de importação e (b) **fator de conversão** persistido no de-para.
 
-### C-01 — Step 1 sem indicador_presenca e data_saida
-- **Migration**: adicionar em `notas_fiscais`:
-  - `indicador_presenca text default '0'` (CHECK `('0','1','2','3','4','9')`)
-  - `data_saida date null`
-  - `hora_saida time null`
-- **wizardSchema** (`EmitirNFeWizard.tsx`): adicionar os 3 campos no Passo 1.
-- **Step1Identificacao**: adicionar Select de Indicador de Presença (rótulos Sebrae) e dois inputs (date + time) para data/hora de saída, com validação client-side `data_saida >= data_emissao`.
-- **salvarRascunho**: mapear os 3 campos no payload de insert.
-- **defaultValues**: `indicador_presenca: "0"`, `data_saida: ""`, `hora_saida: ""`.
+## Princípio inegociável
 
-### C-02 — Passo 4 sem transportadora
-- **wizardSchema**: adicionar `transportadora_id`, `transportadora_cnpj`, `transportadora_nome`, `veiculo_placa`, `veiculo_uf` (todos opcionais).
-- **Step4Transporte**: bloco condicional `frete_modalidade !== "9"` com:
-  - Autocomplete (Popover + Command) sobre `fornecedores` filtrado por `transportadora = true` (verificar nome real do flag em `fornecedores`).
-  - Inputs para placa e UF do veículo.
-- **salvarRascunho**: persistir `transportadora_id` (coluna já existe).
-- Nota: campos placa/UF do veículo serão guardados em `observacoes` ou em coluna JSON `transporte_dados` se já existir (verificar antes de criar nova coluna).
+O que está no XML é a **verdade fiscal** e nunca é alterado. A "tradução" só afeta os campos internos (estoque, custo, vínculo de produto). Os campos `*_origem` em `notas_fiscais_itens` guardam o XML cru.
 
-### C-03 — `aguardando_protocolo` ausente em fiscalSefazStatusMap
-- **`src/lib/fiscalStatus.ts`**:
-  - Adicionar `"aguardando_protocolo"` ao tipo `FiscalSefazStatus`.
-  - Adicionar entry no `fiscalSefazStatusMap` com label "Aguardando protocolo", classes info, ícone `Clock3`.
-  - Adicionar ao `fiscalSefazStatusOptions`.
+## Mudanças propostas
 
-### C-04 — StatusBadge inline em Faturamento.tsx
-- **`src/pages/Faturamento.tsx`**:
-  - Remover função `StatusBadge` inline e import de `Badge` se não usado em outros pontos.
-  - Importar `FiscalSefazStatusBadge` de `@/components/fiscal/FiscalStatusBadges`.
-  - Substituir `<StatusBadge status={n.status_sefaz} />` pelo canônico.
+### 1. Banco — fator e regra de conversão no de-para
 
-## Altos (degradam fluxo)
+Migration em `produtos_fornecedores`:
+- `fator_conversao numeric NOT NULL DEFAULT 1` — quantos "unidade interna" cabem em 1 "unidade do fornecedor". Ex.: fornecedor vende KG, interno é MT, 1 KG = 0,25 MT → fator 0,25.
+- `chk_fator_conversao_pos CHECK (fator_conversao > 0)`.
+- Índice `(fornecedor_id, referencia_fornecedor)` para lookup rápido na importação.
 
-### A-01 — Matriz Fiscal default CRT "3" → "1" (Simples)
-- **`FaturamentoCadastros.tsx` MatrizTab `useForm` defaults**:
-  - `crt: "1"`, `cst_csosn: "102"`, `aliquota_icms: 0`, `aliquota_pis: 0`, `aliquota_cofins: 0`.
+### 2. Drawer "Tradução XML" — opcional ou obrigatório
 
-### A-02 — Botão "Duplicar" na Matriz Fiscal
-- Adicionar coluna Ações com botão `Copy` (lucide).
-- Handler `duplicarRegra(m)`: `setEditing(null)` + `form.reset({...m, nome: m.nome+" (cópia)"})` + `setOpen(true)`.
+Ao importar XML, classificar cada item:
 
-### A-03 — Auto-aplicar matriz fiscal após carregar OV
-- Em `carregarOrdemVenda`, depois de `form.setValue("itens", itensWizard)`:
-  - Loop por item chamando `supabase.rpc("aplicar_matriz_fiscal", {...})`.
-  - `setValue` em cfop, cst, alíquotas, `matriz_aplicada: true`.
-  - Toast informativo no início e contagem ao final.
+- **OK** — produto casado E (`uCom == produto.unidade_medida` OU já existe `produtos_fornecedores` com `fator_conversao` salvo).
+- **Pendente** — sem `produto_id` OU unidade divergente sem fator memorizado.
 
-### A-04 — Aba Documentos como ConsultaDocumentos real
-- Criar `src/pages/faturamento/ConsultaDocumentos.tsx`:
-  - DataTableV2 (ou tabela simples) sobre `notas_fiscais`.
-  - Colunas: numero, parceiro, data_emissao, status_sefaz (badge canônico), valor_total.
-  - Filtros: tipo (entrada/saida), status_sefaz (multi), período (PeriodFilter).
-  - Ações: "Ver" → `/fiscal/:id`, "Emitir similar" → `/faturamento/emitir?refNFeId=…`.
-- Substituir conteúdo do `TabsContent value="documentos"` em `Faturamento.tsx`.
+Comportamento:
+- **100% OK** → drawer **NÃO abre**. Vai direto ao formulário com banner discreto: "NF importada de XML. Tradução automática aplicada. [Ver tradução]".
+- **Qualquer pendência** → drawer **abre obrigatoriamente** e bloqueia avanço até resolver todos os itens pendentes.
+- Botão "Ver tradução" no banner reabre o drawer em modo somente-leitura.
 
-## Médios (qualidade/UX)
-
-### M-01 — Busca do Backlog cobrir nome do cliente
-- Em `BacklogFaturamento` queryFn: pré-busca `clientes.id` por nome, monta `or` com `cliente_id.in.(...)` + `numero.ilike` + `po_number.ilike`.
-
-### M-02 — CST default derivado do CRT da empresa
-- Em `EmitirNFeWizard.adicionarProduto` (e `adicionarVazio` para coerência):
-  - Cachear via `useQuery` o `empresa_config.crt` no escopo do wizard.
-  - `cstDefault = (crt === "1" || crt === "2") ? "102" : "00"`.
-
-### M-03 — staleTime nos KPIs do Painel
-- Em `Faturamento.tsx`, ambos `useQuery` (kpis e ultimas):
-  - `staleTime: 60_000`, `refetchOnWindowFocus: false`.
-
-### M-04 — Botão "Duplicar" em NaturezasTab
-- Mesma mecânica de A-02, com sufixo `_COPIA` no código e " (cópia)" na descrição.
-
-## Baixos (conformidade)
-
-### B-01 — Bloco infIntermed (NT 2020.006)
-- **Migration**: adicionar em `notas_fiscais`:
-  - `via_intermediador boolean default false`
-  - `intermediador_cnpj text null`
-  - `intermediador_identificador text null`
-- **wizardSchema** Passo 1: 3 campos opcionais.
-- **Step1Identificacao**: Switch "Operação via intermediador (marketplace)" que revela 2 inputs.
-- **salvarRascunho**: mapear no payload.
-
-### B-02 — Deep-link manifestação preservar aba origem
-- Em `Faturamento.tsx`, no `useEffect` de deep-link:
-  - Ler `returnTab` do searchParams; se ausente, manter `tab` atual.
-  - Após limpar `tab` e `nfe`, setar `next.set("tab", returnTab)`.
-
-## Detalhes técnicos
+Layout do drawer (uma linha por item, pendentes destacados no topo):
 
 ```text
-Migrations a criar
-└─ alter_notas_fiscais_indicador_presenca_saida_intermed
-   ├─ ADD COLUMN indicador_presenca text DEFAULT '0'
-   ├─ ADD COLUMN data_saida date
-   ├─ ADD COLUMN hora_saida time
-   ├─ ADD COLUMN via_intermediador boolean DEFAULT false
-   ├─ ADD COLUMN intermediador_cnpj text
-   ├─ ADD COLUMN intermediador_identificador text
-   ├─ CHECK chk_nf_indicador_presenca IN ('0','1','2','3','4','9')
-   └─ CHECK chk_nf_data_saida_ge_emissao (data_saida IS NULL OR data_saida >= data_emissao::date)
+┌─ Item 1  [PENDENTE] ────────────────────────────────────────┐
+│ DO XML (fiscal — preservado)    →   NO SISTEMA              │
+│ cProd:   1234.A                 →   [Produto: Cabo 6mm  ▾]  │
+│ xProd:   CABO FLEX 6MM PR 100M  →   SKU: CAB-6-PR           │
+│ uCom:    KG     qCom: 25,000    →   Unid. interna: MT       │
+│ vUnCom:  18,40  vProd: 460,00   →   Fator: [0,25]  ⚠        │
+│                                     Qtd convertida: 6,250 MT│
+│                                     Custo unitário: 73,60   │
+│ [✓ Salvar tradução para este fornecedor]                    │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-Arquivos editados (sem migration):
-- `src/lib/fiscalStatus.ts` (C-03)
-- `src/pages/Faturamento.tsx` (C-04, M-03, B-02)
-- `src/pages/faturamento/EmitirNFeWizard.tsx` (C-01, C-02, A-03, M-02, B-01)
-- `src/pages/faturamento/FaturamentoCadastros.tsx` (A-01, A-02, M-04)
-- `src/pages/faturamento/BacklogFaturamento.tsx` (M-01)
+Regras:
+- Coluna esquerda **read-only** (XML cru).
+- Pré-preenchimento: match por `(fornecedor, cProd)` em `produtos_fornecedores` → senão match por `codigo_interno`/`sku`.
+- Fator default = 1 quando `uCom == produto.unidade_medida`; senão input destacado em amarelo até confirmação.
+- Cálculo derivado em tempo real:
+  - `qtd_interna = qCom × fator`
+  - `vUn_interno = vProd / qtd_interna` (preserva o total)
+- Checkbox "Salvar tradução" → upsert em `produtos_fornecedores` ao confirmar (default ligado para itens pendentes resolvidos).
+- "Confirmar tradução" só habilita quando todos os itens têm `produto_id` e `fator > 0`.
 
-Arquivos criados:
-- `src/pages/faturamento/ConsultaDocumentos.tsx` (A-04)
+### 3. Persistência — XML preservado, internos convertidos
 
-Verificações pendentes durante a implementação:
-1. Nome exato da flag de transportadora em `fornecedores` (`transportadora` vs `eh_transportadora`).
-2. Existência de coluna JSON para dados de transporte; se não houver, persistir placa/UF apenas em `observacoes` no rascunho (sem nova migration).
-3. `app_configuracoes` ou `empresa_config` para leitura do CRT em M-02.
+Em `notas_fiscais_itens`:
+- `codigo_produto_origem`, `descricao_produto_origem`, `unidade_origem`, `quantidade_origem`, `valor_unitario_origem`, `valor_total_origem` ← XML cru.
+- `produto_id`, `unidade`, `quantidade`, `valor_unitario`, `valor_total` ← internos convertidos.
+- `match_status`: `auto` (memorizado), `manual` (usuário escolheu/confirmou), `direto` (uCom == unidade interna, fator 1 sem precisar drawer).
 
-## Ordem sugerida de execução
+Movimentação de estoque e custo médio passam a usar os campos internos — corretos por construção.
 
-1. Migration (C-01 + B-01) — adicionar colunas em `notas_fiscais`.
-2. C-03 + C-04 (rápidos, baixo risco).
-3. C-01, C-02, B-01 no wizard.
-4. A-01, A-02, M-04 nos cadastros.
-5. A-03 (auto-matriz na OV).
-6. A-04 (ConsultaDocumentos).
-7. M-01, M-02, M-03, B-02 (polimentos).
+### 4. Cadastro do produto — visibilidade do de-para
 
-Posso prosseguir?
+Na aba "Fornecedores" do cadastro de produto, adicionar colunas `Cód. fornecedor` (`referencia_fornecedor`), `Unid. fornecedor`, `Fator conversão`, com helper "1 [un. fornecedor] = N [un. interna]". Permite cadastrar a tradução **antes** de receber o primeiro XML — assim a próxima importação cai em "100% OK".
+
+## Convenção do fator (decidida)
+
+`qtd_interna = qCom × fator_conversao`. Ex.: fornecedor envia 25 KG e usamos MT, 1 KG = 0,25 MT → `25 × 0,25 = 6,25 MT`.
+
+## NFs antigas
+
+Sem backfill. Continuam como estão; apenas novas importações usam o novo fluxo.
+
+## Arquivos que serão tocados
+
+- `supabase/migrations/<nova>.sql` — `fator_conversao` em `produtos_fornecedores` + constraint + índice.
+- `src/pages/fiscal/hooks/useNFeXmlImport.ts` — passa a buscar de-para por `(fornecedor_id, referencia_fornecedor)`, classificar cada item (OK/pendente) e devolver estrutura de tradução com fator memorizado.
+- `src/pages/fiscal/components/TraducaoXmlDrawer.tsx` *(novo)* — UI da tradução conforme mockup, modo edição e somente-leitura.
+- `src/pages/Fiscal.tsx` — `handleXmlImport` decide: se há pendência, abre drawer; senão vai direto ao formulário com banner. Banner tem ação "Ver tradução".
+- `src/services/fiscal.service.ts` (`buildNfItemsPayload`) — gravar `*_origem` + `match_status`.
+- `src/pages/Cadastros.tsx` (aba Fornecedores do produto) — colunas `unidade_fornecedor` e `fator_conversao`.
+- `mem://features/traducao-xml-fiscal` *(nova memória)* — doutrina: XML é fiscal e imutável; tradução afeta só interno; drawer obrigatório só com pendência; fator `qtd_interna = qCom × fator`.
+
+## Ordem de execução
+
+1. Migration `fator_conversao` + constraint + índice.
+2. Estender `useNFeXmlImport` (lookup de-para + classificação OK/pendente).
+3. Criar `TraducaoXmlDrawer` (componente puro).
+4. Plugar drawer condicional + banner em `Fiscal.tsx`.
+5. Atualizar `buildNfItemsPayload` para `*_origem` + `match_status`.
+6. Estender aba Fornecedores do cadastro de produto.
+7. Salvar memória da doutrina.
