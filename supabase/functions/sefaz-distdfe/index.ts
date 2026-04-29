@@ -228,7 +228,8 @@ Deno.serve(async (req) => {
       return json({ error: `action '${action}' inválida. Use 'consultar-nsu' ou 'consultar-chave'.` }, 400);
     }
 
-    const ambiente: "1" | "2" = body.ambiente === "1" ? "1" : "2";
+    // Default = produção ("1"). Homologação só quando explicitamente "2".
+    const ambiente: "1" | "2" = body.ambiente === "2" ? "2" : "1";
     const ultNSUInput: string = String(body.ultNSU ?? "0").replace(/\D/g, "");
     const chNFeInput: string = String(body.chNFe ?? "").replace(/\D/g, "");
     if (action === "consultar-chave" && chNFeInput.length !== 44) {
@@ -328,10 +329,17 @@ Deno.serve(async (req) => {
       }
     } catch (e: any) {
       clearTimeout(timer);
-      const msg = e?.name === "AbortError"
+      const raw = e?.name === "AbortError"
         ? "Timeout de 45s ao conectar com o Ambiente Nacional"
         : e?.message ?? String(e);
-      return json({ sucesso: false, erro: msg });
+      // Reset/Connect refused costuma indicar incompatibilidade de ambiente
+      // (certificado de produção tentando handshake em homologação ou vice-versa)
+      // ou indisponibilidade momentânea da SEFAZ.
+      const looksLikeReset = /Connection reset|connect|reset by peer|tls|handshake|EOF/i.test(raw);
+      const hint = looksLikeReset
+        ? ` — possíveis causas: (1) ambiente '${ambiente === "1" ? "produção" : "homologação"}' incompatível com o certificado A1 configurado; (2) instabilidade temporária do Ambiente Nacional; (3) certificado expirado/inválido.`
+        : "";
+      return json({ sucesso: false, erro: `${raw}${hint}` });
     } finally {
       try {
         // @ts-ignore
