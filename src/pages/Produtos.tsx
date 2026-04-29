@@ -29,9 +29,11 @@ import {
   saveProdutoComposicao,
   saveProdutoFornecedores,
   createUnidadeMedida,
+  proximoSkuDoGrupo,
+  updateGrupoSigla,
 } from "@/services/produtos.service";
 import { toast } from "sonner";
-import { Loader2, Plus, Trash2, Package, FileText, TrendingUp, Archive, ShoppingCart, AlertCircle, CheckCircle2, AlignLeft, Tag } from "lucide-react";
+import { Loader2, Plus, Trash2, Package, FileText, TrendingUp, Archive, ShoppingCart, AlertCircle, CheckCircle2, AlignLeft, Tag, Wand2, Pencil } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { FiscalAutocomplete } from "@/components/ui/FiscalAutocomplete";
 import { ProductAutocomplete } from "@/components/ui/ProductAutocomplete";
@@ -145,7 +147,7 @@ const Produtos = () => {
   const [estoqueFilters, setEstoqueFilters] = useState<string[]>([]);
   const [grupoFilters, setGrupoFilters] = useState<string[]>([]);
   const [ativoFilters, setAtivoFilters] = useState<string[]>([]);
-  const [grupos, setGrupos] = useState<{id: string; nome: string}[]>([]);
+  const [grupos, setGrupos] = useState<{id: string; nome: string; sigla?: string | null}[]>([]);
   const { buscarNcm, loading: ncmLoading } = useNcmLookup();
 
   // State for inline unit creation dialog
