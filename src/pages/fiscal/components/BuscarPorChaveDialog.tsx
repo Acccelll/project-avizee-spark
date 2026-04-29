@@ -127,7 +127,7 @@ export function BuscarPorChaveDialog({
         // Persiste o XML para reuso (cache local + disponibiliza na manifestação).
         try {
           await supabase.from("nfe_distribuicao").upsert(
-            { chave_acesso: chaveLimpa, xml_nfe: doc.xml, schema: doc.schema ?? null },
+            [{ chave_acesso: chaveLimpa, xml_nfe: doc.xml, schema: doc.schema ?? null }],
             { onConflict: "chave_acesso" },
           );
         } catch (persistErr) {
