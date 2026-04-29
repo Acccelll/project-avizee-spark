@@ -343,7 +343,19 @@ async function listUsers(serviceClient: any) {
         ativo: isUserActive(authUser),
         created_at: profile?.created_at ?? authUser?.created_at ?? new Date().toISOString(),
         updated_at: profile?.updated_at ?? authUser?.updated_at ?? profile?.created_at ?? new Date().toISOString(),
-        role_padrao: roleMap.get(userId)?.[0] ?? "vendedor",
+        // Convenção: o primeiro role inserido (preservado pela ordem do array) é o padrão;
+        // os demais são secundários cumulativos. Se houver `admin` no conjunto, ele é
+        // promovido a padrão automaticamente (admin nunca é secundário).
+        ...(() => {
+          const all = roleMap.get(userId) ?? [];
+          if (all.length === 0) {
+            return { role_padrao: "vendedor" as AppRole, roles_secundarios: [] as AppRole[] };
+          }
+          const adminIdx = all.indexOf("admin");
+          const padrao = adminIdx >= 0 ? "admin" : all[0];
+          const secundarios = all.filter((r) => r !== padrao);
+          return { role_padrao: padrao, roles_secundarios: secundarios };
+        })(),
         extra_permissions: allowMap.get(userId) ?? [],
         denied_permissions: denyMap.get(userId) ?? [],
         last_sign_in: authUser?.last_sign_in_at ?? null,
