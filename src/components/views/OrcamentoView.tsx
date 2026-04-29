@@ -594,7 +594,7 @@ export function OrcamentoView({ id }: Props) {
         loading={locked("convert")}
         impacts={[
           {
-            label: "Cria 1 Pedido em /pedidos",
+            label: "Cria 1 Pedido de Venda em /pedidos (sem emitir NF)",
             detail: `${items.length} ${items.length === 1 ? "item" : "itens"} · ${formatCurrency(kpiValor)}`,
             tone: "primary",
           },

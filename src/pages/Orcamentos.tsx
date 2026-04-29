@@ -558,7 +558,7 @@ const Orcamentos = () => {
         loading={convertLock.pending}
         impacts={[
           {
-            label: "Cria 1 Pedido em /pedidos",
+            label: "Cria 1 Pedido de Venda em /pedidos (sem emitir NF)",
             detail: convertingOrc ? formatCurrency(Number(convertingOrc.valor_total || 0)) : undefined,
             tone: "primary",
           },
