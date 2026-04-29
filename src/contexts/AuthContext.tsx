@@ -179,7 +179,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
 
-        if (event === 'INITIAL_SESSION') {
+        // INITIAL_SESSION (refresh com sessão persistida) e SIGNED_IN (login fresco)
+        // ambos precisam carregar profile + permissions ANTES de liberar a UI.
+        // Caso contrário o usuário aterrissa em rotas protegidas com
+        // `permissionsLoaded=false` → menus vazios, dashboards "zerados",
+        // até o fetch resolver. Bug de UX confirmado em 04/2026 (vendedor sem
+        // menu após login). Ver `mem://auth/sincronizacao-sessao-inicial`.
+        if (event === 'INITIAL_SESSION' || (event === 'SIGNED_IN' && !sameUser)) {
           try {
             await Promise.all([
               fetchProfile(currentSession.user.id),
