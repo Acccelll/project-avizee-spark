@@ -180,6 +180,19 @@ const Fiscal = () => {
   const [origemFilters, setOrigemFilters] = useState<string[]>([]);
   const [statusSefazFilters, setStatusSefazFilters] = useState<string[]>([]);
   const [itemFiscalData, setItemFiscalData] = useState<Record<number, NfItemFiscalData>>({});
+  // Tradução XML — etapa explícita de mapeamento entre o XML do fornecedor e o cadastro interno.
+  const [traducaoLinhas, setTraducaoLinhas] = useState<TraducaoLinha[]>([]);
+  const [traducaoOpen, setTraducaoOpen] = useState(false);
+  const [traducaoReadOnly, setTraducaoReadOnly] = useState(false);
+  /** Snapshot do resultado do XML aguardando confirmação da tradução (quando há pendência). */
+  const [pendingXmlImport, setPendingXmlImport] = useState<{
+    nfe: import("@/lib/nfeXmlParser").NFeData;
+    fornecedorId: string;
+    fornecedorNome: string;
+    fiscalMap: Record<number, NfItemFiscalData>;
+  } | null>(null);
+  /** True quando a NF aberta no modal foi originada de um XML — controla o banner. */
+  const [xmlOriginInfo, setXmlOriginInfo] = useState<{ fornecedorId: string; fornecedorNome: string } | null>(null);
   // Devolução
   const [devolucaoModalOpen, setDevolucaoModalOpen] = useState(false);
   const [devolucaoNF, setDevolucaoNF] = useState<NotaFiscal | null>(null);
