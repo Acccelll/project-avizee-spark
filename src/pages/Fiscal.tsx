@@ -1264,6 +1264,18 @@ const Fiscal = () => {
       />
 
       <DanfeViewer open={danfeOpen} onClose={() => setDanfeOpen(false)} data={danfeData as never} />
+
+      {/* Tradução XML — etapa explícita XML→cadastro. Obrigatório com pendência, opcional via banner. */}
+      <TraducaoXmlDrawer
+        open={traducaoOpen}
+        readOnly={traducaoReadOnly}
+        fornecedorNome={pendingXmlImport?.fornecedorNome ?? xmlOriginInfo?.fornecedorNome ?? ""}
+        fornecedorId={pendingXmlImport?.fornecedorId ?? xmlOriginInfo?.fornecedorId ?? ""}
+        produtos={produtosCrud.data}
+        linhas={traducaoLinhas}
+        onCancel={handleTraducaoCancel}
+        onConfirm={handleTraducaoConfirm}
+      />
       {confirmDialog}
     </>
   );
