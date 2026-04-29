@@ -11,6 +11,7 @@ import { formatCurrency } from "@/lib/format";
 import { ViewDrawerV2 } from "@/components/ViewDrawerV2";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { parseVariacoes, formatVariacoesSuffix } from "@/utils/cadastros";
 
 interface ProductWithForn extends Tables<"produtos"> {
   produtos_fornecedores?: (Tables<"produtos_fornecedores"> & { fornecedores?: { nome_razao_social: string } | null })[];
@@ -72,18 +73,15 @@ export function OrcamentoItemsGrid({ items, onChange, produtos, precosEspeciais 
 
   const getProductOptions = () => produtos.map((p) => {
     const codePart = [p.sku, p.codigo_interno].filter(Boolean).join(" / ") || "—";
-    const rawVariacoes = (p as { variacoes?: unknown }).variacoes;
-    const variacoesArr: string[] = Array.isArray(rawVariacoes)
-      ? (rawVariacoes as string[])
-      : typeof rawVariacoes === "string" && rawVariacoes
-        ? rawVariacoes.split(",").map((s) => s.trim()).filter(Boolean)
-        : [];
-    const variacaoStr = variacoesArr.length > 0 ? `· ${variacoesArr.slice(0, 3).join(", ")}${variacoesArr.length > 3 ? "…" : ""}` : "";
+    const variacoesArr = parseVariacoes((p as { variacoes?: unknown }).variacoes);
+    const variSuffix = formatVariacoesSuffix((p as { variacoes?: unknown }).variacoes);
     const unidade = p.unidade_medida || "UN";
     return {
       id: p.id,
-      label: p.nome,
-      sublabel: `${codePart} · ${unidade} · ${formatCurrency(p.preco_venda || 0)}${variacaoStr}`,
+      // Anexa a variação ao próprio nome para diferenciar produtos homônimos
+      // logo na linha primária — alinhado ao restante dos autocompletes.
+      label: `${p.nome}${variSuffix}`,
+      sublabel: `${codePart} · ${unidade} · ${formatCurrency(p.preco_venda || 0)}`,
       metaLine: `Estoque: ${p.estoque_atual ?? 0} ${unidade}${(p.estoque_atual ?? 0) <= (p.estoque_minimo ?? 0) ? " ⚠" : ""}`,
       rightMeta: undefined,
       imageUrl: null,

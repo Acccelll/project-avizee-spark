@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, Trash2 } from "lucide-react";
 import { AutocompleteSearch } from "@/components/ui/AutocompleteSearch";
+import { parseVariacoes, formatVariacoesSuffix } from "@/utils/cadastros";
 
 export interface GridItem {
   id?: string;
@@ -25,6 +26,8 @@ export interface ItemsGridProdutoBase {
   unidade_medida?: string | null;
   preco_venda?: number | null;
   referencia_fornecedor?: string | null;
+  /** Texto livre do cadastro (ex.: "13 X 45") — exibido junto do nome no autocomplete. */
+  variacoes?: string | string[] | null;
 }
 
 interface Props<TProd extends ItemsGridProdutoBase> {
@@ -80,12 +83,16 @@ export function ItemsGrid<TProd extends ItemsGridProdutoBase>({
 
   const total = items.reduce((s, i) => s + (i.valor_total || 0), 0);
 
-  const produtoOptions = produtos.map((p) => ({
-    id: String(p.id),
-    label: String(p.nome || ""),
-    sublabel: [p.codigo_interno, p.unidade_medida].filter(Boolean).join(" • "),
-    searchTerms: [p.codigo_interno, p.referencia_fornecedor].filter(Boolean) as string[],
-  }));
+  const produtoOptions = produtos.map((p) => {
+    const variacoes = parseVariacoes(p.variacoes);
+    const variSuffix = formatVariacoesSuffix(p.variacoes);
+    return {
+      id: String(p.id),
+      label: `${String(p.nome || "")}${variSuffix}`,
+      sublabel: [p.codigo_interno, p.unidade_medida].filter(Boolean).join(" • "),
+      searchTerms: [p.codigo_interno, p.referencia_fornecedor, ...variacoes].filter(Boolean) as string[],
+    };
+  });
 
   return (
     <div className="bg-card rounded-xl border shadow-soft overflow-hidden">

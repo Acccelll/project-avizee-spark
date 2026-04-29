@@ -57,3 +57,33 @@ export function calcularEstoqueValor(
 ): number {
   return Number(estoqueAtual || 0) * Number(precoCusto || 0);
 }
+
+// ─── Variações de produto ────────────────────────
+
+/**
+ * Converte o campo `produtos.variacoes` (texto livre, separado por vírgula,
+ * ou já um array) em uma lista normalizada e estável. Doutrina única usada por
+ * todos os autocompletes de produto (orçamento, NF-e entrada, compras, preços
+ * especiais, tradução de XML). Mantém a mesma semântica histórica de
+ * `OrcamentoItemsGrid` para evitar regressões.
+ */
+export function parseVariacoes(raw: unknown): string[] {
+  if (Array.isArray(raw)) return raw.map((v) => String(v).trim()).filter(Boolean);
+  if (typeof raw === "string" && raw.trim()) {
+    return raw.split(",").map((s) => s.trim()).filter(Boolean);
+  }
+  return [];
+}
+
+/**
+ * Sufixo curto para concatenar ao nome do produto na busca, do tipo
+ * " — 13 X 45" ou " — 13 X 45, 25 X 10". Limitado para não estourar a linha.
+ * Devolve string vazia quando não há variações.
+ */
+export function formatVariacoesSuffix(raw: unknown, maxItems = 3): string {
+  const arr = parseVariacoes(raw);
+  if (arr.length === 0) return "";
+  const head = arr.slice(0, maxItems).join(", ");
+  const tail = arr.length > maxItems ? "…" : "";
+  return ` — ${head}${tail}`;
+}

@@ -1,9 +1,10 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { parseVariacoes, formatVariacoesSuffix } from "@/utils/cadastros";
 
 interface ProductAutocompleteProps {
-  products: { id: string; nome: string; sku?: string; codigo_interno?: string }[];
+  products: { id: string; nome: string; sku?: string; codigo_interno?: string; variacoes?: string | string[] | null }[];
   value: string;
   onChange: (productId: string) => void;
   placeholder?: string;
@@ -16,16 +17,20 @@ export function ProductAutocomplete({ products, value, onChange, placeholder, cl
   const containerRef = useRef<HTMLDivElement>(null);
 
   const selectedProduct = products.find((p) => p.id === value);
-  const displayValue = selectedProduct ? `${selectedProduct.sku ? `[${selectedProduct.sku}] ` : ""}${selectedProduct.nome}` : "";
+  const displayValue = selectedProduct
+    ? `${selectedProduct.sku ? `[${selectedProduct.sku}] ` : ""}${selectedProduct.nome}${formatVariacoesSuffix(selectedProduct.variacoes)}`
+    : "";
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
     if (!q) return products.slice(0, 15);
-    return products.filter((p) =>
-      p.nome.toLowerCase().includes(q) ||
-      (p.sku && p.sku.toLowerCase().includes(q)) ||
-      (p.codigo_interno && p.codigo_interno.toLowerCase().includes(q))
-    ).slice(0, 15);
+    return products.filter((p) => {
+      if (p.nome.toLowerCase().includes(q)) return true;
+      if (p.sku && p.sku.toLowerCase().includes(q)) return true;
+      if (p.codigo_interno && p.codigo_interno.toLowerCase().includes(q)) return true;
+      const vars = parseVariacoes(p.variacoes);
+      return vars.some((v) => v.toLowerCase().includes(q));
+    }).slice(0, 15);
   }, [products, search]);
 
   // Click-outside (substitui setTimeout no onBlur).
@@ -74,6 +79,9 @@ export function ProductAutocomplete({ products, value, onChange, placeholder, cl
             >
               {p.sku ? <span className="text-muted-foreground">[{p.sku}] </span> : null}
               {p.nome}
+              {formatVariacoesSuffix(p.variacoes) && (
+                <span className="text-muted-foreground">{formatVariacoesSuffix(p.variacoes)}</span>
+              )}
             </button>
           ))}
         </div>

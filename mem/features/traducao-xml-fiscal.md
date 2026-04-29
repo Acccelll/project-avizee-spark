@@ -13,6 +13,10 @@ type: feature
 - **Convenção do fator**: `qtd_interna = qCom × fator_conversao`. Ex.: 25 KG × 0,25 = 6,25 MT.
 - **Custo**: `vUn_interno = vProd / qtd_interna` — preserva o total fiscal (`vProd`).
 - **De-para persistido** em `produtos_fornecedores` (chave natural `produto_id + fornecedor_id`) com `fator_conversao` (default 1, > 0). Upsert via checkbox "Salvar tradução para este fornecedor".
+
+## Variação no autocomplete de produtos (regra global)
+
+Em TODA busca de produto (TraducaoXmlDrawer, ItemsGrid, ProductAutocomplete, OrcamentoItemsGrid, etc.) o `label` deve concatenar a variação após o nome via `formatVariacoesSuffix()` e a variação deve entrar nos `searchTerms` via `parseVariacoes()` (helpers em `src/utils/cadastros.ts`). Única forma de distinguir produtos homônimos como "AGULHA DESCARTAVEL - 100 UN" que diferem apenas por `produtos.variacoes` ("13 X 45", "25 X 10").
 - **`match_status`** em `notas_fiscais_itens`: `auto` (memorizado), `direto` (uCom == unidade interna), `manual` (usuário ajustou).
 - **NFs antigas**: sem backfill — só novas importações usam o novo fluxo.
 - Cadastro do produto (Produtos.tsx, aba Compras): coluna "Fator de Conversão" no bloco Fornecedores permite cadastrar a tradução antes do primeiro XML.
