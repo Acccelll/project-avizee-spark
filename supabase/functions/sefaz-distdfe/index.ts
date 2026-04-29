@@ -91,19 +91,20 @@ function pfxToPem(base64: string, senha: string): { certPem: string; keyPem: str
 function montarDistDFeInt(opts: {
   ambiente: "1" | "2";
   cnpj: string;
-  ultNSU: string;
+  ultNSU?: string;
+  chNFe?: string;
   cUFAutor?: string; // 91 = AN
 }): string {
   const cUF = opts.cUFAutor ?? "91";
-  const ultNSU = String(opts.ultNSU).padStart(15, "0");
+  const corpo = opts.chNFe
+    ? `<consChNFe><chNFe>${opts.chNFe}</chNFe></consChNFe>`
+    : `<distNSU><ultNSU>${String(opts.ultNSU ?? "0").padStart(15, "0")}</ultNSU></distNSU>`;
   return `<?xml version="1.0" encoding="UTF-8"?>
 <distDFeInt xmlns="http://www.portalfiscal.inf.br/nfe" versao="1.01">
   <tpAmb>${opts.ambiente}</tpAmb>
   <cUFAutor>${cUF}</cUFAutor>
   <CNPJ>${opts.cnpj}</CNPJ>
-  <distNSU>
-    <ultNSU>${ultNSU}</ultNSU>
-  </distNSU>
+  ${corpo}
 </distDFeInt>`;
 }
 
