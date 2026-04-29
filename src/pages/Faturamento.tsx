@@ -168,13 +168,16 @@ export default function Faturamento() {
     const sp = searchParams;
     if (sp.get("tab") === "manifestacao") {
       const nfeId = sp.get("nfe");
+      const returnTab = (sp.get("returnTab") as TabKey) || (VALID_TABS.includes(tab) ? tab : "painel");
       setManifHighlight(nfeId);
       setManifOpen(true);
       // Limpa o param "tab=manifestacao" para não reabrir em re-renders;
-      // mantém a aba atual.
+      // restaura a aba de origem (returnTab) se informada.
       const next = new URLSearchParams(sp);
       next.delete("tab");
       next.delete("nfe");
+      next.delete("returnTab");
+      next.set("tab", returnTab);
       setSearchParams(next, { replace: true });
     }
     // Apenas no mount/quando a query muda externamente.
