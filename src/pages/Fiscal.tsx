@@ -1344,7 +1344,7 @@ const Fiscal = () => {
             setItems((prev) => {
               const next = [...prev];
               const target = next.findIndex((i) => !i.produto_id);
-              const matched = produtosCrud.data.find((p) => p.id === produtoId);
+              const matched = produtosCrud.data.find((p) => p.id === produtoId) as { codigo_interno?: string; nome?: string; preco_custo?: number } | undefined;
               const row = {
                 produto_id: produtoId,
                 codigo: String(matched?.codigo_interno || ""),
