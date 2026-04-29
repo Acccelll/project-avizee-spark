@@ -74,7 +74,17 @@ export function BacklogFaturamento() {
         .limit(100);
 
       if (debounced) {
-        q = q.or(`numero.ilike.%${debounced}%,po_number.ilike.%${debounced}%`);
+        // Busca por nº pedido / PO + nome do cliente.
+        // Nome do cliente está em tabela relacionada — pré-resolve IDs.
+        const { data: clisMatch } = await supabase
+          .from("clientes")
+          .select("id")
+          .ilike("nome_razao_social", `%${debounced}%`)
+          .limit(50);
+        const cids = (clisMatch ?? []).map((c) => c.id);
+        let orClause = `numero.ilike.%${debounced}%,po_number.ilike.%${debounced}%`;
+        if (cids.length) orClause += `,cliente_id.in.(${cids.join(",")})`;
+        q = q.or(orClause);
       }
       const { data, error } = await q;
       if (error) throw error;
