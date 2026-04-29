@@ -49,7 +49,22 @@ function buildCorsHeaders(origin: string | null): Record<string, string> {
 
 const INACTIVE_BAN_DURATION = "876000h";
 
-type AppRole = "admin" | "vendedor" | "financeiro" | "estoquista";
+type AppRole =
+  | "admin"
+  | "vendedor"
+  | "financeiro"
+  | "estoquista"
+  | "gestor_compras"
+  | "operador_logistico";
+
+const VALID_ROLES: ReadonlySet<AppRole> = new Set([
+  "admin",
+  "vendedor",
+  "financeiro",
+  "estoquista",
+  "gestor_compras",
+  "operador_logistico",
+]);
 
 class HttpError extends Error {
   status: number;
@@ -67,8 +82,22 @@ function json(data: unknown, status = 200, corsHeaders: Record<string, string> =
 }
 
 function normalizeRole(role: string | undefined): AppRole {
-  if (role === "admin" || role === "financeiro" || role === "estoquista" || role === "vendedor") return role;
+  if (typeof role === "string" && VALID_ROLES.has(role as AppRole)) return role as AppRole;
   return "vendedor";
+}
+
+/** Normaliza lista de roles secundários: dedupe, valida, exclui o padrão e o "admin" (admin nunca é secundário — é o role principal). */
+function normalizeSecondaryRoles(value: unknown, padrao: AppRole): AppRole[] {
+  if (!Array.isArray(value)) return [];
+  const set = new Set<AppRole>();
+  for (const r of value) {
+    if (typeof r !== "string") continue;
+    if (!VALID_ROLES.has(r as AppRole)) continue;
+    if (r === padrao) continue; // já é o padrão
+    if (r === "admin") continue; // admin só como role padrão
+    set.add(r as AppRole);
+  }
+  return Array.from(set);
 }
 
 function normalizePermissions(permissionKeys: unknown) {
@@ -129,6 +158,35 @@ async function replaceUserRole(serviceClient: any, userId: string, role: AppRole
   const { error: deleteError } = await serviceClient.from("user_roles").delete().eq("user_id", userId);
   if (deleteError) throw deleteError;
   const { error: insertError } = await serviceClient.from("user_roles").insert({ user_id: userId, role });
+  if (insertError) throw insertError;
+}
+
+/**
+ * Substitui o conjunto completo de roles do usuário pela união
+ * `[padrao, ...secundarios]`. Mantém-se o padrão de delete+insert para
+ * preservar a auditoria via trigger trg_audit_user_roles.
+ * O "padrão" não é distinguido na tabela `user_roles`; a UI infere o padrão
+ * pelo primeiro inserido (ordem preservada).
+ */
+async function replaceUserRoles(
+  serviceClient: any,
+  userId: string,
+  padrao: AppRole,
+  secundarios: AppRole[],
+) {
+  const { error: deleteError } = await serviceClient
+    .from("user_roles")
+    .delete()
+    .eq("user_id", userId);
+  if (deleteError) throw deleteError;
+
+  // Dedupe defensivo, mantém ordem (padrao primeiro).
+  const roles = [padrao, ...secundarios.filter((r) => r !== padrao)];
+  const rows = roles.map((role) => ({ user_id: userId, role }));
+
+  const { error: insertError } = await serviceClient
+    .from("user_roles")
+    .insert(rows);
   if (insertError) throw insertError;
 }
 
@@ -285,7 +343,19 @@ async function listUsers(serviceClient: any) {
         ativo: isUserActive(authUser),
         created_at: profile?.created_at ?? authUser?.created_at ?? new Date().toISOString(),
         updated_at: profile?.updated_at ?? authUser?.updated_at ?? profile?.created_at ?? new Date().toISOString(),
-        role_padrao: roleMap.get(userId)?.[0] ?? "vendedor",
+        // Convenção: o primeiro role inserido (preservado pela ordem do array) é o padrão;
+        // os demais são secundários cumulativos. Se houver `admin` no conjunto, ele é
+        // promovido a padrão automaticamente (admin nunca é secundário).
+        ...(() => {
+          const all = roleMap.get(userId) ?? [];
+          if (all.length === 0) {
+            return { role_padrao: "vendedor" as AppRole, roles_secundarios: [] as AppRole[] };
+          }
+          const adminIdx = all.indexOf("admin");
+          const padrao = adminIdx >= 0 ? "admin" : all[0];
+          const secundarios = all.filter((r) => r !== padrao);
+          return { role_padrao: padrao, roles_secundarios: secundarios };
+        })(),
         extra_permissions: allowMap.get(userId) ?? [],
         denied_permissions: denyMap.get(userId) ?? [],
         last_sign_in: authUser?.last_sign_in_at ?? null,
@@ -344,6 +414,7 @@ Deno.serve(async (req) => {
 
       if (!nome || !email) throw new HttpError(400, "Nome e e-mail são obrigatórios.");
       log.info("create: starting", { email, nome, rolePadrao });
+      const rolesSecundarios = normalizeSecondaryRoles(payload.roles_secundarios, rolePadrao);
 
       const existingUsersResult = await serviceClient.auth.admin.listUsers({ page: 1, perPage: 1000 });
       if (existingUsersResult.error) throw existingUsersResult.error;
@@ -415,12 +486,17 @@ Deno.serve(async (req) => {
         throw profileError;
       }
 
-      await replaceUserRole(serviceClient, targetUser.id, rolePadrao);
+      await replaceUserRoles(serviceClient, targetUser.id, rolePadrao, rolesSecundarios);
       await replaceUserPermissions(serviceClient, targetUser.id, payload.extra_permissions);
       if (!ativo) await setUserActiveStatus(serviceClient, targetUser.id, false);
 
       await insertAudit(serviceClient, currentUser.id, targetUser.id, rolePadrao, {
-        tipo: "user_create", email, cargo: cargo || null, ativo, extra_permissions: payload.extra_permissions ?? [],
+        tipo: "user_create",
+        email,
+        cargo: cargo || null,
+        ativo,
+        extra_permissions: payload.extra_permissions ?? [],
+        roles_secundarios: rolesSecundarios,
       });
 
       return json({
@@ -445,6 +521,7 @@ Deno.serve(async (req) => {
         : undefined;
 
       if (!id || !nome) throw new HttpError(400, "Usuário inválido.");
+      const rolesSecundariosUpd = normalizeSecondaryRoles(payload.roles_secundarios, rolePadrao);
 
       const { error: authUpdateError } = await serviceClient.auth.admin.updateUserById(id, { user_metadata: { full_name: nome } });
       if (authUpdateError) throw authUpdateError;
@@ -452,12 +529,16 @@ Deno.serve(async (req) => {
       const { error: profileError } = await serviceClient.from("profiles").upsert({ id, nome, email: email || null, cargo: cargo || null, updated_at: new Date().toISOString() }, { onConflict: "id" });
       if (profileError) throw profileError;
 
-      await replaceUserRole(serviceClient, id, rolePadrao);
+      await replaceUserRoles(serviceClient, id, rolePadrao, rolesSecundariosUpd);
       await replaceUserPermissions(serviceClient, id, payload.extra_permissions);
       await setUserActiveStatus(serviceClient, id, ativo);
 
       await insertAudit(serviceClient, currentUser.id, id, rolePadrao, {
-        tipo: "user_update", cargo: cargo || null, ativo, extra_permissions: payload.extra_permissions ?? [],
+        tipo: "user_update",
+        cargo: cargo || null,
+        ativo,
+        extra_permissions: payload.extra_permissions ?? [],
+        roles_secundarios: rolesSecundariosUpd,
       }, { motivo });
 
       return json({ ok: true }, 200, corsHeaders);

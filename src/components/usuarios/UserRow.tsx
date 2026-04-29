@@ -109,6 +109,14 @@ export function UserRow({
 
       <div className="flex flex-wrap items-center gap-2 shrink-0 relative z-10 pointer-events-none sm:pointer-events-auto">
         <RoleBadge role={user.role_padrao} />
+        {user.roles_secundarios && user.roles_secundarios.length > 0 && (
+          <span
+            className="inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-[11px] font-semibold text-primary"
+            title={`Roles adicionais cumulativos: ${user.roles_secundarios.join(', ')}`}
+          >
+            +{user.roles_secundarios.length}
+          </span>
+        )}
         <StatusBadgeUser ativo={user.ativo} />
       </div>
 

@@ -6,7 +6,7 @@ import { DataTable } from "@/components/DataTable";
 import { FormModal } from "@/components/FormModal";
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
-import { Upload } from "lucide-react";
+import { Upload, KeyRound } from "lucide-react";
 import { SummaryCard } from "@/components/SummaryCard";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { AutocompleteSearch } from "@/components/ui/AutocompleteSearch";
@@ -47,6 +47,7 @@ import {
 import { useNFeXmlImport } from "@/pages/fiscal/hooks/useNFeXmlImport";
 import type { TraducaoLinha } from "@/pages/fiscal/hooks/useNFeXmlImport";
 import { TraducaoXmlDrawer } from "@/pages/fiscal/components/TraducaoXmlDrawer";
+import { BuscarPorChaveDialog } from "@/pages/fiscal/components/BuscarPorChaveDialog";
 import { NotaFiscalEditModal } from "@/components/fiscal/NotaFiscalEditModal";
 import { useActionLock } from "@/hooks/useActionLock";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
@@ -174,6 +175,7 @@ const Fiscal = () => {
   const [consultaSearch, setConsultaSearch] = useState("");
   const [itemContaContabil, setItemContaContabil] = useState<Record<number, string>>({});
   const xmlInputRef = useRef<HTMLInputElement>(null);
+  const [buscarChaveOpen, setBuscarChaveOpen] = useState(false);
   const [danfeOpen, setDanfeOpen] = useState(false);
   const [danfeData, setDanfeData] = useState<Record<string, unknown> | null>(null);
   const [modeloFilters, setModeloFilters] = useState<string[]>([]);
@@ -596,9 +598,22 @@ const Fiscal = () => {
     const file = event.target.files?.[0];
     if (!file) return;
     try {
-      const result = await importXml(file);
+      await processarXmlImportado(file);
+    } catch (err: unknown) {
+      logger.error("[fiscal] XML import:", err);
+      toast.error(`Erro ao importar XML: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    if (xmlInputRef.current) xmlInputRef.current.value = "";
+  };
+
+  /**
+   * Núcleo do fluxo de importação de XML, agnóstico à origem (upload manual
+   * ou consulta por chave de acesso). Centralizar aqui evita divergência
+   * de UX (traducao drawer, quick-add fornecedor, fluxo de aplicação).
+   */
+  const processarXmlImportado = async (input: File | string) => {
+      const result = await importXml(input);
       if (!result) {
-        if (xmlInputRef.current) xmlInputRef.current.value = "";
         return;
       }
       const { nfe, fornecedorId, fiscalMap, traducao, traducaoOk } = result;
@@ -631,11 +646,6 @@ const Fiscal = () => {
         setTraducaoReadOnly(false);
         setTraducaoOpen(true);
       }
-    } catch (err: unknown) {
-      logger.error("[fiscal] XML import:", err);
-      toast.error(`Erro ao importar XML: ${err instanceof Error ? err.message : String(err)}`);
-    }
-    if (xmlInputRef.current) xmlInputRef.current.value = "";
   };
 
   const handleTraducaoConfirm = async (linhas: TraducaoLinha[]) => {
@@ -954,6 +964,16 @@ const Fiscal = () => {
         addButtonHelpId="fiscal.novoBtn"
         headerActions={<>
           <input ref={xmlInputRef} type="file" accept=".xml" className="hidden" onChange={handleXmlImport} />
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 min-h-11 md:min-h-9 px-3"
+            onClick={() => setBuscarChaveOpen(true)}
+            aria-label="Buscar NF-e pela chave de acesso"
+          >
+            <KeyRound className="h-4 w-4 md:h-3.5 md:w-3.5" />{" "}
+            <span className="hidden xs:inline">Buscar por </span>chave
+          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -1310,6 +1330,22 @@ const Fiscal = () => {
       />
 
       <DanfeViewer open={danfeOpen} onClose={() => setDanfeOpen(false)} data={danfeData as never} />
+
+      {/* Busca de NF-e por chave de acesso (44 dígitos) — DistDFe local + sync SEFAZ */}
+      <BuscarPorChaveDialog
+        open={buscarChaveOpen}
+        onClose={() => setBuscarChaveOpen(false)}
+        onXmlObtido={async (xml) => {
+          try {
+            await processarXmlImportado(xml);
+          } catch (err) {
+            logger.error("[fiscal] processar XML por chave:", err);
+            toast.error(
+              `Erro ao processar XML: ${err instanceof Error ? err.message : String(err)}`,
+            );
+          }
+        }}
+      />
 
       {/* Tradução XML — etapa explícita XML→cadastro. Obrigatório com pendência, opcional via banner. */}
       <TraducaoXmlDrawer

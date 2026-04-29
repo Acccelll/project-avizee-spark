@@ -93,8 +93,9 @@ export interface UseNFeXmlImportArgs {
  */
 export function useNFeXmlImport({ fornecedores, produtos }: UseNFeXmlImportArgs) {
   const importXml = useCallback(
-    async (file: File): Promise<NFeXmlImportResult | null> => {
-      const xmlText = await file.text();
+    async (input: File | string): Promise<NFeXmlImportResult | null> => {
+      // Aceita File (upload manual) ou string (XML obtido por consulta de chave / DistDFe).
+      const xmlText = typeof input === "string" ? input : await input.text();
       const nfe: NFeData = parseNFeXml(xmlText);
 
       // Bloqueio de re-importação por chave de acesso (idempotência fiscal).
