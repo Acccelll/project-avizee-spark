@@ -29,6 +29,8 @@ export interface ProdutoMatchRef {
   sku: string | null;
   codigo_interno: string | null;
   unidade_medida?: string | null;
+  /** Texto livre do cadastro (ex.: "13 X 45"). Usado para distinguir produtos homônimos no autocomplete. */
+  variacoes?: string | string[] | null;
 }
 
 export interface NfItemFiscalDataLike {
