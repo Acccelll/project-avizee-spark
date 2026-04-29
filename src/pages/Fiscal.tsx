@@ -6,7 +6,7 @@ import { DataTable } from "@/components/DataTable";
 import { FormModal } from "@/components/FormModal";
 import { AdvancedFilterBar } from "@/components/AdvancedFilterBar";
 import type { FilterChip } from "@/components/AdvancedFilterBar";
-import { Upload } from "lucide-react";
+import { Upload, KeyRound } from "lucide-react";
 import { SummaryCard } from "@/components/SummaryCard";
 import { useSupabaseCrud } from "@/hooks/useSupabaseCrud";
 import { AutocompleteSearch } from "@/components/ui/AutocompleteSearch";
@@ -47,6 +47,7 @@ import {
 import { useNFeXmlImport } from "@/pages/fiscal/hooks/useNFeXmlImport";
 import type { TraducaoLinha } from "@/pages/fiscal/hooks/useNFeXmlImport";
 import { TraducaoXmlDrawer } from "@/pages/fiscal/components/TraducaoXmlDrawer";
+import { BuscarPorChaveDialog } from "@/pages/fiscal/components/BuscarPorChaveDialog";
 import { NotaFiscalEditModal } from "@/components/fiscal/NotaFiscalEditModal";
 import { useActionLock } from "@/hooks/useActionLock";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
