@@ -6305,78 +6305,167 @@ export type Database = {
           },
         ]
       }
+      social_alertas: {
+        Row: {
+          conta_id: string | null
+          data_cadastro: string
+          data_referencia: string | null
+          descricao: string | null
+          id: string
+          resolvido: boolean
+          severidade: string
+          tipo_alerta: string
+          titulo: string
+        }
+        Insert: {
+          conta_id?: string | null
+          data_cadastro?: string
+          data_referencia?: string | null
+          descricao?: string | null
+          id?: string
+          resolvido?: boolean
+          severidade?: string
+          tipo_alerta: string
+          titulo: string
+        }
+        Update: {
+          conta_id?: string | null
+          data_cadastro?: string
+          data_referencia?: string | null
+          descricao?: string | null
+          id?: string
+          resolvido?: boolean
+          severidade?: string
+          tipo_alerta?: string
+          titulo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_alertas_conta_id_fkey"
+            columns: ["conta_id"]
+            isOneToOne: false
+            referencedRelation: "social_contas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       social_contas: {
         Row: {
           access_token: string | null
           ativo: boolean
           data_cadastro: string
+          escopos: string[]
+          facebook_page_id: string | null
           id: string
-          identificador: string | null
-          nome: string
+          identificador_externo: string | null
+          meta_user_id: string | null
+          nome_conta: string
           plataforma: string
+          refresh_token: string | null
+          status_conexao: string
           token_expira_em: string | null
+          ultima_sincronizacao: string | null
           updated_at: string
+          url_conta: string | null
         }
         Insert: {
           access_token?: string | null
           ativo?: boolean
           data_cadastro?: string
+          escopos?: string[]
+          facebook_page_id?: string | null
           id?: string
-          identificador?: string | null
-          nome: string
+          identificador_externo?: string | null
+          meta_user_id?: string | null
+          nome_conta: string
           plataforma: string
+          refresh_token?: string | null
+          status_conexao?: string
           token_expira_em?: string | null
+          ultima_sincronizacao?: string | null
           updated_at?: string
+          url_conta?: string | null
         }
         Update: {
           access_token?: string | null
           ativo?: boolean
           data_cadastro?: string
+          escopos?: string[]
+          facebook_page_id?: string | null
           id?: string
-          identificador?: string | null
-          nome?: string
+          identificador_externo?: string | null
+          meta_user_id?: string | null
+          nome_conta?: string
           plataforma?: string
+          refresh_token?: string | null
+          status_conexao?: string
           token_expira_em?: string | null
+          ultima_sincronizacao?: string | null
           updated_at?: string
+          url_conta?: string | null
         }
         Relationships: []
       }
       social_metricas_snapshot: {
         Row: {
           alcance: number | null
+          cliques_link: number
           conta_id: string
           created_at: string
           data_referencia: string
           engajamento: number | null
+          engajamento_total: number
           id: string
           impressoes: number | null
+          observacoes: string | null
           publicacoes: number | null
+          quantidade_posts_periodo: number
           seguidores: number | null
+          seguidores_novos: number
+          seguidores_total: number
           seguindo: number | null
+          taxa_engajamento: number
+          visitas_perfil: number
         }
         Insert: {
           alcance?: number | null
+          cliques_link?: number
           conta_id: string
           created_at?: string
           data_referencia: string
           engajamento?: number | null
+          engajamento_total?: number
           id?: string
           impressoes?: number | null
+          observacoes?: string | null
           publicacoes?: number | null
+          quantidade_posts_periodo?: number
           seguidores?: number | null
+          seguidores_novos?: number
+          seguidores_total?: number
           seguindo?: number | null
+          taxa_engajamento?: number
+          visitas_perfil?: number
         }
         Update: {
           alcance?: number | null
+          cliques_link?: number
           conta_id?: string
           created_at?: string
           data_referencia?: string
           engajamento?: number | null
+          engajamento_total?: number
           id?: string
           impressoes?: number | null
+          observacoes?: string | null
           publicacoes?: number | null
+          quantidade_posts_periodo?: number
           seguidores?: number | null
+          seguidores_novos?: number
+          seguidores_total?: number
           seguindo?: number | null
+          taxa_engajamento?: number
+          visitas_perfil?: number
         }
         Relationships: [
           {
@@ -6391,6 +6480,8 @@ export type Database = {
       social_posts: {
         Row: {
           alcance: number | null
+          campanha_id: string | null
+          cliques: number
           comentarios: number | null
           compartilhamentos: number | null
           conta_id: string
@@ -6398,13 +6489,23 @@ export type Database = {
           created_at: string
           curtidas: number | null
           data_publicacao: string | null
+          destaque: boolean
+          engajamento_total: number | null
           id: string
+          id_externo_post: string | null
           impressoes: number | null
-          post_id_externo: string | null
+          plataforma: string | null
+          salvamentos: number
+          taxa_engajamento: number | null
           tipo: string | null
+          tipo_post: string
+          titulo_legenda: string | null
+          url_post: string | null
         }
         Insert: {
           alcance?: number | null
+          campanha_id?: string | null
+          cliques?: number
           comentarios?: number | null
           compartilhamentos?: number | null
           conta_id: string
@@ -6412,13 +6513,23 @@ export type Database = {
           created_at?: string
           curtidas?: number | null
           data_publicacao?: string | null
+          destaque?: boolean
+          engajamento_total?: number | null
           id?: string
+          id_externo_post?: string | null
           impressoes?: number | null
-          post_id_externo?: string | null
+          plataforma?: string | null
+          salvamentos?: number
+          taxa_engajamento?: number | null
           tipo?: string | null
+          tipo_post?: string
+          titulo_legenda?: string | null
+          url_post?: string | null
         }
         Update: {
           alcance?: number | null
+          campanha_id?: string | null
+          cliques?: number
           comentarios?: number | null
           compartilhamentos?: number | null
           conta_id?: string
@@ -6426,14 +6537,63 @@ export type Database = {
           created_at?: string
           curtidas?: number | null
           data_publicacao?: string | null
+          destaque?: boolean
+          engajamento_total?: number | null
           id?: string
+          id_externo_post?: string | null
           impressoes?: number | null
-          post_id_externo?: string | null
+          plataforma?: string | null
+          salvamentos?: number
+          taxa_engajamento?: number | null
           tipo?: string | null
+          tipo_post?: string
+          titulo_legenda?: string | null
+          url_post?: string | null
         }
         Relationships: [
           {
             foreignKeyName: "social_posts_conta_id_fkey"
+            columns: ["conta_id"]
+            isOneToOne: false
+            referencedRelation: "social_contas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      social_sync_jobs: {
+        Row: {
+          concluido_em: string | null
+          conta_id: string | null
+          data_cadastro: string
+          erro_mensagem: string | null
+          id: string
+          iniciado_em: string | null
+          resultado: Json | null
+          status: string
+        }
+        Insert: {
+          concluido_em?: string | null
+          conta_id?: string | null
+          data_cadastro?: string
+          erro_mensagem?: string | null
+          id?: string
+          iniciado_em?: string | null
+          resultado?: Json | null
+          status?: string
+        }
+        Update: {
+          concluido_em?: string | null
+          conta_id?: string | null
+          data_cadastro?: string
+          erro_mensagem?: string | null
+          id?: string
+          iniciado_em?: string | null
+          resultado?: Json | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_sync_jobs_conta_id_fkey"
             columns: ["conta_id"]
             isOneToOne: false
             referencedRelation: "social_contas"
@@ -8615,38 +8775,80 @@ export type Database = {
       social_alertas_periodo: {
         Args: { _data_fim: string; _data_inicio: string }
         Returns: {
-          created_at: string
+          conta_id: string | null
+          data_cadastro: string
+          data_referencia: string | null
+          descricao: string | null
           id: string
-          mensagem: string
-          tipo: string
+          resolvido: boolean
+          severidade: string
+          tipo_alerta: string
+          titulo: string
         }[]
+        SetofOptions: {
+          from: "*"
+          to: "social_alertas"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       social_dashboard_consolidado: {
         Args: { _data_fim: string; _data_inicio: string }
         Returns: Json
       }
-      social_posts_filtrados: {
-        Args: { _conta_id?: string; _data_fim: string; _data_inicio: string }
+      social_metricas_periodo: {
+        Args: { _conta_id: string; _data_fim: string; _data_inicio: string }
         Returns: {
           alcance: number | null
-          comentarios: number | null
-          compartilhamentos: number | null
+          cliques_link: number
           conta_id: string
-          conteudo: string | null
           created_at: string
-          curtidas: number | null
-          data_publicacao: string | null
+          data_referencia: string
+          engajamento: number | null
+          engajamento_total: number
           id: string
           impressoes: number | null
-          post_id_externo: string | null
-          tipo: string | null
+          observacoes: string | null
+          publicacoes: number | null
+          quantidade_posts_periodo: number
+          seguidores: number | null
+          seguidores_novos: number
+          seguidores_total: number
+          seguindo: number | null
+          taxa_engajamento: number
+          visitas_perfil: number
         }[]
         SetofOptions: {
           from: "*"
-          to: "social_posts"
+          to: "social_metricas_snapshot"
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      social_posts_filtrados: {
+        Args: { _conta_id?: string; _data_fim: string; _data_inicio: string }
+        Returns: {
+          alcance: number
+          campanha_id: string
+          cliques: number
+          comentarios: number
+          compartilhamentos: number
+          conta_id: string
+          curtidas: number
+          data_publicacao: string
+          destaque: boolean
+          engajamento_total: number
+          id: string
+          id_externo_post: string
+          impressoes: number
+          nome_conta: string
+          plataforma: string
+          salvamentos: number
+          taxa_engajamento: number
+          tipo_post: string
+          titulo_legenda: string
+          url_post: string
+        }[]
       }
       social_sincronizar_manual: { Args: { _conta_id?: string }; Returns: Json }
       solicitar_aprovacao_pedido: {

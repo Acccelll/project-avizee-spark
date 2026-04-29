@@ -1,9 +1,13 @@
 import { useMemo, useState } from 'react';
+import { Instagram } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
+import { iniciarOAuthInstagram } from '@/services/social.service';
+import { useToast } from '@/hooks/use-toast';
 import type { SocialConnectionStatus, SocialCreateContaPayload, SocialPlatform } from '@/types/social';
 
 interface Props {
@@ -16,6 +20,8 @@ const statusOptions: SocialConnectionStatus[] = ['conectado', 'expirado', 'erro'
 
 export function SocialContaModal({ open, onOpenChange, onSubmit }: Props) {
   const [saving, setSaving] = useState(false);
+  const [connecting, setConnecting] = useState(false);
+  const { toast } = useToast();
   const [form, setForm] = useState<SocialCreateContaPayload>({
     plataforma: 'instagram_business',
     nome_conta: '',
@@ -57,13 +63,49 @@ export function SocialContaModal({ open, onOpenChange, onSubmit }: Props) {
     }
   };
 
+  const handleConnectInstagram = async () => {
+    setConnecting(true);
+    try {
+      const url = await iniciarOAuthInstagram('/social');
+      window.location.assign(url);
+    } catch (err) {
+      toast({
+        title: 'Não foi possível conectar',
+        description: err instanceof Error ? err.message : 'Erro desconhecido',
+        variant: 'destructive',
+      });
+      setConnecting(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Cadastro de conta social</DialogTitle>
-          <DialogDescription>Fluxo operacional mínimo para governança de contas conectadas.</DialogDescription>
+          <DialogDescription>
+            Conecte uma conta Instagram Business via Facebook Login ou registre manualmente (LinkedIn).
+          </DialogDescription>
         </DialogHeader>
+
+        <div className="rounded-md border bg-muted/30 p-3">
+          <p className="text-sm font-medium">Instagram Business</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Você será redirecionado ao Facebook para autorizar acesso à sua conta IG vinculada.
+          </p>
+          <Button
+            type="button"
+            className="mt-3 w-full"
+            onClick={handleConnectInstagram}
+            disabled={connecting}
+          >
+            <Instagram className="mr-2 h-4 w-4" />
+            {connecting ? 'Redirecionando...' : 'Conectar com Instagram'}
+          </Button>
+        </div>
+
+        <Separator className="my-1" />
+        <p className="text-xs text-muted-foreground">Ou cadastre manualmente (ex.: LinkedIn):</p>
 
         <div className="grid gap-3 py-2">
           <div className="space-y-1.5">
