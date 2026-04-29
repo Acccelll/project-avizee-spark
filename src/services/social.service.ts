@@ -82,6 +82,27 @@ export async function sincronizarSocial(
   return data as unknown as { success: boolean; message: string };
 }
 
+/**
+ * Inicia o fluxo OAuth do Instagram via Facebook Login for Business.
+ * Chama a edge function `instagram-oauth/start` (com bearer do usuário) que
+ * devolve o `authorize_url` do Facebook. O caller deve fazer
+ * `window.location.assign(authorize_url)`.
+ */
+export async function iniciarOAuthInstagram(returnTo = '/social'): Promise<string> {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData.session?.access_token;
+  if (!token) throw new Error('Usuário não autenticado.');
+
+  const baseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+  const url = `${baseUrl}/functions/v1/instagram-oauth/start?return_to=${encodeURIComponent(returnTo)}`;
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  const body = await res.json();
+  if (!res.ok || !body.authorize_url) {
+    throw new Error(body.error ?? 'Falha ao iniciar OAuth do Instagram');
+  }
+  return body.authorize_url as string;
+}
+
 export async function carregarDashboardSocial(
   dataInicio: string,
   dataFim: string,
