@@ -77,6 +77,7 @@ export type ProdutoFornecedorRow = {
   unidade_fornecedor: string | null;
   lead_time_dias: number | null;
   preco_compra: number | null;
+  fator_conversao: number | null;
 };
 
 export async function listProdutoFornecedores(produtoId: string): Promise<ProdutoFornecedorRow[]> {
