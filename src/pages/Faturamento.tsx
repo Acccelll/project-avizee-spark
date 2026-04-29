@@ -6,7 +6,6 @@ import { SummaryCard } from "@/components/SummaryCard";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   FileText,
@@ -26,6 +25,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { CertificadoValidadeAlert } from "@/components/fiscal/CertificadoValidadeAlert";
 import { BacklogFaturamento } from "@/pages/faturamento/BacklogFaturamento";
+import { ConsultaDocumentos } from "@/pages/faturamento/ConsultaDocumentos";
+import { FiscalSefazStatusBadge } from "@/components/fiscal/FiscalStatusBadges";
 import { InutilizacaoDrawer } from "@/pages/fiscal/components/InutilizacaoDrawer";
 import { StatusSefazUFWidget } from "@/pages/fiscal/components/StatusSefazUFWidget";
 import { ContingenciaSvcDrawer } from "@/pages/fiscal/components/ContingenciaSvcDrawer";
@@ -139,21 +140,6 @@ async function fetchUltimasNotas(): Promise<DocResumo[]> {
     status_sefaz: row.status_sefaz,
     cliente_nome: (row as { clientes?: { nome?: string | null } | null }).clientes?.nome ?? null,
   }));
-}
-
-function StatusBadge({ status }: { status: string | null }) {
-  if (!status) return <Badge variant="outline">—</Badge>;
-  const map: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-    autorizada: { label: "Autorizada", variant: "default" },
-    rejeitada: { label: "Rejeitada", variant: "destructive" },
-    cancelada: { label: "Cancelada", variant: "secondary" },
-    pendente: { label: "Pendente", variant: "outline" },
-    em_processamento: { label: "Em processamento", variant: "outline" },
-    aguardando_protocolo: { label: "Aguardando", variant: "outline" },
-    importada_externa: { label: "Importada", variant: "secondary" },
-  };
-  const cfg = map[status] ?? { label: status, variant: "outline" as const };
-  return <Badge variant={cfg.variant}>{cfg.label}</Badge>;
 }
 
 export default function Faturamento() {
