@@ -17,7 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
-import { AlertCircle, ArrowRight, CheckCircle2 } from "lucide-react";
+import { AlertCircle, ArrowRight, CheckCircle2, PlusCircle } from "lucide-react";
 import { AutocompleteSearch } from "@/components/ui/AutocompleteSearch";
 import type { TraducaoLinha, ProdutoMatchRef } from "@/pages/fiscal/hooks/useNFeXmlImport";
 import { parseVariacoes, formatVariacoesSuffix } from "@/utils/cadastros";
@@ -31,12 +31,17 @@ interface Props {
   linhas: TraducaoLinha[];
   onCancel: () => void;
   onConfirm: (linhas: TraducaoLinha[]) => void;
+  /**
+   * Callback para "Cadastrar produto" a partir do nome do XML.
+   * Recebe o índice da linha e o nome sugerido (xProd).
+   */
+  onCreateProduto?: (linhaIndex: number, sugestaoNome: string) => void;
 }
 
 const fmt = (n: number, dec = 4) =>
   Number.isFinite(n) ? n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: dec }) : "—";
 
-export function TraducaoXmlDrawer({ open, readOnly = false, fornecedorNome, produtos, linhas, onCancel, onConfirm }: Props) {
+export function TraducaoXmlDrawer({ open, readOnly = false, fornecedorNome, produtos, linhas, onCancel, onConfirm, onCreateProduto }: Props) {
   const [draft, setDraft] = useState<TraducaoLinha[]>(linhas);
 
   useEffect(() => {
@@ -105,6 +110,7 @@ export function TraducaoXmlDrawer({ open, readOnly = false, fornecedorNome, prod
               readOnly={readOnly}
               produtoOptions={produtoOptions}
               onChange={(patch) => updateLinha(linha.index, patch)}
+              onCreateProduto={onCreateProduto}
             />
           ))}
         </div>
