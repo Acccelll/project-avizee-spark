@@ -598,9 +598,22 @@ const Fiscal = () => {
     const file = event.target.files?.[0];
     if (!file) return;
     try {
-      const result = await importXml(file);
+      await processarXmlImportado(file);
+    } catch (err: unknown) {
+      logger.error("[fiscal] XML import:", err);
+      toast.error(`Erro ao importar XML: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    if (xmlInputRef.current) xmlInputRef.current.value = "";
+  };
+
+  /**
+   * Núcleo do fluxo de importação de XML, agnóstico à origem (upload manual
+   * ou consulta por chave de acesso). Centralizar aqui evita divergência
+   * de UX (traducao drawer, quick-add fornecedor, fluxo de aplicação).
+   */
+  const processarXmlImportado = async (input: File | string) => {
+      const result = await importXml(input);
       if (!result) {
-        if (xmlInputRef.current) xmlInputRef.current.value = "";
         return;
       }
       const { nfe, fornecedorId, fiscalMap, traducao, traducaoOk } = result;
@@ -633,11 +646,6 @@ const Fiscal = () => {
         setTraducaoReadOnly(false);
         setTraducaoOpen(true);
       }
-    } catch (err: unknown) {
-      logger.error("[fiscal] XML import:", err);
-      toast.error(`Erro ao importar XML: ${err instanceof Error ? err.message : String(err)}`);
-    }
-    if (xmlInputRef.current) xmlInputRef.current.value = "";
   };
 
   const handleTraducaoConfirm = async (linhas: TraducaoLinha[]) => {
