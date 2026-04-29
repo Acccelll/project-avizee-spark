@@ -47,6 +47,7 @@ import {
   GitBranch,
 } from "lucide-react";
 import { toast } from "sonner";
+import { ComercialFlowTimeline } from "@/components/views/ComercialFlowTimeline";
 
 interface Props {
   id: string;
