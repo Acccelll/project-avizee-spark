@@ -7,6 +7,7 @@ import { DadosGerais } from "./DadosGerais";
 import { ItensNFe } from "./ItensNFe";
 import { ImpostosNFe } from "./ImpostosNFe";
 import { TransporteNFe } from "./TransporteNFe";
+import { PagamentoNFe } from "./PagamentoNFe";
 import { nfeSchema } from "./schema";
 import type { NFeFormData } from "./schema";
 
@@ -27,6 +28,9 @@ export function NFeForm({ defaultValues, onSubmit, disabled }: NFeFormProps) {
       descontoValor: 0,
       outrasDespesas: 0,
       itens: [],
+      geraFinanceiro: true,
+      numeroParcelas: 1,
+      intervaloParcelasDias: 30,
       ...defaultValues,
     },
   });
@@ -51,6 +55,12 @@ export function NFeForm({ defaultValues, onSubmit, disabled }: NFeFormProps) {
             <h3 className="text-base font-semibold">Transporte e Valores</h3>
             <Separator className="my-2" />
             <TransporteNFe disabled={disabled} />
+          </div>
+
+          <div>
+            <h3 className="text-base font-semibold">Pagamento</h3>
+            <Separator className="my-2" />
+            <PagamentoNFe disabled={disabled} />
           </div>
 
           <ImpostosNFe disabled={disabled} />
