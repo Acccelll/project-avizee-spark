@@ -195,7 +195,7 @@ export function OrcamentoView({ id }: Props) {
         )}
         {canConvertOrcamento(selected.status) && (
           <Button size="sm" variant="default" className="h-8 gap-1.5 text-xs" onClick={() => setConvertConfirmOpen(true)} disabled={isAnyLocked}>
-            <ArrowRightCircle className="h-3.5 w-3.5" /> Gerar Pedido
+            <ArrowRightCircle className="h-3.5 w-3.5" /> Converter em Pedido
           </Button>
         )}
         {["aprovado", "rejeitado", "expirado", "convertido"].includes(normalizeOrcamentoStatus(selected.status)) && (
@@ -552,7 +552,7 @@ export function OrcamentoView({ id }: Props) {
         loading={locked("approve")}
       />
 
-      {/* Gerar Pedido — preview de impacto cross-módulo */}
+      {/* Converter em Pedido de Venda — preview de impacto cross-módulo */}
       <CrossModuleActionDialog
         open={convertConfirmOpen}
         onClose={() => {
@@ -561,9 +561,9 @@ export function OrcamentoView({ id }: Props) {
           setDataPoCliente("");
         }}
         onConfirm={handleConvertToOV}
-        title="Gerar Pedido"
-        description={`Confirma a conversão do orçamento ${selected?.numero} em Pedido?`}
-        confirmLabel="Gerar Pedido"
+        title="Converter em Pedido de Venda"
+        description={`Confirma a conversão do orçamento ${selected?.numero} em Pedido de Venda? Nenhuma Nota Fiscal será emitida nesta etapa.`}
+        confirmLabel="Converter em Pedido"
         loading={locked("convert")}
         impacts={[
           {
