@@ -687,6 +687,17 @@ function Step3Itens() {
   const [open, setOpen] = useState(false);
   const debouncedBusca = useDebounce(busca, 300);
 
+  // M-02: CST/CSOSN default depende do CRT da empresa
+  const { data: empresaCrt } = useQuery({
+    queryKey: ["empresa-config-crt"],
+    queryFn: async () => {
+      const { data } = await supabase.from("empresa_config").select("crt").maybeSingle();
+      return (data?.crt as string | null) ?? "3";
+    },
+    staleTime: 5 * 60_000,
+  });
+  const cstDefault = (empresaCrt === "1" || empresaCrt === "2") ? "102" : "00";
+
   const { data: produtos } = useQuery({
     queryKey: ["produtos-busca-wizard", debouncedBusca],
     queryFn: async () => {
@@ -715,7 +726,7 @@ function Step3Itens() {
       descricao: p.descricao,
       ncm: (p.ncm ?? "").padStart(8, "0").slice(0, 8) || "00000000",
       cfop: "",
-      cst: "00",
+      cst: cstDefault,
       origem_mercadoria: "0",
       unidade: p.unidade_medida ?? "UN",
       quantidade: qtd,
@@ -743,7 +754,7 @@ function Step3Itens() {
       descricao: "",
       ncm: "",
       cfop: "",
-      cst: "00",
+      cst: cstDefault,
       origem_mercadoria: "0",
       unidade: "UN",
       quantidade: 1,
