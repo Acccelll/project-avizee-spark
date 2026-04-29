@@ -45,6 +45,8 @@ import {
   useEstornarNotaFiscal,
 } from "@/pages/fiscal/hooks/useNotaFiscalLifecycle";
 import { useNFeXmlImport } from "@/pages/fiscal/hooks/useNFeXmlImport";
+import type { TraducaoLinha } from "@/pages/fiscal/hooks/useNFeXmlImport";
+import { TraducaoXmlDrawer } from "@/pages/fiscal/components/TraducaoXmlDrawer";
 import { NotaFiscalEditModal } from "@/components/fiscal/NotaFiscalEditModal";
 import { useActionLock } from "@/hooks/useActionLock";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
@@ -116,7 +118,7 @@ const origemLabels: Record<string, string> = { manual: "Manual", pedido: "Pedido
 
 interface FornecedorRef { id: string; nome_razao_social: string; cpf_cnpj: string | null; }
 interface ClienteRef { id: string; nome_razao_social: string; cpf_cnpj: string | null; }
-interface ProdutoRef { id: string; nome: string; sku: string | null; codigo_interno: string | null; }
+interface ProdutoRef { id: string; nome: string; sku: string | null; codigo_interno: string | null; unidade_medida: string | null; }
 interface OrdemVendaRef { id: string; numero: string; clientes?: { nome_razao_social: string } | null; }
 interface ContaContabilRef { id: string; codigo: string; descricao: string; }
 interface NfItemRow {
@@ -178,6 +180,19 @@ const Fiscal = () => {
   const [origemFilters, setOrigemFilters] = useState<string[]>([]);
   const [statusSefazFilters, setStatusSefazFilters] = useState<string[]>([]);
   const [itemFiscalData, setItemFiscalData] = useState<Record<number, NfItemFiscalData>>({});
+  // Tradução XML — etapa explícita de mapeamento entre o XML do fornecedor e o cadastro interno.
+  const [traducaoLinhas, setTraducaoLinhas] = useState<TraducaoLinha[]>([]);
+  const [traducaoOpen, setTraducaoOpen] = useState(false);
+  const [traducaoReadOnly, setTraducaoReadOnly] = useState(false);
+  /** Snapshot do resultado do XML aguardando confirmação da tradução (quando há pendência). */
+  const [pendingXmlImport, setPendingXmlImport] = useState<{
+    nfe: import("@/lib/nfeXmlParser").NFeData;
+    fornecedorId: string;
+    fornecedorNome: string;
+    fiscalMap: Record<number, NfItemFiscalData>;
+  } | null>(null);
+  /** True quando a NF aberta no modal foi originada de um XML — controla o banner. */
+  const [xmlOriginInfo, setXmlOriginInfo] = useState<{ fornecedorId: string; fornecedorNome: string } | null>(null);
   // Devolução
   const [devolucaoModalOpen, setDevolucaoModalOpen] = useState(false);
   const [devolucaoNF, setDevolucaoNF] = useState<NotaFiscal | null>(null);
@@ -217,7 +232,7 @@ const Fiscal = () => {
   const [originPedidoNumero, setOriginPedidoNumero] = useState<string | null>(null);
   const [autoOpened, setAutoOpened] = useState(false);
 
-  const openCreate = () => { setMode("create"); setForm({ ...emptyForm }); setItems([]); setSelected(null); setParcelas(1); setItemContaContabil({}); setItemFiscalData({}); setModalOpen(true); };
+  const openCreate = () => { setMode("create"); setForm({ ...emptyForm }); setItems([]); setSelected(null); setParcelas(1); setItemContaContabil({}); setItemFiscalData({}); setXmlOriginInfo(null); setTraducaoLinhas([]); setModalOpen(true); };
 
   // Atalho rápido: ?new=1 abre o formulário de emissão.
   useEffect(() => {
@@ -409,6 +424,9 @@ const Fiscal = () => {
       throw new Error(`Item ${idx + 1} sem vínculo de produto. Vincule todos os itens antes de salvar.`);
     }
     const fiscal = itemFiscalData[idx] || {};
+    // Tradução XML: se a NF veio de XML, gravar XML cru em *_origem (verdade fiscal)
+    // e o match_status. Os campos quantidade/valor_unitario/unidade já são os internos convertidos.
+    const traducao = traducaoLinhas.find((t) => t.index === idx);
     return {
       nota_fiscal_id: nfId,
       produto_id: i.produto_id,
@@ -439,6 +457,14 @@ const Fiscal = () => {
       cst_ipi: fiscal.cst_ipi ?? null,
       desconto: fiscal.desconto ?? null,
       codigo_produto: fiscal.codigo_produto ?? i.codigo ?? null,
+      // XML cru preservado quando há tradução associada.
+      codigo_produto_origem: traducao?.xmlCodigo ?? null,
+      descricao_produto_origem: traducao?.xmlDescricao ?? null,
+      unidade_origem: traducao?.xmlUnidade ?? null,
+      quantidade_origem: traducao?.xmlQuantidade ?? null,
+      valor_unitario_origem: traducao?.xmlValorUnitario ?? null,
+      valor_total_origem: traducao?.xmlValorTotal ?? null,
+      match_status: traducao ? (traducao.matchStatus || null) : null,
     };
   });
 
@@ -479,6 +505,80 @@ const Fiscal = () => {
     setSaving(false);
   };
 
+  /** Aplica o resultado da tradução ao form/items e abre o modal da NF. */
+  const aplicarImportacaoXml = (
+    nfe: import("@/lib/nfeXmlParser").NFeData,
+    fornecedorId: string,
+    fornecedorNome: string,
+    linhas: TraducaoLinha[],
+    fiscalMap: Record<number, NfItemFiscalData>,
+  ) => {
+    const newItems: GridItem[] = linhas.map((t) => {
+      const qtdInterna = t.fatorConversao > 0 ? t.xmlQuantidade * t.fatorConversao : t.xmlQuantidade;
+      const vUnInterno = qtdInterna > 0 ? t.xmlValorTotal / qtdInterna : t.xmlValorUnitario;
+      const matched = produtosCrud.data.find((p) => p.id === t.produtoId);
+      return {
+        produto_id: t.produtoId,
+        codigo: t.xmlCodigo,
+        descricao: matched?.nome || t.xmlDescricao,
+        quantidade: qtdInterna,
+        valor_unitario: vUnInterno,
+        valor_total: t.xmlValorTotal,
+      };
+    });
+    setForm({
+      ...emptyForm,
+      tipo: "entrada",
+      numero: nfe.numero,
+      serie: nfe.serie,
+      chave_acesso: nfe.chaveAcesso,
+      data_emissao: nfe.dataEmissao || new Date().toISOString().split("T")[0],
+      fornecedor_id: fornecedorId,
+      frete_valor: nfe.valorFrete,
+      icms_valor: nfe.icmsTotal,
+      ipi_valor: nfe.ipiTotal,
+      pis_valor: nfe.pisTotal,
+      cofins_valor: nfe.cofinsTotal,
+      icms_st_valor: nfe.icmsStTotal,
+      desconto_valor: nfe.valorDesconto,
+      outras_despesas: nfe.valorOutrasDespesas,
+      valor_total: nfe.valorTotal,
+      origem: "importacao_xml",
+    });
+    setItems(newItems);
+    setMode("create");
+    setSelected(null);
+    setItemContaContabil({});
+    setItemFiscalData(fiscalMap);
+    setTraducaoLinhas(linhas);
+    setXmlOriginInfo({ fornecedorId, fornecedorNome });
+    setModalOpen(true);
+  };
+
+  /** Persiste o de-para (produtos_fornecedores) para as linhas marcadas como "salvar tradução". */
+  const salvarDeParaFornecedor = async (fornecedorId: string, linhas: TraducaoLinha[]) => {
+    const aSalvar = linhas.filter((l) => l.salvarDePara && l.produtoId && l.xmlCodigo);
+    if (aSalvar.length === 0 || !fornecedorId) return;
+    try {
+      const rows = aSalvar.map((l) => ({
+        produto_id: l.produtoId,
+        fornecedor_id: fornecedorId,
+        referencia_fornecedor: l.xmlCodigo,
+        descricao_fornecedor: l.xmlDescricao,
+        unidade_fornecedor: l.xmlUnidade,
+        fator_conversao: l.fatorConversao,
+      }));
+      // Upsert por (produto_id, fornecedor_id) — chave natural do de-para.
+      const { error } = await supabase
+        .from("produtos_fornecedores")
+        .upsert(rows, { onConflict: "produto_id,fornecedor_id" });
+      if (error) throw error;
+    } catch (err) {
+      logger.error("[fiscal] salvar de-para fornecedor:", err);
+      toast.warning("NF importada, mas não foi possível salvar a tradução para o fornecedor.");
+    }
+  };
+
   const handleXmlImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -488,42 +588,65 @@ const Fiscal = () => {
         if (xmlInputRef.current) xmlInputRef.current.value = "";
         return;
       }
-      const { nfe, fornecedorId, items: mappedItems, fiscalMap, unmatchedItemsCount } = result;
-      setForm({
-        ...emptyForm,
-        tipo: "entrada",
-        numero: nfe.numero,
-        serie: nfe.serie,
-        chave_acesso: nfe.chaveAcesso,
-        data_emissao: nfe.dataEmissao || new Date().toISOString().split("T")[0],
-        fornecedor_id: fornecedorId,
-        frete_valor: nfe.valorFrete,
-        icms_valor: nfe.icmsTotal,
-        ipi_valor: nfe.ipiTotal,
-        pis_valor: nfe.pisTotal,
-        cofins_valor: nfe.cofinsTotal,
-        icms_st_valor: nfe.icmsStTotal,
-        desconto_valor: nfe.valorDesconto,
-        outras_despesas: nfe.valorOutrasDespesas,
-        valor_total: nfe.valorTotal,
-        origem: "importacao_xml",
-      });
-      setItems(mappedItems);
-      setMode("create");
-      setSelected(null);
-      setItemContaContabil({});
-      setItemFiscalData(fiscalMap as Record<number, NfItemFiscalData>);
-      setModalOpen(true);
-      if (unmatchedItemsCount > 0) {
-        toast.warning(`${unmatchedItemsCount} item(ns) não foram vinculados automaticamente. Vincule manualmente antes de salvar.`);
+      const { nfe, fornecedorId, fiscalMap, traducao, traducaoOk } = result;
+      const fornecedorNome = fornecedoresCrud.data.find((f) => f.id === fornecedorId)?.nome_razao_social || nfe.emitente.razaoSocial || "—";
+
+      if (traducaoOk) {
+        // 100% OK → vai direto pro form. Banner permite reabrir em modo somente-leitura.
+        aplicarImportacaoXml(nfe, fornecedorId, fornecedorNome, traducao, fiscalMap as Record<number, NfItemFiscalData>);
+        toast.success("XML importado. Tradução automática aplicada.");
       } else {
-        toast.success("XML importado com sucesso! Todos os itens foram vinculados.");
+        // Pendência → drawer obrigatório, segura abertura do form.
+        setPendingXmlImport({ nfe, fornecedorId, fornecedorNome, fiscalMap: fiscalMap as Record<number, NfItemFiscalData> });
+        setTraducaoLinhas(traducao);
+        setTraducaoReadOnly(false);
+        setTraducaoOpen(true);
       }
     } catch (err: unknown) {
       logger.error("[fiscal] XML import:", err);
       toast.error(`Erro ao importar XML: ${err instanceof Error ? err.message : String(err)}`);
     }
     if (xmlInputRef.current) xmlInputRef.current.value = "";
+  };
+
+  const handleTraducaoConfirm = async (linhas: TraducaoLinha[]) => {
+    if (pendingXmlImport) {
+      // Fluxo "tinha pendência": agora aplica e abre o form.
+      const { nfe, fornecedorId, fornecedorNome, fiscalMap } = pendingXmlImport;
+      await salvarDeParaFornecedor(fornecedorId, linhas);
+      aplicarImportacaoXml(nfe, fornecedorId, fornecedorNome, linhas, fiscalMap);
+      setPendingXmlImport(null);
+      setTraducaoOpen(false);
+      toast.success("Tradução confirmada. Revise a NF e salve.");
+    } else if (xmlOriginInfo) {
+      // Reabertura via banner em modo edição (caso usuário queira ajustar): atualiza items e salva de-para.
+      await salvarDeParaFornecedor(xmlOriginInfo.fornecedorId, linhas);
+      const newItems: GridItem[] = linhas.map((t) => {
+        const qtdInterna = t.fatorConversao > 0 ? t.xmlQuantidade * t.fatorConversao : t.xmlQuantidade;
+        const vUnInterno = qtdInterna > 0 ? t.xmlValorTotal / qtdInterna : t.xmlValorUnitario;
+        const matched = produtosCrud.data.find((p) => p.id === t.produtoId);
+        return {
+          produto_id: t.produtoId,
+          codigo: t.xmlCodigo,
+          descricao: matched?.nome || t.xmlDescricao,
+          quantidade: qtdInterna,
+          valor_unitario: vUnInterno,
+          valor_total: t.xmlValorTotal,
+        };
+      });
+      setItems(newItems);
+      setTraducaoLinhas(linhas);
+      setTraducaoOpen(false);
+      toast.success("Tradução atualizada.");
+    }
+  };
+
+  const handleTraducaoCancel = () => {
+    setTraducaoOpen(false);
+    if (pendingXmlImport) {
+      setPendingXmlImport(null);
+      toast.info("Importação de XML cancelada.");
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -981,13 +1104,24 @@ const Fiscal = () => {
       {/* Form Modal - Create */}
       <FormModal
         open={modalOpen && mode === "create"}
-        onClose={() => setModalOpen(false)}
+        onClose={() => { setModalOpen(false); setXmlOriginInfo(null); setTraducaoLinhas([]); }}
         title="Nova Nota Fiscal"
         size="xl"
         mode="create"
         createHint="Importe um XML para preencher automaticamente, ou comece definindo o tipo (entrada/saída) e o emitente."
       >
         <form onSubmit={handleSubmit} className="space-y-5">
+          {xmlOriginInfo && traducaoLinhas.length > 0 && (
+            <div className="flex items-center justify-between gap-3 rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-sm">
+              <div>
+                <strong>NF importada de XML.</strong> Tradução automática aplicada para <em>{xmlOriginInfo.fornecedorNome}</em>.
+                <span className="text-muted-foreground"> Os campos fiscais do XML são preservados.</span>
+              </div>
+              <Button type="button" size="sm" variant="outline" onClick={() => { setTraducaoReadOnly(false); setTraducaoOpen(true); }}>
+                Ver/editar tradução
+              </Button>
+            </div>
+          )}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             <div className="space-y-2"><Label>Tipo</Label>
               <Select value={form.tipo} onValueChange={(v) => setForm({ ...form, tipo: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="entrada">Entrada</SelectItem><SelectItem value="saida">Saída</SelectItem></SelectContent></Select>
@@ -1141,6 +1275,18 @@ const Fiscal = () => {
       />
 
       <DanfeViewer open={danfeOpen} onClose={() => setDanfeOpen(false)} data={danfeData as never} />
+
+      {/* Tradução XML — etapa explícita XML→cadastro. Obrigatório com pendência, opcional via banner. */}
+      <TraducaoXmlDrawer
+        open={traducaoOpen}
+        readOnly={traducaoReadOnly}
+        fornecedorNome={pendingXmlImport?.fornecedorNome ?? xmlOriginInfo?.fornecedorNome ?? ""}
+        fornecedorId={pendingXmlImport?.fornecedorId ?? xmlOriginInfo?.fornecedorId ?? ""}
+        produtos={produtosCrud.data}
+        linhas={traducaoLinhas}
+        onCancel={handleTraducaoCancel}
+        onConfirm={handleTraducaoConfirm}
+      />
       {confirmDialog}
     </>
   );

@@ -77,6 +77,7 @@ export type ProdutoFornecedorRow = {
   unidade_fornecedor: string | null;
   lead_time_dias: number | null;
   preco_compra: number | null;
+  fator_conversao: number | null;
 };
 
 export async function listProdutoFornecedores(produtoId: string): Promise<ProdutoFornecedorRow[]> {
@@ -111,6 +112,7 @@ export async function saveProdutoFornecedores(params: {
     unidade_fornecedor: string;
     lead_time_dias: string;
     preco_compra: string;
+    fator_conversao?: string;
   }>;
 }): Promise<void> {
   const { error } = await supabase.rpc("save_produto_fornecedores", {

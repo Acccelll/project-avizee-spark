@@ -78,6 +78,9 @@ interface FornecedorLink {
   unidade_fornecedor: string;
   lead_time_dias: number;
   preco_compra: number;
+  /** Quantas unidades internas (produto.unidade_medida) cabem em 1 unidade do fornecedor.
+   *  qtd_interna = qtd_xml × fator. Default 1 quando unidades coincidem. */
+  fator_conversao: number;
 }
 
 interface UnidadeMedidaOption {
@@ -245,6 +248,7 @@ const Produtos = () => {
       id: f.id, fornecedor_id: f.fornecedor_id, eh_principal: f.eh_principal || false,
       descricao_fornecedor: f.descricao_fornecedor || "", referencia_fornecedor: f.referencia_fornecedor || "",
       unidade_fornecedor: f.unidade_fornecedor || "", lead_time_dias: f.lead_time_dias || 0, preco_compra: f.preco_compra || 0,
+      fator_conversao: (f as { fator_conversao?: number }).fator_conversao ?? 1,
     })));
     setMargemOverride(null); // deriva automaticamente do registro carregado
     setModalOpen(true);
@@ -276,7 +280,7 @@ const Produtos = () => {
   };
 
   const addFornecedor = () => {
-    setEditFornecedores([...editFornecedores, { fornecedor_id: "", eh_principal: editFornecedores.length === 0, descricao_fornecedor: "", referencia_fornecedor: "", unidade_fornecedor: "", lead_time_dias: 0, preco_compra: 0 }]);
+    setEditFornecedores([...editFornecedores, { fornecedor_id: "", eh_principal: editFornecedores.length === 0, descricao_fornecedor: "", referencia_fornecedor: "", unidade_fornecedor: "", lead_time_dias: 0, preco_compra: 0, fator_conversao: 1 }]);
   };
   const removeFornecedor = (idx: number) => setEditFornecedores(editFornecedores.filter((_, i) => i !== idx));
   const updateFornecedor = (idx: number, field: keyof FornecedorLink, value: FornecedorLink[keyof FornecedorLink]) => {
@@ -374,6 +378,7 @@ const Produtos = () => {
           unidade_fornecedor: f.unidade_fornecedor || "",
           lead_time_dias: f.lead_time_dias != null ? String(f.lead_time_dias) : "",
           preco_compra: f.preco_compra != null ? String(f.preco_compra) : "",
+          fator_conversao: f.fator_conversao != null ? String(f.fator_conversao) : "1",
         }));
       await saveProdutoFornecedores({
         produtoId,
@@ -1179,6 +1184,21 @@ const Produtos = () => {
                   <div className="space-y-1">
                     <Label className="text-xs">Unidade Forn.</Label>
                     <Input className="h-9" value={forn.unidade_fornecedor} onChange={(e) => updateFornecedor(idx, "unidade_fornecedor", e.target.value)} placeholder="UN" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Fator de Conversão</Label>
+                    <Input
+                      type="number"
+                      step="any"
+                      min="0"
+                      className="h-9"
+                      value={forn.fator_conversao}
+                      onChange={(e) => updateFornecedor(idx, "fator_conversao", Number(e.target.value))}
+                      placeholder="1"
+                    />
+                    <p className="text-[10px] text-muted-foreground">
+                      1 {forn.unidade_fornecedor || "un. forn."} = {forn.fator_conversao || 1} {form.unidade_medida || "un. interna"}
+                    </p>
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs">Lead Time (dias)</Label>

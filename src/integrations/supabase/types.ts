@@ -5682,6 +5682,7 @@ export type Database = {
           created_at: string
           descricao_fornecedor: string | null
           eh_principal: boolean | null
+          fator_conversao: number
           fornecedor_id: string
           id: string
           lead_time_dias: number | null
@@ -5695,6 +5696,7 @@ export type Database = {
           created_at?: string
           descricao_fornecedor?: string | null
           eh_principal?: boolean | null
+          fator_conversao?: number
           fornecedor_id: string
           id?: string
           lead_time_dias?: number | null
@@ -5708,6 +5710,7 @@ export type Database = {
           created_at?: string
           descricao_fornecedor?: string | null
           eh_principal?: boolean | null
+          fator_conversao?: number
           fornecedor_id?: string
           id?: string
           lead_time_dias?: number | null

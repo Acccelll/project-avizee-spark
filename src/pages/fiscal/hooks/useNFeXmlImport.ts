@@ -14,6 +14,7 @@ import { useCallback } from "react";
 import { toast } from "sonner";
 import { parseNFeXml, type NFeData } from "@/lib/nfeXmlParser";
 import { verificarDuplicidadeChave } from "@/services/fiscal.service";
+import { supabase } from "@/integrations/supabase/client";
 import type { GridItem } from "@/components/ui/ItemsGrid";
 
 export interface FornecedorMatchRef {
@@ -27,6 +28,7 @@ export interface ProdutoMatchRef {
   nome: string;
   sku: string | null;
   codigo_interno: string | null;
+  unidade_medida?: string | null;
 }
 
 export interface NfItemFiscalDataLike {
@@ -41,12 +43,40 @@ export interface NfItemFiscalDataLike {
   codigo_produto?: string | null;
 }
 
+/**
+ * Linha da "tradução" XML→sistema. A esquerda (campos `xml*`) é a verdade fiscal e
+ * NUNCA é alterada. A direita (`produtoId`, `unidadeInterna`, `fatorConversao`) é o
+ * mapeamento interno aplicado em estoque/custo. Ver mem://features/traducao-xml-fiscal.
+ */
+export interface TraducaoLinha {
+  index: number;
+  // XML (read-only)
+  xmlCodigo: string;
+  xmlDescricao: string;
+  xmlUnidade: string;
+  xmlQuantidade: number;
+  xmlValorUnitario: number;
+  xmlValorTotal: number;
+  // Internos
+  produtoId: string;
+  unidadeInterna: string | null;
+  fatorConversao: number;
+  /** Persistir o de-para (fornecedor + cProd → produto + fator) ao confirmar. */
+  salvarDePara: boolean;
+  /** "auto" = veio memorizado de produtos_fornecedores; "direto" = uCom == unidade interna; "manual" = usuário ajustou; "" = pendente. */
+  matchStatus: "" | "auto" | "direto" | "manual";
+  pendente: boolean;
+}
+
 export interface NFeXmlImportResult {
   nfe: NFeData;
   fornecedorId: string;
   items: GridItem[];
   fiscalMap: Record<number, NfItemFiscalDataLike>;
   unmatchedItemsCount: number;
+  traducao: TraducaoLinha[];
+  /** true se TODOS os itens caíram em "OK" (sem pendência) — drawer pode ser opcional. */
+  traducaoOk: boolean;
 }
 
 export interface UseNFeXmlImportArgs {
@@ -93,18 +123,86 @@ export function useNFeXmlImport({ fornecedores, produtos }: UseNFeXmlImportArgs)
         }
       }
 
-      // Match de produtos por código interno ou SKU.
-      const items: GridItem[] = nfe.itens.map((nfeItem) => {
-        const matchedProd = produtos.find(
-          (p) => p.codigo_interno === nfeItem.codigo || p.sku === nfeItem.codigo,
-        );
+      // Lookup do de-para por (fornecedor, cProd) — fonte preferencial de match.
+      type DeParaRow = { produto_id: string; referencia_fornecedor: string | null; unidade_fornecedor: string | null; fator_conversao: number };
+      const deParaByCodigo = new Map<string, DeParaRow>();
+      if (fornecedorId) {
+        const codigos = Array.from(new Set(nfe.itens.map((i) => i.codigo).filter(Boolean)));
+        if (codigos.length > 0) {
+          const { data: depara } = await supabase
+            .from("produtos_fornecedores")
+            .select("produto_id, referencia_fornecedor, unidade_fornecedor, fator_conversao")
+            .eq("fornecedor_id", fornecedorId)
+            .in("referencia_fornecedor", codigos);
+          (depara || []).forEach((d) => {
+            if (d.referencia_fornecedor) deParaByCodigo.set(d.referencia_fornecedor, d as DeParaRow);
+          });
+        }
+      }
+
+      const norm = (s: string | null | undefined) => (s || "").trim().toUpperCase();
+
+      const traducao: TraducaoLinha[] = nfe.itens.map((nfeItem, idx) => {
+        const dp = deParaByCodigo.get(nfeItem.codigo);
+        const matchedById = dp ? produtos.find((p) => p.id === dp.produto_id) : undefined;
+        const matchedByCodigo = !matchedById
+          ? produtos.find((p) => p.codigo_interno === nfeItem.codigo || p.sku === nfeItem.codigo)
+          : undefined;
+        const matched = matchedById || matchedByCodigo;
+        const unidadeInterna = matched?.unidade_medida ?? null;
+        const xmlUni = norm(nfeItem.unidade);
+        const intUni = norm(unidadeInterna);
+        const unidadesIguais = !!intUni && xmlUni === intUni;
+
+        let fator = 1;
+        let matchStatus: TraducaoLinha["matchStatus"] = "";
+        let pendente = true;
+
+        if (!matched) {
+          pendente = true; // sem produto vinculado
+        } else if (dp && Number(dp.fator_conversao) > 0) {
+          fator = Number(dp.fator_conversao);
+          matchStatus = "auto";
+          pendente = false;
+        } else if (unidadesIguais) {
+          fator = 1;
+          matchStatus = "direto";
+          pendente = false;
+        } else {
+          // Match por código interno mas unidade diverge sem fator memorizado.
+          pendente = true;
+        }
+
         return {
-          produto_id: matchedProd?.id || "",
+          index: idx,
+          xmlCodigo: nfeItem.codigo,
+          xmlDescricao: nfeItem.descricao,
+          xmlUnidade: nfeItem.unidade,
+          xmlQuantidade: nfeItem.quantidade,
+          xmlValorUnitario: nfeItem.valorUnitario,
+          xmlValorTotal: nfeItem.valorTotal,
+          produtoId: matched?.id || "",
+          unidadeInterna,
+          fatorConversao: fator,
+          salvarDePara: pendente, // sugerir salvar quando o usuário resolver a pendência
+          matchStatus,
+          pendente,
+        };
+      });
+
+      // Items aplicando a tradução (qtd_interna = qCom * fator; vUn_interno preserva total).
+      const items: GridItem[] = traducao.map((t, i) => {
+        const nfeItem = nfe.itens[i];
+        const qtdInterna = t.fatorConversao > 0 ? t.xmlQuantidade * t.fatorConversao : t.xmlQuantidade;
+        const vUnInterno = qtdInterna > 0 ? t.xmlValorTotal / qtdInterna : t.xmlValorUnitario;
+        const matched = produtos.find((p) => p.id === t.produtoId);
+        return {
+          produto_id: t.produtoId,
           codigo: nfeItem.codigo,
-          descricao: matchedProd?.nome || nfeItem.descricao,
-          quantidade: nfeItem.quantidade,
-          valor_unitario: nfeItem.valorUnitario,
-          valor_total: nfeItem.valorTotal,
+          descricao: matched?.nome || nfeItem.descricao,
+          quantidade: qtdInterna,
+          valor_unitario: vUnInterno,
+          valor_total: t.xmlValorTotal, // total fiscal preservado
         };
       });
 
@@ -125,8 +223,9 @@ export function useNFeXmlImport({ fornecedores, produtos }: UseNFeXmlImportArgs)
       });
 
       const unmatchedItemsCount = items.filter((i) => !i.produto_id).length;
+      const traducaoOk = traducao.every((t) => !t.pendente);
 
-      return { nfe, fornecedorId, items, fiscalMap, unmatchedItemsCount };
+      return { nfe, fornecedorId, items, fiscalMap, unmatchedItemsCount, traducao, traducaoOk };
     },
     [fornecedores, produtos],
   );

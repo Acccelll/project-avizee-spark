@@ -1,0 +1,1 @@
+- [Tradução XML Fiscal](mem://features/traducao-xml-fiscal) — Drawer obrigatório com pendência, opcional via banner em 100% OK; XML é verdade fiscal imutável; fator qtd_interna = qCom × fator
