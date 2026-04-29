@@ -918,7 +918,7 @@ const Produtos = () => {
                     onClick={async () => {
                       try {
                         const next = await proximoSkuDoGrupo(form.grupo_id);
-                        setForm((f) => ({ ...f, sku: next }));
+                        setForm({ ...form, sku: next });
                         toast.success(`SKU sugerido: ${next}`);
                       } catch (e) {
                         toast.error((e as Error).message);
