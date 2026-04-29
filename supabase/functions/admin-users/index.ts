@@ -414,6 +414,7 @@ Deno.serve(async (req) => {
 
       if (!nome || !email) throw new HttpError(400, "Nome e e-mail são obrigatórios.");
       log.info("create: starting", { email, nome, rolePadrao });
+      const rolesSecundarios = normalizeSecondaryRoles(payload.roles_secundarios, rolePadrao);
 
       const existingUsersResult = await serviceClient.auth.admin.listUsers({ page: 1, perPage: 1000 });
       if (existingUsersResult.error) throw existingUsersResult.error;
@@ -485,12 +486,17 @@ Deno.serve(async (req) => {
         throw profileError;
       }
 
-      await replaceUserRole(serviceClient, targetUser.id, rolePadrao);
+      await replaceUserRoles(serviceClient, targetUser.id, rolePadrao, rolesSecundarios);
       await replaceUserPermissions(serviceClient, targetUser.id, payload.extra_permissions);
       if (!ativo) await setUserActiveStatus(serviceClient, targetUser.id, false);
 
       await insertAudit(serviceClient, currentUser.id, targetUser.id, rolePadrao, {
-        tipo: "user_create", email, cargo: cargo || null, ativo, extra_permissions: payload.extra_permissions ?? [],
+        tipo: "user_create",
+        email,
+        cargo: cargo || null,
+        ativo,
+        extra_permissions: payload.extra_permissions ?? [],
+        roles_secundarios: rolesSecundarios,
       });
 
       return json({
@@ -515,6 +521,7 @@ Deno.serve(async (req) => {
         : undefined;
 
       if (!id || !nome) throw new HttpError(400, "Usuário inválido.");
+      const rolesSecundariosUpd = normalizeSecondaryRoles(payload.roles_secundarios, rolePadrao);
 
       const { error: authUpdateError } = await serviceClient.auth.admin.updateUserById(id, { user_metadata: { full_name: nome } });
       if (authUpdateError) throw authUpdateError;
@@ -522,12 +529,16 @@ Deno.serve(async (req) => {
       const { error: profileError } = await serviceClient.from("profiles").upsert({ id, nome, email: email || null, cargo: cargo || null, updated_at: new Date().toISOString() }, { onConflict: "id" });
       if (profileError) throw profileError;
 
-      await replaceUserRole(serviceClient, id, rolePadrao);
+      await replaceUserRoles(serviceClient, id, rolePadrao, rolesSecundariosUpd);
       await replaceUserPermissions(serviceClient, id, payload.extra_permissions);
       await setUserActiveStatus(serviceClient, id, ativo);
 
       await insertAudit(serviceClient, currentUser.id, id, rolePadrao, {
-        tipo: "user_update", cargo: cargo || null, ativo, extra_permissions: payload.extra_permissions ?? [],
+        tipo: "user_update",
+        cargo: cargo || null,
+        ativo,
+        extra_permissions: payload.extra_permissions ?? [],
+        roles_secundarios: rolesSecundariosUpd,
       }, { motivo });
 
       return json({ ok: true }, 200, corsHeaders);
