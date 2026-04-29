@@ -1315,7 +1315,49 @@ const Fiscal = () => {
         linhas={traducaoLinhas}
         onCancel={handleTraducaoCancel}
         onConfirm={handleTraducaoConfirm}
+        onCreateProduto={(idx, nome) => {
+          setQuickProdutoLinhaIdx(idx);
+          setQuickProdutoNome(nome);
+        }}
       />
+
+      {/* Cadastro rápido de produto a partir do XML */}
+      <QuickAddProductModal
+        open={quickProdutoLinhaIdx !== null}
+        defaultNome={quickProdutoNome}
+        onClose={() => { setQuickProdutoLinhaIdx(null); setQuickProdutoNome(""); }}
+        onCreated={async (produtoId) => {
+          const idx = quickProdutoLinhaIdx;
+          await produtosCrud.refetch?.();
+          if (idx !== null) {
+            setTraducaoLinhas((prev) => prev.map((l) =>
+              l.index === idx ? { ...l, produtoId, matchStatus: "manual", pendente: false, salvarDePara: true } : l
+            ));
+          }
+          setQuickProdutoLinhaIdx(null);
+          setQuickProdutoNome("");
+        }}
+      />
+
+      {/* Cadastro rápido de fornecedor a partir do XML */}
+      <QuickAddSupplierModal
+        open={quickFornecedorOpen}
+        defaults={quickFornecedorDefaults}
+        onClose={() => { setQuickFornecedorOpen(false); }}
+        onCreated={async (fornecedorId) => {
+          await fornecedoresCrud.refetch?.();
+          setQuickFornecedorOpen(false);
+          // Retoma o fluxo de importação XML pendente
+          if (pendingXmlImport) {
+            const fornecedorNome = quickFornecedorDefaults.nome_razao_social || "";
+            const newPending = { ...pendingXmlImport, fornecedorId, fornecedorNome };
+            setPendingXmlImport(newPending);
+            setTraducaoReadOnly(false);
+            setTraducaoOpen(true);
+          }
+        }}
+      />
+
       {confirmDialog}
     </>
   );
