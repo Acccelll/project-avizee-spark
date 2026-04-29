@@ -604,6 +604,22 @@ const Fiscal = () => {
       const { nfe, fornecedorId, fiscalMap, traducao, traducaoOk } = result;
       const fornecedorNome = fornecedoresCrud.data.find((f) => f.id === fornecedorId)?.nome_razao_social || nfe.emitente.razaoSocial || "—";
 
+      // Sem fornecedor → oferecer cadastro rápido pré-preenchido com dados do XML.
+      if (!fornecedorId && nfe.emitente?.cnpj) {
+        setQuickFornecedorDefaults({
+          nome_razao_social: nfe.emitente.razaoSocial || "",
+          cpf_cnpj: nfe.emitente.cnpj,
+          email: (nfe.emitente as { email?: string }).email || "",
+          telefone: (nfe.emitente as { telefone?: string }).telefone || "",
+        });
+        // Mantém pendingXmlImport para retomar após cadastro do fornecedor.
+        setPendingXmlImport({ nfe, fornecedorId: "", fornecedorNome, fiscalMap: fiscalMap as Record<number, NfItemFiscalData> });
+        setTraducaoLinhas(traducao);
+        setQuickFornecedorOpen(true);
+        toast.info(`Fornecedor ${nfe.emitente.cnpj} não cadastrado. Cadastre rapidamente para continuar.`);
+        return;
+      }
+
       if (traducaoOk) {
         // 100% OK → vai direto pro form. Banner permite reabrir em modo somente-leitura.
         aplicarImportacaoXml(nfe, fornecedorId, fornecedorNome, traducao, fiscalMap as Record<number, NfItemFiscalData>);
