@@ -21,3 +21,5 @@ project_id = "cpvdncsxzostovdduhci"
     verify_jwt = false
   [functions.process-distdfe-cron]
     verify_jwt = false
+  [functions.instagram-oauth]
+    verify_jwt = false
