@@ -283,6 +283,64 @@ function Step1Identificacao() {
           <Label>Data de emissão *</Label>
           <Input type="date" {...register("data_emissao")} />
         </div>
+        <div className="space-y-1">
+          <Label>Indicador de presença *</Label>
+          <Select
+            value={watch("indicador_presenca")}
+            onValueChange={(v) => setValue("indicador_presenca", v as WizardData["indicador_presenca"], { shouldDirty: true })}
+          >
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="0">0 — Não se aplica</SelectItem>
+              <SelectItem value="1">1 — Operação presencial</SelectItem>
+              <SelectItem value="2">2 — Não presencial, internet</SelectItem>
+              <SelectItem value="3">3 — Não presencial, teleatendimento</SelectItem>
+              <SelectItem value="4">4 — NFC-e em entrega a domicílio</SelectItem>
+              <SelectItem value="9">9 — Não presencial, outros</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1">
+          <Label>Data de saída</Label>
+          <Input type="date" {...register("data_saida")} />
+          {formState.errors.data_saida && (
+            <p className="text-xs text-destructive">{formState.errors.data_saida.message}</p>
+          )}
+        </div>
+        <div className="space-y-1">
+          <Label>Hora de saída</Label>
+          <Input type="time" step={1} {...register("hora_saida")} placeholder="HH:MM:SS" />
+        </div>
+        <div className="sm:col-span-2 rounded-md border p-3 space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <Label className="text-sm">Operação via intermediador (marketplace)</Label>
+              <p className="text-xs text-muted-foreground">
+                Ative para vendas via plataforma digital (NT 2020.006).
+              </p>
+            </div>
+            <Switch
+              checked={watch("via_intermediador") ?? false}
+              onCheckedChange={(v) => setValue("via_intermediador", v, { shouldDirty: true })}
+            />
+          </div>
+          {watch("via_intermediador") && (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1">
+                <Label className="text-xs">CNPJ do intermediador *</Label>
+                <Input
+                  {...register("intermediador_cnpj")}
+                  placeholder="00000000000000"
+                  maxLength={14}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Identificador do pedido na plataforma</Label>
+                <Input {...register("intermediador_identificador")} placeholder="ex.: ML123456789" />
+              </div>
+            </div>
+          )}
+        </div>
       </CardContent>
     </Card>
   );
