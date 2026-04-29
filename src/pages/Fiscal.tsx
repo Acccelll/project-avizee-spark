@@ -424,6 +424,9 @@ const Fiscal = () => {
       throw new Error(`Item ${idx + 1} sem vínculo de produto. Vincule todos os itens antes de salvar.`);
     }
     const fiscal = itemFiscalData[idx] || {};
+    // Tradução XML: se a NF veio de XML, gravar XML cru em *_origem (verdade fiscal)
+    // e o match_status. Os campos quantidade/valor_unitario/unidade já são os internos convertidos.
+    const traducao = traducaoLinhas.find((t) => t.index === idx);
     return {
       nota_fiscal_id: nfId,
       produto_id: i.produto_id,
@@ -454,6 +457,14 @@ const Fiscal = () => {
       cst_ipi: fiscal.cst_ipi ?? null,
       desconto: fiscal.desconto ?? null,
       codigo_produto: fiscal.codigo_produto ?? i.codigo ?? null,
+      // XML cru preservado quando há tradução associada.
+      codigo_produto_origem: traducao?.xmlCodigo ?? null,
+      descricao_produto_origem: traducao?.xmlDescricao ?? null,
+      unidade_origem: traducao?.xmlUnidade ?? null,
+      quantidade_origem: traducao?.xmlQuantidade ?? null,
+      valor_unitario_origem: traducao?.xmlValorUnitario ?? null,
+      valor_total_origem: traducao?.xmlValorTotal ?? null,
+      match_status: traducao ? (traducao.matchStatus || null) : null,
     };
   });
 
