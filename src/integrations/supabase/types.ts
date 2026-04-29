@@ -4029,6 +4029,7 @@ export type Database = {
           data_emissao: string | null
           data_saida: string | null
           data_saida_entrada: string | null
+          data_vencimento: string | null
           desconto_valor: number | null
           empresa_id: string
           enviado_email: boolean | null
@@ -4046,6 +4047,7 @@ export type Database = {
           indicador_presenca: string | null
           intermediador_cnpj: string | null
           intermediador_identificador: string | null
+          intervalo_parcelas_dias: number
           ipi_valor: number | null
           marca_volumes: string | null
           modelo_documento: string | null
@@ -4056,10 +4058,12 @@ export type Database = {
           nf_referenciada_id: string | null
           numeracao_volumes: string | null
           numero: string | null
+          numero_parcelas: number
           observacoes: string | null
           ordem_venda_id: string | null
           origem: string | null
           outras_despesas: number | null
+          parcelas: Json | null
           pdf_gerado: boolean | null
           pedido_compra_id: string | null
           peso_bruto: number | null
@@ -4099,6 +4103,7 @@ export type Database = {
           data_emissao?: string | null
           data_saida?: string | null
           data_saida_entrada?: string | null
+          data_vencimento?: string | null
           desconto_valor?: number | null
           empresa_id?: string
           enviado_email?: boolean | null
@@ -4116,6 +4121,7 @@ export type Database = {
           indicador_presenca?: string | null
           intermediador_cnpj?: string | null
           intermediador_identificador?: string | null
+          intervalo_parcelas_dias?: number
           ipi_valor?: number | null
           marca_volumes?: string | null
           modelo_documento?: string | null
@@ -4126,10 +4132,12 @@ export type Database = {
           nf_referenciada_id?: string | null
           numeracao_volumes?: string | null
           numero?: string | null
+          numero_parcelas?: number
           observacoes?: string | null
           ordem_venda_id?: string | null
           origem?: string | null
           outras_despesas?: number | null
+          parcelas?: Json | null
           pdf_gerado?: boolean | null
           pedido_compra_id?: string | null
           peso_bruto?: number | null
@@ -4169,6 +4177,7 @@ export type Database = {
           data_emissao?: string | null
           data_saida?: string | null
           data_saida_entrada?: string | null
+          data_vencimento?: string | null
           desconto_valor?: number | null
           empresa_id?: string
           enviado_email?: boolean | null
@@ -4186,6 +4195,7 @@ export type Database = {
           indicador_presenca?: string | null
           intermediador_cnpj?: string | null
           intermediador_identificador?: string | null
+          intervalo_parcelas_dias?: number
           ipi_valor?: number | null
           marca_volumes?: string | null
           modelo_documento?: string | null
@@ -4196,10 +4206,12 @@ export type Database = {
           nf_referenciada_id?: string | null
           numeracao_volumes?: string | null
           numero?: string | null
+          numero_parcelas?: number
           observacoes?: string | null
           ordem_venda_id?: string | null
           origem?: string | null
           outras_despesas?: number | null
+          parcelas?: Json | null
           pdf_gerado?: boolean | null
           pedido_compra_id?: string | null
           peso_bruto?: number | null
@@ -8566,6 +8578,7 @@ export type Database = {
         Args: { p_compra_id: string; p_motivo?: string }
         Returns: Json
       }
+      existe_secret_vault: { Args: { p_name: string }; Returns: boolean }
       expedir_remessa: {
         Args: { p_data_expedicao?: string; p_remessa_id: string }
         Returns: undefined
@@ -8784,6 +8797,7 @@ export type Database = {
         Args: { p_lote_id: string }
         Returns: Json
       }
+      remover_secret_vault: { Args: { p_name: string }; Returns: boolean }
       replace_cotacao_compra_itens: {
         Args: { p_cotacao_id: string; p_itens: Json }
         Returns: undefined
@@ -8798,6 +8812,10 @@ export type Database = {
       }
       salvar_orcamento: {
         Args: { p_id: string; p_itens: Json; p_payload: Json }
+        Returns: string
+      }
+      salvar_secret_vault: {
+        Args: { p_name: string; p_secret: string }
         Returns: string
       }
       save_produto_composicao: {
