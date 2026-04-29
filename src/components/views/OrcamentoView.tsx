@@ -241,6 +241,32 @@ export function OrcamentoView({ id }: Props) {
 
   return (
     <div className="space-y-4">
+      {/* Timeline do fluxo Orçamento → Pedido → NF */}
+      <ComercialFlowTimeline
+        steps={[
+          {
+            key: "orcamento",
+            label: `Orçamento ${selected.numero}`,
+            done: true,
+            current: !linkedOV,
+            hint: "Etapa atual",
+          },
+          {
+            key: "pedido",
+            label: linkedOV ? `Pedido ${linkedOV.numero}` : "Pedido de Venda",
+            done: !!linkedOV,
+            hint: linkedOV ? "Abrir pedido vinculado" : "Use 'Converter em Pedido' para avançar",
+            onClick: linkedOV ? () => pushView("ordem_venda", linkedOV.id) : undefined,
+          },
+          {
+            key: "nf",
+            label: "Nota Fiscal",
+            done: false,
+            hint: "Emitida a partir do Pedido (módulo Faturamento)",
+          },
+        ]}
+      />
+
       {/* KPI strip */}
       <DrawerSummaryGrid cols={4}>
         <DrawerSummaryCard label="Itens" value={String(kpiItens)} align="center" />
