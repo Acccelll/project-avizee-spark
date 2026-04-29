@@ -49,6 +49,7 @@ import {
   type UserWithRoles,
 } from './_shared';
 import { PermissionMatrix } from './PermissionMatrix';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface UserFormModalProps {
   open: boolean;
@@ -86,8 +87,15 @@ export function UserFormModal({
   } | null>(null);
 
   const inheritedPermissions = useMemo(
-    () => getRolePermissions(form.role_padrao),
-    [form.role_padrao],
+    () => {
+      // União das permissões herdadas: padrão + secundários.
+      const set = new Set<string>(getRolePermissions(form.role_padrao));
+      form.roles_secundarios.forEach((r) =>
+        getRolePermissions(r).forEach((p) => set.add(p)),
+      );
+      return Array.from(set) as ReturnType<typeof getRolePermissions>;
+    },
+    [form.role_padrao, form.roles_secundarios],
   );
 
   useEffect(() => {
@@ -102,6 +110,7 @@ export function UserFormModal({
         cargo: user.cargo ?? '',
         ativo: user.ativo,
         role_padrao: user.role_padrao,
+        roles_secundarios: [...(user.roles_secundarios ?? [])],
         extra_permissions: [...user.extra_permissions],
         denied_permissions: [...(user.denied_permissions ?? [])],
       });
@@ -111,11 +120,29 @@ export function UserFormModal({
   }, [open, user]);
 
   const handleRoleChange = (newRole: AppRole) => {
+    // Se o novo padrão estava como secundário, remove dos secundários
+    // (mesma role não pode ocupar os dois papéis simultaneamente).
+    setForm((f) => ({
+      ...f,
+      roles_secundarios: f.roles_secundarios.filter((r) => r !== newRole),
+    }));
     if (isEdit && user?.role_padrao !== newRole) {
       setConfirmRoleChange(newRole);
     } else {
       setForm((f) => ({ ...f, role_padrao: newRole }));
     }
+  };
+
+  const toggleSecondaryRole = (role: AppRole) => {
+    setForm((f) => {
+      const has = f.roles_secundarios.includes(role);
+      return {
+        ...f,
+        roles_secundarios: has
+          ? f.roles_secundarios.filter((r) => r !== role)
+          : [...f.roles_secundarios, role],
+      };
+    });
   };
 
   const handleConfirmRoleChange = () => {
@@ -172,6 +199,10 @@ export function UserFormModal({
         cargo: form.cargo.trim(),
         ativo: form.ativo,
         role_padrao: form.role_padrao,
+        // Roles secundários cumulativos. Edge function persiste em `user_roles`
+        // (mesma tabela do role padrão) e tudo é herdado de forma cumulativa
+        // pelo `buildPermissionSet` no AuthContext.
+        roles_secundarios: form.roles_secundarios,
         // Senha definida pelo admin (opcional). Quando presente, a edge
         // function pula o convite por e-mail e cria o usuário com esta senha.
         password: !isEdit && manualPassword ? manualPassword : undefined,
