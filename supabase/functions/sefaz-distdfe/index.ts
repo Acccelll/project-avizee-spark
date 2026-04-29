@@ -12,6 +12,7 @@
  *
  * Actions:
  *   - "consultar-nsu": consulta documentos a partir do último NSU recebido
+ *   - "consultar-chave": consulta um documento específico por chave de acesso (consChNFe)
  *
  * Endpoint SEFAZ (AN):
  *   - Produção:    https://www1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx
