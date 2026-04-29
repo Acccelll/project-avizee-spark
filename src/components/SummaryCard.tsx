@@ -102,10 +102,18 @@ export const SummaryCard = forwardRef<HTMLDivElement, SummaryCardProps>(
         aria-label={ariaLabel}
         onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } } : undefined}
       >
-        <div className="flex items-start justify-between">
+        <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <p className={cn(isCompact ? 'text-xs' : 'text-sm', 'text-muted-foreground font-medium tracking-wide truncate')}>{title}</p>
-            <p className={cn(isCompact ? 'text-xl' : 'text-2xl', 'font-bold mt-1 tracking-tight')}>{value}</p>
+            <p
+              className={cn(
+                isCompact ? 'text-xl' : 'text-2xl',
+                'font-bold mt-1 tracking-tight tabular-nums truncate',
+              )}
+              title={typeof value === 'string' || typeof value === 'number' ? String(value) : undefined}
+            >
+              {value}
+            </p>
             {subtitle && (
               <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>
             )}
@@ -118,7 +126,7 @@ export const SummaryCard = forwardRef<HTMLDivElement, SummaryCardProps>(
             )}
           </div>
           {Icon && (
-            <div className="flex flex-col items-end gap-1">
+            <div className="flex shrink-0 flex-col items-end gap-1">
               <div className={cn(isCompact ? 'p-2' : 'p-3', 'rounded-lg', styles.iconBg)}>
                 <Icon className={cn(isCompact ? 'w-4 h-4' : 'w-5 h-5', styles.iconColor)} />
               </div>
