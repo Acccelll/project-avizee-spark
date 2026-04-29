@@ -222,14 +222,18 @@ Deno.serve(async (req) => {
     await requireAuth(req);
     const body = await req.json().catch(() => ({}));
     const action: string = body.action ?? "consultar-nsu";
-    log.info("request", { action, ambiente: body.ambiente, ultNSU: body.ultNSU });
+    log.info("request", { action, ambiente: body.ambiente, ultNSU: body.ultNSU, chNFe: body.chNFe });
 
-    if (action !== "consultar-nsu") {
-      return json({ error: `action '${action}' inválida. Use 'consultar-nsu'.` }, 400);
+    if (action !== "consultar-nsu" && action !== "consultar-chave") {
+      return json({ error: `action '${action}' inválida. Use 'consultar-nsu' ou 'consultar-chave'.` }, 400);
     }
 
     const ambiente: "1" | "2" = body.ambiente === "1" ? "1" : "2";
     const ultNSUInput: string = String(body.ultNSU ?? "0").replace(/\D/g, "");
+    const chNFeInput: string = String(body.chNFe ?? "").replace(/\D/g, "");
+    if (action === "consultar-chave" && chNFeInput.length !== 44) {
+      return json({ sucesso: false, erro: "Chave de acesso (chNFe) inválida — exige 44 dígitos." }, 400);
+    }
 
     // Senha do certificado
     const senha = Deno.env.get("CERTIFICADO_PFX_SENHA");
@@ -292,7 +296,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    const distDFeInt = montarDistDFeInt({ ambiente, cnpj, ultNSU: ultNSUInput });
+    const distDFeInt = action === "consultar-chave"
+      ? montarDistDFeInt({ ambiente, cnpj, chNFe: chNFeInput })
+      : montarDistDFeInt({ ambiente, cnpj, ultNSU: ultNSUInput });
     const envelope = envelopeSoap(distDFeInt);
     const url = endpointAN(ambiente);
 
