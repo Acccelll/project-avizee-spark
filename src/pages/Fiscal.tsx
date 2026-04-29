@@ -494,6 +494,80 @@ const Fiscal = () => {
     setSaving(false);
   };
 
+  /** Aplica o resultado da tradução ao form/items e abre o modal da NF. */
+  const aplicarImportacaoXml = (
+    nfe: import("@/lib/nfeXmlParser").NFeData,
+    fornecedorId: string,
+    fornecedorNome: string,
+    linhas: TraducaoLinha[],
+    fiscalMap: Record<number, NfItemFiscalData>,
+  ) => {
+    const newItems: GridItem[] = linhas.map((t) => {
+      const qtdInterna = t.fatorConversao > 0 ? t.xmlQuantidade * t.fatorConversao : t.xmlQuantidade;
+      const vUnInterno = qtdInterna > 0 ? t.xmlValorTotal / qtdInterna : t.xmlValorUnitario;
+      const matched = produtosCrud.data.find((p) => p.id === t.produtoId);
+      return {
+        produto_id: t.produtoId,
+        codigo: t.xmlCodigo,
+        descricao: matched?.nome || t.xmlDescricao,
+        quantidade: qtdInterna,
+        valor_unitario: vUnInterno,
+        valor_total: t.xmlValorTotal,
+      };
+    });
+    setForm({
+      ...emptyForm,
+      tipo: "entrada",
+      numero: nfe.numero,
+      serie: nfe.serie,
+      chave_acesso: nfe.chaveAcesso,
+      data_emissao: nfe.dataEmissao || new Date().toISOString().split("T")[0],
+      fornecedor_id: fornecedorId,
+      frete_valor: nfe.valorFrete,
+      icms_valor: nfe.icmsTotal,
+      ipi_valor: nfe.ipiTotal,
+      pis_valor: nfe.pisTotal,
+      cofins_valor: nfe.cofinsTotal,
+      icms_st_valor: nfe.icmsStTotal,
+      desconto_valor: nfe.valorDesconto,
+      outras_despesas: nfe.valorOutrasDespesas,
+      valor_total: nfe.valorTotal,
+      origem: "importacao_xml",
+    });
+    setItems(newItems);
+    setMode("create");
+    setSelected(null);
+    setItemContaContabil({});
+    setItemFiscalData(fiscalMap);
+    setTraducaoLinhas(linhas);
+    setXmlOriginInfo({ fornecedorId, fornecedorNome });
+    setModalOpen(true);
+  };
+
+  /** Persiste o de-para (produtos_fornecedores) para as linhas marcadas como "salvar tradução". */
+  const salvarDeParaFornecedor = async (fornecedorId: string, linhas: TraducaoLinha[]) => {
+    const aSalvar = linhas.filter((l) => l.salvarDePara && l.produtoId && l.xmlCodigo);
+    if (aSalvar.length === 0 || !fornecedorId) return;
+    try {
+      const rows = aSalvar.map((l) => ({
+        produto_id: l.produtoId,
+        fornecedor_id: fornecedorId,
+        referencia_fornecedor: l.xmlCodigo,
+        descricao_fornecedor: l.xmlDescricao,
+        unidade_fornecedor: l.xmlUnidade,
+        fator_conversao: l.fatorConversao,
+      }));
+      // Upsert por (produto_id, fornecedor_id) — chave natural do de-para.
+      const { error } = await supabase
+        .from("produtos_fornecedores")
+        .upsert(rows, { onConflict: "produto_id,fornecedor_id" });
+      if (error) throw error;
+    } catch (err) {
+      logger.error("[fiscal] salvar de-para fornecedor:", err);
+      toast.warning("NF importada, mas não foi possível salvar a tradução para o fornecedor.");
+    }
+  };
+
   const handleXmlImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -503,42 +577,65 @@ const Fiscal = () => {
         if (xmlInputRef.current) xmlInputRef.current.value = "";
         return;
       }
-      const { nfe, fornecedorId, items: mappedItems, fiscalMap, unmatchedItemsCount } = result;
-      setForm({
-        ...emptyForm,
-        tipo: "entrada",
-        numero: nfe.numero,
-        serie: nfe.serie,
-        chave_acesso: nfe.chaveAcesso,
-        data_emissao: nfe.dataEmissao || new Date().toISOString().split("T")[0],
-        fornecedor_id: fornecedorId,
-        frete_valor: nfe.valorFrete,
-        icms_valor: nfe.icmsTotal,
-        ipi_valor: nfe.ipiTotal,
-        pis_valor: nfe.pisTotal,
-        cofins_valor: nfe.cofinsTotal,
-        icms_st_valor: nfe.icmsStTotal,
-        desconto_valor: nfe.valorDesconto,
-        outras_despesas: nfe.valorOutrasDespesas,
-        valor_total: nfe.valorTotal,
-        origem: "importacao_xml",
-      });
-      setItems(mappedItems);
-      setMode("create");
-      setSelected(null);
-      setItemContaContabil({});
-      setItemFiscalData(fiscalMap as Record<number, NfItemFiscalData>);
-      setModalOpen(true);
-      if (unmatchedItemsCount > 0) {
-        toast.warning(`${unmatchedItemsCount} item(ns) não foram vinculados automaticamente. Vincule manualmente antes de salvar.`);
+      const { nfe, fornecedorId, fiscalMap, traducao, traducaoOk } = result;
+      const fornecedorNome = fornecedoresCrud.data.find((f) => f.id === fornecedorId)?.nome_razao_social || nfe.emitente.razaoSocial || "—";
+
+      if (traducaoOk) {
+        // 100% OK → vai direto pro form. Banner permite reabrir em modo somente-leitura.
+        aplicarImportacaoXml(nfe, fornecedorId, fornecedorNome, traducao, fiscalMap as Record<number, NfItemFiscalData>);
+        toast.success("XML importado. Tradução automática aplicada.");
       } else {
-        toast.success("XML importado com sucesso! Todos os itens foram vinculados.");
+        // Pendência → drawer obrigatório, segura abertura do form.
+        setPendingXmlImport({ nfe, fornecedorId, fornecedorNome, fiscalMap: fiscalMap as Record<number, NfItemFiscalData> });
+        setTraducaoLinhas(traducao);
+        setTraducaoReadOnly(false);
+        setTraducaoOpen(true);
       }
     } catch (err: unknown) {
       logger.error("[fiscal] XML import:", err);
       toast.error(`Erro ao importar XML: ${err instanceof Error ? err.message : String(err)}`);
     }
     if (xmlInputRef.current) xmlInputRef.current.value = "";
+  };
+
+  const handleTraducaoConfirm = async (linhas: TraducaoLinha[]) => {
+    if (pendingXmlImport) {
+      // Fluxo "tinha pendência": agora aplica e abre o form.
+      const { nfe, fornecedorId, fornecedorNome, fiscalMap } = pendingXmlImport;
+      await salvarDeParaFornecedor(fornecedorId, linhas);
+      aplicarImportacaoXml(nfe, fornecedorId, fornecedorNome, linhas, fiscalMap);
+      setPendingXmlImport(null);
+      setTraducaoOpen(false);
+      toast.success("Tradução confirmada. Revise a NF e salve.");
+    } else if (xmlOriginInfo) {
+      // Reabertura via banner em modo edição (caso usuário queira ajustar): atualiza items e salva de-para.
+      await salvarDeParaFornecedor(xmlOriginInfo.fornecedorId, linhas);
+      const newItems: GridItem[] = linhas.map((t) => {
+        const qtdInterna = t.fatorConversao > 0 ? t.xmlQuantidade * t.fatorConversao : t.xmlQuantidade;
+        const vUnInterno = qtdInterna > 0 ? t.xmlValorTotal / qtdInterna : t.xmlValorUnitario;
+        const matched = produtosCrud.data.find((p) => p.id === t.produtoId);
+        return {
+          produto_id: t.produtoId,
+          codigo: t.xmlCodigo,
+          descricao: matched?.nome || t.xmlDescricao,
+          quantidade: qtdInterna,
+          valor_unitario: vUnInterno,
+          valor_total: t.xmlValorTotal,
+        };
+      });
+      setItems(newItems);
+      setTraducaoLinhas(linhas);
+      setTraducaoOpen(false);
+      toast.success("Tradução atualizada.");
+    }
+  };
+
+  const handleTraducaoCancel = () => {
+    setTraducaoOpen(false);
+    if (pendingXmlImport) {
+      setPendingXmlImport(null);
+      toast.info("Importação de XML cancelada.");
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
