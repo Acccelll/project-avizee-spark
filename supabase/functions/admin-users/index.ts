@@ -49,7 +49,22 @@ function buildCorsHeaders(origin: string | null): Record<string, string> {
 
 const INACTIVE_BAN_DURATION = "876000h";
 
-type AppRole = "admin" | "vendedor" | "financeiro" | "estoquista";
+type AppRole =
+  | "admin"
+  | "vendedor"
+  | "financeiro"
+  | "estoquista"
+  | "gestor_compras"
+  | "operador_logistico";
+
+const VALID_ROLES: ReadonlySet<AppRole> = new Set([
+  "admin",
+  "vendedor",
+  "financeiro",
+  "estoquista",
+  "gestor_compras",
+  "operador_logistico",
+]);
 
 class HttpError extends Error {
   status: number;
@@ -67,8 +82,22 @@ function json(data: unknown, status = 200, corsHeaders: Record<string, string> =
 }
 
 function normalizeRole(role: string | undefined): AppRole {
-  if (role === "admin" || role === "financeiro" || role === "estoquista" || role === "vendedor") return role;
+  if (typeof role === "string" && VALID_ROLES.has(role as AppRole)) return role as AppRole;
   return "vendedor";
+}
+
+/** Normaliza lista de roles secundários: dedupe, valida, exclui o padrão e o "admin" (admin nunca é secundário — é o role principal). */
+function normalizeSecondaryRoles(value: unknown, padrao: AppRole): AppRole[] {
+  if (!Array.isArray(value)) return [];
+  const set = new Set<AppRole>();
+  for (const r of value) {
+    if (typeof r !== "string") continue;
+    if (!VALID_ROLES.has(r as AppRole)) continue;
+    if (r === padrao) continue; // já é o padrão
+    if (r === "admin") continue; // admin só como role padrão
+    set.add(r as AppRole);
+  }
+  return Array.from(set);
 }
 
 function normalizePermissions(permissionKeys: unknown) {
