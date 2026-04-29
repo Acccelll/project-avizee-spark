@@ -161,6 +161,35 @@ async function replaceUserRole(serviceClient: any, userId: string, role: AppRole
   if (insertError) throw insertError;
 }
 
+/**
+ * Substitui o conjunto completo de roles do usuário pela união
+ * `[padrao, ...secundarios]`. Mantém-se o padrão de delete+insert para
+ * preservar a auditoria via trigger trg_audit_user_roles.
+ * O "padrão" não é distinguido na tabela `user_roles`; a UI infere o padrão
+ * pelo primeiro inserido (ordem preservada).
+ */
+async function replaceUserRoles(
+  serviceClient: any,
+  userId: string,
+  padrao: AppRole,
+  secundarios: AppRole[],
+) {
+  const { error: deleteError } = await serviceClient
+    .from("user_roles")
+    .delete()
+    .eq("user_id", userId);
+  if (deleteError) throw deleteError;
+
+  // Dedupe defensivo, mantém ordem (padrao primeiro).
+  const roles = [padrao, ...secundarios.filter((r) => r !== padrao)];
+  const rows = roles.map((role) => ({ user_id: userId, role }));
+
+  const { error: insertError } = await serviceClient
+    .from("user_roles")
+    .insert(rows);
+  if (insertError) throw insertError;
+}
+
 async function replaceUserPermissions(serviceClient: any, userId: string, permissionKeys: unknown) {
   // Estratégia não-destrutiva (preserva granted_by/granted_at/motivo originais):
   //   INSERT  → permissões novas que não existiam.
