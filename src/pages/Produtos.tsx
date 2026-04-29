@@ -78,6 +78,9 @@ interface FornecedorLink {
   unidade_fornecedor: string;
   lead_time_dias: number;
   preco_compra: number;
+  /** Quantas unidades internas (produto.unidade_medida) cabem em 1 unidade do fornecedor.
+   *  qtd_interna = qtd_xml × fator. Default 1 quando unidades coincidem. */
+  fator_conversao: number;
 }
 
 interface UnidadeMedidaOption {
@@ -245,6 +248,7 @@ const Produtos = () => {
       id: f.id, fornecedor_id: f.fornecedor_id, eh_principal: f.eh_principal || false,
       descricao_fornecedor: f.descricao_fornecedor || "", referencia_fornecedor: f.referencia_fornecedor || "",
       unidade_fornecedor: f.unidade_fornecedor || "", lead_time_dias: f.lead_time_dias || 0, preco_compra: f.preco_compra || 0,
+      fator_conversao: (f as { fator_conversao?: number }).fator_conversao ?? 1,
     })));
     setMargemOverride(null); // deriva automaticamente do registro carregado
     setModalOpen(true);
@@ -276,7 +280,7 @@ const Produtos = () => {
   };
 
   const addFornecedor = () => {
-    setEditFornecedores([...editFornecedores, { fornecedor_id: "", eh_principal: editFornecedores.length === 0, descricao_fornecedor: "", referencia_fornecedor: "", unidade_fornecedor: "", lead_time_dias: 0, preco_compra: 0 }]);
+    setEditFornecedores([...editFornecedores, { fornecedor_id: "", eh_principal: editFornecedores.length === 0, descricao_fornecedor: "", referencia_fornecedor: "", unidade_fornecedor: "", lead_time_dias: 0, preco_compra: 0, fator_conversao: 1 }]);
   };
   const removeFornecedor = (idx: number) => setEditFornecedores(editFornecedores.filter((_, i) => i !== idx));
   const updateFornecedor = (idx: number, field: keyof FornecedorLink, value: FornecedorLink[keyof FornecedorLink]) => {
@@ -374,6 +378,7 @@ const Produtos = () => {
           unidade_fornecedor: f.unidade_fornecedor || "",
           lead_time_dias: f.lead_time_dias != null ? String(f.lead_time_dias) : "",
           preco_compra: f.preco_compra != null ? String(f.preco_compra) : "",
+          fator_conversao: f.fator_conversao != null ? String(f.fator_conversao) : "1",
         }));
       await saveProdutoFornecedores({
         produtoId,
